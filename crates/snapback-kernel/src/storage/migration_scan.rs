@@ -310,7 +310,7 @@ fn validate_migration_scan_request(
 /// against whatever connection the caller pins — the Wave-2 executor calls
 /// it inside its own batch transaction.
 #[cfg_attr(not(test), allow(dead_code))]
-pub fn migration_keyset_scan_batch_on(
+pub(crate) fn migration_keyset_scan_batch_on(
     conn: &Connection,
     schema: &SchemaManifest,
     request: &MigrationKeysetScanRequestV1,

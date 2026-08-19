@@ -268,7 +268,7 @@ fn apply_to_snapshot(
 /// Handler-time refusal gives app code an immediate typed error. Every fact
 /// is re-read by `apply_in_tx` under the final write lock, so this preview is
 /// never treated as commit authority.
-pub fn preview(
+pub(crate) fn preview(
     conn: &Connection,
     caller: &str,
     staged: &[BufferedAssetGrantOp],

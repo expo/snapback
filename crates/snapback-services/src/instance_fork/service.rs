@@ -10,7 +10,7 @@
 
 use super::contract::*;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
@@ -184,23 +184,10 @@ fn configure_fork_connection_wal_lifetime(conn: &Connection) -> SnapbackResult<(
     Ok(())
 }
 
-fn open_fork_connection(path: &Path) -> SnapbackResult<Connection> {
-    let conn = Connection::open(path)?;
+fn open_fork_read_connection(path: &Path) -> SnapbackResult<Connection> {
+    let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     configure_fork_connection_wal_lifetime(&conn)?;
     Ok(conn)
-}
-
-fn open_fork_connection_with_flags(path: &Path, flags: OpenFlags) -> SnapbackResult<Connection> {
-    let conn = Connection::open_with_flags(path, flags)?;
-    configure_fork_connection_wal_lifetime(&conn)?;
-    Ok(conn)
-}
-
-fn checkpoint_when_fork_owns_wal(conn: &Connection) -> SnapbackResult<()> {
-    if !crate::replication::configured_from_env() {
-        conn.execute_batch("PRAGMA wal_checkpoint(FULL);")?;
-    }
-    Ok(())
 }
 
 fn canonical_app_root_string(app_root: &Path) -> SnapbackResult<(PathBuf, String)> {
@@ -346,52 +333,6 @@ fn wall_clock_now_ms() -> u64 {
 /// defined by LLP 0185 Phase 3. No limit is invented or enforced here.
 pub fn resource_limit_refusal(resource: &str, message: impl Into<String>) -> SnapbackError {
     fork_error(RESOURCE_LIMIT_REFUSED_CODE, message).with_details(json!({ "resource": resource }))
-}
-
-fn custody_map() -> BTreeMap<&'static str, CustodyDisposition> {
-    TABLE_CUSTODY
-        .iter()
-        .map(|rule| (rule.name, rule.disposition))
-        .collect()
-}
-
-pub fn audit_connection(conn: &Connection) -> SnapbackResult<Vec<(String, CustodyDisposition)>> {
-    let manifest = custody_map();
-    let mut statement = conn.prepare(
-        "SELECT name FROM sqlite_schema
-         WHERE type = 'table'
-           AND (name GLOB '_snapback_*' OR name GLOB '_auth_*')
-         ORDER BY name",
-    )?;
-    let names = statement
-        .query_map([], |row| row.get::<_, String>(0))?
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut classified = Vec::with_capacity(names.len());
-    for name in names {
-        let Some(disposition) = manifest.get(name.as_str()).copied() else {
-            return Err(fork_error(
-                "SNAPBACK_FORK_CUSTODY_UNCLASSIFIED",
-                "a Snapback-owned table has no declared fork custody",
-            )
-            .with_details(json!({ "table": name })));
-        };
-        if disposition == CustodyDisposition::Refuse {
-            let sql = format!(
-                "SELECT EXISTS(SELECT 1 FROM \"{}\" LIMIT 1)",
-                name.replace('"', "\"\"")
-            );
-            let occupied: bool = conn.query_row(&sql, [], |row| row.get(0))?;
-            if occupied {
-                return Err(fork_error(
-                    "SNAPBACK_FORK_CUSTODY_REFUSED",
-                    "source state belongs to a fork-incompatible subsystem",
-                )
-                .with_details(json!({ "table": name })));
-            }
-        }
-        classified.push((name, disposition));
-    }
-    Ok(classified)
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -818,24 +759,6 @@ fn table_exists(conn: &Connection, name: &str) -> SnapbackResult<bool> {
         .is_some())
 }
 
-fn delete_table(tx: &Transaction<'_>, name: &str) -> SnapbackResult<()> {
-    let sql = format!("DELETE FROM \"{}\"", name.replace('"', "\"\""));
-    tx.execute(&sql, [])?;
-    Ok(())
-}
-
-fn rotate_protected_erasure_generation(tx: &Transaction<'_>) -> SnapbackResult<()> {
-    const TABLE: &str = "_snapback_protected_erasure_generation_v1";
-    if table_exists(tx, TABLE)? {
-        delete_table(tx, TABLE)?;
-        tx.execute(
-            "INSERT INTO _snapback_protected_erasure_generation_v1(id,generation) VALUES(1,0)",
-            [],
-        )?;
-    }
-    Ok(())
-}
-
 /// Publish one durable JSON carrier without exposing a truncated final path.
 ///
 /// @ref LLP 0158#design-sketch — fork identity and evidence are authority at
@@ -994,15 +917,6 @@ fn sync_file(path: &Path, context: &'static str) -> SnapbackResult<()> {
         .map_err(|error| io_error(context, error))
 }
 
-fn sync_sqlite_set(
-    database_path: &Path,
-    conn: &Connection,
-    cut_at: Option<PublicationCut>,
-) -> SnapbackResult<()> {
-    checkpoint_when_fork_owns_wal(conn)?;
-    sync_sqlite_files(database_path, cut_at)
-}
-
 fn sync_sqlite_files(database_path: &Path, cut_at: Option<PublicationCut>) -> SnapbackResult<()> {
     for (path, cut) in [
         (
@@ -1032,31 +946,8 @@ fn sync_sqlite_files(database_path: &Path, cut_at: Option<PublicationCut>) -> Sn
     sync_directory(database_path.parent().unwrap_or_else(|| Path::new(".")))
 }
 
-/// Scrub copied authority and mint all replacement identity inside the clone.
-/// The caller must point this at a private staging directory.
-///
-/// @ref LLP 0158#design-sketch — parent credentials are deleted (hash lookup
-/// makes rotation insufficient), while both stream identities and signing
-/// authority rotate before the lineage stamp becomes permanent.
-pub fn scrub_and_mint(
-    database_path: &Path,
-    app_id: &str,
-    parent_instance_id: &str,
-    now_ms: u64,
-) -> SnapbackResult<ForkMintReceiptV1> {
-    scrub_and_mint_with_cut(
-        database_path,
-        app_id,
-        parent_instance_id,
-        now_ms,
-        None,
-        false,
-        None,
-    )
-}
-
 fn scrub_and_mint_with_cut(
-    database_path: &Path,
+    staged: &snapback_kernel::instance_fork::StagedForkDatabase,
     app_id: &str,
     parent_instance_id: &str,
     now_ms: u64,
@@ -1064,49 +955,7 @@ fn scrub_and_mint_with_cut(
     with_secrets: bool,
     expires_at_ms: Option<u64>,
 ) -> SnapbackResult<ForkMintReceiptV1> {
-    let mut conn = open_fork_connection(database_path)?;
-    let classified = audit_connection(&conn)?;
-    let fork_point_version = conn.query_row(
-        "SELECT version FROM _snapback_version WHERE id=1",
-        [],
-        |row| row.get::<_, u64>(0),
-    )?;
-    if conn
-        .query_row(
-            "SELECT value FROM _snapback_meta WHERE key=?1",
-            [LINEAGE_META_KEY],
-            |row| row.get::<_, String>(0),
-        )
-        .optional()?
-        .is_some()
-    {
-        return Err(fork_error(
-            "SNAPBACK_FORK_NESTED_REFUSED",
-            "v1 does not fork an already-derived deployment",
-        ));
-    }
-
-    let fork_id = Uuid::now_v7().to_string();
-    let lineage = DerivedForkLineageV1 {
-        format_version: 1,
-        fork_id,
-        parent_instance_id: parent_instance_id.to_owned(),
-        app_id: app_id.to_owned(),
-        created_at_ms: now_ms,
-        fork_point_version,
-        expires_at_ms,
-        promotable: false,
-    };
-    let database_file = database_path
-        .file_name()
-        .and_then(|value| value.to_str())
-        .ok_or_else(|| {
-            fork_error(
-                "SNAPBACK_FORK_PATH_INVALID",
-                "fork database needs a UTF-8 file name",
-            )
-        })?
-        .to_owned();
+    let database_path = staged.database_path();
 
     let admin_path = snapback_auth::auth::admin_token::admin_token_sibling(database_path);
     let auth_keyring_path = crate::auth::keyring::AuthKeyringStore::keyring_path(database_path);
@@ -1143,118 +992,22 @@ fn scrub_and_mint_with_cut(
     crate::operation_detail::mint_new_sidecar(database_path)?;
     sync_file(&operation_detail_path, "sync fork operation detail keyring")?;
 
-    let mut custody = classified.into_iter().collect::<BTreeMap<_, _>>();
-    custody.extend(
-        SIDECAR_CUSTODY
-            .iter()
-            .map(|rule| (format!("sidecar:{}", rule.name), rule.disposition)),
-    );
-    if with_secrets {
-        custody.insert("sidecar:*.config.json".to_owned(), CustodyDisposition::Copy);
-    }
-    let tx = conn.transaction()?;
-    let quarantine = serde_json::to_string(&lineage)
-        .map_err(|error| fork_error("SNAPBACK_FORK_LINEAGE_INVALID", error.to_string()))?;
-    tx.execute(
-        "INSERT INTO _snapback_meta(key,value) VALUES(?1,?2)",
-        params![QUARANTINE_META_KEY, quarantine],
+    let receipt = snapback_kernel::instance_fork::scrub_and_mint_staged_database(
+        staged,
+        app_id,
+        parent_instance_id,
+        now_ms,
+        with_secrets,
+        expires_at_ms,
     )?;
-    for rule in TABLE_CUSTODY {
-        if rule.disposition == CustodyDisposition::Scrub && table_exists(&tx, rule.name)? {
-            delete_table(&tx, rule.name)?;
-        }
-    }
-    // @ref LLP 0165#open-items — a fork cannot inherit the parent's active
-    // protected-erasure fence generation, but the required singleton remains
-    // present as fresh child authority.
-    rotate_protected_erasure_generation(&tx)?;
-    // History post-images remain useful copied application evidence, but an
-    // inherited operation id would falsely name parent-stream provenance after
-    // its operation ledger, envelope, and suppression records were scrubbed.
-    // NULL is the existing honest "no owning operation identity" projection.
-    if table_exists(&tx, "_snapback_record_history_v1")? {
-        tx.execute(
-            "UPDATE _snapback_record_history_v1 SET operation_id=NULL WHERE operation_id IS NOT NULL",
-            [],
-        )?;
-    }
-    let authorization = crate::storage::auth_stream::rotate_authorization_version_in(&tx)?;
-    crate::storage::auth_invalidation::clear_retry_episodes_in(&tx)?;
-    let data_version_stream =
-        crate::storage::auth_invalidation::rotate_data_version_stream_in(&tx)?;
-    if table_exists(&tx, "_snapback_asset_signing_keys_v1")? {
-        crate::assets::rotate_signing_key(&tx, now_ms)?;
-    }
-    tx.execute(
-        "CREATE TABLE IF NOT EXISTS _snapback_fork_egress_attempts_v1 (
-           family TEXT PRIMARY KEY,
-           attempts INTEGER NOT NULL CHECK(attempts >= 1),
-           first_attempt_at_ms INTEGER NOT NULL,
-           last_attempt_at_ms INTEGER NOT NULL
-         )",
-        [],
-    )?;
-    let lineage_json = serde_json::to_string(&lineage)
-        .map_err(|error| fork_error("SNAPBACK_FORK_LINEAGE_INVALID", error.to_string()))?;
-    // Quarantine disappears only in the same transaction that publishes the
-    // permanent, explicitly non-promotable lineage.
-    tx.execute(
-        "DELETE FROM _snapback_meta WHERE key=?1",
-        [QUARANTINE_META_KEY],
-    )?;
-    tx.execute(
-        "INSERT INTO _snapback_meta(key,value) VALUES(?1,?2)",
-        params![LINEAGE_META_KEY, lineage_json],
-    )?;
-    tx.commit()?;
     maybe_cut(cut_at, PublicationCut::AfterDatabaseMint)?;
-
-    let receipt = ForkMintReceiptV1 {
-        format_version: 1,
-        lineage,
-        database_file,
-        authorization_stream_incarnation: authorization.incarnation,
-        data_version_stream,
-        custody,
-    };
     let receipt_path = database_path.with_file_name(MINT_RECEIPT_FILE);
     write_json_sync(&receipt_path, &receipt)?;
     maybe_cut(cut_at, PublicationCut::AfterMintReceipt)?;
-    sync_sqlite_set(database_path, &conn, cut_at)?;
+    sync_sqlite_files(database_path, cut_at)?;
     maybe_cut(cut_at, PublicationCut::AfterSqliteSync)?;
     sync_directory(database_path.parent().unwrap_or_else(|| Path::new(".")))?;
     Ok(receipt)
-}
-
-/// Remove every copied bearer, grant, retry, operation-identity, and other
-/// closed `Scrub` table from an in-app branch head without minting a second
-/// deployment identity or any replacement credential. The immutable base is
-/// left byte-exact for diff proof; only the writable head is executable.
-///
-/// @ref LLP 0162#acceptance — canonical credentials are not branch authority;
-///   branch execution is admitted only through its stored scoped grant.
-pub(crate) fn scrub_copied_authority_for_in_app_branch(
-    conn: &mut Connection,
-) -> SnapbackResult<()> {
-    let tx = conn.transaction()?;
-    for rule in TABLE_CUSTODY {
-        if rule.disposition == CustodyDisposition::Scrub && table_exists(&tx, rule.name)? {
-            delete_table(&tx, rule.name)?;
-        }
-    }
-    rotate_protected_erasure_generation(&tx)?;
-    if table_exists(&tx, "_snapback_record_history_v1")? {
-        tx.execute(
-            "UPDATE _snapback_record_history_v1 SET operation_id=NULL
-              WHERE operation_id IS NOT NULL",
-            [],
-        )?;
-    }
-    crate::storage::auth_stream::rotate_authorization_version_in(&tx)?;
-    crate::storage::auth_invalidation::clear_retry_episodes_in(&tx)?;
-    crate::storage::auth_invalidation::rotate_data_version_stream_in(&tx)?;
-    tx.commit()?;
-    Ok(())
 }
 
 /// Apply an optional dev-schema fixture before the fork becomes reachable,
@@ -1384,7 +1137,7 @@ fn inspect_evidence(database_path: &Path) -> SnapbackResult<Option<DerivedForkRu
     if !database_path.exists() {
         return Ok(None);
     }
-    let conn = open_fork_connection_with_flags(database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let conn = open_fork_read_connection(database_path)?;
     if !table_exists(&conn, "_snapback_meta")? {
         return Ok(None);
     }
@@ -2864,8 +2617,9 @@ fn diff_commit_boundaries(
             "fork mint receipt does not bind the diff base identity",
         ));
     }
-    let head_stream =
-        crate::seed_identity::strict_current_data_version_stream(conn)?.ok_or_else(|| {
+    let head_stream = snapback_kernel::instance_fork::ForkReadView::new(conn)?
+        .data_version_stream()?
+        .ok_or_else(|| {
             fork_error(
                 "SNAPBACK_FORK_EVIDENCE_MISMATCH",
                 "fork diff head has no active data-version stream",
@@ -2918,8 +2672,7 @@ pub fn diff_receipt_bounded(
             "diff requires a minted derived deployment",
         )
     })?;
-    let mut conn =
-        open_fork_connection_with_flags(database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let mut conn = open_fork_read_connection(database_path)?;
     // One read transaction pins the floor, head, and rows to the same SQLite
     // snapshot. A later writer can advance or prune without creating a
     // receipt whose header and body describe different moments.
@@ -2929,7 +2682,8 @@ pub fn diff_receipt_bounded(
         [],
         |row| row.get::<_, u64>(0),
     )?;
-    let retention_floor = crate::storage::change_journal_floor_on(&tx)?;
+    let retention_floor =
+        snapback_kernel::instance_fork::ForkReadView::new(&tx)?.change_journal_floor()?;
     if retention_floor > runtime.lineage.fork_point_version {
         return Err(fork_error(
             "SNAPBACK_FORK_DIFF_RETENTION_GAP",
@@ -3087,11 +2841,15 @@ fn verified_fork_app_row_coverage(
             "derived-fork writer coverage receipt does not bind the exact fork-point profile",
         ));
     }
-    let stream = crate::seed_identity::strict_current_data_version_stream(conn)?
+    let view = snapback_kernel::instance_fork::ForkReadView::new(conn)?;
+    let stream = view
+        .data_version_stream()?
         .ok_or_else(|| writer_coverage_invalid("fork has no active data-version stream"))?;
-    let manifest = crate::operation_ledger::active_coverage_manifest(conn, &stream)?
+    let manifest = view
+        .active_operation_coverage(&stream)?
         .ok_or_else(|| writer_coverage_invalid("fork coverage manifest is no longer active"))?;
-    let continuity = crate::operation_ledger::operation_coverage_continuity(conn, &stream)?
+    let continuity = view
+        .operation_coverage_continuity(&stream)?
         .ok_or_else(|| writer_coverage_gap("fork coverage continuity evidence is missing"))?;
     if receipt.data_version_stream != stream
         || receipt.manifest_version != manifest.manifest_version
@@ -3138,7 +2896,7 @@ pub fn verified_derived_fork_app_row_coverage(
     let runtime = inspect_published_evidence(database_path)?.ok_or_else(|| {
         writer_coverage_invalid("writer coverage verification requires a minted derived fork")
     })?;
-    let conn = open_fork_connection_with_flags(database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let conn = open_fork_read_connection(database_path)?;
     verified_fork_app_row_coverage(
         &conn,
         database_path.parent().unwrap_or_else(|| Path::new(".")),
@@ -3274,19 +3032,19 @@ fn net_diff_receipt_with_limits(
         ));
     }
 
-    let base = open_fork_connection_with_flags(&base_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-    let base_schema = crate::storage::active_schema_manifest_from_connection(&base)?;
-    let mut head =
-        open_fork_connection_with_flags(database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let base = open_fork_read_connection(&base_path)?;
+    let base_schema = snapback_kernel::instance_fork::ForkReadView::new(&base)?.active_schema()?;
+    let mut head = open_fork_read_connection(database_path)?;
     let tx = head.transaction()?;
     let wal_bytes = validate_sqlite_wal_integrity(database_path, limits.max_bytes)?;
-    let head_schema = crate::storage::active_schema_manifest_from_connection(&tx)?;
+    let head_schema = snapback_kernel::instance_fork::ForkReadView::new(&tx)?.active_schema()?;
     let observed_head_version = tx.query_row(
         "SELECT version FROM _snapback_version WHERE id=1",
         [],
         |row| row.get::<_, u64>(0),
     )?;
-    let retention_floor = crate::storage::change_journal_floor_on(&tx)?;
+    let retention_floor =
+        snapback_kernel::instance_fork::ForkReadView::new(&tx)?.change_journal_floor()?;
     let coverage_receipt = verified_fork_app_row_coverage(&tx, directory, &runtime)?;
     let journal_cross_check_available = retention_floor <= runtime.lineage.fork_point_version;
     let mut work = NetDiffWorkV1 {
@@ -3950,14 +3708,9 @@ fn publish_with_options(
                 )
             })?;
         let staging_database = staging.join(database_file);
-        let source = open_fork_connection(source_database)?;
-        audit_connection(&source)?;
-        let mut target = open_fork_connection(&staging_database)?;
-        {
-            let backup = rusqlite::backup::Backup::new(&source, &mut target)?;
-            backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
-        }
-        drop(target);
+        let mut staged =
+            snapback_kernel::instance_fork::StagedForkDatabase::prepare(&staging, database_file)?;
+        snapback_kernel::instance_fork::clone_database_into_staging(source_database, &mut staged)?;
         maybe_cut(cut_at, PublicationCut::AfterClone)?;
 
         if with_secrets {
@@ -3975,7 +3728,7 @@ fn publish_with_options(
         }
 
         let receipt = scrub_and_mint_with_cut(
-            &staging_database,
+            &staged,
             app_id,
             parent_instance_id,
             now_ms,
@@ -3993,7 +3746,7 @@ fn publish_with_options(
         copy_fork_private_assets(source_database, &staging, &staging_database)?;
         maybe_cut(cut_at, PublicationCut::AfterAssetCopy)?;
         if retain_base {
-            retain_base_snapshot(&staging, &staging_database, &receipt, now_ms)?;
+            retain_base_snapshot(&staging, &staged, &receipt, now_ms)?;
         }
         sync_directory(&staging)?;
         maybe_cut(cut_at, PublicationCut::AfterStagingDirectorySync)?;
@@ -4049,7 +3802,7 @@ fn copy_fork_private_assets(
     staging: &Path,
     staging_database: &Path,
 ) -> SnapbackResult<()> {
-    let conn = open_fork_connection(staging_database)?;
+    let conn = open_fork_read_connection(staging_database)?;
     if !table_exists(&conn, "_snapback_asset_blobs_v1")? {
         return Ok(());
     }
@@ -4149,19 +3902,12 @@ fn copy_fork_private_assets(
 /// covers it exactly like every other fork artifact.
 fn retain_base_snapshot(
     staging: &Path,
-    staging_database: &Path,
+    staged: &snapback_kernel::instance_fork::StagedForkDatabase,
     receipt: &ForkMintReceiptV1,
     now_ms: u64,
 ) -> SnapbackResult<()> {
-    let base_path = staging.join(BASE_SNAPSHOT_FILE);
-    let source = open_fork_connection(staging_database)?;
-    let mut target = open_fork_connection(&base_path)?;
-    {
-        let backup = rusqlite::backup::Backup::new(&source, &mut target)?;
-        backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
-    }
-    drop(target);
-    drop(source);
+    let base_path =
+        snapback_kernel::instance_fork::retain_staged_base_snapshot(staged, BASE_SNAPSHOT_FILE)?;
     sync_file(&base_path, "sync retained fork base")?;
     let base_receipt = ForkBaseReceiptV1 {
         schema_version: "snapback.fork-base.v1".to_owned(),

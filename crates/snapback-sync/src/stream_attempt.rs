@@ -31,7 +31,6 @@ pub const STREAM_ATTEMPT_MAX_BYTES: usize = 2 * 1024 * 1024;
 pub const STREAM_CHUNKS_PER_SECOND: usize = 20;
 const STREAM_LIVE_AUTH_RETENTION: std::time::Duration = std::time::Duration::from_secs(30);
 
-
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct StreamAttemptMetadata {
     pub function_id: Option<String>,

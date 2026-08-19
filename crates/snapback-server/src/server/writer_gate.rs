@@ -6,18 +6,12 @@
 //!   guard (§3.6), which is what makes the deferred asset-prepare
 //!   choreography implementable in one place.
 
-use super::{
-    SharedSnapback, authorization_reservation_stale, now_millis, with_locked_snapback_then,
-};
-use crate::auth::admission::AdmissionLease;
-use crate::auth::coordinator::AuthCoordinator;
+use super::{SharedSnapback, authorization_reservation_stale, with_locked_snapback_then};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::LocalSnapback;
-#[cfg(all(test, not(feature = "server-owner")))]
+#[cfg(test)]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
-use crate::storage::auth::AuthTransactionAttempt;
 use std::sync::Arc;
-use std::time::Instant;
 
 /// Run write-lane work against the instance without blocking a tokio worker.
 ///
@@ -112,10 +106,7 @@ enum AuthorizationWriteAttempt<T> {
 }
 
 enum AuthorizationWriteTurn<S, T, F> {
-    Complete {
-        output: std::thread::Result<T>,
-        unused: Option<Box<dyn crate::storage::AuthorizationCommitReservation>>,
-    },
+    Complete(std::thread::Result<T>),
     NeedsReservation {
         preflight: crate::storage::AuthorizationCommitPreflight,
         staged: S,
@@ -132,7 +123,7 @@ enum StagedAuthorizationWrite<S, T, F> {
         staged: S,
         generation: u64,
         snapshot: (u64, crate::storage::AuthorizationVersion),
-        reservation: Box<dyn crate::storage::AuthorizationCommitReservation>,
+        reservation: crate::storage::AuthorizationCommitReservation,
         work: F,
     },
 }
@@ -164,12 +155,12 @@ impl Drop for CancelAuthorizationReservationOnDrop {
 }
 
 /// Staging may evaluate a stored mutation plan or already-buffered handler
-/// effects to obtain exact changed rows. An authorization-neutral plan commits
-/// in that same turn; authorization-bearing plans retain the split handoff.
-/// Their durable data and authorization witnesses are rechecked after room
-/// quiescence; stale work is cancelled off-Local and returned as a typed
-/// conflict. The one-attempt bound deliberately prevents rerunning a handler
-/// whose buffered effects may already have been computed.
+/// effects to obtain exact changed rows. Every plan then leaves Local before
+/// the kernel carrier is minted, including the authorization-neutral sentinel.
+/// Durable data and authorization witnesses are rechecked after that handoff;
+/// stale work is cancelled off-Local and returned as a typed conflict. The
+/// one-attempt bound deliberately prevents rerunning a handler whose buffered
+/// effects may already have been computed.
 pub(crate) async fn with_snapback_staged_authorization_write<S, T, P, F>(
     state: &SharedSnapback,
     writer_gate: Option<Arc<crate::live_coalesce::LiveFanoutCoalescer>>,
@@ -195,26 +186,22 @@ where
             let _writer_turn_guard = stage_writer_turn_guard;
             let _sanction = crate::exec_guard::BlockingSanction::acquire();
             let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-            let mut result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let (preflight, staged) = stage(&mut guard)?;
                 if matches!(
                     preflight,
                     crate::storage::AuthorizationCommitPreflight::NoAuthorizationEvent
                 ) {
-                    // @ref LLP 0059#authorization-write-handoff — a neutral preview
-                    // allocates no room ticket or registry authority, so its sentinel
-                    // can bind the commit in this stage turn without a stale window.
-                    crate::storage::install_managed_authorization_reservation(
-                        crate::ephemeral::no_authorization_event_reservation(),
-                    );
+                    // The preview does not authorize the commit: the kernel
+                    // derives and checks the transaction's actual witness.
+                    // Keeping a genuinely neutral write in this Local turn
+                    // preserves its single deferred-publication batch; a
+                    // false neutral preview reaches the kernel without a
+                    // reservation and fails closed before COMMIT.
                     let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         work(&mut guard, staged)
                     }));
-                    let unused = crate::storage::take_managed_authorization_reservation();
-                    return Ok::<_, SnapbackError>(AuthorizationWriteTurn::Complete {
-                        output,
-                        unused,
-                    });
+                    return Ok::<_, SnapbackError>(AuthorizationWriteTurn::Complete(output));
                 }
                 Ok::<_, SnapbackError>(AuthorizationWriteTurn::NeedsReservation {
                     preflight,
@@ -225,21 +212,14 @@ where
                     work,
                 })
             }));
-            let unused = match &mut result {
-                Ok(Ok(AuthorizationWriteTurn::Complete { unused, .. })) => unused.take(),
-                _ => None,
-            };
             let batch = local_scope.take_after_local_batch();
-            let handoff = (batch.has_effects() || unused.is_some()).then(|| {
+            let handoff = batch.has_effects().then(|| {
                 let handoff = guard.managed_local_handoff();
                 handoff.close();
                 handoff
             });
             drop(guard);
             drop(local_scope);
-            if let Some(unused) = unused {
-                unused.cancel();
-            }
             crate::exec_guard::run_after_local_batch(batch);
             if let Some(handoff) = handoff {
                 handoff.reopen();
@@ -249,7 +229,7 @@ where
                 Err(payload) => std::panic::resume_unwind(payload),
             };
             match turn {
-                AuthorizationWriteTurn::Complete { output, .. } => match output {
+                AuthorizationWriteTurn::Complete(output) => match output {
                     Ok(output) => Ok(StagedAuthorizationWrite::Complete(output)),
                     Err(payload) => std::panic::resume_unwind(payload),
                 },
@@ -306,10 +286,10 @@ where
             return Ok(AuthorizationWriteAttempt::Stale);
         }
         let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        crate::storage::install_managed_authorization_reservation(reservation);
+        let reservation_scope = reservation.install();
         let output =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(&mut guard, staged)));
-        let unused = crate::storage::take_managed_authorization_reservation();
+        let unused = reservation_scope.take_unused();
         let batch = local_scope.take_after_local_batch();
         let handoff = (batch.has_effects() || unused.is_some()).then(|| {
             let handoff = guard.managed_local_handoff();
@@ -338,133 +318,6 @@ where
             "authorization reservation became stale before the durable transaction; retry the complete write with short jitter",
         )),
     }
-}
-
-/// The dev reset cut needs both its authorization-stream marker and the
-/// mode-admission effect mutex to stay held while after-Local projections
-/// flush. Existing admitted work may finish its Local phase, but cannot
-/// publish through this cut until the reset's ephemeral successor is installed.
-///
-/// @ref LLP 0059#reset-restore-and-stream-publication — even provider-less dev
-/// reset premakes its stream successor before the destructive transaction and
-/// finalizes it only after reset-owned process projections have published.
-pub(crate) async fn with_snapback_stream_reset_admission_effect<T, F>(
-    state: &SharedSnapback,
-    admission: AdmissionLease,
-    effect: &'static str,
-    work: F,
-) -> SnapbackResult<T>
-where
-    F: FnOnce(
-            &mut LocalSnapback,
-            &crate::contract_types::AuthorizationStreamIncarnation,
-            &crate::contract_types::AuthorizationStreamIncarnation,
-        ) -> AuthTransactionAttempt<T>
-        + Send
-        + 'static,
-    T: Send + 'static,
-{
-    let mut guard = lock_managed_snapback(state).await;
-    let (generation, snapshot, ephemeral, projection) = tokio::task::spawn_blocking(move || {
-        let _sanction = crate::exec_guard::BlockingSanction::acquire();
-        let snapshot = guard.authorization_reservation_snapshot()?;
-        let projection = guard.admitted_stream_projection_snapshot()?;
-        Ok::<_, SnapbackError>((
-            guard.app_generation(),
-            snapshot,
-            guard.ephemeral_api(),
-            projection,
-        ))
-    })
-    .await
-    .expect("reset authorization staging task panicked")?;
-    let coordinator = Arc::new(AuthCoordinator::from_admitted_snapshot(
-        projection,
-        now_millis(),
-        Instant::now(),
-    )?);
-    let carrier = coordinator.premark_stream_reset_if_drained()?;
-    let predecessor = carrier.predecessor().clone();
-    let successor = carrier.successor().clone();
-    let cancellation = Arc::new(crate::storage::AuthorizationReservationCancellation::default());
-    let mut cancel_on_drop = CancelAuthorizationReservationOnDrop::new(cancellation.clone());
-    let reservation_result = tokio::task::spawn_blocking(move || {
-        let _sanction = crate::exec_guard::BlockingSanction::acquire();
-        ephemeral.reserve_authorization_commit(
-            crate::storage::AuthorizationCommitPreflight::AllProtectedRooms,
-            cancellation,
-        )
-    })
-    .await
-    .expect("reset authorization reservation task panicked");
-    cancel_on_drop.disarm();
-    let reservation = match reservation_result {
-        Ok(reservation) => reservation,
-        Err(error) => {
-            return coordinator
-                .finish_stream_reset(carrier, AuthTransactionAttempt::<T>::RolledBack(error));
-        }
-    };
-    let mut guard = lock_managed_snapback(state).await;
-    tokio::task::spawn_blocking(move || {
-        let _sanction = crate::exec_guard::BlockingSanction::acquire();
-        let current_snapshot = match guard.authorization_reservation_snapshot() {
-            Ok(snapshot) => snapshot,
-            Err(error) => {
-                drop(guard);
-                reservation.cancel();
-                return coordinator
-                    .finish_stream_reset(carrier, AuthTransactionAttempt::<T>::RolledBack(error));
-            }
-        };
-        if guard.app_generation() != generation || current_snapshot != snapshot {
-            drop(guard);
-            reservation.cancel();
-            return coordinator.finish_stream_reset(
-                carrier,
-                AuthTransactionAttempt::<T>::RolledBack(authorization_reservation_stale(
-                    "reset authorization reservation became stale before its transaction; retry the complete operation with short jitter",
-                )),
-            );
-        }
-        let publication = match admission.effect_guard(effect) {
-            Ok(publication) => publication,
-            Err(error) => {
-                drop(guard);
-                reservation.cancel();
-                return coordinator
-                    .finish_stream_reset(carrier, AuthTransactionAttempt::<T>::RolledBack(error));
-            }
-        };
-        let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        crate::storage::install_managed_authorization_reservation(reservation);
-        let attempt = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            work(&mut guard, &predecessor, &successor)
-        }));
-        let unused = crate::storage::take_managed_authorization_reservation();
-        let batch = local_scope.take_after_local_batch();
-        let handoff = (batch.has_effects() || unused.is_some()).then(|| {
-            let handoff = guard.managed_local_handoff();
-            handoff.close();
-            handoff
-        });
-        drop(guard);
-        drop(local_scope);
-        if let Some(unused) = unused {
-            unused.cancel();
-        }
-        crate::exec_guard::run_after_local_batch(batch);
-        if let Some(handoff) = handoff {
-            handoff.reopen();
-        }
-        drop(publication);
-        match attempt {
-            Ok(attempt) => coordinator.finish_stream_reset(carrier, attempt),
-            Err(payload) => std::panic::resume_unwind(payload),
-        }
-    })
-    .await
-    .expect("snapback admission-effect blocking task panicked")
 }
 
 /// Run read-lane work (no global mutex) on a blocking-pool thread: the lane

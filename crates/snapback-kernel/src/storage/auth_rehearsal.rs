@@ -712,9 +712,7 @@ impl LocalDatabase {
         })
     }
 
-    pub fn auth_rehearsal_store_markers(
-        &mut self,
-    ) -> SnapbackResult<AuthRehearsalStoreMarkersV1> {
+    pub fn auth_rehearsal_store_markers(&mut self) -> SnapbackResult<AuthRehearsalStoreMarkersV1> {
         self.with_auth_transaction(|transaction| {
             ensure_tables(transaction)?;
             ensure_store_markers_in(transaction, false)
@@ -1242,7 +1240,7 @@ fn prepare_rehearsal_window_effect_in(
 ///
 /// @ref LLP 0213#atomic-charge-at-linearization — accounting, provenance
 ///   companions, and provider rows share one IMMEDIATE transaction.
-pub fn prepare_rehearsal_atomic_effect_in(
+pub(crate) fn prepare_rehearsal_atomic_effect_in(
     transaction: &Transaction<'_>,
     plan: &RehearsalExercisePlan,
 ) -> SnapbackResult<RehearsalAtomicEffectAdmission> {
@@ -1396,7 +1394,7 @@ fn atomic_persist_denial(
     }
 }
 
-pub fn finish_rehearsal_atomic_effect_success_in(
+pub(crate) fn finish_rehearsal_atomic_effect_success_in(
     transaction: &Transaction<'_>,
     plan: &RehearsalExercisePlan,
     mut prepared: PreparedRehearsalAtomicEffect,
@@ -1456,7 +1454,7 @@ pub fn finish_rehearsal_atomic_effect_success_in(
     )
 }
 
-pub fn finish_rehearsal_atomic_effect_denial_in(
+pub(crate) fn finish_rehearsal_atomic_effect_denial_in(
     transaction: &Transaction<'_>,
     plan: &RehearsalExercisePlan,
     prepared: PreparedRehearsalAtomicEffect,
@@ -2270,7 +2268,7 @@ pub(super) fn rehearsal_session_provenance_by_id(
     Ok(provenances)
 }
 
-pub fn insert_rehearsal_session_provenance_in(
+pub(crate) fn insert_rehearsal_session_provenance_in(
     transaction: &Transaction<'_>,
     session_id: &str,
     provenance: &crate::auth::rehearsal::AuthRehearsalProvenanceV1,
@@ -2291,7 +2289,7 @@ pub fn insert_rehearsal_session_provenance_in(
     Ok(())
 }
 
-pub fn insert_rehearsal_identity_provenance_for_provider_in(
+pub(crate) fn insert_rehearsal_identity_provenance_for_provider_in(
     transaction: &Transaction<'_>,
     identity_id: &str,
     provenance: &crate::auth::rehearsal::AuthRehearsalProvenanceV1,

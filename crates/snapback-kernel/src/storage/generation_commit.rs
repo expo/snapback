@@ -241,9 +241,7 @@ impl LocalDatabase {
         Ok(record)
     }
 
-    pub fn function_generation_record(
-        &self,
-    ) -> SnapbackResult<Option<FunctionGenerationRecord>> {
+    pub fn function_generation_record(&self) -> SnapbackResult<Option<FunctionGenerationRecord>> {
         let stored: Option<String> = self
             .conn
             .query_row(

@@ -21,7 +21,7 @@ pub use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{AuthMode, FunctionKind, HandlerInput};
-#[cfg(all(test, not(feature = "server-owner")))]
+#[cfg(test)]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::runtime::CapabilityState;
 use crate::server::{
@@ -2827,6 +2827,7 @@ impl AppState {
             connected_clients,
             network_profiles,
             operator_authority,
+            auth_coordinator,
         ) = {
             let mut instance = snapback.try_lock().map_err(|_| {
                 SnapbackError::error(
@@ -2839,7 +2840,19 @@ impl AppState {
                 Some(bindings) => bindings,
                 None => instance.claim_app_state_graph(server_profile, auth_deployment)?,
             };
-            bindings.into_parts()
+            let coordinator = instance.build_stream_auth_coordinator()?;
+            instance.bind_auth_coordinator(coordinator.as_ref())?;
+            let (admission, telemetry, derived, clients, profiles, operator) =
+                bindings.into_parts();
+            (
+                admission,
+                telemetry,
+                derived,
+                clients,
+                profiles,
+                operator,
+                coordinator,
+            )
         };
         let auth_terminal_lifecycle = AuthTerminalLifecycle::new(
             connections.clone(),
@@ -2886,7 +2899,7 @@ impl AppState {
                 dev_identity_capabilities: None,
                 agent_destroy_capabilities: None,
                 auth_provider: None,
-                auth_coordinator: None,
+                auth_coordinator: Some(auth_coordinator),
                 hosted_serving: None,
                 hosted_listener_binding: HostedListenerBinding::NotRequired,
                 derived_instance_identity,
@@ -4117,53 +4130,6 @@ impl ProtectedErasureAdminCredentialBinding {
             )),
         }
     }
-}
-
-fn derive_protected_record_erasure_authority(
-    authority: &PreparedAuthority,
-    credential: &ProtectedErasureAdminCredentialBinding,
-) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureAuthorityV1> {
-    authority.validate_admission("protected-record erasure authority derivation")?;
-    if authority.source() != InvocationSource::ProtectedRecordErasure {
-        return Err(SnapbackError::error(
-            "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
-            "proofCheckpoint",
-            "protected-record erasure requires its registered product invocation source",
-        ));
-    }
-    let (mode, principal_id, audit_class) = match (authority.active_mode(), authority.resolved()) {
-        (AuthMode::Dev, ResolvedAppAuthority::Anonymous) => {
-            ("dev", "operator:local-admin", "anonymous-admin-transport")
-        }
-        (AuthMode::Sessions, ResolvedAppAuthority::AdminBypass { .. }) => {
-            ("sessions", "operator:admin-bypass", "admin-bypass")
-        }
-        _ => {
-            return Err(SnapbackError::error(
-                "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
-                "proofCheckpoint",
-                "protected-record erasure requires current administrative authority",
-            ));
-        }
-    };
-    let profile = match authority.profile() {
-        ServerProfile::Dev => "dev",
-        ServerProfile::Demo => "demo",
-        ServerProfile::Test => "test",
-        ServerProfile::Prod => "prod",
-    };
-    crate::proof_checkpoint::ProtectedRecordErasureAuthorityV1::from_admitted_facts(
-        mode,
-        principal_id,
-        audit_class,
-        profile,
-        authority.transition_generation(),
-        credential.credential_class(),
-        credential.credential_digest_sha256(),
-        authority
-            .authorization_stream_incarnation()
-            .unwrap_or("dev-no-stream"),
-    )
 }
 
 pub(crate) fn resolve_protected_erasure_admin_credential(
@@ -6237,87 +6203,6 @@ mod tests {
     use std::collections::BTreeMap;
 
     #[test]
-    fn protected_erasure_authority_requires_exact_current_registered_admin_source() {
-        let controller = AdmissionController::new(11, true).expect("dev admission");
-        let prepared = InvocationGate::prepare_admitted_authority(
-            InvocationSource::ProtectedRecordErasure,
-            AuthMode::Dev,
-            ServerProfile::Test,
-            controller.admit().expect("admit protected erasure"),
-            &WireAuthorityFields::default(),
-            ResolvedAppAuthority::Anonymous,
-            None,
-        )
-        .expect("prepare registered admin command");
-        let credential =
-            ProtectedErasureAdminCredentialBinding::for_test("master-admin", "admin-a");
-        let carrier = derive_protected_record_erasure_authority(&prepared, &credential)
-            .expect("derive current carrier");
-        assert_eq!(carrier.principal_id(), "operator:local-admin");
-        assert!(carrier.authority_fingerprint().starts_with("sha256:"));
-        assert_eq!(carrier.authority_fingerprint().len(), 71);
-        let different_credential =
-            ProtectedErasureAdminCredentialBinding::for_test("master-admin", "admin-b");
-        let different_carrier =
-            derive_protected_record_erasure_authority(&prepared, &different_credential)
-                .expect("derive other concrete admin credential");
-        assert_ne!(
-            carrier.authority_instance_id(),
-            different_carrier.authority_instance_id(),
-            "two validated credentials cannot exact-replay as one authority instance"
-        );
-        assert_ne!(
-            carrier.authority_fingerprint(),
-            different_carrier.authority_fingerprint()
-        );
-
-        let wrong_source = InvocationGate::prepare_authority(
-            InvocationSource::DirectAdminRunner,
-            AuthMode::Dev,
-            ServerProfile::Test,
-            11,
-            1,
-            &WireAuthorityFields::default(),
-            ResolvedAppAuthority::Anonymous,
-        )
-        .expect("prepare different admin source");
-        assert_eq!(
-            derive_protected_record_erasure_authority(&wrong_source, &credential)
-                .expect_err("another admin source cannot mint this carrier")
-                .diagnostic
-                .code,
-            "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID"
-        );
-
-        assert_eq!(
-            InvocationGate::prepare_authority(
-                InvocationSource::ProtectedRecordErasure,
-                AuthMode::Sessions,
-                ServerProfile::Test,
-                11,
-                1,
-                &WireAuthorityFields::default(),
-                ResolvedAppAuthority::Anonymous,
-            )
-            .expect_err("non-admin sessions authority is refused")
-            .diagnostic
-            .code,
-            "SNAPBACK_INVOCATION_SOURCE_INVALID"
-        );
-
-        controller
-            .begin_transition_for_test(Duration::ZERO)
-            .expect_err("live authority prevents immediate transition drain");
-        assert_eq!(
-            derive_protected_record_erasure_authority(&prepared, &credential)
-                .expect_err("retired admission cannot mint erasure authority")
-                .diagnostic
-                .code,
-            "SNAPBACK_AUTH_MODE_PENDING"
-        );
-    }
-
-    #[test]
     fn dev_auth_origins_are_exact_normalized_loopback_origins() {
         assert_eq!(
             canonical_loopback_http_origin("http://LOCALHOST:8081"),
@@ -6382,7 +6267,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "server-owner"))]
     fn failed_second_dev_app_state_cannot_downgrade_production_activation() {
         let snapback = LocalSnapback::memory().expect("memory app");
         let read = snapback.read_lane();
@@ -6425,47 +6309,6 @@ mod tests {
         let error = telemetry_export_continuation_key_with(|_| Err(()))
             .expect_err("entropy failure must remain typed");
         assert_eq!(error.diagnostic.code, "SNAPBACK_EMBED_ENTROPY_UNAVAILABLE");
-    }
-
-    #[test]
-    #[cfg(not(feature = "server-owner"))]
-    fn fallible_embedding_construction_core_contains_no_panic_sites() {
-        let source = include_str!("admin.rs");
-        let embed_source = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/embed.rs"));
-        let public_facade = &embed_source[..embed_source
-            .find("#[cfg(test)]")
-            .expect("embed test-module marker")];
-        let construction = &source[source
-            .find("pub(crate) fn try_new_with_secret_read_operator(")
-            .expect("fallible constructor marker")
-            ..source
-                .find("    // FALLIBLE_CONSTRUCTION_CORE_END")
-                .expect("constructor end marker")];
-        let provider = &source[source
-            .find("    pub fn try_with_auth_provider(")
-            .expect("fallible provider marker")
-            ..source
-                .find("    /// Infallible compatibility wrapper. Prefer [`Self::try_with_auth_provider`]")
-                .expect("provider end marker")];
-        for (name, body) in [
-            ("constructor", construction),
-            ("provider", provider),
-            ("public facade", public_facade),
-        ] {
-            for forbidden in [
-                ".expect(",
-                "assert!(",
-                "panic!(",
-                ".unwrap(",
-                "todo!(",
-                "unimplemented!(",
-            ] {
-                assert!(
-                    !body.contains(forbidden),
-                    "fallible embedding {name} gained caller-triggerable panic site {forbidden}"
-                );
-            }
-        }
     }
 
     #[test]
@@ -6644,7 +6487,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(not(feature = "server-owner"))]
     async fn protected_erasure_transport_refuses_unauthorized_and_wire_authority_inputs() {
         use crate::manifest::{FieldManifest, FieldType, SchemaManifest, SeedData, TableManifest};
         use axum::http::Request;
@@ -6792,7 +6634,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(not(feature = "server-owner"))]
     async fn operation_coverage_activation_is_authenticated_exact_and_idempotent_in_prod() {
         use crate::commit_envelope::{
             OperationCoverageActivationProfileV1, OperationCoverageActivationResponseV1,
@@ -7535,7 +7376,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(not(feature = "server-owner"))]
     async fn declared_scope_preflight_stops_before_the_query_execution_sentinel() {
         use crate::admin_secret_read::{SecretReadLeaseRequest, SecretReadScope};
         use crate::manifest::{

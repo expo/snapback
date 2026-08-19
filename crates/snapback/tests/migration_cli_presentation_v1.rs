@@ -12,7 +12,7 @@ use snapback::manifest::{
 use snapback::migration::{
     MigrationIntent, MigrationPlanArtifactV1, MigrationPreviewObservationV1,
 };
-use snapback::storage::LocalDatabase;
+use snapback_kernel::storage::LocalDatabase;
 
 fn schema(include_provider: bool) -> SchemaManifest {
     let mut fields = vec![FieldManifest {

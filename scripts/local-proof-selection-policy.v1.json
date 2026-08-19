@@ -16,7 +16,10 @@
     "workspace-graph-fixtures",
     "authoring-profile-branches",
     "package-test-inventory",
-    "scripts-test-inventory"
+    "scripts-test-inventory",
+    "cross-crate-path-includes",
+    "kernel-raw-sql-api",
+    "security-boundaries"
   ],
   "dependencyOverrides": {
     "snapback-cli-real-server": [

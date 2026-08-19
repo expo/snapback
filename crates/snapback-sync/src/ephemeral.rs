@@ -13,7 +13,7 @@ use tokio::sync::Notify;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::live_wire::{LiveAuthErrorCode, LiveAuthErrorReason, LiveAuthorityDisposition};
 use crate::storage::{
-    AuthorizationCommitImpact, AuthorizationCommitInterlock, AuthorizationCommitPreflight,
+    AuthorizationCommitCarrierFactory, AuthorizationCommitImpact, AuthorizationCommitPreflight,
     AuthorizationCommitReservation, AuthorizationCommitWitness,
     AuthorizationReservationCancellation, AuthorizationVersion, ChangeOp,
     PreparedAuthorizationCommit,
@@ -512,9 +512,6 @@ impl DeliveryNotifier {
     }
 }
 
-
-
-
 fn retained_string_bytes(value: &str) -> usize {
     STRING_ALLOCATION_OVERHEAD.saturating_add(value.len())
 }
@@ -600,7 +597,6 @@ fn retained_expiry_index_entry_bytes(room: &RoomId) -> usize {
         .saturating_add(retained_room_id_bytes(room))
 }
 
-
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize)]
 pub enum EntryOwner {
     Connection(ConnectionId),
@@ -608,8 +604,6 @@ pub enum EntryOwner {
     User(String),
     Custom(String),
 }
-
-
 
 trait AccessPolicyExt {
     fn allows(&self, scope: &Scope, auth: &AuthContext) -> bool;
@@ -661,7 +655,6 @@ pub fn stream_collection_definition() -> EphemeralCollection {
         max_pending_ephemeral_keys: 1_024,
     }
 }
-
 
 /// Exact `schema.manifest.json` bytes emitted by the slice-1 codegen for the
 /// minimal sessions fixture mirrored by the `allow.members` golden in
@@ -832,7 +825,6 @@ pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
 pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256: &str =
     "8fb7b3c54c59d1b711c79f951ee2247a111a59ddc8dcdceef6203bc78de5aec3";
 
-
 /// The bound on the durable and resync outbox lanes, independent of a
 /// collection's coalescing-map cap. A subscriber that never drains cannot grow
 /// either lane past this; hitting it converts the queue to a single resync
@@ -981,7 +973,6 @@ const SUBSCRIBER_RECORD_OVERHEAD: usize = 64;
 // queue never hides a formerly-large backing allocation from the byte ledger.
 const QUEUE_ITEM_OVERHEAD: usize = 128;
 
-
 /// Idempotent app-path delete settlement. Fenced withdrawal treats a stale
 /// predecessor as successful supersession, never as an operational error.
 ///
@@ -1067,7 +1058,6 @@ pub struct OperatorDeleteRequest {
     pub reason: String,
 }
 
-
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct PublishOutcome {
     pub room: RoomId,
@@ -1078,9 +1068,6 @@ pub struct PublishOutcome {
     pub entry_version: u64,
     pub expires_at_ms: Millis,
 }
-
-
-
 
 fn retained_ephemeral_entry_message_bytes(entry: &EphemeralEntry) -> usize {
     std::mem::size_of::<EphemeralEntry>()
@@ -1238,7 +1225,6 @@ pub struct CollectionEnsureOutcome {
     pub preserved_room_count: usize,
     pub preserved_outbox_count: usize,
 }
-
 
 struct OutboxLeaseWake {
     delivery: Arc<DeliveryNotifier>,
@@ -4085,6 +4071,7 @@ struct EphemeralShared {
 #[derive(Clone)]
 pub struct LocalEphemeralBackend {
     shared: Arc<EphemeralShared>,
+    commit_carriers: Arc<RwLock<Option<AuthorizationCommitCarrierFactory>>>,
 }
 
 fn room_dependency_selector_for_collections(
@@ -4190,12 +4177,6 @@ struct RoomAuthorizationCommitReservation {
     rollback_on_drop: bool,
 }
 
-struct NoAuthorizationEventReservation;
-
-pub fn no_authorization_event_reservation() -> Box<dyn AuthorizationCommitReservation> {
-    Box::new(NoAuthorizationEventReservation)
-}
-
 /// Reservation drift happens before the durable application/auth transaction
 /// begins, so every producer exposes the same closed retry contract.
 ///
@@ -4211,20 +4192,6 @@ fn authorization_reservation_stale(message: &'static str) -> SnapbackError {
     )
 }
 
-impl AuthorizationCommitReservation for NoAuthorizationEventReservation {
-    fn bind(
-        self: Box<Self>,
-        _witness: &AuthorizationCommitWitness,
-        _impact: AuthorizationCommitImpact<'_>,
-    ) -> SnapbackResult<Box<dyn PreparedAuthorizationCommit>> {
-        Err(authorization_reservation_stale(
-            "a mutation previewed as authorization-neutral produced an authorization event",
-        ))
-    }
-
-    fn cancel(self: Box<Self>) {}
-}
-
 impl Drop for RoomAuthorizationCommitReservation {
     fn drop(&mut self) {
         if self.rollback_on_drop {
@@ -4237,12 +4204,12 @@ impl Drop for RoomAuthorizationCommitReservation {
     }
 }
 
-impl AuthorizationCommitReservation for RoomAuthorizationCommitReservation {
+impl RoomAuthorizationCommitReservation {
     fn bind(
-        mut self: Box<Self>,
+        mut self,
         witness: &AuthorizationCommitWitness,
         impact: AuthorizationCommitImpact<'_>,
-    ) -> SnapbackResult<Box<dyn PreparedAuthorizationCommit>> {
+    ) -> SnapbackResult<PreparedRoomAuthorizationCommit> {
         debug_assert!(witness.event);
         if self
             .backend
@@ -4277,16 +4244,16 @@ impl AuthorizationCommitReservation for RoomAuthorizationCommitReservation {
         }
         self.ticket.bind(witness.version.clone())?;
         self.rollback_on_drop = false;
-        Ok(Box::new(PreparedRoomAuthorizationCommit {
+        Ok(PreparedRoomAuthorizationCommit {
             backend: self.backend.clone(),
             ticket: self.ticket.clone(),
             authorization: witness.version.clone(),
             incarnation_rotated: witness.incarnation_rotated,
             rollback_on_drop: true,
-        }))
+        })
     }
 
-    fn cancel(self: Box<Self>) {
+    fn cancel(self) {
         drop(self);
     }
 }
@@ -4303,8 +4270,8 @@ impl Drop for PreparedRoomAuthorizationCommit {
     }
 }
 
-impl PreparedAuthorizationCommit for PreparedRoomAuthorizationCommit {
-    fn committed(mut self: Box<Self>, min_commit_version: u64) -> SnapbackResult<()> {
+impl PreparedRoomAuthorizationCommit {
+    fn committed(mut self, min_commit_version: u64) -> SnapbackResult<()> {
         // From this point on rollback is never safe: the durable transaction
         // is known committed. A failed finalization therefore leaves the
         // exact dependency ticket pending and every protected sink closed.
@@ -4339,12 +4306,36 @@ impl PreparedAuthorizationCommit for PreparedRoomAuthorizationCommit {
         )
     }
 
-    fn ambiguous(mut self: Box<Self>) {
+    fn ambiguous(mut self) {
         self.rollback_on_drop = false;
     }
 }
 
-impl AuthorizationCommitInterlock for LocalEphemeralBackend {}
+fn opaque_prepared_authorization_commit(
+    factory: &AuthorizationCommitCarrierFactory,
+    prepared: PreparedRoomAuthorizationCommit,
+) -> PreparedAuthorizationCommit {
+    let state = Arc::new(StdMutex::new(Some(prepared)));
+    let committed = state.clone();
+    let ambiguous = state.clone();
+    let rolled_back = state;
+    factory.prepared(
+        move |min_commit_version| {
+            lock(&committed)
+                .take()
+                .expect("prepared room commit settles once")
+                .committed(min_commit_version)
+        },
+        move || {
+            if let Some(prepared) = lock(&ambiguous).take() {
+                prepared.ambiguous();
+            }
+        },
+        move || {
+            drop(lock(&rolled_back).take());
+        },
+    )
+}
 
 impl Default for LocalEphemeralBackend {
     fn default() -> Self {
@@ -4394,7 +4385,12 @@ impl LocalEphemeralBackend {
 
     /// A store with explicit hard limits (tests, future capability overrides).
     pub fn with_limits(limits: EphemeralStoreLimits) -> Self {
+        #[cfg(test)]
+        let commit_carriers = Some(AuthorizationCommitCarrierFactory::for_test());
+        #[cfg(not(test))]
+        let commit_carriers = None;
         Self {
+            commit_carriers: Arc::new(RwLock::new(commit_carriers)),
             shared: Arc::new(EphemeralShared {
                 lifecycle: RwLock::new(()),
                 #[cfg(test)]
@@ -4416,6 +4412,25 @@ impl LocalEphemeralBackend {
                 authorization_issuer: StdMutex::new(None),
             }),
         }
+    }
+
+    pub fn install_authorization_commit_carriers(
+        &self,
+        factory: AuthorizationCommitCarrierFactory,
+    ) -> SnapbackResult<()> {
+        let mut installed = self
+            .commit_carriers
+            .write()
+            .unwrap_or_else(PoisonError::into_inner);
+        if installed.is_some() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_INTERLOCK_ALREADY_INSTALLED",
+                "auth",
+                "authorization commit carriers were already installed",
+            ));
+        }
+        *installed = Some(factory);
+        Ok(())
     }
 
     pub fn install_authorization_issuer(
@@ -4589,15 +4604,34 @@ impl LocalEphemeralBackend {
         &self,
         preflight: AuthorizationCommitPreflight,
         cancellation: Arc<AuthorizationReservationCancellation>,
-    ) -> SnapbackResult<Box<dyn AuthorizationCommitReservation>> {
+    ) -> SnapbackResult<AuthorizationCommitReservation> {
         crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
             "off-Local room-authority commit reservation",
         );
+        let factory = self
+            .commit_carriers
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                    "auth",
+                    "kernel authorization commit carriers are not installed",
+                )
+            })?;
         if matches!(
             preflight,
             AuthorizationCommitPreflight::NoAuthorizationEvent
         ) {
-            return Ok(no_authorization_event_reservation());
+            return Ok(factory.reservation(
+                |_witness, _impact| {
+                    Err(authorization_reservation_stale(
+                        "a mutation previewed as authorization-neutral produced an authorization event",
+                    ))
+                },
+                || {},
+            ));
         }
         let (collections, collection_generation) = self.protected_room_collections_snapshot();
         let reserved_selector = match preflight {
@@ -4621,7 +4655,7 @@ impl LocalEphemeralBackend {
             .shared
             .room_authority
             .prepare_unbound(reserved_selector.clone(), &cancellation)?;
-        Ok(Box::new(RoomAuthorizationCommitReservation {
+        let reservation = RoomAuthorizationCommitReservation {
             backend: self.clone(),
             ticket,
             reserved_selector,
@@ -4629,7 +4663,28 @@ impl LocalEphemeralBackend {
             issuer_expectation,
             collection_generation,
             rollback_on_drop: true,
-        }))
+        };
+        let state = Arc::new(StdMutex::new(Some(reservation)));
+        let bind_state = state.clone();
+        let cancel_state = state;
+        let prepared_factory = factory.clone();
+        Ok(factory.reservation(
+            move |witness, impact| {
+                let prepared = lock(&bind_state)
+                    .take()
+                    .expect("room reservation settles once")
+                    .bind(witness, impact)?;
+                Ok(opaque_prepared_authorization_commit(
+                    &prepared_factory,
+                    prepared,
+                ))
+            },
+            move || {
+                if let Some(reservation) = lock(&cancel_state).take() {
+                    reservation.cancel();
+                }
+            },
+        ))
     }
 
     fn finish_room_authorization_commit(
@@ -10416,7 +10471,7 @@ mod tests {
                 Arc::new(AuthorizationReservationCancellation::default()),
             )
             .expect("authorization-neutral preview creates a sentinel reservation");
-        let error = match reservation.bind(
+        let error = match reservation.bind_for_test(
             &AuthorizationCommitWitness {
                 version: authorization(1),
                 event: true,
@@ -10573,7 +10628,7 @@ mod tests {
             .expect("replace definitions between reservation and bind");
 
         let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let error = match reservation.bind(
+        let error = match reservation.bind_for_test(
             &AuthorizationCommitWitness {
                 version: authorization(1),
                 event: true,
@@ -10627,7 +10682,7 @@ mod tests {
             .unwrap();
         let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
         let prepared = rollback
-            .bind(&witness, AuthorizationCommitImpact::AllProtectedRooms)
+            .bind_for_test(&witness, AuthorizationCommitImpact::AllProtectedRooms)
             .unwrap();
         drop(prepared);
         let rollback_probe = backend.clone();
@@ -10665,9 +10720,9 @@ mod tests {
             )
             .unwrap();
         let prepared = ambiguous
-            .bind(&witness, AuthorizationCommitImpact::AllProtectedRooms)
+            .bind_for_test(&witness, AuthorizationCommitImpact::AllProtectedRooms)
             .unwrap();
-        prepared.ambiguous();
+        prepared.ambiguous_for_test();
         assert_eq!(
             backend
                 .publish(publish_request("owner", b"blocked-ambiguous"), 3)
@@ -10693,7 +10748,7 @@ mod tests {
             )
             .unwrap();
         let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let error = match stale.bind(
+        let error = match stale.bind_for_test(
             &AuthorizationCommitWitness {
                 version: authorization(6),
                 event: true,
@@ -10729,7 +10784,7 @@ mod tests {
             .unwrap();
         let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
         let prepared = reservation
-            .bind(
+            .bind_for_test(
                 &AuthorizationCommitWitness {
                     version: successor.clone(),
                     event: true,
@@ -10739,7 +10794,7 @@ mod tests {
                 AuthorizationCommitImpact::AllProtectedRooms,
             )
             .unwrap();
-        prepared.committed(9).unwrap();
+        prepared.committed_for_test(9).unwrap();
         let batch = scope.take_after_local_batch();
         drop(scope);
         assert_eq!(
@@ -10779,7 +10834,7 @@ mod tests {
 
         let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
         let prepared = reservation
-            .bind(
+            .bind_for_test(
                 &AuthorizationCommitWitness {
                     version: authorization(1),
                     event: true,
@@ -10792,7 +10847,7 @@ mod tests {
         // The SQLite hook settles first in source order. The separate final
         // phase must nevertheless keep this ticket behind Local's later
         // schema-definition projection.
-        prepared.committed(9).unwrap();
+        prepared.committed_for_test(9).unwrap();
         let projection_backend = backend.clone();
         crate::exec_guard::run_or_defer_after_local(move || {
             assert_eq!(
@@ -10847,7 +10902,7 @@ mod tests {
 
         let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
         let prepared = reservation
-            .bind(
+            .bind_for_test(
                 &AuthorizationCommitWitness {
                     version: AuthorizationVersion {
                         incarnation: "0197f862-f196-7bb2-b3f0-2a67185dfd18".to_owned(),
@@ -10860,7 +10915,7 @@ mod tests {
                 AuthorizationCommitImpact::AllProtectedRooms,
             )
             .unwrap();
-        prepared.committed(10).unwrap();
+        prepared.committed_for_test(10).unwrap();
         let reset_backend = backend.clone();
         crate::exec_guard::run_or_defer_after_local(move || {
             assert_eq!(
@@ -10907,7 +10962,7 @@ mod tests {
         let successor = authorization(5);
         let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
         let prepared = reservation
-            .bind(
+            .bind_for_test(
                 &AuthorizationCommitWitness {
                     version: successor.clone(),
                     event: true,
@@ -10917,7 +10972,7 @@ mod tests {
                 AuthorizationCommitImpact::AllProtectedRooms,
             )
             .unwrap();
-        prepared.committed(11).unwrap();
+        prepared.committed_for_test(11).unwrap();
         let issuer_backend = backend.clone();
         let replacement = authorization_issuer(&predecessor, 2);
         crate::exec_guard::run_or_defer_after_local(move || {
@@ -10959,7 +11014,7 @@ mod tests {
 
         let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
         let prepared = reservation
-            .bind(
+            .bind_for_test(
                 &AuthorizationCommitWitness {
                     version: authorization(1),
                     event: true,
@@ -10969,7 +11024,7 @@ mod tests {
                 AuthorizationCommitImpact::AllProtectedRooms,
             )
             .unwrap();
-        prepared.committed(12).unwrap();
+        prepared.committed_for_test(12).unwrap();
         crate::exec_guard::run_or_defer_after_local(|| {
             panic!("forced successor projection failure");
         });
@@ -11052,7 +11107,7 @@ mod tests {
                 )
                 .unwrap();
             let prepared = reservation
-                .bind(
+                .bind_for_test(
                     &AuthorizationCommitWitness {
                         version: authorization(1),
                         event: true,
@@ -11244,9 +11299,9 @@ mod tests {
             )
             .unwrap();
         let prepared = reservation
-            .bind(&witness, AuthorizationCommitImpact::AllProtectedRooms)
+            .bind_for_test(&witness, AuthorizationCommitImpact::AllProtectedRooms)
             .unwrap();
-        prepared.ambiguous();
+        prepared.ambiguous_for_test();
 
         let error = backend
             .publish(publish_request("owner", b"blocked"), 2)

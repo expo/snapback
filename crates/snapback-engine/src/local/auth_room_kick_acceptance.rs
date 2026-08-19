@@ -1687,9 +1687,13 @@ fn replace_process_local_room_authority(snapback: &mut LocalSnapback) -> Ephemer
         .replace_collections(snapback.db.schema().ephemeral_collections.clone())
         .expect("fresh process reloads protected room definitions");
     fresh.install_authorization_issuer(issuer);
-    snapback
-        .db
-        .install_authorization_interlock(Arc::new(fresh.clone()));
+    fresh
+        .install_authorization_commit_carriers(
+            snapback
+                .kernel_commit_authority
+                .authorization_commit_carriers(),
+        )
+        .expect("fresh process installs opaque authorization carriers");
     snapback.ephemeral = fresh;
     snapback.ephemeral_api()
 }

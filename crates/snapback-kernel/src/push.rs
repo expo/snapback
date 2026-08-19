@@ -27,11 +27,57 @@ pub const PUSH_PROVIDER_RESPONSE_MAX_BYTES: u64 = 1_048_576;
 /// This is a kernel-internal port value, not an admission capability. The
 /// public façade deliberately does not re-export it; its only production
 /// producer is the prepared-authority adapter in `snapback::push`.
+#[derive(Clone, Debug)]
+pub struct PushStorageAuthority {
+    database_identity: std::sync::Arc<()>,
+    kind: PushStorageAuthorityKind,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum PushStorageAuthority {
+enum PushStorageAuthorityKind {
     System,
     User(String),
     Other,
+}
+
+impl crate::storage::KernelCommitAuthority {
+    pub fn admit_system_push(&self) -> PushStorageAuthority {
+        PushStorageAuthority {
+            database_identity: self.identity().clone(),
+            kind: PushStorageAuthorityKind::System,
+        }
+    }
+
+    pub fn admit_user_push(&self, principal_id: &str) -> PushStorageAuthority {
+        PushStorageAuthority {
+            database_identity: self.identity().clone(),
+            kind: PushStorageAuthorityKind::User(principal_id.to_owned()),
+        }
+    }
+
+    pub fn admit_other_push(&self) -> PushStorageAuthority {
+        PushStorageAuthority {
+            database_identity: self.identity().clone(),
+            kind: PushStorageAuthorityKind::Other,
+        }
+    }
+}
+
+impl PushStorageAuthority {
+    pub(crate) fn is_for(&self, identity: &std::sync::Arc<()>) -> bool {
+        std::sync::Arc::ptr_eq(&self.database_identity, identity)
+    }
+
+    fn is_system(&self) -> bool {
+        self.kind == PushStorageAuthorityKind::System
+    }
+
+    fn user(&self) -> Option<&str> {
+        match &self.kind {
+            PushStorageAuthorityKind::User(principal) => Some(principal),
+            PushStorageAuthorityKind::System | PushStorageAuthorityKind::Other => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -523,7 +569,7 @@ fn drop_ledger_infra(conn: &Connection) -> SnapbackResult<()> {
     Ok(())
 }
 
-pub fn require_secure_delete(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn require_secure_delete(conn: &Connection) -> SnapbackResult<()> {
     conn.execute_batch("PRAGMA secure_delete = ON;")?;
     let enabled: i64 = conn.query_row("PRAGMA secure_delete", [], |row| row.get(0))?;
     if enabled != 1 {
@@ -544,7 +590,7 @@ fn auth_lifecycle_catalog_present(conn: &Connection) -> SnapbackResult<bool> {
     Ok(count == 2)
 }
 
-pub fn create_infra(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
     require_secure_delete(conn)?;
     conn.execute_batch(REGISTRY_TABLE_SQL)?;
     conn.execute_batch(OWNER_LIVE_INDEX_SQL)?;
@@ -572,7 +618,7 @@ pub fn create_infra(conn: &Connection) -> SnapbackResult<()> {
 ///
 /// @ref LLP 0143#d1-device-token-custody — protected token storage is an
 ///   exact platform catalog, not an adoptable application-owned lookalike.
-pub fn validate_exact_schema(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn validate_exact_schema(conn: &Connection) -> SnapbackResult<()> {
     let actual = registry_shape(conn)
         .map_err(|_| corrupt("push-token custody catalog physical shape could not be inspected"))?;
     let expected = expected_registry_shape()
@@ -629,7 +675,7 @@ struct LedgerTableShape {
     indexes: BTreeMap<String, IndexShape>,
 }
 
-pub fn validate_exact_ledger_schema(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn validate_exact_ledger_schema(conn: &Connection) -> SnapbackResult<()> {
     let actual = ledger_shape(conn)
         .map_err(|_| corrupt("push ledger catalog physical shape could not be inspected"))?;
     let expected = expected_ledger_shape()
@@ -1005,7 +1051,7 @@ pub fn is_exact_auth_lifecycle_trigger(name: &str, table: &str, sql: Option<&str
 /// Install or remove the registry as part of schema activation. Undeclared
 /// applications retain no table, triggers, maintenance work, or inspection
 /// query. A changed app scope cannot strand a live owner under the old scope.
-pub fn activate_manifest_in(
+pub(crate) fn activate_manifest_in(
     tx: &Transaction<'_>,
     declaration: Option<&PushSeamDeclarationV1>,
 ) -> SnapbackResult<()> {
@@ -1053,7 +1099,7 @@ pub fn activate_manifest_in(
     Ok(())
 }
 
-pub fn inspect(conn: &Connection) -> SnapbackResult<PushRegistryInspectionV1> {
+pub(crate) fn inspect(conn: &Connection) -> SnapbackResult<PushRegistryInspectionV1> {
     validate_exact_schema(conn)?;
     let (live_tokens, retired_tokens) = conn.query_row(
         "SELECT
@@ -1142,7 +1188,7 @@ pub fn read_ledger_projection(
 
     let authorization_dependency = match &audience.authorize {
         PushAudienceAuthorizeV1::System => {
-            if authority != &PushStorageAuthority::System {
+            if !authority.is_system() {
                 return Err(crate::membership_rules::role_denial());
             }
             None
@@ -1152,7 +1198,7 @@ pub fn read_ledger_projection(
             resource_arg,
             roles,
         } => {
-            let PushStorageAuthority::User(principal) = authority else {
+            let Some(principal) = authority.user() else {
                 return Err(crate::membership_rules::role_denial());
             };
             let (table, membership) =
@@ -1267,7 +1313,7 @@ pub struct PushSendReservation<'a> {
     pub now_ms: u64,
 }
 
-pub fn reserve_send_in(
+pub(crate) fn reserve_send_in(
     tx: &Transaction<'_>,
     reservation: PushSendReservation<'_>,
 ) -> SnapbackResult<ReservedPushAttemptV1> {
@@ -1551,7 +1597,7 @@ fn reserve_attempt_batches_in(
     Ok(batches)
 }
 
-pub fn claim_batch_in(
+pub(crate) fn claim_batch_in(
     tx: &Transaction<'_>,
     batch_id: &str,
     now_ms: u64,
@@ -1724,7 +1770,7 @@ fn refresh_reserved_batch_tokens_in(tx: &Transaction<'_>, batch_id: &str) -> Sna
 ///
 /// @ref LLP 0143#d3-the-handoff-ledger-receipts-honesty-and-crash-safety — `transmitting` is durable before
 ///   the first provider byte and is the crash discriminator.
-pub fn mark_batch_transmitting_in(
+pub(crate) fn mark_batch_transmitting_in(
     tx: &Transaction<'_>,
     claim: &PushBatchClaimV1,
     now_ms: u64,
@@ -1751,7 +1797,7 @@ pub fn mark_batch_transmitting_in(
     Ok(())
 }
 
-pub fn settle_batch_in(
+pub(crate) fn settle_batch_in(
     tx: &Transaction<'_>,
     claim: &PushBatchClaimV1,
     settlement: &PushBatchSettlementV1,
@@ -2055,7 +2101,7 @@ fn settle_claim_messages_in(
     Ok(())
 }
 
-pub fn recompute_intent_state_in(
+pub(crate) fn recompute_intent_state_in(
     tx: &Transaction<'_>,
     intent_id: &str,
     now_ms: u64,
@@ -2122,7 +2168,7 @@ pub fn recompute_intent_state_in(
 /// Recover only the safe side of the transmit marker. Expired claims that
 /// never crossed it return to `reserved`; every unsettled transmitting batch
 /// becomes terminally ambiguous and is never automatically redriven.
-pub fn recover_expired_batches_in(
+pub(crate) fn recover_expired_batches_in(
     tx: &Transaction<'_>,
     now_ms: u64,
 ) -> SnapbackResult<(usize, usize)> {
@@ -2184,7 +2230,7 @@ struct StoredPushPayloadV1 {
 /// @ref LLP 0143#d3-the-handoff-ledger-receipts-honesty-and-crash-safety — a
 ///   pre-transmit crash is safely re-driven from its exact durable binding;
 ///   every later crash remains ambiguous.
-pub fn claim_recovered_batch_for_transmit_in(
+pub(crate) fn claim_recovered_batch_for_transmit_in(
     tx: &Transaction<'_>,
     now_ms: u64,
 ) -> SnapbackResult<Option<PushRecoveredBatchV1>> {
@@ -2229,7 +2275,7 @@ pub fn claim_recovered_batch_for_transmit_in(
 /// Enforce the declaration-bound ledger retention window. Foreign-key
 /// cascades erase batch/message rows in the same transaction; no provider or
 /// application payload survives beyond its intent chain.
-pub fn expire_ledger_in(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<usize> {
+pub(crate) fn expire_ledger_in(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<usize> {
     crate::manifest::validate_portable_timestamp_millis(now_ms)?;
     Ok(tx.execute(
         "DELETE FROM _snapback_push_intents_v1 WHERE expires_at_ms <= ?1",
@@ -2254,7 +2300,7 @@ fn receipt_poll_delay_after(poll_count: u8) -> u64 {
 ///
 /// @ref LLP 0143#d3-the-handoff-ledger-receipts-honesty-and-crash-safety — 15m, 30m, 1h, 2h, then 4h-capped polling,
 ///   no more than seven attempts and a roughly 24-hour terminal window.
-pub fn claim_due_receipts_in(
+pub(crate) fn claim_due_receipts_in(
     tx: &Transaction<'_>,
     now_ms: u64,
 ) -> SnapbackResult<PushReceiptPollClaimV1> {
@@ -2405,7 +2451,7 @@ pub fn parse_expo_receipt_response(
         .collect()
 }
 
-pub fn settle_receipt_poll_in(
+pub(crate) fn settle_receipt_poll_in(
     tx: &Transaction<'_>,
     claim: &PushReceiptPollClaimV1,
     outcomes: &BTreeMap<String, PushReceiptOutcomeV1>,
@@ -2782,7 +2828,7 @@ pub fn capture_deferred_grant(
     ))
 }
 
-pub fn authorize_send_in(
+pub(crate) fn authorize_send_in(
     tx: &Transaction<'_>,
     schema: &crate::manifest::SchemaManifest,
     audience: &PushAudienceDeclarationV1,
@@ -2796,7 +2842,7 @@ pub fn authorize_send_in(
         PushAudienceAuthorizeV1::System => {
             trigger_mode == PushTriggerModeV1::System
                 && deferred_grant.is_none()
-                && authority == &PushStorageAuthority::System
+                && authority.is_system()
         }
         PushAudienceAuthorizeV1::Membership {
             declaration,
@@ -2804,19 +2850,14 @@ pub fn authorize_send_in(
             roles,
         } => {
             let principal = match trigger_mode {
-                PushTriggerModeV1::Immediate if deferred_grant.is_none() => match authority {
-                    PushStorageAuthority::User(principal) => Some(principal.as_str()),
-                    PushStorageAuthority::System | PushStorageAuthority::Other => None,
-                },
-                PushTriggerModeV1::Deferred if authority == &PushStorageAuthority::System => {
-                    deferred_grant
-                        .filter(|grant| {
-                            grant.to == request.to
-                                && grant.dedupe_key == request.dedupe_key
-                                && !request.redrive_ambiguous
-                        })
-                        .map(|grant| grant.producer_principal.as_str())
-                }
+                PushTriggerModeV1::Immediate if deferred_grant.is_none() => authority.user(),
+                PushTriggerModeV1::Deferred if authority.is_system() => deferred_grant
+                    .filter(|grant| {
+                        grant.to == request.to
+                            && grant.dedupe_key == request.dedupe_key
+                            && !request.redrive_ambiguous
+                    })
+                    .map(|grant| grant.producer_principal.as_str()),
                 PushTriggerModeV1::System
                 | PushTriggerModeV1::Immediate
                 | PushTriggerModeV1::Deferred => None,
@@ -2849,7 +2890,7 @@ pub fn authorize_send_in(
     ))
 }
 
-pub fn resolve_audience_in(
+pub(crate) fn resolve_audience_in(
     tx: &Transaction<'_>,
     schema: &crate::manifest::SchemaManifest,
     resolver: &PushAudienceResolverV1,
@@ -2930,6 +2971,44 @@ pub fn resolve_audience_in(
         .collect::<Result<Vec<_>, _>>()?)
 }
 
+/// Explicitly feature-gated seams for upward composition tests. These call
+/// the owner crate's real authorization logic while keeping raw SQLite
+/// transitions absent from the production public API.
+#[cfg(any(test, feature = "test-support"))]
+pub mod test_support {
+    use super::*;
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn authorize_send_in(
+        tx: &Transaction<'_>,
+        schema: &crate::manifest::SchemaManifest,
+        audience: &PushAudienceDeclarationV1,
+        authority: &PushStorageAuthority,
+        trigger_mode: PushTriggerModeV1,
+        deferred_grant: Option<&PushDeferredGrantV1>,
+        request: &PushSendRequestV1,
+    ) -> SnapbackResult<()> {
+        super::authorize_send_in(
+            tx,
+            schema,
+            audience,
+            authority,
+            trigger_mode,
+            deferred_grant,
+            request,
+        )
+    }
+
+    pub fn resolve_audience_in(
+        tx: &Transaction<'_>,
+        schema: &crate::manifest::SchemaManifest,
+        resolver: &PushAudienceResolverV1,
+        args: &Map<String, Value>,
+    ) -> SnapbackResult<Vec<String>> {
+        super::resolve_audience_in(tx, schema, resolver, args)
+    }
+}
+
 fn push_invalid(message: impl Into<String>) -> SnapbackError {
     SnapbackError::error("SNAPBACK_PUSH_SEND_INVALID", "push", message)
 }
@@ -2938,7 +3017,7 @@ fn push_unavailable(message: impl Into<String>) -> SnapbackError {
     SnapbackError::error("SNAPBACK_PUSH_SEND_UNAVAILABLE", "push", message)
 }
 
-pub fn register_in(
+pub(crate) fn register_in(
     tx: &Transaction<'_>,
     registration: Registration<'_>,
 ) -> SnapbackResult<PushTokenRegistrationResponse> {
@@ -3103,7 +3182,7 @@ pub fn register_in(
     })
 }
 
-pub fn unregister_in(
+pub(crate) fn unregister_in(
     tx: &Transaction<'_>,
     declaration: &PushSeamDeclarationV1,
     principal_id: &str,
@@ -3142,7 +3221,7 @@ pub fn unregister_in(
 // The send slice is the first production caller; keep the validated retirement
 // transition here so it cannot grow a second custody path there.
 #[allow(dead_code)]
-pub fn retire_provider_token_in(
+pub(crate) fn retire_provider_token_in(
     tx: &Transaction<'_>,
     token_id: &str,
     retired_at_ms: u64,
@@ -3183,7 +3262,7 @@ fn valid_provider_reference(reference: &str) -> bool {
 ///
 /// @ref LLP 0143#d1-device-token-custody — reinstall/token rotation can strand
 ///   a predecessor, so boundedness is a declared maintenance rule.
-pub fn retire_idle_in(
+pub(crate) fn retire_idle_in(
     tx: &Transaction<'_>,
     declaration: &PushSeamDeclarationV1,
     now_ms: u64,
@@ -3205,7 +3284,7 @@ pub fn retire_idle_in(
     )?)
 }
 
-pub fn clear_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
+pub(crate) fn clear_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
     require_secure_delete(tx)?;
     for table in [
         "_snapback_push_messages_v1",

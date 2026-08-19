@@ -79,3 +79,6 @@ demos/all-aboard/tests/egress-probe/generated/*
 # gitignored runs/<date>-<slug>/ hierarchy, never loose at the repository root.
 /*.log
 /runs/
+
+# compile-fail fixture build artifacts (regenerated; never committed)
+tests/fixtures/*/target/

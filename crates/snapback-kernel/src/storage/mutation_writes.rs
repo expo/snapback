@@ -789,10 +789,7 @@ impl<'a> MutationWritesKernel<'a> {
             )
     }
 
-    pub fn execute_media_command_mutation_idempotent_guarded_with_settlement_time<
-        G,
-        BeforeCommit,
-    >(
+    pub fn execute_media_command_mutation_idempotent_guarded_with_settlement_time<G, BeforeCommit>(
         &mut self,
         plan: &MutationPlan,
         input: &HandlerInput,

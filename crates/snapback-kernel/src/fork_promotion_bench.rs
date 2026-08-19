@@ -1,30 +1,30 @@
 //! Confined storage half of the fork-promotion benchmark.
 //!
 //! Connections and transactions never cross this API. The rank-7 recorder
-//! receives only measurements and an owner-minted ephemeral fixture.
+//! receives only measurements and a one-shot reservation handle.
 
-use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use anyhow::Context as _;
-use rusqlite::{Connection, Transaction, params};
-use serde_json::json;
-use snapback_kernel::branches::{BranchId, ChildStreamId, MaterializedBase};
-use snapback_kernel::commit_envelope::{
+use crate::branches::{BranchId, ChildStreamId, MaterializedBase};
+use crate::commit_envelope::{
     IdentityEpochStateV1, IdentityEpochV1, OperationBoundFactsV1, OperationIdentityV1,
     OperationIssuanceV1, OperationKeyV1, OperationOriginatorClassV1, derive_host_operation_id,
 };
-use snapback_kernel::diagnostic::SnapbackResult;
-use snapback_kernel::fork_promotion::{
+use crate::diagnostic::SnapbackResult;
+use crate::fork_promotion::{
     ApprovedOperationFactsV1, BranchArtifactBindingV1, BranchGrantV1, BranchLimitsV1,
     BranchOperationDraftV1, BranchOperationV1, ForkCoverageV1, ForkEgressPolicyV1,
     InAppBranchCreateV1, LogicalWriteFactV1, PromotionAdmissionTicketV1, PromotionApprovalV1,
     PromotionAuthorityDecisionV1, PromotionContentionPolicyV1, PromotionReplayContextV1,
     PromotionSealKey, ReplayCustodyClassV1, RetainedReplayInputV1, SnapshotRowV1,
     create_in_app_branch, exact_fork_diff, execute_branch_operation, issue_promotion_ticket,
-    promote_by_reexecution, reap_expired_in_app_branches, request_head_reservation,
+    issue_promotion_ticket_with_prepared_infra, promote_by_reexecution,
+    reap_expired_in_app_branches, request_head_reservation_with_prepared_infra,
     seal_promotion_request,
 };
+use anyhow::Context as _;
+use rusqlite::{Connection, Transaction, params};
+use serde_json::json;
 
 const ROWS: usize = 512;
 
@@ -154,24 +154,15 @@ fn source() -> anyhow::Result<Connection> {
             params![id, format!("widget-{id}")],
         )?;
     }
-    snapback_kernel::operation_ledger::create_infra(&tx)?;
-    snapback_kernel::operation_ledger::register_epoch_in(&tx, &epoch(1))?;
+    crate::operation_ledger::create_infra(&tx)?;
+    crate::operation_ledger::register_epoch_in(&tx, &epoch(1))?;
     tx.commit()?;
     Ok(connection)
 }
 
-/// Service-owned, file-backed benchmark fixture.
-///
-/// The connection is opened before the path is exposed, so the benchmark
-/// reservation can only affect this newly minted temporary database even if a
-/// caller later replaces the directory entry. No caller-selected production
-/// database or raw reservation handle crosses the owner boundary.
-pub struct PromotionContentionFixture {
-    _directory: tempfile::TempDir,
-    database_path: PathBuf,
-    connection: Connection,
-    ticket: Option<PromotionAdmissionTicketV1>,
-    prepared: bool,
+pub struct PromotionContentionReservation {
+    database_identity: std::sync::Arc<()>,
+    ticket: PromotionAdmissionTicketV1,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -180,86 +171,73 @@ pub struct PromotionContentionPolicy {
     pub maximum_promotion_commit_duration_ms: u64,
 }
 
-impl PromotionContentionFixture {
-    pub fn new() -> anyhow::Result<Self> {
-        let directory = tempfile::tempdir().context("create promotion contention fixture")?;
-        let database_path = directory.path().join("contention.sqlite");
-        let connection = Connection::open(&database_path)?;
-        connection.busy_timeout(std::time::Duration::from_secs(5))?;
-        Ok(Self {
-            _directory: directory,
-            database_path,
-            connection,
-            ticket: None,
-            prepared: false,
-        })
-    }
-
-    pub fn database_path(&self) -> &Path {
-        &self.database_path
-    }
-
-    pub fn prepare(
-        &mut self,
-        canonical_stream_id: &str,
-        workers: usize,
-        issued_at_ms: i64,
-    ) -> anyhow::Result<()> {
-        anyhow::ensure!(
-            !self.prepared,
-            "contention fixture is already prepared"
-        );
-        let tx = self.connection.transaction()?;
-        snapback_kernel::operation_ledger::register_epoch_in(
-            &tx,
-            &epoch(issued_at_ms.max(1) as u64),
-        )?;
-        tx.commit()?;
-        let ticket = issue_promotion_ticket(
-            &mut self.connection,
-            identity(
-                canonical_stream_id,
-                "contention-ticket",
-                "promotion.reserve",
-            ),
-            &BranchId("contention-branch".to_owned()),
+pub(crate) fn prepare_promotion_contention_reservation_in(
+    connection: &mut Connection,
+    database_identity: std::sync::Arc<()>,
+    canonical_stream_id: &str,
+    workers: usize,
+    issued_at_ms: i64,
+) -> anyhow::Result<PromotionContentionReservation> {
+    connection.busy_timeout(std::time::Duration::from_secs(5))?;
+    let tx = connection.transaction()?;
+    crate::operation_ledger::register_epoch_in(&tx, &epoch(issued_at_ms.max(1) as u64))
+        .map_err(|error| anyhow::anyhow!("register contention epoch: {error:?}"))?;
+    tx.commit()?;
+    let ticket = issue_promotion_ticket_with_prepared_infra(
+        connection,
+        identity(
             canonical_stream_id,
-            workers as u64,
-            issued_at_ms.saturating_add(60_000),
-            issued_at_ms,
-            PromotionContentionPolicyV1::default(),
-        )?;
-        self.connection.execute(
-            "UPDATE _snapback_promotion_admission SET losses = ?2 WHERE ticket_id = ?1",
-            params![
-                ticket.ticket_identity.key.operation_id,
-                ticket.contention_policy.reservation_after_losses as i64
-            ],
-        )?;
-        self.ticket = Some(ticket);
-        self.prepared = true;
-        Ok(())
-    }
+            "contention-ticket",
+            "promotion.reserve",
+        ),
+        &BranchId("contention-branch".to_owned()),
+        canonical_stream_id,
+        workers as u64,
+        issued_at_ms.saturating_add(60_000),
+        issued_at_ms,
+        PromotionContentionPolicyV1::default(),
+    )
+    .map_err(|error| anyhow::anyhow!("issue contention promotion ticket: {error:?}"))?;
+    connection.execute(
+        "UPDATE _snapback_promotion_admission SET losses = ?2 WHERE ticket_id = ?1",
+        params![
+            ticket.ticket_identity.key.operation_id,
+            ticket.contention_policy.reservation_after_losses as i64
+        ],
+    )?;
+    Ok(PromotionContentionReservation {
+        database_identity,
+        ticket,
+    })
+}
 
-    pub fn activate(&mut self, now_ms: i64) -> anyhow::Result<PromotionContentionPolicy> {
-        let ticket = self
-            .ticket
-            .take()
-            .context("contention fixture is not prepared")?;
-        request_head_reservation(&self.connection, &ticket, now_ms)?;
+impl PromotionContentionReservation {
+    pub(crate) fn activate_in(
+        self,
+        connection: &Connection,
+        database_identity: &std::sync::Arc<()>,
+        now_ms: i64,
+    ) -> SnapbackResult<PromotionContentionPolicy> {
+        if !std::sync::Arc::ptr_eq(&self.database_identity, database_identity) {
+            return Err(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
+                "storage",
+                "promotion contention reservation belongs to another database",
+            ));
+        }
+        request_head_reservation_with_prepared_infra(connection, &self.ticket, now_ms)?;
         Ok(PromotionContentionPolicy {
-            reservation_interval_ms: ticket.contention_policy.reservation_interval_ms,
-            maximum_promotion_commit_duration_ms: ticket
+            reservation_interval_ms: self.ticket.contention_policy.reservation_interval_ms,
+            maximum_promotion_commit_duration_ms: self
+                .ticket
                 .contention_policy
                 .maximum_commit_duration_ms,
         })
     }
+}
 
-    pub fn count_committed_rows(&self) -> anyhow::Result<usize> {
-        Ok(self
-            .connection
-            .query_row("SELECT COUNT(*) FROM todos", [], |row| row.get(0))?)
-    }
+pub(crate) fn count_committed_contention_rows_in(connection: &Connection) -> anyhow::Result<usize> {
+    Ok(connection.query_row("SELECT COUNT(*) FROM todos", [], |row| row.get(0))?)
 }
 
 fn epoch(issued_at_ms: u64) -> IdentityEpochV1 {

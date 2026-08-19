@@ -44,16 +44,15 @@ use super::throttle::{
 use super::wire::{
     CredentialResponse, FamilyAlarmResponse, MailboxResponse, RequestCodeResponse, SessionResponse,
 };
+pub use crate::contract_types::PresentedSessionLookup;
 pub use crate::contract_types::{
     AuthProviderProfile, AuthenticatedUse, ResolvedSession, SessionRevocation,
 };
 use crate::contract_types::{
-    AuthSessionRecord as SessionRecord, CatalogIssuanceReconcile,
-    ExchangeChallengeFact, PlannedIdentityState, RejectedExchangeOutcome, RequestInsertOutcome,
-    RevocationReason, SessionCapFacts, SessionIssuanceFacts, SessionRevocationCandidateFact,
-    TokenDigest,
+    AuthSessionRecord as SessionRecord, CatalogIssuanceReconcile, ExchangeChallengeFact,
+    PlannedIdentityState, RejectedExchangeOutcome, RequestInsertOutcome, RevocationReason,
+    SessionCapFacts, SessionIssuanceFacts, SessionRevocationCandidateFact, TokenDigest,
 };
-pub use crate::contract_types::PresentedSessionLookup;
 pub use crate::contract_types::{
     DurableRejectedIssuanceReconcile, DurableRevocationReconcile, DurableRotationReconcile,
     PlannedFamilyAlarmCommit, PlannedRevocationCommit, PlannedRotationTransaction,
@@ -302,8 +301,8 @@ impl StepUpProofAdmission {
         email_identity_id: &'a str,
         now_ms: u64,
         custody: PasswordIssuanceCustody,
-    ) -> impl super::database_plan::AuthDatabasePlan<Output = SnapbackResult<PasswordSetPreparation>>
-           + 'a {
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = SnapbackResult<PasswordSetPreparation>> + 'a
+    {
         let identifier = self.proof.address.as_str();
         super::database_plan::plan(move |database| {
             self._admission.provider.prepare_password_set(
@@ -2624,8 +2623,9 @@ impl AuthAdmission {
         acting: &'a SessionBearer,
         now_ms: u64,
         custody: PasswordIssuanceCustody,
-    ) -> impl super::database_plan::AuthDatabasePlan<Output = SnapbackResult<PasswordChangePreparation>>
-           + 'a {
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = SnapbackResult<PasswordChangePreparation>,
+    > + 'a {
         super::database_plan::plan(move |database| {
             self.provider
                 .prepare_password_change(database, acting, now_ms, custody)
@@ -2641,9 +2641,8 @@ impl AuthAdmission {
         Output = SnapbackResult<ProviderSessionIssuancePlan>,
     > + 'a {
         super::database_plan::plan(move |database| {
-            self.provider.plan_password_recovery_rotate_with_active_key(
-                database, acting, now_ms, custody,
-            )
+            self.provider
+                .plan_password_recovery_rotate_with_active_key(database, acting, now_ms, custody)
         })
     }
 
@@ -2743,11 +2742,9 @@ impl AuthAdmission {
         &'a self,
         bearer: &'a str,
         now_ms: u64,
-    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<ProviderFamilyAlarmPlan>>
-           + 'a {
-        super::database_plan::plan(move |database| {
-            self.plan_family_alarm(database, bearer, now_ms)
-        })
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<ProviderFamilyAlarmPlan>> + 'a
+    {
+        super::database_plan::plan(move |database| self.plan_family_alarm(database, bearer, now_ms))
     }
 
     pub fn commit_planned_family_alarm_plan<'a>(
@@ -2756,9 +2753,7 @@ impl AuthAdmission {
     ) -> impl super::database_plan::AuthDatabasePlan<
         Output = AuthTransactionAttempt<PlannedFamilyAlarmCommit>,
     > + 'a {
-        super::database_plan::plan(move |database| {
-            self.commit_planned_family_alarm(database, plan)
-        })
+        super::database_plan::plan(move |database| self.commit_planned_family_alarm(database, plan))
     }
 
     pub fn commit_planned_revocation_plan<'a>(
@@ -2779,9 +2774,7 @@ impl AuthAdmission {
     ) -> impl super::database_plan::AuthDatabasePlan<
         Output = AuthTransactionAttempt<PlannedRotationCommit>,
     > + 'a {
-        super::database_plan::plan(move |database| {
-            self.commit_planned_rotation(database, plan)
-        })
+        super::database_plan::plan(move |database| self.commit_planned_rotation(database, plan))
     }
 
     /// Seal one authenticated-use transaction for execution by the engine
@@ -2791,14 +2784,10 @@ impl AuthAdmission {
         session_id: String,
         expected_generation: u64,
         now_ms: u64,
-    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<AuthenticatedUse>> {
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<AuthenticatedUse>>
+    {
         super::database_plan::plan(move |database| {
-            self.record_authenticated_use(
-                database,
-                &session_id,
-                expected_generation,
-                now_ms,
-            )
+            self.record_authenticated_use(database, &session_id, expected_generation, now_ms)
         })
     }
 
@@ -3475,8 +3464,9 @@ impl ExchangeAdmission {
         &'a self,
         code: &'a str,
         now_ms: u64,
-    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<PasswordResetPreparation>>
-           + 'a {
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = ProviderResult<PasswordResetPreparation>,
+    > + 'a {
         super::database_plan::plan(move |database| {
             self.prepare_password_reset(database, code, now_ms)
         })
@@ -3499,8 +3489,8 @@ impl ExchangeAdmission {
         code: &'a str,
         now_ms: u64,
         sender_issuance: Option<&'a crate::auth::sender_proof::SenderIssuanceCommitment>,
-    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<RejectedExchangeCommit>>
-           + 'a {
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<RejectedExchangeCommit>> + 'a
+    {
         super::database_plan::plan(move |database| {
             self.commit_planned_rejection(database, code, now_ms, sender_issuance)
         })
@@ -3742,11 +3732,8 @@ impl AddressAdmission {
         Output = SnapbackResult<PasswordRegistrationPreparation>,
     > + '_ {
         super::database_plan::plan(move |database| {
-            self.provider().prepare_password_registration(
-                database,
-                self.address.as_str(),
-                custody,
-            )
+            self.provider()
+                .prepare_password_registration(database, self.address.as_str(), custody)
         })
     }
 
@@ -3776,13 +3763,14 @@ impl AddressAdmission {
         Output = SnapbackResult<ProviderSessionIssuancePlan>,
     > + 'a {
         super::database_plan::plan(move |database| {
-            self.provider().plan_password_recovery_consume_with_active_key(
-                database,
-                self.address.as_str(),
-                code,
-                now_ms,
-                custody,
-            )
+            self.provider()
+                .plan_password_recovery_consume_with_active_key(
+                    database,
+                    self.address.as_str(),
+                    code,
+                    now_ms,
+                    custody,
+                )
         })
     }
 
@@ -3791,8 +3779,9 @@ impl AddressAdmission {
         acting: &'a SessionBearer,
         now_ms: u64,
         custody: PasswordIssuanceCustody,
-    ) -> impl super::database_plan::AuthDatabasePlan<Output = SnapbackResult<PasswordChangePreparation>>
-           + 'a {
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = SnapbackResult<PasswordChangePreparation>,
+    > + 'a {
         super::database_plan::plan(move |database| {
             self.prepare_password_change(database, acting, now_ms, custody)
         })
@@ -3840,9 +3829,7 @@ impl AddressAdmission {
     ) -> impl super::database_plan::AuthDatabasePlan<
         Output = AuthTransactionAttempt<PlannedIssuanceCommit>,
     > + 'a {
-        super::database_plan::plan(move |database| {
-            self.commit_planned_issuance(database, plan)
-        })
+        super::database_plan::plan(move |database| self.commit_planned_issuance(database, plan))
     }
 
     pub fn address(&self) -> &CanonicalAddress {

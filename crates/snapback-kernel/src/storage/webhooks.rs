@@ -74,7 +74,7 @@ pub struct DeliveryRecord {
     pub max_attempts: u32,
 }
 
-pub fn activate_manifest_in(
+pub(crate) fn activate_manifest_in(
     tx: &Transaction<'_>,
     manifest: &SchemaManifest,
 ) -> SnapbackResult<()> {

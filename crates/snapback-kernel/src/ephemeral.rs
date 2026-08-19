@@ -18,8 +18,13 @@ fn valid_manifest_identifier(value: &str) -> bool {
 }
 
 fn collection_requires_room_permission(collection: &EphemeralCollection) -> bool {
-    matches!(collection.publish, AccessPolicy::RequireRoomPermission { .. })
-        || matches!(collection.subscribe, AccessPolicy::RequireRoomPermission { .. })
+    matches!(
+        collection.publish,
+        AccessPolicy::RequireRoomPermission { .. }
+    ) || matches!(
+        collection.subscribe,
+        AccessPolicy::RequireRoomPermission { .. }
+    )
 }
 
 /// Validate the complete local ephemeral definition set before it can replace

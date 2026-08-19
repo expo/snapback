@@ -314,7 +314,7 @@ pub enum AuthRestoreResult {
 /// advances a session to its revoked generation. Frozen auth catalogs v1/v2
 /// retain their exact table shapes; this versioned metadata witness supplies
 /// the cause that `revoked_at_ms` alone cannot represent across restart.
-pub fn write_session_terminal_cause_in(
+pub(crate) fn write_session_terminal_cause_in(
     tx: &Transaction<'_>,
     session_id: &str,
     generation: u64,
@@ -337,7 +337,7 @@ pub fn write_session_terminal_cause_in(
     Ok(())
 }
 
-pub fn session_terminal_cause_matches_on(
+pub(crate) fn session_terminal_cause_matches_on(
     conn: &Connection,
     session_id: &str,
     generation: u64,
@@ -354,7 +354,7 @@ pub fn session_terminal_cause_matches_on(
 /// missing or stale/mismatched record is legacy/uncertain authority and must
 /// be classified as carrier loss by callers; malformed metadata is catalog
 /// corruption and remains an availability failure.
-pub fn read_session_terminal_cause_on(
+pub(crate) fn read_session_terminal_cause_on(
     conn: &Connection,
     session_id: &str,
     generation: u64,
@@ -402,7 +402,7 @@ pub enum ServiceAuthTransactionAttempt<T> {
     RolledBack(SnapbackError),
     CommitUncertain {
         error: SnapbackError,
-        terminal: Option<Box<dyn crate::auth::service_fence::PreparedServiceAuthorityTerminal>>,
+        terminal: Option<crate::auth::service_fence::PreparedServiceAuthorityTerminal>,
     },
 }
 
@@ -1532,6 +1532,7 @@ impl LocalDatabase {
 
     fn activate_new_auth_catalog(&mut self, mode: PasswordIdentifierMode) -> SnapbackResult<()> {
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -1549,6 +1550,7 @@ impl LocalDatabase {
             authorization_predecessor,
             min_commit_version,
             authorization_interlock,
+            &commit_authority_identity,
         )?;
         require_ready_on(&self.conn)
     }
@@ -1569,9 +1571,7 @@ impl LocalDatabase {
         identity_floor_password_identifier_mode_on(&self.conn)
     }
 
-    pub fn auth_password_provider_readiness(
-        &self,
-    ) -> SnapbackResult<PasswordProviderReadiness> {
+    pub fn auth_password_provider_readiness(&self) -> SnapbackResult<PasswordProviderReadiness> {
         Ok(match self.inspect_auth_catalog()? {
             AuthCatalogState::ReadyV4 => PasswordProviderReadiness::ready(
                 read_password_identifier_mode_on(&self.conn)?.as_str(),
@@ -1708,7 +1708,7 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0059#finite-service-authority-fence — exact affected ids are
     /// planned read-only and premarked before the first durable ending write.
-    pub fn attempt_auth_transaction_with_service_terminal<T>(
+    pub(crate) fn attempt_auth_transaction_with_service_terminal<T>(
         &mut self,
         disposition: crate::auth::service_authority_contract::ServiceAuthorityDisposition,
         plan: impl FnOnce(&Transaction<'_>) -> SnapbackResult<Vec<String>>,
@@ -1728,10 +1728,17 @@ impl LocalDatabase {
             Ok(token_ids) => token_ids,
             Err(error) => return rollback_unprepared_service_auth_transaction(tx, error),
         };
-        let mut prepared = match self
-            .service_authority_fences
-            .prepare_terminal(&token_ids, disposition)
-        {
+        let Some(interlock) = self.service_authority_fences.as_ref() else {
+            return rollback_unprepared_service_auth_transaction(
+                tx,
+                SnapbackError::error(
+                    "SNAPBACK_SERVICE_AUTHORITY_UNAVAILABLE",
+                    "auth",
+                    "service-authority commit interlock is not installed",
+                ),
+            );
+        };
+        let mut prepared = match interlock.prepare_terminal(&token_ids, disposition) {
             Ok(prepared) => prepared,
             Err(error) => return rollback_unprepared_service_auth_transaction(tx, error),
         };
@@ -1764,7 +1771,7 @@ impl LocalDatabase {
     /// inconclusive reread deliberately leaves the ticket pending.
     pub fn reconcile_ambiguous_service_terminal(
         &self,
-        prepared: Option<Box<dyn crate::auth::service_fence::PreparedServiceAuthorityTerminal>>,
+        prepared: Option<crate::auth::service_fence::PreparedServiceAuthorityTerminal>,
         committed: bool,
     ) -> SnapbackResult<()> {
         let Some(prepared) = prepared else {
@@ -1798,10 +1805,7 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0059#durable-session-clock-floor — every startup and every
     /// maintenance pass advances this monotone floor.
-    pub fn advance_auth_session_clock_floor(
-        &mut self,
-        observed_ms: u64,
-    ) -> SnapbackResult<u64> {
+    pub fn advance_auth_session_clock_floor(&mut self, observed_ms: u64) -> SnapbackResult<u64> {
         if observed_ms > MAX_SAFE_TIMESTAMP_MS {
             return Err(corrupt(
                 "auth session clock floor time is outside the portable timestamp range",
@@ -1916,6 +1920,7 @@ impl LocalDatabase {
         }
         let schema = self.schema.clone();
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -2017,6 +2022,7 @@ impl LocalDatabase {
             authorization_predecessor,
             min_commit_version,
             authorization_interlock,
+            &commit_authority_identity,
         )?;
         Ok(AuthRestoreResult::Applied {
             sessions_revoked,
@@ -2224,9 +2230,7 @@ impl LocalDatabase {
 
     /// Inspect a physical backup image without configuring SQLite, opening a
     /// WAL writer, or otherwise mutating the candidate artifact.
-    pub fn inspect_auth_catalog_file_read_only(
-        path: &Path,
-    ) -> SnapbackResult<AuthCatalogState> {
+    pub fn inspect_auth_catalog_file_read_only(path: &Path) -> SnapbackResult<AuthCatalogState> {
         let conn = Connection::open_with_flags(
             path,
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
@@ -2260,9 +2264,7 @@ impl LocalDatabase {
         retained_key_ids_on(&conn)
     }
 
-    pub fn auth_retained_key_ids_descriptor_read_only(
-        image: &File,
-    ) -> SnapbackResult<Vec<String>> {
+    pub fn auth_retained_key_ids_descriptor_read_only(image: &File) -> SnapbackResult<Vec<String>> {
         let conn = open_backup_image_connection(image, true)?;
         require_ready_on(&conn)?;
         retained_key_ids_on(&conn)
@@ -2314,7 +2316,7 @@ fn rollback_unprepared_service_auth_transaction<T>(
 fn rollback_prepared_service_auth_transaction<T>(
     tx: Transaction<'_>,
     operation_error: SnapbackError,
-    mut prepared: Box<dyn crate::auth::service_fence::PreparedServiceAuthorityTerminal>,
+    mut prepared: crate::auth::service_fence::PreparedServiceAuthorityTerminal,
 ) -> ServiceAuthTransactionAttempt<T> {
     let rollback = tx.rollback();
     #[cfg(any(test, feature = "test-support"))]
@@ -2488,9 +2490,7 @@ pub(super) fn require_password_identifier_mode_declaration_on(
 /// @ref LLP 0057#catalog-version-1 — version 1 is recognition-only test input,
 /// never a fresh production activation target.
 #[cfg(any(test, feature = "test-support"))]
-pub fn install_frozen_v1_catalog_fixture(
-    database: &mut LocalDatabase,
-) -> SnapbackResult<()> {
+pub fn install_frozen_v1_catalog_fixture(database: &mut LocalDatabase) -> SnapbackResult<()> {
     if database.inspect_auth_catalog()? != AuthCatalogState::Uninitialized {
         return Err(corrupt(
             "frozen-v1 fixture requires an uninitialized auth catalog",
@@ -2517,9 +2517,7 @@ pub fn install_frozen_v1_catalog_fixture(
 /// Install the exact frozen version-2 catalog for recognition/no-migration
 /// compatibility tests. Production activation never targets this descriptor.
 #[cfg(any(test, feature = "test-support"))]
-pub fn install_frozen_v2_catalog_fixture(
-    database: &mut LocalDatabase,
-) -> SnapbackResult<()> {
+pub fn install_frozen_v2_catalog_fixture(database: &mut LocalDatabase) -> SnapbackResult<()> {
     if database.inspect_auth_catalog()? != AuthCatalogState::Uninitialized {
         return Err(corrupt(
             "frozen-v2 fixture requires an uninitialized auth catalog",
@@ -2547,9 +2545,7 @@ pub fn install_frozen_v2_catalog_fixture(
 /// older-binary recognition fixtures. It deliberately has no identifier-mode
 /// metadata because that declaration first exists in version 4.
 #[cfg(any(test, feature = "test-support"))]
-pub fn install_frozen_v3_catalog_fixture(
-    database: &mut LocalDatabase,
-) -> SnapbackResult<()> {
+pub fn install_frozen_v3_catalog_fixture(database: &mut LocalDatabase) -> SnapbackResult<()> {
     if database.inspect_auth_catalog()? != AuthCatalogState::Uninitialized {
         return Err(corrupt(
             "frozen-v3 fixture requires an uninitialized auth catalog",
@@ -3638,7 +3634,11 @@ mod tests {
         let mut db = catalog_database();
         let interlock =
             crate::auth::service_fence::RecordingServiceAuthorityCommitInterlock::default();
-        db.install_service_authority_commit_interlock(std::sync::Arc::new(interlock.clone()));
+        let authority = db
+            .claim_kernel_commit_authority()
+            .expect("kernel authority");
+        db.install_service_authority_commit_interlock(&authority, interlock.bind(&authority))
+            .expect("bind service terminal interlock");
 
         inject_service_rollback_uncertainty_for_test();
         let attempt: ServiceAuthTransactionAttempt<()> = db
@@ -4018,56 +4018,47 @@ mod tests {
         expect_incarnation_rotated: bool,
     }
 
-    struct RecordingRestoreCommit {
-        committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-    }
-
-    struct RecordingRestoreReservation {
-        prepared: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-        committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-        expect_incarnation_rotated: bool,
-    }
-
     impl RecordingRestoreInterlock {
-        fn reservation(&self) -> Box<dyn crate::storage::AuthorizationCommitReservation> {
-            Box::new(RecordingRestoreReservation {
-                prepared: self.prepared.clone(),
-                committed: self.committed.clone(),
-                expect_incarnation_rotated: self.expect_incarnation_rotated,
-            })
+        fn reservation(
+            &self,
+            carriers: &crate::storage::AuthorizationCommitCarrierFactory,
+        ) -> crate::storage::AuthorizationCommitReservation {
+            let prepared = self.prepared.clone();
+            let committed = self.committed.clone();
+            let expect_incarnation_rotated = self.expect_incarnation_rotated;
+            let prepared_carriers = carriers.clone();
+            carriers.reservation(
+                move |witness, impact| {
+                    assert!(witness.event);
+                    assert_eq!(witness.incarnation_rotated, expect_incarnation_rotated);
+                    assert!(matches!(
+                        impact,
+                        crate::storage::AuthorizationCommitImpact::AllProtectedRooms
+                    ));
+                    prepared.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    Ok(prepared_carriers.prepared(
+                        move |_min_commit_version| {
+                            committed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            Ok(())
+                        },
+                        || panic!("the in-memory restore commit must not be ambiguous"),
+                        || {},
+                    ))
+                },
+                || {},
+            )
         }
-    }
-
-    impl crate::storage::AuthorizationCommitReservation for RecordingRestoreReservation {
-        fn bind(
-            self: Box<Self>,
-            witness: &crate::storage::AuthorizationCommitWitness,
-            impact: crate::storage::AuthorizationCommitImpact<'_>,
-        ) -> SnapbackResult<Box<dyn crate::storage::PreparedAuthorizationCommit>> {
-            assert!(witness.event);
-            assert_eq!(witness.incarnation_rotated, self.expect_incarnation_rotated);
-            assert!(matches!(
-                impact,
-                crate::storage::AuthorizationCommitImpact::AllProtectedRooms
-            ));
-            self.prepared
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(Box::new(RecordingRestoreCommit {
-                committed: self.committed.clone(),
-            }))
-        }
-
-        fn cancel(self: Box<Self>) {}
     }
 
     fn with_recording_restore_reservation<T>(
         interlock: &RecordingRestoreInterlock,
+        carriers: &crate::storage::AuthorizationCommitCarrierFactory,
         work: impl FnOnce() -> T,
     ) -> T {
-        crate::storage::install_managed_authorization_reservation(interlock.reservation());
+        let reservation_scope = interlock.reservation(carriers).install();
         let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
         let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(work));
-        let unused = crate::storage::take_managed_authorization_reservation();
+        let unused = reservation_scope.take_unused();
         let batch = scope.take_after_local_batch();
         drop(scope);
         if let Some(unused) = unused {
@@ -4077,20 +4068,6 @@ mod tests {
         match output {
             Ok(output) => output,
             Err(panic) => std::panic::resume_unwind(panic),
-        }
-    }
-
-    impl crate::storage::AuthorizationCommitInterlock for RecordingRestoreInterlock {}
-
-    impl crate::storage::PreparedAuthorizationCommit for RecordingRestoreCommit {
-        fn committed(self: Box<Self>, _min_commit_version: u64) -> SnapbackResult<()> {
-            self.committed
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(())
-        }
-
-        fn ambiguous(self: Box<Self>) {
-            panic!("the in-memory restore commit must not be ambiguous");
         }
     }
 
@@ -4104,10 +4081,15 @@ mod tests {
             committed: committed.clone(),
             expect_incarnation_rotated: true,
         });
-        db.install_authorization_interlock(interlock.clone());
+        let authority = db
+            .claim_kernel_commit_authority()
+            .expect("kernel authority");
+        db.enable_authorization_commit_interlock(&authority)
+            .expect("bind authorization interlock");
+        let carriers = authority.authorization_commit_carriers();
 
         let declaration = "0197f862-f196-7bb2-b3f0-2a67185dfd17";
-        let result = with_recording_restore_reservation(&interlock, || {
+        let result = with_recording_restore_reservation(&interlock, &carriers, || {
             db.apply_auth_restore_declaration(declaration, 100)
         })
         .unwrap();
@@ -4116,7 +4098,7 @@ mod tests {
         assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
 
         assert_eq!(
-            with_recording_restore_reservation(&interlock, || {
+            with_recording_restore_reservation(&interlock, &carriers, || {
                 db.apply_auth_restore_declaration(declaration, 101)
             })
             .unwrap(),
@@ -4422,13 +4404,19 @@ mod tests {
             committed: committed.clone(),
             expect_incarnation_rotated: false,
         });
-        db.install_authorization_interlock(interlock.clone());
+        let authority = db
+            .claim_kernel_commit_authority()
+            .expect("kernel authority");
+        db.enable_authorization_commit_interlock(&authority)
+            .expect("bind authorization interlock");
+        let carriers = authority.authorization_commit_carriers();
         crate::storage::inject_authorization_commit_fault_for_test(
             crate::storage::AuthorizationCommitFaultForTest::AfterRollback,
         );
-        let error =
-            with_recording_restore_reservation(&interlock, || db.activate_current_auth_catalog())
-                .expect_err("absent durable predecessor proves activation rolled back");
+        let error = with_recording_restore_reservation(&interlock, &carriers, || {
+            db.activate_current_auth_catalog()
+        })
+        .expect_err("absent durable predecessor proves activation rolled back");
         assert_eq!(error.diagnostic.code, "TEST_AUTHORIZATION_COMMIT_FAILURE");
         assert_eq!(
             db.inspect_auth_catalog().unwrap(),
@@ -4439,8 +4427,10 @@ mod tests {
             crate::storage::AuthorizationCommitFaultForTest::AfterCommit,
         );
 
-        with_recording_restore_reservation(&interlock, || db.activate_current_auth_catalog())
-            .expect("exact catalog successor proves activation committed");
+        with_recording_restore_reservation(&interlock, &carriers, || {
+            db.activate_current_auth_catalog()
+        })
+        .expect("exact catalog successor proves activation committed");
         assert_eq!(
             db.inspect_auth_catalog().unwrap(),
             AuthCatalogState::ReadyV4
@@ -4460,13 +4450,18 @@ mod tests {
             committed: committed.clone(),
             expect_incarnation_rotated: true,
         });
-        db.install_authorization_interlock(interlock.clone());
+        let authority = db
+            .claim_kernel_commit_authority()
+            .expect("kernel authority");
+        db.enable_authorization_commit_interlock(&authority)
+            .expect("bind authorization interlock");
+        let carriers = authority.authorization_commit_carriers();
 
         let rolled_back_declaration = "0197f862-f196-7bb2-b3f0-2a67185dfd18";
         crate::storage::inject_authorization_commit_fault_for_test(
             crate::storage::AuthorizationCommitFaultForTest::BeforeCommit,
         );
-        let error = with_recording_restore_reservation(&interlock, || {
+        let error = with_recording_restore_reservation(&interlock, &carriers, || {
             db.apply_auth_restore_declaration(rolled_back_declaration, 100)
         })
         .expect_err("explicit SQLite rollback is definite");
@@ -4477,7 +4472,7 @@ mod tests {
         crate::storage::inject_authorization_commit_fault_for_test(
             crate::storage::AuthorizationCommitFaultForTest::AfterCommit,
         );
-        let applied = with_recording_restore_reservation(&interlock, || {
+        let applied = with_recording_restore_reservation(&interlock, &carriers, || {
             db.apply_auth_restore_declaration(committed_declaration, 101)
         })
         .expect("rotated durable successor proves the lost acknowledgement");
@@ -4486,7 +4481,7 @@ mod tests {
         assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 2);
         assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
         assert_eq!(
-            with_recording_restore_reservation(&interlock, || {
+            with_recording_restore_reservation(&interlock, &carriers, || {
                 db.apply_auth_restore_declaration(committed_declaration, 102)
             })
             .unwrap(),

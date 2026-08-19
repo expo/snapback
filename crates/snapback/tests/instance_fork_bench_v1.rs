@@ -14,7 +14,7 @@
 
 use serde_json::{Value, json};
 use snapback::manifest::SchemaManifest;
-use snapback::storage::LocalDatabase;
+use snapback_kernel::storage::LocalDatabase;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};

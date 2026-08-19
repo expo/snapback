@@ -79,6 +79,13 @@ impl LocalDatabase {
         &self,
         request: &crate::proof_checkpoint::ProtectedRecordErasureRequestV1,
     ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1> {
+        if !request.authority.is_for(&self.commit_authority_identity) {
+            return Err(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+                "proofCheckpoint",
+                "protected-record erasure carrier belongs to a different database",
+            ));
+        }
         crate::proof_checkpoint::validate_protected_record_erasure_request(&self.schema, request)?;
         self.ensure_checkpoint_erasure_infra()?;
         crate::proof_checkpoint::erase_protected_record(&self.conn, &self.schema, request)

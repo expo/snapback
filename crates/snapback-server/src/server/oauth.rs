@@ -1,5 +1,5 @@
 use super::*;
-#[cfg(all(test, not(feature = "server-owner")))]
+#[cfg(test)]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 
 #[derive(Serialize)]

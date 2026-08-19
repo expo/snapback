@@ -59,7 +59,7 @@ fn constant_time_text_eq(left: &str, right: &str) -> bool {
 ///
 /// @ref LLP 0077#http-binding — replay consumption is atomic, bounded, durable
 /// across process restart, and precedes application execution.
-pub fn initialize_sender_proof_replay_on(
+pub(crate) fn initialize_sender_proof_replay_on(
     connection: &Connection,
 ) -> Result<(), ReplayConsumeError> {
     connection
@@ -105,7 +105,7 @@ pub fn initialize_sender_proof_replay_on(
 ///
 /// @ref LLP 0077#issuance-refresh-and-recovery — restart and rollout preserve
 /// one sender namespace, while stream reset rotates it transactionally.
-pub fn sender_replay_epoch_on(connection: &Connection) -> Result<u64, ReplayConsumeError> {
+pub(crate) fn sender_replay_epoch_on(connection: &Connection) -> Result<u64, ReplayConsumeError> {
     let epoch: i64 = connection
         .query_row(
             &format!("SELECT epoch FROM {EPOCH_TABLE} WHERE singleton = 1"),
@@ -128,7 +128,7 @@ pub fn sender_replay_epoch_on(connection: &Connection) -> Result<u64, ReplayCons
 /// @ref LLP 0077#author-decisions--2026-07-23 — decision 1: effective epoch
 /// = max(incarnation-derived durable value, control-plane floor); the floor
 /// lives outside the rolled-back durable set and only ever advances.
-pub fn apply_sender_replay_epoch_floor_on(
+pub(crate) fn apply_sender_replay_epoch_floor_on(
     connection: &mut Connection,
     floor: u64,
 ) -> Result<(), ReplayConsumeError> {
@@ -170,7 +170,7 @@ pub fn apply_sender_replay_epoch_floor_on(
 
 /// Rotate the sender namespace inside the authorization-stream reset
 /// transaction. An uninitialized hosted sender authority is a no-op.
-pub fn rotate_sender_replay_epoch_for_stream_reset_on(
+pub(crate) fn rotate_sender_replay_epoch_for_stream_reset_on(
     transaction: &Transaction<'_>,
 ) -> Result<(), ReplayConsumeError> {
     let initialized: bool = transaction
@@ -218,6 +218,12 @@ pub struct SenderProofAuthority<'a> {
     connection: &'a mut Connection,
 }
 
+mod sender_authority_sealed {
+    pub trait Sealed {}
+}
+
+impl sender_authority_sealed::Sealed for SenderProofAuthority<'_> {}
+
 impl SenderProofAuthority<'_> {
     pub fn sender_replay_epoch(&self) -> Result<u64, ReplayConsumeError> {
         sender_replay_epoch_on(self.connection)
@@ -226,7 +232,7 @@ impl SenderProofAuthority<'_> {
 
 /// Narrow durable operations consumed by sender-proof policy. Implementations
 /// read or commit the supplied tuple; they do not classify admission outcomes.
-pub trait SenderProofAuthorityOperations {
+pub trait SenderProofAuthorityOperations: sender_authority_sealed::Sealed {
     fn issue_nonce(&mut self, input: SenderNonceIssue<'_>)
     -> Result<SenderNonce, SenderNonceError>;
 
@@ -300,51 +306,6 @@ impl SenderProofAuthorityOperations for SenderProofAuthority<'_> {
     }
 }
 
-#[cfg(any(test, feature = "test-support"))]
-impl SenderProofAuthorityOperations for Connection {
-    fn issue_nonce(
-        &mut self,
-        input: SenderNonceIssue<'_>,
-    ) -> Result<SenderNonce, SenderNonceError> {
-        issue_sender_nonce_on(self, input)
-    }
-
-    fn read_nonce(
-        &self,
-        input: SenderNonceRead<'_>,
-    ) -> Result<Option<SenderNonce>, SenderNonceError> {
-        read_sender_nonce_on(self, input)
-    }
-
-    fn consume_proof_and_rotate_nonce(
-        &mut self,
-        input: SenderProofNonceRotation<'_>,
-    ) -> Result<SenderNonce, SenderNonceError> {
-        consume_sender_proof_and_rotate_nonce_on(self, input)
-    }
-
-    fn consume_proof_id(
-        &mut self,
-        input: SenderProofIdConsumption,
-    ) -> Result<(), ReplayConsumeError> {
-        consume_sender_proof_id_on(self, input)
-    }
-
-    fn presented_token_sender_constraint(
-        &self,
-        input: SenderConstraintLookup<'_>,
-    ) -> Result<Option<SenderConstraintFact>, ReplayConsumeError> {
-        sender_constraint_for_presented_token_on(self, input)
-    }
-
-    fn family_tombstone(
-        &self,
-        input: SenderFamilyTombstoneLookup<'_>,
-    ) -> Result<Option<SenderFamilyTombstoneFact>, ReplayConsumeError> {
-        tombstoned_sender_family_on(self, input)
-    }
-}
-
 impl LocalDatabase {
     pub fn sender_proof_authority(&mut self) -> SenderProofAuthority<'_> {
         SenderProofAuthority {
@@ -392,7 +353,7 @@ impl LocalDatabase {
 /// Install or replace one nonce generation. The caller has already selected
 /// whether issuance is appropriate; this operation only validates and commits
 /// the supplied durable tuple.
-pub fn issue_sender_nonce_on(
+pub(crate) fn issue_sender_nonce_on(
     connection: &mut Connection,
     input: SenderNonceIssue<'_>,
 ) -> Result<SenderNonce, SenderNonceError> {
@@ -474,7 +435,7 @@ pub fn issue_sender_nonce_on(
     })
 }
 
-pub fn read_sender_nonce_on(
+pub(crate) fn read_sender_nonce_on(
     connection: &Connection,
     input: SenderNonceRead<'_>,
 ) -> Result<Option<SenderNonce>, SenderNonceError> {
@@ -517,7 +478,7 @@ pub fn read_sender_nonce_on(
 ///
 /// @ref LLP 0077#nonce-protocol — only the current custody generation may
 /// publish a successor nonce; replay-store or nonce-state failure refuses work.
-pub fn consume_sender_proof_and_rotate_nonce_on(
+pub(crate) fn consume_sender_proof_and_rotate_nonce_on(
     connection: &mut Connection,
     input: SenderProofNonceRotation<'_>,
 ) -> Result<SenderNonce, SenderNonceError> {
@@ -660,7 +621,7 @@ pub fn consume_sender_proof_and_rotate_nonce_on(
     })
 }
 
-pub fn consume_sender_proof_id_on(
+pub(crate) fn consume_sender_proof_id_on(
     connection: &mut Connection,
     input: SenderProofIdConsumption,
 ) -> Result<(), ReplayConsumeError> {
@@ -723,7 +684,7 @@ pub fn consume_sender_proof_id_on(
 /// Resolve only the durable key thumbprint needed for proof verification.
 /// Whether a superseded token may participate is already composed by policy
 /// into the optional grace bound.
-pub fn sender_constraint_for_presented_token_on(
+pub(crate) fn sender_constraint_for_presented_token_on(
     connection: &Connection,
     input: SenderConstraintLookup<'_>,
 ) -> Result<Option<SenderConstraintFact>, ReplayConsumeError> {
@@ -812,7 +773,7 @@ pub(super) fn presented_token_has_sender_family_binding_on(
 ///
 /// @ref LLP 0077#issuance-refresh-and-recovery — the logout-lost-response
 /// tombstone is a bounded refusal-path lookup and never rotates a nonce.
-pub fn tombstoned_sender_family_on(
+pub(crate) fn tombstoned_sender_family_on(
     connection: &Connection,
     input: SenderFamilyTombstoneLookup<'_>,
 ) -> Result<Option<SenderFamilyTombstoneFact>, ReplayConsumeError> {

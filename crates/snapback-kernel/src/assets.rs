@@ -17,8 +17,9 @@ pub use crate::contract_types::MediaKindV1;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
 pub use snapback_types::assets::{
-    ASSET_APP_LOGICAL_QUOTA_BYTES, ASSET_MAX_GRANTS_PER_APP, AssetDeliveryProfile, AssetExportFactsV1, AssetImageFactsV1,
-    AssetReadAccessPolicy, AssetReferenceGcFactsV1, AssetTargetFactsV1, AssetVideoFactsV1,
+    ASSET_APP_LOGICAL_QUOTA_BYTES, ASSET_MAX_GRANTS_PER_APP, AssetDeliveryProfile,
+    AssetExportFactsV1, AssetImageFactsV1, AssetReadAccessPolicy, AssetReferenceGcFactsV1,
+    AssetTargetFactsV1, AssetVideoFactsV1,
 };
 
 /// The v1 canonical digest algorithm (author decision, 2026-07-31): native
@@ -460,7 +461,7 @@ pub struct AssetRecordClientViewV1 {
 /// Build the client view inside an asset transaction. The caller has already
 /// passed `asset_read_authorized`; this only shapes what an authorized
 /// reader may see.
-pub fn asset_record_client_view(
+pub(crate) fn asset_record_client_view(
     tx: &Transaction<'_>,
     asset: &AssetRecordV1,
 ) -> SnapbackResult<AssetRecordClientViewV1> {
@@ -924,7 +925,7 @@ pub const ASSET_SYSTEM_TABLES: [&str; 13] = [
     "_snapback_asset_seed_fixtures_v1",
 ];
 
-pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
+pub(crate) fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
     tx.execute_batch(
         "CREATE TABLE IF NOT EXISTS _snapback_asset_records_v1 (
              asset_id TEXT PRIMARY KEY NOT NULL,
@@ -1150,7 +1151,7 @@ pub struct IntentGeneration {
     pub revoked: bool,
 }
 
-pub fn ensure_intent_generation(
+pub(crate) fn ensure_intent_generation(
     tx: &Transaction<'_>,
     intent_id: &str,
     intent_policy_hash: &str,
@@ -1234,7 +1235,7 @@ pub fn ensure_intent_generation(
     Ok(result)
 }
 
-pub fn load_intent_artifact(
+pub(crate) fn load_intent_artifact(
     tx: &Transaction<'_>,
     intent_id: &str,
     generation: u64,
@@ -1253,7 +1254,7 @@ pub fn load_intent_artifact(
 /// attempt was admitted under them. The current generation's artifact is
 /// always kept. Returns the reclaimed (intent, generation) pairs so the
 /// sweep can receipt each one.
-pub fn reclaim_intent_artifacts(tx: &Transaction<'_>) -> SnapbackResult<Vec<(String, u64)>> {
+pub(crate) fn reclaim_intent_artifacts(tx: &Transaction<'_>) -> SnapbackResult<Vec<(String, u64)>> {
     let mut statement = tx.prepare(
         "DELETE FROM _snapback_asset_intent_artifacts_v1 AS a
          WHERE NOT EXISTS (
@@ -1279,7 +1280,7 @@ pub fn reclaim_intent_artifacts(tx: &Transaction<'_>) -> SnapbackResult<Vec<(Str
 // Receipts (LLP 0044 §Receipts): semantic events with shared lineage.
 // ---------------------------------------------------------------------------
 
-pub fn write_receipt(tx: &Transaction<'_>, receipt: &AssetReceiptV1) -> SnapbackResult<()> {
+pub(crate) fn write_receipt(tx: &Transaction<'_>, receipt: &AssetReceiptV1) -> SnapbackResult<()> {
     let record_json = serde_json::to_string(receipt).map_err(|error| {
         SnapbackError::error(
             "SNAPBACK_ASSET_RECORD_INVALID",
@@ -1311,7 +1312,7 @@ pub fn write_receipt(tx: &Transaction<'_>, receipt: &AssetReceiptV1) -> Snapback
 
 /// Receipts for one asset, oldest first — the operator inspection
 /// projection. Receipts carry only safe structured facts by construction.
-pub fn receipts_for_asset(
+pub(crate) fn receipts_for_asset(
     tx: &Transaction<'_>,
     asset_id: &str,
     limit: usize,
@@ -1331,7 +1332,7 @@ pub fn receipts_for_asset(
 }
 
 /// Bound the read-rate receipt class without changing lifecycle evidence.
-pub fn purge_delivery_receipts(tx: &Transaction<'_>, cutoff_ms: u64) -> SnapbackResult<u64> {
+pub(crate) fn purge_delivery_receipts(tx: &Transaction<'_>, cutoff_ms: u64) -> SnapbackResult<u64> {
     let removed = tx.execute(
         "DELETE FROM _snapback_asset_receipts_v1
          WHERE event = 'delivery-admitted' AND at_ms <= ?1",
@@ -1342,7 +1343,7 @@ pub fn purge_delivery_receipts(tx: &Transaction<'_>, cutoff_ms: u64) -> Snapback
 
 /// Ledger rows for one asset, any state — operator inspection of runner
 /// claims and pending work.
-pub fn work_rows_for_asset(
+pub(crate) fn work_rows_for_asset(
     tx: &Transaction<'_>,
     asset_id: &str,
 ) -> SnapbackResult<Vec<AssetWorkRowV1>> {
@@ -1360,7 +1361,7 @@ pub fn work_rows_for_asset(
 
 /// Assets filtered by availability (or all), newest first — the operator
 /// listing.
-pub fn assets_in_state(
+pub(crate) fn assets_in_state(
     tx: &Transaction<'_>,
     state: Option<AssetAvailability>,
     limit: usize,
@@ -1450,7 +1451,7 @@ pub fn attempt_transition_allowed(from: AssetAttemptState, to: AssetAttemptState
     )
 }
 
-pub fn insert_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackResult<()> {
+pub(crate) fn insert_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackResult<()> {
     tx.execute(
         "INSERT INTO _snapback_asset_records_v1 (
              asset_id, app_id, intent_id, owner_principal, availability,
@@ -1477,7 +1478,10 @@ pub fn insert_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackRes
     Ok(())
 }
 
-pub fn load_asset(tx: &Transaction<'_>, asset_id: &str) -> SnapbackResult<Option<AssetRecordV1>> {
+pub(crate) fn load_asset(
+    tx: &Transaction<'_>,
+    asset_id: &str,
+) -> SnapbackResult<Option<AssetRecordV1>> {
     let json: Option<String> = tx
         .query_row(
             "SELECT record_json FROM _snapback_asset_records_v1 WHERE asset_id = ?1",
@@ -1521,7 +1525,7 @@ pub struct AssetCommitAuthority<'a> {
     pub admissions: &'a [AssetAttachmentAdmission],
 }
 
-pub fn load_edge_for_field(
+pub(crate) fn load_edge_for_field(
     tx: &Transaction<'_>,
     table: &str,
     row_id: &str,
@@ -1550,7 +1554,7 @@ pub fn load_edge_for_field(
     json.map(|json| decode_record(&json)).transpose()
 }
 
-pub fn load_edges_for_row(
+pub(crate) fn load_edges_for_row(
     tx: &Transaction<'_>,
     table: &str,
     row_id: &str,
@@ -1574,7 +1578,7 @@ pub fn load_edges_for_row(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-pub fn load_edges_for_asset(
+pub(crate) fn load_edges_for_asset(
     tx: &Transaction<'_>,
     asset_id: &str,
 ) -> SnapbackResult<Vec<AssetReferenceEdgeV1>> {
@@ -1597,7 +1601,7 @@ pub fn load_edges_for_asset(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-pub fn insert_reference_edge(
+pub(crate) fn insert_reference_edge(
     tx: &Transaction<'_>,
     app_id: &str,
     asset_id: &str,
@@ -1641,7 +1645,7 @@ pub fn insert_reference_edge(
 /// Removes one typed edge and, when it was the asset's last, starts the
 /// reference-GC grace clock (LLP 0044 §Deletion: grace is measured from the
 /// moment the asset became unreferenced, durable across restarts).
-pub fn delete_reference_edge(
+pub(crate) fn delete_reference_edge(
     tx: &Transaction<'_>,
     edge: &AssetReferenceEdgeV1,
     now_ms: u64,
@@ -1670,7 +1674,7 @@ pub fn delete_reference_edge(
 
 /// Starts the grace clock for an asset that publishes `ready` with no typed
 /// edges (the never-attached upload); a later attachment clears it.
-pub fn mark_unreferenced_if_edgeless(
+pub(crate) fn mark_unreferenced_if_edgeless(
     tx: &Transaction<'_>,
     asset_id: &str,
     now_ms: u64,
@@ -1697,7 +1701,7 @@ pub fn mark_unreferenced_if_edgeless(
 /// Ready assets whose grace clock started at or before `cutoff` — the
 /// reference-GC candidates. The sweep re-verifies edgelessness inside the
 /// reclamation transaction; this query is the index-friendly prefilter.
-pub fn reclaimable_reference_gc_assets(
+pub(crate) fn reclaimable_reference_gc_assets(
     tx: &Transaction<'_>,
     cutoff_ms: u64,
 ) -> SnapbackResult<Vec<AssetRecordV1>> {
@@ -1738,7 +1742,7 @@ fn attach_refusal(code: &str, message: String, asset_id: &str) -> SnapbackError 
 /// committing transaction — the final write lock — so deletion, ownership
 /// change, or revocation racing an earlier `attach` refuses here instead of
 /// committing a stale admission.
-pub fn verify_attachment(
+pub(crate) fn verify_attachment(
     tx: &Transaction<'_>,
     app_id: &str,
     asset_id: &str,
@@ -1817,7 +1821,7 @@ pub fn verify_attachment(
 
 /// Persist an availability transition, enforcing the closed table and
 /// bumping the lifecycle generation.
-pub fn transition_asset(
+pub(crate) fn transition_asset(
     tx: &Transaction<'_>,
     record: &mut AssetRecordV1,
     to: AssetAvailability,
@@ -1842,7 +1846,7 @@ pub fn transition_asset(
     store_asset(tx, record)
 }
 
-pub fn store_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackResult<()> {
+pub(crate) fn store_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackResult<()> {
     let changed = tx.execute(
         "UPDATE _snapback_asset_records_v1
          SET availability = ?2, media_kind = ?3, lifecycle_generation = ?4,
@@ -1929,7 +1933,10 @@ pub fn media_projection_integrity() -> SnapbackError {
     )
 }
 
-pub fn insert_attempt(tx: &Transaction<'_>, record: &AssetAttemptRecordV1) -> SnapbackResult<()> {
+pub(crate) fn insert_attempt(
+    tx: &Transaction<'_>,
+    record: &AssetAttemptRecordV1,
+) -> SnapbackResult<()> {
     tx.execute(
         "INSERT INTO _snapback_asset_attempts_v1 (
              attempt_id, asset_id, state, staging_key, expires_at_ms,
@@ -1948,7 +1955,7 @@ pub fn insert_attempt(tx: &Transaction<'_>, record: &AssetAttemptRecordV1) -> Sn
     Ok(())
 }
 
-pub fn load_attempt(
+pub(crate) fn load_attempt(
     tx: &Transaction<'_>,
     attempt_id: &str,
 ) -> SnapbackResult<Option<AssetAttemptRecordV1>> {
@@ -1962,7 +1969,10 @@ pub fn load_attempt(
     json.map(|json| decode_record(&json)).transpose()
 }
 
-pub fn store_attempt(tx: &Transaction<'_>, record: &AssetAttemptRecordV1) -> SnapbackResult<()> {
+pub(crate) fn store_attempt(
+    tx: &Transaction<'_>,
+    record: &AssetAttemptRecordV1,
+) -> SnapbackResult<()> {
     let changed = tx.execute(
         "UPDATE _snapback_asset_attempts_v1
          SET state = ?2, record_json = ?3, updated_at_ms = ?4, expires_at_ms = ?5
@@ -1986,7 +1996,7 @@ pub fn store_attempt(tx: &Transaction<'_>, record: &AssetAttemptRecordV1) -> Sna
 }
 
 /// Move an attempt through the closed transition table.
-pub fn transition_attempt(
+pub(crate) fn transition_attempt(
     tx: &Transaction<'_>,
     record: &mut AssetAttemptRecordV1,
     to: AssetAttemptState,
@@ -2005,7 +2015,7 @@ pub fn transition_attempt(
 }
 
 /// The current (non-terminal) attempt for an asset, if any.
-pub fn current_attempt(
+pub(crate) fn current_attempt(
     tx: &Transaction<'_>,
     asset_id: &str,
 ) -> SnapbackResult<Option<AssetAttemptRecordV1>> {
@@ -2023,7 +2033,7 @@ pub fn current_attempt(
 /// The attempt that published a ready asset. Append-only attempts plus the
 /// single-current invariant leave at most one `complete` attempt per asset
 /// (replacement is a new asset; retry supersedes its predecessor).
-pub fn completed_attempt(
+pub(crate) fn completed_attempt(
     tx: &Transaction<'_>,
     asset_id: &str,
 ) -> SnapbackResult<Option<AssetAttemptRecordV1>> {
@@ -2052,7 +2062,10 @@ pub struct AssetAccounting {
     pub open_attempts_app: u64,
 }
 
-pub fn asset_accounting(tx: &Transaction<'_>, app_id: &str) -> SnapbackResult<AssetAccounting> {
+pub(crate) fn asset_accounting(
+    tx: &Transaction<'_>,
+    app_id: &str,
+) -> SnapbackResult<AssetAccounting> {
     let (reserved_bytes, open_attempts_app): (u64, u64) = tx.query_row(
         "SELECT COALESCE(SUM(MAX(json_extract(record_json, '$.declaredLength'), ?2)), 0),
                 COUNT(*)
@@ -2078,7 +2091,7 @@ pub fn asset_accounting(tx: &Transaction<'_>, app_id: &str) -> SnapbackResult<As
     })
 }
 
-pub fn open_attempts_for_principal(
+pub(crate) fn open_attempts_for_principal(
     tx: &Transaction<'_>,
     app_id: &str,
     principal: &str,
@@ -2110,7 +2123,7 @@ pub enum BlobAcquisition {
 /// Dedup reuse acquires its reference in the same transaction that checks GC
 /// eligibility: the condemned fence and the increment are one statement, so
 /// reuse can never race deletion.
-pub fn acquire_blob_reference(
+pub(crate) fn acquire_blob_reference(
     tx: &Transaction<'_>,
     app_id: &str,
     digest_algorithm: &str,
@@ -2150,7 +2163,7 @@ pub enum BlobInsertOutcome {
     ConvergedOnWinner { blob_id: String },
 }
 
-pub fn insert_blob(
+pub(crate) fn insert_blob(
     tx: &Transaction<'_>,
     record: &AssetBlobRecordV1,
     now_ms: u64,
@@ -2207,7 +2220,7 @@ pub fn insert_blob(
 }
 
 /// Returns the post-release reference count.
-pub fn release_blob_reference(
+pub(crate) fn release_blob_reference(
     tx: &Transaction<'_>,
     blob_id: &str,
     now_ms: u64,
@@ -2234,7 +2247,7 @@ pub fn release_blob_reference(
 /// Blob GC marks a blob condemned transactionally before deleting bytes;
 /// only an unreferenced, un-condemned blob is eligible. Returns whether this
 /// transaction condemned it.
-pub fn condemn_blob_if_unreferenced(
+pub(crate) fn condemn_blob_if_unreferenced(
     tx: &Transaction<'_>,
     blob_id: &str,
     now_ms: u64,
@@ -2254,7 +2267,7 @@ pub fn condemn_blob_if_unreferenced(
 /// returns the orphaned physical key for tracked cleanup. The caller must
 /// record a condemned publication for that key so a crash before file
 /// deletion leaves a discoverable orphan, never a silent one.
-pub fn resolve_condemned_identity(
+pub(crate) fn resolve_condemned_identity(
     tx: &Transaction<'_>,
     app_id: &str,
     digest_algorithm: &str,
@@ -2275,7 +2288,10 @@ pub fn resolve_condemned_identity(
     Ok(physical_key)
 }
 
-pub fn load_blob(tx: &Transaction<'_>, blob_id: &str) -> SnapbackResult<Option<AssetBlobRecordV1>> {
+pub(crate) fn load_blob(
+    tx: &Transaction<'_>,
+    blob_id: &str,
+) -> SnapbackResult<Option<AssetBlobRecordV1>> {
     let json: Option<String> = tx
         .query_row(
             "SELECT record_json FROM _snapback_asset_blobs_v1 WHERE blob_id = ?1",
@@ -2286,7 +2302,7 @@ pub fn load_blob(tx: &Transaction<'_>, blob_id: &str) -> SnapbackResult<Option<A
     json.map(|json| decode_record(&json)).transpose()
 }
 
-pub fn load_blob_live(
+pub(crate) fn load_blob_live(
     tx: &Transaction<'_>,
     blob_id: &str,
 ) -> SnapbackResult<Option<AssetBlobLive>> {
@@ -2316,7 +2332,7 @@ pub fn load_blob_live(
 
 pub const ASSET_RENDITION_PRIMARY: &str = "primary";
 
-pub fn insert_rendition(
+pub(crate) fn insert_rendition(
     tx: &Transaction<'_>,
     record: &AssetRenditionRecordV1,
 ) -> SnapbackResult<()> {
@@ -2338,7 +2354,7 @@ pub fn insert_rendition(
     Ok(())
 }
 
-pub fn load_rendition(
+pub(crate) fn load_rendition(
     tx: &Connection,
     rendition_id: &str,
 ) -> SnapbackResult<Option<AssetRenditionRecordV1>> {
@@ -2368,7 +2384,7 @@ pub fn rendition_transition_allowed(from: AssetRenditionState, to: AssetRenditio
     )
 }
 
-pub fn store_rendition(
+pub(crate) fn store_rendition(
     tx: &Transaction<'_>,
     record: &AssetRenditionRecordV1,
 ) -> SnapbackResult<()> {
@@ -2393,7 +2409,7 @@ pub fn store_rendition(
     Ok(())
 }
 
-pub fn transition_rendition(
+pub(crate) fn transition_rendition(
     tx: &Transaction<'_>,
     record: &mut AssetRenditionRecordV1,
     to: AssetRenditionState,
@@ -2411,7 +2427,7 @@ pub fn transition_rendition(
     store_rendition(tx, record)
 }
 
-pub fn renditions_for_asset(
+pub(crate) fn renditions_for_asset(
     tx: &Transaction<'_>,
     asset_id: &str,
 ) -> SnapbackResult<Vec<AssetRenditionRecordV1>> {
@@ -2443,7 +2459,7 @@ pub enum AssetVariantSwitchOutcome {
 /// run creates an immutable rendition row, then switches the pointer; a
 /// stale run may clean up its unreferenced blob but cannot replace a newer
 /// rendition; regeneration supersedes only same-lineage outputs).
-pub fn switch_variant_pointer(
+pub(crate) fn switch_variant_pointer(
     tx: &Transaction<'_>,
     candidate: &AssetRenditionRecordV1,
     now_ms: u64,
@@ -2482,7 +2498,7 @@ pub fn switch_variant_pointer(
 }
 
 /// Every Ready rendition for an asset — the best-variant selection input.
-pub fn load_ready_renditions(
+pub(crate) fn load_ready_renditions(
     tx: &Transaction<'_>,
     asset_id: &str,
 ) -> SnapbackResult<Vec<AssetRenditionRecordV1>> {
@@ -2497,7 +2513,7 @@ pub fn load_ready_renditions(
     rows.iter().map(|json| decode_record(json)).collect()
 }
 
-pub fn load_rendition_by_variant(
+pub(crate) fn load_rendition_by_variant(
     tx: &Transaction<'_>,
     asset_id: &str,
     variant_key: &str,
@@ -2576,7 +2592,10 @@ fn decode_signing_material(encoded: &str) -> SnapbackResult<Vec<u8>> {
 }
 
 /// Newest non-retired key, minting the first one on demand.
-pub fn active_signing_key(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<AssetSigningKey> {
+pub(crate) fn active_signing_key(
+    tx: &Transaction<'_>,
+    now_ms: u64,
+) -> SnapbackResult<AssetSigningKey> {
     let existing: Option<(String, String)> = tx
         .query_row(
             "SELECT key_id, material FROM _snapback_asset_signing_keys_v1
@@ -2619,7 +2638,10 @@ fn mint_signing_key(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<AssetSi
 
 /// Rotation: retire every active key and mint a fresh one. An operator
 /// action, not per-principal revocation (LLP 0044).
-pub fn rotate_signing_key(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<AssetSigningKey> {
+pub(crate) fn rotate_signing_key(
+    tx: &Transaction<'_>,
+    now_ms: u64,
+) -> SnapbackResult<AssetSigningKey> {
     tx.execute(
         "UPDATE _snapback_asset_signing_keys_v1 SET retired_at_ms = ?1 WHERE retired_at_ms IS NULL",
         [now_ms],
@@ -2699,7 +2721,7 @@ pub enum SignedTokenOutcome {
     Invalid,
 }
 
-pub fn validate_signed_url_token(
+pub(crate) fn validate_signed_url_token(
     tx: &Transaction<'_>,
     token: &str,
     asset_id: &str,
@@ -2851,7 +2873,7 @@ pub fn parse_byte_range(header: Option<&str>, total_length: u64) -> ByteRangeOut
 // the tables.
 // ---------------------------------------------------------------------------
 
-pub fn expired_current_attempts(
+pub(crate) fn expired_current_attempts(
     tx: &Transaction<'_>,
     now_ms: u64,
 ) -> SnapbackResult<Vec<AssetAttemptRecordV1>> {
@@ -2867,7 +2889,7 @@ pub fn expired_current_attempts(
 
 /// Staging keys still owned by a live (current) attempt — every other file
 /// in the staging namespace is an orphan the sweep may remove.
-pub fn live_staging_keys(tx: &Transaction<'_>) -> SnapbackResult<Vec<String>> {
+pub(crate) fn live_staging_keys(tx: &Transaction<'_>) -> SnapbackResult<Vec<String>> {
     let mut stmt = tx.prepare(
         "SELECT staging_key FROM _snapback_asset_attempts_v1
          WHERE state IN ('open', 'transferring', 'finalizing')",
@@ -2878,7 +2900,7 @@ pub fn live_staging_keys(tx: &Transaction<'_>) -> SnapbackResult<Vec<String>> {
 
 /// Unreferenced pending/rejected assets whose grace period has passed and
 /// that have no live attempt. Referenced failures stay visible for repair.
-pub fn reclaimable_pending_assets(
+pub(crate) fn reclaimable_pending_assets(
     tx: &Transaction<'_>,
     cutoff_ms: u64,
 ) -> SnapbackResult<Vec<AssetRecordV1>> {
@@ -2904,7 +2926,10 @@ pub fn reclaimable_pending_assets(
 
 /// Deleted-asset tombstones past retention with no remaining edges; the
 /// sweep purges these rows (and their retired renditions) outright.
-pub fn purgeable_tombstones(tx: &Transaction<'_>, cutoff_ms: u64) -> SnapbackResult<Vec<String>> {
+pub(crate) fn purgeable_tombstones(
+    tx: &Transaction<'_>,
+    cutoff_ms: u64,
+) -> SnapbackResult<Vec<String>> {
     let mut stmt = tx.prepare(
         "SELECT a.asset_id FROM _snapback_asset_records_v1 a
          WHERE a.availability = 'deleted'
@@ -2917,7 +2942,7 @@ pub fn purgeable_tombstones(tx: &Transaction<'_>, cutoff_ms: u64) -> SnapbackRes
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-pub fn condemnable_blobs(
+pub(crate) fn condemnable_blobs(
     tx: &Transaction<'_>,
     cutoff_ms: u64,
 ) -> SnapbackResult<Vec<AssetBlobRecordV1>> {
@@ -2930,7 +2955,7 @@ pub fn condemnable_blobs(
         .collect::<SnapbackResult<Vec<_>>>()
 }
 
-pub fn condemned_blobs(tx: &Transaction<'_>) -> SnapbackResult<Vec<AssetBlobRecordV1>> {
+pub(crate) fn condemned_blobs(tx: &Transaction<'_>) -> SnapbackResult<Vec<AssetBlobRecordV1>> {
     let mut stmt =
         tx.prepare("SELECT record_json FROM _snapback_asset_blobs_v1 WHERE condemned = 1")?;
     let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
@@ -2938,7 +2963,7 @@ pub fn condemned_blobs(tx: &Transaction<'_>) -> SnapbackResult<Vec<AssetBlobReco
         .collect::<SnapbackResult<Vec<_>>>()
 }
 
-pub fn delete_blob_row(tx: &Transaction<'_>, blob_id: &str) -> SnapbackResult<()> {
+pub(crate) fn delete_blob_row(tx: &Transaction<'_>, blob_id: &str) -> SnapbackResult<()> {
     tx.execute(
         "DELETE FROM _snapback_asset_blobs_v1 WHERE blob_id = ?1 AND condemned = 1",
         [blob_id],
@@ -2966,7 +2991,7 @@ pub fn publication_transition_allowed(
     )
 }
 
-pub fn insert_publication(
+pub(crate) fn insert_publication(
     tx: &Transaction<'_>,
     record: &AssetPublicationRecordV1,
 ) -> SnapbackResult<()> {
@@ -2990,7 +3015,7 @@ pub fn insert_publication(
 /// The re-drivable publication for an attempt, if any (`planned`/`staged`).
 /// Re-driven finalization resumes from this record instead of minting a
 /// second key for the same work.
-pub fn open_publication_for_attempt(
+pub(crate) fn open_publication_for_attempt(
     tx: &Transaction<'_>,
     attempt_id: &str,
 ) -> SnapbackResult<Option<AssetPublicationRecordV1>> {
@@ -3006,7 +3031,7 @@ pub fn open_publication_for_attempt(
     json.map(|json| decode_record(&json)).transpose()
 }
 
-pub fn publications_in_state(
+pub(crate) fn publications_in_state(
     tx: &Transaction<'_>,
     state: AssetPublicationState,
 ) -> SnapbackResult<Vec<AssetPublicationRecordV1>> {
@@ -3020,7 +3045,7 @@ pub fn publications_in_state(
     rows.iter().map(|json| decode_record(json)).collect()
 }
 
-pub fn transition_publication(
+pub(crate) fn transition_publication(
     tx: &Transaction<'_>,
     record: &mut AssetPublicationRecordV1,
     to: AssetPublicationState,
@@ -3062,7 +3087,7 @@ pub fn transition_publication(
 /// Retirement deletes the row — the blob row (committed) or the deletion
 /// receipt (condemned) is the durable evidence from then on. Receipted by
 /// the caller.
-pub fn retire_publication(tx: &Transaction<'_>, publication_id: &str) -> SnapbackResult<()> {
+pub(crate) fn retire_publication(tx: &Transaction<'_>, publication_id: &str) -> SnapbackResult<()> {
     tx.execute(
         "DELETE FROM _snapback_asset_publications_v1 WHERE publication_id = ?1",
         [publication_id],
@@ -3080,7 +3105,7 @@ pub fn retire_publication(tx: &Transaction<'_>, publication_id: &str) -> Snapbac
 pub const ASSET_WORK_RETRY_CEILING: u64 = 5;
 pub const ASSET_WORK_DEADLINE_MS: u64 = 24 * 60 * 60 * 1000;
 
-pub fn enqueue_work(
+pub(crate) fn enqueue_work(
     tx: &Transaction<'_>,
     kind: &str,
     asset_id: &str,
@@ -3099,7 +3124,7 @@ pub fn enqueue_work(
     )
 }
 
-pub fn enqueue_work_with_params(
+pub(crate) fn enqueue_work_with_params(
     tx: &Transaction<'_>,
     kind: &str,
     asset_id: &str,
@@ -3177,7 +3202,7 @@ pub fn seed_placeholder_fixture_id(value: &Value) -> Option<&str> {
     object.get(SEED_FIXTURE_PLACEHOLDER_KEY)?.as_str()
 }
 
-pub fn lookup_seed_fixture(
+pub(crate) fn lookup_seed_fixture(
     tx: &Transaction<'_>,
     fixture_id: &str,
 ) -> SnapbackResult<Option<SeedFixtureMappingV1>> {
@@ -3199,7 +3224,7 @@ pub fn lookup_seed_fixture(
     .map_err(SnapbackError::from)
 }
 
-pub fn upsert_seed_fixture(
+pub(crate) fn upsert_seed_fixture(
     tx: &Transaction<'_>,
     mapping: &SeedFixtureMappingV1,
 ) -> SnapbackResult<()> {
@@ -3229,7 +3254,7 @@ pub fn upsert_seed_fixture(
 /// vanished asset refuses before a single row effect. Placeholders are
 /// admissible only on `v.assetRef` fields, so a placeholder can never
 /// silently become an ordinary string value.
-pub fn resolve_seed_fixture_placeholders(
+pub(crate) fn resolve_seed_fixture_placeholders(
     tx: &Transaction<'_>,
     schema: &crate::manifest::SchemaManifest,
     tables: &std::collections::BTreeMap<String, Vec<serde_json::Map<String, Value>>>,
@@ -3344,7 +3369,7 @@ pub fn work_backoff_ms(attempt_count: u64) -> u64 {
     (ASSET_WORK_BACKOFF_BASE_MS << doublings).min(ASSET_WORK_BACKOFF_CAP_MS)
 }
 
-pub fn transition_work(
+pub(crate) fn transition_work(
     tx: &Transaction<'_>,
     row: &mut AssetWorkRowV1,
     to: AssetWorkState,
@@ -3368,7 +3393,7 @@ pub fn transition_work(
 /// Claimed rows keep `next_eligible_at_ms` equal to their lease expiry, so
 /// the one `(state, next_eligible_at_ms)` index serves both the due scan and
 /// the expired-lease scan.
-pub fn update_work_row(tx: &Transaction<'_>, row: &AssetWorkRowV1) -> SnapbackResult<()> {
+pub(crate) fn update_work_row(tx: &Transaction<'_>, row: &AssetWorkRowV1) -> SnapbackResult<()> {
     let updated = tx.execute(
         "UPDATE _snapback_asset_work_ledger_v1
          SET state = ?2, next_eligible_at_ms = ?3, record_json = ?4,
@@ -3392,7 +3417,7 @@ pub fn update_work_row(tx: &Transaction<'_>, row: &AssetWorkRowV1) -> SnapbackRe
     Ok(())
 }
 
-pub fn load_work_row(
+pub(crate) fn load_work_row(
     tx: &Transaction<'_>,
     work_id: &str,
 ) -> SnapbackResult<Option<AssetWorkRowV1>> {
@@ -3430,7 +3455,7 @@ fn work_rows_in_state(
     Ok(parsed)
 }
 
-pub fn load_due_work(
+pub(crate) fn load_due_work(
     tx: &Transaction<'_>,
     now_ms: u64,
     limit: usize,
@@ -3440,7 +3465,7 @@ pub fn load_due_work(
 
 /// Expired leases: claimed rows whose lease deadline (mirrored into
 /// `next_eligible_at_ms` at claim time) has passed.
-pub fn load_expired_leases(
+pub(crate) fn load_expired_leases(
     tx: &Transaction<'_>,
     now_ms: u64,
     limit: usize,

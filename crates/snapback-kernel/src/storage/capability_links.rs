@@ -149,7 +149,7 @@ pub fn manifest_enabled(manifest: &SchemaManifest) -> bool {
 
 /// @ref LLP 0204#d94--shareable-capability-links — link state exists only for
 /// an activated external API surface and disappears when that surface closes.
-pub fn activate_manifest_in(
+pub(crate) fn activate_manifest_in(
     tx: &Transaction<'_>,
     manifest: &SchemaManifest,
 ) -> SnapbackResult<()> {

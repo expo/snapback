@@ -748,21 +748,14 @@ impl TargetInstanceReservation {
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
-    pub fn rename_staging_directory(
-        &self,
-        name: &OsStr,
-        expected: FileIdentity,
-    ) -> io::Result<()> {
+    pub fn rename_staging_directory(&self, name: &OsStr, expected: FileIdentity) -> io::Result<()> {
         self.ensure_valid().map_err(io::Error::other)?;
         self.ensure_entry_identity(name, expected, libc::S_IFDIR)?;
         crate::secure_file::rename_no_replace_in_directory(&self.parent, name, &self.target_name)
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
-    pub fn ensure_published_directory_identity(
-        &self,
-        expected: FileIdentity,
-    ) -> io::Result<()> {
+    pub fn ensure_published_directory_identity(&self, expected: FileIdentity) -> io::Result<()> {
         self.ensure_valid().map_err(io::Error::other)?;
         self.ensure_entry_identity(&self.target_name, expected, libc::S_IFDIR)
     }
@@ -780,10 +773,7 @@ impl TargetInstanceReservation {
     }
 
     #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
-    pub fn ensure_published_directory_identity(
-        &self,
-        _expected: FileIdentity,
-    ) -> io::Result<()> {
+    pub fn ensure_published_directory_identity(&self, _expected: FileIdentity) -> io::Result<()> {
         Err(io::Error::new(
             io::ErrorKind::Unsupported,
             "descriptor-relative restore publication is unsupported on this host",
@@ -804,11 +794,7 @@ impl TargetInstanceReservation {
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
-    pub fn remove_staging_directory(
-        &self,
-        name: &OsStr,
-        expected: FileIdentity,
-    ) -> io::Result<()> {
+    pub fn remove_staging_directory(&self, name: &OsStr, expected: FileIdentity) -> io::Result<()> {
         use std::os::fd::AsRawFd as _;
         use std::os::unix::ffi::OsStrExt as _;
 

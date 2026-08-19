@@ -174,13 +174,124 @@ pub struct CreatePendingEffect {
     pub ttl_ms: u64,
 }
 
+/// Opaque, database-bound creation command. The request facts remain useful
+/// to adapters, but only the kernel commit authority can turn them into a
+/// writable transition.
+pub struct CreatePendingEffectCommand {
+    database_identity: std::sync::Arc<()>,
+    request: CreatePendingEffect,
+}
+
+pub struct DecidePendingEffectCommand {
+    database_identity: std::sync::Arc<()>,
+    id: String,
+    approver_principal_id: String,
+    approve: bool,
+    requires_step_up: bool,
+    step_up: Option<crate::auth::crypto::StepUpProof>,
+    now_ms: u64,
+}
+
+pub struct SettlePendingEffectCommand {
+    database_identity: std::sync::Arc<()>,
+    id: String,
+    executed: bool,
+    outcome_code: Option<String>,
+    now_ms: u64,
+}
+
+pub struct RefusePendingEffectCommand {
+    database_identity: std::sync::Arc<()>,
+    id: String,
+    outcome_code: String,
+    now_ms: u64,
+}
+
+impl crate::storage::KernelCommitAuthority {
+    pub fn admit_pending_effect_creation(
+        &self,
+        request: CreatePendingEffect,
+    ) -> CreatePendingEffectCommand {
+        CreatePendingEffectCommand {
+            database_identity: self.identity().clone(),
+            request,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn admit_pending_effect_decision(
+        &self,
+        id: &str,
+        approver_principal_id: &str,
+        approve: bool,
+        requires_step_up: bool,
+        step_up: Option<&crate::auth::crypto::StepUpProof>,
+        now_ms: u64,
+    ) -> DecidePendingEffectCommand {
+        DecidePendingEffectCommand {
+            database_identity: self.identity().clone(),
+            id: id.to_owned(),
+            approver_principal_id: approver_principal_id.to_owned(),
+            approve,
+            requires_step_up,
+            step_up: step_up.cloned(),
+            now_ms,
+        }
+    }
+
+    pub fn admit_pending_effect_settlement(
+        &self,
+        id: &str,
+        executed: bool,
+        outcome_code: Option<&str>,
+        now_ms: u64,
+    ) -> SettlePendingEffectCommand {
+        SettlePendingEffectCommand {
+            database_identity: self.identity().clone(),
+            id: id.to_owned(),
+            executed,
+            outcome_code: outcome_code.map(str::to_owned),
+            now_ms,
+        }
+    }
+
+    pub fn admit_pending_effect_refusal(
+        &self,
+        id: &str,
+        outcome_code: &str,
+        now_ms: u64,
+    ) -> RefusePendingEffectCommand {
+        RefusePendingEffectCommand {
+            database_identity: self.identity().clone(),
+            id: id.to_owned(),
+            outcome_code: outcome_code.to_owned(),
+            now_ms,
+        }
+    }
+}
+
+fn verify_command_identity(
+    actual: &std::sync::Arc<()>,
+    expected: &std::sync::Arc<()>,
+) -> SnapbackResult<()> {
+    if std::sync::Arc::ptr_eq(actual, expected) {
+        Ok(())
+    } else {
+        Err(SnapbackError::error(
+            "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+            "effects",
+            "pending-effect command belongs to a different database",
+        ))
+    }
+}
+
 pub fn manifest_enabled(manifest: &SchemaManifest) -> bool {
     manifest.api.as_ref().is_some_and(|api| api.enabled)
 }
 
 // @ref LLP 0204#d95--approval-gated-effects — this sibling table exists only
 // while the external API declaration is activated.
-pub fn activate_manifest_in(
+pub(crate) fn activate_manifest_in(
     tx: &Transaction<'_>,
     manifest: &SchemaManifest,
 ) -> SnapbackResult<()> {
@@ -395,8 +506,10 @@ fn lazy_expire(tx: &Transaction<'_>, id: Option<&str>, now_ms: u64) -> SnapbackR
 impl LocalDatabase {
     pub fn create_pending_effect(
         &mut self,
-        request: CreatePendingEffect,
+        command: CreatePendingEffectCommand,
     ) -> SnapbackResult<PendingEffectRecord> {
+        verify_command_identity(&command.database_identity, &self.commit_authority_identity)?;
+        let request = command.request;
         if !table_exists(&self.conn)? {
             return Err(input_invalid("approval-gated effects require api.enabled"));
         }
@@ -477,11 +590,7 @@ impl LocalDatabase {
         read_record(&self.conn, &id)?.ok_or_else(catalog_corrupt)
     }
 
-    pub fn pending_effect(
-        &mut self,
-        id: &str,
-        now_ms: u64,
-    ) -> SnapbackResult<PendingEffectRecord> {
+    pub fn pending_effect(&mut self, id: &str, now_ms: u64) -> SnapbackResult<PendingEffectRecord> {
         if !table_exists(&self.conn)? {
             return Err(not_found());
         }
@@ -514,16 +623,21 @@ impl LocalDatabase {
 
     pub fn decide_pending_effect(
         &mut self,
-        id: &str,
-        approver_principal_id: &str,
-        approve: bool,
-        requires_step_up: bool,
-        step_up: Option<&crate::auth::crypto::StepUpProof>,
-        now_ms: u64,
+        command: DecidePendingEffectCommand,
     ) -> SnapbackResult<PendingEffectRecord> {
+        verify_command_identity(&command.database_identity, &self.commit_authority_identity)?;
+        let DecidePendingEffectCommand {
+            id,
+            approver_principal_id,
+            approve,
+            requires_step_up,
+            step_up,
+            now_ms,
+            ..
+        } = command;
         self.with_auth_transaction(|tx| {
-            lazy_expire(tx, Some(id), now_ms)?;
-            let current = read_record(tx, id)?.ok_or_else(not_found)?;
+            lazy_expire(tx, Some(&id), now_ms)?;
+            let current = read_record(tx, &id)?.ok_or_else(not_found)?;
             if current.status == PendingEffectStatus::Expired {
                 return Err(expired());
             }
@@ -538,7 +652,9 @@ impl LocalDatabase {
                 return Err(approval_denied());
             }
             if approve && requires_step_up {
-                let proof = step_up.ok_or_else(crate::auth::crypto::step_up_required_error)?;
+                let proof = step_up
+                    .as_ref()
+                    .ok_or_else(crate::auth::crypto::step_up_required_error)?;
                 if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, now_ms)?
                     != crate::auth::crypto::StepUpConsumption::Verified
                 {
@@ -563,7 +679,7 @@ impl LocalDatabase {
             }
             append_transition(
                 tx,
-                id,
+                &id,
                 PendingEffectJournalEntry {
                     at_ms: now_ms,
                     transition: status.to_owned(),
@@ -572,16 +688,21 @@ impl LocalDatabase {
                 },
             )
         })?;
-        read_record(&self.conn, id)?.ok_or_else(catalog_corrupt)
+        read_record(&self.conn, &id)?.ok_or_else(catalog_corrupt)
     }
 
     pub fn settle_pending_effect(
         &mut self,
-        id: &str,
-        executed: bool,
-        outcome_code: Option<&str>,
-        now_ms: u64,
+        command: SettlePendingEffectCommand,
     ) -> SnapbackResult<PendingEffectRecord> {
+        verify_command_identity(&command.database_identity, &self.commit_authority_identity)?;
+        let SettlePendingEffectCommand {
+            id,
+            executed,
+            outcome_code,
+            now_ms,
+            ..
+        } = command;
         let status = if executed { "executed" } else { "refused" };
         self.with_auth_transaction(|tx| {
             let changed = tx.execute(
@@ -595,24 +716,29 @@ impl LocalDatabase {
             }
             append_transition(
                 tx,
-                id,
+                &id,
                 PendingEffectJournalEntry {
                     at_ms: now_ms,
                     transition: status.to_owned(),
                     actor: None,
-                    outcome_code: outcome_code.map(str::to_owned),
+                    outcome_code: outcome_code.clone(),
                 },
             )
         })?;
-        read_record(&self.conn, id)?.ok_or_else(catalog_corrupt)
+        read_record(&self.conn, &id)?.ok_or_else(catalog_corrupt)
     }
 
     pub fn refuse_pending_effect(
         &mut self,
-        id: &str,
-        outcome_code: &str,
-        now_ms: u64,
+        command: RefusePendingEffectCommand,
     ) -> SnapbackResult<()> {
+        verify_command_identity(&command.database_identity, &self.commit_authority_identity)?;
+        let RefusePendingEffectCommand {
+            id,
+            outcome_code,
+            now_ms,
+            ..
+        } = command;
         self.with_auth_transaction(|tx| {
             let changed = tx.execute(
                 "UPDATE _snapback_pending_effects
@@ -624,7 +750,7 @@ impl LocalDatabase {
             if changed == 1 {
                 append_transition(
                     tx,
-                    id,
+                    &id,
                     PendingEffectJournalEntry {
                         at_ms: now_ms,
                         transition: "refused".to_owned(),
@@ -686,14 +812,17 @@ fn catalog_corrupt() -> SnapbackError {
 mod tests {
     use super::*;
 
-    fn ready() -> LocalDatabase {
+    fn ready() -> (LocalDatabase, crate::storage::KernelCommitAuthority) {
         let mut db = LocalDatabase::memory().expect("pending-effect database");
         db.activate_current_auth_catalog()
             .expect("activate protected catalog");
         db.conn.execute_batch(TABLE_SQL).unwrap();
         db.conn.execute_batch(APPROVER_INDEX_SQL).unwrap();
         db.conn.execute_batch(EXPIRY_INDEX_SQL).unwrap();
-        db
+        let authority = db
+            .claim_kernel_commit_authority()
+            .expect("kernel authority");
+        (db, authority)
     }
 
     fn request(now_ms: u64, ttl_ms: u64) -> CreatePendingEffect {
@@ -722,9 +851,11 @@ mod tests {
 
     #[test]
     fn disclosed_intent_is_bounded_and_journals_approve_execute() {
-        let mut db = ready();
+        let (mut db, authority) = ready();
         let created = db
-            .create_pending_effect(request(10, DEFAULT_TTL_MS))
+            .create_pending_effect(
+                authority.admit_pending_effect_creation(request(10, DEFAULT_TTL_MS)),
+            )
             .unwrap();
         assert!(created.id.starts_with("pfx_"));
         assert_eq!(created.status, PendingEffectStatus::Pending);
@@ -734,11 +865,23 @@ mod tests {
         assert_eq!(created.journal[0].transition, "created");
 
         let approved = db
-            .decide_pending_effect(&created.id, "human-a", true, false, None, 20)
+            .decide_pending_effect(authority.admit_pending_effect_decision(
+                &created.id,
+                "human-a",
+                true,
+                false,
+                None,
+                20,
+            ))
             .unwrap();
         assert_eq!(approved.status, PendingEffectStatus::Approved);
         let executed = db
-            .settle_pending_effect(&created.id, true, Some("ok"), 21)
+            .settle_pending_effect(authority.admit_pending_effect_settlement(
+                &created.id,
+                true,
+                Some("ok"),
+                21,
+            ))
             .unwrap();
         assert_eq!(executed.status, PendingEffectStatus::Executed);
         assert_eq!(
@@ -753,36 +896,53 @@ mod tests {
 
     #[test]
     fn approver_deny_and_lazy_expiry_are_closed_transitions() {
-        let mut db = ready();
-        let denied = db.create_pending_effect(request(10, 100)).unwrap();
+        let (mut db, authority) = ready();
+        let denied = db
+            .create_pending_effect(authority.admit_pending_effect_creation(request(10, 100)))
+            .unwrap();
         assert_eq!(
-            db.decide_pending_effect(&denied.id, "human-b", false, false, None, 20)
-                .unwrap_err()
-                .diagnostic
-                .code,
+            db.decide_pending_effect(
+                authority
+                    .admit_pending_effect_decision(&denied.id, "human-b", false, false, None, 20,)
+            )
+            .unwrap_err()
+            .diagnostic
+            .code,
             "SNAPBACK_EFFECT_APPROVAL_DENIED",
         );
         let refused = db
-            .decide_pending_effect(&denied.id, "human-a", false, false, None, 20)
+            .decide_pending_effect(
+                authority
+                    .admit_pending_effect_decision(&denied.id, "human-a", false, false, None, 20),
+            )
             .unwrap();
         assert_eq!(refused.status, PendingEffectStatus::Refused);
 
-        let expiring = db.create_pending_effect(request(30, 1)).unwrap();
+        let expiring = db
+            .create_pending_effect(authority.admit_pending_effect_creation(request(30, 1)))
+            .unwrap();
         let expired = db.pending_effect(&expiring.id, 31).unwrap();
         assert_eq!(expired.status, PendingEffectStatus::Expired);
         assert_eq!(expired.journal.last().unwrap().transition, "expired");
         assert_eq!(
-            db.decide_pending_effect(&expiring.id, "human-a", true, false, None, 32)
-                .unwrap_err()
-                .diagnostic
-                .code,
+            db.decide_pending_effect(authority.admit_pending_effect_decision(
+                &expiring.id,
+                "human-a",
+                true,
+                false,
+                None,
+                32,
+            ))
+            .unwrap_err()
+            .diagnostic
+            .code,
             "SNAPBACK_EFFECT_EXPIRED",
         );
     }
 
     #[test]
     fn exact_catalog_rejects_unrecognized_shape() {
-        let db = ready();
+        let (db, _authority) = ready();
         validate_exact_schema(&db.conn).unwrap();
         db.conn
             .execute_batch(

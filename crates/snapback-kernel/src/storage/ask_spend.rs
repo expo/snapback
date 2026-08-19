@@ -75,7 +75,7 @@ pub fn manifest_enabled(manifest: &SchemaManifest) -> bool {
     manifest.ask_manifest().is_some()
 }
 
-pub fn activate_manifest_in(
+pub(crate) fn activate_manifest_in(
     tx: &Transaction<'_>,
     manifest: &SchemaManifest,
 ) -> SnapbackResult<()> {

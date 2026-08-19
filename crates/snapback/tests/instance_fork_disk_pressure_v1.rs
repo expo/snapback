@@ -70,7 +70,7 @@ fn out_of_space_copy_fails_closed_and_recover_reaps_the_staging_residue() {
     };
     let directory = tempfile::tempdir().expect("parent fixture");
     let source = directory.path().join("parent.sqlite3");
-    let parent = snapback::storage::LocalDatabase::open(&source).expect("parent database");
+    let parent = snapback_kernel::storage::LocalDatabase::open(&source).expect("parent database");
     drop(parent);
     {
         // Grow the parent well past the ~4 MB volume.

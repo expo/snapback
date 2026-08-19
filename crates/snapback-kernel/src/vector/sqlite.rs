@@ -48,7 +48,7 @@ fn decode_nonnegative(value: i64) -> SnapbackResult<u64> {
 /// @ref LLP 0132#index-maintenance-and-storage — source rows, postings,
 ///   frontiers, tombstones, generations, builds, and leases share the same
 ///   transactional SQLite durability domain as authoritative application rows.
-pub fn create_infra(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
     conn.execute_batch(
         "
         CREATE TABLE IF NOT EXISTS _snapback_vector_generations (
@@ -186,7 +186,7 @@ fn manifest_json(index: &VectorIndexManifestV1) -> SnapbackResult<String> {
 ///
 /// @ref LLP 0073#rebuilds-and-migrations — declaration installation and
 ///   verified generation activation are distinct durability boundaries.
-pub fn stage_manifest_in_tx(
+pub(crate) fn stage_manifest_in_tx(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
     source_head: u64,
@@ -411,7 +411,7 @@ fn load_authoritative_row(
 /// [`VectorSqliteQueryFailure`] to invoke this helper on the writer lane. The
 /// exact identity prevents a delayed report from poisoning a newer generation.
 #[allow(dead_code)] // invoked by the VEC runtime-integration writer lane
-pub fn quarantine_generation_on(
+pub(crate) fn quarantine_generation_on(
     conn: &Connection,
     identity: &VectorGenerationIdentity,
     reason: &'static str,
@@ -444,7 +444,7 @@ pub fn quarantine_generation_on(
 /// @ref LLP 0132#candidate-to-release-consistency — candidates and their
 ///   authoritative release derivations are read from the same source cut.
 #[allow(dead_code)] // invoked by the VEC runtime-integration read lane
-pub fn query_vector_on(
+pub(crate) fn query_vector_on(
     conn: &Connection,
     schema: &SchemaManifest,
     plan: &VectorQueryPlanV1,
@@ -1184,7 +1184,7 @@ fn apply_planned_updates(tx: &Transaction<'_>, planned: &[PlannedUpdate]) -> Sna
 
 /// Apply one already-versioned batch to a specific candidate generation. This
 /// is the only derived-write seam the rebuild executor needs.
-pub fn maintain_candidate_in_tx(
+pub(crate) fn maintain_candidate_in_tx(
     tx: &Transaction<'_>,
     table: &str,
     index: &VectorIndexManifestV1,
@@ -1236,7 +1236,7 @@ pub fn maintain_candidate_in_tx(
 ///
 /// @ref LLP 0132#index-maintenance-and-storage — the budget is mutation-global
 ///   across indexes and every refusal rolls back source plus derived state.
-pub fn maintain_vector_indexes_in_tx(
+pub(crate) fn maintain_vector_indexes_in_tx(
     tx: &Transaction<'_>,
     _schema: &SchemaManifest,
     changes: &[ChangedRow],
@@ -1307,7 +1307,7 @@ pub fn maintain_vector_indexes_in_tx(
     Ok(())
 }
 
-pub fn verify_generation(
+pub(crate) fn verify_generation(
     conn: &Connection,
     table: &str,
     index: &VectorIndexManifestV1,

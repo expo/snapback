@@ -23,8 +23,6 @@ use crate::auth::service_fence::{
 use crate::auth::session_projection::FencedPublication;
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use snapback_types::telemetry_contract::CallerAttributionV1;
-pub use snapback_types::auth::invocation::FunctionAttribution;
 use crate::manifest::{
     AuthInput, AuthMode, AuthRequirement, AuthorityDescriptor, FunctionDefinition, FunctionKind,
     HandlerInput,
@@ -37,6 +35,8 @@ use crate::storage::auth_grants::ExactGrantScope;
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+pub use snapback_types::auth::invocation::FunctionAttribution;
+use snapback_types::telemetry_contract::CallerAttributionV1;
 use std::collections::BTreeMap;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
@@ -1221,9 +1221,7 @@ pub struct RehearsalAuthorityBinding {
 }
 
 impl RehearsalAuthorityBinding {
-    pub(super) fn new(
-        registry: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
-    ) -> Self {
+    pub(super) fn new(registry: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry) -> Self {
         Self { registry }
     }
 
@@ -1407,18 +1405,12 @@ impl PreparedAuthority {
         self
     }
 
-    pub fn with_service_publication(
-        mut self,
-        publication: ServiceAuthorityPublication,
-    ) -> Self {
+    pub fn with_service_publication(mut self, publication: ServiceAuthorityPublication) -> Self {
         self.service_publication = Some(publication);
         self
     }
 
-    pub fn with_caller_attribution(
-        mut self,
-        attribution: CallerAttributionV1,
-    ) -> Self {
+    pub fn with_caller_attribution(mut self, attribution: CallerAttributionV1) -> Self {
         self.caller_attribution = Some(attribution);
         self
     }
@@ -1427,10 +1419,7 @@ impl PreparedAuthority {
     /// query/reaction functions being captured into a watch. Later execution
     /// does not retain this session authority; it reconstructs the dedicated
     /// credential-free authority above.
-    pub fn watch_function_authority(
-        &self,
-        source: InvocationSource,
-    ) -> SnapbackResult<Self> {
+    pub fn watch_function_authority(&self, source: InvocationSource) -> SnapbackResult<Self> {
         if self.source != InvocationSource::WatchManagement
             || !matches!(
                 source,
@@ -1534,7 +1523,6 @@ impl PreparedAuthority {
         self
     }
 
-
     /// Consume a fully computed finite effect at the exact stream/session
     /// fence. Dev-mode authority has no session projection and publishes
     /// directly; Sessions authority always installs a fence in middleware.
@@ -1603,9 +1591,7 @@ impl PreparedAuthority {
     pub fn validate_admission(&self, effect: &'static str) -> SnapbackResult<()> {
         self.admission.validate(effect)?;
         match (&self.rehearsal_provenance, &self.rehearsal_fence) {
-            (Some(_), Some(fence)) => fence
-                .validate_at(rehearsal_now_ms())
-                .map_err(Into::into),
+            (Some(_), Some(fence)) => fence.validate_at(rehearsal_now_ms()).map_err(Into::into),
             (Some(_), None) => Err(crate::auth::rehearsal::authority_ended()),
             (None, _) => Ok(()),
         }
@@ -1869,9 +1855,7 @@ impl PreparedInvocation {
 
     /// Declaration facts for the strict-conformance seams; `None` for
     /// HostPlan runtimes, whose declared sets cannot drift by hand.
-    pub fn strict_declaration_facts(
-        &self,
-    ) -> Option<&crate::conformance::StrictDeclarationFacts> {
+    pub fn strict_declaration_facts(&self) -> Option<&crate::conformance::StrictDeclarationFacts> {
         self.strict_declaration_facts.as_ref()
     }
 

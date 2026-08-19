@@ -15,7 +15,7 @@ use snapback::manifest::{
     SchemaManifest, SeedData, TableManifest, ValueExpr,
 };
 use snapback::runtime::CapabilityState;
-use snapback::storage::{
+use snapback_kernel::storage::{
     BufferedWrite, CapturedReadDependency, CapturedReadKind, ChangeOp, LocalDatabase,
 };
 use std::collections::BTreeMap;

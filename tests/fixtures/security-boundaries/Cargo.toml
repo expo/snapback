@@ -1,0 +1,64 @@
+[package]
+name = "snapback-security-boundary-fixtures"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Keep this compile-fail harness outside the product workspace while naming the
+# entire carved workspace whose direct-dependency boundaries it protects.
+[workspace]
+
+[package.metadata.snapback-security-boundaries]
+carved-crates = [
+  "snapback-types",
+  "snapback-kernel",
+  "snapback-auth",
+  "snapback-activation",
+  "snapback-sync",
+  "snapback-services",
+  "snapback-runtime",
+  "snapback-engine",
+  "snapback-server",
+  "snapback-cli",
+  "snapback",
+  "snapback-conformance",
+  "snapback-tools",
+]
+
+[dependencies]
+snapback-types = { path = "../../../crates/snapback-types" }
+snapback-kernel = { path = "../../../crates/snapback-kernel" }
+snapback-auth = { path = "../../../crates/snapback-auth" }
+snapback-activation = { path = "../../../crates/snapback-activation" }
+snapback-sync = { path = "../../../crates/snapback-sync" }
+snapback-services = { path = "../../../crates/snapback-services" }
+snapback-runtime = { path = "../../../crates/snapback-runtime" }
+snapback-engine = { path = "../../../crates/snapback-engine" }
+snapback-server = { path = "../../../crates/snapback-server" }
+snapback-cli = { path = "../../../crates/snapback-cli" }
+snapback = { path = "../../../crates/snapback" }
+snapback-tools = { path = "../../../crates/snapback-tools" }
+
+[[bin]]
+name = "forge-erasure-authority"
+path = "src/bin/forge_erasure_authority.rs"
+
+[[bin]]
+name = "forge-push-system"
+path = "src/bin/forge_push_system.rs"
+
+[[bin]]
+name = "fake-authorization-interlock"
+path = "src/bin/fake_authorization_interlock.rs"
+
+[[bin]]
+name = "fake-sender-proof-store"
+path = "src/bin/fake_sender_proof_store.rs"
+
+[[bin]]
+name = "raw-pending-effect-transition"
+path = "src/bin/raw_pending_effect_transition.rs"
+
+[[bin]]
+name = "obtain-writable-sql-handle"
+path = "src/bin/obtain_writable_sql_handle.rs"

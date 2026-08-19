@@ -1,7 +1,7 @@
 //! Authentication policy over the durable kernel substrate.
 
-pub mod admission;
 pub mod admin_token;
+pub mod admission;
 pub mod backup;
 pub mod database_plan;
 pub mod deployment;
@@ -25,10 +25,7 @@ pub mod session_projection {
     pub use snapback_types::contract_types::TerminalAuthorityDisposition;
 }
 
-pub use snapback_kernel::auth::{
-    keyring, lease, logical_transfer, rescue, throttle,
-};
+pub use snapback_kernel::auth::{keyring, lease, logical_transfer, rescue, throttle};
 pub use snapback_types::auth::{
-    crypto, descriptor, handshake, identity_core, mode, rehearsal,
-    service_authority_contract, wire,
+    crypto, descriptor, handshake, identity_core, mode, rehearsal, service_authority_contract, wire,
 };

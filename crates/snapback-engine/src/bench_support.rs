@@ -1,6 +1,7 @@
 //! Engine-owned support for the agent-safe fork/promotion benchmark.
 
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use serde_json::json;
 use snapback_types::bench_fixture::{args, functions, schema};
@@ -21,12 +22,6 @@ pub fn configured_file_agent_safe(path: impl AsRef<Path>) -> SnapbackResult<Loca
     Ok(snapback)
 }
 
-fn open_configured_file_agent_safe(path: impl AsRef<Path>) -> SnapbackResult<LocalSnapback> {
-    let mut snapback = LocalSnapback::open(path)?;
-    snapback.load_functions(functions());
-    Ok(snapback)
-}
-
 /// One real file-backed ordinary-mutation writer for the dated LLP 0162
 /// contention recorder. Construction installs a distinct server-issued range;
 /// every timed call runs the same issuance-bearing carrier as the paired
@@ -36,9 +31,19 @@ fn open_configured_file_agent_safe(path: impl AsRef<Path>) -> SnapbackResult<Loc
 ///   not a raw SQL stand-in that bypasses envelope and write-authority costs.
 #[doc(hidden)]
 pub struct AgentSafeActiveContentionWriter {
-    snapback: LocalSnapback,
+    database: AgentSafeActiveContentionDatabase,
     range: ClientIdentityRangeV1,
     next_counter: u64,
+}
+
+/// One engine-owned database graph shared by every concurrent request in the
+/// recorder. Clones share the engine mutex; they do not reopen SQLite or mint
+/// another kernel commit authority.
+#[derive(Clone)]
+#[doc(hidden)]
+pub struct AgentSafeActiveContentionDatabase {
+    snapback: Arc<Mutex<LocalSnapback>>,
+    canonical_stream_id: String,
 }
 
 /// Create the shared production-shaped database and return its server-owned
@@ -47,22 +52,68 @@ pub struct AgentSafeActiveContentionWriter {
 #[doc(hidden)]
 pub fn prepare_agent_safe_active_contention_database(
     path: impl AsRef<Path>,
-) -> SnapbackResult<String> {
+) -> SnapbackResult<AgentSafeActiveContentionDatabase> {
     let mut snapback = configured_file_agent_safe(path)?;
+    snapback.ensure_promotion_contention_infra_for_bench()?;
     let (stream_id, _) = snapback.prepare_agent_safe_active_lane_benchmark_for_client(
         &args(json!({ "title": "contention setup" })),
         "agent-safe-contention-setup",
     )?;
-    Ok(stream_id)
+    Ok(AgentSafeActiveContentionDatabase {
+        snapback: Arc::new(Mutex::new(snapback)),
+        canonical_stream_id: stream_id,
+    })
+}
+
+impl AgentSafeActiveContentionDatabase {
+    pub fn canonical_stream_id(&self) -> &str {
+        &self.canonical_stream_id
+    }
+
+    pub fn prepare_reservation(
+        &self,
+        workers: usize,
+        issued_at_ms: i64,
+    ) -> SnapbackResult<snapback_kernel::fork_promotion_bench::PromotionContentionReservation> {
+        self.lock()?
+            .prepare_promotion_contention_reservation_for_bench(
+                &self.canonical_stream_id,
+                workers,
+                issued_at_ms,
+            )
+    }
+
+    pub fn activate_reservation(
+        &self,
+        reservation: snapback_kernel::fork_promotion_bench::PromotionContentionReservation,
+        now_ms: i64,
+    ) -> SnapbackResult<snapback_kernel::fork_promotion_bench::PromotionContentionPolicy> {
+        self.lock()?
+            .activate_promotion_contention_reservation_for_bench(reservation, now_ms)
+    }
+
+    pub fn committed_rows(&self) -> SnapbackResult<usize> {
+        self.lock()?.committed_promotion_contention_rows_for_bench()
+    }
+
+    fn lock(&self) -> SnapbackResult<std::sync::MutexGuard<'_, LocalSnapback>> {
+        self.snapback.lock().map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_BENCH_WRITER_POISONED",
+                "bench",
+                "contention benchmark engine lock was poisoned",
+            )
+        })
+    }
 }
 
 impl AgentSafeActiveContentionWriter {
     pub fn open(
-        path: impl AsRef<Path>,
+        database: AgentSafeActiveContentionDatabase,
         worker: usize,
         expected_stream_id: &str,
     ) -> SnapbackResult<Self> {
-        let mut snapback = open_configured_file_agent_safe(path)?;
+        let mut snapback = database.lock()?;
         let client_audience_id = format!("agent-safe-contention-worker-{worker}");
         let (stream_id, range) = snapback.prepare_agent_safe_active_lane_benchmark_for_client(
             &args(json!({ "title": "contention writer setup" })),
@@ -76,8 +127,9 @@ impl AgentSafeActiveContentionWriter {
             ));
         }
         let next_counter = range.range_start;
+        drop(snapback);
         Ok(Self {
-            snapback,
+            database,
             range,
             next_counter,
         })
@@ -85,7 +137,8 @@ impl AgentSafeActiveContentionWriter {
 
     pub fn commit_next(&mut self, worker: usize, ordinal: usize) -> SnapbackResult<()> {
         let counter = self.next_counter;
-        self.snapback
+        self.database
+            .lock()?
             .invoke_agent_safe_active_lane_benchmark_mutation(
                 "createTodo",
                 args(json!({

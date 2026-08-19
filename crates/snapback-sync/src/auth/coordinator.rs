@@ -6,8 +6,8 @@
 //! every topology and leaf lock released. Exact finalize or rollback then
 //! reacquires topology → stream/session in the sole permitted order.
 
-use super::crypto::SessionBearer;
 use super::admission::AdmissionLease;
+use super::crypto::SessionBearer;
 use super::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, RehearsalAuthorityBinding,
     ResolvedAppAuthority, WireAuthorityFields,
@@ -37,8 +37,7 @@ use std::time::{Duration, Instant};
 
 pub struct AuthCoordinator {
     topology: Mutex<CoordinatorTopology>,
-    rehearsal_live_authority:
-        crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
+    rehearsal_live_authority: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
     #[cfg(any(test, feature = "test-support"))]
     fail_next_finalize: std::sync::atomic::AtomicBool,
 }
@@ -918,9 +917,7 @@ impl AuthCoordinator {
     ///
     /// @ref LLP 0059#reset-restore-and-stream-publication — reset uses the
     /// same premark/commit/finalize protocol as session leaf mutations.
-    pub async fn premark_stream_reset(
-        self: &Arc<Self>,
-    ) -> SnapbackResult<PremarkedStreamReset> {
+    pub async fn premark_stream_reset(self: &Arc<Self>) -> SnapbackResult<PremarkedStreamReset> {
         let (predecessor, successor, ticket, drain) = self.begin_stream_reset_marker()?;
         let mut rollback = PendingDrainRollback::new(
             Arc::clone(self),
@@ -1848,10 +1845,7 @@ impl AuthCoordinator {
         !live.is_empty()
     }
 
-    pub fn publish_rehearsal_grant(
-        &self,
-        minted: &crate::auth::rehearsal::MintedRehearsalGrant,
-    ) {
+    pub fn publish_rehearsal_grant(&self, minted: &crate::auth::rehearsal::MintedRehearsalGrant) {
         self.rehearsal_live_authority
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -1864,10 +1858,7 @@ impl AuthCoordinator {
             );
     }
 
-    pub fn publish_rehearsal_window(
-        &self,
-        window: &crate::auth::rehearsal::AuthRehearsalWindowV1,
-    ) {
+    pub fn publish_rehearsal_window(&self, window: &crate::auth::rehearsal::AuthRehearsalWindowV1) {
         self.rehearsal_live_authority
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -1885,8 +1876,7 @@ impl AuthCoordinator {
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .retain(|authority_id, authority| {
-                authority_id != grant_id
-                    && authority.parent_grant_id.as_deref() != Some(grant_id)
+                authority_id != grant_id && authority.parent_grant_id.as_deref() != Some(grant_id)
             });
     }
 

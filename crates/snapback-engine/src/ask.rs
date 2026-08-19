@@ -10,6 +10,8 @@ use hmac::{Hmac, Mac as _};
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::Sha256;
+#[cfg(feature = "test-support")]
+use std::cell::Cell;
 use std::net::IpAddr;
 use std::time::Duration;
 use zeroize::{Zeroize, Zeroizing};
@@ -19,6 +21,50 @@ pub const FINAL_TOOL_NAME: &str = "snapback_final_answer";
 pub const RESULT_SCHEMA_RETRY_CAP: u64 = 2;
 const PROVIDER_RESPONSE_MAX_BYTES: usize = 4 * 1024 * 1024;
 const PROVIDER_ENDPOINT_MAX_BYTES: usize = 4_096;
+
+#[cfg(feature = "test-support")]
+thread_local! {
+    static TEST_LOOPBACK_PROVIDER: Cell<bool> = const { Cell::new(false) };
+}
+
+#[cfg(feature = "test-support")]
+fn admitted_test_loopback_providers()
+-> &'static std::sync::Mutex<std::collections::BTreeSet<String>> {
+    static ADMITTED: std::sync::OnceLock<std::sync::Mutex<std::collections::BTreeSet<String>>> =
+        std::sync::OnceLock::new();
+    ADMITTED.get_or_init(Default::default)
+}
+
+/// Admit one exact loopback provider identity for a cross-crate test fixture.
+/// Random loopback ports make the admission test-process-local in practice;
+/// production builds do not contain this seam.
+#[cfg(feature = "test-support")]
+#[doc(hidden)]
+pub fn admit_loopback_provider_for_test(provider: &str) {
+    admitted_test_loopback_providers()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(provider.to_owned());
+}
+
+/// Run one fixture construction with the loopback HTTP provider profile.
+/// The override is thread-local, scoped, and unavailable without the explicit
+/// test-support feature; served configuration cannot enable it.
+#[cfg(feature = "test-support")]
+#[doc(hidden)]
+pub fn with_loopback_provider_for_test<T>(run: impl FnOnce() -> T) -> T {
+    TEST_LOOPBACK_PROVIDER.with(|slot| {
+        let previous = slot.replace(true);
+        struct Restore<'a>(&'a Cell<bool>, bool);
+        impl Drop for Restore<'_> {
+            fn drop(&mut self) {
+                self.0.set(self.1);
+            }
+        }
+        let _restore = Restore(slot, previous);
+        run()
+    })
+}
 
 #[derive(Clone, Debug)]
 pub struct QueryTool {
@@ -140,7 +186,21 @@ pub fn parse_provider(provider: &str, model: &str) -> SnapbackResult<ProviderCon
     // @ref LLP 0251#consumerprofile-contract — only this crate's unit-test
     // build can mint Ask's loopback HTTP capability; manifests and runtime
     // configuration have no switch that enables it in a served binary.
-    let test_loopback_http = cfg!(test)
+    let test_loopback_provider = cfg!(test) || {
+        #[cfg(feature = "test-support")]
+        {
+            TEST_LOOPBACK_PROVIDER.with(Cell::get)
+                || admitted_test_loopback_providers()
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .contains(provider)
+        }
+        #[cfg(not(feature = "test-support"))]
+        {
+            false
+        }
+    };
+    let test_loopback_http = test_loopback_provider
         && parsed.scheme() == "http"
         && literal.is_some_and(|address| address.is_loopback());
     if (parsed.scheme() != "https" && !test_loopback_http)

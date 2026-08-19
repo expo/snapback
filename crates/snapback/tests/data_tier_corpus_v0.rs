@@ -25,7 +25,7 @@ use snapback::data_tier::{
 use snapback::manifest::{
     AuthInput, HandlerInput, MutationPlan, SchemaManifest, SeedData, TableManifest,
 };
-use snapback::storage::LocalDatabase;
+use snapback_kernel::storage::LocalDatabase;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -355,7 +355,7 @@ fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
 #[test]
 fn get_reads_are_captured_server_side() {
     use snapback::manifest::{MutationStep, ValueExpr};
-    use snapback::storage::CapturedReadKind;
+    use snapback_kernel::storage::CapturedReadKind;
 
     let mut db = LocalDatabase::memory().expect("memory database");
     db.schema_seed()
@@ -384,7 +384,7 @@ fn get_reads_are_captured_server_side() {
         .expect("seed");
 
     let plan = MutationPlan {
-            owner_write_checks: Vec::new(),
+        owner_write_checks: Vec::new(),
         steps: vec![
             MutationStep::Get {
                 table: "rows".to_owned(),

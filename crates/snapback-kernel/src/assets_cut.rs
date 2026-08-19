@@ -198,7 +198,7 @@ pub struct AssetCutCapture {
 /// Capture the cut inside one read transaction. Ready assets with their
 /// ready renditions; deleted assets as tombstones; each referenced blob
 /// exactly once, digest-addressed.
-pub fn capture_cut(
+pub(crate) fn capture_cut(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
     app_id: &str,
@@ -488,7 +488,7 @@ fn encode<T: serde::Serialize>(value: &T) -> SnapbackResult<String> {
 /// generation is the manifest's plus one, so bearer URLs minted against the
 /// exporting instance can never validate here (signed-URL validation
 /// recomputes against the current generation).
-pub fn apply_cut(
+pub(crate) fn apply_cut(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
     manifest: &AssetCutManifestV1,

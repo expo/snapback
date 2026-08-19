@@ -30,7 +30,7 @@ use snapback::manifest::{
 };
 use snapback::operation_ledger::ORDINARY_MUTATION_LANE_V1;
 use snapback::server::{SnapbackApp, app};
-use snapback::storage::ClientMutationIdentity;
+use snapback_kernel::storage::ClientMutationIdentity;
 use snapback_server::test_support::axum::body::{Body, to_bytes};
 use snapback_server::test_support::axum::http::{Method, Request, StatusCode, header};
 use tower::ServiceExt;

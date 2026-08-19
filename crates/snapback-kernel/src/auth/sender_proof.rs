@@ -15,15 +15,15 @@ const REPLAY_TABLE: &str = "_snapback_sender_proof_replay";
 const NONCE_TABLE: &str = "_snapback_sender_nonce";
 pub const AUTH_SESSION_SUPERSESSION_GRACE_MS: u64 = 10 * 1_000;
 
-pub fn sender_replay_epoch(connection: &Connection) -> Result<u64, ReplayConsumeError> {
+pub(crate) fn sender_replay_epoch(connection: &Connection) -> Result<u64, ReplayConsumeError> {
     auth_sender::sender_replay_epoch_on(connection)
 }
 
 fn canonical_thumbprint(value: &str) -> bool {
     value.len() == 43
-        && URL_SAFE_NO_PAD.decode(value).is_ok_and(|bytes| {
-            bytes.len() == 32 && URL_SAFE_NO_PAD.encode(bytes) == value
-        })
+        && URL_SAFE_NO_PAD
+            .decode(value)
+            .is_ok_and(|bytes| bytes.len() == 32 && URL_SAFE_NO_PAD.encode(bytes) == value)
 }
 
 fn canonical_nonce(value: &str) -> bool {
@@ -61,7 +61,6 @@ impl std::fmt::Debug for SenderIssuanceCommitment {
         formatter.write_str("SenderIssuanceCommitment([REDACTED])")
     }
 }
-
 
 pub fn generate_sender_nonce() -> Result<String, SenderNonceError> {
     let mut bytes = [0_u8; 32];
@@ -153,7 +152,7 @@ impl SenderIssuanceCommitment {
 
     /// Consume a cryptographically valid issuance proof when code exchange
     /// refuses. No family binding or nonce is installed on a refused outcome.
-    pub fn consume_rejected_outcome(
+    pub(crate) fn consume_rejected_outcome(
         &self,
         transaction: &Transaction<'_>,
     ) -> Result<(), ReplayConsumeError> {
@@ -162,7 +161,7 @@ impl SenderIssuanceCommitment {
 
     /// Add proof replay retention, family binding, and generation-one nonce to
     /// the same provider transaction that inserts the session.
-    pub fn install(
+    pub(crate) fn install(
         &self,
         transaction: &Transaction<'_>,
         session_id: &str,
@@ -225,7 +224,7 @@ impl SenderIssuanceCommitment {
     /// inside the same write transaction to refuse with a coded outcome before
     /// any session state is written. Expired cells do not count: `install`
     /// garbage-collects them ahead of its insert.
-    pub fn thumbprint_has_live_family(
+    pub(crate) fn thumbprint_has_live_family(
         &self,
         transaction: &Transaction<'_>,
     ) -> Result<bool, ReplayConsumeError> {
@@ -252,7 +251,7 @@ impl SenderIssuanceCommitment {
     /// Durable witness that a key-bound refusal committed: the proof id was
     /// consumed, no family binding exists for the refused session id, and the
     /// thumbprint's nonce cell still belongs to the pre-existing family.
-    pub fn is_key_bound_successor(
+    pub(crate) fn is_key_bound_successor(
         &self,
         connection: &Connection,
         session_id: &str,
@@ -302,7 +301,7 @@ impl SenderIssuanceCommitment {
         )
     }
 
-    pub fn is_exact_successor(
+    pub(crate) fn is_exact_successor(
         &self,
         connection: &Connection,
         session_id: &str,
@@ -349,7 +348,7 @@ impl SenderIssuanceCommitment {
                 )))
     }
 
-    pub fn is_rejected_successor(
+    pub(crate) fn is_rejected_successor(
         &self,
         connection: &Connection,
         session_id: &str,
@@ -390,7 +389,7 @@ impl SenderIssuanceCommitment {
         Ok(!binding && !nonce && replay_expiry == Some(self.proof_expires_at_seconds as i64))
     }
 
-    pub fn is_exact_predecessor(
+    pub(crate) fn is_exact_predecessor(
         &self,
         connection: &Connection,
         session_id: &str,
@@ -433,8 +432,7 @@ impl SenderIssuanceCommitment {
     }
 }
 
-
-pub fn bind_issued_session_sender_constraint(
+pub(crate) fn bind_issued_session_sender_constraint(
     transaction: &Transaction<'_>,
     session_id: &str,
     jwk_thumbprint: &str,
@@ -455,7 +453,7 @@ pub fn bind_issued_session_sender_constraint(
 
 /// Resolve only the key thumbprint needed for proof verification. This is not
 /// ordinary session authentication and publishes no user/session projection.
-pub fn sender_constraint_for_presented_token(
+pub(crate) fn sender_constraint_for_presented_token(
     connection: &Connection,
     token_hash: &[u8],
     now_ms: u64,
@@ -471,4 +469,95 @@ pub fn sender_constraint_for_presented_token(
         },
     )
     .map(|fact| fact.map(|fact| fact.jwk_thumbprint))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::contract_types::{SenderNonceIssue, SenderProofNonceRotation, VerifiedSenderProof};
+
+    fn canonical(byte: u8) -> String {
+        URL_SAFE_NO_PAD.encode([byte; 32])
+    }
+
+    #[test]
+    fn issuance_commitment_installs_one_atomic_exact_successor() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                "PRAGMA foreign_keys = ON;
+                 CREATE TABLE _auth_sessions(id TEXT PRIMARY KEY) STRICT;
+                 INSERT INTO _auth_sessions(id) VALUES('session-1');",
+            )
+            .unwrap();
+        auth_sender::initialize_sender_proof_replay_on(&connection).unwrap();
+        let commitment = SenderIssuanceCommitment::new(
+            VerifiedSenderIssuance {
+                proof_id: [7; 16],
+                jwk_thumbprint: canonical(1),
+                issued_at_seconds: 100,
+            },
+            100,
+            60,
+        )
+        .unwrap();
+        let transaction = connection.transaction().unwrap();
+        assert!(
+            commitment
+                .is_exact_predecessor(&transaction, "session-1")
+                .unwrap()
+        );
+        commitment.install(&transaction, "session-1").unwrap();
+        transaction.commit().unwrap();
+        assert!(
+            commitment
+                .is_exact_successor(&connection, "session-1")
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn replay_and_nonce_rotation_commit_once() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        auth_sender::initialize_sender_proof_replay_on(&connection).unwrap();
+        let thumbprint = canonical(2);
+        let first_nonce = canonical(3);
+        let next_nonce = canonical(4);
+        let current = auth_sender::issue_sender_nonce_on(
+            &mut connection,
+            SenderNonceIssue {
+                sender_replay_epoch: 1,
+                family_jwk_thumbprint: &thumbprint,
+                nonce: &first_nonce,
+                now_seconds: 100,
+                expires_at_seconds: 200,
+                capacity: Some(2),
+            },
+        )
+        .unwrap();
+        let verified = VerifiedSenderProof {
+            proof_id: [9; 16],
+            jwk_thumbprint: thumbprint.clone(),
+            issued_at_seconds: 100,
+        };
+        let rotation = || SenderProofNonceRotation {
+            sender_replay_epoch: 1,
+            family_jwk_thumbprint: &thumbprint,
+            current: &current,
+            verified: &verified,
+            now_seconds: 101,
+            replay_expires_at_seconds: 132,
+            next_nonce: &next_nonce,
+            next_nonce_expires_at_seconds: 201,
+            replay_capacity: Some(2),
+        };
+        let next =
+            auth_sender::consume_sender_proof_and_rotate_nonce_on(&mut connection, rotation())
+                .unwrap();
+        assert_eq!(next.generation, 2);
+        assert_eq!(
+            auth_sender::consume_sender_proof_and_rotate_nonce_on(&mut connection, rotation()),
+            Err(crate::contract_types::SenderNonceError::Replay)
+        );
+    }
 }

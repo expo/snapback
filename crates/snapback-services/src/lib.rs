@@ -25,9 +25,6 @@ pub mod assets_video;
 pub mod cron;
 pub mod error_tracking;
 pub mod errors_query;
-#[cfg(feature = "benchmark-support")]
-#[doc(hidden)]
-pub mod fork_promotion_bench;
 pub mod instance_fork;
 pub mod jobs;
 pub mod manifest;

@@ -556,10 +556,6 @@ impl HostedAdmissionEnvelope {
     }
 }
 
-/// Create the durable admission high-water table.
-pub use snapback_kernel::auth::hosted_edge::initialize_hosted_admission_watermark;
-
-
 /// An envelope that passed every check not requiring durable state.
 ///
 /// Held between the pre-bind phase and installation so the durable
@@ -735,8 +731,8 @@ pub fn install_verified_admission(
 pub fn install_verified_admission_plan(
     verified: &VerifiedHostedAdmission,
     now_ms: u64,
-) -> impl crate::auth::database_plan::AuthDatabasePlan<Output = SnapbackResult<HostedServingAuthority>> + '_
-{
+) -> impl crate::auth::database_plan::AuthDatabasePlan<Output = SnapbackResult<HostedServingAuthority>>
++ '_ {
     crate::auth::database_plan::plan(move |database| {
         install_verified_admission(verified, now_ms, database)
     })

@@ -7,8 +7,7 @@ use crate::storage::{CapturedReadDependency, CapturedReadKind, ChangeOp, Changed
 use serde_json::{Value, json};
 use std::cmp::Ordering;
 
-pub type QueryDependencyMetadata =
-    (Option<Value>, Option<usize>, Option<usize>, Option<Value>);
+pub type QueryDependencyMetadata = (Option<Value>, Option<usize>, Option<usize>, Option<Value>);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LiveMatchOutcome {

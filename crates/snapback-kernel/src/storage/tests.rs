@@ -1,6 +1,33 @@
 use super::*;
 
 #[cfg(test)]
+mod kernel_commit_authority_tests {
+    use super::*;
+
+    #[test]
+    fn one_live_authority_lease_covers_every_open_of_the_same_file() {
+        let directory = tempfile::tempdir().expect("authority tempdir");
+        let path = directory.path().join("app.sqlite3");
+        let mut serving = LocalDatabase::open(&path).expect("serving database");
+        let mut second_handle = LocalDatabase::open(&path).expect("second database handle");
+
+        let authority = serving
+            .claim_kernel_commit_authority()
+            .expect("first graph claims database authority");
+        assert!(
+            second_handle.claim_kernel_commit_authority().is_none(),
+            "a second handle cannot mint authority for a serving file"
+        );
+
+        drop(authority);
+        assert!(
+            second_handle.claim_kernel_commit_authority().is_some(),
+            "dropping the complete authority graph releases the database"
+        );
+    }
+}
+
+#[cfg(test)]
 mod authoring_suggestion_tests {
     use super::*;
 

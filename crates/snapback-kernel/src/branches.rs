@@ -127,7 +127,7 @@ const SELECT_COLUMNS: &str =
 
 /// Ensure the branch registry table exists. Idempotent and additive — it never
 /// touches the canonical journal or version stream.
-pub fn ensure_branch_registry(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn ensure_branch_registry(conn: &Connection) -> SnapbackResult<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _snapback_branches (
            branch_id       TEXT PRIMARY KEY,
@@ -159,7 +159,7 @@ pub fn ensure_branch_registry(conn: &Connection) -> SnapbackResult<()> {
 /// Fails closed if `branch_id` or `child_stream_id` already exists (both are
 /// unique) — a branch identity is never silently reused.
 #[allow(clippy::too_many_arguments)]
-pub fn create_branch(
+pub(crate) fn create_branch(
     conn: &Transaction<'_>,
     branch_id: &BranchId,
     child_stream_id: &ChildStreamId,
@@ -202,7 +202,10 @@ pub fn create_branch(
 }
 
 /// Look up a branch by id.
-pub fn get_branch(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<Option<BranchRecord>> {
+pub(crate) fn get_branch(
+    conn: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<Option<BranchRecord>> {
     ensure_branch_registry(conn)?;
     let raw = conn
         .query_row(
@@ -215,7 +218,7 @@ pub fn get_branch(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<Opt
 }
 
 /// List every registered branch, newest first.
-pub fn list_branches(conn: &Connection) -> SnapbackResult<Vec<BranchRecord>> {
+pub(crate) fn list_branches(conn: &Connection) -> SnapbackResult<Vec<BranchRecord>> {
     ensure_branch_registry(conn)?;
     let mut statement = conn.prepare(&format!(
         "SELECT {SELECT_COLUMNS} FROM _snapback_branches ORDER BY created_at_ms DESC, branch_id"
@@ -227,7 +230,7 @@ pub fn list_branches(conn: &Connection) -> SnapbackResult<Vec<BranchRecord>> {
 }
 
 /// Mark a branch for teardown. Returns whether the branch existed.
-pub fn mark_teardown(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<bool> {
+pub(crate) fn mark_teardown(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<bool> {
     ensure_branch_registry(conn)?;
     let updated = conn.execute(
         "UPDATE _snapback_branches SET state = ?2 WHERE branch_id = ?1",
@@ -247,7 +250,7 @@ pub fn mark_teardown(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<
 
 /// The current (highest-allocated) version in a branch's child stream, or `None`
 /// if the branch has no version-stream row (never created, or torn down).
-pub fn child_current_version(
+pub(crate) fn child_current_version(
     conn: &Connection,
     branch_id: &BranchId,
 ) -> SnapbackResult<Option<u64>> {
@@ -264,7 +267,10 @@ pub fn child_current_version(
 
 /// Allocate the next version in a branch's child stream — gap-free, monotonic,
 /// independent of canonical. Fails closed if the branch has no version stream.
-pub fn allocate_child_version(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<u64> {
+pub(crate) fn allocate_child_version(
+    conn: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<u64> {
     ensure_branch_registry(conn)?;
     // @ref LLP 0097#1-the-branch-is-an-ephemeral-child-of-a-logical-app — the
     // child stream is gap-free even when independent connections allocate at
@@ -299,7 +305,10 @@ pub fn allocate_child_version(conn: &Connection, branch_id: &BranchId) -> Snapba
 
 /// The replay floor of a branch's child stream (the oldest version a consumer may
 /// still resume from). `None` if the branch has no version stream.
-pub fn child_replay_floor(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<Option<u64>> {
+pub(crate) fn child_replay_floor(
+    conn: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<Option<u64>> {
     ensure_branch_registry(conn)?;
     let value: Option<i64> = conn
         .query_row(
@@ -313,7 +322,7 @@ pub fn child_replay_floor(conn: &Connection, branch_id: &BranchId) -> SnapbackRe
 
 /// Advance a branch's child-stream replay floor. The floor is monotonic and may
 /// never exceed the current allocated version (fail-closed).
-pub fn set_child_replay_floor(
+pub(crate) fn set_child_replay_floor(
     conn: &Connection,
     branch_id: &BranchId,
     floor: u64,
@@ -362,7 +371,7 @@ pub fn set_child_replay_floor(
 ///   net diff requires an immutable retained base or first-write preimages.
 pub struct MaterializedBase {
     /// The branch's writable materialized overlay head.
-    pub conn: Connection,
+    pub(crate) conn: Connection,
     immutable_base: Connection,
     /// The canonical head captured in this snapshot — the CAS anchor for
     /// promotion (P3). Read back FROM the snapshot, so it is exactly consistent
@@ -374,13 +383,21 @@ pub struct MaterializedBase {
 }
 
 impl MaterializedBase {
+    pub(crate) fn writable_head(&self) -> &Connection {
+        &self.conn
+    }
+
+    pub(crate) fn writable_head_mut(&mut self) -> &mut Connection {
+        &mut self.conn
+    }
+
     /// Materialize a branch base by snapshotting `source` into a fresh database.
     ///
     /// `target` = `Some(path)` writes an on-disk base (teardown deletes it);
     /// `None` keeps it in memory. The recorded `base_version` is read back from
     /// the snapshot itself, making it atomically consistent with the copied
     /// pages even if the source advances mid-backup.
-    pub fn materialize(source: &Connection, target: Option<&Path>) -> SnapbackResult<Self> {
+    pub(crate) fn materialize(source: &Connection, target: Option<&Path>) -> SnapbackResult<Self> {
         let immutable_base_path = target.map(|path| {
             let mut value = path.as_os_str().to_os_string();
             value.push(".immutable-base");
@@ -449,7 +466,7 @@ impl MaterializedBase {
     }
 
     /// The retained comparison base. SQLite enforces query-only access.
-    pub fn immutable_base(&self) -> &Connection {
+    pub(crate) fn immutable_base(&self) -> &Connection {
         &self.immutable_base
     }
 
@@ -538,7 +555,7 @@ pub struct OverlayWrite {
 
 /// Create the branch overlay ledger in a branch database (idempotent). One
 /// branch per materialized database, so `child_version` is a sufficient key.
-pub fn ensure_branch_overlay(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn ensure_branch_overlay(conn: &Connection) -> SnapbackResult<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _snapback_branch_overlay (
             child_version  INTEGER PRIMARY KEY,
@@ -561,7 +578,7 @@ pub fn ensure_branch_overlay(conn: &Connection) -> SnapbackResult<()> {
 /// same transaction as this call for atomic overlay-over-base semantics.
 /// Requires the branch's child version-stream row (copied into the branch DB at
 /// materialization) to exist — fails closed otherwise.
-pub fn record_overlay_write(
+pub(crate) fn record_overlay_write(
     conn: &mut Connection,
     branch_id: &BranchId,
     write: &OverlayWrite,
@@ -592,7 +609,7 @@ pub fn record_overlay_write(
 
 /// Enumerate a branch's divergence in child-version order — the replay list for
 /// promotion (P3). Empty if the branch never diverged.
-pub fn overlay_writes(conn: &Connection) -> SnapbackResult<Vec<(u64, OverlayWrite)>> {
+pub(crate) fn overlay_writes(conn: &Connection) -> SnapbackResult<Vec<(u64, OverlayWrite)>> {
     ensure_branch_overlay(conn)?;
     let mut stmt = conn.prepare(
         "SELECT child_version, table_name, row_id, op, payload
@@ -752,7 +769,7 @@ pub struct CapturedEffect {
 }
 
 /// Create the captured-effect ledger in a branch database (idempotent).
-pub fn ensure_captured_effects(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn ensure_captured_effects(conn: &Connection) -> SnapbackResult<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _snapback_captured_effects (
             child_version     INTEGER PRIMARY KEY,
@@ -772,7 +789,7 @@ pub fn ensure_captured_effects(conn: &Connection) -> SnapbackResult<()> {
 /// the next child-stream version atomically with the ledger append, so effects
 /// and data writes share one total order. Fails closed if the scope is not
 /// `HostMediated` (v1 capability), or if the branch has no child stream.
-pub fn capture_effect(
+pub(crate) fn capture_effect(
     conn: &mut Connection,
     branch_id: &BranchId,
     effect: &CapturedEffectInput,
@@ -807,7 +824,7 @@ pub fn capture_effect(
 
 /// Enumerate captured effects in child-version order — the effect-replay list
 /// for promotion (P3), interleaved with overlay writes by shared version.
-pub fn captured_effects(conn: &Connection) -> SnapbackResult<Vec<CapturedEffect>> {
+pub(crate) fn captured_effects(conn: &Connection) -> SnapbackResult<Vec<CapturedEffect>> {
     ensure_captured_effects(conn)?;
     let mut stmt = conn.prepare(
         "SELECT child_version, class, scope, target, payload, simulated_outcome
@@ -883,7 +900,7 @@ impl BranchOp {
 
 /// The full branch op-log: overlay writes and captured effects merged into one
 /// causal order by their shared child version.
-pub fn branch_op_log(conn: &Connection) -> SnapbackResult<Vec<BranchOp>> {
+pub(crate) fn branch_op_log(conn: &Connection) -> SnapbackResult<Vec<BranchOp>> {
     let mut ops: Vec<BranchOp> = overlay_writes(conn)?
         .into_iter()
         .map(|(v, w)| BranchOp::Write(v, w))
@@ -963,7 +980,7 @@ impl EffectSettlement {
 }
 
 /// Create the promotion reconciliation ledger on canonical (idempotent).
-pub fn ensure_promotion_pending(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn ensure_promotion_pending(conn: &Connection) -> SnapbackResult<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _snapback_promotion_pending (
             id                  INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1002,7 +1019,7 @@ pub fn ensure_promotion_pending(conn: &Connection) -> SnapbackResult<()> {
 /// @ref LLP 0164#contract-summary-normative-details-per-llp-0162-3-5 — no
 ///   product path may promote branch post-images.
 #[cfg(any())]
-pub fn promote<F>(
+pub(crate) fn promote<F>(
     canonical: &mut Connection,
     base: &Connection,
     branch_id: &BranchId,
@@ -1118,7 +1135,7 @@ where
 /// reconciliation). Resolves the effect's pending row to the settlement status;
 /// idempotent-safe (returns how many pending rows it resolved). Never rolls back
 /// an already-initiated promotion — it only advances pending → resolved.
-pub fn reconcile_effect(
+pub(crate) fn reconcile_effect(
     conn: &Connection,
     branch_id: &BranchId,
     effect_version: u64,
@@ -1135,7 +1152,7 @@ pub fn reconcile_effect(
 }
 
 /// The unresolved pending rows for a branch (for reconciliation/observability).
-pub fn pending_promotions(
+pub(crate) fn pending_promotions(
     conn: &Connection,
     branch_id: &BranchId,
 ) -> SnapbackResult<Vec<(u64, String, String)>> {

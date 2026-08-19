@@ -10,10 +10,9 @@ pub use snapback_kernel::push::{
     PushRecoveredBatchV1, PushSendRequestV1, PushSendReservationResponseV1, PushTicketOutcomeV1,
     PushTokenRegistrationResponse, PushTokenUnregisterResponse, PushTriggerModeV1,
     REGISTRY_TABLE_SQL, ReservedPushAttemptV1, capture_deferred_grant, expo_receipt_payload,
-    expo_send_payload_from_parts, parse_expo_receipt_response, resolve_audience_in,
-    validate_audience_args, validate_config_uses, validate_declaration_against_schema,
-    validate_exact_ledger_schema, validate_provider_id, validate_receipt_error_code,
-    validate_ticket_error_code, validate_token,
+    expo_send_payload_from_parts, parse_expo_receipt_response, validate_audience_args,
+    validate_config_uses, validate_declaration_against_schema, validate_provider_id,
+    validate_receipt_error_code, validate_ticket_error_code, validate_token,
 };
 pub use snapback_services::push::{
     ExpoHttpResponseV1, ExpoHttpUncertaintyV1, RegisterPushTokenRequest,
@@ -31,21 +30,23 @@ pub use snapback_types::push::*;
 /// @ref LLP 0276#phases — port inversion must preserve compiler-enforced
 /// admission rather than accept a caller assertion.
 pub(crate) fn admitted_push_storage_authority(
+    kernel: &crate::storage::KernelCommitAuthority,
     authority: &crate::auth::invocation::PreparedAuthority,
 ) -> PushStorageAuthority {
     if matches!(
         authority.resolved(),
         crate::auth::invocation::ResolvedAppAuthority::System
     ) {
-        PushStorageAuthority::System
+        kernel.admit_system_push()
     } else if let Some(user_id) = authority.projection().user_id() {
-        PushStorageAuthority::User(user_id.to_owned())
+        kernel.admit_user_push(user_id)
     } else {
-        PushStorageAuthority::Other
+        kernel.admit_other_push()
     }
 }
 
 pub(crate) fn read_ledger_projection_for_prepared(
+    kernel: &crate::storage::KernelCommitAuthority,
     db: &crate::storage::DbRead<'_>,
     declaration: &PushSeamDeclarationV1,
     schema: &crate::manifest::SchemaManifest,
@@ -60,7 +61,7 @@ pub(crate) fn read_ledger_projection_for_prepared(
         db,
         declaration,
         schema,
-        &admitted_push_storage_authority(authority),
+        &admitted_push_storage_authority(kernel, authority),
         intent_id,
     )
 }

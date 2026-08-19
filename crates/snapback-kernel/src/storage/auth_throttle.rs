@@ -21,9 +21,7 @@ impl LocalDatabase {
     }
 
     #[cfg(any(test, feature = "test-support"))]
-    pub fn make_authentication_throttle_unavailable_for_test(
-        &self,
-    ) -> Result<(), rusqlite::Error> {
+    pub fn make_authentication_throttle_unavailable_for_test(&self) -> Result<(), rusqlite::Error> {
         self.conn
             .execute_batch("DROP TABLE _snapback_auth_throttle;")
     }

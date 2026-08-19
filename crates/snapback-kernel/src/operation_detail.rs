@@ -327,7 +327,7 @@ fn authenticate_retained_ciphertext(
 /// Install one process-local key projection when retained ciphertext requires
 /// it. Existing ciphertext makes a missing/corrupt sidecar a hard fail-closed
 /// condition. An empty database stays fully dormant until its first seal.
-pub fn install(conn: &Connection, database_path: Option<&Path>) -> SnapbackResult<()> {
+pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> SnapbackResult<()> {
     let retained_ciphertext = retained_ciphertext_exists(conn)?;
     if !retained_ciphertext {
         return Ok(());
@@ -517,7 +517,7 @@ fn aad(custody_reference: &str, payload_digest: &str) -> Vec<u8> {
     aad
 }
 
-pub fn seal_in(
+pub(crate) fn seal_in(
     tx: &Transaction<'_>,
     custody_reference: &str,
     payload_digest: &str,
@@ -623,7 +623,7 @@ pub fn seal_in(
     Ok(payload_bytes)
 }
 
-pub fn open(
+pub(crate) fn open(
     conn: &Connection,
     custody_reference: &str,
     payload_digest: &str,

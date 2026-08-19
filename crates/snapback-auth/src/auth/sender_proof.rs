@@ -11,9 +11,7 @@ use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 
 pub use snapback_kernel::auth::sender_proof::{
-    SenderIssuanceCommitment, VerifiedSenderIssuance, bind_issued_session_sender_constraint,
-    generate_sender_nonce,
-    sender_constraint_for_presented_token,
+    SenderIssuanceCommitment, VerifiedSenderIssuance, generate_sender_nonce,
 };
 
 use super::crypto::SessionBearer;
@@ -131,10 +129,6 @@ pub enum SenderProofError {
     Signature,
 }
 
-/// Compatibility surface for sender issuance and focused proof tests. The DDL
-/// authority itself is storage-owned.
-pub use auth_sender::initialize_sender_proof_replay_on as initialize_sender_proof_replay_after_hosted_preflight;
-
 /// Deterministic cover nonce for a carrier that resolves to no live bound
 /// family: `HMAC(purpose key, epoch ‖ token_digest ‖ time_bucket)`, stable
 /// within one nonce-TTL bucket, indistinguishable in shape from a real
@@ -169,7 +163,6 @@ fn canonical_thumbprint(value: &str) -> bool {
 fn canonical_nonce(value: &str) -> bool {
     canonical_thumbprint(value)
 }
-
 
 fn rejection(
     kind: SenderAdmissionRejectionKind,

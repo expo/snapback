@@ -19,7 +19,7 @@ fn diagnostic(code: &'static str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(code, "search", message)
 }
 
-pub fn create_infra(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
     // @ref LLP 0073#index-maintenance — the canonical term/position/source
     // authority is ordinary transactional SQLite state, not native FTS.
     conn.execute_batch(
@@ -724,7 +724,7 @@ impl MaintenanceCounters {
     }
 }
 
-pub fn maintain_search_indexes_in_tx(
+pub(crate) fn maintain_search_indexes_in_tx(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
     changes: &[ChangedRow],
@@ -945,7 +945,7 @@ fn validate_index_declaration(
 /// Build/activate a verified physical generation in the schema transaction.
 /// The local implementation uses the writer reservation as the bounded switch
 /// fence; future background catch-up uses the persisted build/lease rows.
-pub fn activate_manifest_in_tx(
+pub(crate) fn activate_manifest_in_tx(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
     source_head: u64,
@@ -1819,7 +1819,7 @@ fn validate_filter_values(table: &TableManifest, query: &SearchQueryAstV1) -> Sn
     Ok(())
 }
 
-pub fn query_search_on(
+pub(crate) fn query_search_on(
     conn: &Connection,
     schema: &SchemaManifest,
     plan: &SearchQueryPlanV1,

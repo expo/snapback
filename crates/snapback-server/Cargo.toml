@@ -57,6 +57,7 @@ zeroize = "1.8"
 bcrypt = "0.19.3"
 snapback-activation = { path = "../snapback-activation", features = ["test-support"] }
 snapback-auth = { path = "../snapback-auth", features = ["test-support"] }
+snapback-engine = { path = "../snapback-engine", features = ["test-support"] }
 snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }
 snapback-runtime = { path = "../snapback-runtime", features = ["test-support"] }
 snapback-services = { path = "../snapback-services", features = ["remainder-tests"] }

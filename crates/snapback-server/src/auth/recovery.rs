@@ -495,7 +495,6 @@ mod tests {
     use axum::body::{Body, to_bytes};
     use axum::http::{Method, Request};
     use serde_json::json;
-    #[cfg(not(feature = "server-owner"))]
     use snapback_services::test_support::rusqlite::{Connection, OptionalExtension, params};
     use std::collections::BTreeMap;
     use tempfile::TempDir;
@@ -557,7 +556,6 @@ mod tests {
         }
     }
 
-    #[cfg(not(feature = "server-owner"))]
     fn collision_fixture(sources: &[&str], expression_index: bool) -> CollisionFixture {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("collision.sqlite3");
@@ -706,7 +704,6 @@ mod tests {
         counts: BTreeMap<String, i64>,
     }
 
-    #[cfg(not(feature = "server-owner"))]
     fn logical_snapshot(path: &Path) -> LogicalSnapshot {
         let connection = Connection::open(path).unwrap();
         let mut statement = connection
@@ -768,7 +765,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(not(feature = "server-owner"))]
     async fn exact_route_and_method_inventory_has_no_cors_projection() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
         let (runtime, bearer) = runtime(&fixture.path);
@@ -855,7 +851,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(not(feature = "server-owner"))]
     async fn admin_and_process_capability_are_non_substitutable_and_precede_parsing() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
         let (runtime, bearer) = runtime(&fixture.path);
@@ -953,7 +948,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(not(feature = "server-owner"))]
     async fn recovery_carrier_requires_json_content_type_after_authority() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
         let (runtime, bearer) = runtime(&fixture.path);
@@ -994,7 +988,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(not(feature = "server-owner"))]
     async fn entering_recovery_and_denied_or_unknown_calls_do_not_mutate_state() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
         let before = logical_snapshot(&fixture.path);
@@ -1029,7 +1022,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(not(feature = "server-owner"))]
     async fn successful_repeated_rescue_stays_restart_required() {
         let fixture = collision_fixture(&["_auth_one"], false);
         // The stored-manifest collision is the startup trigger; an additional
@@ -1127,7 +1119,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(not(feature = "server-owner"))]
     async fn unsupported_rescue_failure_leaves_source_manifest_and_rows_intact() {
         let fixture = collision_fixture(&["_auth_legacy"], true);
         let before = logical_snapshot(&fixture.path);
@@ -1153,7 +1144,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(not(feature = "server-owner"))]
     async fn forbidden_profiles_binds_and_missing_admin_refuse_before_router_creation() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
         for profile in [ServerProfile::Demo, ServerProfile::Prod] {
@@ -1211,7 +1201,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "server-owner"))]
     fn exact_index_collision_and_non_repairable_manifest_never_enter_recovery() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
         let connection = Connection::open(&fixture.path).unwrap();

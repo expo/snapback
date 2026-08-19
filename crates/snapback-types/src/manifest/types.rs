@@ -983,10 +983,7 @@ pub struct PublicSchemaManifest {
     pub push_seam: Option<crate::push::PushSeamDeclarationV1>,
     #[serde(rename = "requiredCapabilities")]
     pub required_capabilities: Vec<String>,
-    #[serde(
-        rename = "identityBindingTables",
-        skip_serializing_if = "Vec::is_empty"
-    )]
+    #[serde(rename = "identityBindingTables")]
     pub identity_binding_tables: Vec<IdentityBindingTableManifestV1>,
     #[serde(rename = "schemaHash")]
     pub schema_hash: Option<String>,
@@ -1006,7 +1003,7 @@ pub struct PublicSchemaManifest {
     pub portability_flags: Vec<String>,
     #[serde(rename = "ephemeralCollections")]
     pub ephemeral_collections: Vec<EphemeralCollection>,
-    #[serde(rename = "assetCollections", skip_serializing_if = "Vec::is_empty")]
+    #[serde(rename = "assetCollections")]
     pub asset_collections: Vec<AssetCollectionManifestV1>,
     pub tables: Vec<TableManifest>,
 }

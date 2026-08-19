@@ -5,10 +5,10 @@
 //! publish the closed descriptor and admission derives from its conjunction.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use http;
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use hmac::{Hmac, Mac as _};
+use http;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use std::fmt;
