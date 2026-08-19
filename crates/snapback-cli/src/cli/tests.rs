@@ -16,9 +16,10 @@ use super::{
     search_guide_sections_in, validate_path_disjointness, validated_console_origin,
     validated_secret_read_root_path, write_ready_file_atomic, write_ready_file_atomic_protected,
 };
+#[cfg(not(feature = "cli-owner"))]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::guide::EmbeddedGuideFile;
 use crate::instance_lock::TargetInstanceReservation;
-use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::store_state::path_with_filename_suffix;
 use clap::{CommandFactory, Parser};
 use serde_json::{Value, json};
@@ -896,6 +897,7 @@ fn admin_link_ready_file_is_owner_lifecycle_bound() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[cfg(not(feature = "cli-owner"))]
 async fn typed_target_runner_threads_descriptor_environment_into_store_meta() {
     let directory = tempfile::tempdir().expect("typed target runner fixture");
     let database = directory.path().join("app.sqlite3");
@@ -1588,6 +1590,7 @@ async fn omitted_construction_receipts_prevent_sessions_from_binding() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "cli-owner"))]
 async fn coordinator_and_worker_construction_fail_before_socket_bind() {
     let directory = tempfile::tempdir().unwrap();
     for failure in [
@@ -1677,6 +1680,7 @@ async fn sessions_startup_offloads_sqlite_and_ibex_from_async_workers() {
 /// loop's explicit native opt-in activates that complete successor without
 /// replacing the database. An incoherent successor remains nonmutating.
 #[cfg(unix)]
+#[cfg(not(feature = "cli-owner"))]
 #[tokio::test]
 async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
     use crate::auth::mode::{AuthProgramReadiness, FUNCTION_V1_PREFIX};
@@ -2344,6 +2348,7 @@ fn password_signup_cli_renders_recovery_codes_exactly_once() {
 }
 
 #[test]
+#[cfg(not(feature = "cli-owner"))]
 fn auth_logical_cli_moves_identity_facts_between_file_databases() {
     let directory = tempfile::tempdir().unwrap();
     let source_path = directory.path().join("source.sqlite3");
@@ -2412,6 +2417,7 @@ fn store_describe_and_export_have_closed_cli_spellings() {
 }
 
 #[test]
+#[cfg(not(feature = "cli-owner"))]
 fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot_evidence() {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("app.sqlite3");
@@ -3660,6 +3666,7 @@ async fn ready_file_cli_mints_a_derived_lease_without_exposing_the_root() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[cfg(not(feature = "cli-owner"))]
 async fn stale_ready_descriptor_sends_adversarial_server_no_admin_or_proof_material() {
     use axum::body::Bytes;
     use axum::http::HeaderMap;

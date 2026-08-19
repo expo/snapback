@@ -4,7 +4,7 @@ id: operating.observability
 order: 5
 audience: agent-first
 capabilities: [backend.observability-v1]
-authorities: [llp/0154-minimal-observability.rfc.md, crates/snapback-services/src/telemetry.rs, crates/snapback-services/src/telemetry_query.rs, crates/snapback/src/cli.rs, crates/snapback-engine/src/host_ops.rs, packages/snapback-cli/mcp-control.mjs, admin-ui/admin-boundary.mjs, scripts/telemetry-phase1-idle-proof.mjs, crates/snapback/src/telemetry_bench.rs]
+authorities: [llp/0154-minimal-observability.rfc.md, crates/snapback-services/src/telemetry.rs, crates/snapback-services/src/telemetry_query.rs, crates/snapback-cli/src/cli.rs, crates/snapback-engine/src/host_ops.rs, packages/snapback-cli/mcp-control.mjs, admin-ui/admin-boundary.mjs, scripts/telemetry-phase1-idle-proof.mjs, crates/snapback/src/telemetry_bench.rs]
 examples: []
 status: current
 targets: [local]

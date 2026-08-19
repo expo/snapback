@@ -1,0 +1,40 @@
+[package]
+name = "snapback-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "snapback_cli"
+path = "src/lib.rs"
+
+[features]
+default = ["cli-owner"]
+# The rank-7 remainder includes moved CLI sources in its unit-test build so
+# upward/private integration tests retain their original crate access.
+cli-owner = []
+
+[dependencies]
+anyhow = "1.0"
+base64 = "0.22"
+clap = { version = "4.5", features = ["derive"] }
+http = "1"
+libc = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+snapback-kernel = { path = "../snapback-kernel" }
+snapback-server = { path = "../snapback-server" }
+snapback-services = { path = "../snapback-services" }
+tokio = { version = "1.48", features = ["full"] }
+ureq = { version = "2", features = ["json"] }
+uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
+zeroize = "1.8"
+
+[dev-dependencies]
+tempfile = "3.23"
+tokio = { version = "1.48", features = ["full", "test-util"] }
+
+[lints]
+workspace = true

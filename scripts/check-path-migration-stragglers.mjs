@@ -50,6 +50,7 @@ const EXTRACTED_WORKSPACE_MEMBERS = [
 const PHASE_2_CARVED_WORKSPACE_MEMBERS = new Set([
   'crates/snapback-activation',
   'crates/snapback-auth',
+  'crates/snapback-cli',
   'crates/snapback-conformance',
   'crates/snapback-engine',
   'crates/snapback-kernel',

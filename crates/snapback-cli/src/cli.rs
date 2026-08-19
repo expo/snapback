@@ -13,7 +13,6 @@ use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::server;
 use anyhow::Context;
 use clap::{CommandFactory, Parser};
-use rusqlite::OptionalExtension as _;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::{Digest as _, Sha256};
@@ -6274,7 +6273,7 @@ async fn admin_link_termination_signal() {
 
 fn origin_is_loopback(origin: &str) -> bool {
     origin
-        .parse::<axum::http::Uri>()
+        .parse::<http::Uri>()
         .ok()
         .and_then(|uri| uri.authority().map(|authority| authority.host().to_owned()))
         .is_some_and(|host| {
@@ -6379,7 +6378,7 @@ fn validated_console_origin(value: &str) -> anyhow::Result<String> {
         !value.contains('#') && value.trim() == value,
         "SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID: --url-base must not contain whitespace or a fragment"
     );
-    let uri = value.parse::<axum::http::Uri>().map_err(|_| {
+    let uri = value.parse::<http::Uri>().map_err(|_| {
         anyhow::anyhow!(
             "SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID: --url-base must be an absolute HTTP(S) origin"
         )
@@ -8554,14 +8553,14 @@ async fn run_composed(
     let connection_binding_receipt = server::connection_binding_construction_receipt();
     let two_phase_revocation_receipt = auth_runtime.two_phase_revocation_construction_receipt();
     let auth_coordinator_receipt = auth_runtime.auth_coordinator_construction_receipt();
-    #[cfg(test)]
+    #[cfg(all(test, not(feature = "cli-owner")))]
     let auth_coordinator_receipt = match args.auth_construction_failure {
         Some(AuthConstructionFailure::Coordinator) => {
             auth_coordinator_receipt.fail_before_build_for_test()
         }
         _ => auth_coordinator_receipt,
     };
-    #[cfg(test)]
+    #[cfg(all(test, not(feature = "cli-owner")))]
     let two_phase_revocation_receipt = match args.auth_construction_failure {
         Some(AuthConstructionFailure::ExpiryWorker) => {
             two_phase_revocation_receipt.fail_before_ready_for_test()

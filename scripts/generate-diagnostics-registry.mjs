@@ -62,7 +62,7 @@ const rustProductionRoots = [
     path: 'crates/snapback/src',
     // @ref LLP 0199#sequencing-guidance-not-a-schedule — these files inherit
     // `#[cfg(test)]` from their parent modules; a filesystem walk does not.
-    accept: (path) => !/^crates\/snapback\/src\/(?:cli|local|server|storage)\/tests\.rs$/u.test(path),
+    accept: (path) => !/^crates\/snapback\/src\/(?:local|server|storage)\/tests\.rs$/u.test(path),
   },
   {
     path: 'crates/snapback-kernel/src',
@@ -83,6 +83,10 @@ const rustProductionRoots = [
     path: 'crates/snapback-server/src',
     // The upward/private integration suite remains owned by the remainder.
     accept: (path) => path !== 'crates/snapback-server/src/server/tests.rs',
+  },
+  {
+    path: 'crates/snapback-cli/src',
+    accept: (path) => path !== 'crates/snapback-cli/src/cli/tests.rs',
   },
 ];
 

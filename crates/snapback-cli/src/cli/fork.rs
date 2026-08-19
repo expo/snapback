@@ -99,31 +99,6 @@ pub(crate) async fn wait_for_derived_fork_expiry(
     }
 }
 
-fn stored_app_id(database: &Path) -> anyhow::Result<String> {
-    let conn = rusqlite::Connection::open(database)?;
-    let stored: Option<String> = conn
-        .query_row(
-            "SELECT value
-               FROM _snapback_meta
-              WHERE key IN (?1, ?2)
-              ORDER BY CASE key WHEN ?1 THEN 0 ELSE 1 END
-              LIMIT 1",
-            rusqlite::params![
-                crate::storage::auth_mode::META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
-                crate::storage::auth_mode::META_LEGACY_SCHEMA_MANIFEST,
-            ],
-            |row| row.get(0),
-        )
-        .optional()?;
-    let stored = stored.context("SNAPBACK_FORK_APP_ID_REQUIRED: source has no stored schema")?;
-    // @ref LLP 0058#the-four-keys — Sessions permanently poisons
-    // the predecessor manifest slot. The capability-aware slot is the active
-    // schema for both modes; legacy databases fall back to the old slot.
-    let schema: crate::manifest::SchemaManifest =
-        serde_json::from_str(&stored).context("source active schema is malformed")?;
-    Ok(schema.app_id)
-}
-
 fn source_from_path(path: &Path) -> anyhow::Result<(PathBuf, String, String)> {
     let mut prefix = [0_u8; 16];
     let looks_sqlite = std::fs::File::open(path)
@@ -151,7 +126,7 @@ fn source_from_path(path: &Path) -> anyhow::Result<(PathBuf, String, String)> {
         // The ready descriptor records bind-time identity and may predate a
         // later manifest load. The snapshot's persisted schema is the fork's
         // actual logical-app identity.
-        let app_id = stored_app_id(&database)?;
+        let app_id = crate::instance_fork::stored_app_id(&database)?;
         return Ok((database, app_id, descriptor.startup_id));
     }
     let database = std::fs::canonicalize(path).with_context(|| {
@@ -164,17 +139,8 @@ fn source_from_path(path: &Path) -> anyhow::Result<(PathBuf, String, String)> {
         database.is_file(),
         "SNAPBACK_FORK_SOURCE_INVALID: source is not a file"
     );
-    let app_id = stored_app_id(&database)?;
-    let parent_instance_id = {
-        let conn = rusqlite::Connection::open(&database)?;
-        conn.query_row(
-            "SELECT value FROM _snapback_meta WHERE key='auth_invalidation_data_version_stream_v1'",
-            [],
-            |row| row.get::<_, String>(0),
-        )
-        .optional()?
-        .unwrap_or_else(|| format!("sqlite:{}", database.display()))
-    };
+    let app_id = crate::instance_fork::stored_app_id(&database)?;
+    let parent_instance_id = crate::instance_fork::source_parent_instance_id(&database)?;
     Ok((database, app_id, parent_instance_id))
 }
 

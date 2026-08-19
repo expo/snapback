@@ -4,7 +4,7 @@ id: operating.agent-controls
 order: 1
 audience: agent-first
 capabilities: [operating.agent-controls]
-authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, crates/snapback-server/src/control_catalog.rs, crates/snapback/src/cli.rs, packages/snapback-cli/mcp-control.mjs]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/mcp-control.mjs]
 examples: []
 status: current
 targets: [local]

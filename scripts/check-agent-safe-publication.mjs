@@ -116,6 +116,7 @@ export const DERIVED_FORK_IMPLEMENTATION_SCOPE = Object.freeze({
   // implementation after its service owner leaves the remainder.
   roots: Object.freeze([
     'crates/snapback-activation/src',
+    'crates/snapback-cli/src',
     'crates/snapback-engine/src',
     'crates/snapback-kernel/src',
     'crates/snapback-server/src',
@@ -127,6 +128,7 @@ export const DERIVED_FORK_IMPLEMENTATION_SCOPE = Object.freeze({
     'Cargo.lock',
     'Cargo.toml',
     'crates/snapback-activation/Cargo.toml',
+    'crates/snapback-cli/Cargo.toml',
     'crates/snapback-engine/Cargo.toml',
     'crates/snapback-kernel/Cargo.toml',
     'crates/snapback-server/Cargo.toml',

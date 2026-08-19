@@ -15,6 +15,7 @@ path = "src/lib.rs"
 
 [features]
 default = []
+cli-owner = []
 engine-owner = []
 server-owner = []
 services-owner = []
@@ -82,6 +83,7 @@ snapback-sync = { path = "../snapback-sync" }
 snapback-services = { path = "../snapback-services" }
 snapback-engine = { path = "../snapback-engine" }
 snapback-server = { path = "../snapback-server" }
+snapback-cli = { path = "../snapback-cli" }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = [

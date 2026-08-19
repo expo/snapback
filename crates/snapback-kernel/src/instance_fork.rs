@@ -5,6 +5,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use anyhow::Context as _;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -19,6 +20,43 @@ const LINEAGE_META_KEY: &str = "instance_fork_lineage_v1";
 const QUARANTINE_META_KEY: &str = "instance_fork_quarantine_v1";
 const EGRESS_TABLE: &str = "_snapback_fork_egress_attempts_v1";
 pub const SERVER_EXPIRED_CODE: &str = "SNAPBACK_FORK_SERVER_EXPIRED";
+
+pub fn stored_app_id(database: &Path) -> anyhow::Result<String> {
+    let conn = Connection::open(database)?;
+    let stored: Option<String> = conn
+        .query_row(
+            "SELECT value
+               FROM _snapback_meta
+              WHERE key IN (?1, ?2)
+              ORDER BY CASE key WHEN ?1 THEN 0 ELSE 1 END
+              LIMIT 1",
+            params![
+                crate::storage::auth_mode::META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+                crate::storage::auth_mode::META_LEGACY_SCHEMA_MANIFEST,
+            ],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let stored = stored.context("SNAPBACK_FORK_APP_ID_REQUIRED: source has no stored schema")?;
+    // @ref LLP 0058#the-four-keys — Sessions permanently poisons
+    // the predecessor manifest slot. The capability-aware slot is the active
+    // schema for both modes; legacy databases fall back to the old slot.
+    let schema: crate::manifest::SchemaManifest =
+        serde_json::from_str(&stored).context("source active schema is malformed")?;
+    Ok(schema.app_id)
+}
+
+pub fn source_parent_instance_id(database: &Path) -> anyhow::Result<String> {
+    let conn = Connection::open(database)?;
+    Ok(conn
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key='auth_invalidation_data_version_stream_v1'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+        .unwrap_or_else(|| format!("sqlite:{}", database.display())))
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]

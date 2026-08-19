@@ -1,13 +1,13 @@
 //! File-backed store durable-state inventory and WAL-consistent export.
 
-use crate::assets::AssetFsStoreLocalExt as _;
+#[cfg(all(test, not(feature = "cli-owner")))]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
+use snapback_services::assets::AssetFsStoreLocalExt as _;
 use crate::auth::crypto::{RandomSource, encode_base64url};
 use crate::auth::keyring::AuthKeyringStore;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::instance_lock::FileIdentity;
 use crate::local::LocalSnapback;
-#[cfg(test)]
-use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
@@ -1107,7 +1107,7 @@ fn store_error_with_publication_state(
     error
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "cli-owner")))]
 mod tests {
     use super::*;
     use crate::auth::crypto::{CryptoError, OsRandom};

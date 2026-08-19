@@ -13,7 +13,7 @@
 //   - the packaged registry in packages/snapback-cli/index.mjs
 //     (PACKAGED_CLI_COMMANDS `name:` entries plus nestedCliHelp([...]) paths,
 //     including the `...[verbs].map((verb) => nestedCliHelp([...]))` forms);
-//   - the native clap tree in crates/snapback/src/cli.rs (every #[derive(clap::Subcommand)]
+//   - the native clap tree in crates/snapback-cli/src/cli.rs (every #[derive(clap::Subcommand)]
 //     enum; variant names kebab-cased unless overridden by
 //     #[command(name = "...")], nested one level through
 //     #[command(subcommand)] fields, including subcommands routed through a
@@ -66,7 +66,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGED_CLI_PATH = join(ROOT, 'packages', 'snapback-cli', 'index.mjs');
-const NATIVE_CLI_PATH = join(ROOT, 'crates', 'snapback', 'src', 'cli.rs');
+const NATIVE_CLI_PATH = join(ROOT, 'crates', 'snapback-cli', 'src', 'cli.rs');
 const GUIDE_DIR = join(ROOT, 'guide');
 const GUIDE_FLAT_PATH = join(GUIDE_DIR, 'guide-flat.generated.md');
 const PUBLISHED_CLOSURE_PATH = join(GUIDE_DIR, 'published-closure.json');
@@ -163,7 +163,7 @@ export function parseClapFlags(source) {
 }
 
 /**
- * Parse the clap derive tree in crates/snapback/src/cli.rs: every Subcommand enum's variant
+ * Parse the clap derive tree in crates/snapback-cli/src/cli.rs: every Subcommand enum's variant
  * CLI names, nested one level via #[command(subcommand)] fields (directly in
  * a variant body or routed through a tuple variant's clap::Args struct).
  */

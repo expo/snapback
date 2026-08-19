@@ -4,7 +4,7 @@ id: operating.admin-console
 order: 4
 audience: agent-first
 capabilities: [operating.admin-console]
-authorities: [llp/0017-admin-console-inspection-surface.rfc.md, crates/snapback-server/src/admin.rs, crates/snapback-server/src/admin_link.rs, crates/snapback/src/cli.rs, packages/snapback-admin-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/admin-snapshot.mjs, packages/snapback-cli/runtime-readiness.mjs, packages/snapback-cli/expo-dev.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, crates/snapback/tests/admin_claim_link_v0.rs, crates/snapback/tests/admin_reachability_v0.rs, crates/snapback/tests/admin_tailscale_v0.rs]
+authorities: [llp/0017-admin-console-inspection-surface.rfc.md, crates/snapback-server/src/admin.rs, crates/snapback-server/src/admin_link.rs, crates/snapback-cli/src/cli.rs, packages/snapback-admin-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/admin-snapshot.mjs, packages/snapback-cli/runtime-readiness.mjs, packages/snapback-cli/expo-dev.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, crates/snapback/tests/admin_claim_link_v0.rs, crates/snapback/tests/admin_reachability_v0.rs, crates/snapback/tests/admin_tailscale_v0.rs]
 examples: [admin-ui]
 status: current
 targets: [local]

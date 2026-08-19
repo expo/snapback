@@ -4052,6 +4052,7 @@ dependencies = [
  "sha2 0.10.9",
  "snapback-activation",
  "snapback-auth",
+ "snapback-cli",
  "snapback-engine",
  "snapback-kernel",
  "snapback-runtime",
@@ -4129,6 +4130,28 @@ dependencies = [
  "serde_json",
  "snapback-engine",
  "snapback-types",
+]
+
+[[package]]
+name = "snapback-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "clap",
+ "http",
+ "libc",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "snapback-kernel",
+ "snapback-server",
+ "snapback-services",
+ "tempfile",
+ "tokio",
+ "ureq",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]

@@ -29,7 +29,7 @@ export const AUTHORING_PROFILE_READ_ALLOWLIST = Object.freeze([
     path: 'packages/snapback-react/familiar.d.mts',
     category: 'familiar-type-brand',
   }),
-  Object.freeze({ path: 'crates/snapback/src/cli/migration.rs', category: 'migration-tooling' }),
+  Object.freeze({ path: 'crates/snapback-cli/src/cli/migration.rs', category: 'migration-tooling' }),
   Object.freeze({ path: 'crates/snapback-kernel/src/diagnostic.rs', category: 'diagnostic-record' }),
   Object.freeze({ path: 'crates/snapback-engine/src/manifest.rs', category: 'custody-record' }),
   Object.freeze({ path: 'crates/snapback-kernel/src/migration.rs', category: 'migration-tooling' }),
@@ -40,6 +40,7 @@ export const AUTHORING_PROFILE_SCAN_ROOTS = Object.freeze([
   // fail-closed authoring-profile branch inventory.
   'crates/snapback-activation/src',
   'crates/snapback-auth/src',
+  'crates/snapback-cli/src',
   'crates/snapback-kernel/src',
   'crates/snapback-runtime/src',
   'crates/snapback-services/src',

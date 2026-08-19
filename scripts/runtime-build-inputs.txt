@@ -31,6 +31,7 @@ Cargo.lock
 crates/snapback/Cargo.toml
 crates/snapback/build.rs
 crates/snapback-auth/Cargo.toml
+crates/snapback-cli/Cargo.toml
 crates/snapback-kernel/Cargo.toml
 crates/snapback-runtime/Cargo.toml
 crates/snapback-server/Cargo.toml
@@ -42,6 +43,7 @@ rust-toolchain.toml
 # Crate sources (includes crates/snapback/src/**/*.html and other include_str! assets)
 crates/snapback/src
 crates/snapback-auth/src
+crates/snapback-cli/src
 crates/snapback-kernel/src
 crates/snapback-runtime/src
 crates/snapback-server/src

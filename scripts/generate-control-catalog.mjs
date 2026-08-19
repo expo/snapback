@@ -115,7 +115,7 @@ const controlResourcesByOperation = new Map(
 
 // A small hand-authored CLI-command projection lookup for host-op identities
 // with a direct CLI command today. This is NOT a second authority: every
-// command name here is checkable against packages/snapback-cli or crates/snapback/src/cli.rs
+// command name here is checkable against packages/snapback-cli or crates/snapback-cli/src/cli.rs
 // and is intentionally narrow (only what Phase 1 backfills — see
 // control-catalog/operability-overrides.json's coverage note). An operation
 // with a real CLI command but no entry here is under-projected in this

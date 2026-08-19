@@ -2,14 +2,14 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:3b81061accc3999e97f3fc6c41be8204930328930bdb02a803c932fe91f88135"
+    "sourceDigest": "sha256:6f2b5d0977da76f145481328378b216e489ea3a52541896335e453f1f2d24152"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
     "codes": 3429,
-    "sourceFiles": 580,
+    "sourceFiles": 581,
     "emittingSites": 11820,
     "httpClassified": 1030,
     "guideAnchored": 418
@@ -1944,13 +1944,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6533,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6532,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6538,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6537,
           "column": 10
         }
       ],
@@ -1984,8 +1984,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6731,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6730,
           "column": 18
         }
       ],
@@ -1999,8 +1999,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6719,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6718,
           "column": 10
         }
       ],
@@ -2014,8 +2014,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6297,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6296,
           "column": 10
         }
       ],
@@ -2114,13 +2114,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6075,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6074,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6082,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6081,
           "column": 10
         }
       ],
@@ -2154,13 +2154,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5998,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5997,
           "column": 30
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6314,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6313,
           "column": 14
         }
       ],
@@ -2204,23 +2204,23 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6380,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6379,
           "column": 10
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6384,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6383,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6390,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6389,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6399,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6398,
           "column": 10
         }
       ],
@@ -2379,28 +2379,28 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6069,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6068,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6110,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6109,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6308,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6307,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6432,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6431,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6527,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6526,
           "column": 18
         }
       ],
@@ -2414,13 +2414,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6438,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6437,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6444,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6443,
           "column": 10
         }
       ],
@@ -2674,8 +2674,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6698,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6697,
           "column": 21
         }
       ],
@@ -2704,8 +2704,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5823,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5822,
           "column": 22
         }
       ],
@@ -2789,14 +2789,14 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5937,
+          "column": 36
+        },
+        {
           "file": "crates/snapback-server/src/admin_link.rs",
           "line": 260,
           "column": 38
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5938,
-          "column": 36
         }
       ],
       "httpStatus": null,
@@ -2854,8 +2854,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5775,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5774,
           "column": 10
         }
       ],
@@ -2869,8 +2869,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5785,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5784,
           "column": 10
         }
       ],
@@ -2884,8 +2884,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5771,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5770,
           "column": 10
         }
       ],
@@ -2899,8 +2899,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5789,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5788,
           "column": 10
         }
       ],
@@ -2929,8 +2929,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5910,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5909,
           "column": 18
         }
       ],
@@ -3019,13 +3019,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6606,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6605,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6612,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6611,
           "column": 14
         }
       ],
@@ -3039,8 +3039,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6587,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6586,
           "column": 10
         }
       ],
@@ -3054,13 +3054,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6591,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6590,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6600,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6599,
           "column": 18
         }
       ],
@@ -3269,13 +3269,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6116,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6115,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6135,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6134,
           "column": 10
         }
       ],
@@ -3878,8 +3878,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6856,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6855,
           "column": 10
         }
       ],
@@ -3928,14 +3928,14 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6182,
+          "column": 26
+        },
+        {
           "file": "crates/snapback-server/src/admin_link.rs",
           "line": 879,
           "column": 24
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6183,
-          "column": 26
         }
       ],
       "httpStatus": null,
@@ -4153,6 +4153,11 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5834,
+          "column": 30
+        },
+        {
           "file": "crates/snapback-server/src/admin_link.rs",
           "line": 1025,
           "column": 10
@@ -4176,11 +4181,6 @@
           "file": "crates/snapback-server/src/admin_link.rs",
           "line": 1108,
           "column": 14
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5835,
-          "column": 30
         }
       ],
       "httpStatus": null,
@@ -4206,6 +4206,91 @@
           "file": "clients/swift/SnapbackClient/Sources/snapback-prove/main.swift",
           "line": 52,
           "column": 25
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 176,
+          "column": 87
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 804,
+          "column": 13
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 2293,
+          "column": 51
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4908,
+          "column": 36
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4980,
+          "column": 36
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5187,
+          "column": 36
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5372,
+          "column": 36
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5403,
+          "column": 36
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6574,
+          "column": 36
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6578,
+          "column": 74
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6819,
+          "column": 36
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9026,
+          "column": 62
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9032,
+          "column": 71
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9035,
+          "column": 41
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9424,
+          "column": 49
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/config_command.rs",
+          "line": 118,
+          "column": 36
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 840,
+          "column": 30
         },
         {
           "file": "crates/snapback-server/src/admin.rs",
@@ -4266,91 +4351,6 @@
           "file": "crates/snapback-server/src/server/instance_home.rs",
           "line": 767,
           "column": 33
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 177,
-          "column": 87
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 805,
-          "column": 13
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 2294,
-          "column": 51
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4909,
-          "column": 36
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4981,
-          "column": 36
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5188,
-          "column": 36
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5373,
-          "column": 36
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5404,
-          "column": 36
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6575,
-          "column": 36
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6579,
-          "column": 74
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6820,
-          "column": 36
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9027,
-          "column": 62
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9033,
-          "column": 71
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9036,
-          "column": 41
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9425,
-          "column": 49
-        },
-        {
-          "file": "crates/snapback/src/cli/config_command.rs",
-          "line": 118,
-          "column": 36
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 874,
-          "column": 30
         },
         {
           "file": "packages/snapback-app-cli/index.mjs",
@@ -4490,13 +4490,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6579,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6578,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6623,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6622,
           "column": 14
         }
       ],
@@ -11084,6 +11084,11 @@
       "subsystem": "assets",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 2229,
+          "column": 9
+        },
+        {
           "file": "crates/snapback-engine/src/local/engine.rs",
           "line": 11042,
           "column": 28
@@ -11092,11 +11097,6 @@
           "file": "crates/snapback-engine/src/local/engine.rs",
           "line": 12048,
           "column": 43
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 2230,
-          "column": 9
         },
         {
           "file": "packages/snapback-cli/mcp-control.mjs",
@@ -12186,24 +12186,24 @@
       "subsystem": "assets",
       "sites": [
         {
-          "file": "crates/snapback-server/src/server.rs",
-          "line": 19804,
-          "column": 16
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 765,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 764,
           "column": 519
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9089,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9088,
           "column": 40
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 873,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 839,
           "column": 23
+        },
+        {
+          "file": "crates/snapback-server/src/server.rs",
+          "line": 19804,
+          "column": 16
         }
       ],
       "httpStatus": null,
@@ -15273,8 +15273,8 @@
       "subsystem": "auth",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 2434,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 2433,
           "column": 66
         },
         {
@@ -16350,6 +16350,41 @@
           "column": 44
         },
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3165,
+          "column": 26
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3200,
+          "column": 14
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3437,
+          "column": 14
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 8068,
+          "column": 10
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 8395,
+          "column": 22
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 8427,
+          "column": 22
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 10873,
+          "column": 14
+        },
+        {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
           "line": 2665,
           "column": 27
@@ -16358,41 +16393,6 @@
           "file": "crates/snapback-kernel/src/storage/auth.rs",
           "line": 2669,
           "column": 27
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3166,
-          "column": 26
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3201,
-          "column": 14
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3438,
-          "column": 14
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 8069,
-          "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 8396,
-          "column": 22
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 8428,
-          "column": 22
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 10874,
-          "column": 14
         }
       ],
       "httpStatus": null,
@@ -17189,8 +17189,8 @@
       "subsystem": "auth",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4449,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4448,
           "column": 29
         }
       ],
@@ -17204,13 +17204,13 @@
       "subsystem": "auth",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4466,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4465,
           "column": 10
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4497,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4496,
           "column": 14
         }
       ],
@@ -17224,28 +17224,28 @@
       "subsystem": "auth",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4492,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4491,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4507,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4506,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4516,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4515,
           "column": 19
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4519,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4518,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4523,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4522,
           "column": 18
         }
       ],
@@ -21266,6 +21266,11 @@
       "subsystem": "auth",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3076,
+          "column": 10
+        },
+        {
           "file": "crates/snapback-kernel/src/auth/logical_transfer.rs",
           "line": 460,
           "column": 10
@@ -21283,11 +21288,6 @@
         {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 397,
-          "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3077,
           "column": 10
         }
       ],
@@ -21351,6 +21351,11 @@
       "subsystem": "auth",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3110,
+          "column": 10
+        },
+        {
           "file": "crates/snapback-kernel/src/auth/logical_transfer.rs",
           "line": 468,
           "column": 10
@@ -21383,11 +21388,6 @@
         {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 348,
-          "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3111,
           "column": 10
         }
       ],
@@ -21551,14 +21551,14 @@
       "subsystem": "auth",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 537,
+          "column": 18
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 861,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 538,
-          "column": 18
         }
       ],
       "httpStatus": null,
@@ -21886,6 +21886,11 @@
           "column": 14
         },
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 299,
+          "column": 18
+        },
+        {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
           "line": 2547,
           "column": 44
@@ -21949,11 +21954,6 @@
           "file": "crates/snapback-types/src/auth/mode.rs",
           "line": 697,
           "column": 14
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 300,
-          "column": 18
         }
       ],
       "httpStatus": null,
@@ -22341,33 +22341,33 @@
       "subsystem": "auth",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4294,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4293,
           "column": 10
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4321,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4320,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4334,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4333,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4340,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4339,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4344,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4343,
           "column": 10
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4392,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4391,
           "column": 14
         }
       ],
@@ -23057,6 +23057,11 @@
           "column": 14
         },
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 101,
+          "column": 10
+        },
+        {
           "file": "crates/snapback-engine/src/host_ops.rs",
           "line": 874,
           "column": 14
@@ -23340,11 +23345,6 @@
           "file": "crates/snapback-types/src/wire_fixtures.rs",
           "line": 2148,
           "column": 416
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 102,
-          "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
@@ -23655,6 +23655,11 @@
       "subsystem": "auth",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9126,
+          "column": 22
+        },
+        {
           "file": "crates/snapback-engine/src/host_ops.rs",
           "line": 1220,
           "column": 26
@@ -23873,11 +23878,6 @@
           "file": "crates/snapback-sync/src/ephemeral.rs",
           "line": 4261,
           "column": 18
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9127,
-          "column": 22
         }
       ],
       "httpStatus": null,
@@ -23918,6 +23918,11 @@
           "file": "crates/snapback-auth/src/auth/provider.rs",
           "line": 4849,
           "column": 10
+        },
+        {
+          "file": "crates/snapback-cli/src/store_state.rs",
+          "line": 1314,
+          "column": 38
         },
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
@@ -24023,11 +24028,6 @@
           "file": "crates/snapback/src/auth/provider_tests.rs",
           "line": 1654,
           "column": 14
-        },
-        {
-          "file": "crates/snapback/src/store_state.rs",
-          "line": 1314,
-          "column": 38
         }
       ],
       "httpStatus": null,
@@ -26831,33 +26831,33 @@
       "subsystem": "auth",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4355,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4354,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4360,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4359,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4364,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4363,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4370,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4369,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4377,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4376,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4398,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4397,
           "column": 18
         }
       ],
@@ -26998,6 +26998,36 @@
       "subsystem": "auth",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 52,
+          "column": 14
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 68,
+          "column": 14
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 205,
+          "column": 10
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 236,
+          "column": 10
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 356,
+          "column": 26
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 470,
+          "column": 22
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 865,
           "column": 12
@@ -27006,36 +27036,6 @@
           "file": "crates/snapback-types/src/auth/mode.rs",
           "line": 561,
           "column": 27
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 53,
-          "column": 14
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 69,
-          "column": 14
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 206,
-          "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 237,
-          "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 357,
-          "column": 26
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 471,
-          "column": 22
         },
         {
           "file": "crates/snapback/src/embed.rs",
@@ -27098,24 +27098,24 @@
       "subsystem": "auth",
       "sites": [
         {
-          "file": "crates/snapback-server/src/server/api_error.rs",
-          "line": 866,
-          "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 46,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 45,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 81,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 80,
           "column": 10
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 206,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 205,
           "column": 54
+        },
+        {
+          "file": "crates/snapback-server/src/server/api_error.rs",
+          "line": 866,
+          "column": 12
         }
       ],
       "httpStatus": null,
@@ -27382,6 +27382,11 @@
       "subsystem": "auth",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9305,
+          "column": 10
+        },
+        {
           "file": "crates/snapback-kernel/src/storage/auth_rescue.rs",
           "line": 181,
           "column": 53
@@ -27435,11 +27440,6 @@
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 548,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9306,
-          "column": 10
         }
       ],
       "httpStatus": 409,
@@ -34772,6 +34772,21 @@
       "subsystem": "cli",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 2431,
+          "column": 17
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 2550,
+          "column": 18
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3477,
+          "column": 14
+        },
+        {
           "file": "crates/snapback-server/src/guide_reference.rs",
           "line": 139,
           "column": 19
@@ -34790,21 +34805,6 @@
           "file": "crates/snapback-server/src/guide_reference.rs",
           "line": 442,
           "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 2432,
-          "column": 17
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 2551,
-          "column": 18
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3478,
-          "column": 14
         },
         {
           "file": "packages/snapback-cli/agent-setup.mjs",
@@ -35112,8 +35112,8 @@
       "subsystem": "create-snapback-app",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 2487,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 2486,
           "column": 25
         },
         {
@@ -38135,7 +38135,7 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli/config_command.rs",
+          "file": "crates/snapback-cli/src/cli/config_command.rs",
           "line": 96,
           "column": 29
         }
@@ -38150,7 +38150,7 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli/config_command.rs",
+          "file": "crates/snapback-cli/src/cli/config_command.rs",
           "line": 142,
           "column": 14
         }
@@ -38165,7 +38165,7 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli/config_command.rs",
+          "file": "crates/snapback-cli/src/cli/config_command.rs",
           "line": 135,
           "column": 18
         }
@@ -38180,12 +38180,12 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 2535,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 2534,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli/config_command.rs",
+          "file": "crates/snapback-cli/src/cli/config_command.rs",
           "line": 51,
           "column": 10
         }
@@ -38382,12 +38382,12 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli/config_command.rs",
+          "file": "crates/snapback-cli/src/cli/config_command.rs",
           "line": 59,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli/config_command.rs",
+          "file": "crates/snapback-cli/src/cli/config_command.rs",
           "line": 68,
           "column": 18
         }
@@ -38402,7 +38402,7 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli/config_command.rs",
+          "file": "crates/snapback-cli/src/cli/config_command.rs",
           "line": 80,
           "column": 14
         }
@@ -38432,6 +38432,11 @@
           "column": 44
         },
         {
+          "file": "crates/snapback-cli/src/cli/config_command.rs",
+          "line": 37,
+          "column": 18
+        },
+        {
           "file": "crates/snapback-engine/src/local/engine.rs",
           "line": 21421,
           "column": 18
@@ -38445,11 +38450,6 @@
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1108,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli/config_command.rs",
-          "line": 37,
-          "column": 18
         }
       ],
       "httpStatus": 400,
@@ -38464,7 +38464,7 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli/config_command.rs",
+          "file": "crates/snapback-cli/src/cli/config_command.rs",
           "line": 23,
           "column": 18
         }
@@ -38479,7 +38479,7 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli/config_command.rs",
+          "file": "crates/snapback-cli/src/cli/config_command.rs",
           "line": 28,
           "column": 14
         }
@@ -39737,8 +39737,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 5439,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 5438,
           "column": 22
         }
       ],
@@ -39874,6 +39874,26 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 693,
+          "column": 29
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 764,
+          "column": 463
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9060,
+          "column": 58
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9065,
+          "column": 52
+        },
+        {
           "file": "crates/snapback-server/src/server.rs",
           "line": 237,
           "column": 16
@@ -39887,26 +39907,6 @@
           "file": "crates/snapback-server/src/server.rs",
           "line": 19970,
           "column": 59
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 694,
-          "column": 29
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 765,
-          "column": 463
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9061,
-          "column": 58
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9066,
-          "column": 52
         }
       ],
       "httpStatus": null,
@@ -44390,18 +44390,18 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4038,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4037,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4042,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4041,
           "column": 10
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4062,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4061,
           "column": 10
         }
       ],
@@ -47815,14 +47815,14 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-kernel/src/instance_fork.rs",
+          "line": 40,
+          "column": 34
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1606,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 118,
-          "column": 34
         }
       ],
       "httpStatus": 400,
@@ -47834,6 +47834,11 @@
       "code": "SNAPBACK_FORK_APP_ROOT_INVALID",
       "subsystem": "server",
       "sites": [
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 693,
+          "column": 26
+        },
         {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1608,
@@ -47878,11 +47883,6 @@
           "file": "crates/snapback-services/src/instance_fork/service.rs",
           "line": 4334,
           "column": 14
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 727,
-          "column": 26
         }
       ],
       "httpStatus": 400,
@@ -47939,29 +47939,29 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback-server/src/server/api_error.rs",
-          "line": 1710,
-          "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 829,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 795,
           "column": 26
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 835,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 801,
           "column": 26
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 894,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 860,
           "column": 27
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 908,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 874,
           "column": 26
+        },
+        {
+          "file": "crates/snapback-server/src/server/api_error.rs",
+          "line": 1710,
+          "column": 12
         }
       ],
       "httpStatus": null,
@@ -47974,14 +47974,14 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 881,
+          "column": 26
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1688,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 915,
-          "column": 26
         }
       ],
       "httpStatus": 504,
@@ -48192,7 +48192,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 1034,
+          "line": 1072,
           "column": 14
         },
         {
@@ -48267,7 +48267,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 1028,
+          "line": 1066,
           "column": 18
         },
         {
@@ -48286,8 +48286,13 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 1324,
+          "column": 30
+        },
+        {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 986,
+          "line": 1024,
           "column": 14
         },
         {
@@ -48334,11 +48339,6 @@
           "file": "crates/snapback-services/src/instance_fork/tests.rs",
           "line": 1305,
           "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 1358,
-          "column": 30
         }
       ],
       "httpStatus": null,
@@ -48352,7 +48352,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 975,
+          "line": 1013,
           "column": 22
         },
         {
@@ -48466,14 +48466,14 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 360,
+          "column": 18
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1717,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 394,
-          "column": 18
         }
       ],
       "httpStatus": null,
@@ -48515,7 +48515,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 639,
+          "line": 677,
           "column": 17
         },
         {
@@ -48565,12 +48565,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 943,
+          "line": 981,
           "column": 29
         },
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 952,
+          "line": 990,
           "column": 22
         },
         {
@@ -48616,59 +48616,59 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback-server/src/server/api_error.rs",
-          "line": 1712,
-          "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 8597,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 8596,
           "column": 45
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 794,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 760,
           "column": 30
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 801,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 767,
           "column": 26
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 808,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 774,
           "column": 30
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 815,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 781,
           "column": 26
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 900,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 866,
           "column": 60
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 903,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 869,
           "column": 30
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 990,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 956,
           "column": 48
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 997,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 963,
           "column": 48
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 1002,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 968,
           "column": 44
+        },
+        {
+          "file": "crates/snapback-server/src/server/api_error.rs",
+          "line": 1712,
+          "column": 12
         }
       ],
       "httpStatus": null,
@@ -48728,6 +48728,16 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 325,
+          "column": 53
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 1039,
+          "column": 61
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1636,
           "column": 12
@@ -48761,16 +48771,6 @@
           "file": "crates/snapback-services/src/instance_fork/tests.rs",
           "line": 1962,
           "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 359,
-          "column": 53
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 1073,
-          "column": 61
         }
       ],
       "httpStatus": 404,
@@ -48784,6 +48784,26 @@
       "code": "SNAPBACK_FORK_PATH_INVALID",
       "subsystem": "server",
       "sites": [
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 271,
+          "column": 19
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 274,
+          "column": 10
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 278,
+          "column": 10
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 745,
+          "column": 18
+        },
         {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 435,
@@ -48813,26 +48833,6 @@
           "file": "crates/snapback-services/src/instance_fork/service.rs",
           "line": 3948,
           "column": 22
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 305,
-          "column": 19
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 308,
-          "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 312,
-          "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 779,
-          "column": 18
         }
       ],
       "httpStatus": null,
@@ -48845,14 +48845,14 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 257,
+          "column": 10
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1611,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 291,
-          "column": 10
         }
       ],
       "httpStatus": 400,
@@ -48866,7 +48866,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 902,
+          "line": 940,
           "column": 14
         },
         {
@@ -48903,7 +48903,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 927,
+          "line": 965,
           "column": 14
         },
         {
@@ -48928,6 +48928,71 @@
       "code": "SNAPBACK_FORK_READY_INVALID",
       "subsystem": "server",
       "sites": [
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 421,
+          "column": 26
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 441,
+          "column": 22
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 532,
+          "column": 19
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 534,
+          "column": 19
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 537,
+          "column": 10
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 547,
+          "column": 23
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 562,
+          "column": 26
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 816,
+          "column": 27
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 819,
+          "column": 18
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 889,
+          "column": 34
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 893,
+          "column": 18
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 925,
+          "column": 27
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 928,
+          "column": 18
+        },
         {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1713,
@@ -48972,71 +49037,6 @@
           "file": "crates/snapback-services/src/instance_fork/tests.rs",
           "line": 1635,
           "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 455,
-          "column": 26
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 475,
-          "column": 22
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 566,
-          "column": 19
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 568,
-          "column": 19
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 571,
-          "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 581,
-          "column": 23
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 596,
-          "column": 26
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 850,
-          "column": 27
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 853,
-          "column": 18
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 923,
-          "column": 34
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 927,
-          "column": 18
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 959,
-          "column": 27
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 962,
-          "column": 18
         }
       ],
       "httpStatus": null,
@@ -49048,6 +49048,11 @@
       "code": "SNAPBACK_FORK_REAP_CLOCK_INVALID",
       "subsystem": "server",
       "sites": [
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 1277,
+          "column": 18
+        },
         {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1612,
@@ -49062,11 +49067,6 @@
           "file": "crates/snapback-services/src/instance_fork/tests.rs",
           "line": 3615,
           "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 1311,
-          "column": 18
         }
       ],
       "httpStatus": 400,
@@ -49079,8 +49079,13 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 1327,
+          "column": 27
+        },
+        {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 962,
+          "line": 1000,
           "column": 22
         },
         {
@@ -49162,11 +49167,6 @@
           "file": "crates/snapback-services/src/instance_fork/service.rs",
           "line": 4427,
           "column": 22
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 1361,
-          "column": 27
         }
       ],
       "httpStatus": null,
@@ -49249,6 +49249,21 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 339,
+          "column": 53
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 397,
+          "column": 22
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 475,
+          "column": 22
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1715,
           "column": 12
@@ -49267,21 +49282,6 @@
           "file": "crates/snapback-services/src/instance_fork/tests.rs",
           "line": 1663,
           "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 373,
-          "column": 53
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 431,
-          "column": 22
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 509,
-          "column": 22
         }
       ],
       "httpStatus": null,
@@ -49344,7 +49344,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 21,
+          "line": 22,
           "column": 40
         },
         {
@@ -49366,7 +49366,7 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli/fork.rs",
+          "file": "crates/snapback-cli/src/cli/fork.rs",
           "line": 88,
           "column": 26
         }
@@ -49402,37 +49402,37 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 833,
+          "line": 871,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 845,
+          "line": 883,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 853,
+          "line": 891,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 861,
+          "line": 899,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 872,
+          "line": 910,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 881,
+          "line": 919,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 890,
+          "line": 928,
           "column": 14
         },
         {
@@ -49494,7 +49494,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/instance_fork.rs",
-          "line": 823,
+          "line": 861,
           "column": 22
         },
         {
@@ -49525,29 +49525,29 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback-server/src/server/api_error.rs",
-          "line": 1614,
-          "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 144,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 119,
           "column": 23
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 147,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 122,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 159,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 134,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 165,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 140,
           "column": 10
+        },
+        {
+          "file": "crates/snapback-server/src/server/api_error.rs",
+          "line": 1614,
+          "column": 12
         }
       ],
       "httpStatus": 400,
@@ -49560,14 +49560,14 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 591,
+          "column": 24
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1720,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 625,
-          "column": 24
         }
       ],
       "httpStatus": null,
@@ -49580,14 +49580,14 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 607,
+          "column": 10
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1689,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 641,
-          "column": 10
         }
       ],
       "httpStatus": 504,
@@ -49600,29 +49600,29 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback-server/src/server/api_error.rs",
-          "line": 1721,
-          "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 527,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 493,
           "column": 22
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 547,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 513,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 591,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 557,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 606,
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 572,
           "column": 14
+        },
+        {
+          "file": "crates/snapback-server/src/server/api_error.rs",
+          "line": 1721,
+          "column": 12
         }
       ],
       "httpStatus": null,
@@ -49682,6 +49682,36 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 23,
+          "column": 24
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 27,
+          "column": 19
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 30,
+          "column": 19
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 33,
+          "column": 10
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 720,
+          "column": 27
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 723,
+          "column": 18
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1615,
           "column": 12
@@ -49725,36 +49755,6 @@
           "file": "crates/snapback-services/src/instance_fork/tests.rs",
           "line": 1949,
           "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 23,
-          "column": 24
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 27,
-          "column": 19
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 30,
-          "column": 19
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 33,
-          "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 754,
-          "column": 27
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 757,
-          "column": 18
         }
       ],
       "httpStatus": 400,
@@ -49785,6 +49785,11 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 910,
+          "column": 30
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 430,
           "column": 12
@@ -49793,11 +49798,6 @@
           "file": "crates/snapback-services/src/instance_fork/service.rs",
           "line": 47,
           "column": 49
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 944,
-          "column": 30
         }
       ],
       "httpStatus": null,
@@ -53273,8 +53273,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3056,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3055,
           "column": 24
         }
       ],
@@ -54928,13 +54928,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7522,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7521,
           "column": 22
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7555,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7554,
           "column": 22
         }
       ],
@@ -54948,23 +54948,23 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7746,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7745,
           "column": 41
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7791,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7790,
           "column": 26
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7801,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7800,
           "column": 26
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7839,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7838,
           "column": 14
         }
       ],
@@ -54978,28 +54978,28 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7752,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7751,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7778,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7777,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7810,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7809,
           "column": 22
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7816,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7815,
           "column": 22
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7849,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7848,
           "column": 18
         }
       ],
@@ -55013,8 +55013,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7825,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7824,
           "column": 18
         }
       ],
@@ -55028,8 +55028,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7597,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7596,
           "column": 18
         }
       ],
@@ -55043,13 +55043,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7970,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7969,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7988,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7987,
           "column": 14
         }
       ],
@@ -55063,13 +55063,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7960,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7959,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7996,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7995,
           "column": 14
         }
       ],
@@ -56866,6 +56866,26 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 764,
+          "column": 491
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9073,
+          "column": 9
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9077,
+          "column": 58
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 838,
+          "column": 23
+        },
+        {
           "file": "crates/snapback-server/src/server.rs",
           "line": 3409,
           "column": 6
@@ -56874,26 +56894,6 @@
           "file": "crates/snapback-server/src/server.rs",
           "line": 3459,
           "column": 16
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 765,
-          "column": 491
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9074,
-          "column": 9
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9078,
-          "column": 58
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 872,
-          "column": 23
         }
       ],
       "httpStatus": null,
@@ -57416,19 +57416,19 @@
       "subsystem": "realtime",
       "sites": [
         {
-          "file": "crates/snapback-server/src/server.rs",
-          "line": 19844,
-          "column": 6
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 765,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 764,
           "column": 555
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 8777,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 8776,
           "column": 28
+        },
+        {
+          "file": "crates/snapback-server/src/server.rs",
+          "line": 19844,
+          "column": 6
         }
       ],
       "httpStatus": null,
@@ -57616,8 +57616,8 @@
       "subsystem": "realtime",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 8789,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 8788,
           "column": 32
         }
       ],
@@ -57796,14 +57796,14 @@
       "subsystem": "realtime",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 8781,
+          "column": 28
+        },
+        {
           "file": "crates/snapback-server/src/server.rs",
           "line": 19851,
           "column": 6
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 8782,
-          "column": 28
         }
       ],
       "httpStatus": null,
@@ -63790,6 +63790,11 @@
       "subsystem": "migrations",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/migration.rs",
+          "line": 156,
+          "column": 10
+        },
+        {
           "file": "crates/snapback-kernel/src/storage/migration_executor.rs",
           "line": 1559,
           "column": 18
@@ -63818,11 +63823,6 @@
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 689,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli/migration.rs",
-          "line": 156,
-          "column": 10
         }
       ],
       "httpStatus": 403,
@@ -64087,6 +64087,11 @@
       "subsystem": "migrations",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli/migration.rs",
+          "line": 68,
+          "column": 26
+        },
+        {
           "file": "crates/snapback-kernel/src/migration.rs",
           "line": 48,
           "column": 10
@@ -64170,11 +64175,6 @@
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1395,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli/migration.rs",
-          "line": 68,
-          "column": 26
         }
       ],
       "httpStatus": 400,
@@ -64387,6 +64387,11 @@
       "subsystem": "migrations",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 1703,
+          "column": 32
+        },
+        {
           "file": "crates/snapback-engine/src/local/engine.rs",
           "line": 25095,
           "column": 22
@@ -64425,11 +64430,6 @@
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 1396,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 1704,
-          "column": 32
         }
       ],
       "httpStatus": 400,
@@ -64518,6 +64518,11 @@
       "subsystem": "migrations",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 1740,
+          "column": 9
+        },
+        {
           "file": "crates/snapback-kernel/src/storage/migration_executor.rs",
           "line": 2444,
           "column": 26
@@ -64546,11 +64551,6 @@
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 602,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 1741,
-          "column": 9
         }
       ],
       "httpStatus": 409,
@@ -64888,24 +64888,24 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback-types/src/network_profile.rs",
-          "line": 181,
-          "column": 48
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 765,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 764,
           "column": 425
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 8700,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 8699,
           "column": 60
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 8707,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 8706,
           "column": 18
+        },
+        {
+          "file": "crates/snapback-types/src/network_profile.rs",
+          "line": 181,
+          "column": 48
         }
       ],
       "httpStatus": null,
@@ -69169,8 +69169,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3536,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3535,
           "column": 33
         }
       ],
@@ -69184,8 +69184,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3534,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3533,
           "column": 34
         }
       ],
@@ -69269,8 +69269,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3535,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3534,
           "column": 31
         }
       ],
@@ -69364,33 +69364,33 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 1822,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 1821,
           "column": 55
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4158,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4157,
           "column": 27
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4282,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4281,
           "column": 39
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4288,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4287,
           "column": 10
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4340,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4339,
           "column": 54
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4344,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4343,
           "column": 96
         }
       ],
@@ -70061,6 +70061,16 @@
       "subsystem": "codegen",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4285,
+          "column": 24
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4326,
+          "column": 28
+        },
+        {
           "file": "crates/snapback-engine/src/host_ops.rs",
           "line": 3035,
           "column": 71
@@ -70121,16 +70131,6 @@
           "column": 60
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4286,
-          "column": 24
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4327,
-          "column": 28
-        },
-        {
           "file": "packages/snapback-codegen/visibility-governance-dev-config.mjs",
           "line": 596,
           "column": 42
@@ -70153,6 +70153,11 @@
       "subsystem": "client",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4306,
+          "column": 10
+        },
+        {
           "file": "crates/snapback-engine/src/host_ops.rs",
           "line": 3032,
           "column": 10
@@ -70161,11 +70166,6 @@
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 690,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 4307,
-          "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
@@ -75997,8 +75997,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3858,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3857,
           "column": 10
         },
         {
@@ -76019,8 +76019,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9657,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9656,
           "column": 22
         }
       ],
@@ -77602,6 +77602,11 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 8073,
+          "column": 10
+        },
+        {
           "file": "crates/snapback-services/src/replication.rs",
           "line": 159,
           "column": 22
@@ -77625,11 +77630,6 @@
           "file": "crates/snapback-services/src/replication.rs",
           "line": 215,
           "column": 18
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 8074,
-          "column": 10
         }
       ],
       "httpStatus": null,
@@ -77641,6 +77641,11 @@
       "code": "SNAPBACK_REPLICATION_DATABASE_UNAVAILABLE",
       "subsystem": "server",
       "sites": [
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3264,
+          "column": 18
+        },
         {
           "file": "crates/snapback-kernel/src/replication.rs",
           "line": 38,
@@ -77665,11 +77670,6 @@
           "file": "crates/snapback-services/src/replication.rs",
           "line": 1853,
           "column": 14
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3265,
-          "column": 18
         }
       ],
       "httpStatus": null,
@@ -77682,13 +77682,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3260,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3259,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3274,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3273,
           "column": 18
         }
       ],
@@ -77866,24 +77866,24 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback-services/src/replication.rs",
-          "line": 40,
-          "column": 33
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 765,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 764,
           "column": 751
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3260,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3259,
           "column": 101
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3274,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3273,
           "column": 98
+        },
+        {
+          "file": "crates/snapback-services/src/replication.rs",
+          "line": 40,
+          "column": 33
         }
       ],
       "httpStatus": null,
@@ -78356,13 +78356,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9185,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9184,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9189,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9188,
           "column": 18
         }
       ],
@@ -78526,24 +78526,24 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback-kernel/src/replication.rs",
-          "line": 7,
-          "column": 31
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 765,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 764,
           "column": 685
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3260,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3259,
           "column": 69
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3274,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3273,
           "column": 66
+        },
+        {
+          "file": "crates/snapback-kernel/src/replication.rs",
+          "line": 7,
+          "column": 31
         }
       ],
       "httpStatus": null,
@@ -81619,6 +81619,61 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 10,
+          "column": 23
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 2499,
+          "column": 26
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 6906,
+          "column": 25
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7437,
+          "column": 29
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7661,
+          "column": 25
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7689,
+          "column": 25
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7862,
+          "column": 25
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 8959,
+          "column": 29
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9352,
+          "column": 29
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/fork.rs",
+          "line": 166,
+          "column": 25
+        },
+        {
+          "file": "crates/snapback-cli/src/cli/migration.rs",
+          "line": 14,
+          "column": 25
+        },
+        {
           "file": "crates/snapback-engine/src/host_ops.rs",
           "line": 18,
           "column": 51
@@ -81741,61 +81796,6 @@
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
           "line": 11502,
-          "column": 25
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 10,
-          "column": 23
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 2500,
-          "column": 26
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 6907,
-          "column": 25
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7438,
-          "column": 29
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7662,
-          "column": 25
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7690,
-          "column": 25
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7863,
-          "column": 25
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 8960,
-          "column": 29
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9353,
-          "column": 29
-        },
-        {
-          "file": "crates/snapback/src/cli/fork.rs",
-          "line": 200,
-          "column": 25
-        },
-        {
-          "file": "crates/snapback/src/cli/migration.rs",
-          "line": 14,
           "column": 25
         },
         {
@@ -83907,24 +83907,24 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback-server/src/server/api_error.rs",
-          "line": 401,
-          "column": 10
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 765,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 764,
           "column": 592
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9160,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9159,
           "column": 22
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9162,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9161,
           "column": 43
+        },
+        {
+          "file": "crates/snapback-server/src/server/api_error.rs",
+          "line": 401,
+          "column": 10
         }
       ],
       "httpStatus": null,
@@ -83937,29 +83937,29 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback-server/src/server/api_error.rs",
-          "line": 402,
-          "column": 12
-        },
-        {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9174,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9173,
           "column": 32
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9178,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9177,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9202,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9201,
           "column": 26
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 9208,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 9207,
           "column": 18
+        },
+        {
+          "file": "crates/snapback-server/src/server/api_error.rs",
+          "line": 402,
+          "column": 12
         }
       ],
       "httpStatus": null,
@@ -85664,22 +85664,22 @@
       "subsystem": "storage",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3359,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3358,
           "column": 26
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 3394,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 3393,
           "column": 14
         },
         {
-          "file": "crates/snapback/src/store_state.rs",
+          "file": "crates/snapback-cli/src/store_state.rs",
           "line": 1071,
           "column": 27
         },
         {
-          "file": "crates/snapback/src/store_state.rs",
+          "file": "crates/snapback-cli/src/store_state.rs",
           "line": 1412,
           "column": 44
         }
@@ -85696,12 +85696,12 @@
       "subsystem": "storage",
       "sites": [
         {
-          "file": "crates/snapback/src/store_state.rs",
+          "file": "crates/snapback-cli/src/store_state.rs",
           "line": 1079,
           "column": 27
         },
         {
-          "file": "crates/snapback/src/store_state.rs",
+          "file": "crates/snapback-cli/src/store_state.rs",
           "line": 1386,
           "column": 44
         }
@@ -93438,8 +93438,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7010,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7009,
           "column": 14
         }
       ],
@@ -93453,8 +93453,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7401,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7400,
           "column": 10
         }
       ],
@@ -93468,18 +93468,18 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7062,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7061,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7079,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7078,
           "column": 18
         },
         {
-          "file": "crates/snapback/src/cli.rs",
-          "line": 7265,
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 7264,
           "column": 22
         }
       ],

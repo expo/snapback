@@ -162,17 +162,9 @@
       "crates/snapback/src/bin/snapback-local.rs",
       "crates/snapback/src/bin/snapback-schemagen.rs",
       "crates/snapback/src/bin/snapback-telemetry-bench.rs",
-      "crates/snapback/src/cli.rs",
-      "crates/snapback/src/cli/config_command.rs",
-      "crates/snapback/src/cli/fork.rs",
-      "crates/snapback/src/cli/guide_command.rs",
-      "crates/snapback/src/cli/migration.rs",
-      "crates/snapback/src/cli/tests.rs",
-      "crates/snapback/src/guide_mcp.rs",
       "crates/snapback/src/host_ops.rs",
       "crates/snapback/src/main.rs",
       "crates/snapback/src/remainder_adapter.rs",
-      "crates/snapback/src/store_state.rs",
       "crates/snapback/src/sync_upward_tests.rs"
     ],
     "embed-facade": [
