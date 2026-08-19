@@ -83,6 +83,7 @@ pub use snapback_activation::bundle;
 #[doc(hidden)]
 pub use snapback_kernel::branches;
 pub(crate) use snapback_sync::bounded_children_cursor;
+#[doc(hidden)]
 #[cfg(not(test))]
 pub use snapback_cli::cli;
 #[cfg(test)]
@@ -144,8 +145,6 @@ pub use snapback_types::exec_guard;
 #[cfg(test)]
 #[path = "../../snapback-server/src/guide.rs"]
 pub mod guide;
-#[cfg(not(test))]
-pub(crate) use snapback_cli::guide_mcp;
 #[cfg(test)]
 #[path = "../../snapback-cli/src/guide_mcp.rs"]
 pub(crate) mod guide_mcp;

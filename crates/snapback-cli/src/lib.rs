@@ -19,7 +19,6 @@ pub(crate) use snapback_services::replication;
 
 #[doc(hidden)]
 pub mod cli;
-#[doc(hidden)]
-pub mod guide_mcp;
+pub(crate) mod guide_mcp;
 #[doc(hidden)]
 pub mod store_state;
