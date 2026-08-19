@@ -4,7 +4,7 @@ id: backend.jobs
 order: 5
 audience: agent-first
 capabilities: [backend.jobs-one-off]
-authorities: [llp/0070-durable-background-work.rfc.md, crates/snapback-services/src/jobs.rs, crates/snapback-engine/src/runtime.rs, crates/snapback/src/admin.rs, crates/snapback/src/admin_secret_read.rs, crates/snapback/src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/jobs-authoring.test.mjs, packages/snapback-admin-client/index.mjs]
+authorities: [llp/0070-durable-background-work.rfc.md, crates/snapback-services/src/jobs.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-server/src/admin.rs, crates/snapback-server/src/admin_secret_read.rs, crates/snapback/src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/jobs-authoring.test.mjs, packages/snapback-admin-client/index.mjs]
 examples: [packages/snapback-codegen/jobs-authoring.test.mjs]
 status: current
 targets: [local]

@@ -15,12 +15,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use ring::signature::{Ed25519KeyPair, KeyPair};
-use snapback::auth::deployment::{
+use snapback_server::auth::deployment::{
     AuthenticationThrottle, BrowserCredentialPosture, BrowserDirectBearerSeam, EffectiveSource,
     ExternalTls, HostedAdmission, HostedAuthCapabilities, HostedOperatorSurface,
     SessionInvalidation,
 };
-use snapback::auth::hosted_edge::{
+use snapback_server::auth::hosted_edge::{
     AdmissionRenewal, AuthenticationBucketPolicy, HOSTED_EDGE_PROFILE, HostedAdmissionEnvelope,
     HostedEdgeConfig, SharedAuthenticationThrottleConfig, admission_signing_input,
     configuration_digest,

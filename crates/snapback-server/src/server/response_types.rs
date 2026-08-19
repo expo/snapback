@@ -219,8 +219,8 @@ impl AuthorizedLeaseQueryResponse {
             rows,
             cursor: _,
         } = output;
-        let (completeness_proof, authorization_witness) = completeness
-            .map_or((None, None), |carrier| {
+        let (completeness_proof, authorization_witness) =
+            completeness.map_or((None, None), |carrier| {
                 let (proof, witness) = carrier.into_parts();
                 (Some(proof), Some(witness))
             });

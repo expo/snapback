@@ -1,5 +1,5 @@
 use super::*;
-#[cfg(test)]
+#[cfg(all(test, not(feature = "server-owner")))]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 
 #[derive(Serialize)]
@@ -76,10 +76,7 @@ async fn oauth_manifest(
         return Err(oauth_not_found());
     }
     with_snapback(&runtime.snapback, |snapback| {
-        snapback
-            .served_schema_manifest()
-            .oauth_manifest()
-            .cloned()
+        snapback.served_schema_manifest().oauth_manifest().cloned()
     })
     .await
     .ok_or_else(oauth_not_found)
@@ -245,18 +242,18 @@ pub(super) async fn oauth_register(
     let client_name = input.client_name.clone();
     let issued = with_snapback(&runtime.snapback, move |snapback| {
         snapback.register_oauth_client(
-                &route_admission,
-                policy.mode,
-                invitation.as_ref(),
-                client_name,
-                crate::storage::auth_integrations::IntegrationRegistrationFacts {
-                    origin,
-                    redirect_uris: redirects,
-                },
-                profile,
-                registration_provider.now_ms(),
-                registration_provider.agent_random_source(),
-            )
+            &route_admission,
+            policy.mode,
+            invitation.as_ref(),
+            client_name,
+            crate::storage::auth_integrations::IntegrationRegistrationFacts {
+                origin,
+                redirect_uris: redirects,
+            },
+            profile,
+            registration_provider.now_ms(),
+            registration_provider.agent_random_source(),
+        )
     })
     .await;
     let issued = match issued {
@@ -514,12 +511,7 @@ pub(super) async fn oauth_authorize_post(
     if form.decision == "deny" {
         let now_ms = provider.now_ms();
         let result = with_snapback(&runtime.snapback, move |snapback| {
-            snapback.deny_oauth_authorization(
-                &authority,
-                &user_id,
-                &form.request_id,
-                now_ms,
-            )
+            snapback.deny_oauth_authorization(&authority, &user_id, &form.request_id, now_ms)
         })
         .await;
         return match result {
@@ -551,9 +543,8 @@ pub(super) async fn oauth_authorize_post(
         };
         let admission = provider.admit().await;
         let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
-            let coordination = snapback.execute_auth_plan(
-                admission.step_up_coordination_plan(&challenge_id),
-            );
+            let coordination =
+                snapback.execute_auth_plan(admission.step_up_coordination_plan(&challenge_id));
             (admission, coordination)
         })
         .await;
@@ -680,13 +671,13 @@ pub(super) async fn oauth_token(
     let now_ms = provider.now_ms();
     let issued = with_snapback(&runtime.snapback, move |snapback| {
         snapback.mint_scoped_token_for_oauth_code(
-                &form.code,
-                &form.client_id,
-                &form.redirect_uri,
-                &form.code_verifier,
-                now_ms,
-                provider.agent_random_source(),
-            )
+            &form.code,
+            &form.client_id,
+            &form.redirect_uri,
+            &form.code_verifier,
+            now_ms,
+            provider.agent_random_source(),
+        )
     })
     .await;
     let issued = match issued {

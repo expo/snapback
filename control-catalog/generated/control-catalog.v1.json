@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:788c7fc9ed048647240631d9497133c34090aecfb56ad2803849dd4ae96a24c9",
+  "catalogDigest": "sha256:1f00b7b47a8eca4e9ee622eb654c372758afa27a2095185881309e8c2dcbb9a7",
   "buildIdentity": {
-    "sourceCommit": "86af99cc43327e0fa320dc961c01ab67dd28b44b",
+    "sourceCommit": "ed06d2b4b0d2d110c34774addf6d162add6a07c1",
     "dirty": true
   },
-  "generatedAtCommit": "86af99cc43327e0fa320dc961c01ab67dd28b44b",
+  "generatedAtCommit": "ed06d2b4b0d2d110c34774addf6d162add6a07c1",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -61,7 +61,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "The host-op spelling is pinned but unbuilt; the shipped done-oracle command is snapback verify.",
@@ -116,7 +116,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "mcpDeferralReason": "See admin.link.mint.",
       "mediatedHandoff": {
@@ -248,7 +248,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "mcpDeferralReason": "See admin.link.mint.",
       "mediatedHandoff": {
@@ -312,7 +312,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "mcpDeferralReason": "See admin.link.mint.",
       "mediatedHandoff": {
@@ -377,7 +377,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs operation_registry()"
+        "crates/snapback-server/src/server.rs operation_registry()"
       ],
       "cliDeferralReason": "Provisioning is dispatched through POST /app/ensure; no direct CLI wrapper ships.",
       "remediation": {
@@ -436,7 +436,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -495,7 +495,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "Phase 1 exposes the server-owned predicate through authenticated host ops; the wait CLI projection is a separate phase.",
@@ -560,7 +560,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs",
         "cloudflare/src/gateway.js:172"
       ],
@@ -619,7 +619,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API.",
@@ -678,7 +678,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API.",
@@ -737,7 +737,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API.",
@@ -796,7 +796,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API.",
@@ -855,7 +855,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -913,7 +913,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "mcpDeferralReason": "Assets family; see asset.put.",
@@ -972,7 +972,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -1030,7 +1030,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -1088,7 +1088,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -1146,7 +1146,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -1204,7 +1204,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -1263,7 +1263,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "mcpDeferralReason": "Assets: full typed CLI, zero MCP tools today — the RFC's (cliOnly, direct) worked example (§Product contract). MCP projection is a Phase 2 P1 item.",
@@ -1322,7 +1322,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -1380,7 +1380,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -1439,7 +1439,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Declared-client administration is currently exposed only through the authenticated API.",
       "remediation": {
@@ -1498,7 +1498,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Declared-client administration is currently exposed only through the authenticated API.",
       "remediation": {
@@ -1557,7 +1557,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Declared-client administration is currently exposed only through the authenticated API.",
       "remediation": {
@@ -1616,7 +1616,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Declared-client administration is currently exposed only through the authenticated API.",
       "remediation": {
@@ -1675,7 +1675,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Declared-client administration is currently exposed only through the authenticated API.",
       "remediation": {
@@ -1738,7 +1738,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
@@ -1802,7 +1802,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
@@ -1862,7 +1862,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
       "remediation": {
@@ -1921,7 +1921,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
       "remediation": {
@@ -1980,7 +1980,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
       "remediation": {
@@ -2039,7 +2039,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
       "remediation": {
@@ -2102,7 +2102,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
@@ -2157,7 +2157,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "pinned": true,
       "pinReason": "responseSensitivity CredentialSecret: usage-evidence promotion to native/cliOnly/mcpOnly is refused outright regardless of call volume (§Product contract's promotion-refusal rule). This row stays apiOnly until an authored override passes the same secret-carrier review config.set requires.",
@@ -2218,7 +2218,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "mcpDeferralReason": "Session credentials are returned only to the operator's CLI terminal; the ordinary MCP result channel must not carry them.",
@@ -2297,7 +2297,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "Authentication rehearsal controls are currently exposed only through the authenticated host-ops family.",
@@ -2361,7 +2361,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "Authentication rehearsal controls are currently exposed only through the authenticated host-ops family.",
@@ -2425,7 +2425,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "Authentication rehearsal controls are currently exposed only through the authenticated host-ops family.",
@@ -2489,7 +2489,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "Authentication rehearsal controls are currently exposed only through the authenticated host-ops family.",
@@ -2548,7 +2548,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "The rescue is a specialist host-ops API operation with no CLI projection.",
@@ -2607,7 +2607,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow.",
@@ -2666,7 +2666,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow.",
@@ -2725,7 +2725,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow.",
@@ -2784,7 +2784,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow.",
@@ -2843,7 +2843,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow.",
@@ -2902,7 +2902,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow.",
@@ -4955,7 +4955,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "This internal maintenance route has no supported CLI projection.",
       "internalReason": "Internal client-mutation-log retention maintenance; not an author/operator-invoked action today.",
@@ -5010,7 +5010,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -5176,7 +5176,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()",
+        "crates/snapback-server/src/server.rs route_registry()",
         "cloudflare/src/gateway.js:125"
       ],
       "remediation": {
@@ -5230,7 +5230,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -5283,7 +5283,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -5336,7 +5336,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -5389,7 +5389,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "mcpDeferralReason": "See console.approval.request.",
       "mediatedHandoff": {
@@ -5453,7 +5453,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "mcpDeferralReason": "See console.approval.request.",
       "mediatedHandoff": {
@@ -5517,7 +5517,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "mcpDeferralReason": "No MCP tool yet; approving a short-lived console-displayed code is a human action by design (src/cli.rs AdminCommand::Approve).",
       "mediatedHandoff": {
@@ -5581,7 +5581,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Console credential lifecycle is internal to the browser handoff; use snapback admin link.",
       "internalReason": "Browser-console session-credential bootstrap machinery consumed by AdminClient's own private #restoreReachabilityCredential/#renewConsoleCredential methods, not an author/operator action a client invokes directly.",
@@ -5636,7 +5636,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Reachability records are managed by the admin-link workflow rather than a standalone CLI verb.",
       "internalReason": "Console session-bootstrap plumbing; see console.credential.",
@@ -5691,7 +5691,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Reachability records are managed by the admin-link workflow rather than a standalone CLI verb.",
       "internalReason": "Console session-bootstrap plumbing; see console.credential.",
@@ -5746,7 +5746,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Reachability records are managed by the admin-link workflow rather than a standalone CLI verb.",
       "internalReason": "Console session-bootstrap plumbing; see console.credential.",
@@ -5801,7 +5801,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Reachability records are managed by the admin-link workflow rather than a standalone CLI verb.",
       "internalReason": "Console session-bootstrap plumbing; see console.credential.",
@@ -5856,7 +5856,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -5909,7 +5909,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "The v1 CLI stays honestly build-only/offline. Instance availability is served by the admin-gated HTTP endpoint and the control MCP resource; invocation admission remains authoritative.",
       "remediation": {
@@ -5964,7 +5964,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -6021,7 +6021,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -6075,7 +6075,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -6188,7 +6188,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()",
+        "crates/snapback-server/src/server.rs route_registry()",
         "cloudflare/src/gateway.js:140"
       ],
       "remediation": {
@@ -6364,7 +6364,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -6420,7 +6420,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -6482,7 +6482,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs",
         "cloudflare/src/gateway.js:149"
       ],
@@ -6546,7 +6546,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs",
         "cloudflare/src/gateway.js:149"
       ],
@@ -6602,7 +6602,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs operation_registry()"
+        "crates/snapback-server/src/server.rs operation_registry()"
       ],
       "cliDeferralReason": "Direct-runner dispatch is an internal API primitive; use the generated client or snapback run.",
       "remediation": {
@@ -6657,7 +6657,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs operation_registry()"
+        "crates/snapback-server/src/server.rs operation_registry()"
       ],
       "cliDeferralReason": "Direct-runner dispatch is an internal API primitive; use the generated client or snapback run.",
       "remediation": {
@@ -6712,7 +6712,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs operation_registry()"
+        "crates/snapback-server/src/server.rs operation_registry()"
       ],
       "cliDeferralReason": "Direct-runner dispatch is an internal API primitive; use the generated client or snapback run.",
       "remediation": {
@@ -6771,7 +6771,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs operation_registry()"
+        "crates/snapback-server/src/server.rs operation_registry()"
       ],
       "cliDeferralReason": "This is a refusal identity, not an invocable CLI operation.",
       "remediation": {
@@ -6825,7 +6825,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -6877,7 +6877,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -6934,7 +6934,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -6992,7 +6992,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -7050,7 +7050,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -7109,7 +7109,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "Function explanation is exposed through the specialist host-ops API.",
@@ -7172,7 +7172,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -7230,7 +7230,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -7293,7 +7293,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "This LLP 0024 spelling is pinned but not yet implemented.",
@@ -7348,7 +7348,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "The raw health route is API-only; use snapback inspect for the CLI projection.",
       "remediation": {
@@ -7465,7 +7465,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "composedFrom": [
@@ -7527,7 +7527,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "mcpDeferralReason": "snapback_start exists but is a distinct MCP-only projection today (this row's own HTTP/CLI path is the source of truth for surfaceAccess derivation; see host.restart below for the composed case).",
@@ -7586,7 +7586,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "mcpDeferralReason": "Analogous to host.start.",
@@ -7648,7 +7648,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "mcpDeferralReason": "Readiness waiting is a local ready-file and receipt-custody workflow; MCP callers can poll the authenticated server-owned readiness fact directly.",
@@ -7756,7 +7756,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "The raw inspect route is API-only; use snapback inspect for the CLI projection.",
       "remediation": {
@@ -7810,7 +7810,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -7863,7 +7863,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -7916,7 +7916,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -8024,7 +8024,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "The raw explanation route is API-only; use snapback controls describe for catalog entries.",
       "remediation": {
@@ -8078,7 +8078,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Push maintenance is an internal API operation with no CLI projection.",
       "internalReason": "Push-notification maintenance sweep; internal scheduled/system maintenance, not an author/operator-invoked action today.",
@@ -8133,7 +8133,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "The receipt collection is exposed through the API and typed operation responses, not a standalone CLI verb.",
       "remediation": {
@@ -8192,7 +8192,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -8306,7 +8306,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -8369,7 +8369,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "This LLP 0024 spelling is pinned but not yet implemented.",
@@ -8424,7 +8424,7 @@
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "mcpDeferralReason": "Ready-file-only local operator authority (src/cli.rs HostCommand::SecretReadMint doc comment: 'can never be discovered from a URL'); no MCP projection.",
       "remediation": {
@@ -8479,7 +8479,7 @@
         "llp/0163-operation-identity-and-commit-envelope"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "This specialist storage API intentionally has no general CLI projection.",
       "remediation": {
@@ -8536,7 +8536,7 @@
         "llp/0165-proof-domains-and-checkpoints"
       ],
       "sources": [
-        "crates/snapback/src/server.rs route_registry()"
+        "crates/snapback-server/src/server.rs route_registry()"
       ],
       "cliDeferralReason": "This specialist storage API intentionally has no general CLI projection.",
       "remediation": {
@@ -8594,7 +8594,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -8652,7 +8652,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {
@@ -8710,7 +8710,7 @@
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "remediation": {

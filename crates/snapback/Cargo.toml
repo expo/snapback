@@ -16,6 +16,7 @@ path = "src/lib.rs"
 [features]
 default = []
 engine-owner = []
+server-owner = []
 services-owner = []
 sync-owner = []
 # Internal evidence harness for LLP 0154 Phase 1. This is deliberately absent
@@ -80,6 +81,7 @@ snapback-runtime = { path = "../snapback-runtime" }
 snapback-sync = { path = "../snapback-sync" }
 snapback-services = { path = "../snapback-services" }
 snapback-engine = { path = "../snapback-engine" }
+snapback-server = { path = "../snapback-server" }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = [

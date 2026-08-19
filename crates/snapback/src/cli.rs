@@ -1,15 +1,15 @@
 use crate::admin::{AppState, ResolvedAdminToken, ServerContext};
-#[cfg(test)]
-use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::admin_secret_read::{
-    SecretReadMintBridge, SecretReadMintSpec, SecretReadScope, secret_read_root_sibling,
-    sign_secret_read_mint,
+    SecretReadMintSpec, SecretReadScope, secret_read_root_sibling,
+    sign_secret_read_mint_from_owner_only_file,
 };
 use crate::contract_types::ServerProfile;
 use crate::host_ops::{HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, HostReadyDescriptor};
 use crate::instance_lock::{DatabaseInstanceLock, StartupTargetReservation};
 use crate::local::{DiagnosticBoundary, LocalSnapback};
 use crate::manifest::{SNAPBACK_SCHEMA_VERSION, SchemaManifestValidationExt as _};
+#[cfg(test)]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::server;
 use anyhow::Context;
 use clap::{CommandFactory, Parser};
@@ -402,11 +402,11 @@ async fn compose_auth_mode_startup_with_embedded(
                         snapback.reserve_function_publication_generation()?;
                     let state = startup_blocking(|| {
                         snapback.apply_same_mode_dev_deployment_with_functions(
-                                deployment,
-                                carrier.schema.clone(),
-                                &carrier.functions,
-                                carrier.seed.clone(),
-                            )?;
+                            deployment,
+                            carrier.schema.clone(),
+                            &carrier.functions,
+                            carrier.seed.clone(),
+                        )?;
                         snapback.auth_mode_snapshot()
                     })?;
                     snapback.publish_preflighted_functions(
@@ -418,11 +418,11 @@ async fn compose_auth_mode_startup_with_embedded(
                 }
                 snapshot = startup_blocking(|| {
                     snapback.stage_auth_mode_with_functions(
-                            deployment,
-                            carrier.schema.clone(),
-                            &carrier.functions,
-                            carrier.seed.clone(),
-                        )?;
+                        deployment,
+                        carrier.schema.clone(),
+                        &carrier.functions,
+                        carrier.seed.clone(),
+                    )?;
                     snapback.auth_mode_snapshot()
                 })?;
             }
@@ -482,10 +482,8 @@ async fn compose_auth_mode_startup_with_embedded(
         (AuthMode::Dev, AuthMode::Sessions) => {
             if !readiness.session_activation_ready {
                 let error = startup_blocking(|| {
-                    snapback.consume_sessions_auth_mode_with_functions(
-                        readiness,
-                        &carrier.functions,
-                    )
+                    snapback
+                        .consume_sessions_auth_mode_with_functions(readiness, &carrier.functions)
                 })
                 .expect_err("item readiness must refuse sessions consume");
                 snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
@@ -507,7 +505,7 @@ async fn compose_auth_mode_startup_with_embedded(
                     return quarantine_pending_startup(snapback, error);
                 }
             };
-            auth_runtime.mark_catalog_ready_after_mode_activation();
+            auth_runtime.confirm_catalog_ready_after_mode_activation(snapback)?;
             drop(maintenance);
             snapback.publish_preflighted_functions(
                 carrier.functions.clone(),
@@ -521,10 +519,10 @@ async fn compose_auth_mode_startup_with_embedded(
             let now_ms = auth_runtime.provider().now_ms();
             let result = match startup_blocking(|| {
                 snapback.consume_dev_downgrade_with_functions(
-                        args.allow_auth_downgrade,
-                        now_ms,
-                        &carrier.functions,
-                    )
+                    args.allow_auth_downgrade,
+                    now_ms,
+                    &carrier.functions,
+                )
             }) {
                 Ok(result) => result,
                 Err(error) => {
@@ -561,85 +559,6 @@ async fn compose_auth_mode_startup_with_embedded(
             "pending auth-mode transition has no supported direction",
         )),
     }
-}
-
-/// Compose the hosted-edge adapter attestation, or refuse the hosted request.
-///
-/// Returns `None` for an ordinary local deployment. For a hosted request this
-/// runs the LLP 0098 §3.1 pre-bind conjunction and returns the verified
-/// admission; any failure is the coded refusal, and a hosted request with no
-/// adapter at all keeps the shipped `SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED`
-/// refusal with its exact closed blocker list.
-///
-/// @ref LLP 0098#41-composition — the capability tuple a hosted deployment
-/// publishes comes from the verified admission, never from a build constant, so
-/// an ordinary local server can never advertise `externalTls: enforced`.
-fn hosted_now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as u64
-}
-
-type ComposedHostedEdge = Option<(
-    crate::auth::hosted_edge::VerifiedHostedAdmission,
-    crate::auth::hosted_edge::AdmissionRenewalInputs,
-)>;
-
-fn compose_hosted_edge_admission(
-    args: &Args,
-    bind_ip: IpAddr,
-) -> crate::diagnostic::SnapbackResult<ComposedHostedEdge> {
-    use crate::auth::deployment::AuthDeploymentTarget;
-
-    if args.auth_deployment != AuthDeploymentTarget::Hosted {
-        return Ok(None);
-    }
-    let (Some(config_path), Some(envelope_path)) =
-        (args.hosted_edge.as_ref(), args.hosted_admission.as_ref())
-    else {
-        // No adapter supplied: the shipped refusal, unchanged.
-        return crate::auth::deployment::validate_auth_deployment(
-            args.auth_deployment,
-            crate::auth::deployment::HostedAuthCapabilities::local_target(),
-        )
-        .map(|()| None);
-    };
-
-    let read = |path: &std::path::Path| -> crate::diagnostic::SnapbackResult<Vec<u8>> {
-        std::fs::read(path).map_err(|_| {
-            crate::diagnostic::SnapbackError::error(
-                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
-                "auth-deployment",
-                "hosted-edge adapter input could not be read",
-            )
-        })
-    };
-
-    let config = crate::auth::hosted_edge::HostedEdgeConfig::parse(&read(config_path)?)?;
-    let now_ms = hosted_now_ms();
-    let envelope =
-        crate::auth::hosted_edge::select_admission_for_now(&read(envelope_path)?, now_ms)?;
-
-    // The origin's own half of the conjunction: it decides for itself whether
-    // the address it is about to bind is loopback (LLP 0098 H1). A caller
-    // cannot assert this any more than it can assert sessions transport.
-    let facts = config.self_facts(bind_ip.is_loopback())?;
-    let admission_public_key = config.admission_public_key_bytes()?;
-    let verified = crate::auth::hosted_edge::verify_admission_envelope_prebind(
-        &envelope,
-        &admission_public_key,
-        &facts,
-        now_ms,
-    )?;
-    // The renewal loop re-runs this exact conjunction against successors, so it
-    // carries the same inputs rather than a cached decision.
-    let renewal = crate::auth::hosted_edge::AdmissionRenewalInputs {
-        document_path: envelope_path.clone(),
-        admission_public_key,
-        facts,
-    };
-    Ok(Some((verified, renewal)))
 }
 
 // @ref LLP 0060#d1-plaintext-listener-fence — sessions have no plaintext
@@ -3304,13 +3223,14 @@ async fn auth_backup_inner(
     // read and copy crosses the sanctioned pre-bind blocking boundary.
     startup_blocking(|| {
         let mut snapback = LocalSnapback::open(&database_path)?;
-        snapback.execute_auth_plan(crate::auth::backup::create_backup_plan(
-            maintenance.keyring(),
-            output_directory,
-            created_at_ms,
-            &crate::auth::crypto::OsRandom,
-        ))
-        .map_err(anyhow::Error::new)
+        snapback
+            .execute_auth_plan(crate::auth::backup::create_backup_plan(
+                maintenance.keyring(),
+                output_directory,
+                created_at_ms,
+                &crate::auth::crypto::OsRandom,
+            ))
+            .map_err(anyhow::Error::new)
     })
 }
 
@@ -4381,8 +4301,7 @@ fn password_non_stdin_profile_allowed(
     target_url: &str,
     carrier: &str,
 ) -> anyhow::Result<()> {
-    let profile =
-        crate::admin::resolve_profile(raw_profile, origin_is_loopback(target_url), false);
+    let profile = crate::admin::resolve_profile(raw_profile, origin_is_loopback(target_url), false);
     anyhow::ensure!(
         matches!(profile, ServerProfile::Dev | ServerProfile::Test),
         "SNAPBACK_PROFILE_FORBIDS: {carrier} is accepted only under dev or test profiles; stdin is the only password carrier in other profiles"
@@ -6882,8 +6801,6 @@ fn mint_secret_read_via_http(
     let canonical_ready = std::fs::canonicalize(ready_file)
         .with_context(|| format!("failed to resolve ready file {}", ready_file.display()))?;
     let declared_root = validated_secret_read_root_path(&canonical_ready, &descriptor)?;
-    let root = crate::admin_secret_read::read_secret_read_proof_root(&declared_root)?;
-
     let startup_nonce = descriptor
         .startup_nonce
         .clone()
@@ -6892,8 +6809,8 @@ fn mint_secret_read_via_http(
         .duration_since(UNIX_EPOCH)
         .map(|duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
         .unwrap_or(0);
-    let proof = sign_secret_read_mint(
-        &root,
+    let proof = sign_secret_read_mint_from_owner_only_file(
+        &declared_root,
         lease,
         startup_nonce,
         issued_at_ms,
@@ -8160,17 +8077,12 @@ async fn run_composed(
     // This keeps profile/capture posture identical for numeric hosts and DNS
     // aliases without opening a listener early.
     let bind_ip = resolve_bind_ip(&args.host).await?;
-    let raw_startup_profile = std::env::var("SNAPBACK_PROFILE").ok();
-    let exposure = crate::admin::environment_exposure();
-    let startup_profile = crate::admin::resolve_profile(
-        raw_startup_profile.as_deref(),
-        bind_ip.is_loopback(),
-        exposure.fronted(),
-    );
+    let startup_resolution = crate::admin::resolve_server_startup(bind_ip.is_loopback());
+    let startup_profile = startup_resolution.profile();
     // @ref LLP 0262#d4-declared-exposure — a fronted unset profile resolves
     // to full Prod semantics; explicit non-production remains explicit and
     // visible, while every unrecognized nonempty value fails fronted.
-    if let Some(warning) = exposure.startup_warning(raw_startup_profile.as_deref()) {
+    if let Some(warning) = startup_resolution.startup_warning() {
         eprintln!("{warning}");
     }
     // @ref LLP 0060#d5-hosted-readiness-is-conjunctive — reject an explicit
@@ -8181,7 +8093,12 @@ async fn run_composed(
     // admitted. Every clause not needing durable state runs here, before the
     // database path is created, so an unsupported hosted request still leaves
     // the target byte-for-byte unchanged.
-    let verified_hosted_admission = compose_hosted_edge_admission(&args, bind_ip)?;
+    let verified_hosted_admission = crate::admin::compose_hosted_edge_admission(
+        args.auth_deployment,
+        args.hosted_edge.as_deref(),
+        args.hosted_admission.as_deref(),
+        bind_ip,
+    )?;
     let (prepared_database_path, mut startup_target_reservation) = if args.memory {
         (None, None)
     } else {
@@ -8393,7 +8310,7 @@ async fn run_composed(
                     return run_auth_collision_recovery(
                         &args,
                         bind_ip,
-                        startup_profile,
+                        startup_resolution,
                         db_path.clone(),
                         lock,
                         ready_target,
@@ -8521,13 +8438,9 @@ async fn run_composed(
     // can make sessions active. The listener is still absent; later
     // ready-descriptor publication remains the final admission cut.
     let loopback = bind_ip.is_loopback();
-    let mut server_context = ServerContext::new_with_resolved_profile(
-        bind_ip.to_string(),
-        0,
-        loopback,
-        startup_profile,
-    )
-    .with_auth_deployment(args.auth_deployment);
+    let mut server_context =
+        ServerContext::new_with_startup_resolution(bind_ip.to_string(), 0, startup_resolution)
+            .with_auth_deployment(args.auth_deployment);
     if derived_fork_boot {
         // @ref LLP 0158#design-sketch — an inherited process environment is
         // not credential authority for the new instance; load the freshly
@@ -8619,13 +8532,7 @@ async fn run_composed(
     };
     let secret_read_root_file = ready_path.as_deref().map(secret_read_root_sibling);
     let secret_read_proof_root = match (ready_target.as_ref(), secret_read_root_file.as_ref()) {
-        (Some(target), Some(path)) => Some(
-            crate::admin_secret_read::resolve_secret_read_proof_root_with_io(
-                path,
-                |path| target.read_owner_only_sibling(path),
-                |path, bytes| target.write_owner_only_sibling(path, bytes),
-            )?,
-        ),
+        (Some(target), Some(path)) => Some(target.resolve_secret_read_proof_root(path)?),
         _ => None,
     };
     if let (true, Some(target), Some(path)) = (
@@ -8700,10 +8607,8 @@ async fn run_composed(
         // active before the fork-specific coverage cut.
         // @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 —
         // arm the process-owned connection at the fork point before bind.
-        startup_blocking(|| {
-            snapback.arm_open_derived_fork_app_row_coverage(now_ms())
-        })
-        .map_err(anyhow::Error::new)?;
+        startup_blocking(|| snapback.arm_open_derived_fork_app_row_coverage(now_ms()))
+            .map_err(anyhow::Error::new)?;
     }
     auth_runtime.seed_durable_clock_floor(&mut snapback)?;
     validate_auth_transport(
@@ -8753,12 +8658,14 @@ async fn run_composed(
     let loaded_app_id = snapback.loaded_app_id();
     let state = Arc::new(Mutex::new(snapback));
     debug_assert_eq!(server_context.profile, startup_profile);
-    let (app_state, secret_read_operator) = AppState::try_new_with_claimed_engine(
+    let app_state = AppState::try_new_for_server_startup(
         state.clone(),
         read_lane,
         ephemeral.clone(),
         server_context,
         engine_app_state_bindings,
+        secret_read_proof_root,
+        startup_nonce.clone(),
     )
     .map_err(anyhow::Error::new)?;
     // @ref LLP 0060#d1-plaintext-listener-fence — the request-path fence
@@ -8775,21 +8682,15 @@ async fn run_composed(
     // listener binds. Installation performs the durable monotonicity check that
     // the pre-bind phase could not, then creates the replay/nonce and throttle
     // tables and applies the LLP 0077 decision-1 sender-replay epoch floor.
-    let app_state = match verified_hosted_admission.as_ref() {
-        Some((verified, _)) => {
-            let authority = {
-                let mut snapback = state.lock().await;
-                snapback.execute_auth_plan(crate::auth::hosted_edge::install_verified_admission_plan(
-                    verified,
-                    hosted_now_ms(),
-                ))
-                    .map_err(anyhow::Error::new)?
-            };
-            app_state
-                .with_hosted_serving_authority(authority)
-                .map_err(anyhow::Error::new)?
+    let (app_state, hosted_admission_renewal) = match verified_hosted_admission {
+        Some(admission) => {
+            let (state, renewal) = app_state
+                .with_hosted_edge_admission(admission)
+                .await
+                .map_err(anyhow::Error::new)?;
+            (state, Some(renewal))
         }
-        None => app_state,
+        None => (app_state, None),
     };
     // Startup selection uses the same gate as runtime PUT, after hosted
     // authority has reached its final pre-bind classification.
@@ -8823,43 +8724,8 @@ async fn run_composed(
     // independently verified snapshot; when the document stops covering the
     // clock it installs nothing and the incumbent expires, so withdrawal is
     // composed with rather than suppressed.
-    if let Some((verified, renewal)) = verified_hosted_admission {
-        let handle = app_state.hosted_serving_handle();
-        let renewal_state = state.clone();
-        let mut installed_issued_at_ms = verified.issued_at_ms();
-        if let Some(handle) = handle {
-            tokio::spawn(async move {
-                let interval = std::time::Duration::from_millis(
-                    crate::auth::hosted_edge::ADMISSION_RENEWAL_INTERVAL_MS,
-                );
-                loop {
-                    tokio::time::sleep(interval).await;
-                    let now_ms = hosted_now_ms();
-                    let renewed = {
-                        let mut snapback = renewal_state.lock().await;
-                        snapback.execute_auth_plan(crate::auth::hosted_edge::renew_hosted_admission_plan(
-                            &renewal,
-                            installed_issued_at_ms,
-                            now_ms,
-                        ))
-                    };
-                    match renewed {
-                        Ok(Some((authority, issued_at_ms))) => {
-                            if handle.install(authority) {
-                                installed_issued_at_ms = issued_at_ms;
-                            }
-                        }
-                        // Incumbent still current: nothing to do.
-                        Ok(None) => {}
-                        // A document that no longer covers the clock, or a
-                        // successor that fails any clause, leaves the incumbent
-                        // to expire on its own terms. Withdrawal is the
-                        // designed outcome, not an error to route around.
-                        Err(_) => {}
-                    }
-                }
-            });
-        }
+    if let Some(renewal) = hosted_admission_renewal {
+        app_state.spawn_hosted_edge_admission_renewal(renewal);
     }
     let app_state = app_state
         .with_auth_runtime(&auth_runtime, auth_coordinator.clone())
@@ -8890,14 +8756,6 @@ async fn run_composed(
     let app_state = app_state
         .with_auth_runtime_facts(auth_mode_state.clone(), auth_program_readiness.clone())
         .map_err(anyhow::Error::new)?;
-    let app_state = match secret_read_proof_root {
-        Some(root) => app_state.with_secret_read_mint_bridge(SecretReadMintBridge::new(
-            secret_read_operator,
-            root,
-            startup_nonce.clone(),
-        )),
-        None => app_state,
-    };
     let app_state = match impersonation_capabilities {
         Some(registry) => app_state.with_impersonation_capabilities(registry),
         None => app_state,
@@ -8946,16 +8804,15 @@ async fn run_composed(
     // posture into this already-complete application.
     // @ref LLP 0059#handshake-and-activation — construction failure precedes socket acquisition.
     let app = connection_binding_receipt.build(app_state.clone());
-    let auth_terminal_sink = app_state.auth_terminal_lifecycle.expiry_sink();
     // The expiry authority is process-critical in sessions mode. Construct it,
     // wait for its running handshake, and only then bind any listener.
     // @ref LLP 0059#startup-rebuild-and-deadline-derivation — a sessions
     //   listener cannot exist without a supervised terminal worker.
-    let mut auth_expiry_worker = two_phase_revocation_receipt
-        .spawn(
+    let mut auth_expiry_worker = app_state
+        .spawn_auth_expiry_worker(
+            two_phase_revocation_receipt,
             state.clone(),
             auth_coordinator.clone(),
-            auth_terminal_sink.clone(),
         )
         .await
         .map_err(anyhow::Error::new)?;
@@ -8993,7 +8850,7 @@ async fn run_composed(
     // reports host/port/uptime and gates by loopback vs non-loopback.
     debug_assert_eq!(loopback, local_addr.ip().is_loopback());
     let published_server_context = Arc::make_mut(&mut app_state.server);
-    published_server_context.record_bound_address(local_addr);
+    published_server_context.record_bound_tokio_listener(&listener)?;
     if let Some(lock) = database_lock.as_mut() {
         lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
     }
@@ -9248,12 +9105,11 @@ async fn run_composed(
     } else {
         None
     };
-    let maintenance_worker = server::spawn_maintenance_worker(app_state);
-    let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
+    let maintenance_worker = server::spawn_maintenance_worker(app_state.clone());
+    let auth_maintenance_worker = app_state.spawn_auth_gc_worker(
         state.clone(),
         auth_runtime.clone(),
         auth_coordinator.clone(),
-        auth_terminal_sink,
         auth_gc_initial_delay,
     );
     let server = app
@@ -9395,7 +9251,7 @@ async fn run_composed(
 async fn run_auth_collision_recovery(
     args: &Args,
     bind_ip: IpAddr,
-    startup_profile: ServerProfile,
+    startup_resolution: crate::admin::ServerStartupResolution,
     database_path: PathBuf,
     mut database_lock: DatabaseInstanceLock,
     mut ready_target: Option<ReadyFileTarget>,
@@ -9405,13 +9261,9 @@ async fn run_auth_collision_recovery(
     impersonation_temp_path: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     crate::auth::recovery::validate_loopback_bind_ip(bind_ip)?;
-    let mut server_context = ServerContext::new_with_resolved_profile(
-        bind_ip.to_string(),
-        0,
-        true,
-        startup_profile,
-    )
-    .with_auth_deployment(args.auth_deployment);
+    let mut server_context =
+        ServerContext::new_with_startup_resolution(bind_ip.to_string(), 0, startup_resolution)
+            .with_auth_deployment(args.auth_deployment);
 
     // Profiles that can never expose recovery fail before token minting or any
     // other startup publication.
@@ -9453,7 +9305,7 @@ async fn run_auth_collision_recovery(
         local_addr.ip().is_loopback(),
         "SNAPBACK_AUTH_TABLE_COLLISION: auth collision recovery refused a non-loopback listener"
     );
-    server_context.record_bound_address(local_addr);
+    server_context.record_bound_tokio_listener(&listener)?;
     let profile = server_context.profile;
     let admin_token_file_display = server_context
         .admin_token_file
@@ -9464,7 +9316,6 @@ async fn run_auth_collision_recovery(
         server_context,
         impersonation_registry,
     )?;
-    let app = crate::auth::recovery::router(runtime);
     database_lock.record_server(&local_addr.ip().to_string(), local_addr.port())?;
 
     // Publish the validated process capability only after bind and runtime
@@ -9574,9 +9425,7 @@ async fn run_auth_collision_recovery(
         println!("admin: auth recovery requires SNAPBACK_ADMIN_TOKEN");
     }
 
-    let server_result = axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await;
+    let server_result = crate::auth::recovery::serve(runtime, listener, shutdown_signal()).await;
     drop(database_lock);
     if let Some(target) = ready_target.as_ref() {
         let _ = target.remove_impersonation_capability();
@@ -9993,6 +9842,22 @@ impl ReadyFileTarget {
         path.file_name().ok_or_else(|| {
             std::io::Error::new(ErrorKind::InvalidInput, "managed sibling has no file name")
         })
+    }
+
+    fn resolve_secret_read_proof_root(
+        &self,
+        path: &Path,
+    ) -> anyhow::Result<crate::admin_secret_read::SecretReadProofRoot> {
+        self.ensure_parent_path_identity()?;
+        self.sibling_name(path)?;
+        #[cfg(unix)]
+        let pinned_parent = Some(&self.parent);
+        #[cfg(not(unix))]
+        let pinned_parent = None;
+        crate::admin_secret_read::resolve_secret_read_proof_root_for_pinned_sibling(
+            pinned_parent,
+            path,
+        )
     }
 
     #[cfg(unix)]

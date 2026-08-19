@@ -4055,6 +4055,7 @@ dependencies = [
  "snapback-engine",
  "snapback-kernel",
  "snapback-runtime",
+ "snapback-server",
  "snapback-services",
  "snapback-sync",
  "snapback-types",
@@ -4203,6 +4204,48 @@ dependencies = [
  "snapback-types",
  "ureq",
  "uuid",
+]
+
+[[package]]
+name = "snapback-server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "base64 0.22.1",
+ "fs2",
+ "futures-util",
+ "getrandom 0.3.4",
+ "hmac 0.12.1",
+ "http-body",
+ "libc",
+ "qrcode",
+ "regex",
+ "ring",
+ "schemars",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "sha2 0.10.9",
+ "snapback-activation",
+ "snapback-auth",
+ "snapback-engine",
+ "snapback-kernel",
+ "snapback-runtime",
+ "snapback-services",
+ "snapback-sync",
+ "snapback-types",
+ "subtle",
+ "syn 2.0.119",
+ "tempfile",
+ "tokio",
+ "tokio-tungstenite 0.29.0",
+ "tower",
+ "tower-service",
+ "unicode-normalization",
+ "ureq",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]

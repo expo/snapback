@@ -14,9 +14,7 @@ pub(crate) trait RemainderLocalSnapbackExt {
     fn remainder_activate_agent_safe_operation_coverage(
         &mut self,
         activated_at_ms: u64,
-    ) -> crate::diagnostic::SnapbackResult<
-        crate::commit_envelope::OperationCoverageManifestV1,
-    >;
+    ) -> crate::diagnostic::SnapbackResult<crate::commit_envelope::OperationCoverageManifestV1>;
 }
 
 #[cfg(test)]

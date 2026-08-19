@@ -98,7 +98,11 @@ function readRustTree(directory) {
 function validateKernelAdmissionFacades() {
   const facade = readFileSync(resolve(ROOT, 'crates/snapback/src/lib.rs'), 'utf8');
   const pushAdapter = readFileSync(resolve(ROOT, 'crates/snapback-engine/src/push.rs'), 'utf8');
-  const facadeRust = `${readRustTree(resolve(ROOT, 'crates/snapback/src'))}\n${readRustTree(resolve(ROOT, 'crates/snapback-engine/src'))}`;
+  const facadeRust = [
+    readRustTree(resolve(ROOT, 'crates/snapback/src')),
+    readRustTree(resolve(ROOT, 'crates/snapback-engine/src')),
+    readRustTree(resolve(ROOT, 'crates/snapback-server/src')),
+  ].join('\n');
   const pushKernel = readFileSync(
     resolve(ROOT, 'crates/snapback-kernel/src/storage/push_registry.rs'),
     'utf8',

@@ -4,7 +4,7 @@ id: backend.streamed-actions
 order: 35
 audience: agent-first
 capabilities: [backend.streamed-actions]
-authorities: [llp/0076-bounded-streamed-actions.rfc.md, llp/0075-convex-checkpoint-protocol.spec.md, crates/snapback-sync/src/stream_attempt.rs, crates/snapback/src/server.rs, packages/snapback-harness/ctx-bootstrap.js, demos/competitive-checkpoint/snapback/handlers.mjs, cloudflare/app/all-aboard.app.js]
+authorities: [llp/0076-bounded-streamed-actions.rfc.md, llp/0075-convex-checkpoint-protocol.spec.md, crates/snapback-sync/src/stream_attempt.rs, crates/snapback-server/src/server.rs, packages/snapback-harness/ctx-bootstrap.js, demos/competitive-checkpoint/snapback/handlers.mjs, cloudflare/app/all-aboard.app.js]
 examples: [demos/competitive-checkpoint, cloudflare/test/acceptance.egress.mjs]
 status: current
 targets: [local]

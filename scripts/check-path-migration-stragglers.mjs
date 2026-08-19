@@ -54,6 +54,7 @@ const PHASE_2_CARVED_WORKSPACE_MEMBERS = new Set([
   'crates/snapback-engine',
   'crates/snapback-kernel',
   'crates/snapback-runtime',
+  'crates/snapback-server',
   'crates/snapback-services',
   'crates/snapback-sync',
   'crates/snapback-tools',

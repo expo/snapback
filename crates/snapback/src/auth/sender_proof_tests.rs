@@ -1,11 +1,11 @@
 pub use snapback_auth::auth::sender_proof::*;
 
+use crate::auth::wire::SenderPublicJwk;
 use crate::contract_types::{
     ReplayConsumeError, SenderNonce, SenderNonceError, SenderNonceIssue, SenderNonceRead,
     SenderProofIdConsumption, SenderProofNonceRotation, VerifiedSenderProof,
 };
 use crate::storage::auth_sender::{self, SenderProofAuthorityOperations};
-use crate::auth::wire::SenderPublicJwk;
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use ring::rand::{SecureRandom, SystemRandom};

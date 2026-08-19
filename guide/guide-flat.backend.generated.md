@@ -443,7 +443,7 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics, backend.record-history, backend.mutation-settlement-identity]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, crates/snapback/src/server.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-types/src/result_contract.rs, crates/snapback-kernel/src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-types/src/result_contract.rs, crates/snapback-kernel/src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-desk]
 status: current
 targets: [local]
@@ -1011,7 +1011,7 @@ id: backend.actions-and-fetch
 order: 3
 audience: agent-first
 capabilities: [backend.actions]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, crates/snapback/src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/egress-probe/functions.mjs, demos/all-aboard/tests/egress-probe/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, crates/snapback-server/src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/egress-probe/functions.mjs, demos/all-aboard/tests/egress-probe/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
 examples: [demos/all-aboard, demos/competitive-checkpoint]
 status: current
 targets: [local]
@@ -2418,7 +2418,7 @@ id: backend.jobs
 order: 5
 audience: agent-first
 capabilities: [backend.jobs-one-off]
-authorities: [llp/0070-durable-background-work.rfc.md, crates/snapback-services/src/jobs.rs, crates/snapback-engine/src/runtime.rs, crates/snapback/src/admin.rs, crates/snapback/src/admin_secret_read.rs, crates/snapback/src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/jobs-authoring.test.mjs, packages/snapback-admin-client/index.mjs]
+authorities: [llp/0070-durable-background-work.rfc.md, crates/snapback-services/src/jobs.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-server/src/admin.rs, crates/snapback-server/src/admin_secret_read.rs, crates/snapback/src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/jobs-authoring.test.mjs, packages/snapback-admin-client/index.mjs]
 examples: [packages/snapback-codegen/jobs-authoring.test.mjs]
 status: current
 targets: [local]
@@ -2707,7 +2707,7 @@ id: backend.versioned-seed
 order: 8
 audience: agent-first
 capabilities: [backend.versioned-seed]
-authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0056-scoped-roles-and-memberships.rfc.md, crates/snapback-kernel/src/seed_identity.rs, crates/snapback-kernel/src/storage.rs, crates/snapback/src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
+authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0056-scoped-roles-and-memberships.rfc.md, crates/snapback-kernel/src/seed_identity.rs, crates/snapback-kernel/src/storage.rs, crates/snapback-server/src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
 examples: [demos/party-wall]
 status: current
 targets: [local]
@@ -2907,7 +2907,7 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets, clients.asset-signed-delivery, clients.asset-upload]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, crates/snapback-services/src/assets.rs, crates/snapback-services/src/assets_cut.rs, crates/snapback/src/cli.rs, crates/snapback-engine/src/local.rs, crates/snapback/src/server.rs, crates/snapback/src/server/asset_routes.rs, packages/snapback-client/assets.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, crates/snapback-services/src/assets.rs, crates/snapback-services/src/assets_cut.rs, crates/snapback/src/cli.rs, crates/snapback-engine/src/local.rs, crates/snapback-server/src/server.rs, crates/snapback-server/src/server/asset_routes.rs, packages/snapback-client/assets.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
 examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs, packages/snapback-client/assets.test.mjs, packages/snapback-react/assets.test.mjs]
 status: current
 targets: [local]
@@ -4438,7 +4438,7 @@ id: backend.external-api
 order: 19
 audience: agent-first
 capabilities: [api.external-exposure]
-authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, crates/snapback-engine/src/manifest.rs, crates/snapback-types/src/api_envelope.rs, crates/snapback-engine/src/ask.rs, crates/snapback/src/server.rs, crates/snapback/src/server/effects.rs, crates/snapback/src/server/oauth.rs, crates/snapback-kernel/src/storage/ask_spend.rs, crates/snapback-kernel/src/storage/pending_effects.rs, crates/snapback-kernel/src/storage/capability_links.rs, crates/snapback-kernel/src/storage/auth_integrations.rs, crates/snapback-kernel/src/storage/auth_agent_credentials.rs, crates/snapback-sync/src/auth/invocation.rs, crates/snapback-services/src/telemetry.rs, crates/snapback-services/src/telemetry_query.rs]
+authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, crates/snapback-engine/src/manifest.rs, crates/snapback-types/src/api_envelope.rs, crates/snapback-engine/src/ask.rs, crates/snapback-server/src/server.rs, crates/snapback-server/src/server/effects.rs, crates/snapback-server/src/server/oauth.rs, crates/snapback-kernel/src/storage/ask_spend.rs, crates/snapback-kernel/src/storage/pending_effects.rs, crates/snapback-kernel/src/storage/capability_links.rs, crates/snapback-kernel/src/storage/auth_integrations.rs, crates/snapback-kernel/src/storage/auth_agent_credentials.rs, crates/snapback-sync/src/auth/invocation.rs, crates/snapback-services/src/telemetry.rs, crates/snapback-services/src/telemetry_query.rs]
 examples: [packages/snapback-codegen/auth-artifacts.test.mjs]
 status: current
 targets: [local]
@@ -6666,7 +6666,7 @@ id: backend.streamed-actions
 order: 35
 audience: agent-first
 capabilities: [backend.streamed-actions]
-authorities: [llp/0076-bounded-streamed-actions.rfc.md, llp/0075-convex-checkpoint-protocol.spec.md, crates/snapback-sync/src/stream_attempt.rs, crates/snapback/src/server.rs, packages/snapback-harness/ctx-bootstrap.js, demos/competitive-checkpoint/snapback/handlers.mjs, cloudflare/app/all-aboard.app.js]
+authorities: [llp/0076-bounded-streamed-actions.rfc.md, llp/0075-convex-checkpoint-protocol.spec.md, crates/snapback-sync/src/stream_attempt.rs, crates/snapback-server/src/server.rs, packages/snapback-harness/ctx-bootstrap.js, demos/competitive-checkpoint/snapback/handlers.mjs, cloudflare/app/all-aboard.app.js]
 examples: [demos/competitive-checkpoint, cloudflare/test/acceptance.egress.mjs]
 status: current
 targets: [local]
@@ -6948,7 +6948,7 @@ id: backend.expo-push-seam
 order: 46
 audience: agent-first
 capabilities: [backend.expo-push-seam]
-authorities: [llp/0143-expo-push-notification-seam.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0045-notifications-outbox.rfc.md, crates/snapback-services/src/push.rs, crates/snapback-engine/src/push.rs, crates/snapback-sync/src/connected_clients.rs, crates/snapback/src/server.rs, crates/snapback/src/admin.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs, packages/snapback-cli/fake-expo-push.mjs]
+authorities: [llp/0143-expo-push-notification-seam.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0045-notifications-outbox.rfc.md, crates/snapback-services/src/push.rs, crates/snapback-engine/src/push.rs, crates/snapback-sync/src/connected_clients.rs, crates/snapback-server/src/server.rs, crates/snapback-server/src/admin.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs, packages/snapback-cli/fake-expo-push.mjs]
 examples: [packages/snapback-cli/fixtures/push-seam]
 status: current
 targets: [local]

@@ -29,8 +29,8 @@ const outputs = {
 const markdownAuthorities = [
   'llp/0193-errors-as-docs-completeness.plan.md',
   'scripts/generate-diagnostics-registry.mjs',
-  'crates/snapback/src/server/api_error.rs',
-  'crates/snapback/src/server/tests.rs',
+  'crates/snapback-server/src/server/api_error.rs',
+  'crates/snapback-server/src/server/tests.rs',
 ];
 
 function walk(directory, accept) {
@@ -79,6 +79,11 @@ const rustProductionRoots = [
   { path: 'crates/snapback-engine/src', accept: () => true },
   { path: 'crates/snapback-conformance/src', accept: () => true },
   { path: 'crates/snapback-tools/src', accept: () => true },
+  {
+    path: 'crates/snapback-server/src',
+    // The upward/private integration suite remains owned by the remainder.
+    accept: (path) => path !== 'crates/snapback-server/src/server/tests.rs',
+  },
 ];
 
 function assertEveryCarvedRustRootIsInventoried(paths) {
@@ -230,7 +235,7 @@ const HTTP_STATUS_NUMBERS = {
 function parseHttpStatuses() {
   // @ref LLP 0199#sequencing-guidance-not-a-schedule — the reviewed family
   // table moved with the server's extracted test owner.
-  const source = readFileSync(join(root, 'crates/snapback/src/server/tests.rs'), 'utf8');
+  const source = readFileSync(join(root, 'crates/snapback-server/src/server/tests.rs'), 'utf8');
   const families = new Map();
   for (const match of source.matchAll(/const\s+([A-Z0-9_]+):\s*&\[&str\]\s*=\s*&\[(.*?)\];/gsu)) {
     families.set(match[1], [...match[2].matchAll(/"(SNAPBACK_[A-Z0-9_]+)"/gu)].map((item) => item[1]));

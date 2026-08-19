@@ -30,6 +30,7 @@ use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt;
+use std::future::Future;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -61,7 +62,7 @@ pub(crate) struct RecoveryHealthResponse {
 /// State available to the recovery router. Notably absent: `LocalSnapback`,
 /// app/read/ephemeral lanes, provider/keyring state, and generic host-ops.
 #[derive(Clone)]
-pub(crate) struct CollisionRecoveryRuntime {
+pub struct CollisionRecoveryRuntime {
     database_path: Arc<PathBuf>,
     server: Arc<ServerContext>,
     impersonation: ImpersonationCapabilityRegistry,
@@ -83,7 +84,7 @@ impl CollisionRecoveryRuntime {
     /// Validate every reachability condition before the caller binds a
     /// listener. Loopback without a configured/minted token is deliberately
     /// rejected even though embedded ordinary routers retain that old default.
-    pub(crate) fn new(
+    pub fn new(
         database_path: PathBuf,
         server: ServerContext,
         impersonation: ImpersonationCapabilityRegistry,
@@ -105,7 +106,7 @@ impl CollisionRecoveryRuntime {
 
 /// Pin the independently generated recovery capability to this process before
 /// listener creation. Runtime construction repeats the check after bind.
-pub(crate) fn validate_impersonation_registry(
+pub fn validate_impersonation_registry(
     impersonation: &ImpersonationCapabilityRegistry,
 ) -> SnapbackResult<()> {
     if impersonation.startup_nonce() != crate::identity::binary_identity().startup_nonce {
@@ -119,7 +120,7 @@ pub(crate) fn validate_impersonation_registry(
 /// Validate the concrete address startup already resolved and will bind.
 /// Resolving once in the CLI prevents a DNS answer change from splitting the
 /// recovery profile check from the actual listener address.
-pub(crate) fn validate_loopback_bind_ip(address: IpAddr) -> SnapbackResult<()> {
+pub fn validate_loopback_bind_ip(address: IpAddr) -> SnapbackResult<()> {
     address.is_loopback().then_some(()).ok_or_else(|| {
         recovery_unavailable("auth collision recovery is restricted to a loopback bind")
     })
@@ -127,7 +128,7 @@ pub(crate) fn validate_loopback_bind_ip(address: IpAddr) -> SnapbackResult<()> {
 
 /// This check is intentionally callable before listener creation. Runtime
 /// construction repeats it so no alternate embedding can skip the posture.
-pub(crate) fn validate_startup_context(server: &ServerContext) -> SnapbackResult<()> {
+pub fn validate_startup_context(server: &ServerContext) -> SnapbackResult<()> {
     if !server.loopback {
         return Err(recovery_unavailable(
             "auth collision recovery is restricted to a loopback bind",
@@ -161,17 +162,14 @@ pub(crate) fn validate_startup_context(server: &ServerContext) -> SnapbackResult
 /// Read-only classification of the ordinary-open failure. Returning `false`
 /// means the original open error remains authoritative; stronger catalog
 /// failures (including an exact-v1 index collision) are returned directly.
-pub(crate) fn eligible(
-    database_path: &Path,
-    ordinary_open_error: &SnapbackError,
-) -> SnapbackResult<bool> {
+pub fn eligible(database_path: &Path, ordinary_open_error: &SnapbackError) -> SnapbackResult<bool> {
     LocalDatabase::auth_collision_recovery_eligible(database_path, ordinary_open_error)
 }
 
 /// Construct the complete recovery surface. No fallback/static/CORS layer is
 /// installed, so every unlisted route is an ordinary 404 and the selected
 /// carrier has no browser credential path.
-pub(crate) fn router(runtime: CollisionRecoveryRuntime) -> Router {
+fn router(runtime: CollisionRecoveryRuntime) -> Router {
     Router::new()
         // Axum's `get(...)` helper also installs HEAD. Recovery inventory is
         // deliberately literal: only GET health succeeds, so explicitly
@@ -184,6 +182,25 @@ pub(crate) fn router(runtime: CollisionRecoveryRuntime) -> Router {
         )
         .route("/_snapback/api/host-ops", post(recovery_host_ops))
         .with_state(runtime)
+}
+
+/// Serve the closed recovery surface on the exact already-bound listener.
+/// The listener's concrete local address is rechecked here, so an embedding
+/// cannot pair a loopback-claimed context with a non-loopback socket.
+pub async fn serve<F>(
+    runtime: CollisionRecoveryRuntime,
+    listener: tokio::net::TcpListener,
+    shutdown: F,
+) -> anyhow::Result<()>
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    validate_loopback_bind_ip(listener.local_addr()?.ip())?;
+    validate_startup_context(runtime.server())?;
+    axum::serve(listener, router(runtime))
+        .with_graceful_shutdown(shutdown)
+        .await?;
+    Ok(())
 }
 
 async fn recovery_health() -> Json<RecoveryHealthResponse> {
@@ -477,6 +494,7 @@ mod tests {
     };
     use axum::body::{Body, to_bytes};
     use axum::http::{Method, Request};
+    #[cfg(not(feature = "server-owner"))]
     use rusqlite::{Connection, OptionalExtension, params};
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -539,6 +557,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(feature = "server-owner"))]
     fn collision_fixture(sources: &[&str], expression_index: bool) -> CollisionFixture {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("collision.sqlite3");
@@ -687,6 +706,7 @@ mod tests {
         counts: BTreeMap<String, i64>,
     }
 
+    #[cfg(not(feature = "server-owner"))]
     fn logical_snapshot(path: &Path) -> LogicalSnapshot {
         let connection = Connection::open(path).unwrap();
         let mut statement = connection
@@ -748,6 +768,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn exact_route_and_method_inventory_has_no_cors_projection() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
         let (runtime, bearer) = runtime(&fixture.path);
@@ -834,6 +855,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn admin_and_process_capability_are_non_substitutable_and_precede_parsing() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
         let (runtime, bearer) = runtime(&fixture.path);
@@ -931,6 +953,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn recovery_carrier_requires_json_content_type_after_authority() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
         let (runtime, bearer) = runtime(&fixture.path);
@@ -971,6 +994,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn entering_recovery_and_denied_or_unknown_calls_do_not_mutate_state() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
         let before = logical_snapshot(&fixture.path);
@@ -1005,6 +1029,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn successful_repeated_rescue_stays_restart_required() {
         let fixture = collision_fixture(&["_auth_one"], false);
         // The stored-manifest collision is the startup trigger; an additional
@@ -1102,6 +1127,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn unsupported_rescue_failure_leaves_source_manifest_and_rows_intact() {
         let fixture = collision_fixture(&["_auth_legacy"], true);
         let before = logical_snapshot(&fixture.path);
@@ -1127,6 +1153,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn forbidden_profiles_binds_and_missing_admin_refuse_before_router_creation() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
         for profile in [ServerProfile::Demo, ServerProfile::Prod] {
@@ -1171,7 +1198,20 @@ mod tests {
         assert!(validate_loopback_bind_ip("127.0.0.1".parse().unwrap()).is_ok());
     }
 
+    #[tokio::test]
+    async fn serving_rechecks_the_concrete_listener_address() {
+        let directory = tempfile::tempdir().unwrap();
+        let (runtime, _) = runtime(&directory.path().join("app.sqlite3"));
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap();
+
+        let error = serve(runtime, listener, std::future::pending())
+            .await
+            .expect_err("a loopback-claimed runtime cannot serve a non-loopback listener");
+        assert!(error.to_string().contains("restricted to a loopback bind"));
+    }
+
     #[test]
+    #[cfg(not(feature = "server-owner"))]
     fn exact_index_collision_and_non_repairable_manifest_never_enter_recovery() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
         let connection = Connection::open(&fixture.path).unwrap();

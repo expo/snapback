@@ -176,7 +176,7 @@ pub struct SecretReadMintEnvelope {
 
 /// Owner-only, ready-file-relative signing root. It is deliberately neither
 /// cloneable, debug-printable, nor serializable.
-pub(crate) struct SecretReadProofRoot {
+pub struct SecretReadProofRoot {
     secret: [u8; 32],
 }
 
@@ -331,6 +331,113 @@ where
     }
 }
 
+/// Resolve the process proof root beneath an already-pinned ready-file
+/// directory. The secret bytes never cross the crate boundary: the caller
+/// supplies only the directory capability and the sibling pathname.
+pub fn resolve_secret_read_proof_root_for_pinned_sibling(
+    pinned_parent: Option<&std::fs::File>,
+    path: &Path,
+) -> anyhow::Result<SecretReadProofRoot> {
+    #[cfg(unix)]
+    {
+        use std::ffi::CString;
+        use std::io::{Read as _, Seek as _, Write as _};
+        use std::os::fd::{AsRawFd as _, FromRawFd as _};
+        use std::os::unix::ffi::OsStrExt as _;
+
+        const MAX_ROOT_FILE_BYTES: u64 = 4 * 1024;
+        let parent = pinned_parent.context("secret-read root has no pinned parent capability")?;
+        let name = path
+            .file_name()
+            .context("secret-read root path has no sibling name")?;
+        let name = CString::new(name.as_bytes())
+            .map_err(|_| anyhow::anyhow!("secret-read root sibling contains NUL"))?;
+        let parent_fd = parent.as_raw_fd();
+        let read_file = |_path: &Path| {
+            // SAFETY: `name` is one NUL-terminated file-name component and
+            // `parent` is the live directory capability pinned by the caller.
+            let fd = unsafe {
+                libc::openat(
+                    parent_fd,
+                    name.as_ptr(),
+                    libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                )
+            };
+            if fd < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            // SAFETY: openat returned this owned descriptor exactly once.
+            let file = unsafe { std::fs::File::from_raw_fd(fd) };
+            crate::secure_file::validate_and_repair_owner_only(&file)?;
+            let mut bytes = Vec::new();
+            (&file)
+                .take(MAX_ROOT_FILE_BYTES + 1)
+                .read_to_end(&mut bytes)?;
+            if bytes.len() as u64 > MAX_ROOT_FILE_BYTES {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "admin token file exceeds the bounded capability-file limit",
+                ));
+            }
+            Ok(bytes)
+        };
+        let write_file = |_path: &Path, bytes: &[u8]| {
+            let open_existing = || {
+                // SAFETY: `name` is one component beneath the pinned parent.
+                unsafe {
+                    libc::openat(
+                        parent_fd,
+                        name.as_ptr(),
+                        libc::O_RDWR | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                    )
+                }
+            };
+            let mut fd = open_existing();
+            if fd < 0 && std::io::Error::last_os_error().kind() == std::io::ErrorKind::NotFound {
+                // SAFETY: as above; O_EXCL refuses a racing/pre-created inode.
+                fd = unsafe {
+                    libc::openat(
+                        parent_fd,
+                        name.as_ptr(),
+                        libc::O_RDWR
+                            | libc::O_CREAT
+                            | libc::O_EXCL
+                            | libc::O_NOFOLLOW
+                            | libc::O_CLOEXEC,
+                        0o600,
+                    )
+                };
+                if fd < 0
+                    && std::io::Error::last_os_error().kind() == std::io::ErrorKind::AlreadyExists
+                {
+                    fd = open_existing();
+                }
+            }
+            if fd < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            // SAFETY: openat returned this owned descriptor exactly once.
+            let mut file = unsafe { std::fs::File::from_raw_fd(fd) };
+            crate::secure_file::validate_and_repair_owner_only(&file)?;
+            file.set_len(0)?;
+            file.seek(std::io::SeekFrom::Start(0))?;
+            file.write_all(bytes)?;
+            file.sync_all()
+        };
+        return resolve_secret_read_proof_root_with_io(path, read_file, write_file);
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = pinned_parent;
+        resolve_secret_read_proof_root_with_io(
+            path,
+            crate::secure_file::read_owner_only,
+            crate::secure_file::write_owner_only,
+        )
+    }
+}
+
 pub(crate) fn read_secret_read_proof_root(path: &Path) -> anyhow::Result<SecretReadProofRoot> {
     let bytes = crate::secure_file::read_owner_only(path)
         .with_context(|| format!("failed to read secret-read root {}", path.display()))?;
@@ -357,6 +464,25 @@ pub(crate) fn sign_secret_read_mint(
     mac.update(&message);
     proof.mac = format!("sbrm_{}", encode_hex(&mac.finalize().into_bytes()));
     Ok(SecretReadMintEnvelope { lease, proof })
+}
+
+/// Sign one mint request using an already-authorized owner-only root file.
+/// The parsed root remains opaque and is dropped before this function returns.
+pub fn sign_secret_read_mint_from_owner_only_file(
+    path: &Path,
+    lease: SecretReadMintSpec,
+    startup_nonce: String,
+    issued_at_ms: u64,
+    nonce: String,
+) -> anyhow::Result<SecretReadMintEnvelope> {
+    let root = read_secret_read_proof_root(path)?;
+    Ok(sign_secret_read_mint(
+        &root,
+        lease,
+        startup_nonce,
+        issued_at_ms,
+        nonce,
+    )?)
 }
 
 impl fmt::Debug for SecretReadLease {

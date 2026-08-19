@@ -4,7 +4,7 @@ id: auth.targets
 order: 7
 audience: agent-first
 capabilities: [auth.target-honesty, auth.sender-constrained-browser]
-authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, crates/snapback/src/admin.rs, crates/snapback/src/cli.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback-types/src/host_ops_contract.rs, crates/snapback/src/server.rs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, packages/snapback-client/hosted-browser.mjs, README.md]
+authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, crates/snapback-server/src/admin.rs, crates/snapback/src/cli.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback-types/src/host_ops_contract.rs, crates/snapback-server/src/server.rs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, packages/snapback-client/hosted-browser.mjs, README.md]
 examples: [packages/snapback-client/hosted-browser.test.mjs, packages/snapback-client/sender-transport.test.mjs, crates/snapback/tests/sender_proof_cross_language.rs]
 status: current
 targets: [all]

@@ -33,6 +33,8 @@ crates/snapback/build.rs
 crates/snapback-auth/Cargo.toml
 crates/snapback-kernel/Cargo.toml
 crates/snapback-runtime/Cargo.toml
+crates/snapback-server/Cargo.toml
+crates/snapback-server/build.rs
 crates/snapback-runtime/build.rs
 crates/snapback-types/Cargo.toml
 rust-toolchain.toml
@@ -42,6 +44,7 @@ crates/snapback/src
 crates/snapback-auth/src
 crates/snapback-kernel/src
 crates/snapback-runtime/src
+crates/snapback-server/src
 crates/snapback-types/src
 
 # Vendored runtime crate that links into the binary (submodule pathspec:

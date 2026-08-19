@@ -1,13 +1,13 @@
 //! File-backed store durable-state inventory and WAL-consistent export.
 
-#[cfg(test)]
-use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::assets::AssetFsStoreLocalExt as _;
 use crate::auth::crypto::{RandomSource, encode_base64url};
 use crate::auth::keyring::AuthKeyringStore;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::instance_lock::FileIdentity;
 use crate::local::LocalSnapback;
+#[cfg(test)]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
@@ -1160,7 +1160,13 @@ mod tests {
         let wal_connection = create_app_rows(database_path, keep_wal_open);
         let mut snapback = LocalSnapback::open(database_path).unwrap();
         let keyring = AuthKeyringStore::file_for_database(database_path);
-        activate_catalog(snapback.remainder_auth_database_mut(), &keyring, 1_000, &OsRandom).unwrap();
+        activate_catalog(
+            snapback.remainder_auth_database_mut(),
+            &keyring,
+            1_000,
+            &OsRandom,
+        )
+        .unwrap();
         (snapback, keyring, wal_connection)
     }
 

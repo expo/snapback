@@ -6,8 +6,6 @@
 //! @ref LLP 0017#headless-admin-contract — the admin facts extend the inspect
 //! state rather than forking a parallel schema; the console is one consumer.
 
-#[cfg(test)]
-use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::admin_impersonation::ImpersonationCapabilityRegistry;
 use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintBridge, SecretReadOperator,
@@ -23,9 +21,9 @@ pub use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{AuthMode, FunctionKind, HandlerInput};
+#[cfg(all(test, not(feature = "server-owner")))]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::runtime::CapabilityState;
-#[cfg(test)]
-use crate::telemetry::{TelemetryLocalExt as _, TelemetryStoreIdentityLocalExt as _};
 use crate::server::{
     ApiError, AuthTerminalLifecycle, ConnectionRegistry, CredentialResolution, EffectPolicy,
     HealthResponse, InvocationAuthority, LegacyBodyPolicy, PolicyAuthMode, PolicyAuthPosture,
@@ -33,6 +31,8 @@ use crate::server::{
     SharedSnapback, committed_mode_terminal_reason, static_public_content_security_policy,
     system_api_route, system_static_route, with_snapback,
 };
+#[cfg(test)]
+use crate::telemetry::{TelemetryLocalExt as _, TelemetryStoreIdentityLocalExt as _};
 use anyhow::Context as _;
 use axum::Json;
 use axum::body::{Body, Bytes};
@@ -51,8 +51,8 @@ use std::fmt;
 use std::net::SocketAddr;
 use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc, Mutex as StdMutex, RwLock as StdRwLock,
+    atomic::{AtomicBool, Ordering},
 };
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 #[cfg(unix)]
@@ -121,7 +121,7 @@ const SETUP_HTML: &str = include_str!("admin/setup.html");
 /// @ref LLP 0060#d1-plaintext-listener-fence — staging sessions is enough to
 /// close a non-loopback plaintext listener; the dev override never applies to
 /// either active or desired sessions.
-pub(crate) fn validate_plaintext_auth_transport(
+pub fn validate_plaintext_auth_transport(
     loopback: bool,
     profile: ServerProfile,
     active: AuthMode,
@@ -156,6 +156,85 @@ pub(crate) fn validate_plaintext_auth_transport(
         })));
     }
     Ok(())
+}
+
+/// Opaque result of the hosted-edge pre-bind conjunction. Callers can request
+/// composition from operator inputs, but cannot manufacture the authenticated
+/// authority installed into request serving.
+pub struct HostedEdgeAdmission {
+    verified: crate::auth::hosted_edge::VerifiedHostedAdmission,
+    renewal: crate::auth::hosted_edge::AdmissionRenewalInputs,
+}
+
+/// Opaque continuation returned only after the initial admission has been
+/// consumed and installed. It cannot reinstall the initial authority.
+pub struct HostedEdgeRenewal {
+    renewal: crate::auth::hosted_edge::AdmissionRenewalInputs,
+    installed_issued_at_ms: u64,
+}
+
+/// Compose the hosted-edge adapter attestation, or refuse the hosted request.
+///
+/// @ref LLP 0098#41-composition — the capability tuple a hosted deployment
+/// publishes comes from the verified admission, never from a build constant.
+pub fn compose_hosted_edge_admission(
+    auth_deployment: crate::auth::deployment::AuthDeploymentTarget,
+    config_path: Option<&FsPath>,
+    envelope_path: Option<&FsPath>,
+    bind_ip: std::net::IpAddr,
+) -> SnapbackResult<Option<HostedEdgeAdmission>> {
+    use crate::auth::deployment::AuthDeploymentTarget;
+
+    if auth_deployment != AuthDeploymentTarget::Hosted {
+        return Ok(None);
+    }
+    let (Some(config_path), Some(envelope_path)) = (config_path, envelope_path) else {
+        // No adapter supplied: the shipped refusal, unchanged.
+        return crate::auth::deployment::validate_auth_deployment(
+            auth_deployment,
+            crate::auth::deployment::HostedAuthCapabilities::local_target(),
+        )
+        .map(|()| None);
+    };
+
+    let read = |path: &FsPath| -> SnapbackResult<Vec<u8>> {
+        std::fs::read(path).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "auth-deployment",
+                "hosted-edge adapter input could not be read",
+            )
+        })
+    };
+
+    let config = crate::auth::hosted_edge::HostedEdgeConfig::parse(&read(config_path)?)?;
+    let now_ms = hosted_now_ms();
+    let envelope =
+        crate::auth::hosted_edge::select_admission_for_now(&read(envelope_path)?, now_ms)?;
+
+    // The origin's own half of the conjunction: it decides for itself whether
+    // the address it is about to bind is loopback (LLP 0098 H1).
+    let facts = config.self_facts(bind_ip.is_loopback())?;
+    let admission_public_key = config.admission_public_key_bytes()?;
+    let verified = crate::auth::hosted_edge::verify_admission_envelope_prebind(
+        &envelope,
+        &admission_public_key,
+        &facts,
+        now_ms,
+    )?;
+    let renewal = crate::auth::hosted_edge::AdmissionRenewalInputs {
+        document_path: envelope_path.to_path_buf(),
+        admission_public_key,
+        facts,
+    };
+    Ok(Some(HostedEdgeAdmission { verified, renewal }))
+}
+
+fn hosted_now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
 
 pub(crate) use crate::host_ops::{
@@ -292,11 +371,7 @@ fn env_dev_auth_origins() -> BTreeSet<String> {
 ///
 /// @ref LLP 0262#d4-declared-exposure — `fronted` changes only the unset
 ///   profile default; an explicit non-production profile remains explicit.
-pub(crate) fn resolve_profile(
-    raw: Option<&str>,
-    loopback: bool,
-    fronted: bool,
-) -> ServerProfile {
+pub fn resolve_profile(raw: Option<&str>, loopback: bool, fronted: bool) -> ServerProfile {
     match raw {
         Some("dev") => ServerProfile::Dev,
         Some("demo") => ServerProfile::Demo,
@@ -305,6 +380,35 @@ pub(crate) fn resolve_profile(
         Some(value) if !value.is_empty() => ServerProfile::Prod,
         _ if loopback && !fronted => ServerProfile::Dev,
         _ => ServerProfile::Prod,
+    }
+}
+
+/// One process-environment profile decision bound to the concrete bind
+/// posture that produced it. Fields are private so higher layers can inspect
+/// the result but cannot manufacture a different security posture.
+pub struct ServerStartupResolution {
+    profile: ServerProfile,
+    loopback: bool,
+    startup_warning: Option<String>,
+}
+
+impl ServerStartupResolution {
+    pub fn profile(&self) -> ServerProfile {
+        self.profile
+    }
+
+    pub fn startup_warning(&self) -> Option<&str> {
+        self.startup_warning.as_deref()
+    }
+}
+
+pub fn resolve_server_startup(loopback: bool) -> ServerStartupResolution {
+    let raw_profile = std::env::var("SNAPBACK_PROFILE").ok();
+    let exposure = environment_exposure();
+    ServerStartupResolution {
+        profile: resolve_profile(raw_profile.as_deref(), loopback, exposure.fronted()),
+        loopback,
+        startup_warning: exposure.startup_warning(raw_profile.as_deref()),
     }
 }
 
@@ -343,7 +447,7 @@ const CONSOLE_CREDENTIAL_EXCHANGES_PER_MINUTE: u32 = 60;
 /// claim state closes its origin admission promptly. The CLI polls at 500ms,
 /// leaving several opportunities inside this interval without making tests or
 /// revocation depend on a long wall-clock wait.
-pub(crate) const CONSOLE_RELAY_LEASE_INTERVAL: Duration = Duration::from_secs(3);
+pub const CONSOLE_RELAY_LEASE_INTERVAL: Duration = Duration::from_secs(3);
 const MAX_CONSOLE_REACHABILITY_SESSIONS: usize = 128;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -2080,7 +2184,10 @@ impl fmt::Debug for ServerContext {
             .field("console_approvals", &self.console_approvals)
             .field("console_claims", &self.console_claims)
             .field("admin_dist_configured", &self.admin_dist.is_some())
-            .field("startup_warning_configured", &self.startup_warning.is_some())
+            .field(
+                "startup_warning_configured",
+                &self.startup_warning.is_some(),
+            )
             .finish()
     }
 }
@@ -2160,6 +2267,17 @@ impl ServerContext {
         }
     }
 
+    /// Consume the opaque process-derived profile resolution. A caller cannot
+    /// assert a security profile or a mismatched loopback fact across the
+    /// crate wall.
+    pub fn new_with_startup_resolution(
+        host: impl Into<String>,
+        port: u16,
+        resolution: ServerStartupResolution,
+    ) -> Self {
+        Self::new_with_resolved_profile(host, port, resolution.loopback, resolution.profile)
+    }
+
     /// A context for embedded or test use where the bind address is unknown.
     /// Legacy dev tooling retains loopback-open defaults, but the independent
     /// listener posture stays unknown and therefore cannot carry sessions.
@@ -2207,6 +2325,16 @@ impl ServerContext {
         } else {
             ListenerTransportPosture::NonLoopback
         };
+    }
+
+    /// Derive listener posture from the concrete socket; a caller cannot
+    /// assert loopback transport authority through a raw address parameter.
+    pub fn record_bound_tokio_listener(
+        &mut self,
+        listener: &tokio::net::TcpListener,
+    ) -> std::io::Result<()> {
+        self.record_bound_address(listener.local_addr()?);
+        Ok(())
     }
 
     pub(crate) fn listener_transport_loopback(&self) -> Option<bool> {
@@ -2353,7 +2481,7 @@ pub fn resolve_serve_admin_token(
     )
 }
 
-pub(crate) fn resolve_serve_admin_token_with_io<ReadFile, WriteFile>(
+pub fn resolve_serve_admin_token_with_io<ReadFile, WriteFile>(
     env_token: Option<String>,
     token_file: Option<PathBuf>,
     read_file: ReadFile,
@@ -2571,8 +2699,7 @@ pub struct AppState {
     /// authorization incarnation while the listener stays alive, so the
     /// successor issuer must replace the startup issuer for every router
     /// clone before the coordinator reopens publication.
-    pub(crate) auth_invalidation:
-        Arc<StdRwLock<Option<crate::local::EngineInvalidationBinding>>>,
+    pub(crate) auth_invalidation: Arc<StdRwLock<Option<crate::local::EngineInvalidationBinding>>>,
     /// Validated per-app lease duration. Construction rejects zero or values
     /// above the protocol hard maximum; the handshake projects this exact
     /// value only when authorized-lease readiness is true.
@@ -2625,13 +2752,7 @@ impl AppState {
         ephemeral: EphemeralApi,
         server: ServerContext,
     ) -> SnapbackResult<(Self, SecretReadOperator)> {
-        Self::try_new_with_secret_read_operator_inner(
-            snapback,
-            read,
-            ephemeral,
-            server,
-            None,
-        )
+        Self::try_new_with_secret_read_operator_inner(snapback, read, ephemeral, server, None)
     }
 
     pub(crate) fn try_new_with_claimed_engine(
@@ -2648,6 +2769,27 @@ impl AppState {
             server,
             Some(bindings),
         )
+    }
+
+    /// Consume the opaque engine claim and keep the raw secret-read operator
+    /// inside its authorizing crate while composing CLI startup.
+    pub fn try_new_for_server_startup(
+        snapback: SharedSnapback,
+        read: ReadLane,
+        ephemeral: EphemeralApi,
+        server: ServerContext,
+        bindings: crate::local::EngineAppStateBindings,
+        secret_read_proof_root: Option<crate::admin_secret_read::SecretReadProofRoot>,
+        startup_nonce: String,
+    ) -> SnapbackResult<Self> {
+        let (state, operator) =
+            Self::try_new_with_claimed_engine(snapback, read, ephemeral, server, bindings)?;
+        Ok(match secret_read_proof_root {
+            Some(root) => state.with_secret_read_mint_bridge(
+                crate::admin_secret_read::SecretReadMintBridge::new(operator, root, startup_nonce),
+            ),
+            None => state,
+        })
     }
 
     fn try_new_with_secret_read_operator_inner(
@@ -2681,8 +2823,7 @@ impl AppState {
             })?;
             let bindings = match preclaimed_bindings.take() {
                 Some(bindings) => bindings,
-                None => instance
-                    .claim_app_state_graph(server_profile, auth_deployment)?,
+                None => instance.claim_app_state_graph(server_profile, auth_deployment)?,
             };
             bindings.into_parts()
         };
@@ -2844,12 +2985,47 @@ impl AppState {
         self
     }
 
-    pub(crate) fn with_live_fanout_coalescer(
+    pub fn with_live_fanout_coalescer(
         mut self,
         coalescer: Arc<crate::live_coalesce::LiveFanoutCoalescer>,
     ) -> Self {
         self.live_fanout_coalescer = Some(coalescer);
         self
+    }
+
+    /// Consume the opaque revocation plan against the terminal lifecycle
+    /// already bound to this exact application graph.
+    pub async fn spawn_auth_expiry_worker(
+        &self,
+        receipt: crate::auth::runtime::TwoPhaseRevocationConstructionReceipt,
+        snapback: SharedSnapback,
+        coordinator: Arc<crate::auth::coordinator::AuthCoordinator>,
+    ) -> SnapbackResult<crate::auth::runtime::AuthExpiryWorker> {
+        receipt
+            .spawn(
+                snapback,
+                coordinator,
+                self.auth_terminal_lifecycle.expiry_sink(),
+            )
+            .await
+    }
+
+    /// Start periodic auth maintenance with the terminal sink bound to this
+    /// exact application graph; callers never receive or manufacture the sink.
+    pub fn spawn_auth_gc_worker(
+        &self,
+        snapback: SharedSnapback,
+        runtime: crate::auth::runtime::AuthRuntime,
+        coordinator: Arc<crate::auth::coordinator::AuthCoordinator>,
+        initial_delay: Duration,
+    ) -> Option<tokio::task::JoinHandle<()>> {
+        crate::auth::runtime::spawn_auth_gc_worker(
+            snapback,
+            runtime,
+            coordinator,
+            self.auth_terminal_lifecycle.expiry_sink(),
+            initial_delay,
+        )
     }
 
     /// Install an already-constructed provider without changing auth-mode
@@ -2901,7 +3077,7 @@ impl AppState {
             .map(|authority| authority.capabilities())
     }
 
-    /// The hot-swap slot, for the renewal loop. `None` on every local target.
+    /// Crate-internal access for request checks and the closed renewal path.
     pub(crate) fn hosted_serving_handle(
         &self,
     ) -> Option<crate::auth::deployment::HostedServingHandle> {
@@ -2910,7 +3086,6 @@ impl AppState {
 
     /// Install the target-authenticated hosted serving authority and create
     /// its replay/nonce tables before any request can observe hosted posture.
-    #[allow(dead_code)] // First concrete adapter composition is the next LLP 0072 tranche.
     pub(crate) fn with_hosted_serving_authority(
         mut self,
         authority: crate::auth::deployment::HostedServingAuthority,
@@ -2938,6 +3113,69 @@ impl AppState {
         }
         self.hosted_serving = Some(crate::auth::deployment::HostedServingHandle::new(authority));
         Ok(self)
+    }
+
+    /// Install only an admission produced by this crate's closed pre-bind
+    /// composition. The raw serving authority never crosses the façade.
+    pub async fn with_hosted_edge_admission(
+        self,
+        admission: HostedEdgeAdmission,
+    ) -> Result<(Self, HostedEdgeRenewal), SnapbackError> {
+        let installed_issued_at_ms = admission.verified.issued_at_ms();
+        let authority = {
+            let mut snapback = self.snapback.lock().await;
+            snapback.execute_auth_plan(
+                crate::auth::hosted_edge::install_verified_admission_plan(
+                    &admission.verified,
+                    hosted_now_ms(),
+                ),
+            )?
+        };
+        let state = self.with_hosted_serving_authority(authority)?;
+        Ok((
+            state,
+            HostedEdgeRenewal {
+                renewal: admission.renewal,
+                installed_issued_at_ms,
+            },
+        ))
+    }
+
+    /// Start renewal from the same opaque, independently verified admission.
+    /// A failed successor leaves the incumbent to expire on its own terms.
+    pub fn spawn_hosted_edge_admission_renewal(&self, renewal: HostedEdgeRenewal) {
+        let Some(handle) = self.hosted_serving.clone() else {
+            return;
+        };
+        let renewal_state = self.snapback.clone();
+        let mut installed_issued_at_ms = renewal.installed_issued_at_ms;
+        tokio::spawn(async move {
+            let interval = std::time::Duration::from_millis(
+                crate::auth::hosted_edge::ADMISSION_RENEWAL_INTERVAL_MS,
+            );
+            loop {
+                tokio::time::sleep(interval).await;
+                let now_ms = hosted_now_ms();
+                let renewed = {
+                    let mut snapback = renewal_state.lock().await;
+                    snapback.execute_auth_plan(
+                        crate::auth::hosted_edge::renew_hosted_admission_plan(
+                            &renewal.renewal,
+                            installed_issued_at_ms,
+                            now_ms,
+                        ),
+                    )
+                };
+                match renewed {
+                    Ok(Some((authority, issued_at_ms))) => {
+                        if handle.install(authority) {
+                            installed_issued_at_ms = issued_at_ms;
+                        }
+                    }
+                    Ok(None) | Err(_) => {}
+                }
+            }
+        });
     }
 
     /// Configure a shorter per-app authorization lease duration. This trusted
@@ -3207,7 +3445,7 @@ impl AppState {
     /// Install the exact provider instance and readiness posture assembled
     /// before listener bind. Catalog activation is intentionally not part of
     /// this builder.
-    pub(crate) fn with_auth_runtime(
+    pub fn with_auth_runtime(
         mut self,
         runtime: &AuthRuntime,
         coordinator: Arc<crate::auth::coordinator::AuthCoordinator>,
@@ -3228,11 +3466,9 @@ impl AppState {
         Ok(self)
     }
 
-    pub(crate) fn with_auth_invalidation(
-        self,
-        binding: crate::local::EngineInvalidationBinding,
-    ) -> Self {
-        self.connections.install_invalidation_binding(binding.clone());
+    pub fn with_auth_invalidation(self, binding: crate::local::EngineInvalidationBinding) -> Self {
+        self.connections
+            .install_invalidation_binding(binding.clone());
         *self
             .auth_invalidation
             .write()
@@ -3246,7 +3482,8 @@ impl AppState {
         &self,
         binding: crate::local::EngineInvalidationBinding,
     ) {
-        self.connections.install_invalidation_binding(binding.clone());
+        self.connections
+            .install_invalidation_binding(binding.clone());
         *self
             .auth_invalidation
             .write()
@@ -3874,22 +4111,21 @@ fn derive_protected_record_erasure_authority(
             "protected-record erasure requires its registered product invocation source",
         ));
     }
-    let (mode, principal_id, audit_class) =
-        match (authority.active_mode(), authority.resolved()) {
-            (AuthMode::Dev, ResolvedAppAuthority::Anonymous) => {
-                ("dev", "operator:local-admin", "anonymous-admin-transport")
-            }
-            (AuthMode::Sessions, ResolvedAppAuthority::AdminBypass { .. }) => {
-                ("sessions", "operator:admin-bypass", "admin-bypass")
-            }
-            _ => {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
-                    "proofCheckpoint",
-                    "protected-record erasure requires current administrative authority",
-                ));
-            }
-        };
+    let (mode, principal_id, audit_class) = match (authority.active_mode(), authority.resolved()) {
+        (AuthMode::Dev, ResolvedAppAuthority::Anonymous) => {
+            ("dev", "operator:local-admin", "anonymous-admin-transport")
+        }
+        (AuthMode::Sessions, ResolvedAppAuthority::AdminBypass { .. }) => {
+            ("sessions", "operator:admin-bypass", "admin-bypass")
+        }
+        _ => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+                "proofCheckpoint",
+                "protected-record erasure requires current administrative authority",
+            ));
+        }
+    };
     let profile = match authority.profile() {
         ServerProfile::Dev => "dev",
         ServerProfile::Demo => "demo",
@@ -5533,16 +5769,17 @@ async fn admin_protected_record_erasure(
         // ride an earlier middleware success into this mutation.
         let credential = resolve_protected_erasure_admin_credential(&ctx, &headers, mode)?;
         let now_ms = now_millis();
-        snapback.erase_protected_record_admitted(
-            &operator,
-            &authority,
-            wire,
-            credential.credential_class(),
-            credential.credential_digest_sha256(),
-            now_ms,
-            Instant::now(),
-        )
-        .map_err(ApiError::from)
+        snapback
+            .erase_protected_record_admitted(
+                &operator,
+                &authority,
+                wire,
+                credential.credential_class(),
+                credential.credential_digest_sha256(),
+                now_ms,
+                Instant::now(),
+            )
+            .map_err(ApiError::from)
     })
     .await?;
     Ok(Json(receipt))
@@ -6044,7 +6281,7 @@ mod tests {
             )
             .expect_err("non-admin sessions authority is refused")
             .diagnostic
-                .code,
+            .code,
             "SNAPBACK_INVOCATION_SOURCE_INVALID"
         );
 
@@ -6073,6 +6310,18 @@ mod tests {
         assert!(canonical_loopback_http_origin("http://localhost").is_none());
         assert!(canonical_loopback_http_origin("http://localhost:8081/path").is_none());
         assert!(canonical_loopback_http_origin("https://192.0.2.1:8081").is_none());
+    }
+
+    #[test]
+    fn hosted_edge_composition_keeps_local_targets_authority_free() {
+        let composed = compose_hosted_edge_admission(
+            crate::auth::deployment::AuthDeploymentTarget::Local,
+            None,
+            None,
+            std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+        )
+        .expect("local composition");
+        assert!(composed.is_none());
     }
 
     #[test]
@@ -6113,6 +6362,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "server-owner"))]
     fn failed_second_dev_app_state_cannot_downgrade_production_activation() {
         let snapback = LocalSnapback::memory().expect("memory app");
         let read = snapback.read_lane();
@@ -6158,9 +6408,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "server-owner"))]
     fn fallible_embedding_construction_core_contains_no_panic_sites() {
         let source = include_str!("admin.rs");
-        let embed_source = include_str!("embed.rs");
+        let embed_source = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/embed.rs"));
         let public_facade = &embed_source[..embed_source
             .find("#[cfg(test)]")
             .expect("embed test-module marker")];
@@ -6297,7 +6548,7 @@ mod tests {
 
     #[tokio::test]
     async fn effective_authority_unauthenticated_probes_are_byte_identical_and_public_inspect_is_clean()
-    {
+     {
         use axum::body::{Body, to_bytes};
         use axum::http::Request;
         use tower::ServiceExt as _;
@@ -6373,6 +6624,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn protected_erasure_transport_refuses_unauthorized_and_wire_authority_inputs() {
         use crate::manifest::{FieldManifest, FieldType, SchemaManifest, SeedData, TableManifest};
         use axum::http::Request;
@@ -6520,6 +6772,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn operation_coverage_activation_is_authenticated_exact_and_idempotent_in_prod() {
         use crate::commit_envelope::{
             OperationCoverageActivationProfileV1, OperationCoverageActivationResponseV1,
@@ -7262,6 +7515,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn declared_scope_preflight_stops_before_the_query_execution_sentinel() {
         use crate::admin_secret_read::{SecretReadLeaseRequest, SecretReadScope};
         use crate::manifest::{
@@ -7350,10 +7604,22 @@ mod tests {
     #[test]
     fn resolve_profile_fails_closed_on_unrecognized_values() {
         // Exact matches win, on either bind.
-        assert_eq!(resolve_profile(Some("dev"), true, false), ServerProfile::Dev);
-        assert_eq!(resolve_profile(Some("demo"), false, false), ServerProfile::Demo);
-        assert_eq!(resolve_profile(Some("test"), true, false), ServerProfile::Test);
-        assert_eq!(resolve_profile(Some("prod"), true, false), ServerProfile::Prod);
+        assert_eq!(
+            resolve_profile(Some("dev"), true, false),
+            ServerProfile::Dev
+        );
+        assert_eq!(
+            resolve_profile(Some("demo"), false, false),
+            ServerProfile::Demo
+        );
+        assert_eq!(
+            resolve_profile(Some("test"), true, false),
+            ServerProfile::Test
+        );
+        assert_eq!(
+            resolve_profile(Some("prod"), true, false),
+            ServerProfile::Prod
+        );
 
         // ENG-22527 FIX 3: any unrecognized NON-EMPTY value fails CLOSED to
         // Prod even on loopback — a typo must never grant provisioning.
@@ -7381,26 +7647,41 @@ mod tests {
         for raw in [None, Some("")] {
             let exposure = resolve_exposure(raw);
             assert!(!exposure.fronted());
-            assert_eq!(resolve_profile(None, true, exposure.fronted()), ServerProfile::Dev);
+            assert_eq!(
+                resolve_profile(None, true, exposure.fronted()),
+                ServerProfile::Dev
+            );
             assert!(exposure.startup_warning(None).is_none());
         }
 
         let direct = resolve_exposure(Some("direct"));
         assert!(!direct.fronted());
-        assert_eq!(resolve_profile(None, true, direct.fronted()), ServerProfile::Dev);
+        assert_eq!(
+            resolve_profile(None, true, direct.fronted()),
+            ServerProfile::Dev
+        );
         assert!(direct.startup_warning(Some("dev")).is_none());
 
         let fronted = resolve_exposure(Some("fronted"));
         assert!(fronted.fronted());
-        assert_eq!(resolve_profile(None, true, fronted.fronted()), ServerProfile::Prod);
-        assert_eq!(resolve_profile(Some(""), true, fronted.fronted()), ServerProfile::Prod);
+        assert_eq!(
+            resolve_profile(None, true, fronted.fronted()),
+            ServerProfile::Prod
+        );
+        assert_eq!(
+            resolve_profile(Some(""), true, fronted.fronted()),
+            ServerProfile::Prod
+        );
         for (raw, expected) in [
             ("dev", ServerProfile::Dev),
             ("demo", ServerProfile::Demo),
             ("test", ServerProfile::Test),
             ("prod", ServerProfile::Prod),
         ] {
-            assert_eq!(resolve_profile(Some(raw), true, fronted.fronted()), expected);
+            assert_eq!(
+                resolve_profile(Some(raw), true, fronted.fronted()),
+                expected
+            );
         }
         assert!(fronted.startup_warning(None).is_none());
         assert!(fronted.startup_warning(Some("prod")).is_none());
@@ -7413,7 +7694,10 @@ mod tests {
         for unrecognized in ["FRONTED", "proxy", "1", " direct "] {
             let exposure = resolve_exposure(Some(unrecognized));
             assert!(exposure.fronted());
-            assert_eq!(resolve_profile(None, true, exposure.fronted()), ServerProfile::Prod);
+            assert_eq!(
+                resolve_profile(None, true, exposure.fronted()),
+                ServerProfile::Prod
+            );
             assert_eq!(
                 resolve_profile(Some("dev"), true, exposure.fronted()),
                 ServerProfile::Dev

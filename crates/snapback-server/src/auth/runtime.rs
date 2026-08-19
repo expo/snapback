@@ -14,7 +14,7 @@
 //! @ref LLP 0057#security-and-redaction — readiness exposes one closed public
 //! fact and a redacted diagnostic, never keyring details.
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "server-owner")))]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use std::path::Path;
 use std::sync::Arc;
@@ -55,7 +55,7 @@ pub enum AuthProviderHealth {
 /// A linear construction plan for the real process-local expiry authority.
 /// Production consumes this same value to spawn the worker whose provider is
 /// bound here; it is not a freely minted readiness flag.
-pub(crate) struct TwoPhaseRevocationConstructionReceipt {
+pub struct TwoPhaseRevocationConstructionReceipt {
     provider: Arc<AuthProvider>,
     #[cfg(test)]
     fail_before_ready: bool,
@@ -63,14 +63,14 @@ pub(crate) struct TwoPhaseRevocationConstructionReceipt {
 
 /// A construction plan bound to one inspected runtime/provider. Production
 /// uses it for the actual durable projection rebuild before listener bind.
-pub(crate) struct AuthCoordinatorConstructionReceipt {
+pub struct AuthCoordinatorConstructionReceipt {
     provider: Arc<AuthProvider>,
     _canonical_client_module: &'static [u8],
     #[cfg(test)]
     fail_before_build: bool,
 }
 
-pub(crate) struct AuthCoordinatorInstalledReceipt {
+pub struct AuthCoordinatorInstalledReceipt {
     _private: (),
 }
 
@@ -96,7 +96,7 @@ impl TwoPhaseRevocationConstructionReceipt {
 }
 
 impl AuthCoordinatorConstructionReceipt {
-    pub(crate) fn build(
+    pub fn build(
         self,
         runtime: &AuthRuntime,
         snapback: &mut LocalSnapback,
@@ -160,7 +160,7 @@ impl AuthExpiryTerminalSink {
     }
 }
 
-pub(crate) struct AuthExpiryWorker {
+pub struct AuthExpiryWorker {
     handle: JoinHandle<SnapbackResult<()>>,
 }
 
@@ -168,7 +168,7 @@ impl AuthExpiryWorker {
     /// Resolve only when the process-critical worker stops. Callers race this
     /// against the listener and fail the process closed on either an explicit
     /// projection error or a task panic/cancellation.
-    pub(crate) async fn stopped(&mut self) -> SnapbackResult<()> {
+    pub async fn stopped(&mut self) -> SnapbackResult<()> {
         (&mut self.handle).await.map_err(|_| {
             SnapbackError::error(
                 "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
@@ -178,7 +178,7 @@ impl AuthExpiryWorker {
         })?
     }
 
-    pub(crate) fn abort(&self) {
+    pub fn abort(&self) {
         self.handle.abort();
     }
 }
@@ -192,7 +192,7 @@ impl Drop for AuthExpiryWorker {
 /// The one provider assembled for a serve process, plus the catalog posture
 /// that controls maintenance and public readiness.
 #[derive(Clone)]
-pub(crate) struct AuthRuntime {
+pub struct AuthRuntime {
     provider: Arc<AuthProvider>,
     catalog_ready: bool,
     startup_diagnostic: Option<Diagnostic>,
@@ -217,7 +217,7 @@ impl AuthRuntime {
     /// catalog or keyring. A marked catalog validates only the existing ring;
     /// an uninitialized catalog does not even perform that read.
     #[allow(dead_code)] // Default-policy convenience retained for focused runtime tests.
-    pub(crate) fn inspect(
+    pub fn inspect(
         snapback: &mut LocalSnapback,
         database_path: Option<&Path>,
         profile: AuthProviderProfile,
@@ -238,7 +238,7 @@ impl AuthRuntime {
     /// its validation/commit still happens at the ordinary pre-bind barrier.
     // @ref LLP 0227#password-policy-declaration — password admission uses the
     // exact startup declaration, including on the first boot of a new app.
-    pub(crate) fn inspect_with_password_minimum(
+    pub fn inspect_with_password_minimum(
         snapback: &mut LocalSnapback,
         database_path: Option<&Path>,
         profile: AuthProviderProfile,
@@ -293,11 +293,11 @@ impl AuthRuntime {
         })
     }
 
-    pub(crate) fn provider(&self) -> Arc<AuthProvider> {
+    pub fn provider(&self) -> Arc<AuthProvider> {
         self.provider.clone()
     }
 
-    pub(crate) fn two_phase_revocation_construction_receipt(
+    pub fn two_phase_revocation_construction_receipt(
         &self,
     ) -> TwoPhaseRevocationConstructionReceipt {
         TwoPhaseRevocationConstructionReceipt {
@@ -307,9 +307,7 @@ impl AuthRuntime {
         }
     }
 
-    pub(crate) fn auth_coordinator_construction_receipt(
-        &self,
-    ) -> AuthCoordinatorConstructionReceipt {
+    pub fn auth_coordinator_construction_receipt(&self) -> AuthCoordinatorConstructionReceipt {
         AuthCoordinatorConstructionReceipt {
             provider: self.provider(),
             // Bundle the canonical custody implementation without treating
@@ -326,7 +324,7 @@ impl AuthRuntime {
     /// Reserve and authenticate the process issuer before listener bind. The
     /// SQLite reservation commits first; authentication failure therefore
     /// burns a sequence and prevents serving rather than reusing it.
-    #[cfg(test)]
+    #[cfg(all(test, not(feature = "server-owner")))]
     pub(crate) fn reserve_invalidation_boot_issuer(
         &self,
         snapback: &mut LocalSnapback,
@@ -357,7 +355,7 @@ impl AuthRuntime {
         Ok((issuer, authorization, version_stream))
     }
 
-    pub(crate) fn health(&self) -> AuthProviderHealth {
+    pub fn health(&self) -> AuthProviderHealth {
         if !self.catalog_ready {
             return AuthProviderHealth::Dormant;
         }
@@ -367,16 +365,13 @@ impl AuthRuntime {
         }
     }
 
-    pub(crate) fn catalog_ready(&self) -> bool {
+    pub fn catalog_ready(&self) -> bool {
         self.catalog_ready
     }
 
     /// Establish the durable clock floor before any startup operation can use
     /// time to restore, garbage-collect, rotate, or downgrade authority.
-    pub(crate) fn seed_durable_clock_floor(
-        &self,
-        snapback: &mut LocalSnapback,
-    ) -> SnapbackResult<()> {
+    pub fn seed_durable_clock_floor(&self, snapback: &mut LocalSnapback) -> SnapbackResult<()> {
         if self.catalog_ready {
             snapback.seed_auth_session_clock_floor(&self.provider)?;
         }
@@ -384,25 +379,29 @@ impl AuthRuntime {
     }
 
     /// Refresh the process fact after the staged-mode consume transaction has
-    /// atomically installed the exact catalog and sessions mode. The provider
-    /// object is intentionally retained; startup never assembles a second
-    /// provider merely to observe its own committed activation.
-    pub(crate) fn mark_catalog_ready_after_mode_activation(&mut self) {
-        debug_assert_eq!(
-            self.provider.readiness(),
-            AuthProviderReadiness::Available,
-            "catalog activation prepared a usable keyring before commit"
-        );
+    /// atomically installed the exact catalog and sessions mode. Readiness is
+    /// re-derived from durable state; callers cannot assert it with a boolean
+    /// or an unsealed receipt.
+    pub fn confirm_catalog_ready_after_mode_activation(
+        &mut self,
+        snapback: &LocalSnapback,
+    ) -> SnapbackResult<()> {
+        if !snapback.inspect_auth_catalog()?.is_ready()
+            || self.provider.readiness() != AuthProviderReadiness::Available
+        {
+            return Err(SnapbackError::new(provider_unavailable_diagnostic()));
+        }
         self.catalog_ready = true;
         self.startup_diagnostic = None;
+        Ok(())
     }
 
     #[cfg(test)]
-    pub(crate) fn startup_diagnostic(&self) -> Option<&Diagnostic> {
+    pub fn startup_diagnostic(&self) -> Option<&Diagnostic> {
         self.startup_diagnostic.as_ref()
     }
 
-    pub(crate) fn startup_diagnostics(&self) -> Vec<Diagnostic> {
+    pub fn startup_diagnostics(&self) -> Vec<Diagnostic> {
         self.startup_diagnostic.iter().cloned().collect()
     }
 
@@ -433,7 +432,7 @@ impl AuthRuntime {
     /// Run the pre-bind pass against the still-locally-owned instance. A
     /// missing/corrupt keyring remains a provider readiness fact while this
     /// returns the committed durable result, including its retry schedule.
-    pub(crate) async fn run_startup_gc(
+    pub async fn run_startup_gc(
         &self,
         snapback: &mut LocalSnapback,
     ) -> ProviderResult<Option<AuthGcPass>> {
@@ -677,9 +676,7 @@ fn startup_provider_unavailable_diagnostic(path: &Path, error: KeyringError) -> 
 
 /// Profile conversion stays explicit so production capture cannot be enabled
 /// by a lossy boolean or a default branch.
-pub(crate) fn provider_profile(
-    profile: crate::contract_types::ServerProfile,
-) -> AuthProviderProfile {
+pub fn provider_profile(profile: crate::contract_types::ServerProfile) -> AuthProviderProfile {
     match profile {
         crate::contract_types::ServerProfile::Dev => AuthProviderProfile::Dev,
         crate::contract_types::ServerProfile::Test => AuthProviderProfile::Test,
@@ -734,6 +731,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(feature = "server-owner"))]
     fn activate_file_catalog(
         database_path: &Path,
         now_ms: u64,
@@ -750,6 +748,7 @@ mod tests {
         (snapback, keyring)
     }
 
+    #[cfg(not(feature = "server-owner"))]
     fn insert_expired_challenges(snapback: &mut LocalSnapback, count: usize) {
         snapback
             .remainder_auth_database_mut()
@@ -758,6 +757,7 @@ mod tests {
             .expect("insert expired auth challenges");
     }
 
+    #[cfg(not(feature = "server-owner"))]
     fn challenge_count(snapback: &mut LocalSnapback) -> usize {
         snapback
             .remainder_auth_database_mut()
@@ -852,6 +852,23 @@ mod tests {
     }
 
     #[test]
+    fn dormant_catalog_cannot_be_asserted_ready_by_a_caller() {
+        let mut snapback = LocalSnapback::memory().unwrap();
+        let mut runtime = AuthRuntime::inspect(
+            &mut snapback,
+            None,
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+
+        let error = runtime
+            .confirm_catalog_ready_after_mode_activation(&snapback)
+            .expect_err("an uninitialized catalog cannot become caller-asserted readiness");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE");
+        assert!(!runtime.catalog_ready());
+    }
+
+    #[test]
     fn first_boot_provider_uses_the_selected_startup_password_minimum() {
         let mut snapback = LocalSnapback::memory().unwrap();
         let runtime = AuthRuntime::inspect_with_password_minimum(
@@ -872,6 +889,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn dormant_foreign_auth_table_remains_servable_for_rescue() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
@@ -895,6 +913,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn ready_health_revalidates_keyring_deletion_and_repair() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
@@ -920,6 +939,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn marked_catalog_with_missing_keyring_names_sidecar_and_keeps_session_resolution() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
@@ -1013,6 +1033,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "server-owner"))]
     fn marked_catalog_with_corrupt_keyring_reports_corrupt_sidecar() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
@@ -1040,6 +1061,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn startup_gc_waits_for_exclusive_maintenance_before_touching_storage() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
@@ -1064,6 +1086,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn missing_keyring_preserves_startup_and_periodic_immediate_retry_scheduling() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
@@ -1130,6 +1153,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn declared_restore_clears_the_composed_provider_mailbox_under_maintenance() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
@@ -1181,6 +1205,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn periodic_gc_takes_maintenance_before_waiting_for_the_outer_mutex() {
         let mut snapback = LocalSnapback::memory().unwrap();
         let keyring = Arc::new(AuthKeyringStore::in_memory());
@@ -1235,6 +1260,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn periodic_gc_releases_projection_begin_before_acquiring_maintenance() {
         let mut snapback = activated_memory_snapback();
         let _bearer = insert_lifetime_session(&mut snapback, 200, 300);
@@ -1271,6 +1297,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn periodic_gc_terminalizes_projection_before_deleting_durable_session() {
         let mut snapback = LocalSnapback::memory().unwrap();
         let keyring = Arc::new(AuthKeyringStore::in_memory());
@@ -1369,11 +1396,18 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn periodic_auth_maintenance_runs_declared_push_idle_retention() {
         let retention_ms = 86_400_000;
         let mut snapback = LocalSnapback::memory().unwrap();
         let keyring = Arc::new(AuthKeyringStore::in_memory());
-        activate_catalog(snapback.remainder_auth_database_mut(), keyring.as_ref(), 1, &OsRandom).unwrap();
+        activate_catalog(
+            snapback.remainder_auth_database_mut(),
+            keyring.as_ref(),
+            1,
+            &OsRandom,
+        )
+        .unwrap();
         snapback
             .remainder_auth_database_mut()
             .activate_push_registry_for_test(crate::push::PushSeamDeclarationV1 {
@@ -1450,6 +1484,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn expiry_worker_reports_ready_then_stops_fail_closed() {
         let mut snapback = LocalSnapback::memory().unwrap();
         let keyring = Arc::new(AuthKeyringStore::in_memory());
@@ -1489,6 +1524,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn backup_quiescence_blocks_provider_write_and_key_rotation() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
@@ -1569,6 +1605,7 @@ mod tests {
         (runtime, provider)
     }
 
+    #[cfg(not(feature = "server-owner"))]
     fn insert_lifetime_session(
         snapback: &mut LocalSnapback,
         expires_at_ms: u64,
@@ -1600,6 +1637,7 @@ mod tests {
         bearer_text
     }
 
+    #[cfg(not(feature = "server-owner"))]
     fn activated_memory_snapback() -> LocalSnapback {
         let mut snapback = LocalSnapback::memory().unwrap();
         activate_catalog(
@@ -1615,6 +1653,7 @@ mod tests {
     /// A backward wall-clock move across restart must not revive a session the
     /// prior process already slid past. ENG-24982.
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn restart_backward_wall_move_cannot_revive_a_slid_session() {
         let mut snapback = activated_memory_snapback();
         // Sliding expiry 200, absolute expiry 300; the exact repro shape.
@@ -1677,6 +1716,7 @@ mod tests {
     /// is behind it. The expiry cut must persist the deadline epoch before the
     /// terminal callback, so a crash at that callback cannot revive the row.
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn monotonic_expiry_commits_terminal_frontier_before_publication() {
         let mut snapback = activated_memory_snapback();
         let bearer = insert_lifetime_session(&mut snapback, 200, 300);
@@ -1734,6 +1774,7 @@ mod tests {
     /// committed frontier, so the later session must remain outside this
     /// terminal publication and survive a rolled-back restart.
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn expiry_terminalizes_only_the_sampled_set_before_storage_await() {
         let mut snapback = activated_memory_snapback();
         let first = insert_lifetime_session(&mut snapback, 200, 300);
@@ -1814,6 +1855,7 @@ mod tests {
     /// Ordinary forward time across restart still expires a slid session and
     /// keeps a still-live one. ENG-24982.
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn restart_forward_time_expires_slid_and_keeps_live_sessions() {
         let mut snapback = activated_memory_snapback();
         let slid = insert_lifetime_session(&mut snapback, 200, 300);
@@ -1854,6 +1896,7 @@ mod tests {
     /// The floor must not over-expire a session whose deadlines are still in
     /// the future after a backward wall move. ENG-24982.
     #[tokio::test]
+    #[cfg(not(feature = "server-owner"))]
     async fn restart_backward_move_keeps_a_still_future_session_live() {
         let mut snapback = activated_memory_snapback();
         // Sliding 400, absolute 500: still ahead of the process-1 epoch 250.

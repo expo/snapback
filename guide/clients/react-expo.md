@@ -494,7 +494,7 @@ custody boundary:
   `GET /_snapback/expo/v1/bootstrap` cross-origin: the exchange echoes
   admitted `Origin` values with `Vary: Origin` and answers `OPTIONS`
   preflight, scoped exactly like the local dev CORS lane in
-  [`crates/snapback/src/server.rs`](repo:crates/snapback/src/server.rs). Origin admission stays the
+  [`crates/snapback-server/src/server.rs`](repo:crates/snapback-server/src/server.rs). Origin admission stays the
   boundary — non-loopback origins are never echoed, and the listener itself
   stays loopback-bound
   ([`startBootstrapExchange`](repo:packages/snapback-cli/expo-dev.mjs),

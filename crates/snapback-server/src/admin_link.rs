@@ -147,7 +147,7 @@ fn virtual_interface_name(name: &str) -> bool {
     .any(|prefix| name == *prefix || name.starts_with(prefix))
 }
 
-pub(crate) fn select_lan_address(
+pub fn select_lan_address(
     selector: Option<&str>,
     candidates: &[LanCandidate],
 ) -> anyhow::Result<LanCandidate> {
@@ -229,7 +229,7 @@ fn format_lan_candidates(candidates: &[LanCandidate]) -> String {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct RelayObservation {
+pub struct RelayObservation {
     pub peer: SocketAddr,
 }
 
@@ -241,14 +241,14 @@ struct RelayState {
     observations: mpsc::UnboundedSender<RelayObservation>,
 }
 
-pub(crate) struct LanRelay {
+pub struct LanRelay {
     pub origin: String,
     shutdown: Option<oneshot::Sender<()>>,
     task: Option<JoinHandle<io::Result<()>>>,
 }
 
 impl LanRelay {
-    pub(crate) async fn close(mut self) -> anyhow::Result<()> {
+    pub async fn close(mut self) -> anyhow::Result<()> {
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }
@@ -280,7 +280,7 @@ impl Drop for LanRelay {
     }
 }
 
-pub(crate) async fn start_lan_relay(
+pub async fn start_lan_relay(
     bind_address: IpAddr,
     upstream_origin: &str,
 ) -> anyhow::Result<(LanRelay, mpsc::UnboundedReceiver<RelayObservation>)> {
@@ -781,7 +781,7 @@ fn socket_http_origin(address: SocketAddr) -> String {
     format!("http://{}", socket_authority(address))
 }
 
-pub(crate) fn render_terminal_qr(value: &str) -> anyhow::Result<String> {
+pub fn render_terminal_qr(value: &str) -> anyhow::Result<String> {
     // The QR input is the selected URL's exact UTF-8 bytes. No URL parsing,
     // normalization, or display escaping occurs between print and encoding.
     let code = QrCode::new(value.as_bytes()).map_err(|error| {
@@ -801,7 +801,7 @@ struct TailscaleReceipt {
     owners: Vec<String>,
 }
 
-pub(crate) struct TailscaleGuard {
+pub struct TailscaleGuard {
     receipt_path: PathBuf,
     lock_path: PathBuf,
     owner_path: PathBuf,
@@ -812,11 +812,11 @@ pub(crate) struct TailscaleGuard {
 }
 
 impl TailscaleGuard {
-    pub(crate) fn origin(&self) -> &str {
+    pub fn origin(&self) -> &str {
         &self.receipt.origin
     }
 
-    pub(crate) fn close(mut self) -> anyhow::Result<()> {
+    pub fn close(mut self) -> anyhow::Result<()> {
         self.cleanup()?;
         self.closed = true;
         Ok(())
@@ -881,7 +881,7 @@ impl Drop for TailscaleGuard {
     }
 }
 
-pub(crate) fn acquire_tailscale(
+pub fn acquire_tailscale(
     upstream_origin: &str,
     receipt_dir_override: Option<&Path>,
 ) -> anyhow::Result<TailscaleGuard> {

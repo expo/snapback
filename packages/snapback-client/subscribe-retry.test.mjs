@@ -8,7 +8,7 @@ import {
 } from './index.mjs';
 
 const refusalRegistrySource = readFileSync(
-  new URL('../../crates/snapback/src/server/api_error.rs', import.meta.url),
+  new URL('../../crates/snapback-server/src/server/api_error.rs', import.meta.url),
   'utf8',
 );
 const refusalRegistryBlock = refusalRegistrySource.match(

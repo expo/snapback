@@ -3467,6 +3467,20 @@
       ]
     },
     {
+      "id": "s09-r011-p2",
+      "category": "source-reading-checkers",
+      "consumer": "packages/snapback-client/subscribe-retry.test.mjs refusal-registry source reader",
+      "consumerFiles": [
+        "packages/snapback-client/subscribe-retry.test.mjs"
+      ],
+      "currentPathExpression": "the Phase 1 reader of crates/snapback/src/server/api_error.rs",
+      "targetExpression": "repoint the reader to crates/snapback-server/src/server/api_error.rs after the server carve",
+      "verification": "node --test packages/snapback-client/subscribe-retry.test.mjs",
+      "changeKind": "update",
+      "applyByEpoch": "phase-2",
+      "surveyCitation": "code-discovered during the LLP 0276 server carve"
+    },
+    {
       "id": "s10-r001",
       "category": "guide-snippet-transclusions",
       "consumer": "guide/backend/streamed-actions.md:79",

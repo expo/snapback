@@ -6,8 +6,6 @@
 //!   guard (§3.6), which is what makes the deferred asset-prepare
 //!   choreography implementable in one place.
 
-#[cfg(test)]
-use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use super::{
     SharedSnapback, authorization_reservation_stale, now_millis, with_locked_snapback_then,
 };
@@ -15,6 +13,8 @@ use crate::auth::admission::AdmissionLease;
 use crate::auth::coordinator::AuthCoordinator;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::LocalSnapback;
+#[cfg(all(test, not(feature = "server-owner")))]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::storage::auth::AuthTransactionAttempt;
 use std::sync::Arc;
 use std::time::Instant;
@@ -379,10 +379,10 @@ where
     .await
     .expect("reset authorization staging task panicked")?;
     let coordinator = Arc::new(AuthCoordinator::from_admitted_snapshot(
-            projection,
-            now_millis(),
-            Instant::now(),
-        )?);
+        projection,
+        now_millis(),
+        Instant::now(),
+    )?);
     let carrier = coordinator.premark_stream_reset_if_drained()?;
     let predecessor = carrier.predecessor().clone();
     let successor = carrier.successor().clone();

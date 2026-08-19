@@ -14,8 +14,9 @@ use super::{
     spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
     with_snapback_staged_authorization_write,
 };
-use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::manifest::SchemaManifestValidationExt as _;
+#[cfg(not(feature = "server-owner"))]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 
 fn test_session_claims_for(
     authority: &ResolvedAppAuthority,
@@ -88,6 +89,7 @@ fn asset_signed_url_request_accepts_empty_defaults_and_types_parse_refusals() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn asset_signed_url_route_empty_and_omitted_body_issue_primary() {
     let snapback_engine::test_support::SignedAssetFixture {
         snapback,
@@ -124,21 +126,19 @@ async fn network_profile_http_release_marks_delay_and_keeps_normal_identity() {
     let mut snapback = LocalSnapback::memory().expect("network profile fixture");
     let bindings = snapback
         .claim_app_state_graph(
-        crate::contract_types::ServerProfile::Test,
-        crate::auth::deployment::AuthDeploymentTarget::Local,
+            crate::contract_types::ServerProfile::Test,
+            crate::auth::deployment::AuthDeploymentTarget::Local,
         )
         .expect("claim network profile graph");
     let (_, _, _, _, profiles, _) = bindings.into_parts();
     snapback
-        .activate_startup_network_profile(
-            crate::network_profile::NetworkConditionProfile {
-                name: "test-delay".to_owned(),
-                mutation_ack_delay_ms: 30,
-                live_delta_delay_ms: 30,
-                query_response_delay_ms: 30,
-                jitter_ms: 0,
-            },
-        )
+        .activate_startup_network_profile(crate::network_profile::NetworkConditionProfile {
+            name: "test-delay".to_owned(),
+            mutation_ack_delay_ms: 30,
+            live_delta_delay_ms: 30,
+            query_response_delay_ms: 30,
+            jitter_ms: 0,
+        })
         .unwrap();
 
     let ready_at = Instant::now();
@@ -199,6 +199,7 @@ async fn network_profile_http_release_marks_delay_and_keeps_normal_identity() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn poll_lane_marker_uses_frame_admission_snapshot_and_normal_preserves_bytes() {
     let mut context = ServerContext::detached();
     context.profile = ServerProfile::Test;
@@ -236,15 +237,13 @@ async fn poll_lane_marker_uses_frame_admission_snapshot_and_normal_preserves_byt
         .snapback
         .lock()
         .await
-        .activate_startup_network_profile(
-            crate::network_profile::NetworkConditionProfile {
-                name: "poll-admission".to_owned(),
-                mutation_ack_delay_ms: 0,
-                live_delta_delay_ms: 1,
-                query_response_delay_ms: 0,
-                jitter_ms: 0,
-            },
-        )
+        .activate_startup_network_profile(crate::network_profile::NetworkConditionProfile {
+            name: "poll-admission".to_owned(),
+            mutation_ack_delay_ms: 0,
+            live_delta_delay_ms: 1,
+            query_response_delay_ms: 0,
+            jitter_ms: 0,
+        })
         .unwrap();
     let admission = state
         .network_profiles
@@ -306,6 +305,7 @@ async fn poll_lane_marker_uses_frame_admission_snapshot_and_normal_preserves_byt
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn network_profile_admin_api_uses_shared_authorizer_and_activation_gate() {
     let mut context = ServerContext::detached();
     context.profile = ServerProfile::Test;
@@ -671,6 +671,7 @@ fn one_database_rejects_a_second_independent_app_state_graph() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn tus_upload_cors_headers_cover_the_protocol() {
     let state = test_app_state_from_snapback(
         LocalSnapback::memory().expect("TUS CORS fixture"),
@@ -810,6 +811,7 @@ fn tus_patch_route_runs_durable_append_between_writer_windows() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn http_telemetry_uses_registered_names_codes_and_private_unmatched_details() {
     let directory = tempfile::tempdir().expect("telemetry HTTP fixture directory");
     let database_path = directory.path().join("http-telemetry.sqlite3");
@@ -912,6 +914,7 @@ async fn http_telemetry_uses_registered_names_codes_and_private_unmatched_detail
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn ws_connect_observation_joins_once_with_generic_disconnect_cause() {
     let directory = tempfile::tempdir().expect("socket telemetry fixture directory");
     let database_path = directory.path().join("socket-telemetry.sqlite3");
@@ -983,6 +986,7 @@ fn ws_connect_observation_joins_once_with_generic_disconnect_cause() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn ws_connect_observation_preserves_typed_terminal_code_and_reason() {
     let directory = tempfile::tempdir().expect("typed socket telemetry directory");
     let database_path = directory.path().join("typed-socket.sqlite3");
@@ -1031,6 +1035,7 @@ fn ws_connect_observation_preserves_typed_terminal_code_and_reason() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn live_service_terminal_failure_emission_records_once() {
     let directory = tempfile::tempdir().expect("service diagnostic directory");
     let database_path = directory.path().join("service-diagnostic.sqlite3");
@@ -1080,6 +1085,7 @@ fn live_service_terminal_failure_emission_records_once() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn successful_bind_records_process_ready_exactly_once() {
     let directory = tempfile::tempdir().expect("ready telemetry directory");
     let database_path = directory.path().join("ready.sqlite3");
@@ -1279,6 +1285,7 @@ fn rehearsal_operations_pin_each_independent_authority_axis() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn production_rehearsal_operation_refuses_before_admin_and_body_details() {
     let mut snapback = LocalSnapback::memory().expect("production rehearsal HTTP fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
@@ -1367,6 +1374,7 @@ async fn projected_rehearsal_status(state: &AppState) -> String {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn rehearsal_capability_manifest_reports_absent_available_and_active() {
     let mut snapback = LocalSnapback::memory().expect("rehearsal manifest fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
@@ -1417,6 +1425,7 @@ async fn rehearsal_capability_manifest_reports_absent_available_and_active() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn rehearsal_host_op_future_sizes_stay_heap_bounded() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let Extension(route_admission) = test_route_admission(&state);
@@ -1484,6 +1493,7 @@ fn rehearsal_host_op_future_sizes_stay_heap_bounded() {
 /// released through rehearsal only after the protected attempt charge commits;
 /// an exact request-bound retry returns the frozen outcome without new debt.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn rehearsal_capture_releases_after_charge_and_exact_retry_is_free() {
     let mut snapback = LocalSnapback::memory().expect("rehearsal capture fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
@@ -1712,6 +1722,7 @@ fn stale_authorization_reservation_is_an_explicit_retryable_conflict() {
     );
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn auth_runtime_fixture(mode: PolicyAuthMode) -> (AppState, String) {
     auth_runtime_fixture_with(mode, |_| {})
 }
@@ -1719,11 +1730,11 @@ fn auth_runtime_fixture(mode: PolicyAuthMode) -> (AppState, String) {
 fn dev_identity_capability_fixture() -> (crate::dev_identity::DevIdentityCapabilityRegistry, String)
 {
     let (registry, operator) = crate::dev_identity::DevIdentityCapabilityRegistry::generate(
-            "dev-identity-http-fixture".to_owned(),
-            Some(PathBuf::from("/operator/app.sqlite3.dev-identity")),
-            &OsRandom,
-        )
-        .expect("generate developer identity capability");
+        "dev-identity-http-fixture".to_owned(),
+        Some(PathBuf::from("/operator/app.sqlite3.dev-identity")),
+        &OsRandom,
+    )
+    .expect("generate developer identity capability");
     let mut capability = None;
     operator
         .emit_once_to_terminal(|value| {
@@ -1737,6 +1748,7 @@ fn dev_identity_capability_fixture() -> (crate::dev_identity::DevIdentityCapabil
     )
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn auth_runtime_fixture_with(
     mode: PolicyAuthMode,
     prepare: impl FnOnce(&mut LocalSnapback),
@@ -1942,6 +1954,7 @@ impl http_body::Body for PanicOnPollBody {
     }
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn manual_clock_sessions_fixture(start_ms: u64) -> (AppState, Arc<ManualServerAuthClock>) {
     let clock = Arc::new(ManualServerAuthClock::new(start_ms));
     let mut snapback = LocalSnapback::memory().expect("manual-clock HTTP fixture");
@@ -1973,6 +1986,7 @@ fn manual_clock_sessions_fixture(start_ms: u64) -> (AppState, Arc<ManualServerAu
     (state, clock)
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn auth_invalidation_reset_fixture() -> AppState {
     let mut snapback = LocalSnapback::memory().expect("memory reset fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
@@ -2018,6 +2032,7 @@ fn dormant_dev_reset_fixture() -> AppState {
         .expect("install dormant auth runtime")
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn auth_projection_http_fixture(
     connection_id: &str,
     subscription_count: u64,
@@ -2196,6 +2211,7 @@ fn auth_projection_http_fixture(
         .expect("install projection HTTP sessions posture")
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn protected_room_server_fixture() -> (AppState, tempfile::TempDir) {
     let directory = tempfile::tempdir().expect("protected-room fixture directory");
     let database_path = directory.path().join("protected-room.sqlite3");
@@ -2571,6 +2587,7 @@ fn authority_preparation_writer_priority_is_limited_to_mutation_writers() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[cfg(not(feature = "server-owner"))]
 async fn authorization_neutral_staged_write_commits_before_its_shared_batch_flushes() {
     let state = tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -2640,6 +2657,7 @@ async fn authorization_neutral_staged_write_commits_before_its_shared_batch_flus
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[cfg(not(feature = "server-owner"))]
 async fn authorization_neutral_stage_mispreview_still_fails_closed() {
     let (state, _directory) = tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -2705,6 +2723,7 @@ async fn authorization_neutral_stage_mispreview_still_fails_closed() {
 /// and WebSocket while an affected authorization commit is pending, with
 /// no writer-mutex hop on the room path.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn protected_room_server_fast_paths_progress_during_affected_commit() {
     const AFFECTED_ROOM: &str = "room-affected";
     const UNRELATED_ROOM: &str = "room-unrelated";
@@ -3069,6 +3088,7 @@ async fn protected_room_server_fast_paths_progress_during_affected_commit() {
 /// must preview first, release Local while the affected room drains, and
 /// bind the exact reservation only in the final SQLite window.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn detached_action_nested_mutations_reserve_rooms_off_local() {
     const HOST_ROOM: &str = "room-detached-host-plan";
     const IBEX_ROOM: &str = "room-detached-ibex";
@@ -3178,6 +3198,7 @@ async fn detached_action_nested_mutations_reserve_rooms_off_local() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn detached_action_watchdog_cancels_held_room_reservation_without_publication() {
     const ROOM: &str = "room-watchdog-reservation";
     const MEMBER: &str = "member-watchdog-reservation";
@@ -3337,6 +3358,7 @@ async fn detached_action_watchdog_cancels_held_room_reservation_without_publicat
     );
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn auth_http_fixture_with_provider(
     mode: PolicyAuthMode,
 ) -> (SnapbackApp, String, Arc<AuthProvider>) {
@@ -3348,6 +3370,7 @@ fn auth_http_fixture_with_provider(
     (app(state), capability, provider)
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn auth_http_fixture(mode: PolicyAuthMode) -> (SnapbackApp, String) {
     let (state, capability) = auth_runtime_fixture(mode);
     (app(state), capability)
@@ -3420,6 +3443,7 @@ fn activation_functions(bundle_marker: char, hide_rows: bool) -> FunctionManifes
     }
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn sessions_activation_server_fixture_with(
     predecessor_functions: FunctionManifest,
     clock: Option<Arc<ManualServerAuthClock>>,
@@ -3427,6 +3451,7 @@ fn sessions_activation_server_fixture_with(
     sessions_activation_server_fixture_with_agents(predecessor_functions, clock, None)
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn sessions_activation_server_fixture_with_agents(
     predecessor_functions: FunctionManifest,
     clock: Option<Arc<ManualServerAuthClock>>,
@@ -3435,6 +3460,7 @@ fn sessions_activation_server_fixture_with_agents(
     sessions_activation_server_fixture_with_api(predecessor_functions, clock, agents, None)
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn sessions_activation_server_fixture_with_api(
     predecessor_functions: FunctionManifest,
     clock: Option<Arc<ManualServerAuthClock>>,
@@ -3450,6 +3476,7 @@ fn sessions_activation_server_fixture_with_api(
     )
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn sessions_activation_server_fixture_with_api_and_password_mode(
     predecessor_functions: FunctionManifest,
     clock: Option<Arc<ManualServerAuthClock>>,
@@ -3642,10 +3669,12 @@ fn sessions_activation_server_fixture_with_api_and_password_mode(
         .expect("install activation sessions posture")
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn sessions_activation_server_fixture() -> AppState {
     sessions_activation_server_fixture_with(activation_functions('2', false), None)
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn sessions_activation_server_fixture_async() -> AppState {
     tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -3655,6 +3684,7 @@ async fn sessions_activation_server_fixture_async() -> AppState {
     .expect("construct activation fixture off the async workers")
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn password_sessions_activation_server_fixture_async() -> AppState {
     tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -3670,6 +3700,7 @@ async fn password_sessions_activation_server_fixture_async() -> AppState {
     .expect("construct email-password activation fixture off the async workers")
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn sessions_activation_server_fixture_with_agents_async(agents: AgentsManifest) -> AppState {
     tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -3683,6 +3714,7 @@ async fn sessions_activation_server_fixture_with_agents_async(agents: AgentsMani
     .expect("construct agent-registration fixture off the async workers")
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn sessions_activation_server_fixture_with_integrations_async() -> AppState {
     tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -3733,6 +3765,7 @@ async fn sessions_activation_server_fixture_with_integrations_async() -> AppStat
     .expect("construct integration lifecycle fixture off the async workers")
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn approval_effect_server_fixture_with_authority_creation(
     approval: ApiFunctionApproval,
     authority_creating: bool,
@@ -3776,10 +3809,12 @@ async fn approval_effect_server_fixture_with_authority_creation(
     .expect("construct approval-effect fixture off async workers")
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn approval_effect_server_fixture(approval: ApiFunctionApproval) -> AppState {
     approval_effect_server_fixture_with_authority_creation(approval, false).await
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn sessions_activation_server_fixture_with_ask_async(
     provider_base_url: String,
     result_max_bytes: u64,
@@ -3940,6 +3975,7 @@ impl Drop for AskEgressEnvRestore {
     }
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn sessions_activation_server_fixture_with_oauth_async() -> AppState {
     sessions_activation_server_fixture_with_oauth_policy_async(agent_policy(
         AgentsMode::Open,
@@ -3948,6 +3984,7 @@ async fn sessions_activation_server_fixture_with_oauth_async() -> AppState {
     .await
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn sessions_activation_server_fixture_with_oauth_policy_async(
     agents: AgentsManifest,
 ) -> AppState {
@@ -4121,6 +4158,7 @@ fn mcp_protocol_request(
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_set() {
     let state = sessions_activation_server_fixture_with_integrations_async().await;
     let runtime = state.clone();
@@ -4431,6 +4469,7 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn approval_gate_returns_one_pending_shape_on_bare_api_mcp_and_link_ingress() {
     let state = approval_effect_server_fixture(ApiFunctionApproval::Required).await;
     let router = app(state.clone());
@@ -4558,6 +4597,7 @@ async fn approval_gate_returns_one_pending_shape_on_bare_api_mcp_and_link_ingres
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn external_gate_keeps_first_party_direct_and_approval_executes_or_denies_once() {
     let external_state = approval_effect_server_fixture(ApiFunctionApproval::External).await;
     let external_router = app(external_state.clone());
@@ -4705,6 +4745,7 @@ async fn external_gate_keeps_first_party_direct_and_approval_executes_or_denies_
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn authority_creating_effect_requires_operation_bound_step_up() {
     let state =
         approval_effect_server_fixture_with_authority_creation(ApiFunctionApproval::Required, true)
@@ -4778,6 +4819,7 @@ async fn authority_creating_effect_requires_operation_bound_step_up() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn effect_approval_refuses_generation_rotation() {
     let state = approval_effect_server_fixture(ApiFunctionApproval::Required).await;
     let router = app(state.clone());
@@ -4896,6 +4938,7 @@ async fn effect_approval_refuses_generation_rotation() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn effect_approval_refuses_a_revoked_original_session() {
     let state = approval_effect_server_fixture(ApiFunctionApproval::Required).await;
     let router = app(state.clone());
@@ -4963,6 +5006,7 @@ async fn effect_approval_refuses_a_revoked_original_session() {
 // original session as EffectExecution authority, so it must cross the same
 // catalog-claims chokepoint as ordinary HTTP and live sources.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn effect_approval_reprepares_original_session_with_catalog_claims() {
     let state = approval_effect_server_fixture(ApiFunctionApproval::Required).await;
     let router = app(state.clone());
@@ -5045,6 +5089,7 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn remote_mcp_refuses_when_the_external_api_is_not_enabled() {
     let refused = app(sessions_activation_server_fixture_async().await)
         .oneshot(mcp_protocol_request(
@@ -5064,6 +5109,7 @@ async fn remote_mcp_refuses_when_the_external_api_is_not_enabled() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_policy() {
     let register = |body: Value| {
         oauth_protocol_request(
@@ -5131,11 +5177,9 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
     let suspended_principal = open_facts.0;
     let suspension_at = open_state.auth_provider.as_ref().unwrap().now_ms();
     with_snapback(&open_state.snapback, move |snapback| {
-        snapback.remainder_auth_database_mut().set_integration_suspended(
-            &suspended_principal,
-            true,
-            suspension_at,
-        )
+        snapback
+            .remainder_auth_database_mut()
+            .set_integration_suspended(&suspended_principal, true, suspension_at)
     })
     .await
     .unwrap();
@@ -5234,6 +5278,7 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn oauth_facade_is_wholesale_absent_on_hosted_targets() {
     let mut state = sessions_activation_server_fixture_with_oauth_async().await;
     Arc::make_mut(&mut state.server).auth_deployment =
@@ -5269,6 +5314,7 @@ async fn oauth_facade_is_wholesale_absent_on_hosted_targets() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and_no_store() {
     let absent = app(sessions_activation_server_fixture_async().await)
         .oneshot(
@@ -5612,11 +5658,9 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
     let suspended_principal = integration_principal.clone();
     let suspension_at = state.auth_provider.as_ref().unwrap().now_ms();
     with_snapback(&state.snapback, move |snapback| {
-        snapback.remainder_auth_database_mut().set_integration_suspended(
-            &suspended_principal,
-            true,
-            suspension_at,
-        )
+        snapback
+            .remainder_auth_database_mut()
+            .set_integration_suspended(&suspended_principal, true, suspension_at)
     })
     .await
     .unwrap();
@@ -5649,11 +5693,9 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
     let resumed_principal = integration_principal;
     let resumed_at = state.auth_provider.as_ref().unwrap().now_ms();
     with_snapback(&state.snapback, move |snapback| {
-        snapback.remainder_auth_database_mut().set_integration_suspended(
-            &resumed_principal,
-            false,
-            resumed_at,
-        )
+        snapback
+            .remainder_auth_database_mut()
+            .set_integration_suspended(&resumed_principal, false, resumed_at)
     })
     .await
     .unwrap();
@@ -5685,6 +5727,7 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
 
 /// @ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — OAuth consent is the ordinary grant approval surface, including its operation-bound step-up requirement.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn oauth_authority_creating_consent_reuses_operation_bound_step_up() {
     let state = sessions_activation_server_fixture_with_oauth_async().await;
     let provider = state.auth_provider.clone().expect("OAuth auth provider");
@@ -5803,6 +5846,7 @@ async fn oauth_authority_creating_consent_reuses_operation_bound_step_up() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
     let mut functions = activation_functions('2', false);
     for function in &mut functions.functions {
@@ -6026,10 +6070,12 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
 
     let suspended_id = declared_record.normalized_id.clone();
     with_snapback(&runtime.snapback, move |snapback| {
-        snapback.remainder_auth_database_mut().set_declared_client_status(
-            &suspended_id,
-            crate::storage::declared_clients::DeclaredClientStatus::Suspended,
-        )
+        snapback
+            .remainder_auth_database_mut()
+            .set_declared_client_status(
+                &suspended_id,
+                crate::storage::declared_clients::DeclaredClientStatus::Suspended,
+            )
     })
     .await
     .unwrap();
@@ -6074,10 +6120,12 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
     );
     let resumed_id = declared_record.normalized_id;
     with_snapback(&runtime.snapback, move |snapback| {
-        snapback.remainder_auth_database_mut().set_declared_client_status(
-            &resumed_id,
-            crate::storage::declared_clients::DeclaredClientStatus::Active,
-        )
+        snapback
+            .remainder_auth_database_mut()
+            .set_declared_client_status(
+                &resumed_id,
+                crate::storage::declared_clients::DeclaredClientStatus::Active,
+            )
     })
     .await
     .unwrap();
@@ -6361,6 +6409,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
 
 #[tokio::test]
 #[allow(clippy::await_holding_lock)] // Serializes process-global egress environment for this whole async fixture.
+#[cfg(not(feature = "server-owner"))]
 async fn external_ask_is_granted_read_only_receipted_stream_settled_and_mcp_mirrored() {
     let _environment_lock = ASK_EGRESS_ENV_TEST_LOCK
         .get_or_init(|| StdMutex::new(()))
@@ -6684,6 +6733,7 @@ async fn external_ask_is_granted_read_only_receipted_stream_settled_and_mcp_mirr
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn external_api_v1_refuses_when_the_app_did_not_enable_it() {
     let state = sessions_activation_server_fixture_async().await;
     let response = app(state)
@@ -6714,6 +6764,7 @@ async fn external_api_v1_refuses_when_the_app_did_not_enable_it() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn external_run_refusal_order_is_surface_shape_digest_then_capability() {
     let request = |body: Vec<u8>| {
         Request::builder()
@@ -6817,6 +6868,7 @@ async fn external_run_refusal_order_is_surface_shape_digest_then_capability() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn external_run_schema_join_is_intentionally_null_until_executor_promotion() {
     let artifact = crate::schema_export::http_routes_artifact();
     let rows = artifact["routes"]
@@ -6869,6 +6921,7 @@ struct FiniteAuthorityMatrixFixture {
     token_expires_at_ms: u64,
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
     // Retained live reruns deliberately consult the host wall clock rather
     // than the injected provider clock. Keep the deterministic provider a
@@ -6952,6 +7005,7 @@ async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
     }
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn mint_same_grant_sibling_and_set_deadline(
     fixture: &FiniteAuthorityMatrixFixture,
     grant_deadline_ms: u64,
@@ -7045,6 +7099,7 @@ async fn finite_authority_matrix_pending_durable(state: &AppState) -> usize {
         .pending_durable_messages
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn commit_finite_authority_matrix_ending(
     fixture: &FiniteAuthorityMatrixFixture,
     ending: FiniteAuthorityMatrixEnding,
@@ -7057,11 +7112,9 @@ async fn commit_finite_authority_matrix_ending(
             let now_ms = fixture.start_ms + 1;
             fixture.clock.set(now_ms);
             let revoked = with_snapback(&fixture.state.snapback, move |snapback| {
-                snapback.remainder_auth_database_mut().revoke_grant_for_user(
-                    &effective_user_id,
-                    &grant_id,
-                    now_ms,
-                )
+                snapback
+                    .remainder_auth_database_mut()
+                    .revoke_grant_for_user(&effective_user_id, &grant_id, now_ms)
             })
             .await
             .expect("commit real grant revocation");
@@ -7081,11 +7134,9 @@ async fn commit_finite_authority_matrix_ending(
             let rotated = with_snapback(&fixture.state.snapback, move |snapback| {
                 let credential =
                     AgentCredential::parse(&credential).expect("parse matrix agent credential");
-                snapback.remainder_auth_database_mut().rotate_agent_credential(
-                    &credential,
-                    now_ms,
-                    provider.agent_random_source(),
-                )
+                snapback
+                    .remainder_auth_database_mut()
+                    .rotate_agent_credential(&credential, now_ms, provider.agent_random_source())
             })
             .await
             .expect("commit real credential rotation");
@@ -7113,9 +7164,11 @@ async fn commit_finite_authority_matrix_ending(
             fixture.clock.set(now_ms);
             with_snapback(&fixture.state.snapback, move |snapback| {
                 let manifest = snapback.remainder_auth_database_mut().schema().clone();
-                snapback
-                    .remainder_auth_database_mut()
-                    .deactivate_agent(&agent_user_id, now_ms, &manifest)
+                snapback.remainder_auth_database_mut().deactivate_agent(
+                    &agent_user_id,
+                    now_ms,
+                    &manifest,
+                )
             })
             .await
             .expect("commit real principal deactivation");
@@ -7180,6 +7233,7 @@ struct FiniteAuthorityMatrixRequest {
     queued_connection_id: Option<String>,
 }
 
+#[cfg(not(feature = "server-owner"))]
 async fn finite_authority_matrix_request(
     fixture: &FiniteAuthorityMatrixFixture,
     route: FiniteAuthorityMatrixRoute,
@@ -7310,6 +7364,7 @@ async fn finite_authority_matrix_request(
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn finite_service_authority_real_route_by_terminal_ending_pause_matrix() {
     const ROUTES: [FiniteAuthorityMatrixRoute; 6] = [
         FiniteAuthorityMatrixRoute::Query,
@@ -7442,6 +7497,7 @@ async fn finite_service_authority_real_route_by_terminal_ending_pause_matrix() {
 ///   token resolution can neither publish nor mint under reset's successor
 ///   authorization stream.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn scoped_token_handshake_and_connection_open_cannot_cross_stream_reset() {
     const ROUTES: [FiniteAuthorityMatrixRoute; 2] = [
         FiniteAuthorityMatrixRoute::AuthSession,
@@ -7541,6 +7597,7 @@ async fn scoped_token_handshake_and_connection_open_cannot_cross_stream_reset() 
 /// @ref LLP 0059#finite-service-authority-fence — process premark and
 /// async permit drain precede the exact-token durable transaction.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
     let fixture = finite_authority_matrix_fixture().await;
     let opened = fixture
@@ -7734,6 +7791,7 @@ async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
 /// transaction stay independently owned while queued for Local, so no new
 /// service act can enter across the eventual commit.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn cancelled_service_terminal_waiter_stays_closed_until_owned_local_commit() {
     let fixture = finite_authority_matrix_fixture().await;
     let opened = fixture
@@ -7947,6 +8005,7 @@ fn test_route_admission(state: &AppState) -> Extension<AdmissionLease> {
     )
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn leased_outbox_http_response(
     state: &AppState,
     connection_act: super::PreparedConnectionAct,
@@ -7958,6 +8017,7 @@ fn leased_outbox_http_response(
     leased_queued_outbox_http_response(state, connection_act)
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn leased_bound_outbox_http_response(
     state: &AppState,
     connection_act: super::PreparedConnectionAct,
@@ -7971,6 +8031,7 @@ fn leased_bound_outbox_http_response(
     leased_queued_outbox_http_response(state, connection_act)
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn leased_queued_outbox_http_response(
     state: &AppState,
     connection_act: super::PreparedConnectionAct,
@@ -8210,6 +8271,7 @@ async fn assert_revocation_terminalized(
     registry.assert_grant_indexes_consistent();
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn prepared_provider_route_authority(
     state: &AppState,
     source: InvocationSource,
@@ -8585,6 +8647,7 @@ async fn hosted_sender_exchange_response(
         .expect("exchange hosted sender challenge")
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn sender_issuance_durable_counts(
     state: &AppState,
     challenge_id: &str,
@@ -8601,6 +8664,7 @@ fn sender_issuance_durable_counts(
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let prepared = |user_id: &str| {
@@ -8697,6 +8761,7 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn auth_session_dev_is_closed_no_store_and_rejects_credentials() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let state = state
@@ -8777,6 +8842,7 @@ async fn auth_session_dev_is_closed_no_store_and_rejects_credentials() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn handshake_holds_one_root_through_body_including_stable_pending_epochs() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let controller = state.auth_admission_controller();
@@ -8850,6 +8916,7 @@ async fn handshake_holds_one_root_through_body_including_stable_pending_epochs()
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn retired_handshake_body_emits_no_frame_after_transition_cut() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let controller = state.auth_admission_controller();
@@ -8886,6 +8953,7 @@ async fn retired_handshake_body_emits_no_frame_after_transition_cut() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn auth_session_sessions_resolves_presented_bearer_through_shared_authority() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = state
@@ -8951,6 +9019,7 @@ async fn auth_session_sessions_resolves_presented_bearer_through_shared_authorit
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn pending_and_quarantined_modes_refuse_ordinary_app_data_but_serve_handshake() {
     for quarantined in [false, true] {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
@@ -9012,6 +9081,7 @@ async fn pending_and_quarantined_modes_refuse_ordinary_app_data_but_serve_handsh
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn pending_and_quarantined_modes_refuse_both_function_load_ingresses() {
     for quarantined in [false, true] {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
@@ -9074,6 +9144,7 @@ async fn pending_and_quarantined_modes_refuse_both_function_load_ingresses() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn published_mode_state_is_visible_to_router_clones_before_stage_response() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let router = app(state.clone());
@@ -9112,6 +9183,7 @@ async fn published_mode_state_is_visible_to_router_clones_before_stage_response(
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn same_mode_post_commit_publication_failure_cancels_and_closes_admission() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let controller = state.auth_admission_controller();
@@ -9215,6 +9287,7 @@ fn dev_downgrade_pair() -> (SchemaManifest, FunctionManifest) {
 /// ephemeral notifier, and Local topology purge phases that previously
 /// formed the forbidden Local -> registry edge.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn committed_mode_transition_terminalizes_live_grant_before_successor_publication() {
     let state = sessions_activation_server_fixture_async().await;
     let credential = mint_test_credential(&state, "mode-transition-live@example.com").await;
@@ -9293,6 +9366,7 @@ async fn committed_mode_transition_terminalizes_live_grant_before_successor_publ
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn cancelled_mode_transition_waiter_cannot_drop_postcommit_carrier() {
     let state = sessions_activation_server_fixture_async().await;
     let credential = mint_test_credential(&state, "cancelled-mode-transition@example.com").await;
@@ -9395,6 +9469,7 @@ fn legacy_v0_activation_bypass_manifest() -> FunctionManifest {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn dev_direct_functions_load_admission_closes_stage_race() {
     let (state, _) = tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -9490,6 +9565,7 @@ fn stalled_admitted_request(uri: &str) -> Request<Body> {
 // @ref LLP 0058#admitted-body-ingestion — the ingest deadline is exact,
 // monotonic, and strictly below the 30000 ms quiescence deadline.
 #[tokio::test(start_paused = true)]
+#[cfg(not(feature = "server-owner"))]
 async fn admitted_body_ingestion_times_out_strictly_below_quiescence_deadline() {
     let (state, _) = tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -9531,6 +9607,7 @@ async fn admitted_body_ingestion_times_out_strictly_below_quiescence_deadline() 
 // cancels in-flight body buffering and releases the root without waiting
 // for the client to disconnect, so staging's drain cannot be starved.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn admitted_body_ingestion_cancels_when_admission_closes() {
     let (state, _) = tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -9592,6 +9669,7 @@ async fn admitted_body_ingestion_cancels_when_admission_closes() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn direct_functions_load_quiesces_old_query_body_and_activates_complete_pair() {
     let state = sessions_activation_server_fixture_async().await;
     let router = app(state.clone());
@@ -9755,6 +9833,7 @@ async fn direct_functions_load_quiesces_old_query_body_and_activates_complete_pa
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn sessions_activation_runtime_projection_failure_never_reopens_admission() {
     let state = sessions_activation_server_fixture_async().await;
     let controller = state.auth_admission_controller();
@@ -9816,6 +9895,7 @@ async fn sessions_activation_runtime_projection_failure_never_reopens_admission(
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn host_ops_functions_load_cannot_bypass_complete_pair_activation() {
     let state = sessions_activation_server_fixture_async().await;
     let router = app(state.clone());
@@ -9906,6 +9986,7 @@ async fn host_ops_functions_load_cannot_bypass_complete_pair_activation() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn sessions_online_and_live_are_fenced_until_item5_then_require_protocol_v1() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = state
@@ -9980,6 +10061,7 @@ async fn sessions_online_and_live_are_fenced_until_item5_then_require_protocol_v
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn sessions_live_stream_accepts_browser_subprotocol_offer_only_on_upgrade_route() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = state
@@ -10022,6 +10104,7 @@ async fn sessions_live_stream_accepts_browser_subprotocol_offer_only_on_upgrade_
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn app_api_artifact_lanes_skip_the_sessions_protocol_offer() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = state
@@ -10053,6 +10136,7 @@ async fn app_api_artifact_lanes_skip_the_sessions_protocol_offer() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn app_api_current_projections_share_the_dev_unavailable_refusal() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let router = app(state);
@@ -10077,6 +10161,7 @@ async fn app_api_current_projections_share_the_dev_unavailable_refusal() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn pasteable_delivery_lanes_skip_the_sessions_protocol_offer() {
     // LLP 0044 §Delivery profiles, dated note 2026-07-31: the public
     // alias and the signed serve lane are URL-authority routes a plain
@@ -10130,6 +10215,7 @@ async fn pasteable_delivery_lanes_skip_the_sessions_protocol_offer() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn item5_live_gate_preserves_only_manifest_proved_independent_exception() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let item5 = AuthProgramReadiness::new(true, true, true, true, false, false, false);
@@ -10359,6 +10445,7 @@ async fn item5_live_gate_preserves_only_manifest_proved_independent_exception() 
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn pre_item7_queued_replay_is_refused_before_mutation_lookup() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let item5 = AuthProgramReadiness::new(true, true, true, true, false, false, false);
@@ -10388,6 +10475,7 @@ async fn pre_item7_queued_replay_is_refused_before_mutation_lookup() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn ready_queued_replay_names_a_missing_client_offer_as_a_400() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = state
@@ -10430,6 +10518,7 @@ async fn ready_queued_replay_names_a_missing_client_offer_as_a_400() {
 /// still discharge invalidation obligations; only mutation settlement
 /// remains descriptor-bound.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn invalidation_ack_routes_do_not_require_the_authority_descriptor_plane() {
     let state = sessions_activation_server_fixture_async().await;
     let settled = state.auth_mode_state().as_ref().clone();
@@ -10542,6 +10631,7 @@ async fn invalidation_ack_routes_do_not_require_the_authority_descriptor_plane()
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn authorized_lease_route_requires_readiness_and_exact_protocol_offer() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let credential = mint_test_credential(&state, "authorized-lease-route@example.com").await;
@@ -10648,6 +10738,7 @@ async fn authorized_lease_route_requires_readiness_and_exact_protocol_offer() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn dev_transport_and_prod_profile_fail_closed_but_keep_health_available() {
     let (mut non_loopback, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     Arc::make_mut(&mut non_loopback.server)
@@ -10751,6 +10842,7 @@ async fn dev_transport_and_prod_profile_fail_closed_but_keep_health_available() 
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn plaintext_handshake_fence_precedes_bearer_resolution_for_active_and_desired_sessions() {
     const BEARER_SENTINEL: &str = "sbs_PLAINTEXT_HANDSHAKE_SENTINEL_MUST_NOT_BE_CONSUMED";
 
@@ -10833,6 +10925,7 @@ async fn plaintext_handshake_fence_precedes_bearer_resolution_for_active_and_des
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn loopback_context_cannot_authorize_a_different_non_loopback_listener() {
     use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
@@ -10937,6 +11030,7 @@ async fn loopback_context_cannot_authorize_a_different_non_loopback_listener() {
 ///
 /// @ref LLP 0098#81-first-served-origin-run--2026-07-25
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn hosted_admission_enforces_the_operator_surface_it_attests() {
     let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     Arc::make_mut(&mut state.server).auth_deployment =
@@ -11003,6 +11097,7 @@ async fn hosted_admission_enforces_the_operator_surface_it_attests() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn hosted_auth_configuration_is_fail_closed_in_embedded_composition() {
     let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     Arc::make_mut(&mut state.server).auth_deployment =
@@ -11071,6 +11166,7 @@ fn sender_proof_subprotocol_rejects_non_text_and_duplicate_carriers() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn hosted_sender_challenge_precedes_every_request_body_poll() {
     let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     Arc::make_mut(&mut state.server).auth_deployment =
@@ -11195,6 +11291,7 @@ async fn hosted_sender_challenge_precedes_every_request_body_poll() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn hosted_sender_shared_throttle_charges_denials_before_proof_and_body() {
     let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     Arc::make_mut(&mut state.server).auth_deployment =
@@ -11292,6 +11389,7 @@ async fn hosted_sender_shared_throttle_charges_denials_before_proof_and_body() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn hosted_shared_throttle_keys_challenge_and_exchange_subjects_before_crypto() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let mut state = state
@@ -11409,6 +11507,7 @@ async fn hosted_shared_throttle_keys_challenge_and_exchange_subjects_before_cryp
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn hosted_anonymous_connection_open_consumes_shared_source_admission() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let mut state = state
@@ -11476,6 +11575,7 @@ async fn hosted_anonymous_connection_open_consumes_shared_source_admission() {
 /// `authRequirement` range: `listNotes`/`appendNote` are `authenticated`
 /// (the LLP 0077 D-1 probe shape), `listOptionalNotes` keeps the
 /// `optional-user` default, and `listPublicNotes` is declared `public`.
+#[cfg(not(feature = "server-owner"))]
 fn hosted_function_route_state() -> AppState {
     let (mut state, _) = auth_runtime_fixture_with(PolicyAuthMode::Sessions, |snapback| {
         snapback
@@ -11576,6 +11676,7 @@ fn hosted_function_route_state() -> AppState {
 /// `SNAPBACK_AUTH_REQUIRED` before any body poll. `PanicOnPollBody` is
 /// the poisoned-body witness that the JSON parser is never reached.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn hosted_absent_carrier_on_authenticated_function_refuses_before_body_poll() {
     let router = app(hosted_function_route_state());
     for path in [
@@ -11611,6 +11712,7 @@ async fn hosted_absent_carrier_on_authenticated_function_refuses_before_body_pol
 /// — before the body poll, and indistinguishable from the authenticated
 /// refusal (no function-existence oracle).
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn hosted_absent_carrier_on_unknown_function_refuses_before_body_poll() {
     let router = app(hosted_function_route_state());
     let refused = router
@@ -11637,6 +11739,7 @@ async fn hosted_absent_carrier_on_unknown_function_refuses_before_body_poll() {
 /// the exact served manifest generation; the ruled carrier remains nested
 /// there and does not add an outer wire member.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn served_http_refusals_project_typed_candidates_and_argument_contracts() {
     let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
         let schema: SchemaManifest = serde_json::from_str(include_str!(
@@ -11762,6 +11865,7 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
 /// return that same row through commit-egress materialization.
 /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn served_http_buffered_mutation_reprojects_stored_media_result() {
     let mut asset_id = None;
     let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
@@ -11880,6 +11984,7 @@ async fn served_http_buffered_mutation_reprojects_stored_media_result() {
 /// delta would leak the stored asset id in place of the declared `MediaRef`.
 /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn served_http_media_commit_pushes_projected_live_replace() {
     let mut asset_id = None;
     let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
@@ -12069,6 +12174,7 @@ async fn served_http_media_commit_pushes_projected_live_replace() {
 /// attempt through the buffered-Ibex authorization preview as well as commit.
 /// @ref LLP 0239#d3-one-mediacommand-owns-multi-upload-plus-atomic-commit
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn served_http_buffered_media_command_reuses_attempt_for_preview_commit_and_replay() {
     let mut asset_id = None;
     let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
@@ -12182,6 +12288,7 @@ async fn served_http_buffered_media_command_reuses_attempt_for_preview_commit_an
 /// LLP 0077 anti-oracle shape — the keyed cover-nonce sender challenge —
 /// and still refuses before any body poll.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn hosted_malformed_carrier_on_authenticated_function_challenges_before_body_poll() {
     let router = app(hosted_function_route_state());
     let challenged = router
@@ -12216,6 +12323,7 @@ async fn hosted_malformed_carrier_on_authenticated_function_challenges_before_bo
 /// admitting anonymous callers on the hosted origin — the hoist must not
 /// flip genuinely anonymous-capable routes to required.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn hosted_absent_carrier_on_anonymous_capable_functions_still_admits() {
     let router = app(hosted_function_route_state());
     for name in ["listOptionalNotes", "listPublicNotes"] {
@@ -12237,6 +12345,7 @@ async fn hosted_absent_carrier_on_anonymous_capable_functions_still_admits() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn hosted_sender_issuance_outcome_matrix_is_transactional() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let mut state = state
@@ -12422,6 +12531,7 @@ async fn hosted_sender_issuance_outcome_matrix_is_transactional() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let mut state = state
@@ -13236,6 +13346,7 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn sender_bound_grant_invalidates_when_the_sender_replay_epoch_advances() {
     // @ref LLP 0059#boundgrantauthorityv2--sender-bound-grants-amendment-2026-07-23
     // — the grant records the durable issuance epoch and closes, with no
@@ -13387,6 +13498,7 @@ async fn sender_bound_grant_invalidates_when_the_sender_replay_epoch_advances() 
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn committed_logout_with_lost_response_recovers_through_the_sender_tombstone() {
     // @ref LLP 0077#issuance-refresh-and-recovery — decision 2: after a
     // committed logout whose response was lost, the next signed request
@@ -13551,6 +13663,7 @@ async fn committed_logout_with_lost_response_recovers_through_the_sender_tombsto
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn snapback_static_pages_ship_a_hash_pinned_restrictive_csp() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let response = app(state)
@@ -13689,6 +13802,7 @@ fn pasteable_asset_delivery_is_cross_origin_without_weakening_static_pages() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn public_and_admin_inspect_project_exact_auth_program_readiness() {
     let readiness = AuthProgramReadiness::new(true, true, true, true, true, true, true);
     let expected = serde_json::to_value(&readiness).unwrap();
@@ -13720,6 +13834,7 @@ async fn public_and_admin_inspect_project_exact_auth_program_readiness() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn inspect_projects_missing_external_ibex_cli_without_startup_notice() {
     let mut snapback = LocalSnapback::memory().expect("missing CLI inspect fixture");
     snapback.force_ibex_cli_unavailable_for_test();
@@ -13752,6 +13867,7 @@ async fn inspect_projects_missing_external_ibex_cli_without_startup_notice() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn route_middleware_installs_generation_and_epoch_bound_prepared_authority() {
     async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
         Json(json!({
@@ -13814,6 +13930,7 @@ async fn route_middleware_installs_generation_and_epoch_bound_prepared_authority
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn dev_body_impersonation_requires_a_trusted_browser_origin_but_not_an_origin_header() {
     async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
         Json(json!({ "userId": authority.projection().user_id() }))
@@ -13886,6 +14003,7 @@ async fn dev_body_impersonation_requires_a_trusted_browser_origin_but_not_an_ori
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn dev_client_asserted_capability_verifies_when_present_and_warns_when_absent() {
     async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
         Json(json!({ "userId": authority.projection().user_id() }))
@@ -13956,6 +14074,7 @@ async fn dev_client_asserted_capability_verifies_when_present_and_warns_when_abs
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn connection_open_binds_only_a_verified_dev_identity_witness() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let (registry, capability) = dev_identity_capability_fixture();
@@ -14116,6 +14235,7 @@ async fn connection_open_binds_only_a_verified_dev_identity_witness() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn session_bearer_is_resolved_for_each_online_invocation_request() {
     async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
         Json(json!({
@@ -14166,6 +14286,7 @@ async fn session_bearer_is_resolved_for_each_online_invocation_request() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scope() {
     async fn prepare_query(
         AxumPath(name): AxumPath<String>,
@@ -14565,11 +14686,13 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
         .register_bound(connection_id, grant_id)
         .expect("register exact service socket");
     let revocation = with_snapback(&state.snapback, |snapback| {
-        snapback.remainder_auth_database_mut().revoke_grant_for_user(
-            "018f0d90-7b30-7a22-8c33-445566778899",
-            "018f0d90-7b32-7a22-8c33-445566778899",
-            super::now_millis(),
-        )
+        snapback
+            .remainder_auth_database_mut()
+            .revoke_grant_for_user(
+                "018f0d90-7b30-7a22-8c33-445566778899",
+                "018f0d90-7b32-7a22-8c33-445566778899",
+                super::now_millis(),
+            )
     })
     .await
     .unwrap();
@@ -14649,6 +14772,7 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
 /// @ref LLP 0055#audit — attribution is server-derived and identical
 ///   across projections of the same function; wrappers never synthesize.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rotation() {
     fn live_request(path: &str, connection_token: &str, body: Value) -> Request<Body> {
         Request::builder()
@@ -14964,6 +15088,7 @@ fn optional_json_rejects_non_objects_and_duplicate_struct_fields() {
 /// exact 4 KiB ceiling and collapses every closed-DTO parse failure to the
 /// non-reflective auth diagnostic.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn auth_http_json_is_closed_and_bounded_at_exactly_four_kibibytes() {
     let (router, _) = auth_http_fixture(PolicyAuthMode::Sessions);
     let mut exact = br#"{"email":"four-kib@example.com"}"#.to_vec();
@@ -15030,6 +15155,7 @@ async fn auth_http_json_is_closed_and_bounded_at_exactly_four_kibibytes() {
 /// exact gated mailbox projection, and known/unknown two-pass exchange
 /// paths through the registered router.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn auth_http_request_mailbox_exchange_flow_and_carriers_are_exact() {
     let (router, impersonation) = auth_http_fixture(PolicyAuthMode::Sessions);
     let request_code = router
@@ -15217,6 +15343,7 @@ async fn auth_http_request_mailbox_exchange_flow_and_carriers_are_exact() {
 /// exclusive maintenance, clears capture plaintext only after commit, and
 /// retains both catalog and keyring (proved by issuing again afterward).
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn direct_app_reset_clears_mailbox_on_commit_and_preserves_it_on_rejection() {
     let (router, _, provider) = auth_http_fixture_with_provider(PolicyAuthMode::Sessions);
     let committed_challenge =
@@ -15275,6 +15402,7 @@ async fn direct_app_reset_clears_mailbox_on_commit_and_preserves_it_on_rejection
 /// projection observes the same post-commit mailbox boundary as its direct
 /// route; a negative host-op envelope is not a committed reset.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn host_ops_app_reset_clears_mailbox_only_for_a_success_envelope() {
     let (router, _, provider) = auth_http_fixture_with_provider(PolicyAuthMode::Sessions);
     let committed_challenge = request_captured_challenge(&router, "host-commit@example.com").await;
@@ -15332,6 +15460,7 @@ async fn host_ops_app_reset_clears_mailbox_only_for_a_success_envelope() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn unknown_host_operation_middleware_does_not_echo_caller_bytes() {
     const SENTINEL: &str = "sbs_HTTP_DIAGNOSTIC_SMUGGLING_SENTINEL";
     let (router, _) = auth_http_fixture(PolicyAuthMode::Sessions);
@@ -15360,6 +15489,7 @@ async fn unknown_host_operation_middleware_does_not_echo_caller_bytes() {
 ///   only after the production host carrier resolves AdminWrite authority;
 ///   an unauthenticated request never reaches the branch dispatcher.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn managed_branch_host_operations_are_admin_write_before_dispatch() {
     let (router, _) = auth_http_fixture(PolicyAuthMode::Sessions);
     let cases = [
@@ -15442,6 +15572,7 @@ async fn managed_branch_host_operations_are_admin_write_before_dispatch() {
 /// `SNAPBACK_HOST_OP_CLI_ONLY` envelope over HTTP, while unauthenticated
 /// and truly unknown requests keep failing closed at the AdminWrite gate.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn pinned_unbuilt_and_cli_only_host_operations_return_honest_envelopes() {
     let (router, _) = auth_http_fixture(PolicyAuthMode::Dev);
     let host_op = |body: serde_json::Value, admin: Option<&str>| {
@@ -15546,6 +15677,7 @@ async fn pinned_unbuilt_and_cli_only_host_operations_return_honest_envelopes() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn asset_gc_sweep_host_operation_is_admin_gated_and_clock_explicit() {
     let (router, _) = auth_http_fixture(PolicyAuthMode::Dev);
     let host_op = |body: serde_json::Value, admin: Option<&str>| {
@@ -15610,6 +15742,7 @@ async fn asset_gc_sweep_host_operation_is_admin_gated_and_clock_explicit() {
 /// and `app.inspect` projects it as `data.recentInvocations`, most recent
 /// first, with the failing diagnostic code as each entry's outcome.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn host_ops_inspect_projects_recent_invocations_ring() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let router = app(state.clone());
@@ -15752,6 +15885,7 @@ async fn host_ops_inspect_projects_recent_invocations_ring() {
 /// @ref LLP 0042#diagnostics-reading--an-appinspect-extension-not-a-new-operation —
 /// the existing `app.inspect` projection remains the one public ring reader.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn app_data_invocations_join_recent_invocations_ring() {
     let state = sessions_activation_server_fixture_async().await;
     let credential = mint_test_credential(&state, "recent-ring@example.test").await;
@@ -15857,6 +15991,7 @@ async fn app_data_invocations_join_recent_invocations_ring() {
 /// @ref LLP 0012#call-time-generation-binding — every fact derived from the
 /// invocation stays bound to the selected function/schema generation.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn coordinated_function_run_mutation_conformance_is_bound_to_executing_generation() {
     const FUNCTION: &str = "generationBoundMutation";
 
@@ -15981,6 +16116,7 @@ async fn coordinated_function_run_mutation_conformance_is_bound_to_executing_gen
 /// that throws executed only partially, so its unconditional ring report is
 /// incomplete rather than the successful action lane's unsupported verdict.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn admitted_throwing_action_records_incomplete_provenance() {
     let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
         let diagnostics = snapback.load_functions(FunctionManifest {
@@ -16038,6 +16174,7 @@ async fn admitted_throwing_action_records_incomplete_provenance() {
 /// attempt token is not terminal success: the ring waits for the streaming
 /// worker and records a later throw as six-field incomplete evidence.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn streaming_action_throw_after_attempt_token_records_terminal_incomplete() {
     let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Sessions, |snapback| {
         let mut function = FunctionDefinition::new(
@@ -16119,6 +16256,7 @@ async fn streaming_action_throw_after_attempt_token_records_terminal_incomplete(
 /// @ref LLP 0043#milestone-2-queued-mutation-replay — the concurrent loser
 /// returns the winner's exact durable result without executing twice.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn concurrent_same_id_mutation_loser_records_incomplete_provenance() {
     const MUTATION_ID: &str = "cm_conformance_race";
 
@@ -16245,6 +16383,7 @@ async fn concurrent_same_id_mutation_loser_records_incomplete_provenance() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn rejected_host_ops_reset_does_not_wait_for_exclusive_auth_maintenance() {
     let (router, _, provider) = auth_http_fixture_with_provider(PolicyAuthMode::Sessions);
     let admission = provider.admit().await;
@@ -16267,6 +16406,7 @@ async fn rejected_host_ops_reset_does_not_wait_for_exclusive_auth_maintenance() 
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn public_health_revalidates_provider_readiness_without_leaking_keyring_details() {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("health.sqlite3");
@@ -16334,6 +16474,7 @@ async fn public_health_revalidates_provider_readiness_without_leaking_keyring_de
 /// bearer, body, status, and credential projection through the shared
 /// SessionAuth gate.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn auth_refresh_and_logout_routes_enforce_exact_carriers_and_statuses() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = activate_test_sessions(state);
@@ -16484,6 +16625,7 @@ async fn auth_refresh_and_logout_routes_enforce_exact_carriers_and_statuses() {
 /// the committed winner into a stale-authority 401 while the losing rotation
 /// ticket is still settling.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn concurrent_auth_refresh_has_exactly_one_http_winner() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = activate_test_sessions(state);
@@ -16491,26 +16633,18 @@ async fn concurrent_auth_refresh_has_exactly_one_http_winner() {
     let initial_token = initial["token"].as_str().unwrap().to_owned();
     let router = app(state);
 
-    let pause_a = install_test_finite_authority_pause(
-        TestFiniteAuthorityPausePoint::AfterRefreshPremark,
-    );
-    let pause_b = install_test_finite_authority_pause(
-        TestFiniteAuthorityPausePoint::AfterRefreshPremark,
-    );
-    let mut request_a = session_auth_http_request(
-        "/auth/refresh",
-        br#"{}"#.to_vec(),
-        &initial_token,
-    );
+    let pause_a =
+        install_test_finite_authority_pause(TestFiniteAuthorityPausePoint::AfterRefreshPremark);
+    let pause_b =
+        install_test_finite_authority_pause(TestFiniteAuthorityPausePoint::AfterRefreshPremark);
+    let mut request_a =
+        session_auth_http_request("/auth/refresh", br#"{}"#.to_vec(), &initial_token);
     request_a.headers_mut().insert(
         HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
         HeaderValue::from_str(pause_a.id()).expect("first refresh pause header"),
     );
-    let mut request_b = session_auth_http_request(
-        "/auth/refresh",
-        br#"{}"#.to_vec(),
-        &initial_token,
-    );
+    let mut request_b =
+        session_auth_http_request("/auth/refresh", br#"{}"#.to_vec(), &initial_token);
     request_b.headers_mut().insert(
         HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
         HeaderValue::from_str(pause_b.id()).expect("second refresh pause header"),
@@ -16572,6 +16706,7 @@ async fn concurrent_auth_refresh_has_exactly_one_http_winner() {
 /// @ref LLP 0227#surface-routes-cli-verbs-client-methods — password signup/signin
 /// and recovery reuse the exact credential response and registered issuance path.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn password_routes_signup_authorize_signin_and_recover_end_to_end() {
     let state = password_sessions_activation_server_fixture_async().await;
     let provider = state.auth_provider.clone().expect("password provider");
@@ -16732,6 +16867,7 @@ async fn password_routes_signup_authorize_signin_and_recover_end_to_end() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn password_public_invalid_refusal_is_uniform_and_admin_unlock_clears_early_lockout() {
     const HTTP_TIMING_ENVELOPE: Duration = Duration::from_millis(250);
     let state = password_sessions_activation_server_fixture_async().await;
@@ -16854,6 +16990,7 @@ async fn password_public_invalid_refusal_is_uniform_and_admin_unlock_clears_earl
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set() {
     let state = password_sessions_activation_server_fixture_async().await;
     let provider = state.auth_provider.clone().expect("password provider");
@@ -17004,6 +17141,7 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn password_reset_refuses_password_only_email_only_and_two_principal_squat_uniformly() {
     let state = password_sessions_activation_server_fixture_async().await;
     let provider = state.auth_provider.clone().expect("password provider");
@@ -17069,6 +17207,7 @@ async fn password_reset_refuses_password_only_email_only_and_two_principal_squat
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn production_password_signup_and_capture_reset_are_typed_unready_boundaries() {
     let state = password_sessions_activation_server_fixture_async().await;
     let keyring = Arc::new(AuthKeyringStore::in_memory());
@@ -17119,6 +17258,7 @@ async fn production_password_signup_and_capture_reset_are_typed_unready_boundari
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn push_registry_routes_keep_token_custody_and_logout_retirement_host_owned() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = activate_test_sessions(state);
@@ -17214,6 +17354,7 @@ async fn push_registry_routes_keep_token_custody_and_logout_retirement_host_owne
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn open_registration_mints_exactly_one_credential_and_a_kind_agent_principal() {
     let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
         AgentsMode::Open,
@@ -17269,6 +17410,7 @@ async fn open_registration_mints_exactly_one_credential_and_a_kind_agent_princip
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn registration_refuses_under_disabled_and_dev_modes() {
     let disabled_state = sessions_activation_server_fixture_async().await;
     let disabled = app(disabled_state)
@@ -17292,6 +17434,7 @@ async fn registration_refuses_under_disabled_and_dev_modes() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn registration_route_rejects_an_authorization_header_and_owns_an_exact_throttle_budget() {
     assert_eq!(
         super::agent_route_throttle_limit("/auth/agents/register"),
@@ -17316,6 +17459,7 @@ async fn registration_route_rejects_an_authorization_header_and_owns_an_exact_th
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn user_minted_invitation_requires_step_up_and_is_single_use() {
     let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
         AgentsMode::Invited,
@@ -17379,6 +17523,7 @@ async fn user_minted_invitation_requires_step_up_and_is_single_use() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn invited_registration_records_the_minting_user_as_owner() {
     let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
         AgentsMode::Invited,
@@ -17411,7 +17556,11 @@ async fn invited_registration_records_the_minting_user_as_owner() {
     let credential = registered["credential"].as_str().unwrap().to_owned();
     let owner_recorded = with_snapback(&state.snapback, {
         let agent_id = agent_id.clone();
-        move |snapback| snapback.remainder_auth_database_mut().agent_owner(&agent_id)
+        move |snapback| {
+            snapback
+                .remainder_auth_database_mut()
+                .agent_owner(&agent_id)
+        }
     })
     .await
     .unwrap();
@@ -17457,6 +17606,7 @@ async fn invited_registration_records_the_minting_user_as_owner() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn a_wrong_class_secret_is_a_typed_mismatch_at_registration() {
     let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
         AgentsMode::Invited,
@@ -17488,6 +17638,7 @@ async fn a_wrong_class_secret_is_a_typed_mismatch_at_registration() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn registered_agent_completes_the_full_pairing_journey() {
     let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
         AgentsMode::Open,
@@ -17621,6 +17772,7 @@ async fn registered_agent_completes_the_full_pairing_journey() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn integration_key_holder_retires_the_complete_installed_family() {
     let state = sessions_activation_server_fixture_with_integrations_async().await;
     with_snapback(&state.snapback, |snapback| {
@@ -18111,6 +18263,7 @@ async fn integration_key_holder_retires_the_complete_installed_family() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn production_operator_retirement_requires_process_bound_agent_destroy_capability() {
     let mut state = sessions_activation_server_fixture_with_integrations_async().await;
     Arc::make_mut(&mut state.server).profile = ServerProfile::Prod;
@@ -18166,6 +18319,7 @@ async fn production_operator_retirement_requires_process_bound_agent_destroy_cap
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn deactivated_agent_cannot_re_register_or_reuse_its_credential() {
     let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
         AgentsMode::Open,
@@ -18222,6 +18376,7 @@ async fn deactivated_agent_cannot_re_register_or_reuse_its_credential() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_receipts() {
     let state = sessions_activation_server_fixture_async().await;
     let provider = state.auth_provider.clone().unwrap();
@@ -18589,6 +18744,7 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
 /// owner bulk endpoint ends every grant to the named actor, is idempotent,
 /// and reveals nothing to a different signed-in user.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn bulk_grant_revocation_is_owner_scoped_idempotent_and_no_store_over_http() {
     let state = sessions_activation_server_fixture_async().await;
     let owner = mint_test_credential(&state, "bulk-owner@example.com").await;
@@ -18702,6 +18858,7 @@ async fn bulk_grant_revocation_is_owner_scoped_idempotent_and_no_store_over_http
 /// one operation/target/session-bound proof in the grant transaction;
 /// ordinary consent remains frictionless.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
     let state = sessions_activation_server_fixture_async().await;
     let provider = state.auth_provider.clone().unwrap();
@@ -18988,6 +19145,7 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn production_step_up_delivery_fails_closed_without_capture() {
     let state = sessions_activation_server_fixture_async().await;
     let credential = mint_test_credential(&state, "prod-step-up@example.com").await;
@@ -19033,6 +19191,7 @@ async fn production_step_up_delivery_fails_closed_without_capture() {
 /// resolved before the closed body is parsed; only a valid live bearer may
 /// reach the provider DTO parser.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn session_auth_credentials_precede_refresh_and_logout_body_errors() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = activate_test_sessions(state);
@@ -19117,6 +19276,7 @@ async fn session_auth_credentials_precede_refresh_and_logout_body_errors() {
 /// successor, but a revocation that wins before the finite-response handoff
 /// fences the credential bytes from publication.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn refresh_credential_response_is_fenced_by_prepublication_revocation() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = activate_test_sessions(state);
@@ -19174,6 +19334,7 @@ async fn refresh_credential_response_is_fenced_by_prepublication_revocation() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn authorized_durable_http_body_holds_commit_through_final_poll() {
     let state = auth_invalidation_reset_fixture();
     let authorization = state
@@ -19236,6 +19397,7 @@ async fn authorized_durable_http_body_holds_commit_through_final_poll() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn unpolled_http_batch_is_suppressed_and_requeued_after_authority_mismatch() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("mismatch HTTP fixture"));
     let opened = state
@@ -19364,6 +19526,7 @@ async fn no_lease_projection_still_revalidates_exact_grant_at_first_poll() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn projection_only_http_body_loses_to_marker_installed_after_selection() {
     let state =
         test_detached_app_state(LocalSnapback::memory().expect("projection marker fixture"));
@@ -19427,6 +19590,7 @@ async fn projection_only_http_body_loses_to_marker_installed_after_selection() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn http_unbound_ordinary_lease_loses_to_later_exact_marker() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("HTTP marker fixture"));
     let opened = state
@@ -19466,6 +19630,7 @@ async fn http_unbound_ordinary_lease_loses_to_later_exact_marker() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn http_exact_ordinary_lease_loses_to_later_unbound_marker() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("HTTP marker fixture"));
     let opened = state
@@ -19505,6 +19670,7 @@ async fn http_exact_ordinary_lease_loses_to_later_unbound_marker() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn http_exact_marker_lease_loses_to_later_unbound_marker() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("HTTP marker rank fixture"));
     let opened = state
@@ -19551,6 +19717,7 @@ async fn http_exact_marker_lease_loses_to_later_unbound_marker() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn websocket_projection_offer_loses_to_marker_installed_after_selection() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("WS marker fixture"));
     let opened = state
@@ -19614,6 +19781,7 @@ async fn websocket_projection_offer_loses_to_marker_installed_after_selection() 
 /// one sessions mutation publishes one obligation-backed snapshot source, so
 /// the exact stream drain must hand off one frame for that subscription/version.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() {
     let connection_id = "sessions-one-frame-per-version";
     let state = auth_projection_http_fixture(connection_id, 0, 0);
@@ -19746,6 +19914,7 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn websocket_selected_marker_defers_precomputed_projections_and_emits_alone() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("WS marker-alone fixture"));
     let opened = state
@@ -19782,6 +19951,7 @@ fn websocket_selected_marker_defers_precomputed_projections_and_emits_alone() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn oversized_http_projection_returns_503_before_outbox_lease_and_stays_pending() {
     let connection_id = "oversized-projection-http";
     let state = auth_projection_http_fixture(connection_id, 1, 0)
@@ -19829,6 +19999,7 @@ async fn oversized_http_projection_returns_503_before_outbox_lease_and_stays_pen
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn leased_marker_suppresses_http_projection_then_marker_emits_alone_before_retry() {
     let connection_id = "leased-marker-projection-http";
     let state = auth_projection_http_fixture(connection_id, 1, 0);
@@ -19893,6 +20064,7 @@ async fn leased_marker_suppresses_http_projection_then_marker_emits_alone_before
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn cancelled_mode_root_releases_http_batch_at_eof_while_body_is_retained() {
     use http_body::Body as _;
 
@@ -19935,6 +20107,7 @@ async fn cancelled_mode_root_releases_http_batch_at_eof_while_body_is_retained()
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn unpolled_http_batch_is_suppressed_and_whole_id_cleaned_after_pressure_eviction() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("pressure HTTP fixture"));
     let opened = state
@@ -20012,6 +20185,7 @@ async fn unpolled_http_batch_is_suppressed_and_whole_id_cleaned_after_pressure_e
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn first_http_poll_uses_provider_clock_and_cannot_ack_expired_session_leaf() {
     let start_ms = 1_000_000;
     let (state, clock) = manual_clock_sessions_fixture(start_ms);
@@ -20042,6 +20216,7 @@ async fn first_http_poll_uses_provider_clock_and_cannot_ack_expired_session_leaf
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn finalized_revocation_between_http_selection_and_first_poll_suppresses_batch() {
     let (state, _clock) = manual_clock_sessions_fixture(2_000_000);
     let credential = mint_test_credential(&state, "leased-revoke@example.com").await;
@@ -20083,6 +20258,7 @@ async fn finalized_revocation_between_http_selection_and_first_poll_suppresses_b
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn committed_reset_between_http_selection_and_first_poll_suppresses_batch() {
     let (state, _clock) = manual_clock_sessions_fixture(3_000_000);
     let credential = mint_test_credential(&state, "leased-reset@example.com").await;
@@ -20106,6 +20282,7 @@ async fn committed_reset_between_http_selection_and_first_poll_suppresses_batch(
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn coalescing_replacement_between_http_selection_and_first_poll_retries_latest() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("coalesce HTTP fixture"));
     let opened = state
@@ -20285,6 +20462,7 @@ fn prepared_handoff_linearizes_before_concurrent_mismatch_retirement() {
 /// released at the Begin handoff and a drained carrier is owned through
 /// durable Commit and Finalize independently of the initiating request.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn logout_begin_releases_provider_and_cancelled_waiter_cannot_cancel_finish() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = activate_test_sessions(state);
@@ -20385,6 +20563,7 @@ async fn logout_begin_releases_provider_and_cancelled_waiter_cannot_cancel_finis
 /// propagate terminal authority loss even when projection Finalize fails;
 /// the original projection diagnostic remains the request outcome.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn postcommit_logout_finalize_failure_still_terminalizes_exact_grant() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = activate_test_sessions(state);
@@ -20455,6 +20634,7 @@ async fn postcommit_logout_finalize_failure_still_terminalizes_exact_grant() {
 /// @ref LLP 0059#operation-specific-publication — cap eviction propagates
 /// the exact predecessor terminal event after its joint durable commit.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn postcommit_admin_mint_cap_finalize_failure_still_terminalizes_eviction() {
     let start_ms = super::now_millis();
     let clock = Arc::new(ManualServerAuthClock::new(start_ms));
@@ -20529,6 +20709,7 @@ async fn postcommit_admin_mint_cap_finalize_failure_still_terminalizes_eviction(
 /// sink delivery must be harmless while the first delivery invalidates the
 /// reverse-indexed grant and schedules terminal close.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn authoritative_expiry_terminal_sink_is_idempotent() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = activate_test_sessions(state);
@@ -20581,6 +20762,7 @@ async fn authoritative_expiry_terminal_sink_is_idempotent() {
 /// predecessor from the projection without applying ordinary-use grace;
 /// the refresh state machine owns the outside-grace family revocation.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn refresh_gate_preserves_outside_grace_reuse_revocation() {
     let start_ms = super::now_millis();
     let clock = Arc::new(ManualServerAuthClock::new(start_ms));
@@ -20663,6 +20845,7 @@ async fn refresh_gate_preserves_outside_grace_reuse_revocation() {
 /// @ref LLP 0057#logout-ordinary-supersession-and-family-alarm — every bearer class publishes the
 /// same delayed response, while only an attributable tombstone revokes.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn auth_family_alarm_is_delayed_opaque_and_revoke_only() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = activate_test_sessions(state);
@@ -20757,6 +20940,7 @@ async fn auth_family_alarm_is_delayed_opaque_and_revoke_only() {
 /// @ref LLP 0057#routes-operations-and-dtos — active dev refusal precedes the
 /// installed provider, bearer, and even an over-limit malformed body.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn auth_http_dev_refusal_precedes_provider_and_body_handling() {
     let (router, _) = auth_http_fixture(PolicyAuthMode::Dev);
     for uri in ["/auth/request-code", "/auth/family-alarm"] {
@@ -20788,6 +20972,7 @@ async fn auth_http_dev_refusal_precedes_provider_and_body_handling() {
 /// session routes resolve their bearer through the process projection and
 /// publish the terminating logout response through its committed outcome.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn registered_session_auth_routes_resolve_projection_and_publish_logout() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = activate_test_sessions(state);
@@ -20826,6 +21011,7 @@ async fn registered_session_auth_routes_resolve_projection_and_publish_logout() 
 /// request records authenticated use under the same prepared authority and
 /// publishes the later deadline only after the durable outcome is known.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn successful_finite_session_use_extends_the_projection_deadline() {
     let start_ms = 1_700_000_000_000;
     let clock = Arc::new(ManualServerAuthClock::new(start_ms));
@@ -20947,6 +21133,7 @@ fn auth_mint_input_refusals_are_contextual_without_reflecting_args() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn auth_mint_host_op_has_exact_projection_and_sessions_only_activation() {
     let admin_token = "auth-http-admin";
     let body = serde_json::to_vec(&serde_json::json!({
@@ -21158,6 +21345,7 @@ async fn auth_mint_host_op_has_exact_projection_and_sessions_only_activation() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn auth_host_handler_backstop_requires_both_authority_axes() {
     let (state, impersonation) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let request = || {
@@ -21221,6 +21409,7 @@ async fn auth_host_handler_backstop_requires_both_authority_axes() {
 /// shared rescue core and exact six-field metadata projection; unlike the
 /// stored-manifest recovery router, ordinary service remains live.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn auth_rescue_host_op_returns_pinned_metadata_and_keeps_service_live() {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("rescue.sqlite3");
@@ -21497,10 +21686,11 @@ fn rust_sources_below(path: &Path, sources: &mut Vec<PathBuf>) {
 
 fn production_snapback_literals() -> BTreeSet<String> {
     let mut sources = Vec::new();
-    rust_sources_below(
-        &Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
-        &mut sources,
-    );
+    let remainder = Path::new(env!("CARGO_MANIFEST_DIR"));
+    rust_sources_below(&remainder.join("src"), &mut sources);
+    if cfg!(not(feature = "server-owner")) {
+        rust_sources_below(&remainder.join("../snapback-server/src"), &mut sources);
+    }
     sources.sort();
 
     let mut visitor = SnapbackLiteralVisitor::default();
@@ -24217,6 +24407,7 @@ async fn served_capability_and_client_profile_refusals_have_distinct_statuses() 
 /// one audited format family, and require exact equality with the status
 /// table. A new producer cannot inherit a status without a reviewable edit.
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn s5_d10_production_diagnostic_inventory_cannot_drift() {
     let mut emitted = production_snapback_literals();
     let mut exclusions = BTreeSet::new();
@@ -24415,6 +24606,7 @@ fn isolated_worker_counters() -> DetachedActionWorkerCounters {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn detached_action_execution_stays_bounded_under_repeated_saturation() {
     let state = slow_cron_state(CronOverlapPolicy::Allow);
     let counters = isolated_worker_counters();
@@ -25326,6 +25518,7 @@ fn generation_test_manifest() -> FunctionManifest {
         }
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn stage_held_action(state: &SharedSnapback) -> Box<crate::local::DetachedIbexAction> {
     let mut snapback = state.try_lock().expect("test owns instance lock");
     match snapback
@@ -25376,6 +25569,7 @@ fn held_action_host(
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
     let mut snapback = LocalSnapback::memory().expect("managed host identity state");
     let app_id = "operation-carrier-fixture";
@@ -25567,6 +25761,7 @@ fn llp0163_host_child_inventory_routes_both_server_action_runtime_tiers() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn snapshot_nested_mutation_observation_covers_handler_through_commit() {
     let mut snapback = LocalSnapback::memory().expect("snapshot nested telemetry state");
     let diagnostics = snapback.load_functions(generation_test_manifest());
@@ -25645,6 +25840,7 @@ fn snapshot_nested_mutation_observation_covers_handler_through_commit() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn bounded_action_stream_pulls_multiple_chunks_and_closes_idempotently() {
     let listener =
         std::net::TcpListener::bind("127.0.0.1:0").expect("bind deterministic stream fixture");
@@ -25742,6 +25938,7 @@ fn bounded_action_stream_pulls_multiple_chunks_and_closes_idempotently() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn both_action_fetch_lanes_refuse_non_public_destinations() {
     let mut snapback = LocalSnapback::memory().expect("destination-policy host state");
     snapback.load_functions(generation_test_manifest());
@@ -25796,6 +25993,7 @@ fn both_action_fetch_lanes_refuse_non_public_destinations() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn both_action_fetch_lanes_refuse_authority_and_hop_by_hop_headers_before_send() {
     let listener =
         std::net::TcpListener::bind("127.0.0.1:0").expect("bind no-send action-header witness");
@@ -25866,6 +26064,7 @@ fn both_action_fetch_lanes_refuse_authority_and_hop_by_hop_headers_before_send()
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn both_action_fetch_lanes_forward_ordinary_end_to_end_headers() {
     let listener =
         std::net::TcpListener::bind("127.0.0.1:0").expect("bind ordinary-header fixture");
@@ -25932,6 +26131,7 @@ fn both_action_fetch_lanes_forward_ordinary_end_to_end_headers() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn both_action_fetch_lanes_refuse_redirects_and_echo_the_authored_url() {
     let listener =
         std::net::TcpListener::bind("127.0.0.1:0").expect("bind action redirect fixture");
@@ -25990,6 +26190,7 @@ fn both_action_fetch_lanes_refuse_redirects_and_echo_the_authored_url() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn bounded_action_stream_refuses_the_first_byte_past_the_total_limit() {
     let listener =
         std::net::TcpListener::bind("127.0.0.1:0").expect("bind oversized stream fixture");
@@ -26053,6 +26254,7 @@ fn bounded_action_stream_refuses_the_first_byte_past_the_total_limit() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn bounded_action_stream_enforces_wall_idle_and_progress_rate_codes() {
     let mut snapback = LocalSnapback::memory().expect("bounded stream limit host state");
     snapback.load_functions(generation_test_manifest());
@@ -26127,6 +26329,7 @@ fn bounded_action_stream_enforces_wall_idle_and_progress_rate_codes() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn descriptor_secret_slots_are_refused_on_the_value_mode_profile() {
     // @ref LLP 0036#runtime-exposure-d5-d8 — the local profile stages
     // secret values (with the staged-value redactor at the envelope), so
@@ -26162,6 +26365,7 @@ fn descriptor_secret_slots_are_refused_on_the_value_mode_profile() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn automatically_retried_invocations_cannot_open_response_streams() {
     let mut snapback = LocalSnapback::memory().expect("retry exclusion host state");
     snapback.load_functions(generation_test_manifest());
@@ -26184,6 +26388,7 @@ fn automatically_retried_invocations_cannot_open_response_streams() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn stream_attempt_lease_fences_second_runner_progress_and_cursor_retry() {
     let mut snapback = LocalSnapback::memory().expect("lease host state");
     snapback.load_functions(generation_test_manifest());
@@ -26267,6 +26472,7 @@ fn stream_attempt_lease_fences_second_runner_progress_and_cursor_retry() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[cfg(not(feature = "server-owner"))]
 async fn service_principal_terminalization_fences_stream_open_and_discards_late_bytes() {
     // @ref LLP 0076#authority-and-lifecycle — the ServicePrincipal tier
     // of the per-read fence, end to end: a REAL prepared scoped-token
@@ -26445,6 +26651,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn slow_consumer_buffering_stays_within_the_profile_bound_across_four_cursors() {
     // @ref LLP 0076#surface — 64 KiB application-visible buffering: the
     // accounting domain is host-materialized bytes (queued chunk +
@@ -26544,6 +26751,7 @@ fn slow_consumer_buffering_stays_within_the_profile_bound_across_four_cursors() 
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn wall_ceiling_bounds_a_blocked_read_absolutely() {
     // A source that produces headers and then nothing: the pull blocks,
     // and the absolute wall ceiling must fire mid-read rather than
@@ -26597,6 +26805,7 @@ fn wall_ceiling_bounds_a_blocked_read_absolutely() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn stream_wall_deadline_reserves_settlement_grace_before_the_watchdog() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind grace fixture");
     let address = listener.local_addr().expect("grace fixture address");
@@ -26641,6 +26850,7 @@ fn stream_wall_deadline_reserves_settlement_grace_before_the_watchdog() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn terminalization_during_read_discards_late_bytes_and_closes_the_cursor() {
     // @ref LLP 0076#authority-and-lifecycle — a read revalidates AFTER
     // awaiting bytes and discards late bytes if authority was lost. The
@@ -26714,6 +26924,7 @@ fn terminalization_during_read_discards_late_bytes_and_closes_the_cursor() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn attempt_settlement_signals_the_cursor_without_a_progress_mutation() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind signal fixture");
     let address = listener.local_addr().expect("signal fixture address");
@@ -26777,6 +26988,7 @@ fn attempt_settlement_signals_the_cursor_without_a_progress_mutation() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn cancel_physically_closes_the_upstream_socket_of_an_indefinite_source() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind indefinite fixture");
     let address = listener.local_addr().expect("indefinite fixture address");
@@ -26841,6 +27053,7 @@ fn cancel_physically_closes_the_upstream_socket_of_an_indefinite_source() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn stream_attempt_rows_survive_process_death_and_reconcile_conservatively() {
     let dir = tempfile::tempdir().expect("stream attempt tempdir");
     let path = dir.path().join("attempts.sqlite");
@@ -27004,6 +27217,7 @@ fn output_stream_transcripts_survive_process_death_and_cover_terminal_insert_gap
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn keyed_non_get_transport_loss_settles_ambiguous_and_pre_send_failures_stay_failed() {
     // @ref LLP 0076#author-decisions--2026-07-23 — decision 5: a bare
     // idempotency key no longer downgrades ambiguity; only a safe method
@@ -27081,6 +27295,7 @@ fn keyed_non_get_transport_loss_settles_ambiguous_and_pre_send_failures_stay_fai
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn cancelled_and_timed_out_after_initiation_carry_the_effect_fact() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind effect fixture");
     let address = listener.local_addr().expect("effect fixture address");
@@ -27164,6 +27379,7 @@ fn cancelled_and_timed_out_after_initiation_carry_the_effect_fact() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn watchdog_abandonment_terminalizes_stream_attempts_with_timed_out() {
     let manifest = FunctionManifest {
         functions: vec![FunctionDefinition::new(
@@ -27251,6 +27467,7 @@ async fn watchdog_abandonment_terminalizes_stream_attempts_with_timed_out() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn stream_attempt_control_plane_settles_verbatim_through_the_real_action_path() {
     let manifest = FunctionManifest {
             functions: vec![FunctionDefinition::new(
@@ -27331,6 +27548,7 @@ async fn stream_attempt_control_plane_settles_verbatim_through_the_real_action_p
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn detached_action_host_closes_begin_to_native_initiated_revocation_race() {
     let mut snapback = LocalSnapback::memory().expect("external effect host fixture");
     snapback.load_functions(generation_test_manifest());
@@ -27406,6 +27624,7 @@ async fn detached_action_host_closes_begin_to_native_initiated_revocation_race()
 /// The host-plan leg is important: it executes under the instance lock and
 /// therefore bypassed the detached-Ibex mutation's commit-time binding.
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn detached_action_rejects_every_host_call_after_reload_or_reset() {
     let mut snapback = LocalSnapback::memory().expect("memory instance");
     snapback.load_functions(generation_test_manifest());
@@ -27478,6 +27697,7 @@ use crate::ephemeral::{
 };
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn streaming_action_emits_through_runtime_and_reserved_live_room() {
     let mut function = FunctionDefinition::new(
         "outputStream",
@@ -27584,6 +27804,7 @@ async fn streaming_action_emits_through_runtime_and_reserved_live_room() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn stream_transcript_route_is_initiator_private_with_exact_403_and_404() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = state
@@ -27719,9 +27940,9 @@ fn synthetic_connection_authority(bound: BoundGrantAuthority) -> PreparedConnect
         resolved,
         session_route_authority: None,
         service_route_authority: match &bound {
-            BoundGrantAuthority::ServicePrincipal { route_authority, .. } => {
-                Some(route_authority.clone())
-            }
+            BoundGrantAuthority::ServicePrincipal {
+                route_authority, ..
+            } => Some(route_authority.clone()),
             _ => None,
         },
         bound,
@@ -27813,6 +28034,7 @@ fn synthetic_session_bound(
     }
 }
 
+#[cfg(not(feature = "server-owner"))]
 fn synthetic_service_bound(token_id: &str) -> BoundGrantAuthority {
     let (authorization_stream_incarnation, publication) =
         FencedPublication::anonymous_for_unmanaged_dev_connection();
@@ -28075,6 +28297,7 @@ fn connection_previous_token_reuse_compares_every_authority_field() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn connection_registry_negotiates_exact_invalidation_v1_with_bound_authority() {
     let registry = ConnectionRegistry::default();
     let issuer_id =
@@ -28680,6 +28903,7 @@ fn connection_reverse_indexes_do_not_leave_ghosts() {
 /// destructively drain data after its grant id is replaced under the same
 /// public connection id.
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn stale_prepared_connection_act_cannot_drain_reused_connection_outbox() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("memory fixture"));
     let registry = state.connections.clone();
@@ -28745,6 +28969,7 @@ fn stale_prepared_connection_act_cannot_drain_reused_connection_outbox() {
 /// local profile reused the readable id. Production containment mints;
 /// this forced-reuse seam proves the exact drain remains safe anyway.
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn polling_id_reuse_drops_predecessor_effects_and_delivers_successor() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("memory fixture"));
     let registry = state.connections.clone();
@@ -28834,6 +29059,7 @@ async fn slow_socket_write_releases_its_handoff_at_the_monotonic_deadline() {
 /// @ref LLP 0059#fenced-effects-and-live-closure — a stream premark wins
 /// the final grant act even when verification cloned the predecessor first.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn prepared_connection_act_loses_to_concurrent_stream_premark() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let coordinator = state.auth_coordinator.clone().expect("coordinator");
@@ -28999,6 +29225,7 @@ fn ordinary_socket_teardown_suspends_exact_grant_until_finish() {
 /// session without its coordinator, or a terminal session cannot return
 /// `Current` after socket suspension wins.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn room_authority_resolution_fails_closed_after_teardown_or_terminal_wins() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("room race fixture"));
 
@@ -29154,6 +29381,7 @@ async fn room_authority_resolution_fails_closed_after_teardown_or_terminal_wins(
 /// after terminal registry replacement. Its teardown must use the old
 /// effect fence and leave a forced same-readable-id successor untouched.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn stale_exact_socket_teardown_does_not_erase_same_id_replacement() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("reuse teardown fixture"));
     let opened = state
@@ -29333,6 +29561,7 @@ fn admin_and_idle_retirement_immediately_invalidate_old_bearers() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn admin_disconnect_route_retires_bearer_and_awaits_whole_id_cleanup() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("admin disconnect state"));
     let opened = state
@@ -29384,6 +29613,7 @@ async fn admin_disconnect_route_retires_bearer_and_awaits_whole_id_cleanup() {
 /// retirement transfers every capture into owned cleanup before awaiting
 /// the first task; cancelling maintenance cannot orphan later grants.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[cfg(not(feature = "server-owner"))]
 async fn maintenance_bulk_retirement_spawns_all_cleanup_before_first_await() {
     let state =
         test_detached_app_state(LocalSnapback::memory().expect("maintenance cleanup state"));
@@ -29455,6 +29685,7 @@ async fn maintenance_bulk_retirement_spawns_all_cleanup_before_first_await() {
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2 cleanup
 /// ownership remains fail-closed and retryable after child failure.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[cfg(not(feature = "server-owner"))]
 async fn maintenance_cleanup_join_failure_retains_exact_retry_capture() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("cleanup retry state"));
     let telemetry_dir = tempfile::tempdir().expect("cleanup telemetry directory");
@@ -29533,6 +29764,7 @@ async fn maintenance_cleanup_join_failure_retains_exact_retry_capture() {
 /// finalizer keeps both the stage and authority-work permit through Local
 /// publication even when its request-side waiter is cancelled.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains_work() {
     let state = tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -29733,6 +29965,7 @@ async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains
 /// abandon a Local reservation when exact-grant validation refuses the
 /// final bounded act; no query, subscription, or obligation may publish.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn refused_connection_act_abandons_staged_subscribe_without_publication() {
     let state = tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -29995,7 +30228,7 @@ fn managed_host_plan_action_route_inventory_uses_reserved_step_executor() {
     assert!(
         inventory
             .calls
-            .get("invoke_action")
+            .get("invoke_action_inner")
             .is_some_and(|calls| calls.contains("run_staged_app_action")),
         "the HTTP action route must reach the shared managed action executor"
     );
@@ -30050,6 +30283,7 @@ fn projected_connection_deadline(state: &AppState, bearer: &str) -> (ResolvedApp
 /// solely through the projection, store only the closed grant authority,
 /// record one qualifying use, and reject a superseded predecessor.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn connection_open_uses_projected_current_bearer_and_records_sliding_use() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = state
@@ -30175,6 +30409,7 @@ async fn connection_open_uses_projected_current_bearer_and_records_sliding_use()
 /// @ref LLP 0059#connection-bound-authority — even a semantically rejected
 /// body consumes the exact projected session source before returning.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn rejected_connection_open_bodies_still_consume_session_budget() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
     let state = state
@@ -30236,6 +30471,7 @@ async fn rejected_connection_open_bodies_still_consume_session_budget() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn service_token_terminalization_is_carrier_exact_within_one_durable_grant() {
     let state = test_detached_app_state(LocalSnapback::memory().unwrap());
     let open = |connection_id: &str, token_id: &str| {
@@ -30326,6 +30562,7 @@ async fn service_token_terminalization_is_carrier_exact_within_one_durable_grant
 /// @ref LLP 0059#typed-terminal-auth-error — authoritative grant expiry
 /// wakes every affected socket with expired/durableDelete.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn delayed_live_observer_grant_expiry_preserves_close_budget_and_fanout() {
     let fixture = finite_authority_matrix_fixture().await;
     let grant_deadline_ms = fixture.start_ms + 1_000;
@@ -30520,6 +30757,7 @@ async fn delayed_live_observer_grant_expiry_preserves_close_budget_and_fanout() 
 /// @ref LLP 0059#finite-service-authority-fence — the read-only planned
 /// token set is retained through commit and lifecycle propagation.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn grant_deadline_crossing_direct_bearer_expires_every_same_grant_socket() {
     let fixture = finite_authority_matrix_fixture().await;
     // Retained live validation deliberately samples the host wall clock,
@@ -30750,6 +30988,7 @@ async fn grant_deadline_crossing_direct_bearer_expires_every_same_grant_socket()
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn committed_reset_terminalizes_only_the_exact_bound_socket() {
     let state = auth_invalidation_reset_fixture();
     let registry = state.connections.clone();
@@ -30811,6 +31050,7 @@ async fn committed_reset_terminalizes_only_the_exact_bound_socket() {
 /// installation closes every notifier source, not only purge-generated
 /// wakes.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(not(feature = "server-owner"))]
 async fn preterminal_wake_blocked_on_registry_observes_typed_event_after_retirement() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("terminal wake state"));
     let opened = state
@@ -30915,6 +31155,7 @@ async fn preterminal_wake_blocked_on_registry_observes_typed_event_after_retirem
 /// readable id receives a distinct successor, whose activity/outbox state
 /// survives the predecessor's asynchronous post-Local sweep.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn terminal_retired_whole_id_cleanup_preserves_typed_event_and_minted_successor() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("terminal cleanup state"));
     let predecessor = state
@@ -30991,6 +31232,7 @@ async fn terminal_retired_whole_id_cleanup_preserves_typed_event_and_minted_succ
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn committed_reset_rebuilds_every_invalidation_projection_before_reopening() {
     let state = auth_invalidation_reset_fixture();
     let predecessor = state
@@ -31129,6 +31371,7 @@ async fn committed_reset_rebuilds_every_invalidation_projection_before_reopening
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn dormant_dev_reset_rotates_stream_without_installing_a_session_issuer() {
     // Match the production startup graph: even a dormant dev database has
     // one inspected provider and one rebuilt stream coordinator. The old
@@ -31201,6 +31444,7 @@ async fn dormant_dev_reset_rotates_stream_without_installing_a_session_issuer() 
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn active_dev_ready_catalog_reset_stays_session_issuer_free() {
     // Catalog readiness is not the issuer predicate. A ready catalog can
     // remain active Dev during staging or after downgrade; startup only
@@ -31265,6 +31509,7 @@ async fn active_dev_ready_catalog_reset_stays_session_issuer_free() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn postcommit_reset_finalize_failure_clears_issuers_and_stays_globally_closed() {
     let state = auth_invalidation_reset_fixture();
     let coordinator = state.auth_coordinator.clone().expect("reset coordinator");
@@ -31431,6 +31676,7 @@ fn connection_registry_pressure_evicts_lru_instead_of_permanently_wedging() {
 /// `previousToken` refuses `SNAPBACK_WIRE_VERSION_MISMATCH` and leaves
 /// the grant undisturbed.
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn wire_version_binding_echo_and_reopen_immutability() {
     let state = test_detached_app_state(
         LocalSnapback::memory().expect("in-memory wire-version registry state"),
@@ -31549,6 +31795,7 @@ fn wire_version_binding_echo_and_reopen_immutability() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn ephemeral_expiry_binding_echo_and_reopen_immutability() {
     let state =
         test_detached_app_state(LocalSnapback::memory().expect("in-memory expiry registry state"));
@@ -31611,6 +31858,7 @@ fn ephemeral_expiry_binding_echo_and_reopen_immutability() {
 }
 
 #[test]
+#[cfg(not(feature = "server-owner"))]
 fn hosted_ephemeral_four_way_enforcement_is_lineage_owned() {
     let state = test_detached_app_state(
         LocalSnapback::memory().expect("in-memory authority-instance registry state"),
@@ -32005,6 +32253,7 @@ fn hosted_ephemeral_requirement_needs_current_single_instance_admission() {
 /// precedence over the registry equality check, and both open-time offer
 /// fields follow one matrix (unknown refuses, absent degrades).
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn connection_open_http_wire_version_offer_matrix() {
     let state = test_detached_app_state(
         LocalSnapback::memory().expect("in-memory wire-version HTTP state"),
@@ -32151,6 +32400,7 @@ async fn connection_open_http_wire_version_offer_matrix() {
 /// offers refuse REQUIRED (B3), and the bound version present wins over
 /// duplicates and extra candidates.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn stream_upgrade_enforces_the_wire_version_offer_matrix() {
     let state = test_detached_app_state(
         LocalSnapback::memory().expect("in-memory wire-version socket state"),
@@ -32252,6 +32502,7 @@ async fn stream_upgrade_enforces_the_wire_version_offer_matrix() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn pressure_evicted_socket_cannot_receive_notifier_delivery() {
     let state =
         test_detached_app_state(LocalSnapback::memory().expect("in-memory socket test state"));
@@ -32369,6 +32620,7 @@ async fn pressure_evicted_socket_cannot_receive_notifier_delivery() {
 /// listener the median sits at the ~40ms delayed-ACK floor on Linux; a
 /// scheduling hiccup can slow one sample, never the median.
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn accepted_live_socket_delivers_small_frames_without_nagle_delay() {
     let state =
         test_detached_app_state(LocalSnapback::memory().expect("in-memory nodelay socket state"));
@@ -32492,6 +32744,7 @@ async fn accepted_live_socket_delivers_small_frames_without_nagle_delay() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn terminal_socket_sends_closed_auth_error_then_4401() {
     let directory = tempfile::tempdir().expect("terminal socket telemetry directory");
     let database_path = directory.path().join("terminal-socket.sqlite3");
@@ -32629,6 +32882,7 @@ async fn terminal_socket_sends_closed_auth_error_then_4401() {
 }
 
 #[tokio::test]
+#[cfg(not(feature = "server-owner"))]
 async fn aborted_live_stream_task_records_reserved_cancellation() {
     let directory = tempfile::tempdir().expect("aborted socket telemetry directory");
     let database_path = directory.path().join("aborted-socket.sqlite3");

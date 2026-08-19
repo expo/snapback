@@ -23,22 +23,42 @@
 pub mod embed;
 
 #[doc(hidden)]
+#[cfg(not(test))]
+pub use snapback_server::admin;
+#[cfg(test)]
+#[path = "../../snapback-server/src/admin.rs"]
 pub mod admin;
+#[cfg(not(test))]
+pub use snapback_server::admin_agent_destroy;
+#[cfg(test)]
+#[path = "../../snapback-server/src/admin_agent_destroy.rs"]
 pub mod admin_agent_destroy;
 #[doc(hidden)]
+#[cfg(not(test))]
+pub use snapback_server::admin_impersonation;
+#[cfg(test)]
+#[path = "../../snapback-server/src/admin_impersonation.rs"]
 pub mod admin_impersonation;
 #[doc(hidden)]
+#[cfg(not(test))]
+pub use snapback_server::admin_link;
+#[cfg(test)]
+#[path = "../../snapback-server/src/admin_link.rs"]
 pub mod admin_link;
 #[doc(hidden)]
+#[cfg(not(test))]
+pub use snapback_server::admin_secret_read;
+#[cfg(test)]
+#[path = "../../snapback-server/src/admin_secret_read.rs"]
 pub mod admin_secret_read;
 pub(crate) use snapback_activation::agent_safe_publication;
+pub(crate) use snapback_engine::ask;
 #[doc(hidden)]
 pub use snapback_types::api_envelope;
 #[doc(hidden)]
 pub use snapback_types::app_data_result;
 #[doc(hidden)]
 pub use snapback_types::args_contract;
-pub(crate) use snapback_engine::ask;
 #[doc(hidden)]
 pub mod assets;
 #[doc(hidden)]
@@ -58,62 +78,74 @@ pub(crate) use snapback_kernel::authoring_suggestion;
 pub use snapback_engine::bench_support;
 #[doc(hidden)]
 pub use snapback_types::bench_fixture;
-pub(crate) use snapback_sync::bounded_children_cursor;
-#[doc(hidden)]
-pub use snapback_kernel::branches;
 #[doc(hidden)]
 pub use snapback_activation::bundle;
 #[doc(hidden)]
-pub mod cli;
+pub use snapback_kernel::branches;
+pub(crate) use snapback_sync::bounded_children_cursor;
 #[doc(hidden)]
-pub use snapback_types::commit_envelope;
+pub mod cli;
 #[doc(hidden)]
 pub use snapback_activation::completeness;
 #[doc(hidden)]
 pub use snapback_activation::config;
 pub use snapback_kernel::conformance;
 pub(crate) use snapback_sync::connected_clients;
+#[doc(hidden)]
+pub use snapback_types::commit_envelope;
 pub(crate) mod contract_exact;
 // @ref LLP 0225#1-ownership-map — owner 1: crate-private generation
 // activation coordinator.
-pub(crate) use snapback_runtime::elevated_read_trace;
 pub(crate) use snapback_activation::generation_activation;
+pub(crate) use snapback_runtime::elevated_read_trace;
+pub(crate) use snapback_sync::spike_trace;
 #[doc(hidden)]
 pub use snapback_types::visibility_governance;
-pub(crate) use snapback_sync::spike_trace;
 #[cfg(test)]
 mod sync_upward_tests;
 // @ref LLP 0225#1-ownership-map — dependency-free shared contract/types
 // leaf consumed downward by Rust owners and generated-artifact producers.
 #[doc(hidden)]
-pub use snapback_types::contract_types;
+#[cfg(not(test))]
+pub use snapback_server::control_catalog;
 #[doc(hidden)]
+pub use snapback_types::contract_types;
+#[cfg(test)]
+#[path = "../../snapback-server/src/control_catalog.rs"]
 pub mod control_catalog;
 #[doc(hidden)]
 pub mod cron;
-#[doc(hidden)]
-pub use snapback_kernel::data_patch;
-#[doc(hidden)]
-pub use snapback_kernel::data_tier;
 #[doc(hidden)]
 pub use snapback_activation::deploy;
 #[doc(hidden)]
 pub use snapback_auth::dev_identity;
 #[doc(hidden)]
+pub use snapback_kernel::data_patch;
+#[doc(hidden)]
+pub use snapback_kernel::data_tier;
+#[doc(hidden)]
 pub mod diagnostic;
 #[doc(hidden)]
-pub use snapback_sync::ephemeral;
+pub use snapback_kernel::fork_promotion;
+#[doc(hidden)]
+#[cfg(not(test))]
+pub use snapback_server::guide;
 #[doc(hidden)]
 pub use snapback_services::error_tracking;
 #[doc(hidden)]
 pub use snapback_services::errors_query;
 #[doc(hidden)]
-pub use snapback_kernel::fork_promotion;
+pub use snapback_sync::ephemeral;
 #[doc(hidden)]
 pub use snapback_types::exec_guard;
-#[doc(hidden)]
+#[cfg(test)]
+#[path = "../../snapback-server/src/guide.rs"]
 pub mod guide;
 pub(crate) mod guide_mcp;
+#[cfg(not(test))]
+pub(crate) use snapback_server::guide_reference;
+#[cfg(test)]
+#[path = "../../snapback-server/src/guide_reference.rs"]
 pub(crate) mod guide_reference;
 #[doc(hidden)]
 pub use snapback_types::handler_wire;
@@ -129,8 +161,8 @@ pub mod instance_fork;
 pub(crate) use snapback_kernel::instance_lock;
 #[doc(hidden)]
 pub mod jobs;
-pub use snapback_sync::live_coalesce;
 pub(crate) use snapback_services::outbound_policy;
+pub use snapback_sync::live_coalesce;
 pub(crate) mod watches;
 pub(crate) use snapback_services::webhooks;
 
@@ -151,11 +183,11 @@ pub use snapback_kernel::migration;
 pub use snapback_kernel::migration_presentation;
 #[doc(hidden)]
 pub mod network_profile;
+#[doc(hidden)]
+pub use snapback_activation::operational_readiness;
 pub(crate) use snapback_kernel::operation_detail;
 #[doc(hidden)]
 pub use snapback_kernel::operation_ledger;
-#[doc(hidden)]
-pub use snapback_activation::operational_readiness;
 pub(crate) use snapback_types::owner_only_file;
 // The proof/checkpoint implementation contains commit primitives and
 // admission carriers. Keep the kernel module available to in-crate adapters
@@ -163,27 +195,27 @@ pub(crate) use snapback_types::owner_only_file;
 pub(crate) use snapback_kernel::proof_checkpoint;
 #[doc(hidden)]
 pub mod push {
+    pub(crate) use snapback_engine::push::*;
     pub use snapback_services::push::{
         PushAudienceReferenceV1, PushDeferredGrantV1, PushRegistryInspectionV1,
     };
     pub use snapback_types::push::*;
-    pub(crate) use snapback_engine::push::*;
 }
-pub use snapback_sync::realtime;
 #[doc(hidden)]
 pub use snapback_kernel::remediation;
+pub use snapback_sync::realtime;
 pub(crate) mod remainder_adapter;
 #[doc(hidden)]
+pub use snapback_engine::runtime;
+#[doc(hidden)]
 pub use snapback_services::replication;
+#[doc(hidden)]
+pub use snapback_sync::rqs;
 #[doc(hidden)]
 pub use snapback_types::result_contract;
 #[doc(hidden)]
 pub use snapback_types::result_transform;
-#[doc(hidden)]
-pub use snapback_sync::rqs;
 pub use snapback_types::rqs_contract;
-#[doc(hidden)]
-pub use snapback_engine::runtime;
 #[doc(hidden)]
 pub mod schema_export;
 #[doc(hidden)]
@@ -192,12 +224,11 @@ pub(crate) use snapback_kernel::secure_file;
 #[doc(hidden)]
 pub use snapback_kernel::seed_identity;
 #[doc(hidden)]
+#[cfg(not(test))]
+pub use snapback_server::server;
+#[cfg(test)]
+#[path = "../../snapback-server/src/server.rs"]
 pub mod server;
-#[doc(hidden)]
-pub use snapback_types::service_profile;
-pub(crate) use snapback_sync::snapshot_batch_cursor;
-#[doc(hidden)]
-pub use snapback_sync::snapshot_batch_cursor_v2;
 #[doc(hidden)]
 /// The services-only asset continuity capability is intentionally absent.
 ///
@@ -208,6 +239,11 @@ pub use snapback_sync::snapshot_batch_cursor_v2;
 /// @ref LLP 0276#phases — raw lower-layer capability carriers must not be
 /// re-exported by the supported façade.
 pub use snapback_kernel::storage;
+pub(crate) use snapback_sync::snapshot_batch_cursor;
+#[doc(hidden)]
+pub use snapback_sync::snapshot_batch_cursor_v2;
+#[doc(hidden)]
+pub use snapback_types::service_profile;
 #[doc(hidden)]
 pub mod store_state;
 #[doc(hidden)]
@@ -215,12 +251,12 @@ pub use snapback_sync::stream_attempt;
 #[doc(hidden)]
 pub mod telemetry;
 #[doc(hidden)]
-pub use snapback_types::telemetry_contract;
+pub use snapback_kernel::vector;
+pub(crate) use snapback_runtime::warm_vm;
 #[doc(hidden)]
 pub use snapback_services::telemetry_query;
 #[doc(hidden)]
-pub use snapback_kernel::vector;
-pub(crate) use snapback_runtime::warm_vm;
+pub use snapback_types::telemetry_contract;
 #[doc(hidden)]
 pub use snapback_types::value_expr;
 #[doc(hidden)]

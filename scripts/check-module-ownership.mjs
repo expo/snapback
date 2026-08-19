@@ -31,6 +31,7 @@ const FROZEN_DISPOSITIONS = new Set([
   'time-bounded-waiver',
 ]);
 const SOURCE_ROOT = 'crates/snapback/src';
+const SOURCE_ROOTS = [SOURCE_ROOT, 'crates/snapback-server/src'];
 const LEGACY_SOURCE_ROOT = 'src';
 const OWNER_ORDINALS = new Map([
   ['shared-contract-types-leaf', 0],
@@ -109,7 +110,7 @@ export function validateManifest(manifest, rustFiles) {
     assert(JSON.stringify(files) === JSON.stringify(sorted), `modulesByOwner.${owner} must be sorted`);
     for (const path of files) {
       assert(
-        /^(?:src|crates\/snapback\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path),
+        /^(?:src|crates\/(?:snapback|snapback-server)\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path),
         `invalid Rust module path ${path}`,
       );
       assert(!assignment.has(path), `${path} is assigned to both ${assignment.get(path)} and ${owner}`);
@@ -117,7 +118,7 @@ export function validateManifest(manifest, rustFiles) {
     }
   }
 
-  assert(rustFiles.length > 0, `no ${SOURCE_ROOT}/**/*.rs modules found; refusing a vacuous pass`);
+  assert(rustFiles.length > 0, `no governed Rust modules found under ${SOURCE_ROOTS.join(', ')}; refusing a vacuous pass`);
   const rustSet = new Set(rustFiles);
   const missing = rustFiles.filter((path) => !assignment.has(path));
   const extra = [...assignment.keys()].filter((path) => !rustSet.has(path));
@@ -152,12 +153,20 @@ export function validateManifest(manifest, rustFiles) {
 }
 
 function modulePathForFile(path) {
-  const sourceRoot = path.startsWith(`${SOURCE_ROOT}/`) ? SOURCE_ROOT : LEGACY_SOURCE_ROOT;
+  const sourceRoot = SOURCE_ROOTS.find((root) => path.startsWith(`${root}/`)) ?? LEGACY_SOURCE_ROOT;
+  const crateNamespace = sourceRoot === 'crates/snapback-server/src'
+    ? ['__crate_snapback_server']
+    : [];
   const relativePath = path.slice(`${sourceRoot}/`.length, -'.rs'.length);
-  if (relativePath === 'lib' || relativePath === 'main' || relativePath.startsWith('bin/')) return null;
+  if (relativePath === 'lib') return crateNamespace.length > 0 ? crateNamespace : null;
+  if (relativePath === 'main' || relativePath.startsWith('bin/')) return null;
   const segments = relativePath.split('/');
   if (segments.at(-1) === 'mod') segments.pop();
-  return segments;
+  return [...crateNamespace, ...segments];
+}
+
+function governedSourceRootForFile(path) {
+  return SOURCE_ROOTS.find((root) => path.startsWith(`${root}/`)) ?? LEGACY_SOURCE_ROOT;
 }
 
 function buildModuleIndex(rustFiles, sources) {
@@ -184,6 +193,10 @@ function buildModuleIndex(rustFiles, sources) {
     for (const match of sources.get(from).matchAll(pathModule)) {
       const target = join(dirname(from), match[1]).split(sep).join('/');
       if (!sources.has(target)) continue;
+      // A Phase 2 remainder may path-mount a moved source only for its upward
+      // integration tests. That does not make the file a module of both
+      // production crates and must not erase its owning crate namespace.
+      if (governedSourceRootForFile(from) !== governedSourceRootForFile(target)) continue;
       const alias = [...base, cleanIdentifier(match[2])];
       remember(alias, target);
       moduleSegmentsByFile.set(target, alias);
@@ -387,7 +400,10 @@ function moduleContextAt(contexts, fileModuleSegments, index) {
 }
 
 function referenceCandidates(path, moduleSegments) {
-  if (path[0] === 'crate') return [path.slice(1)];
+  const crateRoot = moduleSegments[0] === '__crate_snapback_server'
+    ? ['__crate_snapback_server']
+    : [];
+  if (path[0] === 'crate') return [[...crateRoot, ...path.slice(1)]];
   if (path[0] === 'self') return [[...moduleSegments, ...path.slice(1)]];
   if (path[0] === 'super') {
     let parentCount = 0;
@@ -398,7 +414,7 @@ function referenceCandidates(path, moduleSegments) {
     ]];
   }
   const relativeCandidate = [...moduleSegments, ...path];
-  const crateCandidate = [...path];
+  const crateCandidate = [...crateRoot, ...path];
   return relativeCandidate.join('::') === crateCandidate.join('::')
     ? [relativeCandidate]
     : [relativeCandidate, crateCandidate];
@@ -749,7 +765,7 @@ function summarizeBaselineDelta(manifest, analysis, baseline) {
 }
 
 function loadRepositorySources() {
-  const rustFiles = globSync(`${SOURCE_ROOT}/**/*.rs`, { cwd: ROOT }).sort();
+  const rustFiles = SOURCE_ROOTS.flatMap((root) => globSync(`${root}/**/*.rs`, { cwd: ROOT })).sort();
   return new Map(rustFiles.map((path) => [path, readFileSync(join(ROOT, path), 'utf8')]));
 }
 
@@ -786,7 +802,7 @@ function loadRevisionSnapshot(revision) {
     return value;
   };
   const rustSourcePaths = paths
-    .filter((path) => /^(?:src|crates\/snapback\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path))
+    .filter((path) => /^(?:src|crates\/(?:snapback|snapback-server)\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path))
     .sort();
   const rustFiles = rustSourcePaths.map(migratePath);
   const issuePaths = paths.filter((path) => /^issues\/[^/]+\.md$/u.test(path)).sort();
@@ -1101,7 +1117,7 @@ function defaultPredecessors() {
   if (fromEnvironment.length > 0) return fromEnvironment;
   const changed = git([
     'status', '--porcelain=v1', '--untracked-files=normal', '--',
-    SOURCE_ROOT, 'ownership.manifest.json', 'ownership.baseline.json', 'issues',
+    ...SOURCE_ROOTS, 'ownership.manifest.json', 'ownership.baseline.json', 'issues',
   ]).trim();
   if (changed !== '') return ['HEAD'];
   try {

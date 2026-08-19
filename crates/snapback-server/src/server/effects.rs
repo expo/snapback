@@ -1,7 +1,7 @@
 use super::*;
-#[cfg(test)]
-use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::manifest::FunctionDefinition;
+#[cfg(all(test, not(feature = "server-owner")))]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::telemetry::CallerAttributionLocalExt as _;
 
 #[derive(Deserialize)]
@@ -83,7 +83,7 @@ pub(super) async fn prepare_original_authority(
         crate::storage::pending_effects::PendingEffectAuthority::Anonymous => {
             EffectAuthorityResolution::Anonymous(
                 coordinator
-                .prepare_anonymous_publication()
+                    .prepare_anonymous_publication()
                     .map_err(ApiError::from)?,
             )
         }
@@ -135,23 +135,22 @@ pub(super) async fn prepare_original_authority(
             let expected_expires_at_ms = *token_expires_at_ms;
             let service_clock = provider.clone();
             let service_management = management.clone();
-            let service_resolution =
-                with_snapback(&runtime.snapback, move |snapback| {
-                    snapback.resolve_retained_effect_service_authority(
-                        &service_management,
-                        &actor_user_id,
-                        &credential_id,
-                        credential_generation,
-                        &grant_id,
-                        &token_id,
-                        effective_user_id.as_deref(),
-                        expected_expires_at_ms,
-                        now_ms,
-                        monotonic_now,
-                        service_clock,
-                    )
-                })
-                .await?;
+            let service_resolution = with_snapback(&runtime.snapback, move |snapback| {
+                snapback.resolve_retained_effect_service_authority(
+                    &service_management,
+                    &actor_user_id,
+                    &credential_id,
+                    credential_generation,
+                    &grant_id,
+                    &token_id,
+                    effective_user_id.as_deref(),
+                    expected_expires_at_ms,
+                    now_ms,
+                    monotonic_now,
+                    service_clock,
+                )
+            })
+            .await?;
             EffectAuthorityResolution::Service(service_resolution, stream_publication)
         }
     };
@@ -176,8 +175,8 @@ pub(super) async fn prepare_original_authority(
             &WireAuthorityFields::default(),
             now_ms,
         ),
-        EffectAuthorityResolution::Service(resolution, publication) => {
-            snapback.prepare_service_authority(
+        EffectAuthorityResolution::Service(resolution, publication) => snapback
+            .prepare_service_authority(
                 resolution,
                 InvocationSource::EffectExecution,
                 AuthMode::Sessions,
@@ -186,8 +185,7 @@ pub(super) async fn prepare_original_authority(
                 &WireAuthorityFields::default(),
                 now_ms,
                 publication,
-            )
-        }
+            ),
     })
     .await?
     .with_caller_attribution(
@@ -279,9 +277,8 @@ pub(super) async fn effect_approve(
                 let admission = provider.admit().await;
                 let challenge_id = step_up.challenge_id.clone();
                 let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
-                    let coordination = snapback.execute_auth_plan(
-                        admission.step_up_coordination_plan(&challenge_id),
-                    );
+                    let coordination = snapback
+                        .execute_auth_plan(admission.step_up_coordination_plan(&challenge_id));
                     (admission, coordination)
                 })
                 .await;
@@ -410,12 +407,7 @@ pub(super) async fn effect_deny(
     let effect_authority = authority.clone();
     Ok(Json(
         with_snapback(&runtime.snapback, move |snapback| {
-            snapback.deny_pending_effect(
-                &effect_authority,
-                &effect_id,
-                &approver_id,
-                now_ms,
-            )
+            snapback.deny_pending_effect(&effect_authority, &effect_id, &approver_id, now_ms)
         })
         .await?,
     ))
@@ -434,7 +426,7 @@ mod tests {
             "write",
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: Vec::new(),
                 return_value: None,
             })),

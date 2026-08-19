@@ -410,7 +410,7 @@ for (const [name, op] of operationsByName) {
     },
     guide: null,
     authorities: ['llp/0031-server-route-taxonomy'],
-    sources: ['crates/snapback/src/server.rs operation_registry()'],
+    sources: ['crates/snapback-server/src/server.rs operation_registry()'],
   };
   applyAuthoredOverrides(entry);
   if (entry.surfaceAccess === 'cliOnly' && !entry.mcpDeferralReason) entry.mcpDeferralReason = 'Not yet classified.';
@@ -520,7 +520,7 @@ if (mailboxRoute) {
     projections: { cli: null, mcp: null, hostOps: null, http: 'GET /_snapback/api/auth/mailbox', adminClient: null, console: null },
     guide: null,
     authorities: ['llp/0031-server-route-taxonomy'],
-    sources: ['crates/snapback/src/server.rs route_registry()'],
+    sources: ['crates/snapback-server/src/server.rs route_registry()'],
     pinned: true,
     pinReason:
       "responseSensitivity CredentialSecret: usage-evidence promotion to native/cliOnly/mcpOnly is refused outright regardless of call volume (§Product contract's promotion-refusal rule). This row stays apiOnly until an authored override passes the same secret-carrier review config.set requires.",
@@ -673,7 +673,7 @@ for (const route of registryExport.routes) {
     },
     guide: GUIDE_ANCHORS[operationName] ?? null,
     authorities: ['llp/0031-server-route-taxonomy'],
-    sources: ['crates/snapback/src/server.rs route_registry()'],
+    sources: ['crates/snapback-server/src/server.rs route_registry()'],
   };
   if (entry.surfaceAccess === 'cliOnly') entry.mcpDeferralReason = 'Not yet classified.';
   if (entry.surfaceAccess === 'mcpOnly') entry.cliDeferralReason = 'Not yet classified.';
