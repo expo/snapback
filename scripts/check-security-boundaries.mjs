@@ -1,77 +1,262 @@
 #!/usr/bin/env node
 
-// @ref LLP 0276#phases — the carved workspace must preserve compiler-enforced
-// authority boundaries for direct dependents of every one of its 13 crates.
+// @ref LLP 0284#42-security-boundaries--compile-fail-witnesses-with-span-assertions
+// — rustc JSON must place a primary error span on the syn-located @attack.
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, realpathSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { auditPrivilegeSurface } from './check-kernel-raw-sql-api.mjs';
+import {
+  GateInfrastructureError,
+  locationOverlaps,
+  runAst,
+  runCargoMetadata,
+  workspacePackages,
+} from './security-gates-lib.mjs';
 
-const ROOT = resolve(import.meta.dirname, '..');
-const MANIFEST = resolve(ROOT, 'tests/fixtures/security-boundaries/Cargo.toml');
-const TARGET = resolve(ROOT, 'target/security-boundary-fixtures');
-const carvedCrates = [
-  'snapback-types',
-  'snapback-kernel',
-  'snapback-auth',
-  'snapback-activation',
-  'snapback-sync',
-  'snapback-services',
-  'snapback-runtime',
-  'snapback-engine',
-  'snapback-server',
-  'snapback-cli',
-  'snapback',
-  'snapback-conformance',
-  'snapback-tools',
-].sort();
+const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const DEFAULT_FIXTURE_ROOT = resolve(DEFAULT_ROOT, 'tests/fixtures/security-boundaries');
+const TARGET = resolve(DEFAULT_ROOT, 'target/security-boundary-fixtures');
+const DIAGNOSTIC = 'SNAPBACK_SECURITY_BOUNDARY';
 
-const fixtureManifest = readFileSync(MANIFEST, 'utf8');
-const inventoryBlock = fixtureManifest.match(/carved-crates\s*=\s*\[([\s\S]*?)\]/u)?.[1];
-const namedCrates = [...(inventoryBlock ?? '').matchAll(/"([^"]+)"/gu)]
-  .map((match) => match[1])
-  .sort();
-if (JSON.stringify(namedCrates) !== JSON.stringify(carvedCrates)) {
-  process.stderr.write(
-    `[security-boundary] FAIL fixture manifest carved-crate inventory: expected ${carvedCrates.join(', ')}, got ${namedCrates.join(', ')}\n`,
-  );
-  process.exit(1);
+function sorted(values) {
+  return [...new Set(values)].sort();
 }
 
-const attacks = [
-  ['forge-erasure-authority', /associated function `from_admitted_facts` is private/u],
-  ['forge-push-system', /no associated (?:function or constant|item) named `System`/u],
-  ['fake-authorization-interlock', /AuthorizationCommitInterlock/u],
-  ['fake-sender-proof-store', /sender_authority_sealed::Sealed/u],
-  ['raw-pending-effect-transition', /expected `CreatePendingEffectCommand`/u],
-  ['obtain-writable-sql-handle', /field `conn` of struct `MaterializedBase` is private/u],
-];
+function setDifference(left, right) {
+  const rightSet = new Set(right);
+  return sorted(left.filter((value) => !rightSet.has(value)));
+}
 
-let failed = false;
-for (const [name, expected] of attacks) {
-  const result = spawnSync(
-    'cargo',
-    ['check', '--quiet', '--manifest-path', MANIFEST, '--bin', name],
-    {
-      cwd: ROOT,
-      env: { ...process.env, CARGO_TARGET_DIR: TARGET },
-      encoding: 'utf8',
-      maxBuffer: 16 * 1024 * 1024,
-    },
-  );
-  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
-  if (result.status === 0 || !expected.test(output)) {
-    failed = true;
-    process.stderr.write(`[security-boundary] FAIL ${name}\n${output}\n`);
-    continue;
+export function loadAttacks(fixtureRoot = DEFAULT_FIXTURE_ROOT) {
+  const path = resolve(fixtureRoot, 'attacks.v1.json');
+  let document;
+  try {
+    document = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    throw new GateInfrastructureError(`cannot read attack inventory ${path}: ${error.message}`);
   }
-  const compilerErrors = output
-    .split('\n')
-    .filter((line) => line.startsWith('error[') || line.startsWith('error:'))
-    .slice(0, 3)
-    .join(' | ');
-  process.stdout.write(`[security-boundary] PASS ${name}: ${compilerErrors}\n`);
+  if (document.schemaVersion !== 'snapback.security-boundary-attacks.v1'
+      || !Array.isArray(document.attacks)) {
+    throw new GateInfrastructureError(`${path} has an invalid schema`);
+  }
+  const ids = new Set();
+  for (const attack of document.attacks) {
+    if (typeof attack.id !== 'string' || ids.has(attack.id)) {
+      throw new GateInfrastructureError(`${path} has an invalid or duplicate attack id`);
+    }
+    ids.add(attack.id);
+    if (typeof attack.bin !== 'string' || typeof attack.source !== 'string'
+        || typeof attack.mount !== 'string' || !Array.isArray(attack.featureSets)
+        || attack.featureSets.length === 0) {
+      throw new GateInfrastructureError(`${path} attack ${attack.id} is incomplete`);
+    }
+  }
+  return document.attacks;
 }
 
-if (failed) process.exit(1);
-process.stdout.write('[security-boundary] PASS: 6 direct-dependency attacks rejected; manifest names all 13 carved crates\n');
+// @ref LLP 0284#36-inventory-honesty — the claimed mount set is joined to
+// cargo metadata dependency keys and bin targets; descriptive supersets fail.
+export function validateFixtureInventory(
+  root,
+  fixtureRoot,
+  attacks,
+  privilegeFindings = auditPrivilegeSurface(root).findings,
+) {
+  const product = runCargoMetadata(resolve(root, 'Cargo.toml'));
+  const productNames = new Set(workspacePackages(product).map(({ name }) => name));
+  const fixture = runCargoMetadata(resolve(fixtureRoot, 'Cargo.toml'));
+  const fixturePackage = fixture.packages.find((pkg) => pkg.name === 'snapback-security-boundary-fixtures');
+  if (!fixturePackage) {
+    return ['cargo metadata did not return snapback-security-boundary-fixtures'];
+  }
+  const dependencyKeys = sorted(fixturePackage.dependencies
+    .map((dependency) => dependency.rename ?? dependency.name)
+    .filter((name) => productNames.has(name)));
+  const privilegeCrates = sorted(privilegeFindings
+    .map((finding) => finding.crate)
+    .filter((name) => productNames.has(name)));
+  const mounts = sorted(attacks.map(({ mount }) => mount));
+  const errors = [];
+  const missingDependencies = setDifference(mounts, dependencyKeys);
+  if (missingDependencies.length > 0) {
+    errors.push(`claimed mount(s) absent from cargo metadata dependencies: ${missingDependencies.join(', ')}`);
+  }
+  const missingPrivilegeCrates = setDifference(privilegeCrates, dependencyKeys);
+  const emptyPrivilegeCrates = setDifference(dependencyKeys, privilegeCrates);
+  if (missingPrivilegeCrates.length > 0) {
+    errors.push(`privilege-bearing workspace crate(s) absent from fixture dependencies: ${missingPrivilegeCrates.join(', ')}`);
+  }
+  if (emptyPrivilegeCrates.length > 0) {
+    errors.push(`fixture dependency crate(s) have scanner-certified empty privilege surface: ${emptyPrivilegeCrates.join(', ')}`);
+  }
+  const bins = new Set(fixturePackage.targets
+    .filter((target) => target.kind.includes('bin'))
+    .map(({ name }) => name));
+  for (const attack of attacks) {
+    if (!productNames.has(attack.mount)) errors.push(`${attack.id} names non-member mount ${attack.mount}`);
+    if (!bins.has(attack.bin)) errors.push(`${attack.id} names missing bin ${attack.bin}`);
+  }
+  return errors;
+}
+
+function parseCompilerMessages(output, fixtureRoot) {
+  const messages = [];
+  for (const line of output.split('\n')) {
+    if (!line.startsWith('{')) continue;
+    let record;
+    try {
+      record = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (record.reason !== 'compiler-message' || record.message?.level !== 'error') continue;
+    const spans = (record.message.spans ?? []).map((span) => {
+      const absolute = resolve(fixtureRoot, span.file_name);
+      let canonical = absolute;
+      try {
+        canonical = realpathSync(absolute);
+      } catch {
+        // A generated/missing span can never equal the real fixture source.
+      }
+      return { ...span, canonical };
+    });
+    messages.push({
+      code: record.message.code?.code ?? null,
+      rendered: record.message.rendered ?? record.message.message,
+      message: record.message.message,
+      spans,
+    });
+  }
+  return messages;
+}
+
+export function runAttack({
+  attack,
+  fixtureRoot = DEFAULT_FIXTURE_ROOT,
+  targetDir = TARGET,
+}) {
+  const source = resolve(fixtureRoot, attack.source);
+  const canonicalSource = realpathSync(source);
+  const attackSpan = runAst(['attack-span', '--file', source]);
+  const outcomes = [];
+  for (const features of attack.featureSets) {
+    const args = [
+      'check',
+      '--offline',
+      '--locked',
+      '--manifest-path', resolve(fixtureRoot, 'Cargo.toml'),
+      '--message-format=json',
+      '--bin', attack.bin,
+    ];
+    if (features.length > 0) args.push('--features', features.join(','));
+    const result = spawnSync('cargo', args, {
+      cwd: fixtureRoot,
+      env: { ...process.env, CARGO_TARGET_DIR: targetDir },
+      encoding: 'utf8',
+      maxBuffer: 128 * 1024 * 1024,
+    });
+    if (result.error || result.status === null) {
+      throw new GateInfrastructureError(
+        `cargo did not execute ${attack.id}: ${result.error?.message ?? 'no exit status'}`,
+      );
+    }
+    const featureLabel = `[${features.join(',')}]`;
+    if (result.status === 0) {
+      outcomes.push({
+        passed: false,
+        line: `[security-boundary] RED ${attack.id}: attack compiled under features ${featureLabel}`,
+        diagnostics: [],
+      });
+      continue;
+    }
+    const messages = parseCompilerMessages(`${result.stdout}\n${result.stderr}`, fixtureRoot);
+    const hits = [];
+    for (const message of messages) {
+      for (const span of message.spans) {
+        if (span.is_primary && span.canonical === canonicalSource && locationOverlaps(span, attackSpan)) {
+          hits.push({ message, span });
+        }
+      }
+    }
+    const expectedHits = attack.expectedCode
+      ? hits.filter(({ message }) => message.code === attack.expectedCode)
+      : hits;
+    if (expectedHits.length === 0) {
+      const reason = hits.length > 0
+        ? `@attack primary span had ${sorted(hits.map(({ message }) => message.code ?? 'uncoded')).join(', ')}, expected ${attack.expectedCode}`
+        : 'no primary span overlapped @attack (unrelated diagnostic would have satisfied a message regex)';
+      outcomes.push({
+        passed: false,
+        line: `[security-boundary] RED ${attack.id}: ${reason} under features ${featureLabel}`,
+        diagnostics: messages.slice(0, 3).map(({ rendered }) => rendered.trim()),
+      });
+      continue;
+    }
+    const { message, span } = expectedHits[0];
+    outcomes.push({
+      passed: true,
+      line: `[security-boundary] PASS ${attack.id}: ${message.code ?? 'error'} at ${relative(fixtureRoot, canonicalSource)}:${span.line_start}:${span.column_start} under features ${featureLabel}`,
+      diagnostics: [],
+    });
+  }
+  return outcomes;
+}
+
+function validateSeedWitnessCoverage(privilegeFindings, attacks) {
+  const obtainable = sorted(privilegeFindings
+    .filter((finding) => finding.kind === 'seed-obtain' && finding.seedType)
+    .map(({ seedType }) => seedType));
+  const witnessed = sorted(attacks.flatMap(({ seedTypes = [] }) => seedTypes));
+  return setDifference(obtainable, witnessed)
+    .map((seed) => `publicly obtainable seed type has no attack witness: ${seed}`);
+}
+
+export function auditSecurityBoundaries(
+  root = DEFAULT_ROOT,
+  fixtureRoot = resolve(root, 'tests/fixtures/security-boundaries'),
+) {
+  const started = process.hrtime.bigint();
+  const attacks = loadAttacks(fixtureRoot);
+  const privilegeScan = auditPrivilegeSurface(root);
+  const inventoryErrors = [
+    ...validateFixtureInventory(root, fixtureRoot, attacks, privilegeScan.findings),
+    ...validateSeedWitnessCoverage(privilegeScan.findings, attacks),
+  ];
+  const outcomes = attacks.flatMap((attack) => runAttack({ attack, fixtureRoot }));
+  const durationMs = Number(process.hrtime.bigint() - started) / 1_000_000;
+  return { attacks, inventoryErrors, outcomes, durationMs };
+}
+
+function printResult(result) {
+  for (const error of result.inventoryErrors) {
+    process.stderr.write(`[security-boundary] RED inventory: ${error}\n`);
+  }
+  for (const outcome of result.outcomes) {
+    const stream = outcome.passed ? process.stdout : process.stderr;
+    stream.write(`${outcome.line}\n`);
+    for (const diagnostic of outcome.diagnostics) {
+      stream.write(`  ${diagnostic.replaceAll('\n', '\n  ')}\n`);
+    }
+  }
+  const redCount = result.inventoryErrors.length
+    + result.outcomes.filter(({ passed }) => !passed).length;
+  const passCount = result.outcomes.filter(({ passed }) => passed).length;
+  if (redCount > 0) {
+    process.stderr.write(`${DIAGNOSTIC}: ${redCount} fixture or inventory violation(s)\n`);
+  }
+  const summary = `[security-boundary] ${redCount > 0 ? 'RED' : 'PASS'}: ${passCount} attack-span rejection(s), ${redCount} failure(s), ${result.attacks.length} inventoried attack(s); ${(result.durationMs / 1000).toFixed(2)}s\n`;
+  (redCount > 0 ? process.stderr : process.stdout).write(summary);
+  return redCount > 0 ? 1 : 0;
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    process.exitCode = printResult(auditSecurityBoundaries());
+  } catch (error) {
+    process.stderr.write(`${DIAGNOSTIC}: infrastructure failure\n${error.message}\n`);
+    process.exitCode = 2;
+  }
+}

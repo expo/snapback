@@ -3,41 +3,90 @@ name = "snapback-security-boundary-fixtures"
 version = "0.0.0"
 edition = "2024"
 publish = false
+autobins = false
 
-# Keep this compile-fail harness outside the product workspace while naming the
-# entire carved workspace whose direct-dependency boundaries it protects.
+# Keep compile-fail witnesses outside the product workspace. The gate derives
+# the honest mounted-crate inventory from these dependency keys and
+# attacks.v1.json rather than trusting descriptive package metadata.
 [workspace]
 
-[package.metadata.snapback-security-boundaries]
-carved-crates = [
-  "snapback-types",
-  "snapback-kernel",
-  "snapback-auth",
-  "snapback-activation",
-  "snapback-sync",
-  "snapback-services",
-  "snapback-runtime",
-  "snapback-engine",
-  "snapback-server",
-  "snapback-cli",
-  "snapback",
-  "snapback-conformance",
-  "snapback-tools",
-]
-
 [dependencies]
-snapback-types = { path = "../../../crates/snapback-types" }
+serde_json = "1"
 snapback-kernel = { path = "../../../crates/snapback-kernel" }
 snapback-auth = { path = "../../../crates/snapback-auth" }
 snapback-activation = { path = "../../../crates/snapback-activation" }
-snapback-sync = { path = "../../../crates/snapback-sync" }
 snapback-services = { path = "../../../crates/snapback-services" }
-snapback-runtime = { path = "../../../crates/snapback-runtime" }
 snapback-engine = { path = "../../../crates/snapback-engine" }
 snapback-server = { path = "../../../crates/snapback-server" }
-snapback-cli = { path = "../../../crates/snapback-cli" }
-snapback = { path = "../../../crates/snapback" }
-snapback-tools = { path = "../../../crates/snapback-tools" }
+snapback-sync = { path = "../../../crates/snapback-sync" }
+
+[[bin]]
+name = "claim-kernel-commit-authority"
+path = "src/bin/claim_kernel_commit_authority.rs"
+
+[[bin]]
+name = "claim-via-auth-reexport"
+path = "src/bin/claim_via_auth_reexport.rs"
+
+[[bin]]
+name = "claim-via-engine-reexport"
+path = "src/bin/claim_via_engine_reexport.rs"
+
+[[bin]]
+name = "claim-via-activation-reexport"
+path = "src/bin/claim_via_activation_reexport.rs"
+
+[[bin]]
+name = "claim-via-server-reexport"
+path = "src/bin/claim_via_server_reexport.rs"
+
+[[bin]]
+name = "admit-system-push"
+path = "src/bin/admit_system_push.rs"
+
+[[bin]]
+name = "admit-protected-record-erasure"
+path = "src/bin/admit_protected_record_erasure.rs"
+
+[[bin]]
+name = "admit-pending-effect-creation"
+path = "src/bin/admit_pending_effect_creation.rs"
+
+[[bin]]
+name = "admit-pending-effect-decision"
+path = "src/bin/admit_pending_effect_decision.rs"
+
+[[bin]]
+name = "admit-pending-effect-settlement"
+path = "src/bin/admit_pending_effect_settlement.rs"
+
+[[bin]]
+name = "admit-pending-effect-refusal"
+path = "src/bin/admit_pending_effect_refusal.rs"
+
+[[bin]]
+name = "clone-kernel-commit-authority"
+path = "src/bin/clone_kernel_commit_authority.rs"
+
+[[bin]]
+name = "auth-commit-reservation-factory"
+path = "src/bin/auth_commit_reservation_factory.rs"
+
+[[bin]]
+name = "auth-commit-prepared-factory"
+path = "src/bin/auth_commit_prepared_factory.rs"
+
+[[bin]]
+name = "service-interlock-factory"
+path = "src/bin/service_interlock_factory.rs"
+
+[[bin]]
+name = "services-rusqlite-reexport"
+path = "src/bin/services_rusqlite_reexport.rs"
+
+[[bin]]
+name = "services-rusqlite-reexport-default"
+path = "src/bin/services_rusqlite_reexport_default.rs"
 
 [[bin]]
 name = "forge-erasure-authority"
@@ -62,3 +111,40 @@ path = "src/bin/raw_pending_effect_transition.rs"
 [[bin]]
 name = "obtain-writable-sql-handle"
 path = "src/bin/obtain_writable_sql_handle.rs"
+
+[[bin]]
+name = "default-kernel-commit-authority"
+path = "src/bin/default_kernel_commit_authority.rs"
+
+[[bin]]
+name = "deserialize-kernel-commit-authority"
+path = "src/bin/deserialize_kernel_commit_authority.rs"
+
+[[bin]]
+name = "construct-push-storage-authority"
+path = "src/bin/construct_push_storage_authority.rs"
+
+[[bin]]
+name = "kernel-test-support-for-test-factory"
+path = "src/bin/kernel_test_support_for_test_factory.rs"
+
+[[bin]]
+name = "kernel-test-support-join-authority"
+path = "src/bin/kernel_test_support_join_authority.rs"
+
+[[bin]]
+name = "recording-interlock-bind"
+path = "src/bin/recording_interlock_bind.rs"
+
+[[bin]]
+name = "obtain-promotion-contention-reservation"
+path = "src/bin/obtain_promotion_contention_reservation.rs"
+
+[[bin]]
+name = "obtain-ask-spend-reservation"
+path = "src/bin/obtain_ask_spend_reservation.rs"
+
+# Harness-only counterexample: never part of attacks.v1.json.
+[[bin]]
+name = "unrelated-error-satisfies-regex"
+path = "src/harness/unrelated_error_satisfies_regex.rs"

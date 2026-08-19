@@ -238,6 +238,7 @@ run local-proof-inventory -- node --test tests/local_proof_inventory_v0.mjs
 run affected-selector-fixtures -- node --test tests/local_proof_selection_v0.mjs
 run path-migration-stragglers -- node scripts/check-path-migration-stragglers.mjs
 run workspace-graph -- node scripts/check-workspace-graph.mjs
+run security-gate-fixtures -- node --test tests/security_gates_v1.mjs
 run cross-crate-path-includes -- node scripts/check-cross-crate-path-includes.mjs
 run kernel-raw-sql-api -- node scripts/check-kernel-raw-sql-api.mjs
 run security-boundaries -- node scripts/check-security-boundaries.mjs

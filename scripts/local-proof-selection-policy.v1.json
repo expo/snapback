@@ -17,9 +17,7 @@
     "authoring-profile-branches",
     "package-test-inventory",
     "scripts-test-inventory",
-    "cross-crate-path-includes",
-    "kernel-raw-sql-api",
-    "security-boundaries"
+    "security-gate-fixtures"
   ],
   "dependencyOverrides": {
     "snapback-cli-real-server": [
@@ -1344,6 +1342,14 @@
       "lane": "affected",
       "gates": [
         "template-registry-canary"
+      ]
+    },
+    "security-gates": {
+      "lane": "affected",
+      "gates": [
+        "cross-crate-path-includes",
+        "kernel-raw-sql-api",
+        "security-boundaries"
       ]
     },
     "demos": {

@@ -1,0 +1,15 @@
+[package]
+name = "snapback-security-gates-rust"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# This host tool deliberately stays outside the product workspace. Its parser
+# dependencies must not widen any shipped crate's dependency or feature graph.
+[workspace]
+
+[dependencies]
+proc-macro2 = { version = "1", features = ["span-locations"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+syn = { version = "2", features = ["full", "parsing", "visit"] }

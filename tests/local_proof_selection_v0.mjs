@@ -281,6 +281,18 @@ test('docs-only pushes still select the always-run migration drift gates', () =>
   );
 });
 
+test('known-red LLP 0284 product gates stay scheduled while their evasion harness stays always-on', () => {
+  assert(context.policy.alwaysGates.includes('security-gate-fixtures'));
+  for (const gate of [
+    'cross-crate-path-includes',
+    'kernel-raw-sql-api',
+    'security-boundaries',
+  ]) {
+    assert.equal(context.policy.alwaysGates.includes(gate), false, gate);
+    assert.equal(select(['README.md']).selectedGates.includes(gate), false, gate);
+  }
+});
+
 test('native, Cloudflare, seed, and carrier changes select their unique claims', () => {
   const native = select(['src/storage.rs']);
   includesAll(native, [

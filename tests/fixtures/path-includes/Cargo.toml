@@ -1,0 +1,11 @@
+[workspace]
+resolver = "3"
+members = [
+  "raw-string",
+  "raw-hash-string",
+  "cfg-attr",
+  "include",
+  "symlink-source",
+  "symlink-target",
+  "victim",
+]

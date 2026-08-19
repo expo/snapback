@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "snapback.privilege-surface-allowlist.v1",
+  "entries": [
+    {
+      "id": "fork-read-view-new",
+      "crate": "snapback-kernel",
+      "item": "snapback_kernel::instance_fork::ForkReadView::new",
+      "kind": "sql-ingress",
+      "features": [
+        "default"
+      ],
+      "reason": "Read-only fork inspection verifies SQLite reports the supplied main database as read-only before any query runs.",
+      "ticket": "issues/20260819-fork-read-view-raw-sql-ingress.md",
+      "expiresAt": "2026-09-19"
+    },
+    {
+      "id": "configure-connection-wal-lifetime",
+      "crate": "snapback-kernel",
+      "item": "snapback_kernel::replication::configure_connection_wal_lifetime",
+      "kind": "sql-ingress",
+      "features": [
+        "default"
+      ],
+      "reason": "Connection-local WAL configuration accepts an already-held handle and does not return, store, or mint one.",
+      "ticket": "issues/20260819-replication-wal-raw-sql-ingress.md",
+      "expiresAt": "2026-09-19"
+    }
+  ]
+}
