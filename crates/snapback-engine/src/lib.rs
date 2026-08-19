@@ -88,3 +88,6 @@ pub mod local;
 pub mod manifest;
 pub mod push;
 pub mod runtime;
+
+#[cfg(feature = "test-support")]
+pub mod test_support;

@@ -69,8 +69,12 @@ pub(crate) fn read_ledger_projection_for_prepared(
 #[path = "push/tests.rs"]
 mod tests;
 
-// The authority-dependent tests compose services with the sync-owned opaque
-// authority carrier, so they execute at the engine composition rank.
-#[cfg(all(test, not(feature = "engine-owner")))]
-#[path = "../../snapback-services/src/push.rs"]
-mod remainder_authority_tests;
+#[cfg(test)]
+#[path = "push/fake_expo.rs"]
+mod fake_expo;
+
+// These tests compose services with the sync-owned opaque authority carrier,
+// so they live and execute at the engine composition rank.
+#[cfg(test)]
+#[path = "push/authority_tests.rs"]
+mod authority_tests;

@@ -12,9 +12,13 @@ path = "src/lib.rs"
 
 [features]
 default = ["engine-owner"]
-# The rank-7 remainder includes selected moved sources in its unit-test build
-# so upward integration tests retain their original crate-private access.
+# Engine-owned test helpers are available only to explicit test consumers.
 engine-owner = []
+test-support = [
+    "snapback-auth/test-support",
+    "snapback-runtime/test-support",
+    "snapback-sync/test-support",
+]
 
 [dependencies]
 base64 = "0.22"

@@ -2398,6 +2398,7 @@ fn cli_only_host_op_message(operation: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use snapback_services::test_support::rusqlite;
 
     #[test]
     fn cli_only_refusals_name_the_catalog_cli_projection() {
@@ -2501,7 +2502,6 @@ mod tests {
         );
     }
 
-    #[cfg(not(feature = "engine-owner"))]
     #[test]
     fn host_ops_envelope_reports_a_corrupt_durable_version_without_a_cursor() {
         let dir = tempfile::tempdir().expect("host-ops tempdir");

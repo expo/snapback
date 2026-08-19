@@ -1,6 +1,5 @@
-// The snapback crate compiles the moved engine source directly only for its
-// retained upward-reaching tests. Keep the same private adapter shape for
-// that test-only copy without exporting it from the supported façade.
+// Higher-rank tests retain their narrow adapter vocabulary while the calls
+// cross the engine crate's feature-gated test-support boundary.
 #[cfg(test)]
 pub(crate) trait RemainderLocalSnapbackExt {
     fn remainder_auth_database_mut(&mut self) -> &mut snapback_kernel::storage::LocalDatabase;
@@ -23,7 +22,7 @@ pub(crate) trait RemainderLocalSnapbackExt {
 #[cfg(test)]
 impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
     fn remainder_auth_database_mut(&mut self) -> &mut snapback_kernel::storage::LocalDatabase {
-        self.auth_database_mut()
+        snapback_engine::test_support::auth_database_mut(self)
     }
 
     fn remainder_erase_protected_record(
@@ -32,7 +31,7 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
     ) -> crate::diagnostic::SnapbackResult<
         snapback_kernel::proof_checkpoint::ProtectedRecordErasureReceiptV1,
     > {
-        self.erase_protected_record(request)
+        snapback_engine::test_support::erase_protected_record(self, request)
     }
 
     fn remainder_activate_agent_safe_operation_coverage(
@@ -41,6 +40,9 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
     ) -> crate::diagnostic::SnapbackResult<
         crate::commit_envelope::OperationCoverageManifestV1,
     > {
-        self.activate_agent_safe_operation_coverage(activated_at_ms)
+        snapback_engine::test_support::activate_agent_safe_operation_coverage(
+            self,
+            activated_at_ms,
+        )
     }
 }

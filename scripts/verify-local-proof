@@ -432,7 +432,9 @@ run cargo-audit --requires toolchain-authority -- cargo audit --deny unmaintaine
 # fresh process. Bound libtest fan-out so high-core developer hosts do not
 # spend the handler's wall budget on simultaneous process startup; concurrency
 # suites create and measure their own explicit contention.
-run rust-tests --requires native-runtime-bootstrap -- env SNAPBACK_EXPECT_WORKERD=1 cargo test -- --test-threads "${SNAPBACK_RUST_TEST_THREADS:-4}"
+# @ref LLP 0276#the-one-shot-migration-under-the-frozen-main-window — carved
+# owner-crate test siblings remain part of the canonical Rust proof.
+run rust-tests --requires native-runtime-bootstrap -- env SNAPBACK_EXPECT_WORKERD=1 cargo test --workspace -- --test-threads "${SNAPBACK_RUST_TEST_THREADS:-4}"
 # @ref LLP 0053#acceptance — compose the Rust invalidation/room receipts with
 # production Contract-store measurements and reject drift in the committed
 # blast-radius/property-oracle report. This remains before CI test-profile

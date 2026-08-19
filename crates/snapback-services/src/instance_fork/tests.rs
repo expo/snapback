@@ -1098,7 +1098,7 @@ fn manual_cron_and_asset_provider_paths_deny_on_a_fork() {
     // Inherited provider configuration cannot turn a fork into an
     // outbound asset client: the provider-adapter selection point itself
     // refuses before any store is constructed.
-    let denied = match fork.asset_store_obj() {
+    let denied = match snapback_engine::test_support::asset_store_obj(&fork) {
         Ok(_) => panic!("a fork must never construct a provider asset store"),
         Err(error) => error,
     };
@@ -1236,12 +1236,10 @@ async fn push_receipt_maintenance_refuses_on_a_ledger_bearing_fork_before_provid
             retention_ms: 2_592_000_000,
         }),
     };
-    snapback
-        .auth_database_mut()
+    snapback_engine::test_support::auth_database_mut(&mut snapback)
         .activate_current_auth_catalog()
         .unwrap();
-    snapback
-        .auth_database_mut()
+    snapback_engine::test_support::auth_database_mut(&mut snapback)
         .activate_push_registry_for_test(declaration)
         .unwrap();
     let (state, _operator) = crate::admin::AppState::try_from_snapback_with_secret_read_operator(
