@@ -37,6 +37,27 @@ mod hidden {
 pub use hidden::leak as hidden_leak;
 pub use hidden_leak as leak_private_reexport;
 
+mod hidden_struct {
+    pub struct ReexportedStructLeak {
+        pub conn: rusqlite::Connection,
+    }
+}
+
+pub use hidden_struct::ReexportedStructLeak;
+
+mod hidden_glob {
+    pub fn glob_leak() -> rusqlite::Connection {
+        panic!("scanner corpus is not executed")
+    }
+}
+
+pub use hidden_glob::*;
+
+#[cfg(not(unix))]
+pub fn non_unix_leak() -> rusqlite::Connection {
+    panic!("scanner corpus is not executed")
+}
+
 pub struct AsRefWrapper;
 
 impl AsRef<rusqlite::Connection> for AsRefWrapper {
@@ -67,6 +88,50 @@ pub fn plan_privileged_membership_insert(writer: &MembershipWriter) {
 
 pub struct KernelCommitAuthority {
     _private: (),
+}
+
+pub struct Db;
+
+impl Db {
+    pub fn authority(&self) -> KernelCommitAuthority {
+        panic!("scanner corpus is not executed")
+    }
+}
+
+pub struct ServiceAuthorityTerminalFactory {
+    _private: (),
+}
+
+pub struct PreparedServiceAuthorityTerminal {
+    _private: (),
+}
+
+impl KernelCommitAuthority {
+    pub fn service_authority_terminal_factory(&self) -> ServiceAuthorityTerminalFactory {
+        panic!("scanner corpus is not executed")
+    }
+}
+
+impl ServiceAuthorityTerminalFactory {
+    pub fn prepared(&self) -> PreparedServiceAuthorityTerminal {
+        panic!("scanner corpus is not executed")
+    }
+}
+
+pub struct AuthorizationCommitCarrierFactory {
+    _private: (),
+}
+
+impl KernelCommitAuthority {
+    pub fn authorization_commit_carriers(&self) -> AuthorizationCommitCarrierFactory {
+        panic!("scanner corpus is not executed")
+    }
+}
+
+impl AuthorizationCommitCarrierFactory {
+    pub fn reservation(&self) -> AuthorizationCommitReservation {
+        panic!("scanner corpus is not executed")
+    }
 }
 
 macro_rules! generated_privilege_api {

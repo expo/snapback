@@ -12,7 +12,7 @@ ticket is the honest record of the known product findings; it is not an
 allowlist, baseline, waiver, or permission for the APIs to remain public.
 
 The expected findings are exactly the four open F-1 escalation families. The
-2026-08-19 adversarial gate fix round reports 68 unallowlisted scanner
+2026-08-19 final adversarial gate fix round reports 80 unallowlisted scanner
 violations and 23 compiling attacks (33 inventoried attacks total):
 
 1. **Public claim/mint authority and duplicates.** The scanner reports
@@ -21,7 +21,10 @@ violations and 23 compiling attacks (33 inventoried attacks total):
    all four pending-effect commands; `Clone` on the root and its
    privilege-bearing factories/carriers; public seed-returning/sink methods and
    fields reachable from those roots; the `test-support` claim/join/bind seams;
-   `LocalEphemeralBackend::reserve_authorization_commit`; and wholesale
+   `LocalEphemeralBackend::reserve_authorization_commit`,
+   `EphemeralApi::reserve_authorization_commit`, and the public
+   `LocalSnapback` promotion/ask-spend reservation seams exposed through
+   `local.rs`'s glob; and wholesale
    `snapback_kernel::storage` re-exports from `snapback-auth`,
    `snapback-activation`, `snapback-engine`, and `snapback-server`.
    LLP 0284 R-2 also identifies the existing
@@ -42,14 +45,15 @@ violations and 23 compiling attacks (33 inventoried attacks total):
    ingress. The two separate, time-bounded read/connection-local ingress seams
    are tracked in their own tickets and allowlist rows; no F-1 escalation is
    allowlisted.
-4. **Caller-selectable privileged membership authority.** The scanner reports
-   caller-constructible `MembershipWriter` and its flow into
-   `MembershipCommitAuthority::sanctioned`, privileged plan/commit methods,
-   `is_privileged_noninvocation`, and membership provenance stamping. The
-   direct-dependent compiler witness constructs `MembershipWriter::Admin`,
-   plans a privileged insert, and commits the plan. F-1 must replace the
-   caller-selected discriminator with a kernel-derived unforgeable carrier and
-   revalidate writer class/provenance at commit.
+4. **Caller-selectable privileged membership authority.** The scanner's
+   deliberately narrow I-16 ratchet reports caller-constructible
+   `MembershipWriter` and the fixed-name sanctioned, privileged-plan,
+   bypass, and provenance signatures that name it directly. It does not
+   perform body-flow taint analysis. Independently, the direct-dependent
+   compiler witness constructs `MembershipWriter::Admin`, plans a privileged
+   insert, and commits the plan. F-1 must replace the caller-selected
+   discriminator with a kernel-derived unforgeable carrier and revalidate
+   writer class/provenance at commit.
 
 The compile-fail gate is expected to report `attack compiled` for these exact
 attack ids until F-1 lands:

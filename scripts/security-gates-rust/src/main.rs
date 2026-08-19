@@ -34,11 +34,10 @@ const SEED_TYPES: &[&str] = &[
     "AskSpendReservation",
 ];
 
-// @ref LLP 0284#38-authority-discriminators — these are semantic sinks, not
-// leaked-type spellings. A caller-constructible
-// discriminator that reaches one of them can select a sanctioned lane or
-// authoritative provenance even when none of the I-1 seed types appears in a
-// public signature.
+// @ref LLP 0284#38-authority-discriminators — this is the deliberately narrow
+// direct-signature sink-name registry. It is a ratchet for known shapes, not
+// data-flow analysis: wrapper/helper indirection and renamed sinks are recorded
+// as residual evasions in LLP 0284 §3.7.
 const PRIVILEGE_SINKS: &[&str] = &[
     "plan_privileged_membership_insert",
     "commit_membership_plan",
@@ -149,7 +148,7 @@ impl PrivilegeScanner {
                     let Some(receiver) = &edge.receiver_type else {
                         continue;
                     };
-                    if SEED_TYPES.contains(&receiver.as_str()) || !obtainable.contains(receiver) {
+                    if !obtainable.contains(receiver) {
                         continue;
                     }
                 }
@@ -183,7 +182,7 @@ impl PrivilegeScanner {
             );
         }
 
-        let mut tainted_discriminants = BTreeSet::new();
+        let mut direct_sink_discriminants = BTreeSet::new();
         for candidate in std::mem::take(&mut self.discriminator_sinks) {
             let matching_types = candidate
                 .type_names
@@ -191,21 +190,21 @@ impl PrivilegeScanner {
                 .cloned()
                 .collect::<Vec<_>>();
             for type_name in matching_types {
-                tainted_discriminants.insert(type_name.clone());
+                direct_sink_discriminants.insert(type_name.clone());
                 self.push_finding(
                     "caller-discriminant",
                     candidate.item.clone(),
                     &candidate.file,
                     candidate.span,
                     format!(
-                        "caller-constructible {type_name} reaches a registered privilege sink without a kernel verifier"
+                        "caller-constructible {type_name} is named directly in a registered privilege-sink signature"
                     ),
                     Some(type_name),
                 );
             }
         }
         for declaration in std::mem::take(&mut self.constructible_declarations) {
-            if !tainted_discriminants.contains(&declaration.type_name) {
+            if !direct_sink_discriminants.contains(&declaration.type_name) {
                 continue;
             }
             self.push_finding(
@@ -214,7 +213,7 @@ impl PrivilegeScanner {
                 &declaration.file,
                 declaration.span,
                 format!(
-                    "{} is caller-constructible and reaches a registered privilege sink",
+                    "{} is caller-constructible and is named directly in a registered privilege-sink signature",
                     declaration.type_name
                 ),
                 Some(declaration.type_name),
@@ -307,7 +306,6 @@ impl PrivilegeScanner {
                 self.record_discriminator_sink(
                     &function.sig,
                     None,
-                    Some(&function.block),
                     source,
                     &self.item_name(module, &function.sig.ident.to_string()),
                     function.sig.ident.span(),
@@ -322,7 +320,6 @@ impl PrivilegeScanner {
                         self.record_discriminator_sink(
                             &function.sig,
                             Some(&self_name),
-                            Some(&function.block),
                             source,
                             &format!("{owner}::{}", function.sig.ident),
                             function.sig.ident.span(),
@@ -539,7 +536,7 @@ impl PrivilegeScanner {
                     );
                 }
                 Item::Impl(item_impl) if module_public => {
-                    self.scan_impl(item_impl, &names, source, module);
+                    self.scan_impl(item_impl, &names, source, module, None);
                 }
                 Item::Macro(item_macro)
                     if matches!(
@@ -745,9 +742,13 @@ impl PrivilegeScanner {
         names: &ModuleNames,
         source: &Path,
         module: &[String],
+        exported_owner: Option<&str>,
     ) {
         let self_type = inspect_type(&item_impl.self_ty, names);
         let self_name = last_type_name(&item_impl.self_ty).unwrap_or_else(|| "<impl>".to_owned());
+        let owner = exported_owner
+            .map(str::to_owned)
+            .unwrap_or_else(|| self.item_name(module, &self_name));
         let impl_public = names.public_types.contains(&self_name)
             || SEED_TYPES.contains(&self_name.as_str())
             || self_name == "LocalDatabase";
@@ -769,7 +770,7 @@ impl PrivilegeScanner {
                 if let Some(raw) = &trait_info.raw_handle {
                     self.push_finding(
                         "sql-egress",
-                        format!("{}::{trait_name}", self.item_name(module, &self_name)),
+                        format!("{owner}::{trait_name}"),
                         source,
                         item_impl.span(),
                         format!("public trait implementation exposes rusqlite::{raw}"),
@@ -784,7 +785,7 @@ impl PrivilegeScanner {
                 ) {
                     self.push_finding(
                         "seed-clone",
-                        self.item_name(module, &self_name),
+                        owner.clone(),
                         source,
                         item_impl.span(),
                         format!("{self_name} implements {trait_name}"),
@@ -797,7 +798,7 @@ impl PrivilegeScanner {
                 ) {
                     self.push_finding(
                         "seed-obtain",
-                        self.item_name(module, &self_name),
+                        owner.clone(),
                         source,
                         item_impl.span(),
                         format!("{self_name} implements public constructor trait {trait_name}"),
@@ -812,11 +813,7 @@ impl PrivilegeScanner {
                         &info,
                         source,
                         item_type.ident.span(),
-                        &format!(
-                            "{}::{trait_name}::{}",
-                            self.item_name(module, &self_name),
-                            item_type.ident
-                        ),
+                        &format!("{}::{trait_name}::{}", owner, item_type.ident),
                         "public trait implementation associated type",
                         false,
                         true,
@@ -827,7 +824,6 @@ impl PrivilegeScanner {
         if !impl_public {
             return;
         }
-        let owner = self.item_name(module, &self_name);
         for member in &item_impl.items {
             if !attrs_active(impl_item_attrs(member), &self.active_features) {
                 continue;
@@ -836,7 +832,6 @@ impl PrivilegeScanner {
                 self.record_discriminator_sink(
                     &function.sig,
                     Some(&self_name),
-                    Some(&function.block),
                     source,
                     &format!("{owner}::{}", function.sig.ident),
                     function.sig.ident.span(),
@@ -1099,7 +1094,6 @@ impl PrivilegeScanner {
         &mut self,
         signature: &syn::Signature,
         receiver_type: Option<&str>,
-        _body: Option<&syn::Block>,
         source: &Path,
         item: &str,
         span: Span,
@@ -1261,6 +1255,7 @@ impl PrivilegeScanner {
             &segments,
             &exported_item,
             names,
+            module,
         )
     }
 
@@ -1275,25 +1270,24 @@ impl PrivilegeScanner {
         segments: &[String],
         exported_item: &str,
         names: &ModuleNames,
+        exported_module: &[String],
     ) -> Result<(), String> {
         let Some((head, tail)) = segments.split_first() else {
             return Ok(());
         };
         if tail.is_empty() {
+            if head == "*" {
+                return self.scan_items(
+                    items,
+                    source,
+                    exported_module,
+                    true,
+                    module_dir,
+                    attribute_dir,
+                );
+            }
             for item in items {
                 match item {
-                    Item::Fn(function)
-                        if function.sig.ident == head.as_str() && public(&function.vis) =>
-                    {
-                        self.scan_signature(
-                            &function.sig,
-                            names,
-                            source,
-                            exported_item,
-                            function.sig.ident.span(),
-                            None,
-                        );
-                    }
                     Item::Use(item_use) if public(&item_use.vis) => {
                         for nested in flatten_use_tree(&item_use.tree) {
                             if nested.exposed == *head {
@@ -1306,9 +1300,16 @@ impl PrivilegeScanner {
                                     &nested.segments,
                                     exported_item,
                                     names,
+                                    exported_module,
                                 )?;
                             }
                         }
+                    }
+                    _ if attrs_active(item_attrs(item), &self.active_features)
+                        && item_ident(item).as_deref() == Some(head.as_str())
+                        && public_item(item) =>
+                    {
+                        self.scan_named_reexport(item, items, names, source, module, exported_item);
                     }
                     _ => {}
                 }
@@ -1335,6 +1336,7 @@ impl PrivilegeScanner {
                 tail,
                 exported_item,
                 &child_names,
+                exported_module,
             );
         }
         let explicit = path_attributes(&item_mod.attrs).into_iter().next();
@@ -1363,7 +1365,205 @@ impl PrivilegeScanner {
             tail,
             exported_item,
             &child_names,
+            exported_module,
         )
+    }
+
+    fn scan_named_reexport(
+        &mut self,
+        item: &Item,
+        sibling_items: &[Item],
+        names: &ModuleNames,
+        source: &Path,
+        module: &[String],
+        exported_item: &str,
+    ) {
+        match item {
+            Item::Fn(function) => self.scan_signature(
+                &function.sig,
+                names,
+                source,
+                exported_item,
+                function.sig.ident.span(),
+                None,
+            ),
+            Item::Struct(structure) => {
+                if public_structure_constructor(&structure.fields) {
+                    self.record_constructible(
+                        &structure.ident.to_string(),
+                        exported_item,
+                        source,
+                        structure.ident.span(),
+                    );
+                }
+                self.scan_seed_derives(
+                    &structure.ident.to_string(),
+                    &structure.attrs,
+                    source,
+                    exported_item,
+                    structure.ident.span(),
+                );
+                self.scan_fields(&structure.fields, names, source, exported_item, false);
+                if structure.fields.iter().all(|field| !public(&field.vis)) {
+                    self.private_public_types
+                        .insert(structure.ident.to_string());
+                }
+            }
+            Item::Enum(enumeration) => {
+                self.record_constructible(
+                    &enumeration.ident.to_string(),
+                    exported_item,
+                    source,
+                    enumeration.ident.span(),
+                );
+                self.scan_seed_derives(
+                    &enumeration.ident.to_string(),
+                    &enumeration.attrs,
+                    source,
+                    exported_item,
+                    enumeration.ident.span(),
+                );
+                for variant in &enumeration.variants {
+                    self.scan_fields(
+                        &variant.fields,
+                        names,
+                        source,
+                        &format!("{exported_item}::{}", variant.ident),
+                        true,
+                    );
+                }
+            }
+            Item::Union(item_union) => {
+                if item_union
+                    .fields
+                    .named
+                    .iter()
+                    .all(|field| public(&field.vis))
+                {
+                    self.record_constructible(
+                        &item_union.ident.to_string(),
+                        exported_item,
+                        source,
+                        item_union.ident.span(),
+                    );
+                }
+                self.scan_seed_derives(
+                    &item_union.ident.to_string(),
+                    &item_union.attrs,
+                    source,
+                    exported_item,
+                    item_union.ident.span(),
+                );
+                self.scan_fields(
+                    &Fields::Named(item_union.fields.clone()),
+                    names,
+                    source,
+                    exported_item,
+                    false,
+                );
+                if item_union
+                    .fields
+                    .named
+                    .iter()
+                    .all(|field| !public(&field.vis))
+                {
+                    self.private_public_types
+                        .insert(item_union.ident.to_string());
+                }
+            }
+            Item::Type(alias) => {
+                let info = inspect_type(&alias.ty, names);
+                self.report_type_exposure(
+                    &info,
+                    source,
+                    alias.ident.span(),
+                    exported_item,
+                    "publicly re-exported type alias",
+                    false,
+                    true,
+                );
+            }
+            Item::Static(item_static) => {
+                let info = inspect_type(&item_static.ty, names);
+                self.report_type_exposure(
+                    &info,
+                    source,
+                    item_static.ident.span(),
+                    exported_item,
+                    "publicly re-exported static",
+                    false,
+                    true,
+                );
+            }
+            Item::Const(item_const) => {
+                let info = inspect_type(&item_const.ty, names);
+                self.report_type_exposure(
+                    &info,
+                    source,
+                    item_const.ident.span(),
+                    exported_item,
+                    "publicly re-exported const",
+                    false,
+                    true,
+                );
+            }
+            Item::Trait(item_trait) => {
+                for member in &item_trait.items {
+                    match member {
+                        syn::TraitItem::Fn(function) => self.scan_signature(
+                            &function.sig,
+                            names,
+                            source,
+                            &format!("{exported_item}::{}", function.sig.ident),
+                            function.sig.ident.span(),
+                            None,
+                        ),
+                        syn::TraitItem::Type(item_type) => {
+                            if let Some((_, ty)) = &item_type.default {
+                                let info = inspect_type(ty, names);
+                                self.report_type_exposure(
+                                    &info,
+                                    source,
+                                    item_type.ident.span(),
+                                    &format!("{exported_item}::{}", item_type.ident),
+                                    "publicly re-exported trait associated type",
+                                    false,
+                                    true,
+                                );
+                            }
+                        }
+                        syn::TraitItem::Const(item_const) => {
+                            let info = inspect_type(&item_const.ty, names);
+                            self.report_type_exposure(
+                                &info,
+                                source,
+                                item_const.ident.span(),
+                                &format!("{exported_item}::{}", item_const.ident),
+                                "publicly re-exported trait associated const",
+                                false,
+                                true,
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        let Some(reexported_type) = item_ident(item) else {
+            return;
+        };
+        for sibling in sibling_items {
+            let Item::Impl(item_impl) = sibling else {
+                continue;
+            };
+            if attrs_active(&item_impl.attrs, &self.active_features)
+                && last_type_name(&item_impl.self_ty).as_deref() == Some(reexported_type.as_str())
+            {
+                self.scan_impl(item_impl, names, source, module, Some(exported_item));
+            }
+        }
     }
 
     fn item_name(&self, module: &[String], leaf: &str) -> String {
@@ -1512,6 +1712,34 @@ fn public(visibility: &Visibility) -> bool {
     matches!(visibility, Visibility::Public(_))
 }
 
+fn item_ident(item: &Item) -> Option<String> {
+    match item {
+        Item::Const(item) => Some(item.ident.to_string()),
+        Item::Enum(item) => Some(item.ident.to_string()),
+        Item::Fn(item) => Some(item.sig.ident.to_string()),
+        Item::Static(item) => Some(item.ident.to_string()),
+        Item::Struct(item) => Some(item.ident.to_string()),
+        Item::Trait(item) => Some(item.ident.to_string()),
+        Item::Type(item) => Some(item.ident.to_string()),
+        Item::Union(item) => Some(item.ident.to_string()),
+        _ => None,
+    }
+}
+
+fn public_item(item: &Item) -> bool {
+    match item {
+        Item::Const(item) => public(&item.vis),
+        Item::Enum(item) => public(&item.vis),
+        Item::Fn(item) => public(&item.vis),
+        Item::Static(item) => public(&item.vis),
+        Item::Struct(item) => public(&item.vis),
+        Item::Trait(item) => public(&item.vis),
+        Item::Type(item) => public(&item.vis),
+        Item::Union(item) => public(&item.vis),
+        _ => false,
+    }
+}
+
 fn attr_present(attrs: &[Attribute], name: &str) -> bool {
     attrs
         .iter()
@@ -1614,7 +1842,11 @@ enum Truth {
 fn eval_cfg(meta: &Meta, features: &BTreeSet<String>) -> Truth {
     match meta {
         Meta::Path(path) if path.is_ident("test") => Truth::False,
-        Meta::Path(path) if path.is_ident("unix") => Truth::True,
+        // Security coverage is platform-symbolic: both `unix`/`windows` and
+        // their negations remain visible instead of inheriting the scanner
+        // host's target. Like symbolic caller features, contradictory target
+        // formulas are retained conservatively.
+        Meta::Path(path) if path.is_ident("unix") || path.is_ident("windows") => Truth::Unknown,
         Meta::Path(_) => Truth::Unknown,
         Meta::NameValue(value) if value.path.is_ident("feature") => match &value.value {
             Expr::Lit(ExprLit {
@@ -1854,6 +2086,41 @@ fn evaluate_include(tokens: &TokenStream) -> Option<(String, bool)> {
     }
 }
 
+// @ref LLP 0284#36-inventory-honesty — an attack's parsed source must name the
+// dependency crate it claims to mount; the free-form mount field is not proof.
+fn source_crate_references(path: &Path) -> Result<Vec<String>, String> {
+    struct CrateReferenceVisitor {
+        references: BTreeSet<String>,
+    }
+    impl<'ast> Visit<'ast> for CrateReferenceVisitor {
+        fn visit_path(&mut self, node: &'ast syn::Path) {
+            if let Some(first) = node.segments.first() {
+                self.references.insert(first.ident.to_string());
+            }
+            visit::visit_path(self, node);
+        }
+
+        fn visit_item_use(&mut self, node: &'ast syn::ItemUse) {
+            for binding in flatten_use_tree(&node.tree) {
+                if let Some(first) = binding.segments.first() {
+                    self.references.insert(first.clone());
+                }
+            }
+            visit::visit_item_use(self, node);
+        }
+    }
+
+    let source = fs::read_to_string(path)
+        .map_err(|error| format!("cannot read Rust source {}: {error}", path.display()))?;
+    let syntax = syn::parse_file(&source)
+        .map_err(|error| format!("cannot parse Rust source {}: {error}", path.display()))?;
+    let mut visitor = CrateReferenceVisitor {
+        references: BTreeSet::new(),
+    };
+    visitor.visit_file(&syntax);
+    Ok(visitor.references.into_iter().collect())
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AttackSpan {
@@ -2019,7 +2286,20 @@ fn run() -> Result<(), String> {
                     .map_err(|error| format!("cannot serialize attack span: {error}"))?
             );
         }
-        _ => return Err("usage: security-gates-rust <privilege|units|attack-span> ...".to_owned()),
+        "crate-references" => {
+            let path = PathBuf::from(required_arg(&args, "--file")?);
+            println!(
+                "{}",
+                serde_json::to_string(&source_crate_references(&path)?)
+                    .map_err(|error| format!("cannot serialize crate references: {error}"))?
+            );
+        }
+        _ => {
+            return Err(
+                "usage: security-gates-rust <privilege|units|attack-span|crate-references> ..."
+                    .to_owned(),
+            );
+        }
     }
     Ok(())
 }

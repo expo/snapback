@@ -218,6 +218,9 @@ export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
 }
 
 function printResult(result) {
+  process.stdout.write(
+    'privilege-surface: this scanner is a ratchet, not a proof; residual evasions are documented in LLP 0284 §3.7\n',
+  );
   if (result.violations.length > 0) {
     process.stderr.write(`${DIAGNOSTIC}: ${result.violations.length} violation(s)\n`);
     for (const finding of result.violations) {

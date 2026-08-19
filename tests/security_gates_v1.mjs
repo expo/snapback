@@ -36,16 +36,36 @@ test('privilege scanner catches aliases, private re-exports, traits, and structu
   assert.match(output, /synthetic_kernel::Associated::LEAK/u);
   assert.match(output, /synthetic_kernel::leak_renamed_import/u);
   assert.match(output, /synthetic_kernel::leak_private_reexport/u);
+  assert.match(output, /synthetic_kernel::ReexportedStructLeak::conn/u);
+  assert.match(output, /synthetic_kernel::glob_leak/u);
   assert.match(output, /synthetic_kernel::AsRefWrapper::AsRef/u);
 });
 
-test('caller-constructible discriminants cannot reach registered privilege sinks', () => {
+test('direct sink signatures naming caller-constructible discriminants are ratcheted', () => {
   const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
   const result = auditPrivilegeSurface(corpus);
   const output = result.violations.map(({ item, detail }) => `${item}: ${detail}`).join('\n');
-  assert.match(output, /MembershipWriter.*caller-constructible.*privilege sink/u);
+  assert.match(output, /MembershipWriter.*caller-constructible.*named directly/u);
   assert.match(output, /plan_privileged_membership_insert/u);
   assert.match(output, /sanctioned/u);
+});
+
+test('obtainability propagates through obtainable seed receivers in the default cell', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const findings = new Map(result.findings
+    .filter(({ kind }) => kind === 'seed-obtain')
+    .map((finding) => [finding.item, finding]));
+  for (const item of [
+    'synthetic_kernel::Db::authority',
+    'synthetic_kernel::KernelCommitAuthority::service_authority_terminal_factory',
+    'synthetic_kernel::ServiceAuthorityTerminalFactory::prepared',
+    'synthetic_kernel::KernelCommitAuthority::authorization_commit_carriers',
+    'synthetic_kernel::AuthorizationCommitCarrierFactory::reservation',
+  ]) {
+    assert(findings.has(item), `expected receiver closure finding for ${item}`);
+    assert.deepEqual(findings.get(item).features, ['default']);
+  }
 });
 
 test('caller feature predicates are scanned without assuming default features', () => {
@@ -54,6 +74,14 @@ test('caller feature predicates are scanned without assuming default features', 
   const leak = result.violations.find(({ item }) => item.includes('no_default_rusqlite'));
   assert(leak, 'expected the default-features=false re-export to be found');
   assert.deepEqual(leak.features, ['caller-features']);
+});
+
+test('target predicates retain both unix and non-unix public APIs', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const leak = result.violations.find(({ item }) => item === 'synthetic_kernel::non_unix_leak');
+  assert(leak, 'expected the #[cfg(not(unix))] return to be found');
+  assert.deepEqual(leak.features, ['default']);
 });
 
 test('macro- and OUT_DIR-generated public APIs fail closed', () => {
@@ -174,4 +202,22 @@ test('privilege-bearing dependencies must each have an attack mount', () => {
   }]);
   assert.match(errors.join('\n'), /snapback-sync/u);
   assert.match(errors.join('\n'), /no attack mounts/u);
+});
+
+test('an attack source must actually reference the crate it claims to mount', () => {
+  const attacks = loadAttacks(fixtureRoot);
+  const claim = attacks.find(({ id }) => id === 'claim-kernel-commit-authority');
+  const swapped = attacks.map((attack) => attack.id === 'reserve-authorization-via-sync'
+    ? {
+      ...attack,
+      bin: claim.bin,
+      source: claim.source,
+    }
+    : attack);
+  const errors = validateFixtureInventory(root, fixtureRoot, swapped, [{
+    crate: 'snapback-sync',
+    kind: 'seed-obtain',
+  }]);
+  assert.match(errors.join('\n'), /reserve-authorization-via-sync/u);
+  assert.match(errors.join('\n'), /does not reference claimed mount snapback-sync/u);
 });

@@ -57,8 +57,9 @@ export function loadAttacks(fixtureRoot = DEFAULT_FIXTURE_ROOT) {
   return document.attacks;
 }
 
-// @ref LLP 0284#36-inventory-honesty — the claimed mount set is joined to
-// cargo metadata dependency keys and bin targets; descriptive supersets fail.
+// @ref LLP 0284#36-inventory-honesty — each claimed mount is joined to cargo
+// metadata dependency keys, its actual bin source, and parsed crate references;
+// descriptive or source-swapped supersets fail.
 export function validateFixtureInventory(
   root,
   fixtureRoot,
@@ -72,9 +73,13 @@ export function validateFixtureInventory(
   if (!fixturePackage) {
     return ['cargo metadata did not return snapback-security-boundary-fixtures'];
   }
-  const dependencyKeys = sorted(fixturePackage.dependencies
-    .map((dependency) => dependency.rename ?? dependency.name)
-    .filter((name) => productNames.has(name)));
+  const productDependencies = fixturePackage.dependencies
+    .filter((dependency) => productNames.has(dependency.name));
+  const dependencyKeys = sorted(productDependencies.map(({ name }) => name));
+  const dependencyReference = new Map(productDependencies.map((dependency) => [
+    dependency.name,
+    (dependency.rename ?? dependency.name).replaceAll('-', '_'),
+  ]));
   const privilegeCrates = sorted(privilegeFindings
     .map((finding) => finding.crate)
     .filter((name) => productNames.has(name)));
@@ -100,12 +105,36 @@ export function validateFixtureInventory(
   if (unmountedPrivilegeCrates.length > 0) {
     errors.push(`privilege-bearing workspace crate(s) have no attack mounts: ${unmountedPrivilegeCrates.join(', ')}`);
   }
-  const bins = new Set(fixturePackage.targets
+  const bins = new Map(fixturePackage.targets
     .filter((target) => target.kind.includes('bin'))
-    .map(({ name }) => name));
+    .map((target) => [target.name, target]));
   for (const attack of attacks) {
     if (!productNames.has(attack.mount)) errors.push(`${attack.id} names non-member mount ${attack.mount}`);
-    if (!bins.has(attack.bin)) errors.push(`${attack.id} names missing bin ${attack.bin}`);
+    const bin = bins.get(attack.bin);
+    if (!bin) {
+      errors.push(`${attack.id} names missing bin ${attack.bin}`);
+      continue;
+    }
+    const source = resolve(fixtureRoot, attack.source);
+    let canonicalSource;
+    try {
+      canonicalSource = realpathSync(source);
+    } catch (error) {
+      errors.push(`${attack.id} names unreadable source ${attack.source}: ${error.message}`);
+      continue;
+    }
+    if (realpathSync(bin.src_path) !== canonicalSource) {
+      errors.push(`${attack.id} source ${attack.source} is not the source of bin ${attack.bin}`);
+    }
+    const expectedReference = dependencyReference.get(attack.mount);
+    if (expectedReference) {
+      const references = new Set(runAst(['crate-references', '--file', canonicalSource]));
+      if (!references.has(expectedReference)) {
+        errors.push(
+          `${attack.id} source does not reference claimed mount ${attack.mount} as crate ${expectedReference}`,
+        );
+      }
+    }
   }
   return errors;
 }
