@@ -234,6 +234,7 @@
           "scripts/check-module-ownership.mjs"
         ],
         "prefixes": [
+          "crates/snapback-cli/src/",
           "crates/snapback/src/"
         ]
       },
@@ -376,6 +377,7 @@
           "scripts/check-guide",
           "scripts/generate-guide",
           "scripts/guide-",
+          "crates/snapback-cli/src/",
           "crates/snapback/src/",
           "crates/snapback-runtime/src/"
         ]
@@ -912,6 +914,7 @@
         "telemetry"
       ],
       "prefixes": [
+        "crates/snapback-cli/",
         "crates/snapback/src/",
         "crates/snapback-runtime/"
       ]

@@ -121,6 +121,7 @@ fn serde_repr_requires_an_allowlisting_ref() {
 
     let mut files = Vec::new();
     rust_sources(&repo_root().join("crates/snapback/src"), &mut files);
+    rust_sources(&repo_root().join("crates/snapback-cli/src"), &mut files);
     assert!(!files.is_empty(), "expected Rust sources under src/");
     let mut violations = Vec::new();
     for file in files {

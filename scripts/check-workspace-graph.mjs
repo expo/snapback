@@ -100,6 +100,7 @@ function validateKernelAdmissionFacades() {
   const pushAdapter = readFileSync(resolve(ROOT, 'crates/snapback-engine/src/push.rs'), 'utf8');
   const facadeRust = [
     readRustTree(resolve(ROOT, 'crates/snapback/src')),
+    readRustTree(resolve(ROOT, 'crates/snapback-cli/src')),
     readRustTree(resolve(ROOT, 'crates/snapback-engine/src')),
     readRustTree(resolve(ROOT, 'crates/snapback-server/src')),
   ].join('\n');
