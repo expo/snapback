@@ -136,6 +136,7 @@
       "crates/snapback-cli/src/cli/guide_command.rs",
       "crates/snapback-cli/src/cli/migration.rs",
       "crates/snapback-cli/src/cli/tests.rs",
+      "crates/snapback-cli/src/embed.rs",
       "crates/snapback-cli/src/guide_mcp.rs",
       "crates/snapback-cli/src/lib.rs",
       "crates/snapback-cli/src/store_state.rs",

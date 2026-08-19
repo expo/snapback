@@ -2314,6 +2314,7 @@ impl std::fmt::Debug for TargetArgs {
     }
 }
 
+#[path = "cli/guide_command.rs"]
 mod guide_command;
 #[cfg(test)]
 pub(crate) use guide_command::{
@@ -3461,6 +3462,7 @@ fn auth_restore(backup_directory: &Path, target_database: &Path) -> anyhow::Resu
     Ok(())
 }
 
+#[path = "cli/fork.rs"]
 mod fork;
 #[cfg(unix)]
 pub(crate) use fork::configure_detached_child;
@@ -5477,6 +5479,7 @@ fn controls_list_text(catalog: &Value) -> String {
     output
 }
 
+#[path = "cli/config_command.rs"]
 mod config_command;
 pub(crate) use config_command::config_command;
 
@@ -10944,8 +10947,10 @@ fn describe_ports(ports: &[u16]) -> String {
 }
 
 #[cfg(test)]
+#[path = "cli/tests.rs"]
 mod tests;
 
+#[path = "cli/migration.rs"]
 mod migration;
 pub(crate) use migration::migrate_command;
 #[cfg(test)]

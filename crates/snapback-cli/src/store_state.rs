@@ -23,7 +23,7 @@ const TEMP_CANDIDATE_ATTEMPTS: usize = 3;
 
 /// Database-bound registry members intentionally outside startup's path set.
 /// The divergence test requires every such difference to carry its reason here.
-#[cfg(test)]
+#[cfg(all(test, not(feature = "cli-owner")))]
 const STARTUP_MANAGED_PATH_ALLOWLIST: &[(&str, &str)] = &[
     (
         "operationDetailKeyring",
@@ -42,7 +42,7 @@ const STARTUP_MANAGED_PATH_ALLOWLIST: &[(&str, &str)] = &[
 /// These members are shared by the database directory rather than named from
 /// the database path. New members default to database-bound in the divergence
 /// test until they are deliberately classified here.
-#[cfg(test)]
+#[cfg(all(test, not(feature = "cli-owner")))]
 const DIRECTORY_SHARED_MEMBER_IDS: &[&str] = &[
     "completenessProofKeyring",
     "assetBlobs",
@@ -1110,51 +1110,6 @@ fn store_error_with_publication_state(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::BTreeSet;
-
-    #[test]
-    fn registry_and_startup_managed_database_paths_cannot_silently_diverge() {
-        let directory = tempfile::tempdir().unwrap();
-        let database = directory.path().join("app.sqlite3");
-        let registry = durable_state_members(&database).unwrap();
-        let startup = crate::cli::managed_startup_paths(Some(&database), None).unwrap();
-        let startup_paths = startup
-            .iter()
-            .map(|managed| managed.path.clone())
-            .collect::<BTreeSet<_>>();
-
-        for member in &registry {
-            if DIRECTORY_SHARED_MEMBER_IDS.contains(&member.id) {
-                continue;
-            }
-            let allow_reason = STARTUP_MANAGED_PATH_ALLOWLIST
-                .iter()
-                .find(|(id, _)| *id == member.id)
-                .map(|(_, reason)| *reason);
-            assert!(
-                startup_paths.contains(&member.path) || allow_reason.is_some(),
-                "database-bound durable member {} ({}) is neither startup-managed nor documented in STARTUP_MANAGED_PATH_ALLOWLIST",
-                member.id,
-                member.path.display(),
-            );
-            if let Some(reason) = allow_reason {
-                assert!(!reason.trim().is_empty(), "allow-list reasons must be real");
-            }
-        }
-
-        let registry_paths = registry
-            .iter()
-            .map(|member| member.path.clone())
-            .collect::<BTreeSet<_>>();
-        for managed in startup {
-            assert!(
-                registry_paths.contains(&managed.path),
-                "startup-managed path {} ({}) is absent from the durable-state registry",
-                managed.label,
-                managed.path.display(),
-            );
-        }
-    }
 
     #[cfg(not(feature = "cli-owner"))]
     mod remainder_tests {
@@ -1166,8 +1121,53 @@ mod tests {
         use crate::contract_types::AuthProviderProfile;
         use crate::local::LocalSnapback;
         use rusqlite::Connection;
+        use std::collections::BTreeSet;
         #[cfg(unix)]
         use std::os::unix::fs::PermissionsExt as _;
+
+        #[test]
+        fn registry_and_startup_managed_database_paths_cannot_silently_diverge() {
+            let directory = tempfile::tempdir().unwrap();
+            let database = directory.path().join("app.sqlite3");
+            let registry = durable_state_members(&database).unwrap();
+            let startup = crate::cli::managed_startup_paths(Some(&database), None).unwrap();
+            let startup_paths = startup
+                .iter()
+                .map(|managed| managed.path.clone())
+                .collect::<BTreeSet<_>>();
+
+            for member in &registry {
+                if DIRECTORY_SHARED_MEMBER_IDS.contains(&member.id) {
+                    continue;
+                }
+                let allow_reason = STARTUP_MANAGED_PATH_ALLOWLIST
+                    .iter()
+                    .find(|(id, _)| *id == member.id)
+                    .map(|(_, reason)| *reason);
+                assert!(
+                    startup_paths.contains(&member.path) || allow_reason.is_some(),
+                    "database-bound durable member {} ({}) is neither startup-managed nor documented in STARTUP_MANAGED_PATH_ALLOWLIST",
+                    member.id,
+                    member.path.display(),
+                );
+                if let Some(reason) = allow_reason {
+                    assert!(!reason.trim().is_empty(), "allow-list reasons must be real");
+                }
+            }
+
+            let registry_paths = registry
+                .iter()
+                .map(|member| member.path.clone())
+                .collect::<BTreeSet<_>>();
+            for managed in startup {
+                assert!(
+                    registry_paths.contains(&managed.path),
+                    "startup-managed path {} ({}) is absent from the durable-state registry",
+                    managed.label,
+                    managed.path.display(),
+                );
+            }
+        }
 
         #[derive(Debug)]
         struct FixedRandom;

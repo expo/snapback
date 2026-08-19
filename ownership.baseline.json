@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v2",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 66,
-  "edgeCount": 138,
+  "moduleCount": 67,
+  "edgeCount": 137,
   "edges": [
     {
       "from": "crates/snapback-cli/src/cli.rs",
@@ -128,6 +128,18 @@
       "from": "crates/snapback-cli/src/cli/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "crates/snapback-cli/src/store_state.rs",
+      "toOwner": "transport-adapters"
+    },
+    {
+      "from": "crates/snapback-cli/src/embed.rs",
+      "fromOwner": "transport-adapters",
+      "to": "crates/snapback-cli/src/cli.rs",
+      "toOwner": "transport-adapters"
+    },
+    {
+      "from": "crates/snapback-cli/src/embed.rs",
+      "fromOwner": "transport-adapters",
+      "to": "crates/snapback-cli/src/lib.rs",
       "toOwner": "transport-adapters"
     },
     {
@@ -733,24 +745,6 @@
     {
       "from": "crates/snapback/src/contract_exact.rs",
       "fromOwner": "shared-contract-types-leaf",
-      "to": "crates/snapback/src/diagnostic.rs",
-      "toOwner": "shared-contract-types-leaf"
-    },
-    {
-      "from": "crates/snapback/src/embed.rs",
-      "fromOwner": "embed-facade",
-      "to": "crates/snapback/src/auth/mod.rs",
-      "toOwner": "shared-contract-types-leaf"
-    },
-    {
-      "from": "crates/snapback/src/embed.rs",
-      "fromOwner": "embed-facade",
-      "to": "crates/snapback/src/auth/mode.rs",
-      "toOwner": "shared-contract-types-leaf"
-    },
-    {
-      "from": "crates/snapback/src/embed.rs",
-      "fromOwner": "embed-facade",
       "to": "crates/snapback/src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },

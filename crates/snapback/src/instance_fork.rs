@@ -14,6 +14,7 @@ pub use snapback_kernel::instance_fork::{
     SERVER_EXPIRED_CODE, SIDECAR_CUSTODY, STAGING_SENTINEL, TABLE_CUSTODY, inspect_boot,
     inspect_boot_at, server_expired_error,
 };
+pub(crate) use snapback_kernel::instance_fork::{source_parent_instance_id, stored_app_id};
 pub use snapback_services::instance_fork::{
     ADMISSION_TIMEOUT_CODE, APP_BINDING_INTENT_FILE, APP_BINDING_MISMATCH_CODE,
     APP_BINDING_RECEIPT_FILE, APP_BINDING_REQUIRED_CODE, APP_ROOT_IDENTITY_FILE,

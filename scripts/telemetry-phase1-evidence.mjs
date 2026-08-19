@@ -35,6 +35,7 @@ const proofSourcePathspecs = [
   'crates/snapback-auth/Cargo.toml',
   'crates/snapback-auth/src',
   'crates/snapback-cli/Cargo.toml',
+  'crates/snapback-cli/build.rs',
   'crates/snapback-cli/src',
   'crates/snapback-engine/Cargo.toml',
   'crates/snapback-engine/build.rs',

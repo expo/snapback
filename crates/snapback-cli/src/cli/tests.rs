@@ -1152,10 +1152,10 @@ fn background_roots_start_only_after_all_fallible_publications() {
         .find("server::spawn_cron_scheduler(state.clone(), cron_autonomy_disabled)")
         .expect("cron scheduler spawn remains explicit");
     let maintenance = source
-        .find("server::spawn_maintenance_worker(app_state)")
+        .find("server::spawn_maintenance_worker(app_state.clone())")
         .expect("maintenance spawn remains explicit");
     let auth_gc = source
-        .find("crate::auth::runtime::spawn_auth_gc_worker")
+        .find("app_state.spawn_auth_gc_worker")
         .expect("auth GC spawn remains explicit");
     assert!(sidecar < cron && ready < cron);
     assert!(sidecar < maintenance && ready < maintenance);
@@ -1173,7 +1173,7 @@ fn serve_path_installs_insecure_dev_auth_override_into_app_state() {
     // remote drill target).
     let source = include_str!("../cli.rs");
     let constructed = source
-        .find("AppState::try_new_with_secret_read_operator(\n        state.clone(),")
+        .find("AppState::try_new_for_server_startup(\n        state.clone(),")
         .expect("serve-path AppState construction remains explicit");
     let installed = source
         .find(".with_insecure_dev_auth_override(args.allow_insecure_dev_auth)")

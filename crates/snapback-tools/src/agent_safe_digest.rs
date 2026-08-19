@@ -55,6 +55,7 @@ pub fn implementation_tree_sha256(repo_root: &Path) -> Option<String> {
             "crates/snapback-auth/Cargo.toml",
             "crates/snapback-auth/src",
             "crates/snapback-cli/Cargo.toml",
+            "crates/snapback-cli/build.rs",
             "crates/snapback-cli/src",
             "crates/snapback-conformance/Cargo.toml",
             "crates/snapback-conformance/build.rs",
