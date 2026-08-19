@@ -45,14 +45,20 @@ publication must wait until F-1 below is closed.
 
 | Item | State |
 | --- | --- |
-| F-1 | **Designed, not implemented.** Two independent blind designs commissioned; synthesized as **LLP 0285**. Author approved the two LLP 0225 ownership moves the closure requires. Implementation runs as its own reviewed program. Publication remains blocked. |
+| F-1 | **Designed, not implemented — and now FOUR defects, not three.** Two independent blind designs commissioned; synthesized as **LLP 0285**. Author approved the two LLP 0225 ownership moves the closure requires. Implementation runs as its own reviewed program. Publication remains blocked. |
 | F-2 | **Specified as LLP 0284**, independently authored by a model family that wrote neither the code nor the original gates. Gate rewrite in progress. |
 | F-3 | Not started; blocked behind F-1. Battery maps to `scripts/verify-local-proof --complete` (36 gates, already covering cloudflare/admin/swift-client/native-runtime/guide) plus `scripts/cold-clone-check.sh` and the npm closure/cold-install witnesses. |
 | F-4 | **Fixed.** `caught_denial_with_unrelated_failure_is_not_restored` triaged **pre-existing** (traced to `7437e6e07`; redaction landed in `a8787cb53`; reproduced at `pre-0276-rearchitecture`). The `auth_invocation_v1` refusal-precedence divergence was ruled a defect by the author and the JS-path ordering was fixed. Fixture drift repaired. |
 | F-5 | Unchanged backlog; all three burn-down tickets exist under `issues/`. |
 | F-6 | Unchanged; still correct to defer. |
 
-**Three findings added by the follow-up that make F-1 worse than described
+**A FOURTH escalation was found** (defect 4 below) — forgeable privileged
+membership writes, reachable from a shared borrow. It was surfaced by the blind
+review of LLP 0285 and re-verified against the tree. Neither the original review
+round nor either independent design caught it, which is itself evidence for
+LLP 0283's own F-2 thesis: the checks were too weak to find what was there.
+
+**Three further findings that make F-1 worse than described
 below** (all verified against `ede899a20`, detailed in LLP 0285 §4):
 `ResolvedAppAuthority` is a `pub` enum with `pub` variants, so
 `ResolvedAppAuthority::System` is freely constructible; the comment at
@@ -99,6 +105,21 @@ with evidence:
    `crates/snapback-services/Cargo.toml:18`), open the canonical database, begin
    a transaction and commit. Cargo features are public and caller-controlled;
    `#[doc(hidden)]` and "intended for tests" provide no confinement.
+
+4. **Privileged membership writes are forgeable from a shared borrow (added
+   2026-08-19b; found by the blind review of LLP 0285, re-verified against the
+   tree).** `LocalDatabase::membership_plans_read(&self)` is `pub`
+   (`crates/snapback-kernel/src/storage.rs:1745`) and needs only a **shared**
+   borrow; `MembershipPlansReadKernel::plan_privileged_membership_insert` and
+   `commit_membership_plan` are `pub`; and `MembershipWriter`
+   (`storage.rs:13520`) is a `pub` enum with `pub` variants. The sole guard,
+   `writer.is_privileged_noninvocation()`
+   (`storage/membership_plans.rs:388`), inspects the **caller-selected enum**.
+   So any crate holding `&LocalDatabase` can forge
+   `MembershipWriter::Admin` and commit a privileged membership write. This is
+   Method lesson 1's "public enum as authority" in its purest form, and it was
+   missed by both the original review round and both independent F-1 designs.
+   Closure design: LLP 0285 §5.4.
 
 **Direction for the fix (do not repeat the previous three attempts).** Each
 attempt narrowed *where* the capability could be obtained without removing the

@@ -8,7 +8,10 @@ Verification, Packaging
 Claude (Opus 5) and codex `gpt-5.6-sol` — commissioned by Charlie Cheever
 (author rulings 2026-08-19, recorded in §2)
 **Date:** 2026-08-19
-**Revised:** 2026-08-19
+**Revised:** 2026-08-19 (b — revised after an independent blind review of
+revision (a) returned NEEDS REVISION with four BLOCKERs, three of which the
+orchestrator re-verified against the tree; adds defect 4, corrects the step-2
+checkpoint, and resolves a self-contradiction in revision (a))
 **Related:** LLP 0283 (F-1), LLP 0284, LLP 0225, LLP 0276, LLP 0214, LLP 0264,
 LLP 0059, LLP 0053, LLP 0143, LLP 0189, LLP 0232, LLP 0041
 
@@ -192,6 +195,27 @@ must stop *accepting* facts:
   replaced by an exact operation remains an unresolved authorization defect and
   must be reported as one, not papered over.**
 
+**Also required, and dropped in error from revision (a).** The synthesis
+compressed the codex design and lost a load-bearing requirement, which the blind
+review caught. `InvocationGate::prepare_admitted_authority`
+(`crates/snapback-sync/src/auth/invocation.rs:1940`) is **public** and accepts a
+caller-supplied `ResolvedAppAuthority` plus an `AdmissionLease`, validating only
+the lease's counters and mode. A caller can mint its own controller and lease via
+`AdmissionController::new` / `admit`
+(`crates/snapback-auth/src/auth/admission.rs:227`, `:366`) and hand in `System`.
+Two engine staging APIs then produce `System` authority for the victim instance
+and do **not** require `self.admission.owns_lease`:
+`stage_action_invocation_with_admission`
+(`crates/snapback-engine/src/local/engine.rs:20912`) and
+`stage_job_action_invocation_with_admission` (`:20935`). The legitimate server
+cron/job paths hold real claim carriers but discard them when calling these
+generic methods (`crates/snapback-server/src/server.rs:3171`, `:3375`).
+**Delete the public `prepare_admitted_authority` and both generic staging APIs,
+replacing them with exact durable cron/job claim operations.** The private
+`execute_cron_claims` path (`:25631`) is already tieable to durable work — its
+`AdmittedCronClaim` has private fields and is created only after scheduler state
+is persisted — and is the model to follow.
+
 **Hygiene, required but not sufficient:** delete the wholesale `pub use ...
 storage` from `snapback-auth/src/lib.rs:9` and narrow the equivalent in
 `snapback-engine`; remove `Clone`/`Default`/`Deserialize` from every
@@ -213,6 +237,21 @@ move the **mechanism** down and keep the **policy** up (author-approved, §2.1):
   `ServiceAuthorityDomain` and `PreparedServiceAuthorityTerminal` become
   `pub(crate)`. Delete `ServiceAuthorityTerminalFactory`,
   `ServiceAuthorityCommitInterlock`, and the two root accessors.
+  **Sizing corrected in revision (b): ~1068 production lines, not ~700.** The
+  auth-owned `ServiceAuthorityPublication`
+  (`crates/snapback-auth/src/auth/service_fence.rs:72`) and
+  `ServiceAuthorityExternalEffectPermit` (`:83`) both hold
+  `Arc<ServiceAuthorityDomain>`, so once the domain is kernel-`pub(crate)`
+  `snapback-auth` cannot name it — the domain-dependent publication and permit
+  carriers must move or be redesigned with it. The coupled region spans roughly
+  lines 60–1127 before tests.
+  **Widening the registry instead is NOT a shortcut and must be refused:** the
+  registry is today `pub`, `Clone`, and `Default` (`:574`), and `register`
+  (`:738`) accepts a caller-created `ServiceAuthorityWitness` whose fields are
+  all public (`crates/snapback-types/src/auth/service_authority_contract.rs:18`).
+  Keeping caller-owned registry installation merely replaces closure laundering
+  with a caller-selected concrete registry. The registry must be
+  **database-owned and non-substitutable**.
   **This is a move behind concrete types, not an opportunistic rewrite:** LLP
   0059's lock ordering, premark-before-write, retained-work draining, rollback,
   and ambiguity handling must be preserved exactly.
@@ -248,6 +287,36 @@ Then delete `snapback-services::test_support`, the `remainder-tests` feature, an
 all four dev-dependency activations. Every `test-support` privilege seam demotes
 to `#[cfg(test)]`, **including `open_commit_graph_sibling_for_test`** (§4.5).
 
+### 5.4 Defect 4 — forgeable privileged membership writes (NEW; not in LLP 0283)
+
+Found by the blind review of revision (a) and re-verified by the orchestrator.
+It is the same anti-pattern as the other three and is **live today**:
+
+```rust
+// reachable from ANY crate holding a shared &LocalDatabase
+db.membership_plans_read()                       // pub, takes &self
+  .plan_privileged_membership_insert(            // pub
+      &MembershipWriter::Admin { .. },           // pub enum, pub variants
+      table, values)?;
+db.commit_membership_plan(plan)?;                // pub
+```
+
+- `LocalDatabase::membership_plans_read(&self)` is `pub`
+  (`crates/snapback-kernel/src/storage.rs:1745`) and needs only a **shared**
+  borrow, so `Deref` alone exposes it.
+- `MembershipWriter` is a `pub` enum with `pub` variants including `System`
+  (`crates/snapback-kernel/src/storage.rs:13520`).
+- The only guard is `writer.is_privileged_noninvocation()`
+  (`crates/snapback-kernel/src/storage/membership_plans.rs:388`) — it inspects
+  the **caller-selected enum**, which is precisely LLP 0283 Method lesson 1's
+  "public enum as authority."
+
+**Closure:** `MembershipWriter`'s privileged variants must not be
+caller-constructible. Derive the writer class from a `ResolvedPrincipal`
+(§5.1) inside the kernel; make the privileged constructors `pub(crate)`; and
+narrow `membership_plans_read`'s privileged surface. This defect must be added
+to LLP 0283 F-1's list and covered by LLP 0284's gates.
+
 ## 6. Migration order, and the trap in it
 
 Each step must leave `cargo check --all-targets --workspace` green.
@@ -256,10 +325,20 @@ Each step must leave `cargo check --all-targets --workspace` green.
    receipt fixtures, push and pending-effect SQL traces, and a hash of `schemas/`.
 2. Split `DatabaseBinding` out of `KernelCommitAuthority`; reroute the ~15
    non-privileged consumers.
-   **Checkpoint — stop and re-plan if this fails:** mentions of
-   `KernelCommitAuthority` outside `snapback-kernel` must drop from ~20 to ≤ 6.
-   If they do not, the decomposition is wrong and the rest of this plan is built
-   on sand.
+   **Checkpoint (corrected in revision (b)).** Revision (a) said mentions of
+   `KernelCommitAuthority` outside `snapback-kernel` must drop "from ~20 to ≤ 6."
+   **The real count at `ede899a20` is 7, not ~20** — both source designs
+   overcounted and the synthesis propagated it. A `≤ 6` threshold is therefore
+   nearly vacuous: changing any single mention passes it while every binding
+   consumer stays untouched. Replace the scalar with an **exact residual-site
+   allowlist**. The 7 sites are:
+   `snapback-auth/src/auth/service_fence.rs:1118`;
+   `snapback-engine/src/push.rs:33` and `:49`;
+   `snapback-engine/src/local/engine.rs:3195`, `:24221`, `:29838`, `:34676`.
+   The checkpoint passes only when each named site is either gone or
+   demonstrably carrying `DatabaseBinding`, and when the **semantic census** of
+   the ~36 lowercase `kernel_commit_authority` identifier occurrences outside
+   the kernel has been walked individually. Count thresholds are not evidence.
 3. Introduce `ServingDatabase`; replace the `engine.rs:24202` claim with
    `ServingDatabase::adopt`.
 4. Make the root `pub(crate)`, drop `Clone`, delete the façade re-exports. The
@@ -288,16 +367,40 @@ Each step must leave `cargo check --all-targets --workspace` green.
 > the fourth "moved it again" attempt and must not be reported as closing F-1.**
 > Publication unblocks at the end of step 6 at the earliest, with 7–15 following.
 
-No step may add a JOIN or change an existing canonical read shape. Authorization
-checks occur before the transaction; transaction bodies and SQL ordering are
-preserved. Zero `schemas/` drift is a required invariant throughout — it already
+**Transactional rule (corrected in revision (b)).** Revision (a) contradicted
+itself: §1 required facts to be re-derived "inside the same transaction" while
+§6 required authorization to run *before* the transaction with SQL ordering
+unchanged. Those are incompatible, and the pre-transaction reading is unsafe —
+today erasure admission captures caller facts at
+`crates/snapback-kernel/src/proof_checkpoint.rs:769` while `BEGIN IMMEDIATE`
+occurs later at `:2937`, so a credential can be **revoked between verification
+and commit** and the erasure still commits on the stale fact.
+
+The contradiction resolves in favor of atomicity: **admission facts are
+revalidated inside the committing transaction**, and the resulting read-shape
+and statement-order changes to the *admission* path are explicitly permitted
+and reviewed, not forbidden. An equivalent versioned compare-and-commit
+protocol (verify outside, re-check the durable generation/revocation counter
+inside the transaction, abort on mismatch) is acceptable and may be cheaper —
+but *some* in-transaction check is mandatory. The unchanged-SQL constraint
+continues to bind every **non-admission** path: no step may add a JOIN or
+change an existing canonical read shape elsewhere. Zero `schemas/` drift is a required invariant throughout — it already
 caught one wire-contract regression during the carve (LLP 0283, Method lesson 5).
 
 ## 7. Verification
 
 The mechanical properties a gate must assert are specified in **LLP 0284**, which
 is independently authored and governs the gate suite. This spec does not restate
-them. Two constraints propagate here:
+them. **LLP 0284 lands on its own branch (`lane/0283-b-gates`) with the gate
+rewrite; this spec's §7 is unsatisfiable until that lands, and F-1
+implementation must not begin before it does** — the whole point of F-2 is that
+the implementer must not also author the check.
+
+Revision (b) adds one requirement to LLP 0284's scope: the preserved source
+design's "Deref containment" property checked public `LocalDatabase` **return
+types** only, which would miss §5.4's `MembershipWriter` **parameter**-based
+forgery. The gate must inspect privileged parameters and effects, and adoptable
+`LocalDatabase` returns, not just return types. Two constraints propagate here:
 
 - **rustdoc JSON is unavailable** on the pinned `rustc 1.97.0` toolchain, so
   properties are checked by syn-parsed Rust + `cargo metadata` +
@@ -328,22 +431,47 @@ them. Two constraints propagate here:
    The corresponding LLP 0284 property is **not optional**; without it, `Deref`
    quietly reopens the hole and this design acquires the same failure signature as
    the previous three.
-4. **The room-authority move is sized from reading, not from attempting it.** The
-   shape is confirmed; what is not is how far `prepare_unbound` reaches into
-   `LocalEphemeralBackend`'s shared state (`collections`, `authorization_issuer`,
-   `expiry_index`). If it reaches broadly, step 8 must be re-planned before it is
-   started, not during.
+4. **The room-authority move — revision (a) aimed this risk at the wrong
+   entanglement.** The review established that `prepare_unbound` does **not**
+   reach `collections`, `authorization_issuer`, or `expiry_index`; it only
+   delegates into registry state
+   (`crates/snapback-sync/src/ephemeral.rs:3586`). The real coupling is in
+   `reserve_authorization_commit` (`:4636`), the binding checks (`:4213`), and
+   publication/resync (`:4690`); `expiry_index` is not on this path at all.
+   The blocking constraint is different and harder: the same registry implements
+   `drain_outbox` using sync-private `SharedOutbox`, `ConnectionEffectFence`, and
+   `AdmittedRealtimeEnvelope` (`:3790`), which **cannot** move into rank-1
+   `snapback-kernel`, and `snapback-sync` cannot add inherent methods to a
+   kernel-owned foreign type. So step 8 requires a sync-owned outbox rewrite
+   alongside the move. The core is ~713 lines (`:3250`–`:3962`) plus
+   reservation/finalization integration.
+   **Before step 8 starts, `AuthorizationCommitParticipant` must be specified
+   concretely:** its fields, constructor custody, database binding, and exact
+   prepare/bind/finalize methods. Without a database binding, a participant from
+   database A can be installed beside database B and suspend the wrong rooms;
+   without exact methods, callbacks reappear to bridge settlement and defect 2
+   returns.
 5. **`ReadLane` is `Clone` and carries the authority today.** After step 2 it
    carries only a binding. If a read path depends on the read lane minting a
    System push authority, that path is an escalation *today* and will surface as a
    compile error. Treat it as a finding, not as a reason to re-widen.
-6. **`ServingDatabase::adopt` stays public**, by condition (ii) not oversight —
-   the caller who opened the file already has write access, and after §5.1's
-   load-bearing half the authority confers no fact-assertion power. This is the
-   part a reviewer should challenge hardest. If §5.1's load-bearing half cannot be
-   completed for some admission, that admission must instead take the
-   `pub(crate)` route (condition (i)) — moving its caller into the kernel — rather
-   than shipping a public root with unverified facts.
+6. **`ServingDatabase::adopt` and `DerefMut` — revision (a) was WRONG here, and
+   the review was right.** Revision (a) argued `adopt` could stay public because
+   "the caller who opened the file already has write access." That defence fails:
+   `LocalDatabase::detached_read_snapshot(&self) -> SnapbackResult<Self>`
+   (`crates/snapback-kernel/src/storage.rs:2108`) mints an **owned** database
+   from a **shared** borrow, with a fresh identity and
+   `commit_authority_claimed: false`. Through `Deref`, a caller holding only
+   `&ServingDatabase` can therefore manufacture an adoptable database **without
+   ever opening a file**, retain it across a revocation, and later adopt it to
+   derive privileged facts from stale copied rows — a second authority graph
+   created from a read borrow.
+   **Required:** `adopt` must not accept a detached snapshot (give the snapshot a
+   distinct non-adoptable read-only type); **`DerefMut` is removed**; and every
+   privileged inherent method reachable through `Deref` — starting with
+   `membership_plans_read` (§5.4) — moves behind explicit `ServingDatabase`
+   methods that re-derive authority. Note this is not a hypothetical "future
+   privileged method": §5.4 is one that exists today and needs only `&self`.
 7. **Nothing in either source design was compiled.** The main unverified claim is
    that `Deref`/`DerefMut` survives the borrow checker where the engine co-uses
    `self.db` and `self.kernel_commit_authority`. Step 2's checkpoint and step 3's
