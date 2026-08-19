@@ -686,11 +686,11 @@ pub fn allowlist_install_source() -> &'static str {
     include_str!("../../../packages/snapback-harness/allowlist-install.js")
 }
 
-/// The per-invocation tail of the eval source: the async IIFE that calls
-/// `__snapbackInvoke` with this invocation's literals. The fresh path appends
-/// it to ambient + bootstrap + module in one eval; the warm path evals it
-/// alone against an already-set-up VM — same text either way, so the two
-/// paths cannot drift.
+/// The per-invocation tail of the eval source: the async IIFE that passes one
+/// serialized payload to the captured-intrinsic `__snapbackDispatch` helper.
+/// The fresh path appends it to ambient + bootstrap + module in one eval; the
+/// warm path evals it alone against an already-set-up VM — same text either
+/// way, so the two paths cannot drift.
 pub const INVOCATION_IIFE_PAYLOAD_SLOT: &str = "\"\n__SNAPBACK_INVOCATION_JSON__\n\"";
 
 /// Outbound action egress is opt-in and off by default. When enabled, an ACTION

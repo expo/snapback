@@ -5,7 +5,10 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-12 (the Ibex invocation tail now crosses one fixed-template
+**Revised:** 2026-08-19 (the Ibex single-payload invocation tail now delegates
+payload decoding and export selection to a sealed pre-application helper using
+captured `JSON.parse`; hostile application replacement of the reachable
+intrinsic cannot erase the host-selected export); 2026-08-12 (the Ibex invocation tail now crosses one fixed-template
 slot as one serialized payload instead of sequentially replacing user-adjacent
 tokens; native eval output is refused above an 8 MiB pre-parse carrier bound,
 and unsettled diagnostics retain only byte length plus SHA-256; the existing
@@ -573,10 +576,14 @@ terminal behaviors.
 #### Harness control-plane boundary
 
 The ctx bootstrap evaluates before any application module and installs
-`__snapbackInvoke` and `__snapbackSettle` as
+`__snapbackDispatch`, `__snapbackInvoke`, and `__snapbackSettle` as
 non-writable, non-configurable functions whose implementation calls through
 lexical references. On Ibex it also captures the original `__hostCall` FFI
 transport before application code can wrap the global and observe an epoch.
+The fixed invocation tail passes its one serialized payload to
+`__snapbackDispatch`; that helper decodes it with the captured `JSON.parse`
+before selecting the export. Application replacement of reachable `JSON.parse`
+therefore cannot redirect or erase host-owned export selection.
 Settlement also captures its serializer, string conversion, error constructor,
 and descriptor primitives before the module runs. The outer failure envelope
 is assembled from separately encoded primitives instead of passing a plain

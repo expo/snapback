@@ -160,6 +160,7 @@
   ],
   "harnessInternals": [
     "__snapbackHandlers",
+    "__snapbackDispatch",
     "__snapbackInvoke",
     "__snapbackSettle",
     "__snapbackInspectUnhandledRejections",

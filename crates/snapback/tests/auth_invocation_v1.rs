@@ -243,6 +243,44 @@ Array.prototype.slice = function() { return ['forged']; };
 }
 
 #[test]
+fn hostile_json_parse_replacement_cannot_erase_host_selected_export() {
+    let mut snapback = configured();
+    let mut function = module(
+        "projectionQuery",
+        FunctionKind::Query,
+        Some(AuthRequirement::Public),
+    );
+    function.runtime = FunctionRuntime::IbexModule(IbexModule {
+        source: r#"
+JSON.parse = function() {
+  return { userId: 'forged-user', roles: ['forged'] };
+};
+globalThis.__snapbackHandlers = {
+  async projectionQuery(ctx) {
+    return [{ userId: ctx.auth.userId }];
+  }
+};
+"#
+        .to_owned(),
+        export: "projectionQuery".to_owned(),
+    });
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        functions: vec![function],
+        ..FunctionManifest::default()
+    });
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error)
+    );
+
+    let output = snapback
+        .invoke_query("projectionQuery", input(Some("user_1"), json!({})))
+        .expect("captured JSON.parse must preserve host-selected export resolution");
+    assert_eq!(output.rows, vec![json!({ "userId": "user_1" })]);
+}
+
+#[test]
 fn nested_mutation_inherits_outer_authority_and_action_errors_stay_enveloped() {
     let mut snapback = configured();
     let direct = snapback

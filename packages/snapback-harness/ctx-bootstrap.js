@@ -1811,6 +1811,25 @@
         trustedJsonStringify(messageRecord.value, __snapbackFailureJsonReplacer) + encodedCarrier + '}}';
     }
   };
+  // @ref LLP 0009#bounded-ibex-evaluation-carrier-and-single-payload-invocation-2026-08-12 —
+  // the fixed Ibex tail hands its one serialized payload to a helper that
+  // captured JSON.parse before application source evaluated. Export selection
+  // is host control-plane work: a handler that replaces reachable JSON.parse
+  // must not turn the host-selected export into undefined.
+  var snapbackDispatch = function(invocationJson, hostCall) {
+    var invocation = trustedJsonParse(invocationJson);
+    return snapbackSettle(
+      invocation.export,
+      invocation.argsJson,
+      invocation.authJson,
+      invocation.mode,
+      invocation.runJson,
+      invocation.secretsJson,
+      invocation.epoch,
+      hostCall
+    );
+  };
+  installTrustedFunction("__snapbackDispatch", snapbackDispatch);
   installTrustedFunction("__snapbackInvoke", snapbackInvoke);
   installTrustedFunction("__snapbackSettle", snapbackSettle);
 })(globalThis);
