@@ -2187,27 +2187,27 @@ fn auth_projection_http_fixture(
         .prepare_connection()
         .expect("prepare projection connection");
     for query_instance_id in 0..subscription_count {
-        snapback
-            .subscribe_live_with_invalidation(
-                "listItems",
-                LiveSubscribeInput {
-                    connection_id: connection_id.to_owned(),
-                    input: HandlerInput::default(),
-                    authorization_namespace: Some(QueryNamespace {
-                        client_store_id: "projection_http_store".to_owned(),
-                        query_key: "listItems:{}".to_owned(),
-                        query_instance_id: 500 + query_instance_id,
-                    }),
-                    supersedes: None,
-                    resume_from_token: None,
-                },
-                snapback_engine::test_support::live_invalidation_admission(
-                    Some(projection_connection.clone()),
-                    None,
-                    true,
-                ),
-            )
-            .expect("install projection HTTP subscription");
+        snapback_engine::test_support::subscribe_live_host_plan_with_invalidation(
+            &mut snapback,
+            "listItems",
+            LiveSubscribeInput {
+                connection_id: connection_id.to_owned(),
+                input: HandlerInput::default(),
+                authorization_namespace: Some(QueryNamespace {
+                    client_store_id: "projection_http_store".to_owned(),
+                    query_key: "listItems:{}".to_owned(),
+                    query_instance_id: 500 + query_instance_id,
+                }),
+                supersedes: None,
+                resume_from_token: None,
+            },
+            snapback_engine::test_support::live_invalidation_admission(
+                Some(projection_connection.clone()),
+                None,
+                true,
+            ),
+        )
+        .expect("install projection HTTP subscription");
     }
     loop {
         let initial = snapback.drain_outbox_for_send(connection_id);
@@ -19698,30 +19698,20 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
     .await
     .expect("install one sessions subscription");
 
-    let mutation_authority = InvocationGate::prepare_admitted_authority(
-        InvocationSource::HttpMutation,
-        AuthMode::Sessions,
-        state.server.profile,
-        admission.clone(),
-        &WireAuthorityFields::default(),
-        connection_act.resolved.clone(),
-        test_session_claims_for(&connection_act.resolved),
-    )
-    .expect("prepare sessions mutation authority")
-    .with_fenced_publication(connection_act.bound.publication().clone());
-    let mutation = with_snapback(&state.snapback, move |snapback| {
-        snapback_engine::test_support::invoke_mutation_with_authority(
-            snapback,
-            "insertItem",
-            HandlerInput {
-                args: json!({ "value": "one committed change" }),
-                ..HandlerInput::default()
-            },
-            mutation_authority,
-        )
-    })
-    .await
-    .expect("commit one sessions mutation");
+    let mutation_response = app(state.clone())
+        .oneshot(session_auth_http_request(
+            "/mutation/insertItem",
+            serde_json::to_vec(&json!({
+                "args": { "value": "one committed change" },
+            }))
+            .expect("serialize sessions mutation"),
+            bearer,
+        ))
+        .await
+        .expect("invoke one sessions mutation through the production route");
+    let mutation_status = mutation_response.status();
+    let mutation = response_json(mutation_response).await;
+    assert_eq!(mutation_status, StatusCode::OK, "{mutation}");
     tokio::time::timeout(Duration::from_secs(1), waker.notified())
         .await
         .expect("mutation wakes the sessions stream");
@@ -19770,7 +19760,7 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
         frame["snapshot"]["subscriptionId"],
         subscribed.subscription_id
     );
-    assert_eq!(frame["snapshot"]["version"], mutation.version);
+    assert_eq!(frame["snapshot"]["version"], mutation["version"]);
 }
 
 #[test]

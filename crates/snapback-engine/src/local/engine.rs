@@ -6127,7 +6127,9 @@ impl LocalSnapback {
     /// Bounded owner-test seam for concurrent typed commits within the one
     /// opaque kernel authority graph. Production construction can only claim
     /// a fresh graph through [`Self::open`].
-    #[cfg(feature = "test-support")]
+    // @ref LLP 0283#f-1--the-authorization-model-is-not-closed-blocking-publication — authority-bearing fixtures remain crate-test-only;
+    // caller-selectable features provide no confinement.
+    #[cfg(test)]
     #[doc(hidden)]
     pub fn open_commit_graph_sibling_for_test(
         &self,
@@ -18026,16 +18028,31 @@ impl LocalSnapback {
         )
     }
 
-    /// Compatibility scaffold for protocol unit tests. Production composition
-    /// always supplies a server-prepared authority through the method below.
+    /// Compatibility scaffold for engine-owned protocol unit tests. Cross-crate
+    /// tests use the HostPlan-only wrapper in `test_support` so enabling the
+    /// feature cannot expose a caller-selected JavaScript evaluator.
     #[cfg(any(test, feature = "test-support"))]
-    pub fn subscribe_live_with_invalidation(
+    pub(crate) fn subscribe_live_with_invalidation(
         &mut self,
         name: &str,
         input: LiveSubscribeInput,
         invalidation: LiveInvalidationAdmission,
     ) -> SnapbackResult<LiveSubscribeOutput> {
         self.subscribe_live_with_invalidation_generation(name, input, invalidation, None)
+    }
+
+    #[cfg(feature = "test-support")]
+    // @ref LLP 0283#f-1--the-authorization-model-is-not-closed-blocking-publication — a caller-selectable feature may expose declarative fixtures, never an executable-code evaluator.
+    pub(crate) fn require_host_plan_for_test_support(&self, name: &str) -> SnapbackResult<()> {
+        let function = self.function(name)?;
+        if matches!(function.runtime, FunctionRuntime::HostPlan(_)) {
+            return Ok(());
+        }
+        Err(SnapbackError::error(
+            "SNAPBACK_TEST_SUPPORT_RUNTIME_FORBIDDEN",
+            "runtime",
+            "the public test-support surface only admits declarative HostPlan functions",
+        ))
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -26978,12 +26995,12 @@ impl LocalSnapback {
         }
     }
 
-    /// Bounded cross-crate matcher fixture. It publishes one synthetic
-    /// post-image through the real live fan-out path, but deliberately does
-    /// not mutate storage or mint commit authority. This keeps composition
-    /// coverage for an owner-visibility exit without reopening LLP 0264's
-    /// forbidden generic owner-transfer operation.
-    #[cfg(any(test, feature = "test-support"))]
+    /// Bounded matcher fixture. It applies one fixed-shape owner-field test
+    /// mutation, then publishes the matching post-image through the real live
+    /// fan-out path. It exposes neither a raw handle nor commit authority.
+    // @ref LLP 0283#f-1--the-authorization-model-is-not-closed-blocking-publication — this fixture performs a real database write and is
+    // therefore confined to the engine's own unit-test build.
+    #[cfg(test)]
     pub fn publish_owner_visibility_exit_for_test(
         &mut self,
         table: &str,

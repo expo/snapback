@@ -8,8 +8,7 @@ use snapback::manifest::{
     CronOverlapPolicy, CronRetryPolicy, CronSchedule, FieldManifest, FieldType, FunctionDefinition,
     FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
     IdentityBindingTableManifestV1, MutationPlan, MutationStep, SchemaManifest, TableManifest,
-    TableVisibilityV1, ValueExpr, WriteActivityProvenanceFields, WriteWithActivityEffectFormula,
-    WriteWithActivityMode, WriteWithActivityPlan, WriteWithActivitySourceOperation,
+    TableVisibilityV1, ValueExpr,
 };
 
 const SOURCE: &str = r#"
@@ -381,9 +380,7 @@ fn ordinary_handler_cannot_write_declared_identity_binding_table() {
         ],
         ..SchemaManifest::default()
     };
-    snapback
-        .apply_schema(schema.clone())
-        .expect("binding schema");
+    snapback.apply_schema(schema).expect("binding schema");
     let source = r#"globalThis.__snapbackHandlers = {
       async createBinding(ctx, args) {
         return await ctx.db.insert('identityBindings', { principal: ctx.auth.userId, sourceUserID: args.sourceUserID });
@@ -658,94 +655,6 @@ fn ordinary_handler_cannot_write_declared_identity_binding_table() {
         assert_eq!(
             error.diagnostic.code, "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN",
             "unexpected refusal for {function_name}"
-        );
-    }
-
-    let service_js_error =
-        snapback_engine::test_support::run_service_principal_ibex_mutation_host_calls(
-            &mut snapback,
-            &IbexModule {
-                source: source.to_owned(),
-                export: "createPermissionBinding".to_owned(),
-            },
-            input(
-                Some("user_1"),
-                json!({ "sourceUserID": "external-service" }),
-            ),
-        )
-        .expect_err(
-            "the JavaScript binding seal must precede permission-backing provenance refusal",
-        );
-    assert_eq!(
-        service_js_error.diagnostic.code,
-        "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN"
-    );
-
-    let service_host_mutation = host_plan(
-        "serviceHostInsertPermissionBinding",
-        permission_binding_insert(),
-    );
-    let service_host_activity = FunctionDefinition::new(
-        "serviceHostActivityPermissionBinding",
-        FunctionKind::Mutation,
-        FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(WriteWithActivityPlan {
-            profile: "write-with-activity.v1".to_owned(),
-            required_capability: "write_activity_v1".to_owned(),
-            mode: WriteWithActivityMode::ExistingOwnerV1,
-            scope_table: "permissionIdentityBindings".to_owned(),
-            scope_id: ValueExpr::Literal(json!("scope_1")),
-            scope_owner_field: "principal".to_owned(),
-            source_table: "permissionIdentityBindings".to_owned(),
-            source_id: ValueExpr::Literal(json!("binding_1")),
-            source_operation: WriteWithActivitySourceOperation::Insert,
-            activity_table: "permissionIdentityBindings".to_owned(),
-            activity_scope_foreign_key: "scopeId".to_owned(),
-            activity_scope_incarnation: "scopeIncarnation".to_owned(),
-            relations: Vec::new(),
-            provenance_fields: WriteActivityProvenanceFields {
-                scope_id: "scopeId".to_owned(),
-                source_table: "sourceTable".to_owned(),
-                source_id: "sourceId".to_owned(),
-                operation: "operation".to_owned(),
-                effective_subject: "effectiveSubject".to_owned(),
-                actual_actor: "actualActor".to_owned(),
-                actor_kind: "actorKind".to_owned(),
-                grant: "grantId".to_owned(),
-                occurred_at: "occurredAt".to_owned(),
-                mutation: "mutationDigest".to_owned(),
-            },
-            effect_formula: WriteWithActivityEffectFormula {
-                scope_reads: 0,
-                scope_patches: 0,
-                auxiliary_point_reads: 0,
-                source_writes: 0,
-                activity_inserts: 0,
-                runtime_ids: 0,
-                runtime_now: 0,
-                settlement_lookups: 0,
-                settlement_writes: 0,
-                sequence_allocations: 0,
-                maximum_application_writes: 0,
-            },
-            mutation: MutationPlan {
-                owner_write_checks: Vec::new(),
-                steps: vec![permission_binding_insert()],
-                return_value: None,
-            },
-        })),
-    );
-    for (wrapper, function) in [
-        ("Mutation", &service_host_mutation),
-        ("WriteWithActivity", &service_host_activity),
-    ] {
-        let error =
-            snapback_engine::test_support::preflight_service_principal_host_plan_authority_writes(
-                function, &schema,
-            )
-            .expect_err("the HostPlan binding seal must precede the provenance guard");
-        assert_eq!(
-            error.diagnostic.code, "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN",
-            "unexpected service-principal HostPlan {wrapper} refusal",
         );
     }
 }

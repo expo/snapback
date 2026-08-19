@@ -29,7 +29,7 @@ use crate::auth::invalidation::{
 };
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
-    ResolvedGrantScope, WireAuthorityFields,
+    WireAuthorityFields,
 };
 use crate::auth::mode::{
     AuthModeStateRecord, AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX,
@@ -56,7 +56,6 @@ use crate::runtime::{
     ExecutedIbexMutation, MediaProjectionClientMutationIdentityV1,
     MediaProjectionInvocationScopeV1, StagedMediaProjectionProofV1,
 };
-use crate::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
 use crate::storage::{
     BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead, MutationCommit,
 };

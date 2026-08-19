@@ -6668,7 +6668,7 @@ fn membership_writer_from_resolved_for_test(
     membership_writer_from_resolved_for_test_with_consent(resolved, false)
 }
 
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(test)]
 fn membership_writer_from_resolved_for_test_with_consent(
     resolved: &crate::auth::invocation::ResolvedAppAuthority,
     authority_creating_consent: bool,
@@ -6702,11 +6702,14 @@ fn membership_writer_from_resolved_for_test_with_consent(
 }
 
 /// Run only the JavaScript host-call phase under a synthetic service-principal
-/// projection. This feature-gated seam lets higher-rank integration tests pin
-/// host-call refusal precedence without manufacturing a durable scoped-token
-/// carrier; it does not commit buffered effects.
-#[cfg(feature = "test-support")]
-pub(crate) fn run_service_principal_ibex_mutation_for_test(
+/// projection. This evaluator is confined to this crate's unit-test build: it
+/// fabricates authority and accepts executable caller input, so it must never
+/// be reachable through a caller-selectable library feature.
+///
+/// @ref LLP 0283#f-1--the-authorization-model-is-not-closed-blocking-publication — Cargo features do not confine privilege-bearing test
+///   helpers from dependent release builds.
+#[cfg(test)]
+fn run_service_principal_ibex_mutation_for_test(
     db: &LocalDatabase,
     module: &IbexModule,
     input: HandlerInput,
@@ -6744,7 +6747,10 @@ mod runtime_boundary_hardening_tests {
     use crate::auth::admission::AdmissionLease;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::config::SecretRedactor;
-    use crate::manifest::{HandlerInput, IbexModule};
+    use crate::manifest::{
+        FieldManifest, FieldType, HandlerInput, IbexModule, IdentityBindingTableManifestV1,
+        SchemaManifest, TableManifest,
+    };
     use crate::storage::{DbRead, LocalDatabase, MembershipWriter};
     use serde_json::json;
     use sha2::{Digest as _, Sha256};
@@ -6761,6 +6767,89 @@ mod runtime_boundary_hardening_tests {
             true,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn service_principal_javascript_binding_seal_precedes_permission_backing_provenance() {
+        let table = "permissionIdentityBindings";
+        let mut snapback =
+            crate::local::LocalSnapback::memory().expect("memory service-principal fixture");
+        snapback
+            .apply_schema(SchemaManifest {
+                tables: vec![TableManifest {
+                    name: table.to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "principal".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "sourceUserID".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: false,
+                    permission_backing: true,
+                    permission_fields: Some(vec!["principal".to_owned()]),
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    membership: None,
+                    authority_profile: None,
+                    asset_sharing: None,
+                    visibility: None,
+                    history: None,
+                }],
+                identity_binding_tables: vec![IdentityBindingTableManifestV1 {
+                    table: table.to_owned(),
+                    principal_field: "principal".to_owned(),
+                    identity_field: "sourceUserID".to_owned(),
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("binding schema");
+        let db = snapback.auth_database_mut();
+        let module = IbexModule {
+            source: format!(
+                r#"globalThis.__snapbackHandlers = {{
+                  async createPermissionBinding(ctx, args) {{
+                    return await ctx.db.insert('{table}', {{
+                      principal: ctx.auth.userId,
+                      sourceUserID: args.sourceUserID
+                    }});
+                  }}
+                }};"#
+            ),
+            export: "createPermissionBinding".to_owned(),
+        };
+        let error = super::run_service_principal_ibex_mutation_for_test(
+            &db,
+            &module,
+            HandlerInput {
+                args: json!({ "sourceUserID": "external-service" }),
+                auth: crate::manifest::AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..crate::manifest::AuthInput::default()
+                },
+                ..HandlerInput::default()
+            },
+        )
+        .expect_err("the binding seal must precede permission-backing provenance");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN"
+        );
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table(table, 10, 0)
+                .expect("scan sealed table")
+                .total,
+            0,
+            "the test-only host-call evaluator must not commit a rejected write",
+        );
     }
 
     #[test]

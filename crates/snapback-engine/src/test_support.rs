@@ -1,16 +1,15 @@
 //! Feature-gated fixtures for tests in higher-ranked workspace crates.
 //!
-//! This module is unavailable to production builds. It keeps adapter tests on
-//! the real engine instantiation without widening the supported façade.
+//! Cargo features are caller-controlled, so every helper here must remain safe
+//! when a dependent enables `test-support` in a release build. In particular,
+//! this module must not combine caller-selected executable code with fabricated
+//! authority or expose an authority-bypassing evaluator.
 
 use base64::Engine as _;
 use sha2::Digest as _;
 
 use crate::assets::AssetReadAccessPolicy;
-use crate::auth::invocation::{
-    InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority, ResolvedGrantScope,
-    WireAuthorityFields,
-};
+use crate::auth::invocation::{InvocationGate, InvocationSource, PreparedAuthority};
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::SnapbackResult;
 use crate::local::LocalSnapback;
@@ -19,8 +18,8 @@ use crate::local::{
 };
 use crate::manifest::{
     AssetAcceptPolicy, AssetAccessPolicy, AssetDeliveryPolicy, AssetImagePolicy, AssetImageVariant,
-    AssetLocationPolicy, AssetUploadIntentDefinition, AuthInput, AuthMode, FunctionDefinition,
-    FunctionManifest, FunctionRuntime, HandlerInput, IbexModule, MutationOutput, SchemaManifest,
+    AssetLocationPolicy, AssetUploadIntentDefinition, AuthInput, FunctionManifest, FunctionRuntime,
+    HandlerInput, IbexModule,
 };
 
 const ASSET_INTENT_SOURCE: &str = r#"
@@ -99,9 +98,12 @@ pub fn prepare_subscribe_live_for_transport(
     authority: PreparedAuthority,
     invalidation: LiveInvalidationAdmission,
 ) -> SnapbackResult<PreparedLiveSubscribe> {
+    snapback.require_host_plan_for_test_support(&name)?;
     snapback.prepare_subscribe_live_for_transport(name, input, authority, invalidation)
 }
 
+/// Subscribe through a prepared authority, restricted to declarative plans.
+/// Caller-loaded JavaScript modules are refused before evaluation.
 pub fn subscribe_live_prepared_with_invalidation(
     snapback: &mut LocalSnapback,
     name: &str,
@@ -109,67 +111,74 @@ pub fn subscribe_live_prepared_with_invalidation(
     authority: PreparedAuthority,
     invalidation: LiveInvalidationAdmission,
 ) -> SnapbackResult<LiveSubscribeOutput> {
+    snapback.require_host_plan_for_test_support(name)?;
     snapback.subscribe_live_prepared_with_invalidation(name, input, authority, invalidation)
 }
 
-pub fn invoke_mutation_with_authority(
+/// Build the protocol-test authority and subscribe to a declarative plan.
+/// Caller-loaded JavaScript modules are refused before evaluation.
+pub fn subscribe_live_host_plan_with_invalidation(
     snapback: &mut LocalSnapback,
     name: &str,
-    input: HandlerInput,
-    authority: PreparedAuthority,
-) -> SnapbackResult<MutationOutput> {
-    snapback.invoke_mutation_with_authority(name, input, authority)
+    input: LiveSubscribeInput,
+    invalidation: LiveInvalidationAdmission,
+) -> SnapbackResult<LiveSubscribeOutput> {
+    snapback.require_host_plan_for_test_support(name)?;
+    snapback.subscribe_live_with_invalidation(name, input, invalidation)
 }
 
-/// Exercise the real JavaScript host-call dispatcher as a service principal
-/// without creating a durable scoped-token fixture. Buffered effects are not
-/// committed; this seam exists only for refusal-precedence integration tests.
-pub fn run_service_principal_ibex_mutation_host_calls(
-    snapback: &mut LocalSnapback,
-    module: &IbexModule,
-    input: HandlerInput,
-) -> SnapbackResult<serde_json::Value> {
-    crate::runtime::run_service_principal_ibex_mutation_for_test(
-        snapback.auth_database_mut(),
-        module,
-        input,
-    )
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Exercise the engine preflight that composes the HostPlan binding seal and
-/// service-principal provenance guard. The synthetic authority is exact to
-/// `function`; no plan effects execute.
-pub fn preflight_service_principal_host_plan_authority_writes(
-    function: &FunctionDefinition,
-    schema: &SchemaManifest,
-) -> SnapbackResult<()> {
-    let scope = ResolvedGrantScope::from_exact(crate::storage::auth_grants::ExactGrantScope {
-        function_id: function.id.clone(),
-        kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
-        basis: 0,
-        authority_creating: function.authority_creating,
-    });
-    let authority = InvocationGate::prepare_authority(
-        InvocationSource::HttpMutation,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        1,
-        1,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: "agent-test".to_owned(),
-            credential_id: "credential-test".to_owned(),
-            credential_generation: 1,
-            grant_id: "grant-test".to_owned(),
-            token_id: "token-test".to_owned(),
-            effective_user_id: Some("user-test".to_owned()),
-            scopes: vec![scope],
-            token_expires_at_ms: u64::MAX,
-            integration_status: None,
-        },
-    )?;
-    let prepared = InvocationGate::prepare_function(authority, function)?;
-    crate::local::preflight_host_plan_authority_writes(&prepared, function, schema)
+    #[test]
+    fn public_live_helper_refuses_caller_loaded_javascript() {
+        let mut snapback = LocalSnapback::memory().expect("memory test-support audit fixture");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![crate::manifest::FunctionDefinition::new(
+                "callerJavascript",
+                crate::manifest::FunctionKind::LiveQuery,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: r#"
+globalThis.__snapbackHandlers = {
+  async callerJavascript(ctx) {
+    return await ctx.db.elevated.query("secrets").collect();
+  }
+};
+"#
+                    .to_owned(),
+                    export: "callerJavascript".to_owned(),
+                }),
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            !diagnostics.iter().any(|diagnostic| matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )),
+            "caller module must load so the guard, not fixture validation, is tested: {diagnostics:?}",
+        );
+
+        let error = subscribe_live_host_plan_with_invalidation(
+            &mut snapback,
+            "callerJavascript",
+            LiveSubscribeInput {
+                connection_id: "test-support-audit".to_owned(),
+                input: HandlerInput::default(),
+                authorization_namespace: None,
+                supersedes: None,
+                resume_from_token: None,
+            },
+            LiveInvalidationAdmission::default(),
+        )
+        .expect_err("public test-support helper must refuse caller-loaded JavaScript");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_TEST_SUPPORT_RUNTIME_FORBIDDEN"
+        );
+    }
 }
 
 /// Build the bounded engine state needed by the façade's signed-URL route test.

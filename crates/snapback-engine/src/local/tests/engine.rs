@@ -25023,6 +25023,46 @@ fn service_mutation_authority(
     .with_service_publication(publication)
 }
 
+fn admitted_service_mutation_authority(
+    service_fences: &crate::auth::service_fence::ServiceAuthorityFenceRegistry,
+) -> PreparedAuthority {
+    let resolved = crate::storage::auth_agent_credentials::ResolvedScopedToken {
+        token_id: "token-a".to_owned(),
+        grant_id: "grant-a".to_owned(),
+        actor_user_id: "agent-a".to_owned(),
+        effective_user_id: Some("user-a".to_owned()),
+        credential_id: "credential-a".to_owned(),
+        credential_generation: 1,
+        scopes: vec![crate::storage::auth_grants::ExactGrantScope {
+            function_id: "fn:hostInsert".to_owned(),
+            kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+            basis: 0,
+            authority_creating: false,
+        }],
+        expires_at_ms: SERVICE_REPLAY_EXPIRES_AT_MS,
+        grant_expires_at_ms: Some(SERVICE_REPLAY_EXPIRES_AT_MS),
+        integration_status: None,
+    };
+    let publication = service_fences
+        .register(
+            resolved.service_authority_witness(),
+            now_millis(),
+            Instant::now(),
+        )
+        .expect("register admitted service token fence");
+    InvocationGate::prepare_admitted_authority(
+        InvocationSource::HttpMutation,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        managed_session_admission(),
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::from_scoped_token(resolved),
+        None,
+    )
+    .expect("prepare admitted service authority")
+    .with_service_publication(publication)
+}
+
 #[test]
 fn dynamic_ephemeral_registration_preserves_permission_projection_closure() {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
@@ -28298,77 +28338,488 @@ fn nested_authority() -> PreparedAuthority {
     .expect("inherit nested test authority")
 }
 
-#[test]
-fn service_principal_host_plan_permission_backing_write_is_refused_without_provenance() {
+fn host_plan_test_table(
+    name: &str,
+    fields: Vec<FieldManifest>,
+    permission_backing: bool,
+    visibility: Option<TableVisibilityV1>,
+) -> TableManifest {
+    TableManifest {
+        name: name.to_owned(),
+        fields,
+        indexes: Vec::new(),
+        syncable: false,
+        permission_backing,
+        permission_fields: permission_backing.then(|| vec!["ownerId".to_owned()]),
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility,
+        history: None,
+    }
+}
+
+fn permission_binding_host_plan_fixture(
+    identity_binding: bool,
+) -> (SchemaManifest, FunctionManifest) {
     let schema = SchemaManifest {
-        tables: vec![TableManifest {
-            name: "custom_acl".to_owned(),
-            fields: vec![FieldManifest {
-                name: "ownerId".to_owned(),
-                field_type: FieldType::Principal,
-                optional: false,
-            }],
-            indexes: Vec::new(),
-            syncable: true,
-            permission_backing: true,
-            permission_fields: Some(vec!["ownerId".to_owned()]),
-            search_indexes: Vec::new(),
-            vector_indexes: Vec::new(),
-            search_live_limits: None,
-            membership: None,
-            authority_profile: None,
-            asset_sharing: None,
-            visibility: None,
-            history: None,
-        }],
+        tables: vec![
+            host_plan_test_table(
+                "preflightSentinels",
+                vec![FieldManifest {
+                    name: "value".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                false,
+                None,
+            ),
+            host_plan_test_table(
+                "custom_acl",
+                vec![
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "sourceUserID".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                true,
+                None,
+            ),
+        ],
+        identity_binding_tables: identity_binding
+            .then(|| {
+                vec![crate::manifest::IdentityBindingTableManifestV1 {
+                    table: "custom_acl".to_owned(),
+                    principal_field: "ownerId".to_owned(),
+                    identity_field: "sourceUserID".to_owned(),
+                }]
+            })
+            .unwrap_or_default(),
         ..SchemaManifest::default()
     };
-    let mut values = BTreeMap::new();
-    values.insert("ownerId".to_owned(), ValueExpr::Literal(json!("alice")));
-    let mut function = FunctionDefinition::new(
-        "seatAcl",
+    let function = FunctionDefinition::new(
+        "hostInsert",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
             owner_write_checks: Vec::new(),
-            steps: vec![MutationStep::Insert {
-                table: "custom_acl".to_owned(),
-                values,
-                bind_id_as: None,
-            }],
+            steps: vec![
+                // This row deliberately does not exist. The production
+                // authority-write preflight must refuse the later sealed write
+                // before plan execution reaches this sentinel.
+                MutationStep::Get {
+                    table: "preflightSentinels".to_owned(),
+                    id: ValueExpr::Literal(json!("missing-sentinel")),
+                    bind_as: "__preflightSentinel".to_owned(),
+                    else_error: Some("SNAPBACK_ROW_NOT_FOUND".to_owned()),
+                },
+                MutationStep::Insert {
+                    table: "custom_acl".to_owned(),
+                    values: BTreeMap::from([
+                        ("ownerId".to_owned(), ValueExpr::AuthUserId),
+                        (
+                            "sourceUserID".to_owned(),
+                            ValueExpr::Literal(json!("external-service")),
+                        ),
+                    ]),
+                    bind_id_as: None,
+                },
+            ],
             return_value: Some(ReturnValue::ChangedCount),
         })),
     );
-    function.authority_creating = true;
-    let scope = ResolvedGrantScope::from_exact(ExactGrantScope {
-        function_id: function.id.clone(),
-        kind: ScopedFunctionKind::Mutation,
-        basis: 0,
-        authority_creating: true,
-    });
-    let authority = InvocationGate::prepare_authority(
-        InvocationSource::HttpMutation,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        1,
-        1,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: "agent-a".to_owned(),
-            credential_id: "credential-a".to_owned(),
-            credential_generation: 1,
-            grant_id: "grant-a".to_owned(),
-            token_id: "token-a".to_owned(),
-            effective_user_id: Some("alice".to_owned()),
-            scopes: vec![scope],
-            token_expires_at_ms: 10_000,
-            integration_status: None,
+    let manifest = FunctionManifest {
+        functions: vec![function.clone()],
+        ..FunctionManifest::default()
+    };
+    (schema, manifest)
+}
+
+fn write_with_activity_binding_fixture() -> (SchemaManifest, FunctionManifest) {
+    let scope_id = ValueExpr::Arg("incidentId".to_owned());
+    let source_id = ValueExpr::Arg("taskId".to_owned());
+    let provenance = crate::manifest::WriteActivityProvenanceFields {
+        scope_id: "incidentId".to_owned(),
+        source_table: "sourceTable".to_owned(),
+        source_id: "sourceId".to_owned(),
+        operation: "operation".to_owned(),
+        effective_subject: "effectiveSubject".to_owned(),
+        actual_actor: "actualActor".to_owned(),
+        actor_kind: "actorKind".to_owned(),
+        grant: "grantId".to_owned(),
+        occurred_at: "occurredAt".to_owned(),
+        mutation: "mutationDigest".to_owned(),
+    };
+    let activity_values = BTreeMap::from([
+        (provenance.scope_id.clone(), scope_id.clone()),
+        (
+            provenance.source_table.clone(),
+            ValueExpr::Literal(json!("tasks")),
+        ),
+        (provenance.source_id.clone(), source_id.clone()),
+        (
+            provenance.operation.clone(),
+            ValueExpr::Literal(json!("patch")),
+        ),
+        (provenance.effective_subject.clone(), ValueExpr::AuthUserId),
+        (provenance.actual_actor.clone(), ValueExpr::AuthActorUserId),
+        (
+            provenance.actor_kind.clone(),
+            ValueExpr::AuthActivityActorKind,
+        ),
+        (provenance.grant.clone(), ValueExpr::AuthGrantId),
+        (provenance.occurred_at.clone(), ValueExpr::RuntimeNow),
+        (provenance.mutation.clone(), ValueExpr::ClientMutationDigest),
+    ]);
+    let plan = crate::manifest::WriteWithActivityPlan {
+        profile: "write-with-activity.v1".to_owned(),
+        required_capability: "write_activity_v1".to_owned(),
+        mode: crate::manifest::WriteWithActivityMode::ExistingOwnerV1,
+        scope_table: "incidents".to_owned(),
+        scope_id: scope_id.clone(),
+        scope_owner_field: "ownerId".to_owned(),
+        source_table: "tasks".to_owned(),
+        source_id: source_id.clone(),
+        source_operation: crate::manifest::WriteWithActivitySourceOperation::Patch,
+        activity_table: "activity".to_owned(),
+        activity_scope_foreign_key: provenance.scope_id.clone(),
+        activity_scope_incarnation: "incidentIncarnation".to_owned(),
+        relations: vec![crate::manifest::WriteActivityRelation {
+            table: "tasks".to_owned(),
+            scope_foreign_key: "incidentId".to_owned(),
+            scope_incarnation: "incidentIncarnation".to_owned(),
+        }],
+        provenance_fields: provenance,
+        effect_formula: crate::manifest::WriteWithActivityEffectFormula {
+            scope_reads: 1,
+            scope_patches: 0,
+            auxiliary_point_reads: 2,
+            source_writes: 1,
+            activity_inserts: 1,
+            runtime_ids: 1,
+            runtime_now: 1,
+            settlement_lookups: 1,
+            settlement_writes: 1,
+            sequence_allocations: 0,
+            maximum_application_writes: 2,
         },
-    )
-    .expect("prepared service authority");
-    let prepared = InvocationGate::prepare_function(authority, &function)
-        .expect("explicit authority-creating scope");
-    let error = preflight_host_plan_authority_writes(&prepared, &function, &schema)
-        .expect_err("HostPlan has no full-provenance service lane");
+        mutation: MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![
+                MutationStep::Get {
+                    table: "incidents".to_owned(),
+                    id: scope_id.clone(),
+                    bind_as: "__activityScope".to_owned(),
+                    else_error: Some("SNAPBACK_ROW_NOT_FOUND".to_owned()),
+                },
+                MutationStep::Guard {
+                    cond: ValueExpr::Binary {
+                        op: crate::manifest::BinaryOp::Eq,
+                        left: Box::new(ValueExpr::Field {
+                            base: Box::new(ValueExpr::Binding("__activityScope".to_owned())),
+                            key: "ownerId".to_owned(),
+                        }),
+                        right: Box::new(ValueExpr::AuthUserId),
+                    },
+                    else_error: "SNAPBACK_ROW_NOT_FOUND".to_owned(),
+                },
+                MutationStep::AssertCurrentRelation {
+                    table: "tasks".to_owned(),
+                    id: source_id.clone(),
+                    scope_table: "incidents".to_owned(),
+                    scope_id: scope_id.clone(),
+                    foreign_key_field: "incidentId".to_owned(),
+                    incarnation_field: "incidentIncarnation".to_owned(),
+                    else_error: "SNAPBACK_ROW_NOT_FOUND".to_owned(),
+                },
+                MutationStep::Patch {
+                    table: "tasks".to_owned(),
+                    id: source_id.clone(),
+                    values: BTreeMap::from([(
+                        "body".to_owned(),
+                        ValueExpr::Literal(json!("patched")),
+                    )]),
+                },
+                MutationStep::AssertSourceChanged {
+                    table: "tasks".to_owned(),
+                    id: source_id,
+                    operation: crate::manifest::WriteWithActivitySourceOperation::Patch,
+                },
+                MutationStep::Insert {
+                    table: "activity".to_owned(),
+                    values: activity_values,
+                    bind_id_as: Some("__activityId".to_owned()),
+                },
+            ],
+            return_value: Some(ReturnValue::Expr(ValueExpr::Binding(
+                "__activityId".to_owned(),
+            ))),
+        },
+    };
+    let relation_fields = || {
+        vec![
+            FieldManifest {
+                name: "incidentId".to_owned(),
+                field_type: FieldType::Id {
+                    table: "incidents".to_owned(),
+                },
+                optional: false,
+            },
+            FieldManifest {
+                name: "incidentIncarnation".to_owned(),
+                field_type: FieldType::RelationIncarnation {
+                    foreign_key_field: "incidentId".to_owned(),
+                    parent_table: "incidents".to_owned(),
+                },
+                optional: false,
+            },
+        ]
+    };
+    let mut task_fields = relation_fields();
+    task_fields.extend([
+        FieldManifest {
+            name: "body".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        },
+        FieldManifest {
+            name: "principal".to_owned(),
+            field_type: FieldType::Principal,
+            optional: false,
+        },
+        FieldManifest {
+            name: "sourceUserID".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        },
+    ]);
+    let mut activity_fields = relation_fields();
+    activity_fields.extend([
+        FieldManifest {
+            name: "sourceTable".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        },
+        FieldManifest {
+            name: "sourceId".to_owned(),
+            field_type: FieldType::Id {
+                table: "tasks".to_owned(),
+            },
+            optional: false,
+        },
+        FieldManifest {
+            name: "operation".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        },
+        FieldManifest {
+            name: "effectiveSubject".to_owned(),
+            field_type: FieldType::Principal,
+            optional: false,
+        },
+        FieldManifest {
+            name: "actualActor".to_owned(),
+            field_type: FieldType::Principal,
+            optional: false,
+        },
+        FieldManifest {
+            name: "actorKind".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        },
+        FieldManifest {
+            name: "grantId".to_owned(),
+            field_type: FieldType::String,
+            optional: true,
+        },
+        FieldManifest {
+            name: "occurredAt".to_owned(),
+            field_type: FieldType::Integer,
+            optional: false,
+        },
+        FieldManifest {
+            name: "mutationDigest".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        },
+    ]);
+    let schema = SchemaManifest {
+        tables: vec![
+            host_plan_test_table(
+                "incidents",
+                vec![FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::Principal,
+                    optional: false,
+                }],
+                false,
+                Some(TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                }),
+            ),
+            host_plan_test_table(
+                "tasks",
+                task_fields,
+                false,
+                Some(TableVisibilityV1::Owner {
+                    field: "principal".to_owned(),
+                }),
+            ),
+            host_plan_test_table(
+                "activity",
+                activity_fields,
+                false,
+                Some(TableVisibilityV1::Owner {
+                    field: "effectiveSubject".to_owned(),
+                }),
+            ),
+        ],
+        identity_binding_tables: vec![crate::manifest::IdentityBindingTableManifestV1 {
+            table: "tasks".to_owned(),
+            principal_field: "principal".to_owned(),
+            identity_field: "sourceUserID".to_owned(),
+        }],
+        ..SchemaManifest::default()
+    };
+    let mut function = FunctionDefinition::new(
+        "hostInsert",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(plan)),
+    );
+    function
+        .required_capabilities
+        .push("write_activity_v1".to_owned());
+    let manifest = FunctionManifest {
+        functions: vec![function.clone()],
+        acknowledged_experimental_capabilities: vec!["write_activity_v1".to_owned()],
+        ..FunctionManifest::default()
+    };
+    (schema, manifest)
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ServiceHostPlanWrapper {
+    Mutation,
+    WriteWithActivity,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ServiceHostPlanPath {
+    RecordedStaging,
+    DirectMutation,
+    GuardedNestedCommit,
+    NestedStaging,
+}
+
+fn service_host_plan_fixture(
+    wrapper: ServiceHostPlanWrapper,
+    identity_binding: bool,
+) -> LocalSnapback {
+    let (schema, manifest) = match wrapper {
+        ServiceHostPlanWrapper::Mutation => permission_binding_host_plan_fixture(identity_binding),
+        ServiceHostPlanWrapper::WriteWithActivity => {
+            assert!(
+                identity_binding,
+                "the activity fixture always pins the binding seal"
+            );
+            write_with_activity_binding_fixture()
+        }
+    };
+    let mut snapback = LocalSnapback::memory().expect("memory HostPlan call-site fixture");
+    snapback
+        .apply_schema(schema)
+        .expect("HostPlan call-site schema");
+    let diagnostics = snapback.load_functions(manifest);
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "HostPlan call-site function must load: {diagnostics:?}",
+    );
+    install_service_replay_auth(&mut snapback);
+    snapback
+}
+
+fn invoke_service_host_plan_path(
+    wrapper: ServiceHostPlanWrapper,
+    path: ServiceHostPlanPath,
+    identity_binding: bool,
+) -> crate::diagnostic::SnapbackError {
+    let mut snapback = service_host_plan_fixture(wrapper, identity_binding);
+    let service_fences = snapback.service_authority_fences.clone();
+    let authority = admitted_service_mutation_authority(&service_fences);
+    let call_input = HandlerInput {
+        args: json!({
+            "incidentId": "incident-a",
+            "taskId": "task-a",
+        }),
+        ..HandlerInput::default()
+    };
+    match path {
+        ServiceHostPlanPath::RecordedStaging => {
+            match snapback.stage_recorded_authorization_mutation(
+                "hostInsert",
+                call_input,
+                None,
+                None,
+                &[],
+                "test",
+                authority,
+            ) {
+                Err(error) => error,
+                Ok(_) => panic!("the recorded staging path must refuse the sealed target"),
+            }
+        }
+        ServiceHostPlanPath::DirectMutation => snapback
+            .invoke_mutation_with_authority("hostInsert", call_input, authority)
+            .expect_err("the direct mutation path must refuse the sealed target"),
+        ServiceHostPlanPath::GuardedNestedCommit => {
+            let nested = authority
+                .inherit_for(InvocationSource::NestedMutation)
+                .expect("inherit admitted service authority");
+            let prepared = InvocationGate::prepare_function(
+                nested,
+                snapback.function("hostInsert").expect("HostPlan function"),
+            )
+            .expect("prepare admitted nested HostPlan");
+            snapback
+                .invoke_host_plan_mutation_guarded(
+                    "hostInsert",
+                    call_input,
+                    prepared,
+                    None,
+                    || Ok(()),
+                    || Ok(()),
+                )
+                .expect_err("the guarded nested commit path must refuse the sealed target")
+        }
+        ServiceHostPlanPath::NestedStaging => {
+            let nested = authority
+                .inherit_for(InvocationSource::NestedMutation)
+                .expect("inherit admitted service authority");
+            match snapback.stage_nested_mutation("hostInsert", &call_input, nested, None) {
+                Err(error) => error,
+                Ok(_) => panic!("the nested staging path must refuse the sealed target"),
+            }
+        }
+    }
+}
+
+#[test]
+fn service_principal_host_plan_permission_backing_write_is_refused_without_provenance() {
+    let error = invoke_service_host_plan_path(
+        ServiceHostPlanWrapper::Mutation,
+        ServiceHostPlanPath::DirectMutation,
+        false,
+    );
     assert_eq!(
         error.diagnostic.code,
         "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED"
@@ -28379,135 +28830,26 @@ fn service_principal_host_plan_permission_backing_write_is_refused_without_prove
     );
 }
 
+// @ref LLP 0214#59-relationship-to-the-guide-binding-gap — every ordinary
+// HostPlan ingress retains the runtime binding seal as defense in depth.
 #[test]
-fn identity_binding_seal_precedes_service_principal_host_plan_provenance_refusal() {
-    let table_name = "custom_acl";
-    let schema = SchemaManifest {
-        tables: vec![TableManifest {
-            name: table_name.to_owned(),
-            fields: vec![FieldManifest {
-                name: "ownerId".to_owned(),
-                field_type: FieldType::Principal,
-                optional: false,
-            }],
-            indexes: Vec::new(),
-            syncable: true,
-            permission_backing: true,
-            permission_fields: Some(vec!["ownerId".to_owned()]),
-            search_indexes: Vec::new(),
-            vector_indexes: Vec::new(),
-            search_live_limits: None,
-            membership: None,
-            authority_profile: None,
-            asset_sharing: None,
-            visibility: None,
-            history: None,
-        }],
-        identity_binding_tables: vec![crate::manifest::IdentityBindingTableManifestV1 {
-            table: table_name.to_owned(),
-            principal_field: "ownerId".to_owned(),
-            identity_field: "ownerId".to_owned(),
-        }],
-        ..SchemaManifest::default()
-    };
-    let mutation = MutationPlan {
-        owner_write_checks: Vec::new(),
-        steps: vec![MutationStep::Insert {
-            table: table_name.to_owned(),
-            values: BTreeMap::from([("ownerId".to_owned(), ValueExpr::AuthUserId)]),
-            bind_id_as: None,
-        }],
-        return_value: Some(ReturnValue::ChangedCount),
-    };
-    let write_with_activity = crate::manifest::WriteWithActivityPlan {
-        profile: "write-with-activity.v1".to_owned(),
-        required_capability: "write_activity_v1".to_owned(),
-        mode: crate::manifest::WriteWithActivityMode::ExistingOwnerV1,
-        scope_table: table_name.to_owned(),
-        scope_id: ValueExpr::Literal(json!("scope-a")),
-        scope_owner_field: "ownerId".to_owned(),
-        source_table: table_name.to_owned(),
-        source_id: ValueExpr::Literal(json!("source-a")),
-        source_operation: crate::manifest::WriteWithActivitySourceOperation::Insert,
-        activity_table: table_name.to_owned(),
-        activity_scope_foreign_key: "scopeId".to_owned(),
-        activity_scope_incarnation: "scopeIncarnation".to_owned(),
-        relations: Vec::new(),
-        provenance_fields: crate::manifest::WriteActivityProvenanceFields {
-            scope_id: "scopeId".to_owned(),
-            source_table: "sourceTable".to_owned(),
-            source_id: "sourceId".to_owned(),
-            operation: "operation".to_owned(),
-            effective_subject: "effectiveSubject".to_owned(),
-            actual_actor: "actualActor".to_owned(),
-            actor_kind: "actorKind".to_owned(),
-            grant: "grantId".to_owned(),
-            occurred_at: "occurredAt".to_owned(),
-            mutation: "mutationDigest".to_owned(),
-        },
-        effect_formula: crate::manifest::WriteWithActivityEffectFormula {
-            scope_reads: 0,
-            scope_patches: 0,
-            auxiliary_point_reads: 0,
-            source_writes: 0,
-            activity_inserts: 0,
-            runtime_ids: 0,
-            runtime_now: 0,
-            settlement_lookups: 0,
-            settlement_writes: 0,
-            sequence_allocations: 0,
-            maximum_application_writes: 0,
-        },
-        mutation: mutation.clone(),
-    };
-
-    for (name, plan) in [
-        ("mutation", HandlerPlan::Mutation(mutation)),
-        (
-            "write-with-activity",
-            HandlerPlan::WriteWithActivity(write_with_activity),
-        ),
+fn identity_binding_seal_precedes_service_principal_host_plan_refusals_at_every_call_site() {
+    for wrapper in [
+        ServiceHostPlanWrapper::Mutation,
+        ServiceHostPlanWrapper::WriteWithActivity,
     ] {
-        let mut function = FunctionDefinition::new(
-            format!("seatAcl-{name}"),
-            FunctionKind::Mutation,
-            FunctionRuntime::HostPlan(plan),
-        );
-        function.authority_creating = true;
-        let scope = ResolvedGrantScope::from_exact(ExactGrantScope {
-            function_id: function.id.clone(),
-            kind: ScopedFunctionKind::Mutation,
-            basis: 0,
-            authority_creating: true,
-        });
-        let authority = InvocationGate::prepare_authority(
-            InvocationSource::HttpMutation,
-            AuthMode::Sessions,
-            ServerProfile::Test,
-            1,
-            1,
-            &WireAuthorityFields::default(),
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id: "agent-a".to_owned(),
-                credential_id: "credential-a".to_owned(),
-                credential_generation: 1,
-                grant_id: "grant-a".to_owned(),
-                token_id: "token-a".to_owned(),
-                effective_user_id: Some("alice".to_owned()),
-                scopes: vec![scope],
-                token_expires_at_ms: 10_000,
-                integration_status: None,
-            },
-        )
-        .expect("prepared service authority");
-        let prepared = InvocationGate::prepare_function(authority, &function)
-            .expect("explicit authority-creating scope");
-        let error = preflight_host_plan_authority_writes(&prepared, &function, &schema)
-            .expect_err("the binding seal must preempt permission-backing provenance");
-        assert_eq!(
-            error.diagnostic.code, "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN",
-            "unexpected {name} refusal",
-        );
+        for path in [
+            ServiceHostPlanPath::RecordedStaging,
+            ServiceHostPlanPath::DirectMutation,
+            ServiceHostPlanPath::GuardedNestedCommit,
+            ServiceHostPlanPath::NestedStaging,
+        ] {
+            let error = invoke_service_host_plan_path(wrapper, path, true);
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN",
+                "unexpected {wrapper:?} refusal at {path:?}",
+            );
+        }
     }
 }
 
