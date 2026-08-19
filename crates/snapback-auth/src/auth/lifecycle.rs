@@ -253,6 +253,24 @@ pub fn apply_declared_restore(
     })
 }
 
+pub fn apply_declared_restore_plan<'a>(
+    mailbox: &'a CaptureMailbox,
+    declaration_path: &'a Path,
+    supplied_declaration_id: &'a str,
+    now_ms: u64,
+) -> impl crate::auth::database_plan::AuthDatabasePlan<Output = SnapbackResult<DeclaredRestoreOutcome>> + 'a
+{
+    crate::auth::database_plan::plan(move |database| {
+        apply_declared_restore(
+            database,
+            mailbox,
+            declaration_path,
+            supplied_declaration_id,
+            now_ms,
+        )
+    })
+}
+
 fn validate_uuid_v7(value: &str) -> SnapbackResult<()> {
     if crate::ids::is_minted_identifier(value) {
         return Ok(());

@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(test)]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 
 #[derive(Serialize)]
 struct OAuthErrorBody<'a> {
@@ -75,8 +77,7 @@ async fn oauth_manifest(
     }
     with_snapback(&runtime.snapback, |snapback| {
         snapback
-            .auth_database_mut()
-            .schema()
+            .served_schema_manifest()
             .oauth_manifest()
             .cloned()
     })
@@ -243,15 +244,11 @@ pub(super) async fn oauth_register(
     let redirects = input.redirect_uris.clone();
     let client_name = input.client_name.clone();
     let issued = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = route_admission.effect_guard("OAuth dynamic registration transaction")?;
-        snapback
-            .auth_database_mut()
-            .register_agent_principal_with_class(
+        snapback.register_oauth_client(
+                &route_admission,
                 policy.mode,
                 invitation.as_ref(),
                 client_name,
-                None,
-                crate::storage::auth_integrations::AgentRegistrationClass::Integration,
                 crate::storage::auth_integrations::IntegrationRegistrationFacts {
                     origin,
                     redirect_uris: redirects,
@@ -268,9 +265,7 @@ pub(super) async fn oauth_register(
     };
     let principal = issued.user_id.clone();
     let record = with_snapback(&runtime.snapback, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .integration_record_if_present(&principal)
+        snapback.integration_record_if_present(&principal)
     })
     .await;
     let record = match record {
@@ -390,8 +385,8 @@ pub(super) async fn oauth_authorize_get(
     let request = query.clone();
     let effect_authority = authority.clone();
     let begun = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = effect_authority.effect_guard("OAuth consent request transaction")?;
-        snapback.auth_database_mut().begin_oauth_authorization(
+        snapback.begin_oauth_authorization(
+            &effect_authority,
             &user_id,
             &request.client_id,
             &request.redirect_uri,
@@ -519,7 +514,8 @@ pub(super) async fn oauth_authorize_post(
     if form.decision == "deny" {
         let now_ms = provider.now_ms();
         let result = with_snapback(&runtime.snapback, move |snapback| {
-            snapback.auth_database_mut().deny_oauth_authorization(
+            snapback.deny_oauth_authorization(
+                &authority,
                 &user_id,
                 &form.request_id,
                 now_ms,
@@ -555,8 +551,9 @@ pub(super) async fn oauth_authorize_post(
         };
         let admission = provider.admit().await;
         let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
-            let coordination =
-                admission.step_up_coordination(snapback.auth_database_mut(), &challenge_id);
+            let coordination = snapback.execute_auth_plan(
+                admission.step_up_coordination_plan(&challenge_id),
+            );
             (admission, coordination)
         })
         .await;
@@ -575,12 +572,13 @@ pub(super) async fn oauth_authorize_post(
     let approval_user = user_id.clone();
     let approval_session = session_id.clone();
     let now_ms = provider.now_ms();
+    let approval_authority = authority.clone();
     let approval = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.auth_database_mut().approve_grant_request(
+        snapback.approve_oauth_grant_request(
+            &approval_authority,
             &approval_user,
             &approval_session,
             &request_id,
-            None,
             proof_admission.as_ref().map(|proof| proof.proof()),
             now_ms,
         )
@@ -591,7 +589,8 @@ pub(super) async fn oauth_authorize_post(
     }
     let request_id = form.request_id;
     let issued = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.auth_database_mut().issue_oauth_authorization_code(
+        snapback.issue_oauth_authorization_code(
+            &authority,
             &user_id,
             &request_id,
             provider.now_ms(),
@@ -680,9 +679,7 @@ pub(super) async fn oauth_token(
     };
     let now_ms = provider.now_ms();
     let issued = with_snapback(&runtime.snapback, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .mint_scoped_token_for_oauth_code(
+        snapback.mint_scoped_token_for_oauth_code(
                 &form.code,
                 &form.client_id,
                 &form.redirect_uri,
@@ -706,9 +703,7 @@ pub(super) async fn oauth_token(
     }
     let grant_id = issued.grant_id.clone();
     let scope = with_snapback(&runtime.snapback, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .oauth_bundle_names_for_grant(&grant_id)
+        snapback.oauth_bundle_names_for_grant(&grant_id)
     })
     .await
     .unwrap_or_default()
@@ -774,7 +769,7 @@ pub(super) async fn oauth_revoke(
         Err(_) => return StatusCode::OK.into_response(),
     };
     let result = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.auth_database_mut().oauth_revoke_scoped_token(
+        snapback.oauth_revoke_scoped_token(
             &token,
             form.revoke_grant.unwrap_or(false),
             provider.now_ms(),

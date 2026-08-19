@@ -7,9 +7,10 @@
 
 #![allow(clippy::result_large_err)]
 
-pub(crate) use snapback_kernel::{diagnostic, secure_file, storage};
+pub(crate) use snapback_kernel::{conformance, diagnostic, secure_file, storage};
 pub(crate) use snapback_types::{
-    contract_types, exec_guard, ids, live_wire, manifest, network_profile, rqs_contract,
+    contract_types, exec_guard, ids, live_wire, manifest, network_profile, remediation,
+    rqs_contract,
 };
 
 pub mod auth;

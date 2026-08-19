@@ -2,19 +2,20 @@
 
 use crate::diagnostic::SnapbackResult;
 
-pub(crate) use snapback_kernel::push::{
+use snapback_kernel::push::PushStorageAuthority;
+pub use snapback_kernel::push::{
     PUSH_BATCH_MESSAGES_MAX, PUSH_PROVIDER_RESPONSE_MAX_BYTES, PUSH_RECEIPT_BATCH_MAX,
     PUSH_RECEIPT_FIRST_POLL_MS, PUSH_RECEIPT_WINDOW_MS, PushBatchClaimV1, PushBatchSettlementV1,
     PushDeferredGrantRequestV1, PushLedgerRowV1, PushReceiptOutcomeV1, PushReceiptPollClaimV1,
-    PushRecoveredBatchV1, PushSendRequestV1, PushSendReservationResponseV1, PushStorageAuthority,
-    PushTicketOutcomeV1, PushTokenRegistrationResponse, PushTokenUnregisterResponse,
-    PushTriggerModeV1, REGISTRY_TABLE_SQL, ReservedPushAttemptV1, capture_deferred_grant,
-    expo_receipt_payload, expo_send_payload_from_parts, parse_expo_receipt_response,
-    resolve_audience_in, validate_audience_args, validate_config_uses,
-    validate_declaration_against_schema, validate_exact_ledger_schema, validate_provider_id,
-    validate_receipt_error_code, validate_ticket_error_code, validate_token,
+    PushRecoveredBatchV1, PushSendRequestV1, PushSendReservationResponseV1, PushTicketOutcomeV1,
+    PushTokenRegistrationResponse, PushTokenUnregisterResponse, PushTriggerModeV1,
+    REGISTRY_TABLE_SQL, ReservedPushAttemptV1, capture_deferred_grant, expo_receipt_payload,
+    expo_send_payload_from_parts, parse_expo_receipt_response, resolve_audience_in,
+    validate_audience_args, validate_config_uses, validate_declaration_against_schema,
+    validate_exact_ledger_schema, validate_provider_id, validate_receipt_error_code,
+    validate_ticket_error_code, validate_token,
 };
-pub(crate) use snapback_services::push::{
+pub use snapback_services::push::{
     ExpoHttpResponseV1, ExpoHttpUncertaintyV1, RegisterPushTokenRequest,
     UnregisterPushTokenRequest, classify_expo_send_response, expo_send_payload, post_expo_json,
 };
@@ -44,48 +45,6 @@ pub(crate) fn admitted_push_storage_authority(
     }
 }
 
-/// Crate-private commit adapter: every call must supply the unforgeable
-/// prepared invocation carrier, and only this adapter projects the kernel
-/// authority fact consumed by the transaction.
-pub(crate) trait PreparedPushRegistryExt {
-    #[allow(clippy::too_many_arguments)]
-    fn reserve_send(
-        &mut self,
-        declaration: &PushSeamDeclarationV1,
-        schema: &crate::manifest::SchemaManifest,
-        authority: impl FnOnce() -> crate::auth::invocation::PreparedAuthority,
-        trigger_mode: PushTriggerModeV1,
-        deferred_grant: Option<&PushDeferredGrantV1>,
-        request: &PushSendRequestV1,
-        now_ms: u64,
-    ) -> SnapbackResult<ReservedPushAttemptV1>;
-}
-
-impl PreparedPushRegistryExt for crate::storage::PushRegistryKernel<'_> {
-    fn reserve_send(
-        &mut self,
-        declaration: &PushSeamDeclarationV1,
-        schema: &crate::manifest::SchemaManifest,
-        authority: impl FnOnce() -> crate::auth::invocation::PreparedAuthority,
-        trigger_mode: PushTriggerModeV1,
-        deferred_grant: Option<&PushDeferredGrantV1>,
-        request: &PushSendRequestV1,
-        now_ms: u64,
-    ) -> SnapbackResult<ReservedPushAttemptV1> {
-        let authority = authority();
-        authority.validate_admission("push durable reservation")?;
-        self.reserve_send_admitted_storage(
-            declaration,
-            schema,
-            admitted_push_storage_authority(&authority),
-            trigger_mode,
-            deferred_grant,
-            request,
-            now_ms,
-        )
-    }
-}
-
 pub(crate) fn read_ledger_projection_for_prepared(
     db: &crate::storage::DbRead<'_>,
     declaration: &PushSeamDeclarationV1,
@@ -106,13 +65,12 @@ pub(crate) fn read_ledger_projection_for_prepared(
     )
 }
 
-// The one engine-level provisioning test remains in the rank-7 remainder.
 #[cfg(test)]
-#[path = "push_remainder_tests.rs"]
+#[path = "push/tests.rs"]
 mod tests;
 
-// PreparedAuthority is still owned by the rank-7 remainder. Include only the
-// authority-dependent slice of the moved suite under the old crate root.
-#[cfg(test)]
+// The authority-dependent tests compose services with the sync-owned opaque
+// authority carrier, so they execute at the engine composition rank.
+#[cfg(all(test, not(feature = "engine-owner")))]
 #[path = "../../snapback-services/src/push.rs"]
 mod remainder_authority_tests;

@@ -1,4 +1,6 @@
 use crate::admin::{AppState, ServerContext};
+#[cfg(test)]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintEnvelope, SecretReadScope,
 };
@@ -637,7 +639,7 @@ pub(crate) fn expo_push_fixture_clock_allowed(profile: ServerProfile) -> bool {
 /// hold the global write mutex for the duration of the run.
 struct DetachedActionHost {
     state: SharedSnapback,
-    connected_clients: crate::connected_clients::ConnectedClientRegistry,
+    connected_clients: crate::local::ConnectedClientObserver,
     connected_client_predicate_available: bool,
     abandoned: Arc<AtomicBool>,
     commit_gate: Arc<StdMutex<()>>,
@@ -1974,26 +1976,14 @@ impl IbexActionHost for DetachedActionHost {
             let _effect = self
                 .authority
                 .effect_guard("push send durable reservation")?;
-            let database = snapback.auth_database_mut();
-            let schema = database.schema().clone();
-            let declaration = schema.push_seam.clone().ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
-                    "push",
-                    "the app schema does not declare the push send seam",
-                )
-            })?;
-            let access_token = self.push_access_token(&declaration)?;
-            use crate::push::PreparedPushRegistryExt as _;
-            let attempt = database.push_registry().reserve_send(
-                &declaration,
-                &schema,
-                || self.authority.clone(),
+            let (attempt, declaration) = snapback.reserve_push_send(
+                &self.authority,
                 trigger_mode,
                 self.deferred_push_grant.as_ref(),
                 &request,
                 now_ms,
             )?;
+            let access_token = self.push_access_token(&declaration)?;
             (attempt, access_token)
         };
 
@@ -2009,11 +1999,11 @@ impl IbexActionHost for DetachedActionHost {
         for batch in &attempt.batches {
             let Some(claim) = ({
                 let mut snapback = self.lock_live("push.send.claim")?;
-                let _effect = self.authority.effect_guard("push batch claim")?;
-                snapback
-                    .auth_database_mut()
-                    .push_registry()
-                    .claim_batch(&batch.batch_id, now_millis())?
+                snapback.claim_push_batch(
+                    &self.authority,
+                    &batch.batch_id,
+                    now_millis(),
+                )?
             }) else {
                 continue;
             };
@@ -2030,13 +2020,11 @@ impl IbexActionHost for DetachedActionHost {
                 .begin_service_external_effect(now_millis(), Instant::now())?;
             {
                 let mut snapback = self.lock_live("push.send.transmitting")?;
-                let _effect = self
-                    .authority
-                    .effect_guard("push batch transmitting marker")?;
-                snapback
-                    .auth_database_mut()
-                    .push_registry()
-                    .mark_batch_transmitting(&claim, now_millis())?;
+                snapback.mark_push_batch_transmitting(
+                    &self.authority,
+                    &claim,
+                    now_millis(),
+                )?;
             }
 
             let payload = crate::push::expo_send_payload(&claim, &request);
@@ -2060,8 +2048,8 @@ impl IbexActionHost for DetachedActionHost {
             };
             {
                 let mut snapback = self.lock_live("push.send.settle")?;
-                let _effect = self.authority.effect_guard("push batch settlement")?;
-                snapback.auth_database_mut().push_registry().settle_batch(
+                snapback.settle_push_batch(
+                    &self.authority,
                     &claim,
                     &settlement,
                     now_millis(),
@@ -2070,10 +2058,7 @@ impl IbexActionHost for DetachedActionHost {
         }
         let mut snapback = self.lock_live("push.send.result")?;
         let intent_id = attempt.response.intent_id.clone();
-        attempt.response.state = snapback
-            .auth_database_mut()
-            .push_registry()
-            .intent_state(&intent_id)?;
+        attempt.response.state = snapback.push_intent_state(&intent_id)?;
         Ok(attempt.response)
     }
 
@@ -2981,7 +2966,7 @@ async fn run_managed_host_plan_action(
         let mut bindings = BTreeMap::new();
         let mut last_result = Value::Null;
         let mut changed_count = 0usize;
-        let steps = action.plan.steps.clone();
+        let steps = action.plan().steps.clone();
         let execution = async {
             for step in steps {
                 action.validate_generation()?;
@@ -3022,7 +3007,7 @@ async fn run_managed_host_plan_action(
                 }
             }
 
-            match &action.plan.return_value {
+            match &action.plan().return_value {
                 Some(ActionReturnValue::Literal(value)) => Ok(value.clone()),
                 Some(ActionReturnValue::Binding(name)) => {
                     bindings.get(name).cloned().ok_or_else(|| {
@@ -3286,6 +3271,7 @@ pub(crate) async fn execute_job_claim_detached(
     state: &SharedSnapback,
     claim: crate::local::AdmittedJobClaim,
 ) -> SnapbackResult<crate::jobs::JobDrainRecord> {
+    let drain_now_ms = claim.drain_now_ms();
     if claim.action == crate::watches::INTERNAL_EVALUATION_ACTION {
         let attempt = claim.attempt;
         let max_attempts = claim.max_attempts;
@@ -3295,7 +3281,7 @@ pub(crate) async fn execute_job_claim_detached(
         let result = match prepared {
             Ok(crate::local::WatchJobExecution::Complete(value)) => Ok(value),
             Ok(crate::local::WatchJobExecution::Action(prepared)) => {
-                let crate::local::PreparedWatchAction {
+                let (
                     watch_id,
                     job_id,
                     ordinal,
@@ -3304,7 +3290,7 @@ pub(crate) async fn execute_job_claim_detached(
                     input,
                     metadata,
                     staged,
-                } = prepared;
+                ) = prepared.into_parts();
                 let reaction = match staged {
                     StagedAction::Detached(action) => {
                         run_detached_ibex_action(state, action, input, metadata).await
@@ -3313,7 +3299,7 @@ pub(crate) async fn execute_job_claim_detached(
                         run_managed_host_plan_action(state, action, input, metadata, prepared).await
                     }
                 };
-                let now_ms = claim.drain_now_ms;
+                let now_ms = drain_now_ms;
                 with_snapback(state, move |snapback| {
                     snapback.settle_watch_action(
                         watch_id,
@@ -3331,7 +3317,7 @@ pub(crate) async fn execute_job_claim_detached(
             Ok(crate::local::WatchJobExecution::Webhook(prepared)) => {
                 let recheck = prepared.clone();
                 let delivery = with_snapback(state, move |snapback| {
-                    snapback.revalidate_watch_webhook_delivery(&recheck, claim.drain_now_ms)
+                    snapback.revalidate_watch_webhook_delivery(&recheck, drain_now_ms)
                 })
                 .await;
                 let outcome = match delivery {
@@ -3375,7 +3361,7 @@ pub(crate) async fn execute_job_claim_detached(
                         outcome,
                         attempt,
                         max_attempts,
-                        claim.drain_now_ms,
+                        drain_now_ms,
                     )
                 })
                 .await
@@ -3392,7 +3378,7 @@ pub(crate) async fn execute_job_claim_detached(
     let metadata = LocalSnapback::job_claim_metadata(&claim);
     let action = claim.action.clone();
     let deferred_push_grant = claim.push_grant.clone();
-    let rehearsal_provenance = claim.rehearsal_provenance.clone();
+    let deferred_rehearsal_authority = claim.deferred_rehearsal_authority();
     let staged = {
         let action = action.clone();
         let admission = claim.admission_lease().clone();
@@ -3401,7 +3387,7 @@ pub(crate) async fn execute_job_claim_detached(
                 &action,
                 admission,
                 deferred_push_grant,
-                rehearsal_provenance,
+                deferred_rehearsal_authority,
             )
         })
         .await
@@ -3509,7 +3495,7 @@ type ConnectionRetirementSink = Arc<dyn Fn(BoundConnectionTerminalCapture) + Sen
 pub struct ConnectionRegistry {
     grants: Arc<std::sync::Mutex<ConnectionRegistryState>>,
     invalidation_issuer:
-        Arc<std::sync::Mutex<Option<crate::auth::invalidation::LiveInvalidationIssuer>>>,
+        Arc<std::sync::Mutex<Option<crate::local::EngineInvalidationBinding>>>,
     retirement_sink: Arc<std::sync::Mutex<Option<ConnectionRetirementSink>>>,
 }
 
@@ -3660,10 +3646,11 @@ struct BoundSessionKey {
 
 impl From<ConnectionSessionThrottleKey> for BoundSessionKey {
     fn from(value: ConnectionSessionThrottleKey) -> Self {
+        let generation = value.generation();
         Self {
             authorization_stream_incarnation: value.authorization_stream_incarnation,
             session_id: value.session_id,
-            generation: value.generation,
+            generation,
         }
     }
 }
@@ -3693,6 +3680,7 @@ enum BoundGrantAuthority {
     ServicePrincipal {
         authorization_stream_incarnation: String,
         authority: ResolvedAppAuthority,
+        route_authority: crate::local::ResolvedServiceAuthority,
         token_id: String,
         deadline_ms: u64,
         publication: FencedPublication,
@@ -4029,6 +4017,8 @@ enum ResolvedRoomConnectionAuthority {
 #[derive(Clone, Debug)]
 struct PreparedConnectionOpenAuthority {
     resolved: ResolvedAppAuthority,
+    session_route_authority: Option<crate::auth::coordinator::PreparedBearerAuthority>,
+    service_route_authority: Option<crate::local::ResolvedServiceAuthority>,
     bound: BoundGrantAuthority,
     managed_authority: bool,
     hosted_sender: Option<HostedSenderGrantBinding>,
@@ -4132,6 +4122,8 @@ struct PreparedConnectionAct {
     connection_id: String,
     grant_id: String,
     resolved: ResolvedAppAuthority,
+    session_route_authority: Option<crate::auth::coordinator::PreparedBearerAuthority>,
+    service_route_authority: Option<crate::local::ResolvedServiceAuthority>,
     bound: BoundGrantAuthority,
     authorization_invalidation:
         Option<crate::auth::invalidation::AuthorizationInvalidationConnection>,
@@ -4244,22 +4236,24 @@ impl PreparedConnectionAct {
     }
 }
 
-fn record_authenticated_poll_witness(
+async fn record_authenticated_poll_witness(
     runtime: &AppState,
     connection_act: &PreparedConnectionAct,
+    authority: &PreparedAuthority,
 ) -> Result<(), ApiError> {
-    let Some(principal_id) = connection_act.session_principal_id() else {
-        return Ok(());
-    };
-    runtime
-        .connected_clients
-        .register_or_refresh_authenticated_poll(
-            principal_id,
-            &connection_act.connection_id,
-            &connection_act.grant_id,
+    let connection_id = connection_act.connection_id.clone();
+    let grant_id = connection_act.grant_id.clone();
+    let authority = authority.clone();
+    with_snapback(&runtime.snapback, move |snapback| {
+        snapback.register_authenticated_poll_client(
+            &authority,
+            &connection_id,
+            &grant_id,
             Instant::now(),
         )
-        .map_err(ApiError::from)
+    })
+    .await
+    .map_err(ApiError::from)
 }
 
 #[must_use = "authority work must remain reserved through Local finalization"]
@@ -4333,7 +4327,7 @@ impl BoundConnectionTerminalCapture {
 #[derive(Clone)]
 pub(crate) struct AuthTerminalLifecycle {
     connections: ConnectionRegistry,
-    connected_clients: crate::connected_clients::ConnectedClientRegistry,
+    connected_clients: crate::local::ConnectedClientObserver,
     delivery: Arc<crate::ephemeral::DeliveryNotifier>,
     ephemeral: EphemeralApi,
     snapback: SharedSnapback,
@@ -4498,7 +4492,7 @@ async fn join_retired_connection_cleanup_batch(
 impl AuthTerminalLifecycle {
     pub(crate) fn new(
         connections: ConnectionRegistry,
-        connected_clients: crate::connected_clients::ConnectedClientRegistry,
+        connected_clients: crate::local::ConnectedClientObserver,
         ephemeral: &EphemeralApi,
         snapback: SharedSnapback,
     ) -> Self {
@@ -5420,14 +5414,14 @@ impl ConnectionRegistry {
         captures
     }
 
-    pub(crate) fn install_invalidation_issuer(
+    pub(crate) fn install_invalidation_binding(
         &self,
-        issuer: crate::auth::invalidation::LiveInvalidationIssuer,
+        binding: crate::local::EngineInvalidationBinding,
     ) {
         *self
             .invalidation_issuer
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(issuer);
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(binding);
     }
 
     pub(crate) fn clear_invalidation_issuer(&self) {
@@ -5443,10 +5437,10 @@ impl ConnectionRegistry {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
-            .map(|issuer| {
-                issuer
+            .map(|binding| {
+                binding
                     .authorization_expectation()
-                    .expect("test issuer expectation")
+                    .expect("test invalidation expectation")
             })
     }
 
@@ -5607,13 +5601,16 @@ impl ConnectionRegistry {
                 let prepared = coordinator
                     .prepare_anonymous_connection()
                     .map_err(ApiError::from)?;
+                let (authorization_stream_incarnation, publication) = prepared.into_parts();
                 Ok(PreparedConnectionOpenAuthority {
                     resolved: ResolvedAppAuthority::Anonymous,
+                    session_route_authority: None,
+                    service_route_authority: None,
                     managed_authority: true,
                     hosted_sender: None,
                     bound: BoundGrantAuthority::Anonymous {
-                        authorization_stream_incarnation: prepared.authorization_stream_incarnation,
-                        publication: prepared.publication,
+                        authorization_stream_incarnation,
+                        publication,
                     },
                 })
             }
@@ -5642,6 +5639,7 @@ impl ConnectionRegistry {
                     .map_err(ApiError::from)?
                 {
                     ConnectionBearerResolution::Current(prepared) => {
+                        let session_route_authority = Some(prepared.route_authority());
                         let (resolved, incarnation, deadline_ms, publication) =
                             prepared.into_parts();
                         let ResolvedAppAuthority::Session {
@@ -5663,6 +5661,8 @@ impl ConnectionRegistry {
                             monotonic_now,
                         )?;
                         Ok(PreparedConnectionOpenAuthority {
+                            session_route_authority,
+                            service_route_authority: None,
                             managed_authority: true,
                             hosted_sender: None,
                             bound: BoundGrantAuthority::Session {
@@ -5726,6 +5726,8 @@ impl ConnectionRegistry {
         match presented {
             PresentedSessionBearer::Absent => Ok(PreparedConnectionOpenAuthority {
                 resolved: ResolvedAppAuthority::Anonymous,
+                session_route_authority: None,
+                service_route_authority: None,
                 managed_authority: false,
                 hosted_sender: None,
                 bound: BoundGrantAuthority::Anonymous {
@@ -5842,6 +5844,8 @@ impl ConnectionRegistry {
         } = attempt;
         let PreparedConnectionOpenAuthority {
             resolved: _,
+            session_route_authority: _,
+            service_route_authority: _,
             managed_authority,
             bound,
             hosted_sender,
@@ -6078,20 +6082,7 @@ impl ConnectionRegistry {
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .clone()
-                    .map(|issuer| {
-                        let issuer_retirement = issuer.authenticate_prior_issuer_retirement()?;
-                        Ok::<_, SnapbackError>(
-                            crate::auth::invalidation::AuthorizationInvalidationConnection {
-                                protocol_version:
-                                    crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
-                                issuer_id: issuer.authenticated().issuer_id.clone(),
-                                connection_generation: issuer.reserve_connection_generation()?,
-                                authorization: issuer.authorization_expectation()?,
-                                version_stream: issuer.version_stream()?,
-                                issuer_retirement,
-                            },
-                        )
-                    })
+                    .map(|binding| binding.prepare_connection())
                     .transpose()?
             } else {
                 None
@@ -6340,6 +6331,8 @@ impl ConnectionRegistry {
             allow_suggested,
             PreparedConnectionOpenAuthority {
                 resolved: ResolvedAppAuthority::Anonymous,
+                session_route_authority: None,
+                service_route_authority: None,
                 managed_authority: false,
                 hosted_sender: None,
                 bound: BoundGrantAuthority::Anonymous {
@@ -6412,7 +6405,9 @@ impl ConnectionRegistry {
                             monotonic_now,
                         )?;
                         match resolution {
-                            BoundSessionResolution::Current(resolved) => Some(resolved),
+                            BoundSessionResolution::Current(prepared) => {
+                                Some(prepared.resolved().clone())
+                            }
                             BoundSessionResolution::Terminal { .. }
                             | BoundSessionResolution::Unavailable => None,
                         }
@@ -6499,10 +6494,13 @@ impl ConnectionRegistry {
                 record.dev_identity_witnessed,
             )
         };
-        let resolved = match &bound {
-            BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
+        let (resolved, session_route_authority, service_route_authority) = match &bound {
+            BoundGrantAuthority::Anonymous { .. } => {
+                (ResolvedAppAuthority::Anonymous, None, None)
+            }
             BoundGrantAuthority::ServicePrincipal {
                 authority,
+                route_authority,
                 service_publication,
                 ..
             } => {
@@ -6533,7 +6531,7 @@ impl ConnectionRegistry {
                         )));
                     }
                 }
-                authority.clone()
+                (authority.clone(), None, Some(route_authority.clone()))
             }
             BoundGrantAuthority::Session {
                 authorization_stream_incarnation,
@@ -6562,7 +6560,9 @@ impl ConnectionRegistry {
                     )
                     .map_err(ApiError::from)?
                 {
-                    BoundSessionResolution::Current(resolved) => resolved,
+                    BoundSessionResolution::Current(prepared) => {
+                        (prepared.resolved().clone(), Some(prepared), None)
+                    }
                     BoundSessionResolution::Terminal { reason } => {
                         return Err(ApiError::from(session_expired_http(
                             "the connection session is no longer current",
@@ -6579,6 +6579,8 @@ impl ConnectionRegistry {
             connection_id: connection_id.to_owned(),
             grant_id,
             resolved,
+            session_route_authority,
+            service_route_authority,
             bound,
             authorization_invalidation,
             ephemeral_authority_protocol,
@@ -6657,6 +6659,8 @@ impl ConnectionRegistry {
                 connection_id: connection_id.to_owned(),
                 grant_id: record.grant_id.clone(),
                 resolved: ResolvedAppAuthority::Anonymous,
+                session_route_authority: None,
+                service_route_authority: None,
                 bound: record.authority.clone(),
                 authorization_invalidation: record.authorization_invalidation.clone(),
                 ephemeral_authority_protocol: record.ephemeral_authority_protocol,
@@ -6994,8 +6998,7 @@ struct ExternalClientIdContext {
 ///
 /// @ref LLP 0031#capability-link-mint-and-serve-family — secret URL
 /// placeholders are normalized to the registered template at ingress.
-#[derive(Clone, Debug)]
-struct ResolvedCapabilityLink(crate::storage::capability_links::CapabilityLinkRecord);
+type ResolvedCapabilityLink = crate::local::ResolvedCapabilityLink;
 
 fn capability_link_token_from_path(spec: RouteSpec, path: &str) -> Option<&str> {
     match spec.path {
@@ -10859,6 +10862,20 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/_snapback/api/storage/operation-coverage/activate" => {
             Some(InvocationSource::OperationCoverageActivation)
         }
+        "/_snapback/api/auth/integrations"
+        | "/_snapback/api/auth/password/attempt"
+        | "/_snapback/api/auth/password/unlock"
+        | "/_snapback/api/auth/integrations/{id}/retire"
+        | "/_snapback/api/auth/integrations/{id}/suspend"
+        | "/_snapback/api/auth/integrations/{id}/resume"
+        | "/_snapback/api/auth/declared-clients"
+        | "/_snapback/api/auth/declared-clients/bless"
+        | "/_snapback/api/auth/declared-clients/suspend"
+        | "/_snapback/api/auth/declared-clients/resume"
+        | "/_snapback/api/auth/declared-clients/delete"
+        | "/_snapback/api/debug/network-profile" => {
+            Some(InvocationSource::OperatorCommand)
+        }
         _ => None,
     }
 }
@@ -10873,6 +10890,14 @@ fn selected_invocation_source(
             Some(InvocationSource::HostOperationFunctionRun)
         } else if operation.starts_with("host_ops.function.explain") {
             Some(InvocationSource::HostOperationMutationDryRun)
+        } else if matches!(
+            operation,
+            "host_ops.auth.integrationRetire"
+                | "host_ops.auth.integrationSuspend"
+                | "host_ops.auth.integrationResume"
+                | "host_ops.debug.networkProfileSet"
+        ) {
+            Some(InvocationSource::OperatorCommand)
         } else {
             None
         }
@@ -11005,6 +11030,16 @@ fn queued_replay_requested(source: InvocationSource, body: Option<&Value>) -> bo
     }
 }
 
+enum RouteAuthorityResolution {
+    Anonymous(Option<FencedPublication>),
+    Dev(ResolvedAppAuthority),
+    Admin(FencedPublication),
+    Operator(Option<FencedPublication>),
+    Bearer(crate::auth::coordinator::PreparedBearerAuthority),
+    Service(crate::local::ResolvedServiceAuthority, FencedPublication),
+    ConnectionService(crate::local::ResolvedServiceAuthority),
+}
+
 async fn prepare_registered_route_authority(
     source: Option<InvocationSource>,
     effective: EffectiveRoutePolicy,
@@ -11012,6 +11047,8 @@ async fn prepare_registered_route_authority(
     admission: Option<&AdmissionLease>,
     headers: &HeaderMap,
     body: Option<&Value>,
+    prepared_connection_session: Option<crate::auth::coordinator::PreparedBearerAuthority>,
+    prepared_connection_service: Option<crate::local::ResolvedServiceAuthority>,
     resolved_connection_authority: Option<&ResolvedAppAuthority>,
 ) -> Result<Option<PreparedAuthority>, ApiError> {
     let Some(source) = source else {
@@ -11049,12 +11086,40 @@ async fn prepare_registered_route_authority(
             .into());
         }
     }
-    let (resolved, fenced_publication, service_publication) =
-        if let Some(resolved) = resolved_connection_authority {
-            // Connection open/acts already carry the exact bound publication
-            // fence. The caller installs that fence after the shared invocation
-            // gate has projected this resolved authority.
-            (resolved.clone(), None, None)
+    let resolution =
+        if let Some(prepared) = prepared_connection_session {
+            RouteAuthorityResolution::Bearer(prepared)
+        } else if let Some(prepared) = prepared_connection_service {
+            RouteAuthorityResolution::ConnectionService(prepared)
+        } else if let Some(resolved) = resolved_connection_authority {
+            match resolved {
+                ResolvedAppAuthority::Anonymous => RouteAuthorityResolution::Anonymous(None),
+                ResolvedAppAuthority::DevImpersonation { .. } => {
+                    RouteAuthorityResolution::Dev(resolved.clone())
+                }
+                ResolvedAppAuthority::ServicePrincipal { .. } => {
+                    return Err(ApiError::from(SnapbackError::error(
+                        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                        "auth",
+                        "connection service authority is missing its storage-owned carrier",
+                    )));
+                }
+                ResolvedAppAuthority::Session { .. }
+                | ResolvedAppAuthority::RevalidatedPrincipal { .. } => {
+                    return Err(ApiError::from(SnapbackError::error(
+                        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                        "auth",
+                        "connection session authority is missing its projection-owned carrier",
+                    )));
+                }
+                ResolvedAppAuthority::AdminBypass { .. } | ResolvedAppAuthority::System => {
+                    return Err(ApiError::from(SnapbackError::error(
+                        "SNAPBACK_INVOCATION_AUTHORITY_INVALID",
+                        "auth",
+                        "connection-bound authority cannot carry administrative or system identity",
+                    )));
+                }
+            }
         } else {
             match active_mode {
                 crate::manifest::AuthMode::Dev => {
@@ -11073,7 +11138,11 @@ async fn prepare_registered_route_authority(
                         InvocationSource::HostOperationFunctionRun
                             | InvocationSource::HostOperationMutationDryRun
                     ) {
-                        (dev_host_operation_authority(handler_value), None, None)
+                        RouteAuthorityResolution::Dev(dev_host_operation_authority(handler_value))
+                    } else if source == InvocationSource::OperatorCommand {
+                        // Dev operator commands retain the historical
+                        // anonymous administrative projection.
+                        RouteAuthorityResolution::Operator(None)
                     } else if effective.invocation_authority == InvocationAuthority::ClientAsserted
                         && source != InvocationSource::DirectAdminRunner
                     {
@@ -11083,16 +11152,22 @@ async fn prepare_registered_route_authority(
                         // witnessed; admin-token host operations retain their
                         // existing authority contract (Ruling OQ2).
                         verify_or_warn_client_asserted_dev_identity(runtime, headers, &resolved)?;
-                        (resolved, None, None)
+                        RouteAuthorityResolution::Dev(resolved)
                     } else if source == InvocationSource::DirectAdminRunner {
-                        (dev_body_authority(handler_value), None, None)
+                        RouteAuthorityResolution::Dev(dev_body_authority(handler_value))
                     } else {
-                        (ResolvedAppAuthority::Anonymous, None, None)
+                        RouteAuthorityResolution::Dev(ResolvedAppAuthority::Anonymous)
                     }
                 }
                 crate::manifest::AuthMode::Sessions => {
                     let coordinator = installed_auth_coordinator(runtime)?;
-                    if matches!(
+                    if source == InvocationSource::OperatorCommand {
+                        RouteAuthorityResolution::Operator(Some(
+                            coordinator
+                                .prepare_anonymous_publication()
+                                .map_err(ApiError::from)?,
+                        ))
+                    } else if matches!(
                         source,
                         InvocationSource::DirectAdminRunner
                             | InvocationSource::HostOperationFunctionRun
@@ -11100,16 +11175,10 @@ async fn prepare_registered_route_authority(
                             | InvocationSource::ProtectedRecordErasure
                             | InvocationSource::OperationCoverageActivation
                     ) {
-                        (
-                            ResolvedAppAuthority::AdminBypass {
-                                reason: "administrative application invocation".to_owned(),
-                            },
-                            Some(
-                                coordinator
-                                    .prepare_anonymous_publication()
-                                    .map_err(ApiError::from)?,
-                            ),
-                            None,
+                        RouteAuthorityResolution::Admin(
+                            coordinator
+                                .prepare_anonymous_publication()
+                                .map_err(ApiError::from)?,
                         )
                     } else if matches!(
                         effective.credential_resolution,
@@ -11162,26 +11231,20 @@ async fn prepare_registered_route_authority(
                                 None,
                             )
                             .await;
-                            let service_fences = runtime.service_authority_fences.clone();
                             let service_clock = provider.clone();
                             let _writer_turn_guard = runtime
                                 .live_fanout_coalescer
                                 .as_ref()
                                 .filter(|_| mutation_writer_invocation_source(source))
                                 .map(|coalescer| coalescer.writer_turn_guard());
-                            let (resolved, service_publication) =
+                            let service_resolution =
                                 with_snapback(&runtime.snapback, move |snapback| {
-                                    let resolved = snapback
-                                        .auth_database_mut()
-                                        .resolve_scoped_token(&token, now_ms)?;
-                                    let publication = service_fences
-                                        .register(
-                                            resolved.service_authority_witness(),
-                                            now_ms,
-                                            service_monotonic_now,
-                                        )?
-                                        .with_provider_clock(service_clock);
-                                    Ok::<_, SnapbackError>((resolved, publication))
+                                    snapback.resolve_scoped_token_route_authority(
+                                        &token,
+                                        now_ms,
+                                        service_monotonic_now,
+                                        service_clock,
+                                    )
                                 })
                                 .await?;
                             #[cfg(test)]
@@ -11193,10 +11256,9 @@ async fn prepare_registered_route_authority(
                                 None,
                             )
                             .await;
-                            (
-                                ResolvedAppAuthority::from_scoped_token(resolved),
-                                Some(stream_publication),
-                                Some(service_publication),
+                            RouteAuthorityResolution::Service(
+                                service_resolution,
+                                stream_publication,
                             )
                         } else {
                             // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: both
@@ -11230,60 +11292,112 @@ async fn prepare_registered_route_authority(
                                 )
                             }
                             .map_err(ApiError::from)?;
-                            let (resolved, publication) = prepared.into_parts();
-                            (resolved, Some(publication), None)
+                            RouteAuthorityResolution::Bearer(prepared)
                         }
                     } else {
-                        (
-                            ResolvedAppAuthority::Anonymous,
-                            Some(
-                                coordinator
-                                    .prepare_anonymous_publication()
-                                    .map_err(ApiError::from)?,
-                            ),
-                            None,
-                        )
+                        RouteAuthorityResolution::Anonymous(Some(
+                            coordinator
+                                .prepare_anonymous_publication()
+                                .map_err(ApiError::from)?,
+                        ))
                     }
                 }
             }
         };
-    let authority_now_ms = if resolved.session_id().is_some() {
+    let authority_now_ms = if matches!(
+        &resolution,
+        RouteAuthorityResolution::Bearer(_)
+            | RouteAuthorityResolution::ConnectionService(_)
+    ) {
         installed_auth_provider(runtime)?.now_ms()
     } else {
         now_millis()
     };
     let profile = runtime.server.profile;
+    let operator_authority = runtime.operator_authority.clone();
     let admission = (*admission).clone();
-    let authority = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.prepare_resolved_authority(
+    let authority = with_snapback(&runtime.snapback, move |snapback| match resolution {
+        RouteAuthorityResolution::Anonymous(publication) => snapback.prepare_anonymous_authority(
             source,
             active_mode,
             profile,
             admission,
             &wire,
+            authority_now_ms,
+            publication,
+        ),
+        RouteAuthorityResolution::Dev(resolved) => snapback.prepare_dev_authority(
+            source,
+            profile,
+            admission,
+            &wire,
             resolved,
             authority_now_ms,
-        )
+        ),
+        RouteAuthorityResolution::Admin(publication) => snapback.prepare_admin_authority(
+            source,
+            profile,
+            admission,
+            &wire,
+            authority_now_ms,
+            publication,
+        ),
+        RouteAuthorityResolution::Operator(publication) => snapback.prepare_operator_authority(
+            &operator_authority,
+            admission,
+            &wire,
+            authority_now_ms,
+            publication,
+        ),
+        RouteAuthorityResolution::Bearer(prepared) => snapback.prepare_bearer_authority(
+            prepared,
+            source,
+            active_mode,
+            profile,
+            admission,
+            &wire,
+            authority_now_ms,
+        ),
+        RouteAuthorityResolution::Service(resolution, stream_publication) => {
+            snapback.prepare_service_authority(
+                resolution,
+                source,
+                active_mode,
+                profile,
+                admission,
+                &wire,
+                authority_now_ms,
+                stream_publication,
+            )
+        }
+        RouteAuthorityResolution::ConnectionService(resolution) => snapback
+            .prepare_connection_service_authority(
+                resolution,
+                source,
+                active_mode,
+                profile,
+                admission,
+                &wire,
+                authority_now_ms,
+            ),
     })
     .await
     .map_err(ApiError::from)?;
-    let authority = match fenced_publication {
-        Some(publication) => authority.with_fenced_publication(publication),
-        None if source == InvocationSource::BootstrapHandshake => authority
-            .with_authorization_stream_incarnation(
-                installed_auth_coordinator(runtime)?
-                    .authorization_stream_incarnation()
-                    .map_err(ApiError::from)?,
-            ),
-        None => authority,
-    };
-    let authority = match service_publication {
-        Some(publication) => authority.with_service_publication(publication),
-        None => authority,
-    };
-    Ok(Some(
+    let authority = if source == InvocationSource::BootstrapHandshake
+        && active_mode == crate::manifest::AuthMode::Dev
+    {
+            installed_auth_coordinator(runtime)?
+                .bind_bootstrap_publication(authority)
+                .map_err(ApiError::from)?
+    } else {
         authority
-            .with_rehearsal_authority_registry(runtime.auth_rehearsal_live_grants.clone())
+    };
+    let rehearsal_authority = installed_auth_coordinator(runtime)?
+        .rehearsal_authority_binding()
+        .map_err(ApiError::from)?;
+    Ok(Some(
+        rehearsal_authority
+            .bind(authority, None)
             .map_err(ApiError::from)?,
     ))
 }
@@ -11311,12 +11425,11 @@ async fn record_successful_finite_session_use(
         let _effect = effect_authority
             .effect_guard("authenticated-use expiry transaction")
             .map_err(ProviderError::from)?;
-        provider_admission.record_authenticated_use(
-            snapback.auth_database_mut(),
-            &session_id,
+        snapback.execute_auth_plan(provider_admission.record_authenticated_use_plan(
+            session_id,
             expected_generation,
             now_ms,
-        )
+        ))
     })
     .await
     .map_err(map_provider_error)?;
@@ -12241,9 +12354,7 @@ async fn charge_hosted_sender_attempt(
     now_ms: u64,
 ) -> Result<(), Response> {
     let result = with_snapback(&runtime.snapback, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .charge_sender_authentication_attempt(
+        snapback.charge_sender_authentication_attempt(
                 &throttle,
                 source,
                 subject,
@@ -12444,13 +12555,7 @@ async fn admit_hosted_sender_request(
             Err(error) => return Err(ApiError::from(error).into_response()),
         };
         let result = with_snapback(&runtime.snapback, move |snapback| {
-            let mut authority = snapback.auth_database_mut().sender_proof_authority();
-            let sender_replay_epoch = authority
-                .sender_replay_epoch()
-                .map_err(|_| sender_authority_unavailable_rejection())?;
-            admit_sender_constrained_bound_request(
-                &mut authority,
-                sender_replay_epoch,
+            snapback.admit_sender_constrained_bound_request(
                 &method,
                 &canonical_external_uri,
                 &connection_token,
@@ -12458,8 +12563,6 @@ async fn admit_hosted_sender_request(
                 &thumbprint,
                 now_ms / 1_000,
                 SENDER_NONCE_TTL_SECONDS,
-                None,
-                None,
                 Some(issuance_sender_replay_epoch),
             )
         })
@@ -12580,13 +12683,7 @@ async fn admit_hosted_sender_request(
         Err(error) => return Err(ApiError::from(error).into_response()),
     };
     let result = with_snapback(&runtime.snapback, move |snapback| {
-        let mut authority = snapback.auth_database_mut().sender_proof_authority();
-        let sender_replay_epoch = authority
-            .sender_replay_epoch()
-            .map_err(|_| sender_authority_unavailable_rejection())?;
-        admit_sender_constrained_request(
-            &mut authority,
-            sender_replay_epoch,
+        snapback.admit_sender_constrained_request(
             &method,
             &canonical_external_uri,
             &bearer,
@@ -12594,8 +12691,6 @@ async fn admit_hosted_sender_request(
             now_ms / 1_000,
             SENDER_NONCE_TTL_SECONDS,
             spec.path != "/connection/open",
-            None,
-            None,
             Some(&cover_key),
         )
     })
@@ -12868,13 +12963,11 @@ async fn enforce_registered_route_policy_inner(
             }
             let token = token.to_owned();
             let resolved = with_snapback(&runtime.snapback, move |snapback| {
-                snapback
-                    .auth_database_mut()
-                    .resolve_capability_link(&token, now_millis())
+                snapback.resolve_capability_link(&token, now_millis())
             })
             .await;
             match resolved {
-                Ok(record) => Some(ResolvedCapabilityLink(record)),
+                Ok(link) => Some(link),
                 Err(error) => {
                     return finish_registered_response(
                         effective,
@@ -13256,6 +13349,8 @@ async fn enforce_registered_route_policy_inner(
             route_admission.as_ref(),
             request.headers(),
             policy_body.as_ref(),
+            None,
+            None,
             None,
         )
         .await
@@ -13749,25 +13844,6 @@ async fn enforce_registered_route_policy_inner(
         }
     }
 
-    // Every successfully authenticated connection-scoped HTTP act is a
-    // client-originated poll-lane signal. The WebSocket upgrade is excluded:
-    // its exact generation is registered only after the upgrade succeeds, so
-    // a known socket close cannot leave an upgrade-request witness behind.
-    //
-    // @ref LLP 0222#open-questions — the real headless client uses HTTP poll;
-    // semanticsVersion 2 therefore widens the witness transport explicitly.
-    if spec.path != "/live/{connection_id}/stream"
-        && let Some(prepared) = prepared_connection_act.as_ref()
-        && let Err(error) = record_authenticated_poll_witness(&runtime, prepared)
-    {
-        return finish_registered_response(
-            response_policy,
-            error.into_response(),
-            route_admission.as_ref(),
-            None,
-        );
-    }
-
     let invocation_source =
         selected_invocation_source(spec, selected_operation.map(|(operation, _)| operation));
     let resolved_connection_authority = if policy_mode == PolicyAuthMode::Sessions {
@@ -13782,6 +13858,22 @@ async fn enforce_registered_route_policy_inner(
     } else {
         None
     };
+    let prepared_connection_session = prepared_connection_act
+        .as_ref()
+        .and_then(|prepared| prepared.session_route_authority.clone())
+        .or_else(|| {
+            prepared_connection_open
+                .as_ref()
+                .and_then(|prepared| prepared.session_route_authority.clone())
+        });
+    let prepared_connection_service = prepared_connection_act
+        .as_ref()
+        .and_then(|prepared| prepared.service_route_authority.clone())
+        .or_else(|| {
+            prepared_connection_open
+                .as_ref()
+                .and_then(|prepared| prepared.service_route_authority.clone())
+        });
     let prepared_authority = if let Some(authority) = early_prepared_authority {
         Some(authority)
     } else {
@@ -13792,6 +13884,8 @@ async fn enforce_registered_route_policy_inner(
             route_admission.as_ref(),
             request.headers(),
             policy_body.as_ref(),
+            prepared_connection_session,
+            prepared_connection_service,
             resolved_connection_authority,
         )
         .await
@@ -13825,6 +13919,25 @@ async fn enforce_registered_route_policy_inner(
             None => authority,
         }
     });
+    // Every successfully authenticated connection-scoped HTTP act is a
+    // client-originated poll-lane signal. The WebSocket upgrade is excluded:
+    // its exact generation is registered only after the upgrade succeeds, so
+    // a known socket close cannot leave an upgrade-request witness behind.
+    //
+    // @ref LLP 0222#open-questions — the real headless client uses HTTP poll;
+    // semanticsVersion 2 therefore widens the witness transport explicitly.
+    if spec.path != "/live/{connection_id}/stream"
+        && let (Some(connection), Some(authority)) =
+            (prepared_connection_act.as_ref(), prepared_authority.as_ref())
+        && let Err(error) = record_authenticated_poll_witness(&runtime, connection, authority).await
+    {
+        return finish_registered_response(
+            response_policy,
+            error.into_response(),
+            route_admission.as_ref(),
+            prepared_authority.as_ref(),
+        );
+    }
     if let (Some(authority), Some((network_digest, network_generation, now_ms))) =
         (prepared_authority.as_ref(), external_network_evidence)
     {
@@ -14314,10 +14427,7 @@ async fn require_agent_registration_mode(
 ) -> Result<(Arc<AuthProvider>, AgentsManifest), ApiError> {
     let provider = require_agent_routes_available(runtime)?;
     let policy = with_snapback(&runtime.snapback, |snapback| {
-        snapback
-            .auth_database_mut()
-            .schema()
-            .effective_agents_manifest()
+        snapback.effective_agents_manifest()
     })
     .await;
     Ok((provider, policy))
@@ -14482,8 +14592,9 @@ async fn auth_step_up_request(
     let now_ms = provider.now_ms();
     let lookup_binding = binding.clone();
     let (admission, address) = with_snapback(&runtime.snapback, move |snapback| {
-        let address =
-            admission.step_up_address(snapback.auth_database_mut(), &lookup_binding, now_ms);
+        let address = snapback.execute_auth_plan(
+            admission.step_up_address_plan(&lookup_binding, now_ms),
+        );
         (admission, address)
     })
     .await;
@@ -14497,7 +14608,7 @@ async fn auth_step_up_request(
         let _effect = effect_authority
             .effect_guard("step-up challenge transaction")
             .map_err(ProviderError::from)?;
-        admission.request_step_up(snapback.auth_database_mut(), &binding)
+        snapback.execute_auth_plan(admission.request_step_up_plan(&binding))
     })
     .await
     .map_err(map_provider_error)?;
@@ -14535,8 +14646,9 @@ async fn auth_agent_invitation(
     let admission = provider.admit().await;
     let challenge_id = step_up.challenge_id.clone();
     let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
-        let coordination =
-            admission.step_up_coordination(snapback.auth_database_mut(), &challenge_id);
+        let coordination = snapback.execute_auth_plan(
+            admission.step_up_coordination_plan(&challenge_id),
+        );
         (admission, coordination)
     })
     .await;
@@ -14550,7 +14662,8 @@ async fn auth_agent_invitation(
     let profile = runtime.server.profile;
     let invitation = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = effect_authority.effect_guard("agent invitation mint transaction")?;
-        snapback.auth_database_mut().mint_agent_invitation(
+        snapback.mint_agent_invitation(
+            &_effect,
             &user_id,
             profile,
             proof.proof(),
@@ -14579,7 +14692,8 @@ async fn auth_pairing_code(
     let effect_authority = authority.clone();
     let minted = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = effect_authority.effect_guard("pairing-code mint transaction")?;
-        snapback.auth_database_mut().mint_pairing_code(
+        snapback.mint_pairing_code(
+            &_effect,
             &user_id,
             now_ms,
             provider.agent_random_source(),
@@ -14607,7 +14721,8 @@ async fn auth_agent_pair(
     let now_ms = _provider.now_ms();
     let presentation = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = route_admission.effect_guard("agent pairing transaction")?;
-        snapback.auth_database_mut().present_pairing_code(
+        snapback.present_pairing_code(
+            &_effect,
             &credential,
             &request.pairing_request_id,
             &pairing_code,
@@ -14644,9 +14759,8 @@ async fn auth_agent_register(
     let profile = runtime.server.profile;
     let issued = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = route_admission.effect_guard("agent registration transaction")?;
-        snapback
-            .auth_database_mut()
-            .register_agent_principal_with_class(
+        snapback.register_agent_principal(
+                &_effect,
                 policy.mode,
                 invitation.as_ref(),
                 request.display_name,
@@ -14683,11 +14797,10 @@ async fn auth_grant_requests(
         return Err(auth_request_invalid());
     }
     let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
     Ok(Json(
         with_snapback(&runtime.snapback, move |snapback| {
-            snapback
-                .auth_database_mut()
-                .pending_grant_requests(&user_id, now_ms)
+            snapback.pending_grant_requests(&effect_authority, &user_id, now_ms)
         })
         .await?,
     ))
@@ -14710,8 +14823,9 @@ async fn auth_grant_request_approve(
             let admission = provider.admit().await;
             let challenge_id = step_up.challenge_id.clone();
             let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
-                let coordination =
-                    admission.step_up_coordination(snapback.auth_database_mut(), &challenge_id);
+                let coordination = snapback.execute_auth_plan(
+                    admission.step_up_coordination_plan(&challenge_id),
+                );
                 (admission, coordination)
             })
             .await;
@@ -14732,7 +14846,8 @@ async fn auth_grant_request_approve(
         // Freshness and grant TTL linearize here, after proof coordination and
         // its asynchronous address-stripe wait.
         let now_ms = effect_provider.now_ms();
-        snapback.auth_database_mut().approve_grant_request(
+        snapback.approve_grant_request(
+            &_effect,
             &user_id,
             &session_id,
             &request_id,
@@ -14762,9 +14877,7 @@ async fn auth_grant_request_deny(
     let effect_authority = authority.clone();
     with_snapback(&runtime.snapback, move |snapback| {
         let _effect = effect_authority.effect_guard("grant denial transaction")?;
-        snapback
-            .auth_database_mut()
-            .deny_grant_request(&user_id, &request_id, now_ms)
+        snapback.deny_grant_request(&_effect, &user_id, &request_id, now_ms)
     })
     .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
@@ -14783,11 +14896,10 @@ async fn auth_grants(
         return Err(auth_request_invalid());
     }
     let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
     Ok(Json(
         with_snapback(&runtime.snapback, move |snapback| {
-            snapback
-                .auth_database_mut()
-                .grants_for_user(&user_id, now_ms)
+            snapback.grants_for_user(&effect_authority, &user_id, now_ms)
         })
         .await?,
     ))
@@ -14810,29 +14922,27 @@ async fn auth_grant_revoke(
     let snapback = runtime.snapback.clone();
     let lifecycle = runtime.auth_terminal_lifecycle.clone();
     let effect_authority = authority.clone();
+    let planning_authority = authority.clone();
     let (user_id, grant_id, terminal_token_ids) =
         with_snapback(&runtime.snapback, move |snapback| {
-            let token_ids = snapback
-                .auth_database_mut()
-                .plan_grant_revocation_service_terminal(&user_id, &grant_id, now_ms)?;
+            let token_ids = snapback.plan_grant_revocation_service_terminal(
+                &planning_authority,
+                &user_id,
+                &grant_id,
+                now_ms,
+            )?;
             Ok::<_, SnapbackError>((user_id, grant_id, token_ids))
         })
         .await?;
-    let service_terminal_gate = runtime
-        .service_authority_fences
-        .acquire_terminal_gate(
-            &terminal_token_ids,
-            ServiceAuthorityDisposition::DurableDelete,
-        )
+    let service_terminal_gate = terminal_token_ids
+        .acquire_gate()
         .await
         .map_err(ApiError::from)?;
     let transaction = spawn_owned_auth_transaction(async move {
         let revocation = with_snapback(&snapback, move |snapback| {
             let revocation = with_service_authority_terminal_gate(service_terminal_gate, || {
                 let _effect = effect_authority.effect_guard("grant revocation transaction")?;
-                snapback
-                    .auth_database_mut()
-                    .revoke_grant_for_user(&user_id, &grant_id, now_ms)
+                snapback.revoke_grant_for_user(&_effect, &user_id, &grant_id, now_ms)
             })?;
             let terminal_token_ids = revocation.token_ids.clone();
             let close_by = terminal_close_by(Instant::now());
@@ -14865,29 +14975,32 @@ async fn auth_grants_revoke_by_actor(
     let snapback = runtime.snapback.clone();
     let lifecycle = runtime.auth_terminal_lifecycle.clone();
     let effect_authority = authority.clone();
+    let planning_authority = authority.clone();
     let (user_id, actor_id, terminal_token_ids) =
         with_snapback(&runtime.snapback, move |snapback| {
-            let token_ids = snapback
-                .auth_database_mut()
-                .plan_bulk_grant_revocation_service_terminal(&user_id, &actor_id, now_ms)?;
+            let token_ids = snapback.plan_bulk_grant_revocation_service_terminal(
+                &planning_authority,
+                &user_id,
+                &actor_id,
+                now_ms,
+            )?;
             Ok::<_, SnapbackError>((user_id, actor_id, token_ids))
         })
         .await?;
-    let service_terminal_gate = runtime
-        .service_authority_fences
-        .acquire_terminal_gate(
-            &terminal_token_ids,
-            ServiceAuthorityDisposition::DurableDelete,
-        )
+    let service_terminal_gate = terminal_token_ids
+        .acquire_gate()
         .await
         .map_err(ApiError::from)?;
     let transaction = spawn_owned_auth_transaction(async move {
         let revocation = with_snapback(&snapback, move |snapback| {
             let revocation = with_service_authority_terminal_gate(service_terminal_gate, || {
                 let _effect = effect_authority.effect_guard("bulk grant revocation transaction")?;
-                snapback
-                    .auth_database_mut()
-                    .revoke_grants_by_actor_for_user(&user_id, &actor_id, now_ms)
+                snapback.revoke_grants_by_actor_for_user(
+                    &_effect,
+                    &user_id,
+                    &actor_id,
+                    now_ms,
+                )
             })?;
             let terminal_token_ids = revocation.token_ids.clone();
             let close_by = terminal_close_by(Instant::now());
@@ -14923,23 +15036,18 @@ async fn auth_agent_rotate(
     let lifecycle = runtime.auth_terminal_lifecycle.clone();
     let (credential, terminal_token_ids) = with_snapback(&runtime.snapback, move |snapback| {
         let token_ids = snapback
-            .auth_database_mut()
             .plan_agent_credential_rotation_service_terminal(&credential, now_ms)?;
         Ok::<_, SnapbackError>((credential, token_ids))
     })
     .await?;
-    let service_terminal_gate = runtime
-        .service_authority_fences
-        .acquire_terminal_gate(
-            &terminal_token_ids,
-            ServiceAuthorityDisposition::DurableDelete,
-        )
+    let service_terminal_gate = terminal_token_ids
+        .acquire_gate()
         .await
         .map_err(ApiError::from)?;
     let transaction = spawn_owned_auth_transaction(async move {
         let issued = with_snapback(&snapback, move |snapback| {
             let issued = with_service_authority_terminal_gate(service_terminal_gate, || {
-                snapback.auth_database_mut().rotate_agent_credential(
+                snapback.rotate_agent_credential(
                     &credential,
                     now_ms,
                     provider.agent_random_source(),
@@ -14995,16 +15103,12 @@ async fn auth_agent_token(
                 credential,
                 grant_id,
                 ..
-            } => snapback
-                .auth_database_mut()
-                .plan_scoped_token_service_terminal(credential, grant_id, now_ms)?,
+            } => snapback.plan_scoped_token_service_terminal(credential, grant_id, now_ms)?,
             PlannedAgentTokenRequest::Pairing {
                 credential,
                 pairing_request_id,
                 ..
-            } => snapback
-                .auth_database_mut()
-                .plan_pairing_scoped_token_service_terminal(
+            } => snapback.plan_pairing_scoped_token_service_terminal(
                     credential,
                     pairing_request_id,
                     now_ms,
@@ -15013,9 +15117,8 @@ async fn auth_agent_token(
         Ok::<_, SnapbackError>((request, token_ids))
     })
     .await?;
-    let service_terminal_gate = runtime
-        .service_authority_fences
-        .acquire_terminal_gate(&terminal_token_ids, ServiceAuthorityDisposition::Carrier)
+    let service_terminal_gate = terminal_token_ids
+        .acquire_gate()
         .await
         .map_err(ApiError::from)?;
     let transaction = spawn_owned_auth_transaction(async move {
@@ -15026,7 +15129,7 @@ async fn auth_agent_token(
                         credential,
                         grant_id,
                         ttl_ms,
-                    } => snapback.auth_database_mut().mint_scoped_token(
+                    } => snapback.mint_scoped_token(
                         &credential,
                         &grant_id,
                         ttl_ms,
@@ -15037,9 +15140,7 @@ async fn auth_agent_token(
                         credential,
                         pairing_request_id,
                         ttl_ms,
-                    } => snapback
-                        .auth_database_mut()
-                        .mint_scoped_token_for_pairing_request(
+                    } => snapback.mint_scoped_token_for_pairing_request(
                             &credential,
                             &pairing_request_id,
                             ttl_ms,
@@ -15097,17 +15198,11 @@ async fn auth_agent_token_release(
         .map_err(|_| ApiError::from(scoped_token_invalid_carrier()))?;
     let now_ms = provider.now_ms();
     let token_id = with_snapback(&runtime.snapback, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .plan_scoped_token_release(&token_for_plan)
+        snapback.plan_scoped_token_release(&token_for_plan)
     })
     .await?;
-    let service_terminal_gate = runtime
-        .service_authority_fences
-        .acquire_terminal_gate(
-            std::slice::from_ref(&token_id),
-            ServiceAuthorityDisposition::Carrier,
-        )
+    let service_terminal_gate = token_id
+        .acquire_gate()
         .await
         .map_err(ApiError::from)?;
     let snapback = runtime.snapback.clone();
@@ -15115,9 +15210,7 @@ async fn auth_agent_token_release(
     let transaction = spawn_owned_auth_transaction(async move {
         let released = with_snapback(&snapback, move |snapback| {
             let released = with_service_authority_terminal_gate(service_terminal_gate, || {
-                snapback
-                    .auth_database_mut()
-                    .release_scoped_token(&token, now_ms)
+                snapback.release_scoped_token(&token, now_ms)
             })?;
             if released.newly_revoked {
                 let terminal_token_ids = vec![released.token_id.clone()];
@@ -15156,25 +15249,18 @@ async fn auth_agent_revoke_self(
     let lifecycle = runtime.auth_terminal_lifecycle.clone();
     let (credential, terminal_token_ids) = with_snapback(&runtime.snapback, move |snapback| {
         let token_ids = snapback
-            .auth_database_mut()
             .plan_agent_credential_family_service_terminal(&credential, now_ms)?;
         Ok::<_, SnapbackError>((credential, token_ids))
     })
     .await?;
-    let service_terminal_gate = runtime
-        .service_authority_fences
-        .acquire_terminal_gate(
-            &terminal_token_ids,
-            ServiceAuthorityDisposition::DurableDelete,
-        )
+    let service_terminal_gate = terminal_token_ids
+        .acquire_gate()
         .await
         .map_err(ApiError::from)?;
     let transaction = spawn_owned_auth_transaction(async move {
         let revoked = with_snapback(&snapback, move |snapback| {
             let revoked = with_service_authority_terminal_gate(service_terminal_gate, || {
-                snapback
-                    .auth_database_mut()
-                    .revoke_agent_credential_family(&credential, now_ms)
+                snapback.revoke_agent_credential_family(&credential, now_ms)
             })?;
             let terminal_token_ids = revoked.token_ids.clone();
             let close_by = terminal_close_by(Instant::now());
@@ -15213,25 +15299,18 @@ async fn auth_integration_retire(
     let lifecycle = runtime.auth_terminal_lifecycle.clone();
     let (credential, terminal_token_ids) = with_snapback(&runtime.snapback, move |snapback| {
         let token_ids = snapback
-            .auth_database_mut()
             .plan_integration_credential_family_service_terminal(&credential, now_ms)?;
         Ok::<_, SnapbackError>((credential, token_ids))
     })
     .await?;
-    let service_terminal_gate = runtime
-        .service_authority_fences
-        .acquire_terminal_gate(
-            &terminal_token_ids,
-            ServiceAuthorityDisposition::DurableDelete,
-        )
+    let service_terminal_gate = terminal_token_ids
+        .acquire_gate()
         .await
         .map_err(ApiError::from)?;
     let transaction = spawn_owned_auth_transaction(async move {
         let retired = with_snapback(&snapback, move |snapback| {
             let retired = with_service_authority_terminal_gate(service_terminal_gate, || {
-                snapback
-                    .auth_database_mut()
-                    .retire_integration_credential_family(&credential, now_ms)
+                snapback.retire_integration_credential_family(&credential, now_ms)
             })?;
             let terminal_token_ids = retired.token_ids.clone();
             let close_by = terminal_close_by(Instant::now());
@@ -15405,6 +15484,7 @@ async fn prepare_connection_open_authority_with_scoped_token(
         let prepared = installed_auth_coordinator(runtime)?
             .prepare_anonymous_connection()
             .map_err(ApiError::from)?;
+        let (authorization_stream_incarnation, publication) = prepared.into_parts();
         #[cfg(test)]
         pause_test_finite_authority_request(
             _test_finite_authority_pause_id,
@@ -15412,17 +15492,17 @@ async fn prepare_connection_open_authority_with_scoped_token(
             None,
         )
         .await;
-        let service_fences = runtime.service_authority_fences.clone();
-        let (resolved, service_publication) = with_snapback(&runtime.snapback, move |snapback| {
-            let resolved = snapback
-                .auth_database_mut()
-                .resolve_scoped_token(&token, now_ms)?;
-            let publication = service_fences
-                .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
-                .with_provider_clock(service_clock);
-            Ok::<_, SnapbackError>((resolved, publication))
+        let service_resolution = with_snapback(&runtime.snapback, move |snapback| {
+            snapback.resolve_scoped_token_route_authority(
+                &token,
+                now_ms,
+                monotonic_now,
+                service_clock,
+            )
         })
         .await?;
+        let resolved = service_resolution.resolved().clone();
+        let service_publication = service_resolution.publication().clone();
         #[cfg(test)]
         pause_test_finite_authority_request(
             _test_finite_authority_pause_id,
@@ -15430,19 +15510,30 @@ async fn prepare_connection_open_authority_with_scoped_token(
             None,
         )
         .await;
-        let token_id = resolved.token_id.clone();
-        let deadline_ms = resolved.expires_at_ms;
-        let authority = ResolvedAppAuthority::from_scoped_token(resolved);
+        let ResolvedAppAuthority::ServicePrincipal {
+            token_id,
+            token_expires_at_ms: deadline_ms,
+            ..
+        } = &resolved
+        else {
+            unreachable!("scoped-token resolution produces service authority")
+        };
+        let token_id = token_id.clone();
+        let deadline_ms = *deadline_ms;
+        let authority = resolved;
         return Ok(PreparedConnectionOpenAuthority {
             resolved: authority.clone(),
+            session_route_authority: None,
+            service_route_authority: Some(service_resolution.clone()),
             managed_authority: true,
             hosted_sender: None,
             bound: BoundGrantAuthority::ServicePrincipal {
-                authorization_stream_incarnation: prepared.authorization_stream_incarnation,
+                authorization_stream_incarnation,
                 authority,
+                route_authority: service_resolution,
                 token_id,
                 deadline_ms,
-                publication: prepared.publication,
+                publication,
                 service_publication,
             },
         });
@@ -15500,36 +15591,32 @@ async fn persist_expired_service_authority_owned(
     authority: PreparedAuthority,
 ) -> SnapbackResult<()> {
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(runtime);
-    let Some(deadline) =
-        authority.expired_service_deadline_terminal(epoch_now_ms, monotonic_now)?
-    else {
-        return Ok(());
-    };
     let snapback = runtime.snapback.clone();
     let lifecycle = runtime.auth_terminal_lifecycle.clone();
     let runtime_clock = runtime.clone();
     let lifecycle_authority = authority.clone();
-    let (deadline, terminal_token_ids) = with_snapback(&runtime.snapback, move |snapback| {
-        let token_ids = snapback
-            .auth_database_mut()
-            .plan_expired_service_authority_terminal(&deadline)?;
-        Ok::<_, SnapbackError>((deadline, token_ids))
+    let planning_authority = authority;
+    let Some(plan) = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.plan_expired_service_authority(
+            &planning_authority,
+            epoch_now_ms,
+            monotonic_now,
+        )
     })
-    .await?;
-    let service_terminal_gate = runtime
-        .service_authority_fences
-        .acquire_terminal_gate(&terminal_token_ids, deadline.disposition)
-        .await?;
+    .await?
+    else {
+        return Ok(());
+    };
+    let terminal_token_ids = plan.token_ids().to_vec();
+    let terminal_close_by = plan.close_by();
+    let service_terminal_gate = plan.acquire_gate().await?;
     let transaction = spawn_owned_auth_transaction(async move {
         with_snapback(&snapback, {
-            let deadline = deadline.clone();
+            let plan = plan.clone();
             move |snapback| {
                 with_service_authority_terminal_gate(service_terminal_gate, || {
-                    snapback
-                        .auth_database_mut()
-                        .terminalize_expired_service_authority(&deadline)
+                    snapback.commit_expired_service_authority(&plan)
                 })?;
-                let lifecycle_deadline = deadline.clone();
                 crate::exec_guard::run_or_defer_after_local(move || {
                     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime_clock);
                     let disposition = match lifecycle_authority
@@ -15545,7 +15632,7 @@ async fn persist_expired_service_authority_owned(
                     lifecycle.expire_service_tokens_for_disposition(
                         &terminal_token_ids,
                         disposition,
-                        lifecycle_deadline.close_by,
+                        terminal_close_by,
                     );
                 });
                 Ok::<_, SnapbackError>(())
@@ -15579,12 +15666,11 @@ async fn record_connection_authenticated_use(
         let _effect = effect_admission
             .effect_guard("authenticated connection use")
             .map_err(ProviderError::from)?;
-        provider_admission.record_authenticated_use(
-            snapback.auth_database_mut(),
-            &session_for_write,
+        snapback.execute_auth_plan(provider_admission.record_authenticated_use_plan(
+            session_for_write,
             generation,
             durable_now_ms,
-        )
+        ))
     })
     .await
     .map_err(map_provider_error)?;
@@ -15685,7 +15771,7 @@ async fn coordinated_mint_session(
         };
         let now_ms = provider.now_ms();
         let plan = with_snapback(&runtime.snapback, move |snapback| {
-            admission.plan_mint_session(snapback.auth_database_mut(), now_ms)
+            snapback.execute_auth_plan(admission.plan_mint_session_plan(now_ms))
         })
         .await;
         let mut plan = plan.map_err(ProviderError::into_snapback_error)?;
@@ -15716,9 +15802,8 @@ async fn coordinated_mint_session(
                 Ok(admission) => {
                     with_snapback(&snapback, move |snapback| {
                         match effect_admission.effect_guard("auth mint-session transaction") {
-                            Ok(_effect) => admission.commit_planned_issuance(
-                                snapback.auth_database_mut(),
-                                &commit_plan,
+                            Ok(_effect) => snapback.execute_auth_plan(
+                                admission.commit_planned_issuance_plan(&commit_plan),
                             ),
                             Err(error) => AuthTransactionAttempt::RolledBack(error),
                         }
@@ -15784,12 +15869,11 @@ async fn commit_password_issuance_plan(
     let snapback = runtime.snapback.clone();
     let transaction = spawn_owned_auth_transaction(async move {
         let admission = owned_provider.admit().await;
-        let commit_provider = owned_provider.clone();
         let attempt = with_snapback(&snapback, move |snapback| {
-            let _admission = admission;
             match effect_admission.effect_guard(effect) {
-                Ok(_effect) => commit_provider
-                    .commit_password_issuance(snapback.auth_database_mut(), &commit_plan),
+                Ok(_effect) => snapback.execute_auth_plan(
+                    admission.commit_password_issuance_plan(&commit_plan),
+                ),
                 Err(error) => AuthTransactionAttempt::RolledBack(error),
             }
         })
@@ -15833,11 +15917,11 @@ async fn commit_session_password_issuance_plan(
     let snapback = runtime.snapback.clone();
     let transaction = spawn_owned_auth_transaction(async move {
         let _admission = owned_provider.admit().await;
-        let commit_provider = owned_provider.clone();
         let attempt = with_snapback(&snapback, move |snapback| {
             match effect_authority.effect_guard(effect) {
-                Ok(_effect) => commit_provider
-                    .commit_password_issuance(snapback.auth_database_mut(), &commit_plan),
+                Ok(_effect) => snapback.execute_auth_plan(
+                    _admission.commit_password_issuance_plan(&commit_plan),
+                ),
                 Err(error) => AuthTransactionAttempt::RolledBack(error),
             }
         })
@@ -15893,10 +15977,8 @@ async fn commit_password_reset_plan(
             Ok(exchange) => {
                 with_snapback(&snapback, move |snapback| {
                     match effect_admission.effect_guard("password reset transaction") {
-                        Ok(_effect) => exchange.commit_planned_issuance(
-                            snapback.auth_database_mut(),
-                            &commit_plan,
-                            &code,
+                        Ok(_effect) => snapback.execute_auth_plan(
+                            exchange.commit_planned_issuance_plan(&commit_plan, &code),
                         ),
                         Err(error) => AuthTransactionAttempt::RolledBack(error),
                     }
@@ -15963,7 +16045,7 @@ async fn coordinated_exchange_session(
         let plan_code = code.clone();
         let now_ms = provider.now_ms();
         let planned = with_snapback(&runtime.snapback, move |snapback| {
-            exchange.plan_exchange(snapback.auth_database_mut(), &plan_code, now_ms)
+            snapback.execute_auth_plan(exchange.plan_exchange_plan(&plan_code, now_ms))
         })
         .await;
         match planned? {
@@ -15978,11 +16060,12 @@ async fn coordinated_exchange_session(
                     .await?;
                 let outcome = with_snapback(&runtime.snapback, move |snapback| {
                     match effect_admission.effect_guard("auth exchange rejection transaction") {
-                        Ok(_effect) => exchange.commit_planned_rejection(
-                            snapback.auth_database_mut(),
-                            &commit_code,
-                            now_ms,
-                            rejected_sender_issuance.as_ref(),
+                        Ok(_effect) => snapback.execute_auth_plan(
+                            exchange.commit_planned_rejection_plan(
+                                &commit_code,
+                                now_ms,
+                                rejected_sender_issuance.as_ref(),
+                            ),
                         ),
                         Err(error) => Err(ProviderError::from(error)),
                     }
@@ -16029,10 +16112,11 @@ async fn coordinated_exchange_session(
                                 match effect_admission
                                     .effect_guard("auth exchange issuance transaction")
                                 {
-                                    Ok(_effect) => exchange.commit_planned_issuance(
-                                        snapback.auth_database_mut(),
-                                        &commit_plan,
-                                        &commit_code,
+                                    Ok(_effect) => snapback.execute_auth_plan(
+                                        exchange.commit_planned_issuance_plan(
+                                            &commit_plan,
+                                            &commit_code,
+                                        ),
                                     ),
                                     Err(error) => AuthTransactionAttempt::RolledBack(error),
                                 }
@@ -16263,9 +16347,7 @@ async fn auth_request_code(
     let window_address = admission.address().clone();
     let rehearsal_window = match rehearsal_binding_facts(&runtime).await {
         Ok(bindings) => with_snapback(&runtime.snapback, move |snapback| {
-            snapback
-                .auth_database_mut()
-                .auth_rehearsal_window_for_contact(&window_address, &bindings, now_ms)
+            snapback.auth_rehearsal_window_for_contact(&window_address, &bindings, now_ms)
         })
         .await
         .map_err(ApiError::from)?,
@@ -16276,12 +16358,10 @@ async fn auth_request_code(
             .effect_guard("auth request-code transaction")
             .map_err(ProviderError::from)?;
         match rehearsal_window.as_ref() {
-            Some(window) => admission.request_code_for_rehearsal_window(
-                snapback.auth_database_mut(),
-                now_ms,
-                window,
+            Some(window) => snapback.execute_auth_plan(
+                admission.request_code_for_rehearsal_window_plan(now_ms, window),
             ),
-            None => admission.request_code(snapback.auth_database_mut(), now_ms),
+            None => snapback.execute_auth_plan(admission.request_code_plan(now_ms)),
         }
     })
     .await
@@ -16317,9 +16397,8 @@ async fn auth_exchange(
             Ok(effect) => effect,
             Err(error) => return (admission, Err(ProviderError::from(error))),
         };
-        let coordination = admission.exchange_coordination(
-            snapback.auth_database_mut(),
-            preliminary_challenge_id.as_str(),
+        let coordination = snapback.execute_auth_plan(
+            admission.exchange_coordination_plan(preliminary_challenge_id.as_str()),
         );
         (admission, coordination)
     })
@@ -16333,9 +16412,7 @@ async fn auth_exchange(
                     let lookup_challenge_id = challenge_id.as_str().to_owned();
                     let lookup_bindings = bindings.clone();
                     let resolved = with_snapback(&runtime.snapback, move |snapback| {
-                        snapback
-                            .auth_database_mut()
-                            .auth_rehearsal_window_for_challenge(
+                        snapback.auth_rehearsal_window_for_challenge(
                                 &lookup_challenge_id,
                                 &lookup_bindings,
                                 now_ms,
@@ -16399,13 +16476,12 @@ async fn auth_exchange(
                 let _effect = route_admission
                     .effect_guard("unknown auth exchange transaction")
                     .map_err(ProviderError::from)?;
-                admission.exchange_unknown(
-                    snapback.auth_database_mut(),
+                snapback.execute_auth_plan(admission.exchange_unknown_plan(
                     challenge_id.as_str(),
                     code.as_str(),
                     now_ms,
                     sender_issuance.as_ref(),
-                )
+                ))
             })
             .await
         }
@@ -16505,13 +16581,9 @@ async fn auth_password_signup(
         .admit_email(&request.email)
         .await
         .map_err(map_provider_error)?;
-    let planning_provider = provider.clone();
-    let identifier = request.email.clone();
     let (address_admission, preparation) = with_snapback(&runtime.snapback, move |snapback| {
-        let preparation = planning_provider.prepare_password_registration(
-            snapback.auth_database_mut(),
-            &identifier,
-            PasswordIssuanceCustody::Bearer,
+        let preparation = snapback.execute_auth_plan(
+            address_admission.prepare_password_registration_plan(PasswordIssuanceCustody::Bearer),
         );
         (address_admission, preparation)
     })
@@ -16553,15 +16625,11 @@ async fn auth_password_signin(
         .admit_email(&request.email)
         .await
         .map_err(map_provider_error)?;
-    let planning_provider = provider.clone();
-    let identifier = request.email.clone();
     let now_ms = provider.now_ms();
     let (address_admission, preparation) = with_snapback(&runtime.snapback, move |snapback| {
-        let preparation = planning_provider.prepare_password_authentication(
-            snapback.auth_database_mut(),
-            &identifier,
-            now_ms,
-            PasswordIssuanceCustody::Bearer,
+        let preparation = snapback.execute_auth_plan(
+            address_admission
+                .prepare_password_authentication_plan(now_ms, PasswordIssuanceCustody::Bearer),
         );
         (address_admission, preparation)
     })
@@ -16602,8 +16670,9 @@ async fn auth_password_reset(
     let admission = provider.admit().await;
     let challenge_id = request.challenge_id.clone();
     let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
-        let coordination =
-            admission.exchange_coordination(snapback.auth_database_mut(), &challenge_id);
+        let coordination = snapback.execute_auth_plan(
+            admission.exchange_coordination_plan(&challenge_id),
+        );
         (admission, coordination)
     })
     .await;
@@ -16618,8 +16687,9 @@ async fn auth_password_reset(
     let plan_code = code.clone();
     let now_ms = provider.now_ms();
     let (exchange, preparation) = with_snapback(&runtime.snapback, move |snapback| {
-        let preparation =
-            exchange.prepare_password_reset(snapback.auth_database_mut(), &plan_code, now_ms);
+        let preparation = snapback.execute_auth_plan(
+            exchange.prepare_password_reset_plan(&plan_code, now_ms),
+        );
         (exchange, preparation)
     })
     .await;
@@ -16666,17 +16736,15 @@ async fn auth_recovery_consume(
         .admit_email(&request.email)
         .await
         .map_err(map_provider_error)?;
-    let planning_provider = provider.clone();
-    let identifier = request.email.clone();
     let code = request.code.as_str().to_owned();
     let now_ms = provider.now_ms();
     let (address_admission, plan) = with_snapback(&runtime.snapback, move |snapback| {
-        let plan = planning_provider.plan_password_recovery_consume_with_active_key(
-            snapback.auth_database_mut(),
-            &identifier,
-            &code,
-            now_ms,
-            PasswordIssuanceCustody::Bearer,
+        let plan = snapback.execute_auth_plan(
+            address_admission.plan_password_recovery_consume_plan(
+                &code,
+                now_ms,
+                PasswordIssuanceCustody::Bearer,
+            ),
         );
         (address_admission, plan)
     })
@@ -16717,12 +16785,12 @@ async fn commit_password_change_plan(
     let owned_coordinator = coordinator.clone();
     let snapback = runtime.snapback.clone();
     let transaction = spawn_owned_auth_transaction(async move {
-        let _admission = owned_provider.admit().await;
-        let commit_provider = owned_provider.clone();
+        let admission = owned_provider.admit().await;
         let attempt = with_snapback(&snapback, move |snapback| {
             match effect_authority.effect_guard("password change transaction") {
-                Ok(_effect) => commit_provider
-                    .commit_password_change(snapback.auth_database_mut(), &commit_plan),
+                Ok(_effect) => snapback.execute_auth_plan(
+                    admission.commit_password_change_plan(&commit_plan),
+                ),
                 Err(error) => AuthTransactionAttempt::RolledBack(error),
             }
         })
@@ -16752,14 +16820,13 @@ async fn auth_password_change(
     let now_ms = provider.now_ms();
     match request {
         PasswordChangeRequest::Rotate(request) => {
-            let planning_provider = provider.clone();
+            let planning_admission = provider.admit().await;
             let discovery = with_snapback(&runtime.snapback, move |snapback| {
-                planning_provider.prepare_password_change(
-                    snapback.auth_database_mut(),
+                snapback.execute_auth_plan(planning_admission.prepare_password_change_plan(
                     &bearer,
                     now_ms,
                     PasswordIssuanceCustody::Bearer,
-                )
+                ))
             })
             .await?;
             let identifier = discovery.canonical_identifier().to_owned();
@@ -16777,11 +16844,12 @@ async fn auth_password_change(
                     .map_err(|_| password_credential_invalid())?;
             let (address_admission, preparation) =
                 with_snapback(&runtime.snapback, move |snapback| {
-                    let preparation = address_admission.prepare_password_change(
-                        snapback.auth_database_mut(),
-                        &planning_bearer,
-                        now_ms,
-                        PasswordIssuanceCustody::Bearer,
+                    let preparation = snapback.execute_auth_plan(
+                        address_admission.prepare_password_change_plan(
+                            &planning_bearer,
+                            now_ms,
+                            PasswordIssuanceCustody::Bearer,
+                        ),
                     );
                     (address_admission, preparation)
                 })
@@ -16823,8 +16891,9 @@ async fn auth_password_change(
             let admission = provider.admit().await;
             let challenge_id = request.step_up.challenge_id.clone();
             let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
-                let coordination =
-                    admission.step_up_coordination(snapback.auth_database_mut(), &challenge_id);
+                let coordination = snapback.execute_auth_plan(
+                    admission.step_up_coordination_plan(&challenge_id),
+                );
                 (admission, coordination)
             })
             .await;
@@ -16836,24 +16905,21 @@ async fn auth_password_change(
                 )
                 .await
                 .map_err(map_provider_error)?;
-            let identifier = proof_admission.address().as_str().to_owned();
             let identity_id = request.step_up.identity_id.clone();
-            let planning_provider = provider.clone();
+            let step_up_proof = proof_admission.proof().clone();
             let preparation = with_snapback(&runtime.snapback, move |snapback| {
-                planning_provider.prepare_password_set(
-                    snapback.auth_database_mut(),
+                snapback.execute_auth_plan(proof_admission.prepare_password_set_plan(
                     &bearer,
                     &identity_id,
-                    &identifier,
                     now_ms,
                     PasswordIssuanceCustody::Bearer,
-                )
+                ))
             })
             .await?;
             let plan = provider
                 .finish_password_set_with_active_recovery_key(
                     preparation,
-                    proof_admission.proof().clone(),
+                    step_up_proof,
                     crate::auth::identity_core::PasswordSecret::new(
                         request.new_password.as_str().to_owned(),
                     ),
@@ -16865,7 +16931,6 @@ async fn auth_password_change(
             // release its maintenance/address guards before projection Begin.
             // @ref LLP 0057#concurrency-locks-and-linearization — no provider
             // planning guard overlaps projection ownership.
-            drop(proof_admission);
             let finish = commit_session_password_issuance_plan(
                 &runtime,
                 &provider,
@@ -16890,15 +16955,14 @@ async fn auth_recovery_rotate(
     let provider = installed_auth_provider(&runtime)?;
     let bearer = SessionBearer::parse_any_version(auth_bearer(&headers).unwrap_or_default())
         .map_err(|_| password_credential_invalid())?;
-    let planning_provider = provider.clone();
     let now_ms = provider.now_ms();
+    let admission = provider.admit().await;
     let plan = with_snapback(&runtime.snapback, move |snapback| {
-        planning_provider.plan_password_recovery_rotate_with_active_key(
-            snapback.auth_database_mut(),
+        snapback.execute_auth_plan(admission.plan_password_recovery_rotate_plan(
             &bearer,
             now_ms,
             PasswordIssuanceCustody::Bearer,
-        )
+        ))
     })
     .await?;
     let finish = commit_session_password_issuance_plan(
@@ -16937,7 +17001,7 @@ async fn auth_refresh(
         let plan_bearer = bearer.as_str().to_owned();
         let now_ms = provider.now_ms();
         let planned = with_snapback(&runtime.snapback, move |snapback| {
-            admission.plan_refresh(snapback.auth_database_mut(), &plan_bearer, now_ms)
+            snapback.execute_auth_plan(admission.plan_refresh_plan(&plan_bearer, now_ms))
         })
         .await;
         match planned.map_err(map_provider_error)? {
@@ -16972,8 +17036,9 @@ async fn auth_refresh(
                     let attempt = with_snapback(&snapback, move |snapback| match effect_authority
                         .effect_guard("auth refresh rotation transaction")
                     {
-                        Ok(_effect) => admission
-                            .commit_planned_rotation(snapback.auth_database_mut(), &commit_plan),
+                        Ok(_effect) => snapback.execute_auth_plan(
+                            admission.commit_planned_rotation_plan(&commit_plan),
+                        ),
                         Err(error) => AuthTransactionAttempt::RolledBack(error),
                     })
                     .await;
@@ -17010,10 +17075,8 @@ async fn auth_refresh(
                     let attempt = with_snapback(&snapback, move |snapback| match effect_authority
                         .effect_guard("auth refresh reuse transaction")
                     {
-                        Ok(_effect) => admission.commit_planned_revocation(
-                            snapback.auth_database_mut(),
-                            &commit_plan,
-                            now_ms,
+                        Ok(_effect) => snapback.execute_auth_plan(
+                            admission.commit_planned_revocation_plan(&commit_plan, now_ms),
                         ),
                         Err(error) => AuthTransactionAttempt::RolledBack(error),
                     })
@@ -17071,7 +17134,7 @@ async fn auth_logout(
         let plan_bearer = bearer.as_str().to_owned();
         let now_ms = provider.now_ms();
         let planned = with_snapback(&runtime.snapback, move |snapback| {
-            admission.plan_logout(snapback.auth_database_mut(), &plan_bearer, now_ms)
+            snapback.execute_auth_plan(admission.plan_logout_plan(&plan_bearer, now_ms))
         })
         .await;
         let plan = match planned.map_err(map_provider_error)? {
@@ -17100,10 +17163,8 @@ async fn auth_logout(
             let admission = owned_provider.admit().await;
             let attempt = with_snapback(&snapback, move |snapback| {
                 match effect_authority.effect_guard("auth logout transaction") {
-                    Ok(_effect) => admission.commit_planned_revocation(
-                        snapback.auth_database_mut(),
-                        &commit_plan,
-                        now_ms,
+                    Ok(_effect) => snapback.execute_auth_plan(
+                        admission.commit_planned_revocation_plan(&commit_plan, now_ms),
                     ),
                     Err(error) => AuthTransactionAttempt::RolledBack(error),
                 }
@@ -17153,31 +17214,12 @@ async fn push_token_register(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<PushTokenRegistrationResponse>, ApiError> {
-    let (principal_id, session_id, session_generation) =
-        require_push_registry_authority(&authority)?;
     let request = parse_auth_json::<RegisterPushTokenRequest>(&headers, body)?;
     let provider = installed_auth_provider(&runtime)?;
     let now_ms = provider.now_ms();
     let effect_authority = authority.clone();
     let response = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = effect_authority.effect_guard("push-token registration transaction")?;
-        let database = snapback.auth_database_mut();
-        let declaration = database.schema().push_seam.clone().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
-                "push",
-                "the app schema does not declare definePushSeam",
-            )
-        })?;
-        database.push_registry().register(
-            &declaration,
-            &principal_id,
-            &session_id,
-            session_generation,
-            &request.installation_id,
-            request.token.as_str(),
-            now_ms,
-        )
+        snapback.register_push_token(&effect_authority, &request, now_ms)
     })
     .await?;
     Ok(Json(response))
@@ -17189,30 +17231,12 @@ async fn push_token_unregister(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<PushTokenUnregisterResponse>, ApiError> {
-    let (principal_id, session_id, session_generation) =
-        require_push_registry_authority(&authority)?;
     let request = parse_auth_json::<UnregisterPushTokenRequest>(&headers, body)?;
     let provider = installed_auth_provider(&runtime)?;
     let now_ms = provider.now_ms();
     let effect_authority = authority.clone();
     let response = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = effect_authority.effect_guard("push-token unregister transaction")?;
-        let database = snapback.auth_database_mut();
-        let declaration = database.schema().push_seam.clone().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
-                "push",
-                "the app schema does not declare definePushSeam",
-            )
-        })?;
-        database.push_registry().unregister(
-            &declaration,
-            &principal_id,
-            &session_id,
-            session_generation,
-            &request.installation_id,
-            now_ms,
-        )
+        snapback.unregister_push_token(&effect_authority, &request, now_ms)
     })
     .await?;
     Ok(Json(response))
@@ -17302,7 +17326,7 @@ async fn auth_family_alarm(
         let plan_bearer = bearer.as_str().to_owned();
         let now_ms = provider.now_ms();
         let planned = with_snapback(&runtime.snapback, move |snapback| {
-            admission.plan_family_alarm(snapback.auth_database_mut(), &plan_bearer, now_ms)
+            snapback.execute_auth_plan(admission.plan_family_alarm_plan(&plan_bearer, now_ms))
         })
         .await;
         let plan = planned.map_err(map_provider_error)?;
@@ -17315,9 +17339,8 @@ async fn auth_family_alarm(
                 let admission = provider.admit().await;
                 match with_snapback(&runtime.snapback, move |snapback| {
                     match effect_admission.effect_guard("auth family-alarm transaction") {
-                        Ok(_effect) => admission.commit_planned_family_alarm(
-                            snapback.auth_database_mut(),
-                            &commit_plan,
+                        Ok(_effect) => snapback.execute_auth_plan(
+                            admission.commit_planned_family_alarm_plan(&commit_plan),
                         ),
                         Err(error) => AuthTransactionAttempt::RolledBack(error),
                     }
@@ -17363,9 +17386,8 @@ async fn auth_family_alarm(
                     let family_attempt = with_snapback(&snapback, move |snapback| {
                         match effect_admission.effect_guard("auth family-alarm revoke transaction")
                         {
-                            Ok(_effect) => admission.commit_planned_family_alarm(
-                                snapback.auth_database_mut(),
-                                &commit_plan,
+                            Ok(_effect) => snapback.execute_auth_plan(
+                                admission.commit_planned_family_alarm_plan(&commit_plan),
                             ),
                             Err(error) => AuthTransactionAttempt::RolledBack(error),
                         }
@@ -17451,33 +17473,42 @@ async fn auth_mailbox(
 
 async fn retire_integration_as_operator(
     runtime: &AppState,
+    authority: PreparedAuthority,
     principal_user_id: String,
     now_ms: u64,
 ) -> Result<crate::storage::auth_agent_credentials::AgentFamilyRevocation, ApiError> {
     let snapback = runtime.snapback.clone();
     let lifecycle = runtime.auth_terminal_lifecycle.clone();
+    let operator = runtime.operator_authority.clone();
+    let terminal_operator = operator.clone();
     let (principal_user_id, terminal_token_ids) =
-        with_snapback(&runtime.snapback, move |snapback| {
+        with_snapback(&runtime.snapback, {
+            let authority = authority.clone();
+            move |snapback| {
             let token_ids = snapback
-                .auth_database_mut()
-                .plan_integration_principal_service_terminal(&principal_user_id)?;
+                .plan_integration_principal_service_terminal(
+                    &operator,
+                    &authority,
+                    &principal_user_id,
+                )?;
             Ok::<_, SnapbackError>((principal_user_id, token_ids))
+        }
         })
         .await?;
-    let terminal_gate = runtime
-        .service_authority_fences
-        .acquire_terminal_gate(
-            &terminal_token_ids,
-            ServiceAuthorityDisposition::DurableDelete,
-        )
+    let terminal_gate = terminal_token_ids
+        .acquire_gate()
         .await
         .map_err(ApiError::from)?;
     let transaction = spawn_owned_auth_transaction(async move {
         let retired = with_snapback(&snapback, move |snapback| {
             let retired = with_service_authority_terminal_gate(terminal_gate, || {
                 snapback
-                    .auth_database_mut()
-                    .retire_integration_principal(&principal_user_id, now_ms)
+                    .retire_integration_principal(
+                        &terminal_operator,
+                        &authority,
+                        &principal_user_id,
+                        now_ms,
+                    )
             })?;
             let token_ids = retired.token_ids.clone();
             let close_by = terminal_close_by(Instant::now());
@@ -17495,23 +17526,28 @@ async fn retire_integration_as_operator(
 
 async fn admin_integration_retire(
     State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
     Path(principal_user_id): Path<String>,
     _body: Bytes,
 ) -> Result<Response, ApiError> {
     let provider = require_agent_routes_available(&runtime)?;
     let _retired =
-        retire_integration_as_operator(&runtime, principal_user_id, provider.now_ms()).await?;
+        retire_integration_as_operator(&runtime, authority, principal_user_id, provider.now_ms()).await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
 async fn set_integration_suspension_as_operator(
     runtime: &AppState,
+    authority: PreparedAuthority,
     principal_user_id: String,
     suspended: bool,
     now_ms: u64,
 ) -> Result<crate::storage::auth_integrations::IntegrationRecord, ApiError> {
+    let operator = runtime.operator_authority.clone();
     Ok(with_snapback(&runtime.snapback, move |snapback| {
-        snapback.auth_database_mut().set_integration_suspended(
+        snapback.set_integration_suspended(
+            &operator,
+            &authority,
             &principal_user_id,
             suspended,
             now_ms,
@@ -17522,12 +17558,14 @@ async fn set_integration_suspension_as_operator(
 
 async fn admin_integration_suspend(
     State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
     Path(principal_user_id): Path<String>,
     _body: Bytes,
 ) -> Result<Json<Value>, ApiError> {
     let provider = require_agent_routes_available(&runtime)?;
     let record = set_integration_suspension_as_operator(
         &runtime,
+        authority,
         principal_user_id,
         true,
         provider.now_ms(),
@@ -17542,12 +17580,14 @@ async fn admin_integration_suspend(
 
 async fn admin_integration_resume(
     State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
     Path(principal_user_id): Path<String>,
     _body: Bytes,
 ) -> Result<Json<Value>, ApiError> {
     let provider = require_agent_routes_available(&runtime)?;
     let record = set_integration_suspension_as_operator(
         &runtime,
+        authority,
         principal_user_id,
         false,
         provider.now_ms(),
@@ -17627,9 +17667,13 @@ fn recent_usage_value(usage: &RecentCallerUsage, lane: &str, caller_key: &str) -
     })
 }
 
-async fn admin_integrations(State(runtime): State<AppState>) -> Result<Json<Value>, ApiError> {
+async fn admin_integrations(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+) -> Result<Json<Value>, ApiError> {
+    let operator = runtime.operator_authority.clone();
     let rows = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.auth_database_mut().list_integrations()
+        snapback.list_integrations(&operator, &authority)
     })
     .await?;
     let usage = recent_caller_usage(&runtime, "integration")?;
@@ -17652,13 +17696,14 @@ async fn admin_integrations(State(runtime): State<AppState>) -> Result<Json<Valu
 
 async fn admin_password_unlock(
     State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
     input: Result<Json<PasswordUnlockRequest>, JsonRejection>,
 ) -> Result<Json<PasswordUnlockResponse>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+    let operator = runtime.operator_authority.clone();
     let unlocked = with_snapback(&runtime.snapback, move |snapback| {
         snapback
-            .auth_database_mut()
-            .clear_password_lockout(&input.email)
+            .clear_password_lockout(&operator, &authority, &input.email)
     })
     .await?;
     Ok(Json(PasswordUnlockResponse { unlocked }))
@@ -17674,16 +17719,17 @@ async fn admin_password_unlock(
 ///   projections, never through a password refusal.
 async fn admin_password_attempt(
     State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
     input: Result<Json<PasswordAttemptAdminRequest>, JsonRejection>,
 ) -> Result<Json<PasswordAttemptAdminResponse>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let provider = installed_auth_provider(&runtime)?;
     let profile = provider.password_security_profile();
     let now_ms = provider.now_ms();
+    let operator = runtime.operator_authority.clone();
     let attempt = with_snapback(&runtime.snapback, move |snapback| {
         snapback
-            .auth_database_mut()
-            .password_attempt_admin_projection(&input.email, now_ms)
+            .password_attempt_admin_projection(&operator, &authority, &input.email, now_ms)
     })
     .await?
     .map(|attempt| PasswordAttemptAdminRecord {
@@ -17722,11 +17768,14 @@ fn operator_declared_client_id(raw: &str) -> Result<String, ApiError> {
         })
 }
 
-async fn admin_declared_clients(State(runtime): State<AppState>) -> Result<Json<Value>, ApiError> {
+async fn admin_declared_clients(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+) -> Result<Json<Value>, ApiError> {
+    let operator = runtime.operator_authority.clone();
     let rows = with_snapback(&runtime.snapback, move |snapback| {
         snapback
-            .auth_database_mut()
-            .list_declared_clients(now_millis())
+            .list_declared_clients(&operator, &authority, now_millis())
     })
     .await?;
     let usage = recent_caller_usage(&runtime, "declared")?;
@@ -17749,15 +17798,16 @@ async fn admin_declared_clients(State(runtime): State<AppState>) -> Result<Json<
 
 async fn set_declared_client_status_as_operator(
     runtime: &AppState,
+    authority: PreparedAuthority,
     input: Result<Json<DeclaredClientOperatorRequest>, JsonRejection>,
     status: crate::storage::declared_clients::DeclaredClientStatus,
 ) -> Result<Json<Value>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let normalized_id = operator_declared_client_id(&input.client_id)?;
+    let operator = runtime.operator_authority.clone();
     let record = with_snapback(&runtime.snapback, move |snapback| {
         snapback
-            .auth_database_mut()
-            .set_declared_client_status(&normalized_id, status)
+            .set_declared_client_status(&operator, &authority, &normalized_id, status)
     })
     .await?;
     Ok(Json(json!({ "declaredClient": record })))
@@ -17765,10 +17815,12 @@ async fn set_declared_client_status_as_operator(
 
 async fn admin_declared_client_bless(
     State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
     input: Result<Json<DeclaredClientOperatorRequest>, JsonRejection>,
 ) -> Result<Json<Value>, ApiError> {
     set_declared_client_status_as_operator(
         &runtime,
+        authority,
         input,
         crate::storage::declared_clients::DeclaredClientStatus::Blessed,
     )
@@ -17777,10 +17829,12 @@ async fn admin_declared_client_bless(
 
 async fn admin_declared_client_suspend(
     State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
     input: Result<Json<DeclaredClientOperatorRequest>, JsonRejection>,
 ) -> Result<Json<Value>, ApiError> {
     set_declared_client_status_as_operator(
         &runtime,
+        authority,
         input,
         crate::storage::declared_clients::DeclaredClientStatus::Suspended,
     )
@@ -17789,10 +17843,12 @@ async fn admin_declared_client_suspend(
 
 async fn admin_declared_client_resume(
     State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
     input: Result<Json<DeclaredClientOperatorRequest>, JsonRejection>,
 ) -> Result<Json<Value>, ApiError> {
     set_declared_client_status_as_operator(
         &runtime,
+        authority,
         input,
         crate::storage::declared_clients::DeclaredClientStatus::Active,
     )
@@ -17801,14 +17857,15 @@ async fn admin_declared_client_resume(
 
 async fn admin_declared_client_delete(
     State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
     input: Result<Json<DeclaredClientOperatorRequest>, JsonRejection>,
 ) -> Result<Response, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let normalized_id = operator_declared_client_id(&input.client_id)?;
+    let operator = runtime.operator_authority.clone();
     with_snapback(&runtime.snapback, move |snapback| {
         snapback
-            .auth_database_mut()
-            .delete_declared_client(&normalized_id)
+            .delete_declared_client(&operator, &authority, &normalized_id)
     })
     .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
@@ -18190,6 +18247,10 @@ pub fn route_registry() -> Vec<RouteSpec> {
         .into_iter()
         .map(|registration| registration.spec)
         .collect()
+}
+
+pub(crate) fn served_route_paths() -> Vec<&'static str> {
+    route_registry().into_iter().map(|route| route.path).collect()
 }
 
 /// Opaque build receipt issued by the module that constructs the real
@@ -19545,32 +19606,13 @@ pub(crate) async fn drive_push_maintenance_once(
     let planned = with_snapback(
         state,
         move |snapback| -> SnapbackResult<Option<PushMaintenancePlan>> {
-            let has_ledger = snapback
-                .auth_database_mut()
-                .schema()
-                .push_seam
-                .as_ref()
-                .is_some_and(|declaration| declaration.ledger.is_some());
-            if !has_ledger {
-                return Ok(None);
-            }
-            // @ref LLP 0158#the-runtime-plane--where-the-real-design-is —
-            // receipt polling and recovery transmit are denied even when an
-            // inherited environment would otherwise configure the provider.
-            snapback.deny_derived_fork_egress(
-                crate::instance_fork::EgressFamily::PushReceipt,
-                now_ms,
-            )?;
-            let access_token = snapback.push_maintenance_access_token();
-            let claim = snapback
-                .auth_database_mut()
-                .push_registry()
-                .claim_maintenance(now_ms)?;
-            Ok(Some(PushMaintenancePlan {
-                recovered: claim.0,
-                receipts: claim.1,
-                access_token,
-            }))
+            Ok(snapback.claim_push_maintenance(now_ms)?.map(
+                |(recovered, receipts, access_token)| PushMaintenancePlan {
+                    recovered,
+                    receipts,
+                    access_token,
+                },
+            ))
         },
     )
     .await?;
@@ -19615,7 +19657,7 @@ pub(crate) async fn drive_push_maintenance_once(
             )
         })?;
         with_snapback(state, move |snapback| {
-            snapback.auth_database_mut().push_registry().settle_batch(
+            snapback.settle_push_maintenance_batch(
                 &recovered_claim,
                 &settlement,
                 now_millis(),
@@ -19659,10 +19701,7 @@ pub(crate) async fn drive_push_maintenance_once(
         return Ok(());
     };
     with_snapback(state, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .push_registry()
-            .settle_receipt_poll(&claim, &outcomes, now_millis())
+        snapback.settle_push_receipt_poll(&claim, &outcomes, now_millis())
     })
     .await
 }
@@ -20295,8 +20334,7 @@ async fn app_api_openapi(State(runtime): State<AppState>) -> Result<Response, Ap
     let (digest, canonical) = current_app_api_envelope(&runtime).await?;
     let oauth = with_snapback(&runtime.snapback, |snapback| {
         snapback
-            .auth_database_mut()
-            .schema()
+            .served_schema_manifest()
             .oauth_manifest()
             .cloned()
     })
@@ -20337,8 +20375,7 @@ async fn app_api_agent_skill(State(runtime): State<AppState>) -> Result<Response
     let (digest, canonical) = current_app_api_envelope(&runtime).await?;
     let oauth_enabled = with_snapback(&runtime.snapback, |snapback| {
         snapback
-            .auth_database_mut()
-            .schema()
+            .served_schema_manifest()
             .oauth_manifest()
             .is_some()
     })
@@ -20499,17 +20536,13 @@ pub(crate) fn project_auth_runtime_facts(inspect: &mut InspectState, runtime: &A
         if !available {
             "absent"
         } else {
-            let now_ms = now_millis();
-            let mut live = runtime
-                .auth_rehearsal_live_grants
-                .write()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            live.retain(|_, authority| authority.expires_at_ms > now_ms);
-            if live.is_empty() {
-                "available"
-            } else {
-                "active"
-            }
+            let active = runtime
+                .auth_coordinator
+                .as_ref()
+                .is_some_and(|coordinator| {
+                    coordinator.rehearsal_capability_active(now_millis())
+                });
+            if active { "active" } else { "available" }
         }
     };
     // @ref LLP 0213#capability-manifest — the public capability projection
@@ -21030,6 +21063,7 @@ async fn execute_auth_host_operation(
     headers: &HeaderMap,
     impersonation: Option<&crate::admin_impersonation::VerifiedImpersonationCapability>,
     route_admission: &AdmissionLease,
+    prepared_authority: Option<&PreparedAuthority>,
     request: crate::host_ops::HostOpsRequest,
     server_url: Option<String>,
 ) -> Result<crate::host_ops::HostOpsResult, ApiError> {
@@ -21159,36 +21193,22 @@ async fn execute_auth_host_operation(
                     }
                 };
             let outcome = with_snapback(&runtime.snapback, move |snapback| {
-                snapback
-                    .auth_database_mut()
-                    .auth_rehearsal_mint(crate::storage::auth_rehearsal::RehearsalMintPlan {
+                snapback.auth_rehearsal_mint(
+                    crate::storage::auth_rehearsal::RehearsalMintPlan {
                         request: args,
                         bindings,
                         carrier,
                         window_namespace_candidates,
                         now_ms,
                     })
-                    .map(crate::auth::rehearsal::MintedRehearsalGrant::into_value)
             })
             .await;
-            if let Ok(value) = &outcome
-                && let (Some(grant_id), Some(expires_at)) = (
-                    value.pointer("/grant/grantId").and_then(Value::as_str),
-                    value.pointer("/grant/expiresAt").and_then(Value::as_u64),
-                )
-            {
-                runtime
-                    .auth_rehearsal_live_grants
-                    .write()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .insert(
-                        grant_id.to_owned(),
-                        crate::auth::rehearsal::RehearsalLiveAuthority {
-                            expires_at_ms: expires_at,
-                            parent_grant_id: None,
-                        },
-                    );
-            }
+            let outcome = outcome.map(|minted| {
+                if let Some(coordinator) = runtime.auth_coordinator.as_ref() {
+                    coordinator.publish_rehearsal_grant(&minted);
+                }
+                minted.into_value()
+            });
             Ok(auth_host_result(runtime, request, server_url, outcome).await)
         }
         "auth.rehearsal.status" => {
@@ -21207,9 +21227,7 @@ async fn execute_auth_host_operation(
                 .map_or_else(now_millis, |provider| provider.now_ms());
             let outcome = if runtime.auth_catalog_ready {
                 with_snapback(&runtime.snapback, move |snapback| {
-                    snapback
-                        .auth_database_mut()
-                        .auth_rehearsal_status(args.grant_id.as_deref(), now_ms)
+                    snapback.auth_rehearsal_status(args.grant_id.as_deref(), now_ms)
                         .and_then(|status| {
                             serde_json::to_value(status)
                                 .map_err(|_| crate::auth::rehearsal::request_invalid())
@@ -21244,9 +21262,7 @@ async fn execute_auth_host_operation(
             let revoked_grant_id = args.grant_id.clone();
             let outcome = if runtime.auth_catalog_ready {
                 with_snapback(&runtime.snapback, move |snapback| {
-                    snapback
-                        .auth_database_mut()
-                        .auth_rehearsal_revoke(&args.grant_id, now_ms)
+                    snapback.auth_rehearsal_revoke(&args.grant_id, now_ms)
                         .and_then(|status| {
                             serde_json::to_value(status)
                                 .map_err(|_| crate::auth::rehearsal::request_invalid())
@@ -21256,15 +21272,10 @@ async fn execute_auth_host_operation(
             } else {
                 Err(crate::auth::rehearsal::authority_ended())
             };
-            if outcome.is_ok() {
-                let mut live = runtime
-                    .auth_rehearsal_live_grants
-                    .write()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                live.retain(|authority_id, authority| {
-                    authority_id != &revoked_grant_id
-                        && authority.parent_grant_id.as_deref() != Some(revoked_grant_id.as_str())
-                });
+            if outcome.is_ok()
+                && let Some(coordinator) = runtime.auth_coordinator.as_ref()
+            {
+                coordinator.retire_rehearsal_grant(&revoked_grant_id);
             }
             Ok(auth_host_result(runtime, request, server_url, outcome).await)
         }
@@ -21302,7 +21313,7 @@ async fn execute_auth_host_operation(
             };
             let resolve_bindings = bindings.clone();
             let resolved = with_snapback(&runtime.snapback, move |snapback| {
-                snapback.auth_database_mut().auth_rehearsal_resolve(
+                snapback.auth_rehearsal_resolve(
                     &carrier_hash,
                     &resolve_bindings,
                     now_ms,
@@ -21340,7 +21351,7 @@ async fn execute_auth_host_operation(
                     fact: None,
                 };
                 let outcome = with_snapback(&runtime.snapback, move |snapback| {
-                    snapback.auth_database_mut().auth_rehearsal_install_window(
+                    snapback.auth_rehearsal_install_window(
                         crate::storage::auth_rehearsal::RehearsalWindowInstallPlan {
                             exercise,
                             reachability,
@@ -21350,17 +21361,9 @@ async fn execute_auth_host_operation(
                 .await;
                 let outcome =
                     outcome.map(|(outcome, window)| {
-                        runtime
-                            .auth_rehearsal_live_grants
-                            .write()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner)
-                            .insert(
-                                window.window_id.clone(),
-                                crate::auth::rehearsal::RehearsalLiveAuthority {
-                                    expires_at_ms: window.expires_at,
-                                    parent_grant_id: Some(window.grant_id.clone()),
-                                },
-                            );
+                        if let Some(coordinator) = runtime.auth_coordinator.as_ref() {
+                            coordinator.publish_rehearsal_window(&window);
+                        }
                         match outcome {
                             crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Fresh(
                                 value,
@@ -21387,9 +21390,7 @@ async fn execute_auth_host_operation(
                     now_ms,
                 };
                 let outcome = with_snapback(&runtime.snapback, move |snapback| {
-                    snapback
-                        .auth_database_mut()
-                        .auth_rehearsal_advance_auth_clock(exercise)
+                    snapback.auth_rehearsal_advance_auth_clock(exercise)
                         .map(|outcome| match outcome {
                             crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Fresh(
                                 value,
@@ -21412,8 +21413,9 @@ async fn execute_auth_host_operation(
                 let admission = provider.admit().await;
                 let lookup_challenge_id = challenge_id.clone();
                 let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
-                    let coordination = admission
-                        .exchange_coordination(snapback.auth_database_mut(), &lookup_challenge_id);
+                    let coordination = snapback.execute_auth_plan(
+                        admission.exchange_coordination_plan(&lookup_challenge_id),
+                    );
                     (admission, coordination)
                 })
                 .await;
@@ -21519,7 +21521,7 @@ async fn execute_auth_host_operation(
                 };
                 let address = admission.address().clone();
                 let planned = with_snapback(&runtime.snapback, move |snapback| {
-                    admission.plan_mint_session(snapback.auth_database_mut(), now_ms)
+                    snapback.execute_auth_plan(admission.plan_mint_session_plan(now_ms))
                 })
                 .await;
                 let planned = match planned {
@@ -21559,9 +21561,7 @@ async fn execute_auth_host_operation(
                     now_ms,
                 };
                 let outcome = with_snapback(&runtime.snapback, move |snapback| {
-                    snapback
-                        .auth_database_mut()
-                        .auth_rehearsal_create_identity(
+                    snapback.auth_rehearsal_create_identity(
                             exercise,
                             identity,
                             &address,
@@ -21668,7 +21668,9 @@ async fn execute_auth_host_operation(
                     let admission = provider.admit().await;
                     let challenge_id = challenge_id.clone();
                     let coordination = with_snapback(&runtime.snapback, move |snapback| {
-                        admission.exchange_coordination(snapback.auth_database_mut(), &challenge_id)
+                        snapback.execute_auth_plan(
+                            admission.exchange_coordination_plan(&challenge_id),
+                        )
                     })
                     .await;
                     if let Ok(Some(coordination)) = coordination {
@@ -21694,9 +21696,7 @@ async fn execute_auth_host_operation(
                 now_ms,
             };
             let outcome = with_snapback(&runtime.snapback, move |snapback| {
-                snapback
-                        .auth_database_mut()
-                        .auth_rehearsal_exercise(exercise)
+                snapback.auth_rehearsal_exercise(exercise)
                         .map(|outcome| match outcome {
                             crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Fresh(
                                 value,
@@ -21775,10 +21775,7 @@ async fn execute_auth_host_operation(
             let maintenance = provider.exclusive_maintenance().await;
             let profile = runtime.server.profile;
             let outcome = with_snapback(&runtime.snapback, move |snapback| {
-                let outcome = crate::auth::rescue::rescue_colliding_table(
-                    snapback.auth_database_mut(),
-                    &args,
-                )
+                let outcome = snapback.rescue_colliding_auth_table(&args)
                 .and_then(|result| {
                     serde_json::to_value(result).map_err(|_| auth_provider_unavailable_error())
                 });
@@ -21810,8 +21807,15 @@ async fn execute_auth_host_operation(
                 )
                 .await);
             };
+            let authority = prepared_authority.cloned().ok_or_else(|| {
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_AUTH_REQUIRED",
+                    "auth",
+                    "integration retirement is missing registered operator authority",
+                ))
+            })?;
             let outcome =
-                retire_integration_as_operator(runtime, args.principal_user_id, provider.now_ms())
+                retire_integration_as_operator(runtime, authority, args.principal_user_id, provider.now_ms())
                     .await
                     .map(|retired| {
                         json!({
@@ -21842,8 +21846,16 @@ async fn execute_auth_host_operation(
                 )
                 .await);
             };
+            let authority = prepared_authority.cloned().ok_or_else(|| {
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_AUTH_REQUIRED",
+                    "auth",
+                    "integration suspension is missing registered operator authority",
+                ))
+            })?;
             let outcome = set_integration_suspension_as_operator(
                 runtime,
+                authority,
                 args.principal_user_id,
                 suspended,
                 provider.now_ms(),
@@ -22184,6 +22196,7 @@ async fn host_ops_handler_inner(
                     "host auth operation is missing managed admission",
                 ))
             })?,
+            prepared_authority.as_ref(),
             request,
             server_url,
         ))
@@ -22240,7 +22253,7 @@ async fn host_ops_handler_inner(
             Ok(serde_json::to_value(&*runtime.network_profiles.active())
                 .expect("ActiveNetworkProfile is a serializable closed DTO"))
         } else {
-            request
+            let prepared = request
                 .input
                 .clone()
                 .ok_or_else(|| {
@@ -22254,10 +22267,21 @@ async fn host_ops_handler_inner(
                     crate::network_profile::NetworkConditionProfile::parse_value(value)
                         .map_err(Into::into)
                 })
-                // @ref LLP 0167#authority-one-activation-chokepoint — this is
-                //   the same state-changing method used by admin PUT; there is
-                //   no host-ops-specific validation or authority path.
                 .and_then(|profile| {
+                    prepared_authority
+                        .clone()
+                        .ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_AUTH_REQUIRED",
+                                "auth",
+                                "network-profile activation is missing registered operator authority",
+                            )
+                        })
+                        .map(|authority| (profile, authority))
+                });
+            match prepared {
+                Err(error) => Err(error),
+                Ok((profile, authority)) => {
                     let source = if headers
                         .get(crate::network_profile::NETWORK_PROFILE_SOURCE_HEADER)
                         .and_then(|value| value.to_str().ok())
@@ -22267,16 +22291,23 @@ async fn host_ops_handler_inner(
                     } else {
                         crate::network_profile::NetworkProfileSource::HostOps
                     };
-                    runtime.activate_network_profile(
-                        profile,
-                        source,
-                        operator_principal,
-                    )
-                })
-                .map(|active| {
+                    let operator = runtime.operator_authority.clone();
+                    with_snapback(&state, move |snapback| {
+                        snapback.activate_operator_network_profile(
+                            &operator,
+                            &authority,
+                            profile,
+                            source,
+                            operator_principal,
+                        )
+                    })
+                    .await
+                    .map(|active| {
                     serde_json::to_value(&*active)
                         .expect("ActiveNetworkProfile is a serializable closed DTO")
-                })
+                    })
+                }
+            }
         };
         let result = with_snapback(&state, move |snapback| {
             crate::host_ops::network_profile_result(
@@ -22421,7 +22452,12 @@ async fn host_ops_handler_inner(
         {
             let result = with_snapback(&state, move |snapback| {
                 crate::host_ops::execute_host_op_with_profile_and_authority(
-                    snapback, request, server_url, profile, None,
+                    snapback,
+                    request,
+                    server_url,
+                    profile,
+                    None,
+                    crate::server::served_route_paths(),
                 )
             })
             .await;
@@ -22432,7 +22468,12 @@ async fn host_ops_handler_inner(
             |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
             move |snapback| {
                 crate::host_ops::execute_host_op_with_profile_and_authority(
-                    snapback, request, server_url, profile, None,
+                    snapback,
+                    request,
+                    server_url,
+                    profile,
+                    None,
+                    crate::server::served_route_paths(),
                 )
             },
         )
@@ -22463,7 +22504,12 @@ async fn host_ops_handler_inner(
             // request that the envelope builder will reject without effects.
             let result = with_snapback(&state, move |snapback| {
                 crate::host_ops::execute_host_op_with_profile_and_authority(
-                    snapback, request, server_url, profile, None,
+                    snapback,
+                    request,
+                    server_url,
+                    profile,
+                    None,
+                    crate::server::served_route_paths(),
                 )
             })
             .await;
@@ -22474,7 +22520,12 @@ async fn host_ops_handler_inner(
             |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
             move |snapback| {
                 crate::host_ops::execute_host_op_with_profile_and_authority(
-                    snapback, request, server_url, profile, None,
+                    snapback,
+                    request,
+                    server_url,
+                    profile,
+                    None,
+                    crate::server::served_route_paths(),
                 )
             },
         )
@@ -22729,7 +22780,7 @@ async fn host_ops_handler_inner(
                                 profile.as_str().to_owned(),
                             )
                             .await
-                            .map(|committed| committed.diagnostics)
+                            .map(AuthProvisionCommit::into_diagnostics)
                             .map_err(|error| error.0),
                             Err(error) => Err(error),
                         }
@@ -22822,13 +22873,15 @@ async fn host_ops_handler_inner(
                     //   this executing generation before the writer turn ends.
                     //   A later functions.load may replace the active manifest,
                     //   but it cannot retroactively change this report.
+                    let (reads, writes, read_provenance, write_provenance) =
+                        capture.into_parts();
                     let conformance = snapback
                         .conformance_for_invocation(
                             &conformance_function,
-                            &capture.reads,
-                            &capture.writes,
-                            capture.read_provenance,
-                            capture.write_provenance,
+                            &reads,
+                            &writes,
+                            read_provenance,
+                            write_provenance,
                         )
                         .unwrap_or_else(|| {
                             crate::conformance::DeclarationConformance::without_capture(
@@ -23093,6 +23146,7 @@ async fn host_ops_handler_inner(
                     server_url,
                     profile,
                     prepared_authority,
+                    crate::server::served_route_paths(),
                 )
             };
             if policy_mode == PolicyAuthMode::Sessions
@@ -23680,11 +23734,9 @@ async fn coordinated_app_reset_inner(
     })
     .await;
     runtime.secret_reads.clear_after_committed_reset();
-    runtime
-        .auth_rehearsal_live_grants
-        .write()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .clear();
+    if let Some(coordinator) = runtime.auth_coordinator.as_ref() {
+        coordinator.clear_rehearsal_authority();
+    }
 
     // Active sessions owns an authenticated invalidation issuer. Active dev
     // deliberately does not, even when a ReadyV1 catalog is present (for
@@ -23697,60 +23749,19 @@ async fn coordinated_app_reset_inner(
         // scoped to the predecessor incarnation and must never be asked to
         // cross it.
         let successor_incarnation = successor.as_str().to_owned();
-        let rebuild: SnapbackResult<crate::auth::invalidation::LiveInvalidationIssuer> = async {
-            let reservation = with_snapback(&runtime.snapback, move |snapback| {
-                let (app_id, target_profile_id) = {
-                    let schema = snapback.auth_database_mut().schema();
-                    (
-                        schema.app_id.clone(),
-                        schema.target_profile.clone().unwrap_or_else(|| {
-                            crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
-                        }),
-                    )
-                };
-                let (authorization, version_stream, boot_sequence) = snapback
-                    .auth_database_mut()
-                    .reserve_invalidation_boot_issuer()?;
-                if authorization.incarnation != successor_incarnation {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-                        "auth",
-                        "reset successor issuer reservation observed another authorization incarnation",
-                    ));
-                }
-                Ok((
-                    app_id,
-                    target_profile_id,
-                    authorization,
-                    version_stream,
-                    boot_sequence,
-                ))
-            })
-            .await?;
-            let (app_id, target_profile_id, authorization, version_stream, boot_sequence) =
-                reservation;
-            let issuer_id = crate::auth::invalidation::IssuerId::fresh(
-                authorization.incarnation.clone(),
-                boot_sequence,
-            )?;
-            let successor_issuer = provider
-                .authenticate_invalidation_boot_issuer(issuer_id, &target_profile_id, &app_id)
-                .map_err(crate::auth::provider::ProviderError::into_snapback_error)?;
-            let installed_issuer = successor_issuer.clone();
+        let rebuild: SnapbackResult<crate::local::EngineInvalidationBinding> = async {
             with_snapback(&runtime.snapback, move |snapback| {
-                snapback.install_auth_invalidation(installed_issuer, authorization, version_stream)
+                snapback.install_authenticated_auth_invalidation(
+                    &provider,
+                    Some(&successor_incarnation),
+                )
             })
-            .await?;
-            Ok(successor_issuer)
+            .await
         }
         .await;
-        let successor_issuer = match rebuild {
-            Ok(issuer) => issuer,
+        let successor_binding = match rebuild {
+            Ok(binding) => binding,
             Err(error) => {
-                with_snapback(&runtime.snapback, |snapback| {
-                    snapback.clear_auth_invalidation_after_failed_reset();
-                })
-                .await;
                 let classified = coordinator.finish_stream_reset(
                     carrier,
                     AuthTransactionAttempt::<CoordinatedResetOutput>::CommitUncertain(error),
@@ -23770,17 +23781,31 @@ async fn coordinated_app_reset_inner(
                 };
             }
         };
-        runtime.install_reset_auth_invalidation(successor_issuer);
+        let installed_successor_binding = successor_binding.clone();
+        runtime.install_reset_auth_invalidation(successor_binding);
+        if coordinator
+            .finish_stream_reset(carrier, AuthTransactionAttempt::Committed(()))
+            .is_err()
+        {
+            runtime.clear_reset_auth_invalidation();
+            with_snapback(&runtime.snapback, move |snapback| {
+                snapback.clear_installed_auth_invalidation(&installed_successor_binding)
+            })
+            .await?;
+            let _ = coordinator.fail_global_closed();
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
+                "auth",
+                "committed reset successor projection could not be reconciled",
+            ));
+        }
+        return Ok(output);
     }
     if coordinator
         .finish_stream_reset(carrier, AuthTransactionAttempt::Committed(()))
         .is_err()
     {
         runtime.clear_reset_auth_invalidation();
-        with_snapback(&runtime.snapback, |snapback| {
-            snapback.clear_auth_invalidation_after_failed_reset();
-        })
-        .await;
         let _ = coordinator.fail_global_closed();
         return Err(SnapbackError::error(
             "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
@@ -24032,7 +24057,7 @@ async fn release_network_profiled_response(
 }
 
 fn prepare_mutation_network_egress(
-    profiles: &crate::network_profile::NetworkProfileState,
+    profiles: &crate::local::NetworkProfileView,
     basis: crate::network_profile::MutationEgressBasis,
     result_ready_at: Instant,
 ) -> Option<crate::network_profile::PreparedNetworkEgress> {
@@ -24683,7 +24708,7 @@ async fn execute_ask_loop(
                 };
             }
             let output = match invoked {
-                Ok(invocation) => invocation.output,
+                Ok(invocation) => invocation.into_output(),
                 Err(error) => {
                     let refusal = json!({ "error": error.diagnostic });
                     let content = serde_json::to_string(&refusal)
@@ -24920,9 +24945,7 @@ async fn invoke_ask_core(
     };
     let budgets = catalog.budgets.clone();
     let reserved = with_snapback(state, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .reserve_ask_spend(now_millis(), subject, &budgets)
+        snapback.reserve_ask_spend(now_millis(), subject, &budgets)
     })
     .await;
     let (reservation, _) = match reserved {
@@ -24938,9 +24961,7 @@ async fn invoke_ask_core(
                 Err(error) => {
                     let release = reservation.clone();
                     let _ = with_snapback(state, move |snapback| {
-                        snapback
-                            .auth_database_mut()
-                            .settle_ask_spend(&release, 0, 0)
+                        snapback.settle_ask_spend(&release, 0, 0)
                     })
                     .await;
                     return ApiError::from(error).into_response();
@@ -24949,9 +24970,7 @@ async fn invoke_ask_core(
             None => {
                 let release = reservation.clone();
                 let _ = with_snapback(state, move |snapback| {
-                    snapback
-                        .auth_database_mut()
-                        .settle_ask_spend(&release, 0, 0)
+                    snapback.settle_ask_spend(&release, 0, 0)
                 })
                 .await;
                 return ApiError::from(ask_authority_refusal()).into_response();
@@ -24978,9 +24997,7 @@ async fn invoke_ask_core(
         .result_bytes
         .min(catalog.budgets.result_volume.max_bytes);
     let settled = with_snapback(state, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .settle_ask_spend(&reservation, actual_tokens, actual_bytes)
+        snapback.settle_ask_spend(&reservation, actual_tokens, actual_bytes)
     })
     .await;
     let spend = match settled {
@@ -25127,18 +25144,14 @@ async fn declared_client_record_for_admission(
     now_ms: u64,
 ) -> Result<Option<crate::storage::declared_clients::DeclaredClientRecord>, ApiError> {
     Ok(with_snapback(&runtime.snapback, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .declared_client_for_admission(&normalized_id, now_ms)
+        snapback.declared_client_for_admission(&normalized_id, now_ms)
     })
     .await?)
 }
 
 async fn mark_declared_client_refusal(runtime: &AppState, normalized_id: String) {
     let _ = with_snapback(&runtime.snapback, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .mark_declared_client_refusal(&normalized_id)
+        snapback.mark_declared_client_refusal(&normalized_id)
     })
     .await;
 }
@@ -25155,9 +25168,7 @@ async fn telemetry_caller_attribution_for_authority(
     {
         let actor = actor_user_id.clone();
         let record = with_snapback(&runtime.snapback, move |snapback| {
-            snapback
-                .auth_database_mut()
-                .integration_record_if_present(&actor)
+            snapback.integration_record_if_present(&actor)
         })
         .await?
         .ok_or_else(|| {
@@ -25189,7 +25200,7 @@ async fn admit_external_api_lane(
     network_generation: u64,
     now_ms: u64,
 ) -> Result<crate::telemetry::CallerAttributionV1, ApiError> {
-    if let Some(ResolvedCapabilityLink(link)) = capability_link {
+    if let Some(link) = capability_link {
         if let Some(context) = client_id_context
             && context.declared.is_some()
         {
@@ -25198,7 +25209,7 @@ async fn admit_external_api_lane(
         runtime
             .connections
             .consume_external_api(
-                ExternalApiThrottleSource::Link(link.id.clone()),
+                ExternalApiThrottleSource::Link(link.id().to_owned()),
                 EXTERNAL_API_CAPABILITY_LINK_LIMIT,
                 Instant::now(),
             )
@@ -25210,7 +25221,7 @@ async fn admit_external_api_lane(
                     retry_after,
                 )
             })?;
-        return Ok(crate::telemetry::CallerAttributionV1::link(link.id.clone()));
+        return Ok(crate::telemetry::CallerAttributionV1::link(link.id().to_owned()));
     }
     if let ResolvedAppAuthority::ServicePrincipal {
         actor_user_id,
@@ -25236,9 +25247,7 @@ async fn admit_external_api_lane(
         }
         let actor = actor_user_id.clone();
         let record = with_snapback(&runtime.snapback, move |snapback| {
-            snapback
-                .auth_database_mut()
-                .integration_record_if_present(&actor)
+            snapback.integration_record_if_present(&actor)
         })
         .await?
         .ok_or_else(|| {
@@ -25311,7 +25320,7 @@ async fn admit_external_api_lane(
     }
     let normalized_id = declared.value.clone();
     let observation = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.auth_database_mut().observe_declared_client(
+        snapback.observe_declared_client(
             &normalized_id,
             now_ms,
             network_generation,
@@ -25591,7 +25600,8 @@ async fn capability_link_mint(
             &pinned_args,
             &caller_args.iter().cloned().collect(),
         )?;
-        snapback.auth_database_mut().mint_capability_link(
+        snapback.mint_capability_link(
+            &effect_authority,
             crate::storage::capability_links::MintCapabilityLink {
                 minter_principal_id,
                 minter_session_id,
@@ -25622,24 +25632,24 @@ async fn capability_link_mint(
 /// field is touched. The handler receives only the bearer-free resolver fact.
 async fn capability_link_landing(
     State(state): State<SharedSnapback>,
-    Extension(ResolvedCapabilityLink(link)): Extension<ResolvedCapabilityLink>,
+    Extension(link): Extension<ResolvedCapabilityLink>,
 ) -> Result<Json<CapabilityLinkLandingResponse>, ApiError> {
-    let function_id = link.function_id.clone();
+    let function_id = link.function_id().to_owned();
     let function = with_snapback(&state, move |snapback| {
         snapback.capability_link_use_function(&function_id)
     })
     .await?;
-    if capability_link_kind(&function.kind) != link.function_kind {
+    if capability_link_kind(&function.kind) != link.function_kind() {
         return Err(capability_link_unavailable_error());
     }
     Ok(Json(CapabilityLinkLandingResponse {
-        id: link.id,
+        id: link.id().to_owned(),
         function: function.name,
-        kind: link.function_kind,
-        caller_args: link.caller_args,
-        expires_at_ms: link.expires_at_ms,
-        remaining_uses: link.remaining_uses,
-        approval_per_use: link.approval_per_use,
+        kind: link.function_kind(),
+        caller_args: link.caller_args().to_vec(),
+        expires_at_ms: link.expires_at_ms(),
+        remaining_uses: link.remaining_uses(),
+        approval_per_use: link.approval_per_use(),
     }))
 }
 
@@ -25649,7 +25659,7 @@ async fn capability_link_invoke(
     State(read): State<crate::local::ReadLane>,
     Extension(authority): Extension<PreparedAuthority>,
     Extension(route): Extension<RouteSpec>,
-    Extension(ResolvedCapabilityLink(link)): Extension<ResolvedCapabilityLink>,
+    Extension(link): Extension<ResolvedCapabilityLink>,
     input: Result<Json<CapabilityLinkInvokeRequest>, JsonRejection>,
 ) -> Response {
     let result: Result<(crate::manifest::FunctionDefinition, Value), ApiError> = async {
@@ -25657,7 +25667,7 @@ async fn capability_link_invoke(
         let caller = request.args.as_object().ok_or_else(|| {
             capability_link_input_invalid("capability-link args must be a JSON object")
         })?;
-        let allowed = link.caller_args.iter().collect::<BTreeSet<_>>();
+        let allowed = link.caller_args().iter().collect::<BTreeSet<_>>();
         if caller.keys().any(|name| !allowed.contains(name)) {
             return Err(SnapbackError::error(
                 "SNAPBACK_CAPABILITY_LINK_CALLER_ARG_DENIED",
@@ -25666,15 +25676,15 @@ async fn capability_link_invoke(
             )
             .into());
         }
-        let function_id = link.function_id.clone();
+        let function_id = link.function_id().to_owned();
         let function = with_snapback(&state, move |snapback| {
             snapback.capability_link_use_function(&function_id)
         })
         .await?;
-        if capability_link_kind(&function.kind) != link.function_kind {
+        if capability_link_kind(&function.kind) != link.function_kind() {
             return Err(capability_link_unavailable_error());
         }
-        let pinned = serde_json::from_str::<Value>(&link.pinned_args_json)
+        let pinned = serde_json::from_str::<Value>(link.pinned_args_json())
             .map_err(|_| {
                 ApiError::from(SnapbackError::error(
                     "SNAPBACK_CAPABILITY_LINK_CATALOG_CORRUPT",
@@ -25704,19 +25714,16 @@ async fn capability_link_invoke(
         Ok(prepared) => prepared,
         Err(error) => return error.into_response(),
     };
-    let link_id = link.id.clone();
-    let consume_link_id = link_id.clone();
+    let consume_link = link.clone();
     let consumed = with_snapback(&state, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .consume_capability_link_use(&consume_link_id, now_millis())
+        snapback.consume_capability_link_use(&consume_link, now_millis())
     })
     .await;
     let consumed = match consumed {
         Ok(consumed) => consumed,
         Err(error) => return ApiError::from(error).into_response(),
     };
-    let mut response = match link.function_kind {
+    let mut response = match link.function_kind() {
         crate::storage::capability_links::CapabilityLinkFunctionKind::Query => {
             let mut request = FiniteQueryRequest::default();
             request.request.input.args = args;
@@ -25739,7 +25746,7 @@ async fn capability_link_invoke(
                 State(state.clone()),
                 Extension(authority),
                 Extension(route),
-                Some(Extension(ResolvedCapabilityLink(link.clone()))),
+                Some(Extension(link.clone())),
                 Path(function.name),
                 Ok(Json(request)),
             )
@@ -25754,7 +25761,7 @@ async fn capability_link_invoke(
                 HeaderMap::new(),
                 Extension(authority),
                 Extension(route),
-                Some(Extension(ResolvedCapabilityLink(link.clone()))),
+                Some(Extension(link.clone())),
                 Path(function.name),
                 Ok(Json(request)),
             )
@@ -25774,14 +25781,8 @@ async fn capability_link_invoke(
             "failed"
         })
         .to_owned();
-    let ordinal = consumed.ordinal;
     if let Err(error) = with_snapback(&state, move |snapback| {
-        snapback.auth_database_mut().settle_capability_link_use(
-            &link_id,
-            ordinal,
-            &outcome,
-            now_millis(),
-        )
+        snapback.settle_capability_link_use(consumed, &outcome, now_millis())
     })
     .await
     {
@@ -25805,19 +25806,11 @@ async fn capability_link_revoke(
     else {
         unreachable!("capability-link management source requires session authority")
     };
-    let minter_principal_id = user_id.clone();
-    let minter_session_id = session_id.clone();
-    let minter_authority_instance_id = authority_instance_id.clone();
+    let _ = (user_id, session_id, authority_instance_id);
     let effect_authority = authority.clone();
     with_snapback(&state, move |snapback| {
         let _effect = effect_authority.effect_guard("capability-link revoke transaction")?;
-        snapback.auth_database_mut().revoke_capability_link(
-            &id,
-            &minter_principal_id,
-            &minter_session_id,
-            &minter_authority_instance_id,
-            now_millis(),
-        )
+        snapback.revoke_capability_link(&effect_authority, &id, now_millis())
     })
     .await?;
     Ok(StatusCode::NO_CONTENT)
@@ -26135,7 +26128,7 @@ async fn invoke_query(
             .await
             .map(|(invocation, facts, conformance)| {
                 (
-                    FiniteQueryOutput::without_proof(invocation.output),
+                    FiniteQueryOutput::without_proof(invocation.into_output()),
                     facts,
                     Some(conformance),
                 )
@@ -26150,15 +26143,16 @@ async fn invoke_query(
                 )?;
                 authority.validate_admission("query generation facts")?;
                 let facts = snapback.function_invocation_facts(authority.active_mode())?;
+                let (output, read_dependencies) = invocation.into_parts();
                 let conformance = snapback.conformance_for_invocation(
                     &name,
-                    &invocation.read_dependencies,
+                    &read_dependencies,
                     &[],
                     crate::conformance::DependencyProvenance::Complete,
                     crate::conformance::DependencyProvenance::Complete,
                 );
                 Ok((
-                    FiniteQueryOutput::without_proof(invocation.output),
+                    FiniteQueryOutput::without_proof(output),
                     facts,
                     conformance,
                 ))
@@ -26601,13 +26595,13 @@ async fn app_bundle(
                                 return Err(ApiError::from(error));
                             }
                         };
-                    let target = crate::local::BundleRegisterTarget {
-                        connection_id: opened.grant.connection_id.clone(),
-                        effect_fence: prepared_open.bound.effect_fence(&opened.grant_id),
-                        invalidation_connection: opened.grant.authorization_invalidation.clone(),
-                        authorization_namespaces: request.authorization_namespaces.clone(),
-                        mixed_children: mixed_children.clone(),
-                    };
+                    let target = crate::local::BundleRegisterTarget::new(
+                        opened.grant.connection_id.clone(),
+                        prepared_open.bound.effect_fence(&opened.grant_id),
+                        opened.grant.authorization_invalidation.clone(),
+                        request.authorization_namespaces.clone(),
+                        mixed_children.clone(),
+                    );
                     let evaluated = {
                         let entry = entry.clone();
                         let params = params.clone();
@@ -26684,13 +26678,13 @@ async fn app_bundle(
                             "the pending connection is no longer installed",
                         ));
                     };
-                    let target = crate::local::BundleRegisterTarget {
-                        connection_id: connection_id.clone(),
+                    let target = crate::local::BundleRegisterTarget::new(
+                        connection_id.clone(),
                         effect_fence,
-                        invalidation_connection: invalidation_connection.clone(),
-                        authorization_namespaces: request.authorization_namespaces.clone(),
-                        mixed_children: mixed_children.clone(),
-                    };
+                        invalidation_connection.clone(),
+                        request.authorization_namespaces.clone(),
+                        mixed_children.clone(),
+                    );
                     let evaluated = {
                         let entry = entry.clone();
                         let params = params.clone();
@@ -26701,10 +26695,8 @@ async fn app_bundle(
                         with_snapback(&state, move |snapback| {
                             // Supersede under the same local cut: purge the
                             // prior pending set, then register afresh.
-                            snapback.purge_connection_topology(
-                                &target.connection_id,
-                                &target.effect_fence,
-                            );
+                            let (connection_id, effect_fence) = target.connection_identity();
+                            snapback.purge_connection_topology(connection_id, effect_fence);
                             snapback.evaluate_bundle(
                                 &entry,
                                 &params,
@@ -26810,16 +26802,8 @@ async fn invoke_authorized_lease_query(
     let provider = installed_auth_provider(&runtime)?;
     let issued_at_server_ms = provider.now_ms();
     let config = runtime.authorized_lease_config;
-    let target_profile_id = capture.target_profile_id.clone();
-    let app_id = capture.app_id.clone();
-    let lease = provider
-        .issue_authorized_lease_at(
-            capture.issue.clone(),
-            config,
-            issued_at_server_ms,
-            &target_profile_id,
-            &app_id,
-        )
+    let lease = capture
+        .issue_authorized_lease(&provider, config, issued_at_server_ms)
         .map_err(ApiError::from)?;
     let lease_for_reservation = lease.clone();
     let completeness = capture.completeness.clone();
@@ -27005,7 +26989,7 @@ async fn invoke_mutation(
             &authority,
             &name,
             &request.input.args,
-            effect_link.as_ref().map(|Extension(link)| &link.0),
+            effect_link.as_ref().map(|Extension(link)| link),
         )
         .await
         .map_err(|error| error.with_attribution(attribution.clone()))?;
@@ -27092,12 +27076,14 @@ async fn invoke_mutation(
                         //   mutation settlement retains the exact executed
                         //   commit capture for both the response-adjacent ring
                         //   and the later brokered observation artifact.
+                        let (reads, writes, read_provenance, write_provenance) =
+                            capture.into_parts();
                         let conformance = snapback.conformance_for_invocation(
                             &conformance_name,
-                            &capture.reads,
-                            &capture.writes,
-                            capture.read_provenance,
-                            capture.write_provenance,
+                            &reads,
+                            &writes,
+                            read_provenance,
+                            write_provenance,
                         );
                         Ok((
                             result,
@@ -27286,7 +27272,7 @@ async fn require_effect_approval_if_configured(
     authority: &PreparedAuthority,
     name: &str,
     args: &Value,
-    link: Option<&crate::storage::capability_links::CapabilityLinkRecord>,
+    link: Option<&ResolvedCapabilityLink>,
 ) -> Result<(), ApiError> {
     if authority.source() == InvocationSource::EffectExecution {
         return Ok(());
@@ -27318,7 +27304,7 @@ async fn require_effect_approval_if_configured(
             Some(crate::manifest::ApiFunctionApproval::External) => {
                 !matches!(authority.resolved(), ResolvedAppAuthority::Session { .. })
             }
-            None => link.as_ref().is_some_and(|link| link.approval_per_use),
+            None => link.as_ref().is_some_and(|link| link.approval_per_use()),
         };
         if !gated {
             return Ok(None);
@@ -27424,11 +27410,8 @@ async fn require_effect_approval_if_configured(
         if let Some(primary) = function.write_set_summary.primary_table.clone() {
             declared_write_set.push(primary);
         }
-        let link_origin_id = link.as_ref().map(|link| link.id.clone());
-        let approver_principal_id = link.as_ref().map(|link| link.minter_principal_id.clone());
         snapback
-            .auth_database_mut()
-            .create_pending_effect(crate::storage::pending_effects::CreatePendingEffect {
+            .create_pending_effect(&authority, link.as_ref(), crate::storage::pending_effects::CreatePendingEffect {
                 function_id: function.id,
                 function_name: function.name,
                 function_kind: function.kind,
@@ -27437,8 +27420,8 @@ async fn require_effect_approval_if_configured(
                 caller_key,
                 authority: snapshot,
                 generation,
-                link_origin_id,
-                approver_principal_id,
+                link_origin_id: None,
+                approver_principal_id: None,
                 declared_write_set,
                 now_ms: now_millis(),
                 ttl_ms: crate::storage::pending_effects::DEFAULT_TTL_MS,
@@ -27568,7 +27551,7 @@ async fn invoke_action_inner(
         &authority,
         &name,
         &request.input.args,
-        effect_link.as_ref().map(|Extension(link)| &link.0),
+        effect_link.as_ref().map(|Extension(link)| link),
     )
     .await
     .map_err(|error| error.with_attribution(attribution.clone()))?;
@@ -27857,7 +27840,7 @@ async fn commit_prepared_auth_provision(
                             &profile,
                             Some(projection_admission),
                         )?;
-                        let state = committed.state.clone();
+                        let state = committed.state().clone();
                         Ok((committed, state))
                     })
                 },
@@ -27902,7 +27885,7 @@ async fn commit_prepared_auth_provision(
     };
 
     if !runtime_state_published
-        && let Err(error) = runtime.publish_auth_mode_state(committed.state.clone())
+        && let Err(error) = runtime.publish_auth_mode_state(committed.state().clone())
     {
         runtime
             .auth_admission_controller()
@@ -27978,7 +27961,7 @@ async fn ensure_app(
                         runtime.server.profile.as_str().to_owned(),
                     )
                     .await?;
-                    Ok(Json(EnsureAppResponse::Provision(committed.outcome)))
+                    Ok(Json(EnsureAppResponse::Provision(committed.into_outcome())))
                 }
             }
         }
@@ -28150,12 +28133,10 @@ async fn subscribe_live(
 ) -> Result<Response, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
     let input = request.input;
-    let invalidation = LiveInvalidationAdmission {
-        connection: connection_act.authorization_invalidation.clone(),
-        effect_fence: Some(connection_act.effect_fence()),
-        #[cfg(test)]
-        session_mode: false,
-    };
+    let invalidation = LiveInvalidationAdmission::new(
+        connection_act.authorization_invalidation.clone(),
+        connection_act.effect_fence(),
+    );
     let connection_id = input.connection_id.clone();
     let staged = with_snapback(&runtime.snapback, move |snapback| {
         snapback.prepare_subscribe_live_for_transport_generation(
@@ -28236,12 +28217,10 @@ async fn resume_live(
     input: Result<Json<LiveResumeInput>, JsonRejection>,
 ) -> Result<Response, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    let invalidation = LiveInvalidationAdmission {
-        connection: connection_act.authorization_invalidation.clone(),
-        effect_fence: Some(connection_act.effect_fence()),
-        #[cfg(test)]
-        session_mode: false,
-    };
+    let invalidation = LiveInvalidationAdmission::new(
+        connection_act.authorization_invalidation.clone(),
+        connection_act.effect_fence(),
+    );
     let connection_id = input.connection_id.clone();
     let staged = with_snapback(&runtime.snapback, move |snapback| {
         snapback.prepare_resume_live_for_transport(name, input, authority, invalidation)
@@ -28487,6 +28466,7 @@ async fn stream_live(
                 socket,
                 LiveStreamTask {
                     runtime,
+                    authority,
                     connection_act,
                     connection_id,
                     policy_mode,
@@ -28784,6 +28764,7 @@ async fn send_live_with_admission(
 
 struct LiveStreamTask {
     runtime: AppState,
+    authority: PreparedAuthority,
     connection_act: PreparedConnectionAct,
     connection_id: String,
     policy_mode: PolicyAuthMode,
@@ -28932,6 +28913,7 @@ impl LiveSocketObservation {
 async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     let LiveStreamTask {
         runtime,
+        authority,
         connection_act,
         connection_id,
         policy_mode,
@@ -28986,21 +28968,25 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     // @ref LLP 0222#implementation-sketch-repo-verified — witness registration happens
     // only after the exact notifier generation is installed. Anonymous and
     // scoped-service grants intentionally create no principal witness.
-    if let Some(principal_id) = connection_act.session_principal_id()
-        && runtime
-            .connected_clients
-            .register_managed_websocket(
-                principal_id,
-                &connection_id,
-                &terminal_capture.grant_id,
-                generation,
-                Instant::now(),
-            )
-            .is_err()
-    {
-        notify.unregister(&connection_id, generation);
-        return;
-    }
+    let witness_connection_id = connection_id.clone();
+    let witness_grant_id = terminal_capture.grant_id.clone();
+    let managed_witness = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.register_managed_websocket_client(
+            &authority,
+            &witness_connection_id,
+            &witness_grant_id,
+            generation,
+            Instant::now(),
+        )
+    })
+    .await;
+    let managed_witness = match managed_witness {
+        Ok(witness) => witness,
+        Err(_) => {
+            notify.unregister(&connection_id, generation);
+            return;
+        }
+    };
     let socket_observation = LiveSocketObservation::new(runtime.telemetry.start_classified_span(
         crate::telemetry_contract::OperationClassIdV1::STREAM_CONNECT,
         "/live/{connection_id}/stream",
@@ -29170,12 +29156,9 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         {
                             break 'stream;
                         }
-                        runtime.connected_clients.refresh_managed_websocket(
-                            &connection_id,
-                            &terminal_capture.grant_id,
-                            generation,
-                            Instant::now(),
-                        );
+                        if let Some(witness) = managed_witness.as_ref() {
+                            witness.refresh(Instant::now());
+                        }
                         let room_authorization = match authorize_live_socket_room(
                             &runtime,
                             &connection_id,
@@ -29304,12 +29287,9 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         {
                             break 'stream;
                         }
-                        runtime.connected_clients.refresh_managed_websocket(
-                            &connection_id,
-                            &terminal_capture.grant_id,
-                            generation,
-                            Instant::now(),
-                        );
+                        if let Some(witness) = managed_witness.as_ref() {
+                            witness.refresh(Instant::now());
+                        }
                         let deadline = match record_connection_authenticated_use(
                             &runtime,
                             connection_act.authenticated_use_key(),
@@ -29353,12 +29333,9 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         {
                             break 'stream;
                         }
-                        runtime.connected_clients.refresh_managed_websocket(
-                            &connection_id,
-                            &terminal_capture.grant_id,
-                            generation,
-                            Instant::now(),
-                        );
+                        if let Some(witness) = managed_witness.as_ref() {
+                            witness.refresh(Instant::now());
+                        }
                         None
                     },
                 }
@@ -29593,11 +29570,19 @@ async fn observe_service_connection_terminal_once(
         return Ok(());
     };
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(runtime);
-    let deadline = service_publication.expired_deadline_terminal(epoch_now_ms, monotonic_now)?;
-    if let Some(deadline) = deadline.as_ref() {
+    let planning_publication = service_publication.clone();
+    let plan = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.plan_expired_service_publication(
+            &planning_publication,
+            epoch_now_ms,
+            monotonic_now,
+        )
+    })
+    .await?;
+    if let Some(plan) = plan {
         #[cfg(test)]
         if take_test_live_service_terminal_failure(
-            &deadline.token_id,
+            plan.token_id(),
             TestLiveServiceTerminalFailure::Planning,
         ) {
             return Err(injected_live_service_terminal_failure("planning"));
@@ -29606,33 +29591,24 @@ async fn observe_service_connection_terminal_once(
         let lifecycle = runtime.auth_terminal_lifecycle.clone();
         let service_publication = service_publication.clone();
         let runtime_clock = runtime.clone();
-        let deadline = deadline.clone();
-        let (deadline, terminal_token_ids) = with_snapback(&runtime.snapback, move |snapback| {
-            let token_ids = snapback
-                .auth_database_mut()
-                .plan_expired_service_authority_terminal(&deadline)?;
-            Ok::<_, SnapbackError>((deadline, token_ids))
-        })
-        .await?;
+        let terminal_token_ids = plan.token_ids().to_vec();
+        let terminal_close_by = plan.close_by();
         #[cfg(test)]
         if take_test_live_service_terminal_failure(
-            &deadline.token_id,
+            plan.token_id(),
             TestLiveServiceTerminalFailure::Gate,
         ) {
             return Err(injected_live_service_terminal_failure("gate"));
         }
-        let service_terminal_gate = runtime
-            .service_authority_fences
-            .acquire_terminal_gate(&terminal_token_ids, deadline.disposition)
-            .await?;
+        let service_terminal_gate = plan.acquire_gate().await?;
         #[cfg(test)]
         let inject_transaction_failure = take_test_live_service_terminal_failure(
-            &deadline.token_id,
+            plan.token_id(),
             TestLiveServiceTerminalFailure::Transaction,
         );
         #[cfg(test)]
         let inject_owned_task_panic = take_test_live_service_terminal_failure(
-            &deadline.token_id,
+            plan.token_id(),
             TestLiveServiceTerminalFailure::OwnedTaskPanic,
         );
         let transaction = spawn_owned_auth_transaction(async move {
@@ -29646,14 +29622,11 @@ async fn observe_service_connection_terminal_once(
                 panic!("injected live service terminal owned-task panic");
             }
             with_snapback(&snapback, {
-                let deadline = deadline.clone();
+                let plan = plan.clone();
                 move |snapback| {
                     with_service_authority_terminal_gate(service_terminal_gate, || {
-                        snapback
-                            .auth_database_mut()
-                            .terminalize_expired_service_authority(&deadline)
+                        snapback.commit_expired_service_authority(&plan)
                     })?;
-                    let lifecycle_deadline = deadline.clone();
                     crate::exec_guard::run_or_defer_after_local(move || {
                         let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime_clock);
                         let disposition = match service_publication
@@ -29667,7 +29640,7 @@ async fn observe_service_connection_terminal_once(
                         lifecycle.expire_service_tokens_for_disposition(
                             &terminal_token_ids,
                             disposition,
-                            lifecycle_deadline.close_by,
+                            terminal_close_by,
                         );
                     });
                     Ok::<_, SnapbackError>(())
@@ -30184,7 +30157,7 @@ async fn authorize_bound_ephemeral_room(
              (or configure SnapbackClient with that option) before protected room operations",
         )));
     }
-    let issuer = runtime
+    let binding = runtime
         .auth_invalidation
         .read()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -30253,7 +30226,7 @@ async fn authorize_bound_ephemeral_room(
                 })?;
             (auth, observed, permit)
         };
-        if issuer.authorization_expectation()? == observed {
+        if binding.authorization_expectation()? == observed {
             return Ok(BoundRoomAuthorization {
                 auth,
                 permit: Some(permit),

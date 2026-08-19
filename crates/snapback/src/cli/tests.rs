@@ -16,6 +16,7 @@ use super::{
     search_guide_sections_in, validate_path_disjointness, validated_console_origin,
     validated_secret_read_root_path, write_ready_file_atomic, write_ready_file_atomic_protected,
 };
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::guide::EmbeddedGuideFile;
 use crate::instance_lock::TargetInstanceReservation;
 use crate::store_state::path_with_filename_suffix;
@@ -1822,7 +1823,7 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
     );
     assert_eq!(persisted_product_count(), 1);
-    let after_invalid = snapback.auth_database_mut().auth_mode_snapshot().unwrap();
+    let after_invalid = snapback.remainder_auth_database_mut().auth_mode_snapshot().unwrap();
     assert_eq!(
         after_invalid.state.active_deployment, activated.active_deployment,
         "an invalid schema successor does not move the durable deployment pin"

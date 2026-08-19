@@ -7,7 +7,11 @@
 //! reacquires topology → stream/session in the sole permitted order.
 
 use super::crypto::SessionBearer;
-use super::invocation::ResolvedAppAuthority;
+use super::admission::AdmissionLease;
+use super::invocation::{
+    InvocationGate, InvocationSource, PreparedAuthority, RehearsalAuthorityBinding,
+    ResolvedAppAuthority, WireAuthorityFields,
+};
 use super::provider::{
     AUTH_SESSION_SLIDING_WINDOW_MS, AUTH_SESSION_SUPERSESSION_GRACE_MS, AuthenticatedUse,
     CredentialIssue, PlannedIssuanceCommit, PlannedPasswordChangeCommit, PlannedRevocationCommit,
@@ -21,15 +25,20 @@ use super::session_projection::{
     ProjectedSessionAuthority, ProjectedTokenResolution, RankedMutexGuard, SessionProjection,
     ranked_mutex_lock,
 };
-use crate::contract_types::{AuthorizationStreamIncarnation, RevocationReason, TokenDigest};
+use crate::contract_types::{
+    AuthorizationStreamIncarnation, RevocationReason, ServerProfile, TokenDigest,
+};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::manifest::AuthMode;
 use crate::storage::auth::AuthTransactionAttempt;
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-pub(crate) struct AuthCoordinator {
+pub struct AuthCoordinator {
     topology: Mutex<CoordinatorTopology>,
+    rehearsal_live_authority:
+        crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
     #[cfg(test)]
     fail_next_finalize: std::sync::atomic::AtomicBool,
 }
@@ -99,14 +108,14 @@ impl std::fmt::Debug for AuthCoordinator {
     }
 }
 
-pub(crate) struct PremarkedRevocation {
+pub struct PremarkedRevocation {
     plan: ProviderRevocationPlan,
     ticket: MutationTicket,
     terminal_target: CommittedRevocationTarget,
 }
 
 impl PremarkedRevocation {
-    pub(crate) fn plan(&self) -> &ProviderRevocationPlan {
+    pub fn plan(&self) -> &ProviderRevocationPlan {
         &self.plan
     }
 }
@@ -122,37 +131,37 @@ impl std::fmt::Debug for PremarkedRevocation {
     }
 }
 
-pub(crate) struct PremarkedRotation {
+pub struct PremarkedRotation {
     plan: ProviderTokenRotationPlan,
     ticket: MutationTicket,
 }
 
-pub(crate) struct PremarkedIssuance {
+pub struct PremarkedIssuance {
     plan: ProviderSessionIssuancePlan,
     issuance_ticket: MutationTicket,
     revocation_tickets: Vec<MutationTicket>,
     revocation_terminal_targets: Vec<CommittedRevocationTarget>,
 }
 
-pub(crate) struct PremarkedPasswordChange {
+pub struct PremarkedPasswordChange {
     plan: ProviderPasswordChangePlan,
     rotation_ticket: MutationTicket,
     revocation_tickets: Vec<MutationTicket>,
     revocation_terminal_targets: Vec<CommittedRevocationTarget>,
 }
 
-pub(crate) struct PremarkedStreamReset {
+pub struct PremarkedStreamReset {
     predecessor: AuthorizationStreamIncarnation,
     successor: AuthorizationStreamIncarnation,
     ticket: MutationTicket,
 }
 
 impl PremarkedStreamReset {
-    pub(crate) fn predecessor(&self) -> &AuthorizationStreamIncarnation {
+    pub fn predecessor(&self) -> &AuthorizationStreamIncarnation {
         &self.predecessor
     }
 
-    pub(crate) fn successor(&self) -> &AuthorizationStreamIncarnation {
+    pub fn successor(&self) -> &AuthorizationStreamIncarnation {
         &self.successor
     }
 }
@@ -169,13 +178,13 @@ impl std::fmt::Debug for PremarkedStreamReset {
 }
 
 impl PremarkedIssuance {
-    pub(crate) fn plan(&self) -> &ProviderSessionIssuancePlan {
+    pub fn plan(&self) -> &ProviderSessionIssuancePlan {
         &self.plan
     }
 }
 
 impl PremarkedPasswordChange {
-    pub(crate) fn plan(&self) -> &ProviderPasswordChangePlan {
+    pub fn plan(&self) -> &ProviderPasswordChangePlan {
         &self.plan
     }
 }
@@ -187,7 +196,7 @@ impl std::fmt::Debug for PremarkedIssuance {
 }
 
 impl PremarkedRotation {
-    pub(crate) fn plan(&self) -> &ProviderTokenRotationPlan {
+    pub fn plan(&self) -> &ProviderTokenRotationPlan {
         &self.plan
     }
 }
@@ -204,7 +213,7 @@ impl std::fmt::Debug for PremarkedRotation {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CommittedAuthResponseClass {
+pub enum CommittedAuthResponseClass {
     CredentialSecret,
     LogoutNoContent,
     FamilyAlarmAccepted,
@@ -224,12 +233,12 @@ struct CommittedAuthOutcomeState {
 /// Cloneable only so it can cross `http::Extensions`; every clone shares one
 /// mutex-protected capability and exactly one caller can consume it.
 #[derive(Clone, Debug)]
-pub(crate) struct CommittedAuthOutcome {
+pub struct CommittedAuthOutcome {
     state: Arc<Mutex<Option<CommittedAuthOutcomeState>>>,
 }
 
 impl CommittedAuthOutcome {
-    pub(crate) fn try_publish<T>(
+    pub fn try_publish<T>(
         self,
         response_class: CommittedAuthResponseClass,
         epoch_now_ms: u64,
@@ -265,7 +274,7 @@ impl CommittedAuthOutcome {
 }
 
 #[derive(Debug)]
-pub(crate) enum RevocationFinish {
+pub enum RevocationFinish {
     Committed {
         revocation: SessionRevocation,
         outcome: CommittedAuthOutcome,
@@ -282,7 +291,7 @@ pub(crate) enum RevocationFinish {
 // second allocation without changing the secret's ownership or drop boundary.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
-pub(crate) enum RotationFinish {
+pub enum RotationFinish {
     Committed {
         issue: CredentialIssue,
         outcome: CommittedAuthOutcome,
@@ -295,7 +304,7 @@ pub(crate) enum RotationFinish {
 // optional eviction result move together through the exact finalize boundary.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
-pub(crate) enum IssuanceFinish {
+pub enum IssuanceFinish {
     Committed {
         issue: CredentialIssue,
         outcome: CommittedAuthOutcome,
@@ -313,7 +322,7 @@ pub(crate) enum IssuanceFinish {
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
-pub(crate) enum PasswordChangeFinish {
+pub enum PasswordChangeFinish {
     Committed(CredentialIssue),
     CredentialInvalid,
     CredentialThrottled,
@@ -326,22 +335,22 @@ pub(crate) enum PasswordChangeFinish {
 /// a coherent projection, so post-commit projection failure cannot erase the
 /// information required by the server terminal lifecycle.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CommittedRevocationTarget {
+pub struct CommittedRevocationTarget {
     authorization_stream_incarnation: String,
     session_id: String,
     predecessor_generation: u64,
 }
 
 impl CommittedRevocationTarget {
-    pub(crate) fn authorization_stream_incarnation(&self) -> &str {
+    pub fn authorization_stream_incarnation(&self) -> &str {
         &self.authorization_stream_incarnation
     }
 
-    pub(crate) fn session_id(&self) -> &str {
+    pub fn session_id(&self) -> &str {
         &self.session_id
     }
 
-    pub(crate) fn predecessor_generation(&self) -> u64 {
+    pub fn predecessor_generation(&self) -> u64 {
         self.predecessor_generation
     }
 }
@@ -350,7 +359,7 @@ impl CommittedRevocationTarget {
 /// consumed before the result (including its original diagnostic) is
 /// returned to the request path.
 #[must_use = "known-committed revocations require terminal propagation"]
-pub(crate) struct AuthFinish<T> {
+pub struct AuthFinish<T> {
     outcome: SnapbackResult<T>,
     committed_revocations: Vec<CommittedRevocationTarget>,
 }
@@ -366,7 +375,7 @@ impl<T> AuthFinish<T> {
         }
     }
 
-    pub(crate) fn into_parts(self) -> (SnapbackResult<T>, Vec<CommittedRevocationTarget>) {
+    pub fn into_parts(self) -> (SnapbackResult<T>, Vec<CommittedRevocationTarget>) {
         (self.outcome, self.committed_revocations)
     }
 
@@ -390,8 +399,8 @@ impl<T> AuthFinish<T> {
 /// Projection-resolved authority plus the leaf handles required for the final
 /// synchronous publication cut. Callers may compute with `authority`, but
 /// bytes/effects become observable only through `publication.try_publish`.
-#[derive(Debug)]
-pub(crate) struct PreparedBearerAuthority {
+#[derive(Clone, Debug)]
+pub struct PreparedBearerAuthority {
     authority: ResolvedAppAuthority,
     publication: FencedPublication,
 }
@@ -399,8 +408,8 @@ pub(crate) struct PreparedBearerAuthority {
 /// Projection-owned authority used to mint one session-bound connection
 /// grant. The full resolved authority is short-lived: the registry strips the
 /// authority-instance id and bearer before storing the immutable grant key.
-#[derive(Debug)]
-pub(crate) struct PreparedConnectionSessionAuthority {
+#[derive(Clone, Debug)]
+pub struct PreparedConnectionSessionAuthority {
     authority: ResolvedAppAuthority,
     authorization_stream_incarnation: String,
     deadline_ms: u64,
@@ -408,7 +417,14 @@ pub(crate) struct PreparedConnectionSessionAuthority {
 }
 
 impl PreparedConnectionSessionAuthority {
-    pub(crate) fn into_parts(self) -> (ResolvedAppAuthority, String, u64, FencedPublication) {
+    pub fn route_authority(&self) -> PreparedBearerAuthority {
+        PreparedBearerAuthority {
+            authority: self.authority.clone(),
+            publication: self.publication.clone(),
+        }
+    }
+
+    pub fn into_parts(self) -> (ResolvedAppAuthority, String, u64, FencedPublication) {
         (
             self.authority,
             self.authorization_stream_incarnation,
@@ -419,15 +435,21 @@ impl PreparedConnectionSessionAuthority {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ConnectionSessionThrottleKey {
-    pub(crate) authorization_stream_incarnation: String,
-    pub(crate) session_id: String,
+pub struct ConnectionSessionThrottleKey {
+    pub authorization_stream_incarnation: String,
+    pub session_id: String,
     pub(crate) generation: u64,
+}
+
+impl ConnectionSessionThrottleKey {
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
 }
 
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)] // transient resolution value; boxing the hot arm buys nothing
-pub(crate) enum ConnectionBearerResolution {
+pub enum ConnectionBearerResolution {
     Current(PreparedConnectionSessionAuthority),
     Superseded(ConnectionSessionThrottleKey),
     Unavailable(ConnectionSessionThrottleKey),
@@ -436,21 +458,31 @@ pub(crate) enum ConnectionBearerResolution {
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 #[allow(clippy::large_enum_variant)] // transient resolution value; boxing the hot arm buys nothing
-pub(crate) enum BoundSessionResolution {
-    Current(ResolvedAppAuthority),
+pub enum BoundSessionResolution {
+    Current(PreparedBearerAuthority),
     Terminal { reason: RevocationReason },
     Unavailable,
 }
 
 #[derive(Debug)]
-pub(crate) struct PreparedAnonymousConnectionAuthority {
-    pub(crate) authorization_stream_incarnation: String,
+pub struct PreparedAnonymousConnectionAuthority {
+    pub authorization_stream_incarnation: String,
     pub(crate) publication: FencedPublication,
 }
 
+impl PreparedAnonymousConnectionAuthority {
+    pub fn into_parts(self) -> (String, FencedPublication) {
+        (self.authorization_stream_incarnation, self.publication)
+    }
+}
+
 impl PreparedBearerAuthority {
+    pub fn resolved(&self) -> &ResolvedAppAuthority {
+        &self.authority
+    }
+
     pub(crate) fn authority(&self) -> &ResolvedAppAuthority {
         &self.authority
     }
@@ -458,9 +490,62 @@ impl PreparedBearerAuthority {
     pub(crate) fn into_parts(self) -> (ResolvedAppAuthority, FencedPublication) {
         (self.authority, self.publication)
     }
+
+    pub fn matches_authority_instance_id(&self, expected: &str) -> bool {
+        matches!(
+            &self.authority,
+            ResolvedAppAuthority::Session {
+                authority_instance_id,
+                ..
+            } if authority_instance_id == expected
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare(
+        self,
+        database: &mut crate::storage::LocalDatabase,
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let session_claims = self
+            .authority
+            .session_id()
+            .map(|session_id| database.identity_claims(session_id, now_ms, profile))
+            .transpose()?;
+        InvocationGate::prepare_admitted_authority(
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            self.authority,
+            session_claims,
+        )
+        .map(|authority| authority.with_fenced_publication(self.publication))
+    }
 }
 
 impl AuthCoordinator {
+    /// Construct from a kernel-minted durable snapshot. The snapshot is
+    /// opaque outside the kernel, so callers cannot author projection rows and
+    /// self-assert session authority.
+    pub fn from_admitted_snapshot(
+        snapshot: super::session_projection::AdmittedProjectionSnapshot,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Self> {
+        Self::new(SessionProjection::rebuild_with_fresh_startup_id(
+            snapshot.into_source(),
+            epoch_now_ms,
+            monotonic_now,
+        )?)
+    }
+
     pub(crate) fn new(projection: SessionProjection) -> SnapbackResult<Self> {
         projection.check_invariants()?;
         Ok(Self {
@@ -469,6 +554,7 @@ impl AuthCoordinator {
                 rebuild_required_sessions: BTreeSet::new(),
                 global_rebuild_required: false,
             }),
+            rehearsal_live_authority: Default::default(),
             #[cfg(test)]
             fail_next_finalize: std::sync::atomic::AtomicBool::new(false),
         })
@@ -546,7 +632,7 @@ impl AuthCoordinator {
     ///
     /// @ref LLP 0059#plan-begin-commit-finalize — the leaf is blocked before
     /// commit begins, and no projection/fence guard enters SQLite.
-    pub(crate) async fn premark_revocation(
+    pub async fn premark_revocation(
         self: &Arc<Self>,
         plan: ProviderRevocationPlan,
     ) -> SnapbackResult<PremarkedRevocation> {
@@ -587,7 +673,7 @@ impl AuthCoordinator {
         })
     }
 
-    pub(crate) async fn premark_rotation(
+    pub async fn premark_rotation(
         self: &Arc<Self>,
         plan: ProviderTokenRotationPlan,
     ) -> SnapbackResult<PremarkedRotation> {
@@ -617,7 +703,7 @@ impl AuthCoordinator {
         Ok(PremarkedRotation { plan, ticket })
     }
 
-    pub(crate) async fn premark_issuance(
+    pub async fn premark_issuance(
         self: &Arc<Self>,
         plan: ProviderSessionIssuancePlan,
     ) -> SnapbackResult<PremarkedIssuance> {
@@ -707,7 +793,7 @@ impl AuthCoordinator {
         })
     }
 
-    pub(crate) async fn premark_password_change(
+    pub async fn premark_password_change(
         self: &Arc<Self>,
         plan: ProviderPasswordChangePlan,
     ) -> SnapbackResult<PremarkedPasswordChange> {
@@ -810,7 +896,7 @@ impl AuthCoordinator {
     ///
     /// @ref LLP 0059#reset-restore-and-stream-publication — reset uses the
     /// same premark/commit/finalize protocol as session leaf mutations.
-    pub(crate) async fn premark_stream_reset(
+    pub async fn premark_stream_reset(
         self: &Arc<Self>,
     ) -> SnapbackResult<PremarkedStreamReset> {
         let (predecessor, successor, ticket, drain) = self.begin_stream_reset_marker()?;
@@ -829,7 +915,7 @@ impl AuthCoordinator {
         })
     }
 
-    pub(crate) fn premark_stream_reset_if_drained(
+    pub fn premark_stream_reset_if_drained(
         self: &Arc<Self>,
     ) -> SnapbackResult<PremarkedStreamReset> {
         let (predecessor, successor, ticket, drain) = self.begin_stream_reset_marker()?;
@@ -866,7 +952,7 @@ impl AuthCoordinator {
         Ok((predecessor, successor, premarked.ticket, premarked.drain))
     }
 
-    pub(crate) fn finish_stream_reset<T>(
+    pub fn finish_stream_reset<T>(
         &self,
         carrier: PremarkedStreamReset,
         attempt: AuthTransactionAttempt<T>,
@@ -905,7 +991,7 @@ impl AuthCoordinator {
         }
     }
 
-    pub(crate) fn finish_revocation(
+    pub fn finish_revocation(
         &self,
         carrier: PremarkedRevocation,
         attempt: AuthTransactionAttempt<PlannedRevocationCommit>,
@@ -1011,7 +1097,7 @@ impl AuthCoordinator {
         }
     }
 
-    pub(crate) fn finish_rotation(
+    pub fn finish_rotation(
         &self,
         carrier: PremarkedRotation,
         attempt: AuthTransactionAttempt<PlannedRotationCommit>,
@@ -1095,7 +1181,7 @@ impl AuthCoordinator {
         }
     }
 
-    pub(crate) fn finish_issuance(
+    pub fn finish_issuance(
         &self,
         carrier: PremarkedIssuance,
         attempt: AuthTransactionAttempt<PlannedIssuanceCommit>,
@@ -1234,7 +1320,7 @@ impl AuthCoordinator {
         }
     }
 
-    pub(crate) fn finish_password_change(
+    pub fn finish_password_change(
         &self,
         carrier: PremarkedPasswordChange,
         attempt: AuthTransactionAttempt<PlannedPasswordChangeCommit>,
@@ -1339,7 +1425,7 @@ impl AuthCoordinator {
     /// Required-session bearer resolution is memory-only. It never enters
     /// `LocalDatabase`, and it retains authority-instance identity for item 7
     /// while exposing neither digest nor fence to application code.
-    pub(crate) fn resolve_required_bearer(
+    pub fn resolve_required_bearer(
         &self,
         bearer: &str,
         epoch_now_ms: u64,
@@ -1384,7 +1470,7 @@ impl AuthCoordinator {
     /// attributable superseded token regardless of grace age so their durable
     /// planner can select the exact refresh-reuse or logout outcome. Resolution
     /// remains projection-only and returns the same final-publication fence.
-    pub(crate) fn resolve_family_bearer(
+    pub fn resolve_family_bearer(
         &self,
         bearer: &str,
         epoch_now_ms: u64,
@@ -1415,7 +1501,7 @@ impl AuthCoordinator {
     /// Bind an anonymous finite publication to the current authorization
     /// stream. Reset/restore can therefore fence an already-computed public
     /// response at the same final handoff used for session responses.
-    pub(crate) fn prepare_anonymous_publication(&self) -> SnapbackResult<FencedPublication> {
+    pub fn prepare_anonymous_publication(&self) -> SnapbackResult<FencedPublication> {
         let topology = self.lock_topology()?;
         if topology.global_rebuild_required {
             return Err(projection_unavailable());
@@ -1426,7 +1512,7 @@ impl AuthCoordinator {
     /// Return the current anonymous stream fence without provider or SQLite
     /// access. The caller performs the final grant insertion through this
     /// fence, so a concurrent reset cannot publish predecessor authority.
-    pub(crate) fn prepare_anonymous_connection(
+    pub fn prepare_anonymous_connection(
         &self,
     ) -> SnapbackResult<PreparedAnonymousConnectionAuthority> {
         let topology = self.lock_topology()?;
@@ -1446,7 +1532,7 @@ impl AuthCoordinator {
     /// @ref LLP 0059#connection-bound-authority — connection open never falls
     /// through to provider/SQLite resolution and only an exact current leaf
     /// yields a grant publication fence.
-    pub(crate) fn classify_connection_bearer(
+    pub fn classify_connection_bearer(
         &self,
         bearer: &SessionBearer,
         epoch_now_ms: u64,
@@ -1511,7 +1597,7 @@ impl AuthCoordinator {
     /// from a stored grant. This is a bounded in-memory projection lookup; the
     /// grant's cloned `FencedPublication` still owns the final act-time cut.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn resolve_bound_connection_session(
+    pub fn resolve_bound_connection_session(
         &self,
         authorization_stream_incarnation: &str,
         session_id: &str,
@@ -1539,7 +1625,7 @@ impl AuthCoordinator {
                 monotonic_now,
             )? {
                 ProjectedBoundSessionResolution::Current(authority) => {
-                    BoundSessionResolution::Current(ResolvedAppAuthority::Session {
+                    let authority = ResolvedAppAuthority::Session {
                         user_id: authority.user_id,
                         session_id: authority.session_id,
                         provider: authority.provider,
@@ -1550,6 +1636,13 @@ impl AuthCoordinator {
                             .min(authority.absolute_expires_at_ms),
                         provider_not_after_ms: None,
                         rehearsal_provenance: authority.rehearsal_provenance,
+                    };
+                    let publication = topology
+                        .projection
+                        .session_publication_fence(session_id, generation)?;
+                    BoundSessionResolution::Current(PreparedBearerAuthority {
+                        authority,
+                        publication,
                     })
                 }
                 ProjectedBoundSessionResolution::Terminal { reason } => {
@@ -1565,7 +1658,7 @@ impl AuthCoordinator {
     /// Every durable identity coordinate and the stream incarnation must
     /// still be current; no bearer is recovered or retained.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn prepare_retained_effect_session(
+    pub fn prepare_retained_effect_session(
         &self,
         authorization_stream_incarnation: &str,
         session_id: &str,
@@ -1587,25 +1680,13 @@ impl AuthCoordinator {
         let BoundSessionResolution::Current(authority) = resolved else {
             return Err(projection_unavailable());
         };
-        let topology = self.lock_topology()?;
-        if topology.global_rebuild_required
-            || topology.projection.incarnation().as_str() != authorization_stream_incarnation
-        {
-            return Err(projection_unavailable());
-        }
-        let publication = topology
-            .projection
-            .session_publication_fence(session_id, generation)?;
-        Ok(PreparedBearerAuthority {
-            authority,
-            publication,
-        })
+        Ok(authority)
     }
 
     /// Publish the later deadline only after the provider's durable result is
     /// known (or its explicit no-write result is known). Refresh never calls
     /// this path.
-    pub(crate) fn finalize_authenticated_use(
+    pub fn finalize_authenticated_use(
         &self,
         session_id: &str,
         expected_generation: u64,
@@ -1630,7 +1711,7 @@ impl AuthCoordinator {
         )
     }
 
-    pub(crate) fn sample_due_expiries(
+    pub fn sample_due_expiries(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -1644,7 +1725,7 @@ impl AuthCoordinator {
             .sample_due_expiries(epoch_now_ms, monotonic_now)
     }
 
-    pub(crate) async fn expire_sampled_due(
+    pub async fn expire_sampled_due(
         self: &Arc<Self>,
         batch: DueExpiryBatch,
     ) -> SnapbackResult<DueExpiryFinalization> {
@@ -1686,12 +1767,12 @@ impl AuthCoordinator {
         Ok(finalized)
     }
 
-    pub(crate) fn expiry_scan_delay(&self, monotonic_now: Instant) -> SnapbackResult<Duration> {
+    pub fn expiry_scan_delay(&self, monotonic_now: Instant) -> SnapbackResult<Duration> {
         let topology = self.lock_topology()?;
         Ok(topology.projection.expiry_scan_delay(monotonic_now))
     }
 
-    pub(crate) fn requires_rebuild(&self, session_id: &str) -> SnapbackResult<bool> {
+    pub fn requires_rebuild(&self, session_id: &str) -> SnapbackResult<bool> {
         let topology = self.lock_topology()?;
         Ok(topology.global_rebuild_required
             || topology.rebuild_required_sessions.contains(session_id))
@@ -1703,7 +1784,7 @@ impl AuthCoordinator {
 
     /// Exact process authority identity advertised by the bootstrap
     /// handshake and captured by clients for every retained/queued scope.
-    pub(crate) fn authorization_stream_incarnation(&self) -> SnapbackResult<String> {
+    pub fn authorization_stream_incarnation(&self) -> SnapbackResult<String> {
         let topology = self.lock_topology()?;
         if topology.global_rebuild_required {
             return Err(projection_unavailable());
@@ -1711,7 +1792,90 @@ impl AuthCoordinator {
         Ok(topology.projection.incarnation().as_str().to_owned())
     }
 
-    pub(crate) fn fail_global_closed(&self) -> SnapbackResult<()> {
+    /// Bind the bootstrap response to this coordinator's current stream.
+    /// The raw incarnation setter remains crate-private so a higher adapter
+    /// cannot assert an arbitrary authorization-stream identity.
+    pub fn bind_bootstrap_publication(
+        &self,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let incarnation = self.authorization_stream_incarnation()?;
+        let authority = authority.with_authorization_stream_incarnation(incarnation);
+        Ok(authority)
+    }
+
+    /// Mint the process-live half of rehearsal authority only from an
+    /// admitted coordinator. The returned carrier keeps the raw registry out
+    /// of invocation-preparation APIs.
+    pub fn rehearsal_authority_binding(&self) -> SnapbackResult<RehearsalAuthorityBinding> {
+        let topology = self.lock_topology()?;
+        if topology.global_rebuild_required {
+            return Err(projection_unavailable());
+        }
+        drop(topology);
+        let binding = RehearsalAuthorityBinding::new(self.rehearsal_live_authority.clone());
+        Ok(binding)
+    }
+
+    pub fn rehearsal_capability_active(&self, now_ms: u64) -> bool {
+        let mut live = self
+            .rehearsal_live_authority
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        live.retain(|_, authority| authority.expires_at_ms > now_ms);
+        !live.is_empty()
+    }
+
+    pub fn publish_rehearsal_grant(
+        &self,
+        minted: &crate::auth::rehearsal::MintedRehearsalGrant,
+    ) {
+        self.rehearsal_live_authority
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(
+                minted.grant.grant_id.clone(),
+                crate::auth::rehearsal::RehearsalLiveAuthority {
+                    expires_at_ms: minted.grant.expires_at,
+                    parent_grant_id: None,
+                },
+            );
+    }
+
+    pub fn publish_rehearsal_window(
+        &self,
+        window: &crate::auth::rehearsal::AuthRehearsalWindowV1,
+    ) {
+        self.rehearsal_live_authority
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(
+                window.window_id.clone(),
+                crate::auth::rehearsal::RehearsalLiveAuthority {
+                    expires_at_ms: window.expires_at,
+                    parent_grant_id: Some(window.grant_id.clone()),
+                },
+            );
+    }
+
+    pub fn retire_rehearsal_grant(&self, grant_id: &str) {
+        self.rehearsal_live_authority
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .retain(|authority_id, authority| {
+                authority_id != grant_id
+                    && authority.parent_grant_id.as_deref() != Some(grant_id)
+            });
+    }
+
+    pub fn clear_rehearsal_authority(&self) {
+        self.rehearsal_live_authority
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
+    }
+
+    pub fn fail_global_closed(&self) -> SnapbackResult<()> {
         self.lock_topology()?.global_rebuild_required = true;
         Ok(())
     }
@@ -1987,7 +2151,7 @@ fn session_expired(reason: RevocationReason) -> SnapbackError {
     }))
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "sync-owner")))]
 mod tests {
     use super::*;
     use crate::auth::crypto::{CryptoError, RandomSource};

@@ -4,7 +4,7 @@ id: backend.expo-push-seam
 order: 46
 audience: agent-first
 capabilities: [backend.expo-push-seam]
-authorities: [llp/0143-expo-push-notification-seam.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0045-notifications-outbox.rfc.md, crates/snapback-services/src/push.rs, crates/snapback/src/push.rs, crates/snapback-sync/src/connected_clients.rs, crates/snapback/src/server.rs, crates/snapback/src/admin.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs, packages/snapback-cli/fake-expo-push.mjs]
+authorities: [llp/0143-expo-push-notification-seam.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0045-notifications-outbox.rfc.md, crates/snapback-services/src/push.rs, crates/snapback-engine/src/push.rs, crates/snapback-sync/src/connected_clients.rs, crates/snapback/src/server.rs, crates/snapback/src/admin.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs, packages/snapback-cli/fake-expo-push.mjs]
 examples: [packages/snapback-cli/fixtures/push-seam]
 status: current
 targets: [local]

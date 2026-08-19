@@ -4,6 +4,7 @@
 //! core is the Hermes/Ibex VM boundary, host glue composes application owners,
 //! and proof shapes are dependency-light carriers for the contract leaf.
 
+#[path = "runtime/host_glue.rs"]
 mod host_glue;
 pub use host_glue::*;
 pub(crate) use snapback_runtime::runtime::*;

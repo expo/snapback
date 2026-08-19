@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:55ff2a90e1f68d7b08dc4745889084af47470473c2d73fafd8ed6fcb19cc8a6c"
+    "sourceDigest": "sha256:76fd47ac2e7645a897a45ef02b32f1607847cda3a9acaba7624faa4a3a0cfa7c"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -809,7 +809,7 @@
         "llp/0226-identity-architecture.decision.md",
         "packages/snapback-client/index.mjs",
         "packages/snapback-codegen/ctx.d.mts",
-        "crates/snapback/src/auth/invocation.rs",
+        "crates/snapback-sync/src/auth/invocation.rs",
         "crates/snapback-kernel/src/storage/auth_identity.rs",
         "crates/snapback/src/cli.rs",
         "demos/browser-auth/server/gateway.mjs",
@@ -825,7 +825,7 @@
       ],
       "reviewed": "2026-08-16",
       "reviewedAuthoritiesDigest": "sha256:f2306d9477abd4af9d9e81a0fd94f5a9f71f3280544cb4626ea2b93c669116f6",
-      "sha256": "68593618443e2e8bbe12b895584f0c4f51cdf413fa2f25df89e060865204c654",
+      "sha256": "0f08bb80f6f3e487079bb2238ef81cd6cb095dcc0960bf035a1d1a0d1804a8bd",
       "snippets": [
         {
           "lang": "js",
@@ -1039,10 +1039,10 @@
         "crates/snapback-auth/src/auth/invalidation.rs",
         "crates/snapback/src/auth/mode.rs",
         "crates/snapback-auth/src/auth/service_fence.rs",
-        "crates/snapback/src/local.rs",
+        "crates/snapback-engine/src/local.rs",
         "crates/snapback/src/local/authorization_acceptance.rs",
-        "crates/snapback/src/manifest.rs",
-        "crates/snapback/src/runtime.rs",
+        "crates/snapback-engine/src/manifest.rs",
+        "crates/snapback-engine/src/runtime.rs",
         "crates/snapback/src/server.rs",
         "demos/_kit/tests/auth-invalidation-client.mjs",
         "packages/snapback-codegen/define.mjs",
@@ -1061,7 +1061,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:3c291b748e3c46bd38618b661c1bd3ffd8c9125564eaf140621017774539867e",
-      "sha256": "0f0f779c7bc876fbfd00ef0822fabe8a90f624d1489f8a7e653e8edc7aac1bfc",
+      "sha256": "9c8eadc217a50c7146fdfb126b9de42ce4e1736fb0a3aaf1a5dac454d150885a",
       "snippets": [
         {
           "lang": "js",
@@ -1130,9 +1130,9 @@
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "crates/snapback/src/admin.rs",
-        "crates/snapback/src/manifest.rs",
+        "crates/snapback-engine/src/manifest.rs",
         "crates/snapback-kernel/src/membership_rules.rs",
-        "crates/snapback/src/runtime.rs",
+        "crates/snapback-engine/src/runtime.rs",
         "crates/snapback-kernel/src/storage.rs",
         "demos/rbac/tests/acceptance/rbac.mjs",
         "demos/shindig/snapback/schema.mjs",
@@ -1148,7 +1148,7 @@
       ],
       "reviewed": "2026-08-16",
       "reviewedAuthoritiesDigest": "sha256:c4978542d3184b50789dde574d70e83214609204f5e9767ede6470c5557cbaf7",
-      "sha256": "5567ed9eab34fe8def9c192773d54d135c12cc8367f2ab421a83950d2de0fd88",
+      "sha256": "9f0e5712ac986a7ad2092c53b7a4df6791e38b17554da55435a7cb964ba5cf81",
       "snippets": [
         {
           "lang": "js",
@@ -1253,7 +1253,7 @@
         "crates/snapback/src/auth/mode.rs",
         "crates/snapback-auth/src/auth/provider.rs",
         "crates/snapback-auth/src/dev_identity.rs",
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "crates/snapback/src/server.rs",
         "crates/snapback/src/cli.rs",
         "packages/snapback-cli/expo-dev.mjs",
@@ -1279,7 +1279,7 @@
       ],
       "reviewed": "2026-08-16",
       "reviewedAuthoritiesDigest": "sha256:2ac1a38c4cdf294b94a69fe2733378017375a3c2ac6171aaa140926868346199",
-      "sha256": "ee5b221c7818c1b0122002a6ec6950a029327ca192a368f6b12f4642ca8a785a",
+      "sha256": "4f831df92d7555c40385dedcc9bce957ded884d9636b840a8049d59ea4009ac4",
       "snippets": [
         {
           "lang": "js",
@@ -1494,7 +1494,7 @@
         "crates/snapback-services/src/assets.rs",
         "crates/snapback-services/src/assets_cut.rs",
         "crates/snapback/src/cli.rs",
-        "crates/snapback/src/local.rs",
+        "crates/snapback-engine/src/local.rs",
         "crates/snapback/src/server.rs",
         "crates/snapback/src/server/asset_routes.rs",
         "packages/snapback-client/assets.mjs",
@@ -1521,7 +1521,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:ac2cd7a89de0a56f4add93da19c9e943c1fd38470c9d223c21fa404259320788",
-      "sha256": "52c962472643bd2aeac9eb66ba95f55cd5ed19e5ed93929b0e14eb6e847ef1ed",
+      "sha256": "1003b228b6e0edb732902160a443df4035694792f5efbc79e638a593fd471aed",
       "snippets": [
         {
           "lang": "js",
@@ -1801,7 +1801,7 @@
         "llp/0222-connected-client-predicate.rfc.md",
         "llp/0045-notifications-outbox.rfc.md",
         "crates/snapback-services/src/push.rs",
-        "crates/snapback/src/push.rs",
+        "crates/snapback-engine/src/push.rs",
         "crates/snapback-sync/src/connected_clients.rs",
         "crates/snapback/src/server.rs",
         "crates/snapback/src/admin.rs",
@@ -1815,7 +1815,7 @@
       ],
       "reviewed": "2026-08-10",
       "reviewedAuthoritiesDigest": "sha256:1b03a6d605d8591c0d82496900f39eb17acd1209f609feb927610e6bc0f84af6",
-      "sha256": "59c037f85e406aea4bc46420245b51ab7c2d7777e3c21a29c733e80cdce171c1",
+      "sha256": "eb60c66214eabe6c7a53364f3f14a01f8ef8ccf92e7b50bcc27f56476b41c38e",
       "snippets": [
         {
           "lang": "js",
@@ -1852,9 +1852,9 @@
         "llp/0031-server-route-taxonomy.spec.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
-        "crates/snapback/src/manifest.rs",
+        "crates/snapback-engine/src/manifest.rs",
         "crates/snapback-types/src/api_envelope.rs",
-        "crates/snapback/src/ask.rs",
+        "crates/snapback-engine/src/ask.rs",
         "crates/snapback/src/server.rs",
         "crates/snapback/src/server/effects.rs",
         "crates/snapback/src/server/oauth.rs",
@@ -1863,7 +1863,7 @@
         "crates/snapback-kernel/src/storage/capability_links.rs",
         "crates/snapback-kernel/src/storage/auth_integrations.rs",
         "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-        "crates/snapback/src/auth/invocation.rs",
+        "crates/snapback-sync/src/auth/invocation.rs",
         "crates/snapback-services/src/telemetry.rs",
         "crates/snapback-services/src/telemetry_query.rs"
       ],
@@ -1872,7 +1872,7 @@
       ],
       "reviewed": "2026-08-09",
       "reviewedAuthoritiesDigest": "sha256:33436c3acb6ab29a45b16c1b9d986e0037996934e374c91db0a295ece3ed8122",
-      "sha256": "d0ea42494671fbdb7db4c84344997cf43d2076e4f6a6f77ae4429d8bd9412ec3",
+      "sha256": "0ae7bb367f1416917c753e3b8099b7f852d1e26c27b4fa096b61fcce3458dac6",
       "snippets": [
         {
           "lang": "js",
@@ -1910,7 +1910,7 @@
         "llp/0252-convex-familiar-authoring-profile.rfc.md",
         "llp/0253-familiar-profile-v1-api.spec.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
-        "crates/snapback/src/runtime.rs",
+        "crates/snapback-engine/src/runtime.rs",
         "packages/snapback-codegen/ctx.d.mts",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/familiar.mjs",
@@ -1936,7 +1936,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:8d755dadfc7074bdf2071561aa83601ad521d4c7ae7d5e3b80404ca4c6bf73e0",
-      "sha256": "51a72a2e7889792fd3095ca47810c353e6be3915560e59049675a3af52a279a3",
+      "sha256": "346a5fdb1fb58a367bce3e36206b66cd35f2f43affc3d4cbf379cfe1a6bb0cb1",
       "snippets": [
         {
           "lang": "json",
@@ -2031,7 +2031,7 @@
       "authorities": [
         "llp/0070-durable-background-work.rfc.md",
         "crates/snapback-services/src/jobs.rs",
-        "crates/snapback/src/runtime.rs",
+        "crates/snapback-engine/src/runtime.rs",
         "crates/snapback/src/admin.rs",
         "crates/snapback/src/admin_secret_read.rs",
         "crates/snapback/src/cli.rs",
@@ -2044,7 +2044,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:6d95641bb08090de8c01061804af32041cc9f70e6846bf722395c2e504334591",
-      "sha256": "07ed9603ea0d403f6de7810e9f2435c6c8c0c037ca7a0b55e36d398423f49f72",
+      "sha256": "ab6641be3da49860ae9f9cb7bf27650232399ce9774ebe499cf3be166e5c1580",
       "snippets": [
         {
           "lang": "js",
@@ -2172,7 +2172,7 @@
         "crates/snapback/src/cli.rs",
         "crates/snapback-kernel/src/migration.rs",
         "crates/snapback-kernel/src/migration_presentation.rs",
-        "crates/snapback/src/local.rs",
+        "crates/snapback-engine/src/local.rs",
         "crates/snapback/tests/migration_cli_presentation_v1.rs",
         "crates/snapback/tests/migration_corpus_v0.rs"
       ],
@@ -2182,7 +2182,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:0845678e9f349bbf1f6872d176f125d4fcd113124dda99a6558eb22917bb249f",
-      "sha256": "14decd90119af637096ddb8c021184d32fed648d6736bd927d669f567f3baeee",
+      "sha256": "5dec08d6870862655b18609f222fcfe02a966a9710a91e2be26283815dda6bfc",
       "snippets": [
         {
           "lang": "json",
@@ -2220,7 +2220,7 @@
         "llp/0174-authoring-incidents-at-security-fences.research.md",
         "llp/0231-entity-and-permissioning-recommendation.rfc.md",
         "crates/snapback/src/server.rs",
-        "crates/snapback/src/runtime.rs",
+        "crates/snapback-engine/src/runtime.rs",
         "crates/snapback-types/src/result_contract.rs",
         "crates/snapback-kernel/src/proof_checkpoint.rs",
         "schemas/mutation.output.schema.json",
@@ -2242,7 +2242,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:57c704b548d0d3feb6bc066747148bcb4c897957e4f96527d921bf35c1889cc2",
-      "sha256": "05049cc217522ef48ee0ea1c9940435ebdf34f4f0737352ac318427da12f686c",
+      "sha256": "879077c0fde1e0996c88c43404126a08d577c03cbf4b7a3e6a634ee5025bab01",
       "snippets": [
         {
           "lang": "js",
@@ -2330,8 +2330,8 @@
         "packages/snapback-harness/ctx-bootstrap.js",
         "packages/snapback-harness/envelope.test.mjs",
         "schemas/capability.manifest.local-dev-sqlite-ibex.json",
-        "crates/snapback/src/manifest.rs",
-        "crates/snapback/src/runtime.rs",
+        "crates/snapback-engine/src/manifest.rs",
+        "crates/snapback-engine/src/runtime.rs",
         "crates/snapback-kernel/src/storage.rs",
         "crates/snapback-types/src/result_contract.rs",
         "crates/snapback/tests/local_v0.rs",
@@ -2344,7 +2344,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:46147d74a2d26fe478b7826855e02827d9f62f3d34a9ad56ef34fa90d6458bf1",
-      "sha256": "327325c718cd6570e3fc40fdd226978f4cfab4570f7412721e5ee0b83bc98e64",
+      "sha256": "6a95214aaac224f51aa981a1e5e5e7e85e39b132a6d0ed24712e7817c60e0539",
       "snippets": [
         {
           "lang": "js",
@@ -2460,9 +2460,9 @@
         "llp/0128-popular-app-storage-scale.research.md",
         "llp/0135-sequence-allocation-and-snapshot-batch.spec.md",
         "llp/0157-composition-algebra-and-completeness.spec.md",
-        "crates/snapback/src/local-sequence-allocation-publication.v1.json",
-        "crates/snapback/src/manifest.rs",
-        "crates/snapback/src/runtime.rs",
+        "crates/snapback-engine/src/local-sequence-allocation-publication.v1.json",
+        "crates/snapback-engine/src/manifest.rs",
+        "crates/snapback-engine/src/runtime.rs",
         "crates/snapback-kernel/src/storage.rs",
         "tests/conformance/sequence-allocation-publication-v1.receipt.json",
         "packages/snapback-codegen/define.mjs",
@@ -2476,7 +2476,7 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedAuthoritiesDigest": "sha256:339769af563c7edf2b98728e26b469c9b33b7635fa8666b193a2ba63e7a578cf",
-      "sha256": "30c8770626c73ac52796147e802e171bea11003782dcc8482273a49c6ded02fc",
+      "sha256": "c27541fc684ecdb1c843c45f93bb9ff876c2c8de7df5bf2eb6fe43063fc9377e",
       "snippets": [
         {
           "lang": "js",
@@ -2503,8 +2503,8 @@
         "llp/0110-bounded-children-and-activity-patterns.spec.md",
         "llp/0080-portable-relational-queries-and-projections.rfc.md",
         "llp/0166-local-persistent-store.spec.md",
-        "crates/snapback/src/manifest.rs",
-        "crates/snapback/src/local.rs",
+        "crates/snapback-engine/src/manifest.rs",
+        "crates/snapback-engine/src/local.rs",
         "crates/snapback-sync/src/snapshot_batch_cursor.rs",
         "packages/snapback-codegen/define.mjs"
       ],
@@ -2515,7 +2515,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:21e047f9a0382245b33c96da4b91b541f81b8de4c5b93f131512a7da792745c4",
-      "sha256": "2f987d671fd652cc23a7eeeb3188f80f115ba7c0b861580a19f1c657e285763b",
+      "sha256": "546e9b7bc9916e171e2d3a70d780d4774894c9bede833b342b61ab0752cd313c",
       "snippets": [
         {
           "lang": "js",
@@ -2753,7 +2753,7 @@
         "crates/snapback-types/src/vector/types.rs",
         "crates/snapback-kernel/src/vector/query.rs",
         "crates/snapback-kernel/src/vector/sqlite.rs",
-        "crates/snapback/src/manifest.rs",
+        "crates/snapback-engine/src/manifest.rs",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-client/index.mjs"
       ],
@@ -2763,7 +2763,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:39af92584e57debdcb2baa5c38f3f7b19dac6a588f5fefec6e5ba8d7e77d1dcd",
-      "sha256": "97fb27eecaaca706e57ba774792a8db42bc88685c4585aeedc81f5286244aba8",
+      "sha256": "f5ab69bb87241723f43253f05dc0ea5156e1e83b4235927bc87a055cf933b54e",
       "snippets": [
         {
           "lang": "js",
@@ -2853,7 +2853,7 @@
       "examples": [],
       "reviewed": "2026-08-17",
       "reviewedAuthoritiesDigest": "sha256:7f9585e2924827e7f5057f9a42dfda3b1c15cefeb0c142a6f5c2a2fcaab3db64",
-      "sha256": "5f1c73da034cb0e190b7865142a864cd44d3b50feeed8851f4abe8529ef8171e",
+      "sha256": "269cdc9c66133144713e49c7f83b48804791c09a48733dbe0f346b7d4ff46e80",
       "snippets": []
     },
     "clients.app-cli": {
@@ -4086,7 +4086,7 @@
         "llp/0031-server-route-taxonomy.spec.md",
         "llp/0017-admin-console-inspection-surface.rfc.md",
         "crates/snapback-kernel/src/data_patch.rs",
-        "crates/snapback/src/local.rs",
+        "crates/snapback-engine/src/local.rs",
         "crates/snapback/src/server.rs",
         "crates/snapback/src/cli.rs",
         "packages/snapback-cli/mcp-control.mjs"
@@ -4097,7 +4097,7 @@
       ],
       "reviewed": "2026-08-12",
       "reviewedAuthoritiesDigest": "sha256:a8646ba81d5d0a44332038047afe5eef25aadaf921bbf296e607e8c23eccbf46",
-      "sha256": "6ccf97b9b8c4f7deaacb35a2bf2db13ce1e55c47b893766843a5571c54c2b826",
+      "sha256": "391468e7612870aa645b7666952548cfb855fcbbbb08b5f6df06b1881c8db097",
       "snippets": [
         {
           "lang": "json",
@@ -4124,8 +4124,8 @@
         "llp/0095-client-lifecycle-and-conformance.spec.md",
         "llp/0146-agentic-authoring-affordances.rfc.md",
         "crates/snapback/src/diagnostic.rs",
-        "crates/snapback/src/remediation.rs",
-        "crates/snapback/src/authoring_suggestion.rs",
+        "crates/snapback-kernel/src/remediation.rs",
+        "crates/snapback-kernel/src/authoring_suggestion.rs",
         "packages/snapback-client/remediation.mjs",
         "packages/snapback-cli/mcp-control.mjs",
         "packages/snapback-codegen/index.mjs",
@@ -4149,7 +4149,7 @@
       ],
       "reviewed": "2026-08-10",
       "reviewedAuthoritiesDigest": "sha256:1c25648b54546e0cba48be11aa9c86c92fe3548afc6b94f50767aa6b4761deab",
-      "sha256": "18b8c6d637a4e7eda2543226fe9f1c00311cf86340714a3e3c9be1304c4da13d",
+      "sha256": "1c148a983a7d5a72bcd34ded51c79e3ccfa7c5ae819832e979578cd9cc0994ad",
       "snippets": [
         {
           "lang": "json",
@@ -4182,7 +4182,7 @@
         "crates/snapback-services/src/errors_query.rs",
         "crates/snapback-services/src/telemetry.rs",
         "crates/snapback/src/cli.rs",
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs",
         "admin-ui/app.contract",
         "admin-ui/admin-boundary.mjs"
@@ -4190,7 +4190,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:2945c7d8f80d8a41b366ede5aee474f6f9b9e7105918f818896d99a704405709",
-      "sha256": "d16d9e2d3ef9d203010b2acb54f6447759adff5fac3cb5ab87a37483d80a5c1c",
+      "sha256": "0a05ee476626d611c6b577c861e7b08a44b9ea9c95916e90350c5a3cccdc5138",
       "snippets": []
     },
     "operating.host-ops": {
@@ -4208,7 +4208,7 @@
       "authorities": [
         "llp/0024-agent-operating-surface.spec.md",
         "crates/snapback/src/cli.rs",
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "crates/snapback/src/server.rs",
         "crates/snapback/src/admin_secret_read.rs",
         "packages/snapback-cli/mcp-control.mjs",
@@ -4219,7 +4219,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:e276d9f43b744ac2d28a8c7ee4a09cf25f08bf77f6f2a92d9c4a63efa65fd3dd",
-      "sha256": "e30cc083ded8d8cdea73e1b04d88f7c01245e80d5bc6d299cfcf7bde3522ed28",
+      "sha256": "3a5296aaddded5cfa29d7a36b5ec53314cfa23747d690c9d317be432d700c5b7",
       "snippets": [
         {
           "lang": "json",
@@ -4257,7 +4257,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedAuthoritiesDigest": "sha256:e111ece9828fd85ebb3493ac42dc0901b77a579a80c5f9287b74c89b673db916",
-      "sha256": "f3972584664869c3b16fe214e222a9e94774a2d018557a4475198f2ad5a54756",
+      "sha256": "8fb8eb588a9d7350d472333037907661055b2b36da61f37d51bfe5a772bde430",
       "snippets": [
         {
           "lang": "js",
@@ -4321,7 +4321,7 @@
         "crates/snapback-services/src/telemetry.rs",
         "crates/snapback-services/src/telemetry_query.rs",
         "crates/snapback/src/cli.rs",
-        "crates/snapback/src/host_ops.rs",
+        "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs",
         "admin-ui/admin-boundary.mjs",
         "scripts/telemetry-phase1-idle-proof.mjs",
@@ -4330,7 +4330,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:c39c3ad792dc3458af8398d113e6d24cb378de2094556d3bcb84fea4956a2e85",
-      "sha256": "ba150bdf3694b71391d9f8a87bee2d2e9c834264bc34eb684b7acc6b9a9d2f63",
+      "sha256": "7a184e1aff0b19db1fa75e48765010eacbec2103150a823196ac76efe458eb5d",
       "snippets": []
     },
     "operating.replication": {
@@ -4612,15 +4612,15 @@
         "packages/snapback-codegen/authoring-validation.test.mjs",
         "demos/public-dashboard/snapback/routes.mjs",
         "demos/public-dashboard/tests/acceptance/headless.mjs",
-        "crates/snapback/src/bundle.rs",
-        "crates/snapback/src/local.rs"
+        "crates/snapback-activation/src/bundle.rs",
+        "crates/snapback-engine/src/local.rs"
       ],
       "examples": [
         "demos/public-dashboard"
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:6d5cd59fd7ab84930ebac769356d7cfed715e10fc0afcc055f529917d9d25cd7",
-      "sha256": "87d47a28e6d966accba2f87c21240a5938897102966397c73f08c5d6a66426d8",
+      "sha256": "a8389442c6be4b93ed4e03920d224593381e41fd15f9afef663c0a6f0e089eed",
       "snippets": [
         {
           "lang": "js",
@@ -5355,8 +5355,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:9fee936e3f35b10e0de3e7bf48f4a386e7972fda01627302292e5f1a564f10c0",
-      "sha256": "7d6fb83394a4a6b4a89134aff91ba5231bb01e68df1c75a0c3efd79840a76fb2",
+      "reviewedAuthoritiesDigest": "sha256:b4284e379c16ed6f60628072250e6516eae3ba006cbebe65b4bbdcce9481603b",
+      "sha256": "99ac877387f6c4206e2497ab08b943cb4f3b218946f973d5ba68f71211daf33d",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -12018,7 +12018,7 @@
         "llp/0166-local-persistent-store.spec.md",
         "llp/0218-outbox-settlement-contract.rfc.md",
         "llp/0270-local-first-client-defaults.rfc.md",
-        "crates/snapback/src/local-persistent-store-publication.v1.json",
+        "crates/snapback-engine/src/local-persistent-store-publication.v1.json",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-client/generated-mutation-ir.mjs",
         "packages/snapback-client/local-read-admission.mjs",
@@ -12064,7 +12064,7 @@
       ],
       "reviewed": "2026-08-16",
       "reviewedAuthoritiesDigest": "sha256:8247e5bbf4236ef656eecd9f697afa2060fe506b082669a611b15f23af3f7a86",
-      "sha256": "fef450b3c31c61eeeaf4bcf6ee6eabeadd874e9fc6ceb257bd380e8bd64f5555",
+      "sha256": "54814e367c0714b2e6f8f8a538a6fe4dcb33dae126ff2b39887fbc44e728bdea",
       "snippets": [
         {
           "lang": "ts",
@@ -12326,8 +12326,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2549599,
-      "sha256": "16a572abdfd54ee763d6a35c7c7d07bfe3e632f3ac9ec5284f8669d97e1ef6be",
+      "bytes": 2556902,
+      "sha256": "431d0ae8ce35bb5882f209bfd0ad805e43cde955492c5f4b81ceea4d333564a2",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12336,9 +12336,9 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:2ae51b75e83fcb84b04d74e8f7530b9b240da0573d15d889cf24a7a0a52fc31d",
+      "sourceDigest": "sha256:b8f67e18de13a5c8c9532e3f7b5e5cdc4af5d829722fed9bbac7d232196aa3d4",
       "codes": 3428,
-      "emittingSites": 11779
+      "emittingSites": 11781
     }
   },
   "capabilities": {
@@ -12474,30 +12474,30 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3558086,
-      "sha256": "60feb1005ceb9b59b4ed887dc46e846df712b5115c30db9db52d8d1a96d7d92a"
+      "bytes": 3560722,
+      "sha256": "c08abc18b0f83ee34d623fc33f7b6fd9f669a34c13e34f13922cd37bc67e59db"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 149727,
-        "sha256": "6ad07bb50e462583fc57fe1030589f63e72a4cb1743b0edd8ff12e6a60d389d2"
+        "bytes": 149808,
+        "sha256": "4616bc4cd1405552a738f11fefbccff5b19508c817b7abdecd6e3819245f0ff2"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.auth.generated.md",
         "uri": "snapback-guide://flat/auth",
-        "bytes": 166058,
-        "sha256": "40d6399cfc707a99774d230ce1c0a6a6fa69b74eb5ee211f5097879629cda05c"
+        "bytes": 166112,
+        "sha256": "45d43d10e1366b6e3e206ad069434db1cfff17d3032c8fc403e7cc009ecf7555"
       },
       "backend": {
         "path": "guide/guide-flat.backend.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.backend.generated.md",
         "uri": "snapback-guide://flat/backend",
-        "bytes": 361815,
-        "sha256": "1dd49512fe317bcee2d433f943799fae08b59328110feba3c77dbf9d29da22c2"
+        "bytes": 361932,
+        "sha256": "c38b60e54bca41bf663baa48cf907164b62d279c6365a9c13f0c10568efd4481"
       },
       "clients": {
         "path": "guide/guide-flat.clients.generated.md",
@@ -12524,8 +12524,8 @@
         "path": "guide/guide-flat.operating.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.operating.generated.md",
         "uri": "snapback-guide://flat/operating",
-        "bytes": 178452,
-        "sha256": "800f455678f7bee43e252cc1c77563099bce90f45cf121411d5f7f0daf8b4dbb"
+        "bytes": 178505,
+        "sha256": "1c2d66664b1d8109a7d9b4a8f29db368c29eb151283ae38bd93c45313dd52e3f"
       },
       "protocol": {
         "path": "guide/guide-flat.protocol.generated.md",
@@ -12538,8 +12538,8 @@
         "path": "guide/guide-flat.realtime.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.realtime.generated.md",
         "uri": "snapback-guide://flat/realtime",
-        "bytes": 47186,
-        "sha256": "a8e132a613cd1fc2d0e6a5c09af76839df8fc56cd9c18b1372aefbd0bb158166"
+        "bytes": 47204,
+        "sha256": "93a2c2fbc95beac2e187c4d2c0ba7708bea31970bbbe6800a186a07a78b482c2"
       },
       "recipes": {
         "path": "guide/guide-flat.recipes.generated.md",
@@ -12552,8 +12552,8 @@
         "path": "guide/guide-flat.reference.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
-        "bytes": 2029359,
-        "sha256": "526cb5e61d64aa798d6d6d98d97a7ea6cb14a6bd067890c60339ea5dd622ff28"
+        "bytes": 2031665,
+        "sha256": "d4f27baca932366444e2f3ae40243ec02ef3423440db8cdcfc227f99de512732"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -12566,8 +12566,8 @@
         "path": "guide/guide-flat.sync.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.sync.generated.md",
         "uri": "snapback-guide://flat/sync",
-        "bytes": 62681,
-        "sha256": "dc032ed9d26f7cb3e44871034cea5982f6fc90f7498f4013d0985afcdbe05431"
+        "bytes": 62688,
+        "sha256": "296a60cada7be3f19fa297ffb7b4b0f0866aff45bea38b026f4699235f343277"
       },
       "testing": {
         "path": "guide/guide-flat.testing.generated.md",
@@ -12578,5 +12578,5 @@
       }
     }
   },
-  "contentHash": "55ff2a90e1f68d7b08dc4745889084af47470473c2d73fafd8ed6fcb19cc8a6c"
+  "contentHash": "76fd47ac2e7645a897a45ef02b32f1607847cda3a9acaba7624faa4a3a0cfa7c"
 }

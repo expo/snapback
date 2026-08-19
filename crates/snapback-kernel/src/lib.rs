@@ -7,14 +7,15 @@
 #![allow(clippy::result_large_err)]
 
 pub use snapback_types::{
-    api_envelope, app_data_result, args_contract, authoring_suggestion,
+    api_envelope, app_data_result, args_contract,
     commit_envelope, completeness, contract_exact, contract_types,
     error_tracking, exec_guard, handler_wire, host_ops_contract, identity, ids,
-    live_wire, local, manifest, network_profile, owner_only_file, remediation,
+    live_wire, local, manifest, network_profile, owner_only_file,
     result_contract, result_transform, rqs_contract, runtime, service_profile, stream_attempt,
     telemetry_contract, value_expr, visibility_governance, wire_version,
 };
 
+pub mod authoring_suggestion;
 pub mod auth;
 pub mod assets;
 pub mod assets_cut;
@@ -40,6 +41,7 @@ pub mod operation_detail;
 pub mod operation_ledger;
 pub mod proof_checkpoint;
 pub mod push;
+pub mod remediation;
 pub mod replication;
 pub mod rqs;
 pub mod search;

@@ -238,7 +238,8 @@ function bytesAt(repoRoot, sourceSha, repoPath) {
 
 function rustRegistryPathAt(repoRoot, commit) {
   const epochs = [
-    'crates/snapback/src/manifest.rs',
+    'crates/snapback-engine/src/manifest.rs',
+    'crates/snapback/src/manifest.rs', // pre-engine-carve workspace epoch
     'src/manifest.rs', // path-migration: historical
   ];
   for (const path of epochs) {

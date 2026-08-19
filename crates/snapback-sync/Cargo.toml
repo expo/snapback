@@ -10,7 +10,8 @@ name = "snapback_sync"
 path = "src/lib.rs"
 
 [features]
-default = []
+default = ["sync-owner"]
+sync-owner = []
 test-support = []
 
 [dependencies]

@@ -23,7 +23,7 @@ use crate::auth::service_fence::{
 use crate::auth::session_projection::FencedPublication;
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::telemetry::CallerAttributionLocalExt as _;
+use snapback_types::telemetry_contract::CallerAttributionV1;
 pub use snapback_types::auth::invocation::FunctionAttribution;
 use crate::manifest::{
     AuthInput, AuthMode, AuthRequirement, AuthorityDescriptor, FunctionDefinition, FunctionKind,
@@ -364,7 +364,7 @@ pub struct ResolvedGrantScope {
 }
 
 impl ResolvedGrantScope {
-    pub(crate) fn from_exact(scope: ExactGrantScope) -> Self {
+    pub fn from_exact(scope: ExactGrantScope) -> Self {
         Self {
             function_id: scope.function_id,
             kind: scope.kind.into_function_kind(),
@@ -373,32 +373,32 @@ impl ResolvedGrantScope {
         }
     }
 
-    pub(crate) fn function_id(&self) -> &str {
+    pub fn function_id(&self) -> &str {
         &self.function_id
     }
 
-    pub(crate) fn kind(&self) -> &FunctionKind {
+    pub fn kind(&self) -> &FunctionKind {
         &self.kind
     }
 
-    pub(crate) fn basis(&self) -> u64 {
+    pub fn basis(&self) -> u64 {
         self.basis
     }
 
-    pub(crate) fn authority_creating(&self) -> bool {
+    pub fn authority_creating(&self) -> bool {
         self.authority_creating
     }
 }
 
 impl ResolvedAppAuthority {
-    pub(crate) fn session_id(&self) -> Option<&str> {
+    pub fn session_id(&self) -> Option<&str> {
         match self {
             Self::Session { session_id, .. } => Some(session_id),
             _ => None,
         }
     }
 
-    pub(crate) fn has_ask_consent_scope(&self) -> bool {
+    pub fn has_ask_consent_scope(&self) -> bool {
         matches!(self, Self::Session { .. })
             || matches!(
                 self,
@@ -411,7 +411,7 @@ impl ResolvedAppAuthority {
             )
     }
 
-    pub(crate) fn has_granted_read_scope(&self) -> bool {
+    pub fn has_granted_read_scope(&self) -> bool {
         matches!(self, Self::Session { .. })
             || matches!(
                 self,
@@ -457,7 +457,7 @@ impl ResolvedAppAuthority {
         }
     }
 
-    pub(crate) fn from_scoped_token(token: ResolvedScopedToken) -> Self {
+    pub fn from_scoped_token(token: ResolvedScopedToken) -> Self {
         Self::ServicePrincipal {
             actor_user_id: token.actor_user_id,
             credential_id: token.credential_id,
@@ -499,7 +499,7 @@ impl ResolvedAppAuthority {
     /// Stable, bearer-free identity for durable invalidation retry ownership.
     /// Length prefixes make the representation injective without depending on
     /// a caller-controlled JSON/debug rendering.
-    pub(crate) fn invalidation_subject(&self) -> String {
+    pub fn invalidation_subject(&self) -> String {
         match self {
             Self::Anonymous => "anonymous".to_owned(),
             Self::Session {
@@ -781,7 +781,7 @@ impl DirectAuthorizationProjection {
 }
 
 impl HandlerAuthProjection {
-    pub(crate) fn from_authority(
+    pub fn from_authority(
         authority: &ResolvedAppAuthority,
         session_claims: Option<AuthClaimsProjection>,
     ) -> SnapbackResult<Self> {
@@ -911,7 +911,7 @@ impl HandlerAuthProjection {
         self.is_authenticated
     }
 
-    pub(crate) fn roles(&self) -> &[String] {
+    pub fn roles(&self) -> &[String] {
         self.roles.as_deref().unwrap_or(&[])
     }
 }
@@ -967,6 +967,11 @@ pub enum InvocationSource {
     /// service principal.
     AssetCallback,
     DirectAdminRunner,
+    /// Registered operator administration. The transport adapter may mint
+    /// this authority only after the route registry has admitted the exact
+    /// AdminRead/AdminWrite operation; it is never selected by application
+    /// input or an open-ended host operation.
+    OperatorCommand,
     HostOperationFunctionRun,
     HostOperationMutationDryRun,
     /// Registered AdminWrite product command for canonical protected-record
@@ -1024,7 +1029,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 47] = [
+    pub const ALL: [Self; 48] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -1048,6 +1053,7 @@ impl InvocationSource {
         Self::LocalAction,
         Self::AssetCallback,
         Self::DirectAdminRunner,
+        Self::OperatorCommand,
         Self::HostOperationFunctionRun,
         Self::HostOperationMutationDryRun,
         Self::ProtectedRecordErasure,
@@ -1106,6 +1112,7 @@ impl InvocationSource {
             | Self::CapabilityLinkManagement
             | Self::EffectManagement
             | Self::WatchManagement
+            | Self::OperatorCommand
             | Self::ProtectedRecordErasure
             | Self::OperationCoverageActivation
             | Self::MutationSettlementAcknowledgement
@@ -1188,7 +1195,7 @@ pub struct PreparedAuthority {
     /// Server-derived, non-authoritative telemetry attribution for a
     /// classified invocation. Ordinary app calls use the closed first-party
     /// lane; this fact never participates in authorization.
-    caller_attribution: Option<crate::telemetry::CallerAttributionV1>,
+    caller_attribution: Option<CallerAttributionV1>,
     /// The internal callback service has durable principal/grant authority
     /// but deliberately no credential/token carrier. Presence selects its
     /// exact protected-catalog revalidation path; it is never inferred from
@@ -1198,11 +1205,49 @@ pub struct PreparedAuthority {
     rehearsal_fence: Option<crate::auth::rehearsal::RehearsalAuthorityFence>,
 }
 
+/// Process-live rehearsal authority bound to an admitted authorization
+/// coordinator. Its registry is intentionally opaque: callers may carry the
+/// binding across the engine boundary but cannot mint one or substitute raw
+/// live-authority entries at the preparation call.
+///
+/// ```compile_fail
+/// use snapback_sync::auth::invocation::RehearsalAuthorityBinding;
+///
+/// let _forged = RehearsalAuthorityBinding { registry: todo!() };
+/// ```
+#[derive(Clone, Debug)]
+pub struct RehearsalAuthorityBinding {
+    registry: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
+}
+
+impl RehearsalAuthorityBinding {
+    pub(super) fn new(
+        registry: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
+    ) -> Self {
+        Self { registry }
+    }
+
+    pub fn bind(
+        &self,
+        mut authority: PreparedAuthority,
+        deferred: Option<crate::storage::jobs::DeferredRehearsalAuthority>,
+    ) -> SnapbackResult<PreparedAuthority> {
+        if let Some(deferred) = deferred.and_then(|authority| authority.into_provenance()) {
+            deferred.validate()?;
+            authority.rehearsal_provenance = Some(match &authority.rehearsal_provenance {
+                Some(current) => current.canonical_union(&deferred)?,
+                None => deferred,
+            });
+        }
+        authority.with_rehearsal_authority_registry(self.registry.clone())
+    }
+}
+
 /// Bearer-free authority retained by a durable live subscription. It carries
 /// no admission lease; each rerun must combine it with a fresh short root from
 /// the current controller epoch through `prepare_rerun`.
 #[derive(Clone, Debug)]
-pub(crate) struct RetainedLiveAuthority {
+pub struct RetainedLiveAuthority {
     active_mode: AuthMode,
     profile: ServerProfile,
     elevation_root_provenance: ElevationRootProvenance,
@@ -1221,7 +1266,7 @@ pub(crate) struct RetainedLiveAuthority {
     /// changes.
     matched_grant_scope: Option<ResolvedGrantScope>,
     service_publication: Option<ServiceAuthorityPublication>,
-    caller_attribution: Option<crate::telemetry::CallerAttributionV1>,
+    caller_attribution: Option<CallerAttributionV1>,
     rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
     rehearsal_fence: Option<crate::auth::rehearsal::RehearsalAuthorityFence>,
 }
@@ -1257,7 +1302,7 @@ impl PreparedAuthority {
         };
     }
 
-    pub(crate) fn elevated_database_allowed(&self) -> bool {
+    pub fn elevated_database_allowed(&self) -> bool {
         self.elevation_root_provenance == ElevationRootProvenance::CallerBackedNamedRead
     }
 
@@ -1305,21 +1350,6 @@ impl PreparedAuthority {
     /// Rehydrate protected durable provenance onto a clean System runner.
     /// This is the only deferred-work constructor and unions rather than
     /// replacing an existing marker.
-    pub(crate) fn with_deferred_rehearsal_provenance(
-        mut self,
-        provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
-        registry: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
-    ) -> SnapbackResult<Self> {
-        if let Some(deferred) = provenance {
-            deferred.validate()?;
-            self.rehearsal_provenance = Some(match &self.rehearsal_provenance {
-                Some(current) => current.canonical_union(&deferred)?,
-                None => deferred,
-            });
-        }
-        self.with_rehearsal_authority_registry(registry)
-    }
-
     pub fn projection(&self) -> &HandlerAuthProjection {
         &self.projection
     }
@@ -1332,10 +1362,10 @@ impl PreparedAuthority {
         self.resolved.function_attribution()
     }
 
-    pub(crate) fn telemetry_caller_details(&self) -> Option<Value> {
+    pub fn telemetry_caller_details(&self) -> Option<Value> {
         self.caller_attribution
             .as_ref()
-            .map(crate::telemetry::CallerAttributionV1::details)
+            .map(CallerAttributionV1::details)
     }
 
     pub fn audit(&self) -> &AuthorityAuditFact {
@@ -1350,7 +1380,7 @@ impl PreparedAuthority {
         &self.admission
     }
 
-    pub(crate) fn canonical_auth_input(&self) -> AuthInput {
+    pub fn canonical_auth_input(&self) -> AuthInput {
         if let Some(principal) = &self.asset_callbacks_service {
             return AuthInput {
                 user_id: Some(principal.actor_user_id.clone()),
@@ -1366,18 +1396,18 @@ impl PreparedAuthority {
         self.resolved.legacy_input()
     }
 
-    pub(crate) fn asset_callbacks_service(&self) -> Option<&AssetCallbacksServicePrincipal> {
+    pub fn asset_callbacks_service(&self) -> Option<&AssetCallbacksServicePrincipal> {
         self.asset_callbacks_service.as_ref()
     }
 
-    pub(crate) fn with_fenced_publication(mut self, publication: FencedPublication) -> Self {
+    pub fn with_fenced_publication(mut self, publication: FencedPublication) -> Self {
         self.authorization_stream_incarnation =
             Some(publication.authorization_stream_incarnation().to_owned());
         self.publication = Some(publication);
         self
     }
 
-    pub(crate) fn with_service_publication(
+    pub fn with_service_publication(
         mut self,
         publication: ServiceAuthorityPublication,
     ) -> Self {
@@ -1385,9 +1415,9 @@ impl PreparedAuthority {
         self
     }
 
-    pub(crate) fn with_caller_attribution(
+    pub fn with_caller_attribution(
         mut self,
-        attribution: crate::telemetry::CallerAttributionV1,
+        attribution: CallerAttributionV1,
     ) -> Self {
         self.caller_attribution = Some(attribution);
         self
@@ -1397,7 +1427,7 @@ impl PreparedAuthority {
     /// query/reaction functions being captured into a watch. Later execution
     /// does not retain this session authority; it reconstructs the dedicated
     /// credential-free authority above.
-    pub(crate) fn watch_function_authority(
+    pub fn watch_function_authority(
         &self,
         source: InvocationSource,
     ) -> SnapbackResult<Self> {
@@ -1426,13 +1456,13 @@ impl PreparedAuthority {
 
     fn with_optional_caller_attribution(
         mut self,
-        attribution: Option<crate::telemetry::CallerAttributionV1>,
+        attribution: Option<CallerAttributionV1>,
     ) -> Self {
         self.caller_attribution = attribution;
         self
     }
 
-    pub(crate) fn resolve_service_authority_act(
+    pub fn resolve_service_authority_act(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -1443,7 +1473,7 @@ impl PreparedAuthority {
             .transpose()
     }
 
-    pub(crate) fn service_clock_sample(
+    pub fn service_clock_sample(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -1455,7 +1485,7 @@ impl PreparedAuthority {
             })
     }
 
-    pub(crate) fn expired_service_deadline_terminal(
+    pub fn expired_service_deadline_terminal(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -1467,7 +1497,7 @@ impl PreparedAuthority {
             .map(Option::flatten)
     }
 
-    pub(crate) fn service_terminal_disposition(
+    pub fn service_terminal_disposition(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -1477,7 +1507,7 @@ impl PreparedAuthority {
             .map(|publication| publication.terminal_disposition(epoch_now_ms, monotonic_now))
     }
 
-    pub(crate) fn begin_service_external_effect(
+    pub fn begin_service_external_effect(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -1488,7 +1518,7 @@ impl PreparedAuthority {
             .transpose()
     }
 
-    pub(crate) fn session_terminal_reason(
+    pub fn session_terminal_reason(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -1504,10 +1534,11 @@ impl PreparedAuthority {
         self
     }
 
+
     /// Consume a fully computed finite effect at the exact stream/session
     /// fence. Dev-mode authority has no session projection and publishes
     /// directly; Sessions authority always installs a fence in middleware.
-    pub(crate) fn try_publish_fenced<T>(
+    pub fn try_publish_fenced<T>(
         &self,
         epoch_now_ms: u64,
         monotonic_now: std::time::Instant,
@@ -1542,11 +1573,11 @@ impl PreparedAuthority {
         }
     }
 
-    pub(crate) fn authorization_stream_incarnation(&self) -> Option<&str> {
+    pub fn authorization_stream_incarnation(&self) -> Option<&str> {
         self.authorization_stream_incarnation.as_deref()
     }
 
-    pub(crate) fn retain_live_owner(&self) -> SnapbackResult<RetainedLiveAuthority> {
+    pub fn retain_live_owner(&self) -> SnapbackResult<RetainedLiveAuthority> {
         self.validate_admission("live owner retention")?;
         if self.source != InvocationSource::LiveInitialQuery {
             return Err(SnapbackError::error(
@@ -1587,7 +1618,7 @@ impl PreparedAuthority {
 
     /// Validate the exact authorization stream/session leaf and perform one
     /// bounded synchronous publication while its guards remain held.
-    pub(crate) fn try_fenced_publication<T>(
+    pub fn try_fenced_publication<T>(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -1622,7 +1653,7 @@ impl PreparedAuthority {
     /// This changes only the source/target classification; the exact prepared
     /// caller, admission lease, grant scopes, and publication fences remain
     /// unchanged.
-    pub(crate) fn ask_query_authority(&self) -> SnapbackResult<Self> {
+    pub fn ask_query_authority(&self) -> SnapbackResult<Self> {
         if !matches!(
             self.source,
             InvocationSource::HttpAsk | InvocationSource::HttpMcp
@@ -1641,11 +1672,11 @@ impl PreparedAuthority {
 }
 
 impl RetainedLiveAuthority {
-    pub(crate) fn resolved(&self) -> &ResolvedAppAuthority {
+    pub fn resolved(&self) -> &ResolvedAppAuthority {
         &self.resolved
     }
 
-    pub(crate) fn profile(&self) -> ServerProfile {
+    pub fn profile(&self) -> ServerProfile {
         self.profile
     }
 
@@ -1657,27 +1688,27 @@ impl RetainedLiveAuthority {
     ///
     /// @ref LLP 0055#audit — server-derived attribution; wrappers copy it
     ///   verbatim and can never synthesize it.
-    pub(crate) fn function_attribution(&self) -> Option<FunctionAttribution> {
+    pub fn function_attribution(&self) -> Option<FunctionAttribution> {
         self.resolved.function_attribution()
     }
 
-    pub(crate) fn telemetry_caller_details(&self) -> Option<Value> {
+    pub fn telemetry_caller_details(&self) -> Option<Value> {
         self.caller_attribution
             .as_ref()
-            .map(crate::telemetry::CallerAttributionV1::details)
+            .map(CallerAttributionV1::details)
     }
 
-    pub(crate) fn matches(&self, authority: &PreparedAuthority) -> bool {
+    pub fn matches(&self, authority: &PreparedAuthority) -> bool {
         self.active_mode == authority.active_mode
             && self.profile == authority.profile
             && self.owner_key == authority.resolved.key()
     }
 
-    pub(crate) fn matched_grant_scope(&self) -> Option<&ResolvedGrantScope> {
+    pub fn matched_grant_scope(&self) -> Option<&ResolvedGrantScope> {
         self.matched_grant_scope.as_ref()
     }
 
-    pub(crate) fn prepare_rerun(
+    pub fn prepare_rerun(
         &self,
         admission: AdmissionLease,
         session_claims: Option<AuthClaimsProjection>,
@@ -1705,7 +1736,7 @@ impl RetainedLiveAuthority {
         })
     }
 
-    pub(crate) fn canonicalize_input(&self, mut input: HandlerInput) -> HandlerInput {
+    pub fn canonicalize_input(&self, mut input: HandlerInput) -> HandlerInput {
         input.auth = self.resolved.legacy_input();
         input
     }
@@ -1763,7 +1794,16 @@ impl PreparedInvocation {
         &self.authority
     }
 
-    pub(crate) fn telemetry_caller_details(&self) -> Option<Value> {
+    /// Derive the storage writer only from this admitted, opaque invocation.
+    /// Callers cannot supply or self-assert a raw authority classification.
+    pub fn membership_writer(&self) -> crate::storage::MembershipWriter {
+        <crate::storage::MembershipWriter as MembershipWriterResolvedExt>::from_resolved_with_authority_creating(
+            self.authority.resolved(),
+            self.authority_creating_consent,
+        )
+    }
+
+    pub fn telemetry_caller_details(&self) -> Option<Value> {
         self.authority.telemetry_caller_details()
     }
 
@@ -1779,15 +1819,15 @@ impl PreparedInvocation {
         &self.function_kind
     }
 
-    pub(crate) fn result_contract(&self) -> &crate::manifest::FunctionResultContract {
+    pub fn result_contract(&self) -> &crate::manifest::FunctionResultContract {
         &self.result_contract
     }
 
-    pub(crate) fn result_contract_hash(&self) -> Option<&str> {
+    pub fn result_contract_hash(&self) -> Option<&str> {
         self.result_contract_hash.as_deref()
     }
 
-    pub(crate) fn artifact_generation(&self) -> Option<&str> {
+    pub fn artifact_generation(&self) -> Option<&str> {
         self.artifact_generation.as_deref()
     }
 
@@ -1795,7 +1835,7 @@ impl PreparedInvocation {
         self.requirement
     }
 
-    pub(crate) fn authority_creating_consent(&self) -> bool {
+    pub fn authority_creating_consent(&self) -> bool {
         self.authority_creating_consent
     }
 
@@ -1804,7 +1844,7 @@ impl PreparedInvocation {
     }
 
     /// Declared application refusal codes for this function (LLP 0108).
-    pub(crate) fn declared_refusals(&self) -> &[String] {
+    pub fn declared_refusals(&self) -> &[String] {
         &self.declared_refusals
     }
 
@@ -1813,15 +1853,15 @@ impl PreparedInvocation {
     /// this authoring commit prepares the immutable authority without yet
     /// changing emission behavior.
     #[allow(dead_code)]
-    pub(crate) fn tracked_refusals(&self) -> &[String] {
+    pub fn tracked_refusals(&self) -> &[String] {
         &self.tracked_refusals
     }
 
-    pub(crate) fn sequences(&self) -> &[crate::manifest::SequenceDeclaration] {
+    pub fn sequences(&self) -> &[crate::manifest::SequenceDeclaration] {
         &self.sequences
     }
 
-    pub(crate) fn generated_authority_operation(
+    pub fn generated_authority_operation(
         &self,
     ) -> Option<&crate::manifest::GeneratedAuthorityOperationV1> {
         self.generated_authority_operation.as_ref()
@@ -1829,7 +1869,7 @@ impl PreparedInvocation {
 
     /// Declaration facts for the strict-conformance seams; `None` for
     /// HostPlan runtimes, whose declared sets cannot drift by hand.
-    pub(crate) fn strict_declaration_facts(
+    pub fn strict_declaration_facts(
         &self,
     ) -> Option<&crate::conformance::StrictDeclarationFacts> {
         self.strict_declaration_facts.as_ref()
@@ -1854,7 +1894,7 @@ impl PreparedInvocation {
     ///
     /// @ref LLP 0055#grant-backed-live-and-queued-replay — a sibling entry on
     ///   the same grant cannot terminalize this subscription.
-    pub(crate) fn retain_live_owner(&self) -> SnapbackResult<RetainedLiveAuthority> {
+    pub fn retain_live_owner(&self) -> SnapbackResult<RetainedLiveAuthority> {
         let mut retained = self.authority.retain_live_owner()?;
         retained.matched_grant_scope = self.matched_grant_scope.clone();
         if matches!(
@@ -1887,7 +1927,7 @@ pub struct InvocationGate;
 
 impl InvocationGate {
     #[allow(clippy::too_many_arguments)]
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn prepare_authority(
         source: InvocationSource,
         active_mode: AuthMode,
@@ -2038,7 +2078,7 @@ impl InvocationGate {
     /// function gate as external LLP 0055 service principals. Only the carrier
     /// validation differs: the protected catalog contains a principal and
     /// immutable grant, but no credential or token secret.
-    pub(crate) fn prepare_admitted_asset_callbacks(
+    pub fn prepare_admitted_asset_callbacks(
         profile: ServerProfile,
         admission: AdmissionLease,
         principal: AssetCallbacksServicePrincipal,
@@ -2077,7 +2117,7 @@ impl InvocationGate {
         Ok(authority)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn prepare_dev_input(
         source: InvocationSource,
         profile: ServerProfile,
@@ -2170,7 +2210,7 @@ impl InvocationGate {
     ///
     /// @ref LLP 0162#acceptance — an envelope's recorded authority identifiers
     ///   are lookup keys only; public explanation must re-run current policy.
-    pub(crate) fn validate_current_function_policy(
+    pub fn validate_current_function_policy(
         authority: &PreparedAuthority,
         function: &FunctionDefinition,
     ) -> SnapbackResult<()> {
@@ -2407,6 +2447,7 @@ fn source_allows_authority(
             }
         },
         InvocationSource::DirectAdminRunner
+        | InvocationSource::OperatorCommand
         | InvocationSource::HostOperationFunctionRun
         | InvocationSource::HostOperationMutationDryRun
         | InvocationSource::ProtectedRecordErasure
@@ -3485,6 +3526,7 @@ mod tests {
                     AuthMode::Sessions => matches!(kind, Kind::Service),
                 },
                 InvocationSource::DirectAdminRunner
+                | InvocationSource::OperatorCommand
                 | InvocationSource::HostOperationFunctionRun
                 | InvocationSource::HostOperationMutationDryRun
                 | InvocationSource::ProtectedRecordErasure

@@ -4052,6 +4052,7 @@ dependencies = [
  "sha2 0.10.9",
  "snapback-activation",
  "snapback-auth",
+ "snapback-engine",
  "snapback-kernel",
  "snapback-runtime",
  "snapback-services",
@@ -4076,10 +4077,21 @@ dependencies = [
 name = "snapback-activation"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "getrandom 0.3.4",
+ "regex",
+ "ring",
+ "schemars",
+ "serde",
  "serde_json",
+ "sha2 0.10.9",
  "snapback-auth",
  "snapback-kernel",
  "snapback-types",
+ "tempfile",
+ "unicode-normalization",
+ "zeroize",
 ]
 
 [[package]]
@@ -4105,6 +4117,33 @@ dependencies = [
  "tempfile",
  "tokio",
  "unicode-normalization",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "snapback-engine"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "getrandom 0.3.4",
+ "hmac 0.12.1",
+ "jsonschema",
+ "libc",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "snapback-activation",
+ "snapback-auth",
+ "snapback-kernel",
+ "snapback-runtime",
+ "snapback-services",
+ "snapback-sync",
+ "snapback-types",
+ "tempfile",
+ "tokio",
+ "ureq",
  "uuid",
  "zeroize",
 ]

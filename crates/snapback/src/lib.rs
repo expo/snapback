@@ -31,14 +31,14 @@ pub mod admin_impersonation;
 pub mod admin_link;
 #[doc(hidden)]
 pub mod admin_secret_read;
-pub(crate) mod agent_safe_publication;
+pub(crate) use snapback_activation::agent_safe_publication;
 #[doc(hidden)]
 pub use snapback_types::api_envelope;
 #[doc(hidden)]
 pub use snapback_types::app_data_result;
 #[doc(hidden)]
 pub use snapback_types::args_contract;
-pub(crate) mod ask;
+pub(crate) use snapback_engine::ask;
 #[doc(hidden)]
 pub mod assets;
 #[doc(hidden)]
@@ -53,7 +53,7 @@ pub mod assets_store;
 pub use snapback_services::assets_video;
 #[doc(hidden)]
 pub mod auth;
-pub(crate) mod authoring_suggestion;
+pub(crate) use snapback_kernel::authoring_suggestion;
 #[doc(hidden)]
 pub mod bench;
 #[doc(hidden)]
@@ -62,21 +62,21 @@ pub(crate) use snapback_sync::bounded_children_cursor;
 #[doc(hidden)]
 pub use snapback_kernel::branches;
 #[doc(hidden)]
-pub mod bundle;
+pub use snapback_activation::bundle;
 #[doc(hidden)]
 pub mod cli;
 #[doc(hidden)]
 pub use snapback_types::commit_envelope;
 #[doc(hidden)]
-pub mod completeness;
+pub use snapback_activation::completeness;
 #[doc(hidden)]
-pub mod config;
+pub use snapback_activation::config;
 pub use snapback_kernel::conformance;
 pub(crate) use snapback_sync::connected_clients;
 pub(crate) mod contract_exact;
 // @ref LLP 0225#1-ownership-map — owner 1: crate-private generation
 // activation coordinator.
-pub(crate) mod elevated_read_trace;
+pub(crate) use snapback_runtime::elevated_read_trace;
 pub(crate) use snapback_activation::generation_activation;
 #[doc(hidden)]
 pub use snapback_types::visibility_governance;
@@ -96,7 +96,7 @@ pub use snapback_kernel::data_patch;
 #[doc(hidden)]
 pub use snapback_kernel::data_tier;
 #[doc(hidden)]
-pub mod deploy;
+pub use snapback_activation::deploy;
 #[doc(hidden)]
 pub use snapback_auth::dev_identity;
 #[doc(hidden)]
@@ -118,6 +118,10 @@ pub(crate) mod guide_reference;
 #[doc(hidden)]
 pub use snapback_types::handler_wire;
 #[doc(hidden)]
+#[cfg(not(test))]
+pub mod host_ops;
+#[cfg(test)]
+#[path = "../../snapback-engine/src/host_ops.rs"]
 pub mod host_ops;
 pub use snapback_types::host_ops_contract;
 #[doc(hidden)]
@@ -138,6 +142,13 @@ pub use snapback_kernel::live_matcher;
 #[doc(hidden)]
 pub use snapback_types::live_wire;
 #[doc(hidden)]
+#[cfg(not(test))]
+pub mod local {
+    pub use snapback_activation::generation_activation::DiagnosticBoundary;
+    pub use snapback_engine::local::*;
+}
+#[cfg(test)]
+#[path = "../../snapback-engine/src/local.rs"]
 pub mod local;
 #[doc(hidden)]
 pub mod manifest;
@@ -152,17 +163,28 @@ pub(crate) use snapback_kernel::operation_detail;
 #[doc(hidden)]
 pub use snapback_kernel::operation_ledger;
 #[doc(hidden)]
-pub mod operational_readiness;
+pub use snapback_activation::operational_readiness;
 pub(crate) use snapback_types::owner_only_file;
 // The proof/checkpoint implementation contains commit primitives and
 // admission carriers. Keep the kernel module available to in-crate adapters
 // without publishing it as a forgeable façade surface.
 pub(crate) use snapback_kernel::proof_checkpoint;
 #[doc(hidden)]
+#[cfg(not(test))]
+pub mod push {
+    pub use snapback_services::push::{
+        PushAudienceReferenceV1, PushDeferredGrantV1, PushRegistryInspectionV1,
+    };
+    pub use snapback_types::push::*;
+    pub(crate) use snapback_engine::push::*;
+}
+#[cfg(test)]
+#[path = "../../snapback-engine/src/push.rs"]
 pub mod push;
 pub use snapback_sync::realtime;
 #[doc(hidden)]
-pub mod remediation;
+pub use snapback_kernel::remediation;
+pub(crate) mod remainder_adapter;
 #[doc(hidden)]
 pub use snapback_services::replication;
 #[doc(hidden)]
@@ -173,6 +195,10 @@ pub use snapback_types::result_transform;
 pub use snapback_sync::rqs;
 pub use snapback_types::rqs_contract;
 #[doc(hidden)]
+#[cfg(not(test))]
+pub use snapback_engine::runtime;
+#[cfg(test)]
+#[path = "../../snapback-engine/src/runtime.rs"]
 pub mod runtime;
 #[doc(hidden)]
 pub mod schema_export;

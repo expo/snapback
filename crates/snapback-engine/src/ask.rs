@@ -14,21 +14,21 @@ use std::net::IpAddr;
 use std::time::Duration;
 use zeroize::{Zeroize, Zeroizing};
 
-pub(crate) const PROVIDER_KEY_HEADER: &str = "x-snapback-ask-provider-key";
-pub(crate) const FINAL_TOOL_NAME: &str = "snapback_final_answer";
-pub(crate) const RESULT_SCHEMA_RETRY_CAP: u64 = 2;
+pub const PROVIDER_KEY_HEADER: &str = "x-snapback-ask-provider-key";
+pub const FINAL_TOOL_NAME: &str = "snapback_final_answer";
+pub const RESULT_SCHEMA_RETRY_CAP: u64 = 2;
 const PROVIDER_RESPONSE_MAX_BYTES: usize = 4 * 1024 * 1024;
 const PROVIDER_ENDPOINT_MAX_BYTES: usize = 4_096;
 
 #[derive(Clone, Debug)]
-pub(crate) struct QueryTool {
+pub struct QueryTool {
     pub tool_name: String,
     pub function_name: String,
     pub args_schema: Value,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct ProviderConfig {
+pub struct ProviderConfig {
     pub identity: String,
     pub base_url: String,
     pub model: String,
@@ -37,7 +37,7 @@ pub(crate) struct ProviderConfig {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TokenAccounting {
+pub struct TokenAccounting {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
     pub total_tokens: u64,
@@ -45,7 +45,7 @@ pub(crate) struct TokenAccounting {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct ProviderTurn {
+pub struct ProviderTurn {
     pub message: Value,
     pub tool_calls: Vec<ProviderToolCall>,
     pub content: Option<String>,
@@ -53,7 +53,7 @@ pub(crate) struct ProviderTurn {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct ProviderToolCall {
+pub struct ProviderToolCall {
     pub id: String,
     pub name: String,
     pub arguments: String,
@@ -61,13 +61,13 @@ pub(crate) struct ProviderToolCall {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct CallReceipt {
+pub struct CallReceipt {
     pub function: String,
     pub args_digest: String,
     pub result_digest: String,
 }
 
-pub(crate) struct ReceiptKey([u8; 32]);
+pub struct ReceiptKey([u8; 32]);
 
 impl Drop for ReceiptKey {
     fn drop(&mut self) {
@@ -76,7 +76,7 @@ impl Drop for ReceiptKey {
 }
 
 impl ReceiptKey {
-    pub(crate) fn generate() -> SnapbackResult<Self> {
+    pub fn generate() -> SnapbackResult<Self> {
         let mut key = [0_u8; 32];
         getrandom::fill(&mut key).map_err(|_| {
             SnapbackError::error(
@@ -95,7 +95,7 @@ impl ReceiptKey {
     /// @ref LLP 0062#3-code-mode — per-run HMAC value minimization.
     /// @ref LLP 0204#d5--surface-4-the-near-data-ai-interface — retained call
     /// values are commitments, never raw authorized data.
-    pub(crate) fn digest(&self, domain: &[u8], value: &Value) -> SnapbackResult<String> {
+    pub fn digest(&self, domain: &[u8], value: &Value) -> SnapbackResult<String> {
         let canonical = crate::rqs_contract::jcs(value).map_err(|_| {
             SnapbackError::error(
                 "SNAPBACK_API_ASK_RECEIPT_INVALID",
@@ -118,7 +118,7 @@ impl ReceiptKey {
     }
 }
 
-pub(crate) fn parse_provider(provider: &str, model: &str) -> SnapbackResult<ProviderConfig> {
+pub fn parse_provider(provider: &str, model: &str) -> SnapbackResult<ProviderConfig> {
     let base_url = if provider == "openai-compatible" {
         "https://api.openai.com/v1".to_owned()
     } else if let Some(value) = provider.strip_prefix("openai-compatible:") {
@@ -178,7 +178,7 @@ fn provider_invalid() -> SnapbackError {
     )
 }
 
-pub(crate) fn provider_tools(queries: &[QueryTool], result_schema: Option<&Value>) -> Vec<Value> {
+pub fn provider_tools(queries: &[QueryTool], result_schema: Option<&Value>) -> Vec<Value> {
     let mut tools = queries
         .iter()
         .map(|query| {
@@ -215,7 +215,7 @@ pub(crate) fn provider_tools(queries: &[QueryTool], result_schema: Option<&Value
 ///   action switch and a manifest-selected destination.
 /// @ref LLP 0204#d5--surface-4-the-near-data-ai-interface — v1 admits one
 ///   OpenAI-compatible provider class and never echoes provider response bytes.
-pub(crate) async fn chat_completion(
+pub async fn chat_completion(
     config: ProviderConfig,
     key: Zeroizing<String>,
     redactor: SecretRedactor,
@@ -363,7 +363,7 @@ fn parse_provider_turn(
     })
 }
 
-pub(crate) fn validate_result(schema: &Value, result: &Value) -> SnapbackResult<()> {
+pub fn validate_result(schema: &Value, result: &Value) -> SnapbackResult<()> {
     let schema = schema.as_object().ok_or_else(|| {
         SnapbackError::error(
             "SNAPBACK_API_ASK_RESULT_SCHEMA_INVALID",

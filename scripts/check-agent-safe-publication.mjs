@@ -57,10 +57,24 @@ const DERIVED_FORK_DATED_LOCATOR_PATTERNS = Object.freeze({
 export const IMPLEMENTATION_ROOTS = [
   'Cargo.toml',
   'Cargo.lock',
+  'crates/snapback-activation/Cargo.toml',
+  'crates/snapback-activation/src',
+  'crates/snapback-auth/Cargo.toml',
+  'crates/snapback-auth/src',
+  'crates/snapback-engine/Cargo.toml',
+  'crates/snapback-engine/src',
+  'crates/snapback-kernel/Cargo.toml',
+  'crates/snapback-kernel/src',
+  'crates/snapback-runtime/Cargo.toml',
+  'crates/snapback-runtime/src',
   'crates/snapback/Cargo.toml',
   'crates/snapback/build.rs',
   'crates/snapback-services/Cargo.toml',
   'crates/snapback-services/src',
+  'crates/snapback-sync/Cargo.toml',
+  'crates/snapback-sync/src',
+  'crates/snapback-types/Cargo.toml',
+  'crates/snapback-types/src',
   '.gitmodules',
   'crates/snapback/src',
   'crates/snapback/tests',
@@ -88,6 +102,9 @@ export const DERIVED_FORK_IMPLEMENTATION_SCOPE = Object.freeze({
   // @ref LLP 0276#phases — the scoped claim must continue to bind fork
   // implementation after its service owner leaves the remainder.
   roots: Object.freeze([
+    'crates/snapback-activation/src',
+    'crates/snapback-engine/src',
+    'crates/snapback-kernel/src',
     'crates/snapback-services/src',
     'crates/snapback/src',
   ]),
@@ -95,6 +112,9 @@ export const DERIVED_FORK_IMPLEMENTATION_SCOPE = Object.freeze({
     '.gitmodules',
     'Cargo.lock',
     'Cargo.toml',
+    'crates/snapback-activation/Cargo.toml',
+    'crates/snapback-engine/Cargo.toml',
+    'crates/snapback-kernel/Cargo.toml',
     'crates/snapback-services/Cargo.toml',
     'crates/snapback/Cargo.toml',
     'crates/snapback/build.rs',
@@ -244,11 +264,11 @@ const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
   }),
   'local-store-publication': Object.freeze({
     records: Object.freeze([
-      'crates/snapback/src/local-persistent-store-publication.v1.json and crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
+      'crates/snapback-engine/src/local-persistent-store-publication.v1.json and crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
     ]),
     recordPaths: Object.freeze([
-      'crates/snapback/src/local-persistent-store-publication.v1.json',
-      'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
+      'crates/snapback-engine/src/local-persistent-store-publication.v1.json',
+      'crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
     ]),
     triggerRules: Object.freeze({
       files: Object.freeze([
@@ -260,22 +280,22 @@ const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
         'packages/snapback-client/store-runtime.mjs',
         'packages/snapback-codegen/index.mjs',
         'schemas/capability.manifest.local-dev-sqlite-ibex.json',
-        'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
-        'crates/snapback/src/local-persistent-store-publication.v1.json',
-        'crates/snapback/src/local.rs',
-        'crates/snapback/src/local/config_types.rs',
-        'crates/snapback/src/local/inspection.rs',
-        'crates/snapback/src/local/live_protocol.rs',
-        'crates/snapback/src/local/receipt_log.rs',
-        'crates/snapback/src/local/tests.rs',
-        'crates/snapback/src/storage.rs',
+        'crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
+        'crates/snapback-engine/src/local-persistent-store-publication.v1.json',
+        'crates/snapback-engine/src/local.rs',
+        'crates/snapback-types/src/local/config_types.rs',
+        'crates/snapback-engine/src/local/inspection.rs',
+        'crates/snapback-sync/src/local/live_protocol.rs',
+        'crates/snapback-sync/src/local/receipt_log.rs',
+        'crates/snapback-engine/src/local/tests.rs',
+        'crates/snapback-kernel/src/storage.rs',
         'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
         'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
         'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
       ]),
       prefixes: Object.freeze([
         'scripts/finalize-local-persistent-store-publication',
-        'crates/snapback/src/storage/',
+        'crates/snapback-kernel/src/storage/',
       ]),
     }),
     regenerateCommand: 'scripts/finalize-local-persistent-store-publication',
@@ -324,42 +344,42 @@ const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
   }),
   'relation-activity-publication': Object.freeze({
     records: Object.freeze([
-      'crates/snapback/src/local-relation-activity-publication.v1.json and its pinned readers',
+      'crates/snapback-engine/src/local-relation-activity-publication.v1.json and its pinned readers',
     ]),
     recordPaths: Object.freeze([
-      'crates/snapback/src/local-relation-activity-publication.v1.json',
+      'crates/snapback-engine/src/local-relation-activity-publication.v1.json',
       'tests/conformance/relation-activity-publication-v1.mjs',
-      'crates/snapback/src/manifest.rs',
+      'crates/snapback-engine/src/manifest.rs',
     ]),
     triggerRules: Object.freeze({
       files: Object.freeze([
         'packages/snapback-codegen/define.mjs',
         'scripts/refresh-publication-carrier.mjs',
-        'crates/snapback/src/local-relation-activity-publication.v1.json',
-        'crates/snapback/src/local.rs',
-        'crates/snapback/src/local/config_types.rs',
-        'crates/snapback/src/local/inspection.rs',
-        'crates/snapback/src/local/live_protocol.rs',
-        'crates/snapback/src/local/receipt_log.rs',
-        'crates/snapback/src/local/tests.rs',
-        'crates/snapback/src/manifest.rs',
-        'crates/snapback/src/storage.rs',
+        'crates/snapback-engine/src/local-relation-activity-publication.v1.json',
+        'crates/snapback-engine/src/local.rs',
+        'crates/snapback-types/src/local/config_types.rs',
+        'crates/snapback-engine/src/local/inspection.rs',
+        'crates/snapback-sync/src/local/live_protocol.rs',
+        'crates/snapback-sync/src/local/receipt_log.rs',
+        'crates/snapback-engine/src/local/tests.rs',
+        'crates/snapback-engine/src/manifest.rs',
+        'crates/snapback-kernel/src/storage.rs',
         'tests/conformance/relation-activity-publication-v1.receipt.json',
         'tests/conformance/relation-activity-publication-v1.mjs',
       ]),
-      prefixes: Object.freeze(['crates/snapback/src/storage/']),
+      prefixes: Object.freeze(['crates/snapback-kernel/src/storage/']),
     }),
     regenerateCommand: 'node scripts/refresh-publication-carrier.mjs',
   }),
   'sequence-allocation-publication': Object.freeze({
     records: Object.freeze([
-      'crates/snapback/src/local-sequence-allocation-publication.v1.json and its pinned readers',
+      'crates/snapback-engine/src/local-sequence-allocation-publication.v1.json and its pinned readers',
     ]),
     recordPaths: Object.freeze([
-      'crates/snapback/src/local-sequence-allocation-publication.v1.json',
+      'crates/snapback-engine/src/local-sequence-allocation-publication.v1.json',
       'tests/conformance/sequence-allocation-publication-v1.mjs',
       'tests/conformance/sequence-allocation-publication-v1.receipt.json',
-      'crates/snapback/src/manifest.rs',
+      'crates/snapback-engine/src/manifest.rs',
     ]),
     triggerRules: Object.freeze({
       files: Object.freeze([
@@ -367,14 +387,14 @@ const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
         'packages/snapback-contract/derived-overlay.mjs',
         'packages/snapback-contract/index.mjs',
         'scripts/refresh-publication-carrier.mjs',
-        'crates/snapback/src/local-sequence-allocation-publication.v1.json',
-        'crates/snapback/src/manifest.rs',
-        'crates/snapback/src/runtime.rs',
-        'crates/snapback/src/storage.rs',
+        'crates/snapback-engine/src/local-sequence-allocation-publication.v1.json',
+        'crates/snapback-engine/src/manifest.rs',
+        'crates/snapback-engine/src/runtime.rs',
+        'crates/snapback-kernel/src/storage.rs',
         'tests/conformance/sequence-allocation-publication-v1.mjs',
         'tests/conformance/sequence-allocation-publication-v1.receipt.json',
       ]),
-      prefixes: Object.freeze(['crates/snapback/src/storage/']),
+      prefixes: Object.freeze(['crates/snapback-kernel/src/storage/']),
     }),
     regenerateCommand: 'node scripts/refresh-publication-carrier.mjs',
   }),
@@ -432,19 +452,19 @@ export const DERIVED_FORK_SIBLING_CUSTODY_GATES = Object.freeze([
 
 export const DERIVED_FORK_SIBLING_CUSTODY_TRANSFERS = Object.freeze([
   Object.freeze({
-    path: 'crates/snapback/src/local-persistent-store-publication.v1.json',
+    path: 'crates/snapback-engine/src/local-persistent-store-publication.v1.json',
     gate: 'local-store-publication',
   }),
   Object.freeze({
-    path: 'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
+    path: 'crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
     gate: 'local-store-publication',
   }),
   Object.freeze({
-    path: 'crates/snapback/src/local-relation-activity-publication.v1.json',
+    path: 'crates/snapback-engine/src/local-relation-activity-publication.v1.json',
     gate: 'relation-activity-publication',
   }),
   Object.freeze({
-    path: 'crates/snapback/src/local-sequence-allocation-publication.v1.json',
+    path: 'crates/snapback-engine/src/local-sequence-allocation-publication.v1.json',
     gate: 'sequence-allocation-publication',
   }),
 ]);
@@ -501,10 +521,10 @@ const LEGACY_REVIEW_VERDICT_CODES = new Map([
 ]);
 
 export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
-  'crates/snapback/src/local-agent-safe-storage-publication.anchor.json',
-  'crates/snapback/src/local-agent-safe-storage-publication.carrier.json',
-  'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
-  'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
+  'crates/snapback-activation/src/local-agent-safe-storage-publication.anchor.json',
+  'crates/snapback-activation/src/local-agent-safe-storage-publication.carrier.json',
+  'crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
+  'crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
   'tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json',
   'tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json',
   'tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json',
@@ -539,8 +559,8 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
   'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json',
   'tests/acceptance/local-store-carrier-exit-v1-evidence.md',
-  'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
-  'crates/snapback/src/local-persistent-store-publication.v1.json',
+  'crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
+  'crates/snapback-engine/src/local-persistent-store-publication.v1.json',
 ]);
 
 // The persistent-store carrier and anchor are publication-cycle exclusions
@@ -548,15 +568,15 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
 // the derived-fork snapshot. The two other sibling carriers already have that
 // classification because they are not cycle exclusions.
 export const DERIVED_FORK_SIBLING_CHAIN_PATHS = Object.freeze([
-  'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
-  'crates/snapback/src/local-persistent-store-publication.v1.json',
-  'crates/snapback/src/local-relation-activity-publication.v1.json',
-  'crates/snapback/src/local-sequence-allocation-publication.v1.json',
+  'crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
+  'crates/snapback-engine/src/local-persistent-store-publication.v1.json',
+  'crates/snapback-engine/src/local-relation-activity-publication.v1.json',
+  'crates/snapback-engine/src/local-sequence-allocation-publication.v1.json',
 ]);
 
 export const LOCAL_STORE_PUBLICATION_TRANSFORM = {
-  anchor: 'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
-  carrier: 'crates/snapback/src/local-persistent-store-publication.v1.json',
+  anchor: 'crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
+  carrier: 'crates/snapback-engine/src/local-persistent-store-publication.v1.json',
   receipts: [
     {
       path: 'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
@@ -583,15 +603,15 @@ const DERIVED_COMPONENTS = ['derivedDeploymentForkSafetyV1'];
 const RECORDS = [
   {
     id: 'agent_safe_storage_v1',
-    anchor: 'crates/snapback/src/local-agent-safe-storage-publication.anchor.json',
-    carrier: 'crates/snapback/src/local-agent-safe-storage-publication.carrier.json',
+    anchor: 'crates/snapback-activation/src/local-agent-safe-storage-publication.anchor.json',
+    carrier: 'crates/snapback-activation/src/local-agent-safe-storage-publication.carrier.json',
     receipt: 'tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json',
     components: STORAGE_COMPONENTS,
   },
   {
     id: 'agent_safe_derived_deployment_fork_v1',
-    anchor: 'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
-    carrier: 'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
+    anchor: 'crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
+    carrier: 'crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
     receipt: 'tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json',
     components: DERIVED_COMPONENTS,
   },
@@ -969,11 +989,31 @@ function gateRecordsExistAtCommit(root, commit, metadata) {
 }
 
 function normalizeCoverageGatePathEpoch(root, commit, value) {
-  if (derivedForkImplementationScopeAt(root, commit)
-      !== LEGACY_DERIVED_FORK_IMPLEMENTATION_SCOPE) {
-    return value;
+  if (typeof value === 'string') {
+    let normalized = value;
+    if (derivedForkImplementationScopeAt(root, commit)
+        === LEGACY_DERIVED_FORK_IMPLEMENTATION_SCOPE) {
+      normalized = normalized.replaceAll('src/', 'crates/snapback/src/'); // path-migration: historical
+    }
+    // @ref LLP 0276#phases — qualification-C policy bytes retain the source
+    // paths that existed at C. Compare them to the current admitted gate only
+    // after applying the same file-for-file crate carve mapping; record
+    // existence is still checked against the unmodified C paths below.
+    return normalized
+      .replaceAll('crates/snapback/src/local-persistent-store-publication', 'crates/snapback-engine/src/local-persistent-store-publication')
+      .replaceAll('crates/snapback/src/local-relation-activity-publication', 'crates/snapback-engine/src/local-relation-activity-publication')
+      .replaceAll('crates/snapback/src/local-sequence-allocation-publication', 'crates/snapback-engine/src/local-sequence-allocation-publication')
+      .replaceAll('crates/snapback/src/local/config_types.rs', 'crates/snapback-types/src/local/config_types.rs')
+      .replaceAll('crates/snapback/src/local/inspection.rs', 'crates/snapback-engine/src/local/inspection.rs')
+      .replaceAll('crates/snapback/src/local/live_protocol.rs', 'crates/snapback-sync/src/local/live_protocol.rs')
+      .replaceAll('crates/snapback/src/local/receipt_log.rs', 'crates/snapback-sync/src/local/receipt_log.rs')
+      .replaceAll('crates/snapback/src/local/tests.rs', 'crates/snapback-engine/src/local/tests.rs')
+      .replaceAll('crates/snapback/src/local.rs', 'crates/snapback-engine/src/local.rs')
+      .replaceAll('crates/snapback/src/manifest.rs', 'crates/snapback-engine/src/manifest.rs')
+      .replaceAll('crates/snapback/src/runtime.rs', 'crates/snapback-engine/src/runtime.rs')
+      .replaceAll('crates/snapback/src/storage/', 'crates/snapback-kernel/src/storage/')
+      .replaceAll('crates/snapback/src/storage.rs', 'crates/snapback-kernel/src/storage.rs');
   }
-  if (typeof value === 'string') return value.replaceAll('src/', 'crates/snapback/src/'); // path-migration: historical
   if (Array.isArray(value)) return value.map((member) => (
     normalizeCoverageGatePathEpoch(root, commit, member)
   ));

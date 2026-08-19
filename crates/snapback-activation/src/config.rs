@@ -16,6 +16,15 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use unicode_normalization::UnicodeNormalization as _;
 
+impl From<&VerificationRecord> for snapback_types::local::config_types::ConfigVerificationStatus {
+    fn from(record: &VerificationRecord) -> Self {
+        Self {
+            ok: record.ok,
+            at_ms: record.at_ms,
+        }
+    }
+}
+
 pub const CONFIG_STORE_FORMAT_VERSION: u32 = 1;
 
 /// Minimum interval between probe runs for one entry.
@@ -44,8 +53,9 @@ pub struct VerificationRecord {
 /// actions carry this across the lock boundary so a value rotated or unset
 /// while handler code is running can still be removed from its eventual error
 /// envelope and retention sinks.
+#[doc(hidden)]
 #[derive(Clone, Debug, Default)]
-pub(crate) struct SecretRedactor {
+pub struct SecretRedactor {
     patterns: Vec<Regex>,
 }
 
@@ -71,11 +81,11 @@ impl SecretRedactor {
     /// @ref LLP 0204#d5--surface-4-the-near-data-ai-interface — caller model
     /// keys are never persisted or logged, but receive the same reversible-
     /// representation scrubbing as stored secrets while the request exists.
-    pub(crate) fn request_scoped(secret: String) -> Self {
+    pub fn request_scoped(secret: String) -> Self {
         Self::new(vec![secret])
     }
 
-    pub(crate) fn redact_text(&self, text: &str) -> String {
+    pub fn redact_text(&self, text: &str) -> String {
         let mut redacted = text.to_owned();
         for pattern in &self.patterns {
             redacted = pattern.replace_all(&redacted, "[REDACTED]").into_owned();
@@ -85,7 +95,7 @@ impl SecretRedactor {
 
     /// Scrub every string leaf in a structured diagnostics value while
     /// preserving its shape for telemetry and host-call trace consumers.
-    pub(crate) fn redact_value(&self, mut value: serde_json::Value) -> serde_json::Value {
+    pub fn redact_value(&self, mut value: serde_json::Value) -> serde_json::Value {
         redact_value_strings(self, &mut value);
         value
     }
@@ -99,7 +109,7 @@ impl SecretRedactor {
         diagnostic
     }
 
-    pub(crate) fn redact_error(&self, mut error: SnapbackError) -> SnapbackError {
+    pub fn redact_error(&self, mut error: SnapbackError) -> SnapbackError {
         error.diagnostic = self.redact_diagnostic(error.diagnostic);
         let mut private_redaction_witnessed = false;
         if let Some(context) = error.private_failure_context_mut() {
@@ -556,7 +566,7 @@ impl ConfigStore {
         self.secret_redactor().redact_text(text)
     }
 
-    pub(crate) fn secret_redactor(&self) -> SecretRedactor {
+    pub fn secret_redactor(&self) -> SecretRedactor {
         SecretRedactor::new(
             self.state
                 .entries
@@ -566,7 +576,7 @@ impl ConfigStore {
         )
     }
 
-    pub(crate) fn secret_redactor_for(&self, names: &[String]) -> SecretRedactor {
+    pub fn secret_redactor_for(&self, names: &[String]) -> SecretRedactor {
         SecretRedactor::new(
             names
                 .iter()

@@ -305,7 +305,8 @@ struct AgentSafeEvidenceBindingV1 {
     sha256: String,
 }
 
-pub(crate) fn storage_target_candidate() -> AgentSafeCapabilityFactsV1 {
+#[doc(hidden)]
+pub fn storage_target_candidate() -> AgentSafeCapabilityFactsV1 {
     let mut facts = AgentSafeCapabilityFactsV1::missing();
     facts.envelope.ordinary_mutation.host_plan = AgentSafeEnvelopeCoverageV1::Covered;
     facts.envelope.ordinary_mutation.ibex_buffered = AgentSafeEnvelopeCoverageV1::Covered;
@@ -321,7 +322,8 @@ pub(crate) fn storage_target_candidate() -> AgentSafeCapabilityFactsV1 {
     facts
 }
 
-pub(crate) fn derived_fork_target_candidate() -> AgentSafeCapabilityFactsV1 {
+#[doc(hidden)]
+pub fn derived_fork_target_candidate() -> AgentSafeCapabilityFactsV1 {
     let mut facts = AgentSafeCapabilityFactsV1::missing();
     facts.forks.derived_deployment = AgentSafeForkAxesV1 {
         egress: AgentSafeForkEgressV1::DenyAll,
@@ -349,12 +351,14 @@ fn owner_explanation_fact(
     }
 }
 
-#[cfg(test)]
-pub(crate) fn storage_publication_verified() -> bool {
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn storage_publication_verified() -> bool {
     storage_publication_verified_for_distribution(crate::identity::build_distribution())
 }
 
-pub(crate) fn storage_publication_verified_for_distribution(build_distribution: &str) -> bool {
+#[doc(hidden)]
+pub fn storage_publication_verified_for_distribution(build_distribution: &str) -> bool {
     embedded_publication_verified(
         STORAGE_ID,
         STORAGE_COMPONENTS.as_slice(),
@@ -367,12 +371,14 @@ pub(crate) fn storage_publication_verified_for_distribution(build_distribution: 
     )
 }
 
-#[cfg(test)]
-pub(crate) fn derived_fork_publication_verified() -> bool {
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn derived_fork_publication_verified() -> bool {
     derived_fork_publication_verified_for_distribution(crate::identity::build_distribution())
 }
 
-pub(crate) fn derived_fork_publication_verified_for_distribution(build_distribution: &str) -> bool {
+#[doc(hidden)]
+pub fn derived_fork_publication_verified_for_distribution(build_distribution: &str) -> bool {
     // @ref LLP 0158#capability-registry-record — the author ruled the LLP 0061
     // guide capability-index row as the local claim's publication carrier.
     // This Rust predicate guards only the never-ruled LLP 0113/manifest act,

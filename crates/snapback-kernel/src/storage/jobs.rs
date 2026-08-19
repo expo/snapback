@@ -197,6 +197,32 @@ pub struct JobAttemptRecord {
 
 /// One claimed job handed to the executor: the immutable intent plus the
 /// fenced claim facts the finish CAS must present.
+/// Kernel-minted durable half of deferred rehearsal authority.
+///
+/// Callers cannot self-assert protected provenance:
+///
+/// ```compile_fail
+/// use snapback_kernel::storage::jobs::DeferredRehearsalAuthority;
+///
+/// let _forged = DeferredRehearsalAuthority { provenance: None };
+/// ```
+#[derive(Clone, Debug)]
+pub struct DeferredRehearsalAuthority {
+    provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+}
+
+impl DeferredRehearsalAuthority {
+    pub fn is_present(&self) -> bool {
+        self.provenance.is_some()
+    }
+
+    pub fn into_provenance(
+        self,
+    ) -> Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1> {
+        self.provenance
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ClaimedJob {
     pub job_id: String,
@@ -211,10 +237,17 @@ pub struct ClaimedJob {
     pub lease_expires_at_ms: u64,
     pub idempotency_key: Option<String>,
     pub push_grant: Option<crate::contract_types::PushDeferredGrantV1>,
-    pub rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+    deferred_rehearsal_authority: DeferredRehearsalAuthority,
 }
 
 impl ClaimedJob {
+    /// Return the opaque durable rehearsal authority loaded as part of this
+    /// exact fenced claim. Callers cannot construct a claimed job or replace
+    /// its protected provenance after the kernel has admitted it.
+    pub fn deferred_rehearsal_authority(&self) -> DeferredRehearsalAuthority {
+        self.deferred_rehearsal_authority.clone()
+    }
+
     /// Bounded admission facts for the non-billable scheduled wrapper. The
     /// action itself is observed independently as a logical function run.
     ///
@@ -945,17 +978,19 @@ pub fn claim_due_jobs_in_tx(
                     })
                 })
                 .transpose()?,
-            rehearsal_provenance: job
-                .rehearsal_provenance_json
-                .map(|value| {
-                    let provenance = serde_json::from_str::<
-                        crate::auth::rehearsal::AuthRehearsalProvenanceV1,
-                    >(&value)
-                    .map_err(|_| crate::auth::rehearsal::provenance_invalid())?;
-                    provenance.validate()?;
-                    Ok::<_, SnapbackError>(provenance)
-                })
-                .transpose()?,
+            deferred_rehearsal_authority: DeferredRehearsalAuthority {
+                provenance: job
+                    .rehearsal_provenance_json
+                    .map(|value| {
+                        let provenance = serde_json::from_str::<
+                            crate::auth::rehearsal::AuthRehearsalProvenanceV1,
+                        >(&value)
+                        .map_err(|_| crate::auth::rehearsal::provenance_invalid())?;
+                        provenance.validate()?;
+                        Ok::<_, SnapbackError>(provenance)
+                    })
+                    .transpose()?,
+            },
         });
     }
     Ok(claims)

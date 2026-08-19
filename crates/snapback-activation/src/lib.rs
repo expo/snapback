@@ -6,7 +6,19 @@
 #![allow(clippy::result_large_err)]
 
 pub use snapback_auth::auth;
-pub use snapback_kernel::{diagnostic, storage};
-pub use snapback_types::manifest;
+pub use snapback_kernel::{diagnostic, secure_file, seed_identity, storage};
+pub use snapback_types::{
+    contract_types, error_tracking, host_ops_contract, identity, live_wire, manifest, rqs_contract,
+};
 
+pub mod telemetry {
+    pub use snapback_types::telemetry_contract::TelemetryConfig;
+}
+
+pub mod agent_safe_publication;
+pub mod bundle;
+pub mod completeness;
+pub mod config;
+pub mod deploy;
 pub mod generation_activation;
+pub mod operational_readiness;

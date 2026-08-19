@@ -77,6 +77,24 @@ pub struct ProjectionSource {
     pub superseded_tokens: Vec<ProjectionTokenRow>,
 }
 
+/// Kernel-minted snapshot admitted for construction of the process session
+/// projection. The source remains opaque so higher layers cannot author rows
+/// and then ask the coordinator to treat them as durable authority.
+pub struct AdmittedProjectionSnapshot {
+    source: ProjectionSource,
+}
+
+impl AdmittedProjectionSnapshot {
+    pub(crate) fn new(source: ProjectionSource) -> Self {
+        Self { source }
+    }
+
+    #[doc(hidden)]
+    pub fn into_source(self) -> ProjectionSource {
+        self.source
+    }
+}
+
 impl fmt::Debug for ProjectionSource {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("ProjectionSource([REDACTED])")

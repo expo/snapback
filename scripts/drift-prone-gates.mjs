@@ -61,6 +61,8 @@ const BATTERY_ESCALATION_THRESHOLD = 4;
 const BATTERY_RESULT_SCHEMA = 'snapback.proof-gate-result.v2';
 const BATTERY_TICKET_DATE_ENV = 'SNAPBACK_BATTERY_TICKET_DATE';
 const PUBLICATION_ROOT_CANDIDATES = Object.freeze([
+  'crates/snapback-activation/src',
+  'crates/snapback-engine/src',
   'crates/snapback/src',
   'src',
 ]);
@@ -1833,36 +1835,26 @@ function jsonAtRevision(root, revision, path, label) {
   }
 }
 
-function publicationRootAtRevision(root, revision) {
-  const roots = PUBLICATION_ROOT_CANDIDATES.filter((candidate) => (
-    gitPaths(root, [
-      'ls-tree', '-d', '--name-only', '-z', revision, '--', candidate,
-    ]).includes(candidate)
-  ));
-  if (roots.length !== 1) {
-    fail(`revision ${revision} resolves ${roots.length} publication roots (${roots.join(', ')})`);
-  }
-  return roots[0];
-}
-
-function publicationAnchorPaths(root, revision, publicationRoot) {
+function publicationAnchorPaths(root, revision) {
   const known = gitPaths(root, [
     'ls-tree', '-r', '--name-only', '-z', revision,
   ]).filter((path) => /publication\.anchor(?:\.v\d+)?\.json$/u.test(path));
-  const anchors = gitPaths(root, [
+  const anchors = PUBLICATION_ROOT_CANDIDATES.flatMap((publicationRoot) => gitPaths(root, [
     'ls-tree', '-r', '--name-only', '-z', revision, '--', publicationRoot,
-  ]).filter((path) => /publication\.anchor(?:\.v\d+)?\.json$/u.test(path));
-  if (known.length > 0 && anchors.length === 0) {
-    fail(
-      `revision ${revision} has ${known.length} known publication anchor(s), but `
-        + `publication root ${publicationRoot} yielded zero standing claims`,
-    );
-  }
+  ]).filter((path) => /publication\.anchor(?:\.v\d+)?\.json$/u.test(path)));
   const omitted = known.filter((path) => !anchors.includes(path));
   if (omitted.length > 0) {
-    fail(`publication root ${publicationRoot} omitted known anchor(s): ${omitted.join(', ')}`);
+    fail(`publication roots omitted known anchor(s): ${omitted.join(', ')}`);
   }
-  return anchors;
+  return [...new Set(anchors)].sort();
+}
+
+function publicationRootForAnchor(anchorPath) {
+  const publicationRoot = PUBLICATION_ROOT_CANDIDATES.find(
+    (candidate) => anchorPath.startsWith(`${candidate}/`),
+  );
+  if (!publicationRoot) fail(`claim anchor ${anchorPath} is outside every publication root`);
+  return publicationRoot;
 }
 
 function publicationCarrierForAnchor(root, revision, publicationRoot, anchorPath, anchor) {
@@ -1961,8 +1953,8 @@ export function standingBatteryClaims({
   context = loadSelectionContext(),
 } = {}) {
   const claims = [];
-  const publicationRoot = publicationRootAtRevision(root, revision);
-  for (const anchorPath of publicationAnchorPaths(root, revision, publicationRoot)) {
+  for (const anchorPath of publicationAnchorPaths(root, revision)) {
+    const publicationRoot = publicationRootForAnchor(anchorPath);
     const anchor = jsonAtRevision(root, revision, anchorPath, 'claim anchor');
     if (anchor?.schemaVersion !== 'snapback.local-capability-publication-anchor.v1'
       || typeof anchor.capabilityId !== 'string'

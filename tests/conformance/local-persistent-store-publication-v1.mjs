@@ -26,9 +26,9 @@ const fleetMove1Bytes = await read('../acceptance/fixtures/fleet-observatory/mov
 const fleetMove1 = JSON.parse(fleetMove1Bytes);
 const fleetBudgetBytes = await read('../acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json');
 const fleetBudget = JSON.parse(fleetBudgetBytes);
-const anchorBytes = await read('../../crates/snapback/src/local-persistent-store-publication.anchor.v1.json');
+const anchorBytes = await read('../../crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json');
 const anchor = JSON.parse(anchorBytes);
-const carrierBytes = await read('../../crates/snapback/src/local-persistent-store-publication.v1.json');
+const carrierBytes = await read('../../crates/snapback-engine/src/local-persistent-store-publication.v1.json');
 const carrier = JSON.parse(carrierBytes);
 const localManifest = JSON.parse(await read('../../schemas/capability.manifest.local-dev-sqlite-ibex.json'));
 

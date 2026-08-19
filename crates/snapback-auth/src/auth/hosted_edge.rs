@@ -732,6 +732,16 @@ pub fn install_verified_admission(
     Ok(authority)
 }
 
+pub fn install_verified_admission_plan(
+    verified: &VerifiedHostedAdmission,
+    now_ms: u64,
+) -> impl crate::auth::database_plan::AuthDatabasePlan<Output = SnapbackResult<HostedServingAuthority>> + '_
+{
+    crate::auth::database_plan::plan(move |database| {
+        install_verified_admission(verified, now_ms, database)
+    })
+}
+
 pub fn renew_hosted_admission(
     database: &mut crate::storage::LocalDatabase,
     inputs: &AdmissionRenewalInputs,
@@ -744,6 +754,18 @@ pub fn renew_hosted_admission(
     let issued_at_ms = verified.issued_at_ms();
     let authority = install_verified_admission(&verified, now_ms, database)?;
     Ok(Some((authority, issued_at_ms)))
+}
+
+pub fn renew_hosted_admission_plan(
+    inputs: &AdmissionRenewalInputs,
+    installed_issued_at_ms: u64,
+    now_ms: u64,
+) -> impl crate::auth::database_plan::AuthDatabasePlan<
+    Output = SnapbackResult<Option<(HostedServingAuthority, u64)>>,
+> + '_ {
+    crate::auth::database_plan::plan(move |database| {
+        renew_hosted_admission(database, inputs, installed_issued_at_ms, now_ms)
+    })
 }
 
 /// Derive the shared-throttle bucket key from the release-bound verification

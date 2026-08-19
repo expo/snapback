@@ -1,4 +1,6 @@
 use crate::admin::{AppState, ResolvedAdminToken, ServerContext};
+#[cfg(test)]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::admin_secret_read::{
     SecretReadMintBridge, SecretReadMintSpec, SecretReadScope, secret_read_root_sibling,
     sign_secret_read_mint,
@@ -154,7 +156,7 @@ fn quarantine_pending_startup(
 ) -> crate::diagnostic::SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
     let code = error.diagnostic.code.clone();
     snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
-    snapback.auth_database_mut().quarantine_auth_mode(&code)
+    snapback.quarantine_auth_mode(&code)
 }
 
 fn minted_admin_token_handoff_lines(
@@ -258,44 +260,7 @@ fn activate_startup_sessions_successor(
     expected: &crate::auth::mode::DeploymentIdentity,
     observed: &crate::auth::mode::DeploymentIdentity,
 ) -> crate::diagnostic::SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
-    use crate::auth::admission::ModeCommitFailure;
-    use crate::manifest::AuthMode;
-
-    let transition = snapback.begin_auth_mode_transition()?;
-    let repeated = transition.repeat_preflight(|| {
-        let snapshot = snapback.auth_database_mut().auth_mode_snapshot()?;
-        if snapshot.state.active != AuthMode::Sessions
-            || snapshot.state.active_deployment.as_ref() != Some(expected)
-        {
-            return Err(crate::auth::mode::mode_corrupt(
-                "settled sessions deployment changed before startup successor activation",
-            ));
-        }
-        snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)
-    })?;
-    if repeated != *observed {
-        return Err(crate::auth::mode::mode_corrupt(
-            "startup successor identity changed between complete-pair preflight passes",
-        ));
-    }
-
-    let publication_generation = snapback.reserve_function_publication_generation()?;
-    let schema = carrier.schema.clone();
-    let functions = carrier.functions.clone();
-    let deployment = observed.clone();
-    let ((), state, _) = transition.commit_and_publish_mode_state(|| {
-        let committed = crate::generation_activation::GenerationActivation::new(snapback)
-            .activate_same_mode_network_generation(
-                deployment,
-                schema,
-                functions,
-                None,
-                publication_generation,
-                DiagnosticBoundary::Standalone,
-            )?;
-        let state = committed.commit.state.clone();
-        Ok::<_, ModeCommitFailure>(((), state))
-    })?;
+    let state = snapback.activate_startup_sessions_successor(carrier, expected, observed)?;
     emit_startup_successor_activation(expected, observed);
     Ok(state)
 }
@@ -325,7 +290,7 @@ async fn compose_auth_mode_startup_with_embedded(
     use crate::auth::mode::AuthModeStatus;
     use crate::manifest::AuthMode;
 
-    let mut snapshot = snapback.auth_database_mut().auth_mode_snapshot()?;
+    let mut snapshot = snapback.auth_mode_snapshot()?;
     if args.clear_desired_auth_mode {
         if !matches!(
             snapshot.state.mode_state,
@@ -337,8 +302,8 @@ async fn compose_auth_mode_startup_with_embedded(
                 "--clear-desired-auth-mode requires a valid pending transition",
             ));
         }
-        snapback.auth_database_mut().unstage_auth_mode()?;
-        snapshot = snapback.auth_database_mut().auth_mode_snapshot()?;
+        snapback.unstage_auth_mode()?;
+        snapshot = snapback.auth_mode_snapshot()?;
     }
 
     let carrier = match carrier_result {
@@ -436,15 +401,13 @@ async fn compose_auth_mode_startup_with_embedded(
                     let publication_generation =
                         snapback.reserve_function_publication_generation()?;
                     let state = startup_blocking(|| {
-                        snapback
-                            .auth_database_mut()
-                            .apply_same_mode_dev_deployment_with_functions(
+                        snapback.apply_same_mode_dev_deployment_with_functions(
                                 deployment,
                                 carrier.schema.clone(),
                                 &carrier.functions,
                                 carrier.seed.clone(),
                             )?;
-                        snapback.auth_database_mut().auth_mode_snapshot()
+                        snapback.auth_mode_snapshot()
                     })?;
                     snapback.publish_preflighted_functions(
                         carrier.functions.clone(),
@@ -454,15 +417,13 @@ async fn compose_auth_mode_startup_with_embedded(
                     return Ok(state.state);
                 }
                 snapshot = startup_blocking(|| {
-                    snapback
-                        .auth_database_mut()
-                        .stage_auth_mode_with_functions(
+                    snapback.stage_auth_mode_with_functions(
                             deployment,
                             carrier.schema.clone(),
                             &carrier.functions,
                             carrier.seed.clone(),
                         )?;
-                    snapback.auth_database_mut().auth_mode_snapshot()
+                    snapback.auth_mode_snapshot()
                 })?;
             }
         }
@@ -521,13 +482,14 @@ async fn compose_auth_mode_startup_with_embedded(
         (AuthMode::Dev, AuthMode::Sessions) => {
             if !readiness.session_activation_ready {
                 let error = startup_blocking(|| {
-                    snapback
-                        .auth_database_mut()
-                        .consume_sessions_auth_mode_with_functions(readiness, &carrier.functions)
+                    snapback.consume_sessions_auth_mode_with_functions(
+                        readiness,
+                        &carrier.functions,
+                    )
                 })
                 .expect_err("item readiness must refuse sessions consume");
                 snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
-                return Ok(snapback.auth_database_mut().auth_mode_snapshot()?.state);
+                return Ok(snapback.auth_mode_snapshot()?.state);
             }
             let publication_generation = snapback.reserve_function_publication_generation()?;
             let provider = auth_runtime.provider();
@@ -537,9 +499,7 @@ async fn compose_auth_mode_startup_with_embedded(
                 return quarantine_pending_startup(snapback, error);
             }
             let state = match startup_blocking(|| {
-                snapback
-                    .auth_database_mut()
-                    .consume_sessions_auth_mode_with_functions(readiness, &carrier.functions)
+                snapback.consume_sessions_auth_mode_with_functions(readiness, &carrier.functions)
             }) {
                 Ok(state) => state,
                 Err(error) => {
@@ -560,9 +520,7 @@ async fn compose_auth_mode_startup_with_embedded(
             let publication_generation = snapback.reserve_function_publication_generation()?;
             let now_ms = auth_runtime.provider().now_ms();
             let result = match startup_blocking(|| {
-                snapback
-                    .auth_database_mut()
-                    .consume_dev_downgrade_with_functions(
+                snapback.consume_dev_downgrade_with_functions(
                         args.allow_auth_downgrade,
                         now_ms,
                         &carrier.functions,
@@ -571,7 +529,7 @@ async fn compose_auth_mode_startup_with_embedded(
                 Ok(result) => result,
                 Err(error) => {
                     snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
-                    let state = snapback.auth_database_mut().auth_mode_snapshot()?.state;
+                    let state = snapback.auth_mode_snapshot()?.state;
                     if state.mode_state == AuthModeStatus::Quarantined {
                         return Ok(state);
                     }
@@ -3346,13 +3304,12 @@ async fn auth_backup_inner(
     // read and copy crosses the sanctioned pre-bind blocking boundary.
     startup_blocking(|| {
         let mut snapback = LocalSnapback::open(&database_path)?;
-        crate::auth::backup::create_backup(
-            snapback.auth_database_mut(),
+        snapback.execute_auth_plan(crate::auth::backup::create_backup_plan(
             maintenance.keyring(),
             output_directory,
             created_at_ms,
             &crate::auth::crypto::OsRandom,
-        )
+        ))
         .map_err(anyhow::Error::new)
     })
 }
@@ -3540,7 +3497,7 @@ async fn store_export_inner(
     startup_blocking(|| {
         let mut snapback = LocalSnapback::open(&database_path)?;
         crate::store_state::export_store(
-            snapback.auth_database_mut(),
+            &mut snapback,
             maintenance.keyring(),
             &database_path,
             output_directory,
@@ -8454,7 +8411,8 @@ async fn run_composed(
     // the transport adapter resolved from bind + declared exposure. Neither a
     // generated carrier nor its target config can self-declare this posture.
     // @ref LLP 0234#d4--production-authority-expires-fixtures-cannot-become-production
-    snapback.bind_server_profile(startup_profile);
+    let engine_app_state_bindings =
+        snapback.claim_app_state_graph(startup_profile, args.auth_deployment)?;
     let derived_fork_boot = snapback.is_derived_fork();
     let derived_fork_lineage = snapback.derived_fork_identity().cloned();
     debug_assert_eq!(derived_fork_boot, derived_fork_lineage.is_some());
@@ -8534,13 +8492,12 @@ async fn run_composed(
                 // asynchronously; execute the transaction in the sanctioned
                 // startup blocking section.
                 let restore = startup_blocking(|| {
-                    crate::auth::lifecycle::apply_declared_restore(
-                        snapback.auth_database_mut(),
+                    snapback.execute_auth_plan(crate::auth::lifecycle::apply_declared_restore_plan(
                         maintenance.mailbox(),
                         &declaration_path,
                         declaration_id,
                         provider.now_ms(),
-                    )
+                    ))
                 });
                 match restore {
                     Ok(outcome) => {
@@ -8736,7 +8693,6 @@ async fn run_composed(
         }
     };
     let password_provider_readiness = snapback
-        .auth_database_mut()
         .auth_password_provider_readiness()
         .map_err(anyhow::Error::new)?;
     if args.derived_fork_arm_writer_coverage {
@@ -8745,10 +8701,7 @@ async fn run_composed(
         // @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 —
         // arm the process-owned connection at the fork point before bind.
         startup_blocking(|| {
-            crate::instance_fork::arm_open_derived_fork_app_row_coverage(
-                snapback.auth_database_mut(),
-                now_ms(),
-            )
+            snapback.arm_open_derived_fork_app_row_coverage(now_ms())
         })
         .map_err(anyhow::Error::new)?;
     }
@@ -8786,19 +8739,9 @@ async fn run_composed(
     // reserved sequence and aborts startup.
     // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — reserve and authenticate the never-reused boot issuer before app-data bind.
     let auth_invalidation = if auth_mode_state.active == crate::manifest::AuthMode::Sessions {
-        let (app_id, target_profile_id) = {
-            let schema = snapback.auth_database_mut().schema();
-            (
-                schema.app_id.clone(),
-                schema.target_profile.clone().unwrap_or_else(|| {
-                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
-                }),
-            )
-        };
-        let (issuer, authorization, version_stream) = auth_runtime
-            .reserve_invalidation_boot_issuer(&mut snapback, &target_profile_id, &app_id)
-            .map_err(|error| anyhow::Error::new(error.into_snapback_error()))?;
-        snapback.install_auth_invalidation(issuer.clone(), authorization, version_stream)?;
+        let issuer = snapback
+            .install_authenticated_auth_invalidation(&auth_runtime.provider(), None)
+            .map_err(anyhow::Error::new)?;
         Some(issuer)
     } else {
         None
@@ -8810,11 +8753,12 @@ async fn run_composed(
     let loaded_app_id = snapback.loaded_app_id();
     let state = Arc::new(Mutex::new(snapback));
     debug_assert_eq!(server_context.profile, startup_profile);
-    let (app_state, secret_read_operator) = AppState::try_new_with_secret_read_operator(
+    let (app_state, secret_read_operator) = AppState::try_new_with_claimed_engine(
         state.clone(),
         read_lane,
         ephemeral.clone(),
         server_context,
+        engine_app_state_bindings,
     )
     .map_err(anyhow::Error::new)?;
     // @ref LLP 0060#d1-plaintext-listener-fence — the request-path fence
@@ -8835,11 +8779,10 @@ async fn run_composed(
         Some((verified, _)) => {
             let authority = {
                 let mut snapback = state.lock().await;
-                crate::auth::hosted_edge::install_verified_admission(
+                snapback.execute_auth_plan(crate::auth::hosted_edge::install_verified_admission_plan(
                     verified,
                     hosted_now_ms(),
-                    snapback.auth_database_mut(),
-                )
+                ))
                     .map_err(anyhow::Error::new)?
             };
             app_state
@@ -8864,9 +8807,16 @@ async fn run_composed(
             )));
         }
     };
-    let startup_network_profile = app_state
-        .activate_network_profile_env(startup_network_profile_env.as_deref())
-        .map_err(anyhow::Error::new)?;
+    let startup_network_profile = {
+        let profile = startup_network_profile_env.as_deref().map_or_else(
+            || Ok(crate::network_profile::NetworkConditionProfile::normal()),
+            crate::network_profile::NetworkConditionProfile::parse_env,
+        )?;
+        let mut snapback = state.lock().await;
+        snapback
+            .activate_startup_network_profile(profile)
+            .map_err(anyhow::Error::new)?
+    };
     // @ref LLP 0098#24-renewal-and-the-honest-cost-of-pre-signing — an admission
     // lives at most five minutes, so a deployment that serves longer needs its
     // authority replaced in place. The loop only ever installs another
@@ -8887,12 +8837,11 @@ async fn run_composed(
                     let now_ms = hosted_now_ms();
                     let renewed = {
                         let mut snapback = renewal_state.lock().await;
-                        crate::auth::hosted_edge::renew_hosted_admission(
-                            snapback.auth_database_mut(),
+                        snapback.execute_auth_plan(crate::auth::hosted_edge::renew_hosted_admission_plan(
                             &renewal,
                             installed_issued_at_ms,
                             now_ms,
-                        )
+                        ))
                     };
                     match renewed {
                         Ok(Some((authority, issued_at_ms))) => {
@@ -8912,7 +8861,9 @@ async fn run_composed(
             });
         }
     }
-    let app_state = app_state.with_auth_runtime(&auth_runtime, auth_coordinator.clone());
+    let app_state = app_state
+        .with_auth_runtime(&auth_runtime, auth_coordinator.clone())
+        .map_err(anyhow::Error::new)?;
     let app_state = match auth_invalidation {
         Some(issuer) => app_state.with_auth_invalidation(issuer),
         None => app_state,

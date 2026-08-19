@@ -3,6 +3,7 @@
 pub mod admission;
 pub mod admin_token;
 pub mod backup;
+pub mod database_plan;
 pub mod deployment;
 pub mod effective_source;
 pub mod hosted_edge;

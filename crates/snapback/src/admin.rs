@@ -6,6 +6,8 @@
 //! @ref LLP 0017#headless-admin-contract — the admin facts extend the inspect
 //! state rather than forking a parallel schema; the console is one consumer.
 
+#[cfg(test)]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::admin_impersonation::ImpersonationCapabilityRegistry;
 use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintBridge, SecretReadOperator,
@@ -29,7 +31,7 @@ use crate::server::{
     HealthResponse, InvocationAuthority, LegacyBodyPolicy, PolicyAuthMode, PolicyAuthPosture,
     RegisteredRoute, ResponseSensitivity, RouteClass, RoutePolicy, RouteSpec, SessionModeOverlay,
     SharedSnapback, committed_mode_terminal_reason, static_public_content_security_policy,
-    system_api_route, system_static_route,
+    system_api_route, system_static_route, with_snapback,
 };
 use anyhow::Context as _;
 use axum::Json;
@@ -156,18 +158,9 @@ pub(crate) fn validate_plaintext_auth_transport(
     Ok(())
 }
 
-/// Environment half of an operation's authority tuple. Every transport and
-/// alias asks this same policy before invoking the operation core.
-///
-/// @ref LLP 0024#authority-tuple — dev-user impersonation and destructive
-/// operations are profile-bounded capabilities regardless of transport;
-/// collision rescue is narrower than the ordinary non-production set.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum OperationProfileRequirement {
-    Any,
-    NonProd,
-    DevOrTest,
-}
+pub(crate) use crate::host_ops::{
+    OperationProfileRequirement, operation_profile_diagnostic, operation_profile_requirement,
+};
 
 /// Admin half of a host operation's authority tuple. Multiplexed host-ops and
 /// their dedicated route aliases resolve through this same table so transport
@@ -190,86 +183,6 @@ pub(crate) fn operation_authority_requirement(
         // satisfy fail closed at the stronger endpoint gate.
         _ => OperationAuthorityRequirement::AdminWrite,
     }
-}
-
-/// One operation policy table shared by dedicated routes and multiplexed
-/// host-ops. `has_dev_user` means the caller selected an app identity rather
-/// than presenting hosted app authentication.
-pub(crate) fn operation_profile_requirement(
-    operation: &str,
-    has_dev_user: bool,
-) -> OperationProfileRequirement {
-    match operation {
-        // Operational readiness is an authenticated control-plane fact with
-        // the same all-profile inspection posture as app.inspect. The active
-        // network profile is recorded by the evaluator, never used as a gate.
-        "app.inspect" | "app.readiness.v1" => OperationProfileRequirement::Any,
-        // @ref LLP 0167#authority-one-activation-chokepoint — reads are
-        // available in every profile and writes must reach the network-profile
-        // activation gate so its finer hosted/Prod policy and refusal codes
-        // remain authoritative. Do not preempt that gate with NonProd here.
-        "debug.networkProfileGet" | "debug.networkProfileSet" => OperationProfileRequirement::Any,
-        // The dedicated data-patch target classifier owns the stricter
-        // local/non-production/primary-instance rule and its availability
-        // refusal diagnostic.
-        "data.patch.preview" | "data.patch.apply" => OperationProfileRequirement::Any,
-        "app.reset"
-        | "app.ensure.provision"
-        | "app.seed.ensure.v1"
-        | "app.seed.preview.v1"
-        | "app.seed.reset-install.v1"
-        | "app.seed.clear.v1"
-        | "schema.load"
-        | "functions.load" => OperationProfileRequirement::NonProd,
-        // The direct and multiplexed runners are developer/operator bypass
-        // surfaces even when they project an anonymous handler input. Hosted
-        // production invocation goes through the ordinary app-data gate.
-        "function.run" | "auth.mintSession" => OperationProfileRequirement::NonProd,
-        // The asset operator surface is developer/operator tooling like the
-        // direct runner; hosted production traffic uses the ordinary asset
-        // routes.
-        "asset.put"
-        | "asset.ensureSeedFixture"
-        | "asset.inspect"
-        | "asset.list"
-        | "asset.retry"
-        | "asset.delete" => OperationProfileRequirement::NonProd,
-        // Frozen LLP 0039 deliberately excludes demo from the below-manifest
-        // collision-recovery authority, on both ordinary and recovery servers.
-        "auth.rescueCollidingTable" => OperationProfileRequirement::DevOrTest,
-        "function.explain" if has_dev_user => OperationProfileRequirement::NonProd,
-        _ => OperationProfileRequirement::Any,
-    }
-}
-
-pub(crate) fn operation_profile_diagnostic(
-    profile: ServerProfile,
-    operation: &str,
-    requirement: OperationProfileRequirement,
-) -> Option<crate::diagnostic::Diagnostic> {
-    let allowed = match requirement {
-        OperationProfileRequirement::Any => true,
-        OperationProfileRequirement::NonProd => profile.allows_provisioning(),
-        OperationProfileRequirement::DevOrTest => {
-            matches!(profile, ServerProfile::Dev | ServerProfile::Test)
-        }
-    };
-    if allowed {
-        return None;
-    }
-    let allowed_profiles = match requirement {
-        OperationProfileRequirement::Any => unreachable!("allowed requirements returned above"),
-        OperationProfileRequirement::NonProd => "dev|demo|test",
-        OperationProfileRequirement::DevOrTest => "dev|test",
-    };
-    Some(crate::diagnostic::Diagnostic::error(
-        "SNAPBACK_PROFILE_FORBIDS",
-        "admin",
-        format!(
-            "{operation} is not available under the '{}' profile; set SNAPBACK_PROFILE={allowed_profiles} to enable it",
-            profile.as_str(),
-        ),
-    ))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -2550,7 +2463,7 @@ pub struct AppState {
     pub(crate) console_reachability: ConsoleReachabilityRegistry,
     /// Process-local network condition selection shared by HTTP egress and
     /// Local's post-commit live preparation.
-    pub(crate) network_profiles: crate::network_profile::NetworkProfileState,
+    pub(crate) network_profiles: crate::local::NetworkProfileView,
     /// Present only when the serving process installed the off-turn live
     /// scheduler. Request mutation paths clone this gate before entering the
     /// staged write wrapper; detached and embedded callers keep legacy mutex
@@ -2564,7 +2477,7 @@ pub struct AppState {
     /// demand the token minted by `POST /connection/open`.
     pub connections: ConnectionRegistry,
     /// Shared advisory connectivity witnesses for this exact app process.
-    pub(crate) connected_clients: crate::connected_clients::ConnectedClientRegistry,
+    pub(crate) connected_clients: crate::local::ConnectedClientObserver,
     /// Pending-registration owners for bundle register mode plus the
     /// per-authority bundle rate limiter (LLP 0031 dated LLP 0090 amendment;
     /// LLP 0092 §0D.4 bounds and reaping). Public for the acceptance suite;
@@ -2574,10 +2487,6 @@ pub struct AppState {
     /// installed in this app state. The pre-bind expiry worker receives a
     /// clone, so readiness cannot accidentally describe a different graph.
     pub(crate) auth_terminal_lifecycle: AuthTerminalLifecycle,
-    /// Exact process-local publication/effect fences for finite scoped-token
-    /// authority. The same registry is installed on the protected auth store
-    /// so terminal SQLite commits premark matching request/connection leaves.
-    pub(crate) service_authority_fences: crate::auth::service_fence::ServiceAuthorityFenceRegistry,
     /// Clone-shared mode authority. A network stage/re-stage publishes the
     /// committed durable record and its derived active/desired policy inputs
     /// as one write before returning success.
@@ -2589,6 +2498,10 @@ pub struct AppState {
     /// runtime, cron, and staged-mode publication therefore count and retire
     /// roots in one process-local epoch domain.
     pub(crate) auth_admission: AuthAdmissionController,
+    /// Opaque exact-engine operator authority minted by the one-shot graph
+    /// claim. Administrative engine commands require this in addition to the
+    /// request's admitted invocation.
+    pub(crate) operator_authority: crate::local::EngineOperatorAuthority,
     /// Public process identity bound to ready-file/operator sidecars and echoed
     /// by the bootstrap handshake. It is captured once so one response cannot
     /// accidentally combine facts from different startup identities.
@@ -2639,10 +2552,6 @@ pub struct AppState {
     /// the staged-mode composition lane; embeddings and tests may install an
     /// already-activated provider through the builder below.
     pub(crate) auth_provider: Option<Arc<AuthProvider>>,
-    /// Process-local capability projection for live grants minted by this
-    /// boot. Restart invalidates every durable grant, while revoke and expiry
-    /// remove entries without erasing protected rehearsal history.
-    pub(crate) auth_rehearsal_live_grants: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
     /// Item-5 process authority. Production construction publishes this only
     /// after the durable stream migration and complete pre-bind rebuild.
     pub(crate) auth_coordinator: Option<Arc<crate::auth::coordinator::AuthCoordinator>>,
@@ -2663,7 +2572,7 @@ pub struct AppState {
     /// successor issuer must replace the startup issuer for every router
     /// clone before the coordinator reopens publication.
     pub(crate) auth_invalidation:
-        Arc<StdRwLock<Option<crate::auth::invalidation::LiveInvalidationIssuer>>>,
+        Arc<StdRwLock<Option<crate::local::EngineInvalidationBinding>>>,
     /// Validated per-app lease duration. Construction rejects zero or values
     /// above the protocol hard maximum; the handshake projects this exact
     /// value only when authorized-lease readiness is true.
@@ -2716,19 +2625,52 @@ impl AppState {
         ephemeral: EphemeralApi,
         server: ServerContext,
     ) -> SnapbackResult<(Self, SecretReadOperator)> {
+        Self::try_new_with_secret_read_operator_inner(
+            snapback,
+            read,
+            ephemeral,
+            server,
+            None,
+        )
+    }
+
+    pub(crate) fn try_new_with_claimed_engine(
+        snapback: SharedSnapback,
+        read: ReadLane,
+        ephemeral: EphemeralApi,
+        server: ServerContext,
+        bindings: crate::local::EngineAppStateBindings,
+    ) -> SnapbackResult<(Self, SecretReadOperator)> {
+        Self::try_new_with_secret_read_operator_inner(
+            snapback,
+            read,
+            ephemeral,
+            server,
+            Some(bindings),
+        )
+    }
+
+    fn try_new_with_secret_read_operator_inner(
+        snapback: SharedSnapback,
+        read: ReadLane,
+        ephemeral: EphemeralApi,
+        server: ServerContext,
+        preclaimed: Option<crate::local::EngineAppStateBindings>,
+    ) -> SnapbackResult<(Self, SecretReadOperator)> {
         let server_profile = server.profile;
+        let auth_deployment = server.auth_deployment;
         let (secret_reads, operator) =
             SecretReadLeaseRegistry::new(read.secret_read_reset_generation());
         let telemetry_export_continuation_key = telemetry_export_continuation_key()?;
-        let auth_admission = read.admission_controller();
         let connections = ConnectionRegistry::default();
-        let network_profiles = crate::network_profile::NetworkProfileState::new();
+        let mut preclaimed_bindings = preclaimed;
         let (
-            service_authority_fences,
+            auth_admission,
             telemetry,
             derived_instance_identity,
-            auth_rehearsal_live_grants,
             connected_clients,
+            network_profiles,
+            operator_authority,
         ) = {
             let mut instance = snapback.try_lock().map_err(|_| {
                 SnapbackError::error(
@@ -2737,34 +2679,12 @@ impl AppState {
                     "the SharedSnapback graph is busy; release its write lock before constructing AppState",
                 )
             })?;
-            let telemetry = instance.telemetry();
-            let derived_instance_identity = instance.derived_fork_identity().cloned();
-            let auth_rehearsal_live_grants = instance.auth_rehearsal_live_registry();
-            let connected_clients = instance.connected_client_registry();
-            let service_authority_fences = {
-                let database = instance.auth_database_mut();
-                if !database.claim_app_state_graph() {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_EMBED_APP_STATE_ALREADY_OWNED",
-                        "embed",
-                        "one SharedSnapback graph already belongs to an AppState; clone that AppState for additional routers",
-                    ));
-                }
-                instance.service_authority_fence_registry()
+            let bindings = match preclaimed_bindings.take() {
+                Some(bindings) => bindings,
+                None => instance
+                    .claim_app_state_graph(server_profile, auth_deployment)?,
             };
-            // Embedders enter through this host-owned context seam rather
-            // than leaving governance admission on LocalSnapback's
-            // fail-closed production default. Ownership must be secured
-            // first: a rejected second wrapper cannot mutate the live graph.
-            instance.bind_server_profile(server_profile);
-            instance.install_network_profile_state(network_profiles.clone());
-            (
-                service_authority_fences,
-                telemetry,
-                derived_instance_identity,
-                auth_rehearsal_live_grants,
-                connected_clients,
-            )
+            bindings.into_parts()
         };
         let auth_terminal_lifecycle = AuthTerminalLifecycle::new(
             connections.clone(),
@@ -2787,7 +2707,6 @@ impl AppState {
                 connected_clients,
                 bundle_pending: crate::bundle::PendingBundleRegistry::default(),
                 auth_terminal_lifecycle,
-                service_authority_fences,
                 auth_mode_runtime: Arc::new(StdRwLock::new(AuthModeRuntimeSnapshot {
                     state: Arc::new(AuthModeStateRecord::initial_dev(None)),
                     active_policy: PolicyAuthMode::Dev,
@@ -2795,6 +2714,7 @@ impl AppState {
                 })),
                 auth_program_readiness: Arc::new(AuthProgramReadiness::item4(false)),
                 auth_admission,
+                operator_authority,
                 server_startup_nonce: Arc::from(
                     crate::identity::binary_identity()
                         .startup_nonce
@@ -2811,7 +2731,6 @@ impl AppState {
                 dev_identity_capabilities: None,
                 agent_destroy_capabilities: None,
                 auth_provider: None,
-                auth_rehearsal_live_grants,
                 auth_coordinator: None,
                 hosted_serving: None,
                 derived_instance_identity,
@@ -2883,39 +2802,6 @@ impl AppState {
         })))
     }
 
-    /// Both startup and runtime surfaces terminate at this one state-changing
-    /// gate; callers may parse different transport representations but cannot
-    /// select around classification or provenance capture.
-    ///
-    /// @ref LLP 0167#authority-one-activation-chokepoint — ServerProfile,
-    ///   hosted-serving authority, and boot-validated derived identity are
-    ///   checked together, fail closed.
-    pub(crate) fn activate_network_profile(
-        &self,
-        profile: crate::network_profile::NetworkConditionProfile,
-        source: crate::network_profile::NetworkProfileSource,
-        principal: Option<String>,
-    ) -> Result<Arc<crate::network_profile::ActiveNetworkProfile>, SnapbackError> {
-        self.network_profiles
-            .activate(profile, self.network_profile_authority(), source, principal)
-            .map_err(Into::into)
-    }
-
-    pub(crate) fn activate_network_profile_env(
-        &self,
-        raw: Option<&str>,
-    ) -> Result<Arc<crate::network_profile::ActiveNetworkProfile>, SnapbackError> {
-        let profile = raw.map_or_else(
-            || Ok(crate::network_profile::NetworkConditionProfile::normal()),
-            crate::network_profile::NetworkConditionProfile::parse_env,
-        )?;
-        self.activate_network_profile(
-            profile,
-            crate::network_profile::NetworkProfileSource::Env,
-            None,
-        )
-    }
-
     pub(crate) fn with_secret_read_mint_bridge(mut self, bridge: SecretReadMintBridge) -> Self {
         self.secret_read_mint = Some(Arc::new(bridge));
         self
@@ -2977,37 +2863,14 @@ impl AppState {
                     "the SharedSnapback graph is busy; release its write lock before installing the auth provider",
                 )
             })?;
-            let database = snapback.auth_database_mut();
-            let incarnation = database.ensure_authorization_stream_incarnation()?;
-            let catalog_ready = match database.inspect_auth_catalog() {
+            let catalog_ready = match snapback.inspect_auth_catalog() {
                 Ok(state) => state.is_ready(),
                 Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_TABLE_COLLISION" => false,
                 Err(error) => return Err(error),
             };
-            let source = if catalog_ready {
-                database.session_projection_source()?
-            } else {
-                crate::auth::session_projection::ProjectionSource {
-                    authorization_stream_value:
-                        crate::auth::session_projection::AuthorizationStreamRecord::new(incarnation)
-                            .encode_bytes()?,
-                    restore_declaration_id: None,
-                    users: Vec::new(),
-                    identities: Vec::new(),
-                    sessions: Vec::new(),
-                    superseded_tokens: Vec::new(),
-                }
-            };
-            let projection =
-                crate::auth::session_projection::SessionProjection::rebuild_with_fresh_startup_id(
-                    source,
-                    provider.now_ms(),
-                    provider.monotonic_now(),
-                )?;
-            (
-                Arc::new(crate::auth::coordinator::AuthCoordinator::new(projection)?),
-                catalog_ready,
-            )
+            let coordinator = snapback.build_auth_coordinator(&provider, catalog_ready)?;
+            snapback.bind_auth_coordinator(coordinator.as_ref())?;
+            (coordinator, catalog_ready)
         };
         self.auth_provider = Some(provider);
         self.auth_coordinator = Some(coordinator);
@@ -3067,26 +2930,11 @@ impl AppState {
                     "sender proof authority could not be initialized",
                 )
             })?;
-            snapback
-                .auth_database_mut()
-                .initialize_sender_proof_after_hosted_preflight()?;
-            snapback
-                .auth_database_mut()
-                .initialize_authentication_throttle_after_hosted_preflight()
-                .map_err(|_| {
-                    SnapbackError::error(
-                        "SNAPBACK_AUTH_THROTTLE_UNAVAILABLE",
-                        "auth",
-                        "shared authentication throttle could not be initialized",
-                    )
-                })?;
+            snapback.initialize_hosted_serving_authority(&authority)?;
             // @ref LLP 0077#author-decisions--2026-07-23 — decision 1: the
             // control-plane monotone floor is applied before any request can
             // observe hosted posture, so a raw backup rollback of the durable
             // set cannot resurrect an accepted proof or nonce.
-            snapback
-                .auth_database_mut()
-                .apply_sender_replay_epoch_floor(authority.sender_replay_epoch_floor())?;
         }
         self.hosted_serving = Some(crate::auth::deployment::HostedServingHandle::new(authority));
         Ok(self)
@@ -3363,22 +3211,32 @@ impl AppState {
         mut self,
         runtime: &AuthRuntime,
         coordinator: Arc<crate::auth::coordinator::AuthCoordinator>,
-    ) -> Self {
+    ) -> SnapbackResult<Self> {
+        self.snapback
+            .try_lock()
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_EMBED_APP_STATE_BUSY",
+                    "embed",
+                    "the SharedSnapback graph is busy while installing auth runtime authority",
+                )
+            })?
+            .bind_auth_coordinator(coordinator.as_ref())?;
         self.auth_provider = Some(runtime.provider());
         self.auth_coordinator = Some(coordinator);
         self.auth_catalog_ready = runtime.catalog_ready();
-        self
+        Ok(self)
     }
 
     pub(crate) fn with_auth_invalidation(
         self,
-        issuer: crate::auth::invalidation::LiveInvalidationIssuer,
+        binding: crate::local::EngineInvalidationBinding,
     ) -> Self {
-        self.connections.install_invalidation_issuer(issuer.clone());
+        self.connections.install_invalidation_binding(binding.clone());
         *self
             .auth_invalidation
             .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(issuer);
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(binding);
         self
     }
 
@@ -3386,13 +3244,13 @@ impl AppState {
     /// authenticated LocalSnapback projection have both succeeded.
     pub(crate) fn install_reset_auth_invalidation(
         &self,
-        issuer: crate::auth::invalidation::LiveInvalidationIssuer,
+        binding: crate::local::EngineInvalidationBinding,
     ) {
-        self.connections.install_invalidation_issuer(issuer.clone());
+        self.connections.install_invalidation_binding(binding.clone());
         *self
             .auth_invalidation
             .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(issuer);
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(binding);
     }
 
     pub(crate) fn clear_reset_auth_invalidation(&self) {
@@ -4640,6 +4498,7 @@ async fn admin_network_profile_get(
 
 async fn admin_network_profile_put(
     State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     Json(selection): Json<serde_json::Value>,
 ) -> Result<Json<crate::network_profile::ActiveNetworkProfile>, ApiError> {
@@ -4656,7 +4515,11 @@ async fn admin_network_profile_put(
     } else {
         crate::network_profile::NetworkProfileSource::Api
     };
-    let active = runtime.activate_network_profile(profile, source, None)?;
+    let operator = runtime.operator_authority.clone();
+    let active = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.activate_operator_network_profile(&operator, &authority, profile, source, None)
+    })
+    .await?;
     Ok(Json((*active).clone()))
 }
 
@@ -5663,34 +5526,23 @@ async fn admin_protected_record_erasure(
     let snapback = state.snapback.clone();
     let ctx = state.server.clone();
     let mode = state.active_policy_auth_mode();
+    let operator = state.operator_authority.clone();
     let receipt = crate::server::with_snapback(&snapback, move |snapback| {
         // Re-resolve the exact concrete credential after the await and inside
         // the synchronous database window; console expiry/revocation cannot
         // ride an earlier middleware success into this mutation.
         let credential = resolve_protected_erasure_admin_credential(&ctx, &headers, mode)?;
-        let internal_authority =
-            derive_protected_record_erasure_authority(&authority, &credential)?;
         let now_ms = now_millis();
-        let request = crate::proof_checkpoint::ProtectedRecordErasureRequestV1 {
-            operation_id: wire.operation_id,
-            authority: internal_authority,
-            qualified_table: wire.qualified_table,
-            row_id: wire.row_id,
+        snapback.erase_protected_record_admitted(
+            &operator,
+            &authority,
+            wire,
+            credential.credential_class(),
+            credential.credential_digest_sha256(),
             now_ms,
-        };
-        authority
-            .try_fenced_publication(now_ms, Instant::now(), || {
-                let _mode_publication =
-                    authority.effect_guard("protected-record erasure canonical publication")?;
-                snapback.erase_protected_record(&request)
-            })?
-            .ok_or_else(|| {
-                ApiError::from(SnapbackError::error(
-                    "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
-                    "admin",
-                    "protected-record erasure authority was revoked before publication",
-                ))
-            })
+            Instant::now(),
+        )
+        .map_err(ApiError::from)
     })
     .await?;
     Ok(Json(receipt))
@@ -5730,20 +5582,16 @@ async fn admin_operation_coverage_activate(
     let target_profile_id = request.target_profile_id;
     let coverage_profile = request.coverage_profile;
     let now_ms = now_millis();
+    let operator = state.operator_authority.clone();
     let manifest = crate::server::with_snapback(&state.snapback, move |snapback| {
-        authority
-            .try_fenced_publication(now_ms, Instant::now(), || {
-                let _mode_publication =
-                    authority.effect_guard("operation coverage activation publication")?;
-                snapback.activate_agent_safe_operation_coverage(now_ms)
-            })?
-            .ok_or_else(|| {
-                ApiError::from(SnapbackError::error(
-                    "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_AUTHORITY_INVALID",
-                    "storage",
-                    "operation coverage activation authority was revoked before publication",
-                ))
-            })
+        snapback
+            .activate_agent_safe_operation_coverage_admitted(
+                &operator,
+                &authority,
+                now_ms,
+                Instant::now(),
+            )
+            .map_err(ApiError::from)
     })
     .await?;
     Ok(Json(
@@ -6772,7 +6620,7 @@ mod tests {
 
         let covered_before_success = crate::server::with_snapback(&shared, |snapback| {
             snapback
-                .auth_database_mut()
+                .remainder_auth_database_mut()
                 .operation_lane_covered(crate::operation_ledger::ORDINARY_MUTATION_LANE_V1)
         })
         .await

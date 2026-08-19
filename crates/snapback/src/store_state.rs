@@ -1,11 +1,13 @@
 //! File-backed store durable-state inventory and WAL-consistent export.
 
+#[cfg(test)]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::assets::AssetFsStoreLocalExt as _;
 use crate::auth::crypto::{RandomSource, encode_base64url};
 use crate::auth::keyring::AuthKeyringStore;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::instance_lock::FileIdentity;
-use crate::storage::LocalDatabase;
+use crate::local::LocalSnapback;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
@@ -325,7 +327,7 @@ pub struct StoreExportBoot {
 }
 
 pub(crate) fn export_store(
-    database: &mut LocalDatabase,
+    snapback: &mut LocalSnapback,
     keyring: &AuthKeyringStore,
     database_path: &Path,
     output_directory: &Path,
@@ -333,7 +335,7 @@ pub(crate) fn export_store(
     random: &dyn RandomSource,
 ) -> SnapbackResult<StoreExportOutcome> {
     export_store_inner(
-        database,
+        snapback,
         keyring,
         database_path,
         output_directory,
@@ -344,14 +346,14 @@ pub(crate) fn export_store(
 }
 
 fn export_store_inner(
-    database: &mut LocalDatabase,
+    snapback: &mut LocalSnapback,
     keyring: &AuthKeyringStore,
     database_path: &Path,
     output_directory: &Path,
     created_at_ms: u64,
     random: &dyn RandomSource,
 ) -> SnapbackResult<StoreExportOutcome> {
-    validate_export_inputs(database, database_path, output_directory, created_at_ms)?;
+    validate_export_inputs(snapback, database_path, output_directory, created_at_ms)?;
     let source_database_basename = database_path
         .file_name()
         .and_then(OsStr::to_str)
@@ -377,7 +379,7 @@ fn export_store_inner(
                 // The underlying capture reports a specific reason; swallowing
                 // it here would reproduce the exact "diagnostic names nothing"
                 // defect this decision exists to fix.
-                database
+                snapback
                     .backup_database_image_into(&image)
                     .map_err(|error| {
                         store_invalid(&format!(
@@ -513,7 +515,7 @@ fn export_store_inner(
 }
 
 fn validate_export_inputs(
-    database: &LocalDatabase,
+    snapback: &LocalSnapback,
     database_path: &Path,
     output_directory: &Path,
     created_at_ms: u64,
@@ -543,7 +545,7 @@ fn validate_export_inputs(
             "source is not a file-backed regular database",
         ));
     }
-    let opened_path = database
+    let opened_path = snapback
         .database_path()
         .ok_or_else(|| store_invalid("in-memory databases cannot be exported"))?;
     let supplied = fs::canonicalize(database_path)
@@ -1158,7 +1160,7 @@ mod tests {
         let wal_connection = create_app_rows(database_path, keep_wal_open);
         let mut snapback = LocalSnapback::open(database_path).unwrap();
         let keyring = AuthKeyringStore::file_for_database(database_path);
-        activate_catalog(snapback.auth_database_mut(), &keyring, 1_000, &OsRandom).unwrap();
+        activate_catalog(snapback.remainder_auth_database_mut(), &keyring, 1_000, &OsRandom).unwrap();
         (snapback, keyring, wal_connection)
     }
 
@@ -1169,7 +1171,7 @@ mod tests {
     ) -> (StoreExportOutcome, Option<Connection>) {
         let (mut snapback, keyring, wal_connection) = activated_store(database_path, keep_wal_open);
         let outcome = export_store(
-            snapback.auth_database_mut(),
+            &mut snapback,
             &keyring,
             database_path,
             output,
@@ -1235,7 +1237,7 @@ mod tests {
         fs::write(blobs.join("avatar.bin"), b"asset-bytes").unwrap();
 
         let outcome = export_store(
-            snapback.auth_database_mut(),
+            &mut snapback,
             &keyring,
             &database,
             &output,
@@ -1367,7 +1369,7 @@ mod tests {
         .unwrap();
 
         let error = export_store(
-            snapback.auth_database_mut(),
+            &mut snapback,
             &keyring,
             &database,
             &output,
@@ -1393,7 +1395,7 @@ mod tests {
         fs::create_dir(&output).unwrap();
 
         let error = export_store(
-            snapback.auth_database_mut(),
+            &mut snapback,
             &keyring,
             &database,
             &output,

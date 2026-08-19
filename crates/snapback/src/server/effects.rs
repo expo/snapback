@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(test)]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::manifest::FunctionDefinition;
 use crate::telemetry::CallerAttributionLocalExt as _;
 
@@ -36,9 +38,7 @@ pub(super) async fn effect_list(
     let management = authority.clone();
     Ok(Json(
         with_snapback(&runtime.snapback, move |snapback| {
-            let effects = snapback
-                .auth_database_mut()
-                .pending_effects_for_approver(&user_id, now_ms)?;
+            let effects = snapback.pending_effects_for_approver(&management, &user_id, now_ms)?;
             Ok::<_, SnapbackError>(
                 effects
                     .into_iter()
@@ -67,18 +67,26 @@ pub(super) async fn prepare_original_authority(
     effect: &crate::storage::pending_effects::PendingEffectRecord,
     approver: &str,
 ) -> Result<PreparedAuthority, ApiError> {
+    enum EffectAuthorityResolution {
+        Anonymous(crate::auth::session_projection::FencedPublication),
+        Session(crate::auth::coordinator::PreparedBearerAuthority),
+        Service(
+            crate::local::ResolvedServiceAuthority,
+            crate::auth::session_projection::FencedPublication,
+        ),
+    }
     let provider = installed_auth_provider(runtime)?;
     let now_ms = provider.now_ms();
     let monotonic_now = provider.monotonic_now();
     let coordinator = installed_auth_coordinator(runtime)?;
-    let (resolved, publication, service_publication) = match &effect.authority {
-        crate::storage::pending_effects::PendingEffectAuthority::Anonymous => (
-            ResolvedAppAuthority::Anonymous,
-            coordinator
+    let resolution = match &effect.authority {
+        crate::storage::pending_effects::PendingEffectAuthority::Anonymous => {
+            EffectAuthorityResolution::Anonymous(
+                coordinator
                 .prepare_anonymous_publication()
-                .map_err(ApiError::from)?,
-            None,
-        ),
+                    .map_err(ApiError::from)?,
+            )
+        }
         crate::storage::pending_effects::PendingEffectAuthority::Session {
             user_id,
             session_id,
@@ -98,18 +106,13 @@ pub(super) async fn prepare_original_authority(
                     monotonic_now,
                 )
                 .map_err(ApiError::from)?;
-            let (resolved, publication) = prepared.into_parts();
-            if !matches!(
-                &resolved,
-                ResolvedAppAuthority::Session { authority_instance_id: current, .. }
-                    if current == authority_instance_id
-            ) {
+            if !prepared.matches_authority_instance_id(authority_instance_id) {
                 return Err(effect_binding_stale(
                     "the original session authority instance is no longer current",
                 )
                 .into());
             }
-            (resolved, publication, None)
+            EffectAuthorityResolution::Session(prepared)
         }
         crate::storage::pending_effects::PendingEffectAuthority::ServicePrincipal {
             actor_user_id,
@@ -130,56 +133,63 @@ pub(super) async fn prepare_original_authority(
             let effective_user_id = effective_user_id.clone();
             let credential_generation = *credential_generation;
             let expected_expires_at_ms = *token_expires_at_ms;
-            let fences = runtime.service_authority_fences.clone();
             let service_clock = provider.clone();
-            let (resolved, service_publication) =
+            let service_management = management.clone();
+            let service_resolution =
                 with_snapback(&runtime.snapback, move |snapback| {
-                    let resolved = snapback
-                        .auth_database_mut()
-                        .resolve_retained_service_authority(
-                            crate::storage::auth_agent_credentials::RetainedServiceAuthority {
-                                actor_user_id: &actor_user_id,
-                                credential_id: &credential_id,
-                                credential_generation,
-                                grant_id: &grant_id,
-                                token_id: &token_id,
-                                effective_user_id: effective_user_id.as_deref(),
-                            },
-                            now_ms,
-                        )?;
-                    if resolved.expires_at_ms != expected_expires_at_ms {
-                        return Err(effect_binding_stale(
-                            "the scoped-token deadline differs from the frozen authority",
-                        ));
-                    }
-                    let publication = fences
-                        .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
-                        .with_provider_clock(service_clock);
-                    Ok::<_, SnapbackError>((resolved, publication))
+                    snapback.resolve_retained_effect_service_authority(
+                        &service_management,
+                        &actor_user_id,
+                        &credential_id,
+                        credential_generation,
+                        &grant_id,
+                        &token_id,
+                        effective_user_id.as_deref(),
+                        expected_expires_at_ms,
+                        now_ms,
+                        monotonic_now,
+                        service_clock,
+                    )
                 })
                 .await?;
-            (
-                ResolvedAppAuthority::from_scoped_token(resolved),
-                stream_publication,
-                Some(service_publication),
-            )
+            EffectAuthorityResolution::Service(service_resolution, stream_publication)
         }
     };
     let profile = runtime.server.profile;
     let admission = management.admission_lease().clone();
-    let prepared = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.prepare_resolved_authority(
+    let prepared = with_snapback(&runtime.snapback, move |snapback| match resolution {
+        EffectAuthorityResolution::Anonymous(publication) => snapback.prepare_anonymous_authority(
             InvocationSource::EffectExecution,
             AuthMode::Sessions,
             profile,
             admission,
             &WireAuthorityFields::default(),
-            resolved,
             now_ms,
-        )
+            Some(publication),
+        ),
+        EffectAuthorityResolution::Session(prepared) => snapback.prepare_bearer_authority(
+            prepared,
+            InvocationSource::EffectExecution,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            &WireAuthorityFields::default(),
+            now_ms,
+        ),
+        EffectAuthorityResolution::Service(resolution, publication) => {
+            snapback.prepare_service_authority(
+                resolution,
+                InvocationSource::EffectExecution,
+                AuthMode::Sessions,
+                profile,
+                admission,
+                &WireAuthorityFields::default(),
+                now_ms,
+                publication,
+            )
+        }
     })
     .await?
-    .with_fenced_publication(publication)
     .with_caller_attribution(
         crate::telemetry::CallerAttributionV1::from_effect(
             &effect.caller_lane,
@@ -187,10 +197,7 @@ pub(super) async fn prepare_original_authority(
         )
         .with_approver(approver.to_owned()),
     );
-    Ok(match service_publication {
-        Some(publication) => prepared.with_service_publication(publication),
-        None => prepared,
-    })
+    Ok(prepared)
 }
 
 fn effect_binding_stale(message: impl Into<String>) -> SnapbackError {
@@ -203,11 +210,14 @@ fn current_effect_gate(function: &FunctionDefinition, approval_per_use: bool) ->
     })
 }
 
-async fn refuse_after_revalidation(runtime: &AppState, effect_id: String, code: String) {
+async fn refuse_after_revalidation(
+    runtime: &AppState,
+    authority: PreparedAuthority,
+    effect_id: String,
+    code: String,
+) {
     let _ = with_snapback(&runtime.snapback, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .refuse_pending_effect(&effect_id, &code, now_millis())
+        snapback.refuse_pending_effect(&authority, &effect_id, &code, now_millis())
     })
     .await;
 }
@@ -243,10 +253,9 @@ pub(super) async fn effect_approve(
         let request: EffectApprovalRequest = parse_auth_json(&headers, body)?;
         let now_ms = provider.now_ms();
         let lookup_id = effect_id.clone();
+        let lookup_authority = management.clone();
         let effect = with_snapback(&runtime.snapback, move |snapback| {
-            snapback
-                .auth_database_mut()
-                .pending_effect(&lookup_id, now_ms)
+            snapback.pending_effect(&lookup_authority, &lookup_id, now_ms)
         })
         .await?;
         let original =
@@ -254,7 +263,13 @@ pub(super) async fn effect_approve(
                 Ok(authority) => authority,
                 Err(error) => {
                     let code = error.0.diagnostic.code.clone();
-                    refuse_after_revalidation(&runtime, effect_id.clone(), code).await;
+                    refuse_after_revalidation(
+                        &runtime,
+                        management.clone(),
+                        effect_id.clone(),
+                        code,
+                    )
+                    .await;
                     return Err(error);
                 }
             };
@@ -264,8 +279,9 @@ pub(super) async fn effect_approve(
                 let admission = provider.admit().await;
                 let challenge_id = step_up.challenge_id.clone();
                 let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
-                    let coordination =
-                        admission.step_up_coordination(snapback.auth_database_mut(), &challenge_id);
+                    let coordination = snapback.execute_auth_plan(
+                        admission.step_up_coordination_plan(&challenge_id),
+                    );
                     (admission, coordination)
                 })
                 .await;
@@ -284,51 +300,11 @@ pub(super) async fn effect_approve(
         let check_management = management.clone();
         let check_approver = approver_id.clone();
         let decided = with_snapback(&runtime.snapback, move |snapback| {
-            let function = snapback
-                .function_definition(&check_effect.function_name)
-                .cloned()
-                .ok_or_else(|| effect_binding_stale("the approved function no longer exists"))?;
-            if function.id != check_effect.function_id
-                || function.kind != check_effect.function_kind
-            {
-                return Err(effect_binding_stale(
-                    "the approved function identity or kind changed",
-                ));
-            }
-            let facts = snapback
-                .function_invocation_facts(AuthMode::Sessions)?
-                .ok_or_else(|| effect_binding_stale("the current generation is unavailable"))?;
-            if facts.active_generation != check_effect.generation {
-                return Err(effect_binding_stale(
-                    "the active function generation changed after intent creation",
-                ));
-            }
-            let mut approval_per_use = false;
-            if let Some(link_id) = check_effect.link_origin_id.as_deref() {
-                let link = snapback
-                    .auth_database_mut()
-                    .capability_link_effect_origin(link_id, now_ms)?;
-                if link.minter_principal_id != check_approver || link.function_id != function.id {
-                    return Err(effect_binding_stale(
-                        "the capability-link minter or function binding changed",
-                    ));
-                }
-                approval_per_use = link.approval_per_use;
-            }
-            if !current_effect_gate(&function, approval_per_use) {
-                return Err(effect_binding_stale(
-                    "the function is unexposed or no longer approval gated",
-                ));
-            }
-            crate::args_contract::validate_function_args(&function, &check_effect.args)?;
-            InvocationGate::validate_current_function_policy(&check_original, &function)?;
-            InvocationGate::validate_current_function_policy(&check_management, &function)?;
-            let _effect = check_management.effect_guard("pending-effect approval transaction")?;
-            snapback.auth_database_mut().decide_pending_effect(
-                &check_effect.id,
+            snapback.approve_pending_effect(
+                &check_effect,
+                &check_original,
+                &check_management,
                 &check_approver,
-                true,
-                function.authority_creating,
                 proof_admission.as_ref().map(|admission| admission.proof()),
                 now_ms,
             )
@@ -339,7 +315,13 @@ pub(super) async fn effect_approve(
             Err(error) => {
                 let code = error.diagnostic.code.clone();
                 if decision_error_terminalizes(&code) {
-                    refuse_after_revalidation(&runtime, effect_id.clone(), code).await;
+                    refuse_after_revalidation(
+                        &runtime,
+                        management.clone(),
+                        effect_id.clone(),
+                        code,
+                    )
+                    .await;
                 }
                 return Err(error.into());
             }
@@ -393,8 +375,10 @@ pub(super) async fn effect_approve(
             .to_owned();
         let executed = response.status().is_success();
         let settle_id = effect_id.clone();
+        let settle_authority = management.clone();
         with_snapback(&runtime.snapback, move |snapback| {
-            snapback.auth_database_mut().settle_pending_effect(
+            snapback.settle_pending_effect(
+                &settle_authority,
                 &settle_id,
                 executed,
                 Some(&outcome),
@@ -426,13 +410,10 @@ pub(super) async fn effect_deny(
     let effect_authority = authority.clone();
     Ok(Json(
         with_snapback(&runtime.snapback, move |snapback| {
-            let _effect = effect_authority.effect_guard("pending-effect denial transaction")?;
-            snapback.auth_database_mut().decide_pending_effect(
+            snapback.deny_pending_effect(
+                &effect_authority,
                 &effect_id,
                 &approver_id,
-                false,
-                false,
-                None,
                 now_ms,
             )
         })

@@ -76,6 +76,7 @@ const rustProductionRoots = [
   { path: 'crates/snapback-runtime/src', accept: () => true },
   { path: 'crates/snapback-services/src', accept: () => true },
   { path: 'crates/snapback-sync/src', accept: () => true },
+  { path: 'crates/snapback-engine/src', accept: () => true },
 ];
 
 function assertEveryCarvedRustRootIsInventoried(paths) {

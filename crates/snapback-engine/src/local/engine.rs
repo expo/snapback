@@ -1,8 +1,4 @@
 use crate::assets::AssetFactsLocalExt as _;
-use crate::telemetry::{
-    CallerAttributionLocalExt as _, ObservationSpanLocalExt as _, TelemetryLocalExt as _,
-    TelemetryStoreIdentityLocalExt as _,
-};
 use crate::auth::admission::AdmissionLease;
 use crate::auth::admission::{
     AdmissionController, AdmissionEffectGuard, ModeCommitFailure, ModeTransitionGuard,
@@ -88,9 +84,13 @@ use crate::storage::{
     ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
     SettlementTimePolicy, ShutdownCheckpointReport, StorageInfo, TableScan,
 };
-use snapback_kernel::services_assets::AssetAttemptsProofLocalExt as _;
+use crate::telemetry::{
+    CallerAttributionLocalExt as _, ObservationSpanLocalExt as _, TelemetryLocalExt as _,
+    TelemetryStoreIdentityLocalExt as _,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
+use snapback_kernel::services_assets::AssetAttemptsProofLocalExt as _;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -113,16 +113,7 @@ pub use crate::realtime::{
 use activation::*;
 pub use config_types::*;
 
-impl From<&VerificationRecord> for ConfigVerificationStatus {
-    fn from(record: &VerificationRecord) -> Self {
-        Self {
-            ok: record.ok,
-            at_ms: record.at_ms,
-        }
-    }
-}
-
-pub(crate) use inspection::MaintenanceOperation;
+pub use inspection::MaintenanceOperation;
 pub use inspection::{
     ForceLiveResyncReceipt, InspectState, LiveSubscriptionInfo, MaintenanceDiagnostics,
     PublicCronInspectState, PublicEphemeralDiagnostics, PublicIbexCliCapability,
@@ -549,7 +540,7 @@ pub enum EnsureAppResponse {
 /// owned value across admission quiescence, then repeats preflight under the
 /// global write lane before storage may commit it.
 #[derive(Clone, Debug)]
-pub(crate) struct PreparedAuthProvision {
+pub struct PreparedAuthProvision {
     requested_mode: AuthMode,
     artifacts: StartupArtifacts,
     deployment: DeploymentIdentity,
@@ -558,15 +549,29 @@ pub(crate) struct PreparedAuthProvision {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct AuthProvisionCommit {
+pub struct AuthProvisionCommit {
     pub(crate) outcome: EnsureAppProvisionOutcome,
     pub(crate) state: AuthModeStateRecord,
-    pub(crate) diagnostics: Vec<Diagnostic>,
+    pub diagnostics: Vec<Diagnostic>,
 }
 
 impl PreparedAuthProvision {
-    pub(crate) fn requested_mode(&self) -> AuthMode {
+    pub fn requested_mode(&self) -> AuthMode {
         self.requested_mode
+    }
+}
+
+impl AuthProvisionCommit {
+    pub fn state(&self) -> &AuthModeStateRecord {
+        &self.state
+    }
+
+    pub fn into_outcome(self) -> EnsureAppProvisionOutcome {
+        self.outcome
+    }
+
+    pub fn into_diagnostics(self) -> Vec<Diagnostic> {
+        self.diagnostics
     }
 }
 
@@ -1301,7 +1306,7 @@ fn bool_is_false(value: &bool) -> bool {
 // execution seams. Boxing only one prepared arm would add heap allocation to
 // every host-plan action and obscure the explicit staging contract.
 #[allow(clippy::large_enum_variant)]
-pub(crate) enum StagedAction {
+pub enum StagedAction {
     /// Host-plan actions run bounded mutation steps with no egress. Managed
     /// callers release Local for each room reservation; direct callers remain
     /// synchronous through [`LocalSnapback::invoke_action_prepared`].
@@ -1311,7 +1316,7 @@ pub(crate) enum StagedAction {
     Detached(Box<DetachedIbexAction>),
 }
 
-pub(crate) enum StagedRecordedMutation {
+pub enum StagedRecordedMutation {
     Done(Box<(SnapbackResult<MutationOutput>, Receipt)>),
     Ready(Box<StagedRecordedMutationCommit>),
 }
@@ -1324,7 +1329,7 @@ pub(crate) enum StagedRecordedMutation {
 /// @ref LLP 0146#d1-declarationobservation-conformance — `function.run` may
 ///   report complete mutation provenance only from the exact executed commit.
 #[derive(Clone, Debug)]
-pub(crate) struct MutationDependencyCapture {
+pub struct MutationDependencyCapture {
     pub(crate) reads: Vec<CapturedReadDependency>,
     pub(crate) writes: Vec<CapturedWriteDependency>,
     pub(crate) read_provenance: crate::conformance::DependencyProvenance,
@@ -1332,6 +1337,22 @@ pub(crate) struct MutationDependencyCapture {
 }
 
 impl MutationDependencyCapture {
+    pub fn into_parts(
+        self,
+    ) -> (
+        Vec<CapturedReadDependency>,
+        Vec<CapturedWriteDependency>,
+        crate::conformance::DependencyProvenance,
+        crate::conformance::DependencyProvenance,
+    ) {
+        (
+            self.reads,
+            self.writes,
+            self.read_provenance,
+            self.write_provenance,
+        )
+    }
+
     fn incomplete() -> Self {
         Self {
             reads: Vec::new(),
@@ -1358,7 +1379,7 @@ impl MutationDependencyCapture {
     }
 }
 
-pub(crate) struct StagedRecordedMutationCommit {
+pub struct StagedRecordedMutationCommit {
     name: String,
     transport: String,
     correlation: Option<Value>,
@@ -1622,14 +1643,14 @@ fn admitted_settlement_time_policy(
 /// A durable cron claim paired with its process-local finite admission root.
 /// Only the `CronRunClaim` is persisted; the lease lives solely in this
 /// execution carrier and fences handler and finish publication together.
-pub(crate) struct AdmittedCronClaim {
+pub struct AdmittedCronClaim {
     claim: CronRunClaim,
     admission: AdmissionLease,
     observation: crate::telemetry::ObservationSpan,
 }
 
 impl AdmittedCronClaim {
-    pub(crate) fn admission_lease(&self) -> &AdmissionLease {
+    pub fn admission_lease(&self) -> &AdmissionLease {
         &self.admission
     }
 }
@@ -1645,7 +1666,7 @@ impl Deref for AdmittedCronClaim {
 /// One claimed job plus its process-admission lease — the jobs sibling of
 /// [`AdmittedCronClaim`]. The lease gates detached execution and result
 /// publication exactly like cron's.
-pub(crate) struct AdmittedJobClaim {
+pub struct AdmittedJobClaim {
     claim: crate::jobs::ClaimedJob,
     /// The drain clock this claim was taken under; terminal publication and
     /// retry scheduling reuse it so forced drains stay deterministic.
@@ -1655,13 +1676,13 @@ pub(crate) struct AdmittedJobClaim {
 }
 
 #[allow(clippy::large_enum_variant)] // transient resolution value; boxing the hot arm buys nothing
-pub(crate) enum WatchJobExecution {
+pub enum WatchJobExecution {
     Complete(Value),
     Action(PreparedWatchAction),
     Webhook(PreparedWatchWebhook),
 }
 
-pub(crate) struct PreparedWatchAction {
+pub struct PreparedWatchAction {
     pub(crate) watch_id: String,
     pub(crate) job_id: String,
     pub(crate) ordinal: u64,
@@ -1669,11 +1690,37 @@ pub(crate) struct PreparedWatchAction {
     pub(crate) action: String,
     pub(crate) input: HandlerInput,
     pub(crate) metadata: CronRunMetadata,
-    pub(crate) staged: StagedAction,
+    pub staged: StagedAction,
+}
+
+impl PreparedWatchAction {
+    pub fn into_parts(
+        self,
+    ) -> (
+        String,
+        String,
+        u64,
+        String,
+        String,
+        HandlerInput,
+        CronRunMetadata,
+        StagedAction,
+    ) {
+        (
+            self.watch_id,
+            self.job_id,
+            self.ordinal,
+            self.owner_principal_id,
+            self.action,
+            self.input,
+            self.metadata,
+            self.staged,
+        )
+    }
 }
 
 #[derive(Clone)]
-pub(crate) struct PreparedWatchWebhook {
+pub struct PreparedWatchWebhook {
     pub(crate) watch_id: String,
     pub(crate) job_id: String,
     pub(crate) ordinal: u64,
@@ -1681,7 +1728,7 @@ pub(crate) struct PreparedWatchWebhook {
     pub(crate) delivery: crate::storage::webhooks::DeliveryRecord,
 }
 
-pub(crate) struct WatchJobContext {
+pub struct WatchJobContext {
     args: Value,
     job_id: String,
     attempt: u32,
@@ -1691,11 +1738,15 @@ pub(crate) struct WatchJobContext {
 }
 
 impl AdmittedJobClaim {
-    pub(crate) fn admission_lease(&self) -> &AdmissionLease {
+    pub fn admission_lease(&self) -> &AdmissionLease {
         &self.admission
     }
 
-    pub(crate) fn watch_context(&self) -> WatchJobContext {
+    pub fn drain_now_ms(&self) -> u64 {
+        self.drain_now_ms
+    }
+
+    pub fn watch_context(&self) -> WatchJobContext {
         WatchJobContext {
             args: self.claim.args.clone(),
             job_id: self.claim.job_id.clone(),
@@ -1715,7 +1766,7 @@ impl Deref for AdmittedJobClaim {
     }
 }
 
-pub(crate) struct DetachedIbexAction {
+pub struct DetachedIbexAction {
     pub function_name: String,
     pub function_id: String,
     pub stream: bool,
@@ -1725,7 +1776,7 @@ pub(crate) struct DetachedIbexAction {
     /// allowing the HTTP request to return while execution continues.
     pub stream_started: Option<tokio::sync::oneshot::Sender<String>>,
     pub ephemeral: EphemeralApi,
-    pub connected_clients: crate::connected_clients::ConnectedClientRegistry,
+    pub connected_clients: ConnectedClientObserver,
     pub connected_client_predicate_available: bool,
     pub telemetry: crate::telemetry::Telemetry,
     pub module: crate::manifest::IbexModule,
@@ -1748,23 +1799,23 @@ pub(crate) struct DetachedIbexAction {
 // As above, the prepared arm is the ordinary in-lock path; keep its stable
 // cross-module carrier allocation-free.
 #[allow(clippy::large_enum_variant)]
-pub(crate) enum StagedNestedMutation {
+pub enum StagedNestedMutation {
     InLock(StagedHostPlanNestedMutation),
     Detached(Box<DetachedIbexMutation>),
 }
 
-pub(crate) struct StagedHostPlanNestedMutation {
+pub struct StagedHostPlanNestedMutation {
     pub preflight: crate::storage::AuthorizationCommitPreflight,
     pub input: HandlerInput,
     pub invocation: PreparedInvocation,
 }
 
-pub(crate) struct DetachedIbexMutation {
+pub struct DetachedIbexMutation {
     pub binding: DetachedMutationBinding,
     pub read: DetachedMutationRead,
 }
 
-pub(crate) struct DetachedMutationBinding {
+pub struct DetachedMutationBinding {
     pub function: FunctionDefinition,
     pub invocation: PreparedInvocation,
     pub schema: SchemaManifest,
@@ -1776,7 +1827,7 @@ pub(crate) struct DetachedMutationBinding {
 /// handler request before a media proof is minted. The proof still binds only
 /// its digest; the opaque client mutation id never becomes proof authority.
 /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
-pub(crate) fn bind_authoritative_client_mutation_identity(
+pub fn bind_authoritative_client_mutation_identity(
     input: &mut HandlerInput,
     identity: Option<&ClientMutationIdentity>,
 ) {
@@ -1822,7 +1873,7 @@ fn expected_media_projection_binding(
     }
 }
 
-pub(crate) enum DetachedMutationRead {
+pub enum DetachedMutationRead {
     Lane(ReadLane),
     Snapshot(Box<LocalDatabase>),
 }
@@ -1832,12 +1883,12 @@ pub(crate) enum DetachedMutationRead {
 // This is a cross-module staging protocol whose ready arm is consumed by both
 // admin and server runners. Preserve that explicit internal signature.
 #[allow(clippy::large_enum_variant)]
-pub(crate) enum StagedAppAction {
+pub enum StagedAppAction {
     Done(Box<FunctionRunResult>),
     Ready(AppActionStage),
 }
 
-pub(crate) struct AppActionStage {
+pub struct AppActionStage {
     pub reads: Vec<String>,
     pub writes: Vec<String>,
     pub mode: StagedAction,
@@ -1850,13 +1901,13 @@ pub(crate) struct AppActionStage {
 /// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — host
 ///   children derive identity from an authenticated parent plus stable ordinal.
 #[derive(Clone)]
-pub(crate) struct HostOperationParentV1 {
+pub struct HostOperationParentV1 {
     upstream_identity: String,
     next_commit_ordinal: Arc<AtomicU64>,
 }
 
 impl HostOperationParentV1 {
-    pub(crate) fn from_action_run(metadata: &CronRunMetadata) -> Self {
+    pub fn from_action_run(metadata: &CronRunMetadata) -> Self {
         use sha2::Digest as _;
         let mut digest = sha2::Sha256::new();
         digest.update(b"snapback:action-host-operation-parent:v1\n");
@@ -1891,13 +1942,13 @@ impl HostOperationParentV1 {
 /// the authorization-reservation protocol; the captured generation prevents
 /// a reload/reset from splicing a later function generation into the plan.
 #[derive(Clone)]
-pub(crate) struct ManagedHostPlanAction {
-    pub(crate) plan: ActionPlan,
+pub struct ManagedHostPlanAction {
+    pub plan: ActionPlan,
     pub(crate) input: HandlerInput,
     pub(crate) metadata: CronRunMetadata,
     host_operation: HostOperationParentV1,
     pub(crate) invocation: PreparedInvocation,
-    pub(crate) app_generation: u64,
+    pub app_generation: u64,
     pub(crate) app_generation_fence: Arc<AtomicU64>,
     redactor: crate::config::SecretRedactor,
     observation: Arc<StdMutex<Option<crate::telemetry::ObservationSpan>>>,
@@ -1907,12 +1958,12 @@ pub(crate) struct ManagedHostPlanAction {
 /// and the cooldown claim happen under the lock; a probe that cannot even
 /// stage (unknown function, non-action) is recorded as a failed verification
 /// in the same lock window, so `Done` carries a finished outcome.
-pub(crate) enum StagedConfigVerify {
+pub enum StagedConfigVerify {
     Done(Box<ConfigVerifyOutcome>),
     Ready(Box<ConfigVerifyStage>),
 }
 
-pub(crate) struct ConfigVerifyStage {
+pub struct ConfigVerifyStage {
     pub probe: String,
     /// Opaque identity of the exact entry value the probe is exercising.
     pub entry_revision: u64,
@@ -1926,7 +1977,7 @@ pub(crate) struct ConfigVerifyStage {
 
 /// Assemble the `FunctionRunResult` envelope for an action run — shared by
 /// the in-lock path and the server's detached path (ENG-23324).
-pub(crate) fn action_run_result(
+pub fn action_run_result(
     name: &str,
     reads: Vec<String>,
     writes: Vec<String>,
@@ -1997,7 +2048,7 @@ fn function_run_admission_failure(name: &str, error: SnapbackError) -> FunctionR
 /// The metadata a manually triggered (non-cron) action run carries; `prefix`
 /// names the triggering surface (`action` for the app-data route, `admin`
 /// for the function runner).
-pub(crate) fn manual_action_metadata(prefix: &str, name: &str) -> CronRunMetadata {
+pub fn manual_action_metadata(prefix: &str, name: &str) -> CronRunMetadata {
     let now = now_millis();
     CronRunMetadata {
         job_name: format!("{prefix}:{name}"),
@@ -2078,7 +2129,7 @@ pub(crate) fn admit_job_enqueues(
 }
 
 /// The handler input a claimed cron run passes to its action.
-pub(crate) fn cron_claim_input(claim: &CronRunClaim) -> HandlerInput {
+pub fn cron_claim_input(claim: &CronRunClaim) -> HandlerInput {
     HandlerInput {
         args: json!({
             "run": claim.metadata,
@@ -2170,13 +2221,13 @@ pub struct EphemeralApi {
 }
 
 #[derive(Clone, Debug, Default)]
-pub(crate) struct DisconnectedConnectionTopology {
+pub struct DisconnectedConnectionTopology {
     dropped_subscriptions: usize,
     dropped_effect_fences: BTreeSet<crate::ephemeral::ConnectionEffectFence>,
 }
 
 impl EphemeralApi {
-    pub(crate) fn reserve_authorization_commit(
+    pub fn reserve_authorization_commit(
         &self,
         preflight: crate::storage::AuthorizationCommitPreflight,
         cancellation: Arc<crate::storage::AuthorizationReservationCancellation>,
@@ -2211,7 +2262,7 @@ impl EphemeralApi {
     /// Whole-ID cleanup for a registry-retired grant whose removal already
     /// enabled mint-only containment. This preserves any exact typed terminal
     /// notifier event and emits no disconnected-resync wake.
-    pub(crate) fn disconnect_terminal_retired(&self, connection_id: &str, now_ms: u64) {
+    pub fn disconnect_terminal_retired(&self, connection_id: &str, now_ms: u64) {
         crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
             "EphemeralApi::disconnect_terminal_retired",
         );
@@ -2276,11 +2327,11 @@ impl EphemeralApi {
         self.store.subscription_requires_room_permission(name)
     }
 
-    pub(crate) fn collection_definition(&self, name: &str) -> Option<EphemeralCollection> {
+    pub fn collection_definition(&self, name: &str) -> Option<EphemeralCollection> {
         self.store.collection_definition(name)
     }
 
-    pub(crate) fn begin_server_authorized_room_act(
+    pub fn begin_server_authorized_room_act(
         &self,
         collection: &str,
         scope: &crate::ephemeral::Scope,
@@ -2323,7 +2374,7 @@ impl EphemeralApi {
         self.publish_with_room_authority(request, now_ms, None)
     }
 
-    pub(crate) fn publish_with_room_authority(
+    pub fn publish_with_room_authority(
         &self,
         request: PublishRequest,
         now_ms: u64,
@@ -2345,7 +2396,7 @@ impl EphemeralApi {
         self.subscribe_with_room_authority(request, now_ms, None)
     }
 
-    pub(crate) fn subscribe_with_room_authority(
+    pub fn subscribe_with_room_authority(
         &self,
         request: SubscribeRequest,
         now_ms: u64,
@@ -2359,7 +2410,7 @@ impl EphemeralApi {
         outcome
     }
 
-    pub(crate) fn subscribe_with_room_authority_and_effect_fence(
+    pub fn subscribe_with_room_authority_and_effect_fence(
         &self,
         request: SubscribeRequest,
         now_ms: u64,
@@ -2385,7 +2436,7 @@ impl EphemeralApi {
         self.delete_with_room_authority(request, now_ms, None)
     }
 
-    pub(crate) fn delete_with_room_authority(
+    pub fn delete_with_room_authority(
         &self,
         request: DeleteRequest,
         now_ms: u64,
@@ -2414,7 +2465,7 @@ impl EphemeralApi {
         self.unsubscribe_with_room_authority(request, now_ms, None)
     }
 
-    pub(crate) fn unsubscribe_with_room_authority(
+    pub fn unsubscribe_with_room_authority(
         &self,
         request: SubscribeRequest,
         now_ms: u64,
@@ -2435,7 +2486,7 @@ impl EphemeralApi {
         self.store.ensure_collections(collections)
     }
 
-    pub(crate) fn ensure_collections_redacted(
+    pub fn ensure_collections_redacted(
         &self,
         collections: Vec<EphemeralCollection>,
     ) -> Result<CollectionEnsureOutcome, crate::ephemeral::EphemeralError> {
@@ -2489,7 +2540,7 @@ impl EphemeralApi {
             })
     }
 
-    pub(crate) fn drain_outbox_for_send_bound_if_active_with_handoff_limit(
+    pub fn drain_outbox_for_send_bound_if_active_with_handoff_limit(
         &self,
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
@@ -2505,7 +2556,7 @@ impl EphemeralApi {
             })
     }
 
-    pub(crate) fn has_eligible_recovery_marker_bound_if_active(
+    pub fn has_eligible_recovery_marker_bound_if_active(
         &self,
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
@@ -2517,7 +2568,7 @@ impl EphemeralApi {
             })
     }
 
-    pub(crate) fn acknowledge_outbox_handoff_bound(
+    pub fn acknowledge_outbox_handoff_bound(
         &self,
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
@@ -2527,7 +2578,7 @@ impl EphemeralApi {
             .acknowledge_outbox_handoff_bound(connection_id, effect_fence, leases)
     }
 
-    pub(crate) fn try_offer_outbox_projection_bound<T>(
+    pub fn try_offer_outbox_projection_bound<T>(
         &self,
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
@@ -2584,7 +2635,7 @@ impl EphemeralApi {
         Some(drained)
     }
 
-    pub(crate) fn drain_live_stream_for_send_bound_if_current_with_handoff_limit(
+    pub fn drain_live_stream_for_send_bound_if_current_with_handoff_limit(
         &self,
         connection_id: &str,
         generation: u64,
@@ -2605,7 +2656,7 @@ impl EphemeralApi {
         Some(drained)
     }
 
-    pub(crate) fn begin_final_send(
+    pub fn begin_final_send(
         &self,
         envelope: &RealtimeEnvelope,
     ) -> Result<Option<RealtimePublicationPermit>, crate::ephemeral::EphemeralError> {
@@ -2664,11 +2715,11 @@ impl EphemeralApi {
     /// Gather shard diagnostics without the global Local writer. Server
     /// inspect/receipts composition invokes this in the post-Local blocking
     /// phase; direct embedded callers may invoke it synchronously.
-    pub(crate) fn diagnostics(&self) -> EphemeralDiagnostics {
+    pub fn diagnostics(&self) -> EphemeralDiagnostics {
         self.store.diagnostics()
     }
 
-    pub(crate) fn purge_connection_effects(
+    pub fn purge_connection_effects(
         &self,
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
@@ -2680,7 +2731,7 @@ impl EphemeralApi {
             .purge_connection_effects(connection_id, effect_fence);
     }
 
-    pub(crate) fn purge_connection_effects_silently(
+    pub fn purge_connection_effects_silently(
         &self,
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
@@ -2703,13 +2754,13 @@ impl EphemeralApi {
             || self.store.has_connection_residue_for_test(connection_id)
     }
 
-    pub(crate) fn pending_room_reauthorizations(
+    pub fn pending_room_reauthorizations(
         &self,
     ) -> Vec<crate::ephemeral::PendingRoomReauthorization> {
         self.store.pending_room_reauthorizations()
     }
 
-    pub(crate) fn complete_room_reauthorization(
+    pub fn complete_room_reauthorization(
         &self,
         room_id: &crate::ephemeral::RoomId,
         room_authority_generation: u64,
@@ -2724,7 +2775,7 @@ impl EphemeralApi {
         self.store.delivery_notifier()
     }
 
-    pub(crate) fn subscription_requires_permission(&self, collection: &str) -> Option<bool> {
+    pub fn subscription_requires_permission(&self, collection: &str) -> Option<bool> {
         self.store.subscription_requires_permission(collection)
     }
 
@@ -2856,6 +2907,289 @@ impl AssetStoreConfig {
     }
 }
 
+/// One-shot result of claiming a LocalSnapback graph for the old public
+/// `AppState::try_new` composition seam. Authority-bearing registries remain
+/// inside the engine; this carrier exposes only the pre-existing admission
+/// controller plus read-only process facts needed to assemble AppState.
+pub struct EngineAppStateBindings {
+    admission: AdmissionController,
+    telemetry: crate::telemetry::Telemetry,
+    derived_instance_identity: Option<crate::instance_fork::DerivedForkLineageV1>,
+    connected_clients: ConnectedClientObserver,
+    network_profiles: NetworkProfileView,
+    operator_authority: EngineOperatorAuthority,
+}
+
+/// Exact composition-owned authority for operator commands. The private
+/// process identity prevents a caller from turning an arbitrary admitted
+/// invocation into an administrative engine command.
+#[derive(Clone)]
+pub struct EngineOperatorAuthority {
+    identity: Arc<()>,
+}
+
+/// Non-escalating view of the engine-owned connectivity witness graph. It can
+/// observe or retire exact witnesses but cannot assert that a client is live;
+/// registration and refresh remain source-bound engine commands.
+#[derive(Clone)]
+pub struct ConnectedClientObserver {
+    registry: crate::connected_clients::ConnectedClientRegistry,
+}
+
+impl ConnectedClientObserver {
+    pub fn has_fresh_client(&self, principal_id: &str, now: Instant) -> bool {
+        self.registry.has_fresh_client(principal_id, now)
+    }
+
+    pub fn remove_grant(&self, connection_id: &str, grant_id: &str) {
+        self.registry.remove_grant(connection_id, grant_id);
+    }
+
+    pub fn remove_managed_websocket(
+        &self,
+        connection_id: &str,
+        grant_id: &str,
+        socket_generation: u64,
+    ) {
+        self.registry
+            .remove_managed_websocket(connection_id, grant_id, socket_generation);
+    }
+
+}
+
+/// Read-only transport view of the engine-owned network profile selector.
+/// The state-changing gate remains on `LocalSnapback` and requires either the
+/// one-shot startup path or exact operator authority.
+#[derive(Clone)]
+pub struct NetworkProfileView {
+    state: crate::network_profile::NetworkProfileState,
+}
+
+impl NetworkProfileView {
+    pub fn active(&self) -> Arc<crate::network_profile::ActiveNetworkProfile> {
+        self.state.active()
+    }
+
+    pub fn is_normal(&self) -> bool {
+        self.state.is_normal()
+    }
+
+    pub fn admit_result(
+        &self,
+        lane: crate::network_profile::NetworkEgressLane,
+        ready_at: Instant,
+    ) -> Option<crate::network_profile::PreparedNetworkEgress> {
+        self.state.admit_result(lane, ready_at)
+    }
+}
+
+/// Exact witness minted only after a live-stream `PreparedAuthority` has been
+/// admitted. The adapter may refresh this one witness but cannot select a
+/// different principal, connection, grant, or socket generation.
+pub struct ManagedWebsocketWitness {
+    registry: crate::connected_clients::ConnectedClientRegistry,
+    connection_id: String,
+    grant_id: String,
+    socket_generation: u64,
+}
+
+/// Exact authenticated invalidation issuer projection. The issuer itself is
+/// never lent to an adapter; this capsule exposes only the two operations the
+/// pre-existing connection and room seams performed with it.
+#[derive(Clone)]
+pub struct EngineInvalidationBinding {
+    issuer: LiveInvalidationIssuer,
+}
+
+impl EngineInvalidationBinding {
+    #[cfg(test)]
+    pub(crate) fn from_issuer_for_test(issuer: LiveInvalidationIssuer) -> Self {
+        Self { issuer }
+    }
+
+    pub fn authorization_expectation(
+        &self,
+    ) -> SnapbackResult<crate::storage::AuthorizationVersion> {
+        Ok(self.issuer.authorization_expectation()?)
+    }
+
+    pub fn prepare_connection(
+        &self,
+    ) -> SnapbackResult<crate::auth::invalidation::AuthorizationInvalidationConnection> {
+        let issuer_retirement = self.issuer.authenticate_prior_issuer_retirement()?;
+        Ok(crate::auth::invalidation::AuthorizationInvalidationConnection {
+            protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
+            issuer_id: self.issuer.authenticated().issuer_id.clone(),
+            connection_generation: self.issuer.reserve_connection_generation()?,
+            authorization: self.issuer.authorization_expectation()?,
+            version_stream: self.issuer.version_stream()?,
+            issuer_retirement,
+        })
+    }
+}
+
+impl ManagedWebsocketWitness {
+    pub fn refresh(&self, now: Instant) -> bool {
+        self.registry.refresh_managed_websocket(
+            &self.connection_id,
+            &self.grant_id,
+            self.socket_generation,
+            now,
+        )
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ExpiredServiceAuthorityPlan {
+    deadline: crate::auth::service_authority_contract::ServiceAuthorityDeadlineTerminal,
+    terminal: ServiceAuthorityTerminalPlan,
+}
+
+#[derive(Clone, Debug)]
+pub struct ServiceAuthorityTerminalPlan {
+    registry: crate::auth::service_fence::ServiceAuthorityFenceRegistry,
+    token_ids: Vec<String>,
+    disposition: ServiceAuthorityDisposition,
+}
+
+impl ServiceAuthorityTerminalPlan {
+    pub fn token_ids(&self) -> &[String] {
+        &self.token_ids
+    }
+
+    pub async fn acquire_gate(
+        &self,
+    ) -> SnapbackResult<crate::auth::service_fence::ServiceAuthorityTerminalGate> {
+        self.registry
+            .acquire_terminal_gate(&self.token_ids, self.disposition)
+            .await
+    }
+}
+
+/// Bearer resolution remains an engine-owned capability. The adapter may
+/// inspect only the non-secret invocation projection and must return this
+/// exact carrier to consume a use; it cannot synthesize a durable link id.
+#[derive(Clone, Debug)]
+pub struct ResolvedCapabilityLink {
+    record: crate::storage::capability_links::CapabilityLinkRecord,
+}
+
+impl ResolvedCapabilityLink {
+    pub fn id(&self) -> &str {
+        &self.record.id
+    }
+
+    pub fn function_id(&self) -> &str {
+        &self.record.function_id
+    }
+
+    pub fn function_kind(&self) -> crate::storage::capability_links::CapabilityLinkFunctionKind {
+        self.record.function_kind
+    }
+
+    pub fn pinned_args_json(&self) -> &str {
+        &self.record.pinned_args_json
+    }
+
+    pub fn caller_args(&self) -> &[String] {
+        &self.record.caller_args
+    }
+
+    pub fn expires_at_ms(&self) -> u64 {
+        self.record.expires_at_ms
+    }
+
+    pub fn remaining_uses(&self) -> Option<u64> {
+        self.record.remaining_uses
+    }
+
+    pub fn approval_per_use(&self) -> bool {
+        self.record.approval_per_use
+    }
+}
+
+#[derive(Debug)]
+pub struct ConsumedCapabilityLinkUse {
+    link_id: String,
+    ordinal: u64,
+}
+
+/// Durable scoped-token resolution plus its exact process-local fence. Both
+/// halves stay opaque so an adapter cannot synthesize `System` or substitute
+/// service identity strings at authority preparation.
+#[derive(Clone, Debug)]
+pub struct ResolvedServiceAuthority {
+    resolved: ResolvedAppAuthority,
+    publication: crate::auth::service_fence::ServiceAuthorityPublication,
+}
+
+impl ResolvedServiceAuthority {
+    #[cfg(test)]
+    pub(crate) fn synthetic_for_test(
+        resolved: ResolvedAppAuthority,
+        publication: crate::auth::service_fence::ServiceAuthorityPublication,
+    ) -> Self {
+        Self {
+            resolved,
+            publication,
+        }
+    }
+
+    pub fn resolved(&self) -> &ResolvedAppAuthority {
+        &self.resolved
+    }
+
+    pub fn publication(&self) -> &crate::auth::service_fence::ServiceAuthorityPublication {
+        &self.publication
+    }
+}
+
+impl ExpiredServiceAuthorityPlan {
+    pub fn token_id(&self) -> &str {
+        &self.deadline.token_id
+    }
+
+    pub fn token_ids(&self) -> &[String] {
+        self.terminal.token_ids()
+    }
+
+    pub fn disposition(&self) -> ServiceAuthorityDisposition {
+        self.deadline.disposition
+    }
+
+    pub fn close_by(&self) -> Instant {
+        self.deadline.close_by
+    }
+
+    pub async fn acquire_gate(
+        &self,
+    ) -> SnapbackResult<crate::auth::service_fence::ServiceAuthorityTerminalGate> {
+        self.terminal.acquire_gate().await
+    }
+}
+
+impl EngineAppStateBindings {
+    pub fn into_parts(
+        self,
+    ) -> (
+        AdmissionController,
+        crate::telemetry::Telemetry,
+        Option<crate::instance_fork::DerivedForkLineageV1>,
+        ConnectedClientObserver,
+        NetworkProfileView,
+        EngineOperatorAuthority,
+    ) {
+        (
+            self.admission,
+            self.telemetry,
+            self.derived_instance_identity,
+            self.connected_clients,
+            self.network_profiles,
+            self.operator_authority,
+        )
+    }
+}
+
 pub struct LocalSnapback {
     db: LocalDatabase,
     /// Process-local service-authority policy lives above the storage kernel;
@@ -2865,6 +3199,10 @@ pub struct LocalSnapback {
     /// governance preflight. Generated artifacts and target configs cannot
     /// select or weaken this value.
     server_profile: ServerProfile,
+    auth_deployment: crate::auth::deployment::AuthDeploymentTarget,
+    hosted_serving_present: bool,
+    network_profile_startup_activated: bool,
+    operator_authority_identity: Arc<()>,
     /// Deployment configuration captured once at the public construction
     /// boundary. Asset-store construction never re-reads process-global env.
     asset_store_config: AssetStoreConfig,
@@ -2976,10 +3314,9 @@ pub struct LocalSnapback {
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5's idle-cost
     // gate applies to every autonomous scheduler, including one-off jobs.
     jobs_active: Arc<AtomicBool>,
-    /// Clone-shared process-only governor registry. Durable rehearsal rows are
-    /// intentionally not loaded into it after restart, making old derived
-    /// sessions and deferred work inert by construction.
-    auth_rehearsal_live_grants: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
+    /// Opaque process-live half minted by the admitted auth coordinator.
+    /// Durable job claims carry the independent kernel-minted half.
+    auth_rehearsal_authority_binding: Option<crate::auth::invocation::RehearsalAuthorityBinding>,
     /// In-flight watch evaluations by owner. Action evaluation retains its
     /// slot across detached execution; a cancelled worker therefore fails
     /// closed (throttled) until process recovery clears this hint.
@@ -3160,7 +3497,7 @@ fn authorization_resolution_snapshot_identity(
 /// generation changes remain unpublished until the authorization stream has
 /// finalized its exact successor.
 #[derive(Debug)]
-pub(crate) struct CoordinatedResetCommit {
+pub struct CoordinatedResetCommit {
     seeded: Option<MutationOutput>,
     app_generation: u64,
     secret_read_generation: u64,
@@ -3168,7 +3505,7 @@ pub(crate) struct CoordinatedResetCommit {
 }
 
 #[derive(Debug)]
-pub(crate) struct CoordinatedVersionedSeedResetCommit {
+pub struct CoordinatedVersionedSeedResetCommit {
     reset: CoordinatedResetCommit,
     receipt: crate::seed_identity::SeedInstallReceiptV1,
 }
@@ -3492,7 +3829,7 @@ struct LiveSubscriptionAuthorization {
 /// minted pending-registration connection every bundle subscription binds to
 /// (LLP 0031 dated amendment — the one sanctioned socketless-demand owner).
 #[derive(Clone, Debug)]
-pub(crate) struct BundleRegisterTarget {
+pub struct BundleRegisterTarget {
     pub(crate) connection_id: String,
     pub(crate) effect_fence: crate::ephemeral::ConnectionEffectFence,
     pub(crate) invalidation_connection: Option<AuthorizationInvalidationConnection>,
@@ -3500,12 +3837,48 @@ pub(crate) struct BundleRegisterTarget {
     pub(crate) mixed_children: Option<Vec<crate::bundle::MixedChildAdmissionV2>>,
 }
 
+impl BundleRegisterTarget {
+    pub fn new(
+        connection_id: String,
+        effect_fence: crate::ephemeral::ConnectionEffectFence,
+        invalidation_connection: Option<AuthorizationInvalidationConnection>,
+        authorization_namespaces: Vec<Option<crate::auth::invalidation::QueryNamespace>>,
+        mixed_children: Option<Vec<crate::bundle::MixedChildAdmissionV2>>,
+    ) -> Self {
+        Self {
+            connection_id,
+            effect_fence,
+            invalidation_connection,
+            authorization_namespaces,
+            mixed_children,
+        }
+    }
+
+    pub fn connection_identity(&self) -> (&str, &crate::ephemeral::ConnectionEffectFence) {
+        (&self.connection_id, &self.effect_fence)
+    }
+}
+
 #[derive(Clone, Debug, Default)]
-pub(crate) struct LiveInvalidationAdmission {
+pub struct LiveInvalidationAdmission {
     pub(crate) connection: Option<AuthorizationInvalidationConnection>,
     pub(crate) effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
     #[cfg(test)]
     pub(crate) session_mode: bool,
+}
+
+impl LiveInvalidationAdmission {
+    pub fn new(
+        connection: Option<AuthorizationInvalidationConnection>,
+        effect_fence: crate::ephemeral::ConnectionEffectFence,
+    ) -> Self {
+        Self {
+            connection,
+            effect_fence: Some(effect_fence),
+            #[cfg(test)]
+            session_mode: false,
+        }
+    }
 }
 
 /// Cloneable ownership token for a connection-bound local effect that has
@@ -3527,7 +3900,7 @@ pub(crate) struct LiveInvalidationAdmission {
 ///
 /// @ref LLP 0059#locking-and-linearization — connection acts perform one
 /// bounded in-memory ownership transfer and never wait on LocalSnapback.
-pub(crate) struct StagedLocalLiveEffect<T> {
+pub struct StagedLocalLiveEffect<T> {
     stage_id: String,
     control: Arc<LocalLiveStageControl>,
     plan: Arc<T>,
@@ -3554,7 +3927,7 @@ impl<T> std::fmt::Debug for StagedLocalLiveEffect<T> {
 }
 
 impl<T> StagedLocalLiveEffect<T> {
-    pub(crate) fn try_commit(
+    pub fn try_commit(
         &self,
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
@@ -3661,7 +4034,7 @@ struct PendingLocalLiveEffectRegistration {
 }
 
 #[derive(Clone)]
-pub(crate) struct PreparedLiveSubscribePlan {
+pub struct PreparedLiveSubscribePlan {
     name: String,
     input: LiveSubscribeInput,
     expected_generation: Option<ArtifactGeneration>,
@@ -3672,7 +4045,7 @@ pub(crate) struct PreparedLiveSubscribePlan {
 pub(crate) type PreparedLiveSubscribe = StagedLocalLiveEffect<PreparedLiveSubscribePlan>;
 
 #[derive(Clone)]
-pub(crate) struct PreparedLiveResumePlan {
+pub struct PreparedLiveResumePlan {
     name: String,
     input: LiveResumeInput,
     authority: PreparedAuthority,
@@ -3682,7 +4055,7 @@ pub(crate) struct PreparedLiveResumePlan {
 pub(crate) type PreparedLiveResume = StagedLocalLiveEffect<PreparedLiveResumePlan>;
 
 #[derive(Clone)]
-pub(crate) struct PreparedLiveUnsubscribePlan {
+pub struct PreparedLiveUnsubscribePlan {
     name: String,
     input: LiveUnsubscribeInput,
     authority: PreparedAuthority,
@@ -3692,7 +4065,7 @@ pub(crate) struct PreparedLiveUnsubscribePlan {
 pub(crate) type PreparedLiveUnsubscribe = StagedLocalLiveEffect<PreparedLiveUnsubscribePlan>;
 
 #[derive(Clone)]
-pub(crate) struct PreparedAuthorizationInvalidationAckPlan {
+pub struct PreparedAuthorizationInvalidationAckPlan {
     input: AuthorizationInvalidationAckInput,
     connection: AuthorizationInvalidationConnection,
     admission: AdmissionLease,
@@ -3702,7 +4075,7 @@ pub(crate) type PreparedAuthorizationInvalidationAck =
     StagedLocalLiveEffect<PreparedAuthorizationInvalidationAckPlan>;
 
 #[derive(Clone)]
-pub(crate) struct PreparedAuthorizationInvalidationManualRetryPlan {
+pub struct PreparedAuthorizationInvalidationManualRetryPlan {
     input: AuthorizationInvalidationManualRetryInput,
     connection: AuthorizationInvalidationConnection,
     authority: PreparedAuthority,
@@ -3729,9 +4102,19 @@ fn local_live_stage_corrupt() -> SnapbackError {
 }
 
 #[derive(Clone)]
-pub(crate) struct QueryInvocation {
+pub struct QueryInvocation {
     pub(crate) output: QueryOutput,
     pub(crate) read_dependencies: Vec<CapturedReadDependency>,
+}
+
+impl QueryInvocation {
+    pub fn into_output(self) -> QueryOutput {
+        self.output
+    }
+
+    pub fn into_parts(self) -> (QueryOutput, Vec<CapturedReadDependency>) {
+        (self.output, self.read_dependencies)
+    }
 }
 
 #[derive(Default)]
@@ -3764,19 +4147,47 @@ fn query_invocation_estimated_bytes(invocation: &QueryInvocation) -> usize {
 /// First phase of an authorized retained snapshot. It crosses the app-lock
 /// release needed to preserve provider-before-app lock ordering, but remains
 /// bound to the original admission epoch and complete unsigned lease issue.
-pub(crate) struct AuthorizedLeaseCapture {
+pub struct AuthorizedLeaseCapture {
     pub(crate) output: QueryOutput,
-    pub(crate) completeness: Option<FiniteCompletenessCarrier>,
+    pub completeness: Option<FiniteCompletenessCarrier>,
     pub(crate) issue: AuthorizedLeaseIssue,
     pub(crate) target_profile_id: String,
     pub(crate) app_id: String,
     admission: AdmissionLease,
 }
 
+impl AuthorizedLeaseCapture {
+    pub fn issue_authorized_lease(
+        &self,
+        provider: &crate::auth::provider::AuthProvider,
+        config: AuthorizedLeaseConfig,
+        issued_at_server_ms: u64,
+    ) -> SnapbackResult<AuthorizedLease> {
+        provider.issue_authorized_lease_at(
+            self.issue.clone(),
+            config,
+            issued_at_server_ms,
+            &self.target_profile_id,
+            &self.app_id,
+        )
+    }
+}
+
 #[derive(Clone)]
-pub(crate) struct FiniteCompletenessCarrier {
+pub struct FiniteCompletenessCarrier {
     pub(crate) proof: crate::completeness::CompletenessProofV1,
     pub(crate) witness: crate::completeness::AuthorizationWitnessRecordV1,
+}
+
+impl FiniteCompletenessCarrier {
+    pub fn into_parts(
+        self,
+    ) -> (
+        crate::completeness::CompletenessProofV1,
+        crate::completeness::AuthorizationWitnessRecordV1,
+    ) {
+        (self.proof, self.witness)
+    }
 }
 
 struct AuthorizationResolutionFailure {
@@ -3868,7 +4279,11 @@ fn managed_action_generation_conflict(staged: u64, current: u64) -> SnapbackErro
 }
 
 impl ManagedHostPlanAction {
-    pub(crate) fn validate_generation(&self) -> SnapbackResult<()> {
+    pub fn plan(&self) -> &ActionPlan {
+        &self.plan
+    }
+
+    pub fn validate_generation(&self) -> SnapbackResult<()> {
         let current = self.app_generation_fence.load(Ordering::SeqCst);
         if current != self.app_generation {
             return Err(managed_action_generation_conflict(
@@ -3879,7 +4294,7 @@ impl ManagedHostPlanAction {
         Ok(())
     }
 
-    pub(crate) fn finish(&self, result: SnapbackResult<Value>) -> SnapbackResult<Value> {
+    pub fn finish(&self, result: SnapbackResult<Value>) -> SnapbackResult<Value> {
         let result = result
             .and_then(|value| self.validate_generation().map(|()| value))
             .map_err(|error| self.redactor.redact_error(error));
@@ -4034,6 +4449,1667 @@ fn prepare_media_command_invocation(
 }
 
 impl LocalSnapback {
+    pub fn database_path(&self) -> Option<&std::path::Path> {
+        self.db.database_path()
+    }
+
+    pub fn backup_database_image_into(
+        &self,
+        image: &std::fs::File,
+    ) -> SnapbackResult<()> {
+        self.db.backup_database_image_into(image)
+    }
+
+    pub fn arm_open_derived_fork_app_row_coverage(
+        &mut self,
+        activated_at_ms: u64,
+    ) -> SnapbackResult<crate::instance_fork::ForkAppRowCoverageReceiptV1> {
+        snapback_services::instance_fork::arm_open_derived_fork_app_row_coverage(
+            &mut self.db,
+            activated_at_ms,
+        )
+    }
+
+    pub fn auth_mode_snapshot(
+        &self,
+    ) -> SnapbackResult<crate::storage::auth_mode::AuthModeSnapshot> {
+        self.db.auth_mode_snapshot()
+    }
+
+    pub fn quarantine_auth_mode(
+        &mut self,
+        code: &str,
+    ) -> SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+        self.db.quarantine_auth_mode(code)
+    }
+
+    pub fn unstage_auth_mode(
+        &mut self,
+    ) -> SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+        self.db.unstage_auth_mode()
+    }
+
+    pub fn apply_same_mode_dev_deployment_with_functions(
+        &mut self,
+        deployment: crate::auth::mode::DeploymentIdentity,
+        manifest: crate::manifest::SchemaManifest,
+        functions: &crate::manifest::FunctionManifest,
+        seed: Option<crate::manifest::SeedData>,
+    ) -> SnapbackResult<()> {
+        self.db.apply_same_mode_dev_deployment_with_functions(
+            deployment,
+            manifest,
+            functions,
+            seed,
+        )
+    }
+
+    pub fn stage_auth_mode_with_functions(
+        &mut self,
+        requested_deployment: crate::auth::mode::DeploymentIdentity,
+        schema_manifest: crate::manifest::SchemaManifest,
+        functions: &crate::manifest::FunctionManifest,
+        seed: Option<crate::manifest::SeedData>,
+    ) -> SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+        self.db.stage_auth_mode_with_functions(
+            requested_deployment,
+            schema_manifest,
+            functions,
+            seed,
+        )
+    }
+
+    pub fn consume_sessions_auth_mode_with_functions(
+        &mut self,
+        readiness: &crate::auth::mode::AuthProgramReadiness,
+        functions: &crate::manifest::FunctionManifest,
+    ) -> SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+        self.db
+            .consume_sessions_auth_mode_with_functions(readiness, functions)
+    }
+
+    pub fn consume_dev_downgrade_with_functions(
+        &mut self,
+        allow_auth_downgrade: bool,
+        now_ms: u64,
+        functions: &crate::manifest::FunctionManifest,
+    ) -> SnapbackResult<crate::storage::auth_mode::AuthModeDowngradeResult> {
+        self.db.consume_dev_downgrade_with_functions(
+            allow_auth_downgrade,
+            now_ms,
+            functions,
+        )
+    }
+
+    pub fn auth_password_provider_readiness(
+        &self,
+    ) -> SnapbackResult<crate::auth::mode::PasswordProviderReadiness> {
+        self.db.auth_password_provider_readiness()
+    }
+
+    pub fn inspect_auth_catalog(
+        &self,
+    ) -> SnapbackResult<crate::storage::auth::AuthCatalogState> {
+        self.db.inspect_auth_catalog()
+    }
+
+    pub fn seed_auth_session_clock_floor(
+        &mut self,
+        provider: &crate::auth::provider::AuthProvider,
+    ) -> SnapbackResult<()> {
+        let floor = self
+            .db
+            .advance_auth_session_clock_floor(provider.now_ms())?;
+        provider.seed_session_clock_floor(floor);
+        Ok(())
+    }
+
+    pub fn build_auth_coordinator(
+        &mut self,
+        provider: &crate::auth::provider::AuthProvider,
+        catalog_ready: bool,
+    ) -> SnapbackResult<Arc<crate::auth::coordinator::AuthCoordinator>> {
+        self.db.ensure_authorization_stream_incarnation()?;
+        if catalog_ready {
+            self.seed_auth_session_clock_floor(provider)?;
+        }
+        let projection = if catalog_ready {
+            self.db.admitted_session_projection_snapshot()?
+        } else {
+            self.db.admitted_stream_projection_snapshot()?
+        };
+        Ok(Arc::new(crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
+            projection,
+            provider.now_ms(),
+            provider.monotonic_now(),
+        )?))
+    }
+
+    pub fn admitted_stream_projection_snapshot(
+        &mut self,
+    ) -> SnapbackResult<snapback_sync::auth::session_projection::AdmittedProjectionSnapshot> {
+        self.db.admitted_stream_projection_snapshot()
+    }
+
+    pub fn advance_auth_session_clock_floor_for_due_batch(
+        &mut self,
+        provider: &crate::auth::provider::AuthProvider,
+        batch: &snapback_sync::auth::session_projection::DueExpiryBatch,
+    ) -> SnapbackResult<()> {
+        let floor = self
+            .db
+            .advance_auth_session_clock_floor(batch.durable_frontier_ms())?;
+        provider.seed_session_clock_floor(floor);
+        Ok(())
+    }
+
+    pub fn initialize_hosted_serving_authority(
+        &mut self,
+        authority: &crate::auth::deployment::HostedServingAuthority,
+    ) -> SnapbackResult<()> {
+        self.db.initialize_sender_proof_after_hosted_preflight()?;
+        self.db
+            .initialize_authentication_throttle_after_hosted_preflight()
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_THROTTLE_UNAVAILABLE",
+                    "auth",
+                    "shared authentication throttle could not be initialized",
+                )
+            })?;
+        self.db
+            .apply_sender_replay_epoch_floor(authority.sender_replay_epoch_floor())?;
+        self.hosted_serving_present = true;
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn register_oauth_client(
+        &mut self,
+        authority: &AdmissionLease,
+        mode: crate::manifest::AgentsMode,
+        invitation: Option<&crate::auth::crypto::CreationInvitation>,
+        display_name: Option<String>,
+        integration_facts: crate::storage::auth_integrations::IntegrationRegistrationFacts,
+        profile: ServerProfile,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::IssuedAgentCredential> {
+        let _effect = authority.effect_guard("OAuth dynamic registration transaction")?;
+        self.db.register_agent_principal_with_class(
+            mode,
+            invitation,
+            display_name,
+            None,
+            crate::storage::auth_integrations::AgentRegistrationClass::Integration,
+            integration_facts,
+            profile,
+            now_ms,
+            random,
+        )
+    }
+
+    pub fn integration_record_if_present(
+        &self,
+        principal_user_id: &str,
+    ) -> SnapbackResult<Option<crate::storage::auth_integrations::IntegrationRecord>> {
+        self.db.integration_record_if_present(principal_user_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn begin_oauth_authorization(
+        &mut self,
+        authority: &PreparedAuthority,
+        consenting_user_id: &str,
+        client_id: &str,
+        redirect_uri: &str,
+        bundle_names: &[String],
+        code_challenge: &str,
+        oauth_state: Option<&str>,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<crate::storage::auth_integrations::BegunOAuthAuthorization> {
+        let _effect = authority.effect_guard("OAuth consent request transaction")?;
+        self.db.begin_oauth_authorization(
+            consenting_user_id,
+            client_id,
+            redirect_uri,
+            bundle_names,
+            code_challenge,
+            oauth_state,
+            now_ms,
+            random,
+        )
+    }
+
+    pub fn deny_oauth_authorization(
+        &mut self,
+        authority: &PreparedAuthority,
+        consenting_user_id: &str,
+        request_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_integrations::DeniedOAuthAuthorization> {
+        let _effect = authority.effect_guard("OAuth consent denial transaction")?;
+        self.db
+            .deny_oauth_authorization(consenting_user_id, request_id, now_ms)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn approve_oauth_grant_request(
+        &mut self,
+        authority: &PreparedAuthority,
+        effective_user_id: &str,
+        session_id: &str,
+        request_id: &str,
+        step_up_proof: Option<&crate::auth::crypto::StepUpProof>,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
+        let _effect = authority.effect_guard("OAuth consent approval transaction")?;
+        self.db.approve_grant_request(
+            effective_user_id,
+            session_id,
+            request_id,
+            None,
+            step_up_proof,
+            now_ms,
+        )
+    }
+
+    pub fn issue_oauth_authorization_code(
+        &mut self,
+        authority: &PreparedAuthority,
+        consenting_user_id: &str,
+        request_id: &str,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<crate::storage::auth_integrations::IssuedOAuthAuthorization> {
+        let _effect = authority.effect_guard("OAuth authorization-code issuance transaction")?;
+        self.db.issue_oauth_authorization_code(
+            consenting_user_id,
+            request_id,
+            now_ms,
+            random,
+        )
+    }
+
+    pub fn mint_scoped_token_for_oauth_code(
+        &mut self,
+        code: &str,
+        client_id: &str,
+        redirect_uri: &str,
+        verifier: &str,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::IssuedScopedToken> {
+        self.db.mint_scoped_token_for_oauth_code(
+            code,
+            client_id,
+            redirect_uri,
+            verifier,
+            now_ms,
+            random,
+        )
+    }
+
+    pub fn oauth_bundle_names_for_grant(
+        &self,
+        grant_id: &str,
+    ) -> SnapbackResult<Vec<String>> {
+        self.db.oauth_bundle_names_for_grant(grant_id)
+    }
+
+    pub fn oauth_revoke_scoped_token(
+        &mut self,
+        token: &crate::auth::crypto::ScopedToken,
+        revoke_grant: bool,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_grants::GrantRevocation> {
+        self.db
+            .oauth_revoke_scoped_token(token, revoke_grant, now_ms)
+    }
+
+    pub fn pending_effects_for_approver(
+        &mut self,
+        authority: &PreparedAuthority,
+        principal_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<crate::storage::pending_effects::PendingEffectRecord>> {
+        let _effect = authority.effect_guard("pending-effect inbox transaction")?;
+        self.db.pending_effects_for_approver(principal_id, now_ms)
+    }
+
+    pub fn pending_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
+        let _effect = authority.effect_guard("pending-effect lookup transaction")?;
+        self.db.pending_effect(id, now_ms)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn resolve_retained_effect_service_authority(
+        &mut self,
+        management: &PreparedAuthority,
+        actor_user_id: &str,
+        credential_id: &str,
+        credential_generation: u64,
+        grant_id: &str,
+        token_id: &str,
+        effective_user_id: Option<&str>,
+        expected_expires_at_ms: u64,
+        now_ms: u64,
+        monotonic_now: Instant,
+        provider: Arc<crate::auth::provider::AuthProvider>,
+    ) -> SnapbackResult<ResolvedServiceAuthority> {
+        let _effect = management.effect_guard("pending-effect service authority revalidation")?;
+        let resolved = self.db.resolve_retained_service_authority(
+            crate::storage::auth_agent_credentials::RetainedServiceAuthority {
+                actor_user_id,
+                credential_id,
+                credential_generation,
+                grant_id,
+                token_id,
+                effective_user_id,
+            },
+            now_ms,
+        )?;
+        if resolved.expires_at_ms != expected_expires_at_ms {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EFFECT_BINDING_STALE",
+                "effects",
+                "the scoped-token deadline differs from the frozen authority",
+            ));
+        }
+        let publication = self
+            .service_authority_fences
+            .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
+            .with_provider_clock(provider);
+        Ok(ResolvedServiceAuthority {
+            resolved: ResolvedAppAuthority::from_scoped_token(resolved),
+            publication,
+        })
+    }
+
+    pub fn refuse_pending_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        id: &str,
+        outcome_code: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        let _effect = authority.effect_guard("pending-effect refusal transaction")?;
+        self.db.refuse_pending_effect(id, outcome_code, now_ms)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn approve_pending_effect(
+        &mut self,
+        effect: &crate::storage::pending_effects::PendingEffectRecord,
+        original: &PreparedAuthority,
+        management: &PreparedAuthority,
+        approver_id: &str,
+        step_up: Option<&crate::auth::crypto::StepUpProof>,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
+        let function = self
+            .function_definition(&effect.function_name)
+            .cloned()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_EFFECT_BINDING_STALE",
+                    "effects",
+                    "the approved function no longer exists",
+                )
+            })?;
+        if function.id != effect.function_id || function.kind != effect.function_kind {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EFFECT_BINDING_STALE",
+                "effects",
+                "the approved function identity or kind changed",
+            ));
+        }
+        let facts = self
+            .function_invocation_facts(AuthMode::Sessions)?
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_EFFECT_BINDING_STALE",
+                    "effects",
+                    "the current generation is unavailable",
+                )
+            })?;
+        if facts.active_generation != effect.generation {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EFFECT_BINDING_STALE",
+                "effects",
+                "the active function generation changed after intent creation",
+            ));
+        }
+        let mut approval_per_use = false;
+        if let Some(link_id) = effect.link_origin_id.as_deref() {
+            let link = self.db.capability_link_effect_origin(link_id, now_ms)?;
+            if link.minter_principal_id != approver_id || link.function_id != function.id {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_EFFECT_BINDING_STALE",
+                    "effects",
+                    "the capability-link minter or function binding changed",
+                ));
+            }
+            approval_per_use = link.approval_per_use;
+        }
+        let current_gate = function.api_exposure.as_ref().is_some_and(|exposure| {
+            exposure.expose && (exposure.approval.is_some() || approval_per_use)
+        });
+        if !current_gate {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EFFECT_BINDING_STALE",
+                "effects",
+                "the function is unexposed or no longer approval gated",
+            ));
+        }
+        crate::args_contract::validate_function_args(&function, &effect.args)?;
+        InvocationGate::validate_current_function_policy(original, &function)?;
+        InvocationGate::validate_current_function_policy(management, &function)?;
+        let _effect = management.effect_guard("pending-effect approval transaction")?;
+        self.db.decide_pending_effect(
+            &effect.id,
+            approver_id,
+            true,
+            function.authority_creating,
+            step_up,
+            now_ms,
+        )
+    }
+
+    pub fn settle_pending_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        id: &str,
+        executed: bool,
+        outcome_code: Option<&str>,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
+        let _effect = authority.effect_guard("pending-effect settlement transaction")?;
+        self.db
+            .settle_pending_effect(id, executed, outcome_code, now_ms)
+    }
+
+    pub fn deny_pending_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        id: &str,
+        approver_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
+        let _effect = authority.effect_guard("pending-effect denial transaction")?;
+        self.db
+            .decide_pending_effect(id, approver_id, false, false, None, now_ms)
+    }
+
+    pub fn resolve_scoped_token_route_authority(
+        &mut self,
+        token: &crate::auth::crypto::ScopedToken,
+        now_ms: u64,
+        monotonic_now: Instant,
+        provider: Arc<crate::auth::provider::AuthProvider>,
+    ) -> SnapbackResult<ResolvedServiceAuthority> {
+        let resolved = self.db.resolve_scoped_token(token, now_ms)?;
+        let publication = self
+            .service_authority_fences
+            .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
+            .with_provider_clock(provider);
+        Ok(ResolvedServiceAuthority {
+            resolved: ResolvedAppAuthority::from_scoped_token(resolved),
+            publication,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn charge_sender_authentication_attempt(
+        &mut self,
+        throttle: &crate::auth::deployment::HostedAuthenticationThrottle,
+        source: std::net::IpAddr,
+        subject: Option<String>,
+        access_token: Option<&str>,
+        bound_family: Option<&str>,
+        allow_superseded_grace: bool,
+        now_ms: u64,
+    ) -> Result<
+        crate::auth::throttle::AuthenticationThrottleDecision,
+        crate::auth::throttle::AuthenticationThrottleError,
+    > {
+        self.db.charge_sender_authentication_attempt(
+            throttle,
+            source,
+            subject,
+            access_token,
+            bound_family,
+            allow_superseded_grace,
+            now_ms,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn admit_sender_constrained_bound_request(
+        &mut self,
+        method: &str,
+        canonical_external_uri: &str,
+        access_token: &str,
+        compact_proof: Option<&str>,
+        family_jwk_thumbprint: &str,
+        now_seconds: u64,
+        nonce_ttl_seconds: u64,
+        issuance_sender_replay_epoch: Option<u64>,
+    ) -> Result<
+        crate::auth::sender_proof::SenderAdmission,
+        crate::auth::sender_proof::SenderAdmissionRejection,
+    > {
+        let mut authority = self.db.sender_proof_authority();
+        let sender_replay_epoch = authority.sender_replay_epoch().map_err(|_| {
+            crate::auth::sender_proof::sender_authority_unavailable_rejection()
+        })?;
+        crate::auth::sender_proof::admit_sender_constrained_bound_request(
+            &mut authority,
+            sender_replay_epoch,
+            method,
+            canonical_external_uri,
+            access_token,
+            compact_proof,
+            family_jwk_thumbprint,
+            now_seconds,
+            nonce_ttl_seconds,
+            None,
+            None,
+            issuance_sender_replay_epoch,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn admit_sender_constrained_request(
+        &mut self,
+        method: &str,
+        canonical_external_uri: &str,
+        access_token: &str,
+        compact_proof: Option<&str>,
+        now_seconds: u64,
+        nonce_ttl_seconds: u64,
+        allow_superseded_grace: bool,
+        cover_key: Option<&crate::auth::sender_proof::SenderCoverNonceKey>,
+    ) -> Result<
+        crate::auth::sender_proof::SenderAdmission,
+        crate::auth::sender_proof::SenderAdmissionRejection,
+    > {
+        let mut authority = self.db.sender_proof_authority();
+        let sender_replay_epoch = authority.sender_replay_epoch().map_err(|_| {
+            crate::auth::sender_proof::sender_authority_unavailable_rejection()
+        })?;
+        crate::auth::sender_proof::admit_sender_constrained_request(
+            &mut authority,
+            sender_replay_epoch,
+            method,
+            canonical_external_uri,
+            access_token,
+            compact_proof,
+            now_seconds,
+            nonce_ttl_seconds,
+            allow_superseded_grace,
+            None,
+            None,
+            cover_key,
+        )
+    }
+
+    pub fn resolve_capability_link(
+        &self,
+        token: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<ResolvedCapabilityLink> {
+        self.db
+            .resolve_capability_link(token, now_ms)
+            .map(|record| ResolvedCapabilityLink { record })
+    }
+
+    pub fn mint_capability_link(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::storage::capability_links::MintCapabilityLink,
+    ) -> SnapbackResult<crate::storage::capability_links::MintedCapabilityLink> {
+        authority.validate_admission("capability-link mint transaction")?;
+        let ResolvedAppAuthority::Session {
+            user_id,
+            session_id,
+            authority_instance_id,
+            ..
+        } = authority.resolved()
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "capability-link minting requires exact session authority",
+            ));
+        };
+        if authority.source() != InvocationSource::CapabilityLinkManagement
+            || request.minter_principal_id != *user_id
+            || request.minter_session_id != *session_id
+            || request.minter_authority_instance_id != *authority_instance_id
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "capability-link minting facts do not match exact session authority",
+            ));
+        }
+        let _effect = authority.effect_guard("capability-link mint transaction")?;
+        self.db.mint_capability_link(request)
+    }
+
+    pub fn consume_capability_link_use(
+        &mut self,
+        link: &ResolvedCapabilityLink,
+        now_ms: u64,
+    ) -> SnapbackResult<ConsumedCapabilityLinkUse> {
+        self.db
+            .consume_capability_link_use(link.id(), now_ms)
+            .map(|use_| ConsumedCapabilityLinkUse {
+                link_id: link.id().to_owned(),
+                ordinal: use_.ordinal,
+            })
+    }
+
+    pub fn settle_capability_link_use(
+        &mut self,
+        use_: ConsumedCapabilityLinkUse,
+        outcome: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db
+            .settle_capability_link_use(&use_.link_id, use_.ordinal, outcome, now_ms)
+    }
+
+    pub fn revoke_capability_link(
+        &mut self,
+        authority: &PreparedAuthority,
+        id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        authority.validate_admission("capability-link revoke transaction")?;
+        let ResolvedAppAuthority::Session {
+            user_id,
+            session_id,
+            authority_instance_id,
+            ..
+        } = authority.resolved()
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "capability-link revocation requires exact session authority",
+            ));
+        };
+        if authority.source() != InvocationSource::CapabilityLinkManagement {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "capability-link revocation requires exact management authority",
+            ));
+        }
+        let _effect = authority.effect_guard("capability-link revoke transaction")?;
+        self.db.revoke_capability_link(
+            id,
+            user_id,
+            session_id,
+            authority_instance_id,
+            now_ms,
+        )
+    }
+
+    pub fn effective_agents_manifest(&self) -> crate::manifest::AgentsManifest {
+        self.db.schema().effective_agents_manifest()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn register_agent_principal(
+        &mut self,
+        effect: &AdmissionEffectGuard<'_>,
+        mode: crate::manifest::AgentsMode,
+        invitation: Option<&crate::auth::crypto::CreationInvitation>,
+        display_name: Option<String>,
+        operator_contact: Option<String>,
+        class: crate::storage::auth_integrations::AgentRegistrationClass,
+        integration_facts: crate::storage::auth_integrations::IntegrationRegistrationFacts,
+        profile: ServerProfile,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::IssuedAgentCredential> {
+        let _ = effect;
+        self.db.register_agent_principal_with_class(
+            mode,
+            invitation,
+            display_name,
+            operator_contact,
+            class,
+            integration_facts,
+            profile,
+            now_ms,
+            random,
+        )
+    }
+
+    pub fn mint_agent_invitation(
+        &mut self,
+        effect: &AdmissionEffectGuard<'_>,
+        user_id: &str,
+        profile: ServerProfile,
+        proof: &crate::auth::crypto::StepUpProof,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<crate::storage::auth_agents::IssuedAgentInvitation> {
+        let _ = effect;
+        self.db
+            .mint_agent_invitation(user_id, profile, proof, now_ms, random)
+    }
+
+    pub fn mint_pairing_code(
+        &mut self,
+        effect: &AdmissionEffectGuard<'_>,
+        user_id: &str,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<crate::storage::auth_grants::MintedPairingCode> {
+        let _ = effect;
+        self.db.mint_pairing_code(user_id, now_ms, random)
+    }
+
+    pub fn present_pairing_code(
+        &mut self,
+        effect: &AdmissionEffectGuard<'_>,
+        credential: &crate::auth::crypto::AgentCredential,
+        pairing_request_id: &str,
+        pairing_code: &crate::auth::crypto::PairingCode,
+        requested_scopes: &[crate::storage::auth_grants::GrantScopeRequest],
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_grants::PairingPresentation> {
+        let _ = effect;
+        self.db.present_pairing_code(
+            credential,
+            pairing_request_id,
+            pairing_code,
+            requested_scopes,
+            now_ms,
+        )
+    }
+
+    pub fn pending_grant_requests(
+        &mut self,
+        authority: &PreparedAuthority,
+        user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<crate::storage::auth_grants::PendingGrantRequest>> {
+        let _effect = authority.effect_guard("grant-request inbox transaction")?;
+        self.db.pending_grant_requests(user_id, now_ms)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn approve_grant_request(
+        &mut self,
+        effect: &AdmissionEffectGuard<'_>,
+        user_id: &str,
+        session_id: &str,
+        request_id: &str,
+        requested_ttl_ms: Option<u64>,
+        proof: Option<&crate::auth::crypto::StepUpProof>,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
+        let _ = effect;
+        self.db.approve_grant_request(
+            user_id,
+            session_id,
+            request_id,
+            requested_ttl_ms,
+            proof,
+            now_ms,
+        )
+    }
+
+    pub fn deny_grant_request(
+        &mut self,
+        effect: &AdmissionEffectGuard<'_>,
+        user_id: &str,
+        request_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        let _ = effect;
+        self.db.deny_grant_request(user_id, request_id, now_ms)
+    }
+
+    pub fn grants_for_user(
+        &mut self,
+        authority: &PreparedAuthority,
+        user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<crate::storage::auth_grants::UserGrant>> {
+        let _effect = authority.effect_guard("grant listing transaction")?;
+        self.db.grants_for_user(user_id, now_ms)
+    }
+
+    fn service_authority_terminal_plan(
+        &self,
+        token_ids: Vec<String>,
+        disposition: ServiceAuthorityDisposition,
+    ) -> ServiceAuthorityTerminalPlan {
+        ServiceAuthorityTerminalPlan {
+            registry: self.service_authority_fences.clone(),
+            token_ids,
+            disposition,
+        }
+    }
+
+    pub fn plan_grant_revocation_service_terminal(
+        &self,
+        authority: &PreparedAuthority,
+        user_id: &str,
+        grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
+        authority.validate_admission("grant revocation planning")?;
+        self.db
+            .plan_grant_revocation_service_terminal(user_id, grant_id, now_ms)
+            .map(|token_ids| self.service_authority_terminal_plan(
+                token_ids,
+                ServiceAuthorityDisposition::DurableDelete,
+            ))
+    }
+
+    pub fn revoke_grant_for_user(
+        &mut self,
+        effect: &AdmissionEffectGuard<'_>,
+        user_id: &str,
+        grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_grants::GrantRevocation> {
+        let _ = effect;
+        self.db.revoke_grant_for_user(user_id, grant_id, now_ms)
+    }
+
+    pub fn plan_bulk_grant_revocation_service_terminal(
+        &self,
+        authority: &PreparedAuthority,
+        user_id: &str,
+        actor_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
+        authority.validate_admission("bulk grant revocation planning")?;
+        self.db
+            .plan_bulk_grant_revocation_service_terminal(user_id, actor_id, now_ms)
+            .map(|token_ids| self.service_authority_terminal_plan(
+                token_ids,
+                ServiceAuthorityDisposition::DurableDelete,
+            ))
+    }
+
+    pub fn revoke_grants_by_actor_for_user(
+        &mut self,
+        effect: &AdmissionEffectGuard<'_>,
+        user_id: &str,
+        actor_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_grants::BulkGrantRevocation> {
+        let _ = effect;
+        self.db
+            .revoke_grants_by_actor_for_user(user_id, actor_id, now_ms)
+    }
+
+    pub fn plan_agent_credential_rotation_service_terminal(
+        &self,
+        credential: &crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
+        self.db
+            .plan_agent_credential_rotation_service_terminal(credential, now_ms)
+            .map(|token_ids| self.service_authority_terminal_plan(
+                token_ids,
+                ServiceAuthorityDisposition::DurableDelete,
+            ))
+    }
+
+    pub fn rotate_agent_credential(
+        &mut self,
+        credential: &crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::RotatedAgentCredential> {
+        self.db.rotate_agent_credential(credential, now_ms, random)
+    }
+
+    pub fn plan_scoped_token_service_terminal(
+        &self,
+        credential: &crate::auth::crypto::AgentCredential,
+        grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
+        self.db
+            .plan_scoped_token_service_terminal(credential, grant_id, now_ms)
+            .map(|token_ids| self.service_authority_terminal_plan(
+                token_ids,
+                ServiceAuthorityDisposition::Carrier,
+            ))
+    }
+
+    pub fn plan_pairing_scoped_token_service_terminal(
+        &self,
+        credential: &crate::auth::crypto::AgentCredential,
+        pairing_request_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
+        self.db.plan_pairing_scoped_token_service_terminal(
+            credential,
+            pairing_request_id,
+            now_ms,
+        )
+        .map(|token_ids| self.service_authority_terminal_plan(
+            token_ids,
+            ServiceAuthorityDisposition::Carrier,
+        ))
+    }
+
+    pub fn mint_scoped_token(
+        &mut self,
+        credential: &crate::auth::crypto::AgentCredential,
+        grant_id: &str,
+        ttl_ms: Option<u64>,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::IssuedScopedToken> {
+        self.db
+            .mint_scoped_token(credential, grant_id, ttl_ms, now_ms, random)
+    }
+
+    pub fn mint_scoped_token_for_pairing_request(
+        &mut self,
+        credential: &crate::auth::crypto::AgentCredential,
+        pairing_request_id: &str,
+        ttl_ms: Option<u64>,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::IssuedScopedToken> {
+        self.db.mint_scoped_token_for_pairing_request(
+            credential,
+            pairing_request_id,
+            ttl_ms,
+            now_ms,
+            random,
+        )
+    }
+
+    pub fn plan_scoped_token_release(
+        &self,
+        token: &crate::auth::crypto::ScopedToken,
+    ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
+        self.db.plan_scoped_token_release(token).map(|token_id| {
+            self.service_authority_terminal_plan(
+                vec![token_id],
+                ServiceAuthorityDisposition::Carrier,
+            )
+        })
+    }
+
+    pub fn release_scoped_token(
+        &mut self,
+        token: &crate::auth::crypto::ScopedToken,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::ReleasedScopedToken> {
+        self.db.release_scoped_token(token, now_ms)
+    }
+
+    pub fn plan_agent_credential_family_service_terminal(
+        &self,
+        credential: &crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
+        self.db
+            .plan_agent_credential_family_service_terminal(credential, now_ms)
+            .map(|token_ids| self.service_authority_terminal_plan(
+                token_ids,
+                ServiceAuthorityDisposition::DurableDelete,
+            ))
+    }
+
+    pub fn revoke_agent_credential_family(
+        &mut self,
+        credential: &crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::AgentFamilyRevocation> {
+        self.db.revoke_agent_credential_family(credential, now_ms)
+    }
+
+    pub fn plan_integration_credential_family_service_terminal(
+        &self,
+        credential: &crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
+        self.db
+            .plan_integration_credential_family_service_terminal(credential, now_ms)
+            .map(|token_ids| self.service_authority_terminal_plan(
+                token_ids,
+                ServiceAuthorityDisposition::DurableDelete,
+            ))
+    }
+
+    pub fn retire_integration_credential_family(
+        &mut self,
+        credential: &crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::AgentFamilyRevocation> {
+        self.db
+            .retire_integration_credential_family(credential, now_ms)
+    }
+
+    pub fn plan_expired_service_authority(
+        &self,
+        authority: &PreparedAuthority,
+        now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<ExpiredServiceAuthorityPlan>> {
+        let Some(deadline) = authority.expired_service_deadline_terminal(now_ms, monotonic_now)?
+        else {
+            return Ok(None);
+        };
+        let token_ids = self
+            .db
+            .plan_expired_service_authority_terminal(&deadline)?;
+        Ok(Some(ExpiredServiceAuthorityPlan {
+            terminal: self.service_authority_terminal_plan(token_ids, deadline.disposition),
+            deadline,
+        }))
+    }
+
+    pub fn plan_expired_service_publication(
+        &self,
+        publication: &crate::auth::service_fence::ServiceAuthorityPublication,
+        now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<ExpiredServiceAuthorityPlan>> {
+        let Some(deadline) = publication.expired_deadline_terminal(now_ms, monotonic_now)? else {
+            return Ok(None);
+        };
+        let token_ids = self
+            .db
+            .plan_expired_service_authority_terminal(&deadline)?;
+        Ok(Some(ExpiredServiceAuthorityPlan {
+            terminal: self.service_authority_terminal_plan(token_ids, deadline.disposition),
+            deadline,
+        }))
+    }
+
+    pub fn commit_expired_service_authority(
+        &mut self,
+        plan: &ExpiredServiceAuthorityPlan,
+    ) -> SnapbackResult<()> {
+        self.db
+            .terminalize_expired_service_authority(&plan.deadline)
+    }
+
+    pub fn auth_rehearsal_window_for_contact(
+        &self,
+        address: &crate::auth::crypto::CanonicalAddress,
+        bindings: &crate::auth::rehearsal::RehearsalBindingFacts,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<crate::auth::rehearsal::AuthRehearsalWindowV1>> {
+        self.db
+            .auth_rehearsal_window_for_contact(address, bindings, now_ms)
+    }
+
+    pub fn auth_rehearsal_window_for_challenge(
+        &self,
+        challenge_id: &str,
+        bindings: &crate::auth::rehearsal::RehearsalBindingFacts,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<crate::storage::auth_rehearsal::RehearsalWindowChallengeDerivation>>
+    {
+        self.db
+            .auth_rehearsal_window_for_challenge(challenge_id, bindings, now_ms)
+    }
+
+    pub fn auth_rehearsal_mint(
+        &mut self,
+        plan: crate::storage::auth_rehearsal::RehearsalMintPlan,
+    ) -> SnapbackResult<crate::auth::rehearsal::MintedRehearsalGrant> {
+        self.db.auth_rehearsal_mint(plan)
+    }
+
+    pub fn auth_rehearsal_status(
+        &self,
+        grant_id: Option<&str>,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_rehearsal::RehearsalStatusV1> {
+        self.db.auth_rehearsal_status(grant_id, now_ms)
+    }
+
+    pub fn auth_rehearsal_revoke(
+        &mut self,
+        grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_rehearsal::RehearsalStatusV1> {
+        self.db.auth_rehearsal_revoke(grant_id, now_ms)
+    }
+
+    pub fn auth_rehearsal_resolve(
+        &mut self,
+        carrier_hash: &[u8; 32],
+        bindings: &crate::auth::rehearsal::RehearsalBindingFacts,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::rehearsal::AuthRehearsalGrantV1> {
+        self.db
+            .auth_rehearsal_resolve(carrier_hash, bindings, now_ms)
+    }
+
+    pub fn auth_rehearsal_install_window(
+        &mut self,
+        plan: crate::storage::auth_rehearsal::RehearsalWindowInstallPlan,
+    ) -> SnapbackResult<(
+        crate::storage::auth_rehearsal::RehearsalExerciseOutcome,
+        crate::auth::rehearsal::AuthRehearsalWindowV1,
+    )> {
+        self.db.auth_rehearsal_install_window(plan)
+    }
+
+    pub fn auth_rehearsal_advance_auth_clock(
+        &mut self,
+        exercise: crate::storage::auth_rehearsal::RehearsalExercisePlan,
+    ) -> SnapbackResult<crate::storage::auth_rehearsal::RehearsalExerciseOutcome> {
+        self.db.auth_rehearsal_advance_auth_clock(exercise)
+    }
+
+    pub fn auth_rehearsal_create_identity(
+        &mut self,
+        exercise: crate::storage::auth_rehearsal::RehearsalExercisePlan,
+        identity: crate::contract_types::PlannedIdentityState,
+        address: &crate::auth::crypto::CanonicalAddress,
+        provenance: &crate::auth::rehearsal::AuthRehearsalProvenanceV1,
+        governing_not_after_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_rehearsal::RehearsalExerciseOutcome> {
+        self.db.auth_rehearsal_create_identity(
+            exercise,
+            identity,
+            address,
+            provenance,
+            governing_not_after_ms,
+        )
+    }
+
+    pub fn auth_rehearsal_exercise(
+        &mut self,
+        exercise: crate::storage::auth_rehearsal::RehearsalExercisePlan,
+    ) -> SnapbackResult<crate::storage::auth_rehearsal::RehearsalExerciseOutcome> {
+        self.db.auth_rehearsal_exercise(exercise)
+    }
+
+    pub fn rescue_colliding_auth_table(
+        &mut self,
+        request: &crate::auth::wire::RescueCollidingTableRequest,
+    ) -> SnapbackResult<crate::auth::rescue::CollisionRescueResult> {
+        crate::auth::rescue::rescue_colliding_table(&mut self.db, request)
+    }
+
+    pub fn reserve_ask_spend(
+        &mut self,
+        now_ms: u64,
+        subject: crate::storage::ask_spend::AskSpendSubject,
+        budgets: &crate::manifest::ApiAskBudgets,
+    ) -> SnapbackResult<(
+        crate::storage::ask_spend::AskSpendReservation,
+        crate::storage::ask_spend::AskSpendFacts,
+    )> {
+        self.db.reserve_ask_spend(now_ms, subject, budgets)
+    }
+
+    pub fn settle_ask_spend(
+        &mut self,
+        reservation: &crate::storage::ask_spend::AskSpendReservation,
+        actual_tokens: u64,
+        actual_result_bytes: u64,
+    ) -> SnapbackResult<crate::storage::ask_spend::AskSpendFacts> {
+        self.db
+            .settle_ask_spend(reservation, actual_tokens, actual_result_bytes)
+    }
+
+    pub fn declared_client_for_admission(
+        &mut self,
+        normalized_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<crate::storage::declared_clients::DeclaredClientRecord>> {
+        self.db.declared_client_for_admission(normalized_id, now_ms)
+    }
+
+    pub fn mark_declared_client_refusal(&mut self, normalized_id: &str) -> SnapbackResult<()> {
+        self.db.mark_declared_client_refusal(normalized_id)
+    }
+
+    pub fn observe_declared_client(
+        &mut self,
+        normalized_id: &str,
+        now_ms: u64,
+        network_evidence_generation: u64,
+    ) -> SnapbackResult<crate::storage::declared_clients::DeclaredClientObservation> {
+        self.db.observe_declared_client(
+            normalized_id,
+            now_ms,
+            network_evidence_generation,
+        )
+    }
+
+    fn connected_session_principal(
+        authority: &PreparedAuthority,
+    ) -> SnapbackResult<Option<&str>> {
+        authority.validate_admission("connected-client witness update")?;
+        match authority.resolved() {
+            ResolvedAppAuthority::Session { user_id, .. }
+            | ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. }
+            | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Ok(Some(user_id)),
+            ResolvedAppAuthority::Anonymous
+            | ResolvedAppAuthority::ServicePrincipal { .. } => Ok(None),
+            ResolvedAppAuthority::AdminBypass { .. } | ResolvedAppAuthority::System => Err(
+                SnapbackError::error(
+                    "SNAPBACK_INVOCATION_AUTHORITY_INVALID",
+                    "auth",
+                    "connected-client witnesses require ordinary client authority",
+                ),
+            ),
+        }
+    }
+
+    pub fn register_authenticated_poll_client(
+        &mut self,
+        authority: &PreparedAuthority,
+        connection_id: &str,
+        grant_id: &str,
+        now: Instant,
+    ) -> SnapbackResult<()> {
+        let Some(principal_id) = Self::connected_session_principal(authority)? else {
+            return Ok(());
+        };
+        self.connected_clients.register_or_refresh_authenticated_poll(
+            principal_id,
+            connection_id,
+            grant_id,
+            now,
+        )
+    }
+
+    pub fn register_managed_websocket_client(
+        &mut self,
+        authority: &PreparedAuthority,
+        connection_id: &str,
+        grant_id: &str,
+        socket_generation: u64,
+        now: Instant,
+    ) -> SnapbackResult<Option<ManagedWebsocketWitness>> {
+        if authority.source() != InvocationSource::LiveStream {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "managed WebSocket registration requires exact live-stream authority",
+            ));
+        }
+        let Some(principal_id) = Self::connected_session_principal(authority)? else {
+            return Ok(None);
+        };
+        self.connected_clients.register_managed_websocket(
+            principal_id,
+            connection_id,
+            grant_id,
+            socket_generation,
+            now,
+        )?;
+        Ok(Some(ManagedWebsocketWitness {
+            registry: self.connected_clients.clone(),
+            connection_id: connection_id.to_owned(),
+            grant_id: grant_id.to_owned(),
+            socket_generation,
+        }))
+    }
+
+    pub fn create_pending_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        link: Option<&ResolvedCapabilityLink>,
+        mut request: crate::storage::pending_effects::CreatePendingEffect,
+    ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
+        let _effect = authority.effect_guard("pending-effect creation transaction")?;
+        request.link_origin_id = link.map(|link| link.record.id.clone());
+        request.approver_principal_id = link.map(|link| link.record.minter_principal_id.clone());
+        self.db.create_pending_effect(request)
+    }
+
+    fn validate_operator_authority(
+        &self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+    ) -> SnapbackResult<()> {
+        authority.validate_admission("registered operator administration")?;
+        if !Arc::ptr_eq(&operator.identity, &self.operator_authority_identity)
+            || authority.source() != InvocationSource::OperatorCommand
+            || !matches!(
+                (authority.active_mode(), authority.resolved()),
+                (AuthMode::Dev, ResolvedAppAuthority::Anonymous)
+                    | (AuthMode::Sessions, ResolvedAppAuthority::AdminBypass { .. })
+            )
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "registered operator administration requires exact operator authority",
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn plan_integration_principal_service_terminal(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+        principal_user_id: &str,
+    ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
+        self.validate_operator_authority(operator, authority)?;
+        self.db
+            .plan_integration_principal_service_terminal(principal_user_id)
+            .map(|token_ids| self.service_authority_terminal_plan(
+                token_ids,
+                ServiceAuthorityDisposition::DurableDelete,
+            ))
+    }
+
+    pub fn retire_integration_principal(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+        principal_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::AgentFamilyRevocation> {
+        self.validate_operator_authority(operator, authority)?;
+        let _effect = authority.effect_guard("integration-principal retirement transaction")?;
+        self.db
+            .retire_integration_principal(principal_user_id, now_ms)
+    }
+
+    pub fn set_integration_suspended(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+        principal_user_id: &str,
+        suspended: bool,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_integrations::IntegrationRecord> {
+        self.validate_operator_authority(operator, authority)?;
+        let _effect = authority.effect_guard("integration suspension transaction")?;
+        self.db
+            .set_integration_suspended(principal_user_id, suspended, now_ms)
+    }
+
+    pub fn list_integrations(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+    ) -> SnapbackResult<Vec<crate::storage::auth_integrations::IntegrationAdminRecord>> {
+        self.validate_operator_authority(operator, authority)?;
+        self.db.list_integrations()
+    }
+
+    pub fn clear_password_lockout(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+        email: &str,
+    ) -> SnapbackResult<bool> {
+        self.validate_operator_authority(operator, authority)?;
+        let _effect = authority.effect_guard("password lockout clearing transaction")?;
+        self.db.clear_password_lockout(email)
+    }
+
+    pub fn password_attempt_admin_projection(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+        email: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<crate::storage::auth_identity::PasswordAttemptAdminProjection>> {
+        self.validate_operator_authority(operator, authority)?;
+        self.db.password_attempt_admin_projection(email, now_ms)
+    }
+
+    pub fn list_declared_clients(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<crate::storage::declared_clients::DeclaredClientRecord>> {
+        self.validate_operator_authority(operator, authority)?;
+        self.db.list_declared_clients(now_ms)
+    }
+
+    pub fn set_declared_client_status(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+        normalized_id: &str,
+        status: crate::storage::declared_clients::DeclaredClientStatus,
+    ) -> SnapbackResult<crate::storage::declared_clients::DeclaredClientRecord> {
+        self.validate_operator_authority(operator, authority)?;
+        let _effect = authority.effect_guard("declared-client status transaction")?;
+        self.db.set_declared_client_status(normalized_id, status)
+    }
+
+    pub fn delete_declared_client(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+        normalized_id: &str,
+    ) -> SnapbackResult<()> {
+        self.validate_operator_authority(operator, authority)?;
+        let _effect = authority.effect_guard("declared-client deletion transaction")?;
+        self.db.delete_declared_client(normalized_id)
+    }
+
+    pub fn claim_push_batch(
+        &mut self,
+        authority: &PreparedAuthority,
+        batch_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<crate::push::PushBatchClaimV1>> {
+        let _effect = authority.effect_guard("push batch claim")?;
+        self.db.push_registry().claim_batch(batch_id, now_ms)
+    }
+
+    pub fn mark_push_batch_transmitting(
+        &mut self,
+        authority: &PreparedAuthority,
+        claim: &crate::push::PushBatchClaimV1,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        let _effect = authority.effect_guard("push batch transmitting marker")?;
+        self.db
+            .push_registry()
+            .mark_batch_transmitting(claim, now_ms)
+    }
+
+    pub fn settle_push_batch(
+        &mut self,
+        authority: &PreparedAuthority,
+        claim: &crate::push::PushBatchClaimV1,
+        settlement: &crate::push::PushBatchSettlementV1,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        let _effect = authority.effect_guard("push batch settlement")?;
+        self.db
+            .push_registry()
+            .settle_batch(claim, settlement, now_ms)
+    }
+
+    pub fn push_intent_state(&mut self, intent_id: &str) -> SnapbackResult<String> {
+        self.db.push_registry().intent_state(intent_id)
+    }
+
+    pub fn claim_push_maintenance(
+        &mut self,
+        now_ms: u64,
+    ) -> SnapbackResult<
+        Option<(
+            Option<crate::push::PushRecoveredBatchV1>,
+            crate::push::PushReceiptPollClaimV1,
+            Option<String>,
+        )>,
+    > {
+        let has_ledger = self
+            .db
+            .schema()
+            .push_seam
+            .as_ref()
+            .is_some_and(|declaration| declaration.ledger.is_some());
+        if !has_ledger {
+            return Ok(None);
+        }
+        self.deny_derived_fork_egress(crate::instance_fork::EgressFamily::PushReceipt, now_ms)?;
+        let access_token = self.push_maintenance_access_token();
+        let (recovered, receipts) = self.db.push_registry().claim_maintenance(now_ms)?;
+        Ok(Some((recovered, receipts, access_token)))
+    }
+
+    pub fn settle_push_maintenance_batch(
+        &mut self,
+        claim: &crate::push::PushBatchClaimV1,
+        settlement: &crate::push::PushBatchSettlementV1,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db
+            .push_registry()
+            .settle_batch(claim, settlement, now_ms)
+    }
+
+    pub fn settle_push_receipt_poll(
+        &mut self,
+        claim: &crate::push::PushReceiptPollClaimV1,
+        outcomes: &BTreeMap<String, crate::push::PushReceiptOutcomeV1>,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db
+            .push_registry()
+            .settle_receipt_poll(claim, outcomes, now_ms)
+    }
+
+    fn push_registry_session_authority(
+        authority: &PreparedAuthority,
+    ) -> SnapbackResult<(&str, &str, u64)> {
+        authority.validate_admission("push-token registry operation")?;
+        if authority.source() != InvocationSource::PushTokenRegistry
+            || authority.active_mode() != AuthMode::Sessions
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_PUSH_SESSION_REQUIRED",
+                "push",
+                "push-token registry operations require exact session authority",
+            ));
+        }
+        match authority.resolved() {
+            ResolvedAppAuthority::Session {
+                user_id,
+                session_id,
+                generation,
+                ..
+            } => Ok((user_id, session_id, *generation)),
+            _ => Err(SnapbackError::error(
+                "SNAPBACK_PUSH_SESSION_REQUIRED",
+                "push",
+                "push-token registry operations require exact session authority",
+            )),
+        }
+    }
+
+    pub fn register_push_token(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: &crate::push::RegisterPushTokenRequest,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::push::PushTokenRegistrationResponse> {
+        let (principal_id, session_id, session_generation) =
+            Self::push_registry_session_authority(authority)?;
+        let _effect = authority.effect_guard("push-token registration transaction")?;
+        let declaration = self.db.schema().push_seam.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
+                "push",
+                "the app schema does not declare definePushSeam",
+            )
+        })?;
+        self.db.push_registry().register(
+            &declaration,
+            principal_id,
+            session_id,
+            session_generation,
+            &request.installation_id,
+            request.token.as_str(),
+            now_ms,
+        )
+    }
+
+    pub fn unregister_push_token(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: &crate::push::UnregisterPushTokenRequest,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::push::PushTokenUnregisterResponse> {
+        let (principal_id, session_id, session_generation) =
+            Self::push_registry_session_authority(authority)?;
+        let _effect = authority.effect_guard("push-token unregister transaction")?;
+        let declaration = self.db.schema().push_seam.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
+                "push",
+                "the app schema does not declare definePushSeam",
+            )
+        })?;
+        self.db.push_registry().unregister(
+            &declaration,
+            principal_id,
+            session_id,
+            session_generation,
+            &request.installation_id,
+            now_ms,
+        )
+    }
+
+    /// Execute one auth-owner-minted database operation. The sealed trait
+    /// prevents adapters from substituting an arbitrary closure or obtaining
+    /// the engine's raw database handle.
+    pub fn execute_auth_plan<P: snapback_auth::auth::database_plan::AuthDatabasePlan>(
+        &mut self,
+        plan: P,
+    ) -> P::Output {
+        plan.execute(&mut self.db)
+    }
+
+    /// Execute one sealed auth maintenance pass and the existing push-idle
+    /// retirement in the same target-owner turn.
+    pub fn execute_auth_gc_plan<P>(
+        &mut self,
+        plan: P,
+        now_ms: u64,
+    ) -> crate::auth::provider::ProviderResult<crate::auth::provider::AuthGcPass>
+    where
+        P: snapback_auth::auth::database_plan::AuthDatabasePlan<
+                Output = crate::auth::provider::ProviderResult<crate::auth::provider::AuthGcPass>,
+            >,
+    {
+        let pass = plan.execute(&mut self.db)?;
+        if let Some(declaration) = self.db.schema().push_seam.clone() {
+            self.db
+                .push_registry()
+                .retire_idle(&declaration, now_ms)
+                .map_err(crate::auth::provider::ProviderError::from)?;
+        }
+        Ok(pass)
+    }
+
     pub fn memory() -> SnapbackResult<Self> {
         let asset_store_config = AssetStoreConfig::from_env();
         let snapback = Self::from_database(LocalDatabase::memory()?, None, asset_store_config)?;
@@ -4121,14 +6197,109 @@ impl LocalSnapback {
         )
     }
 
-    pub(crate) fn telemetry(&self) -> crate::telemetry::Telemetry {
+    pub fn telemetry(&self) -> crate::telemetry::Telemetry {
         self.telemetry.clone()
     }
 
-    /// Bind the transport adapter's already-resolved server posture before it
-    /// presents any startup or network generation for activation.
-    pub(crate) fn bind_server_profile(&mut self, profile: ServerProfile) {
+    /// Atomically claim this graph for the supported AppState composition
+    /// seam and bind its already-resolved transport posture. A second claim
+    /// fails before it can mutate profile or network state.
+    pub fn claim_app_state_graph(
+        &mut self,
+        profile: ServerProfile,
+        auth_deployment: crate::auth::deployment::AuthDeploymentTarget,
+    ) -> SnapbackResult<EngineAppStateBindings> {
+        if !self.db.claim_app_state_graph() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EMBED_APP_STATE_ALREADY_OWNED",
+                "embed",
+                "one SharedSnapback graph already belongs to an AppState; clone that AppState for additional routers",
+            ));
+        }
         self.server_profile = profile;
+        self.auth_deployment = auth_deployment;
+        Ok(EngineAppStateBindings {
+            admission: self.admission.clone(),
+            telemetry: self.telemetry.clone(),
+            derived_instance_identity: self.derived_fork_identity().cloned(),
+            connected_clients: ConnectedClientObserver {
+                registry: self.connected_clients.clone(),
+            },
+            network_profiles: NetworkProfileView {
+                state: self.network_profiles.clone(),
+            },
+            operator_authority: EngineOperatorAuthority {
+                identity: self.operator_authority_identity.clone(),
+            },
+        })
+    }
+
+    fn network_profile_authority(&self) -> crate::network_profile::NetworkProfileAuthority {
+        crate::network_profile::NetworkProfileAuthority::classified(
+            self.server_profile,
+            self.auth_deployment,
+            self.hosted_serving_present,
+            self.derived_fork_identity().is_some(),
+        )
+    }
+
+    pub fn activate_startup_network_profile(
+        &mut self,
+        profile: crate::network_profile::NetworkConditionProfile,
+    ) -> SnapbackResult<Arc<crate::network_profile::ActiveNetworkProfile>> {
+        if self.network_profile_startup_activated {
+            return Err(SnapbackError::error(
+                "SNAPBACK_NETWORK_PROFILE_FORBIDDEN",
+                "network-profile",
+                "startup network profile activation is one-shot",
+            ));
+        }
+        let active = self.network_profiles.activate(
+            profile,
+            self.network_profile_authority(),
+            crate::network_profile::NetworkProfileSource::Env,
+            None,
+        )?;
+        self.network_profile_startup_activated = true;
+        Ok(active)
+    }
+
+    pub fn activate_operator_network_profile(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+        profile: crate::network_profile::NetworkConditionProfile,
+        source: crate::network_profile::NetworkProfileSource,
+        principal: Option<String>,
+    ) -> SnapbackResult<Arc<crate::network_profile::ActiveNetworkProfile>> {
+        self.validate_operator_authority(operator, authority)?;
+        if !matches!(
+            source,
+            crate::network_profile::NetworkProfileSource::Api
+                | crate::network_profile::NetworkProfileSource::Console
+                | crate::network_profile::NetworkProfileSource::HostOps
+                | crate::network_profile::NetworkProfileSource::Mcp
+        ) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_NETWORK_PROFILE_FORBIDDEN",
+                "network-profile",
+                "runtime network profile activation requires an operator surface",
+            ));
+        }
+        Ok(self.network_profiles.activate(
+            profile,
+            self.network_profile_authority(),
+            source,
+            principal,
+        )?)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install_network_profile_state(
+        &mut self,
+        state: crate::network_profile::NetworkProfileState,
+    ) {
+        self.network_profiles = state;
     }
 
     #[cfg(test)]
@@ -4171,11 +6342,11 @@ impl LocalSnapback {
         );
     }
 
-    pub(crate) fn begin_telemetry_generation_transition(&self) {
+    pub fn begin_telemetry_generation_transition(&self) {
         self.telemetry.begin_generation_transition();
     }
 
-    pub(crate) fn rebind_telemetry_to_current_incarnation(
+    pub fn rebind_telemetry_to_current_incarnation(
         &mut self,
         lifecycle_name: &str,
     ) -> SnapbackResult<()> {
@@ -4224,19 +6395,29 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0213#binding-validation — reset must invalidate a grant even
     ///   when the process, app id, and deployment bytes are otherwise equal.
-    pub(crate) fn auth_rehearsal_instance_id(&self) -> SnapbackResult<String> {
+    pub fn auth_rehearsal_instance_id(&self) -> SnapbackResult<String> {
         self.db
             .authorization_stream_incarnation()
             .map(|incarnation| incarnation.as_str().to_owned())
     }
 
-    pub(crate) fn auth_rehearsal_live_registry(
-        &self,
-    ) -> crate::auth::rehearsal::RehearsalLiveAuthorityRegistry {
-        self.auth_rehearsal_live_grants.clone()
+    pub fn bind_auth_coordinator(
+        &mut self,
+        coordinator: &crate::auth::coordinator::AuthCoordinator,
+    ) -> SnapbackResult<()> {
+        let durable = self.db.authorization_stream_incarnation()?;
+        if coordinator.authorization_stream_incarnation()? != durable.as_str() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "the auth coordinator belongs to a different authorization stream",
+            ));
+        }
+        self.auth_rehearsal_authority_binding = Some(coordinator.rehearsal_authority_binding()?);
+        Ok(())
     }
 
-    pub(crate) fn auth_rehearsal_state_present_at_open(&self) -> SnapbackResult<bool> {
+    pub fn auth_rehearsal_state_present_at_open(&self) -> SnapbackResult<bool> {
         self.db.auth_rehearsal_state_present_at_open()
     }
 
@@ -4244,7 +6425,7 @@ impl LocalSnapback {
         self.db.shutdown_checkpoint(bound)
     }
 
-    pub(crate) fn prepare_replication_shutdown(&self) -> Vec<String> {
+    pub fn prepare_replication_shutdown(&self) -> Vec<String> {
         self.db.prepare_replication_shutdown()
     }
 
@@ -4281,16 +6462,142 @@ impl LocalSnapback {
         Ok(receipt)
     }
 
-    pub(crate) fn is_derived_fork(&self) -> bool {
+    /// Complete the registered protected-erasure command without lending the
+    /// adapter either the raw erasure primitive or an authority constructor.
+    #[allow(clippy::too_many_arguments)]
+    pub fn erase_protected_record_admitted(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+        wire: crate::proof_checkpoint::ProtectedRecordErasureWireRequestV1,
+        credential_class: &str,
+        credential_digest_sha256: &str,
+        now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1> {
+        if !Arc::ptr_eq(&operator.identity, &self.operator_authority_identity) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+                "proofCheckpoint",
+                "protected-record erasure belongs to a different engine graph",
+            ));
+        }
+        authority.validate_admission("protected-record erasure authority derivation")?;
+        if authority.source() != InvocationSource::ProtectedRecordErasure {
+            return Err(SnapbackError::error(
+                "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+                "proofCheckpoint",
+                "protected-record erasure requires its registered product invocation source",
+            ));
+        }
+        let (mode, principal_id, audit_class) =
+            match (authority.active_mode(), authority.resolved()) {
+                (AuthMode::Dev, ResolvedAppAuthority::Anonymous) => {
+                    ("dev", "operator:local-admin", "anonymous-admin-transport")
+                }
+                (AuthMode::Sessions, ResolvedAppAuthority::AdminBypass { .. }) => {
+                    ("sessions", "operator:admin-bypass", "admin-bypass")
+                }
+                _ => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+                        "proofCheckpoint",
+                        "protected-record erasure requires current administrative authority",
+                    ));
+                }
+            };
+        let profile = match authority.profile() {
+            ServerProfile::Dev => "dev",
+            ServerProfile::Demo => "demo",
+            ServerProfile::Test => "test",
+            ServerProfile::Prod => "prod",
+        };
+        let erasure_authority =
+            crate::proof_checkpoint::ProtectedRecordErasureAuthorityV1::from_admitted_facts(
+                mode,
+                principal_id,
+                audit_class,
+                profile,
+                authority.transition_generation(),
+                credential_class,
+                credential_digest_sha256,
+                authority
+                    .authorization_stream_incarnation()
+                    .unwrap_or("dev-no-stream"),
+            )?;
+        let request = crate::proof_checkpoint::ProtectedRecordErasureRequestV1 {
+            operation_id: wire.operation_id,
+            authority: erasure_authority,
+            qualified_table: wire.qualified_table,
+            row_id: wire.row_id,
+            now_ms,
+        };
+        authority
+            .try_fenced_publication(now_ms, monotonic_now, || {
+                let _effect =
+                    authority.effect_guard("protected-record erasure canonical publication")?;
+                self.erase_protected_record(&request)
+            })?
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+                    "admin",
+                    "protected-record erasure authority was revoked before publication",
+                )
+            })
+    }
+
+    pub fn activate_agent_safe_operation_coverage_admitted(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        authority: &PreparedAuthority,
+        now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<crate::commit_envelope::OperationCoverageManifestV1> {
+        if !Arc::ptr_eq(&operator.identity, &self.operator_authority_identity) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_AUTHORITY_INVALID",
+                "storage",
+                "operation coverage activation belongs to a different engine graph",
+            ));
+        }
+        authority.validate_admission("operation coverage activation authority")?;
+        if authority.source() != InvocationSource::OperationCoverageActivation
+            || !matches!(
+                (authority.active_mode(), authority.resolved()),
+                (AuthMode::Dev, ResolvedAppAuthority::Anonymous)
+                    | (AuthMode::Sessions, ResolvedAppAuthority::AdminBypass { .. })
+            )
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_AUTHORITY_INVALID",
+                "storage",
+                "operation coverage activation requires exact registered operator authority",
+            ));
+        }
+        authority
+            .try_fenced_publication(now_ms, monotonic_now, || {
+                let _effect =
+                    authority.effect_guard("operation coverage activation publication")?;
+                self.activate_agent_safe_operation_coverage(now_ms)
+            })?
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_AUTHORITY_INVALID",
+                    "storage",
+                    "operation coverage activation authority was revoked before publication",
+                )
+            })
+    }
+
+    pub fn is_derived_fork(&self) -> bool {
         self.derived_fork_identity().is_some()
     }
 
     /// Boot-validated LLP 0158 instance identity. This is sourced from the
     /// database lineage + mint-receipt proof checked by `LocalDatabase::open`,
     /// never from request data, a path convention, or an environment hint.
-    pub(crate) fn derived_fork_identity(
-        &self,
-    ) -> Option<&crate::instance_fork::DerivedForkLineageV1> {
+    pub fn derived_fork_identity(&self) -> Option<&crate::instance_fork::DerivedForkLineageV1> {
         self.db
             .branch_ops_read()
             .derived_fork()
@@ -4301,7 +6608,7 @@ impl LocalSnapback {
     /// and, on a derived fork, refuse with the exact op named in the
     /// diagnostic — an unclassified future op fails closed with enough
     /// context to act on (LLP 0185 Phase 3 item 4).
-    pub(crate) fn deny_derived_fork_host_op(&self, op: &str, now_ms: u64) -> SnapbackResult<()> {
+    pub fn deny_derived_fork_host_op(&self, op: &str, now_ms: u64) -> SnapbackResult<()> {
         if let Some(family) = crate::instance_fork::EgressFamily::for_derived_host_op(op)
             && let Err(mut error) = self.deny_derived_fork_egress(family, now_ms)
         {
@@ -4313,7 +6620,7 @@ impl LocalSnapback {
         Ok(())
     }
 
-    pub(crate) fn deny_derived_fork_egress(
+    pub fn deny_derived_fork_egress(
         &self,
         family: crate::instance_fork::EgressFamily,
         now_ms: u64,
@@ -4327,7 +6634,7 @@ impl LocalSnapback {
         Ok(())
     }
 
-    pub(crate) fn push_maintenance_access_token(&self) -> Option<String> {
+    pub fn push_maintenance_access_token(&self) -> Option<String> {
         let declaration = self.db.schema().push_seam.as_ref()?;
         declaration
             .uses
@@ -4339,11 +6646,47 @@ impl LocalSnapback {
             .cloned()
     }
 
+    /// Reserve one push send against this instance's exact active schema.
+    /// The sync-owned prepared authority remains opaque to callers; only the
+    /// engine projects it into the kernel storage fact, and no raw registry
+    /// commit primitive crosses the crate boundary.
+    pub fn reserve_push_send(
+        &mut self,
+        authority: &PreparedAuthority,
+        trigger_mode: crate::push::PushTriggerModeV1,
+        deferred_grant: Option<&crate::push::PushDeferredGrantV1>,
+        request: &crate::push::PushSendRequestV1,
+        now_ms: u64,
+    ) -> SnapbackResult<(
+        crate::push::ReservedPushAttemptV1,
+        crate::push::PushSeamDeclarationV1,
+    )> {
+        authority.validate_admission("push durable reservation")?;
+        let schema = self.db.schema().clone();
+        let declaration = schema.push_seam.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
+                "push",
+                "the app schema does not declare the push send seam",
+            )
+        })?;
+        let attempt = self.db.push_registry().reserve_send_admitted_storage(
+            &declaration,
+            &schema,
+            crate::push::admitted_push_storage_authority(authority),
+            trigger_mode,
+            deferred_grant,
+            request,
+            now_ms,
+        )?;
+        Ok((attempt, declaration))
+    }
+
     /// Revalidate the exact finite service carrier while the caller owns the
     /// app lock. Terminal auth writers use that same outer lock and premark
     /// the process fence before commit, so a successful check linearizes every
     /// subsequent synchronous app effect in this lock hold before termination.
-    pub(crate) fn validate_prepared_service_authority(
+    pub fn validate_prepared_service_authority(
         &self,
         authority: &PreparedAuthority,
     ) -> SnapbackResult<()> {
@@ -4464,7 +6807,7 @@ impl LocalSnapback {
         self.validate_prepared_service_authority(authority)
     }
 
-    pub(crate) fn persist_service_deadline_if_due(
+    pub fn persist_service_deadline_if_due(
         &mut self,
         authority: &PreparedAuthority,
     ) -> SnapbackResult<()> {
@@ -4500,7 +6843,7 @@ impl LocalSnapback {
     /// row — not the in-process registry — is what the startup reconciler
     /// reads after a crash, so the pre-mark must commit before the upstream
     /// send.
-    pub(crate) fn stream_attempt_record(
+    pub fn stream_attempt_record(
         &self,
         client_key: &str,
     ) -> SnapbackResult<Option<(String, String)>> {
@@ -4509,7 +6852,7 @@ impl LocalSnapback {
             .stream_attempt_by_client_key(client_key)
     }
 
-    pub(crate) fn stream_attempt_namespace(&self) -> usize {
+    pub fn stream_attempt_namespace(&self) -> usize {
         self.stream_attempt_namespace
     }
 
@@ -4570,7 +6913,7 @@ impl LocalSnapback {
         diagnostics
     }
 
-    pub(crate) fn persist_stream_attempts(
+    pub fn persist_stream_attempts(
         &mut self,
         rows: &[(String, String, String)],
     ) -> SnapbackResult<()> {
@@ -4579,14 +6922,14 @@ impl LocalSnapback {
             .upsert_stream_attempts(rows, now_millis())
     }
 
-    pub(crate) fn settle_stream_transcript(
+    pub fn settle_stream_transcript(
         &mut self,
         record: &crate::storage::stream_transcripts::StreamTranscriptRecord,
     ) -> SnapbackResult<()> {
         self.db.settle_stream_transcript(record)
     }
 
-    pub(crate) fn stream_transcript(
+    pub fn stream_transcript(
         &self,
         attempt_token: &str,
     ) -> SnapbackResult<Option<crate::storage::stream_transcripts::StreamTranscriptRecord>> {
@@ -4856,7 +7199,7 @@ impl LocalSnapback {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn prepare_resolved_authority(
+    fn prepare_resolved_authority(
         &mut self,
         source: InvocationSource,
         active_mode: AuthMode,
@@ -4876,6 +7219,231 @@ impl LocalSnapback {
             resolved,
             session_claims,
         )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_anonymous_authority(
+        &mut self,
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        now_ms: u64,
+        publication: Option<crate::auth::session_projection::FencedPublication>,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let authority = self.prepare_resolved_authority(
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            ResolvedAppAuthority::Anonymous,
+            now_ms,
+        )?;
+        Ok(match publication {
+            Some(publication) => authority.with_fenced_publication(publication),
+            None => authority,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_dev_authority(
+        &mut self,
+        source: InvocationSource,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        resolved: ResolvedAppAuthority,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedAuthority> {
+        if source == InvocationSource::OperatorCommand {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "operator authority requires the composition-owned operator carrier",
+            ));
+        }
+        if !matches!(
+            resolved,
+            ResolvedAppAuthority::Anonymous | ResolvedAppAuthority::DevImpersonation { .. }
+        ) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_AUTHORITY_INVALID",
+                "auth",
+                "dev authority preparation accepts only the closed dev authority classes",
+            ));
+        }
+        self.prepare_resolved_authority(
+            source,
+            AuthMode::Dev,
+            profile,
+            admission,
+            wire,
+            resolved,
+            now_ms,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_admin_authority(
+        &mut self,
+        source: InvocationSource,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        now_ms: u64,
+        publication: crate::auth::session_projection::FencedPublication,
+    ) -> SnapbackResult<PreparedAuthority> {
+        if !matches!(
+            source,
+            InvocationSource::DirectAdminRunner
+                | InvocationSource::HostOperationFunctionRun
+                | InvocationSource::HostOperationMutationDryRun
+                | InvocationSource::ProtectedRecordErasure
+                | InvocationSource::OperationCoverageActivation
+        ) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "administrative authority requires an exact registered admin source",
+            ));
+        }
+        self.prepare_resolved_authority(
+            source,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            wire,
+            ResolvedAppAuthority::AdminBypass {
+                reason: "administrative application invocation".to_owned(),
+            },
+            now_ms,
+        )
+        .map(|authority| authority.with_fenced_publication(publication))
+    }
+
+    pub fn prepare_operator_authority(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        now_ms: u64,
+        publication: Option<crate::auth::session_projection::FencedPublication>,
+    ) -> SnapbackResult<PreparedAuthority> {
+        if !Arc::ptr_eq(&operator.identity, &self.operator_authority_identity) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "operator authority belongs to a different engine graph",
+            ));
+        }
+        let active_mode = admission.active_mode().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "operator authority requires a settled auth-mode admission",
+            )
+        })?;
+        let resolved = match (active_mode, publication.as_ref()) {
+            (AuthMode::Dev, None) => ResolvedAppAuthority::Anonymous,
+            (AuthMode::Sessions, Some(_)) => ResolvedAppAuthority::AdminBypass {
+                reason: "administrative application invocation".to_owned(),
+            },
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "operator authority publication does not match the active auth mode",
+                ));
+            }
+        };
+        let authority = self.prepare_resolved_authority(
+            InvocationSource::OperatorCommand,
+            active_mode,
+            self.server_profile,
+            admission,
+            wire,
+            resolved,
+            now_ms,
+        )?;
+        Ok(match publication {
+            Some(publication) => authority.with_fenced_publication(publication),
+            None => authority,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_bearer_authority(
+        &mut self,
+        prepared: crate::auth::coordinator::PreparedBearerAuthority,
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedAuthority> {
+        prepared.prepare(
+            &mut self.db,
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            now_ms,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_service_authority(
+        &mut self,
+        resolution: ResolvedServiceAuthority,
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        now_ms: u64,
+        stream_publication: crate::auth::session_projection::FencedPublication,
+    ) -> SnapbackResult<PreparedAuthority> {
+        self.prepare_resolved_authority(
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            resolution.resolved,
+            now_ms,
+        )
+        .map(|authority| {
+            authority
+                .with_fenced_publication(stream_publication)
+                .with_service_publication(resolution.publication)
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_connection_service_authority(
+        &mut self,
+        resolution: ResolvedServiceAuthority,
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedAuthority> {
+        self.prepare_resolved_authority(
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            resolution.resolved,
+            now_ms,
+        )
+        .map(|authority| authority.with_service_publication(resolution.publication))
     }
 
     /// Cloneable process-local admission authority for HTTP composition.
@@ -4966,6 +7534,56 @@ impl LocalSnapback {
         self.admission.begin_transition()
     }
 
+    /// Activate a preflighted sessions successor during cold startup. The
+    /// transport adapter retains only diagnostic presentation; transition
+    /// admission and the durable same-mode cut remain inside the engine.
+    pub fn activate_startup_sessions_successor(
+        &mut self,
+        carrier: &crate::auth::mode::StartupArtifacts,
+        expected: &crate::auth::mode::DeploymentIdentity,
+        observed: &crate::auth::mode::DeploymentIdentity,
+    ) -> SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+        use crate::auth::admission::ModeCommitFailure;
+        use crate::manifest::AuthMode;
+
+        let transition = self.begin_auth_mode_transition()?;
+        let repeated = transition.repeat_preflight(|| {
+            let snapshot = self.db.auth_mode_snapshot()?;
+            if snapshot.state.active != AuthMode::Sessions
+                || snapshot.state.active_deployment.as_ref() != Some(expected)
+            {
+                return Err(crate::auth::mode::mode_corrupt(
+                    "settled sessions deployment changed before startup successor activation",
+                ));
+            }
+            self.preflight_auth_artifacts(carrier, AuthMode::Sessions)
+        })?;
+        if repeated != *observed {
+            return Err(crate::auth::mode::mode_corrupt(
+                "startup successor identity changed between complete-pair preflight passes",
+            ));
+        }
+
+        let publication_generation = self.reserve_function_publication_generation()?;
+        let schema = carrier.schema.clone();
+        let functions = carrier.functions.clone();
+        let deployment = observed.clone();
+        let ((), state, _) = transition.commit_and_publish_mode_state(|| {
+            let committed = crate::generation_activation::GenerationActivation::new(self)
+                .activate_same_mode_network_generation(
+                    deployment,
+                    schema,
+                    functions,
+                    None,
+                    publication_generation,
+                    DiagnosticBoundary::Standalone,
+                )?;
+            let state = committed.commit.state.clone();
+            Ok::<_, ModeCommitFailure>(((), state))
+        })?;
+        Ok(state)
+    }
+
     /// Pre-bind only: align process admission with the final durable record
     /// after startup composition may have staged, consumed, or unstaged it.
     #[cfg(test)]
@@ -4981,7 +7599,7 @@ impl LocalSnapback {
     /// identity is safe to pin durably only because every artifact-owned and
     /// target-owned predicate has already run against these exact values.
     // @ref LLP 0058#complete-candidate-pair-preflight — hashes are evidence only after the complete pair and target capability registry validate.
-    pub(crate) fn preflight_auth_artifacts(
+    pub fn preflight_auth_artifacts(
         &mut self,
         artifacts: &StartupArtifacts,
         requested_mode: AuthMode,
@@ -5133,12 +7751,74 @@ impl LocalSnapback {
     /// whose successor cannot be reconstructed exactly. The coordinator stays
     /// globally closed; clearing both query and room leaves no lower-level
     /// embedding path holding a usable issuer for either incarnation.
-    pub(crate) fn clear_auth_invalidation_after_failed_reset(&mut self) {
+    fn clear_auth_invalidation_after_failed_reset(&mut self) {
         self.auth_invalidation = None;
         let ephemeral = self.ephemeral.clone();
         crate::exec_guard::run_or_defer_after_local(move || {
             ephemeral.clear_authorization_issuer();
         });
+    }
+
+    /// Reserve, authenticate, and install the boot-local invalidation issuer
+    /// without exposing the intermediate database reservation. The provider
+    /// is the opaque key-custody authority; an optional reset carrier exact-
+    /// matches the already-committed successor incarnation.
+    pub fn install_authenticated_auth_invalidation(
+        &mut self,
+        provider: &crate::auth::provider::AuthProvider,
+        reset_successor: Option<&str>,
+    ) -> SnapbackResult<EngineInvalidationBinding> {
+        let attempt = (|| {
+            let schema = self.db.schema();
+            let app_id = schema.app_id.clone();
+            let target_profile_id = schema.target_profile.clone().unwrap_or_else(|| {
+                crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
+            });
+            let (authorization, version_stream, boot_sequence) =
+                self.db.reserve_invalidation_boot_issuer()?;
+            if let Some(reset_successor) = reset_successor
+                && authorization.incarnation != reset_successor
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                    "auth",
+                    "reset successor issuer reservation observed another authorization incarnation",
+                ));
+            }
+            let issuer_id = crate::auth::invalidation::IssuerId::fresh(
+                authorization.incarnation.clone(),
+                boot_sequence,
+            )?;
+            let issuer = provider
+                .authenticate_invalidation_boot_issuer(issuer_id, &target_profile_id, &app_id)
+                .map_err(crate::auth::provider::ProviderError::into_snapback_error)?;
+            self.install_auth_invalidation(issuer.clone(), authorization, version_stream)?;
+            Ok(EngineInvalidationBinding { issuer })
+        })();
+        if attempt.is_err() && reset_successor.is_some() {
+            self.clear_auth_invalidation_after_failed_reset();
+        }
+        attempt
+    }
+
+    /// Clear a just-installed reset issuer only when the caller returns the
+    /// exact authenticated issuer currently held by this instance.
+    pub fn clear_installed_auth_invalidation(
+        &mut self,
+        binding: &EngineInvalidationBinding,
+    ) -> SnapbackResult<()> {
+        let matches = self.auth_invalidation.as_ref().is_some_and(|state| {
+            state.issuer.authenticated().issuer_id == binding.issuer.authenticated().issuer_id
+        });
+        if !matches {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "auth invalidation issuer does not match the installed reset successor",
+            ));
+        }
+        self.clear_auth_invalidation_after_failed_reset();
+        Ok(())
     }
 
     /// Compatibility orchestration for synchronous embedders that own a
@@ -5411,7 +8091,7 @@ impl LocalSnapback {
     /// sessions deployment must enter through complete-pair provisioning and
     /// own the activation transition; pending/quarantined state cannot use a
     /// raw swap as a recovery side door.
-    pub(crate) fn load_functions_in_settled_dev(
+    pub fn load_functions_in_settled_dev(
         &mut self,
         manifest: FunctionManifest,
     ) -> SnapbackResult<Vec<Diagnostic>> {
@@ -5466,7 +8146,7 @@ impl LocalSnapback {
     /// generation is live.
     // @ref LLP 0058#same-mode-provisioning — network same-mode activation keeps admission closed through collection and function publication.
     // @ref LLP 0058#consume-ordering-dev-to-sessions — the prepared generation publishes only after the durable consume cut.
-    pub(crate) fn publish_preflighted_functions(
+    pub fn publish_preflighted_functions(
         &mut self,
         manifest: FunctionManifest,
         generation: u64,
@@ -5527,14 +8207,14 @@ impl LocalSnapback {
     /// Reserve the non-reusable process generation before a durable mode cut.
     /// A failed transaction may waste a generation, but no committed cut can
     /// reach the otherwise-infallible publication step and discover wrap.
-    pub(crate) fn reserve_function_publication_generation(&self) -> SnapbackResult<u64> {
+    pub fn reserve_function_publication_generation(&self) -> SnapbackResult<u64> {
         next_app_generation()
     }
 
     /// Retain serve-time diagnostics in the same bounded ring as runtime
     /// diagnostics. The caller supplies already-redacted closed facts; this
     /// seam deliberately accepts no path or keyring error carrier.
-    pub(crate) fn record_startup_diagnostics(&mut self, diagnostics: &[Diagnostic]) {
+    pub fn record_startup_diagnostics(&mut self, diagnostics: &[Diagnostic]) {
         self.record_standalone_diagnostics(diagnostics.to_vec());
     }
 
@@ -5562,24 +8242,14 @@ impl LocalSnapback {
         // its minimal stream-only coordinator and premark it before entering
         // the direct Local/SQLite scope; finalization likewise happens only
         // after that scope and every committed after-Local effect have ended.
-        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-        let source = crate::auth::session_projection::ProjectionSource {
-            authorization_stream_value:
-                crate::auth::session_projection::AuthorizationStreamRecord::new(incarnation)
-                    .encode_bytes()?,
-            restore_declaration_id: None,
-            users: Vec::new(),
-            identities: Vec::new(),
-            sessions: Vec::new(),
-            superseded_tokens: Vec::new(),
-        };
-        let projection =
-            crate::auth::session_projection::SessionProjection::rebuild_with_fresh_startup_id(
-                source,
+        let projection = self.db.admitted_stream_projection_snapshot()?;
+        let coordinator = Arc::new(
+            crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
+                projection,
                 now_millis(),
                 Instant::now(),
-            )?;
-        let coordinator = Arc::new(crate::auth::coordinator::AuthCoordinator::new(projection)?);
+            )?,
+        );
         let carrier = coordinator.premark_stream_reset_if_drained()?;
         let predecessor = carrier.predecessor().clone();
         let successor = carrier.successor().clone();
@@ -5622,7 +8292,7 @@ impl LocalSnapback {
     /// Perform the destructive database half of a coordinator-premarked reset.
     /// In-memory generations move only when the durable stream successor is
     /// known to have committed (including exact post-COMMIT reconciliation).
-    pub(crate) fn attempt_reset_with_seed_and_authorization_stream(
+    pub fn attempt_reset_with_seed_and_authorization_stream(
         &mut self,
         seed: Option<SeedData>,
         predecessor: &crate::contract_types::AuthorizationStreamIncarnation,
@@ -5688,21 +8358,21 @@ impl LocalSnapback {
         }
     }
 
-    pub(crate) fn ensure_versioned_seed(
+    pub fn ensure_versioned_seed(
         &mut self,
         request: crate::seed_identity::InstallSeedRequestV1,
     ) -> SnapbackResult<crate::seed_identity::SeedEnsureResultV1> {
         self.db.schema_seed().ensure_versioned_seed(request)
     }
 
-    pub(crate) fn preview_versioned_seed(
+    pub fn preview_versioned_seed(
         &mut self,
         request: crate::seed_identity::SeedPreviewRequestV1,
     ) -> SnapbackResult<crate::seed_identity::SeedPreviewResultV1> {
         self.db.schema_seed().preview_versioned_seed(request)
     }
 
-    pub(crate) fn replay_versioned_seed_operation(
+    pub fn replay_versioned_seed_operation(
         &mut self,
         operation_id: &str,
         request_digest: &str,
@@ -5712,7 +8382,7 @@ impl LocalSnapback {
             .replay_versioned_seed_operation(operation_id, request_digest)
     }
 
-    pub(crate) fn attempt_versioned_seed_reset_with_authorization_stream(
+    pub fn attempt_versioned_seed_reset_with_authorization_stream(
         &mut self,
         request: crate::seed_identity::ResetSeedRequestV1,
         predecessor: &crate::contract_types::AuthorizationStreamIncarnation,
@@ -5774,7 +8444,7 @@ impl LocalSnapback {
         }
     }
 
-    pub(crate) fn publish_coordinated_versioned_seed_reset(
+    pub fn publish_coordinated_versioned_seed_reset(
         &mut self,
         committed: CoordinatedVersionedSeedResetCommit,
     ) -> crate::seed_identity::SeedInstallReceiptV1 {
@@ -5797,7 +8467,7 @@ impl LocalSnapback {
     /// The server installs a freshly authenticated successor issuer after
     /// this clears the predecessor state, then finalizes the coordinator as
     /// the last step that reopens app authority.
-    pub(crate) fn publish_coordinated_reset(
+    pub fn publish_coordinated_reset(
         &mut self,
         committed: CoordinatedResetCommit,
     ) -> Option<MutationOutput> {
@@ -5975,7 +8645,7 @@ impl LocalSnapback {
     ///   v1 scope, startup-nonce fencing, closed operator/test reason,
     ///   selectable `clearRetained` disposition, normal `resync_required`
     ///   path, no application-data change.
-    pub(crate) fn force_live_resync(
+    pub fn force_live_resync(
         &mut self,
         connection_id: &str,
         subscription_id: &str,
@@ -6042,7 +8712,7 @@ impl LocalSnapback {
         })
     }
 
-    pub(crate) fn app_generation(&self) -> u64 {
+    pub fn app_generation(&self) -> u64 {
         self.app_generation
     }
 
@@ -6123,7 +8793,7 @@ impl LocalSnapback {
     /// bytes that can cross the admission barrier. No schema, function,
     /// mode-state, or seed effect occurs here.
     // @ref LLP 0058#stage-ordering — mode staging preflights before closing admission and repeats under the write lane.
-    pub(crate) fn prepare_auth_provision(
+    pub fn prepare_auth_provision(
         &mut self,
         requested_mode: EnsureAppMode,
         schema: Option<SchemaManifest>,
@@ -6193,7 +8863,7 @@ impl LocalSnapback {
 
     /// Resolve and verify the current envelope under one local-state cut so
     /// generated external catalogs cannot join two active generations.
-    pub(crate) fn current_app_api_envelope(&self) -> SnapbackResult<(String, String)> {
+    pub fn current_app_api_envelope(&self) -> SnapbackResult<(String, String)> {
         let Some(discovery) = self.app_api_discovery()? else {
             return Err(crate::diagnostic::SnapbackError::error(
                 "SNAPBACK_APP_API_UNAVAILABLE",
@@ -6238,7 +8908,7 @@ impl LocalSnapback {
         Ok((sha256, canonical))
     }
 
-    pub(crate) fn prepare_auth_provision_with_routes(
+    pub fn prepare_auth_provision_with_routes(
         &mut self,
         requested_mode: EnsureAppMode,
         schema: Option<SchemaManifest>,
@@ -6289,7 +8959,7 @@ impl LocalSnapback {
             .map_err(ModeCommitFailure::into_error)
     }
 
-    pub(crate) fn commit_auth_provision_classified(
+    pub fn commit_auth_provision_classified(
         &mut self,
         prepared: PreparedAuthProvision,
         profile: &str,
@@ -6852,14 +9522,14 @@ impl LocalSnapback {
         self.functions.bundle_hash.clone()
     }
 
-    pub(crate) fn loaded_route_manifest_hash(&self) -> Option<String> {
+    pub fn loaded_route_manifest_hash(&self) -> Option<String> {
         self.routes_manifest_hash.clone()
     }
 
     /// The active envelope identity bound to the active deployment's inputs.
     /// This is mode-independent so dev-generated readiness can verify the
     /// exact same persisted ensureApp fact as sessions discovery.
-    pub(crate) fn loaded_api_envelope_hash(&self) -> SnapbackResult<Option<String>> {
+    pub fn loaded_api_envelope_hash(&self) -> SnapbackResult<Option<String>> {
         let snapshot = self.db.auth_mode_snapshot()?;
         let Some(deployment) = snapshot.state.active_deployment else {
             return Ok(None);
@@ -6895,7 +9565,7 @@ impl LocalSnapback {
         Ok((observed == current.digest).then_some(current.digest))
     }
 
-    pub(crate) fn active_seed_identity(
+    pub fn active_seed_identity(
         &mut self,
     ) -> SnapbackResult<Option<crate::seed_identity::ActiveSeedIdentityV1>> {
         self.db.schema_seed().active_seed_identity()
@@ -6909,7 +9579,7 @@ impl LocalSnapback {
     /// @ref LLP 0184#a-bounded-direct-row-patch--add-now — preview and apply
     ///   reuse the normal changeset path; no raw SQL or insert/delete branch
     ///   exists here.
-    pub(crate) fn preview_direct_data_patch(
+    pub fn preview_direct_data_patch(
         &mut self,
         input: &crate::data_patch::DataPatchPreviewInputV1,
     ) -> SnapbackResult<crate::data_patch::ValidatedDataPatchV1> {
@@ -7032,7 +9702,7 @@ impl LocalSnapback {
     /// Commit a token-owned normalized patch through the same storage writer
     /// as an app mutation, then fan its ChangedRows through the normal live
     /// notifier.
-    pub(crate) fn apply_direct_data_patch(
+    pub fn apply_direct_data_patch(
         &mut self,
         binding: &crate::data_patch::DataPatchTokenBindingV1,
     ) -> SnapbackResult<crate::storage::MutationCommit> {
@@ -7612,7 +10282,7 @@ impl LocalSnapback {
         })
     }
 
-    pub(crate) fn descriptor_for_prepared_authority(
+    pub fn descriptor_for_prepared_authority(
         &mut self,
         authority: &PreparedAuthority,
     ) -> SnapbackResult<AuthorityDescriptor> {
@@ -7622,7 +10292,7 @@ impl LocalSnapback {
         descriptor_for_authority(authority, incarnation.as_str())
     }
 
-    pub(crate) fn issue_client_operation_identity_range(
+    pub fn issue_client_operation_identity_range(
         &mut self,
         authority: &PreparedAuthority,
         client_audience_id: &str,
@@ -7656,7 +10326,7 @@ impl LocalSnapback {
 
     /// Evaluate explanation authorization from the live prepared authority;
     /// callers cannot submit the `current_policy_provable` decision.
-    pub(crate) fn explain_operation_with_authority(
+    pub fn explain_operation_with_authority(
         &mut self,
         authority: &PreparedAuthority,
         authority_descriptor: Option<&AuthorityDescriptor>,
@@ -7723,7 +10393,7 @@ impl LocalSnapback {
         ))
     }
 
-    pub(crate) fn explain_operation_as_admin(
+    pub fn explain_operation_as_admin(
         &self,
         identity: &crate::commit_envelope::OperationIdentityV1,
     ) -> SnapbackResult<Option<crate::commit_envelope::OperationExplanationV1>> {
@@ -7741,7 +10411,7 @@ impl LocalSnapback {
             .explain_operation(identity, &current)
     }
 
-    pub(crate) fn acknowledge_client_mutations_with_authority_descriptor(
+    pub fn acknowledge_client_mutations_with_authority_descriptor(
         &mut self,
         authority: &PreparedAuthority,
         authority_descriptor: Option<&AuthorityDescriptor>,
@@ -7789,11 +10459,11 @@ impl LocalSnapback {
         self.functions.function(name)
     }
 
-    pub(crate) fn external_api_enabled(&self) -> bool {
+    pub fn external_api_enabled(&self) -> bool {
         self.db.schema().api.as_ref().is_some_and(|api| api.enabled)
     }
 
-    pub(crate) fn validate_external_api_function(&self, name: &str) -> SnapbackResult<()> {
+    pub fn validate_external_api_function(&self, name: &str) -> SnapbackResult<()> {
         if !self.external_api_enabled() {
             return Err(SnapbackError::error(
                 "SNAPBACK_API_NOT_ENABLED",
@@ -7817,10 +10487,7 @@ impl LocalSnapback {
         Ok(())
     }
 
-    pub(crate) fn capability_link_mint_function(
-        &self,
-        name: &str,
-    ) -> SnapbackResult<FunctionDefinition> {
+    pub fn capability_link_mint_function(&self, name: &str) -> SnapbackResult<FunctionDefinition> {
         self.validate_external_api_function(name)?;
         let function = self.functions.function(name).cloned().ok_or_else(|| {
             SnapbackError::error(
@@ -7849,7 +10516,7 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0031#externalanonymousapplicationdata-contract — exposure and
     /// anonymous authorization are facts re-checked before handler dispatch.
-    pub(crate) fn capability_link_use_function(
+    pub fn capability_link_use_function(
         &self,
         function_id: &str,
     ) -> SnapbackResult<FunctionDefinition> {
@@ -7875,7 +10542,7 @@ impl LocalSnapback {
         Ok(function)
     }
 
-    pub(crate) fn api_origins(&self) -> Option<Vec<String>> {
+    pub fn api_origins(&self) -> Option<Vec<String>> {
         self.db
             .schema()
             .api
@@ -7883,11 +10550,11 @@ impl LocalSnapback {
             .and_then(|api| api.origins.clone())
     }
 
-    pub(crate) fn api_oauth_manifest(&self) -> Option<crate::contract_types::ApiOAuthManifest> {
+    pub fn api_oauth_manifest(&self) -> Option<crate::contract_types::ApiOAuthManifest> {
         self.db.schema().oauth_manifest().cloned()
     }
 
-    pub(crate) fn api_ask_manifest(
+    pub fn api_ask_manifest(
         &self,
     ) -> Option<(
         crate::contract_types::ApiAskManifest,
@@ -7907,18 +10574,18 @@ impl LocalSnapback {
     ///   receive configured secret material.
     /// @ref LLP 0036#the-store-and-the-target-seam-d1-d2-d7 — deployment-owned
     ///   values leave the local store only through a declared runtime seam.
-    pub(crate) fn api_ask_secret(&self, name: &str) -> Option<String> {
+    pub fn api_ask_secret(&self, name: &str) -> Option<String> {
         self.config
             .values(name)
             .and_then(|values| values.first())
             .cloned()
     }
 
-    pub(crate) fn served_schema_manifest(&self) -> &SchemaManifest {
+    pub fn served_schema_manifest(&self) -> &SchemaManifest {
         self.db.schema()
     }
 
-    pub(crate) fn served_function_manifest(&self) -> &FunctionManifest {
+    pub fn served_function_manifest(&self) -> &FunctionManifest {
         &self.functions
     }
 
@@ -7926,7 +10593,7 @@ impl LocalSnapback {
     /// profile authority. Keeping manifest interpretation in
     /// `membership_rules` preserves the reviewed authority-consumer closure;
     /// this method supplies only the private database boundary.
-    pub(crate) fn inspect_effective_authority(
+    pub fn inspect_effective_authority(
         &self,
         request: crate::membership_rules::AuthorityEffectiveInspectionRequestV1,
     ) -> SnapbackResult<crate::membership_rules::AuthorityEffectiveInspectionV1> {
@@ -7942,7 +10609,7 @@ impl LocalSnapback {
     /// Capture Local/SQLite-owned inspect state only. Managed server callers
     /// release Local before composing [`EphemeralDiagnostics`] on their
     /// blocking owner; direct-library [`Self::inspect`] remains synchronous.
-    pub(crate) fn inspect_core(&mut self) -> SnapbackResult<InspectState> {
+    pub fn inspect_core(&mut self) -> SnapbackResult<InspectState> {
         // @ref LLP 0010#v0-implementation-charter — missing non-v0 capabilities must be reported explicitly.
         let capability_gaps = self.capability_gaps();
         let capability_manifest = self.served_capability_manifest(capability_gaps.clone());
@@ -8022,7 +10689,7 @@ impl LocalSnapback {
         capability_manifest
     }
 
-    pub(crate) fn current_capability_manifest(&self) -> CapabilityManifest {
+    pub fn current_capability_manifest(&self) -> CapabilityManifest {
         self.served_capability_manifest(self.capability_gaps())
     }
 
@@ -8180,7 +10847,7 @@ impl LocalSnapback {
         self.invoke_query_with_dependencies_prepared_generation(name, input, authority, None)
     }
 
-    pub(crate) fn invoke_query_with_dependencies_prepared_generation(
+    pub fn invoke_query_with_dependencies_prepared_generation(
         &self,
         name: &str,
         input: HandlerInput,
@@ -8259,7 +10926,7 @@ impl LocalSnapback {
     /// Finite-query proof composition retains the same captured dependencies
     /// as the ordinary query lane so the app-data invocation ring can report
     /// D1 evidence without changing the public response carrier.
-    pub(crate) fn invoke_finite_query_with_dependencies_prepared_generation(
+    pub fn invoke_finite_query_with_dependencies_prepared_generation(
         &self,
         name: &str,
         input: HandlerInput,
@@ -8584,7 +11251,7 @@ impl LocalSnapback {
         }
     }
 
-    pub(crate) fn asset_attempt_create(
+    pub fn asset_attempt_create(
         &mut self,
         authority: &PreparedAuthority,
         request: crate::assets::AssetAttemptCreateRequestV1,
@@ -8788,7 +11455,7 @@ impl LocalSnapback {
         Ok(attempt)
     }
 
-    pub(crate) fn asset_attempt_inspect(
+    pub fn asset_attempt_inspect(
         &mut self,
         authority: &PreparedAuthority,
         attempt_id: &str,
@@ -8803,7 +11470,7 @@ impl LocalSnapback {
     /// owner-only, or via-references over asset-sharing-declared analyzable
     /// row policies — and refuses without leaking whether a foreign asset
     /// exists differently from a missing one.
-    pub(crate) fn asset_record_inspect(
+    pub fn asset_record_inspect(
         &mut self,
         authority: &PreparedAuthority,
         asset_id: &str,
@@ -9710,7 +12377,7 @@ impl LocalSnapback {
         }))
     }
 
-    pub(crate) fn asset_attempt_cancel(
+    pub fn asset_attempt_cancel(
         &mut self,
         authority: &PreparedAuthority,
         request: crate::assets::AssetAttemptCancelRequestV1,
@@ -9724,7 +12391,7 @@ impl LocalSnapback {
         Ok(asset_task_state(&attempt, asset.as_ref()))
     }
 
-    pub(crate) fn asset_tus_head(
+    pub fn asset_tus_head(
         &mut self,
         authority: &PreparedAuthority,
         attempt_id: &str,
@@ -9751,7 +12418,7 @@ impl LocalSnapback {
     /// Validate one TUS chunk and freeze the exact record state its durable
     /// append is allowed to advance. The HTTP route releases Local after this
     /// preflight and carries only this owned ticket into the byte-store lane.
-    pub(crate) fn asset_tus_patch_preflight(
+    pub fn asset_tus_patch_preflight(
         &mut self,
         authority: &PreparedAuthority,
         attempt_id: &str,
@@ -9825,7 +12492,7 @@ impl LocalSnapback {
     /// @ref LLP 0044#byte-stores-and-resumable-transfer — a durable append
     ///   without this CAS remains an incomplete, retryable PATCH; stale
     ///   `Upload-Offset` values never advance the attempt.
-    pub(crate) fn asset_tus_patch_commit(
+    pub fn asset_tus_patch_commit(
         &mut self,
         authority: &PreparedAuthority,
         ticket: AssetTusPatchTicketV1,
@@ -9840,7 +12507,8 @@ impl LocalSnapback {
                 "assets",
                 format!(
                     "upload state moved before acknowledgement (expected offset {}, current offset {})",
-                    ticket.expected_offset(), attempt.acknowledged_offset
+                    ticket.expected_offset(),
+                    attempt.acknowledged_offset
                 ),
             ));
         }
@@ -9855,7 +12523,7 @@ impl LocalSnapback {
         )
     }
 
-    pub(crate) fn asset_tus_terminate(
+    pub fn asset_tus_terminate(
         &mut self,
         authority: &PreparedAuthority,
         attempt_id: &str,
@@ -9892,7 +12560,7 @@ impl LocalSnapback {
     /// Lock-held half before repeatable byte preparation. This preserves the
     /// former finalize preamble exactly, then freezes all prepare/commit facts
     /// in a continuity ticket whose store handle owns no LocalSnapback borrow.
-    pub(crate) fn asset_attempt_finalize_preflight(
+    pub fn asset_attempt_finalize_preflight(
         &mut self,
         authority: &PreparedAuthority,
         request: crate::assets::AssetFinalizeRequestV1,
@@ -10039,7 +12707,7 @@ impl LocalSnapback {
 
     /// Lock-held Phase A. Revocation and lifecycle state are rechecked before
     /// the durable `planned` record commits.
-    pub(crate) fn asset_attempt_finalize_plan(
+    pub fn asset_attempt_finalize_plan(
         &mut self,
         authority: &PreparedAuthority,
         ticket: FinalizePrepareTicketV1,
@@ -10050,7 +12718,7 @@ impl LocalSnapback {
 
     /// Lock-held Phase C/D. The attempt is reloaded before `staged` so a
     /// concurrent completion retains the ordinary idempotent retry outcome.
-    pub(crate) fn asset_attempt_finalize_complete(
+    pub fn asset_attempt_finalize_complete(
         &mut self,
         authority: &PreparedAuthority,
         ticket: FinalizeCommitTicketV1,
@@ -10237,12 +12905,7 @@ impl LocalSnapback {
         let publication_proof = self
             .db
             .asset_attempts()
-            .attempt_finalize_commit_plan_proved(
-            ticket.app_id(),
-            &attempt_id,
-            &digest,
-            now,
-        )?;
+            .attempt_finalize_commit_plan_proved(ticket.app_id(), &attempt_id, &digest, now)?;
         if crash_after == Some(AssetFinalizeCrashPoint::AfterPlanned) {
             return Err(asset_test_crash());
         }
@@ -10783,7 +13446,7 @@ impl LocalSnapback {
         Ok(key)
     }
 
-    pub(crate) fn asset_deliver(
+    pub fn asset_deliver(
         &mut self,
         authority: &PreparedAuthority,
         asset_id: &str,
@@ -10818,7 +13481,7 @@ impl LocalSnapback {
     /// `private-signed` issuance: authorization happens here, per request;
     /// the minted URL is then a bearer capability until its TTL (LLP 0044
     /// §Delivery profiles). Only signed-profile assets issue.
-    pub(crate) fn asset_signed_url_issue(
+    pub fn asset_signed_url_issue(
         &mut self,
         authority: &PreparedAuthority,
         asset_id: &str,
@@ -10874,7 +13537,7 @@ impl LocalSnapback {
     /// Serve a signed bearer URL: signature, expiry, and current lifecycle
     /// generation validate; no per-request read authorization — that is the
     /// profile's declared bearer semantics.
-    pub(crate) fn asset_deliver_signed(
+    pub fn asset_deliver_signed(
         &mut self,
         asset_id: &str,
         variant: &str,
@@ -10891,7 +13554,7 @@ impl LocalSnapback {
     /// Serve a `public-immutable` alias: no authorization, immutable cache
     /// headers, and everything non-servable is indistinguishable from
     /// unknown — the public lane is never an existence oracle.
-    pub(crate) fn asset_deliver_public(
+    pub fn asset_deliver_public(
         &mut self,
         asset_id: &str,
         variant: &str,
@@ -10924,7 +13587,7 @@ impl LocalSnapback {
 
     /// Explicit authorized delete: the one-transaction cascade of LLP 0044
     /// §Lifecycle transitions. Idempotent on an already-deleted asset.
-    pub(crate) fn asset_delete(
+    pub fn asset_delete(
         &mut self,
         authority: &PreparedAuthority,
         asset_id: &str,
@@ -10958,7 +13621,7 @@ impl LocalSnapback {
     /// reclamation, tombstone purge, blob condemnation/cleanup, and the
     /// publication maintenance pass. Every reclamation receipts.
     #[allow(dead_code)] // scheduled by the L1-11 runner; exercised in tests.
-    pub(crate) fn asset_gc_sweep(&mut self, now_ms: u64) -> SnapbackResult<AssetGcReport> {
+    pub fn asset_gc_sweep(&mut self, now_ms: u64) -> SnapbackResult<AssetGcReport> {
         use crate::assets;
         let store = self.asset_store_obj()?;
         let mut report = AssetGcReport::default();
@@ -11100,7 +13763,7 @@ impl LocalSnapback {
     /// per-item receipts. The 0028-style sweep loop is scheduler only — this
     /// function is the deterministic drive tests call directly, and it never
     /// records sweeper-level success as the work's success (LLP 0127's bar).
-    pub(crate) fn asset_runner_tick(&mut self, now_ms: u64) -> SnapbackResult<AssetRunnerReport> {
+    pub fn asset_runner_tick(&mut self, now_ms: u64) -> SnapbackResult<AssetRunnerReport> {
         let mut report = AssetRunnerReport::default();
 
         // Phase A: expired leases become enqueued again — an explicit,
@@ -11395,7 +14058,7 @@ impl LocalSnapback {
         self.capture_authorized_lease_query_generation(name, input, authority, request, None)
     }
 
-    pub(crate) fn capture_authorized_lease_query_generation(
+    pub fn capture_authorized_lease_query_generation(
         &self,
         name: &str,
         input: HandlerInput,
@@ -11547,7 +14210,7 @@ impl LocalSnapback {
     /// auth pair, activation, issuer, and target-scoped empty obligation set.
     /// Rechecking here means an obligation for this exact query that races
     /// the capture/signing window still wins over the lease.
-    pub(crate) fn reserve_captured_authorized_lease(
+    pub fn reserve_captured_authorized_lease(
         &mut self,
         capture: AuthorizedLeaseCapture,
         lease: &AuthorizedLease,
@@ -11610,7 +14273,7 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0162#measurement-gate — the active-path comparison must carry
     ///   authenticated issuance through the covered production choke point.
-    pub(crate) fn prepare_agent_safe_active_lane_benchmark(
+    pub fn prepare_agent_safe_active_lane_benchmark(
         &mut self,
         input: &HandlerInput,
     ) -> SnapbackResult<crate::commit_envelope::ClientIdentityRangeV1> {
@@ -11618,23 +14281,30 @@ impl LocalSnapback {
             .map(|(_, range)| range)
     }
 
-    /// Consume the private active-lane fixture into the exact armed storage
-    /// connection used by the public carrier. This drops and joins unrelated
-    /// Local runtime services (notably telemetry) before an idle observation,
-    /// while preserving the durable range and the connection-local SQLite
-    /// writer authority installed by coverage activation.
+    /// Run one observation while retaining the exact armed storage connection
+    /// used by the private active-lane fixture. The observer never receives
+    /// the database: the rank-7 benchmark may sample process counters without
+    /// gaining a raw commit capability over this instance.
     ///
     /// @ref LLP 0162#measurement-gate — setup work is outside the idle window;
     ///   the candidate holds the same storage object as the pre-profile twin.
-    pub(crate) fn into_agent_safe_active_idle_database(self) -> LocalDatabase {
-        self.db
+    pub fn observe_agent_safe_active_idle<R>(
+        self,
+        range: &crate::commit_envelope::ClientIdentityRangeV1,
+        observe: impl FnOnce() -> R,
+    ) -> R {
+        let database = self.db;
+        let observation = observe();
+        std::hint::black_box((&database, range));
+        drop(database);
+        observation
     }
 
     /// Prepare one independently identified writer for the concurrent
     /// request-to-COMMIT fixture. Returning the server-owned stream lets the
     /// recorder install the real promotion reservation on the exact stream
     /// that the subsequent storage transaction will check.
-    pub(crate) fn prepare_agent_safe_active_lane_benchmark_for_client(
+    pub fn prepare_agent_safe_active_lane_benchmark_for_client(
         &mut self,
         input: &HandlerInput,
         client_audience_id: &str,
@@ -11661,7 +14331,7 @@ impl LocalSnapback {
     /// Invoke the same staged issuance-bearing mutation body used by the HTTP
     /// carrier after it has authenticated the request. Range and counter facts
     /// are server-issued; this helper never accepts a host identity.
-    pub(crate) fn invoke_agent_safe_active_lane_benchmark_mutation(
+    pub fn invoke_agent_safe_active_lane_benchmark_mutation(
         &mut self,
         name: &str,
         input: HandlerInput,
@@ -12108,7 +14778,7 @@ impl LocalSnapback {
     /// @ref LLP 0059#locking-and-linearization — exact room dependency
     ///   planning precedes both managed Local commit work and SQLite.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn stage_recorded_authorization_mutation(
+    pub fn stage_recorded_authorization_mutation(
         &mut self,
         name: &str,
         input: HandlerInput,
@@ -12201,7 +14871,7 @@ impl LocalSnapback {
     /// offer alongside the request. Internal and legacy callers continue
     /// through the offerless wrapper above.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn stage_recorded_authorization_mutation_with_wire_version(
+    pub fn stage_recorded_authorization_mutation_with_wire_version(
         &mut self,
         name: &str,
         input: HandlerInput,
@@ -12719,7 +15389,7 @@ impl LocalSnapback {
         }
     }
 
-    pub(crate) fn commit_staged_recorded_authorization_mutation(
+    pub fn commit_staged_recorded_authorization_mutation(
         &mut self,
         staged: StagedRecordedMutation,
     ) -> SnapbackResult<(SnapbackResult<MutationOutput>, Receipt)> {
@@ -12731,7 +15401,7 @@ impl LocalSnapback {
     /// Commit one staged mutation while retaining the dependency capture that
     /// the ordinary `(result, receipt)` compatibility carrier historically
     /// discarded.
-    pub(crate) fn commit_staged_recorded_authorization_mutation_with_dependencies(
+    pub fn commit_staged_recorded_authorization_mutation_with_dependencies(
         &mut self,
         staged: StagedRecordedMutation,
     ) -> SnapbackResult<(
@@ -12767,7 +15437,7 @@ impl LocalSnapback {
         Ok((result, receipt, network_egress))
     }
 
-    pub(crate) fn commit_staged_recorded_authorization_mutation_with_network_egress_and_dependencies(
+    pub fn commit_staged_recorded_authorization_mutation_with_network_egress_and_dependencies(
         &mut self,
         staged: StagedRecordedMutation,
     ) -> SnapbackResult<(
@@ -13114,7 +15784,7 @@ impl LocalSnapback {
     /// Host-plan mutation invoked from a detached action. Plan/data iteration
     /// remains outside the action commit gate and polls the shared lifecycle;
     /// `before_commit` returns the guard held only across SQLite COMMIT.
-    pub(crate) fn invoke_host_plan_mutation_guarded<G, Check, BeforeCommit>(
+    pub fn invoke_host_plan_mutation_guarded<G, Check, BeforeCommit>(
         &mut self,
         name: &str,
         input: HandlerInput,
@@ -13539,13 +16209,13 @@ impl LocalSnapback {
     /// Take the commit-ack instant stamped by the mutation commit that just
     /// finished under this same Local critical section. §2.1's settlement
     /// milestone is measured against this instant at the HTTP boundary.
-    pub(crate) fn take_last_commit_ack_at(&mut self) -> Option<Instant> {
+    pub fn take_last_commit_ack_at(&mut self) -> Option<Instant> {
         self.last_commit_ack_at.take()
     }
 
     /// Shared handle to the commit-ack→settlement counters; the serving
     /// mutation path records into it after the response leaves the Local lock.
-    pub(crate) fn live_settlement_stats_cell(&self) -> Arc<std::sync::Mutex<LiveSettlementStats>> {
+    pub fn live_settlement_stats_cell(&self) -> Arc<std::sync::Mutex<LiveSettlementStats>> {
         Arc::clone(&self.live_settlement_stats)
     }
 
@@ -13734,7 +16404,7 @@ impl LocalSnapback {
         clippy::too_many_arguments,
         reason = "the detached commit gate keeps independent authority and lifecycle checks explicit"
     )]
-    pub(crate) fn commit_detached_ibex_mutation_guarded<G, Check, BeforeCommit>(
+    pub fn commit_detached_ibex_mutation_guarded<G, Check, BeforeCommit>(
         &mut self,
         name: &str,
         input: HandlerInput,
@@ -14599,7 +17269,7 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0092#0d2-atomicity-limits-and-the-snapback_bundle_-registry —
     ///   limits and per-cause codes; the closed per-entry union of §0D.1.
-    pub(crate) fn evaluate_bundle(
+    pub fn evaluate_bundle(
         &mut self,
         entry: &crate::bundle::BundleRouteEntry,
         params: &std::collections::BTreeMap<String, String>,
@@ -15478,7 +18148,7 @@ impl LocalSnapback {
         Ok(())
     }
 
-    pub(crate) fn abandon_prepared_live_effect<T>(&mut self, stage: &StagedLocalLiveEffect<T>) {
+    pub fn abandon_prepared_live_effect<T>(&mut self, stage: &StagedLocalLiveEffect<T>) {
         stage.abandon();
         if matches!(
             stage.control.state.load(Ordering::Acquire),
@@ -16412,7 +19082,7 @@ impl LocalSnapback {
         )
     }
 
-    pub(crate) fn prepare_subscribe_live_for_transport_generation(
+    pub fn prepare_subscribe_live_for_transport_generation(
         &mut self,
         name: String,
         input: LiveSubscribeInput,
@@ -16467,7 +19137,7 @@ impl LocalSnapback {
         )
     }
 
-    pub(crate) fn finalize_subscribe_live_for_transport(
+    pub fn finalize_subscribe_live_for_transport(
         &mut self,
         staged: &PreparedLiveSubscribe,
     ) -> SnapbackResult<LiveTransportPublication<LiveSubscribeOutput>> {
@@ -16635,7 +19305,7 @@ impl LocalSnapback {
         })
     }
 
-    pub(crate) fn prepare_unsubscribe_live_for_transport(
+    pub fn prepare_unsubscribe_live_for_transport(
         &mut self,
         name: String,
         input: LiveUnsubscribeInput,
@@ -16664,7 +19334,7 @@ impl LocalSnapback {
         )
     }
 
-    pub(crate) fn finalize_unsubscribe_live_for_transport(
+    pub fn finalize_unsubscribe_live_for_transport(
         &mut self,
         staged: &PreparedLiveUnsubscribe,
     ) -> SnapbackResult<LiveUnsubscribeOutput> {
@@ -16729,7 +19399,7 @@ impl LocalSnapback {
         })
     }
 
-    pub(crate) fn prepare_authorization_invalidation_ack_for_transport(
+    pub fn prepare_authorization_invalidation_ack_for_transport(
         &mut self,
         input: AuthorizationInvalidationAckInput,
         connection: AuthorizationInvalidationConnection,
@@ -16756,7 +19426,7 @@ impl LocalSnapback {
         )
     }
 
-    pub(crate) fn finalize_authorization_invalidation_ack_for_transport(
+    pub fn finalize_authorization_invalidation_ack_for_transport(
         &mut self,
         staged: &PreparedAuthorizationInvalidationAck,
     ) -> SnapbackResult<AuthorizationInvalidationAckOutput> {
@@ -16909,7 +19579,7 @@ impl LocalSnapback {
         }
     }
 
-    pub(crate) fn prepare_authorization_invalidation_manual_retry_for_transport(
+    pub fn prepare_authorization_invalidation_manual_retry_for_transport(
         &mut self,
         input: AuthorizationInvalidationManualRetryInput,
         connection: AuthorizationInvalidationConnection,
@@ -16938,7 +19608,7 @@ impl LocalSnapback {
         )
     }
 
-    pub(crate) fn finalize_authorization_invalidation_manual_retry_for_transport(
+    pub fn finalize_authorization_invalidation_manual_retry_for_transport(
         &mut self,
         staged: &PreparedAuthorizationInvalidationManualRetry,
     ) -> SnapbackResult<AuthorizationInvalidationManualRetryOutput> {
@@ -17529,7 +20199,7 @@ impl LocalSnapback {
         })
     }
 
-    pub(crate) fn prepare_resume_live_for_transport(
+    pub fn prepare_resume_live_for_transport(
         &mut self,
         name: String,
         input: LiveResumeInput,
@@ -17565,7 +20235,7 @@ impl LocalSnapback {
         )
     }
 
-    pub(crate) fn finalize_resume_live_for_transport(
+    pub fn finalize_resume_live_for_transport(
         &mut self,
         staged: &PreparedLiveResume,
     ) -> SnapbackResult<LiveTransportPublication<LiveResumeOutput>> {
@@ -17635,7 +20305,7 @@ impl LocalSnapback {
         self.run_function_with_authority(name, input, authority)
     }
 
-    pub(crate) fn run_function_with_authority(
+    pub fn run_function_with_authority(
         &mut self,
         name: &str,
         input: HandlerInput,
@@ -17852,7 +20522,7 @@ impl LocalSnapback {
         }
     }
 
-    pub(crate) fn function_declared_read_tables(&self, name: &str) -> Vec<String> {
+    pub fn function_declared_read_tables(&self, name: &str) -> Vec<String> {
         self.functions
             .function(name)
             .map(|definition| plan_io(definition).0)
@@ -17864,7 +20534,7 @@ impl LocalSnapback {
     /// captured sets it holds and the per-class provenance its seam can
     /// honestly claim; a seam that discarded the capture passes empty sets
     /// with `Incomplete`, never `Complete`.
-    pub(crate) fn conformance_for_invocation(
+    pub fn conformance_for_invocation(
         &self,
         name: &str,
         captured_reads: &[CapturedReadDependency],
@@ -17885,7 +20555,7 @@ impl LocalSnapback {
         ))
     }
 
-    pub(crate) fn authorization_reservation_snapshot(
+    pub fn authorization_reservation_snapshot(
         &self,
     ) -> SnapbackResult<(u64, crate::storage::AuthorizationVersion)> {
         self.db.authorization_reservation_snapshot()
@@ -17960,7 +20630,7 @@ impl LocalSnapback {
     /// a ready envelope, and clone out what a detached execution needs. Runs
     /// under the global mutex; the returned stage does not borrow the
     /// instance (ENG-23324).
-    pub(crate) fn stage_app_action_with_authority(
+    pub fn stage_app_action_with_authority(
         &mut self,
         name: &str,
         authority: PreparedAuthority,
@@ -17968,7 +20638,7 @@ impl LocalSnapback {
         self.stage_app_action_with_authority_generation(name, authority, None)
     }
 
-    pub(crate) fn stage_app_action_with_authority_generation(
+    pub fn stage_app_action_with_authority_generation(
         &mut self,
         name: &str,
         authority: PreparedAuthority,
@@ -18141,12 +20811,12 @@ impl LocalSnapback {
     /// unknown functions and non-actions are `SnapbackError`s, exactly as
     /// `invoke_action` would report them (ENG-23324).
     #[cfg(test)]
-    pub(crate) fn stage_action_invocation(&mut self, name: &str) -> SnapbackResult<StagedAction> {
+    pub fn stage_action_invocation(&mut self, name: &str) -> SnapbackResult<StagedAction> {
         let admission = self.admission.admit()?;
         self.stage_action_invocation_with_admission(name, admission)
     }
 
-    pub(crate) fn stage_action_invocation_with_admission(
+    pub fn stage_action_invocation_with_admission(
         &mut self,
         name: &str,
         admission: AdmissionLease,
@@ -18169,12 +20839,12 @@ impl LocalSnapback {
         Ok(self.staged_mode(&function, prepared, None))
     }
 
-    pub(crate) fn stage_job_action_invocation_with_admission(
+    pub fn stage_job_action_invocation_with_admission(
         &mut self,
         name: &str,
         admission: AdmissionLease,
         deferred_push_grant: Option<crate::push::PushDeferredGrantV1>,
-        rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+        deferred_rehearsal_authority: crate::jobs::DeferredRehearsalAuthority,
     ) -> SnapbackResult<StagedAction> {
         let function = self.function(name)?.clone();
         admission.validate("job action staging")?;
@@ -18189,11 +20859,18 @@ impl LocalSnapback {
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::System,
             None,
-        )?
-        .with_deferred_rehearsal_provenance(
-            rehearsal_provenance,
-            self.auth_rehearsal_live_grants.clone(),
         )?;
+        let authority = match &self.auth_rehearsal_authority_binding {
+            Some(binding) => binding.bind(authority, Some(deferred_rehearsal_authority))?,
+            None if !deferred_rehearsal_authority.is_present() => authority,
+            None => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED",
+                    "auth-rehearsal",
+                    "deferred rehearsal work has no admitted process-live authority binding",
+                ));
+            }
+        };
         let prepared = InvocationGate::prepare_function(authority, &function)?;
         Ok(self.staged_mode(&function, prepared, deferred_push_grant))
     }
@@ -18225,7 +20902,9 @@ impl LocalSnapback {
                     },
                     stream_started: None,
                     ephemeral: self.ephemeral_api(),
-                    connected_clients: self.connected_clients.clone(),
+                    connected_clients: ConnectedClientObserver {
+                        registry: self.connected_clients.clone(),
+                    },
                     connected_client_predicate_available: self.db.schema().effective_auth_mode()
                         == AuthMode::Sessions,
                     telemetry: self.telemetry.clone(),
@@ -18249,7 +20928,7 @@ impl LocalSnapback {
         }
     }
 
-    pub(crate) fn stage_nested_mutation(
+    pub fn stage_nested_mutation(
         &mut self,
         name: &str,
         input: &HandlerInput,
@@ -18332,7 +21011,7 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0059#authorization-write-handoff — a one-shot Ibex handler is
     ///   buffered once, previewed under Local, then quiesced with Local absent.
-    pub(crate) fn preview_detached_nested_authorization_mutation(
+    pub fn preview_detached_nested_authorization_mutation(
         &mut self,
         name: &str,
         input: &HandlerInput,
@@ -18841,7 +21520,7 @@ impl LocalSnapback {
     /// happen here, under the global mutex, so concurrent verifies linearize
     /// through the cooldown stamp even when the probe itself runs off-lock
     /// (ENG-23493).
-    pub(crate) fn stage_config_verify(&mut self, name: &str) -> SnapbackResult<StagedConfigVerify> {
+    pub fn stage_config_verify(&mut self, name: &str) -> SnapbackResult<StagedConfigVerify> {
         let admission = self.admission.admit()?;
         let definition = self.config_definition(name)?.clone();
         let Some(probe) = definition.probe.clone() else {
@@ -18910,7 +21589,7 @@ impl LocalSnapback {
 
     /// Record the outcome of a probe run — in-lock or detached — as the
     /// entry's verification state and shape the `config.verify` envelope.
-    pub(crate) fn finish_config_verify(
+    pub fn finish_config_verify(
         &mut self,
         name: &str,
         entry_revision: u64,
@@ -19139,7 +21818,7 @@ impl LocalSnapback {
     /// the [`EphemeralApi`] disconnect phase outside Local before entering
     /// this method; no activity, notifier, room, outbox, or rate-bucket lock
     /// is acquired here.
-    pub(crate) fn disconnect_topology_for_transport(
+    pub fn disconnect_topology_for_transport(
         &mut self,
         connection_id: &str,
         now_ms: u64,
@@ -19269,10 +21948,7 @@ impl LocalSnapback {
     /// server's detached cron flow uses this as the first lock window; the
     /// claims then execute off the global mutex and land back through
     /// [`Self::finish_cron_claim`] (ENG-23324).
-    pub(crate) fn claim_due_cron_runs(
-        &mut self,
-        now_ms: u64,
-    ) -> SnapbackResult<Vec<AdmittedCronClaim>> {
+    pub fn claim_due_cron_runs(&mut self, now_ms: u64) -> SnapbackResult<Vec<AdmittedCronClaim>> {
         self.deny_derived_fork_egress(crate::instance_fork::EgressFamily::CronTick, now_ms)?;
         // The cron lane consults the persisted migration fence per claim
         // (LLP 0081 §4's lane registry).
@@ -19346,7 +22022,7 @@ impl LocalSnapback {
 
     /// Claim (and persist) a manual run of one cron job — the detached-flow
     /// counterpart of [`Self::run_cron_job_now`]'s claim step (ENG-23324).
-    pub(crate) fn claim_manual_cron_run(
+    pub fn claim_manual_cron_run(
         &mut self,
         name: &str,
         now_ms: u64,
@@ -19385,7 +22061,7 @@ impl LocalSnapback {
     /// into the diagnostics ring with a counter — the same policy as
     /// [`Self::tick_cron_recording`], callable from the server's detached
     /// cron flow.
-    pub(crate) fn record_cron_tick_error(
+    pub fn record_cron_tick_error(
         &mut self,
         error: SnapbackError,
         diagnostic_boundary: DiagnosticBoundary,
@@ -19399,7 +22075,7 @@ impl LocalSnapback {
     /// of `now_ms`, sibling of cron's forced tick but over the job set, not
     /// nominal slots. Callers execute each claim off the lock and finish it
     /// through [`Self::finish_job_claim`].
-    pub(crate) fn claim_due_jobs(
+    pub fn claim_due_jobs(
         &mut self,
         now_ms: u64,
         limit: usize,
@@ -19463,7 +22139,7 @@ impl LocalSnapback {
         Ok(admitted)
     }
 
-    pub(crate) fn create_watch(
+    pub fn create_watch(
         &mut self,
         authority: &PreparedAuthority,
         request: crate::watches::CreateWatchSpec,
@@ -19764,7 +22440,7 @@ impl LocalSnapback {
         })
     }
 
-    pub(crate) fn list_watches(
+    pub fn list_watches(
         &self,
         authority: &PreparedAuthority,
     ) -> SnapbackResult<Vec<crate::storage::watches::WatchRecord>> {
@@ -19772,7 +22448,7 @@ impl LocalSnapback {
         self.db.list_watches_for_owner(&owner)
     }
 
-    pub(crate) fn transition_watch(
+    pub fn transition_watch(
         &mut self,
         authority: &PreparedAuthority,
         id: &str,
@@ -19793,7 +22469,7 @@ impl LocalSnapback {
             .ok_or_else(crate::storage::watches::watch_not_found)
     }
 
-    pub(crate) fn renew_watch(
+    pub fn renew_watch(
         &mut self,
         authority: &PreparedAuthority,
         id: &str,
@@ -19827,7 +22503,7 @@ impl LocalSnapback {
     /// query/reaction bases, status, and anchor before the query runs.
     /// @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08
     /// — retained watch authority is exact-function, finite, and revalidated.
-    pub(crate) fn prepare_watch_job(
+    pub fn prepare_watch_job(
         &mut self,
         claim: WatchJobContext,
     ) -> SnapbackResult<WatchJobExecution> {
@@ -20241,7 +22917,7 @@ impl LocalSnapback {
     }
 
     #[allow(clippy::too_many_arguments)] // established internal signature; regrouping is out of scope for the lint sweep
-    pub(crate) fn settle_watch_action(
+    pub fn settle_watch_action(
         &mut self,
         watch_id: String,
         job_id: String,
@@ -20293,7 +22969,7 @@ impl LocalSnapback {
     /// @ref LLP 0070#webhook-work — DNS is resolved and pinned at
     /// the final effect boundary; the delivery ledger supplies immutable
     /// payload and idempotency identity.
-    pub(crate) fn revalidate_watch_webhook_delivery(
+    pub fn revalidate_watch_webhook_delivery(
         &mut self,
         prepared: &PreparedWatchWebhook,
         now_ms: u64,
@@ -20374,7 +23050,7 @@ impl LocalSnapback {
         })
     }
 
-    pub(crate) fn settle_watch_webhook(
+    pub fn settle_watch_webhook(
         &mut self,
         prepared: PreparedWatchWebhook,
         outcome: crate::webhooks::DeliveryOutcome,
@@ -20575,7 +23251,7 @@ impl LocalSnapback {
     /// Atomic terminal publication for one executed job claim: the fenced CAS
     /// transition, the appended attempt outcome, live fan-out for the
     /// declared job-status query, and the synchronous drain receipt.
-    pub(crate) fn finish_job_claim(
+    pub fn finish_job_claim(
         &mut self,
         claim: AdmittedJobClaim,
         result: Result<Value, Diagnostic>,
@@ -20670,7 +23346,7 @@ impl LocalSnapback {
     /// The handler input a claimed job passes to its action: the immutable
     /// validated args, under system authority (LLP 0070 v1 executes the
     /// generated action with the enqueue-time-validated argument bytes).
-    pub(crate) fn job_claim_input(claim: &AdmittedJobClaim) -> HandlerInput {
+    pub fn job_claim_input(claim: &AdmittedJobClaim) -> HandlerInput {
         HandlerInput {
             args: claim.claim.args.clone(),
             auth: Default::default(),
@@ -20685,7 +23361,7 @@ impl LocalSnapback {
     /// action tiers work unchanged. `due_at_ms` is the drain clock, which the
     /// action observes as `ctx.runtime.now()` — deterministic under forced
     /// drains.
-    pub(crate) fn job_claim_metadata(claim: &AdmittedJobClaim) -> CronRunMetadata {
+    pub fn job_claim_metadata(claim: &AdmittedJobClaim) -> CronRunMetadata {
         CronRunMetadata {
             job_name: format!("jobs:{}", claim.claim.action),
             run_id: format!("job:{}:{}", claim.claim.job_id, claim.claim.attempt),
@@ -20702,7 +23378,7 @@ impl LocalSnapback {
         }
     }
 
-    pub(crate) fn jobs_inspect(&self, limit: usize) -> SnapbackResult<Value> {
+    pub fn jobs_inspect(&self, limit: usize) -> SnapbackResult<Value> {
         let jobs = self.db.jobs_read().list_job_status_rows(limit)?;
         let pending = self.db.jobs_read().pending_job_count()?;
         Ok(json!({
@@ -20716,7 +23392,7 @@ impl LocalSnapback {
         }))
     }
 
-    pub(crate) fn job_show(&self, job_id: &str) -> SnapbackResult<Option<Value>> {
+    pub fn job_show(&self, job_id: &str) -> SnapbackResult<Option<Value>> {
         let Some(job) = self.db.jobs_read().job_status(job_id)? else {
             return Ok(None);
         };
@@ -20737,11 +23413,11 @@ impl LocalSnapback {
     /// A lock-free hint allowing the autonomous worker to skip SQLite while
     /// the durable queue is empty. The worker refreshes it under the Local
     /// lock, and every committed enqueue arms it before releasing that lock.
-    pub(crate) fn jobs_activity_flag(&self) -> Arc<AtomicBool> {
+    pub fn jobs_activity_flag(&self) -> Arc<AtomicBool> {
         self.jobs_active.clone()
     }
 
-    pub(crate) fn refresh_jobs_activity(&self) -> SnapbackResult<u64> {
+    pub fn refresh_jobs_activity(&self) -> SnapbackResult<u64> {
         let pending = self.jobs_pending_count()?;
         self.jobs_active.store(pending != 0, Ordering::Relaxed);
         Ok(pending)
@@ -20750,7 +23426,7 @@ impl LocalSnapback {
     /// Asset-runner loop errors land in the same bounded diagnostics ring as
     /// cron tick errors; the ledger rows themselves carry per-item failure
     /// state, so this records only scheduler-machinery faults.
-    pub(crate) fn record_asset_runner_error(&mut self, error: SnapbackError) {
+    pub fn record_asset_runner_error(&mut self, error: SnapbackError) {
         self.asset_runner_errors += 1;
         self.record_standalone_diagnostics(vec![error.diagnostic]);
     }
@@ -20765,7 +23441,7 @@ impl LocalSnapback {
     /// error message (which may contain room identity or application text).
     /// Counters advance for every failure; the bounded diagnostic ring receives
     /// at most one classification per operation per minute.
-    pub(crate) fn record_maintenance_error(
+    pub fn record_maintenance_error(
         &mut self,
         operation: MaintenanceOperation,
         error: &SnapbackError,
@@ -21025,7 +23701,7 @@ impl LocalSnapback {
     }
 
     #[cfg(test)]
-    pub(crate) fn purge_connection_effects(
+    pub fn purge_connection_effects(
         &mut self,
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
@@ -21041,7 +23717,7 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0059#prohibited-overlap — terminal topology cleanup never
     /// reacquires room/outbox authority beneath the global writer mutex.
-    pub(crate) fn purge_connection_topology(
+    pub fn purge_connection_topology(
         &mut self,
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
@@ -21110,7 +23786,7 @@ impl LocalSnapback {
         }
     }
 
-    pub(crate) fn managed_local_handoff(&self) -> Arc<crate::exec_guard::ManagedLocalHandoff> {
+    pub fn managed_local_handoff(&self) -> Arc<crate::exec_guard::ManagedLocalHandoff> {
         self.managed_local_handoff.clone()
     }
 
@@ -21140,7 +23816,7 @@ impl LocalSnapback {
     /// authorization epoch observed by the durable read. The transport uses
     /// that witness after acquiring its room permit: equality linearizes the
     /// read before a later commit, while drift forces a fresh read.
-    pub(crate) fn authorize_ephemeral_room_observed(
+    pub fn authorize_ephemeral_room_observed(
         &self,
         collection_name: &str,
         scope: &crate::ephemeral::Scope,
@@ -21242,7 +23918,7 @@ impl LocalSnapback {
         Ok(completed)
     }
 
-    pub(crate) fn resolve_pending_ephemeral_room_permissions(
+    pub fn resolve_pending_ephemeral_room_permissions(
         &self,
         room: crate::ephemeral::PendingRoomReauthorization,
         fresh_authorities: Vec<Option<AuthContext>>,
@@ -21361,7 +24037,7 @@ impl LocalSnapback {
     /// Stale-id discovery and [`EphemeralApi::disconnect`] happen before the
     /// server enters LocalSnapback; this method preserves `/inspect` counters
     /// without reacquiring any activity or ephemeral shard lock.
-    pub(crate) fn record_reaped_connections(&mut self, count: usize) {
+    pub fn record_reaped_connections(&mut self, count: usize) {
         self.reaped_connections = self.reaped_connections.saturating_add(count as u64);
     }
 
@@ -21565,6 +24241,10 @@ impl LocalSnapback {
             // — an unbound in-crate graph must refuse the repository-local
             // dev provider until a host-owned startup seam binds otherwise.
             server_profile: ServerProfile::Prod,
+            auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
+            hosted_serving_present: false,
+            network_profile_startup_activated: false,
+            operator_authority_identity: Arc::new(()),
             asset_store_config,
             stream_attempt_namespace: STREAM_ATTEMPT_NAMESPACE
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
@@ -21610,7 +24290,7 @@ impl LocalSnapback {
             maintenance_prune_reported_at_ms: None,
             cron_active: Arc::new(AtomicBool::new(false)),
             jobs_active: Arc::new(AtomicBool::new(jobs_active)),
-            auth_rehearsal_live_grants: Arc::new(std::sync::RwLock::new(BTreeMap::new())),
+            auth_rehearsal_authority_binding: None,
             watch_evaluations: BTreeMap::new(),
             last_persisted_cron: None,
             cron_state_writes: 0,
@@ -21636,29 +24316,7 @@ impl LocalSnapback {
         })
     }
 
-    pub(crate) fn install_network_profile_state(
-        &mut self,
-        state: crate::network_profile::NetworkProfileState,
-    ) {
-        self.network_profiles = state;
-    }
-
-    pub(crate) fn connected_client_registry(
-        &self,
-    ) -> crate::connected_clients::ConnectedClientRegistry {
-        self.connected_clients.clone()
-    }
-
-    pub(crate) fn service_authority_fence_registry(
-        &self,
-    ) -> crate::auth::service_fence::ServiceAuthorityFenceRegistry {
-        self.service_authority_fences.clone()
-    }
-
-    pub(crate) fn function(
-        &self,
-        name: &str,
-    ) -> SnapbackResult<&crate::manifest::FunctionDefinition> {
+    pub fn function(&self, name: &str) -> SnapbackResult<&crate::manifest::FunctionDefinition> {
         resolve_invocation_function(
             &self.function_generation_recovery_state,
             &self.functions,
@@ -22254,7 +24912,7 @@ impl LocalSnapback {
     /// The caller-visible content identity for the active sessions pair.
     /// This is derived from the same loaded manifests used for function
     /// selection, never copied from the request assertion.
-    pub(crate) fn function_invocation_facts(
+    pub fn function_invocation_facts(
         &self,
         active_mode: AuthMode,
     ) -> SnapbackResult<Option<FunctionInvocationFacts>> {
@@ -22332,7 +24990,7 @@ impl LocalSnapback {
         })))
     }
 
-    pub(crate) fn function_is_authority_independent(&self, name: &str) -> bool {
+    pub fn function_is_authority_independent(&self, name: &str) -> bool {
         self.functions
             .function(name)
             .is_some_and(owner_admits_authority_independence)
@@ -22359,7 +25017,7 @@ impl LocalSnapback {
 
     /// Read the non-authoritative preview observation from one pinned target
     /// snapshot. The sealed plan remains the sole execution authority.
-    pub(crate) fn migrate_preview_observation_facts(
+    pub fn migrate_preview_observation_facts(
         &self,
         steps: &[crate::migration::MigrationStepRecord],
         max_affected_rows: u64,
@@ -22812,7 +25470,7 @@ impl LocalSnapback {
 
     /// Compatibility control retained for the benchmark harness. Enabling is
     /// a no-op while upstream Ibex runtimes are owner-thread-affine.
-    pub(crate) fn set_warm_vms_enabled(&self, enabled: bool) {
+    pub fn set_warm_vms_enabled(&self, enabled: bool) {
         self.warm_vms.set_enabled(enabled);
     }
 
@@ -22886,7 +25544,7 @@ impl LocalSnapback {
     /// from [`Self::execute_cron_claims`] so the server can execute the claim
     /// *between* the claim and finish lock windows — off the global mutex —
     /// for Ibex actions that may perform egress (ENG-23324).
-    pub(crate) fn finish_cron_claim(
+    pub fn finish_cron_claim(
         &mut self,
         claim: AdmittedCronClaim,
         started_wall_ms: u64,
@@ -22922,7 +25580,7 @@ impl LocalSnapback {
         Ok(record)
     }
 
-    pub(crate) fn covered_host_child_identity(
+    pub fn covered_host_child_identity(
         &mut self,
         parent: &HostOperationParentV1,
         function: &str,
@@ -22991,7 +25649,7 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0059#authorization-write-handoff — capture generation-bound
     ///   immutable action state before any per-step off-Local room wait.
-    pub(crate) fn stage_managed_host_plan_action(
+    pub fn stage_managed_host_plan_action(
         &mut self,
         name: &str,
         input: HandlerInput,
@@ -23045,7 +25703,7 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0059#authorization-write-handoff — each action step previews
     ///   exact changed rows and crosses the reservation boundary independently.
-    pub(crate) fn stage_managed_host_plan_action_step(
+    pub fn stage_managed_host_plan_action_step(
         &mut self,
         action: &ManagedHostPlanAction,
         step: &ActionStep,
@@ -23756,7 +26414,7 @@ impl LocalSnapback {
         self.run_pending_live_subscription_with_path(subscription_id, control, false)
     }
 
-    pub(crate) fn run_pending_live_subscription_from_backstop(
+    pub fn run_pending_live_subscription_from_backstop(
         &mut self,
         subscription_id: &str,
         control: Arc<crate::live_coalesce::LiveEvaluationControl>,
@@ -24609,7 +27267,7 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0053#invalidation-is-an-obligation-not-a-message — delivery is
     /// a wakeup hint; pending obligations are the persistent source of truth.
-    pub(crate) fn reproject_authorization_invalidations(
+    pub fn reproject_authorization_invalidations(
         &mut self,
         connection_id: &str,
         admission: &AdmissionLease,
@@ -24670,7 +27328,7 @@ impl LocalSnapback {
         Ok(parked)
     }
 
-    pub(crate) fn authorization_invalidation_frames(
+    pub fn authorization_invalidation_frames(
         &mut self,
         connection_id: &str,
         admission: &AdmissionLease,
@@ -24682,7 +27340,7 @@ impl LocalSnapback {
         )
     }
 
-    pub(crate) fn authorization_invalidation_frames_with_handoff_limit(
+    pub fn authorization_invalidation_frames_with_handoff_limit(
         &mut self,
         connection_id: &str,
         admission: &AdmissionLease,
@@ -27013,7 +29671,7 @@ impl ReadLane {
         self.admission.clone()
     }
 
-    pub(crate) fn secret_read_reset_generation(&self) -> Arc<AtomicU64> {
+    pub fn secret_read_reset_generation(&self) -> Arc<AtomicU64> {
         self.secret_read_reset_generation.clone()
     }
 
@@ -27023,7 +29681,7 @@ impl ReadLane {
         self.pool.is_some()
     }
 
-    pub(crate) fn connection_has_auth_scoped_live(&self, connection_id: &str) -> bool {
+    pub fn connection_has_auth_scoped_live(&self, connection_id: &str) -> bool {
         self.auth_scoped_live_connections
             .read()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -27039,7 +29697,7 @@ impl ReadLane {
     /// publication-time fact to refuse an absent session carrier before any
     /// body poll on routes that can never legitimately serve an anonymous
     /// caller; route policy alone cannot see function-level requirements.
-    pub(crate) fn published_function_auth_requirement(
+    pub fn published_function_auth_requirement(
         &self,
         name: &str,
     ) -> Option<crate::manifest::AuthRequirement> {
@@ -27058,7 +29716,7 @@ impl ReadLane {
     ///
     /// @ref LLP 0053#ephemeral-room-authority-invalidation — lookup, room act,
     /// and final publication stay on one side of the targeted commit barrier.
-    pub(crate) fn authorize_ephemeral_room_observed(
+    pub fn authorize_ephemeral_room_observed(
         &self,
         collection: EphemeralCollection,
         scope: crate::ephemeral::Scope,
@@ -27197,7 +29855,7 @@ impl ReadLane {
     /// are server-derived from the exact pair selected for the invocation.
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — read-lane
     /// queries never reacquire the write lane for post-invocation metadata.
-    pub(crate) fn invoke_query_prepared_generation_with_facts(
+    pub fn invoke_query_prepared_generation_with_facts(
         &self,
         name: &str,
         input: HandlerInput,
@@ -27294,7 +29952,7 @@ impl ReadLane {
         Ok((invocation, facts, conformance))
     }
 
-    pub(crate) fn execute_detached_ibex_mutation(
+    pub fn execute_detached_ibex_mutation(
         &self,
         module: &crate::manifest::IbexModule,
         input: HandlerInput,
@@ -33201,11 +35859,11 @@ fn refuse_unprovenanced_host_plan_authority_creation(
     Ok(())
 }
 
-pub(crate) fn live_stream_text(envelope: RealtimeEnvelope) -> Option<String> {
+pub fn live_stream_text(envelope: RealtimeEnvelope) -> Option<String> {
     live_stream_text_with_server_observed(envelope, None)
 }
 
-pub(crate) fn live_stream_text_with_server_observed(
+pub fn live_stream_text_with_server_observed(
     envelope: RealtimeEnvelope,
     server_observed_at_ms: Option<u64>,
 ) -> Option<String> {
@@ -33274,7 +35932,7 @@ pub(crate) struct AssetPublicationMaintenanceReport {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct AssetRunnerReport {
+pub struct AssetRunnerReport {
     pub leases_reclaimed: u64,
     pub claimed: u64,
     pub completed: u64,
@@ -33286,7 +35944,7 @@ pub(crate) struct AssetRunnerReport {
 #[derive(Debug, Default, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
-pub(crate) struct AssetGcReport {
+pub struct AssetGcReport {
     pub expired_attempts: u64,
     pub staging_orphans_removed: u64,
     pub pending_reclaimed: u64,

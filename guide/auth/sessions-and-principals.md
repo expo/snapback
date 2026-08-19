@@ -4,7 +4,7 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-codegen/index.mjs, crates/snapback/src/admin.rs, crates/snapback/src/auth/mode.rs, crates/snapback-auth/src/auth/provider.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback/src/host_ops.rs, crates/snapback/src/server.rs, crates/snapback/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-codegen/index.mjs, crates/snapback/src/admin.rs, crates/snapback/src/auth/mode.rs, crates/snapback-auth/src/auth/provider.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback-engine/src/host_ops.rs, crates/snapback/src/server.rs, crates/snapback/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapback-client/auth-identity-types.fixture.ts]
 status: current
 targets: [local]
@@ -257,7 +257,7 @@ The two carriers, exactly:
 The ready descriptor itself carries only that mechanically validated sibling
 *path*, never the capability bytes: consumers accept the path only when it
 exactly equals `<ready-file>.impersonation`, then read the `sbic_…` value from
-that owner-only file (`crates/snapback/src/host_ops.rs`; the kit's
+that owner-only file (`crates/snapback-engine/src/host_ops.rs`; the kit's
 `readSpawnedImpersonationCapability` in `demos/_kit/server-process.mjs` is the
 reference reader). There is no `impersonation` field inside `dev.ready.json`.
 The server-lifecycle kit's `captureImpersonationCapability: true` does this

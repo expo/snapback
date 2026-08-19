@@ -295,6 +295,27 @@ impl StepUpProofAdmission {
     pub fn address(&self) -> &CanonicalAddress {
         &self.proof.address
     }
+
+    pub fn prepare_password_set_plan<'a>(
+        &'a self,
+        acting: &'a SessionBearer,
+        email_identity_id: &'a str,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = SnapbackResult<PasswordSetPreparation>>
+           + 'a {
+        let identifier = self.proof.address.as_str();
+        super::database_plan::plan(move |database| {
+            self._admission.provider.prepare_password_set(
+                database,
+                acting,
+                email_identity_id,
+                identifier,
+                now_ms,
+                custody,
+            )
+        })
+    }
 }
 
 impl fmt::Debug for StepUpProofAdmission {
@@ -2598,6 +2619,189 @@ impl fmt::Debug for AuthAdmission {
 }
 
 impl AuthAdmission {
+    pub fn prepare_password_change_plan<'a>(
+        &'a self,
+        acting: &'a SessionBearer,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = SnapbackResult<PasswordChangePreparation>>
+           + 'a {
+        super::database_plan::plan(move |database| {
+            self.provider
+                .prepare_password_change(database, acting, now_ms, custody)
+        })
+    }
+
+    pub fn plan_password_recovery_rotate_plan<'a>(
+        &'a self,
+        acting: &'a SessionBearer,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = SnapbackResult<ProviderSessionIssuancePlan>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.provider.plan_password_recovery_rotate_with_active_key(
+                database, acting, now_ms, custody,
+            )
+        })
+    }
+
+    pub fn commit_password_issuance_plan<'a>(
+        &'a self,
+        plan: &'a ProviderSessionIssuanceCommitPlan,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = AuthTransactionAttempt<PlannedIssuanceCommit>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.provider.commit_password_issuance(database, plan)
+        })
+    }
+
+    pub fn commit_password_change_plan<'a>(
+        &'a self,
+        plan: &'a ProviderPasswordChangeCommitPlan,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = AuthTransactionAttempt<PlannedPasswordChangeCommit>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.provider.commit_password_change(database, plan)
+        })
+    }
+
+    pub fn step_up_address_plan<'a>(
+        &'a self,
+        binding: &'a StepUpBinding,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<CanonicalAddress>> + 'a
+    {
+        super::database_plan::plan(move |database| self.step_up_address(database, binding, now_ms))
+    }
+
+    pub fn step_up_coordination_plan<'a>(
+        &'a self,
+        challenge_id: &'a str,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<StepUpCoordination>> + 'a
+    {
+        super::database_plan::plan(move |database| {
+            self.step_up_coordination(database, challenge_id)
+        })
+    }
+
+    pub fn exchange_coordination_plan<'a>(
+        &'a self,
+        challenge_id: &'a str,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = ProviderResult<Option<ExchangeCoordination>>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.exchange_coordination(database, challenge_id)
+        })
+    }
+
+    pub fn exchange_unknown_plan<'a>(
+        &'a self,
+        challenge_id: &'a str,
+        code: &'a str,
+        now_ms: u64,
+        sender_issuance: Option<&'a crate::auth::sender_proof::SenderIssuanceCommitment>,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<CredentialIssue>> + 'a
+    {
+        super::database_plan::plan(move |database| {
+            self.exchange_unknown(database, challenge_id, code, now_ms, sender_issuance)
+        })
+    }
+
+    pub fn resolve_session_plan<'a>(
+        &'a self,
+        bearer: &'a str,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<ResolvedSession>> + 'a
+    {
+        super::database_plan::plan(move |database| self.resolve_session(database, bearer, now_ms))
+    }
+
+    pub fn plan_logout_plan<'a>(
+        &'a self,
+        bearer: &'a str,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<PlannedLogout>> + 'a
+    {
+        super::database_plan::plan(move |database| self.plan_logout(database, bearer, now_ms))
+    }
+
+    pub fn plan_refresh_plan<'a>(
+        &'a self,
+        bearer: &'a str,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<PlannedRefresh>> + 'a
+    {
+        super::database_plan::plan(move |database| self.plan_refresh(database, bearer, now_ms))
+    }
+
+    pub fn plan_family_alarm_plan<'a>(
+        &'a self,
+        bearer: &'a str,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<ProviderFamilyAlarmPlan>>
+           + 'a {
+        super::database_plan::plan(move |database| {
+            self.plan_family_alarm(database, bearer, now_ms)
+        })
+    }
+
+    pub fn commit_planned_family_alarm_plan<'a>(
+        &'a self,
+        plan: &'a ProviderFamilyAlarmPlan,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = AuthTransactionAttempt<PlannedFamilyAlarmCommit>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.commit_planned_family_alarm(database, plan)
+        })
+    }
+
+    pub fn commit_planned_revocation_plan<'a>(
+        &'a self,
+        plan: &'a ProviderRevocationPlan,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = AuthTransactionAttempt<PlannedRevocationCommit>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.commit_planned_revocation(database, plan, now_ms)
+        })
+    }
+
+    pub fn commit_planned_rotation_plan<'a>(
+        &'a self,
+        plan: &'a ProviderTokenRotationCommitPlan,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = AuthTransactionAttempt<PlannedRotationCommit>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.commit_planned_rotation(database, plan)
+        })
+    }
+
+    /// Seal one authenticated-use transaction for execution by the engine
+    /// that owns the target database.
+    pub fn record_authenticated_use_plan(
+        self,
+        session_id: String,
+        expected_generation: u64,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<AuthenticatedUse>> {
+        super::database_plan::plan(move |database| {
+            self.record_authenticated_use(
+                database,
+                &session_id,
+                expected_generation,
+                now_ms,
+            )
+        })
+    }
+
     /// Resolve the human delivery address from the exact still-live session.
     /// The caller keeps this maintenance admission while acquiring the
     /// resulting address stripe, preserving the provider lock order.
@@ -3258,6 +3462,50 @@ impl fmt::Debug for ExchangeAdmission {
 }
 
 impl ExchangeAdmission {
+    pub fn plan_exchange_plan<'a>(
+        &'a self,
+        code: &'a str,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<PlannedExchange>> + 'a
+    {
+        super::database_plan::plan(move |database| self.plan_exchange(database, code, now_ms))
+    }
+
+    pub fn prepare_password_reset_plan<'a>(
+        &'a self,
+        code: &'a str,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<PasswordResetPreparation>>
+           + 'a {
+        super::database_plan::plan(move |database| {
+            self.prepare_password_reset(database, code, now_ms)
+        })
+    }
+
+    pub fn commit_planned_issuance_plan<'a>(
+        &'a self,
+        plan: &'a ProviderSessionIssuanceCommitPlan,
+        code: &'a str,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = AuthTransactionAttempt<PlannedIssuanceCommit>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.commit_planned_issuance(database, plan, code)
+        })
+    }
+
+    pub fn commit_planned_rejection_plan<'a>(
+        &'a self,
+        code: &'a str,
+        now_ms: u64,
+        sender_issuance: Option<&'a crate::auth::sender_proof::SenderIssuanceCommitment>,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<RejectedExchangeCommit>>
+           + 'a {
+        super::database_plan::plan(move |database| {
+            self.commit_planned_rejection(database, code, now_ms, sender_issuance)
+        })
+    }
+
     /// Immutable lock-selection facts that may cross the projection Begin
     /// boundary. The guard-bearing admission itself must be dropped first and
     /// reacquired from these facts for the later exact durable CAS.
@@ -3487,6 +3735,116 @@ impl fmt::Debug for AddressAdmission {
 }
 
 impl AddressAdmission {
+    pub fn prepare_password_registration_plan(
+        &self,
+        custody: PasswordIssuanceCustody,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = SnapbackResult<PasswordRegistrationPreparation>,
+    > + '_ {
+        super::database_plan::plan(move |database| {
+            self.provider().prepare_password_registration(
+                database,
+                self.address.as_str(),
+                custody,
+            )
+        })
+    }
+
+    pub fn prepare_password_authentication_plan(
+        &self,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = SnapbackResult<PasswordAuthenticationPreparation>,
+    > + '_ {
+        super::database_plan::plan(move |database| {
+            self.provider().prepare_password_authentication(
+                database,
+                self.address.as_str(),
+                now_ms,
+                custody,
+            )
+        })
+    }
+
+    pub fn plan_password_recovery_consume_plan<'a>(
+        &'a self,
+        code: &'a str,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = SnapbackResult<ProviderSessionIssuancePlan>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.provider().plan_password_recovery_consume_with_active_key(
+                database,
+                self.address.as_str(),
+                code,
+                now_ms,
+                custody,
+            )
+        })
+    }
+
+    pub fn prepare_password_change_plan<'a>(
+        &'a self,
+        acting: &'a SessionBearer,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = SnapbackResult<PasswordChangePreparation>>
+           + 'a {
+        super::database_plan::plan(move |database| {
+            self.prepare_password_change(database, acting, now_ms, custody)
+        })
+    }
+
+    pub fn request_step_up_plan<'a>(
+        &'a self,
+        binding: &'a StepUpBinding,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<RequestCodeResponse>> + 'a
+    {
+        super::database_plan::plan(move |database| self.request_step_up(database, binding))
+    }
+
+    pub fn request_code_plan(
+        &self,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<RequestCodeResponse>> + '_
+    {
+        super::database_plan::plan(move |database| self.request_code(database, now_ms))
+    }
+
+    pub fn request_code_for_rehearsal_window_plan<'a>(
+        &'a self,
+        now_ms: u64,
+        window: &'a crate::auth::rehearsal::AuthRehearsalWindowV1,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<RequestCodeResponse>> + 'a
+    {
+        super::database_plan::plan(move |database| {
+            self.request_code_for_rehearsal_window(database, now_ms, window)
+        })
+    }
+
+    pub fn plan_mint_session_plan(
+        &self,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = ProviderResult<ProviderSessionIssuancePlan>,
+    > + '_ {
+        super::database_plan::plan(move |database| self.plan_mint_session(database, now_ms))
+    }
+
+    pub fn commit_planned_issuance_plan<'a>(
+        &'a self,
+        plan: &'a ProviderSessionIssuanceCommitPlan,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = AuthTransactionAttempt<PlannedIssuanceCommit>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.commit_planned_issuance(database, plan)
+        })
+    }
+
     pub fn address(&self) -> &CanonicalAddress {
         &self.address
     }
@@ -3830,6 +4188,15 @@ impl fmt::Debug for AuthMaintenanceGuard {
 }
 
 impl AuthMaintenanceGuard {
+    /// Seal one maintenance pass for execution by the engine that owns the
+    /// target database.
+    pub fn gc_plan(
+        self,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<AuthGcPass>> {
+        super::database_plan::plan(move |database| self.run_gc_pass(database, now_ms))
+    }
+
     pub fn keyring(&self) -> &AuthKeyringStore {
         &self.provider.keyring
     }

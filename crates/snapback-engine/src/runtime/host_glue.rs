@@ -69,7 +69,7 @@ impl Drop for RuntimeLogSinkGuard {
 
 /// Install the observation sink for one synchronous handler dispatch. A stack
 /// preserves the outer action context while nested runtime calls execute.
-pub(crate) fn with_runtime_log_telemetry<T>(
+pub fn with_runtime_log_telemetry<T>(
     telemetry: crate::telemetry::Telemetry,
     correlation: Option<String>,
     run: impl FnOnce() -> T,
@@ -90,7 +90,7 @@ pub(crate) fn with_runtime_log_telemetry<T>(
 ///
 /// @ref LLP 0036#runtime-exposure-d5-d8 — invocation-lifetime secret
 /// redaction applies before diagnostic data reaches any retention or echo sink.
-pub(crate) fn with_runtime_log_telemetry_redactor<T>(
+pub fn with_runtime_log_telemetry_redactor<T>(
     telemetry: crate::telemetry::Telemetry,
     correlation: Option<String>,
     redactor: SecretRedactor,
@@ -398,7 +398,7 @@ pub trait IbexActionHost {
 /// A mutation handler's completed, still-uncommitted effect buffer. Detached
 /// action-hosted mutations execute into this owned value outside the global
 /// instance mutex; only the bounded validation/SQLite commit re-enters it.
-pub(crate) struct ExecutedIbexMutation {
+pub struct ExecutedIbexMutation {
     pub writes: Vec<BufferedWrite>,
     pub sequence_allocations: Vec<SequenceAllocationFact>,
     pub job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
@@ -682,17 +682,14 @@ pub(crate) fn dry_run_ibex_mutation_prepared(
     pool: Option<&WarmVmPool>,
 ) -> SnapbackResult<MutationCommit> {
     let mut invocation = IbexHostContext::new_with_projection(
-            DbRead::Live(db),
-            input.clone(),
-            prepared.projection().clone(),
-            prepared.admission_lease().clone(),
-            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved_with_authority_creating(
-                prepared.authority().resolved(),
-                prepared.authority_creating_consent(),
-            ),
-            true,
-            prepared.authority().elevated_database_allowed(),
-        )?;
+        DbRead::Live(db),
+        input.clone(),
+        prepared.projection().clone(),
+        prepared.admission_lease().clone(),
+        prepared.membership_writer(),
+        true,
+        prepared.authority().elevated_database_allowed(),
+    )?;
     invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
     invocation.declared_refusals = prepared.declared_refusals().to_vec();
     invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
@@ -748,7 +745,7 @@ pub(crate) fn dry_run_ibex_mutation_prepared(
 // authority, cron, host, grant, and deadline inputs avoids hiding a
 // capability in a catch-all carrier merely to meet Clippy's default of 7.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn invoke_ibex_action_prepared(
+pub fn invoke_ibex_action_prepared(
     _runtime: &RuntimeManager,
     module: &IbexModule,
     input: HandlerInput,
@@ -778,7 +775,7 @@ fn interrupt_on(runtime: &RuntimeGuard, admission: &AdmissionLease) -> Cancellat
     admission.register_cancellation_hook(runtime.cancellation_hook())
 }
 
-pub(crate) fn execute_ibex_mutation_prepared(
+pub fn execute_ibex_mutation_prepared(
     module: &IbexModule,
     input: HandlerInput,
     prepared: &PreparedInvocation,
@@ -792,10 +789,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         input,
         prepared.projection().clone(),
         prepared.admission_lease().clone(),
-        <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved_with_authority_creating(
-            prepared.authority().resolved(),
-            prepared.authority_creating_consent(),
-        ),
+        prepared.membership_writer(),
         true,
         prepared.authority().elevated_database_allowed(),
     )?;
@@ -882,10 +876,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
         input,
         prepared.projection().clone(),
         prepared.admission_lease().clone(),
-        <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved_with_authority_creating(
-            prepared.authority().resolved(),
-            prepared.authority_creating_consent(),
-        ),
+        prepared.membership_writer(),
         false,
         prepared.authority().elevated_database_allowed(),
     )?;
@@ -979,10 +970,7 @@ pub(crate) fn run_ibex_asset_authorizer_prepared(
         input,
         prepared.projection().clone(),
         prepared.admission_lease().clone(),
-        <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved_with_authority_creating(
-            prepared.authority().resolved(),
-            prepared.authority_creating_consent(),
-        ),
+        prepared.membership_writer(),
         false,
         prepared.authority().elevated_database_allowed(),
     )?;
@@ -6670,6 +6658,49 @@ fn now_millis() -> u64 {
 }
 
 #[cfg(test)]
+fn membership_writer_from_resolved_for_test(
+    resolved: &crate::auth::invocation::ResolvedAppAuthority,
+) -> crate::storage::MembershipWriter {
+    membership_writer_from_resolved_for_test_with_consent(resolved, false)
+}
+
+#[cfg(test)]
+fn membership_writer_from_resolved_for_test_with_consent(
+    resolved: &crate::auth::invocation::ResolvedAppAuthority,
+    authority_creating_consent: bool,
+) -> crate::storage::MembershipWriter {
+    use crate::auth::invocation::ResolvedAppAuthority;
+    use crate::storage::{MembershipWriter, ResolvedMembershipWriter};
+
+    let resolved = match resolved {
+        ResolvedAppAuthority::Session { user_id, .. }
+        | ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. }
+        | ResolvedAppAuthority::DevImpersonation { user_id, .. } => {
+            ResolvedMembershipWriter::User {
+                user_id: user_id.clone(),
+            }
+        }
+        ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id,
+            effective_user_id,
+            grant_id,
+            ..
+        } => ResolvedMembershipWriter::ServicePrincipal {
+            actor_user_id: actor_user_id.clone(),
+            effective_user_id: effective_user_id.clone(),
+            grant_id: grant_id.clone(),
+        },
+        ResolvedAppAuthority::System => ResolvedMembershipWriter::System,
+        ResolvedAppAuthority::AdminBypass { .. } => ResolvedMembershipWriter::AdminBypass,
+        ResolvedAppAuthority::Anonymous => ResolvedMembershipWriter::Anonymous,
+    };
+    MembershipWriter::from_resolved_with_authority_creating(
+        &resolved,
+        authority_creating_consent,
+    )
+}
+
+#[cfg(test)]
 mod runtime_boundary_hardening_tests {
     use super::{
         IBEX_EVAL_OUTPUT_MAX_BYTES, IbexHostContext, dispatch_host_call, parse_handler_output,
@@ -6691,7 +6722,7 @@ mod runtime_boundary_hardening_tests {
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
+            super::membership_writer_from_resolved_for_test(&authority),
             false,
             true,
         )
@@ -7290,7 +7321,7 @@ mod private_failure_carrier_tests {
             HandlerInput::default(),
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
+            super::membership_writer_from_resolved_for_test(&authority),
             true,
             true,
         )
@@ -7470,7 +7501,7 @@ mod handler_result_bridge_tests {
             HandlerInput::default(),
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
+            super::membership_writer_from_resolved_for_test(&authority),
             false,
             true,
         )
@@ -7912,7 +7943,7 @@ mod table_visibility_runtime_tests {
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
+            super::membership_writer_from_resolved_for_test(&authority),
             writable,
             true,
         )
@@ -9416,7 +9447,7 @@ mod membership_bridge_tests {
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
+            super::membership_writer_from_resolved_for_test(&authority),
             true,
             true,
         )
@@ -9444,7 +9475,7 @@ mod membership_bridge_tests {
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved_with_authority_creating(
+            super::membership_writer_from_resolved_for_test_with_consent(
                 &authority,
                 authority_creating_consent,
             ),
@@ -9771,7 +9802,7 @@ mod membership_bridge_tests {
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
+            super::membership_writer_from_resolved_for_test(&authority),
             true,
             true,
         )
@@ -11028,7 +11059,7 @@ mod direct_human_projection_tests {
             HandlerInput::default(),
             projection,
             AdmissionLease::unmanaged(0, 0),
-            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
+            super::membership_writer_from_resolved_for_test(&authority),
             false,
             true,
         )

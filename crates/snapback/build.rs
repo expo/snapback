@@ -313,8 +313,22 @@ fn emit_build_identity() {
     // These additional paths feed the agent-safe implementation digest below.
     println!("cargo:rerun-if-changed=../../packages/snapback-codegen");
     println!("cargo:rerun-if-changed=../../packages/snapback-contract");
+    println!("cargo:rerun-if-changed=../../crates/snapback-activation/Cargo.toml");
+    println!("cargo:rerun-if-changed=../../crates/snapback-activation/src");
+    println!("cargo:rerun-if-changed=../../crates/snapback-auth/Cargo.toml");
+    println!("cargo:rerun-if-changed=../../crates/snapback-auth/src");
+    println!("cargo:rerun-if-changed=../../crates/snapback-engine/Cargo.toml");
+    println!("cargo:rerun-if-changed=../../crates/snapback-engine/src");
+    println!("cargo:rerun-if-changed=../../crates/snapback-kernel/Cargo.toml");
+    println!("cargo:rerun-if-changed=../../crates/snapback-kernel/src");
+    println!("cargo:rerun-if-changed=../../crates/snapback-runtime/Cargo.toml");
+    println!("cargo:rerun-if-changed=../../crates/snapback-runtime/src");
     println!("cargo:rerun-if-changed=../../crates/snapback-services/Cargo.toml");
     println!("cargo:rerun-if-changed=../../crates/snapback-services/src");
+    println!("cargo:rerun-if-changed=../../crates/snapback-sync/Cargo.toml");
+    println!("cargo:rerun-if-changed=../../crates/snapback-sync/src");
+    println!("cargo:rerun-if-changed=../../crates/snapback-types/Cargo.toml");
+    println!("cargo:rerun-if-changed=../../crates/snapback-types/src");
     println!("cargo:rerun-if-changed=../../tests");
     println!("cargo:rerun-if-changed=../../scripts/check-agent-safe-publication.mjs");
     println!("cargo:rerun-if-changed=../../scripts/generated-artifact-policy.mjs");
@@ -476,8 +490,22 @@ fn agent_safe_implementation_tree_sha256(repo_root: &Path) -> Option<String> {
             "--",
             "Cargo.toml",
             "Cargo.lock",
+            "crates/snapback-activation/Cargo.toml",
+            "crates/snapback-activation/src",
+            "crates/snapback-auth/Cargo.toml",
+            "crates/snapback-auth/src",
+            "crates/snapback-engine/Cargo.toml",
+            "crates/snapback-engine/src",
+            "crates/snapback-kernel/Cargo.toml",
+            "crates/snapback-kernel/src",
+            "crates/snapback-runtime/Cargo.toml",
+            "crates/snapback-runtime/src",
             "crates/snapback-services/Cargo.toml",
             "crates/snapback-services/src",
+            "crates/snapback-sync/Cargo.toml",
+            "crates/snapback-sync/src",
+            "crates/snapback-types/Cargo.toml",
+            "crates/snapback-types/src",
             "crates/snapback/Cargo.toml",
             "crates/snapback/build.rs",
             ".gitmodules",
@@ -579,10 +607,10 @@ fn agent_safe_publication_cycle_path(path: &str) -> bool {
     // canonical, receipt-bound publication-cycle artifacts mirrored here.
     matches!(
         path,
-        "crates/snapback/src/local-agent-safe-storage-publication.anchor.json"
-            | "crates/snapback/src/local-agent-safe-storage-publication.carrier.json"
-            | "crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json"
-            | "crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.carrier.json"
+        "crates/snapback-activation/src/local-agent-safe-storage-publication.anchor.json"
+            | "crates/snapback-activation/src/local-agent-safe-storage-publication.carrier.json"
+            | "crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.anchor.json"
+            | "crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.carrier.json"
             | "tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json"
             | "tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json"
             | "tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json"
@@ -606,8 +634,8 @@ fn agent_safe_publication_cycle_path(path: &str) -> bool {
             | "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json"
             | "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json"
             | "tests/acceptance/local-store-carrier-exit-v1-evidence.md"
-            | "crates/snapback/src/local-persistent-store-publication.anchor.v1.json"
-            | "crates/snapback/src/local-persistent-store-publication.v1.json"
+            | "crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json"
+            | "crates/snapback-engine/src/local-persistent-store-publication.v1.json"
     )
 }
 

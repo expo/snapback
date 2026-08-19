@@ -312,6 +312,18 @@ pub fn create_backup(
     )
 }
 
+pub fn create_backup_plan<'a>(
+    keyring: &'a AuthKeyringStore,
+    output_directory: &'a Path,
+    created_at_ms: u64,
+    random: &'a dyn RandomSource,
+) -> impl crate::auth::database_plan::AuthDatabasePlan<Output = SnapbackResult<AuthBackupOutcome>> + 'a
+{
+    crate::auth::database_plan::plan(move |database| {
+        create_backup(database, keyring, output_directory, created_at_ms, random)
+    })
+}
+
 fn create_backup_inner(
     database: &LocalDatabase,
     keyring: &AuthKeyringStore,

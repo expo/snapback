@@ -394,7 +394,7 @@ impl fmt::Debug for HostOpsRequest {
 ///
 /// @ref LLP 0109#162-closed-carriers-and-exact-operation-combinations —
 /// seed bodies live only under `HostOpsRequest.input`.
-pub(crate) fn versioned_seed_wrapper_has_forbidden_siblings(request: &HostOpsRequest) -> bool {
+pub fn versioned_seed_wrapper_has_forbidden_siblings(request: &HostOpsRequest) -> bool {
     request.schema.is_some()
         || request.functions.is_some()
         || request.seed.is_some()
@@ -550,7 +550,7 @@ fn host_ops_result(
 /// projection as every other served operation. Authentication failures occur
 /// before this helper; once admitted, each operation records its exact admin,
 /// metadata-read, or finite rehearsal-grant authority on success or failure.
-pub(crate) fn auth_operator_result(
+pub fn auth_operator_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
@@ -601,7 +601,7 @@ pub(crate) fn auth_operator_result(
 /// Project one finite telemetry query through the ordinary host-ops envelope.
 /// The export projection is one declared, bounded page; only HTTP/CLI unfold
 /// the same core into a streaming NDJSON response.
-pub(crate) fn telemetry_query_result(
+pub fn telemetry_query_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
@@ -662,7 +662,7 @@ pub(crate) fn telemetry_query_result(
 ///
 /// @ref LLP 0167#authority-one-activation-chokepoint — host-ops is a thin
 ///   projection over the same activation gate as the dedicated admin route.
-pub(crate) fn network_profile_result(
+pub fn network_profile_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
@@ -704,11 +704,11 @@ pub(crate) fn network_profile_result(
 /// Project the AppState-aware operational predicate through the ordinary
 /// host-ops envelope. A successful evaluation is `ok: true` even when its
 /// application-level `ready` predicate is false.
-pub(crate) fn operational_readiness_result(
+pub fn operational_readiness_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
     outcome: Result<crate::operational_readiness::OperationalReadinessV1, SnapbackError>,
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
@@ -742,7 +742,7 @@ pub(crate) fn operational_readiness_result(
 /// Project the server-owned data-patch core through the shared LLP 0024
 /// envelope. Token comparison/consumption and target classification happen
 /// before this presentation helper.
-pub(crate) fn data_patch_result(
+pub fn data_patch_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
@@ -792,7 +792,7 @@ pub(crate) fn data_patch_result(
 /// LLP 0184 §B: `debug.live.forceResync`'s envelope wrapper, the same small
 /// shape as [`network_profile_result`] but tagged with its own admin
 /// authority annotation.
-pub(crate) fn force_live_resync_result(
+pub fn force_live_resync_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
@@ -828,7 +828,7 @@ pub(crate) fn force_live_resync_result(
     }
 }
 
-pub(crate) fn host_op_handler_input(request: &HostOpsRequest) -> HandlerInput {
+pub fn host_op_handler_input(request: &HostOpsRequest) -> HandlerInput {
     HandlerInput {
         args: request
             .args
@@ -889,7 +889,7 @@ fn require_host_op_authority(
 
 /// Project an app reset already executed by the server's authorization-stream
 /// coordinator through the ordinary host-ops envelope.
-pub(crate) fn coordinated_reset_result(
+pub fn coordinated_reset_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
@@ -938,7 +938,7 @@ pub(crate) fn coordinated_reset_result(
     }
 }
 
-pub(crate) fn coordinated_versioned_seed_result(
+pub fn coordinated_versioned_seed_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
@@ -977,7 +977,7 @@ pub(crate) fn coordinated_versioned_seed_result(
 /// complete-pair provisioning barrier. The dev-mode embedding continues to
 /// use the legacy branch below; only the server's sessions path calls this
 /// helper, so no raw function swap can bypass durable activation.
-pub(crate) fn coordinated_functions_load_result(
+pub fn coordinated_functions_load_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
@@ -1022,7 +1022,7 @@ pub(crate) fn coordinated_functions_load_result(
     }
 }
 
-pub(crate) fn coordinated_function_run_mutation_result(
+pub fn coordinated_function_run_mutation_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
@@ -1074,11 +1074,19 @@ pub fn execute_host_op(
     request: HostOpsRequest,
     server_url: Option<String>,
 ) -> HostOpsResult {
+    #[cfg(not(feature = "engine-owner"))]
+    let served_routes = crate::server::route_registry()
+        .iter()
+        .map(|route| route.path)
+        .collect();
+    #[cfg(feature = "engine-owner")]
+    let served_routes = Vec::new();
     execute_host_op_with_profile(
         snapback,
         request,
         server_url,
         crate::contract_types::ServerProfile::Dev,
+        served_routes,
     )
 }
 
@@ -1090,6 +1098,7 @@ pub fn execute_host_op_with_profile(
     request: HostOpsRequest,
     server_url: Option<String>,
     profile: crate::contract_types::ServerProfile,
+    served_routes: Vec<&str>,
 ) -> HostOpsResult {
     let prepared_authority = match legacy_host_op_authority(snapback, &request, profile) {
         Ok(authority) => authority,
@@ -1113,18 +1122,21 @@ pub fn execute_host_op_with_profile(
         server_url,
         profile,
         prepared_authority,
+        served_routes,
     )
 }
 
 /// Execute with authority prepared by server middleware under one managed
 /// admission lease. Only app-executing host operations consume this value;
 /// administrative metadata operations must pass `None`.
-pub(crate) fn execute_host_op_with_profile_and_authority(
+#[doc(hidden)]
+pub fn execute_host_op_with_profile_and_authority(
     snapback: &mut LocalSnapback,
     request: HostOpsRequest,
     server_url: Option<String>,
     profile: crate::contract_types::ServerProfile,
     prepared_authority: Option<PreparedAuthority>,
+    served_routes: Vec<&str>,
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
     let operation = request.operation.clone();
@@ -1147,10 +1159,8 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
         )
     };
 
-    let profile_requirement =
-        crate::admin::operation_profile_requirement(&operation, request.user_id.is_some());
-    if let Some(diagnostic) =
-        crate::admin::operation_profile_diagnostic(profile, &operation, profile_requirement)
+    let profile_requirement = operation_profile_requirement(&operation, request.user_id.is_some());
+    if let Some(diagnostic) = operation_profile_diagnostic(profile, &operation, profile_requirement)
     {
         return envelope(
             snapback,
@@ -1753,10 +1763,7 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
                         )
                         .map(str::to_owned),
                         served_host_ops: &SERVED_HOST_OPS,
-                        served_routes: crate::server::route_registry()
-                            .iter()
-                            .map(|route| route.path)
-                            .collect(),
+                        served_routes,
                     };
                     crate::remediation::apply_remediation(&surfaces, input)
                 });
@@ -1873,7 +1880,7 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
 /// Managed-server `app.inspect` capture. The caller composes the ephemeral
 /// block only after releasing Local, then replaces the placeholder serialized
 /// by this envelope. Direct in-process host ops keep using [`LocalSnapback::inspect`].
-pub(crate) fn execute_host_op_inspect_core(
+pub fn execute_host_op_inspect_core(
     snapback: &mut LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
@@ -1881,10 +1888,10 @@ pub(crate) fn execute_host_op_inspect_core(
 ) -> HostOpsResult {
     debug_assert_eq!(request.operation, "app.inspect");
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
-    if let Some(diagnostic) = crate::admin::operation_profile_diagnostic(
+    if let Some(diagnostic) = operation_profile_diagnostic(
         profile,
         &request.operation,
-        crate::admin::operation_profile_requirement(&request.operation, false),
+        operation_profile_requirement(&request.operation, false),
     ) {
         return host_ops_result(
             snapback,
@@ -2345,7 +2352,7 @@ fn explain_function(
     }
 }
 
-pub(crate) fn host_op_diagnostic(code: &str, operation: &str, message: &str) -> Diagnostic {
+pub fn host_op_diagnostic(code: &str, operation: &str, message: &str) -> Diagnostic {
     if code == "SNAPBACK_HOST_OP_UNKNOWN" {
         let operations = SERVED_HOST_OPS.to_vec();
         return Diagnostic::error(code, "host-ops", message).with_details(
@@ -2494,6 +2501,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(feature = "engine-owner"))]
     #[test]
     fn host_ops_envelope_reports_a_corrupt_durable_version_without_a_cursor() {
         let dir = tempfile::tempdir().expect("host-ops tempdir");
@@ -2576,6 +2584,7 @@ mod tests {
             None,
             ServerProfile::Dev,
             Some(wrong),
+            Vec::new(),
         );
         assert_eq!(
             result.diagnostics[0].code,
@@ -2934,4 +2943,97 @@ mod tests {
             "SNAPBACK_BRANCH_REQUEST_INVALID"
         );
     }
+}
+/// Environment half of an operation's authority tuple. Every transport and
+/// alias asks this same policy before invoking the operation core.
+///
+/// @ref LLP 0024#authority-tuple — dev-user impersonation and destructive
+/// operations are profile-bounded capabilities regardless of transport;
+/// collision rescue is narrower than the ordinary non-production set.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OperationProfileRequirement {
+    Any,
+    NonProd,
+    DevOrTest,
+}
+
+/// One operation policy table shared by dedicated routes and multiplexed
+/// host-ops. `has_dev_user` means the caller selected an app identity rather
+/// than presenting hosted app authentication.
+pub fn operation_profile_requirement(
+    operation: &str,
+    has_dev_user: bool,
+) -> OperationProfileRequirement {
+    match operation {
+        // Operational readiness is an authenticated control-plane fact with
+        // the same all-profile inspection posture as app.inspect. The active
+        // network profile is recorded by the evaluator, never used as a gate.
+        "app.inspect" | "app.readiness.v1" => OperationProfileRequirement::Any,
+        // @ref LLP 0167#authority-one-activation-chokepoint — reads are
+        // available in every profile and writes must reach the network-profile
+        // activation gate so its finer hosted/Prod policy and refusal codes
+        // remain authoritative. Do not preempt that gate with NonProd here.
+        "debug.networkProfileGet" | "debug.networkProfileSet" => OperationProfileRequirement::Any,
+        // The dedicated data-patch target classifier owns the stricter
+        // local/non-production/primary-instance rule and its availability
+        // refusal diagnostic.
+        "data.patch.preview" | "data.patch.apply" => OperationProfileRequirement::Any,
+        "app.reset"
+        | "app.ensure.provision"
+        | "app.seed.ensure.v1"
+        | "app.seed.preview.v1"
+        | "app.seed.reset-install.v1"
+        | "app.seed.clear.v1"
+        | "schema.load"
+        | "functions.load" => OperationProfileRequirement::NonProd,
+        // The direct and multiplexed runners are developer/operator bypass
+        // surfaces even when they project an anonymous handler input. Hosted
+        // production invocation goes through the ordinary app-data gate.
+        "function.run" | "auth.mintSession" => OperationProfileRequirement::NonProd,
+        // The asset operator surface is developer/operator tooling like the
+        // direct runner; hosted production traffic uses the ordinary asset
+        // routes.
+        "asset.put"
+        | "asset.ensureSeedFixture"
+        | "asset.inspect"
+        | "asset.list"
+        | "asset.retry"
+        | "asset.delete" => OperationProfileRequirement::NonProd,
+        // Frozen LLP 0039 deliberately excludes demo from the below-manifest
+        // collision-recovery authority, on both ordinary and recovery servers.
+        "auth.rescueCollidingTable" => OperationProfileRequirement::DevOrTest,
+        "function.explain" if has_dev_user => OperationProfileRequirement::NonProd,
+        _ => OperationProfileRequirement::Any,
+    }
+}
+
+pub fn operation_profile_diagnostic(
+    profile: crate::contract_types::ServerProfile,
+    operation: &str,
+    requirement: OperationProfileRequirement,
+) -> Option<crate::diagnostic::Diagnostic> {
+    let allowed = match requirement {
+        OperationProfileRequirement::Any => true,
+        OperationProfileRequirement::NonProd => profile.allows_provisioning(),
+        OperationProfileRequirement::DevOrTest => matches!(
+            profile,
+            crate::contract_types::ServerProfile::Dev | crate::contract_types::ServerProfile::Test
+        ),
+    };
+    if allowed {
+        return None;
+    }
+    let allowed_profiles = match requirement {
+        OperationProfileRequirement::Any => unreachable!("allowed requirements returned above"),
+        OperationProfileRequirement::NonProd => "dev|demo|test",
+        OperationProfileRequirement::DevOrTest => "dev|test",
+    };
+    Some(crate::diagnostic::Diagnostic::error(
+        "SNAPBACK_PROFILE_FORBIDS",
+        "admin",
+        format!(
+            "{operation} is not available under the '{}' profile; set SNAPBACK_PROFILE={allowed_profiles} to enable it",
+            profile.as_str(),
+        ),
+    ))
 }

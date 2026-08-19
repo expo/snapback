@@ -10,8 +10,9 @@
 //! saved session snapshot, own every reversible pre-commit marker.
 
 pub use snapback_kernel::auth::session_projection::{
-    AUTHORIZATION_STREAM_META_KEY, AuthorizationStreamRecord, ProjectionIdentityRow,
-    ProjectionSessionRow, ProjectionSource, ProjectionTokenRow, ProjectionUserRow,
+    AUTHORIZATION_STREAM_META_KEY, AdmittedProjectionSnapshot, AuthorizationStreamRecord,
+    ProjectionIdentityRow, ProjectionSessionRow, ProjectionSource, ProjectionTokenRow,
+    ProjectionUserRow,
 };
 pub use snapback_auth::auth::lock_rank::{
     AUTH_LOCK_RANK_CONNECTION_REGISTRY, AUTH_LOCK_RANK_MODE_ADMISSION, AUTH_LOCK_RANK_SESSION,
@@ -1056,7 +1057,7 @@ impl SessionProjection {
         Arc::clone(&self.stream_fence)
     }
 
-    pub(crate) fn session_fence(&self, session_id: &str) -> Option<Arc<SessionFence>> {
+    pub fn session_fence(&self, session_id: &str) -> Option<Arc<SessionFence>> {
         self.by_session
             .get(session_id)
             .map(|session| Arc::clone(&session.fence))

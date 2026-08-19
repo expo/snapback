@@ -90,7 +90,7 @@ pub struct PendingMigrationDeclarationV1 {
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct OperationalReadinessHostInputV1 {
+pub struct OperationalReadinessHostInputV1 {
     pub expected_target: ExpectedActivationTargetV1,
 }
 
@@ -180,7 +180,7 @@ pub struct ApplicationReadyAuthV1 {
 /// Owned inputs to the pure operational-readiness evaluator. Server adapters
 /// capture these facts under their existing AppState/LocalSnapback cuts.
 #[derive(Clone, Debug)]
-pub(crate) struct OperationalReadinessFactsV1 {
+pub struct OperationalReadinessFactsV1 {
     pub startup_nonce: String,
     pub evaluated_at_ms: u64,
     pub auth_mode_state: AuthModeStateRecord,
@@ -196,7 +196,7 @@ pub(crate) struct OperationalReadinessFactsV1 {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct OperationalReadinessRuntimeFactsV1 {
+pub struct OperationalReadinessRuntimeFactsV1 {
     pub startup_nonce: String,
     pub evaluated_at_ms: u64,
     pub auth_mode_state: AuthModeStateRecord,
@@ -204,7 +204,7 @@ pub(crate) struct OperationalReadinessRuntimeFactsV1 {
     pub network_profile: String,
 }
 
-pub(crate) fn derive_effective_active_deployment(
+pub fn derive_effective_active_deployment(
     state: &AuthModeStateRecord,
     loaded_schema_manifest: &crate::manifest::SchemaManifest,
     loaded_function_manifest: &crate::manifest::FunctionManifest,
@@ -322,7 +322,7 @@ fn validate_obligation_identity(obligation: &DeclaredObligationV1) -> SnapbackRe
 
 /// Evaluate every conjunct independently so a false result lists the complete
 /// operator-actionable set rather than stopping at the first mismatch.
-pub(crate) fn evaluate_operational_readiness(
+pub fn evaluate_operational_readiness(
     facts: &OperationalReadinessFactsV1,
     expected: Option<&ExpectedActivationTargetV1>,
 ) -> OperationalReadinessV1 {

@@ -265,7 +265,7 @@ fn connected_client_witnesses_do_not_advance_the_durable_version() {
     let before = snapback
         .durable_version()
         .expect("durable version before witness");
-    let registry = snapback.connected_client_registry();
+    let registry = snapback.connected_clients.clone();
     let now = Instant::now();
     registry
         .register_managed_websocket("user-1", "connection-1", "grant-1", 1, now)
@@ -6142,6 +6142,7 @@ globalThis.__snapbackHandlers = {
 /// payload; an undeclared one folds to the generic failure and its
 /// payload never reaches the caller.
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn declared_application_refusal_round_trips_and_undeclared_folds() {
     let directory = tempfile::tempdir().expect("refusal telemetry directory");
     let database_path = directory.path().join("refusal-telemetry.sqlite3");
@@ -13252,7 +13253,7 @@ fn settled_sessions_activation_snapback(
 fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
     let random = CounterRandom::new();
     let now_ms = now_millis();
-    let service_fences = snapback.service_authority_fence_registry();
+    let service_fences = snapback.service_authority_fences.clone();
     let (resolved, service_publication) = {
         let db = snapback.auth_database_mut();
         db.auth_catalog()
@@ -14606,6 +14607,7 @@ async fn admitted_cron_claim_may_finish_while_transition_drains() {
 }
 
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn timeout_retirement_suppresses_cron_finish_and_result_ledger_publication() {
     let directory = tempfile::tempdir().expect("cron telemetry fixture directory");
     let database_path = directory.path().join("cron-telemetry.sqlite3");
@@ -22977,6 +22979,7 @@ fn guarded_snapback() -> LocalSnapback {
 }
 
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn served_staging_and_managed_action_emit_function_and_runtime_log_observations() {
     fn stage_and_commit(
         snapback: &mut LocalSnapback,
@@ -23221,6 +23224,7 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
 }
 
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn telemetry_config_persist_failure_restores_the_previous_runtime_policy() {
     let directory = tempfile::tempdir().expect("config telemetry fixture directory");
     let database_path = directory.path().join("config-telemetry.sqlite3");
@@ -23394,6 +23398,7 @@ fn function_activation_publishes_exact_release_before_lifecycle_marker() {
 }
 
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn target_descriptor_identity_survives_restart_and_compatibility_open_unbinds() {
     let directory = tempfile::tempdir().expect("target identity fixture directory");
     let database_path = directory.path().join("target-identity.sqlite3");
@@ -23453,6 +23458,7 @@ fn target_descriptor_identity_survives_restart_and_compatibility_open_unbinds() 
 }
 
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn schema_app_identity_change_rotates_without_relabeling_predecessor_rows() {
     let directory = tempfile::tempdir().expect("schema identity fixture directory");
     let database_path = directory.path().join("schema-identity.sqlite3");
@@ -23528,6 +23534,7 @@ fn schema_app_identity_change_rotates_without_relabeling_predecessor_rows() {
 }
 
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn descriptor_bound_reset_rotates_generation_and_preserves_exact_identity() {
     let directory = tempfile::tempdir().expect("reset identity fixture directory");
     let database_path = directory.path().join("reset-identity.sqlite3");
@@ -23567,6 +23574,7 @@ fn descriptor_bound_reset_rotates_generation_and_preserves_exact_identity() {
 }
 
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn telemetry_runtime_config_failure_compensates_the_durable_config() {
     let directory = tempfile::tempdir().expect("runtime config failure fixture directory");
     let database_path = directory.path().join("runtime-config-failure.sqlite3");
@@ -23631,6 +23639,7 @@ fn telemetry_runtime_config_failure_compensates_the_durable_config() {
 }
 
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn uncertain_reset_fence_drops_observations_until_boot_reconciliation() {
     let directory = tempfile::tempdir().expect("reset telemetry fixture directory");
     let database_path = directory.path().join("reset-telemetry.sqlite3");
@@ -23954,6 +23963,7 @@ fn synthetic_lane_l_settlement(now: u64, ids: [&str; 2]) -> MutationSettlement {
 }
 
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn dropped_staged_function_carriers_record_reserved_cancellation() {
     let directory = tempfile::tempdir().expect("cancelled function telemetry directory");
     let database_path = directory.path().join("cancelled-functions.sqlite3");
@@ -25299,7 +25309,7 @@ fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
     const INCARNATION: &str = "018f0d90-7b21-7a22-8c33-445566778899";
     let mut snapback = guarded_snapback();
     install_service_replay_auth(&mut snapback);
-    let service_fences = snapback.service_authority_fence_registry();
+    let service_fences = snapback.service_authority_fences.clone();
     let first = service_mutation_authority(&service_fences, "token-a", 1, "grant-a");
     let descriptor =
         crate::auth::invocation::descriptor_for_resolved_authority(first.resolved(), INCARNATION)
@@ -25545,6 +25555,7 @@ fn live_limit_input(connection_id: &str, args: serde_json::Value) -> LiveSubscri
 }
 
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn live_subscription_observations_join_once_and_record_disconnect_cause() {
     let directory = tempfile::tempdir().expect("live telemetry fixture directory");
     let database_path = directory.path().join("live-telemetry.sqlite3");
@@ -25653,6 +25664,7 @@ fn live_subscription_observations_join_once_and_record_disconnect_cause() {
 }
 
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn live_resume_retires_predecessor_before_successor_admission() {
     let directory = tempfile::tempdir().expect("resume telemetry fixture directory");
     let database_path = directory.path().join("resume-telemetry.sqlite3");
@@ -28570,6 +28582,7 @@ fn guarded_host_plan_local_path_rolls_back_and_releases_gate_before_postcommit()
 }
 
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn postcommit_head_corruption_preserves_confirmed_receipt_and_durable_truth() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("postcommit-head.sqlite3");
@@ -28878,12 +28891,12 @@ fn permission_epoch_exhaustion_refuses_guarded_and_detached_commit_seams() {
 
 #[test]
 fn permission_epoch_capacity_preflights_every_mutation_commit_seam() {
-    let source = include_str!("../engine.rs");
+    let source = include_str!("../../../../snapback-engine/src/local/engine.rs");
     for needle in [
-        "pub(crate) fn commit_staged_recorded_authorization_mutation",
+        "pub fn commit_staged_recorded_authorization_mutation",
         "fn invoke_mutation_commit_with_id_and_authority",
         "fn invoke_host_plan_mutation_commit_guarded",
-        "pub(crate) fn commit_detached_ibex_mutation_guarded",
+        "pub fn commit_detached_ibex_mutation_guarded",
     ] {
         let start = source.find(needle).expect("commit seam remains in source");
         let body = &source[start..];
@@ -30680,6 +30693,7 @@ fn rqs_resume_from_value(value: &Value) -> crate::live_wire::ResumeWire {
 /// publication through the ordinary live machinery — no privileged
 /// channel, no sleeping.
 #[test]
+#[cfg(not(feature = "engine-owner"))]
 fn retired_job_publication_emits_a_failure_terminal() {
     let directory = tempfile::tempdir().expect("job telemetry fixture directory");
     let database_path = directory.path().join("job-telemetry.sqlite3");

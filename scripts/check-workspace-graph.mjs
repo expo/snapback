@@ -93,8 +93,8 @@ function readRustTree(directory) {
 
 function validateKernelAdmissionFacades() {
   const facade = readFileSync(resolve(ROOT, 'crates/snapback/src/lib.rs'), 'utf8');
-  const pushAdapter = readFileSync(resolve(ROOT, 'crates/snapback/src/push.rs'), 'utf8');
-  const facadeRust = readRustTree(resolve(ROOT, 'crates/snapback/src'));
+  const pushAdapter = readFileSync(resolve(ROOT, 'crates/snapback-engine/src/push.rs'), 'utf8');
+  const facadeRust = `${readRustTree(resolve(ROOT, 'crates/snapback/src'))}\n${readRustTree(resolve(ROOT, 'crates/snapback-engine/src'))}`;
   const pushKernel = readFileSync(
     resolve(ROOT, 'crates/snapback-kernel/src/storage/push_registry.rs'),
     'utf8',
@@ -105,6 +105,14 @@ function validateKernelAdmissionFacades() {
   );
   const connectionKernel = readFileSync(
     resolve(ROOT, 'crates/snapback-kernel/src/storage/connections.rs'),
+    'utf8',
+  );
+  const jobsKernel = readFileSync(
+    resolve(ROOT, 'crates/snapback-kernel/src/storage/jobs.rs'),
+    'utf8',
+  );
+  const invocationSync = readFileSync(
+    resolve(ROOT, 'crates/snapback-sync/src/auth/invocation.rs'),
     'utf8',
   );
   const forkService = readFileSync(
@@ -120,8 +128,9 @@ function validateKernelAdmissionFacades() {
     'raw kernel push primitives must not be re-exported by the facade',
   );
   assert(
-    /trait PreparedPushRegistryExt[\s\S]*authority: impl FnOnce\(\) -> crate::auth::invocation::PreparedAuthority/u.test(pushAdapter),
-    'push commit adapter must consume PreparedAuthority',
+    /pub\(crate\) fn admitted_push_storage_authority\([\s\S]*authority: &crate::auth::invocation::PreparedAuthority/u.test(pushAdapter)
+      && !/pub trait PreparedPushRegistryExt/u.test(pushAdapter),
+    'push storage authority adapter must remain crate-private and consume PreparedAuthority',
   );
   assert(
     (facadeRust.match(/\.reserve_send_admitted_storage\(/gu) ?? []).length === 1,
@@ -141,6 +150,16 @@ function validateKernelAdmissionFacades() {
     forkService.includes('crate::storage::renew_derived_fork_lineage_v1(')
       && !forkService.includes('open_registered_system_writer_v1('),
     'fork lineage renewal must remain a typed kernel transaction',
+  );
+  assert(
+    /pub struct DeferredRehearsalAuthority\s*\{\s*provenance:/u.test(jobsKernel)
+      && !/pub struct DeferredRehearsalAuthority\s*\{\s*pub\s+provenance:/u.test(jobsKernel),
+    'deferred rehearsal provenance must remain an opaque kernel-minted carrier',
+  );
+  assert(
+    /pub struct RehearsalAuthorityBinding\s*\{\s*registry:/u.test(invocationSync)
+      && !/pub fn with_deferred_rehearsal_provenance/u.test(invocationSync),
+    'rehearsal preparation must consume the opaque coordinator binding, not raw asserted facts',
   );
 }
 

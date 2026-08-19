@@ -1,7 +1,7 @@
 use super::*;
 use crate::telemetry::TelemetryLocalExt as _;
 
-pub(crate) use snapback_activation::generation_activation::{
+pub use snapback_activation::generation_activation::{
     ActivationHost, DiagnosticBoundary, order_field_bounds_from_functions,
 };
 

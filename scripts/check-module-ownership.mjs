@@ -799,8 +799,24 @@ function loadRevisionSnapshot(revision) {
   ]));
   // A predecessor may itself be the red being fixed forward. Treat modules
   // already missing there as historical residue so the pushed tree can remove
-  // them or explicitly park them in unassigned. A module new in the pushed
-  // tree is absent from this patched set and remains blocked by shrink-only.
+  // them or explicitly park them in unassigned. Prior Phase 2 carves may also
+  // leave assignments for files already moved out of the analyzed remainder;
+  // discard only those absent predecessor paths before validating that frozen
+  // snapshot. Current-tree assignments remain fail-closed in validateManifest.
+  const rustSet = new Set(rustFiles);
+  for (const owner of Object.keys(manifest.modulesByOwner)) {
+    manifest.modulesByOwner[owner] = manifest.modulesByOwner[owner]
+      .filter((path) => rustSet.has(path));
+  }
+  manifest.godFiles = manifest.godFiles.filter((path) => rustSet.has(path));
+  manifest.mixedModuleScopes = Object.fromEntries(
+    Object.entries(manifest.mixedModuleScopes ?? {})
+      .filter(([path]) => rustSet.has(path)),
+  );
+  manifest.uncertainAssignments = Object.fromEntries(
+    Object.entries(manifest.uncertainAssignments ?? {})
+      .filter(([path]) => rustSet.has(path)),
+  );
   const assigned = new Set(Object.values(manifest.modulesByOwner).flat());
   const missing = rustFiles.filter((path) => !assigned.has(path));
   manifest.modulesByOwner.unassigned = [

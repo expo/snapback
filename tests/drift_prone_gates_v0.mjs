@@ -1402,7 +1402,7 @@ test('standing battery claims are discovered from every on-disk publication anch
   );
   assert.equal(
     claims.find(({ id }) => id === 'single_table_v1')?.recordPath,
-    'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
+    'crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
   );
 });
 

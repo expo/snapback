@@ -14,6 +14,8 @@
 //! @ref LLP 0057#security-and-redaction — readiness exposes one closed public
 //! fact and a redacted diagnostic, never keyring details.
 
+#[cfg(test)]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -254,7 +256,7 @@ impl AuthRuntime {
             )
             .map_err(ProviderError::into_snapback_error)?,
         );
-        let catalog = match snapback.auth_database_mut().inspect_auth_catalog() {
+        let catalog = match snapback.inspect_auth_catalog() {
             Ok(catalog) => catalog,
             // A foreign dormant table is deliberately recoverable through the
             // ordinary dev/test rescue host-op. It is not an auth-owned
@@ -324,6 +326,7 @@ impl AuthRuntime {
     /// Reserve and authenticate the process issuer before listener bind. The
     /// SQLite reservation commits first; authentication failure therefore
     /// burns a sequence and prevents serving rather than reusing it.
+    #[cfg(test)]
     pub(crate) fn reserve_invalidation_boot_issuer(
         &self,
         snapback: &mut LocalSnapback,
@@ -340,7 +343,7 @@ impl AuthRuntime {
             );
         }
         let (authorization, version_stream, boot_sequence) = snapback
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .reserve_invalidation_boot_issuer()?;
         let issuer_id = crate::auth::invalidation::IssuerId::fresh(
             authorization.incarnation.clone(),
@@ -375,11 +378,7 @@ impl AuthRuntime {
         snapback: &mut LocalSnapback,
     ) -> SnapbackResult<()> {
         if self.catalog_ready {
-            let sample = self.provider.now_ms();
-            let floor = snapback
-                .auth_database_mut()
-                .advance_auth_session_clock_floor(sample)?;
-            self.provider.seed_session_clock_floor(floor);
+            snapback.seed_auth_session_clock_floor(&self.provider)?;
         }
         Ok(())
     }
@@ -428,35 +427,7 @@ impl AuthRuntime {
         &self,
         snapback: &mut LocalSnapback,
     ) -> SnapbackResult<Arc<AuthCoordinator>> {
-        let database = snapback.auth_database_mut();
-        let incarnation = database.ensure_authorization_stream_incarnation()?;
-        if self.catalog_ready {
-            // Raise the durable floor to at least this startup's sample, then
-            // seed the process clock from the resulting (possibly higher)
-            // floor before any session deadline is derived or served.
-            let sample = self.provider.now_ms();
-            let floor = database.advance_auth_session_clock_floor(sample)?;
-            self.provider.seed_session_clock_floor(floor);
-        }
-        let source = if self.catalog_ready {
-            database.session_projection_source()?
-        } else {
-            ProjectionSource {
-                authorization_stream_value: AuthorizationStreamRecord::new(incarnation)
-                    .encode_bytes()?,
-                restore_declaration_id: None,
-                users: Vec::new(),
-                identities: Vec::new(),
-                sessions: Vec::new(),
-                superseded_tokens: Vec::new(),
-            }
-        };
-        let projection = SessionProjection::rebuild_with_fresh_startup_id(
-            source,
-            self.provider.now_ms(),
-            self.provider.monotonic_now(),
-        )?;
-        Ok(Arc::new(AuthCoordinator::new(projection)?))
+        snapback.build_auth_coordinator(&self.provider, self.catalog_ready)
     }
 
     /// Run the pre-bind pass against the still-locally-owned instance. A
@@ -471,11 +442,7 @@ impl AuthRuntime {
         }
         let maintenance = self.provider.exclusive_maintenance().await;
         let now_ms = self.provider.now_ms();
-        let database = snapback.auth_database_mut();
-        let pass = maintenance.run_gc_pass(database, now_ms)?;
-        if let Some(declaration) = database.schema().push_seam.clone() {
-            database.push_registry().retire_idle(&declaration, now_ms)?;
-        }
+        let pass = snapback.execute_auth_gc_plan(maintenance.gc_plan(now_ms), now_ms)?;
         Ok(Some(pass))
     }
 }
@@ -512,12 +479,7 @@ where
     let maintenance = provider.exclusive_maintenance().await;
     let now_ms = provider.now_ms();
     crate::server::with_snapback(state, move |snapback| {
-        let database = snapback.auth_database_mut();
-        let pass = maintenance.run_gc_pass(database, now_ms)?;
-        if let Some(declaration) = database.schema().push_seam.clone() {
-            database.push_registry().retire_idle(&declaration, now_ms)?;
-        }
-        Ok(pass)
+        snapback.execute_auth_gc_plan(maintenance.gc_plan(now_ms), now_ms)
     })
     .await
 }
@@ -557,15 +519,13 @@ where
         return Ok(());
     };
     after_sample();
-    let durable_frontier_ms = batch.durable_frontier_ms();
-    let durable_frontier = crate::server::with_snapback(state, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .advance_auth_session_clock_floor(durable_frontier_ms)
+    let durable_provider = provider.clone();
+    let durable_batch = batch.clone();
+    crate::server::with_snapback(state, move |snapback| {
+        snapback.advance_auth_session_clock_floor_for_due_batch(&durable_provider, &durable_batch)
     })
     .await
     .map_err(ProviderError::from)?;
-    provider.seed_session_clock_floor(durable_frontier);
     let finalized = coordinator
         .expire_sampled_due(batch)
         .await
@@ -781,7 +741,7 @@ mod tests {
         let mut snapback = LocalSnapback::open(database_path).expect("open auth fixture");
         let keyring = Arc::new(AuthKeyringStore::file_for_database(database_path));
         activate_catalog(
-            snapback.auth_database_mut(),
+            snapback.remainder_auth_database_mut(),
             keyring.as_ref(),
             now_ms,
             &OsRandom,
@@ -792,7 +752,7 @@ mod tests {
 
     fn insert_expired_challenges(snapback: &mut LocalSnapback, count: usize) {
         snapback
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .auth_catalog()
             .insert_expired_challenges_for_test(count)
             .expect("insert expired auth challenges");
@@ -800,7 +760,7 @@ mod tests {
 
     fn challenge_count(snapback: &mut LocalSnapback) -> usize {
         snapback
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .auth_catalog_read()
             .verification_challenge_count_for_test()
             .map(|count| count as usize)
@@ -968,7 +928,7 @@ mod tests {
         let bearer_text = bearer.expose_secret().to_owned();
         let token_hash = bearer.token_hash();
         snapback
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .auth_catalog()
             .insert_email_session_for_test(
                 "user-1",
@@ -1046,7 +1006,7 @@ mod tests {
 
         let admission = runtime.provider().admit().await;
         let resolved = admission
-            .resolve_session(snapback.auth_database_mut(), &bearer_text, 2_000)
+            .resolve_session(snapback.remainder_auth_database_mut(), &bearer_text, 2_000)
             .expect("session digest resolution is keyring-independent");
         assert_eq!(resolved.session_id, "session-1");
         assert!(!keyring_path.exists());
@@ -1186,7 +1146,7 @@ mod tests {
             .await
             .unwrap();
         let challenge = admission
-            .request_code(snapback.auth_database_mut(), provider.now_ms())
+            .request_code(snapback.remainder_auth_database_mut(), provider.now_ms())
             .unwrap()
             .challenge_id;
         drop(admission);
@@ -1200,7 +1160,7 @@ mod tests {
         .unwrap();
         let maintenance = provider.exclusive_maintenance().await;
         apply_declared_restore(
-            snapback.auth_database_mut(),
+            snapback.remainder_auth_database_mut(),
             maintenance.mailbox(),
             &declaration_path,
             declaration.declaration_id(),
@@ -1225,7 +1185,7 @@ mod tests {
         let mut snapback = LocalSnapback::memory().unwrap();
         let keyring = Arc::new(AuthKeyringStore::in_memory());
         activate_catalog(
-            snapback.auth_database_mut(),
+            snapback.remainder_auth_database_mut(),
             keyring.as_ref(),
             1_000,
             &OsRandom,
@@ -1233,12 +1193,12 @@ mod tests {
         .unwrap();
         let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).unwrap());
         snapback
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .ensure_authorization_stream_incarnation()
             .unwrap();
         let projection = SessionProjection::rebuild_with_fresh_startup_id(
             snapback
-                .auth_database_mut()
+                .remainder_auth_database_mut()
                 .session_projection_source()
                 .unwrap(),
             provider.now_ms(),
@@ -1315,7 +1275,7 @@ mod tests {
         let mut snapback = LocalSnapback::memory().unwrap();
         let keyring = Arc::new(AuthKeyringStore::in_memory());
         activate_catalog(
-            snapback.auth_database_mut(),
+            snapback.remainder_auth_database_mut(),
             keyring.as_ref(),
             1_000,
             &OsRandom,
@@ -1339,7 +1299,7 @@ mod tests {
         let session_id = uuid::Uuid::now_v7().to_string();
         let authority_instance_id = uuid::Uuid::now_v7().to_string();
         snapback
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .auth_catalog()
             .insert_email_session_for_test(
                 &user_id,
@@ -1355,12 +1315,12 @@ mod tests {
             )
             .unwrap();
         snapback
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .ensure_authorization_stream_incarnation()
             .unwrap();
         let projection = SessionProjection::rebuild_with_fresh_startup_id(
             snapback
-                .auth_database_mut()
+                .remainder_auth_database_mut()
                 .session_projection_source()
                 .unwrap(),
             provider.now_ms(),
@@ -1387,7 +1347,7 @@ mod tests {
             state
                 .lock()
                 .await
-                .auth_database_mut()
+                .remainder_auth_database_mut()
                 .auth_session_clock_floor()
                 .unwrap(),
             1_101,
@@ -1413,9 +1373,9 @@ mod tests {
         let retention_ms = 86_400_000;
         let mut snapback = LocalSnapback::memory().unwrap();
         let keyring = Arc::new(AuthKeyringStore::in_memory());
-        activate_catalog(snapback.auth_database_mut(), keyring.as_ref(), 1, &OsRandom).unwrap();
+        activate_catalog(snapback.remainder_auth_database_mut(), keyring.as_ref(), 1, &OsRandom).unwrap();
         snapback
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .activate_push_registry_for_test(crate::push::PushSeamDeclarationV1 {
                 app_scope: crate::push::PushAppScopeV1 {
                     eas_project_id: "eas-maintenance".into(),
@@ -1435,7 +1395,7 @@ mod tests {
         let session_id = crate::ids::mint(crate::ids::Kind::Session).unwrap();
         let authority_id = crate::ids::mint(crate::ids::Kind::AuthorityInstance).unwrap();
         snapback
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .auth_catalog()
             .insert_email_session_and_push_token_for_test(
                 &user_id,
@@ -1446,7 +1406,7 @@ mod tests {
             )
             .unwrap();
         snapback
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .ensure_authorization_stream_incarnation()
             .unwrap();
         let clock = Arc::new(RuntimeManualClock::new(1));
@@ -1461,7 +1421,7 @@ mod tests {
         );
         let projection = SessionProjection::rebuild_with_fresh_startup_id(
             snapback
-                .auth_database_mut()
+                .remainder_auth_database_mut()
                 .session_projection_source()
                 .unwrap(),
             provider.now_ms(),
@@ -1482,7 +1442,7 @@ mod tests {
         let inspection = state
             .lock()
             .await
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .push_registry_inspection()
             .unwrap();
         assert_eq!(inspection.live_tokens, 0);
@@ -1494,7 +1454,7 @@ mod tests {
         let mut snapback = LocalSnapback::memory().unwrap();
         let keyring = Arc::new(AuthKeyringStore::in_memory());
         activate_catalog(
-            snapback.auth_database_mut(),
+            snapback.remainder_auth_database_mut(),
             keyring.as_ref(),
             1_000,
             &OsRandom,
@@ -1502,12 +1462,12 @@ mod tests {
         .unwrap();
         let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).unwrap());
         snapback
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .ensure_authorization_stream_incarnation()
             .unwrap();
         let projection = SessionProjection::rebuild_with_fresh_startup_id(
             snapback
-                .auth_database_mut()
+                .remainder_auth_database_mut()
                 .session_projection_source()
                 .unwrap(),
             provider.now_ms(),
@@ -1547,7 +1507,7 @@ mod tests {
                 .unwrap();
             let now_ms = AUTH_KEY_ROTATION_AGE_MS + 1;
             crate::server::with_snapback(&writer_state, move |snapback| {
-                admission.request_code(snapback.auth_database_mut(), now_ms)
+                snapback.execute_auth_plan(admission.request_code_plan(now_ms))
             })
             .await
         });
@@ -1562,7 +1522,7 @@ mod tests {
         let output = directory.path().join("auth-backup");
         let (maintenance, backup) = crate::server::with_snapback(&state, move |snapback| {
             let result = create_backup(
-                snapback.auth_database_mut(),
+                snapback.remainder_auth_database_mut(),
                 maintenance.keyring(),
                 &output,
                 2_000,
@@ -1622,7 +1582,7 @@ mod tests {
         let session_id = uuid::Uuid::now_v7().to_string();
         let authority_instance_id = uuid::Uuid::now_v7().to_string();
         snapback
-            .auth_database_mut()
+            .remainder_auth_database_mut()
             .auth_catalog()
             .insert_email_session_for_test(
                 &user_id,
@@ -1643,7 +1603,7 @@ mod tests {
     fn activated_memory_snapback() -> LocalSnapback {
         let mut snapback = LocalSnapback::memory().unwrap();
         activate_catalog(
-            snapback.auth_database_mut(),
+            snapback.remainder_auth_database_mut(),
             &AuthKeyringStore::in_memory(),
             50,
             &OsRandom,
@@ -1676,7 +1636,7 @@ mod tests {
         );
         assert_eq!(
             snapback
-                .auth_database_mut()
+                .remainder_auth_database_mut()
                 .auth_session_clock_floor()
                 .unwrap(),
             250,
@@ -1745,7 +1705,7 @@ mod tests {
             .into_inner();
         assert_eq!(
             snapback
-                .auth_database_mut()
+                .remainder_auth_database_mut()
                 .auth_session_clock_floor()
                 .unwrap(),
             200,
@@ -1821,7 +1781,7 @@ mod tests {
             .into_inner();
         assert_eq!(
             snapback
-                .auth_database_mut()
+                .remainder_auth_database_mut()
                 .auth_session_clock_floor()
                 .unwrap(),
             201,

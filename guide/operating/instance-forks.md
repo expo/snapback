@@ -27,7 +27,7 @@ data-stream, admin-token, and resume-keyring identities.
 
 This is a **partial contributor-source local surface**, published for exactly
 the two measured release platforms, `macos/aarch64` and `linux/x86_64`, by the
-[source anchor](repo:crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json)
+[source anchor](repo:crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.anchor.json)
 and its
 [dated digest-bound receipt](repo:tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json).
 The claim is a qualification-C snapshot under LLP 0189 scoped-digest custody:

@@ -6,6 +6,8 @@
 //!   guard (§3.6), which is what makes the deferred asset-prepare
 //!   choreography implementable in one place.
 
+#[cfg(test)]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use super::{
     SharedSnapback, authorization_reservation_stale, now_millis, with_locked_snapback_then,
 };
@@ -363,38 +365,24 @@ where
     T: Send + 'static,
 {
     let mut guard = lock_managed_snapback(state).await;
-    let (generation, snapshot, ephemeral, incarnation) = tokio::task::spawn_blocking(move || {
+    let (generation, snapshot, ephemeral, projection) = tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
         let snapshot = guard.authorization_reservation_snapshot()?;
-        let incarnation = guard
-            .auth_database_mut()
-            .authorization_stream_incarnation()?;
+        let projection = guard.admitted_stream_projection_snapshot()?;
         Ok::<_, SnapbackError>((
             guard.app_generation(),
             snapshot,
             guard.ephemeral_api(),
-            incarnation,
+            projection,
         ))
     })
     .await
     .expect("reset authorization staging task panicked")?;
-    let source = crate::auth::session_projection::ProjectionSource {
-        authorization_stream_value:
-            crate::auth::session_projection::AuthorizationStreamRecord::new(incarnation)
-                .encode_bytes()?,
-        restore_declaration_id: None,
-        users: Vec::new(),
-        identities: Vec::new(),
-        sessions: Vec::new(),
-        superseded_tokens: Vec::new(),
-    };
-    let projection =
-        crate::auth::session_projection::SessionProjection::rebuild_with_fresh_startup_id(
-            source,
+    let coordinator = Arc::new(AuthCoordinator::from_admitted_snapshot(
+            projection,
             now_millis(),
             Instant::now(),
-        )?;
-    let coordinator = Arc::new(AuthCoordinator::new(projection)?);
+        )?);
     let carrier = coordinator.premark_stream_reset_if_drained()?;
     let predecessor = carrier.predecessor().clone();
     let successor = carrier.successor().clone();

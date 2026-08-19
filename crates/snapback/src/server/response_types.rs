@@ -221,7 +221,8 @@ impl AuthorizedLeaseQueryResponse {
         } = output;
         let (completeness_proof, authorization_witness) = completeness
             .map_or((None, None), |carrier| {
-                (Some(carrier.proof), Some(carrier.witness))
+                let (proof, witness) = carrier.into_parts();
+                (Some(proof), Some(witness))
             });
         Self {
             version,

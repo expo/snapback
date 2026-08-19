@@ -30,17 +30,23 @@ export const AUTHORING_PROFILE_READ_ALLOWLIST = Object.freeze([
     category: 'familiar-type-brand',
   }),
   Object.freeze({ path: 'crates/snapback/src/cli/migration.rs', category: 'migration-tooling' }),
-  Object.freeze({ path: 'crates/snapback/src/diagnostic.rs', category: 'diagnostic-record' }),
-  Object.freeze({ path: 'crates/snapback/src/manifest.rs', category: 'custody-record' }),
-  Object.freeze({ path: 'crates/snapback/src/migration.rs', category: 'migration-tooling' }),
+  Object.freeze({ path: 'crates/snapback-kernel/src/diagnostic.rs', category: 'diagnostic-record' }),
+  Object.freeze({ path: 'crates/snapback-engine/src/manifest.rs', category: 'custody-record' }),
+  Object.freeze({ path: 'crates/snapback-kernel/src/migration.rs', category: 'migration-tooling' }),
 ]);
 
 export const AUTHORING_PROFILE_SCAN_ROOTS = Object.freeze([
   // @ref LLP 0276#phases — carved production roots remain inside the
   // fail-closed authoring-profile branch inventory.
+  'crates/snapback-activation/src',
+  'crates/snapback-auth/src',
+  'crates/snapback-kernel/src',
+  'crates/snapback-runtime/src',
   'crates/snapback-services/src',
+  'crates/snapback-engine/src',
   'crates/snapback/src',
   'crates/snapback-sync/src',
+  'crates/snapback-types/src',
   'packages/snapback-client',
   'packages/snapback-react',
   'packages/snapback-harness',

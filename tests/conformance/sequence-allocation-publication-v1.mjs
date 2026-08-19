@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const receiptBytes = await readFile(new URL('./sequence-allocation-publication-v1.receipt.json', import.meta.url));
 const receipt = JSON.parse(receiptBytes);
-const carrierBytes = await readFile(new URL('../../crates/snapback/src/local-sequence-allocation-publication.v1.json', import.meta.url));
+const carrierBytes = await readFile(new URL('../../crates/snapback-engine/src/local-sequence-allocation-publication.v1.json', import.meta.url));
 const carrier = JSON.parse(carrierBytes);
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 
@@ -52,7 +52,7 @@ assert.equal(carrier.maturity, 'experimental');
 assert.equal(carrier.qualificationReceiptSha256, sha256(receiptBytes));
 assert.equal(
   sha256(carrierBytes),
-  'sha256:c04817194dbd5e1991627d109be7b8f300c0d1cb79e79d6cb4352611f79438b2',
+  'sha256:3aa013330d761fa55693d296f942921d56d8acdafebcfadf48ace432469e2dcb',
 );
 for (const [source, expected] of Object.entries({
   ...carrier.executorSourceSha256,

@@ -4,52 +4,9 @@
 //! push, asset, vector, and auth facts: splitting a constructor body would
 //! change the evidence gate rather than merely relocate it.
 
-use snapback_services::manifest::ExpoPushSeamFactsLocalExt as _;
 use super::*;
 use crate::assets::AssetFactsLocalExt as _;
-
-trait FullTextSearchFactsLocalExt {
-    fn local_v1() -> Self;
-}
-
-impl FullTextSearchFactsLocalExt for FullTextSearchFactsV1 {
-    fn local_v1() -> Self {
-        Self {
-            capability_id: crate::search::SEARCH_CAPABILITY.to_owned(),
-            maturity: "stable".to_owned(),
-            analyzer: crate::search::SEARCH_ANALYZER.to_owned(),
-            unicode_version: crate::search::unicode17_generated::UNICODE_VERSION.to_owned(),
-            analyzer_tables_digest: crate::search::unicode17_generated::ANALYZER_TABLES_DIGEST
-                .to_owned(),
-            parser: crate::search::SEARCH_PARSER.to_owned(),
-            scorer: crate::search::SEARCH_SCORER.to_owned(),
-            score_max: 22_937_600,
-            maintenance: "synchronous".to_owned(),
-            pagination: "current-keyset-v1".to_owned(),
-            cursor_ttl_ms: crate::search::SEARCH_CURSOR_TTL_MS,
-            accelerator: "none".to_owned(),
-            authorization_filters: vec![
-                "public-read".to_owned(),
-                "owner.v1".to_owned(),
-                "membership.v1".to_owned(),
-            ],
-            highlights: true,
-            counts: false,
-            facets: false,
-            suggestions: false,
-            offline: false,
-            storage_engines: vec!["sqlite".to_owned()],
-            nonclaims: vec![
-                "live-search".to_owned(),
-                "offline-search".to_owned(),
-                "postgres".to_owned(),
-                "relational-visibility".to_owned(),
-                "native-fts-acceleration".to_owned(),
-                "sensitive-fields".to_owned(),
-            ],
-        }
-    }
-}
+use snapback_services::manifest::ExpoPushSeamFactsLocalExt as _;
 
 pub(super) fn bounded_batch_read_runtime_facts() -> Value {
     serde_json::json!({
@@ -64,13 +21,13 @@ pub(super) fn bounded_batch_read_runtime_facts() -> Value {
 pub(super) const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("../local-relation-activity-publication.v1.json");
 pub(super) const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:901b8dbc111547b15739d1339198c062460b2af7babf3034c6ce46b9c49211c4";
+    "sha256:3639c98d90d1a2a4f5b52750b12a6fa7b28453d899ef77610c70c811c673d50b";
 pub(super) const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../../../../tests/conformance/relation-activity-publication-v1.receipt.json");
 pub(super) const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("../local-sequence-allocation-publication.v1.json");
 pub(super) const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:c04817194dbd5e1991627d109be7b8f300c0d1cb79e79d6cb4352611f79438b2";
+    "sha256:3aa013330d761fa55693d296f942921d56d8acdafebcfadf48ace432469e2dcb";
 pub(super) const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../../../../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 pub(super) const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -181,7 +138,7 @@ pub(super) const PACKAGED_STORE_QUALIFICATION_RECEIPT_MAX_BYTES: u64 = 4 * 1024 
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct PackagedStoreClosureEntryV1 {
+pub struct PackagedStoreClosureEntryV1 {
     pub(crate) name: String,
     pub(crate) version: String,
     pub(crate) sha256: String,
@@ -189,7 +146,7 @@ pub(crate) struct PackagedStoreClosureEntryV1 {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct PackagedStoreQualificationSuiteV1 {
+pub struct PackagedStoreQualificationSuiteV1 {
     pub(crate) id: String,
     pub(crate) pass: u64,
     pub(crate) fail: u64,
@@ -208,15 +165,15 @@ pub(crate) struct PackagedStoreBinaryIdentityV1 {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct PackagedStoreQualificationReceiptV1 {
+pub struct PackagedStoreQualificationReceiptV1 {
     pub(crate) schema_version: String,
     pub(crate) capability_id: String,
     pub(crate) date: String,
     pub(crate) binary_identity: PackagedStoreBinaryIdentityV1,
     pub(crate) embedded_carrier_sha256: String,
-    pub(crate) package_closure: Vec<PackagedStoreClosureEntryV1>,
+    pub package_closure: Vec<PackagedStoreClosureEntryV1>,
     pub(crate) package_closure_sha256: String,
-    pub(crate) suite: PackagedStoreQualificationSuiteV1,
+    pub suite: PackagedStoreQualificationSuiteV1,
 }
 
 pub(super) fn packaged_store_date_is_well_formed(value: &str) -> bool {
@@ -282,14 +239,14 @@ pub(super) fn packaged_store_closure_canonical_text(
     Some(canonical)
 }
 
-pub(crate) fn packaged_store_closure_sha256(
+pub fn packaged_store_closure_sha256(
     package_closure: &[PackagedStoreClosureEntryV1],
 ) -> Option<String> {
     packaged_store_closure_canonical_text(package_closure)
         .map(|canonical| sha256_prefixed(canonical.as_bytes()))
 }
 
-pub(crate) fn packaged_store_qualification_suite_is_qualified(
+pub fn packaged_store_qualification_suite_is_qualified(
     suite: &PackagedStoreQualificationSuiteV1,
 ) -> bool {
     suite.id == PACKAGED_STORE_QUALIFICATION_SUITE_ID
@@ -313,7 +270,7 @@ pub(super) fn packaged_store_identity_facts_are_qualified(
         && build_distribution == crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE
 }
 
-pub(crate) fn packaged_store_runtime_identity_is_qualified(
+pub fn packaged_store_runtime_identity_is_qualified(
     identity: &crate::identity::BinaryIdentity,
     build_distribution: &str,
 ) -> bool {
@@ -326,7 +283,7 @@ pub(crate) fn packaged_store_runtime_identity_is_qualified(
     )
 }
 
-pub(crate) fn stamp_packaged_store_qualification_receipt(
+pub fn stamp_packaged_store_qualification_receipt(
     date: &str,
     identity: &crate::identity::BinaryIdentity,
     build_distribution: &str,
@@ -461,157 +418,157 @@ pub(super) fn local_relation_activity_publication_verified_for(
         && carrier.executor_source_sha256
             == BTreeMap::from([
                 (
-                    "src/local.rs".to_owned(),
-                    "sha256:6e78847ef78138bedb11d407f0b93c1595136e04690abebd991e3bfed2016711"
+                    "crates/snapback-engine/src/local.rs".to_owned(),
+                    "sha256:62791ca4372ac41187ae3ba28604437a5f52e5332643daeb750aa189986a8399"
                         .to_owned(),
                 ),
                 (
-                    "src/local/auth_room_kick_acceptance.rs".to_owned(),
+                    "crates/snapback-engine/src/local/auth_room_kick_acceptance.rs".to_owned(),
                     "sha256:e06a2b8454fca1d59a7f73b3bdf9a7e5ba8349becc477aaebafe091ead744b90"
                         .to_owned(),
                 ),
                 (
-                    "src/local/authorization_acceptance.rs".to_owned(),
+                    "crates/snapback-engine/src/local/authorization_acceptance.rs".to_owned(),
                     "sha256:57cdfcc6f7990f22fbc6044999d36fc4b91ef97b5f77de35d00a3f5a711af99e"
                         .to_owned(),
                 ),
                 (
-                    "src/local/config_types.rs".to_owned(),
-                    "sha256:ccae542de561b1e394053f482f21b88118c74d028017f72307691b806f2b0e85"
+                    "crates/snapback-types/src/local/config_types.rs".to_owned(),
+                    "sha256:e64d0d95649b293262d87163afe4a4afe2c67ebb39183526b5f3b8418513c0f9"
                         .to_owned(),
                 ),
                 (
-                    "src/local/inspection.rs".to_owned(),
-                    "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679"
+                    "crates/snapback-engine/src/local/inspection.rs".to_owned(),
+                    "sha256:31ee31ddbe800f0e7ad9e31f2392613a4fc55d084b6c5a780c260438e6d9de1c"
                         .to_owned(),
                 ),
                 (
-                    "src/local/live_protocol.rs".to_owned(),
-                    "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090"
+                    "crates/snapback-sync/src/local/live_protocol.rs".to_owned(),
+                    "sha256:f9339eacb2fdad7f88c9a5a9b0a315b51f5a9ea7fcb851ef004de094bc1b0c4b"
                         .to_owned(),
                 ),
                 (
-                    "src/local/receipt_log.rs".to_owned(),
-                    "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add"
+                    "crates/snapback-sync/src/local/receipt_log.rs".to_owned(),
+                    "sha256:a644a4c2f1ee59c99c5c076ad5fd77e9e9f8457bafc4063ab2cb8ebe11fd4553"
                         .to_owned(),
                 ),
                 (
-                    "src/local/tests.rs".to_owned(),
-                    "sha256:b732fbe3b431316cc91ca2797544c1f8c3fa1acbdef11244c8718524f94fb543"
+                    "crates/snapback-engine/src/local/tests.rs".to_owned(),
+                    "sha256:d6c84ca60bd9a29a2fdf552a22aebe536b4db38e9ffd0db2a61d97bc86c24376"
                         .to_owned(),
                 ),
                 (
-                    "src/storage.rs".to_owned(),
-                    "sha256:9d9469e4bd24ffdf717330b41975229159a1e4a1e7d1e599d19b4d8969d0d10d"
+                    "crates/snapback-kernel/src/storage.rs".to_owned(),
+                    "sha256:8c271c2ceda1c45371f9fd58be25ad76ec87811320de0546b73d9f4770de2d5c"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth.rs".to_owned(),
-                    "sha256:3f6e71b3b32d7beda075b336b98aeb618a1fe0eaf54e8049540119b3dea16820"
+                    "crates/snapback-kernel/src/storage/auth.rs".to_owned(),
+                    "sha256:7de3edc65fcc4f02b58e76fb0a4ec0b661e8bc2a4e4310365aaac3871daa3966"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_agent_credentials.rs".to_owned(),
-                    "sha256:d2c5f512a26fd2afca8df6202743b51077d15cde9e0fbd1aed48c555f34dbf3e"
+                    "crates/snapback-kernel/src/storage/auth_agent_credentials.rs".to_owned(),
+                    "sha256:2158e7eb564e2f008758d6df8c07a284d4699edc06d0ad4291be074a8d86f153"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_agents.rs".to_owned(),
-                    "sha256:221bff2b8468479f3b5fa601d677133f7be22e117ee8b81a90e28e88cd90051f"
+                    "crates/snapback-kernel/src/storage/auth_agents.rs".to_owned(),
+                    "sha256:6ec8ce1b302727921e6a1aa6692fa440022238ff8479f1d36cdd138aafa257ff"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_asset_callbacks.rs".to_owned(),
-                    "sha256:7dd1bae86f73207f2695566ab302f33fceebffe248bd6bab1b0c0866ae8a7ca9"
+                    "crates/snapback-kernel/src/storage/auth_asset_callbacks.rs".to_owned(),
+                    "sha256:1aefa4f65112c82385508812e3cc6e7fbd7c63dff456a935eb58b209e8353ced"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:9ccc7da5ba2877b1b31f0b55b81acae602a35229abd6feccd686a584f2e96cb7"
+                    "crates/snapback-kernel/src/storage/auth_grants.rs".to_owned(),
+                    "sha256:bd3bc3f8ff00892eb4a2c7d067369bf02b9bfc0e6cf62454201579c9821bcd41"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_invalidation.rs".to_owned(),
-                    "sha256:575782a9d656905c0a127ab6b2c0fd83d7951cc3452f0944b3c04e3df17a9099"
+                    "crates/snapback-kernel/src/storage/auth_invalidation.rs".to_owned(),
+                    "sha256:c714adf36cf6f6e48bcd2cd81875625ac235045916fa74f7b870cc0022f60318"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:b35dd330712309a868c728cd5e18ab149cd8bda67254652cedc3ffe7d5d05134"
+                    "crates/snapback-kernel/src/storage/auth_mode.rs".to_owned(),
+                    "sha256:e6cd7bdbb80dd59c59a3896d52e92d80a6760bc1a072ab86d90ed95c0960d0c2"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_rescue.rs".to_owned(),
-                    "sha256:42425bad49410ad0ad0d950d335b8cebe35d461904dc48697388236c3fe41bab"
+                    "crates/snapback-kernel/src/storage/auth_rescue.rs".to_owned(),
+                    "sha256:d54e0a1033f97eae8efa508aabcc5cb7eb486fe90bd5a6568f060ce441456163"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_scope_bases.rs".to_owned(),
-                    "sha256:3ee8e5dca5fd0c2553ed03db02abba84a9dfcacc6eaeadbd953b11f8079b69ae"
+                    "crates/snapback-kernel/src/storage/auth_scope_bases.rs".to_owned(),
+                    "sha256:e347b8678771507a6ada604e71d33425005b47493596c4026b10713ca8a8a084"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_sender.rs".to_owned(),
-                    "sha256:98a4c79ecb113792a4d9c4898a0a2f476fd0d79d76f8dcb087186b017e114c80"
+                    "crates/snapback-kernel/src/storage/auth_sender.rs".to_owned(),
+                    "sha256:05f732f8a0d75ef7ae3fc12a6e484a1150eff91123144b460d726ebca5ed34e2"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_stream.rs".to_owned(),
-                    "sha256:fd1a226b37d71dd4116ecdea283aad2b35852802cc2acd8a0155bd4f60113332"
+                    "crates/snapback-kernel/src/storage/auth_stream.rs".to_owned(),
+                    "sha256:f0022dacfe85ffc9f116af65bcf71d32159f1216df565dce2053183576d765b6"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_throttle.rs".to_owned(),
-                    "sha256:3b7c3af31d633222985e257a12b58dd26a8390b74d0d26b811eea2b908264d77"
+                    "crates/snapback-kernel/src/storage/auth_throttle.rs".to_owned(),
+                    "sha256:1a59e15c4acb01ccf900bfb5130f87453593af20dd6a1abb9eca09f498f86b14"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/authorization.rs".to_owned(),
+                    "crates/snapback-kernel/src/storage/authorization.rs".to_owned(),
                     "sha256:1c26338d9cb79206135a594e48346e091aaca2a0d9ac07d102481249a10a1552"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/authorized_lease.rs".to_owned(),
-                    "sha256:58fe02cd52bafbb03b1a0da1351df94705a71633dd6927fa0657597c65045a50"
+                    "crates/snapback-kernel/src/storage/authorized_lease.rs".to_owned(),
+                    "sha256:6f595d99a2d62460ad0955edc01879e73a1f99e04361fd0b2424cb6a67f78aea"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/connections.rs".to_owned(),
-                    "sha256:802f027db805e802487a51d16491e224430825aa5eb799669feba4785d605fdd"
+                    "crates/snapback-kernel/src/storage/connections.rs".to_owned(),
+                    "sha256:899bdc32913b50502ba68827f24a8e70aac8e198f699634202922954e9604f8d"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/hosted_admission.rs".to_owned(),
-                    "sha256:ee1a0b496f36b80949dbab122c2be72f91a4942d44365d509149b6cb38f385ac"
+                    "crates/snapback-kernel/src/storage/hosted_admission.rs".to_owned(),
+                    "sha256:d9bbeddbd2358f21a566eb2eb2451e20980588cb8d37de0c3381ab10684d1351"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:311cc20187790f82af6b6ce54899b2f50143098e9916d43413838f3c8e72635f"
+                    "crates/snapback-kernel/src/storage/migration_executor.rs".to_owned(),
+                    "sha256:34d78071b472e894747ec8a28d0686bbd5e112fffc28b620732d369ab5b5bebf"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:43bfda997ab189b4ecdfa3d6fb8442487f26c57d86c6f21cd9ba1b8fa36a412c"
+                    "crates/snapback-kernel/src/storage/migration_scan.rs".to_owned(),
+                    "sha256:f83bf35973379eecbdcfe73f827d06557da202d760e1288a3ace7c5e47fe26c9"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/projection_rebuild.rs".to_owned(),
-                    "sha256:cdc288f51d056d284eac37337fa533f06e9c80e93085719ada2afa81b07ef0c5"
+                    "crates/snapback-kernel/src/storage/projection_rebuild.rs".to_owned(),
+                    "sha256:86abda62d8fbe74b4e359b491926177348098f723a7632c61c7e372638da1c43"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/schema_transition.rs".to_owned(),
-                    "sha256:c91c85ef764082865c95059dc2ba755f23ea3eabc88b6260a2f08f8705957952"
+                    "crates/snapback-kernel/src/storage/schema_transition.rs".to_owned(),
+                    "sha256:44a051e4e34fcd03da79dddbe43bed64a9a800b58ba93dffb69af7a989a37fbb"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/tests.rs".to_owned(),
-                    "sha256:18aaaef5fcd5e3666964a5a97a5aa62612ad3286ecee55b75727ad9392960b02"
+                    "crates/snapback-kernel/src/storage/tests.rs".to_owned(),
+                    "sha256:358b3f0ca5d222496e8655e1329cd3d5e8ef2abcb0630b57db04139b3f3747d3"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/write_authority.rs".to_owned(),
+                    "crates/snapback-kernel/src/storage/write_authority.rs".to_owned(),
                     "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
                         .to_owned(),
                 ),
@@ -669,157 +626,157 @@ pub(super) fn local_sequence_allocation_publication_verified_for(
         && carrier.executor_source_sha256
             == BTreeMap::from([
                 (
-                    "src/local/auth_room_kick_acceptance.rs".to_owned(),
+                    "crates/snapback-engine/src/local/auth_room_kick_acceptance.rs".to_owned(),
                     "sha256:e06a2b8454fca1d59a7f73b3bdf9a7e5ba8349becc477aaebafe091ead744b90"
                         .to_owned(),
                 ),
                 (
-                    "src/local/authorization_acceptance.rs".to_owned(),
+                    "crates/snapback-engine/src/local/authorization_acceptance.rs".to_owned(),
                     "sha256:57cdfcc6f7990f22fbc6044999d36fc4b91ef97b5f77de35d00a3f5a711af99e"
                         .to_owned(),
                 ),
                 (
-                    "src/local/config_types.rs".to_owned(),
-                    "sha256:ccae542de561b1e394053f482f21b88118c74d028017f72307691b806f2b0e85"
+                    "crates/snapback-types/src/local/config_types.rs".to_owned(),
+                    "sha256:e64d0d95649b293262d87163afe4a4afe2c67ebb39183526b5f3b8418513c0f9"
                         .to_owned(),
                 ),
                 (
-                    "src/local/inspection.rs".to_owned(),
-                    "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679"
+                    "crates/snapback-engine/src/local/inspection.rs".to_owned(),
+                    "sha256:31ee31ddbe800f0e7ad9e31f2392613a4fc55d084b6c5a780c260438e6d9de1c"
                         .to_owned(),
                 ),
                 (
-                    "src/local/live_protocol.rs".to_owned(),
-                    "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090"
+                    "crates/snapback-sync/src/local/live_protocol.rs".to_owned(),
+                    "sha256:f9339eacb2fdad7f88c9a5a9b0a315b51f5a9ea7fcb851ef004de094bc1b0c4b"
                         .to_owned(),
                 ),
                 (
-                    "src/local/receipt_log.rs".to_owned(),
-                    "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add"
+                    "crates/snapback-sync/src/local/receipt_log.rs".to_owned(),
+                    "sha256:a644a4c2f1ee59c99c5c076ad5fd77e9e9f8457bafc4063ab2cb8ebe11fd4553"
                         .to_owned(),
                 ),
                 (
-                    "src/local/tests.rs".to_owned(),
-                    "sha256:b732fbe3b431316cc91ca2797544c1f8c3fa1acbdef11244c8718524f94fb543"
+                    "crates/snapback-engine/src/local/tests.rs".to_owned(),
+                    "sha256:d6c84ca60bd9a29a2fdf552a22aebe536b4db38e9ffd0db2a61d97bc86c24376"
                         .to_owned(),
                 ),
                 (
-                    "src/runtime.rs".to_owned(),
-                    "sha256:6320da10271fca2e8b1fad23155a64a36554a6b8dce4bf5af2e6470b58030ec8"
+                    "crates/snapback-engine/src/runtime.rs".to_owned(),
+                    "sha256:310599bd6f50de2c1791b5bd228ad0da60ac5488aa4fb0184d0aea9ff40fe04a"
                         .to_owned(),
                 ),
                 (
-                    "src/storage.rs".to_owned(),
-                    "sha256:9d9469e4bd24ffdf717330b41975229159a1e4a1e7d1e599d19b4d8969d0d10d"
+                    "crates/snapback-kernel/src/storage.rs".to_owned(),
+                    "sha256:8c271c2ceda1c45371f9fd58be25ad76ec87811320de0546b73d9f4770de2d5c"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth.rs".to_owned(),
-                    "sha256:3f6e71b3b32d7beda075b336b98aeb618a1fe0eaf54e8049540119b3dea16820"
+                    "crates/snapback-kernel/src/storage/auth.rs".to_owned(),
+                    "sha256:7de3edc65fcc4f02b58e76fb0a4ec0b661e8bc2a4e4310365aaac3871daa3966"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_agent_credentials.rs".to_owned(),
-                    "sha256:d2c5f512a26fd2afca8df6202743b51077d15cde9e0fbd1aed48c555f34dbf3e"
+                    "crates/snapback-kernel/src/storage/auth_agent_credentials.rs".to_owned(),
+                    "sha256:2158e7eb564e2f008758d6df8c07a284d4699edc06d0ad4291be074a8d86f153"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_agents.rs".to_owned(),
-                    "sha256:221bff2b8468479f3b5fa601d677133f7be22e117ee8b81a90e28e88cd90051f"
+                    "crates/snapback-kernel/src/storage/auth_agents.rs".to_owned(),
+                    "sha256:6ec8ce1b302727921e6a1aa6692fa440022238ff8479f1d36cdd138aafa257ff"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_asset_callbacks.rs".to_owned(),
-                    "sha256:7dd1bae86f73207f2695566ab302f33fceebffe248bd6bab1b0c0866ae8a7ca9"
+                    "crates/snapback-kernel/src/storage/auth_asset_callbacks.rs".to_owned(),
+                    "sha256:1aefa4f65112c82385508812e3cc6e7fbd7c63dff456a935eb58b209e8353ced"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:9ccc7da5ba2877b1b31f0b55b81acae602a35229abd6feccd686a584f2e96cb7"
+                    "crates/snapback-kernel/src/storage/auth_grants.rs".to_owned(),
+                    "sha256:bd3bc3f8ff00892eb4a2c7d067369bf02b9bfc0e6cf62454201579c9821bcd41"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_invalidation.rs".to_owned(),
-                    "sha256:575782a9d656905c0a127ab6b2c0fd83d7951cc3452f0944b3c04e3df17a9099"
+                    "crates/snapback-kernel/src/storage/auth_invalidation.rs".to_owned(),
+                    "sha256:c714adf36cf6f6e48bcd2cd81875625ac235045916fa74f7b870cc0022f60318"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:b35dd330712309a868c728cd5e18ab149cd8bda67254652cedc3ffe7d5d05134"
+                    "crates/snapback-kernel/src/storage/auth_mode.rs".to_owned(),
+                    "sha256:e6cd7bdbb80dd59c59a3896d52e92d80a6760bc1a072ab86d90ed95c0960d0c2"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_rescue.rs".to_owned(),
-                    "sha256:42425bad49410ad0ad0d950d335b8cebe35d461904dc48697388236c3fe41bab"
+                    "crates/snapback-kernel/src/storage/auth_rescue.rs".to_owned(),
+                    "sha256:d54e0a1033f97eae8efa508aabcc5cb7eb486fe90bd5a6568f060ce441456163"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_scope_bases.rs".to_owned(),
-                    "sha256:3ee8e5dca5fd0c2553ed03db02abba84a9dfcacc6eaeadbd953b11f8079b69ae"
+                    "crates/snapback-kernel/src/storage/auth_scope_bases.rs".to_owned(),
+                    "sha256:e347b8678771507a6ada604e71d33425005b47493596c4026b10713ca8a8a084"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_sender.rs".to_owned(),
-                    "sha256:98a4c79ecb113792a4d9c4898a0a2f476fd0d79d76f8dcb087186b017e114c80"
+                    "crates/snapback-kernel/src/storage/auth_sender.rs".to_owned(),
+                    "sha256:05f732f8a0d75ef7ae3fc12a6e484a1150eff91123144b460d726ebca5ed34e2"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_stream.rs".to_owned(),
-                    "sha256:fd1a226b37d71dd4116ecdea283aad2b35852802cc2acd8a0155bd4f60113332"
+                    "crates/snapback-kernel/src/storage/auth_stream.rs".to_owned(),
+                    "sha256:f0022dacfe85ffc9f116af65bcf71d32159f1216df565dce2053183576d765b6"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_throttle.rs".to_owned(),
-                    "sha256:3b7c3af31d633222985e257a12b58dd26a8390b74d0d26b811eea2b908264d77"
+                    "crates/snapback-kernel/src/storage/auth_throttle.rs".to_owned(),
+                    "sha256:1a59e15c4acb01ccf900bfb5130f87453593af20dd6a1abb9eca09f498f86b14"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/authorization.rs".to_owned(),
+                    "crates/snapback-kernel/src/storage/authorization.rs".to_owned(),
                     "sha256:1c26338d9cb79206135a594e48346e091aaca2a0d9ac07d102481249a10a1552"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/authorized_lease.rs".to_owned(),
-                    "sha256:58fe02cd52bafbb03b1a0da1351df94705a71633dd6927fa0657597c65045a50"
+                    "crates/snapback-kernel/src/storage/authorized_lease.rs".to_owned(),
+                    "sha256:6f595d99a2d62460ad0955edc01879e73a1f99e04361fd0b2424cb6a67f78aea"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/connections.rs".to_owned(),
-                    "sha256:802f027db805e802487a51d16491e224430825aa5eb799669feba4785d605fdd"
+                    "crates/snapback-kernel/src/storage/connections.rs".to_owned(),
+                    "sha256:899bdc32913b50502ba68827f24a8e70aac8e198f699634202922954e9604f8d"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/hosted_admission.rs".to_owned(),
-                    "sha256:ee1a0b496f36b80949dbab122c2be72f91a4942d44365d509149b6cb38f385ac"
+                    "crates/snapback-kernel/src/storage/hosted_admission.rs".to_owned(),
+                    "sha256:d9bbeddbd2358f21a566eb2eb2451e20980588cb8d37de0c3381ab10684d1351"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:311cc20187790f82af6b6ce54899b2f50143098e9916d43413838f3c8e72635f"
+                    "crates/snapback-kernel/src/storage/migration_executor.rs".to_owned(),
+                    "sha256:34d78071b472e894747ec8a28d0686bbd5e112fffc28b620732d369ab5b5bebf"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:43bfda997ab189b4ecdfa3d6fb8442487f26c57d86c6f21cd9ba1b8fa36a412c"
+                    "crates/snapback-kernel/src/storage/migration_scan.rs".to_owned(),
+                    "sha256:f83bf35973379eecbdcfe73f827d06557da202d760e1288a3ace7c5e47fe26c9"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/projection_rebuild.rs".to_owned(),
-                    "sha256:cdc288f51d056d284eac37337fa533f06e9c80e93085719ada2afa81b07ef0c5"
+                    "crates/snapback-kernel/src/storage/projection_rebuild.rs".to_owned(),
+                    "sha256:86abda62d8fbe74b4e359b491926177348098f723a7632c61c7e372638da1c43"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/schema_transition.rs".to_owned(),
-                    "sha256:c91c85ef764082865c95059dc2ba755f23ea3eabc88b6260a2f08f8705957952"
+                    "crates/snapback-kernel/src/storage/schema_transition.rs".to_owned(),
+                    "sha256:44a051e4e34fcd03da79dddbe43bed64a9a800b58ba93dffb69af7a989a37fbb"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/tests.rs".to_owned(),
-                    "sha256:18aaaef5fcd5e3666964a5a97a5aa62612ad3286ecee55b75727ad9392960b02"
+                    "crates/snapback-kernel/src/storage/tests.rs".to_owned(),
+                    "sha256:358b3f0ca5d222496e8655e1329cd3d5e8ef2abcb0630b57db04139b3f3747d3"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/write_authority.rs".to_owned(),
+                    "crates/snapback-kernel/src/storage/write_authority.rs".to_owned(),
                     "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
                         .to_owned(),
                 ),
@@ -958,157 +915,157 @@ pub(super) fn local_persistent_store_contributor_chain_verified(
         && carrier.executor_source_sha256
             == BTreeMap::from([
                 (
-                    "src/local.rs".to_owned(),
-                    "sha256:6e78847ef78138bedb11d407f0b93c1595136e04690abebd991e3bfed2016711"
+                    "crates/snapback-engine/src/local.rs".to_owned(),
+                    "sha256:62791ca4372ac41187ae3ba28604437a5f52e5332643daeb750aa189986a8399"
                         .to_owned(),
                 ),
                 (
-                    "src/local/auth_room_kick_acceptance.rs".to_owned(),
+                    "crates/snapback-engine/src/local/auth_room_kick_acceptance.rs".to_owned(),
                     "sha256:e06a2b8454fca1d59a7f73b3bdf9a7e5ba8349becc477aaebafe091ead744b90"
                         .to_owned(),
                 ),
                 (
-                    "src/local/authorization_acceptance.rs".to_owned(),
+                    "crates/snapback-engine/src/local/authorization_acceptance.rs".to_owned(),
                     "sha256:57cdfcc6f7990f22fbc6044999d36fc4b91ef97b5f77de35d00a3f5a711af99e"
                         .to_owned(),
                 ),
                 (
-                    "src/local/config_types.rs".to_owned(),
-                    "sha256:ccae542de561b1e394053f482f21b88118c74d028017f72307691b806f2b0e85"
+                    "crates/snapback-types/src/local/config_types.rs".to_owned(),
+                    "sha256:e64d0d95649b293262d87163afe4a4afe2c67ebb39183526b5f3b8418513c0f9"
                         .to_owned(),
                 ),
                 (
-                    "src/local/inspection.rs".to_owned(),
-                    "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679"
+                    "crates/snapback-engine/src/local/inspection.rs".to_owned(),
+                    "sha256:31ee31ddbe800f0e7ad9e31f2392613a4fc55d084b6c5a780c260438e6d9de1c"
                         .to_owned(),
                 ),
                 (
-                    "src/local/live_protocol.rs".to_owned(),
-                    "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090"
+                    "crates/snapback-sync/src/local/live_protocol.rs".to_owned(),
+                    "sha256:f9339eacb2fdad7f88c9a5a9b0a315b51f5a9ea7fcb851ef004de094bc1b0c4b"
                         .to_owned(),
                 ),
                 (
-                    "src/local/receipt_log.rs".to_owned(),
-                    "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add"
+                    "crates/snapback-sync/src/local/receipt_log.rs".to_owned(),
+                    "sha256:a644a4c2f1ee59c99c5c076ad5fd77e9e9f8457bafc4063ab2cb8ebe11fd4553"
                         .to_owned(),
                 ),
                 (
-                    "src/local/tests.rs".to_owned(),
-                    "sha256:b732fbe3b431316cc91ca2797544c1f8c3fa1acbdef11244c8718524f94fb543"
+                    "crates/snapback-engine/src/local/tests.rs".to_owned(),
+                    "sha256:d6c84ca60bd9a29a2fdf552a22aebe536b4db38e9ffd0db2a61d97bc86c24376"
                         .to_owned(),
                 ),
                 (
-                    "src/storage.rs".to_owned(),
-                    "sha256:9d9469e4bd24ffdf717330b41975229159a1e4a1e7d1e599d19b4d8969d0d10d"
+                    "crates/snapback-kernel/src/storage.rs".to_owned(),
+                    "sha256:8c271c2ceda1c45371f9fd58be25ad76ec87811320de0546b73d9f4770de2d5c"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth.rs".to_owned(),
-                    "sha256:3f6e71b3b32d7beda075b336b98aeb618a1fe0eaf54e8049540119b3dea16820"
+                    "crates/snapback-kernel/src/storage/auth.rs".to_owned(),
+                    "sha256:7de3edc65fcc4f02b58e76fb0a4ec0b661e8bc2a4e4310365aaac3871daa3966"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_agent_credentials.rs".to_owned(),
-                    "sha256:d2c5f512a26fd2afca8df6202743b51077d15cde9e0fbd1aed48c555f34dbf3e"
+                    "crates/snapback-kernel/src/storage/auth_agent_credentials.rs".to_owned(),
+                    "sha256:2158e7eb564e2f008758d6df8c07a284d4699edc06d0ad4291be074a8d86f153"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_agents.rs".to_owned(),
-                    "sha256:221bff2b8468479f3b5fa601d677133f7be22e117ee8b81a90e28e88cd90051f"
+                    "crates/snapback-kernel/src/storage/auth_agents.rs".to_owned(),
+                    "sha256:6ec8ce1b302727921e6a1aa6692fa440022238ff8479f1d36cdd138aafa257ff"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_asset_callbacks.rs".to_owned(),
-                    "sha256:7dd1bae86f73207f2695566ab302f33fceebffe248bd6bab1b0c0866ae8a7ca9"
+                    "crates/snapback-kernel/src/storage/auth_asset_callbacks.rs".to_owned(),
+                    "sha256:1aefa4f65112c82385508812e3cc6e7fbd7c63dff456a935eb58b209e8353ced"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:9ccc7da5ba2877b1b31f0b55b81acae602a35229abd6feccd686a584f2e96cb7"
+                    "crates/snapback-kernel/src/storage/auth_grants.rs".to_owned(),
+                    "sha256:bd3bc3f8ff00892eb4a2c7d067369bf02b9bfc0e6cf62454201579c9821bcd41"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_invalidation.rs".to_owned(),
-                    "sha256:575782a9d656905c0a127ab6b2c0fd83d7951cc3452f0944b3c04e3df17a9099"
+                    "crates/snapback-kernel/src/storage/auth_invalidation.rs".to_owned(),
+                    "sha256:c714adf36cf6f6e48bcd2cd81875625ac235045916fa74f7b870cc0022f60318"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:b35dd330712309a868c728cd5e18ab149cd8bda67254652cedc3ffe7d5d05134"
+                    "crates/snapback-kernel/src/storage/auth_mode.rs".to_owned(),
+                    "sha256:e6cd7bdbb80dd59c59a3896d52e92d80a6760bc1a072ab86d90ed95c0960d0c2"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_rescue.rs".to_owned(),
-                    "sha256:42425bad49410ad0ad0d950d335b8cebe35d461904dc48697388236c3fe41bab"
+                    "crates/snapback-kernel/src/storage/auth_rescue.rs".to_owned(),
+                    "sha256:d54e0a1033f97eae8efa508aabcc5cb7eb486fe90bd5a6568f060ce441456163"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_scope_bases.rs".to_owned(),
-                    "sha256:3ee8e5dca5fd0c2553ed03db02abba84a9dfcacc6eaeadbd953b11f8079b69ae"
+                    "crates/snapback-kernel/src/storage/auth_scope_bases.rs".to_owned(),
+                    "sha256:e347b8678771507a6ada604e71d33425005b47493596c4026b10713ca8a8a084"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_sender.rs".to_owned(),
-                    "sha256:98a4c79ecb113792a4d9c4898a0a2f476fd0d79d76f8dcb087186b017e114c80"
+                    "crates/snapback-kernel/src/storage/auth_sender.rs".to_owned(),
+                    "sha256:05f732f8a0d75ef7ae3fc12a6e484a1150eff91123144b460d726ebca5ed34e2"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_stream.rs".to_owned(),
-                    "sha256:fd1a226b37d71dd4116ecdea283aad2b35852802cc2acd8a0155bd4f60113332"
+                    "crates/snapback-kernel/src/storage/auth_stream.rs".to_owned(),
+                    "sha256:f0022dacfe85ffc9f116af65bcf71d32159f1216df565dce2053183576d765b6"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/auth_throttle.rs".to_owned(),
-                    "sha256:3b7c3af31d633222985e257a12b58dd26a8390b74d0d26b811eea2b908264d77"
+                    "crates/snapback-kernel/src/storage/auth_throttle.rs".to_owned(),
+                    "sha256:1a59e15c4acb01ccf900bfb5130f87453593af20dd6a1abb9eca09f498f86b14"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/authorization.rs".to_owned(),
+                    "crates/snapback-kernel/src/storage/authorization.rs".to_owned(),
                     "sha256:1c26338d9cb79206135a594e48346e091aaca2a0d9ac07d102481249a10a1552"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/authorized_lease.rs".to_owned(),
-                    "sha256:58fe02cd52bafbb03b1a0da1351df94705a71633dd6927fa0657597c65045a50"
+                    "crates/snapback-kernel/src/storage/authorized_lease.rs".to_owned(),
+                    "sha256:6f595d99a2d62460ad0955edc01879e73a1f99e04361fd0b2424cb6a67f78aea"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/connections.rs".to_owned(),
-                    "sha256:802f027db805e802487a51d16491e224430825aa5eb799669feba4785d605fdd"
+                    "crates/snapback-kernel/src/storage/connections.rs".to_owned(),
+                    "sha256:899bdc32913b50502ba68827f24a8e70aac8e198f699634202922954e9604f8d"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/hosted_admission.rs".to_owned(),
-                    "sha256:ee1a0b496f36b80949dbab122c2be72f91a4942d44365d509149b6cb38f385ac"
+                    "crates/snapback-kernel/src/storage/hosted_admission.rs".to_owned(),
+                    "sha256:d9bbeddbd2358f21a566eb2eb2451e20980588cb8d37de0c3381ab10684d1351"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:311cc20187790f82af6b6ce54899b2f50143098e9916d43413838f3c8e72635f"
+                    "crates/snapback-kernel/src/storage/migration_executor.rs".to_owned(),
+                    "sha256:34d78071b472e894747ec8a28d0686bbd5e112fffc28b620732d369ab5b5bebf"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:43bfda997ab189b4ecdfa3d6fb8442487f26c57d86c6f21cd9ba1b8fa36a412c"
+                    "crates/snapback-kernel/src/storage/migration_scan.rs".to_owned(),
+                    "sha256:f83bf35973379eecbdcfe73f827d06557da202d760e1288a3ace7c5e47fe26c9"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/projection_rebuild.rs".to_owned(),
-                    "sha256:cdc288f51d056d284eac37337fa533f06e9c80e93085719ada2afa81b07ef0c5"
+                    "crates/snapback-kernel/src/storage/projection_rebuild.rs".to_owned(),
+                    "sha256:86abda62d8fbe74b4e359b491926177348098f723a7632c61c7e372638da1c43"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/schema_transition.rs".to_owned(),
-                    "sha256:c91c85ef764082865c95059dc2ba755f23ea3eabc88b6260a2f08f8705957952"
+                    "crates/snapback-kernel/src/storage/schema_transition.rs".to_owned(),
+                    "sha256:44a051e4e34fcd03da79dddbe43bed64a9a800b58ba93dffb69af7a989a37fbb"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/tests.rs".to_owned(),
-                    "sha256:18aaaef5fcd5e3666964a5a97a5aa62612ad3286ecee55b75727ad9392960b02"
+                    "crates/snapback-kernel/src/storage/tests.rs".to_owned(),
+                    "sha256:358b3f0ca5d222496e8655e1329cd3d5e8ef2abcb0630b57db04139b3f3747d3"
                         .to_owned(),
                 ),
                 (
-                    "src/storage/write_authority.rs".to_owned(),
+                    "crates/snapback-kernel/src/storage/write_authority.rs".to_owned(),
                     "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
                         .to_owned(),
                 ),
@@ -1571,9 +1528,7 @@ pub(super) const UNTRUSTED_CODE_REQUIRED_LIMITS: [&str; 8] = [
 ///   per-target evidenced capability; owner-code qualification never counts.
 /// @ref LLP 0047#limits — every untrusted-execution resource limit must be
 ///   enforced, never advisory or missing.
-pub(crate) fn untrusted_code_profile_evidenced(
-    manifest: &CapabilityManifest,
-) -> SnapbackResult<()> {
+pub fn untrusted_code_profile_evidenced(manifest: &CapabilityManifest) -> SnapbackResult<()> {
     let gap_declared = manifest
         .capability_gaps
         .iter()
@@ -1944,7 +1899,7 @@ impl CapabilityManifestLocalExt for CapabilityManifest {
             migration: Some(MigrationTargetFacts::local_v1()),
             relational_queries: Some(RelationalQueryFacts::local_v1()),
             standard_patterns: Some(StandardPatternFacts::local_v1()),
-            full_text_search: Some(FullTextSearchFactsV1::local_v1()),
+            full_text_search: Some(snapback_kernel::search::local_full_text_search_facts_v1()),
             live_full_text_search: None,
             vector_search: capability_facts
                 .vector_search_v1_registered

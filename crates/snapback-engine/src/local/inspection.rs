@@ -326,7 +326,7 @@ pub struct MaintenanceDiagnostics {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum MaintenanceOperation {
+pub enum MaintenanceOperation {
     PermissionResolution,
     JournalPrune,
 }

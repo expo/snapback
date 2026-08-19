@@ -27,6 +27,12 @@ use crate::telemetry_contract::{
     AdmittedObservationClassV1, OperationClassIdV1, TelemetryProjectionModeV1,
     admit_operation_class, telemetry_projection_for_class,
 };
+pub use crate::telemetry_contract::{
+    CallerAttributionV1, DEFAULT_BATCH_SIZE, DEFAULT_BUFFER_CAPACITY, DEFAULT_DAILY_DAYS,
+    DEFAULT_FILE_SIZE_CAP_BYTES, DEFAULT_HOURLY_DAYS, DEFAULT_MAX_AGE_MS, DEFAULT_MAX_DAYS,
+    DEFAULT_PRIORITY_RESERVE, DEFAULT_ROLLUP_ROW_CAP, DEFAULT_SWEEP_INTERVAL_MS,
+    DEFAULT_TOP_NAMES_PER_HOUR, MAX_MAX_DAYS, TelemetryConfig,
+};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params, params_from_iter};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -52,19 +58,6 @@ const ERROR_EXEMPLAR_BYTES: usize = 32 * 1024;
 const ERROR_TRANSITIONS_PER_GROUP: usize = 100;
 const ERROR_TRANSITIONS_GLOBAL: usize = 10_000;
 const RELEASE_ACTIVATION_CAP: usize = 2_000;
-
-pub const DEFAULT_MAX_DAYS: u32 = 7;
-pub const MAX_MAX_DAYS: u32 = 365;
-pub const DEFAULT_BUFFER_CAPACITY: usize = 4_096;
-pub const DEFAULT_PRIORITY_RESERVE: usize = 512;
-pub const DEFAULT_BATCH_SIZE: usize = 256;
-pub const DEFAULT_MAX_AGE_MS: u64 = 3_000;
-pub const DEFAULT_FILE_SIZE_CAP_BYTES: u64 = 256 * 1024 * 1024;
-pub const DEFAULT_HOURLY_DAYS: u32 = 90;
-pub const DEFAULT_DAILY_DAYS: u32 = 730;
-pub const DEFAULT_TOP_NAMES_PER_HOUR: usize = 200;
-pub const DEFAULT_ROLLUP_ROW_CAP: usize = 1_000_000;
-pub const DEFAULT_SWEEP_INTERVAL_MS: u64 = 6 * 60 * 60 * 1_000;
 
 /// Trusted identity of the app/environment that owns one telemetry sibling.
 /// These values are never accepted from an event payload and are never
@@ -102,125 +95,6 @@ impl TelemetryStoreIdentity {
     }
 }
 
-fn default_max_days() -> u32 {
-    DEFAULT_MAX_DAYS
-}
-fn default_min_level() -> DiagnosticSeverity {
-    DiagnosticSeverity::Info
-}
-fn default_buffer_capacity() -> usize {
-    DEFAULT_BUFFER_CAPACITY
-}
-fn default_priority_reserve() -> usize {
-    DEFAULT_PRIORITY_RESERVE
-}
-fn default_batch_size() -> usize {
-    DEFAULT_BATCH_SIZE
-}
-fn default_max_age_ms() -> u64 {
-    DEFAULT_MAX_AGE_MS
-}
-fn default_file_size_cap_bytes() -> u64 {
-    DEFAULT_FILE_SIZE_CAP_BYTES
-}
-fn default_hourly_days() -> u32 {
-    DEFAULT_HOURLY_DAYS
-}
-fn default_daily_days() -> u32 {
-    DEFAULT_DAILY_DAYS
-}
-fn default_top_names_per_hour() -> usize {
-    DEFAULT_TOP_NAMES_PER_HOUR
-}
-fn default_rollup_row_cap() -> usize {
-    DEFAULT_ROLLUP_ROW_CAP
-}
-fn default_sweep_interval_ms() -> u64 {
-    DEFAULT_SWEEP_INTERVAL_MS
-}
-
-/// Deployment-owned telemetry knobs persisted in the existing config sibling.
-/// Bounds are resource-safety limits, not commercial entitlements.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct TelemetryConfig {
-    #[serde(default = "default_max_days")]
-    pub max_days: u32,
-    #[serde(default = "default_min_level")]
-    pub min_level: DiagnosticSeverity,
-    #[serde(default = "default_buffer_capacity")]
-    pub buffer_capacity: usize,
-    #[serde(default = "default_priority_reserve")]
-    pub priority_reserve: usize,
-    #[serde(default = "default_batch_size")]
-    pub batch_size: usize,
-    #[serde(default = "default_max_age_ms")]
-    pub max_age_ms: u64,
-    #[serde(default = "default_file_size_cap_bytes")]
-    pub file_size_cap_bytes: u64,
-    #[serde(default = "default_hourly_days")]
-    pub hourly_days: u32,
-    #[serde(default = "default_daily_days")]
-    pub daily_days: u32,
-    #[serde(default = "default_top_names_per_hour")]
-    pub top_names_per_hour: usize,
-    #[serde(default = "default_rollup_row_cap")]
-    pub rollup_row_cap: usize,
-    #[serde(default = "default_sweep_interval_ms")]
-    pub sweep_interval_ms: u64,
-}
-
-impl Default for TelemetryConfig {
-    fn default() -> Self {
-        Self {
-            max_days: default_max_days(),
-            min_level: default_min_level(),
-            buffer_capacity: default_buffer_capacity(),
-            priority_reserve: default_priority_reserve(),
-            batch_size: default_batch_size(),
-            max_age_ms: default_max_age_ms(),
-            file_size_cap_bytes: default_file_size_cap_bytes(),
-            hourly_days: default_hourly_days(),
-            daily_days: default_daily_days(),
-            top_names_per_hour: default_top_names_per_hour(),
-            rollup_row_cap: default_rollup_row_cap(),
-            sweep_interval_ms: default_sweep_interval_ms(),
-        }
-    }
-}
-
-impl TelemetryConfig {
-    pub fn validate(&self) -> SnapbackResult<()> {
-        let valid = self.max_days <= MAX_MAX_DAYS
-            && self.buffer_capacity > 0
-            && self.buffer_capacity <= 1_000_000
-            && self.priority_reserve > 0
-            && self.priority_reserve < self.buffer_capacity
-            && self.batch_size > 0
-            && self.batch_size <= 1_024
-            && self.max_age_ms > 0
-            && self.max_age_ms <= 60_000
-            && self.file_size_cap_bytes >= 1024 * 1024
-            && self.file_size_cap_bytes <= 16 * 1024 * 1024 * 1024
-            && self.hourly_days > 0
-            && self.daily_days >= self.hourly_days
-            && self.daily_days <= 3_650
-            && self.top_names_per_hour > 0
-            && self.top_names_per_hour <= 10_000
-            && self.rollup_row_cap > 0
-            && self.rollup_row_cap <= 10_000_000
-            && self.sweep_interval_ms > 0;
-        if valid {
-            return Ok(());
-        }
-        Err(SnapbackError::error(
-            "SNAPBACK_TELEMETRY_CONFIG_INVALID",
-            "telemetry",
-            "telemetry configuration is outside the local resource-safety envelope",
-        ))
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Priority {
     Normal,
@@ -233,106 +107,6 @@ impl Priority {
             Self::Normal => "normal",
             Self::Reserved => "reserved",
         }
-    }
-}
-
-/// Bounded caller attribution for an externally exposed invocation.
-///
-/// This is an observability dimension only. It deliberately rides the
-/// loss-tolerant telemetry projection and is never a bill-grade usage fact.
-/// Declared callers supply only the digest already projected by their bounded
-/// admin ledger; the raw declaration (which contains an e-mail address) never
-/// enters this carrier.
-///
-/// @ref LLP 0204#d7--integration-records-admission-and-metering — external
-///   usage is visible per declared caller/integration in the owner console.
-/// @ref LLP 0104#2026-08-02-implementation-cross-reference-one-class-seam-separate-sinks —
-///   telemetry attribution may shed and cannot prove or supply billable usage.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CallerAttributionV1 {
-    lane: &'static str,
-    caller_key: String,
-    approver_key: Option<String>,
-}
-
-impl CallerAttributionV1 {
-    pub(crate) fn anonymous() -> Self {
-        Self {
-            lane: "anonymous",
-            caller_key: "anonymous".to_owned(),
-            approver_key: None,
-        }
-    }
-
-    pub(crate) fn declared(caller_key: String) -> Self {
-        Self {
-            lane: "declared",
-            caller_key,
-            approver_key: None,
-        }
-    }
-
-    pub(crate) fn integration(caller_key: String) -> Self {
-        Self {
-            lane: "integration",
-            caller_key,
-            approver_key: None,
-        }
-    }
-
-    pub(crate) fn link(caller_key: String) -> Self {
-        Self {
-            lane: "link",
-            caller_key,
-            approver_key: None,
-        }
-    }
-
-    /// Durable watches attribute every standing query and reaction to the
-    /// owning principal, never to the scheduler wrapper.
-    ///
-    /// @ref LLP 0204#d93--durable-watches-end-user-automations — firing telemetry uses the
-    /// existing owner/caller attribution lane.
-    pub(crate) fn owner(caller_key: String) -> Self {
-        Self {
-            lane: "owner",
-            caller_key,
-            approver_key: None,
-        }
-    }
-
-    pub(crate) fn first_party() -> Self {
-        Self {
-            lane: "first-party",
-            caller_key: String::new(),
-            approver_key: None,
-        }
-    }
-
-    pub(crate) fn from_effect(lane: &str, caller_key: String) -> Self {
-        match lane {
-            "declared" => Self::declared(caller_key),
-            "integration" => Self::integration(caller_key),
-            "link" => Self::link(caller_key),
-            "anonymous" => Self::anonymous(),
-            _ => Self::first_party(),
-        }
-    }
-
-    pub(crate) fn with_approver(mut self, approver_key: String) -> Self {
-        self.approver_key = Some(approver_key);
-        self
-    }
-
-    pub(crate) fn details(&self) -> Value {
-        let mut details = json!({
-            "callerLane": self.lane,
-            "callerKey": self.caller_key,
-        });
-        if let Some(approver) = &self.approver_key {
-            details["approverKey"] = Value::String(approver.clone());
-        }
-        details
     }
 }
 

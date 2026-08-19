@@ -8,8 +8,9 @@
 use super::auth::inspect_auth_catalog_on;
 use super::{AuthorizationVersion, LocalDatabase};
 use crate::auth::session_projection::{
-    AUTHORIZATION_STREAM_META_KEY, AuthorizationStreamRecord, ProjectionIdentityRow,
-    ProjectionSessionRow, ProjectionSource, ProjectionTokenRow, ProjectionUserRow,
+    AUTHORIZATION_STREAM_META_KEY, AdmittedProjectionSnapshot, AuthorizationStreamRecord,
+    ProjectionIdentityRow, ProjectionSessionRow, ProjectionSource, ProjectionTokenRow,
+    ProjectionUserRow,
 };
 use crate::contract_types::{AuthorizationStreamIncarnation, SESSION_TERMINAL_CAUSE_META_PREFIX};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
@@ -93,6 +94,33 @@ impl LocalDatabase {
                 )
             }
         })
+    }
+
+    /// Mint the opaque full-catalog snapshot accepted by the sync
+    /// coordinator. Only a kernel read transaction can construct this value.
+    pub fn admitted_session_projection_snapshot(
+        &mut self,
+    ) -> SnapbackResult<AdmittedProjectionSnapshot> {
+        self.session_projection_source()
+            .map(AdmittedProjectionSnapshot::new)
+    }
+
+    /// Mint the stream-only snapshot used while the auth catalog is absent or
+    /// by a direct reset. The incarnation is read or initialized by the
+    /// kernel; callers cannot substitute authored authority rows.
+    pub fn admitted_stream_projection_snapshot(
+        &mut self,
+    ) -> SnapbackResult<AdmittedProjectionSnapshot> {
+        let incarnation = self.ensure_authorization_stream_incarnation()?;
+        Ok(AdmittedProjectionSnapshot::new(ProjectionSource {
+            authorization_stream_value: AuthorizationStreamRecord::new(incarnation)
+                .encode_bytes()?,
+            restore_declaration_id: None,
+            users: Vec::new(),
+            identities: Vec::new(),
+            sessions: Vec::new(),
+            superseded_tokens: Vec::new(),
+        }))
     }
 
     fn session_projection_source_inner(&mut self) -> SnapbackResult<ProjectionSource> {

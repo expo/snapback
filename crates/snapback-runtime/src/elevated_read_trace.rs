@@ -24,17 +24,18 @@ struct ElevatedReadTrace {
 
 static TRACE: OnceLock<Option<ElevatedReadTrace>> = OnceLock::new();
 
+#[doc(hidden)]
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub(crate) struct ElevatedReadTraceEvent {
-    event: &'static str,
-    pub(crate) function: String,
-    pub(crate) member: String,
-    pub(crate) table: String,
-    pub(crate) mode: &'static str,
-    pub(crate) correlation: Option<String>,
+pub struct ElevatedReadTraceEvent {
+    pub event: &'static str,
+    pub function: String,
+    pub member: String,
+    pub table: String,
+    pub mode: &'static str,
+    pub correlation: Option<String>,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 thread_local! {
     static TEST_TRACE_CAPTURES: std::cell::RefCell<Vec<Vec<ElevatedReadTraceEvent>>> =
         const { std::cell::RefCell::new(Vec::new()) };
@@ -65,7 +66,7 @@ fn trace() -> Option<&'static ElevatedReadTrace> {
         .as_ref()
 }
 
-pub(crate) fn emit(
+pub fn emit(
     function: &str,
     member: &str,
     table: &str,
@@ -81,7 +82,7 @@ pub(crate) fn emit(
         correlation: correlation.map(str::to_owned),
     };
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     if TEST_TRACE_CAPTURES.with(|captures| {
         let mut captures = captures.borrow_mut();
         captures.last_mut().is_some_and(|events| {
@@ -117,8 +118,8 @@ pub(crate) fn emit(
     }
 }
 
-#[cfg(test)]
-pub(crate) fn with_captured<T>(run: impl FnOnce() -> T) -> (T, Vec<ElevatedReadTraceEvent>) {
+#[cfg(any(test, feature = "test-support"))]
+pub fn with_captured<T>(run: impl FnOnce() -> T) -> (T, Vec<ElevatedReadTraceEvent>) {
     TEST_TRACE_CAPTURES.with(|captures| captures.borrow_mut().push(Vec::new()));
     let result = run();
     let events = TEST_TRACE_CAPTURES.with(|captures| {

@@ -2,7 +2,7 @@
 
 // The local capability publication carriers pin the sha256 of every executor,
 // schema, and client source they were published from. Most carriers are
-// digest-pinned by crates/snapback/src/manifest.rs plus their conformance test; the persistent
+// digest-pinned by crates/snapback-engine/src/manifest.rs plus their conformance test; the persistent
 // store uses a source-owned anchor so its evidence can rotate without changing
 // executable or conformance bytes. Any landing that edits a pinned source
 // leaves the chain stale and the conformance corpus refuses.
@@ -27,17 +27,17 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 const CARRIERS = [
   {
-    carrier: 'crates/snapback/src/local-relation-activity-publication.v1.json',
+    carrier: 'crates/snapback-engine/src/local-relation-activity-publication.v1.json',
     test: 'tests/conformance/relation-activity-publication-v1.mjs',
   },
   {
-    carrier: 'crates/snapback/src/local-sequence-allocation-publication.v1.json',
+    carrier: 'crates/snapback-engine/src/local-sequence-allocation-publication.v1.json',
     test: 'tests/conformance/sequence-allocation-publication-v1.mjs',
     receipt: 'tests/conformance/sequence-allocation-publication-v1.receipt.json',
   },
   {
-    anchor: 'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
-    carrier: 'crates/snapback/src/local-persistent-store-publication.v1.json',
+    anchor: 'crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
+    carrier: 'crates/snapback-engine/src/local-persistent-store-publication.v1.json',
     test: 'tests/conformance/local-persistent-store-publication-v1.mjs',
     receipts: [
       {
@@ -132,7 +132,7 @@ function selectTestReceiptPath(testText, receipt, selectedPath) {
   };
 }
 
-const MANIFEST = join(ROOT, 'crates/snapback/src/manifest.rs');
+const MANIFEST = join(ROOT, 'crates/snapback-engine/src/manifest/capabilities.rs');
 
 for (const entry of CARRIERS) {
   const carrierPath = join(ROOT, entry.carrier);

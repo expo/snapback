@@ -357,7 +357,7 @@ for (const name of hostOpsIdentities) {
     },
     guide: GUIDE_ANCHORS[name] ?? null,
     authorities: ['llp/0024-agent-operating-surface'],
-    sources: ['crates/snapback/src/host_ops.rs', 'packages/snapback-cli/mcp-control.mjs'],
+    sources: ['crates/snapback-engine/src/host_ops.rs', 'packages/snapback-cli/mcp-control.mjs'],
   };
   if (surfaceAccess === 'cliOnly') entry.mcpDeferralReason = 'Not yet classified.';
   if (surfaceAccess === 'mcpOnly') entry.cliDeferralReason = 'Not yet classified.';

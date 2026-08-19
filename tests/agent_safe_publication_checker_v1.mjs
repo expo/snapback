@@ -65,8 +65,8 @@ const leafSetOnly = invoked && process.argv.includes('--leaf-set-only');
 const test = invoked && !leafSetOnly ? nodeTest : () => {};
 const storage = {
   id: 'agent_safe_storage_v1',
-  anchor: 'crates/snapback/src/local-agent-safe-storage-publication.anchor.json',
-  carrier: 'crates/snapback/src/local-agent-safe-storage-publication.carrier.json',
+  anchor: 'crates/snapback-activation/src/local-agent-safe-storage-publication.anchor.json',
+  carrier: 'crates/snapback-activation/src/local-agent-safe-storage-publication.carrier.json',
   receipt: 'tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json',
   components: [
     'ordinaryMutationHostPlanEnvelope',
@@ -79,8 +79,8 @@ const storage = {
 };
 const derived = {
   id: 'agent_safe_derived_deployment_fork_v1',
-  anchor: 'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
-  carrier: 'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
+  anchor: 'crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
+  carrier: 'crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
   receipt: 'tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json',
   components: ['derivedDeploymentForkSafetyV1'],
 };
@@ -3295,15 +3295,15 @@ test('P-vs-C generated allowance admits only qualification-C paths', () => {
 });
 
 test('P-vs-C publication path allowlist rejects executable drift', () => {
-  assert.equal(allowedPublicationPath('crates/snapback/src/local.rs'), false);
-  assert.equal(allowedPublicationPath('crates/snapback/src/manifest.rs'), false);
+  assert.equal(allowedPublicationPath('crates/snapback-engine/src/local/engine.rs'), false);
+  assert.equal(allowedPublicationPath('crates/snapback-engine/src/manifest.rs'), false);
   assert.equal(
     allowedPublicationPath('tests/conformance/local-persistent-store-publication-v1.mjs'),
     false,
   );
   assert.equal(allowedPublicationPath('packages/snapback-client/index.mjs'), false);
   assert.equal(
-    allowedPublicationPath('crates/snapback/src/local-agent-safe-storage-publication.anchor.json'),
+    allowedPublicationPath('crates/snapback-activation/src/local-agent-safe-storage-publication.anchor.json'),
     true,
   );
   assert.equal(
@@ -3367,8 +3367,8 @@ test('P-vs-C publication path allowlist rejects executable drift', () => {
     'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
     'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json',
     'tests/acceptance/local-store-carrier-exit-v1-evidence.md',
-    'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
-    'crates/snapback/src/local-persistent-store-publication.v1.json',
+    'crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
+    'crates/snapback-engine/src/local-persistent-store-publication.v1.json',
   ]) {
     assert.equal(allowedPublicationPath(path), true, path);
   }
@@ -3394,8 +3394,8 @@ test('P-vs-C local-store carrier refresh is an exact digest-only transform', () 
 
 test('P-vs-C local-store transform rejects extra carrier or anchor edits', () => {
   for (const path of [
-    'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
-    'crates/snapback/src/local-persistent-store-publication.v1.json',
+    'crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
+    'crates/snapback-engine/src/local-persistent-store-publication.v1.json',
   ]) {
     const { scratch, qualification } = localStoreTransformFixture();
     writeFileSync(join(scratch, path), Buffer.concat([
@@ -3426,16 +3426,35 @@ test('structural store-carrier tampering belongs to its registered drift gate', 
     'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json',
     'tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json',
     'tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json',
-    'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
+    'crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
     carrierPath,
     'schemas/capability.manifest.local-dev-sqlite-ibex.json',
     ...Object.keys(carrier.executorSourceSha256),
     ...Object.keys(carrier.schemaSourceSha256),
     ...Object.keys(carrier.clientSourceSha256),
   ];
+  const carvedSourcePath = (path) => {
+    const exact = new Map([
+      ['crates/snapback/src/local.rs', 'crates/snapback-engine/src/local/engine.rs'],
+      ['crates/snapback/src/local/auth_room_kick_acceptance.rs', 'crates/snapback-engine/src/local/auth_room_kick_acceptance.rs'],
+      ['crates/snapback/src/local/authorization_acceptance.rs', 'crates/snapback-engine/src/local/authorization_acceptance.rs'],
+      ['crates/snapback/src/local/config_types.rs', 'crates/snapback-types/src/local/config_types.rs'],
+      ['crates/snapback/src/local/inspection.rs', 'crates/snapback-engine/src/local/inspection.rs'],
+      ['crates/snapback/src/local/live_protocol.rs', 'crates/snapback-sync/src/local/live_protocol.rs'],
+      ['crates/snapback/src/local/receipt_log.rs', 'crates/snapback-sync/src/local/receipt_log.rs'],
+      ['crates/snapback/src/local/tests.rs', 'crates/snapback-engine/src/local/tests.rs'],
+      ['crates/snapback/src/storage.rs', 'crates/snapback-kernel/src/storage.rs'],
+    ]);
+    if (exact.has(path)) return exact.get(path);
+    const storagePrefix = 'crates/snapback/src/storage/';
+    if (path.startsWith(storagePrefix)) {
+      return `crates/snapback-kernel/src/storage/${path.slice(storagePrefix.length)}`;
+    }
+    return path;
+  };
   for (const path of new Set(requiredPaths)) {
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
-    writeFileSync(join(scratch, path), readFileSync(join(root, path)));
+    writeFileSync(join(scratch, path), readFileSync(join(root, carvedSourcePath(path))));
   }
   carrier.fixtureStructuralTampering = { ownGateMustRefuse: true };
   writeJson(scratch, carrierPath, carrier);

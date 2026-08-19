@@ -815,27 +815,26 @@ pub fn measure_idle_agent_safe_active_covered(
         // asynchronous telemetry flush cannot leak setup CPU/RSS into the
         // otherwise-idle storage interval. The returned connection remains
         // armed with the exact durable coverage manifest.
-        let database = snapback.into_agent_safe_active_idle_database();
-        let database_family_bytes_before = file_family_bytes(&path)?;
-        let resident_kb_before = resident_kb();
-        let usage_before = process_usage()?;
-        std::thread::sleep(duration);
-        let usage_after = process_usage()?;
-        let resident_kb_after = resident_kb();
-        let database_family_bytes_after = file_family_bytes(&path)?;
-        std::hint::black_box((&database, &range));
-        drop(database);
-        Ok(IdleObservation {
-            duration_ms: duration.as_millis().try_into().unwrap_or(u64::MAX),
-            cpu_user_us: usage_after.user_us.saturating_sub(usage_before.user_us),
-            cpu_system_us: usage_after.system_us.saturating_sub(usage_before.system_us),
-            output_block_operations: usage_after
-                .output_blocks
-                .saturating_sub(usage_before.output_blocks),
-            resident_kb_before,
-            resident_kb_after,
-            database_family_bytes_before,
-            database_family_bytes_after,
+        snapback.observe_agent_safe_active_idle(&range, || {
+            let database_family_bytes_before = file_family_bytes(&path)?;
+            let resident_kb_before = resident_kb();
+            let usage_before = process_usage()?;
+            std::thread::sleep(duration);
+            let usage_after = process_usage()?;
+            let resident_kb_after = resident_kb();
+            let database_family_bytes_after = file_family_bytes(&path)?;
+            Ok(IdleObservation {
+                duration_ms: duration.as_millis().try_into().unwrap_or(u64::MAX),
+                cpu_user_us: usage_after.user_us.saturating_sub(usage_before.user_us),
+                cpu_system_us: usage_after.system_us.saturating_sub(usage_before.system_us),
+                output_block_operations: usage_after
+                    .output_blocks
+                    .saturating_sub(usage_before.output_blocks),
+                resident_kb_before,
+                resident_kb_after,
+                database_family_bytes_before,
+                database_family_bytes_after,
+            })
         })
     })();
     let _ = std::fs::remove_dir_all(&directory);

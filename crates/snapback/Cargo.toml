@@ -15,7 +15,9 @@ path = "src/lib.rs"
 
 [features]
 default = []
+engine-owner = []
 services-owner = []
+sync-owner = []
 # Internal evidence harness for LLP 0154 Phase 1. This is deliberately absent
 # from ordinary contributor/server builds and is enabled only by the bounded
 # proof script.
@@ -77,6 +79,7 @@ snapback-activation = { path = "../snapback-activation" }
 snapback-runtime = { path = "../snapback-runtime" }
 snapback-sync = { path = "../snapback-sync" }
 snapback-services = { path = "../snapback-services" }
+snapback-engine = { path = "../snapback-engine" }
 
 [build-dependencies]
 sha2 = "0.10"
