@@ -5,8 +5,9 @@
 **Systems:** Project, Build, Security/authorization, Verification, Packaging
 **Author:** Charlie Cheever / Claude (Opus 5, orchestrating codex gpt-5.6-sol + grok-4.6)
 **Date:** 2026-08-19
-**Revised:** 2026-08-19 (b — record follow-up dispatch: F-1 designed in
-LLP 0285, F-2 specified in LLP 0284, F-4 fixed; author rulings of 2026-08-19)
+**Revised:** 2026-08-19 (c — record follow-up dispatch: F-1 designed in
+LLP 0285, F-2 specified in LLP 0284, F-4 fixed; author rulings of 2026-08-19;
+defect 4 added and reclassified after a second independent review)
 **Related:** LLP 0276, LLP 0225, LLP 0189, LLP 0232, LLP 0041, LLP 0214, LLP 0264, LLP 0010,
 LLP 0284 (F-2 threat model), LLP 0285 (F-1 closure design)
 
@@ -53,8 +54,9 @@ publication must wait until F-1 below is closed.
 | F-6 | Unchanged; still correct to defer. |
 
 **A FOURTH escalation was found** (defect 4 below) — forgeable privileged
-membership writes, reachable from a shared borrow. It was surfaced by the blind
-review of LLP 0285 and re-verified against the tree. Neither the original review
+membership *provenance*: the kernel durably records an authority fact it never
+verified. It was surfaced by the blind review of LLP 0285 and re-verified
+against the tree. Neither the original review
 round nor either independent design caught it, which is itself evidence for
 LLP 0283's own F-2 thesis: the checks were too weak to find what was there.
 
