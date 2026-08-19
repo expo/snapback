@@ -5,10 +5,12 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-19 (the Ibex single-payload invocation tail now delegates
-payload decoding and export selection to a sealed pre-application helper using
-captured `JSON.parse`; hostile application replacement of the reachable
-intrinsic cannot erase the host-selected export); 2026-08-12 (the Ibex invocation tail now crosses one fixed-template
+**Revised:** 2026-08-19 (the shared pre-application bootstrap now seals the
+`globalThis` lookup root before installing its control-plane helpers, while the
+Ibex single-payload invocation tail delegates payload decoding and export
+selection to a sealed helper using captured `JSON.parse`; hostile application
+replacement of either lookup layer cannot erase the host-selected export);
+2026-08-12 (the Ibex invocation tail now crosses one fixed-template
 slot as one serialized payload instead of sequentially replacing user-adjacent
 tokens; native eval output is refused above an 8 MiB pre-parse carrier bound,
 and unsettled diagnostics retain only byte length plus SHA-256; the existing
@@ -578,8 +580,12 @@ terminal behaviors.
 The ctx bootstrap evaluates before any application module and installs
 `__snapbackDispatch`, `__snapbackInvoke`, and `__snapbackSettle` as
 non-writable, non-configurable functions whose implementation calls through
-lexical references. On Ibex it also captures the original `__hostCall` FFI
-transport before application code can wrap the global and observe an epoch.
+lexical references. Before installing them it also makes the global object's
+own `globalThis` property non-writable and non-configurable, verifies that it
+still resolves to the real global object, and fails harness initialization if
+the engine cannot enforce that root boundary. On Ibex it also captures the
+original `__hostCall` FFI transport before application code can wrap the global
+and observe an epoch.
 The fixed invocation tail passes its one serialized payload to
 `__snapbackDispatch`; that helper decodes it with the captured `JSON.parse`
 before selecting the export. Application replacement of reachable `JSON.parse`

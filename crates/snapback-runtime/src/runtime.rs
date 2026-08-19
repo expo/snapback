@@ -688,9 +688,9 @@ pub fn allowlist_install_source() -> &'static str {
 
 /// The per-invocation tail of the eval source: the async IIFE that passes one
 /// serialized payload to the captured-intrinsic `__snapbackDispatch` helper.
-/// The fresh path appends it to ambient + bootstrap + module in one eval; the
-/// warm path evals it alone against an already-set-up VM — same text either
-/// way, so the two paths cannot drift.
+/// The live Ibex path appends it to ambient + allowlist + bootstrap + module
+/// and evaluates that full source afresh for every invocation. Warm reuse is
+/// disabled; no live path currently evaluates this tail by itself.
 pub const INVOCATION_IIFE_PAYLOAD_SLOT: &str = "\"\n__SNAPBACK_INVOCATION_JSON__\n\"";
 
 /// Outbound action egress is opt-in and off by default. When enabled, an ACTION

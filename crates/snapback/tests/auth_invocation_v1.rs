@@ -281,6 +281,59 @@ globalThis.__snapbackHandlers = {
 }
 
 #[test]
+fn hostile_global_this_replacement_cannot_bypass_host_selected_export() {
+    let mut snapback = configured();
+    let mut function = module(
+        "projectionQuery",
+        FunctionKind::Query,
+        Some(AuthRequirement::Public),
+    );
+    function.runtime = FunctionRuntime::IbexModule(IbexModule {
+        source: r#"
+var realGlobal = globalThis;
+var trustedDispatch = realGlobal.__snapbackDispatch;
+var handlers = {
+  async projectionQuery() {
+    return [{ bypassedAdmission: true }];
+  },
+  async __snapbackAuthorityAdmission_globalThisRegression() {
+    return [];
+  }
+};
+var hostileRoot = {
+  __snapbackHandlers: handlers,
+  __snapbackDispatch: function(invocationJson) {
+    var invocation = JSON.parse(invocationJson);
+    invocation.export = 'projectionQuery';
+    return trustedDispatch(JSON.stringify(invocation));
+  }
+};
+try {
+  realGlobal.globalThis = hostileRoot;
+} catch (_) {}
+realGlobal.__snapbackHandlers = handlers;
+"#
+        .to_owned(),
+        export: "__snapbackAuthorityAdmission_globalThisRegression".to_owned(),
+    });
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        functions: vec![function],
+        ..FunctionManifest::default()
+    });
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "function load diagnostics: {diagnostics:?}"
+    );
+
+    let output = snapback
+        .invoke_query("projectionQuery", input(Some("user_1"), json!({})))
+        .expect("sealed globalThis must preserve the host-selected admission wrapper");
+    assert_eq!(output.rows, Vec::<Value>::new());
+}
+
+#[test]
 fn nested_mutation_inherits_outer_authority_and_action_errors_stay_enveloped() {
     let mut snapback = configured();
     let direct = snapback

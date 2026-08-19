@@ -161,6 +161,26 @@
     }
     try { trustedFreeze(value); } catch (_) {}
   }
+  // @ref LLP 0009#harness-control-plane-boundary — every harness entry point
+  // reached through `globalThis.<name>` also depends on `globalThis` resolving
+  // to the real global object. Seal that lookup root before application code
+  // can replace it with a lookalike dispatcher, and fail initialization if
+  // the engine cannot enforce the descriptor.
+  function sealGlobalThisLookupRoot() {
+    var existing = trustedGetOwnPropertyDescriptor(g, "globalThis");
+    var enumerable = existing && !existing.configurable ? existing.enumerable : false;
+    trustedDefineProperty(g, "globalThis", {
+      value: g,
+      enumerable: enumerable,
+      configurable: false,
+      writable: false
+    });
+    var descriptor = trustedGetOwnPropertyDescriptor(g, "globalThis");
+    if (!descriptor || descriptor.value !== g || descriptor.configurable || descriptor.writable) {
+      throw snapbackError("SNAPBACK_HANDLER_HARNESS_INIT_FAILED", "globalThis");
+    }
+  }
+  sealGlobalThisLookupRoot();
   // The deterministic Ibex ambient layer has already installed a sealed deny
   // function in this slot; replacing it would both weaken that boundary and
   // collide with Ibex's lazy ambient installer. Egress-action fetch is the
@@ -1811,7 +1831,7 @@
         trustedJsonStringify(messageRecord.value, __snapbackFailureJsonReplacer) + encodedCarrier + '}}';
     }
   };
-  // @ref LLP 0009#bounded-ibex-evaluation-carrier-and-single-payload-invocation-2026-08-12 —
+  // @ref LLP 0009#harness-control-plane-boundary —
   // the fixed Ibex tail hands its one serialized payload to a helper that
   // captured JSON.parse before application source evaluated. Export selection
   // is host control-plane work: a handler that replaces reachable JSON.parse
