@@ -10469,6 +10469,13 @@ fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<Snapback
     if runtime.server.auth_deployment == crate::auth::deployment::AuthDeploymentTarget::Hosted
         && !matches!(spec.path, "/" | "/health")
     {
+        if runtime.hosted_listener_binding == crate::admin::HostedListenerBinding::Pending {
+            return Some(SnapbackError::error(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "auth-deployment",
+                "hosted serving authority has not been coupled to an observed loopback listener",
+            ));
+        }
         let Some(authority) = runtime
             .hosted_serving
             .as_ref()
@@ -18066,6 +18073,15 @@ impl SnapbackApp {
     pub fn bind(self, listener: tokio::net::TcpListener) -> std::io::Result<BoundSnapbackApp> {
         let address = listener.local_addr()?;
         let mut state = self.state;
+        if state.hosted_listener_binding == crate::admin::HostedListenerBinding::Pending {
+            if !address.ip().is_loopback() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID: hosted serving authority requires the consumed listener to be loopback",
+                ));
+            }
+            state.hosted_listener_binding = crate::admin::HostedListenerBinding::BoundLoopback;
+        }
         Arc::make_mut(&mut state.server).record_bound_address(address);
         state.telemetry.record_process_ready();
         let server = state.server.clone();

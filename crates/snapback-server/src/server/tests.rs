@@ -1149,6 +1149,57 @@ async fn successful_bind_records_process_ready_exactly_once() {
 }
 
 #[tokio::test]
+async fn hosted_adapter_authority_requires_the_consumed_loopback_listener() {
+    let mut state = test_detached_app_state(LocalSnapback::memory().expect("hosted bind instance"));
+    Arc::make_mut(&mut state.server).auth_deployment =
+        crate::auth::deployment::AuthDeploymentTarget::Hosted;
+    let mut state = state
+        .with_hosted_serving_authority(hosted_serving_authority(super::now_millis()))
+        .expect("install verified hosted authority fixture");
+    // This is the private postcondition of the public
+    // `with_hosted_edge_admission` path. A raw authority fixture alone uses
+    // `NotRequired`; only adapter composition enters `Pending`.
+    state.hosted_listener_binding = crate::admin::HostedListenerBinding::Pending;
+
+    let direct = super::app(state.clone())
+        .oneshot(
+            Request::builder()
+                .uri("/auth/session")
+                .body(Body::empty())
+                .expect("direct hosted request"),
+        )
+        .await
+        .expect("direct hosted response");
+    assert_eq!(
+        response_json(direct).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+        "an unbound service cannot consume caller-described topology",
+    );
+
+    let non_loopback = tokio::net::TcpListener::bind("0.0.0.0:0")
+        .await
+        .expect("bind non-loopback regression listener");
+    let refused = match super::app(state.clone()).bind(non_loopback) {
+        Ok(_) => panic!("hosted authority must not bind a non-loopback listener"),
+        Err(error) => error,
+    };
+    assert_eq!(refused.kind(), std::io::ErrorKind::PermissionDenied);
+    assert!(
+        refused
+            .to_string()
+            .contains("SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID")
+    );
+
+    let loopback = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind loopback regression listener");
+    assert!(
+        super::app(state).bind(loopback).is_ok(),
+        "the exact observed loopback listener admits the opaque authority",
+    );
+}
+
+#[tokio::test]
 async fn embedded_serving_emits_resolved_exposure_warning_once() {
     let context = crate::admin::ServerContext::new_with_resolved_environment(
         "127.0.0.1",

@@ -6,8 +6,48 @@ use std::{fs, io};
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../../guide");
-    emit_embedded_guide();
+    let build_commit = emit_build_commit();
+    emit_embedded_guide(build_commit.as_deref());
     emit_runtime_loader_paths();
+}
+
+/// Emit the git commit consumed by the served-guide response headers. The
+/// transport moved into this crate, so Cargo must stamp this crate directly;
+/// build-script output from the remainder does not propagate to dependencies.
+///
+/// @ref LLP 0031#server-binary-identity-on-health — build-bound transport
+/// responses identify the exact server source revision that produced them.
+fn emit_build_commit() -> Option<String> {
+    println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_COMMIT");
+
+    let manifest_dir = PathBuf::from(
+        std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"),
+    );
+    let repo_root = manifest_dir.join("../..");
+
+    // Preserve the original build-identity invalidation semantics: HEAD and
+    // the index live in the per-worktree git dir, while branch refs and
+    // packed refs live in the common git dir.
+    if let Some(git_dir) = resolve_git_dir(&repo_root) {
+        let common_dir = resolve_common_dir(&git_dir);
+        for path in [
+            git_dir.join("HEAD"),
+            git_dir.join("index"),
+            common_dir.join("refs").join("heads"),
+            common_dir.join("packed-refs"),
+        ] {
+            if path.exists() {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        }
+    }
+
+    let commit = env_nonempty("SNAPBACK_BUILD_GIT_COMMIT")
+        .or_else(|| git(&repo_root, &["rev-parse", "HEAD"]));
+    if let Some(commit) = &commit {
+        println!("cargo:rustc-env=SNAPBACK_BUILD_GIT_COMMIT={commit}");
+    }
+    commit
 }
 
 // @ref LLP 0010#native-runtime-bootstrap — this crate links the runtime
@@ -84,7 +124,7 @@ fn framework_present(dir: &Path) -> bool {
 
 // @ref LLP 0061#4-distribution-and-discovery — the transport owner embeds the
 // exact checked Guide snapshot served by its read-only routes.
-fn emit_embedded_guide() {
+fn emit_embedded_guide(stamped_build_commit: Option<&str>) {
     let manifest_dir = PathBuf::from(
         std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"),
     );
@@ -132,8 +172,8 @@ fn emit_embedded_guide() {
     );
 
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is set by cargo"));
-    let build_commit = env_nonempty("SNAPBACK_BUILD_GIT_COMMIT")
-        .or_else(|| git(&manifest_dir, &["rev-parse", "HEAD"]))
+    let build_commit = stamped_build_commit
+        .map(str::to_owned)
         .unwrap_or_else(|| "unknown".to_owned());
     let build_commit = if build_commit
         .chars()
@@ -250,4 +290,39 @@ fn git(dir: &Path, args: &[&str]) -> Option<String> {
     }
     let value = String::from_utf8(output.stdout).ok()?.trim().to_owned();
     (!value.is_empty()).then_some(value)
+}
+
+/// The shared git directory holding the ref store (`refs/`, `packed-refs`).
+/// Linked worktrees keep this pointer in their per-worktree git directory.
+fn resolve_common_dir(git_dir: &Path) -> PathBuf {
+    match fs::read_to_string(git_dir.join("commondir")) {
+        Ok(content) => {
+            let pointed = PathBuf::from(content.trim());
+            if pointed.is_absolute() {
+                pointed
+            } else {
+                git_dir.join(pointed)
+            }
+        }
+        Err(_) => git_dir.to_path_buf(),
+    }
+}
+
+/// Resolve a primary checkout or linked-worktree `.git` location.
+fn resolve_git_dir(repo_root: &Path) -> Option<PathBuf> {
+    let dot_git = repo_root.join(".git");
+    let meta = fs::metadata(&dot_git).ok()?;
+    if meta.is_dir() {
+        return Some(dot_git);
+    }
+    let content = fs::read_to_string(&dot_git).ok()?;
+    let path = content
+        .lines()
+        .find_map(|line| line.strip_prefix("gitdir:"))?;
+    let pointed = PathBuf::from(path.trim());
+    Some(if pointed.is_absolute() {
+        pointed
+    } else {
+        repo_root.join(pointed)
+    })
 }

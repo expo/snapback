@@ -2576,6 +2576,17 @@ struct AuthModeRuntimeSnapshot {
     desired_policy: PolicyAuthMode,
 }
 
+/// Whether a hosted authority installed through the public adapter has been
+/// coupled to the concrete loopback listener that will serve it. The
+/// `NotRequired` state is reserved for crate-internal authority fixtures; no
+/// public constructor can select it for a hosted-edge admission.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum HostedListenerBinding {
+    NotRequired,
+    Pending,
+    BoundLoopback,
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub snapback: SharedSnapback,
@@ -2686,6 +2697,9 @@ pub struct AppState {
     /// Provider-authenticated hosted origin/admission authority. It is absent
     /// on every local target and cannot be synthesized from request headers.
     pub(crate) hosted_serving: Option<crate::auth::deployment::HostedServingHandle>,
+    /// A public hosted-edge composition remains unusable by request serving
+    /// until `SnapbackApp::bind` consumes and observes the exact listener.
+    pub(crate) hosted_listener_binding: HostedListenerBinding,
     /// LLP 0158 identity captured from the instance's boot-validated database
     /// lineage and mint receipt while the trusted AppState builder owns it.
     /// Primary instances carry `None`; no request or selector can assert this.
@@ -2874,6 +2888,7 @@ impl AppState {
                 auth_provider: None,
                 auth_coordinator: None,
                 hosted_serving: None,
+                hosted_listener_binding: HostedListenerBinding::NotRequired,
                 derived_instance_identity,
                 auth_catalog_ready: false,
                 auth_invalidation: Arc::new(StdRwLock::new(None)),
@@ -3131,7 +3146,12 @@ impl AppState {
                 ),
             )?
         };
-        let state = self.with_hosted_serving_authority(authority)?;
+        let mut state = self.with_hosted_serving_authority(authority)?;
+        // The pre-bind H1 input is only a request to compose. Authority cannot
+        // serve until `SnapbackApp::bind` independently observes the consumed
+        // listener as loopback, so a caller cannot assert topology by passing
+        // a loopback `bind_ip` and then serving on another socket.
+        state.hosted_listener_binding = HostedListenerBinding::Pending;
         Ok((
             state,
             HostedEdgeRenewal {
