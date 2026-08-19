@@ -8,7 +8,7 @@ use snapback::manifest::{
     CronOverlapPolicy, CronRetryPolicy, CronSchedule, FieldManifest, FieldType, FunctionDefinition,
     FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
     IdentityBindingTableManifestV1, MutationPlan, MutationStep, SchemaManifest, TableManifest,
-    ValueExpr,
+    TableVisibilityV1, ValueExpr,
 };
 
 const SOURCE: &str = r#"
@@ -39,7 +39,7 @@ globalThis.__snapbackHandlers = {
     }];
   },
   async createRecord(ctx, args) {
-    return await ctx.db.insert('records', { owner: ctx.auth.userId, value: args.value });
+    return await ctx.db.insert('records', { value: args.value });
   },
   async outerAction(ctx, args) {
     return await ctx.runMutation('createRecord', { value: args.value });
@@ -110,7 +110,9 @@ fn configured() -> LocalSnapback {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::Owner {
+                    field: "owner".to_owned(),
+                }),
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -283,40 +285,58 @@ fn nested_mutation_inherits_outer_authority_and_action_errors_stay_enveloped() {
 #[test]
 fn ordinary_handler_cannot_write_declared_identity_binding_table() {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    let binding_table = |name: &str, visibility: Option<TableVisibilityV1>| TableManifest {
+        name: name.to_owned(),
+        fields: vec![
+            FieldManifest {
+                name: "principal".to_owned(),
+                field_type: FieldType::Principal,
+                optional: false,
+            },
+            FieldManifest {
+                name: "sourceUserID".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            },
+        ],
+        indexes: Vec::new(),
+        syncable: false,
+        permission_backing: false,
+        permission_fields: None,
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility,
+        history: None,
+    };
+    let binding_declaration = |table: &str| IdentityBindingTableManifestV1 {
+        table: table.to_owned(),
+        principal_field: "principal".to_owned(),
+        identity_field: "sourceUserID".to_owned(),
+    };
     snapback
         .apply_schema(SchemaManifest {
-            tables: vec![TableManifest {
-                name: "identityBindings".to_owned(),
-                fields: vec![
-                    FieldManifest {
-                        name: "principal".to_owned(),
-                        field_type: FieldType::Principal,
-                        optional: false,
-                    },
-                    FieldManifest {
-                        name: "sourceUserID".to_owned(),
-                        field_type: FieldType::String,
-                        optional: false,
-                    },
-                ],
-                indexes: Vec::new(),
-                syncable: false,
-                permission_backing: false,
-                permission_fields: None,
-                search_indexes: Vec::new(),
-                vector_indexes: Vec::new(),
-                search_live_limits: None,
-                membership: None,
-                authority_profile: None,
-                asset_sharing: None,
-                visibility: None,
-                history: None,
-            }],
-            identity_binding_tables: vec![IdentityBindingTableManifestV1 {
-                table: "identityBindings".to_owned(),
-                principal_field: "principal".to_owned(),
-                identity_field: "sourceUserID".to_owned(),
-            }],
+            tables: vec![
+                binding_table("identityBindings", None),
+                binding_table(
+                    "publicIdentityBindings",
+                    Some(TableVisibilityV1::PublicRead),
+                ),
+                binding_table(
+                    "ownedIdentityBindings",
+                    Some(TableVisibilityV1::Owner {
+                        field: "principal".to_owned(),
+                    }),
+                ),
+            ],
+            identity_binding_tables: vec![
+                binding_declaration("identityBindings"),
+                binding_declaration("publicIdentityBindings"),
+                binding_declaration("ownedIdentityBindings"),
+            ],
             ..SchemaManifest::default()
         })
         .expect("binding schema");
@@ -324,29 +344,44 @@ fn ordinary_handler_cannot_write_declared_identity_binding_table() {
       async createBinding(ctx, args) {
         return await ctx.db.insert('identityBindings', { principal: ctx.auth.userId, sourceUserID: args.sourceUserID });
       },
+      async patchBinding(ctx, args) {
+        return await ctx.db.patch('identityBindings', 'binding_1', { sourceUserID: args.sourceUserID });
+      },
+      async deleteBinding(ctx) {
+        return await ctx.db.delete('identityBindings', 'binding_1');
+      },
+      async createPublicBinding(ctx, args) {
+        return await ctx.db.insert('publicIdentityBindings', { principal: ctx.auth.userId, sourceUserID: args.sourceUserID });
+      },
+      async createOwnedBinding(ctx, args) {
+        return await ctx.db.insert('ownedIdentityBindings', { principal: ctx.auth.userId, sourceUserID: args.sourceUserID });
+      },
       async batchBindings(ctx, args) {
         await ctx.db.insert('identityBindings', { principal: ctx.auth.userId, sourceUserID: args.sourceUserID });
         return await ctx.db.insert('identityBindings', { principal: ctx.auth.userId, sourceUserID: args.secondSourceUserID });
       }
     };"#;
-    let mut function = module(
+    let js_function = |name: &str| {
+        let mut function = module(
+            name,
+            FunctionKind::Mutation,
+            Some(AuthRequirement::Authenticated),
+        );
+        function.runtime = FunctionRuntime::IbexModule(IbexModule {
+            source: source.to_owned(),
+            export: name.to_owned(),
+        });
+        function
+    };
+    let js_functions = [
         "createBinding",
-        FunctionKind::Mutation,
-        Some(AuthRequirement::Authenticated),
-    );
-    function.runtime = FunctionRuntime::IbexModule(IbexModule {
-        source: source.to_owned(),
-        export: "createBinding".to_owned(),
-    });
-    let mut batch_function = module(
+        "patchBinding",
+        "deleteBinding",
+        "createPublicBinding",
+        "createOwnedBinding",
         "batchBindings",
-        FunctionKind::Mutation,
-        Some(AuthRequirement::Authenticated),
-    );
-    batch_function.runtime = FunctionRuntime::IbexModule(IbexModule {
-        source: source.to_owned(),
-        export: "batchBindings".to_owned(),
-    });
+    ]
+    .map(js_function);
     let host_plan = |name: &str, step: MutationStep| {
         let mut function = FunctionDefinition::new(
             name,
@@ -415,12 +450,37 @@ fn ordinary_handler_cannot_write_declared_identity_binding_table() {
                 ]),
             },
         ),
+        host_plan(
+            "hostInsertPublicBinding",
+            MutationStep::Insert {
+                table: "publicIdentityBindings".to_owned(),
+                values: BTreeMap::from([
+                    ("principal".to_owned(), ValueExpr::AuthUserId),
+                    (
+                        "sourceUserID".to_owned(),
+                        ValueExpr::Arg("sourceUserID".to_owned()),
+                    ),
+                ]),
+                bind_id_as: None,
+            },
+        ),
+        host_plan(
+            "hostInsertOwnedBinding",
+            MutationStep::Insert {
+                table: "ownedIdentityBindings".to_owned(),
+                values: BTreeMap::from([
+                    ("principal".to_owned(), ValueExpr::AuthUserId),
+                    (
+                        "sourceUserID".to_owned(),
+                        ValueExpr::Arg("sourceUserID".to_owned()),
+                    ),
+                ]),
+                bind_id_as: None,
+            },
+        ),
     ];
     let diagnostics = snapback.load_functions(FunctionManifest {
-        functions: [function, batch_function]
-            .into_iter()
-            .chain(host_functions)
-            .collect(),
+        functions: js_functions.into_iter().chain(host_functions).collect(),
         ..FunctionManifest::default()
     });
     assert!(
@@ -428,16 +488,24 @@ fn ordinary_handler_cannot_write_declared_identity_binding_table() {
             .iter()
             .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error)
     );
-    let error = snapback
-        .invoke_mutation(
-            "createBinding",
-            input(Some("user_1"), json!({ "sourceUserID": "external-1" })),
-        )
-        .expect_err("ordinary identity-binding write must be sealed");
-    assert_eq!(
-        error.diagnostic.code,
-        "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN"
-    );
+    for function_name in [
+        "createBinding",
+        "patchBinding",
+        "deleteBinding",
+        "createPublicBinding",
+        "createOwnedBinding",
+    ] {
+        let error = snapback
+            .invoke_mutation(
+                function_name,
+                input(Some("user_1"), json!({ "sourceUserID": "external-1" })),
+            )
+            .expect_err("every JavaScript identity-binding write must be sealed before policy");
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN",
+            "unexpected JavaScript refusal for {function_name}"
+        );
+    }
     let error = snapback
         .invoke_mutation(
             "batchBindings",
@@ -460,6 +528,8 @@ fn ordinary_handler_cannot_write_declared_identity_binding_table() {
         "hostDeleteBinding",
         "hostDeleteWhereBindings",
         "hostInsertEachBinding",
+        "hostInsertPublicBinding",
+        "hostInsertOwnedBinding",
     ] {
         let error = snapback
             .invoke_mutation(

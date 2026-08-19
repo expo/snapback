@@ -22,8 +22,8 @@ use crate::manifest::{
 use crate::storage::{
     BufferedMembershipCommand, BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead,
     GenericTableWriteFormV1, LocalDatabase, MembershipWriter, MutationCommit,
-    SEQUENCE_MAX_SAFE_INTEGER, SequenceAllocationFact, generic_owner_write_field,
-    validate_sequence_allocation_fact,
+    SEQUENCE_MAX_SAFE_INTEGER, SequenceAllocationFact, enforce_identity_binding_write_seal,
+    generic_owner_write_field, validate_sequence_allocation_fact,
 };
 use crate::telemetry::TelemetryLocalExt as _;
 use crate::warm_vm::WarmVmPool;
@@ -3171,9 +3171,8 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_writable("insert")?;
                 self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
-                self.ensure_permission_backing_write(&table)?;
                 let owner_field =
-                    self.installed_owner_write_field(&table, GenericTableWriteFormV1::Insert)?;
+                    self.prepare_generic_write_target(&table, GenericTableWriteFormV1::Insert)?;
                 let values = required_object(&args, "values")?;
                 // @ref LLP 0264#d3-owner-inserts-are-host-stamped — owner
                 // provenance is host-only: even a caller value equal to the
@@ -3217,9 +3216,8 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_writable("patch")?;
                 self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
-                self.ensure_permission_backing_write(&table)?;
                 let owner_field =
-                    self.installed_owner_write_field(&table, GenericTableWriteFormV1::Patch)?;
+                    self.prepare_generic_write_target(&table, GenericTableWriteFormV1::Patch)?;
                 let id = required_string(&args, "id")?;
                 let values = required_object(&args, "values")?;
                 if let Some(owner_field) = owner_field
@@ -3265,8 +3263,7 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_writable("delete")?;
                 self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
-                self.ensure_permission_backing_write(&table)?;
-                self.installed_owner_write_field(&table, GenericTableWriteFormV1::Delete)?;
+                self.prepare_generic_write_target(&table, GenericTableWriteFormV1::Delete)?;
                 let id = required_string(&args, "id")?;
                 let (stored, visibility, storage_visible) =
                     self.read_table_visibility_point(&table, &id)?;
@@ -4547,16 +4544,23 @@ impl<'a> IbexHostContext<'a> {
         })))
     }
 
-    /// Resolve the installed policy before every JavaScript generic write.
-    /// The storage transaction repeats this check, so this is an early
-    /// diagnostic/side-effect fence rather than trusted authority.
+    /// Apply the specialized write seals before resolving the generic table
+    /// policy for every JavaScript generic write. The storage transaction
+    /// repeats these checks, so this is an early diagnostic/side-effect fence
+    /// rather than trusted authority.
     ///
+    /// @ref LLP 0214#59-relationship-to-the-guide-binding-gap — the declared
+    ///   identity-binding seal is policy-independent, so its specialized
+    ///   refusal precedes generic policy and owner-input diagnostics just as
+    ///   it does in HostPlan preflight.
     /// @ref LLP 0264#d5-the-policy-check-is-central-and-exhaustive
-    fn installed_owner_write_field(
+    fn prepare_generic_write_target(
         &self,
         table_name: &str,
         form: GenericTableWriteFormV1,
     ) -> SnapbackResult<Option<String>> {
+        enforce_identity_binding_write_seal(self.db().schema(), table_name)?;
+        self.ensure_permission_backing_write(table_name)?;
         let table = self.db().schema().table(table_name).ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_UNKNOWN_TABLE",

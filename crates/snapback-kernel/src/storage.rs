@@ -15400,7 +15400,7 @@ fn membership_hostplan_write_denied(table: &str) -> SnapbackError {
     .with_detail("table", table.to_owned())
 }
 
-pub(super) fn enforce_identity_binding_write_seal(
+pub fn enforce_identity_binding_write_seal(
     schema: &SchemaManifest,
     table: &str,
 ) -> SnapbackResult<()> {
