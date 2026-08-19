@@ -130,6 +130,15 @@
       "crates/snapback/src/telemetry_bench.rs"
     ],
     "transport-adapters": [
+      "crates/snapback-cli/src/cli.rs",
+      "crates/snapback-cli/src/cli/config_command.rs",
+      "crates/snapback-cli/src/cli/fork.rs",
+      "crates/snapback-cli/src/cli/guide_command.rs",
+      "crates/snapback-cli/src/cli/migration.rs",
+      "crates/snapback-cli/src/cli/tests.rs",
+      "crates/snapback-cli/src/guide_mcp.rs",
+      "crates/snapback-cli/src/lib.rs",
+      "crates/snapback-cli/src/store_state.rs",
       "crates/snapback-server/src/admin.rs",
       "crates/snapback-server/src/admin_agent_destroy.rs",
       "crates/snapback-server/src/admin_impersonation.rs",

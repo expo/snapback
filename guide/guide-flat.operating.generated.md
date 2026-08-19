@@ -9,7 +9,7 @@ id: operating.agent-controls
 order: 1
 audience: agent-first
 capabilities: [operating.agent-controls]
-authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, crates/snapback-server/src/control_catalog.rs, crates/snapback/src/cli.rs, packages/snapback-cli/mcp-control.mjs]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/mcp-control.mjs]
 examples: []
 status: current
 targets: [local]
@@ -310,7 +310,7 @@ id: operating.secrets-and-config
 order: 1
 audience: agent-first
 capabilities: [operating.secrets-config]
-authorities: [llp/0036-app-secrets-and-config.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, crates/snapback/src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
+authorities: [llp/0036-app-secrets-and-config.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, crates/snapback-cli/src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
 examples: [demos/all-aboard, crates/snapback/tests/config_set_cli_v0.rs]
 status: current
 targets: [local]
@@ -536,7 +536,7 @@ id: operating.host-ops
 order: 2
 audience: agent-first
 capabilities: [operating.host-ops]
-authorities: [llp/0024-agent-operating-surface.spec.md, crates/snapback/src/cli.rs, crates/snapback-engine/src/host_ops.rs, crates/snapback-server/src/server.rs, crates/snapback-server/src/admin_secret_read.rs, packages/snapback-cli/mcp-control.mjs, crates/snapback/tests/host_ops_v0.rs]
+authorities: [llp/0024-agent-operating-surface.spec.md, crates/snapback-cli/src/cli.rs, crates/snapback-engine/src/host_ops.rs, crates/snapback-server/src/server.rs, crates/snapback-server/src/admin_secret_read.rs, packages/snapback-cli/mcp-control.mjs, crates/snapback/tests/host_ops_v0.rs]
 examples: [demos/todo]
 status: current
 targets: [local]
@@ -1625,7 +1625,7 @@ id: operating.admin-console
 order: 4
 audience: agent-first
 capabilities: [operating.admin-console]
-authorities: [llp/0017-admin-console-inspection-surface.rfc.md, crates/snapback-server/src/admin.rs, crates/snapback-server/src/admin_link.rs, crates/snapback/src/cli.rs, packages/snapback-admin-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/admin-snapshot.mjs, packages/snapback-cli/runtime-readiness.mjs, packages/snapback-cli/expo-dev.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, crates/snapback/tests/admin_claim_link_v0.rs, crates/snapback/tests/admin_reachability_v0.rs, crates/snapback/tests/admin_tailscale_v0.rs]
+authorities: [llp/0017-admin-console-inspection-surface.rfc.md, crates/snapback-server/src/admin.rs, crates/snapback-server/src/admin_link.rs, crates/snapback-cli/src/cli.rs, packages/snapback-admin-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/admin-snapshot.mjs, packages/snapback-cli/runtime-readiness.mjs, packages/snapback-cli/expo-dev.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, crates/snapback/tests/admin_claim_link_v0.rs, crates/snapback/tests/admin_reachability_v0.rs, crates/snapback/tests/admin_tailscale_v0.rs]
 examples: [admin-ui]
 status: current
 targets: [local]
@@ -1939,7 +1939,7 @@ id: operating.observability
 order: 5
 audience: agent-first
 capabilities: [backend.observability-v1]
-authorities: [llp/0154-minimal-observability.rfc.md, crates/snapback-services/src/telemetry.rs, crates/snapback-services/src/telemetry_query.rs, crates/snapback/src/cli.rs, crates/snapback-engine/src/host_ops.rs, packages/snapback-cli/mcp-control.mjs, admin-ui/admin-boundary.mjs, scripts/telemetry-phase1-idle-proof.mjs, crates/snapback/src/telemetry_bench.rs]
+authorities: [llp/0154-minimal-observability.rfc.md, crates/snapback-services/src/telemetry.rs, crates/snapback-services/src/telemetry_query.rs, crates/snapback-cli/src/cli.rs, crates/snapback-engine/src/host_ops.rs, packages/snapback-cli/mcp-control.mjs, admin-ui/admin-boundary.mjs, scripts/telemetry-phase1-idle-proof.mjs, crates/snapback/src/telemetry_bench.rs]
 examples: []
 status: current
 targets: [local]
@@ -2105,7 +2105,7 @@ id: operating.error-tracking
 order: 6
 audience: agent-first
 capabilities: [backend.error-tracking-v1]
-authorities: [llp/0156-minimal-error-tracking.rfc.md, llp/0154-minimal-observability.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, crates/snapback-services/src/error_tracking.rs, crates/snapback-services/src/errors_query.rs, crates/snapback-services/src/telemetry.rs, crates/snapback/src/cli.rs, crates/snapback-engine/src/host_ops.rs, packages/snapback-cli/mcp-control.mjs, admin-ui/app.contract, admin-ui/admin-boundary.mjs]
+authorities: [llp/0156-minimal-error-tracking.rfc.md, llp/0154-minimal-observability.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, crates/snapback-services/src/error_tracking.rs, crates/snapback-services/src/errors_query.rs, crates/snapback-services/src/telemetry.rs, crates/snapback-cli/src/cli.rs, crates/snapback-engine/src/host_ops.rs, packages/snapback-cli/mcp-control.mjs, admin-ui/app.contract, admin-ui/admin-boundary.mjs]
 examples: []
 status: current
 targets: [local]
@@ -2268,7 +2268,7 @@ id: operating.instance-forks
 order: 7
 audience: agent-first
 capabilities: [operating.instance-forks]
-authorities: [llp/0158-instance-forking.rfc.md, crates/snapback/src/cli.rs, crates/snapback/src/instance_fork.rs, demos/_kit/instance-fork.mjs]
+authorities: [llp/0158-instance-forking.rfc.md, crates/snapback-cli/src/cli.rs, crates/snapback/src/instance_fork.rs, demos/_kit/instance-fork.mjs]
 examples: [demos/todo/tests/acceptance/forked-parent.mjs, crates/snapback/tests/instance_fork_cli_v1.rs, tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json]
 status: current
 targets: [local]
@@ -2733,7 +2733,7 @@ id: operating.data-patch
 order: 8
 audience: agent-first
 capabilities: [operating.data-patch]
-authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0024-agent-operating-surface.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, crates/snapback-kernel/src/data_patch.rs, crates/snapback-engine/src/local.rs, crates/snapback-server/src/server.rs, crates/snapback/src/cli.rs, packages/snapback-cli/mcp-control.mjs]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0024-agent-operating-surface.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, crates/snapback-kernel/src/data_patch.rs, crates/snapback-engine/src/local.rs, crates/snapback-server/src/server.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/mcp-control.mjs]
 examples: [crates/snapback/tests/data_patch_v1.rs, packages/snapback-cli/mcp-control.test.mjs]
 status: current
 targets: [local]
@@ -2895,8 +2895,8 @@ id: operating.backup-and-copy
 order: 9
 audience: agent-first
 capabilities: [operating.store-durable-state]
-authorities: [llp/0192-store-durable-state-set.decision.md, llp/0057-auth-provider-protocol.spec.md, crates/snapback/src/store_state.rs, crates/snapback/src/cli.rs, crates/snapback-auth/src/auth/backup.rs, crates/snapback-server/src/auth/runtime.rs]
-examples: [crates/snapback/src/store_state.rs]
+authorities: [llp/0192-store-durable-state-set.decision.md, llp/0057-auth-provider-protocol.spec.md, crates/snapback-cli/src/store_state.rs, crates/snapback-cli/src/cli.rs, crates/snapback-auth/src/auth/backup.rs, crates/snapback-server/src/auth/runtime.rs]
+examples: [crates/snapback-cli/src/store_state.rs]
 status: current
 targets: [local]
 maturity: partial
@@ -3174,7 +3174,7 @@ id: operating.replication
 order: 10
 audience: agent-first
 capabilities: [operating.replication]
-authorities: [llp/0188-ltx-sqlite-replication.rfc.md, crates/snapback-services/src/replication.rs, crates/snapback/src/cli.rs, scripts/g2-replication-drill, scripts/g2-receipts/20260809-self-hosted-async-minio-sustained.md]
+authorities: [llp/0188-ltx-sqlite-replication.rfc.md, crates/snapback-services/src/replication.rs, crates/snapback-cli/src/cli.rs, scripts/g2-replication-drill, scripts/g2-receipts/20260809-self-hosted-async-minio-sustained.md]
 examples: [scripts/g2-replication-drill]
 status: current
 targets: [local]

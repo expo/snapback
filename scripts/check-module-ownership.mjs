@@ -31,7 +31,11 @@ const FROZEN_DISPOSITIONS = new Set([
   'time-bounded-waiver',
 ]);
 const SOURCE_ROOT = 'crates/snapback/src';
-const SOURCE_ROOTS = [SOURCE_ROOT, 'crates/snapback-server/src'];
+const SOURCE_ROOTS = [
+  SOURCE_ROOT,
+  'crates/snapback-cli/src',
+  'crates/snapback-server/src',
+];
 const LEGACY_SOURCE_ROOT = 'src';
 const OWNER_ORDINALS = new Map([
   ['shared-contract-types-leaf', 0],
@@ -110,7 +114,7 @@ export function validateManifest(manifest, rustFiles) {
     assert(JSON.stringify(files) === JSON.stringify(sorted), `modulesByOwner.${owner} must be sorted`);
     for (const path of files) {
       assert(
-        /^(?:src|crates\/(?:snapback|snapback-server)\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path),
+        /^(?:src|crates\/(?:snapback|snapback-cli|snapback-server)\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path),
         `invalid Rust module path ${path}`,
       );
       assert(!assignment.has(path), `${path} is assigned to both ${assignment.get(path)} and ${owner}`);
@@ -154,9 +158,11 @@ export function validateManifest(manifest, rustFiles) {
 
 function modulePathForFile(path) {
   const sourceRoot = SOURCE_ROOTS.find((root) => path.startsWith(`${root}/`)) ?? LEGACY_SOURCE_ROOT;
-  const crateNamespace = sourceRoot === 'crates/snapback-server/src'
-    ? ['__crate_snapback_server']
-    : [];
+  const crateNamespace = sourceRoot === 'crates/snapback-cli/src'
+    ? ['__crate_snapback_cli']
+    : sourceRoot === 'crates/snapback-server/src'
+      ? ['__crate_snapback_server']
+      : [];
   const relativePath = path.slice(`${sourceRoot}/`.length, -'.rs'.length);
   if (relativePath === 'lib') return crateNamespace.length > 0 ? crateNamespace : null;
   if (relativePath === 'main' || relativePath.startsWith('bin/')) return null;
@@ -400,8 +406,8 @@ function moduleContextAt(contexts, fileModuleSegments, index) {
 }
 
 function referenceCandidates(path, moduleSegments) {
-  const crateRoot = moduleSegments[0] === '__crate_snapback_server'
-    ? ['__crate_snapback_server']
+  const crateRoot = moduleSegments[0]?.startsWith('__crate_snapback_')
+    ? [moduleSegments[0]]
     : [];
   if (path[0] === 'crate') return [[...crateRoot, ...path.slice(1)]];
   if (path[0] === 'self') return [[...moduleSegments, ...path.slice(1)]];
@@ -694,8 +700,8 @@ function validateBaseline(baseline, manifest, godFiles) {
   assert(baseline.edgeCount === baseline.edges.length, 'baseline edgeCount does not match edges.length');
   const keys = new Set();
   for (const edge of baseline.edges) {
-    assert(/^(?:src|crates\/snapback\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(edge?.from ?? ''), 'baseline edge has an invalid from path');
-    assert(/^(?:src|crates\/snapback\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(edge?.to ?? ''), 'baseline edge has an invalid to path');
+    assert(/^(?:src|crates\/(?:snapback|snapback-cli|snapback-server)\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(edge?.from ?? ''), 'baseline edge has an invalid from path');
+    assert(/^(?:src|crates\/(?:snapback|snapback-cli|snapback-server)\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(edge?.to ?? ''), 'baseline edge has an invalid to path');
     assert(OWNER_ORDINALS.has(edge.fromOwner), `baseline edge has unknown fromOwner ${edge.fromOwner}`);
     assert(OWNER_ORDINALS.has(edge.toOwner), `baseline edge has unknown toOwner ${edge.toOwner}`);
     const key = edgeKey(edge);
@@ -802,7 +808,7 @@ function loadRevisionSnapshot(revision) {
     return value;
   };
   const rustSourcePaths = paths
-    .filter((path) => /^(?:src|crates\/(?:snapback|snapback-server)\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path))
+    .filter((path) => /^(?:src|crates\/(?:snapback|snapback-cli|snapback-server)\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path))
     .sort();
   const rustFiles = rustSourcePaths.map(migratePath);
   const issuePaths = paths.filter((path) => /^issues\/[^/]+\.md$/u.test(path)).sort();

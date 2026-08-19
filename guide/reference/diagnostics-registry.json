@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:6f2b5d0977da76f145481328378b216e489ea3a52541896335e453f1f2d24152"
+    "sourceDigest": "sha256:f302a62f8682f4c757b00a2d300bb0b35505ee245c5e8dcd02148f51de23bc36"
   },
   "limits": {
     "lookupBytes": 16384
@@ -23921,8 +23921,8 @@
         },
         {
           "file": "crates/snapback-cli/src/store_state.rs",
-          "line": 1314,
-          "column": 38
+          "line": 1319,
+          "column": 42
         },
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
@@ -85680,8 +85680,8 @@
         },
         {
           "file": "crates/snapback-cli/src/store_state.rs",
-          "line": 1412,
-          "column": 44
+          "line": 1417,
+          "column": 48
         }
       ],
       "httpStatus": null,
@@ -85702,8 +85702,8 @@
         },
         {
           "file": "crates/snapback-cli/src/store_state.rs",
-          "line": 1386,
-          "column": 44
+          "line": 1391,
+          "column": 48
         }
       ],
       "httpStatus": null,

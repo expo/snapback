@@ -10,7 +10,7 @@ use super::{
     ReadyFileTarget, ResolvedHttpTarget, SessionCommand, StoreCommand, TargetArgs,
     TelemetryCommand, automatic_reap_before_create, bind_first_available, bind_listener,
     console_claim_fragment_url, console_fragment_url, console_launch_handoff_with,
-    controls_list_text, fork_secret_disposition, managed_startup_paths, mint_secret_read_via_http,
+    controls_list_text, fork_secret_disposition, managed_startup_paths,
     parse_fork_ttl, parse_network_profile_selection, parse_run_args, path_segment_escape,
     prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
     reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
@@ -18,6 +18,8 @@ use super::{
     search_guide_sections_in, validate_path_disjointness, validated_console_origin,
     validated_secret_read_root_path, write_ready_file_atomic, write_ready_file_atomic_protected,
 };
+#[cfg(not(feature = "cli-owner"))]
+use super::mint_secret_read_via_http;
 use crate::guide::EmbeddedGuideFile;
 use crate::instance_lock::TargetInstanceReservation;
 #[cfg(not(feature = "cli-owner"))]
