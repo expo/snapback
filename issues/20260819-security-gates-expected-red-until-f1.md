@@ -11,7 +11,9 @@ the product tree, but its committed negative corpus is red as required. This
 ticket is the honest record of the known product findings; it is not an
 allowlist, baseline, waiver, or permission for the APIs to remain public.
 
-The expected findings are exactly the three open F-1 escalation families:
+The expected findings are exactly the four open F-1 escalation families. The
+2026-08-19 adversarial gate fix round reports 68 unallowlisted scanner
+violations and 23 compiling attacks (33 inventoried attacks total):
 
 1. **Public claim/mint authority and duplicates.** The scanner reports
    `LocalDatabase::claim_kernel_commit_authority`; `KernelCommitAuthority`
@@ -40,6 +42,14 @@ The expected findings are exactly the three open F-1 escalation families:
    ingress. The two separate, time-bounded read/connection-local ingress seams
    are tracked in their own tickets and allowlist rows; no F-1 escalation is
    allowlisted.
+4. **Caller-selectable privileged membership authority.** The scanner reports
+   caller-constructible `MembershipWriter` and its flow into
+   `MembershipCommitAuthority::sanctioned`, privileged plan/commit methods,
+   `is_privileged_noninvocation`, and membership provenance stamping. The
+   direct-dependent compiler witness constructs `MembershipWriter::Admin`,
+   plans a privileged insert, and commits the plan. F-1 must replace the
+   caller-selected discriminator with a kernel-derived unforgeable carrier and
+   revalidate writer class/provenance at commit.
 
 The compile-fail gate is expected to report `attack compiled` for these exact
 attack ids until F-1 lands:
@@ -68,6 +78,8 @@ attack ids until F-1 lands:
 - `recording-interlock-bind` with `snapback-kernel/test-support`
 - `obtain-promotion-contention-reservation`
 - `obtain-ask-spend-reservation`
+- `forge-membership-writer-admin`
+- `reserve-authorization-via-sync`
 
 No other scanner item or compile-fail id is expected red. A new finding is a
 new defect, not covered by this record.

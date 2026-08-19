@@ -4,6 +4,7 @@ members = [
   "raw-string",
   "raw-hash-string",
   "cfg-attr",
+  "nested-cfg-attr",
   "include",
   "symlink-source",
   "symlink-target",

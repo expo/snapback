@@ -26,6 +26,9 @@ const ALLOWLIST_KINDS = new Set([
   'seed-clone',
   'reexport',
   'macro-export',
+  'macro-generated-api',
+  'generated-api',
+  'caller-discriminant',
   'impl-trait-return',
 ]);
 

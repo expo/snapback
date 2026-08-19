@@ -24,6 +24,18 @@
       "reason": "Connection-local WAL configuration accepts an already-held handle and does not return, store, or mint one.",
       "ticket": "issues/20260819-replication-wal-raw-sql-ingress.md",
       "expiresAt": "2026-09-19"
+    },
+    {
+      "id": "embedded-guide-generated-table",
+      "crate": "snapback-server",
+      "item": "snapback_server::guide::__SNAPBACK_OUT_DIR__/embedded_guide.rs",
+      "kind": "generated-api",
+      "features": [
+        "default"
+      ],
+      "reason": "The server build emits only the closed embedded-guide byte table and section-path constants; it does not name a privilege seed or raw SQL handle.",
+      "ticket": "issues/20260819-build-generated-guide-api-audit.md",
+      "expiresAt": "2026-09-19"
     }
   ]
 }

@@ -54,20 +54,19 @@ function localFeatureClosure(features, selected) {
   return [...active].sort();
 }
 
-// @ref LLP 0284#44-feature-matrix-all-three-gates-that-inspect-api — every
-// package gets default, each individual caller-selectable feature, and all.
+// @ref LLP 0284#44-caller-feature-predicate-coverage — the exact default cell
+// is paired with a symbolic cell in which every caller feature atom is unknown.
+// The AST helper therefore retains every satisfiable positive/negative feature
+// predicate without enumerating an unsound additive matrix or 2^N assignments.
 export function featureCells(pkg) {
-  const names = Object.keys(pkg.features).filter((name) => name !== 'default').sort();
   const defaults = localFeatureClosure(pkg.features, ['default']);
-  const cells = [{ label: 'default', features: defaults }];
-  for (const name of names) {
-    cells.push({
-      label: name,
-      features: localFeatureClosure(pkg.features, ['default', name]),
-    });
-  }
-  cells.push({ label: 'all', features: Object.keys(pkg.features).sort() });
-  return cells;
+  return [
+    { label: 'default', features: defaults },
+    {
+      label: 'caller-features',
+      features: ['__SNAPBACK_SYMBOLIC_CALLER_FEATURES__'],
+    },
+  ];
 }
 
 export function ensureAstTool() {

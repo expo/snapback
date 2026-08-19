@@ -7,5 +7,10 @@ publish = false
 [dependencies]
 rusqlite = { path = "../rusqlite" }
 
+[features]
+default = ["services-owner"]
+services-owner = []
+remainder-tests = []
+
 [lib]
 path = "src/lib.rs"

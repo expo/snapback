@@ -31,6 +31,8 @@
     { "id": "kernel-test-support-join-authority", "bin": "kernel-test-support-join-authority", "source": "src/bin/kernel_test_support_join_authority.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "seedTypes": ["KernelCommitAuthority"] },
     { "id": "recording-interlock-bind", "bin": "recording-interlock-bind", "source": "src/bin/recording_interlock_bind.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "seedTypes": ["ServiceAuthorityCommitInterlock"] },
     { "id": "obtain-promotion-contention-reservation", "bin": "obtain-promotion-contention-reservation", "source": "src/bin/obtain_promotion_contention_reservation.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["PromotionContentionReservation"] },
-    { "id": "obtain-ask-spend-reservation", "bin": "obtain-ask-spend-reservation", "source": "src/bin/obtain_ask_spend_reservation.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["AskSpendReservation"] }
+    { "id": "obtain-ask-spend-reservation", "bin": "obtain-ask-spend-reservation", "source": "src/bin/obtain_ask_spend_reservation.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["AskSpendReservation"] },
+    { "id": "forge-membership-writer-admin", "bin": "forge-membership-writer-admin", "source": "src/bin/forge_membership_writer_admin.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["MembershipWriter"] },
+    { "id": "reserve-authorization-via-sync", "bin": "reserve-authorization-via-sync", "source": "src/bin/reserve_authorization_via_sync.rs", "mount": "snapback-sync", "featureSets": [[]], "seedTypes": ["AuthorizationCommitReservation"] }
   ]
 }

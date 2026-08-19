@@ -9,6 +9,12 @@
 non-workspace syn helper, metadata-derived 47-cell scanner, rustc JSON span
 witnesses, canonical compilation-unit ownership, negative-corpus gate, and the
 temporary expected-red cadence ruling in §7)
+**Revised:** 2026-08-19 (independent adversarial fix round: extends the threat
+model with caller-constructible authority discriminators after the newly
+observed `MembershipWriter::Admin` escalation; replaces the unsound additive
+feature matrix with symbolic caller-feature predicate coverage; closes ordinary
+alias/private-re-export/trait, nested-`cfg_attr`, macro/build-generation,
+fixture-inventory, rustc-infrastructure, and receiver-obtainability gaps)
 **Related:** LLP 0283 (F-1, F-2), LLP 0276, LLP 0225, LLP 0189, LLP 0232, LLP 0141, LLP 0041, LLP 0059, LLP 0154, LLP 0009
 
 ## Summary
@@ -29,6 +35,15 @@ rewrite must implement. It is not a patch and not an F-1 authorization-model
 fix. A rewrite that does not go **RED on `ede899a20` as it stands** is not
 this specification. After F-1 closes the three escalations, the same suite
 must stay red on any reintroduction.
+
+The 2026-08-19 adversarial fix round found a fourth escalation that did not
+exist in this specification's original seed-type model: public
+`MembershipWriter` variants let a dependent choose `Admin`, `Seed`, or
+`Import`, enter privileged planning, select the sanctioned commit gate, and
+stamp authoritative provenance. This revision deliberately **extends** the
+specification: caller-constructible data may not select a privileged lane or
+authoritative provenance, even when it never yields one of the original seed
+types. I-16 and its registered-sink taint rule are the new invariant.
 
 Inspection technique, pinned to this repository's toolchain: **syn-parsed
 Rust plus `cargo metadata` plus `rustc --message-format=json` span
@@ -198,6 +213,7 @@ is the escalation.
 | Push admission carrier | `PushStorageAuthority` (`push.rs:31`) | `admit_system_push` produces the System fact the engine adapter was written to keep unforgeable (`crates/snapback-engine/src/push.rs:26`). |
 | Protected-erasure admission carrier | `ProtectedRecordErasureAuthorityV1`, `ProtectedRecordErasureRequestV1` (`proof_checkpoint.rs:660,759`) | `admit_protected_record_erasure` accepts arbitrary strings and calls private `from_admitted_facts`. |
 | Pending-effect commands | `CreatePendingEffectCommand`, `DecidePendingEffectCommand`, `SettlePendingEffectCommand`, `RefusePendingEffectCommand` (`pending_effects.rs:180`) | `LocalDatabase::create_pending_effect` now requires the command; the mint is `KernelCommitAuthority::admit_pending_effect_*`. |
+| Privileged authority discriminators | `MembershipWriter` and any future caller-data type accepted by a registered sanctioned/bypass/provenance sink | A dependent can construct a public enum variant such as `Admin` or `Seed`; privileged planning, `MembershipCommitAuthority::sanctioned`, and provenance stamping then trust that caller-selected class even though no I-1 seed type crosses the API. |
 | The `rusqlite` crate as a public name | `snapback_services::test_support` (`lib.rs:40`) and any future `pub use rusqlite` | Lets adversary (a) name `Connection::open` / `Transaction` without a confined dependency key. |
 
 The telemetry sibling database (LLP 0154 / LLP 0225 §3.1) is an
@@ -269,6 +285,11 @@ attacker enables), do any of:
 4. Compile another crate's `.rs` into itself via `#[path]`, `include!`,
    or a symlink, so `pub(crate)` and private items of the victim crate
    become items of the attacker crate.
+5. Construct caller-controlled data whose enum variant, tuple/unit
+   constructor, or public fields select a privileged/sanctioned lane or the
+   provenance recorded as authoritative, then carry that selection through
+   planning and commit without conversion to a kernel-derived unforgeable
+   carrier and commit-time revalidation.
 
 ### 2.5 Out of scope
 
@@ -324,9 +345,15 @@ the following seed types are not publicly obtainable:
 
 "Publicly obtainable" is the least fixpoint of:
 
-1. A `pub` function, method, associated const, or associated function
-   whose return type is the seed type (including `Option<T>`, `Result<T,
-   _>`, `Arc<T>`, tuples, and boxed trait objects that mention `T`).
+1. A `pub` function, associated const, or associated function whose return
+   type is the seed type (including `Option<T>`, `Result<T, _>`, `Arc<T>`,
+   tuples, and boxed trait objects that mention `T`); or a `pub` receiver
+   method returning it when the receiver/container is itself obtainable
+   without first consuming that same seed. Returning a take-once value from
+   the private-state container created by consuming it is not a mint. This is
+   why `ManagedAuthorizationReservationScope::take_unused` is not an I-1
+   finding: the scope has no independent public constructor and only
+   `AuthorizationCommitReservation::install(self)` can create one.
 2. A `pub` struct/enum field of type `T`.
 3. A `pub` type alias or re-export of `T`.
 4. `Default::default()`, `Deserialize`, `From`/`Into`/`TryFrom`,
@@ -420,8 +447,8 @@ today. `snapback-services` remaining in
 `externalConfinement.allowedMembers` for `rusqlite` is about *depending
 on* the crate for the telemetry sidecar, not about re-exporting it.
 
-**I-7 (SC).** I-5 and I-6 are evaluated on the feature matrix in §4.4,
-not only on default features.
+**I-7 (SC).** I-5 and I-6 are evaluated under §4.4's symbolic caller-feature
+predicate coverage, including configurations with default features disabled.
 
 ### 3.3 Duplicability
 
@@ -479,21 +506,28 @@ without mounting at least one fixture through a public path of that
 crate (or an explicit "no privilege surface" waiver that the scanner
 has confirmed empty) fails I-12.
 
-**I-13 (SC).** A compile-fail fixture passes only if rustc emits a
-primary diagnostic whose span overlaps the fixture's marked attack
-expression. An unrelated error whose message matches a regex is a
+**I-13 (SC).** A compile-fail fixture passes only if rustc emits at least one
+`compiler-message` error and a primary diagnostic whose span overlaps the
+fixture's marked attack expression. A nonzero Cargo exit with no rustc error
+record is infrastructure failure (exit 2), not a compile-fail result. An
+offline-cache miss, manifest error, or target/build lock may never masquerade
+as security evidence. An unrelated error whose message matches a regex is a
 **fail**. Successful compilation of a product-attack fixture is a
 **fail**.
 
 ### 3.7 What is not an invariant (honest limits)
 
-- **I-1 cannot see macro expansion.** A `#[macro_export]` macro in
-  `snapback-kernel` whose *tokens* mention an I-1 type is a scanner
-  hit (I-14 below). A macro that constructs an I-1 value only after
-  expansion, with no seed-type tokens in the definition, is **not
-  reliably detectable** with syn. This spec does not pretend otherwise.
-  Mitigation: `#[macro_export]` in `snapback-kernel` and
-  `snapback-services` is itself fail-closed unless allowlisted (I-14).
+- **syn cannot fully expand macros.** The scanner now token-scans ordinary
+  `macro_rules!` definitions and invocations and rejects ones that can emit
+  `pub` while naming a raw handle, seed, or resolved alias. `#[macro_export]`
+  remains fail-closed in the privilege-owning crates. Public-module
+  `include!(concat!(env!("OUT_DIR"), ...))` and unevaluable `include!` are
+  separately fail-closed as `generated-api`; the one existing embedded-guide
+  table has an exact, expiring review row. Residual limit: a procedural macro
+  or declarative macro that synthesizes every sensitive identifier without
+  leaving it in either definition or invocation tokens is not expansion-
+  visible to syn. This is stated, not silently claimed away; rustdoc JSON or
+  an expansion-capable stable compiler interface is the graduation path.
 - **Type-level opacity via `impl Trait` in public return position** that
   names no seed type but *is* a seed type is theoretically a hole
   (`pub fn foo() -> impl Clone`). syn sees `impl Clone`, not the hidden
@@ -509,11 +543,33 @@ expression. An unrelated error whose message matches a regex is a
   named `Sealed` in a public module).
 
 **I-14 (SC).** No `#[macro_export]` in `snapback-kernel` or
-`snapback-services` without an allowlist row.
+`snapback-services` without an allowlist row; no ordinary macro token stream
+that can generate a public raw-handle/seed API; and no public build-generated
+Rust include without an exact, expiring `generated-api` review row.
 
 **I-15 (SC, conservative).** No `pub` function in `snapback-kernel`
 returns `impl Trait` unless allowlisted. This may have false positives;
 it exists because I-1 is blind there.
+
+### 3.8 Authority discriminators
+
+**I-16 (CE after the API is made unforgeable; SC always).** Caller-
+constructible data never selects a privileged/sanctioned lane or
+authoritative provenance. Public enum variants (including unit and tuple
+variants), public unit/tuple-struct constructors, and public-field struct
+literals enter a public-constructibility closure. The scanner taints those
+types at an explicit privilege-sink registry containing privileged planning,
+`MembershipCommitAuthority::sanctioned`, membership bypass gates, and
+provenance stamping. Any caller-constructible type reaching a registered sink
+is a finding.
+
+A kernel verifier does not bless the caller's enum value in place. It derives
+an unforgeable private-field carrier, and commit accepts/revalidates that
+carrier (resource, role eligibility, writer class, and provenance binding).
+Consequently the registered sink's signature no longer receives the caller-
+constructible discriminator; merely calling a conveniently named helper does
+not suppress taint. `MembershipWriter::{Admin,Seed,Import}` plus the public
+membership plan/commit handles fail I-16 on this revision.
 
 ## 4. Gate specification
 
@@ -538,15 +594,15 @@ Common contracts for all three:
   (`workspace_members` ⨝ `packages`). Compare against
   `crates/allowed-dependencies.v1.json` for *membership* only; that
   artifact is LLP 0276's matrix, not this spec's privilege list.
-- `#[doc(hidden)]` is visible. `#[cfg(feature = ...)]` is visible on
-  the feature matrix. `#[cfg(test)]` items are **not** visible to
+- `#[doc(hidden)]` is visible. `#[cfg(feature = ...)]` is visible in
+  the symbolic caller-feature cell. `#[cfg(test)]` items are **not** visible to
   dependents and are out of the scanner's "public to dependents"
   view; they remain in-crate.
 
 ### 4.1 `kernel-raw-sql-api` — privilege-surface scanner
 
 **Inspect.** Every library target of every workspace member, for each
-cell of the feature matrix (§4.4). Parsed with `syn` (`full` + `visit`)
+exact/symbolic feature interpretation in §4.4. Parsed with `syn` (`full` + `visit`)
 on the crate's module tree starting from each lib `src_path` in cargo
 metadata, following `mod` / `#[path]` with the same resolution I-11
 uses. Do not regex `pub fn`. Do not scan only `crates/snapback-kernel`.
@@ -554,8 +610,12 @@ uses. Do not regex `pub fn`. Do not scan only `crates/snapback-kernel`.
 Resolve names inside a crate with that crate's `use` map. Treat
 `rusqlite::Connection`, `::rusqlite::Connection`, and `Connection`
 after `use rusqlite::{Connection, ...}` as the same type. Follow
-in-crate `type` aliases one hop (more hops if trivial). Follow `pub use`
-across crates using the metadata dependency graph.
+renamed imports (`use rusqlite::Connection as Handle`) and in-crate `type`
+aliases to a fixpoint. Resolve public re-exports through private modules and
+re-export aliases/chains; a private module does not hide a `pub fn` that the
+crate root publicly re-exports. Follow `pub use` across crates using the
+metadata dependency graph. Trait generic arguments and trait-impl methods are
+part of the public surface even though an impl method is not spelled `pub`.
 
 **Technique.** syn AST + cargo metadata. Not rustdoc JSON on this pin
 (§Summary). A small host binary (for example
@@ -580,6 +640,9 @@ text is not.
 | Wholesale module re-export (I-9) | `pub use snapback_kernel::storage;` in auth/activation/engine/server |
 | Feature-gated versions of all of the above (I-7) | `remainder-tests`, `test-support`, `benchmark-support`, `telemetry-phase1-proof` |
 | `#[macro_export]` (I-14), public `impl Trait` returns (I-15) | as stated |
+| Renamed imports / private-module re-exports / trait forms | `use rusqlite::Connection as Handle`; `mod hidden { pub fn leak() -> KernelCommitAuthority } pub use hidden::leak`; `impl AsRef<rusqlite::Connection> for PublicWrapper` |
+| Caller-constructible authority discriminators (I-16) | `MembershipWriter::Admin` reaches privileged plan, sanctioned commit, bypass, and provenance sinks |
+| Macro/build-generated API approximations (I-14) | ordinary `macro_rules!` tokens emitting a public seed API; public `OUT_DIR` Rust includes without an exact review row |
 
 On `ede899a20` this gate **must print violations and exit 1**, including
 at least:
@@ -592,6 +655,8 @@ at least:
 - `crates/snapback-auth/src/lib.rs:9` (and activation/engine/server) `pub use` of `storage`
 - `crates/snapback-services/src/lib.rs:40` `pub use rusqlite` under `--features remainder-tests`
 - `crates/snapback-kernel/src/push.rs` `test_support::authorize_send_in` taking `Transaction` under `--features test-support`
+- `MembershipWriter` plus the registered privileged-plan, sanctioned-commit,
+  bypass, and provenance sinks it reaches
 
 **Allowlist.** Committed file `crates/privilege-surface-allowlist.v1.json`.
 Each row:
@@ -613,7 +678,8 @@ Discipline:
 
 - Kinds are a closed enum: `sql-ingress`, `sql-egress` (forbidden to
   use except during a time-bounded F-1 repair), `seed-obtain`,
-  `seed-clone`, `reexport`, `macro-export`, `impl-trait-return`.
+  `seed-clone`, `reexport`, `macro-export`, `macro-generated-api`,
+  `generated-api`, `caller-discriminant`, `impl-trait-return`.
 - **`sql-egress`, `seed-obtain`, and `reexport` rows for the three live
   defects in LLP 0283 F-1 are forbidden.** An allowlist file that
   contains `claim_kernel_commit_authority`, `pub use rusqlite`, or the
@@ -692,6 +758,9 @@ Fixture contract:
 - Pass only if (compilation failed) AND (at least one primary span
   hits) AND (if the fixture declares `expected-code`, at least one
   hitting message has that `message.code.code`, e.g. `"E0624"`).
+- Before classifying any nonzero Cargo result as a compile failure, require at
+  least one JSON `compiler-message` whose level is `error`. Zero rustc error
+  messages is infrastructure failure (exit 2) with Cargo's stderr retained.
 - `expected-message` regex is optional and **never sufficient**.
 - If compilation succeeds: fail with
   `SNAPBACK_SECURITY_BOUNDARY: <name>: attack compiled under features [<...>]`.
@@ -707,6 +776,13 @@ compile-time properties. Mounts through kernel **and** through
 `snapback_activation::storage`, `snapback_server::storage`. A feature
 cell that enables `snapback-services/remainder-tests` for the rusqlite
 re-export.
+
+Inventory comparison is bidirectional: mounts absent from dependency keys,
+privilege-bearing dependency keys absent from mounts, and privilege-bearing
+scanner crates absent from either side all fail. `snapback-sync` therefore has
+an explicit compiler witness through
+`LocalEphemeralBackend::reserve_authorization_commit`; merely depending on it
+is not coverage.
 
 **Allowlist.** None at the fixture level. A fixture that should compile
 is not a product-attack fixture; it belongs in §6.4 harness tests.
@@ -744,8 +820,9 @@ Resolution:
    `T* = realpath(T)` if `T` exists, else the lexical `T` is still
    checked with `path.relative(R, T)` after normalizing `..`. If `T*`
    (or lexical `T`) is outside `R`, violation (`path-escape`).
-4. Same for `#[cfg_attr(..., path = L)]` — **ignore the cfg**. A
-   disabled cfg that would escape is still a violation (fail closed).
+4. Same for `#[cfg_attr(..., path = L)]` at arbitrary nesting depth — recurse
+   through `cfg_attr(..., cfg_attr(..., path = L))` and **ignore every cfg**.
+   A disabled cfg that would escape is still a violation (fail closed).
 5. For `include!(E)` where `E` is a string literal or
    `concat!(env!("OUT_DIR"), ...)` that can be evaluated with
    `OUT_DIR` substituted by a fake absolute dir under
@@ -760,6 +837,7 @@ Resolution:
 - `#[path = r"../../snapback-kernel/src/lib.rs"]`
 - `#[path = r#"../../snapback-kernel/src/lib.rs"#]`
 - `#[cfg_attr(any(), path = r"../../snapback-kernel/src/lib.rs")]`
+- `#[cfg_attr(all(), cfg_attr(all(), path = "../../snapback-kernel/src/lib.rs"))]`
 - `src/leak.rs` symlink to `../snapback-kernel/src/storage.rs`
 - `#[path = "leak.rs"]` where `leak.rs` is that symlink (lexical
   target inside the crate, canonical target outside)
@@ -780,37 +858,28 @@ SNAPBACK_CROSS_CRATE_PATH_INCLUDE: N cross-crate compilation-unit escape(s)
 
 Exit 1 if `N > 0`.
 
-### 4.4 Feature matrix (all three gates that inspect API)
+### 4.4 Caller-feature predicate coverage
 
-Enumerate from `cargo metadata` `packages[].features` for each
-workspace member, not from a literal in the gate.
+The original 47-cell additive matrix was unsound. Every individual feature
+cell silently included defaults, so a satisfiable public item such as
+`#[cfg(all(feature = "remainder-tests", not(feature = "services-owner")))]`
+was absent from default, default-plus-feature, and all-features. Adversary
+§2.1 can select `default-features = false`, so additive cells cannot be the
+coverage argument.
 
-For crate `C` with feature names `F` (including `default` if present):
+The privilege scanner now runs two AST interpretations per workspace library,
+with feature names still derived from `cargo metadata` rather than a literal:
 
-| Cell | cargo invocation | Why |
+| Cell | Interpretation | Why |
 | --- | --- | --- |
-| `C/default` | `-p C` (default features) | production dependents |
-| `C/default+f` for each `f ∈ F \ {default}` | `-p C --features f` | linear in `\|F\|`, catches `remainder-tests` and `test-support` |
-| `C/all` | `-p C --all-features` | feature-intersection, not a substitute for the per-feature cells |
+| `C/default` | Exact local closure of the package's declared `default` feature | Labels ordinary production findings precisely and preserves exact allowlist matching. |
+| `C/caller-features` | Every `cfg(feature = "...")` atom is symbolic/unknown; `cfg(test)` remains false | Conservatively retains every caller-feature-gated item, including positive/negative conjunctions reachable only with defaults disabled, without a `2^|F|` enumeration. |
 
-Do **not** enumerate `2^|F|`. Bound: one cell per (crate, feature) plus
-default plus all-features.
-
-At `ede899a20` the non-default library features that exist and therefore
-**must** be cells include:
-
-| Crate | Features the matrix must include |
-| --- | --- |
-| `snapback-kernel` | `test-support` |
-| `snapback-auth` | `test-support` |
-| `snapback-activation` | `test-support` |
-| `snapback-runtime` | `test-support` |
-| `snapback-sync` | `test-support` |
-| `snapback-services` | `services-owner` (default), `benchmark-support`, `remainder-tests` |
-| `snapback-engine` | `engine-owner` (default), `test-support` |
-| `snapback-server` | `server-owner` (default), `benchmark-support`, `test-support` |
-| `snapback-cli` | `cli-owner` (default) |
-| `snapback` | `cli-owner`, `engine-owner`, `server-owner`, `services-owner`, `sync-owner`, `telemetry-phase1-proof` |
+An item seen in both cells is reported as `default`; one seen only in the
+symbolic interpretation is reported as `caller-features`. The symbolic cell
+may retain an unsatisfiable feature formula; that conservative false-positive
+risk is accepted over a false negative until the helper grows a Boolean SAT
+check. It does not assume Cargo feature additivity is a security boundary.
 
 Compile-fail fixtures do **not** run the full cartesian product. Each
 fixture declares `features: [...]` in a sidecar
@@ -822,8 +891,8 @@ gate runs each fixture once per listed feature set. Required sets:
 - `["snapback-kernel/test-support"]` for `for_test` / `Transaction`
   ingress / `RecordingServiceAuthorityCommitInterlock::bind`
 
-Scanner (`kernel-raw-sql-api`) **does** run the full linear matrix;
-that is the cheap gate.
+Scanner (`kernel-raw-sql-api`) runs the exact-plus-symbolic pair for each
+library (26 cells in the 13-member product graph at this revision).
 
 Path-includes is feature-independent (attributes exist in source
 regardless of cfg); it runs once. It still parses `cfg_attr` as
@@ -835,7 +904,7 @@ The compile-fail list is a **witness**, not the coverage measure.
 
 **R-1 (scanner is the closure).** Adding a new public item that expands
 the I-1 obtainability fixpoint, the I-5 egress set, the I-6 re-export
-set, or I-8/I-9/I-14/I-15 fails `kernel-raw-sql-api` on the landing that
+set, or I-8/I-9/I-14/I-15/I-16 fails `kernel-raw-sql-api` on the landing that
 introduces it, **with no fixture update required**. That is the property
 the 0276 gates lacked: coverage is computed from the API, not from a
 list of names the implementer remembered to attack.
@@ -909,8 +978,10 @@ implementors must record the code the actual F-1 shape produces. **On
 | `service-interlock-factory` | claim, `service_authority_commit_interlock(\|_, _\| Ok(factory.prepared(\|\| Ok(()), \|\| {}, \|\| {})))` then `db.install_service_authority_commit_interlock(...)` | `snapback-kernel` | default | compiles | error at factory or install | the `service_authority_commit_interlock` call |
 | `services-rusqlite-reexport` | `use snapback_services::test_support::rusqlite::Connection; let _ = Connection::open_in_memory();` | `snapback-services` | `remainder-tests` | compiles | `E0432`/`E0433` at the `use` | the `use` or `Connection::open_in_memory` |
 | `services-rusqlite-reexport-default` | same import **without** enabling `remainder-tests` | `snapback-services` | default | should already fail to resolve | stay failing at the `use` | the `use` |
+| `forge-membership-writer-admin` | construct `MembershipWriter::Admin`, call `plan_privileged_membership_insert`, then `commit_membership_plan` | `snapback-kernel` | default | compiles | error at construction or the first unforgeable-carrier boundary | the variant construction; the remainder of the bin proves plan and commit also type-check today |
+| `reserve-authorization-via-sync` | obtain `AuthorizationCommitReservation` through `LocalEphemeralBackend::reserve_authorization_commit` | `snapback-sync` | default | compiles | error at the reservation call | the call; provides I-12's compiler mount for the privilege-bearing sync dependency |
 
-The last row is a control: default features must not leak `rusqlite`
+The `services-rusqlite-reexport-default` row is a control: default features must not leak `rusqlite`
 either. TODAY it should PASS (import unresolved). If it compiles, that
 is a fourth live defect.
 
@@ -923,11 +994,20 @@ is a fourth live defect.
 | `connection-struct-field` | `pub struct Wrap { pub conn: rusqlite::Connection }` | corpus | MISS (not a `pub fn`) | scanner RED |
 | `connection-trait-method` | `pub trait T { fn conn(&self) -> rusqlite::Connection; }` | corpus | MISS | scanner RED |
 | `connection-associated-const` | `pub struct W; impl W { pub const X: Option<fn() -> rusqlite::Connection> = None; }` if rustc accepts; skip if the type is not representable — prefer `pub static LEAK: ...` only if legal. Honest fallback: associated type `type Conn = rusqlite::Connection` on a public trait | corpus | MISS | scanner RED |
+| `connection-renamed-import` | `use rusqlite::Connection as Handle; pub fn leak() -> Handle` | corpus | MISS | scanner resolves the exposed alias name and goes RED |
+| `private-module-reexport` | `mod hidden { pub fn leak() -> Connection } pub use hidden::leak;` | corpus | MISS | scanner resolves the private-module target and goes RED |
+| `connection-as-ref` | public wrapper implements `AsRef<rusqlite::Connection>` with an inherited-visibility impl method | corpus | MISS | trait generic argument and method are RED |
+| `no-default-feature-predicate` | `cfg(all(feature = "remainder-tests", not(feature = "services-owner"))) pub use rusqlite` | corpus | MISS | symbolic `caller-features` RED |
+| `caller-membership-discriminator` | public enum with `Admin` unit variant reaches registered privileged-plan and sanctioned sinks | corpus | MISS | I-16 RED without adding the enum name to the seed list |
+| `ordinary-macro-generated-api` | internal `macro_rules!` emits `pub fn leak() -> KernelCommitAuthority` | corpus | MISS | `macro-generated-api` RED |
+| `out-dir-generated-api` | public-module `include!(concat!(env!("OUT_DIR"), "/generated_privilege_api.rs"))` | corpus | MISS | `generated-api` RED absent an exact expiring review row |
+| `unobtainable-seed-container` | private-state scope returns a seed but is created only by consuming that same seed; unit-constructible control returns it too | corpus | false positive on both | scope clean; constructible control RED |
 | `named-but-not-depended-on` | fixture metadata lists `snapback-conformance` but `[dependencies]` omits it (reproduce today's `Cargo.toml`) | harness test over a temp copy of the fixture manifest | old gate PASS | I-12 RED |
 | `unrelated-error-satisfies-regex` | `@attack` is `let _ = 1u32;`; a second, unmarked statement is `let _: () = snapback_kernel::storage::AuthorizationCommitInterlock;` (or any expression whose error text contains a former expected regex). The attack expression must not be in any primary span | `src/bin/unrelated_error_satisfies_regex.rs` in the **harness** suite, not the product-attack suite | old gate PASS if regex is `AuthorizationCommitInterlock` | product-attack runner must report this bin as RED (no span on `@attack`). Harness asserts the runner returned non-zero for this id |
 | `path-raw-string` | `#[path = r"../../snapback-kernel/src/lib.rs"] mod stolen;` | `tests/fixtures/path-includes/raw-string/` | MISS | path-include RED |
 | `path-raw-hash-string` | `#[path = r#"../../snapback-kernel/src/lib.rs"#] mod stolen;` | same | MISS | RED |
 | `path-cfg-attr` | `#[cfg_attr(all(), path = r"../../snapback-kernel/src/lib.rs")]` | same | MISS | RED |
+| `path-nested-cfg-attr` | two nested `cfg_attr` layers around the escaping `path` | same | MISS | RED |
 | `symlink-source` | `src/stolen.rs` → kernel `storage.rs`; `mod stolen;` | `tests/fixtures/path-includes/symlink-source/` | SKIPPED (`isFile()` false) | RED `symlink-source` |
 | `symlink-path-target` | `#[path = "local.rs"]` where `local.rs` is a symlink to another crate | `tests/fixtures/path-includes/symlink-target/` | MISS (lexical inside) | RED |
 | `include-escape` | `include!("../../snapback-kernel/src/lib.rs");` | `tests/fixtures/path-includes/include/` | MISS (not `#[path]`) | RED |
@@ -985,6 +1065,20 @@ inventory LLP 0276 added) must contain at least:
    string, symlink-source, symlink-target, include.
 5. A negative control: a crate whose `#[path]` stays inside its root
    (ordinary `#[path = "foo.rs"]`) PASSES the path gate.
+6. Alias, private-module re-export, and `AsRef`/`AsMut` trait-form probes.
+7. A default-features-disabled negative predicate probe, reported in the
+   symbolic `caller-features` cell.
+8. A public enum discriminator reaching registered privilege sinks, plus the
+   direct-dependent `MembershipWriter::Admin` product witness.
+9. Nested `cfg_attr` path escape beyond one level.
+10. Ordinary-macro and public `OUT_DIR`-include generated API probes.
+11. A fake nonzero Cargo result with no rustc `compiler-message`, asserted as
+    `GateInfrastructureError`, plus an assertion that the unrelated-error
+    control really emitted its intended diagnostic.
+12. Bidirectional inventory: a privilege-bearing dependency such as
+    `snapback-sync` with its attack mount removed must fail.
+13. Receiver/container obtainability: a private-state take-once scope is not a
+    seed mint, while an independently constructible receiver remains RED.
 
 ## 7. Cost and cadence
 
@@ -994,7 +1088,7 @@ the numbers in the gate's stdout.
 | Work | Cold wall-clock (order of magnitude) | Warm / incremental | Cadence |
 | --- | --- | --- | --- |
 | `cargo metadata` (product + fixture) | 1–3 s | 1–3 s | every invocation |
-| Privilege-surface syn scan, linear feature matrix (~13 crates × ~3–8 cells, largest files `storage.rs` / `local/engine.rs` / `server.rs`) | 10–40 s | 5–15 s | **every landing** (`alwaysGates`, remains in `local-proof-selection-policy.v1.json`) |
+| Privilege-surface syn scan, exact-plus-symbolic caller-feature cells (13 libraries × 2; largest files `storage.rs` / `local/engine.rs` / `server.rs`) | 10–40 s | 5–15 s | **every landing** (`alwaysGates`, remains in `local-proof-selection-policy.v1.json`) |
 | Cross-crate path-include syn + realpath | 2–8 s | 2–5 s | **every landing** (`alwaysGates`) |
 | Compile-fail suite (~20 product bins, shared `CARGO_TARGET_DIR`, first bin pays kernel+deps check) | 3–10 min cold | 20–90 s incremental | **affected + scheduled complete battery**, not an unconditional always-gate |
 
@@ -1051,10 +1145,11 @@ dependency key, and feature name from `cargo metadata`. This shape was chosen
 so parser dependencies cannot change the 13 product crates or their feature
 unification.
 
-Measured warm on the implementation worktree: privilege scan, 47 feature
-cells, approximately 15 seconds; compilation-unit ownership, 420 product Rust
-files, approximately 7 seconds; 31 compile-fail attacks sharing one target,
-approximately 25 seconds; five-case negative corpus, approximately 2 seconds.
+Measured warm on the adversarially revised implementation worktree: privilege
+scan, 26 exact-plus-symbolic feature cells, approximately 11 seconds;
+compilation-unit ownership, 420 product Rust files, approximately 6.5 seconds;
+33 compile-fail attacks sharing one target, approximately 22 seconds; eleven
+negative-corpus harness cases, approximately 1.4 seconds.
 Each gate prints its own measured elapsed time, so scheduled evidence does not
 depend on these prose snapshots.
 
@@ -1077,6 +1172,12 @@ The rewrite implements this spec when:
 6. R-1 is demonstrated in the rewrite's own tests by planting
    `pub fn leak() -> rusqlite::Connection` in a synthetic kernel-like
    crate and observing scanner RED without adding a product fixture.
+7. I-16 is demonstrated both synthetically and by a direct-dependent fixture
+   that constructs `MembershipWriter::Admin`, plans a privileged insert, and
+   commits it; the current product is RED until the discriminator becomes
+   kernel-derived, unforgeable, and revalidated at commit.
+8. Caller-feature coverage catches a satisfiable `not(default-feature)` leak;
+   no security claim depends on the former 47 additive cells.
 
 F-1 is a separate change (LLP 0283). This spec does not choose among
 F-1 designs. It chooses what "closed" means so the next gate cannot

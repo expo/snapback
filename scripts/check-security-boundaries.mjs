@@ -86,11 +86,19 @@ export function validateFixtureInventory(
   }
   const missingPrivilegeCrates = setDifference(privilegeCrates, dependencyKeys);
   const emptyPrivilegeCrates = setDifference(dependencyKeys, privilegeCrates);
+  const unmountedDependencies = setDifference(dependencyKeys, mounts);
+  const unmountedPrivilegeCrates = setDifference(privilegeCrates, mounts);
   if (missingPrivilegeCrates.length > 0) {
     errors.push(`privilege-bearing workspace crate(s) absent from fixture dependencies: ${missingPrivilegeCrates.join(', ')}`);
   }
   if (emptyPrivilegeCrates.length > 0) {
     errors.push(`fixture dependency crate(s) have scanner-certified empty privilege surface: ${emptyPrivilegeCrates.join(', ')}`);
+  }
+  if (unmountedDependencies.length > 0) {
+    errors.push(`fixture dependency crate(s) have no attack mounts: ${unmountedDependencies.join(', ')}`);
+  }
+  if (unmountedPrivilegeCrates.length > 0) {
+    errors.push(`privilege-bearing workspace crate(s) have no attack mounts: ${unmountedPrivilegeCrates.join(', ')}`);
   }
   const bins = new Set(fixturePackage.targets
     .filter((target) => target.kind.includes('bin'))
@@ -137,6 +145,7 @@ export function runAttack({
   attack,
   fixtureRoot = DEFAULT_FIXTURE_ROOT,
   targetDir = TARGET,
+  spawnCargo = spawnSync,
 }) {
   const source = resolve(fixtureRoot, attack.source);
   const canonicalSource = realpathSync(source);
@@ -152,7 +161,7 @@ export function runAttack({
       '--bin', attack.bin,
     ];
     if (features.length > 0) args.push('--features', features.join(','));
-    const result = spawnSync('cargo', args, {
+    const result = spawnCargo('cargo', args, {
       cwd: fixtureRoot,
       env: { ...process.env, CARGO_TARGET_DIR: targetDir },
       encoding: 'utf8',
@@ -173,6 +182,11 @@ export function runAttack({
       continue;
     }
     const messages = parseCompilerMessages(`${result.stdout}\n${result.stderr}`, fixtureRoot);
+    if (messages.length === 0) {
+      throw new GateInfrastructureError(
+        `cargo failed ${attack.id} without a rustc compiler-message error under features ${featureLabel}\n${result.stderr || result.stdout}`,
+      );
+    }
     const hits = [];
     for (const message of messages) {
       for (const span of message.spans) {
@@ -207,7 +221,8 @@ export function runAttack({
 
 function validateSeedWitnessCoverage(privilegeFindings, attacks) {
   const obtainable = sorted(privilegeFindings
-    .filter((finding) => finding.kind === 'seed-obtain' && finding.seedType)
+    .filter((finding) => ['seed-obtain', 'caller-discriminant'].includes(finding.kind)
+      && finding.seedType)
     .map(({ seedType }) => seedType));
   const witnessed = sorted(attacks.flatMap(({ seedTypes = [] }) => seedTypes));
   return setDifference(obtainable, witnessed)

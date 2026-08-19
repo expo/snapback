@@ -12,6 +12,7 @@ import test from 'node:test';
 
 import { auditCrossCratePathIncludes } from '../scripts/check-cross-crate-path-includes.mjs';
 import { auditPrivilegeSurface } from '../scripts/check-kernel-raw-sql-api.mjs';
+import { GateInfrastructureError } from '../scripts/security-gates-lib.mjs';
 import {
   loadAttacks,
   runAttack,
@@ -23,7 +24,7 @@ const fixtureRoot = resolve(root, 'tests/fixtures/security-boundaries');
 
 // @ref LLP 0284#64-harness-integrity-the-gate-testing-itself — each proved
 // evasion is a committed counterexample against the replacement gate.
-test('privilege scanner catches by-value and structural SQL egress without a product fixture', () => {
+test('privilege scanner catches aliases, private re-exports, traits, and structural SQL egress', () => {
   const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
   const result = auditPrivilegeSurface(corpus);
   assert(result.violations.length >= 5);
@@ -33,6 +34,44 @@ test('privilege scanner catches by-value and structural SQL egress without a pro
   assert.match(output, /synthetic_kernel::Wrap::conn: public field exposes rusqlite::Connection/u);
   assert.match(output, /synthetic_kernel::LeakingTrait::conn/u);
   assert.match(output, /synthetic_kernel::Associated::LEAK/u);
+  assert.match(output, /synthetic_kernel::leak_renamed_import/u);
+  assert.match(output, /synthetic_kernel::leak_private_reexport/u);
+  assert.match(output, /synthetic_kernel::AsRefWrapper::AsRef/u);
+});
+
+test('caller-constructible discriminants cannot reach registered privilege sinks', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const output = result.violations.map(({ item, detail }) => `${item}: ${detail}`).join('\n');
+  assert.match(output, /MembershipWriter.*caller-constructible.*privilege sink/u);
+  assert.match(output, /plan_privileged_membership_insert/u);
+  assert.match(output, /sanctioned/u);
+});
+
+test('caller feature predicates are scanned without assuming default features', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const leak = result.violations.find(({ item }) => item.includes('no_default_rusqlite'));
+  assert(leak, 'expected the default-features=false re-export to be found');
+  assert.deepEqual(leak.features, ['caller-features']);
+});
+
+test('macro- and OUT_DIR-generated public APIs fail closed', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const output = result.violations.map(({ kind, item }) => `${kind} ${item}`).join('\n');
+  assert.match(output, /macro-generated-api .*generated_privilege_api/u);
+  assert.match(output, /generated-api .*generated_privilege_api\.rs/u);
+});
+
+test('seed egress requires an obtainable receiver', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const items = result.findings
+    .filter(({ kind }) => kind === 'seed-obtain')
+    .map(({ item }) => item);
+  assert(!items.includes('synthetic_kernel::LockedScope::take'));
+  assert(items.includes('synthetic_kernel::ObtainableScope::take'));
 });
 
 test('raw strings, cfg_attr, includes, and symlinks cannot cross compilation-unit ownership', () => {
@@ -50,6 +89,7 @@ test('raw strings, cfg_attr, includes, and symlinks cannot cross compilation-uni
     assert.match(output, /raw-string\/src\/lib\.rs path-escape/u);
     assert.match(output, /raw-hash-string\/src\/lib\.rs path-escape/u);
     assert.match(output, /cfg-attr\/src\/lib\.rs path-escape/u);
+    assert.match(output, /nested-cfg-attr\/src\/lib\.rs path-escape/u);
     assert.match(output, /include\/src\/lib\.rs include-escape/u);
     assert.match(output, /symlink-source\/src\/stolen\.rs symlink-source/u);
     assert.match(output, /symlink-target\/src\/lib\.rs path-escape/u);
@@ -79,6 +119,24 @@ test('an unrelated compiler error cannot satisfy a compile-fail attack', () => {
   assert.equal(outcomes.length, 1);
   assert.equal(outcomes[0].passed, false);
   assert.match(outcomes[0].line, /no primary span overlapped @attack/u);
+  assert.match(outcomes[0].diagnostics.join('\n'), /AuthorizationCommitInterlock/u);
+});
+
+test('a Cargo failure without a rustc compiler-message is infrastructure', () => {
+  const attack = loadAttacks(fixtureRoot)[0];
+  assert.throws(
+    () => runAttack({
+      fixtureRoot,
+      attack,
+      spawnCargo: () => ({
+        status: 101,
+        stdout: '',
+        stderr: 'error: failed to open .cargo-build-lock',
+        error: undefined,
+      }),
+    }),
+    GateInfrastructureError,
+  );
 });
 
 test('a claimed mount absent from cargo metadata dependency keys fails inventory honesty', () => {
@@ -106,4 +164,14 @@ test('a claimed mount absent from cargo metadata dependency keys fails inventory
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }
+});
+
+test('privilege-bearing dependencies must each have an attack mount', () => {
+  const attacks = loadAttacks(fixtureRoot).filter(({ mount }) => mount !== 'snapback-sync');
+  const errors = validateFixtureInventory(root, fixtureRoot, attacks, [{
+    crate: 'snapback-sync',
+    kind: 'seed-obtain',
+  }]);
+  assert.match(errors.join('\n'), /snapback-sync/u);
+  assert.match(errors.join('\n'), /no attack mounts/u);
 });

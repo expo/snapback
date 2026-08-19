@@ -34,6 +34,24 @@ const SEED_TYPES: &[&str] = &[
     "AskSpendReservation",
 ];
 
+// @ref LLP 0284#38-authority-discriminators — these are semantic sinks, not
+// leaked-type spellings. A caller-constructible
+// discriminator that reaches one of them can select a sanctioned lane or
+// authoritative provenance even when none of the I-1 seed types appears in a
+// public signature.
+const PRIVILEGE_SINKS: &[&str] = &[
+    "plan_privileged_membership_insert",
+    "commit_membership_plan",
+    "sanctioned",
+    "is_privileged_noninvocation",
+    "membership_write_provenance",
+    "write_membership_creation_provenance",
+    "write_membership_transition_provenance",
+    "provenance",
+];
+
+const SYMBOLIC_CALLER_FEATURES: &str = "__SNAPBACK_SYMBOLIC_CALLER_FEATURES__";
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Finding {
@@ -52,6 +70,7 @@ struct ModuleNames {
     raw_aliases: BTreeSet<String>,
     seed_aliases: BTreeMap<String, String>,
     public_types: BTreeSet<String>,
+    public_api_macros: BTreeSet<String>,
 }
 
 struct PrivilegeScanner {
@@ -63,10 +82,45 @@ struct PrivilegeScanner {
     private_public_types: BTreeSet<String>,
     heuristic_returns: Vec<HeuristicCandidate>,
     heuristic_accepts: BTreeSet<String>,
+    constructible_types: BTreeSet<String>,
+    constructible_declarations: Vec<ConstructibleDeclaration>,
+    obtainability_edges: Vec<ObtainabilityEdge>,
+    seed_returns: Vec<SeedReturnCandidate>,
+    discriminator_sinks: Vec<DiscriminatorSinkCandidate>,
 }
 
 struct HeuristicCandidate {
     type_name: String,
+    item: String,
+    file: PathBuf,
+    span: Span,
+}
+
+struct ConstructibleDeclaration {
+    type_name: String,
+    item: String,
+    file: PathBuf,
+    span: Span,
+}
+
+struct ObtainabilityEdge {
+    receiver_type: Option<String>,
+    requires_receiver: bool,
+    requires_seed_input: bool,
+    returned_types: BTreeSet<String>,
+}
+
+struct SeedReturnCandidate {
+    seed_type: String,
+    receiver_type: Option<String>,
+    requires_receiver: bool,
+    item: String,
+    file: PathBuf,
+    span: Span,
+}
+
+struct DiscriminatorSinkCandidate {
+    type_names: BTreeSet<String>,
     item: String,
     file: PathBuf,
     span: Span,
@@ -78,6 +132,95 @@ impl PrivilegeScanner {
             .parent()
             .ok_or_else(|| format!("library root has no parent: {}", lib.display()))?;
         self.scan_file(lib, Vec::new(), true, module_dir.to_path_buf())?;
+
+        // Public obtainability is a closure over constructors, free/associated
+        // functions, receiver methods, and public containers. A wrapper that
+        // can only be obtained by consuming the same seed is not an egress
+        // mint; this is what keeps take-once containers such as
+        // ManagedAuthorizationReservationScope from becoming permanent noise.
+        let mut obtainable = self.constructible_types.clone();
+        loop {
+            let mut changed = false;
+            for edge in &self.obtainability_edges {
+                if edge.requires_seed_input {
+                    continue;
+                }
+                if edge.requires_receiver {
+                    let Some(receiver) = &edge.receiver_type else {
+                        continue;
+                    };
+                    if SEED_TYPES.contains(&receiver.as_str()) || !obtainable.contains(receiver) {
+                        continue;
+                    }
+                }
+                for returned in &edge.returned_types {
+                    if obtainable.insert(returned.clone()) {
+                        changed = true;
+                    }
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+
+        for candidate in std::mem::take(&mut self.seed_returns) {
+            if candidate.requires_receiver
+                && !candidate
+                    .receiver_type
+                    .as_ref()
+                    .is_some_and(|receiver| obtainable.contains(receiver))
+            {
+                continue;
+            }
+            self.push_finding(
+                "seed-obtain",
+                candidate.item,
+                &candidate.file,
+                candidate.span,
+                format!("returns privilege seed {}", candidate.seed_type),
+                Some(candidate.seed_type),
+            );
+        }
+
+        let mut tainted_discriminants = BTreeSet::new();
+        for candidate in std::mem::take(&mut self.discriminator_sinks) {
+            let matching_types = candidate
+                .type_names
+                .intersection(&self.constructible_types)
+                .cloned()
+                .collect::<Vec<_>>();
+            for type_name in matching_types {
+                tainted_discriminants.insert(type_name.clone());
+                self.push_finding(
+                    "caller-discriminant",
+                    candidate.item.clone(),
+                    &candidate.file,
+                    candidate.span,
+                    format!(
+                        "caller-constructible {type_name} reaches a registered privilege sink without a kernel verifier"
+                    ),
+                    Some(type_name),
+                );
+            }
+        }
+        for declaration in std::mem::take(&mut self.constructible_declarations) {
+            if !tainted_discriminants.contains(&declaration.type_name) {
+                continue;
+            }
+            self.push_finding(
+                "caller-discriminant",
+                declaration.item,
+                &declaration.file,
+                declaration.span,
+                format!(
+                    "{} is caller-constructible and reaches a registered privilege sink",
+                    declaration.type_name
+                ),
+                Some(declaration.type_name),
+            );
+        }
+
         let heuristic_returns = std::mem::take(&mut self.heuristic_returns);
         for candidate in heuristic_returns {
             if self.private_public_types.contains(&candidate.type_name)
@@ -160,6 +303,33 @@ impl PrivilegeScanner {
             if !attrs_active(item_attrs(item), &self.active_features) {
                 continue;
             }
+            if let Item::Fn(function) = item {
+                self.record_discriminator_sink(
+                    &function.sig,
+                    None,
+                    Some(&function.block),
+                    source,
+                    &self.item_name(module, &function.sig.ident.to_string()),
+                    function.sig.ident.span(),
+                );
+            }
+            if let Item::Impl(item_impl) = item {
+                let self_name =
+                    last_type_name(&item_impl.self_ty).unwrap_or_else(|| "<impl>".to_owned());
+                let owner = self.item_name(module, &self_name);
+                for member in &item_impl.items {
+                    if let ImplItem::Fn(function) = member {
+                        self.record_discriminator_sink(
+                            &function.sig,
+                            Some(&self_name),
+                            Some(&function.block),
+                            source,
+                            &format!("{owner}::{}", function.sig.ident),
+                            function.sig.ident.span(),
+                        );
+                    }
+                }
+            }
             match item {
                 Item::Fn(function) if module_public && public(&function.vis) => {
                     let item_name = self.item_name(module, &function.sig.ident.to_string());
@@ -169,10 +339,19 @@ impl PrivilegeScanner {
                         source,
                         &item_name,
                         function.sig.ident.span(),
+                        None,
                     );
                 }
                 Item::Struct(structure) if module_public && public(&structure.vis) => {
                     let item_name = self.item_name(module, &structure.ident.to_string());
+                    if public_structure_constructor(&structure.fields) {
+                        self.record_constructible(
+                            &structure.ident.to_string(),
+                            &item_name,
+                            source,
+                            structure.ident.span(),
+                        );
+                    }
                     self.scan_seed_derives(
                         &structure.ident.to_string(),
                         &structure.attrs,
@@ -188,6 +367,12 @@ impl PrivilegeScanner {
                 }
                 Item::Enum(enumeration) if module_public && public(&enumeration.vis) => {
                     let item_name = self.item_name(module, &enumeration.ident.to_string());
+                    self.record_constructible(
+                        &enumeration.ident.to_string(),
+                        &item_name,
+                        source,
+                        enumeration.ident.span(),
+                    );
                     self.scan_seed_derives(
                         &enumeration.ident.to_string(),
                         &enumeration.attrs,
@@ -207,6 +392,19 @@ impl PrivilegeScanner {
                 }
                 Item::Union(item_union) if module_public && public(&item_union.vis) => {
                     let item_name = self.item_name(module, &item_union.ident.to_string());
+                    if item_union
+                        .fields
+                        .named
+                        .iter()
+                        .all(|field| public(&field.vis))
+                    {
+                        self.record_constructible(
+                            &item_union.ident.to_string(),
+                            &item_name,
+                            source,
+                            item_union.ident.span(),
+                        );
+                    }
                     self.scan_seed_derives(
                         &item_union.ident.to_string(),
                         &item_union.attrs,
@@ -241,6 +439,7 @@ impl PrivilegeScanner {
                         &item_name,
                         "public type alias",
                         false,
+                        true,
                     );
                 }
                 Item::Static(item_static) if module_public && public(&item_static.vis) => {
@@ -253,6 +452,7 @@ impl PrivilegeScanner {
                         &item_name,
                         "public static",
                         false,
+                        true,
                     );
                 }
                 Item::Const(item_const) if module_public && public(&item_const.vis) => {
@@ -265,6 +465,7 @@ impl PrivilegeScanner {
                         &item_name,
                         "public const",
                         false,
+                        true,
                     );
                 }
                 Item::Trait(item_trait) if module_public && public(&item_trait.vis) => {
@@ -277,6 +478,7 @@ impl PrivilegeScanner {
                                 source,
                                 &format!("{item_name}::{}", function.sig.ident),
                                 function.sig.ident.span(),
+                                None,
                             ),
                             syn::TraitItem::Type(item_type) => {
                                 if let Some((_, ty)) = &item_type.default {
@@ -288,6 +490,7 @@ impl PrivilegeScanner {
                                         &format!("{item_name}::{}", item_type.ident),
                                         "public trait associated type",
                                         false,
+                                        true,
                                     );
                                 }
                             }
@@ -300,6 +503,7 @@ impl PrivilegeScanner {
                                     &format!("{item_name}::{}", item_const.ident),
                                     "public trait associated const",
                                     false,
+                                    true,
                                 );
                             }
                             _ => {}
@@ -309,6 +513,15 @@ impl PrivilegeScanner {
                 Item::Use(item_use) if module_public && public(&item_use.vis) => {
                     for path in flatten_use_tree(&item_use.tree) {
                         self.scan_reexport(source, module, item_use.span(), &path);
+                        self.scan_local_reexport(
+                            items,
+                            source,
+                            module,
+                            module_dir,
+                            attribute_dir,
+                            &path,
+                            &names,
+                        )?;
                     }
                 }
                 Item::ExternCrate(extern_crate)
@@ -348,6 +561,9 @@ impl PrivilegeScanner {
                         None,
                     );
                 }
+                Item::Macro(item_macro) if module_public => {
+                    self.scan_generated_api(item_macro, &names, source, module)?;
+                }
                 Item::Mod(item_mod) => {
                     self.scan_module(
                         item_mod,
@@ -374,10 +590,10 @@ impl PrivilegeScanner {
             match item {
                 Item::Use(item_use) => {
                     for path in flatten_use_tree(&item_use.tree) {
-                        if path.iter().any(|segment| segment == "rusqlite") {
-                            if let Some(last) = path.last() {
+                        if path.segments.iter().any(|segment| segment == "rusqlite") {
+                            if let Some(last) = path.segments.last() {
                                 if matches!(last.as_str(), "Connection" | "Transaction") {
-                                    names.sql_imports.insert(last.clone());
+                                    names.sql_imports.insert(path.exposed.clone());
                                 }
                             }
                         }
@@ -394,6 +610,13 @@ impl PrivilegeScanner {
                 }
                 Item::Union(item_union) if public(&item_union.vis) => {
                     names.public_types.insert(item_union.ident.to_string());
+                }
+                Item::Macro(item_macro) if item_macro.mac.path.is_ident("macro_rules") => {
+                    if token_ident_present(&item_macro.mac.tokens, "pub") {
+                        if let Some(ident) = &item_macro.ident {
+                            names.public_api_macros.insert(ident.to_string());
+                        }
+                    }
                 }
                 _ => {}
             }
@@ -483,6 +706,7 @@ impl PrivilegeScanner {
                 &format!("{item_name}::{field_name}"),
                 "public field",
                 false,
+                true,
             );
         }
     }
@@ -533,6 +757,26 @@ impl PrivilegeScanner {
                 .last()
                 .map(|segment| segment.ident.to_string())
                 .unwrap_or_default();
+            let trait_type = Type::Path(syn::TypePath {
+                qself: None,
+                path: trait_path.clone(),
+            });
+            let trait_info = inspect_type(&trait_type, names);
+            if matches!(
+                trait_name.as_str(),
+                "From" | "Into" | "TryFrom" | "Deref" | "AsRef" | "AsMut"
+            ) {
+                if let Some(raw) = &trait_info.raw_handle {
+                    self.push_finding(
+                        "sql-egress",
+                        format!("{}::{trait_name}", self.item_name(module, &self_name)),
+                        source,
+                        item_impl.span(),
+                        format!("public trait implementation exposes rusqlite::{raw}"),
+                        None,
+                    );
+                }
+            }
             if let Some(seed) = self_type.seed_type.clone() {
                 if matches!(
                     trait_name.as_str(),
@@ -575,6 +819,7 @@ impl PrivilegeScanner {
                         ),
                         "public trait implementation associated type",
                         false,
+                        true,
                     );
                 }
             }
@@ -587,14 +832,27 @@ impl PrivilegeScanner {
             if !attrs_active(impl_item_attrs(member), &self.active_features) {
                 continue;
             }
-            match member {
-                ImplItem::Fn(function) if public(&function.vis) => self.scan_signature(
+            if let ImplItem::Fn(function) = member {
+                self.record_discriminator_sink(
                     &function.sig,
-                    names,
+                    Some(&self_name),
+                    Some(&function.block),
                     source,
                     &format!("{owner}::{}", function.sig.ident),
                     function.sig.ident.span(),
-                ),
+                );
+            }
+            match member {
+                ImplItem::Fn(function) if public(&function.vis) || item_impl.trait_.is_some() => {
+                    self.scan_signature(
+                        &function.sig,
+                        names,
+                        source,
+                        &format!("{owner}::{}", function.sig.ident),
+                        function.sig.ident.span(),
+                        Some(&self_name),
+                    )
+                }
                 ImplItem::Const(item_const) if public(&item_const.vis) => {
                     let info = inspect_type(&item_const.ty, names);
                     self.report_type_exposure(
@@ -604,6 +862,7 @@ impl PrivilegeScanner {
                         &format!("{owner}::{}", item_const.ident),
                         "public associated const",
                         false,
+                        true,
                     );
                 }
                 ImplItem::Type(item_type) if public(&item_type.vis) => {
@@ -615,6 +874,7 @@ impl PrivilegeScanner {
                         &format!("{owner}::{}", item_type.ident),
                         "public associated type",
                         false,
+                        true,
                     );
                 }
                 _ => {}
@@ -629,10 +889,51 @@ impl PrivilegeScanner {
         source: &Path,
         item_name: &str,
         span: Span,
+        receiver_type: Option<&str>,
     ) {
+        let requires_receiver = signature
+            .inputs
+            .iter()
+            .any(|argument| matches!(argument, FnArg::Receiver(_)));
+        let requires_seed_input = signature.inputs.iter().any(|argument| {
+            let FnArg::Typed(argument) = argument else {
+                return false;
+            };
+            inspect_type(&argument.ty, names).seed_type.is_some()
+        });
         if let ReturnType::Type(_, ty) = &signature.output {
             let info = inspect_type(ty, names);
-            self.report_type_exposure(&info, source, span, item_name, "public return type", true);
+            self.report_type_exposure(
+                &info,
+                source,
+                span,
+                item_name,
+                "public return type",
+                true,
+                false,
+            );
+            let mut returned_types = info.type_names.clone();
+            if returned_types.remove("Self") {
+                if let Some(receiver) = receiver_type {
+                    returned_types.insert(receiver.to_owned());
+                }
+            }
+            self.obtainability_edges.push(ObtainabilityEdge {
+                receiver_type: receiver_type.map(str::to_owned),
+                requires_receiver,
+                requires_seed_input,
+                returned_types,
+            });
+            if let Some(seed_type) = &info.seed_type {
+                self.seed_returns.push(SeedReturnCandidate {
+                    seed_type: seed_type.clone(),
+                    receiver_type: receiver_type.map(str::to_owned),
+                    requires_receiver,
+                    item: item_name.to_owned(),
+                    file: source.to_path_buf(),
+                    span,
+                });
+            }
             if self.crate_name == "snapback-kernel" && contains_impl_trait(ty) {
                 self.push_finding(
                     "impl-trait-return",
@@ -695,6 +996,7 @@ impl PrivilegeScanner {
         item_name: &str,
         context: &str,
         returning: bool,
+        report_seed: bool,
     ) {
         if let Some(raw) = &info.raw_handle {
             self.push_finding(
@@ -706,7 +1008,7 @@ impl PrivilegeScanner {
                 None,
             );
         }
-        if let Some(seed) = &info.seed_type {
+        if report_seed && let Some(seed) = &info.seed_type {
             self.push_finding(
                 "seed-obtain",
                 item_name.to_owned(),
@@ -722,15 +1024,15 @@ impl PrivilegeScanner {
         }
     }
 
-    fn scan_reexport(&mut self, source: &Path, module: &[String], span: Span, path: &[String]) {
-        if path.is_empty() {
+    fn scan_reexport(&mut self, source: &Path, module: &[String], span: Span, path: &UseBinding) {
+        if path.segments.is_empty() {
             return;
         }
-        let rendered = path.join("::");
-        if path.iter().any(|segment| segment == "rusqlite") {
+        let rendered = path.segments.join("::");
+        if path.segments.iter().any(|segment| segment == "rusqlite") {
             self.push_finding(
                 "reexport",
-                self.item_name(module, path.last().unwrap()),
+                self.item_name(module, &path.exposed),
                 source,
                 span,
                 format!("publicly re-exports {rendered}"),
@@ -739,12 +1041,13 @@ impl PrivilegeScanner {
             return;
         }
         if let Some(seed) = path
+            .segments
             .iter()
             .find(|segment| SEED_TYPES.contains(&segment.as_str()))
         {
             self.push_finding(
                 "reexport",
-                self.item_name(module, path.last().unwrap()),
+                self.item_name(module, &path.exposed),
                 source,
                 span,
                 format!("publicly re-exports privilege seed {rendered}"),
@@ -752,7 +1055,7 @@ impl PrivilegeScanner {
             );
             return;
         }
-        let source_is_privilege_crate = path.first().is_some_and(|first| {
+        let source_is_privilege_crate = path.segments.first().is_some_and(|first| {
             matches!(
                 first.as_str(),
                 "snapback_kernel"
@@ -766,18 +1069,301 @@ impl PrivilegeScanner {
         if self.crate_name != "snapback-kernel"
             && source_is_privilege_crate
             && path
+                .segments
                 .last()
                 .is_some_and(|segment| segment == "storage" || segment == "LocalDatabase")
         {
             self.push_finding(
                 "reexport",
-                self.item_name(module, path.last().unwrap()),
+                self.item_name(module, &path.exposed),
                 source,
                 span,
                 format!("publicly re-exports privilege module/type {rendered}"),
                 None,
             );
         }
+    }
+
+    fn record_constructible(&mut self, type_name: &str, item: &str, source: &Path, span: Span) {
+        self.constructible_types.insert(type_name.to_owned());
+        self.constructible_declarations
+            .push(ConstructibleDeclaration {
+                type_name: type_name.to_owned(),
+                item: item.to_owned(),
+                file: source.to_path_buf(),
+                span,
+            });
+    }
+
+    fn record_discriminator_sink(
+        &mut self,
+        signature: &syn::Signature,
+        receiver_type: Option<&str>,
+        _body: Option<&syn::Block>,
+        source: &Path,
+        item: &str,
+        span: Span,
+    ) {
+        if !PRIVILEGE_SINKS.contains(&signature.ident.to_string().as_str()) {
+            return;
+        }
+        let names = ModuleNames::default();
+        let mut type_names = BTreeSet::new();
+        for input in &signature.inputs {
+            match input {
+                FnArg::Receiver(_) => {
+                    if let Some(receiver) = receiver_type {
+                        type_names.insert(receiver.to_owned());
+                    }
+                }
+                FnArg::Typed(argument) => {
+                    type_names.extend(inspect_type(&argument.ty, &names).type_names);
+                }
+            }
+        }
+        self.discriminator_sinks.push(DiscriminatorSinkCandidate {
+            type_names,
+            item: item.to_owned(),
+            file: source.to_path_buf(),
+            span,
+        });
+    }
+
+    fn scan_generated_api(
+        &mut self,
+        item_macro: &syn::ItemMacro,
+        names: &ModuleNames,
+        source: &Path,
+        module: &[String],
+    ) -> Result<(), String> {
+        if item_macro.mac.path.is_ident("include") {
+            match evaluate_include(&item_macro.mac.tokens) {
+                Some((value, true)) => self.push_finding(
+                    "generated-api",
+                    self.item_name(module, &value),
+                    source,
+                    item_macro.span(),
+                    "public module includes build-generated Rust from OUT_DIR; expansion requires an explicit review row".to_owned(),
+                    None,
+                ),
+                Some((value, false)) => {
+                    let target = source.parent().unwrap_or(&self.crate_root).join(value);
+                    if target.exists() {
+                        self.scan_file(
+                            &target,
+                            module.to_vec(),
+                            true,
+                            target.parent().unwrap_or(&self.crate_root).to_path_buf(),
+                        )?;
+                    }
+                }
+                None => self.push_finding(
+                    "generated-api",
+                    self.item_name(module, "include!"),
+                    source,
+                    item_macro.span(),
+                    "public module has an unevaluable Rust include; expansion is fail-closed".to_owned(),
+                    None,
+                ),
+            }
+            return Ok(());
+        }
+
+        let macro_name = item_macro
+            .ident
+            .as_ref()
+            .map(ToString::to_string)
+            .or_else(|| {
+                item_macro
+                    .mac
+                    .path
+                    .segments
+                    .last()
+                    .map(|segment| segment.ident.to_string())
+            })
+            .unwrap_or_else(|| "<anonymous-macro>".to_owned());
+        let emits_public = item_macro.mac.path.is_ident("macro_rules")
+            && token_ident_present(&item_macro.mac.tokens, "pub");
+        let invocation_of_public_macro = names.public_api_macros.contains(&macro_name);
+        if (emits_public || invocation_of_public_macro)
+            && tokens_name_sensitive_type(&item_macro.mac.tokens, names)
+        {
+            self.push_finding(
+                "macro-generated-api",
+                self.item_name(module, &macro_name),
+                source,
+                item_macro.span(),
+                "ordinary macro tokens can generate a public privilege-bearing API".to_owned(),
+                None,
+            );
+        }
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn scan_local_reexport(
+        &mut self,
+        items: &[Item],
+        source: &Path,
+        module: &[String],
+        module_dir: &Path,
+        attribute_dir: &Path,
+        binding: &UseBinding,
+        names: &ModuleNames,
+    ) -> Result<(), String> {
+        let segments = binding
+            .segments
+            .iter()
+            .filter(|segment| segment.as_str() != "self")
+            .cloned()
+            .collect::<Vec<_>>();
+        if segments.is_empty()
+            || matches!(segments[0].as_str(), "crate" | "super")
+            || segments[0].contains('-')
+        {
+            return Ok(());
+        }
+        if segments.len() == 1 {
+            for item in items {
+                let Item::Use(item_use) = item else {
+                    continue;
+                };
+                if !public(&item_use.vis) {
+                    continue;
+                }
+                for nested in flatten_use_tree(&item_use.tree) {
+                    if nested.exposed == segments[0] && nested.segments != segments {
+                        let resolved = UseBinding {
+                            segments: nested.segments,
+                            exposed: binding.exposed.clone(),
+                        };
+                        self.scan_local_reexport(
+                            items,
+                            source,
+                            module,
+                            module_dir,
+                            attribute_dir,
+                            &resolved,
+                            names,
+                        )?;
+                    }
+                }
+            }
+            return Ok(());
+        }
+        let exported_item = self.item_name(module, &binding.exposed);
+        self.scan_local_reexport_path(
+            items,
+            source,
+            module,
+            module_dir,
+            attribute_dir,
+            &segments,
+            &exported_item,
+            names,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn scan_local_reexport_path(
+        &mut self,
+        items: &[Item],
+        source: &Path,
+        module: &[String],
+        module_dir: &Path,
+        attribute_dir: &Path,
+        segments: &[String],
+        exported_item: &str,
+        names: &ModuleNames,
+    ) -> Result<(), String> {
+        let Some((head, tail)) = segments.split_first() else {
+            return Ok(());
+        };
+        if tail.is_empty() {
+            for item in items {
+                match item {
+                    Item::Fn(function)
+                        if function.sig.ident == head.as_str() && public(&function.vis) =>
+                    {
+                        self.scan_signature(
+                            &function.sig,
+                            names,
+                            source,
+                            exported_item,
+                            function.sig.ident.span(),
+                            None,
+                        );
+                    }
+                    Item::Use(item_use) if public(&item_use.vis) => {
+                        for nested in flatten_use_tree(&item_use.tree) {
+                            if nested.exposed == *head {
+                                self.scan_local_reexport_path(
+                                    items,
+                                    source,
+                                    module,
+                                    module_dir,
+                                    attribute_dir,
+                                    &nested.segments,
+                                    exported_item,
+                                    names,
+                                )?;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            return Ok(());
+        }
+
+        let Some(item_mod) = items.iter().find_map(|item| match item {
+            Item::Mod(item_mod) if item_mod.ident == head.as_str() => Some(item_mod),
+            _ => None,
+        }) else {
+            return Ok(());
+        };
+        let mut child_module = module.to_vec();
+        child_module.push(item_mod.ident.to_string());
+        if let Some((_, child_items)) = &item_mod.content {
+            let child_names = self.collect_names(child_items);
+            return self.scan_local_reexport_path(
+                child_items,
+                source,
+                &child_module,
+                &module_dir.join(head),
+                &attribute_dir.join(head),
+                tail,
+                exported_item,
+                &child_names,
+            );
+        }
+        let explicit = path_attributes(&item_mod.attrs).into_iter().next();
+        let target = if let Some(value) = explicit {
+            attribute_dir.join(value)
+        } else {
+            let flat = module_dir.join(format!("{head}.rs"));
+            let nested = module_dir.join(head).join("mod.rs");
+            if flat.exists() { flat } else { nested }
+        };
+        if !target.exists() {
+            return Ok(());
+        }
+        let child_source = fs::read_to_string(&target)
+            .map_err(|error| format!("cannot read Rust source {}: {error}", target.display()))?;
+        let syntax = syn::parse_file(&child_source)
+            .map_err(|error| format!("cannot parse Rust source {}: {error}", target.display()))?;
+        let child_names = self.collect_names(&syntax.items);
+        let next_dir = module_directory_for_file(&target, module_dir, head);
+        self.scan_local_reexport_path(
+            &syntax.items,
+            &target,
+            &child_module,
+            &next_dir,
+            target.parent().unwrap_or(attribute_dir),
+            tail,
+            exported_item,
+            &child_names,
+        )
     }
 
     fn item_name(&self, module: &[String], leaf: &str) -> String {
@@ -812,6 +1398,37 @@ impl PrivilegeScanner {
     }
 }
 
+fn public_structure_constructor(fields: &Fields) -> bool {
+    match fields {
+        Fields::Unit => true,
+        Fields::Named(fields) => fields.named.iter().all(|field| public(&field.vis)),
+        Fields::Unnamed(fields) => fields.unnamed.iter().all(|field| public(&field.vis)),
+    }
+}
+
+fn token_ident_present(tokens: &TokenStream, sought: &str) -> bool {
+    tokens.clone().into_iter().any(|token| match token {
+        proc_macro2::TokenTree::Ident(ident) => ident == sought,
+        proc_macro2::TokenTree::Group(group) => token_ident_present(&group.stream(), sought),
+        _ => false,
+    })
+}
+
+fn tokens_name_sensitive_type(tokens: &TokenStream, names: &ModuleNames) -> bool {
+    tokens.clone().into_iter().any(|token| match token {
+        proc_macro2::TokenTree::Ident(ident) => {
+            let ident = ident.to_string();
+            matches!(ident.as_str(), "Connection" | "Transaction" | "rusqlite")
+                || SEED_TYPES.contains(&ident.as_str())
+                || names.raw_aliases.contains(&ident)
+                || names.sql_imports.contains(&ident)
+                || names.seed_aliases.contains_key(&ident)
+        }
+        proc_macro2::TokenTree::Group(group) => tokens_name_sensitive_type(&group.stream(), names),
+        _ => false,
+    })
+}
+
 #[derive(Default)]
 struct TypeInfo {
     raw_handle: Option<String>,
@@ -835,10 +1452,12 @@ fn inspect_type(ty: &Type, names: &ModuleNames) -> TypeInfo {
             let has_rusqlite = segments.iter().any(|segment| segment == "rusqlite");
             for segment in &segments {
                 self.info.type_names.insert(segment.clone());
-                if matches!(segment.as_str(), "Connection" | "Transaction")
-                    && (has_rusqlite
-                        || self.names.sql_imports.contains(segment)
-                        || segments.len() == 1)
+                if self.names.sql_imports.contains(segment) {
+                    self.info
+                        .raw_handle
+                        .get_or_insert_with(|| format!("import alias {segment}"));
+                } else if matches!(segment.as_str(), "Connection" | "Transaction")
+                    && (has_rusqlite || segments.len() == 1)
                 {
                     self.info.raw_handle.get_or_insert_with(|| segment.clone());
                 }
@@ -917,8 +1536,14 @@ fn derive_names(attrs: &[Attribute]) -> Vec<String> {
         .collect()
 }
 
-fn flatten_use_tree(tree: &UseTree) -> Vec<Vec<String>> {
-    fn walk(tree: &UseTree, prefix: Vec<String>, output: &mut Vec<Vec<String>>) {
+#[derive(Clone)]
+struct UseBinding {
+    segments: Vec<String>,
+    exposed: String,
+}
+
+fn flatten_use_tree(tree: &UseTree) -> Vec<UseBinding> {
+    fn walk(tree: &UseTree, prefix: Vec<String>, output: &mut Vec<UseBinding>) {
         match tree {
             UseTree::Path(path) => {
                 let mut next = prefix;
@@ -928,17 +1553,26 @@ fn flatten_use_tree(tree: &UseTree) -> Vec<Vec<String>> {
             UseTree::Name(name) => {
                 let mut next = prefix;
                 next.push(name.ident.to_string());
-                output.push(next);
+                output.push(UseBinding {
+                    segments: next,
+                    exposed: name.ident.to_string(),
+                });
             }
             UseTree::Rename(rename) => {
                 let mut next = prefix;
                 next.push(rename.ident.to_string());
-                output.push(next);
+                output.push(UseBinding {
+                    segments: next,
+                    exposed: rename.rename.to_string(),
+                });
             }
             UseTree::Glob(_) => {
                 let mut next = prefix;
                 next.push("*".to_owned());
-                output.push(next);
+                output.push(UseBinding {
+                    segments: next,
+                    exposed: "*".to_owned(),
+                });
             }
             UseTree::Group(group) => {
                 for item in &group.items {
@@ -953,8 +1587,9 @@ fn flatten_use_tree(tree: &UseTree) -> Vec<Vec<String>> {
 }
 
 fn attrs_active(attrs: &[Attribute], features: &BTreeSet<String>) -> bool {
-    // @ref LLP 0284#44-feature-matrix-all-three-gates-that-inspect-api —
-    // cfg(test) stays private to owner tests; caller features are inspected.
+    // @ref LLP 0284#44-caller-feature-predicate-coverage — cfg(test) stays
+    // private to owner tests; caller feature atoms are symbolic in the
+    // conservative coverage cell.
     for attribute in attrs {
         if !attribute.path().is_ident("cfg") {
             continue;
@@ -986,7 +1621,9 @@ fn eval_cfg(meta: &Meta, features: &BTreeSet<String>) -> Truth {
                 lit: Lit::Str(feature),
                 ..
             }) => {
-                if features.contains(&feature.value()) {
+                if features.contains(SYMBOLIC_CALLER_FEATURES) {
+                    Truth::Unknown
+                } else if features.contains(&feature.value()) {
                     Truth::True
                 } else {
                     Truth::False
@@ -1033,11 +1670,11 @@ fn eval_cfg(meta: &Meta, features: &BTreeSet<String>) -> Truth {
 
 fn path_attributes(attrs: &[Attribute]) -> Vec<String> {
     // @ref LLP 0284#43-cross-crate-path-includes--compilation-unit-ownership
-    // — cfg_attr paths are ownership-relevant even when their cfg is false.
-    let mut values = Vec::new();
-    for attribute in attrs {
-        if attribute.path().is_ident("path") {
-            if let Meta::NameValue(value) = &attribute.meta {
+    // — cfg_attr paths are ownership-relevant at every nesting depth, even
+    // when an enclosing predicate is false.
+    fn collect(meta: &Meta, values: &mut Vec<String>) {
+        match meta {
+            Meta::NameValue(value) if value.path.is_ident("path") => {
                 if let Expr::Lit(ExprLit {
                     lit: Lit::Str(path),
                     ..
@@ -1046,24 +1683,21 @@ fn path_attributes(attrs: &[Attribute]) -> Vec<String> {
                     values.push(path.value());
                 }
             }
-        } else if attribute.path().is_ident("cfg_attr") {
-            let nested = attribute
-                .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
-                .unwrap_or_default();
-            for meta in nested.into_iter().skip(1) {
-                if let Meta::NameValue(value) = meta {
-                    if value.path.is_ident("path") {
-                        if let Expr::Lit(ExprLit {
-                            lit: Lit::Str(path),
-                            ..
-                        }) = value.value
-                        {
-                            values.push(path.value());
-                        }
-                    }
+            Meta::List(list) if list.path.is_ident("cfg_attr") => {
+                let nested = Punctuated::<Meta, Token![,]>::parse_terminated
+                    .parse2(list.tokens.clone())
+                    .unwrap_or_default();
+                for child in nested.iter().skip(1) {
+                    collect(child, values);
                 }
             }
+            _ => {}
         }
+    }
+
+    let mut values = Vec::new();
+    for attribute in attrs {
+        collect(&attribute.meta, &mut values);
     }
     values
 }
@@ -1347,6 +1981,11 @@ fn run() -> Result<(), String> {
                 private_public_types: BTreeSet::new(),
                 heuristic_returns: Vec::new(),
                 heuristic_accepts: BTreeSet::new(),
+                constructible_types: BTreeSet::new(),
+                constructible_declarations: Vec::new(),
+                obtainability_edges: Vec::new(),
+                seed_returns: Vec::new(),
+                discriminator_sinks: Vec::new(),
             }
             .scan(&lib)?;
             println!(

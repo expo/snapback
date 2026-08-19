@@ -144,6 +144,14 @@ path = "src/bin/obtain_promotion_contention_reservation.rs"
 name = "obtain-ask-spend-reservation"
 path = "src/bin/obtain_ask_spend_reservation.rs"
 
+[[bin]]
+name = "forge-membership-writer-admin"
+path = "src/bin/forge_membership_writer_admin.rs"
+
+[[bin]]
+name = "reserve-authorization-via-sync"
+path = "src/bin/reserve_authorization_via_sync.rs"
+
 # Harness-only counterexample: never part of attacks.v1.json.
 [[bin]]
 name = "unrelated-error-satisfies-regex"
