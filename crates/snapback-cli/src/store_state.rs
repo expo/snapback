@@ -1120,7 +1120,7 @@ mod tests {
         use crate::auth::runtime::{AuthProviderHealth, AuthRuntime};
         use crate::contract_types::AuthProviderProfile;
         use crate::local::LocalSnapback;
-        use rusqlite::Connection;
+        use snapback_services::test_support::rusqlite::Connection;
         use std::collections::BTreeSet;
         #[cfg(unix)]
         use std::os::unix::fs::PermissionsExt as _;

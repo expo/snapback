@@ -225,7 +225,8 @@ fn backup_and_restore_publish_exact_owner_only_consistent_units() {
     let key_id = AuthKeyId::parse(&restored.auth_retained_key_ids().unwrap()[0]).unwrap();
     restored_keyring.with_key(&key_id, |_| ()).unwrap();
     drop(restored);
-    let restored_rows = rusqlite::Connection::open(&target_database).unwrap();
+    let restored_rows =
+        snapback_services::test_support::rusqlite::Connection::open(&target_database).unwrap();
     for table in [
         "_auth_credentials",
         "_auth_recovery_code_sets",

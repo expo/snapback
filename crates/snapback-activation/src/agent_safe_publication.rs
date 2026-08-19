@@ -543,7 +543,6 @@ fn is_source_commit(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::CapabilityManifestLocalExt as _;
 
     fn published_fixture(
         capability_id: &str,
@@ -895,32 +894,8 @@ mod tests {
             &tree,
         ));
 
-        // @ref LLP 0158#capability-registry-record — the guide witness never
-        // mints the distinct LLP 0113 target-manifest tuple.
-        let manifest = crate::manifest::CapabilityManifest::local_v0_declared();
-        let missing_derived_tuple = AgentSafeCapabilityFactsV1::missing()
-            .forks
-            .derived_deployment;
-        assert_eq!(
-            manifest.agent_safe.target.forks.derived_deployment,
-            missing_derived_tuple
-        );
-        assert_eq!(
-            manifest.agent_safe.app_effective.forks.derived_deployment,
-            missing_derived_tuple
-        );
-        assert!(
-            manifest
-                .capability_gaps
-                .iter()
-                .any(|gap| gap == DERIVED_FORK_ID)
-        );
-        assert!(
-            !manifest
-                .supported_capabilities
-                .iter()
-                .any(|id| id.as_str() == DERIVED_FORK_ID)
-        );
+        // The engine-owned capability-manifest tests cover target projection;
+        // this owner test proves the lower publication chain remains closed.
         assert!(!derived_fork_publication_verified());
         for distribution in [
             crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,

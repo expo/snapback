@@ -854,12 +854,8 @@ mod tests {
     #[test]
     fn dormant_catalog_cannot_be_asserted_ready_by_a_caller() {
         let mut snapback = LocalSnapback::memory().unwrap();
-        let mut runtime = AuthRuntime::inspect(
-            &mut snapback,
-            None,
-            AuthProviderProfile::Test,
-        )
-        .unwrap();
+        let mut runtime =
+            AuthRuntime::inspect(&mut snapback, None, AuthProviderProfile::Test).unwrap();
 
         let error = runtime
             .confirm_catalog_ready_after_mode_activation(&snapback)
@@ -893,7 +889,8 @@ mod tests {
     async fn dormant_foreign_auth_table_remains_servable_for_rescue() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
-        let connection = rusqlite::Connection::open(&database_path).unwrap();
+        let connection =
+            snapback_services::test_support::rusqlite::Connection::open(&database_path).unwrap();
         connection
             .execute_batch("CREATE TABLE _auth_foreign_row(id TEXT PRIMARY KEY)")
             .unwrap();

@@ -4131,6 +4131,32 @@ fn app_api_envelope_absent_members_activate_without_an_envelope() {
 }
 
 #[test]
+fn public_auth_provision_port_rejects_an_unsupported_artifact_format() {
+    let mut snapback = LocalSnapback::memory().unwrap();
+    let (schema, functions) = auth_artifact_pair(AuthMode::Sessions, 'a');
+    let artifacts = StartupArtifacts {
+        format_version: STARTUP_ARTIFACT_FORMAT_VERSION + 1,
+        schema,
+        functions,
+        seed: None,
+    };
+    let deployment = artifacts.deployment_identity(AuthMode::Sessions).unwrap();
+    let error = snapback_auth::auth::provision::PreparedAuthProvision::<LocalSnapback>::prepare(
+        &mut snapback,
+        AuthMode::Sessions,
+        artifacts,
+        deployment,
+        None,
+        None,
+    )
+    .expect_err("the public lower-owned port must enforce the complete engine preflight");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH"
+    );
+}
+
+#[test]
 fn sessions_preflight_prepares_module_source_and_export_before_staging() {
     for (source, export, expected) in [
         ("globalThis. = 1;", "broken", "SNAPBACK_HANDLER_FAILED"),
@@ -13516,13 +13542,13 @@ fn same_mode_sessions_activation_projects_live_successor_before_reopening() {
                 "test",
                 Some(projection_admission),
             )?;
-            let state = committed.state.clone();
+            let state = committed.state().clone();
             Ok((committed, state))
         })
         .and_then(|committed| committed.publish_successor())
         .expect("commit and project successor activation");
 
-    assert_eq!(committed.state, state);
+    assert_eq!(committed.state().clone(), state);
     assert_eq!(
         snapback
             .auth_database_mut()
@@ -13659,7 +13685,7 @@ fn sessions_generation_assertion_refuses_deploy_races_and_live_predecessors() {
                 "test",
                 Some(projection_admission),
             )?;
-            Ok(((), committed.state))
+            Ok(((), committed.state().clone()))
         })
         .and_then(|committed| committed.publish_successor())
         .expect("activate successor generation");
@@ -13725,7 +13751,7 @@ fn sessions_generation_assertion_refuses_deploy_races_and_live_predecessors() {
                 "test",
                 Some(projection_admission),
             )?;
-            Ok(((), committed.state))
+            Ok(((), committed.state().clone()))
         })
         .and_then(|committed| committed.publish_successor())
         .expect("activate function removal");
@@ -13801,7 +13827,7 @@ fn same_mode_activation_with_live_subscriber_survives_after_local_owner_retentio
                         "test",
                         Some(projection_admission),
                     )?;
-                    let state = committed.state.clone();
+                    let state = committed.state().clone();
                     Ok((committed, state))
                 })
             },
@@ -13877,7 +13903,7 @@ fn same_mode_activation_terminally_deletes_live_service_scope_tombstones() {
                 "test",
                 Some(projection_admission),
             )?;
-            Ok(((), committed.state))
+            Ok(((), committed.state().clone()))
         })
         .and_then(|committed| committed.publish_successor())
         .expect("commit scope tombstone and terminal live projection");
@@ -13936,7 +13962,7 @@ fn real_sessions_activation_keeps_removed_function_basis_terminal_across_readd()
                 "test",
                 Some(projection_admission),
             )?;
-            Ok(((), committed.state))
+            Ok(((), committed.state().clone()))
         })
         .and_then(|committed| committed.publish_successor())
         .expect("remove function through real sessions activation");
@@ -13966,7 +13992,7 @@ fn real_sessions_activation_keeps_removed_function_basis_terminal_across_readd()
                 "test",
                 Some(projection_admission),
             )?;
-            Ok(((), committed.state))
+            Ok(((), committed.state().clone()))
         })
         .and_then(|committed| committed.publish_successor())
         .expect("re-add function through real sessions activation");
@@ -14032,7 +14058,7 @@ fn same_mode_sessions_activation_projection_error_stays_closed() {
                 "test",
                 Some(projection_admission),
             )?;
-            let state = committed.state.clone();
+            let state = committed.state().clone();
             Ok((committed, state))
         })
         .expect_err("projection exhaustion must fail the activation");
@@ -14196,7 +14222,7 @@ fn activation_terminally_resyncs_unscoped_live_queries_changed_or_removed() {
                 "test",
                 Some(projection_admission),
             )?;
-            let state = committed.state.clone();
+            let state = committed.state().clone();
             Ok((committed, state))
         })
         .and_then(|committed| committed.publish_successor())
@@ -14335,12 +14361,12 @@ fn data_only_same_mode_seed_refreshes_auth_scoped_live_before_reopening() {
                 "test",
                 Some(projection_admission),
             )?;
-            let state = committed.state.clone();
+            let state = committed.state().clone();
             Ok((committed, state))
         })
         .and_then(|committed| committed.publish_successor())
         .expect("seed and refresh under closed activation");
-    assert_eq!(committed.outcome.seed, "seeded");
+    assert_eq!(committed.into_outcome().seed, "seeded");
     assert!(reopened.accepting);
     assert_eq!(
         snapback
@@ -20769,7 +20795,7 @@ fn oq3_crash_after_projection_materialization_reopens_unpinned_and_retry_converg
     let committed_activation = reopened
         .commit_auth_provision_classified(prepared, "oq3-projection-retry", None)
         .expect("retry commits the complete pair");
-    let state = committed_activation.state;
+    let state = committed_activation.state().clone();
     let diagnostics = committed_activation.diagnostics;
     assert!(
         diagnostics
@@ -27522,9 +27548,9 @@ fn lease_target_namespace() -> QueryNamespace {
     }
 }
 
-fn lease_request(request_id: &str) -> crate::auth::lease::AuthorizedLeaseRequestIdentity {
+fn lease_request(request_id: &str) -> snapback_kernel::auth::lease::AuthorizedLeaseRequestIdentity {
     let target = lease_target_namespace();
-    crate::auth::lease::AuthorizedLeaseRequestIdentity {
+    snapback_kernel::auth::lease::AuthorizedLeaseRequestIdentity {
         lease_request_id: request_id.to_owned(),
         client_store_id: target.client_store_id,
         query_key: target.query_key,
@@ -27575,14 +27601,14 @@ fn discharge_client_query_obligation(snapback: &mut LocalSnapback, namespace: Qu
 fn sign_captured_lease(
     capture: &super::AuthorizedLeaseCapture,
     issued_at_server_ms: u64,
-) -> crate::auth::lease::AuthorizedLease {
-    crate::auth::lease::AuthorizedLeaseAuthenticator::from_test_key(
+) -> snapback_kernel::auth::lease::AuthorizedLease {
+    snapback_kernel::auth::lease::AuthorizedLeaseAuthenticator::from_test_key(
         "sbak_AQEBAQEBAQEBAQEBAQEBAQ",
         [0x31; 32],
     )
     .issue(
         capture.issue.clone(),
-        crate::auth::lease::AuthorizedLeaseConfig::default(),
+        snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
         issued_at_server_ms,
         &capture.target_profile_id,
         &capture.app_id,
@@ -27625,7 +27651,7 @@ fn relational_retention_lease_class_admits_and_captures() {
         .reserve_captured_authorized_lease(
             capture,
             &lease,
-            crate::auth::lease::AuthorizedLeaseConfig::default(),
+            snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
             issued_at,
         )
         .expect("retained relational lease reserves end to end");
@@ -27731,7 +27757,7 @@ fn authorized_lease_capture_ignores_unrelated_obligations_and_blocks_matching_on
         .reserve_captured_authorized_lease(
             capture,
             &lease,
-            crate::auth::lease::AuthorizedLeaseConfig::default(),
+            snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
             issued_at,
         )
         .expect("unrelated obligations must not block reservation");
@@ -27774,7 +27800,7 @@ fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
         .reserve_captured_authorized_lease(
             capture,
             &lease,
-            crate::auth::lease::AuthorizedLeaseConfig::default(),
+            snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
             issued_at,
         )
         .expect_err("a racing matching obligation must fail the reservation");
@@ -27800,7 +27826,7 @@ fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
         .reserve_captured_authorized_lease(
             capture,
             &lease,
-            crate::auth::lease::AuthorizedLeaseConfig::default(),
+            snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
             issued_at,
         )
         .expect("a racing unrelated obligation must not fail the reservation");

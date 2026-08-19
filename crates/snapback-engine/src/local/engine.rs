@@ -16,7 +16,7 @@ use crate::auth::invocation::{
     PreparedAuthority, PreparedInvocation, ResolvedAppAuthority, RetainedLiveAuthority,
     WireAuthorityFields, descriptor_for_authority,
 };
-use crate::auth::lease::{
+use snapback_kernel::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
     AuthorizedLeaseRequestIdentity, authorized_lease_activation_hash,
 };
@@ -100,8 +100,8 @@ use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 use std::sync::{Arc, PoisonError, RwLock, Weak};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-#[path = "activation.rs"]
-pub(super) mod activation;
+#[path = "generation_host.rs"]
+pub(super) mod generation_host;
 use snapback_types::local::config_types;
 #[path = "inspection.rs"]
 mod inspection;
@@ -110,8 +110,8 @@ pub use crate::realtime::{
     AuthorizationBlastRadiusCounters, AuthorizationBlastRadiusStats, LiveDeliveryStats,
     RqsResumeStats,
 };
-use activation::*;
 pub use config_types::*;
+use generation_host::*;
 
 pub use inspection::MaintenanceOperation;
 pub use inspection::{
@@ -535,43 +535,41 @@ pub enum EnsureAppResponse {
     Legacy(EnsureAppOutcome),
 }
 
-/// A complete candidate pair that passed every artifact- and target-owned
-/// preflight predicate. The HTTP mode-change path deliberately carries this
-/// owned value across admission quiescence, then repeats preflight under the
-/// global write lane before storage may commit it.
-#[derive(Clone, Debug)]
-pub struct PreparedAuthProvision {
-    requested_mode: AuthMode,
-    artifacts: StartupArtifacts,
-    deployment: DeploymentIdentity,
-    routes: Option<crate::bundle::RoutesManifest>,
-    api_envelope: Option<crate::api_envelope::ApiEnvelopeMembersV1>,
-}
+use snapback_auth::auth::provision::AuthProvisionHost;
+pub use snapback_auth::auth::provision::{
+    AuthProvisionCommit, AuthProvisionCommit as AuthProvisionResult, PreparedAuthProvision,
+    PreparedAuthProvision as AuthProvisionPlan,
+};
 
-#[derive(Clone, Debug)]
-pub struct AuthProvisionCommit {
-    pub(crate) outcome: EnsureAppProvisionOutcome,
-    pub(crate) state: AuthModeStateRecord,
-    pub diagnostics: Vec<Diagnostic>,
-}
+impl AuthProvisionHost for LocalSnapback {
+    type Routes = crate::bundle::RoutesManifest;
+    type ApiEnvelope = crate::api_envelope::ApiEnvelopeMembersV1;
+    type Outcome = EnsureAppProvisionOutcome;
 
-impl PreparedAuthProvision {
-    pub fn requested_mode(&self) -> AuthMode {
-        self.requested_mode
-    }
-}
-
-impl AuthProvisionCommit {
-    pub fn state(&self) -> &AuthModeStateRecord {
-        &self.state
-    }
-
-    pub fn into_outcome(self) -> EnsureAppProvisionOutcome {
-        self.outcome
-    }
-
-    pub fn into_diagnostics(self) -> Vec<Diagnostic> {
-        self.diagnostics
+    fn validate_auth_provision_carrier(
+        &mut self,
+        requested_mode: AuthMode,
+        artifacts: &StartupArtifacts,
+        deployment: &DeploymentIdentity,
+        routes: Option<&Self::Routes>,
+        _api_envelope: Option<&Self::ApiEnvelope>,
+    ) -> SnapbackResult<()> {
+        let snapshot = self.db.auth_mode_snapshot()?;
+        Self::require_provision_posture(&snapshot.state, requested_mode)?;
+        let observed = self.preflight_auth_artifacts(artifacts, requested_mode)?;
+        if observed != *deployment {
+            return Err(snapback_kernel::auth::mode::mode_corrupt(
+                "prepared provisioning identity changed during carrier validation",
+            ));
+        }
+        if let Some(routes) = routes {
+            Self::validate_routes_manifest_against(
+                routes,
+                &artifacts.functions,
+                &artifacts.schema,
+            )?;
+        }
+        Ok(())
     }
 }
 
@@ -2954,7 +2952,6 @@ impl ConnectedClientObserver {
         self.registry
             .remove_managed_websocket(connection_id, grant_id, socket_generation);
     }
-
 }
 
 /// Read-only transport view of the engine-owned network profile selector.
@@ -3017,14 +3014,16 @@ impl EngineInvalidationBinding {
         &self,
     ) -> SnapbackResult<crate::auth::invalidation::AuthorizationInvalidationConnection> {
         let issuer_retirement = self.issuer.authenticate_prior_issuer_retirement()?;
-        Ok(crate::auth::invalidation::AuthorizationInvalidationConnection {
-            protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
-            issuer_id: self.issuer.authenticated().issuer_id.clone(),
-            connection_generation: self.issuer.reserve_connection_generation()?,
-            authorization: self.issuer.authorization_expectation()?,
-            version_stream: self.issuer.version_stream()?,
-            issuer_retirement,
-        })
+        Ok(
+            crate::auth::invalidation::AuthorizationInvalidationConnection {
+                protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
+                issuer_id: self.issuer.authenticated().issuer_id.clone(),
+                connection_generation: self.issuer.reserve_connection_generation()?,
+                authorization: self.issuer.authorization_expectation()?,
+                version_stream: self.issuer.version_stream()?,
+                issuer_retirement,
+            },
+        )
     }
 }
 
@@ -4453,10 +4452,7 @@ impl LocalSnapback {
         self.db.database_path()
     }
 
-    pub fn backup_database_image_into(
-        &self,
-        image: &std::fs::File,
-    ) -> SnapbackResult<()> {
+    pub fn backup_database_image_into(&self, image: &std::fs::File) -> SnapbackResult<()> {
         self.db.backup_database_image_into(image)
     }
 
@@ -4483,9 +4479,7 @@ impl LocalSnapback {
         self.db.quarantine_auth_mode(code)
     }
 
-    pub fn unstage_auth_mode(
-        &mut self,
-    ) -> SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+    pub fn unstage_auth_mode(&mut self) -> SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
         self.db.unstage_auth_mode()
     }
 
@@ -4496,12 +4490,8 @@ impl LocalSnapback {
         functions: &crate::manifest::FunctionManifest,
         seed: Option<crate::manifest::SeedData>,
     ) -> SnapbackResult<()> {
-        self.db.apply_same_mode_dev_deployment_with_functions(
-            deployment,
-            manifest,
-            functions,
-            seed,
-        )
+        self.db
+            .apply_same_mode_dev_deployment_with_functions(deployment, manifest, functions, seed)
     }
 
     pub fn stage_auth_mode_with_functions(
@@ -4534,11 +4524,8 @@ impl LocalSnapback {
         now_ms: u64,
         functions: &crate::manifest::FunctionManifest,
     ) -> SnapbackResult<crate::storage::auth_mode::AuthModeDowngradeResult> {
-        self.db.consume_dev_downgrade_with_functions(
-            allow_auth_downgrade,
-            now_ms,
-            functions,
-        )
+        self.db
+            .consume_dev_downgrade_with_functions(allow_auth_downgrade, now_ms, functions)
     }
 
     pub fn auth_password_provider_readiness(
@@ -4547,9 +4534,7 @@ impl LocalSnapback {
         self.db.auth_password_provider_readiness()
     }
 
-    pub fn inspect_auth_catalog(
-        &self,
-    ) -> SnapbackResult<crate::storage::auth::AuthCatalogState> {
+    pub fn inspect_auth_catalog(&self) -> SnapbackResult<crate::storage::auth::AuthCatalogState> {
         self.db.inspect_auth_catalog()
     }
 
@@ -4578,11 +4563,13 @@ impl LocalSnapback {
         } else {
             self.db.admitted_stream_projection_snapshot()?
         };
-        Ok(Arc::new(crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
-            projection,
-            provider.now_ms(),
-            provider.monotonic_now(),
-        )?))
+        Ok(Arc::new(
+            crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
+                projection,
+                provider.now_ms(),
+                provider.monotonic_now(),
+            )?,
+        ))
     }
 
     pub fn admitted_stream_projection_snapshot(
@@ -4724,12 +4711,8 @@ impl LocalSnapback {
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_integrations::IssuedOAuthAuthorization> {
         let _effect = authority.effect_guard("OAuth authorization-code issuance transaction")?;
-        self.db.issue_oauth_authorization_code(
-            consenting_user_id,
-            request_id,
-            now_ms,
-            random,
-        )
+        self.db
+            .issue_oauth_authorization_code(consenting_user_id, request_id, now_ms, random)
     }
 
     pub fn mint_scoped_token_for_oauth_code(
@@ -4751,10 +4734,7 @@ impl LocalSnapback {
         )
     }
 
-    pub fn oauth_bundle_names_for_grant(
-        &self,
-        grant_id: &str,
-    ) -> SnapbackResult<Vec<String>> {
+    pub fn oauth_bundle_names_for_grant(&self, grant_id: &str) -> SnapbackResult<Vec<String>> {
         self.db.oauth_bundle_names_for_grant(grant_id)
     }
 
@@ -4976,8 +4956,8 @@ impl LocalSnapback {
         allow_superseded_grace: bool,
         now_ms: u64,
     ) -> Result<
-        crate::auth::throttle::AuthenticationThrottleDecision,
-        crate::auth::throttle::AuthenticationThrottleError,
+        snapback_kernel::auth::throttle::AuthenticationThrottleDecision,
+        snapback_kernel::auth::throttle::AuthenticationThrottleError,
     > {
         self.db.charge_sender_authentication_attempt(
             throttle,
@@ -5002,14 +4982,14 @@ impl LocalSnapback {
         nonce_ttl_seconds: u64,
         issuance_sender_replay_epoch: Option<u64>,
     ) -> Result<
-        crate::auth::sender_proof::SenderAdmission,
-        crate::auth::sender_proof::SenderAdmissionRejection,
+        snapback_auth::auth::sender_proof::SenderAdmission,
+        snapback_auth::auth::sender_proof::SenderAdmissionRejection,
     > {
         let mut authority = self.db.sender_proof_authority();
         let sender_replay_epoch = authority.sender_replay_epoch().map_err(|_| {
-            crate::auth::sender_proof::sender_authority_unavailable_rejection()
+            snapback_auth::auth::sender_proof::sender_authority_unavailable_rejection()
         })?;
-        crate::auth::sender_proof::admit_sender_constrained_bound_request(
+        snapback_auth::auth::sender_proof::admit_sender_constrained_bound_request(
             &mut authority,
             sender_replay_epoch,
             method,
@@ -5035,16 +5015,16 @@ impl LocalSnapback {
         now_seconds: u64,
         nonce_ttl_seconds: u64,
         allow_superseded_grace: bool,
-        cover_key: Option<&crate::auth::sender_proof::SenderCoverNonceKey>,
+        cover_key: Option<&snapback_auth::auth::sender_proof::SenderCoverNonceKey>,
     ) -> Result<
-        crate::auth::sender_proof::SenderAdmission,
-        crate::auth::sender_proof::SenderAdmissionRejection,
+        snapback_auth::auth::sender_proof::SenderAdmission,
+        snapback_auth::auth::sender_proof::SenderAdmissionRejection,
     > {
         let mut authority = self.db.sender_proof_authority();
         let sender_replay_epoch = authority.sender_replay_epoch().map_err(|_| {
-            crate::auth::sender_proof::sender_authority_unavailable_rejection()
+            snapback_auth::auth::sender_proof::sender_authority_unavailable_rejection()
         })?;
-        crate::auth::sender_proof::admit_sender_constrained_request(
+        snapback_auth::auth::sender_proof::admit_sender_constrained_request(
             &mut authority,
             sender_replay_epoch,
             method,
@@ -5155,13 +5135,8 @@ impl LocalSnapback {
             ));
         }
         let _effect = authority.effect_guard("capability-link revoke transaction")?;
-        self.db.revoke_capability_link(
-            id,
-            user_id,
-            session_id,
-            authority_instance_id,
-            now_ms,
-        )
+        self.db
+            .revoke_capability_link(id, user_id, session_id, authority_instance_id, now_ms)
     }
 
     pub fn effective_agents_manifest(&self) -> crate::manifest::AgentsManifest {
@@ -5315,10 +5290,12 @@ impl LocalSnapback {
         authority.validate_admission("grant revocation planning")?;
         self.db
             .plan_grant_revocation_service_terminal(user_id, grant_id, now_ms)
-            .map(|token_ids| self.service_authority_terminal_plan(
-                token_ids,
-                ServiceAuthorityDisposition::DurableDelete,
-            ))
+            .map(|token_ids| {
+                self.service_authority_terminal_plan(
+                    token_ids,
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
     }
 
     pub fn revoke_grant_for_user(
@@ -5342,10 +5319,12 @@ impl LocalSnapback {
         authority.validate_admission("bulk grant revocation planning")?;
         self.db
             .plan_bulk_grant_revocation_service_terminal(user_id, actor_id, now_ms)
-            .map(|token_ids| self.service_authority_terminal_plan(
-                token_ids,
-                ServiceAuthorityDisposition::DurableDelete,
-            ))
+            .map(|token_ids| {
+                self.service_authority_terminal_plan(
+                    token_ids,
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
     }
 
     pub fn revoke_grants_by_actor_for_user(
@@ -5367,10 +5346,12 @@ impl LocalSnapback {
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
         self.db
             .plan_agent_credential_rotation_service_terminal(credential, now_ms)
-            .map(|token_ids| self.service_authority_terminal_plan(
-                token_ids,
-                ServiceAuthorityDisposition::DurableDelete,
-            ))
+            .map(|token_ids| {
+                self.service_authority_terminal_plan(
+                    token_ids,
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
     }
 
     pub fn rotate_agent_credential(
@@ -5390,10 +5371,12 @@ impl LocalSnapback {
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
         self.db
             .plan_scoped_token_service_terminal(credential, grant_id, now_ms)
-            .map(|token_ids| self.service_authority_terminal_plan(
-                token_ids,
-                ServiceAuthorityDisposition::Carrier,
-            ))
+            .map(|token_ids| {
+                self.service_authority_terminal_plan(
+                    token_ids,
+                    ServiceAuthorityDisposition::Carrier,
+                )
+            })
     }
 
     pub fn plan_pairing_scoped_token_service_terminal(
@@ -5402,15 +5385,14 @@ impl LocalSnapback {
         pairing_request_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        self.db.plan_pairing_scoped_token_service_terminal(
-            credential,
-            pairing_request_id,
-            now_ms,
-        )
-        .map(|token_ids| self.service_authority_terminal_plan(
-            token_ids,
-            ServiceAuthorityDisposition::Carrier,
-        ))
+        self.db
+            .plan_pairing_scoped_token_service_terminal(credential, pairing_request_id, now_ms)
+            .map(|token_ids| {
+                self.service_authority_terminal_plan(
+                    token_ids,
+                    ServiceAuthorityDisposition::Carrier,
+                )
+            })
     }
 
     pub fn mint_scoped_token(
@@ -5469,10 +5451,12 @@ impl LocalSnapback {
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
         self.db
             .plan_agent_credential_family_service_terminal(credential, now_ms)
-            .map(|token_ids| self.service_authority_terminal_plan(
-                token_ids,
-                ServiceAuthorityDisposition::DurableDelete,
-            ))
+            .map(|token_ids| {
+                self.service_authority_terminal_plan(
+                    token_ids,
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
     }
 
     pub fn revoke_agent_credential_family(
@@ -5490,10 +5474,12 @@ impl LocalSnapback {
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
         self.db
             .plan_integration_credential_family_service_terminal(credential, now_ms)
-            .map(|token_ids| self.service_authority_terminal_plan(
-                token_ids,
-                ServiceAuthorityDisposition::DurableDelete,
-            ))
+            .map(|token_ids| {
+                self.service_authority_terminal_plan(
+                    token_ids,
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
     }
 
     pub fn retire_integration_credential_family(
@@ -5515,9 +5501,7 @@ impl LocalSnapback {
         else {
             return Ok(None);
         };
-        let token_ids = self
-            .db
-            .plan_expired_service_authority_terminal(&deadline)?;
+        let token_ids = self.db.plan_expired_service_authority_terminal(&deadline)?;
         Ok(Some(ExpiredServiceAuthorityPlan {
             terminal: self.service_authority_terminal_plan(token_ids, deadline.disposition),
             deadline,
@@ -5533,9 +5517,7 @@ impl LocalSnapback {
         let Some(deadline) = publication.expired_deadline_terminal(now_ms, monotonic_now)? else {
             return Ok(None);
         };
-        let token_ids = self
-            .db
-            .plan_expired_service_authority_terminal(&deadline)?;
+        let token_ids = self.db.plan_expired_service_authority_terminal(&deadline)?;
         Ok(Some(ExpiredServiceAuthorityPlan {
             terminal: self.service_authority_terminal_plan(token_ids, deadline.disposition),
             deadline,
@@ -5648,8 +5630,8 @@ impl LocalSnapback {
     pub fn rescue_colliding_auth_table(
         &mut self,
         request: &crate::auth::wire::RescueCollidingTableRequest,
-    ) -> SnapbackResult<crate::auth::rescue::CollisionRescueResult> {
-        crate::auth::rescue::rescue_colliding_table(&mut self.db, request)
+    ) -> SnapbackResult<snapback_kernel::auth::rescue::CollisionRescueResult> {
+        snapback_kernel::auth::rescue::rescue_colliding_table(&mut self.db, request)
     }
 
     pub fn reserve_ask_spend(
@@ -5692,30 +5674,26 @@ impl LocalSnapback {
         now_ms: u64,
         network_evidence_generation: u64,
     ) -> SnapbackResult<crate::storage::declared_clients::DeclaredClientObservation> {
-        self.db.observe_declared_client(
-            normalized_id,
-            now_ms,
-            network_evidence_generation,
-        )
+        self.db
+            .observe_declared_client(normalized_id, now_ms, network_evidence_generation)
     }
 
-    fn connected_session_principal(
-        authority: &PreparedAuthority,
-    ) -> SnapbackResult<Option<&str>> {
+    fn connected_session_principal(authority: &PreparedAuthority) -> SnapbackResult<Option<&str>> {
         authority.validate_admission("connected-client witness update")?;
         match authority.resolved() {
             ResolvedAppAuthority::Session { user_id, .. }
             | ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. }
             | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Ok(Some(user_id)),
-            ResolvedAppAuthority::Anonymous
-            | ResolvedAppAuthority::ServicePrincipal { .. } => Ok(None),
-            ResolvedAppAuthority::AdminBypass { .. } | ResolvedAppAuthority::System => Err(
-                SnapbackError::error(
+            ResolvedAppAuthority::Anonymous | ResolvedAppAuthority::ServicePrincipal { .. } => {
+                Ok(None)
+            }
+            ResolvedAppAuthority::AdminBypass { .. } | ResolvedAppAuthority::System => {
+                Err(SnapbackError::error(
                     "SNAPBACK_INVOCATION_AUTHORITY_INVALID",
                     "auth",
                     "connected-client witnesses require ordinary client authority",
-                ),
-            ),
+                ))
+            }
         }
     }
 
@@ -5729,12 +5707,8 @@ impl LocalSnapback {
         let Some(principal_id) = Self::connected_session_principal(authority)? else {
             return Ok(());
         };
-        self.connected_clients.register_or_refresh_authenticated_poll(
-            principal_id,
-            connection_id,
-            grant_id,
-            now,
-        )
+        self.connected_clients
+            .register_or_refresh_authenticated_poll(principal_id, connection_id, grant_id, now)
     }
 
     pub fn register_managed_websocket_client(
@@ -5814,10 +5788,12 @@ impl LocalSnapback {
         self.validate_operator_authority(operator, authority)?;
         self.db
             .plan_integration_principal_service_terminal(principal_user_id)
-            .map(|token_ids| self.service_authority_terminal_plan(
-                token_ids,
-                ServiceAuthorityDisposition::DurableDelete,
-            ))
+            .map(|token_ids| {
+                self.service_authority_terminal_plan(
+                    token_ids,
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
     }
 
     pub fn retire_integration_principal(
@@ -7598,14 +7574,14 @@ impl LocalSnapback {
             if snapshot.state.active != AuthMode::Sessions
                 || snapshot.state.active_deployment.as_ref() != Some(expected)
             {
-                return Err(crate::auth::mode::mode_corrupt(
+                return Err(snapback_kernel::auth::mode::mode_corrupt(
                     "settled sessions deployment changed before startup successor activation",
                 ));
             }
             self.preflight_auth_artifacts(carrier, AuthMode::Sessions)
         })?;
         if repeated != *observed {
-            return Err(crate::auth::mode::mode_corrupt(
+            return Err(snapback_kernel::auth::mode::mode_corrupt(
                 "startup successor identity changed between complete-pair preflight passes",
             ));
         }
@@ -7650,6 +7626,13 @@ impl LocalSnapback {
         artifacts: &StartupArtifacts,
         requested_mode: AuthMode,
     ) -> SnapbackResult<DeploymentIdentity> {
+        if artifacts.format_version != STARTUP_ARTIFACT_FORMAT_VERSION {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+                "auth",
+                "startup artifact carrier has an unsupported format",
+            ));
+        }
         artifacts.schema.validate_artifact()?;
         artifacts.functions.validate_artifact()?;
         artifacts
@@ -8845,7 +8828,7 @@ impl LocalSnapback {
         schema: Option<SchemaManifest>,
         functions: Option<FunctionManifest>,
         seed: Option<SeedData>,
-    ) -> SnapbackResult<PreparedAuthProvision> {
+    ) -> SnapbackResult<AuthProvisionPlan<LocalSnapback>> {
         self.prepare_auth_provision_with_routes(requested_mode, schema, functions, seed, None, None)
     }
 
@@ -8962,7 +8945,7 @@ impl LocalSnapback {
         seed: Option<SeedData>,
         routes: Option<crate::bundle::RoutesManifest>,
         api_envelope: Option<crate::api_envelope::ApiEnvelopeMembersV1>,
-    ) -> SnapbackResult<PreparedAuthProvision> {
+    ) -> SnapbackResult<AuthProvisionPlan<LocalSnapback>> {
         let requested_mode = requested_mode.auth_mode();
         let snapshot = self.db.auth_mode_snapshot()?;
         Self::require_provision_posture(&snapshot.state, requested_mode)?;
@@ -8981,13 +8964,14 @@ impl LocalSnapback {
                 &artifacts.schema,
             )?;
         }
-        Ok(PreparedAuthProvision {
+        AuthProvisionPlan::prepare(
+            self,
             requested_mode,
             artifacts,
             deployment,
             routes,
             api_envelope,
-        })
+        )
     }
 
     /// State-sensitive second pass and atomic durable cut. A caller staging a
@@ -8997,20 +8981,23 @@ impl LocalSnapback {
     #[cfg(any(test, feature = "test-support"))]
     pub fn commit_auth_provision(
         &mut self,
-        prepared: PreparedAuthProvision,
+        prepared: AuthProvisionPlan<LocalSnapback>,
         profile: &str,
     ) -> SnapbackResult<(EnsureAppProvisionOutcome, AuthModeStateRecord)> {
         self.commit_auth_provision_classified(prepared, profile, None)
-            .map(|committed| (committed.outcome, committed.state))
+            .map(|committed| {
+                let (outcome, state, _) = committed.into_parts();
+                (outcome, state)
+            })
             .map_err(ModeCommitFailure::into_error)
     }
 
     pub fn commit_auth_provision_classified(
         &mut self,
-        prepared: PreparedAuthProvision,
+        prepared: AuthProvisionPlan<LocalSnapback>,
         profile: &str,
         activation_admission: Option<&AdmissionLease>,
-    ) -> Result<AuthProvisionCommit, ModeCommitFailure> {
+    ) -> Result<AuthProvisionResult<LocalSnapback>, ModeCommitFailure> {
         if crate::exec_guard::local_write_scope_active() {
             return self.commit_auth_provision_classified_in_scope(
                 prepared,
@@ -9035,28 +9022,34 @@ impl LocalSnapback {
 
     fn commit_auth_provision_classified_in_scope(
         &mut self,
-        prepared: PreparedAuthProvision,
+        prepared: AuthProvisionPlan<LocalSnapback>,
         profile: &str,
         activation_admission: Option<&AdmissionLease>,
-    ) -> Result<AuthProvisionCommit, ModeCommitFailure> {
+    ) -> Result<AuthProvisionResult<LocalSnapback>, ModeCommitFailure> {
+        let (requested_mode, artifacts, deployment, routes, api_envelope, result_projection) =
+            prepared.into_untrusted_parts();
         let before = self
             .db
             .auth_mode_snapshot()
             .map_err(ModeCommitFailure::RolledBack)?;
-        Self::require_provision_posture(&before.state, prepared.requested_mode)
+        Self::require_provision_posture(&before.state, requested_mode)
             .map_err(ModeCommitFailure::RolledBack)?;
         let observed = self
-            .preflight_auth_artifacts(&prepared.artifacts, prepared.requested_mode)
+            .preflight_auth_artifacts(&artifacts, requested_mode)
             .map_err(ModeCommitFailure::RolledBack)?;
-        if observed != prepared.deployment {
+        if observed != deployment {
             return Err(ModeCommitFailure::RolledBack(
-                crate::auth::mode::mode_corrupt(
+                snapback_kernel::auth::mode::mode_corrupt(
                     "prepared provisioning identity changed between preflight passes",
                 ),
             ));
         }
+        if let Some(routes) = &routes {
+            Self::validate_routes_manifest_against(routes, &artifacts.functions, &artifacts.schema)
+                .map_err(ModeCommitFailure::RolledBack)?;
+        }
         if before.state.active == AuthMode::Sessions
-            && prepared.requested_mode == before.state.active
+            && requested_mode == before.state.active
             && activation_admission.is_none()
         {
             return Err(ModeCommitFailure::RolledBack(SnapbackError::error(
@@ -9068,7 +9061,7 @@ impl LocalSnapback {
 
         // The activation's identity, captured before the deployment moves
         // into the durable cut: the envelope record binds to it.
-        let activation_inputs_hash = prepared.deployment.inputs_hash.clone();
+        let activation_inputs_hash = deployment.inputs_hash.clone();
 
         // Server-composed api envelope (LLP 0062 §5, 2026-08-01 ruling):
         // compose and self-verify BEFORE any durable effect, so a failing
@@ -9077,15 +9070,15 @@ impl LocalSnapback {
         // discovery read path verifies the record's inputsHash against the
         // active generation, so the crash window between cut and record
         // degrades to the typed absent marker, never a stale envelope.
-        let composed_envelope = match prepared.api_envelope.as_ref() {
+        let composed_envelope = match api_envelope.as_ref() {
             Some(members) => Some(
                 crate::api_envelope::compose_api_envelope(
                     &crate::manifest::public_function_manifest_for_schema(
-                        &prepared.artifacts.schema,
-                        prepared.artifacts.functions.clone(),
+                        &artifacts.schema,
+                        artifacts.functions.clone(),
                     ),
                     members,
-                    match prepared.requested_mode {
+                    match requested_mode {
                         AuthMode::Sessions => "sessions",
                         AuthMode::Dev => "dev",
                     },
@@ -9168,16 +9161,16 @@ impl LocalSnapback {
         }
         let compatibility_advisories = compatibility.into_advisories();
 
-        let comparison = if prepared.requested_mode == before.state.active {
+        let comparison = if requested_mode == before.state.active {
             before.state.active_deployment.as_ref()
         } else {
             before.state.requested_deployment.as_ref()
         };
-        let schema_matched = comparison
-            .is_some_and(|identity| identity.schema_hash == prepared.deployment.schema_hash);
-        let functions_matched = comparison
-            .is_some_and(|identity| identity.bundle_hash == prepared.deployment.bundle_hash);
-        let routes = prepared.routes.clone();
+        let schema_matched =
+            comparison.is_some_and(|identity| identity.schema_hash == deployment.schema_hash);
+        let functions_matched =
+            comparison.is_some_and(|identity| identity.bundle_hash == deployment.bundle_hash);
+        let routes = routes.clone();
         let incoming_routes_hash = routes.as_ref().and_then(|manifest| {
             serde_json::to_value(manifest)
                 .ok()
@@ -9185,7 +9178,7 @@ impl LocalSnapback {
         });
         let routes_matched =
             incoming_routes_hash.is_some() && incoming_routes_hash == self.routes_manifest_hash;
-        let requested_mode_is_active = prepared.requested_mode == before.state.active;
+        let requested_mode_is_active = requested_mode == before.state.active;
 
         let (seed_outcome, state, mut diagnostics) = if requested_mode_is_active {
             let publication_generation = self
@@ -9193,10 +9186,10 @@ impl LocalSnapback {
                 .map_err(ModeCommitFailure::RolledBack)?;
             let activation = crate::generation_activation::GenerationActivation::new(self)
                 .activate_same_mode_network_generation(
-                    prepared.deployment,
-                    prepared.artifacts.schema,
-                    prepared.artifacts.functions,
-                    prepared.artifacts.seed,
+                    deployment,
+                    artifacts.schema,
+                    artifacts.functions,
+                    artifacts.seed,
                     publication_generation,
                     DiagnosticBoundary::Attached,
                 )?;
@@ -9267,12 +9260,12 @@ impl LocalSnapback {
             }
             (seed_outcome.as_str(), state, diagnostics)
         } else {
-            let seeded = prepared.artifacts.seed.is_some();
+            let seeded = artifacts.seed.is_some();
             let committed = self.db.stage_auth_mode_with_functions_classified(
-                prepared.deployment,
-                prepared.artifacts.schema,
-                &prepared.artifacts.functions,
-                prepared.artifacts.seed,
+                deployment,
+                artifacts.schema,
+                &artifacts.functions,
+                artifacts.seed,
             );
             let state = match committed {
                 DurableModeCommit::Committed(committed) => committed,
@@ -9304,45 +9297,42 @@ impl LocalSnapback {
             )
             .map_err(ModeCommitFailure::Uncertain)?;
 
-        Ok(AuthProvisionCommit {
-            outcome: EnsureAppProvisionOutcome {
-                intent: EnsureAppIntent::Provision,
-                schema: if schema_matched {
+        let outcome = EnsureAppProvisionOutcome {
+            intent: EnsureAppIntent::Provision,
+            schema: if schema_matched {
+                "matched"
+            } else {
+                "provisioned"
+            }
+            .to_owned(),
+            functions: if functions_matched {
+                "matched"
+            } else {
+                "provisioned"
+            }
+            .to_owned(),
+            seed: seed_outcome.to_owned(),
+            routes: routes.as_ref().map(|_| {
+                if !requested_mode_is_active {
+                    "skipped-pending-mode"
+                } else if routes_matched {
                     "matched"
                 } else {
                     "provisioned"
                 }
-                .to_owned(),
-                functions: if functions_matched {
-                    "matched"
+                .to_owned()
+            }),
+            profile: profile.to_owned(),
+            api_envelope: Some(
+                if composed_envelope.is_some() {
+                    "composed"
                 } else {
-                    "provisioned"
+                    "absent"
                 }
                 .to_owned(),
-                seed: seed_outcome.to_owned(),
-                routes: routes.as_ref().map(|_| {
-                    if !requested_mode_is_active {
-                        "skipped-pending-mode"
-                    } else if routes_matched {
-                        "matched"
-                    } else {
-                        "provisioned"
-                    }
-                    .to_owned()
-                }),
-                profile: profile.to_owned(),
-                api_envelope: Some(
-                    if composed_envelope.is_some() {
-                        "composed"
-                    } else {
-                        "absent"
-                    }
-                    .to_owned(),
-                ),
-            },
-            state,
-            diagnostics,
-        })
+            ),
+        };
+        Ok(result_projection.project_committed(outcome, state, diagnostics))
     }
 
     /// ENG-22527: the ensure-everything mount-lifecycle operation. Inspects

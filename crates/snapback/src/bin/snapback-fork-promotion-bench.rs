@@ -18,27 +18,13 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, bail};
-use rusqlite::{Connection, Transaction, params};
 use serde::Serialize;
-use serde_json::json;
 use sha2::{Digest, Sha256};
 use snapback::bench_support::{
     AgentSafeActiveContentionWriter, prepare_agent_safe_active_contention_database,
 };
-use snapback::branches::{BranchId, ChildStreamId, MaterializedBase};
-use snapback::commit_envelope::{
-    IdentityEpochStateV1, IdentityEpochV1, OperationBoundFactsV1, OperationIdentityV1,
-    OperationIssuanceV1, OperationKeyV1, OperationOriginatorClassV1, derive_host_operation_id,
-};
-use snapback::diagnostic::SnapbackResult;
-use snapback::fork_promotion::{
-    ApprovedOperationFactsV1, BranchArtifactBindingV1, BranchGrantV1, BranchLimitsV1,
-    BranchOperationDraftV1, BranchOperationV1, ForkCoverageV1, ForkEgressPolicyV1,
-    InAppBranchCreateV1, LogicalWriteFactV1, PromotionApprovalV1, PromotionAuthorityDecisionV1,
-    PromotionContentionPolicyV1, PromotionReplayContextV1, PromotionSealKey, ReplayCustodyClassV1,
-    RetainedReplayInputV1, SnapshotRowV1, create_in_app_branch, exact_fork_diff,
-    execute_branch_operation, issue_promotion_ticket, promote_by_reexecution,
-    reap_expired_in_app_branches, request_head_reservation, seal_promotion_request,
+use snapback_services::fork_promotion_bench::{
+    ForkPromotionBenchmarkRun as Run, PromotionContentionFixture, run_fork_promotion_benchmark_once,
 };
 
 const RECORDED_RUNS: usize = 11;
@@ -135,15 +121,6 @@ struct Protocol {
     build_profile: &'static str,
     quiescence_rule: &'static str,
     measurement_scope: &'static str,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct Run {
-    fork_creation_us: f64,
-    exact_diff_us: f64,
-    promotion_us: f64,
-    ttl_reap_us: f64,
 }
 
 #[derive(Serialize)]
@@ -381,154 +358,7 @@ fn digest_file(path: &std::path::Path) -> anyhow::Result<String> {
 }
 
 fn run_once(seed: u64) -> anyhow::Result<Run> {
-    let now = 1_000_000 + seed as i64 * 100;
-    let mut canonical = source()?;
-    let create = create_request(seed, 9, 9, now);
-    let started = Instant::now();
-    create_in_app_branch(&mut canonical, &create).context("create benchmark branch")?;
-    let mut workspace = MaterializedBase::materialize(&canonical, None)?;
-    let fork_creation_us = micros(started);
-
-    let operation = draft(seed, &create.child_stream_id.0);
-    execute_branch_operation(
-        &mut workspace.conn,
-        &create.branch_id,
-        &operation,
-        now + 1,
-        rename,
-    )
-    .context("execute benchmark branch operation")?;
-    let started = Instant::now();
-    let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets)
-        .context("compute benchmark fork diff")?;
-    let exact_diff_us = micros(started);
-
-    let aggregate = identity("canonical", &format!("promotion-{seed}"), "widgets.rename");
-    let ticket = issue_promotion_ticket(
-        &mut canonical,
-        aggregate.clone(),
-        &create.branch_id,
-        "canonical",
-        1,
-        now + 60_000,
-        now + 2,
-        PromotionContentionPolicyV1 {
-            reservation_after_losses: 2,
-            reservation_interval_ms: 1_000,
-            reservation_quota: 1,
-            maximum_commit_duration_ms: 500,
-        },
-    )
-    .context("issue benchmark promotion ticket")?;
-    let key = PromotionSealKey::from_server_secret([0x42; 32])?;
-    let request = seal_promotion_request(
-        &workspace,
-        &diff,
-        PromotionApprovalV1 {
-            approver_principal_id: "bench-principal".to_owned(),
-            approver_grant_id: "bench-grant".to_owned(),
-            authority_fingerprint: sha('d'),
-            approved_at_ms: now + 3,
-            expires_at_ms: now + 50_000,
-        },
-        ticket,
-        aggregate,
-        &sha('f'),
-        &key,
-        now + 3,
-    )
-    .context("seal benchmark promotion request")?;
-    let started = Instant::now();
-    promote_by_reexecution(
-        &mut canonical,
-        &workspace,
-        &diff,
-        &request,
-        &key,
-        &PromotionAuthorityDecisionV1::Revalidated {
-            grant_id: "bench-grant".to_owned(),
-            authority_fingerprint: sha('d'),
-        },
-        now + 4,
-        &sha('f'),
-        rename_replay,
-    )
-    .context("promote benchmark branch")?;
-    let promotion_us = micros(started);
-
-    let reap = create_request(seed, 10, 10, now);
-    create_in_app_branch(&mut canonical, &reap).context("create benchmark reap branch")?;
-    let started = Instant::now();
-    reap_expired_in_app_branches(&mut canonical, now + 30_000).context("reap benchmark branch")?;
-    let ttl_reap_us = micros(started);
-
-    Ok(Run {
-        fork_creation_us,
-        exact_diff_us,
-        promotion_us,
-        ttl_reap_us,
-    })
-}
-
-fn source() -> anyhow::Result<Connection> {
-    initialize_source(Connection::open_in_memory()?)
-}
-
-fn initialize_source(mut conn: Connection) -> anyhow::Result<Connection> {
-    conn.execute_batch(
-        "CREATE TABLE _snapback_version (id INTEGER PRIMARY KEY, version INTEGER NOT NULL);
-         CREATE TABLE _snapback_changes (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           version INTEGER NOT NULL,
-           table_name TEXT NOT NULL,
-           row_id TEXT NOT NULL,
-           op TEXT NOT NULL,
-           row_json TEXT,
-           changed_at_ms INTEGER NOT NULL
-         );
-         CREATE TABLE _snapback_history_policies_v1 (
-           table_name TEXT PRIMARY KEY,
-           retain_ms INTEGER NOT NULL,
-           max_rows INTEGER NOT NULL
-         );
-         CREATE TABLE _snapback_record_history_v1 (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           version INTEGER NOT NULL,
-           table_name TEXT NOT NULL,
-           row_id TEXT NOT NULL,
-           op TEXT NOT NULL,
-           row_json TEXT,
-           changed_at_ms INTEGER NOT NULL,
-           operation_id TEXT
-         );
-         CREATE TABLE widgets (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
-         INSERT INTO _snapback_version VALUES (1, 9);",
-    )?;
-    let tx = conn.transaction()?;
-    for id in 1..=ROWS as i64 {
-        tx.execute(
-            "INSERT INTO widgets(id, name) VALUES (?1, ?2)",
-            params![id, format!("widget-{id}")],
-        )?;
-    }
-    snapback::operation_ledger::create_infra(&tx)?;
-    snapback::operation_ledger::register_epoch_in(
-        &tx,
-        &IdentityEpochV1 {
-            schema_version: 1,
-            originator_class: OperationOriginatorClassV1::Host,
-            audience: "bench-app".to_owned(),
-            authority_instance_id: "bench-authority".to_owned(),
-            epoch_id: "bench-epoch".to_owned(),
-            epoch_sequence: 1,
-            state: IdentityEpochStateV1::Open,
-            issued_at_ms: 1,
-            terminated_at_ms: None,
-            authority_authenticator_digest: sha('a'),
-        },
-    )?;
-    tx.commit()?;
-    Ok(conn)
+    run_fork_promotion_benchmark_once(seed)
 }
 
 /// Measure the ordinary-writer tail introduced by the frozen promotion head
@@ -540,53 +370,12 @@ fn initialize_source(mut conn: Connection) -> anyhow::Result<Connection> {
 /// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — the bounded
 ///   reservation requires a p99 under-contention latency record.
 fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
-    let directory = tempfile::tempdir().context("create contention fixture directory")?;
-    let database_path = directory.path().join("contention.sqlite");
+    let mut contention_fixture = PromotionContentionFixture::new()?;
+    let database_path = contention_fixture.database_path().to_path_buf();
     let canonical_stream_id = prepare_agent_safe_active_contention_database(&database_path)
         .context("prepare active ordinary-mutation contention database")?;
-    let mut canonical = Connection::open(&database_path)?;
-    canonical.busy_timeout(Duration::from_secs(5))?;
     let issued_at_ms = unix_millis()?;
-    let epoch = IdentityEpochV1 {
-        schema_version: 1,
-        originator_class: OperationOriginatorClassV1::Host,
-        audience: "bench-app".to_owned(),
-        authority_instance_id: "bench-authority".to_owned(),
-        epoch_id: "bench-epoch".to_owned(),
-        epoch_sequence: 1,
-        state: IdentityEpochStateV1::Open,
-        issued_at_ms: issued_at_ms.max(1) as u64,
-        terminated_at_ms: None,
-        authority_authenticator_digest: sha('a'),
-    };
-    let tx = canonical.transaction()?;
-    snapback::operation_ledger::register_epoch_in(&tx, &epoch)?;
-    tx.commit()?;
-    let ticket = issue_promotion_ticket(
-        &mut canonical,
-        identity(
-            &canonical_stream_id,
-            "contention-ticket",
-            "promotion.reserve",
-        ),
-        &BranchId("contention-branch".to_owned()),
-        &canonical_stream_id,
-        CONTENTION_WORKERS as u64,
-        issued_at_ms.saturating_add(60_000),
-        issued_at_ms,
-        PromotionContentionPolicyV1::default(),
-    )?;
-    // Fixture admission starts from the exact durable state reached after the
-    // production promotion loop records two consecutive CAS losses. The
-    // reservation itself is requested and enforced only through production
-    // APIs; this setup mutation is outside the timed interval.
-    canonical.execute(
-        "UPDATE _snapback_promotion_admission SET losses = ?2 WHERE ticket_id = ?1",
-        params![
-            ticket.ticket_identity.key.operation_id,
-            ticket.contention_policy.reservation_after_losses as i64
-        ],
-    )?;
+    contention_fixture.prepare(&canonical_stream_id, CONTENTION_WORKERS, issued_at_ms)?;
     let start = Arc::new(Barrier::new(CONTENTION_WORKERS + 1));
     let abort = Arc::new(AtomicBool::new(false));
     let setup_gate = Arc::new(Mutex::new(()));
@@ -667,8 +456,7 @@ fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
         }
         bail!("contention writers failed setup: {setup_errors:?}");
     }
-    request_head_reservation(&canonical, &ticket, unix_millis()?)?;
-    drop(canonical);
+    let reservation_policy = contention_fixture.activate(unix_millis()?)?;
     start.wait();
 
     let mut samples = Vec::with_capacity(CONTENTION_SAMPLES);
@@ -688,9 +476,7 @@ fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
         samples.len() == CONTENTION_SAMPLES && initial_deferred_worker_count == CONTENTION_WORKERS,
         "contention fixture did not place every initial writer behind the reservation"
     );
-    let committed_rows: usize =
-        Connection::open(&database_path)?
-            .query_row("SELECT COUNT(*) FROM todos", [], |row| row.get(0))?;
+    let committed_rows = contention_fixture.count_committed_rows()?;
     anyhow::ensure!(
         committed_rows == CONTENTION_SAMPLES,
         "active contention carrier committed {committed_rows} rows, expected {CONTENTION_SAMPLES}"
@@ -700,8 +486,9 @@ fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
     Ok(ContentionEvidence {
         metric: "ordinaryWriterReservationRequestToCommitP99Us",
         sample_definition: "128 active issuance-bearing ordinary mutations across 8 file-backed carriers; timer begins before the real staged mutation carrier and ends only after its envelope-bearing storage transaction commits; a reservation refusal retries the same server-issued operation identity; each worker's first sample is observed deferred by one active production promotion reservation",
-        reservation_interval_ms: ticket.contention_policy.reservation_interval_ms,
-        maximum_promotion_commit_duration_ms: ticket.contention_policy.maximum_commit_duration_ms,
+        reservation_interval_ms: reservation_policy.reservation_interval_ms,
+        maximum_promotion_commit_duration_ms: reservation_policy
+            .maximum_promotion_commit_duration_ms,
         p50_us: percentile(&sorted, 0.50),
         p95_us: percentile(&sorted, 0.95),
         p99_us: percentile(&sorted, 0.99),
@@ -725,158 +512,6 @@ fn unix_millis() -> anyhow::Result<i64> {
 fn percentile(sorted: &[f64], quantile: f64) -> f64 {
     let rank = (quantile * sorted.len() as f64).ceil() as usize;
     sorted[rank.saturating_sub(1).min(sorted.len().saturating_sub(1))]
-}
-
-fn create_request(seed: u64, ordinal: u64, base_version: u64, now: i64) -> InAppBranchCreateV1 {
-    InAppBranchCreateV1 {
-        schema_version: 1,
-        branch_id: BranchId(format!("bench-branch-{seed}-{ordinal}")),
-        child_stream_id: ChildStreamId(format!("bench-child-{seed}-{ordinal}")),
-        base_stream: "canonical".to_owned(),
-        base_version,
-        artifact_binding: BranchArtifactBindingV1 {
-            schema_hash: sha('1'),
-            function_bundle_hash: sha('2'),
-        },
-        grant: BranchGrantV1 {
-            principal_id: "bench-principal".to_owned(),
-            grant_id: "bench-grant".to_owned(),
-            audience: "bench-app".to_owned(),
-            authority_fingerprint: sha('d'),
-            allowed_functions: vec!["widgets.rename".to_owned()],
-            allowed_lanes: vec!["ordinaryMutation".to_owned()],
-            expires_at_ms: now + 60_000,
-        },
-        limits: BranchLimitsV1 {
-            max_live_branches_per_principal: 8,
-            max_live_branches_per_app: 8,
-            max_operations: 8,
-            max_retained_bytes: 128 * 1024,
-            max_diff_rows: 16,
-            max_digest_work_bytes: 512 * 1024,
-            ttl_ms: 30_000,
-        },
-        coverage: coverage(),
-        egress_policy: ForkEgressPolicyV1::DenyAll,
-        created_at_ms: now,
-    }
-}
-
-fn identity(stream: &str, operation: &str, function: &str) -> OperationIdentityV1 {
-    let upstream_identity = format!("bench-upstream-{operation}");
-    OperationIdentityV1 {
-        schema_version: 1,
-        key: OperationKeyV1 {
-            stream_id: stream.to_owned(),
-            originator_class: OperationOriginatorClassV1::Host,
-            operation_id: derive_host_operation_id(&upstream_identity, 0),
-        },
-        issuance: OperationIssuanceV1::HostIncarnation {
-            epoch_id: "bench-epoch".to_owned(),
-            upstream_identity,
-            commit_ordinal: 0,
-            authority_authenticator_digest: sha('a'),
-        },
-        bound_facts: OperationBoundFactsV1 {
-            audience: "bench-app".to_owned(),
-            principal_fingerprint: sha('b'),
-            authority_instance_id: "bench-authority".to_owned(),
-            operation_kind: "promotion".to_owned(),
-            function_or_command: function.to_owned(),
-            input_fingerprint: sha('c'),
-        },
-    }
-}
-
-fn draft(seed: u64, stream: &str) -> BranchOperationDraftV1 {
-    BranchOperationDraftV1 {
-        schema_version: 1,
-        identity: identity(stream, &format!("branch-op-{seed}"), "widgets.rename"),
-        artifact_identity: sha('e'),
-        function_or_command: "widgets.rename".to_owned(),
-        canonical_arguments: json!({ "id": 1, "name": format!("renamed-{seed}") }),
-        principal_id: "bench-principal".to_owned(),
-        grant_id: "bench-grant".to_owned(),
-        read_baseline: json!({ "widgets/1": "widget-1" }),
-        replay_inputs: vec![RetainedReplayInputV1 {
-            name: "ctx.locale".to_owned(),
-            custody: ReplayCustodyClassV1::InlineRedacted,
-            value: json!("en-US"),
-        }],
-        causal_predecessors: Vec::new(),
-    }
-}
-
-fn coverage() -> ForkCoverageV1 {
-    ForkCoverageV1 {
-        covered_lanes: vec!["ordinaryMutation".to_owned()],
-        uncovered_lanes: Vec::new(),
-        schema_covered: false,
-        system_fields_covered: false,
-        assets_covered: false,
-        effects_covered: false,
-    }
-}
-
-fn facts(name: &str) -> ApprovedOperationFactsV1 {
-    ApprovedOperationFactsV1 {
-        read_facts: json!({ "widgets/1": "widget-1" }),
-        ctx_answers: json!({ "locale": "en-US" }),
-        decision: json!({ "rename": true }),
-        result: json!({ "ok": true }),
-        writes: vec![LogicalWriteFactV1 {
-            table_name: "widgets".to_owned(),
-            row_id: "1".to_owned(),
-            after: Some(json!({ "id": 1, "name": name })),
-        }],
-        effects: Vec::new(),
-        coverage: coverage(),
-    }
-}
-
-// These benchmark adapters deliberately use the production promotion seam's
-// concrete diagnostic type so the measured path is the shipping path.
-#[allow(clippy::result_large_err)]
-fn rename(
-    tx: &Transaction<'_>,
-    draft: &BranchOperationDraftV1,
-) -> SnapbackResult<ApprovedOperationFactsV1> {
-    let name = draft.canonical_arguments["name"]
-        .as_str()
-        .unwrap_or_default();
-    tx.execute("UPDATE widgets SET name=?1 WHERE id=1", params![name])?;
-    Ok(facts(name))
-}
-
-#[allow(clippy::result_large_err)]
-fn rename_replay(
-    context: &PromotionReplayContextV1<'_>,
-    operation: &BranchOperationV1,
-) -> SnapbackResult<ApprovedOperationFactsV1> {
-    let _current = context.read_row("widgets", "1")?;
-    let name = operation.canonical_arguments["name"]
-        .as_str()
-        .unwrap_or_default();
-    Ok(facts(name))
-}
-
-#[allow(clippy::result_large_err)]
-fn scan_widgets(conn: &Connection) -> SnapbackResult<Vec<SnapshotRowV1>> {
-    let mut statement = conn.prepare("SELECT id, name FROM widgets")?;
-    let rows = statement.query_map([], |row| {
-        let id = row.get::<_, i64>(0)?;
-        let name = row.get::<_, String>(1)?;
-        Ok(SnapshotRowV1 {
-            table_name: "widgets".to_owned(),
-            row_id: id.to_string(),
-            row: json!({ "id": id, "name": name }),
-        })
-    })?;
-    let mut rows = rows.collect::<rusqlite::Result<Vec<_>>>()?;
-    rows.sort_by(|left, right| {
-        (&left.table_name, &left.row_id).cmp(&(&right.table_name, &right.row_id))
-    });
-    Ok(rows)
 }
 
 fn summarize(runs: &[Run]) -> BTreeMap<&'static str, Statistics> {
@@ -952,10 +587,6 @@ fn checked_command(arguments: &[&str]) -> anyhow::Result<String> {
 
 fn sysctl(name: &str) -> anyhow::Result<String> {
     checked_command(&["sysctl", "-n", name])
-}
-
-fn sha(character: char) -> String {
-    format!("sha256:{}", character.to_string().repeat(64))
 }
 
 #[cfg(test)]

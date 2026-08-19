@@ -8,8 +8,6 @@ fn test_app_state_from_snapback(
     snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
 }
 
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use snapback::admin::{ServerContext, ServerProfile};
 use snapback::auth::mode::{
@@ -21,6 +19,8 @@ use snapback::server::{
     CredentialResolution, InvocationAuthority, OperationTransport, PolicyAuthMode, RoutePolicy,
     app, operation_registry,
 };
+use snapback_server::test_support::axum::body::{Body, to_bytes};
+use snapback_server::test_support::axum::http::{Request, StatusCode};
 use tower::ServiceExt;
 
 const ADMIN_TOKEN: &str = "ensure-admin-token";
@@ -145,7 +145,7 @@ fn post(body: Value, token: Option<&str>) -> Request<Body> {
         .expect("build ensure request")
 }
 
-async fn response_json(response: axum::response::Response) -> Value {
+async fn response_json(response: snapback_server::test_support::axum::response::Response) -> Value {
     let bytes = to_bytes(response.into_body(), usize::MAX)
         .await
         .expect("read ensure response");

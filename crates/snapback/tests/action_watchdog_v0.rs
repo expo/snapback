@@ -15,8 +15,6 @@ fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback
     snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
 }
 
-use axum::body::Body;
-use axum::http::Request;
 use serde_json::{Value, json};
 use snapback::cron::CronRunOutcome;
 use snapback::local::LocalSnapback;
@@ -26,6 +24,8 @@ use snapback::manifest::{
     FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, IbexModule,
     SchemaManifest, TableManifest,
 };
+use snapback_server::test_support::axum::body::Body;
+use snapback_server::test_support::axum::http::Request;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -327,10 +327,11 @@ fn post_json(uri: &str, body: Value) -> Request<Body> {
         .expect("request")
 }
 
-async fn body_json(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .expect("body bytes");
+async fn body_json(response: snapback_server::test_support::axum::response::Response) -> Value {
+    let bytes =
+        snapback_server::test_support::axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body bytes");
     serde_json::from_slice(&bytes).expect("body json")
 }
 

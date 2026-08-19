@@ -11,12 +11,14 @@ path = "src/lib.rs"
 
 [features]
 default = ["services-owner"]
-# Remainder-only tests include the moved source under the old crate root so
-# tests that exercise higher-layer composition retain their original access.
+# Stable owner feature plus bounded support surfaces for the rank-7 benchmark
+# recorder and integration tests. Confined handles do not cross those APIs.
 services-owner = []
+benchmark-support = []
 remainder-tests = ["snapback-kernel/test-support"]
 
 [dependencies]
+anyhow = "1.0"
 async-trait = "0.1"
 base64 = "0.22"
 celld-ltx = { path = "../../vendor/celld-ltx" }

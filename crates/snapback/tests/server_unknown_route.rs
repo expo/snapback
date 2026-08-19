@@ -1,9 +1,9 @@
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode};
 use serde_json::Value;
 use snapback::admin::AppState;
 use snapback::local::LocalSnapback;
 use snapback::server::app;
+use snapback_server::test_support::axum::body::{Body, to_bytes};
+use snapback_server::test_support::axum::http::{Request, StatusCode};
 use tower::ServiceExt;
 
 #[tokio::test]

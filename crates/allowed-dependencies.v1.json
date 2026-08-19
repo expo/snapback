@@ -23,11 +23,45 @@
     { "dependency": "ibex-runtime", "allowedMembers": ["snapback-runtime"] },
     { "dependency": "rusqlite", "allowedMembers": ["snapback-kernel", "snapback-services"] }
   ],
-  "remainderConfinementExemption": {
-    "member": "snapback",
-    "dependencies": ["axum", "celld-ltx", "clap", "ibex-runtime", "rusqlite"],
-    "expiresAt": "phase-3-flip",
-    "reason": "The Phase 1 monolith remains the uncarved remainder and necessarily carries every confined external until the owning crates exist."
-  },
-  "membershipExceptions": []
+  "engineDefinitionDenylist": [
+    { "kind": "symbol", "symbol": "activation" },
+    { "kind": "symbol", "symbol": "auth" },
+    { "kind": "symbol", "symbol": "search" },
+    { "kind": "symbol", "symbol": "AuthProvisionCommit" },
+    { "kind": "symbol", "symbol": "PreparedAuthProvision" }
+  ],
+  "membershipExceptions": [
+    {
+      "name": "fork-promotion-benchmark-composition",
+      "assignments": [
+        { "module": "crates/snapback/src/bin/snapback-fork-promotion-bench.rs", "assignedOwner": "transport-adapters" }
+      ],
+      "actualMember": "snapback",
+      "expiresAt": "2026-09-15",
+      "reason": "The recorder's database work already uses lower-owned safe benchmark APIs, but its report provenance depends on SNAPBACK_BUILD_GIT_COMMIT and SNAPBACK_BUILD_GIT_DIRTY emitted only by the facade build script. Moving the binary before the planned tool-path migration ports that exact stamping would silently change benchmark identity.",
+      "ticket": "issues/20260818-fork-promotion-benchmark-owner-burn-down.md"
+    },
+    {
+      "name": "schema-export-facade-integration",
+      "assignments": [
+        { "module": "crates/snapback/src/bin/snapback-schemagen.rs", "assignedOwner": "transport-adapters" },
+        { "module": "crates/snapback/src/schema_export.rs", "assignedOwner": "generation-activation-coordinator" }
+      ],
+      "actualMember": "snapback",
+      "expiresAt": "2026-09-15",
+      "reason": "Schema export still joins public carriers and route facts from every rank; forcing it into activation would create upward dependencies, so the generator remains with the rank-7 facade until leaf schema registries replace the join.",
+      "ticket": "issues/20260818-schema-export-owner-burn-down.md"
+    },
+    {
+      "name": "telemetry-proof-private-composition",
+      "assignments": [
+        { "module": "crates/snapback/src/bin/snapback-telemetry-bench.rs", "assignedOwner": "transport-adapters" },
+        { "module": "crates/snapback/src/telemetry_bench.rs", "assignedOwner": "background-services" }
+      ],
+      "actualMember": "snapback",
+      "expiresAt": "2026-09-15",
+      "reason": "The storage measurements now use a services-owned observation-only port, but the proof orchestrator still composes engine application calls, server HTTP routing, facade build identity, and the committed rank-7 baseline. Moving that orchestrator to background services would require upward engine/server edges, so it remains with the facade pending the planned tools-owned composition move.",
+      "ticket": "issues/20260818-telemetry-proof-owner-burn-down.md"
+    }
+  ]
 }

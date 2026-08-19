@@ -2,8 +2,6 @@
 //! These tests use a clock-free Ibex spin so settlement ordering is observable
 //! without adding a production test hook to the fan-out loop.
 
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use snapback::admin::AppState;
 use snapback::ephemeral::RealtimeEnvelope;
@@ -14,6 +12,8 @@ use snapback::manifest::{
     FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, MutationPlan, MutationStep,
     OrderDirection, OrderExpr, QueryPlan, ReturnValue, SchemaManifest, TableManifest, ValueExpr,
 };
+use snapback_server::test_support::axum::body::{Body, to_bytes};
+use snapback_server::test_support::axum::http::{Request, StatusCode};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -441,7 +441,7 @@ fn functions() -> FunctionManifest {
                 "createTodo",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "todos".to_owned(),
                         values: BTreeMap::from([

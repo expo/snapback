@@ -9,5 +9,5 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn run() -> anyhow::Result<()> {
-    snapback::cli::run_from_env().await
+    snapback_cli::cli::run_from_env().await
 }

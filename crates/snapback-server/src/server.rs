@@ -67,13 +67,14 @@ use crate::live_wire::{
     LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
 };
 use crate::local::{
-    AdmittedCronClaim, AppActionStage, AuthProvisionCommit, AuthorizationInvalidationAckInput,
-    AuthorizationInvalidationManualRetryInput, ConfigVerifyStage, DetachedMutationRead,
-    EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
-    FunctionRunResult, HostOperationParentV1, InspectState, LiveInvalidationAdmission,
-    LiveResumeInput, LiveSubscribeRequest, LiveUnsubscribeInput, LocalSnapback,
-    MaintenanceOperation, PreparedAuthProvision, StagedAction, StagedAppAction, StagedConfigVerify,
-    StagedNestedMutation, live_stream_text, live_stream_text_with_server_observed,
+    AdmittedCronClaim, AppActionStage, AuthProvisionPlan, AuthProvisionResult,
+    AuthorizationInvalidationAckInput, AuthorizationInvalidationManualRetryInput,
+    ConfigVerifyStage, DetachedMutationRead, EnsureAppExplicitInput, EnsureAppMode,
+    EnsureAppRequest, EnsureAppResponse, EphemeralApi, FunctionRunResult, HostOperationParentV1,
+    InspectState, LiveInvalidationAdmission, LiveResumeInput, LiveSubscribeRequest,
+    LiveUnsubscribeInput, LocalSnapback, MaintenanceOperation, StagedAction, StagedAppAction,
+    StagedConfigVerify, StagedNestedMutation, live_stream_text,
+    live_stream_text_with_server_observed,
 };
 use crate::manifest::{
     ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ArtifactGeneration, AuthInput,
@@ -22742,7 +22743,7 @@ async fn host_ops_handler_inner(
                                 profile.as_str().to_owned(),
                             )
                             .await
-                            .map(AuthProvisionCommit::into_diagnostics)
+                            .map(AuthProvisionResult::into_diagnostics)
                             .map_err(|error| error.0),
                             Err(error) => Err(error),
                         }
@@ -27768,9 +27769,9 @@ async fn cancel_stream_attempt(
 /// successor reopens.
 async fn commit_prepared_auth_provision(
     runtime: &AppState,
-    prepared: PreparedAuthProvision,
+    prepared: AuthProvisionPlan<LocalSnapback>,
     profile: String,
-) -> Result<AuthProvisionCommit, ApiError> {
+) -> Result<AuthProvisionResult<LocalSnapback>, ApiError> {
     let predecessor = runtime.auth_mode_state();
     let owns_transition =
         prepared.requested_mode() != predecessor.active || predecessor.active == AuthMode::Sessions;

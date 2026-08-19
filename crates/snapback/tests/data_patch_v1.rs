@@ -7,8 +7,6 @@ fn test_app_state_from_snapback(
     snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
 }
 
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode, header};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext, ServerProfile};
 use snapback::admin_impersonation::{
@@ -21,6 +19,8 @@ use snapback::manifest::{
     FunctionRuntime, HandlerInput, HandlerPlan, MutationPlan, MutationStep, QueryPlan, ReturnValue,
     SchemaManifest, TableManifest, ValueExpr,
 };
+use snapback_server::test_support::axum::body::{Body, to_bytes};
+use snapback_server::test_support::axum::http::{Request, StatusCode, header};
 use std::collections::BTreeMap;
 use std::time::Duration;
 use tower::ServiceExt as _;
@@ -87,7 +87,7 @@ fn functions() -> FunctionManifest {
                 "createTodo",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "todos".to_owned(),
                         values: BTreeMap::from([
@@ -107,7 +107,7 @@ fn functions() -> FunctionManifest {
                 "editTitle",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Patch {
                         table: "todos".to_owned(),
                         id: ValueExpr::Arg("id".to_owned()),

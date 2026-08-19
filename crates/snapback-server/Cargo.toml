@@ -12,9 +12,11 @@ path = "src/lib.rs"
 
 [features]
 default = ["server-owner"]
-# The rank-7 remainder includes moved transport sources in its unit-test build
-# so upward/private integration tests retain their original crate access.
+# Stable feature names retained for affected-test selection and owner-scoped
+# test support after the transport sources moved here.
 server-owner = []
+benchmark-support = ["dep:tower"]
+test-support = []
 
 [dependencies]
 anyhow = "1.0"
@@ -44,6 +46,7 @@ snapback-sync = { path = "../snapback-sync" }
 snapback-types = { path = "../snapback-types" }
 subtle = "2"
 tokio = { version = "1.48", features = ["full"] }
+tower = { version = "0.5", features = ["util"], optional = true }
 tower-service = "0.3"
 unicode-normalization = "0.1"
 ureq = { version = "2", features = ["json"] }
@@ -51,6 +54,7 @@ uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
 zeroize = "1.8"
 
 [dev-dependencies]
+bcrypt = "0.19.3"
 snapback-activation = { path = "../snapback-activation", features = ["test-support"] }
 snapback-auth = { path = "../snapback-auth", features = ["test-support"] }
 snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }

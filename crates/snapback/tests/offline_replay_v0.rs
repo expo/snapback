@@ -8,8 +8,6 @@ fn test_app_state_from_snapback(
     snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
 }
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use snapback::admin::ServerContext;
@@ -20,6 +18,8 @@ use snapback::manifest::{
     PermissionScopeExpr, ResultValueContract, SchemaManifest, SettlementClaimSet,
     SettlementIdentityClaims, SettlementLane, SettlementMintClaim, auth_fingerprint,
 };
+use snapback_server::test_support::axum::body::Body;
+use snapback_server::test_support::axum::http::{Request, StatusCode};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tower::ServiceExt;
@@ -133,10 +133,11 @@ fn post_json_admin(path: &str, value: Value, token: &str) -> Request<Body> {
         .expect("admin request")
 }
 
-async fn response_json(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .expect("response bytes");
+async fn response_json(response: snapback_server::test_support::axum::response::Response) -> Value {
+    let bytes =
+        snapback_server::test_support::axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("response bytes");
     serde_json::from_slice(&bytes).expect("response json")
 }
 

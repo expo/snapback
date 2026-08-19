@@ -126,9 +126,9 @@ fn reload_schema(hash: &str, include_extra: bool) -> SchemaManifest {
     }
 }
 
-#[path = "tests/activation.rs"]
-mod activation;
 #[path = "tests/engine.rs"]
 mod engine;
+#[path = "tests/generation_activation.rs"]
+mod generation_activation;
 
 pub(crate) use engine::*;

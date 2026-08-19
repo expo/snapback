@@ -59,6 +59,10 @@ const ERROR_TRANSITIONS_PER_GROUP: usize = 100;
 const ERROR_TRANSITIONS_GLOBAL: usize = 10_000;
 const RELEASE_ACTIVATION_CAP: usize = 2_000;
 
+#[cfg(feature = "benchmark-support")]
+#[path = "telemetry_benchmark_support.rs"]
+pub mod benchmark_support;
+
 /// Trusted identity of the app/environment that owns one telemetry sibling.
 /// These values are never accepted from an event payload and are never
 /// truncated: rows inherit them from `telemetry_meta` only when exported.

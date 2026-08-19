@@ -245,7 +245,8 @@ fn server_and_external_status_sustain_one_hundred_file_replica_commits() {
     frontier = status(binary, &remote, &key_file, &database)["frontier"]["txid"]
         .as_u64()
         .expect("final frontier txid");
-    let source = rusqlite::Connection::open(&database).expect("inspect stopped source");
+    let source = snapback_services::test_support::rusqlite::Connection::open(&database)
+        .expect("inspect stopped source");
     let source_version: u64 = source
         .query_row(
             "SELECT version FROM _snapback_version WHERE id=1",
@@ -267,8 +268,10 @@ fn server_and_external_status_sustain_one_hundred_file_replica_commits() {
     let restored: Value = serde_json::from_slice(&restored.stdout).expect("restore result JSON");
     assert_eq!(restored["position"]["txid"], Value::from(frontier));
     assert_eq!(restored["sourceVersion"], Value::from(source_version));
-    let image =
-        rusqlite::Connection::open(restore.join("database.sqlite3")).expect("open restored image");
+    let image = snapback_services::test_support::rusqlite::Connection::open(
+        restore.join("database.sqlite3"),
+    )
+    .expect("open restored image");
     assert_eq!(
         image
             .query_row("PRAGMA integrity_check", [], |row| row.get::<_, String>(0))

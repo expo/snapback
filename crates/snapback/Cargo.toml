@@ -23,7 +23,7 @@ sync-owner = []
 # Internal evidence harness for LLP 0154 Phase 1. This is deliberately absent
 # from ordinary contributor/server builds and is enabled only by the bounded
 # proof script.
-telemetry-phase1-proof = ["dep:tower"]
+telemetry-phase1-proof = ["snapback-server/benchmark-support"]
 
 [[bin]]
 name = "snapback-telemetry-bench"
@@ -34,12 +34,9 @@ required-features = ["telemetry-phase1-proof"]
 anyhow = "1.0"
 argon2 = "0.6.0-rc.8"
 async-trait = "0.1"
-axum = { version = "0.8.9", features = ["ws"] }
 base64 = "0.22"
 bcrypt = "0.19.3"
 chacha20poly1305 = "0.10"
-celld-ltx = { path = "../../vendor/celld-ltx" }
-clap = { version = "4.5", features = ["derive"] }
 crc32fast = "1"
 futures-util = "0.3"
 fs2 = "0.4"
@@ -57,7 +54,6 @@ libc = "0.2"
 regex = "1"
 qrcode = { version = "0.14", default-features = false }
 ring = "0.17"
-rusqlite = { version = "0.31", features = ["backup", "bundled", "column_decltype", "functions", "hooks", "limits", "serialize"] }
 ryu-js = "1.0.2"
 schemars = "1.2.1"
 serde = { version = "1.0", features = ["derive"] }
@@ -69,7 +65,6 @@ subtle = "2"
 tempfile = "3.23"
 tokio = { version = "1.48", features = ["full"] }
 tower-service = "0.3"
-tower = { version = "0.5", features = ["util"], optional = true }
 unicode-normalization = "0.1"
 unicode-segmentation = "1.12"
 ureq = { version = "2", features = ["json"] }
@@ -81,7 +76,7 @@ snapback-auth = { path = "../snapback-auth" }
 snapback-activation = { path = "../snapback-activation" }
 snapback-runtime = { path = "../snapback-runtime" }
 snapback-sync = { path = "../snapback-sync" }
-snapback-services = { path = "../snapback-services" }
+snapback-services = { path = "../snapback-services", features = ["benchmark-support"] }
 snapback-engine = { path = "../snapback-engine" }
 snapback-server = { path = "../snapback-server" }
 snapback-cli = { path = "../snapback-cli" }
@@ -102,6 +97,7 @@ snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }
 snapback-runtime = { path = "../snapback-runtime", features = ["test-support"] }
 snapback-sync = { path = "../snapback-sync", features = ["test-support"] }
 snapback-services = { path = "../snapback-services", features = ["remainder-tests"] }
+snapback-server = { path = "../snapback-server", features = ["test-support"] }
 syn = { version = "2.0", features = ["full", "visit"] }
 # test-util enables tokio's paused clock so the admitted-body ingest deadline
 # (LLP 0058#admitted-body-ingestion) is testable without a 20-second wait.

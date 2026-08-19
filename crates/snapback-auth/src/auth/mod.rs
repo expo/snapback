@@ -12,6 +12,7 @@ pub mod lifecycle;
 pub mod lock_rank;
 pub mod mailbox;
 pub mod provider;
+pub mod provision;
 pub mod sender_proof;
 pub mod service_fence;
 

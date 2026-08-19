@@ -90,7 +90,8 @@ fn input() -> HandlerInput {
 }
 
 fn marker_rows(database: &Path) -> Vec<(String, u64)> {
-    let conn = rusqlite::Connection::open(database).expect("open fork database");
+    let conn = snapback_services::test_support::rusqlite::Connection::open(database)
+        .expect("open fork database");
     let mut statement = conn
         .prepare("SELECT family, attempts FROM _snapback_fork_egress_attempts_v1 ORDER BY family")
         .expect("prepare marker query");
@@ -153,7 +154,8 @@ fn js_actions_cannot_fetch_or_stream_from_a_fork_through_the_real_vm() {
         );
     }
     drop(parent);
-    let conn = rusqlite::Connection::open(&source).expect("open parent database");
+    let conn = snapback_services::test_support::rusqlite::Connection::open(&source)
+        .expect("open parent database");
     let marker_table_exists: bool = conn
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?1)",

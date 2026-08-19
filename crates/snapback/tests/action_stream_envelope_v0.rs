@@ -12,14 +12,14 @@ fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback
     snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
 }
 
-use axum::body::Body;
-use axum::http::Request;
 use serde_json::{Value, json};
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
     ConfigEntryDefinition, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
     IbexModule,
 };
+use snapback_server::test_support::axum::body::Body;
+use snapback_server::test_support::axum::http::Request;
 use tower::ServiceExt;
 
 const STREAM_SECRET: &str = "stream-secret-value-7f3a";
@@ -160,10 +160,11 @@ fn post_json(uri: &str, body: Value) -> Request<Body> {
         .expect("request")
 }
 
-async fn body_json(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .expect("body bytes");
+async fn body_json(response: snapback_server::test_support::axum::response::Response) -> Value {
+    let bytes =
+        snapback_server::test_support::axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body bytes");
     serde_json::from_slice(&bytes).expect("body json")
 }
 
