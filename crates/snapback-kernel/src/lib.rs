@@ -22,6 +22,7 @@ pub mod assets_cut;
 pub mod assets_store;
 pub mod branches;
 pub mod conformance;
+pub mod control_catalog;
 pub mod data_patch;
 pub mod data_tier;
 pub mod diagnostic;

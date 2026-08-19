@@ -95,10 +95,7 @@ async fn asset_signed_url_route_empty_and_omitted_body_issue_primary() {
         snapback,
         asset_id,
         authority,
-    } = snapback_engine::test_support::signed_asset_fixture(
-        "user_a",
-        b"signed-route-defaults",
-    );
+    } = snapback_engine::test_support::signed_asset_fixture("user_a", b"signed-route-defaults");
     let state = Arc::new(Mutex::new(snapback));
 
     for body in [Bytes::new(), Bytes::from_static(b"{}")] {
@@ -871,9 +868,9 @@ async fn http_telemetry_uses_registered_names_codes_and_private_unmatched_detail
     assert_eq!(unmatched.status(), StatusCode::NOT_FOUND);
 
     telemetry.force_flush().expect("flush HTTP observations");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
+    let raw = snapback_services::test_support::rusqlite::Connection::open(
+        crate::telemetry::Telemetry::path_for_database(&database_path),
+    )
     .expect("open telemetry sibling");
     let health_count: i64 = raw
             .query_row(
@@ -934,9 +931,9 @@ fn ws_connect_observation_joins_once_with_generic_disconnect_cause() {
             true,
         ));
         telemetry.force_flush().expect("flush socket admission");
-        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-            &database_path,
-        ))
+        let raw = snapback_services::test_support::rusqlite::Connection::open(
+            crate::telemetry::Telemetry::path_for_database(&database_path),
+        )
         .expect("open socket telemetry sibling");
         let phases: Vec<String> = raw
             .prepare("SELECT phase FROM telemetry_events WHERE kind='ws_connect' ORDER BY id")
@@ -950,9 +947,9 @@ fn ws_connect_observation_joins_once_with_generic_disconnect_cause() {
     }
     telemetry.force_flush().expect("flush socket terminal");
 
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
+    let raw = snapback_services::test_support::rusqlite::Connection::open(
+        crate::telemetry::Telemetry::path_for_database(&database_path),
+    )
     .expect("reopen socket telemetry sibling");
     let rows = raw
             .prepare(
@@ -1015,9 +1012,9 @@ fn ws_connect_observation_preserves_typed_terminal_code_and_reason() {
         observation.finish();
     }
     telemetry.force_flush().expect("flush typed terminal");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
+    let raw = snapback_services::test_support::rusqlite::Connection::open(
+        crate::telemetry::Telemetry::path_for_database(&database_path),
+    )
     .expect("open typed socket telemetry");
     let (status, code, details): (i64, String, String) = raw
             .query_row(
@@ -1070,9 +1067,9 @@ fn live_service_terminal_failure_emission_records_once() {
         );
     }
     telemetry.force_flush().expect("flush service diagnostic");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
+    let raw = snapback_services::test_support::rusqlite::Connection::open(
+        crate::telemetry::Telemetry::path_for_database(&database_path),
+    )
     .expect("open service diagnostic telemetry");
     let count: i64 = raw
             .query_row(
@@ -1097,9 +1094,9 @@ async fn successful_bind_records_process_ready_exactly_once() {
         .expect("bind ready listener");
     let _bound = super::app(state).bind(listener).expect("couple bound app");
     telemetry.force_flush().expect("flush ready lifecycle");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
+    let raw = snapback_services::test_support::rusqlite::Connection::open(
+        crate::telemetry::Telemetry::path_for_database(&database_path),
+    )
     .expect("open ready telemetry");
     let count: i64 = raw
         .query_row(
@@ -1118,9 +1115,10 @@ async fn successful_bind_records_process_ready_exactly_once() {
     direct_telemetry
         .force_flush()
         .expect("flush pre-ready lifecycle");
-    let direct_raw =
-        rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(&direct_path))
-            .expect("open direct telemetry");
+    let direct_raw = snapback_services::test_support::rusqlite::Connection::open(
+        crate::telemetry::Telemetry::path_for_database(&direct_path),
+    )
+    .expect("open direct telemetry");
     let before: i64 = direct_raw
         .query_row(
             "SELECT count(*) FROM telemetry_events WHERE kind='lifecycle' AND name='process_ready'",
@@ -2666,10 +2664,9 @@ async fn authorization_neutral_staged_write_commits_before_its_shared_batch_flus
         &state.snapback,
         None,
         move |snapback| {
-            let preflight =
-                snapback_engine::test_support::authorization_commit_preflight_for_seed(
-                    snapback, &seed,
-                )?;
+            let preflight = snapback_engine::test_support::authorization_commit_preflight_for_seed(
+                snapback, &seed,
+            )?;
             assert!(matches!(
                 preflight,
                 crate::storage::AuthorizationCommitPreflight::NoAuthorizationEvent
@@ -11944,16 +11941,16 @@ async fn served_http_buffered_mutation_reprojects_stored_media_result() {
         let uploaded = snapback_engine::test_support::asset_host_op(
             snapback,
             "asset.put",
-                Some(&json!({
-                    "upload": "profileImageUpload",
-                    "bytesBase64": base64::engine::general_purpose::STANDARD.encode(png),
-                    "fileName": "stored-profile.png",
-                    "contentType": "image/png",
-                })),
-                Some("media-reprojection-user"),
-                ServerProfile::Test,
-            )
-            .expect("finalize media re-projection asset");
+            Some(&json!({
+                "upload": "profileImageUpload",
+                "bytesBase64": base64::engine::general_purpose::STANDARD.encode(png),
+                "fileName": "stored-profile.png",
+                "contentType": "image/png",
+            })),
+            Some("media-reprojection-user"),
+            ServerProfile::Test,
+        )
+        .expect("finalize media re-projection asset");
         asset_id = Some(
             uploaded["task"]["assetId"]
                 .as_str()
@@ -12100,17 +12097,17 @@ async fn served_http_media_commit_pushes_projected_live_replace() {
         let uploaded = snapback_engine::test_support::asset_host_op(
             snapback,
             "asset.put",
-                Some(&json!({
-                    "upload": "profileImageUpload",
-                    "bytesBase64": base64::engine::general_purpose::STANDARD
-                        .encode(include_bytes!("../../../../brand/favicon-16.png")),
-                    "fileName": "live-push-profile.png",
-                    "contentType": "image/png",
-                })),
-                Some("media-live-user"),
-                ServerProfile::Test,
-            )
-            .expect("finalize media live-push asset");
+            Some(&json!({
+                "upload": "profileImageUpload",
+                "bytesBase64": base64::engine::general_purpose::STANDARD
+                    .encode(include_bytes!("../../../../brand/favicon-16.png")),
+                "fileName": "live-push-profile.png",
+                "contentType": "image/png",
+            })),
+            Some("media-live-user"),
+            ServerProfile::Test,
+        )
+        .expect("finalize media live-push asset");
         asset_id = Some(
             uploaded["task"]["assetId"]
                 .as_str()
@@ -12253,16 +12250,16 @@ async fn served_http_buffered_media_command_reuses_attempt_for_preview_commit_an
         let uploaded = snapback_engine::test_support::asset_host_op(
             snapback,
             "asset.put",
-                Some(&json!({
-                    "upload": "sharedMediaUpload",
-                    "bytesBase64": base64::engine::general_purpose::STANDARD.encode(png),
-                    "fileName": "served-route.png",
-                    "contentType": "image/png",
-                })),
-                Some("media-route-user"),
-                ServerProfile::Test,
-            )
-            .expect("finalize served media-command asset");
+            Some(&json!({
+                "upload": "sharedMediaUpload",
+                "bytesBase64": base64::engine::general_purpose::STANDARD.encode(png),
+                "fileName": "served-route.png",
+                "contentType": "image/png",
+            })),
+            Some("media-route-user"),
+            ServerProfile::Test,
+        )
+        .expect("finalize served media-command asset");
         asset_id = Some(
             uploaded["task"]["assetId"]
                 .as_str()
@@ -21465,7 +21462,8 @@ async fn auth_rescue_host_op_returns_pinned_metadata_and_keeps_service_live() {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("rescue.sqlite3");
     {
-        let connection = rusqlite::Connection::open(&database_path).unwrap();
+        let connection =
+            snapback_services::test_support::rusqlite::Connection::open(&database_path).unwrap();
         connection
             .execute_batch(
                 "CREATE TABLE _auth_legacy_first(id TEXT PRIMARY KEY, value TEXT);
@@ -29796,9 +29794,9 @@ async fn maintenance_cleanup_join_failure_retains_exact_retry_capture() {
     );
     state.connections.lock().assert_grant_indexes_consistent();
     telemetry.force_flush().expect("flush cleanup diagnostic");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &telemetry_app,
-    ))
+    let raw = snapback_services::test_support::rusqlite::Connection::open(
+        crate::telemetry::Telemetry::path_for_database(&telemetry_app),
+    )
     .expect("open cleanup telemetry");
     let count: i64 = raw
             .query_row(
@@ -32906,9 +32904,9 @@ async fn terminal_socket_sends_closed_auth_error_then_4401() {
     })
     .await
     .expect("typed socket observation completes");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
+    let raw = snapback_services::test_support::rusqlite::Connection::open(
+        crate::telemetry::Telemetry::path_for_database(&database_path),
+    )
     .expect("open typed socket path telemetry");
     let (count, status, code, details): (i64, i64, String, String) = raw
             .query_row(

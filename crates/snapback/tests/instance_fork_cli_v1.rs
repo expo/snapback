@@ -837,7 +837,8 @@ fn library_minted_never_launched_fork_diffs_only_for_its_owning_app_root() {
     );
 
     let database = destination.join("parent.sqlite3");
-    let conn = rusqlite::Connection::open(&database).expect("open never-launched fork");
+    let conn = snapback_services::test_support::rusqlite::Connection::open(&database)
+        .expect("open never-launched fork");
     conn.execute_batch(
         "BEGIN IMMEDIATE;
          INSERT INTO todos(_id,_version,_createdAt,_updatedAt,title,completed,userId)
@@ -1267,9 +1268,11 @@ fn signed_issue_status(server_url: &str, bearer: &str, asset_id: &str) -> u16 {
 }
 
 fn primary_blob_path(database: &Path, asset_id: &str) -> PathBuf {
-    let conn =
-        rusqlite::Connection::open_with_flags(database, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
-            .expect("open asset database read-only");
+    let conn = snapback_services::test_support::rusqlite::Connection::open_with_flags(
+        database,
+        snapback_services::test_support::rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .expect("open asset database read-only");
     let physical_key: String = conn
         .query_row(
             "SELECT b.physical_key
@@ -1312,9 +1315,11 @@ fn asset_gc_sweep(ready: &Path, token: &str, now_ms: u64, operation: &str) -> Va
 }
 
 fn todo_titles(database: &Path) -> Vec<String> {
-    let conn =
-        rusqlite::Connection::open_with_flags(database, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
-            .expect("open database read-only");
+    let conn = snapback_services::test_support::rusqlite::Connection::open_with_flags(
+        database,
+        snapback_services::test_support::rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .expect("open database read-only");
     let mut statement = conn
         .prepare("SELECT title FROM todos ORDER BY title")
         .expect("prepare todo title query");
@@ -2561,14 +2566,15 @@ fn resource_limits_refuse_create_and_diff_without_residue() {
 
     // Retained-history exhaustion through the executable diff surface.
     let database = fork_root.join("fork-existing/parent.sqlite3");
-    let conn = rusqlite::Connection::open(&database).expect("open fork database");
+    let conn = snapback_services::test_support::rusqlite::Connection::open(&database)
+        .expect("open fork database");
     conn.execute("UPDATE _snapback_version SET version=3 WHERE id=1", [])
         .unwrap();
     for index in 1..=3 {
         conn.execute(
             "INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
              VALUES(?1,'todos',?2,'insert','{}',100)",
-            rusqlite::params![index, format!("todo-{index}")],
+            snapback_services::test_support::rusqlite::params![index, format!("todo-{index}")],
         )
         .unwrap();
     }
@@ -2725,7 +2731,8 @@ fn executable_net_diff_names_its_substrate_and_requires_a_retained_base() {
     )
     .expect("publish base-bearing fork");
     let database = fork_root.join("fork-based/parent.sqlite3");
-    let conn = rusqlite::Connection::open(&database).expect("open fork database");
+    let conn = snapback_services::test_support::rusqlite::Connection::open(&database)
+        .expect("open fork database");
     conn.execute_batch(
         "INSERT INTO todos(_id,_version,_createdAt,_updatedAt,title,completed,userId)
          VALUES('todo-net',1,100,100,'net diff row',0,'user_net');

@@ -172,7 +172,7 @@ fn split_link(link: &str) -> (String, String) {
 }
 
 fn relay_address(origin: &str) -> SocketAddr {
-    let uri: axum::http::Uri = origin.parse().unwrap();
+    let uri: snapback_server::test_support::axum::http::Uri = origin.parse().unwrap();
     let authority = uri.authority().unwrap();
     SocketAddr::new(
         authority.host().parse().unwrap(),

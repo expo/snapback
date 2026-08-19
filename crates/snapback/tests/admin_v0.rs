@@ -16,9 +16,6 @@ fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback
     snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
 }
 
-use axum::body::Body;
-use axum::extract::ConnectInfo;
-use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext};
@@ -38,6 +35,9 @@ use snapback::manifest::{
     TableManifest, ValueExpr,
 };
 use snapback::server::{ErrorResponse, MutationResponse, PolicyAuthMode};
+use snapback_server::test_support::axum::body::Body;
+use snapback_server::test_support::axum::extract::ConnectInfo;
+use snapback_server::test_support::axum::http::{Request, StatusCode};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -2905,15 +2905,15 @@ fn handler_input(args: Value, user_id: &str) -> HandlerInput {
     }
 }
 
-async fn text(resp: axum::response::Response) -> String {
-    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+async fn text(resp: snapback_server::test_support::axum::response::Response) -> String {
+    let bytes = snapback_server::test_support::axum::body::to_bytes(resp.into_body(), usize::MAX)
         .await
         .unwrap();
     String::from_utf8(bytes.to_vec()).unwrap()
 }
 
-async fn json(resp: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+async fn json(resp: snapback_server::test_support::axum::response::Response) -> Value {
+    let bytes = snapback_server::test_support::axum::body::to_bytes(resp.into_body(), usize::MAX)
         .await
         .unwrap();
     serde_json::from_slice(&bytes).unwrap()
@@ -3010,7 +3010,7 @@ fn todo_functions() -> FunctionManifest {
                 "createTodo",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "todos".to_owned(),
                         values: BTreeMap::from([

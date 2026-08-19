@@ -13,8 +13,6 @@ fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback
     snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
 }
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
@@ -23,6 +21,8 @@ use snapback::manifest::{
     MutationPlan, MutationStep, OrderDirection, OrderExpr, QueryPlan, ReturnValue, SchemaManifest,
     TableManifest, ValueExpr,
 };
+use snapback_server::test_support::axum::body::Body;
+use snapback_server::test_support::axum::http::{Request, StatusCode};
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -305,9 +305,10 @@ async fn l6_memory_instance_falls_back_to_the_write_lane() {
         .await
         .expect("query response");
     assert_eq!(response.status(), StatusCode::OK);
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .expect("body");
+    let body =
+        snapback_server::test_support::axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
     let output: Value = serde_json::from_slice(&body).expect("query output json");
     assert_eq!(output["rows"].as_array().expect("rows").len(), 1);
 }
@@ -579,9 +580,10 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     .expect("subscribe must not stall behind the busy mutation")
     .expect("subscribe response");
     let status = response.status();
-    let response_body = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .expect("subscribe body");
+    let response_body =
+        snapback_server::test_support::axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("subscribe body");
     assert_eq!(
         status,
         StatusCode::OK,
@@ -664,9 +666,10 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     .expect("outbox drain must not stall behind the busy mutation")
     .expect("drain response");
     assert_eq!(response.status(), StatusCode::OK);
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .expect("drain body");
+    let body =
+        snapback_server::test_support::axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("drain body");
     let envelopes: Value = serde_json::from_slice(&body).expect("drain json");
     let upserts = envelopes
         .as_array()
@@ -995,7 +998,7 @@ fn concurrency_functions() -> FunctionManifest {
                 "createTodo",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "todos".to_owned(),
                         values: BTreeMap::from([

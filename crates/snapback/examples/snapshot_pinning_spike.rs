@@ -17,10 +17,10 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, ensure};
-use rusqlite::backup::{Backup, StepResult};
-use rusqlite::{Connection, params};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
+use snapback_services::test_support::rusqlite::backup::{Backup, StepResult};
+use snapback_services::test_support::rusqlite::{Connection, params};
 
 const ROWS: usize = 4_096;
 const PAYLOAD_BYTES: usize = 512;
@@ -244,7 +244,7 @@ fn run() -> anyhow::Result<SnapshotPinningSpikeV1> {
             .to_owned(),
         source_dirty: matches!(option_env!("SNAPBACK_BUILD_GIT_DIRTY"), Some("true")),
         runner: "examples/snapshot_pinning_spike.rs",
-        sqlite_version: rusqlite::version().to_owned(),
+        sqlite_version: snapback_services::test_support::rusqlite::version().to_owned(),
         fixture: Fixture {
             rows: ROWS,
             payload_bytes: PAYLOAD_BYTES,

@@ -9,7 +9,7 @@
 
 pub use snapback_activation::{bundle, completeness, config, deploy, operational_readiness};
 pub use snapback_auth::dev_identity;
-pub use snapback_engine::{ask, host_ops, push, runtime};
+pub use snapback_engine::{ask, push, runtime};
 pub(crate) use snapback_kernel::proof_checkpoint;
 pub use snapback_kernel::{
     authoring_suggestion, conformance, data_patch, diagnostic, membership_rules, operation_ledger,
@@ -97,5 +97,17 @@ pub mod auth;
 pub mod control_catalog;
 pub mod guide;
 pub mod guide_reference;
+pub mod host_ops;
 pub mod manifest;
 pub mod server;
+
+#[cfg(test)]
+mod network_profile_facade_tests;
+#[cfg(test)]
+mod sync_upward_tests;
+
+#[cfg(feature = "test-support")]
+#[doc(hidden)]
+pub mod test_support {
+    pub use axum;
+}

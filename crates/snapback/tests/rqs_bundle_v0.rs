@@ -10,8 +10,6 @@ fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback
     snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
 }
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use sha2::{Digest as _, Sha256};
 use snapback::admin::AppState;
@@ -23,6 +21,8 @@ use snapback::manifest::{
     IbexModule, IndexManifest, MutationPlan, MutationStep, QueryPlan, ResultObjectFieldContract,
     ResultValueContract, ReturnValue, SchemaManifest, TableManifest, ValueExpr,
 };
+use snapback_server::test_support::axum::body::Body;
+use snapback_server::test_support::axum::http::{Request, StatusCode};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -142,7 +142,7 @@ fn bundle_functions() -> FunctionManifest {
                 "createPost",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "posts".to_owned(),
                         values: BTreeMap::from([(
@@ -158,7 +158,7 @@ fn bundle_functions() -> FunctionManifest {
                 "createTodo",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "todos".to_owned(),
                         values: BTreeMap::from([
@@ -379,9 +379,10 @@ async fn send(app: &AppState, request: Request<Body>) -> (StatusCode, Value) {
         .await
         .expect("response");
     let status = response.status();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .expect("body");
+    let bytes =
+        snapback_server::test_support::axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
     let value = if bytes.is_empty() {
         Value::Null
     } else {

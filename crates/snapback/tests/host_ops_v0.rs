@@ -14,8 +14,6 @@ fn test_app_state_from_snapback(
     snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
 }
 
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode, header};
 use serde_json::{Value, json};
 use snapback::admin::{ServerContext, ServerProfile};
 use snapback::admin_impersonation::{
@@ -24,6 +22,8 @@ use snapback::admin_impersonation::{
 use snapback::auth::crypto::OsRandom;
 use snapback::host_ops::{HostOpsRequest, HostReadyDescriptor, execute_host_op};
 use snapback::local::LocalSnapback;
+use snapback_server::test_support::axum::body::{Body, to_bytes};
+use snapback_server::test_support::axum::http::{Request, StatusCode, header};
 use std::fs;
 use std::path::PathBuf;
 use tower::ServiceExt as _;
@@ -330,7 +330,7 @@ fn host_ops_http_request(token: &str, body: Value) -> Request<Body> {
         .unwrap()
 }
 
-async fn response_json(response: axum::response::Response) -> Value {
+async fn response_json(response: snapback_server::test_support::axum::response::Response) -> Value {
     serde_json::from_slice(
         &to_bytes(response.into_body(), usize::MAX)
             .await

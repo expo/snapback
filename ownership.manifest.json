@@ -103,16 +103,16 @@
   ],
   "modulesByOwner": {
     "shared-contract-types-leaf": [
-      "crates/snapback/src/auth/crypto.rs",
-      "crates/snapback/src/auth/handshake.rs",
-      "crates/snapback/src/auth/mod.rs",
-      "crates/snapback/src/auth/mode.rs",
-      "crates/snapback/src/auth/rehearsal.rs",
-      "crates/snapback/src/contract_exact.rs",
-      "crates/snapback/src/diagnostic.rs",
-      "crates/snapback/src/manifest.rs",
-      "crates/snapback/src/network_profile.rs",
-      "crates/snapback/src/watches.rs"
+      "crates/snapback-types/src/auth/crypto.rs",
+      "crates/snapback-types/src/auth/handshake.rs",
+      "crates/snapback-types/src/auth/mod.rs",
+      "crates/snapback-types/src/auth/mode.rs",
+      "crates/snapback-types/src/auth/rehearsal.rs",
+      "crates/snapback-types/src/contract_exact.rs",
+      "crates/snapback-types/src/diagnostic.rs",
+      "crates/snapback-types/src/manifest/mod.rs",
+      "crates/snapback-types/src/network_profile.rs",
+      "crates/snapback-types/src/watches.rs"
     ],
     "generation-activation-coordinator": [
       "crates/snapback/src/schema_export.rs"
@@ -120,16 +120,17 @@
     "storage-migration-kernel": [],
     "sync-realtime-engine": [],
     "background-services": [
-      "crates/snapback/src/assets.rs",
-      "crates/snapback/src/assets_cut.rs",
-      "crates/snapback/src/assets_store.rs",
-      "crates/snapback/src/cron.rs",
-      "crates/snapback/src/instance_fork.rs",
-      "crates/snapback/src/jobs.rs",
-      "crates/snapback/src/telemetry.rs",
+      "crates/snapback-services/src/assets.rs",
+      "crates/snapback-services/src/assets_cut.rs",
+      "crates/snapback-services/src/assets_store.rs",
+      "crates/snapback-services/src/cron.rs",
+      "crates/snapback-services/src/instance_fork.rs",
+      "crates/snapback-services/src/jobs.rs",
+      "crates/snapback-services/src/telemetry.rs",
       "crates/snapback/src/telemetry_bench.rs"
     ],
     "transport-adapters": [
+      "crates/snapback-cli/src/bin/snapback-local.rs",
       "crates/snapback-cli/src/cli.rs",
       "crates/snapback-cli/src/cli/config_command.rs",
       "crates/snapback-cli/src/cli/fork.rs",
@@ -137,6 +138,7 @@
       "crates/snapback-cli/src/cli/migration.rs",
       "crates/snapback-cli/src/cli/tests.rs",
       "crates/snapback-cli/src/embed.rs",
+      "crates/snapback-cli/src/entrypoint.rs",
       "crates/snapback-cli/src/guide_mcp.rs",
       "crates/snapback-cli/src/lib.rs",
       "crates/snapback-cli/src/store_state.rs",
@@ -145,15 +147,21 @@
       "crates/snapback-server/src/admin_impersonation.rs",
       "crates/snapback-server/src/admin_link.rs",
       "crates/snapback-server/src/admin_secret_read.rs",
+      "crates/snapback-server/src/auth/admission_tests.rs",
+      "crates/snapback-server/src/auth/backup_confined_tests.rs",
       "crates/snapback-server/src/auth/mod.rs",
+      "crates/snapback-server/src/auth/provider_tests.rs",
       "crates/snapback-server/src/auth/recovery.rs",
       "crates/snapback-server/src/auth/runtime.rs",
+      "crates/snapback-server/src/auth/sender_proof_tests.rs",
       "crates/snapback-server/src/bin/snapback-hosted-admission.rs",
       "crates/snapback-server/src/control_catalog.rs",
       "crates/snapback-server/src/guide.rs",
       "crates/snapback-server/src/guide_reference.rs",
+      "crates/snapback-server/src/host_ops.rs",
       "crates/snapback-server/src/lib.rs",
       "crates/snapback-server/src/manifest.rs",
+      "crates/snapback-server/src/remainder_adapter.rs",
       "crates/snapback-server/src/server.rs",
       "crates/snapback-server/src/server/api_error.rs",
       "crates/snapback-server/src/server/asset_routes.rs",
@@ -164,18 +172,10 @@
       "crates/snapback-server/src/server/response_types.rs",
       "crates/snapback-server/src/server/tests.rs",
       "crates/snapback-server/src/server/writer_gate.rs",
-      "crates/snapback/src/auth/admission_tests.rs",
-      "crates/snapback/src/auth/backup_confined_tests.rs",
-      "crates/snapback/src/auth/provider_tests.rs",
-      "crates/snapback/src/auth/sender_proof_tests.rs",
+      "crates/snapback-server/src/sync_upward_tests.rs",
       "crates/snapback/src/bin/snapback-fork-promotion-bench.rs",
-      "crates/snapback/src/bin/snapback-local.rs",
       "crates/snapback/src/bin/snapback-schemagen.rs",
-      "crates/snapback/src/bin/snapback-telemetry-bench.rs",
-      "crates/snapback/src/host_ops.rs",
-      "crates/snapback/src/main.rs",
-      "crates/snapback/src/remainder_adapter.rs",
-      "crates/snapback/src/sync_upward_tests.rs"
+      "crates/snapback/src/bin/snapback-telemetry-bench.rs"
     ],
     "embed-facade": [
       "crates/snapback/src/embed.rs",
@@ -185,8 +185,8 @@
   },
   "mixedModuleScopes": {},
   "uncertainAssignments": {
-    "crates/snapback/src/auth/handshake.rs": "Pure wire/availability computation placed on the leaf; the lease-availability import is frozen residue pending a leaf-side availability shape.",
-    "crates/snapback/src/auth/mod.rs": "Namespace-only umbrella with zero dependency edges; assigned to the leaf so future re-export edges stay downward for every caller.",
-    "crates/snapback/src/auth/rehearsal.rs": "The closed auth-rehearsal wire vocabulary and carrier-validation grammar are contract-leaf concerns; its current ServerProfile conversion is frozen upward residue for a later leaf-side profile shape."
+    "crates/snapback-types/src/auth/handshake.rs": "Pure wire/availability computation placed on the leaf; the lease-availability import is frozen residue pending a leaf-side availability shape.",
+    "crates/snapback-types/src/auth/mod.rs": "Namespace-only umbrella with zero dependency edges; assigned to the leaf so future re-export edges stay downward for every caller.",
+    "crates/snapback-types/src/auth/rehearsal.rs": "The closed auth-rehearsal wire vocabulary and carrier-validation grammar are contract-leaf concerns; its current ServerProfile conversion is frozen upward residue for a later leaf-side profile shape."
   }
 }

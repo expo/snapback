@@ -451,8 +451,8 @@ fn assert_build_profile(
 fn measure_http_amplification(
     config: &Phase1BenchmarkConfig,
 ) -> SnapbackResult<AmplificationReport> {
-    use axum::body::{Body, to_bytes};
-    use axum::http::Request;
+    use snapback_server::test_support::axum::body::{Body, to_bytes};
+    use snapback_server::test_support::axum::http::Request;
     use tower::ServiceExt;
 
     let enabled_temp = BenchmarkTempDir::new("http-on")?;

@@ -8,10 +8,10 @@
 #![allow(clippy::result_large_err)]
 
 pub(crate) use snapback_auth::auth;
+pub(crate) use snapback_kernel::services_assets as asset_proof;
 pub(crate) use snapback_kernel::{
     diagnostic, operation_detail, operation_ledger, secure_file, seed_identity, storage,
 };
-pub(crate) use snapback_kernel::services_assets as asset_proof;
 pub(crate) use snapback_types::{
     contract_types, identity, ids, local, rqs_contract, telemetry_contract,
 };
@@ -25,6 +25,9 @@ pub mod assets_video;
 pub mod cron;
 pub mod error_tracking;
 pub mod errors_query;
+#[cfg(feature = "benchmark-support")]
+#[doc(hidden)]
+pub mod fork_promotion_bench;
 pub mod instance_fork;
 pub mod jobs;
 pub mod manifest;

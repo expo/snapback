@@ -13,8 +13,6 @@ fn test_app_state_from_snapback(
     snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
 }
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use snapback::admin::ServerContext;
 use snapback::local::LocalSnapback;
@@ -22,6 +20,8 @@ use snapback::manifest::{
     ConfigEntryDefinition, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, TableManifest,
 };
+use snapback_server::test_support::axum::body::Body;
+use snapback_server::test_support::axum::http::{Request, StatusCode};
 use tower::ServiceExt;
 
 // --- Manifest fixtures --------------------------------------------------------
@@ -407,8 +407,8 @@ fn post_with_token(path: &str, body: Value, token: &str) -> Request<Body> {
         .unwrap()
 }
 
-async fn body_json(resp: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+async fn body_json(resp: snapback_server::test_support::axum::response::Response) -> Value {
+    let bytes = snapback_server::test_support::axum::body::to_bytes(resp.into_body(), usize::MAX)
         .await
         .unwrap();
     serde_json::from_slice(&bytes).unwrap_or(Value::Null)
@@ -605,7 +605,7 @@ async fn setup_wizard_page_is_served_from_the_static_lane() {
     let open = app(configured(), context(true, None));
     let resp = open.oneshot(get("/_snapback/admin/setup")).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+    let bytes = snapback_server::test_support::axum::body::to_bytes(resp.into_body(), usize::MAX)
         .await
         .unwrap();
     let html = String::from_utf8_lossy(&bytes);

@@ -1,7 +1,5 @@
 //! Cross-lane acceptance for the ENG-24595 session-bypass closure.
 
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext, ServerProfile};
 use snapback::admin_secret_read::{
@@ -14,6 +12,8 @@ use snapback::manifest::{
     QueryPlan, SchemaManifest, SeedData, TableManifest, ValueExpr,
 };
 use snapback::server::PolicyAuthMode;
+use snapback_server::test_support::axum::body::{Body, to_bytes};
+use snapback_server::test_support::axum::http::{Request, StatusCode};
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 use tower::ServiceExt;
@@ -504,7 +504,11 @@ fn post_json_with_headers(uri: &str, body: Value, headers: &[(&str, &str)]) -> R
     request.body(Body::from(body.to_string())).unwrap()
 }
 
-async fn assert_diagnostic(response: axum::response::Response, status: StatusCode, code: &str) {
+async fn assert_diagnostic(
+    response: snapback_server::test_support::axum::response::Response,
+    status: StatusCode,
+    code: &str,
+) {
     assert_eq!(response.status(), status);
     let body = json_body(response).await;
     assert_eq!(body["diagnostic"]["code"], code, "{body}");
@@ -520,7 +524,7 @@ fn assert_no_response_sentinel(encoded: &str, context: &str) {
     }
 }
 
-async fn json_body(response: axum::response::Response) -> Value {
+async fn json_body(response: snapback_server::test_support::axum::response::Response) -> Value {
     let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     serde_json::from_slice(&bytes).unwrap()
 }

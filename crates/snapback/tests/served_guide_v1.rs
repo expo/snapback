@@ -6,8 +6,6 @@ fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback
     snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
 }
 
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
 use snapback::guide::{FLAT_PATH, GUIDE_CONTENT_SHA256, INDEX_PATH, SECTION_FLAT_PATHS};
 use snapback::local::LocalSnapback;
@@ -15,6 +13,8 @@ use snapback::server::{
     GUIDE_BUILD_COMMIT_HEADER, GUIDE_CONTENT_HASH_HEADER, HTTP_ROUTES_PATH, ResponseSensitivity,
     RouteClass, RoutePolicy, app, route_registry,
 };
+use snapback_server::test_support::axum::body::{Body, to_bytes};
+use snapback_server::test_support::axum::http::{Request, StatusCode, header};
 use std::collections::BTreeSet;
 use std::io::Read;
 use std::process::Stdio;
@@ -27,7 +27,7 @@ fn memory_server() -> snapback::server::SnapbackApp {
     ))
 }
 
-async fn get(path: &str) -> axum::response::Response {
+async fn get(path: &str) -> snapback_server::test_support::axum::response::Response {
     memory_server()
         .oneshot(
             Request::builder()
@@ -39,7 +39,10 @@ async fn get(path: &str) -> axum::response::Response {
         .expect("guide response")
 }
 
-fn header<'a>(response: &'a axum::response::Response, name: &str) -> &'a str {
+fn header<'a>(
+    response: &'a snapback_server::test_support::axum::response::Response,
+    name: &str,
+) -> &'a str {
     response
         .headers()
         .get(name)

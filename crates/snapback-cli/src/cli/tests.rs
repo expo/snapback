@@ -1,5 +1,7 @@
 #[cfg(not(feature = "cli-owner"))]
 use super::AuthConstructionFailure;
+#[cfg(not(feature = "cli-owner"))]
+use super::mint_secret_read_via_http;
 use super::{
     AdminArgs, AdminCommand, AdminLinkReadyFile, Args, AssetsCommand, AuthCommand,
     AuthCoordinatorReadinessReceipt, AuthPasswordCommand, AuthProgramConstructionReceipts,
@@ -10,16 +12,14 @@ use super::{
     ReadyFileTarget, ResolvedHttpTarget, SessionCommand, StoreCommand, TargetArgs,
     TelemetryCommand, automatic_reap_before_create, bind_first_available, bind_listener,
     console_claim_fragment_url, console_fragment_url, console_launch_handoff_with,
-    controls_list_text, fork_secret_disposition, managed_startup_paths,
-    parse_fork_ttl, parse_network_profile_selection, parse_run_args, path_segment_escape,
-    prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
-    reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
-    resolve_http_target_for_operation, resolve_startup_nonce, runtime_auth_program_readiness,
-    search_guide_sections_in, validate_path_disjointness, validated_console_origin,
-    validated_secret_read_root_path, write_ready_file_atomic, write_ready_file_atomic_protected,
+    controls_list_text, fork_secret_disposition, managed_startup_paths, parse_fork_ttl,
+    parse_network_profile_selection, parse_run_args, path_segment_escape, prepare_database_path,
+    prepare_database_path_for_startup, quiet_stop_fork, reject_misdirected_serve_flags,
+    render_guide_command, resolve_http_target, resolve_http_target_for_operation,
+    resolve_startup_nonce, runtime_auth_program_readiness, search_guide_sections_in,
+    validate_path_disjointness, validated_console_origin, validated_secret_read_root_path,
+    write_ready_file_atomic, write_ready_file_atomic_protected,
 };
-#[cfg(not(feature = "cli-owner"))]
-use super::mint_secret_read_via_http;
 use crate::guide::EmbeddedGuideFile;
 use crate::instance_lock::TargetInstanceReservation;
 #[cfg(not(feature = "cli-owner"))]
@@ -943,7 +943,7 @@ async fn typed_target_runner_threads_descriptor_environment_into_store_meta() {
     //   authoritative telemetry_meta identity, so observe the row rather
     //   than treating file existence as store readiness.
     let (app_id, environment): (String, String) = loop {
-        let connection = rusqlite::Connection::open(&telemetry)
+        let connection = snapback_services::test_support::rusqlite::Connection::open(&telemetry)
             .expect("typed target telemetry store should open");
         let telemetry_meta_exists: bool = connection
                 .query_row(
@@ -962,7 +962,7 @@ async fn typed_target_runner_threads_descriptor_environment_into_store_meta() {
             );
             match identity {
                 Ok(identity) => break identity,
-                Err(rusqlite::Error::QueryReturnedNoRows) => {}
+                Err(snapback_services::test_support::rusqlite::Error::QueryReturnedNoRows) => {}
                 Err(error) => panic!("typed target telemetry identity query failed: {error}"),
             }
         }
@@ -1732,7 +1732,7 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
         .unwrap();
     assert_eq!(settled.active, AuthMode::Sessions);
     let persisted_product_count = || {
-        rusqlite::Connection::open(&database)
+        snapback_services::test_support::rusqlite::Connection::open(&database)
             .unwrap()
             .query_row("SELECT COUNT(*) FROM products", [], |row| {
                 row.get::<_, i64>(0)
@@ -2363,7 +2363,7 @@ fn auth_logical_cli_moves_identity_facts_between_file_databases() {
         let mut source = crate::storage::LocalDatabase::open(&source_path).unwrap();
         source.activate_current_auth_catalog().unwrap();
     }
-    let source = rusqlite::Connection::open(&source_path).unwrap();
+    let source = snapback_services::test_support::rusqlite::Connection::open(&source_path).unwrap();
     source
         .execute(
             "INSERT INTO _auth_users(id, created_at_ms) VALUES('cli-human', 1)",
@@ -2429,14 +2429,15 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
     let telemetry = snapback.telemetry();
     let telemetry_path = crate::telemetry::Telemetry::path_for_database(&database_path);
     telemetry.force_flush().unwrap();
-    let generation_before: String = rusqlite::Connection::open(&telemetry_path)
-        .unwrap()
-        .query_row(
-            "SELECT generation FROM telemetry_meta WHERE singleton=1",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap();
+    let generation_before: String =
+        snapback_services::test_support::rusqlite::Connection::open(&telemetry_path)
+            .unwrap()
+            .query_row(
+                "SELECT generation FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
     telemetry.point(
         "lifecycle",
         "current_boot_replay_witness",
@@ -2459,14 +2460,15 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
         "idempotent replay must not clear this boot's process evidence"
     );
     telemetry.force_flush().unwrap();
-    let generation_after_replay: String = rusqlite::Connection::open(&telemetry_path)
-        .unwrap()
-        .query_row(
-            "SELECT generation FROM telemetry_meta WHERE singleton=1",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap();
+    let generation_after_replay: String =
+        snapback_services::test_support::rusqlite::Connection::open(&telemetry_path)
+            .unwrap()
+            .query_row(
+                "SELECT generation FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
     assert_eq!(generation_after_replay, generation_before);
     assert_eq!(
         telemetry.event_count_for_test("lifecycle", "process_start", "point"),
@@ -2493,14 +2495,15 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
     )
     .unwrap();
     telemetry.force_flush().unwrap();
-    let generation_after_apply: String = rusqlite::Connection::open(&telemetry_path)
-        .unwrap()
-        .query_row(
-            "SELECT generation FROM telemetry_meta WHERE singleton=1",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap();
+    let generation_after_apply: String =
+        snapback_services::test_support::rusqlite::Connection::open(&telemetry_path)
+            .unwrap()
+            .query_row(
+                "SELECT generation FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
     assert_ne!(generation_after_apply, generation_before);
     assert_eq!(
         telemetry.event_count_for_test("lifecycle", "restore_generation_rotation", "point",),

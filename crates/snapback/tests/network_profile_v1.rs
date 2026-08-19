@@ -10,8 +10,6 @@ fn test_app_state_from_snapback(
     snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
 }
 
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode, header};
 use futures_util::StreamExt;
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext, ServerProfile};
@@ -23,6 +21,8 @@ use snapback::manifest::{
 };
 use snapback::network_profile::NETWORK_PROFILE_HEADER;
 use snapback::server::{PolicyAuthMode, SnapbackApp};
+use snapback_server::test_support::axum::body::{Body, to_bytes};
+use snapback_server::test_support::axum::http::{Request, StatusCode, header};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::process::Stdio;
@@ -533,7 +533,7 @@ fn configured() -> LocalSnapback {
                 "createTodo",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "todos".to_owned(),
                         values: BTreeMap::from([
@@ -596,7 +596,9 @@ fn put_profile_request(profile: Value) -> Request<Body> {
         .unwrap()
 }
 
-fn profile_marker(response: &axum::response::Response) -> Option<&str> {
+fn profile_marker(
+    response: &snapback_server::test_support::axum::response::Response,
+) -> Option<&str> {
     response
         .headers()
         .get(NETWORK_PROFILE_HEADER)

@@ -9,7 +9,9 @@ use crate::storage::auth_sender::{self, SenderProofAuthorityOperations};
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use ring::rand::{SecureRandom, SystemRandom};
-use rusqlite::{Connection, ErrorCode, OptionalExtension, Transaction, params};
+use snapback_services::test_support::rusqlite::{
+    Connection, ErrorCode, OptionalExtension, Transaction, params,
+};
 
 fn sender_replay_epoch(connection: &Connection) -> Result<u64, ReplayConsumeError> {
     auth_sender::sender_replay_epoch_on(connection)

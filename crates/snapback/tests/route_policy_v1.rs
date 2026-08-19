@@ -15,8 +15,6 @@ fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback
     snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
 }
 
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode, header};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext, ServerProfile};
@@ -34,6 +32,8 @@ use snapback::server::{
     PolicyAuthMode, ResponseSensitivity, RouteClass, RoutePolicy, RouteSpec, SessionModeOverlay,
     app, live_socket_operations, operation_registry, route_registry,
 };
+use snapback_server::test_support::axum::body::{Body, to_bytes};
+use snapback_server::test_support::axum::http::{Request, StatusCode, header};
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
@@ -60,7 +60,9 @@ fn request(method: &str, uri: &str, body: Option<Value>) -> Request<Body> {
     builder.body(body).expect("build policy probe")
 }
 
-async fn diagnostic_code(response: axum::response::Response) -> String {
+async fn diagnostic_code(
+    response: snapback_server::test_support::axum::response::Response,
+) -> String {
     let bytes = to_bytes(response.into_body(), usize::MAX)
         .await
         .expect("read diagnostic body");
@@ -1807,7 +1809,7 @@ async fn impersonation_host_request(
     body: Value,
     admin: Option<&str>,
     capabilities: &[&str],
-) -> axum::response::Response {
+) -> snapback_server::test_support::axum::response::Response {
     let mut request = request("POST", "/_snapback/api/host-ops", Some(body));
     if let Some(admin) = admin {
         request.headers_mut().insert(

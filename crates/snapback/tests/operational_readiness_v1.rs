@@ -1,5 +1,3 @@
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode, header};
 use serde_json::{Value, json};
 use snapback::admin::{ServerContext, ServerProfile};
 use snapback::auth::mode::DeploymentIdentity;
@@ -11,6 +9,8 @@ use snapback::operational_readiness::{
     PendingMigrationDeclarationV1, READINESS_MIGRATION_UNRESOLVED_CODE,
     READINESS_OBLIGATIONS_DIGEST_MISMATCH_CODE, declared_obligations_digest,
 };
+use snapback_server::test_support::axum::body::{Body, to_bytes};
+use snapback_server::test_support::axum::http::{Request, StatusCode, header};
 use std::fs;
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
@@ -137,7 +137,9 @@ fn router_post(path: &str, body: Value) -> Request<Body> {
         .unwrap()
 }
 
-async fn router_response_json(response: axum::response::Response) -> Value {
+async fn router_response_json(
+    response: snapback_server::test_support::axum::response::Response,
+) -> Value {
     serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap()).unwrap()
 }
 

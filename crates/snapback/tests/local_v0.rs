@@ -3187,7 +3187,7 @@ fn todo_functions() -> FunctionManifest {
                 "createTodo",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "todos".to_owned(),
                         values: BTreeMap::from([
@@ -3207,7 +3207,7 @@ fn todo_functions() -> FunctionManifest {
                 "setCompleted",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Patch {
                         table: "todos".to_owned(),
                         id: ValueExpr::Arg("id".to_owned()),
@@ -5732,7 +5732,8 @@ fn apply_schema_rejects_affinity_mismatch_with_surviving_physical_column() {
 }
 
 fn physical_column_not_null(path: &std::path::Path, table: &str, field: &str) -> bool {
-    let conn = rusqlite::Connection::open(path).expect("open sqlite for column inspection");
+    let conn = snapback_services::test_support::rusqlite::Connection::open(path)
+        .expect("open sqlite for column inspection");
     let mut statement = conn
         .prepare(&format!("PRAGMA table_info(\"{table}\")"))
         .expect("prepare table_info");
@@ -5968,7 +5969,8 @@ fn schema_reapply_repairs_legacy_required_but_nullable_column() {
         );
     }
     {
-        let conn = rusqlite::Connection::open(&path).expect("open raw legacy db");
+        let conn = snapback_services::test_support::rusqlite::Connection::open(&path)
+            .expect("open raw legacy db");
         let updated = conn
             .execute(
                 "UPDATE _snapback_meta SET value = ?1
@@ -6116,8 +6118,9 @@ fn readded_table_cannot_hide_a_preserved_required_physical_column() {
 /// directly from the database file; `None` when no index with that name
 /// exists.
 fn physical_index_definition(path: &std::path::Path, name: &str) -> Option<(String, Vec<String>)> {
-    use rusqlite::OptionalExtension;
-    let conn = rusqlite::Connection::open(path).expect("open sqlite for inspection");
+    use snapback_services::test_support::rusqlite::OptionalExtension;
+    let conn = snapback_services::test_support::rusqlite::Connection::open(path)
+        .expect("open sqlite for inspection");
     let table: Option<String> = conn
         .query_row(
             "SELECT tbl_name FROM sqlite_master WHERE type = 'index' AND name = ?1",

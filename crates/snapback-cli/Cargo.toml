@@ -12,8 +12,8 @@ path = "src/lib.rs"
 
 [features]
 default = ["cli-owner"]
-# The rank-7 remainder includes moved CLI sources in its unit-test build so
-# upward/private integration tests retain their original crate access.
+# Stable feature name retained for affected-test selection after the CLI
+# entrypoints moved here.
 cli-owner = []
 
 [dependencies]
@@ -34,6 +34,7 @@ uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
 zeroize = "1.8"
 
 [dev-dependencies]
+snapback-services = { path = "../snapback-services", features = ["remainder-tests"] }
 tempfile = "3.23"
 tokio = { version = "1.48", features = ["full", "test-util"] }
 

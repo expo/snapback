@@ -1,7 +1,5 @@
 //! Adversarial HTTP acceptance for reset-bounded administrative secret reads.
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext, ServerProfile};
 use snapback::admin_secret_read::{
@@ -15,6 +13,8 @@ use snapback::manifest::{
     SeedData, TableManifest, ValueExpr,
 };
 use snapback::server::PolicyAuthMode;
+use snapback_server::test_support::axum::body::Body;
+use snapback_server::test_support::axum::http::{Request, StatusCode};
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 use tower::ServiceExt;
@@ -265,7 +265,7 @@ async fn under_scoped_function_names_do_not_reveal_existence_before_lookup() {
             &lease,
         );
         request.headers_mut().insert(
-            axum::http::header::AUTHORIZATION,
+            snapback_server::test_support::axum::http::header::AUTHORIZATION,
             "Bearer ordinary-admin".parse().unwrap(),
         );
         assert_diagnostic(
@@ -436,15 +436,20 @@ fn post_with_lease(uri: &str, value: Value, lease: &SecretReadLease) -> Request<
         .unwrap()
 }
 
-async fn assert_diagnostic(response: axum::response::Response, status: StatusCode, code: &str) {
+async fn assert_diagnostic(
+    response: snapback_server::test_support::axum::response::Response,
+    status: StatusCode,
+    code: &str,
+) {
     assert_eq!(response.status(), status);
     assert_eq!(json_body(response).await["diagnostic"]["code"], code);
 }
 
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
+async fn json_body(response: snapback_server::test_support::axum::response::Response) -> Value {
+    let bytes =
+        snapback_server::test_support::axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
     serde_json::from_slice(&bytes).unwrap()
 }
 

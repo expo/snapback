@@ -4022,12 +4022,9 @@ dependencies = [
  "anyhow",
  "argon2",
  "async-trait",
- "axum",
  "base64 0.22.1",
  "bcrypt",
- "celld-ltx",
  "chacha20poly1305",
- "clap",
  "crc32fast",
  "fs2",
  "futures-util",
@@ -4043,7 +4040,6 @@ dependencies = [
  "qrcode",
  "regex",
  "ring",
- "rusqlite",
  "ryu-js",
  "schemars",
  "scrypt",
@@ -4237,6 +4233,7 @@ dependencies = [
  "anyhow",
  "axum",
  "base64 0.22.1",
+ "bcrypt",
  "fs2",
  "futures-util",
  "getrandom 0.3.4",
@@ -4276,6 +4273,7 @@ dependencies = [
 name = "snapback-services"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "base64 0.22.1",
  "celld-ltx",

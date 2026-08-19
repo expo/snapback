@@ -39,11 +39,7 @@ pub mod workerd_exec {
     };
 }
 
-pub(crate) mod auth {
-    pub use snapback_auth::auth::*;
-    pub use snapback_kernel::auth::mode;
-    pub(crate) use snapback_sync::auth::{coordinator, invocation, session_projection};
-}
+pub(crate) use snapback_sync::auth;
 
 pub mod assets {
     pub use snapback_kernel::assets::*;

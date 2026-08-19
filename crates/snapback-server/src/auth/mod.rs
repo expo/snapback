@@ -21,5 +21,14 @@ pub mod handshake {
     }
 }
 
+#[cfg(test)]
+mod admission_tests;
+#[cfg(test)]
+mod backup_confined_tests;
+#[cfg(test)]
+mod provider_tests;
+#[cfg(test)]
+mod sender_proof_tests;
+
 pub mod recovery;
 pub mod runtime;

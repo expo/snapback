@@ -494,9 +494,9 @@ mod tests {
     };
     use axum::body::{Body, to_bytes};
     use axum::http::{Method, Request};
-    #[cfg(not(feature = "server-owner"))]
-    use rusqlite::{Connection, OptionalExtension, params};
     use serde_json::json;
+    #[cfg(not(feature = "server-owner"))]
+    use snapback_services::test_support::rusqlite::{Connection, OptionalExtension, params};
     use std::collections::BTreeMap;
     use tempfile::TempDir;
     use tower::ServiceExt as _;
