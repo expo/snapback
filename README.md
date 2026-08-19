@@ -7,165 +7,447 @@
 
 # Snapback
 
-**A complete, coherent backend for Contract/Exact apps — light enough to
-prototype on for free, built to scale to real production load. MIT licensed,
-host it anywhere, including for other people.**
+**An agent-first, open source, scale-to-zero backend.**
 
-> **Status: the local-target product is shipped; hosted targets are honest
-> partial profiles.** Snapback is designed in the open as a corpus of
-> [LLP design documents](./llp/), and the design has been built: an
-> eleven-package `@expo/snapback-*` closure is published on npm (the newest
-> published and newest independently qualified versions are recorded in
-> [`guide/published-closure.json`](./guide/published-closure.json)), carrying
-> the Rust/SQLite server and Ibex (Hermes) JavaScript runtime with
-> server-authoritative queries and mutations, live queries, ephemeral
-> realtime state, email-code sessions auth, assets and media, scheduled and
-> one-off jobs, and first-party React, Expo, Swift, Contract/Exact, and
-> headless clients. The CI-verified authoring guide at
-> [`guide/index.md`](./guide/index.md) documents that surface intent-first,
-> and its [capability index](./guide/capabilities.md) is the authority on
-> what is shipped, partial, or an explicit GAP — including the honest hosted
-> gaps: no hosted target advertises the local target's full capability set.
-> Start with the project explainer,
-> [`llp/0000-snapback.explainer.md`](./llp/0000-snapback.explainer.md).
+Snapback is everything behind an app under one roof — schema and functions,
+server-authoritative queries and mutations, live queries, ephemeral realtime,
+auth, assets and media, cron and one-off jobs, observability, and first-party
+clients — designed so that an **AI agent** can write the backend, validate its
+own work against real receipts, and ship. It works with any frontend, and is
+especially tailored for **Expo and React**. Idle apps cost almost nothing; the
+same system is built to carry a realistically popular one. MIT licensed: host
+it anywhere, including for other people.
 
-## Build an app on Snapback
+- **Build an app on Snapback** → [`guide/index.md`](./guide/index.md) (start
+  with a [start packet](./guide/start/index.md) or
+  [Snapback in one screen](./guide/start/mental-model.md))
+- **Understand the design** → [`llp/0000-snapback.explainer.md`](./llp/0000-snapback.explainer.md)
+- **Work on Snapback itself** → [`AGENTS.md`](./AGENTS.md) and
+  [Repository layout](#repository-layout) below
 
-Application authors start with the packaged CLI and the guide — no repository
-checkout or submodules required:
+---
+
+## Status at a glance
+
+*Updated 2026-08-19. Where this section and
+[`guide/capabilities.md`](./guide/capabilities.md) disagree, the capability
+index wins — it is the authority, this is the summary.*
+
+| | |
+| --- | --- |
+| **Local target** | Shipped and used daily. The `snapback dev` loop, the Rust/SQLite server, and the Ibex (Hermes) JS runtime are the canonical product. |
+| **Capability index** | 118 author-facing rows: **73 shipped**, 37 partial, 4 experimental, 4 design-only — each shipped row carries a witness, each gap is owned. |
+| **Published npm closure** | 13 packages at **0.1.24** (2026-08-17). See [`guide/published-closure.json`](./guide/published-closure.json). |
+| **Rust workspace** | 13 crates, 427 modules, ~627k lines, under a fail-closed ownership gate — the LLP 0276 rearchitecture landed 2026-08-19. |
+| **Hosted targets** | Honest partial profiles only. **No hosted target advertises the local target's full capability set**, and there is no end-to-end path that deploys an arbitrary app to a hosted origin yet. |
+| **Next publication** | **Paused.** Three privilege escalations in the post-carve authorization surface block it (LLP 0283 F-1). |
+
+Two things are deliberately *not* claimed today: a general hosted deployment
+product, and the SQLite→Postgres graduation contract. Both are tracked, not
+hidden — see [What's done and what isn't](#whats-done-and-what-isnt).
+
+---
+
+## Quick start
+
+Application authors need no repository checkout and no submodules — just the
+published CLI:
 
 ```sh
 npm install -g @expo/snapback-cli     # or: bun add -g @expo/snapback-cli
-snapback new my-app --template react  # chat-shaped apps: --template expo-chat
+snapback new my-app --template react
 cd my-app
 bun install
 bun run dev
 ```
 
+Five templates ship in the packaged CLI:
+
+| Template | What you get |
+| --- | --- |
+| `todo-contract` | The smallest backend-first scaffold: generated headless references and acceptance, no UI. *(CLI default)* |
+| `react` | Minimal React/Vite web app: live query, mutation, password auth, connection state. |
+| `crud-dashboard` | React/Vite dashboard: relational directory reads, independent live detail, optimistic CRUD. |
+| `media-feed` | Expo iOS/Android/web feed: image upload, composed publish command, collision-safe pagination. |
+| `expo-chat` | Golden-path Expo conversation app: assets, typing presence, generated surface. |
+
+The ecosystem-standard entry point works too, and defaults to `expo-chat`:
+
+```sh
+npm create snapback-app my-chat       # or: bun create snapback-app my-chat
+```
+
 Then read [`guide/index.md`](./guide/index.md) — the agent-first authoring
-guide (intent-indexed pages, CI-verified snippets) — and check the
+guide, with intent-indexed pages and CI-verified snippets — and check the
 [capability index](./guide/capabilities.md) before designing around any
-feature. The canonical edit → regenerate → acceptance → inspect loop is
-[`guide/getting-started/the-authoring-loop.md`](./guide/getting-started/the-authoring-loop.md).
-Building Snapback itself is a different job: see
-[`AGENTS.md`](./AGENTS.md) and "Current code" below.
+feature.
 
-## Operate it
+### The loop
 
-`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds typed control tools with local admin authority.
-Preview control setup with `snapback agent setup --print <client> --server mcp-control`.
+```text
+edit snapback/*.mjs  →  bun run generate  →  bun run dev  →  bun run prove
+```
 
-## What it is
+A green `snapback verify` receipt is "done." Anything else is a claim. When
+something refuses, read the `SNAPBACK_*` code and run `snapback guide <CODE>`
+for the exact rule and fix.
 
-Snapback aims to be everything you need behind an app, under one roof, with the
-pieces designed to work together — a bit like Ruby on Rails, but for the modern
-mobile-first, local-first, realtime world.
+---
 
-The primary client target is the **Contract/Exact** app stack. React and Expo
-are first-class secondary consumers — made to work as well as they can, without
-driving the core design the way Contract/Exact integration does.
+## A backend in three files
 
-Snapback is also **agent-first**. We expect essentially all Snapback framework
-code and Snapback app code to be written by AI agents, so syntax, APIs, tools,
-and feedback loops optimize for agents getting close to guarantees and
-validating their own work. Human ergonomics are useful only when they do not
-weaken that priority.
+You write `snapback/schema.mjs`, `snapback/functions.mjs`, and
+`snapback/seed.json`. Codegen owns everything under `snapback/generated/` —
+regenerate it, commit the review manifest, never hand-edit it.
 
-Two properties matter most:
+**`snapback/schema.mjs`** — tables, field types, visibility, indexes, and
+whether a table is syncable:
 
-- **Scale to zero.** An idle app should cost (almost) nothing and need no
-  babysitting, so you can prototype without worrying about bills or ops.
-- **Scale up.** The same system is meant to carry a realistically popular app.
-  The north-star goal is something like Partiful at a few hundred thousand
-  monthly users on SQLite and a lightweight JavaScript runtime, within a
-  workload envelope that still needs to be benchmarked and specified.
+```js
+import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 
-## The parts
+export default defineSchema(
+  {
+    todos: defineTable({
+      title: v.string(),
+      completed: v.boolean(),
+    })
+      .visibility({ kind: 'public-read' })
+      .index('by_title', ['title'])
+      .sync(),
+  },
+  { auth: { mode: 'sessions' } },
+);
+```
 
-**v1**
+**`snapback/functions.mjs`** — named queries, live queries, and mutations. The
+server is the security boundary: scope inside the function with
+`authUserId()`, never with a client-supplied owner argument.
 
-- **Code execution** — your backend logic, in JavaScript. Runs on
-  [Ibex](https://github.com/ccheever/ibex) for local and size-sensitive
-  deployments, or a V8-based runtime when you're on Cloudflare or want its
-  performance characteristics.
-- **Data storage** — SQLite at small scale, Postgres at large scale, with one
-  abstraction over both so graduating from SQLite to Postgres is a smooth,
-  mostly seamless move rather than a rewrite.
-- **Auth / login** — a first-class auth system (think WorkOS/Clerk) whose data
-  lives right next to the rest of your data, so you can join, query, and export
-  it freely. Bring your own provider if you prefer.
-- **Asset storage** — uploads for photos and video first (with a processing
-  pipeline), plus other file types. Asset bytes live on the filesystem or in
-  S3-style object storage; metadata, ownership, permissions, references, and
-  processing state live with the rest of the application data.
-- **Cron** — scheduled code execution. Every mature backend grows this; Snapback
-  has it built in.
-- **Notifications** — email, SMS, and push, as a thin layer you configure with
-  your own provider API keys.
+```js
+import {
+  arg, asc, defineLiveQuery, defineMutation,
+  insert, lit, results, returnBinding, v,
+} from '@expo/snapback-codegen/define';
 
-**Planned for v2 (post-launch)**
+export const listTodos = defineLiveQuery({
+  auth: 'public',
+  table: 'todos',
+  args: {},
+  order: [asc('title')],
+  index: 'by_title',
+});
 
-- **AI gateway & data gateway** — call AI APIs, or fetch data like sports scores
-  and weather, through Snapback (some free, some paid).
+export const createTodo = defineMutation({
+  auth: 'public',
+  args: { title: v.string() },
+  plan: insert('todos', { title: arg('title'), completed: lit(false) }, { bindIdAs: 'todoId' }),
+  result: results.value(v.id('todos')),
+  returns: returnBinding('todoId'),
+});
+```
 
-## Principles
+Mutations can also be plain JavaScript handlers (`defineJsMutation` with a
+`ctx.db` handler module) when a declarative plan isn't expressive enough. Both
+run server-side under one commit version with read-set conflict validation.
 
-- **Paved path.** Do whatever you want — but the blessed ways of doing things
-  work *really* well.
-- **Run anywhere.** Your laptop, your own hardware, Cloudflare, AWS, Google
-  Cloud, Azure, DigitalOcean, Hetzner, Railway, and Fly.io. (Cloudflare is
-  unusual and gets dedicated effort.)
-- **Truly open.** MIT licensed — no source-available licenses that stop you from
-  hosting it for other people.
+**The client** — bind the *generated* reference; there is no ad-hoc query
+language on the wire:
 
-## Built for mobile, local-first, and realtime
+```tsx
+import { useSnapbackMutation, useSnapbackQueries } from '@expo/snapback-react';
+import api from '../snapback/generated/api.mjs';
 
-Contract/Exact makes mobile a first-class concern; web and desktop are supported
-but secondary.
+// Hoisted: useSnapbackQueries subscribes by the identity of this map.
+const workspaceQueries = { todos: { ref: api.listTodos, args: {} } };
 
-Two capabilities are required, not optional:
+export function App() {
+  const workspace = useSnapbackQueries(workspaceQueries);
+  const createTodo = useSnapbackMutation(api.createTodo);
+  const todos = workspace.queries.todos.status === 'ready' ? workspace.queries.todos.data : [];
 
-- **Local-first with partial sync.** A mobile app has to keep working offline —
-  imagine if WhatsApp showed you no messages, not even old ones, the moment you
-  lost signal. Snapback syncs the relevant slice of your data down to the device.
-- **Realtime live updates.** If someone RSVPs to your party while you're looking
-  at the list, the guest should appear and the count should tick up instantly.
+  return (
+    <main>
+      <button onClick={() => void createTodo({ title: 'Next thing' })}>Add todo</button>
+      <ul>{todos.map((todo) => <li key={todo._id}>{todo.title}</li>)}</ul>
+    </main>
+  );
+}
+```
 
-## Project history
+Every snippet in [`guide/`](./guide/index.md) marked `source=` is a verbatim
+excerpt of a file CI executes end to end; `scripts/check-guide.mjs` fails the
+build if one drifts.
 
-Snapback's predecessor was **Valet** ([expo/valet](https://github.com/expo/valet)),
-an earlier prototype whose general architecture remains directionally important:
-a small Rust service running alongside SQLite, executing your code and using
-SQLite for storage. Empirical testing surfaced real problems that made that
-version hard; recovering those lessons is early design work, not historical
-cleanup. See
-[`llp/0000-snapback.explainer.md`](./llp/0000-snapback.explainer.md) for details.
+---
 
-## What's next
+## How we think about it
 
-The broad claims above are implemented for the local target; what remains
-open is tracked as explicit GAP rows in the
-[capability index](./guide/capabilities.md), not in this README — currently
-including first-class notifications, native stored arrays/objects, non-JS
-clients beyond Swift (Kotlin, Dart), and the hosted lifecycle/publication
-train beyond the honest partial Cloudflare and container-VM profiles. The
-SQLite-to-Postgres graduation contract remains design work. This README
-deliberately does not duplicate the capability index; where they disagree,
-the capability index wins.
+**Agent-first, not agent-friendly.** We expect essentially all Snapback
+framework code and all Snapback app code to be written by AI agents. That is
+the design constraint, not a marketing angle: syntax, APIs, refusal codes,
+generated artifacts, and feedback loops exist so an agent can get close to
+guarantees and *prove its own work* — a green receipt instead of a confident
+paragraph. Human ergonomics matter where they don't weaken that priority.
 
-## Current code
+Concretely, agent-first shows up as:
 
-This section is for building Snapback itself — contributors and runtime
-developers. Application authors need none of it (see "Build an app on
-Snapback" above). The repository builds the local development server (Rust,
-SQLite, the canonical Ibex runtime target) plus the JS packages.
+- **Stable `SNAPBACK_*` diagnostic codes** with a generated registry, so a
+  failure is a lookup rather than a search.
+- **A capability index with explicit GAP rows**, so an agent never reinvents
+  a feature it didn't know existed, and never assumes one that is a named gap.
+- **`snapback verify`** — one identity-bound receipt composing artifact,
+  runtime, coverage, capability, and acceptance state into a partial
+  done-oracle.
+- **Two MCP servers** with deliberately different authority: `snapback mcp`
+  (read-only guide resources) and `snapback mcp-control` (typed control tools
+  with standing local admin authority).
+- **A budgeted first read** (LLP 0259): a template start packet, then one page
+  at a time via `snapback guide <query>` — not a 2.5 MiB corpus dump.
 
-Do **not** start with recursive submodule initialization. The normal
-checkout path initializes only the small `vendor/llp` and
-`vendor/ccheever-skills` submodules; the large `vendor/ibex` runtime
-checkout is deliberately initialized on demand by the supported bootstrap
-entry point, which also prepares the ignored Hermes artifacts and validates
-by building, launching, and handler-VM-qualifying the binary:
+**Scale to zero.** An idle app should cost almost nothing and need no
+babysitting, so you can prototype without worrying about bills or ops.
+
+**Scale up.** The same system should carry a realistically popular app. The
+north-star target is something like Partiful at a few hundred thousand monthly
+users on SQLite and a lightweight JavaScript runtime.
+
+**Complete and coherent.** Everything a backend needs under one roof, with the
+pieces designed to work together rather than bolted on — a bit like Rails, for
+the mobile-first, local-first, realtime world.
+
+**Truly open.** MIT licensed. No source-available restrictions that stop you
+from hosting it for other people.
+
+**Built for mobile, local-first, and realtime.** Offline has to work — a chat
+app that shows nothing the moment you lose signal is broken — so Snapback syncs
+the relevant slice of data to the device and replays queued mutations. And live
+updates are required, not optional: if someone RSVPs while you're looking at the
+list, the guest appears and the count ticks up.
+
+**Works with any frontend, tailored for Expo and React.** Snapback talks to
+clients over a versioned wire protocol with a language-neutral conformance
+corpus, so any frontend can consume it — the framework-neutral headless
+`SnapbackClient` is the floor, and a Swift client ships for iOS and macOS.
+**Expo and React get the deepest support**: first-party providers and hooks,
+generated typed references, optimistic mutations, managed presence, offline
+retention, a zero-configuration Expo binding with a config plugin, and a
+managed Vite dev plugin. If you are building on Expo or React, you are on the
+paved path.
+
+---
+
+## What's in the box
+
+Grouped roughly as the [guide](./guide/index.md) groups it. Maturity labels
+come from the [capability index](./guide/capabilities.md); everything below is
+the **local target** unless noted.
+
+### Data and functions
+- Declarative schema (`defineSchema`/`defineTable`/`v.*`), indexes, enums,
+  reviewed destructive migrations, sessions-mode schema evolution, record
+  history.
+- Server-authoritative queries and mutations: one commit version, read-set
+  conflict validation, structured results, typed refusals.
+- Declarative mutation plans plus JavaScript handlers with `ctx.db`, running on
+  the embedded Ibex (Hermes) runtime.
+- Server-authored time and IDs, scoped sequences, bounded relational queries
+  and maintained projections, snapshot batches, keyset pages.
+- Portable indexed **text search** and exact **vector search** (both
+  experimental), declarative seeds and versioned fixtures.
+
+### Realtime and sync
+- **Live queries** — named, generated subscriptions with snapshot +
+  replace/delta delivery over a durable push lane.
+- **Ephemeral state** — presence, typing indicators, cursors, typed rooms with
+  TTL, rate and payload limits.
+- **Offline** — stale boot, durable outbox ordering, deterministic optimistic
+  overlays, mutation replay, and lease-bounded retention of authorized data.
+
+### Auth
+- Sessions mode with server-derived principals; email + password with
+  server-side argon2id, declared lockout, and one-time recovery codes.
+- Scoped queries, table visibility, scoped roles and memberships, agent
+  principals, connection-bound live grants, auth-invalidation barriers, signed
+  authorized-query leases.
+- Browser session custody, native iOS/Android custody, an external
+  identity-broker seam, and **target honesty**: the server tells you what the
+  running target actually enforces instead of asking you to trust prose.
+
+### Assets and media
+- Generated upload intents, one-call File/Blob/picker upload, TUS resumable
+  transfer, signed-URL delivery with TTL refresh, typed `v.assetRef`
+  attachment, per-recipient grants and view-once flows, consistent-cut logical
+  export, signing-key rotation.
+
+### Background work
+- Cron with deterministic ticks and a run ledger; one-off durable jobs via
+  transactional `ctx.jobs.enqueue`; actions and gated outbound fetch; streamed
+  actions; an Expo push seam with crash-honest ticket/receipt handling.
+
+### Clients
+- `@expo/snapback-react` — hooks, optimistic mutations, managed presence, paged
+  lists, Strict Mode-safe sharing, offline cold-boot custody.
+- `@expo/snapback-expo` — zero-configuration Expo binding, provider, lifecycle,
+  and config plugin; `@expo/snapback-vite` for the managed web dev loop.
+- The framework-neutral headless `SnapbackClient`, a Swift client for
+  iOS/macOS, an app CLI, and a versioned client protocol with a
+  language-neutral conformance corpus for building your own arm.
+
+### Operating
+- `snapback dev` supervisor, admin console (Data / Functions / Realtime /
+  Errors / Logs), host operations, secrets and config, backup/copy/restore,
+  experimental LTX replication, network condition profiles, local instance
+  forks, typed observability, backend error grouping and triage, an external
+  `/api/v1` surface with OAuth and remote MCP.
+
+### Testing
+- Headless-first acceptance harness with vacuous-pass protection, large
+  deterministic fixture loading, and `snapback verify`'s composed receipt.
+
+---
+
+## What's done and what isn't
+
+**Shipped and load-bearing.** The local target's authoring loop, data model,
+live queries, ephemeral realtime, sessions auth, assets, cron, observability,
+the React/Expo/headless client arms, the admin console, and the
+published CLI. This is what the 13-package 0.1.24 closure carries and what the
+guide teaches.
+
+**Partial, honestly fenced.** 37 capability rows are `partial` and 4 are
+`experimental`. Each names its exact stopping point and a tracking ticket —
+notably bounded child pages, sequences, jobs, structured stored values, media
+collections and commands, the Swift arm, declaration conformance, and
+replication.
+
+**Design-only (4 rows).** Identity/serial columns, first-class notifications,
+non-JS clients beyond Swift (Kotlin, Dart), and backend-only composition into
+an existing app.
+
+**Hosted deployment.** There is no end-to-end path that deploys an arbitrary
+app to a hosted target. Local is a dev/test target, not a hosting adapter; Fly
+has registration, planning, and a lifecycle engine but `deploy apply` cannot
+qualify; Cloudflare deploys only two checked-in proof apps; all 17
+`snapback hosted lifecycle` verbs refuse with
+`SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE`. The full table is
+[`guide/deploying/index.md`](./guide/deploying/index.md).
+
+**SQLite → Postgres graduation.** Still design work.
+
+**Blocking the next npm publication.** The LLP 0276 rearchitecture landed
+structurally, but Phase 4 did not complete. Published packages are immutable
+(LLP 0041), so publication waits on [LLP
+0283](./llp/0283-post-rearchitecture-followups.plan.md):
+
+- **F-1** — three privilege escalations survive in the post-carve authorization
+  surface: a publicly claimable authority root, self-implementable capability
+  traits that became public closure factories, and a caller-selectable Cargo
+  feature exposing writable raw SQLite above the kernel. Behavior was not
+  regressed and `schemas/` drift is zero; the problem is *surface*.
+- **F-2** — the three security gates that reported those closed were written by
+  the same lane whose work they constrain. They need rewriting from an
+  independently authored threat model.
+- **F-3** — the complete battery and cold-clone witnesses never ran against the
+  final head.
+- **F-4** — a small set of known/triage-pending test failures, including a real
+  refusal-precedence ordering bug where the JS handler path and the HostPlan
+  path disagree; it awaits an author ruling on which order is correct.
+
+Sequencing: F-1 and F-2 together (by an author independent of the previous
+attempts), then F-4's triage, then F-3's battery, and only then publication.
+
+---
+
+## Repository layout
+
+The Rust side is a Cargo workspace whose crates *physically realize* the
+ownership architecture: the contract-types leaf below the storage kernel below
+domain services below transport adapters, with the kernel as the only commit
+authority. Cargo
+makes absent edges uncompilable, and a fail-closed workspace-graph gate over
+`cargo metadata` enforces what construction can't express. Governing design:
+[LLP 0276](./llp/0276-ideal-codebase-architecture.rfc.md).
+
+```
+snapback/
+├── crates/          # Rust workspace — the server, runtime, and CLI
+├── packages/        # npm workspace — the published JS surface
+├── clients/         # protocol-native non-npm clients (Swift)
+├── schemas/         # the cross-language contract corpus (295 files)
+├── targets/         # target-local implementations (targets/cloudflare/)
+├── demos/           # ~32 declared reference applications + _kit/
+├── tests/           # cross-language acceptance, conformance, receipts
+├── benchmarks/      # competitive-authoring instrument
+├── scripts/         # proof engine, gates, release, bootstrap
+├── guide/           # the agent-first product guide (150 pages)
+├── llp/             # design corpus (280 numbered documents + reviews)
+├── issues/          # filesystem tickets (open + closed/)
+├── diaries/         # demo build diaries (113)
+├── admin-ui/        # the browser admin console (own lockfile)
+├── website/         # snapback.expo.app shell (own lockfile)
+├── skills/          # agent skills aggregate (+ per-agent mirrors)
+├── vendor/          # ibex, celld-ltx, llp, ccheever-skills submodules
+└── archive/         # retired-but-kept trees
+```
+
+### `crates/` — the Rust workspace
+
+Rank is total; every dependency edge lands on a strictly lower rank, so the
+graph is a DAG by construction. The normative object is
+`crates/allowed-dependencies.v1.json`, which the gate reads.
+
+| Crate | Rank | What it owns |
+| --- | --- | --- |
+| `snapback-types` | 0 | Language-neutral schema/wire/id/value types; exports `schemas/`. |
+| `snapback-kernel` | 1 | SQLite transactions — the only commit primitive; migrations, durability, search/vector storage machinery. |
+| `snapback-auth` | 2 | The auth substrate: provider, session/credential/lease/custody policy, revocation publication. |
+| `snapback-activation` | 3 | Composes and atomically installs successor generations. |
+| `snapback-sync` | 3 | Subscriptions, live matching/coalescing, RQS, cursors, outbox settlement, fan-out, ephemeral rooms. |
+| `snapback-services` | 3 | Assets and media, jobs, cron, push, webhooks, forks, replication, telemetry, error tracking. |
+| `snapback-runtime` | 3 | JS execution: the Hermes/Ibex FFI, warm-VM lifecycle, exec guards, the workerd/V8 conformance twin. |
+| `snapback-engine` | 4 | The transport-independent engine — provisioning, cross-service orchestration, host-op implementations. |
+| `snapback-server` | 5 | The axum app: ~180 routes, wire envelopes, admin serving, OAuth/MCP remotes. |
+| `snapback-cli` | 6 | The clap surface (~40 command groups), guide command, MCP stdio, lifecycle. |
+| `snapback` | 7 | Public façade: `snapback::embed` and the `snapback` binary. |
+| `snapback-conformance` | 7 | Wire fixtures, conformance twin, vectors — proof bins exercising the contract from outside. |
+| `snapback-tools` | 7 | Dev tools, agent-safe worker, benches. |
+
+External-dependency confinement is gate-enforced: `rusqlite` only in the kernel
+(plus the telemetry sidecar's recorded exception), `ibex-runtime` only in
+`snapback-runtime`, `axum` only in `snapback-server`, `clap` only in
+`snapback-cli`. Every crate is `publish = false`; only `snapback::embed` is a
+supported Rust surface.
+
+### `packages/` — the npm workspace
+
+No build step anywhere: hand-authored ESM `.mjs` with hand-written `.d.mts`.
+TypeScript is a checker, not a compiler. Thirteen packages form the published
+closure:
+
+`@expo/snapback-cli` · `@expo/snapback-codegen` · `@expo/snapback-client` ·
+`@expo/snapback-react` · `@expo/snapback-expo` · `@expo/snapback-expo-custody` ·
+`@expo/snapback-contract` · `@expo/snapback-vite` · `@expo/snapback-app-cli` ·
+`@expo/snapback` · `@expo/snapback-runtime-darwin-arm64` ·
+`@expo/snapback-runtime-linux-x64` · `create-snapback-app`
+
+The rest (`snapback-harness`, `snapback-admin-client`, `snapback-sidecar`,
+`snapback-hosted-supervisor`, `snapback-publication-authority`,
+`snapback-expo-dev-identity`) are `private` in-repo infrastructure.
+
+---
+
+## Building Snapback itself
+
+This is a different job from building an app *on* Snapback. Read
+[`AGENTS.md`](./AGENTS.md) first — it is the operative contributor contract and
+goes deeper than this section.
+
+**Do not start with recursive submodule initialization.** The normal checkout
+initializes only the small `vendor/llp` and `vendor/ccheever-skills`
+submodules. The large `vendor/ibex` runtime checkout is initialized on demand
+by the supported bootstrap entry point, which also prepares the ignored Hermes
+artifacts:
 
 ```sh
 scripts/bootstrap-ibex-runtime
@@ -173,231 +455,154 @@ cargo test
 cargo run -- start
 ```
 
-By default the server tries `127.0.0.1:4287` and, if that port is busy, scans
-through `127.0.0.1:4387` until it finds an available local port. It stores data
-in `.snapback/dev.sqlite3` and prints the actual admin URL on startup. Use
-`--memory` for an in-memory database, or `--db` / `--port` to choose a different
-local database or pin an exact port:
+The bootstrap validates by actually **building, launching, and
+handler-VM-qualifying** the binary (with `DYLD_*` scrubbed on macOS), not just
+`cargo check`, and persists a digest-bound readiness receipt. Every failure path
+exits with a stable `SNAPBACK_*` code. When the runtime state looks wrong, run
+`scripts/ibex-doctor` for a read-only diagnosis before repairing anything by
+hand.
 
-File-backed servers also take an exclusive sidecar lock next to the SQLite file,
-so a second server will not accidentally mutate the same app database from a
-different port. Use the already-running server, stop it, pass `--memory`, or
-choose a different `--db`.
+By default the server tries `127.0.0.1:4287` and scans through `4387` for a free
+port, stores data in `.snapback/dev.sqlite3`, and prints the admin URL on
+startup. File-backed servers take an exclusive sidecar lock, so a second server
+cannot silently mutate the same database:
 
 ```sh
 cargo run -- start --port 9000 --db .snapback/other.sqlite3
-cargo build
-./target/debug/snapback start
+cargo run -- start --memory
 ```
 
-`snapback-local` remains available as an alias for the same local server.
-
-Implemented now:
-
-- SQLite infrastructure tables, schema application, reset, and declarative seed.
-- Manifest-backed single-table query and mutation plans.
-- Server-authoritative mutations with one commit version and read-set conflict
-  validation.
-- Live-query subscription snapshots and online replace updates through the
-  durable realtime lane.
-- Local sessions-mode auth with server-derived principals, connection-bound
-  live grants, auth-invalidation barriers, and signed authorized retained-query
-  leases.
-- HTTP endpoints for health, inspect, schema/function load, reset, seed, query,
-  mutation, live subscribe, outbox drain, and ephemeral publish/subscribe.
-- The existing typed in-memory ephemeral store: process-local rooms, TTL expiry,
-  connection-owned cleanup, `scopeEpoch`/`entryVersion`, rate and payload limits,
-  and an in-memory client overlay.
-- First-class React/Expo bindings for generated single/grouped live queries,
-  result-validated optimistic mutations, local managed presence, aggregate
-  connection state, Strict Mode-safe sharing, and complete provider cleanup;
-  see [`guide/clients/react.md`](./guide/clients/react.md).
-
-These auth guarantees are local-target guarantees. ENG-24607 now defines and
-enforces the local transport fence, hosted-capability descriptor, and honest
-browser bearer/XSS posture, but it does not make this target hosted-auth ready.
-The local target deliberately reports no target-owned external TLS, trusted
-effective-source derivation, shared authentication throttle, multi-replica
-invalidation, or sender-constrained browser credential.
-
-The local runtime reports Ibex as the canonical engine and detects an installed
-`ibex` binary. Ibex is vendored as a git submodule at [`vendor/ibex`](./vendor/ibex);
-Snapback looks for `SNAPBACK_IBEX`, then `vendor/ibex/target/debug/ibex` or
-`vendor/ibex/target/release/ibex`, then `ibex` on `PATH`.
-
-A clean checkout needs Ibex's ignored Hermes artifacts before ordinary Cargo
-builds will work. For normal Snapback work, use the root bootstrap:
+### Verification
 
 ```sh
-scripts/bootstrap-ibex-runtime
+bun install --frozen-lockfile              # root JS toolchain (Bun version pinned in package.json)
+scripts/verify-local-proof                 # the canonical local proof (~164 gates)
+SNAPBACK_VERIFY_EXACT=0 scripts/verify-local-proof   # core-only local iteration
+node scripts/check-guide.mjs               # docs-only fast path
+./ref-check --verbose                      # LLP corpus + @ref validation
 ```
 
-The script first makes sure the `vendor/ibex` submodule checkout itself
-exists, running `git submodule update --init --recursive -- vendor/ibex` when a
-fresh clone or worktree has not initialized it yet. If the submodule is
-uninitialized but the directory already contains stray files, it still
-attempts the init (a retained submodule gitdir can check out over regenerable
-artifacts); only when git cannot complete it does it refuse with
-`SNAPBACK_IBEX_SUBMODULE_WEDGED` and print the recovery commands, without
-writing anything itself (writing artifacts into an uninitialized submodule
-path is how fresh worktrees used to get permanently blocked at
-`git submodule update --init`). `scripts/ibex-doctor` diagnoses these states
-read-only. After those prerequisites pass, doctor also performs an exact Cargo
-link in an automatically removed temporary target and launches the newly linked
-binary with dynamic-loader overrides scrubbed. Its
-`snapback.runtime-recovery.v1` record distinguishes a runnable older binary
-from a buildable current checkout and carries the safe bootstrap or explicit
-`SNAPBACK_SERVER_BINARY` override.
-
-With the checkout in place, the script reuses prepared artifacts from a sibling
-`../ibex` checkout when they are present, copying them into the ignored
-`vendor/ibex/ios`, `vendor/ibex/linux`, and `vendor/ibex/tools/hermes`
-locations that Ibex's `build.rs` already expects. If no complete sibling
-artifact set exists, it falls back to
-`vendor/ibex/scripts/download-hermes.sh`, which may download or build
-Hermes for the current platform. On macOS, this matters because the release
-Hermes xcframework does not contain the pure macOS framework Cargo links. Set
-`SNAPBACK_IBEX_CHECKOUT=/path/to/ibex` if your prepared checkout is not the
-sibling `../ibex` directory.
-
-With the artifacts in place, the script validates by actually **building and
-launching** the `snapback` binary (with `DYLD_*` scrubbed on macOS), not just by
-`cargo check`. On macOS the binary loads `hermesvm.framework` through an
-`@rpath`-relative install name, so `build.rs` bakes in the matching `LC_RPATH`;
-that is why `cargo run` works in a fresh worktree without setting
-`DYLD_FRAMEWORK_PATH`, even though macOS SIP strips `DYLD_*` for protected
-process trees. If the binary cannot load the framework at launch, the bootstrap
-fails with `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED` instead of leaving the crash for
-the first real run.
-
-If you specifically need to build the vendored runtime CLI rather than use the
-sibling prebuilt binary, run:
+Demos are the executable proof surface:
 
 ```sh
-cargo build --manifest-path vendor/ibex/Cargo.toml --bin ibex
+node packages/snapback-codegen/index.mjs demos/todo/snapback
+node demos/todo/tests/acceptance/headless.mjs
+node demos/card-game/tests/acceptance/authority-scope.mjs
 ```
 
-JavaScript handlers with `ctx.db` host calls now run through the embedded Ibex
-runtime. The older manifest-backed `HostPlan` runtime remains available for
-deterministic fixtures and bring-up.
+The [demo catalog](./demos/README.md) is a *checked* projection of each demo's
+`demo.snapback.json` — pick by client, target, maturity, proof command, and
+honest nonclaims without opening every directory.
 
-## Demos
+### Toolchain authority
 
-**Building an app on Snapback starts at [`guide/`](./guide/)** — the
-agent-first authoring guide (intent-indexed pages, a capability index with
-explicit gaps, CI-verified snippets; LLP 0061). The demos below are the full
-working applications the guide distills. Context-limited readers should start
-with the roughly 50 KiB [capability index](./guide/capabilities.md) and 12 KiB
-[surface map](./guide/surface-map.md), then load a generated per-section flat
-or specific page. The complete [flat guide](./guide/guide-flat.generated.md) is
-a roughly 2.5 MiB bulk export, not the recommended first read.
+One pin per language, single-sourced and asserted by
+`node scripts/check-toolchain-authority.mjs`: Bun via `packageManager` +
+`bun.lock`, Node via `.node-version` (consumed by every CI workflow through
+`node-version-file`), Rust via `rust-toolchain.toml` coordinated with the
+vendored Ibex pin. Root `npm install` is rejected. Upgrade procedures are in
+[`AGENTS.md`](./AGENTS.md); no workflow edit is ever part of one.
 
-Runnable reference apps live under [`demos/`](./demos) — a metadata-declared
-portfolio of about forty applications. Each demo carries a
-`demo.snapback.json` record (id, title, description, required capabilities)
-audited by `node scripts/check-inventories.mjs`, and guide pages name the
-demos that exercise them in their `examples:` frontmatter, so the catalog is
-checked rather than hand-curated. Shared codegen/client/bridge lives in
-[`demos/_kit/`](./demos/_kit). The earliest is the todo
-list ([`demos/todo/`](./demos/todo)): one source-authored Snapback backend
-consumed by a required headless surface and an optional, working Contract/Exact
-surface. See [LLP 0015](./llp/0015-demo-application-suite.plan.md) for the plan
-and [`diaries/0001-todo-demo.diary.md`](./diaries/0001-todo-demo.diary.md) for the
-build record. [`demos/todo-v2/`](./demos/todo-v2) is a comparison demo that adds
-priority and specifically exercises the LLP 0021 Contract/Exact hardening slice;
-see [`diaries/0004-todo-v2.diary.md`](./diaries/0004-todo-v2.diary.md).
-[`demos/card-game/`](./demos/card-game) proves two real sessions over one
-hidden-hand query: disjoint finite and live results, logout blanking, and honest
-offline retention only until the exact authorized-lease deadline. See
-[`diaries/0013-card-game.diary.md`](./diaries/0013-card-game.diary.md).
+---
+
+## Contributing
+
+Snapback is designed in the open as a corpus of **Linked Literate Programming**
+documents. The workflow itself lives at <https://github.com/ccheever/llp>; this
+repository keeps its own corpus under [`llp/`](./llp/).
+
+**Before you write code:**
+
+1. Read the LLP that governs the subsystem you're touching. For non-trivial
+   work, run the `llp-orient` skill to assemble a context pack of the
+   constraints your change must respect.
+2. Check [`guide/capabilities.md`](./guide/capabilities.md) so you don't
+   reimplement something that already ships, or assume something that is a
+   named gap.
+
+**While you write:**
+
+- Add `@ref LLP NNNN#section — short gloss` where code implements a non-obvious
+  documented decision. When editing code that already carries an `@ref`, verify
+  the referenced section still applies. Don't annotate mechanically.
+- Land doc updates in the same commit as the change that motivated them.
+- If you make a design decision worth preserving, write or update an LLP.
+  Prefer extending an existing one over creating a new one.
+- Building or substantially changing a demo? Write a diary entry in
+  [`diaries/`](./diaries/) recording the concrete build experience — what was
+  ergonomic, what was surprising, what needed a workaround, how it compared to
+  React + Convex or Supabase.
+
+**Tracking work:** prefer filesystem tickets under [`issues/`](./issues/)
+(`issues/YYYYMMDD-slug.md`, moved to `issues/closed/` with a recorded
+resolution) for repository-scoped bugs, follow-ups, and maintenance. Graduate to
+Linear only when the work needs human project-management state, assignment,
+cycles, or cross-repository coordination.
+
+**Landing policy** — the three rules that surprise people most:
+
+- **`main` moves fast**, often continuously for days, with many concurrent agent
+  sessions pushing around the clock. Never design a gate that requires `main` to
+  be quiet. Expect to `git fetch` + rebase right before every push.
+- **Optimistic landing is the default** (LLP 0232). If affected tests passed and
+  the merge adds no semantic conflict, land. Don't rerun expensive checks merely
+  because `main` advanced. This does not relax publication, destructive
+  migration, or security protocols.
+- **Verification cadence follows LLP 0189.** Landings run fast/affected checks;
+  the complete battery runs on schedule and its reds become fix-forward
+  tickets, not retroactive invalidation of unrelated work.
+
+**Publication posture** (LLP 0041): publish to npm rapidly and often —
+whenever `main` carries meaningful surface changes and the qualified
+publication path passes. No current users depend on stability, and expected
+users are agents who read the docs, so landed-but-unpublished surface fixes are
+a liability, not caution. (The current pause is the F-1 authorization work
+above, not a change in posture.)
+
+**Agent skills** are aggregated under [`skills/`](./skills/) and mirrored into
+each agent's discovery path (`.claude/skills`, `.agents/skills`,
+`.cursor/skills`, `.pi/skills`, `.opencode/skills`): `llp-orient` (context
+before coding), `llp-create`, `llp-review`, `llp-adopt`, `llp-maintain`,
+`llp-super-refine`, `llp-ship`. Run `scripts/sync-agent-skills` after pulling
+upstream skill changes, and activate the tracked hooks with
+`git config core.hooksPath .githooks`.
+
+---
+
+## Operating it as an agent
 
 ```sh
-bun install --frozen-lockfile                         # root JS toolchain (packageManager pin)
-node packages/snapback-codegen/index.mjs demos/todo/snapback   # generate manifests from source
-node demos/todo/tests/acceptance/headless.mjs     # required surface (node)
-bun  demos/todo/tests/acceptance/contract.mjs     # Contract/Exact surface (installed packages or local override)
-node demos/card-game/tests/acceptance/authority-scope.mjs # sessions/live/offline auth proof
+snapback mcp                                       # read-only guide resources
+snapback mcp-control                               # typed control tools, local admin authority
+snapback agent setup --print claude --server mcp   # generate client config instead of guessing
+snapback guide <query|SNAPBACK_CODE|Symbol>        # budgeted lookup
+snapback admin --ready-file .snapback/dev.ready.json   # open the admin console
 ```
 
-The canonical CI proof requires the full Contract/Exact and admin checks. For a
-deliberately core-only local iteration, use:
+`mcp` is least-authority and safe to wire into any agent. `mcp-control`
+authenticates with the auto-minted local admin token and therefore grants
+standing local admin authority — a real grant a cold agent should understand
+before opting in. Neither grants hosted or remote authority.
 
-```sh
-SNAPBACK_VERIFY_EXACT=0 scripts/verify-local-proof
-```
+---
 
-The default local proof runs the Contract/admin checks when each target
-surface's committed Exact package lock has been installed by the
-required-surface gate. CI sets `SNAPBACK_VERIFY_EXACT=1`, so unavailable Exact
-dependencies fail instead of skipping. `SNAPBACK_EXACT_ROOT` remains a local-development
-override, not the default build path. Acceptance probes only the package tree
-owned by the surface under test; an install in another demo or `admin-ui` never
-turns a missing target green.
+## Project history
 
-The repository root has one JavaScript dependency authority: the exact Bun
-version in `package.json` plus `bun.lock`. Root `npm install` is rejected; npm
-locks under self-contained demo subprojects remain independent where declared.
-
-To upgrade the root Bun authority, first install/select the intended exact Bun
-release and verify it with `bun --version`. Change the `packageManager` value in
-`package.json`, run `bun install` with that same binary to regenerate `bun.lock`,
-then run:
-
-```sh
-bun install --frozen-lockfile
-node scripts/check-toolchain-authority.mjs
-scripts/verify-local-proof
-```
-
-The Node runtime that executes proof scripts and package tests is pinned the
-same way: `.node-version` at the repository root is the single exact Node
-authority. Every CI workflow consumes it via `node-version-file`, and
-`scripts/check-toolchain-authority.mjs` asserts the active `node` matches it,
-so the same commit cannot run the proof under drifting Node patch releases.
-Package `engines` ranges stay compatibility declarations, not the CI
-authority. To upgrade Node, install/select the intended exact release (any
-version manager that reads `.node-version` works), verify it with
-`node --version`, update `.node-version` to that release, then run:
-
-```sh
-node scripts/check-toolchain-authority.mjs
-scripts/verify-local-proof
-```
-
-No workflow edit is part of a Node upgrade; the workflows read the same file.
-
-Rust upgrades are coordinated with the linked runtime rather than floated in
-Snapback alone. First land the exact channel in Ibex's `rust-toolchain.toml`,
-update Snapback's `vendor/ibex` submodule to that Ibex commit, and set the root
-`rust-toolchain.toml` to the identical channel. Then run
-`scripts/bootstrap-ibex-runtime`, `node scripts/check-toolchain-authority.mjs`,
-and the canonical local proof. The authority check intentionally fails if the
-root and vendored pins differ or if the active compiler does not match them.
-
-## Design docs (LLP)
-
-This repository uses **Linked Literate Programming (LLP)** to keep design
-rationale next to the code that will implement it. Design decisions live as
-numbered documents in [`llp/`](./llp/):
-
-- Put durable rationale in `llp/NNNN-slug.type.md` documents.
-- Annotate code with `@ref` when an implementation decision is governed by an
-  LLP section.
-- Run `./ref-check --verbose` before pushing changes that touch LLP documents or
-  referenced code (CI runs the same check).
-- Workflow skills are exposed through [`skills/`](./skills/); the skill files
-  are symlinked from upstream repos under [`vendor/`](./vendor/) and refreshed
-  with [`scripts/sync-agent-skills`](./scripts/sync-agent-skills).
-- Agent-facing rules are in [`AGENTS.md`](./AGENTS.md).
-
-The LLP workflow itself comes from <https://github.com/ccheever/llp>.
+Snapback's predecessor was **Valet**
+([expo/valet](https://github.com/expo/valet)) — a small Rust service alongside
+SQLite, executing your code and using SQLite for storage. That general
+architecture remains directionally right; empirical testing surfaced real
+problems that made the first version hard, and recovering those lessons is
+active design work rather than historical cleanup. See
+[`llp/0000-snapback.explainer.md`](./llp/0000-snapback.explainer.md).
 
 ## Brand
 
-Logo, favicon, and app-icon assets live in [`brand/`](./brand/), with usage
-notes in [`brand/README.md`](./brand/README.md). The vector mark
-([`brand/snapback-mark.svg`](./brand/snapback-mark.svg)) is the canonical master.
+Logo, favicon, and app-icon assets are in [`brand/`](./brand/) with usage notes
+in [`brand/README.md`](./brand/README.md). The vector mark
+([`brand/snapback-mark.svg`](./brand/snapback-mark.svg)) is the canonical
+master.
 
 ## License
 
-MIT.
+MIT. Host it anywhere, including for other people.
