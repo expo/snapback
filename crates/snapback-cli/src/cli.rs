@@ -8,7 +8,7 @@ use crate::host_ops::{HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, Hos
 use crate::instance_lock::{DatabaseInstanceLock, StartupTargetReservation};
 use crate::local::{DiagnosticBoundary, LocalSnapback};
 use crate::manifest::{SNAPBACK_SCHEMA_VERSION, SchemaManifestValidationExt as _};
-#[cfg(test)]
+#[cfg(all(test, not(feature = "cli-owner")))]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::server;
 use anyhow::Context;

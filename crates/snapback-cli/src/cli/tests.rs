@@ -1,13 +1,15 @@
+#[cfg(not(feature = "cli-owner"))]
+use super::AuthConstructionFailure;
 use super::{
     AdminArgs, AdminCommand, AdminLinkReadyFile, Args, AssetsCommand, AuthCommand,
-    AuthConstructionFailure, AuthCoordinatorReadinessReceipt, AuthPasswordCommand,
-    AuthProgramConstructionReceipts, AuthRecoveryCommand, BEFORE_STARTUP_TARGET_RESERVATION, Cli,
-    ConfigCommand, ConnectionsCommand, ConsoleClaimMintCliResponse, ConsoleCredentialCliResponse,
-    ControlsCommand, CronCommand, DataCommand, DataPatchArgs, DebugCommand, EphemeralCommand,
-    ErrorsCommand, ForkCommand, GUIDE_SEARCH_SCHEMA_VERSION, HostCommand, JobsCommand, ManagedPath,
-    NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand, StoreCommand,
-    TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
-    bind_listener, console_claim_fragment_url, console_fragment_url, console_launch_handoff_with,
+    AuthCoordinatorReadinessReceipt, AuthPasswordCommand, AuthProgramConstructionReceipts,
+    AuthRecoveryCommand, BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand,
+    ConsoleClaimMintCliResponse, ConsoleCredentialCliResponse, ControlsCommand, CronCommand,
+    DataCommand, DataPatchArgs, DebugCommand, EphemeralCommand, ErrorsCommand, ForkCommand,
+    GUIDE_SEARCH_SCHEMA_VERSION, HostCommand, JobsCommand, ManagedPath, NetworkProfileCommand,
+    ReadyFileTarget, ResolvedHttpTarget, SessionCommand, StoreCommand, TargetArgs,
+    TelemetryCommand, automatic_reap_before_create, bind_first_available, bind_listener,
+    console_claim_fragment_url, console_fragment_url, console_launch_handoff_with,
     controls_list_text, fork_secret_disposition, managed_startup_paths, mint_secret_read_via_http,
     parse_fork_ttl, parse_network_profile_selection, parse_run_args, path_segment_escape,
     prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
@@ -16,10 +18,10 @@ use super::{
     search_guide_sections_in, validate_path_disjointness, validated_console_origin,
     validated_secret_read_root_path, write_ready_file_atomic, write_ready_file_atomic_protected,
 };
-#[cfg(not(feature = "cli-owner"))]
-use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::guide::EmbeddedGuideFile;
 use crate::instance_lock::TargetInstanceReservation;
+#[cfg(not(feature = "cli-owner"))]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::store_state::path_with_filename_suffix;
 use clap::{CommandFactory, Parser};
 use serde_json::{Value, json};
@@ -2506,6 +2508,7 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
 }
 
 #[tokio::test]
+#[cfg(not(feature = "cli-owner"))]
 async fn physical_restore_is_quarantined_until_exact_prebind_declaration() {
     let directory = tempfile::tempdir().unwrap();
     let source_database = directory.path().join("source.sqlite3");
@@ -3598,6 +3601,7 @@ fn secret_read_root_path_substitution_is_refused_before_file_or_network_access()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[cfg(not(feature = "cli-owner"))]
 async fn ready_file_cli_mints_a_derived_lease_without_exposing_the_root() {
     let dir = tempfile::tempdir().unwrap();
     let ready = std::fs::canonicalize(dir.path())
@@ -4165,6 +4169,7 @@ fn ready_file_parent_swap_cannot_redirect_publish_or_cleanup() {
 // foreign replacement at the same path.
 #[cfg(unix)]
 #[test]
+#[cfg(not(feature = "cli-owner"))]
 fn secret_read_root_cleanup_removes_only_the_adopted_identity() {
     let dir = tempfile::tempdir().unwrap();
     let mut target = ReadyFileTarget::open(&dir.path().join("dev.ready.json")).unwrap();
