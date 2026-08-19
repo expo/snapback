@@ -24,8 +24,7 @@ use snapback::bench_support::{
     AgentSafeActiveContentionWriter, prepare_agent_safe_active_contention_database,
 };
 use snapback_services::fork_promotion_bench::{
-    ForkPromotionBenchmarkRun as Run, count_committed_contention_rows,
-    prepare_promotion_contention_reservation, run_fork_promotion_benchmark_once,
+    ForkPromotionBenchmarkRun as Run, PromotionContentionFixture, run_fork_promotion_benchmark_once,
 };
 
 const RECORDED_RUNS: usize = 11;
@@ -371,17 +370,12 @@ fn run_once(seed: u64) -> anyhow::Result<Run> {
 /// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — the bounded
 ///   reservation requires a p99 under-contention latency record.
 fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
-    let directory = tempfile::tempdir().context("create contention fixture directory")?;
-    let database_path = directory.path().join("contention.sqlite");
+    let mut contention_fixture = PromotionContentionFixture::new()?;
+    let database_path = contention_fixture.database_path().to_path_buf();
     let canonical_stream_id = prepare_agent_safe_active_contention_database(&database_path)
         .context("prepare active ordinary-mutation contention database")?;
     let issued_at_ms = unix_millis()?;
-    let reservation = prepare_promotion_contention_reservation(
-        &database_path,
-        &canonical_stream_id,
-        CONTENTION_WORKERS,
-        issued_at_ms,
-    )?;
+    contention_fixture.prepare(&canonical_stream_id, CONTENTION_WORKERS, issued_at_ms)?;
     let start = Arc::new(Barrier::new(CONTENTION_WORKERS + 1));
     let abort = Arc::new(AtomicBool::new(false));
     let setup_gate = Arc::new(Mutex::new(()));
@@ -462,7 +456,7 @@ fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
         }
         bail!("contention writers failed setup: {setup_errors:?}");
     }
-    let reservation_policy = reservation.activate(unix_millis()?)?;
+    let reservation_policy = contention_fixture.activate(unix_millis()?)?;
     start.wait();
 
     let mut samples = Vec::with_capacity(CONTENTION_SAMPLES);
@@ -482,7 +476,7 @@ fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
         samples.len() == CONTENTION_SAMPLES && initial_deferred_worker_count == CONTENTION_WORKERS,
         "contention fixture did not place every initial writer behind the reservation"
     );
-    let committed_rows = count_committed_contention_rows(&database_path)?;
+    let committed_rows = contention_fixture.count_committed_rows()?;
     anyhow::ensure!(
         committed_rows == CONTENTION_SAMPLES,
         "active contention carrier committed {committed_rows} rows, expected {CONTENTION_SAMPLES}"

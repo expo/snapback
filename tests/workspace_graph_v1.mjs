@@ -3,6 +3,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -10,6 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
   canonicalRegularFileExists,
@@ -25,19 +27,59 @@ const ownership = JSON.parse(readFileSync(new URL('../ownership.manifest.json', 
 const workspaceManifestSource = readFileSync(new URL('../Cargo.toml', import.meta.url), 'utf8');
 
 function metadata(name = 'snapback', dependencies = []) {
-  const id = `${name} 0.1.0 (path+file:///fixture/${name})`;
+  const names = new Set(artifact.crates.map((entry) => entry.name));
+  names.add(name);
+  const packages = [...names].map((packageName) => {
+    const id = `${packageName} 0.1.0 (path+file:///fixture/${packageName})`;
+    const engine = packageName === 'snapback-engine'
+      ? {
+        manifest_path: fileURLToPath(new URL('../crates/snapback-engine/Cargo.toml', import.meta.url)),
+        targets: [{
+          kind: ['lib'],
+          crate_types: ['lib'],
+          name: 'snapback_engine',
+          src_path: fileURLToPath(new URL('../crates/snapback-engine/src/lib.rs', import.meta.url)),
+        }],
+        }
+      : {};
+    return {
+      id,
+      name: packageName,
+      publish: [],
+      dependencies: packageName === name
+        ? dependencies.map((dependency) => ({ name: dependency }))
+        : [],
+      ...engine,
+    };
+  });
+  const snapbackId = packages.find((entry) => entry.name === 'snapback').id;
   return {
-    packages: [{ id, name, publish: [], dependencies: dependencies.map((dependency) => ({ name: dependency })) }],
-    workspace_members: [id],
-    workspace_default_members: [id],
+    packages,
+    workspace_members: packages.map((entry) => entry.id),
+    workspace_default_members: [snapbackId],
   };
+}
+
+function packageNamed(value, name) {
+  return value.packages.find((entry) => entry.name === name);
 }
 
 test('the Phase 2 facade is assigned with no confined externals', () => {
   assert.deepEqual(validateArtifactAndMetadata(artifact, metadata(), workspaceManifestSource), {
-    members: ['snapback'],
+    members: artifact.crates.map((entry) => entry.name).sort(),
     plannedCrates: 13,
   });
+});
+
+test('a missing Phase 2 workspace member fails closed', () => {
+  const value = metadata();
+  const missing = packageNamed(value, 'snapback-conformance');
+  value.packages = value.packages.filter((entry) => entry !== missing);
+  value.workspace_members = value.workspace_members.filter((id) => id !== missing.id);
+  assert.throws(
+    () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
+    /workspace member set must exactly match the 13-crate Phase 2 matrix/u,
+  );
 });
 
 test('a deliberately misplaced manifest module fails closed without an exception', () => {
@@ -69,6 +111,35 @@ test('a noncanonical module path cannot escape its assigned owner', () => {
   );
 });
 
+test('the Phase 2 flip rejects any remaining mixed module scope', () => {
+  const mixed = structuredClone(ownership);
+  mixed.mixedModuleScopes = {
+    'crates/snapback/src/deliberately-mixed.rs': ['auth-substrate', 'embed-facade'],
+  };
+  assert.throws(
+    () => validateModuleOwnership(artifact, mixed, () => true, '2026-08-18'),
+    /mixedModuleScopes must be empty/u,
+  );
+});
+
+test('the Phase 2 ownership inventory cannot disappear or admit non-modules', () => {
+  const empty = structuredClone(ownership);
+  empty.modulesByOwner = {};
+  assert.throws(
+    () => validateModuleOwnership(artifact, empty, () => true, '2026-08-18'),
+    /complete Phase 2 owner-bucket schema/u,
+  );
+
+  const nonModule = structuredClone(ownership);
+  nonModule.modulesByOwner['shared-contract-types-leaf'][0] =
+    'crates/snapback-types/Cargo.toml';
+  nonModule.modulesByOwner['shared-contract-types-leaf'].sort();
+  assert.throws(
+    () => validateModuleOwnership(artifact, nonModule, () => true, '2026-08-18'),
+    /only Rust module source paths/u,
+  );
+});
+
 test('a symlink cannot make an out-of-owner file look physically owned', () => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-workspace-graph-'));
   try {
@@ -88,7 +159,7 @@ test('a symlink cannot make an out-of-owner file look physically owned', () => {
 });
 
 test('the engine source walk rejects symlinked Rust definitions', () => {
-  const root = mkdtempSync(join(tmpdir(), 'snapback-engine-denylist-'));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-engine-denylist-')));
   try {
     writeFileSync(join(root, 'outside.rs'), 'pub fn search() {}\n');
     symlinkSync('outside.rs', join(root, 'borrowed.rs'));
@@ -104,7 +175,7 @@ test('the engine source walk rejects symlinked Rust definitions', () => {
 });
 
 test('the engine source walk rejects a symlink used as its root', () => {
-  const root = mkdtempSync(join(tmpdir(), 'snapback-engine-root-denylist-'));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-engine-root-denylist-')));
   try {
     mkdirSync(join(root, 'actual-src'));
     writeFileSync(join(root, 'actual-src', 'lib.rs'), 'pub fn search() {}\n');
@@ -112,6 +183,22 @@ test('the engine source walk rejects a symlink used as its root', () => {
     assert.throws(
       () => rustSourceFiles(join(root, 'linked-src')),
       /Rust source root must be a real directory/u,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the engine source walk rejects a symlinked package ancestor', () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-engine-ancestor-denylist-')));
+  try {
+    mkdirSync(join(root, 'actual-engine'));
+    mkdirSync(join(root, 'actual-engine', 'src'));
+    writeFileSync(join(root, 'actual-engine', 'src', 'lib.rs'), 'pub fn search() {}\n');
+    symlinkSync('actual-engine', join(root, 'linked-engine'));
+    assert.throws(
+      () => rustSourceFiles(join(root, 'linked-engine', 'src')),
+      /Rust source root may not traverse a symlinked ancestor/u,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -139,6 +226,11 @@ test('the engine denylist covers qualified functions, unions, and raw identifier
     'const _: () = { fn auth() {} };',
     'struct Host; impl Host { pub fn search() {} }',
     'pub static search: u8 = 0;',
+    'unsafe extern "C" { safe static search: u8; }',
+    'unsafe extern "C" { unsafe static auth: u8; }',
+    'thread_local!(static auth: std::cell::Cell<u8> = const { std::cell::Cell::new(0) });',
+    'thread_local![static search: std::cell::Cell<u8> = const { std::cell::Cell::new(0) }];',
+    'thread_local!(pub static activation: std::cell::Cell<u8> = const { std::cell::Cell::new(0) });',
     'pub const auth: u8 = 0;',
     'pub struct activation;',
     'macro_rules! search { () => {} }',
@@ -170,10 +262,14 @@ test('definition-producing engine includes and macros fail closed', () => {
     'extern crate foreign as serde_json;\nserde_json::json!({});',
     'pub(crate) extern crate foreign as serde_json;\nserde_json::json!({});',
     'mod std { pub use foreign::define_env as env; }\nuse std::env;\nenv!();',
+    'use foreign::*;\njson!({});',
+    'pub use foreign::*;\n#[derive(Serialize)] struct Harmless;',
+    'use foreign::*;\n#[serde] struct Harmless;',
+    'use foreign::{*};\nparams![];',
   ]) {
     assert.throws(
       () => validateEngineDefinitionDenylist(artifact, [{ path: '/fixture/engine.rs', source }]),
-      /engine #\[path\] escapes|unreviewed macro|unreviewed attribute|unreviewed derive|cfg_attr may not hide|may not define item-generating macros|may not alias a trusted macro binding|may not import trusted macro binding|may not alias an extern crate|may not shadow a trusted macro crate binding/u,
+      /engine #\[path\] escapes|unreviewed macro|unreviewed attribute|unreviewed derive|unreviewed glob|cfg_attr may not hide|may not define item-generating macros|may not alias a trusted macro binding|may not import trusted macro binding|may not alias an extern crate|may not shadow a trusted macro crate binding/u,
       source,
     );
   }
@@ -227,16 +323,46 @@ test('a confined external outside its owner fails closed', () => {
 
 test('the engine cannot rename a dependency over a trusted macro crate binding', () => {
   const value = metadata('snapback-engine', ['foreign-macros']);
-  value.packages[0].dependencies[0].rename = 'serde';
+  packageNamed(value, 'snapback-engine').dependencies[0].rename = 'serde';
   assert.throws(
     () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
     /may not rename foreign-macros to trusted macro crate binding serde/u,
   );
 });
 
+test('the engine cannot hyphen-rename a dependency over a trusted crate binding', () => {
+  const value = metadata('snapback-engine', ['foreign-macros']);
+  packageNamed(value, 'snapback-engine').dependencies[0].rename = 'serde-json';
+  assert.throws(
+    () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
+    /may not rename foreign-macros to trusted macro crate binding serde_json/u,
+  );
+});
+
+test('the engine definition scan is bound to its canonical lib target', () => {
+  const value = metadata('snapback-engine');
+  packageNamed(value, 'snapback-engine').targets[0].src_path = '/fixture/outside.rs';
+  assert.throws(
+    () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
+    /only its canonical physical/u,
+  );
+
+  const extra = metadata('snapback-engine');
+  packageNamed(extra, 'snapback-engine').targets.push({
+    kind: ['bin'],
+    crate_types: ['bin'],
+    name: 'unscanned-engine-bin',
+    src_path: '/fixture/activation.rs',
+  });
+  assert.throws(
+    () => validateArtifactAndMetadata(artifact, extra, workspaceManifestSource),
+    /only its canonical physical/u,
+  );
+});
+
 test('publishable workspace crates fail closed', () => {
   const value = metadata();
-  value.packages[0].publish = null;
+  packageNamed(value, 'snapback').publish = null;
   assert.throws(
     () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
     /publish = false/u,

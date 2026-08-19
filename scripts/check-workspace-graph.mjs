@@ -5,6 +5,7 @@
 // external confinement, ownership assignment, and publish posture.
 
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { dirname, posix, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,6 +56,9 @@ const OWNER_CRATE_ROOTS = {
   'embed-facade': ['crates/snapback'],
   unassigned: [],
 };
+const EXPECTED_OWNERSHIP_ASSIGNMENT_COUNT = 67;
+const EXPECTED_OWNERSHIP_ASSIGNMENT_SHA256 =
+  '4f55f9811d3b0f75c3ef8a922ca2a78e2d2a55f56512cee47ea2f0b204248765';
 const EXPECTED_ENGINE_DEFINITION_DENYLIST = [
   { kind: 'symbol', symbol: 'activation' },
   { kind: 'symbol', symbol: 'auth' },
@@ -138,6 +142,36 @@ const CANONICAL_ENGINE_IMPORTS = new Map([
   ['params', 'snapback_services::test_support::rusqlite'],
   ['rusqlite', 'snapback_services::test_support'],
 ]);
+// A glob can import a macro, derive, or attribute without naming it in the
+// engine source. Keep the compatibility globs that already compose reviewed
+// lower-owner and local modules, but fail closed on every other root.
+const SAFE_ENGINE_GLOB_IMPORTS = new Set([
+  'capabilities::*',
+  'config_types::*',
+  'crate::host_ops_contract::*',
+  'engine::*',
+  'engine::generation_host::*',
+  'generation_host::*',
+  'host_glue::*',
+  'snapback_kernel::assets::*',
+  'snapback_kernel::assets_cut::*',
+  'snapback_kernel::assets_store::*',
+  'snapback_kernel::control_catalog::*',
+  'snapback_kernel::instance_fork::*',
+  'snapback_kernel::storage::jobs::*',
+  'snapback_runtime::runtime::*',
+  'snapback_services::assets::*',
+  'snapback_services::assets_cut::*',
+  'snapback_services::assets_store::*',
+  'snapback_services::cron::*',
+  'snapback_services::instance_fork::*',
+  'snapback_services::telemetry::*',
+  'snapback_types::instance_fork::*',
+  'snapback_types::manifest::*',
+  'snapback_types::push::*',
+  'snapback_types::runtime::*',
+  'super::*',
+]);
 const TRUSTED_ENGINE_CRATE_BINDINGS = new Set([
   'rusqlite',
   'schemars',
@@ -146,6 +180,14 @@ const TRUSTED_ENGINE_CRATE_BINDINGS = new Set([
   'snapback_services',
   'std',
   'tokio',
+]);
+const CANONICAL_ENGINE_CRATE_PACKAGES = new Map([
+  ['rusqlite', 'rusqlite'],
+  ['schemars', 'schemars'],
+  ['serde', 'serde'],
+  ['serde_json', 'serde_json'],
+  ['snapback_services', 'snapback-services'],
+  ['tokio', 'tokio'],
 ]);
 
 function assert(condition, message) {
@@ -236,11 +278,26 @@ export function validateModuleOwnership(
 ) {
   assert(ownership?.schemaVersion === 'snapback.module-ownership-manifest.v1', 'ownership manifest schemaVersion is invalid');
   assert(ownership.modulesByOwner && typeof ownership.modulesByOwner === 'object', 'ownership manifest modulesByOwner is invalid');
+  assert(
+    JSON.stringify(Object.keys(ownership.modulesByOwner).sort())
+      === JSON.stringify(Object.keys(OWNER_CRATE_ROOTS).sort()),
+    'ownership manifest must retain the complete Phase 2 owner-bucket schema',
+  );
+  assert(
+    JSON.stringify(ownership.mixedModuleScopes) === JSON.stringify({}),
+    'ownership manifest mixedModuleScopes must be empty at the Phase 2 flip',
+  );
   const assignments = [];
   for (const [owner, modules] of Object.entries(ownership.modulesByOwner)) {
     assert(Object.hasOwn(OWNER_CRATE_ROOTS, owner), `ownership manifest contains unknown owner ${owner}`);
     sortedUniqueStrings(modules, `modulesByOwner.${owner}`);
-    for (const module of modules) validateCanonicalRepositoryPath(module, `modulesByOwner.${owner} path`);
+    for (const module of modules) {
+      validateCanonicalRepositoryPath(module, `modulesByOwner.${owner} path`);
+      assert(
+        /^crates\/[a-z0-9-]+\/src\/.+\.rs$/u.test(module),
+        `modulesByOwner.${owner} must contain only Rust module source paths: ${module}`,
+      );
+    }
     assignments.push(...modules.map((module) => ({ module, owner })));
   }
   const assignmentKeys = assignments.map(({ module }) => module);
@@ -286,6 +343,16 @@ export function validateModuleOwnership(
   for (const [key, exception] of exceptionAssignments) {
     assert(exception.used, `${exception.name} does not match an out-of-owner manifest module (${key.split('\0')[1]})`);
   }
+  const assignmentProjection = assignments
+    .map(({ module, owner }) => `${owner}\0${module}`)
+    .sort()
+    .join('\n');
+  assert(
+    assignments.length === EXPECTED_OWNERSHIP_ASSIGNMENT_COUNT
+      && createHash('sha256').update(assignmentProjection).digest('hex')
+        === EXPECTED_OWNERSHIP_ASSIGNMENT_SHA256,
+    'ownership manifest must retain the exact 67-module Phase 2 assignment inventory',
+  );
 }
 
 export function rustSourceFiles(directory) {
@@ -293,6 +360,10 @@ export function rustSourceFiles(directory) {
   assert(
     directoryMetadata.isDirectory() && !directoryMetadata.isSymbolicLink(),
     `Rust source root must be a real directory: ${relative(ROOT, directory).split(sep).join('/')}`,
+  );
+  assert(
+    realpathSync(directory) === resolve(directory),
+    `Rust source root may not traverse a symlinked ancestor: ${relative(ROOT, directory).split(sep).join('/')}`,
   );
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = resolve(directory, entry.name);
@@ -601,6 +672,13 @@ function validateEngineDefinitionInputs(files) {
     }
     for (const useMatch of masked.matchAll(/(?:^|[;{}])\s*(?:pub(?:\s*\([^)]*\))?\s+)?use\s+([^;]+);/gmu)) {
       const useSpec = useMatch[1];
+      if (/(?:^|[,:{])\s*\*/u.test(useSpec)) {
+        const normalizedUseSpec = useSpec.replace(/\s+/gu, '');
+        assert(
+          SAFE_ENGINE_GLOB_IMPORTS.has(normalizedUseSpec),
+          `snapback-engine may not import an unreviewed glob ${normalizedUseSpec}: ${relative(ROOT, file.path).split(sep).join('/')}`,
+        );
+      }
       for (const alias of useSpec.matchAll(/\bas\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*)/gu)) {
         assert(
           !TRUSTED_ENGINE_BINDINGS.has(alias[1]),
@@ -649,9 +727,9 @@ export function validateEngineDefinitionDenylist(artifact, files = rustSourceFil
     const declaration = String.raw`(?:`
       + String.raw`(?:(?:const|async|unsafe|safe|default)\s+|extern(?:\s+"[^"]*")?\s+)*fn`
       + String.raw`|(?:(?:unsafe|auto)\s+)*(?:struct|enum|union|trait|type)`
-      + String.raw`|mod|const|static(?:\s+mut)?|macro_rules\s*!|macro)`;
+      + String.raw`|mod|const|(?:(?:safe|unsafe)\s+)?static(?:\s+mut)?|macro_rules\s*!|macro)`;
     const pattern = new RegExp(
-      String.raw`(?:^|[;{}])\s*${visibility}${declaration}\s+(?:r#)?${entry.symbol}\b`,
+      String.raw`(?:^|[;{}(\[])\s*${visibility}${declaration}\s+(?:r#)?${entry.symbol}\b`,
       'mu',
     );
     for (const file of files) {
@@ -779,10 +857,32 @@ export function validateArtifactAndMetadata(artifact, metadata, workspaceManifes
     assert(Array.isArray(member.publish) && member.publish.length === 0, `${member.name} must set publish = false`);
     const dependencies = new Set((member.dependencies ?? []).map((entry) => entry.name));
     if (member.name === 'snapback-engine') {
+      const engineManifest = resolve(ROOT, 'crates/snapback-engine/Cargo.toml');
+      const engineLib = resolve(ROOT, 'crates/snapback-engine/src/lib.rs');
+      const libTargets = (member.targets ?? []).filter((target) => target.kind?.includes('lib'));
+      const nonBuildTargets = (member.targets ?? [])
+        .filter((target) => !target.kind?.includes('custom-build'));
+      assert(
+        member.manifest_path === engineManifest
+          && canonicalRegularFileExists(ROOT_REAL, 'crates/snapback-engine/Cargo.toml'),
+        'snapback-engine package manifest must be the canonical physical crates/snapback-engine/Cargo.toml',
+      );
+      assert(
+        libTargets.length === 1
+          && nonBuildTargets.length === 1
+          && nonBuildTargets[0] === libTargets[0]
+          && JSON.stringify(libTargets[0].kind) === JSON.stringify(['lib'])
+          && JSON.stringify(libTargets[0].crate_types) === JSON.stringify(['lib'])
+          && libTargets[0].name === 'snapback_engine'
+          && libTargets[0].src_path === engineLib
+          && canonicalRegularFileExists(ROOT_REAL, 'crates/snapback-engine/src/lib.rs'),
+        'snapback-engine must have only its canonical physical crates/snapback-engine/src/lib.rs Rust target',
+      );
       for (const dependency of member.dependencies ?? []) {
-        const binding = dependency.rename ?? dependency.name;
+        const binding = (dependency.rename ?? dependency.name).replaceAll('-', '_');
         assert(
-          !TRUSTED_ENGINE_CRATE_BINDINGS.has(binding) || dependency.name === binding,
+          !TRUSTED_ENGINE_CRATE_BINDINGS.has(binding)
+            || CANONICAL_ENGINE_CRATE_PACKAGES.get(binding) === dependency.name,
           `snapback-engine may not rename ${dependency.name} to trusted macro crate binding ${binding}`,
         );
       }
@@ -797,6 +897,11 @@ export function validateArtifactAndMetadata(artifact, metadata, workspaceManifes
       assert(false, `${member.name} may not depend on confined external ${rule.dependency}`);
     }
   }
+  assert(
+    JSON.stringify([...memberNames].sort())
+      === JSON.stringify(EXPECTED_CRATES.map((entry) => entry.name).sort()),
+    'workspace member set must exactly match the 13-crate Phase 2 matrix',
+  );
   const defaultMembers = (metadata?.workspace_default_members ?? [])
     .map((id) => packagesById.get(id));
   assert(

@@ -23,7 +23,7 @@ sync-owner = []
 # Internal evidence harness for LLP 0154 Phase 1. This is deliberately absent
 # from ordinary contributor/server builds and is enabled only by the bounded
 # proof script.
-telemetry-phase1-proof = ["dep:tower"]
+telemetry-phase1-proof = ["snapback-server/benchmark-support"]
 
 [[bin]]
 name = "snapback-telemetry-bench"
@@ -65,7 +65,6 @@ subtle = "2"
 tempfile = "3.23"
 tokio = { version = "1.48", features = ["full"] }
 tower-service = "0.3"
-tower = { version = "0.5", features = ["util"], optional = true }
 unicode-normalization = "0.1"
 unicode-segmentation = "1.12"
 ureq = { version = "2", features = ["json"] }

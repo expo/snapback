@@ -1,14 +1,23 @@
 //! Reproducible LLP 0154 Phase-1 capacity and latency evidence.
 //!
-//! This is deliberately a child of `telemetry`: the benchmark exercises the
-//! same private buffer, batch, maintenance, and cap paths as production without
-//! adding an author-facing telemetry mutation API.
+//! Storage measurements run through a services-owned proof API so the façade
+//! does not expose private buffers, SQLite connections, transactions, or
+//! maintenance primitives.
 
-use super::TelemetryLocalExt as _;
-use super::*;
+use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::telemetry::*;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use sha2::{Digest as _, Sha256};
+use snapback_services::telemetry::benchmark_support::{
+    BurstAndShedReport, EventArmedWorkerReport, FileCapReport, LatencyReport, QueryLatencyReport,
+    StorageBenchmarkConfig, StorageBenchmarkReport, SweepReport, counted_application_rows,
+    counted_kind_rows, run_storage_benchmark, wait_for_persisted_delta,
+};
+use std::fs;
 use std::hint::black_box;
+use std::path::PathBuf;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// File-backed twin of the shared finite Ibex bench fixture. Constructing it
 /// here (from `crate::bench_fixture`) keeps the proof on the exact fixture the
@@ -168,71 +177,6 @@ pub struct AmplificationReport {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct EventArmedWorkerReport {
-    pub default_batch_size: usize,
-    pub cycles: usize,
-    pub offered_events: usize,
-    pub persisted_rows: u64,
-    pub drops: u64,
-    pub flush_wait: LatencyReport,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BurstAndShedReport {
-    pub offered_events: usize,
-    pub retained_events: usize,
-    pub dropped_events: u64,
-    pub reserved_events_retained: usize,
-    pub reserved_capacity: usize,
-    pub enqueue_us_per_event: f64,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FileCapReport {
-    pub cap_bytes: u64,
-    pub main_wal_shm_bytes: u64,
-    pub offered_normal_events: usize,
-    pub offered_reserved_events: usize,
-    pub retained_reserved_events: u64,
-    pub dropped_events: u64,
-    pub within_cap: bool,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LatencyReport {
-    pub samples: usize,
-    pub work_per_sample: usize,
-    pub p50_ms: f64,
-    pub p95_ms: f64,
-    pub max_ms: f64,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SweepReport {
-    pub rows_before: u64,
-    pub rows_after: u64,
-    pub latency_ms: f64,
-    pub wal_bytes_after: u64,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct QueryLatencyReport {
-    pub source_rows: usize,
-    pub hourly_rollup_rows: u64,
-    pub daily_rollup_rows: u64,
-    pub rollup_rows_scanned: u64,
-    pub raw_rows_scanned: u64,
-    pub event_page: LatencyReport,
-    pub stats: LatencyReport,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AppLatencyReport {
     pub samples_each: usize,
     pub worker_flush_sentinel_sample: usize,
@@ -268,13 +212,23 @@ pub fn run_phase1_benchmark(
     let ceilings = ceilings_for(config.profile)?;
     assert_build_profile(config.profile, &environment)?;
     let amplification = measure_http_amplification(config)?;
-    let burst_and_shed = measure_buffer_burst(config)?;
-    let event_armed_worker = measure_event_armed_worker(config)?;
-    let file_cap = measure_file_cap()?;
-    let flush = measure_flush(config)?;
-    let checkpoint = measure_checkpoint(config)?;
-    let sweep = measure_sweep(config)?;
-    let queries = measure_queries(config)?;
+    let StorageBenchmarkReport {
+        burst_and_shed,
+        event_armed_worker,
+        file_cap,
+        flush,
+        checkpoint,
+        sweep,
+        queries,
+    } = run_storage_benchmark(StorageBenchmarkConfig {
+        buffer_burst_events: config.buffer_burst_events,
+        producer_flush_cycles: config.producer_flush_cycles,
+        flush_batches: config.flush_batches,
+        flush_batch_size: config.flush_batch_size,
+        sweep_rows: config.sweep_rows,
+        query_rows: config.query_rows,
+        query_samples: config.query_samples,
+    })?;
     let app_latency = measure_app_latency(config)?;
 
     if (amplification.rows_per_request - 2.0).abs() > f64::EPSILON
@@ -451,10 +405,6 @@ fn assert_build_profile(
 fn measure_http_amplification(
     config: &Phase1BenchmarkConfig,
 ) -> SnapbackResult<AmplificationReport> {
-    use snapback_server::test_support::axum::body::{Body, to_bytes};
-    use snapback_server::test_support::axum::http::Request;
-    use tower::ServiceExt;
-
     let enabled_temp = BenchmarkTempDir::new("http-on")?;
     let disabled_temp = BenchmarkTempDir::new("http-off")?;
     let enabled = configured_file(enabled_temp.path.join("app.sqlite3"))?;
@@ -470,8 +420,6 @@ fn measure_http_amplification(
     let function_before = counted_kind_rows(&enabled_telemetry, "function_run")?;
     let http_before = counted_kind_rows(&enabled_telemetry, "http_request")?;
     let disabled_before = counted_application_rows(&disabled_telemetry)?;
-    let enabled_router = crate::server::router(enabled);
-    let disabled_router = crate::server::router(disabled);
     let body = serde_json::to_vec(&crate::manifest::FunctionCallRequest {
         input: crate::bench_fixture::args(json!({})),
         stream_connection_id: None,
@@ -484,48 +432,16 @@ fn measure_http_amplification(
         .map_err(|error| {
             bench_error("SNAPBACK_TELEMETRY_BENCH_RUNTIME_FAILED", error.to_string())
         })?;
-    runtime.block_on(async {
-        for index in 0..config.app_samples {
-            let request = || {
-                Request::builder()
-                    .method("POST")
-                    .uri("/query/noop")
-                    .header("content-type", "application/json")
-                    .body(Body::from(body.clone()))
-                    .expect("benchmark request")
-            };
-            let responses = if index % 2 == 0 {
-                [
-                    enabled_router.clone().oneshot(request()).await,
-                    disabled_router.clone().oneshot(request()).await,
-                ]
-            } else {
-                [
-                    disabled_router.clone().oneshot(request()).await,
-                    enabled_router.clone().oneshot(request()).await,
-                ]
-            };
-            for response in responses {
-                let response = response.map_err(|error| {
-                    bench_error("SNAPBACK_TELEMETRY_BENCH_HTTP_FAILED", error.to_string())
-                })?;
-                if !response.status().is_success() {
-                    return Err(bench_error(
-                        "SNAPBACK_TELEMETRY_BENCH_HTTP_FAILED",
-                        format!("benchmark query returned {}", response.status()),
-                    ));
-                }
-                black_box(
-                    to_bytes(response.into_body(), usize::MAX)
-                        .await
-                        .map_err(|error| {
-                            bench_error("SNAPBACK_TELEMETRY_BENCH_HTTP_FAILED", error.to_string())
-                        })?,
-                );
-            }
-        }
-        Ok::<(), SnapbackError>(())
-    })?;
+    runtime
+        .block_on(
+            snapback_server::benchmark_support::exercise_telemetry_query_pair(
+                enabled,
+                disabled,
+                body,
+                config.app_samples,
+            ),
+        )
+        .map_err(|error| bench_error("SNAPBACK_TELEMETRY_BENCH_HTTP_FAILED", error.to_string()))?;
     enabled_telemetry.force_flush()?;
     disabled_telemetry.force_flush()?;
     let function_rows =
@@ -626,514 +542,6 @@ fn time_query(
     black_box(snapback.invoke_query("noop", crate::bench_fixture::args(json!({})))?);
     samples.push(started.elapsed().as_secs_f64() * 1_000.0);
     Ok(())
-}
-
-fn counted_kind_rows(telemetry: &Telemetry, kind: &str) -> SnapbackResult<u64> {
-    let mut store = telemetry
-        .producer
-        .shared
-        .store
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let connection = store.ensure_connection(wall_now_ms())?;
-    let count: i64 = connection.query_row(
-        "SELECT count(*) FROM telemetry_events_visible WHERE kind=?1 AND phase IN ('point','joined','terminal')",
-        [kind],
-        |row| row.get(0),
-    )?;
-    Ok(count.max(0) as u64)
-}
-
-fn counted_application_rows(telemetry: &Telemetry) -> SnapbackResult<u64> {
-    Ok(counted_kind_rows(telemetry, "function_run")?
-        .saturating_add(counted_kind_rows(telemetry, "http_request")?))
-}
-
-fn wait_for_persisted_delta(
-    telemetry: &Telemetry,
-    kind: &str,
-    before: u64,
-    required_delta: u64,
-    timeout: Duration,
-) -> SnapbackResult<u64> {
-    let started = Instant::now();
-    loop {
-        let delta = counted_kind_rows(telemetry, kind)?.saturating_sub(before);
-        if delta >= required_delta {
-            return Ok(delta);
-        }
-        if started.elapsed() >= timeout {
-            return Err(bench_error(
-                "SNAPBACK_TELEMETRY_BENCH_WORKER_TIMEOUT",
-                format!("worker persisted {delta} {kind} rows; expected at least {required_delta}"),
-            ));
-        }
-        std::thread::sleep(Duration::from_millis(1));
-    }
-}
-
-fn measure_buffer_burst(config: &Phase1BenchmarkConfig) -> SnapbackResult<BurstAndShedReport> {
-    let buffer_capacity = (config.buffer_burst_events / 2).clamp(1_024, 16_384);
-    let reserved_capacity = (buffer_capacity / 8).max(1);
-    let burst_config = TelemetryConfig {
-        buffer_capacity,
-        priority_reserve: reserved_capacity,
-        batch_size: 256,
-        max_age_ms: 60_000,
-        ..TelemetryConfig::default()
-    };
-    burst_config.validate()?;
-    let generation = ids::mint(IdKind::Generation)?;
-    let mut buffer = Buffer {
-        current_generation: generation.clone(),
-        accepting: true,
-        ..Buffer::default()
-    };
-    let started = Instant::now();
-    for sequence in 0..config.buffer_burst_events {
-        enqueue_locked(
-            &mut buffer,
-            &burst_config,
-            benchmark_event(
-                &generation,
-                "function_run",
-                "burst",
-                sequence as u64,
-                Priority::Normal,
-                0,
-            ),
-        );
-    }
-    for sequence in 0..reserved_capacity {
-        enqueue_locked(
-            &mut buffer,
-            &burst_config,
-            benchmark_event(
-                &generation,
-                "diagnostic",
-                "reserved",
-                sequence as u64,
-                Priority::Reserved,
-                0,
-            ),
-        );
-    }
-    let elapsed_us = started.elapsed().as_secs_f64() * 1_000_000.0;
-    let offered = config.buffer_burst_events + reserved_capacity;
-    Ok(BurstAndShedReport {
-        offered_events: offered,
-        retained_events: buffer.len(),
-        dropped_events: buffer.drops_since_boot.values().sum(),
-        reserved_events_retained: buffer.reserved.len(),
-        reserved_capacity,
-        enqueue_us_per_event: elapsed_us / offered as f64,
-    })
-}
-
-fn measure_event_armed_worker(
-    config: &Phase1BenchmarkConfig,
-) -> SnapbackResult<EventArmedWorkerReport> {
-    let temp = BenchmarkTempDir::new("event-worker")?;
-    let telemetry = Telemetry::open_for_database(
-        &temp.path.join("app.sqlite3"),
-        "01900000-0000-7000-8000-000000000001",
-        TelemetryConfig::default(),
-    )?;
-    let mut samples = Vec::with_capacity(config.producer_flush_cycles);
-    for cycle in 0..config.producer_flush_cycles {
-        let started = Instant::now();
-        for sequence in 0..DEFAULT_BATCH_SIZE {
-            telemetry.point_classified(
-                OperationClassIdV1::DIAGNOSTIC,
-                &format!("event-armed-{cycle}-{sequence}"),
-                Some(200),
-                None,
-                None,
-                None,
-                Priority::Normal,
-            );
-        }
-        let target = ((cycle + 1) * DEFAULT_BATCH_SIZE) as u64;
-        wait_for_persisted_delta(&telemetry, "diagnostic", 0, target, Duration::from_secs(10))?;
-        samples.push(started.elapsed().as_secs_f64() * 1_000.0);
-    }
-    let diagnostics = telemetry.diagnostics();
-    let persisted_rows = counted_kind_rows(&telemetry, "diagnostic")?;
-    Ok(EventArmedWorkerReport {
-        default_batch_size: DEFAULT_BATCH_SIZE,
-        cycles: config.producer_flush_cycles,
-        offered_events: config.producer_flush_cycles * DEFAULT_BATCH_SIZE,
-        persisted_rows,
-        drops: diagnostics.drops_since_boot.values().sum(),
-        flush_wait: latency_report(samples, DEFAULT_BATCH_SIZE),
-    })
-}
-
-fn measure_file_cap() -> SnapbackResult<FileCapReport> {
-    const CAP: u64 = 1024 * 1024;
-    const RESERVED: usize = 20;
-    const NORMAL: usize = 300;
-    let temp = BenchmarkTempDir::new("cap")?;
-    let path = temp.path.join("telemetry.sqlite3");
-    let mut store = Store::open_unbound(
-        path.clone(),
-        "01900000-0000-7000-8000-000000000001",
-        TelemetryConfig {
-            file_size_cap_bytes: CAP,
-            ..TelemetryConfig::default()
-        },
-    )?;
-    let generation = store.generation.clone();
-    let mut events = (0..RESERVED)
-        .map(|sequence| {
-            benchmark_event(
-                &generation,
-                "diagnostic",
-                "reserved",
-                sequence as u64,
-                Priority::Reserved,
-                0,
-            )
-        })
-        .collect::<Vec<_>>();
-    events.extend((0..NORMAL).map(|sequence| {
-        benchmark_event(
-            &generation,
-            "function_run",
-            "cap-normal",
-            sequence as u64,
-            Priority::Normal,
-            6_000,
-        )
-    }));
-    store.flush(events, BTreeMap::new(), wall_now_ms(), true)?;
-    let physical = telemetry_file_bytes(&path);
-    let connection = store.conn.as_ref().expect("file store opened");
-    let retained_reserved: i64 = connection.query_row(
-        "SELECT count(*) FROM telemetry_events WHERE kind='diagnostic' AND name='reserved'",
-        [],
-        |row| row.get(0),
-    )?;
-    let drops: String = connection.query_row(
-        "SELECT drop_counters_lifetime FROM telemetry_meta WHERE singleton=1",
-        [],
-        |row| row.get(0),
-    )?;
-    let drops: BTreeMap<String, u64> = serde_json::from_str(&drops).unwrap_or_default();
-    Ok(FileCapReport {
-        cap_bytes: CAP,
-        main_wal_shm_bytes: physical,
-        offered_normal_events: NORMAL,
-        offered_reserved_events: RESERVED,
-        retained_reserved_events: retained_reserved.max(0) as u64,
-        dropped_events: drops.values().sum(),
-        within_cap: physical <= CAP,
-    })
-}
-
-fn measure_flush(config: &Phase1BenchmarkConfig) -> SnapbackResult<LatencyReport> {
-    let temp = BenchmarkTempDir::new("flush")?;
-    let path = temp.path.join("telemetry.sqlite3");
-    let mut store = Store::open_unbound(
-        path,
-        "01900000-0000-7000-8000-000000000001",
-        TelemetryConfig {
-            file_size_cap_bytes: 256 * 1024 * 1024,
-            sweep_interval_ms: 24 * 60 * 60 * 1_000,
-            ..TelemetryConfig::default()
-        },
-    )?;
-    let generation = store.generation.clone();
-    let mut samples = Vec::with_capacity(config.flush_batches);
-    for batch in 0..config.flush_batches {
-        let events = (0..config.flush_batch_size)
-            .map(|offset| {
-                benchmark_event(
-                    &generation,
-                    "function_run",
-                    "flush",
-                    (batch * config.flush_batch_size + offset) as u64,
-                    Priority::Normal,
-                    0,
-                )
-            })
-            .collect();
-        let started = Instant::now();
-        store.flush(events, BTreeMap::new(), wall_now_ms(), false)?;
-        samples.push(started.elapsed().as_secs_f64() * 1_000.0);
-    }
-    Ok(latency_report(samples, config.flush_batch_size))
-}
-
-fn measure_checkpoint(config: &Phase1BenchmarkConfig) -> SnapbackResult<LatencyReport> {
-    let temp = BenchmarkTempDir::new("checkpoint")?;
-    let mut store = Store::open_unbound(
-        temp.path.join("telemetry.sqlite3"),
-        "01900000-0000-7000-8000-000000000001",
-        TelemetryConfig {
-            file_size_cap_bytes: 256 * 1024 * 1024,
-            sweep_interval_ms: 24 * 60 * 60 * 1_000,
-            ..TelemetryConfig::default()
-        },
-    )?;
-    let generation = store.generation.clone();
-    let mut samples = Vec::with_capacity(config.flush_batches);
-    for batch in 0..config.flush_batches {
-        let events = (0..config.flush_batch_size)
-            .map(|offset| {
-                benchmark_event(
-                    &generation,
-                    "function_run",
-                    "checkpoint",
-                    (batch * config.flush_batch_size + offset) as u64,
-                    Priority::Normal,
-                    0,
-                )
-            })
-            .collect();
-        store.flush(events, BTreeMap::new(), wall_now_ms(), false)?;
-        let started = Instant::now();
-        store
-            .conn
-            .as_mut()
-            .expect("checkpoint store opened")
-            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")?;
-        samples.push(started.elapsed().as_secs_f64() * 1_000.0);
-    }
-    Ok(latency_report(samples, config.flush_batch_size))
-}
-
-fn measure_sweep(config: &Phase1BenchmarkConfig) -> SnapbackResult<SweepReport> {
-    let temp = BenchmarkTempDir::new("sweep")?;
-    let path = temp.path.join("telemetry.sqlite3");
-    let mut store = Store::open_unbound(
-        path.clone(),
-        "01900000-0000-7000-8000-000000000001",
-        TelemetryConfig {
-            max_days: 1,
-            file_size_cap_bytes: 256 * 1024 * 1024,
-            ..TelemetryConfig::default()
-        },
-    )?;
-    let generation = store.generation.clone();
-    let base = wall_now_ms();
-    for chunk_start in (0..config.sweep_rows).step_by(1_024) {
-        let chunk_end = (chunk_start + 1_024).min(config.sweep_rows);
-        let events = (chunk_start..chunk_end)
-            .map(|sequence| {
-                benchmark_event(
-                    &generation,
-                    "function_run",
-                    "expired",
-                    sequence as u64,
-                    Priority::Normal,
-                    0,
-                )
-            })
-            .collect();
-        store.flush(events, BTreeMap::new(), base, false)?;
-    }
-    let rows_before = store_row_count(&store)?;
-    let started = Instant::now();
-    store.flush(
-        Vec::new(),
-        BTreeMap::new(),
-        base.saturating_add(2 * DAY_MS),
-        true,
-    )?;
-    let latency_ms = started.elapsed().as_secs_f64() * 1_000.0;
-    let rows_after = store_row_count(&store)?;
-    let wal = PathBuf::from(format!("{}-wal", path.display()));
-    let wal_bytes_after = fs::metadata(wal).map_or(0, |metadata| metadata.len());
-    Ok(SweepReport {
-        rows_before,
-        rows_after,
-        latency_ms,
-        wal_bytes_after,
-    })
-}
-
-fn measure_queries(config: &Phase1BenchmarkConfig) -> SnapbackResult<QueryLatencyReport> {
-    let telemetry = Telemetry::in_memory(
-        "01900000-0000-7000-8000-000000000001",
-        TelemetryConfig {
-            file_size_cap_bytes: 256 * 1024 * 1024,
-            ..TelemetryConfig::default()
-        },
-    )?;
-    let now = wall_now_ms();
-    let half = config.query_rows / 2;
-    let buckets_per_tier = half / QUERY_NAMES_PER_BUCKET;
-    let (hourly_rollup_rows, daily_rollup_rows) = {
-        let mut store = telemetry
-            .producer
-            .shared
-            .store
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let generation = store.generation.clone();
-        let fixture_config = store.config.clone();
-        let connection = store.conn.as_mut().expect("query store opened");
-        let transaction = connection.transaction()?;
-        let current_hour = hour_start(now);
-        let current_day = day_start(now);
-        for bucket in 0..buckets_per_tier {
-            let stamp = current_hour.saturating_sub((bucket as i64 + 1) * HOUR_MS);
-            let events = (0..QUERY_NAMES_PER_BUCKET)
-                .map(|name_index| {
-                    benchmark_event(
-                        &generation,
-                        "function_run",
-                        &format!("query-name-{name_index:03}"),
-                        (bucket * QUERY_NAMES_PER_BUCKET + name_index) as u64,
-                        Priority::Normal,
-                        0,
-                    )
-                })
-                .collect::<Vec<_>>();
-            insert_batch(&transaction, &events, stamp, bucket as i64 + 1)?;
-        }
-        for bucket in 0..buckets_per_tier {
-            let stamp = current_day.saturating_sub((100 + bucket as i64) * DAY_MS);
-            let events = (0..QUERY_NAMES_PER_BUCKET)
-                .map(|name_index| {
-                    benchmark_event(
-                        &generation,
-                        "function_run",
-                        &format!("query-name-{name_index:03}"),
-                        (half + bucket * QUERY_NAMES_PER_BUCKET + name_index) as u64,
-                        Priority::Normal,
-                        0,
-                    )
-                })
-                .collect::<Vec<_>>();
-            insert_batch(
-                &transaction,
-                &events,
-                stamp,
-                (buckets_per_tier + bucket) as i64 + 1,
-            )?;
-        }
-        maintain(&transaction, &fixture_config, now)?;
-        transaction.commit()?;
-        let hourly_rollup_rows = connection
-            .query_row(
-                "SELECT count(*) FROM telemetry_rollup_hourly WHERE generation=?1",
-                [&generation],
-                |row| row.get::<_, i64>(0),
-            )?
-            .max(0) as u64;
-        let daily_rollup_rows = connection
-            .query_row(
-                "SELECT count(*) FROM telemetry_rollup_daily WHERE generation=?1",
-                [&generation],
-                |row| row.get::<_, i64>(0),
-            )?
-            .max(0) as u64;
-        (hourly_rollup_rows, daily_rollup_rows)
-    };
-    let event_request = crate::telemetry_query::TelemetryEventsRequestV1 {
-        limit: 100,
-        ..Default::default()
-    };
-    let stats_request = crate::telemetry_query::TelemetryStatsRequestV1::default();
-    let baseline_stats = telemetry.query_stats(&stats_request)?;
-    let rollup_rows_scanned = baseline_stats
-        .variance
-        .truncation
-        .get("workLimits")
-        .and_then(|value| value.get("rollupRowsScanned"))
-        .and_then(Value::as_u64)
-        .unwrap_or_default();
-    let raw_rows_scanned = baseline_stats
-        .coverage
-        .raw_tail_rows
-        .saturating_add(baseline_stats.coverage.raw_edge_rows);
-    let mut event_samples = Vec::with_capacity(config.query_samples);
-    let mut stats_samples = Vec::with_capacity(config.query_samples);
-    for sample in 0..config.query_samples {
-        if sample % 2 == 0 {
-            time_events(&telemetry, &event_request, &mut event_samples)?;
-            time_stats(&telemetry, &stats_request, &mut stats_samples)?;
-        } else {
-            time_stats(&telemetry, &stats_request, &mut stats_samples)?;
-            time_events(&telemetry, &event_request, &mut event_samples)?;
-        }
-    }
-    Ok(QueryLatencyReport {
-        source_rows: config.query_rows,
-        hourly_rollup_rows,
-        daily_rollup_rows,
-        rollup_rows_scanned,
-        raw_rows_scanned,
-        event_page: latency_report(event_samples, 100),
-        stats: latency_report(stats_samples, rollup_rows_scanned as usize),
-    })
-}
-
-fn time_events(
-    telemetry: &Telemetry,
-    request: &crate::telemetry_query::TelemetryEventsRequestV1,
-    samples: &mut Vec<f64>,
-) -> SnapbackResult<()> {
-    let started = Instant::now();
-    black_box(telemetry.query_events(request)?);
-    samples.push(started.elapsed().as_secs_f64() * 1_000.0);
-    Ok(())
-}
-
-fn time_stats(
-    telemetry: &Telemetry,
-    request: &crate::telemetry_query::TelemetryStatsRequestV1,
-    samples: &mut Vec<f64>,
-) -> SnapbackResult<()> {
-    let started = Instant::now();
-    black_box(telemetry.query_stats(request)?);
-    samples.push(started.elapsed().as_secs_f64() * 1_000.0);
-    Ok(())
-}
-
-fn benchmark_event(
-    generation: &str,
-    kind: &str,
-    name: &str,
-    sequence: u64,
-    priority: Priority,
-    detail_bytes: usize,
-) -> Event {
-    Event {
-        sequence,
-        admission: AdmittedObservationClassV1 {
-            observation_id: ids::mint(IdKind::Observation).expect("benchmark CSPRNG"),
-            registry_version: crate::telemetry_contract::OPERATION_CLASS_REGISTRY_VERSION,
-            operation_class: "benchmark.fixture",
-            telemetry_kind: kind.to_owned(),
-            telemetry_projection: TelemetryProjectionModeV1::JoinedTerminal,
-        },
-        phase: Phase::Joined,
-        generation: generation.to_owned(),
-        ts_ms: wall_now_ms(),
-        name: name.to_owned(),
-        status: Some(200),
-        duration_ms: Some(1.0),
-        code: None,
-        correlation: None,
-        release: None,
-        details: (detail_bytes > 0).then(|| json!({ "message": "x".repeat(detail_bytes) })),
-        priority,
-        enqueued_at: Instant::now(),
-    }
-}
-
-fn store_row_count(store: &Store) -> SnapbackResult<u64> {
-    let count: i64 = store
-        .conn
-        .as_ref()
-        .expect("benchmark store opened")
-        .query_row("SELECT count(*) FROM telemetry_events", [], |row| {
-            row.get(0)
-        })?;
-    Ok(count.max(0) as u64)
 }
 
 fn latency_report(mut samples: Vec<f64>, work_per_sample: usize) -> LatencyReport {

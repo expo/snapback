@@ -4141,7 +4141,7 @@ fn public_auth_provision_port_rejects_an_unsupported_artifact_format() {
         seed: None,
     };
     let deployment = artifacts.deployment_identity(AuthMode::Sessions).unwrap();
-    let error = crate::auth::provision::PreparedAuthProvision::<LocalSnapback>::prepare(
+    let error = snapback_auth::auth::provision::PreparedAuthProvision::<LocalSnapback>::prepare(
         &mut snapback,
         AuthMode::Sessions,
         artifacts,
@@ -27548,9 +27548,9 @@ fn lease_target_namespace() -> QueryNamespace {
     }
 }
 
-fn lease_request(request_id: &str) -> crate::auth::lease::AuthorizedLeaseRequestIdentity {
+fn lease_request(request_id: &str) -> snapback_kernel::auth::lease::AuthorizedLeaseRequestIdentity {
     let target = lease_target_namespace();
-    crate::auth::lease::AuthorizedLeaseRequestIdentity {
+    snapback_kernel::auth::lease::AuthorizedLeaseRequestIdentity {
         lease_request_id: request_id.to_owned(),
         client_store_id: target.client_store_id,
         query_key: target.query_key,
@@ -27601,14 +27601,14 @@ fn discharge_client_query_obligation(snapback: &mut LocalSnapback, namespace: Qu
 fn sign_captured_lease(
     capture: &super::AuthorizedLeaseCapture,
     issued_at_server_ms: u64,
-) -> crate::auth::lease::AuthorizedLease {
-    crate::auth::lease::AuthorizedLeaseAuthenticator::from_test_key(
+) -> snapback_kernel::auth::lease::AuthorizedLease {
+    snapback_kernel::auth::lease::AuthorizedLeaseAuthenticator::from_test_key(
         "sbak_AQEBAQEBAQEBAQEBAQEBAQ",
         [0x31; 32],
     )
     .issue(
         capture.issue.clone(),
-        crate::auth::lease::AuthorizedLeaseConfig::default(),
+        snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
         issued_at_server_ms,
         &capture.target_profile_id,
         &capture.app_id,
@@ -27651,7 +27651,7 @@ fn relational_retention_lease_class_admits_and_captures() {
         .reserve_captured_authorized_lease(
             capture,
             &lease,
-            crate::auth::lease::AuthorizedLeaseConfig::default(),
+            snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
             issued_at,
         )
         .expect("retained relational lease reserves end to end");
@@ -27757,7 +27757,7 @@ fn authorized_lease_capture_ignores_unrelated_obligations_and_blocks_matching_on
         .reserve_captured_authorized_lease(
             capture,
             &lease,
-            crate::auth::lease::AuthorizedLeaseConfig::default(),
+            snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
             issued_at,
         )
         .expect("unrelated obligations must not block reservation");
@@ -27800,7 +27800,7 @@ fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
         .reserve_captured_authorized_lease(
             capture,
             &lease,
-            crate::auth::lease::AuthorizedLeaseConfig::default(),
+            snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
             issued_at,
         )
         .expect_err("a racing matching obligation must fail the reservation");
@@ -27826,7 +27826,7 @@ fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
         .reserve_captured_authorized_lease(
             capture,
             &lease,
-            crate::auth::lease::AuthorizedLeaseConfig::default(),
+            snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
             issued_at,
         )
         .expect("a racing unrelated obligation must not fail the reservation");

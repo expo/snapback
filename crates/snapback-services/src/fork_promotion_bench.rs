@@ -1,9 +1,9 @@
 //! Confined storage half of the fork-promotion benchmark.
 //!
 //! Connections and transactions never cross this API. The rank-7 recorder
-//! receives only measurements and a one-shot reservation handle.
+//! receives only measurements and an owner-minted ephemeral fixture.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use anyhow::Context as _;
@@ -160,9 +160,18 @@ fn source() -> anyhow::Result<Connection> {
     Ok(connection)
 }
 
-pub struct PromotionContentionReservation {
+/// Service-owned, file-backed benchmark fixture.
+///
+/// The connection is opened before the path is exposed, so the benchmark
+/// reservation can only affect this newly minted temporary database even if a
+/// caller later replaces the directory entry. No caller-selected production
+/// database or raw reservation handle crosses the owner boundary.
+pub struct PromotionContentionFixture {
+    _directory: tempfile::TempDir,
+    database_path: PathBuf,
     connection: Connection,
-    ticket: PromotionAdmissionTicketV1,
+    ticket: Option<PromotionAdmissionTicketV1>,
+    prepared: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -171,57 +180,86 @@ pub struct PromotionContentionPolicy {
     pub maximum_promotion_commit_duration_ms: u64,
 }
 
-pub fn prepare_promotion_contention_reservation(
-    database_path: &Path,
-    canonical_stream_id: &str,
-    workers: usize,
-    issued_at_ms: i64,
-) -> anyhow::Result<PromotionContentionReservation> {
-    let mut connection = Connection::open(database_path)?;
-    connection.busy_timeout(std::time::Duration::from_secs(5))?;
-    let tx = connection.transaction()?;
-    snapback_kernel::operation_ledger::register_epoch_in(&tx, &epoch(issued_at_ms.max(1) as u64))?;
-    tx.commit()?;
-    let ticket = issue_promotion_ticket(
-        &mut connection,
-        identity(
-            canonical_stream_id,
-            "contention-ticket",
-            "promotion.reserve",
-        ),
-        &BranchId("contention-branch".to_owned()),
-        canonical_stream_id,
-        workers as u64,
-        issued_at_ms.saturating_add(60_000),
-        issued_at_ms,
-        PromotionContentionPolicyV1::default(),
-    )?;
-    connection.execute(
-        "UPDATE _snapback_promotion_admission SET losses = ?2 WHERE ticket_id = ?1",
-        params![
-            ticket.ticket_identity.key.operation_id,
-            ticket.contention_policy.reservation_after_losses as i64
-        ],
-    )?;
-    Ok(PromotionContentionReservation { connection, ticket })
-}
+impl PromotionContentionFixture {
+    pub fn new() -> anyhow::Result<Self> {
+        let directory = tempfile::tempdir().context("create promotion contention fixture")?;
+        let database_path = directory.path().join("contention.sqlite");
+        let connection = Connection::open(&database_path)?;
+        connection.busy_timeout(std::time::Duration::from_secs(5))?;
+        Ok(Self {
+            _directory: directory,
+            database_path,
+            connection,
+            ticket: None,
+            prepared: false,
+        })
+    }
 
-impl PromotionContentionReservation {
-    pub fn activate(self, now_ms: i64) -> SnapbackResult<PromotionContentionPolicy> {
-        request_head_reservation(&self.connection, &self.ticket, now_ms)?;
+    pub fn database_path(&self) -> &Path {
+        &self.database_path
+    }
+
+    pub fn prepare(
+        &mut self,
+        canonical_stream_id: &str,
+        workers: usize,
+        issued_at_ms: i64,
+    ) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            !self.prepared,
+            "contention fixture is already prepared"
+        );
+        let tx = self.connection.transaction()?;
+        snapback_kernel::operation_ledger::register_epoch_in(
+            &tx,
+            &epoch(issued_at_ms.max(1) as u64),
+        )?;
+        tx.commit()?;
+        let ticket = issue_promotion_ticket(
+            &mut self.connection,
+            identity(
+                canonical_stream_id,
+                "contention-ticket",
+                "promotion.reserve",
+            ),
+            &BranchId("contention-branch".to_owned()),
+            canonical_stream_id,
+            workers as u64,
+            issued_at_ms.saturating_add(60_000),
+            issued_at_ms,
+            PromotionContentionPolicyV1::default(),
+        )?;
+        self.connection.execute(
+            "UPDATE _snapback_promotion_admission SET losses = ?2 WHERE ticket_id = ?1",
+            params![
+                ticket.ticket_identity.key.operation_id,
+                ticket.contention_policy.reservation_after_losses as i64
+            ],
+        )?;
+        self.ticket = Some(ticket);
+        self.prepared = true;
+        Ok(())
+    }
+
+    pub fn activate(&mut self, now_ms: i64) -> anyhow::Result<PromotionContentionPolicy> {
+        let ticket = self
+            .ticket
+            .take()
+            .context("contention fixture is not prepared")?;
+        request_head_reservation(&self.connection, &ticket, now_ms)?;
         Ok(PromotionContentionPolicy {
-            reservation_interval_ms: self.ticket.contention_policy.reservation_interval_ms,
-            maximum_promotion_commit_duration_ms: self
-                .ticket
+            reservation_interval_ms: ticket.contention_policy.reservation_interval_ms,
+            maximum_promotion_commit_duration_ms: ticket
                 .contention_policy
                 .maximum_commit_duration_ms,
         })
     }
-}
 
-pub fn count_committed_contention_rows(database_path: &Path) -> anyhow::Result<usize> {
-    Ok(Connection::open(database_path)?
-        .query_row("SELECT COUNT(*) FROM todos", [], |row| row.get(0))?)
+    pub fn count_committed_rows(&self) -> anyhow::Result<usize> {
+        Ok(self
+            .connection
+            .query_row("SELECT COUNT(*) FROM todos", [], |row| row.get(0))?)
+    }
 }
 
 fn epoch(issued_at_ms: u64) -> IdentityEpochV1 {

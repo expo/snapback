@@ -16,7 +16,7 @@ use crate::auth::invocation::{
     PreparedAuthority, PreparedInvocation, ResolvedAppAuthority, RetainedLiveAuthority,
     WireAuthorityFields, descriptor_for_authority,
 };
-use crate::auth::lease::{
+use snapback_kernel::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
     AuthorizedLeaseRequestIdentity, authorized_lease_activation_hash,
 };
@@ -535,8 +535,8 @@ pub enum EnsureAppResponse {
     Legacy(EnsureAppOutcome),
 }
 
-use crate::auth::provision::AuthProvisionHost;
-pub use crate::auth::provision::{
+use snapback_auth::auth::provision::AuthProvisionHost;
+pub use snapback_auth::auth::provision::{
     AuthProvisionCommit, AuthProvisionCommit as AuthProvisionResult, PreparedAuthProvision,
     PreparedAuthProvision as AuthProvisionPlan,
 };
@@ -558,7 +558,7 @@ impl AuthProvisionHost for LocalSnapback {
         Self::require_provision_posture(&snapshot.state, requested_mode)?;
         let observed = self.preflight_auth_artifacts(artifacts, requested_mode)?;
         if observed != *deployment {
-            return Err(crate::auth::mode::mode_corrupt(
+            return Err(snapback_kernel::auth::mode::mode_corrupt(
                 "prepared provisioning identity changed during carrier validation",
             ));
         }
@@ -4956,8 +4956,8 @@ impl LocalSnapback {
         allow_superseded_grace: bool,
         now_ms: u64,
     ) -> Result<
-        crate::auth::throttle::AuthenticationThrottleDecision,
-        crate::auth::throttle::AuthenticationThrottleError,
+        snapback_kernel::auth::throttle::AuthenticationThrottleDecision,
+        snapback_kernel::auth::throttle::AuthenticationThrottleError,
     > {
         self.db.charge_sender_authentication_attempt(
             throttle,
@@ -4982,14 +4982,14 @@ impl LocalSnapback {
         nonce_ttl_seconds: u64,
         issuance_sender_replay_epoch: Option<u64>,
     ) -> Result<
-        crate::auth::sender_proof::SenderAdmission,
-        crate::auth::sender_proof::SenderAdmissionRejection,
+        snapback_auth::auth::sender_proof::SenderAdmission,
+        snapback_auth::auth::sender_proof::SenderAdmissionRejection,
     > {
         let mut authority = self.db.sender_proof_authority();
-        let sender_replay_epoch = authority
-            .sender_replay_epoch()
-            .map_err(|_| crate::auth::sender_proof::sender_authority_unavailable_rejection())?;
-        crate::auth::sender_proof::admit_sender_constrained_bound_request(
+        let sender_replay_epoch = authority.sender_replay_epoch().map_err(|_| {
+            snapback_auth::auth::sender_proof::sender_authority_unavailable_rejection()
+        })?;
+        snapback_auth::auth::sender_proof::admit_sender_constrained_bound_request(
             &mut authority,
             sender_replay_epoch,
             method,
@@ -5015,16 +5015,16 @@ impl LocalSnapback {
         now_seconds: u64,
         nonce_ttl_seconds: u64,
         allow_superseded_grace: bool,
-        cover_key: Option<&crate::auth::sender_proof::SenderCoverNonceKey>,
+        cover_key: Option<&snapback_auth::auth::sender_proof::SenderCoverNonceKey>,
     ) -> Result<
-        crate::auth::sender_proof::SenderAdmission,
-        crate::auth::sender_proof::SenderAdmissionRejection,
+        snapback_auth::auth::sender_proof::SenderAdmission,
+        snapback_auth::auth::sender_proof::SenderAdmissionRejection,
     > {
         let mut authority = self.db.sender_proof_authority();
-        let sender_replay_epoch = authority
-            .sender_replay_epoch()
-            .map_err(|_| crate::auth::sender_proof::sender_authority_unavailable_rejection())?;
-        crate::auth::sender_proof::admit_sender_constrained_request(
+        let sender_replay_epoch = authority.sender_replay_epoch().map_err(|_| {
+            snapback_auth::auth::sender_proof::sender_authority_unavailable_rejection()
+        })?;
+        snapback_auth::auth::sender_proof::admit_sender_constrained_request(
             &mut authority,
             sender_replay_epoch,
             method,
@@ -5630,8 +5630,8 @@ impl LocalSnapback {
     pub fn rescue_colliding_auth_table(
         &mut self,
         request: &crate::auth::wire::RescueCollidingTableRequest,
-    ) -> SnapbackResult<crate::auth::rescue::CollisionRescueResult> {
-        crate::auth::rescue::rescue_colliding_table(&mut self.db, request)
+    ) -> SnapbackResult<snapback_kernel::auth::rescue::CollisionRescueResult> {
+        snapback_kernel::auth::rescue::rescue_colliding_table(&mut self.db, request)
     }
 
     pub fn reserve_ask_spend(
@@ -7574,14 +7574,14 @@ impl LocalSnapback {
             if snapshot.state.active != AuthMode::Sessions
                 || snapshot.state.active_deployment.as_ref() != Some(expected)
             {
-                return Err(crate::auth::mode::mode_corrupt(
+                return Err(snapback_kernel::auth::mode::mode_corrupt(
                     "settled sessions deployment changed before startup successor activation",
                 ));
             }
             self.preflight_auth_artifacts(carrier, AuthMode::Sessions)
         })?;
         if repeated != *observed {
-            return Err(crate::auth::mode::mode_corrupt(
+            return Err(snapback_kernel::auth::mode::mode_corrupt(
                 "startup successor identity changed between complete-pair preflight passes",
             ));
         }
@@ -9039,7 +9039,7 @@ impl LocalSnapback {
             .map_err(ModeCommitFailure::RolledBack)?;
         if observed != deployment {
             return Err(ModeCommitFailure::RolledBack(
-                crate::auth::mode::mode_corrupt(
+                snapback_kernel::auth::mode::mode_corrupt(
                     "prepared provisioning identity changed between preflight passes",
                 ),
             ));

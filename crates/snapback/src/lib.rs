@@ -350,6 +350,7 @@ pub use snapback_sync::snapshot_batch_cursor_v2;
 pub use snapback_sync::stream_attempt;
 #[doc(hidden)]
 pub use snapback_types::service_profile;
+#[doc(hidden)]
 #[cfg(feature = "telemetry-phase1-proof")]
 #[path = "telemetry_bench.rs"]
 mod telemetry_phase1_bench;
