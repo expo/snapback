@@ -1,7 +1,6 @@
+use crate::diagnostic::{SnapbackError, SnapbackResult};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use crate::diagnostic::{SnapbackError, SnapbackResult};
-
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -10,7 +9,6 @@ pub struct PushAppScopeV1 {
     pub application_id: String,
     pub environment: String,
 }
-
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

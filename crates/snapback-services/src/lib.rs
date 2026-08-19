@@ -25,9 +25,6 @@ pub mod assets_video;
 pub mod cron;
 pub mod error_tracking;
 pub mod errors_query;
-#[cfg(feature = "benchmark-support")]
-#[doc(hidden)]
-pub mod fork_promotion_bench;
 pub mod instance_fork;
 pub mod jobs;
 pub mod manifest;
@@ -37,11 +34,5 @@ pub mod replication;
 pub mod telemetry;
 pub mod telemetry_query;
 pub mod webhooks;
-
-/// Confined dependencies needed by higher-rank workspace tests.
-#[cfg(feature = "remainder-tests")]
-pub mod test_support {
-    pub use rusqlite;
-}
 
 pub(crate) use snapback_kernel::{search, vector};

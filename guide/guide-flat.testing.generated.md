@@ -529,7 +529,7 @@ deployment identities the runner observed; the admin token itself is never
 retained and is redacted from failure diagnostics.
 
 The repository's All Aboard runner at
-`targets/cloudflare/test/acceptance.remote.all-aboard.mjs` is the reference producer.
+`cloudflare/test/acceptance.remote.all-aboard.mjs` is the reference producer.
 Its 22-check live run can be registered like any other profile, with each path
 targeting `cloudflare-do-sqlite-v8`. The existing runner reports read/write
 provenance as unsupported, so its D1 aggregate remains honestly partial even

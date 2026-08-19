@@ -1,0 +1,3306 @@
+{
+  "artifactKind": "conformanceTwinReport",
+  "schemaVersion": "snapback.v0",
+  "generatedBy": "snapback-conformance-twin",
+  "gate": "green",
+  "summary": {
+    "total": 29,
+    "convergent": 27,
+    "declaredEngineFacts": 2,
+    "contractViolations": 0,
+    "cloudflareJs": {
+      "convergent": 28,
+      "declaredEngineFacts": 1,
+      "contractViolations": 0
+    }
+  },
+  "capabilityManifest": {
+    "artifactKind": "capabilityManifest",
+    "schemaVersion": "snapback.v0",
+    "targetProfileId": "local-conformance-sqlite-workerd-v8",
+    "supportedArtifactVersions": [
+      "snapback.v0",
+      "snapback.v1"
+    ],
+    "supportedAuthModes": [
+      "dev",
+      "sessions"
+    ],
+    "supportedArtifactAuthPairs": [
+      {
+        "schemaVersion": "snapback.v0",
+        "authMode": "dev"
+      },
+      {
+        "schemaVersion": "snapback.v1",
+        "authMode": "sessions"
+      }
+    ],
+    "supportedCapabilities": [
+      "auth.sessions.v1",
+      "cron",
+      "cron_action_run_mutation",
+      "host_plan_runtime",
+      "inline_handler_v1",
+      "live_subscriptions",
+      "mutation_read_set_validation",
+      "permission_epoch_resync",
+      "registered_bundle_boot_v1",
+      "relational_query_v1",
+      "migration_keyset_scan_v1",
+      "result_contract_v1",
+      "args_contract_v1",
+      "versioned_seed_install_v1",
+      "versioned_seed_reset_v1"
+    ],
+    "capabilityMaturity": {
+      "inline_handler_v1": "experimental",
+      "registered_bundle_boot_v1": "experimental",
+      "result_contract_v1": "experimental",
+      "args_contract_v1": "experimental",
+      "versioned_seed_install_v1": "experimental",
+      "versioned_seed_reset_v1": "experimental"
+    },
+    "authProtocols": {
+      "provider": 1,
+      "invocation": 1,
+      "stagedMode": 1,
+      "bootstrap": 1
+    },
+    "hostedAuth": {
+      "externalTls": "unavailable",
+      "effectiveSource": "unavailable",
+      "authenticationThrottle": "processLocal",
+      "sessionInvalidation": "singleProcess",
+      "clientCredentialPosture": "bearerV1XssExposed"
+    },
+    "storageEngine": "sqlite",
+    "runtimeEngine": "workerd-v8",
+    "localServerLifecycle": true,
+    "liveSubscriptions": true,
+    "syncableLiveQueries": true,
+    "onlineOnlyQueries": true,
+    "replaceOnlyQueries": true,
+    "ephemeralRealtime": true,
+    "ephemeralWebSocketPublish": true,
+    "ephemeralLocalRoomAuthority": true,
+    "ephemeralHostedAdapter": false,
+    "offlineRetention": true,
+    "optimisticReplay": true,
+    "mutationIsolationMode": "handler-captured-read-set-validation",
+    "authImpersonation": true,
+    "permissionDiagnostics": false,
+    "assetUpload": false,
+    "outboundActions": false,
+    "cron": true,
+    "notifications": false,
+    "supportedQueryForms": [
+      "host-plan-single-table-eq",
+      "host-plan-single-table-in",
+      "host-plan-single-table-range",
+      "host-plan-live-replace",
+      "ibex-ctx-db-single-table-eq",
+      "ibex-ctx-db-single-table-in",
+      "ibex-ctx-db-single-table-range",
+      "ibex-live-eq-replace",
+      "ibex-live-in-replace",
+      "ibex-live-range-replace",
+      "ibex-live-limited-boundary-replace",
+      "websocket-live-replace",
+      "ephemeral-latest-state-local",
+      "websocket-ephemeral-publish",
+      "cron-fixed-interval-local",
+      "cron-calendar-local",
+      "cron-action-run-mutation"
+    ],
+    "portabilityOptOuts": [],
+    "resourceLimits": [
+      {
+        "name": "wall_clock_timeout",
+        "status": "Enforced"
+      },
+      {
+        "name": "action_wall_clock_timeout",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_total_bytes",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_buffered_bytes",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_read_bytes",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_open_cursors",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_wall_clock",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_idle_timeout",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_progress_rate",
+        "status": "Enforced"
+      },
+      {
+        "name": "cpu_budget",
+        "status": "Missing"
+      },
+      {
+        "name": "maximum_result_size",
+        "status": "Enforced"
+      },
+      {
+        "name": "maximum_subscription_count",
+        "status": "Enforced"
+      },
+      {
+        "name": "ephemeral_value_size",
+        "status": "Enforced"
+      },
+      {
+        "name": "ephemeral_publish_rate",
+        "status": "Enforced"
+      },
+      {
+        "name": "ephemeral_durable_lane_priority",
+        "status": "Enforced"
+      }
+    ],
+    "capabilityGaps": [
+      "postgres",
+      "cloudflare",
+      "hosted_untrusted_code",
+      "external_auth",
+      "outbound_actions",
+      "bounded_response_stream_v1",
+      "bounded_children_v1",
+      "notifications",
+      "ephemeral_hosted_adapter",
+      "ephemeral_multi_instance_sticky_routing",
+      "v8_action_execution",
+      "assets",
+      "write_activity_v1"
+    ],
+    "vmLifecycle": "fresh-process-per-invocation",
+    "runtimeFacts": {
+      "workerdVersion": "workerd 2026-07-07",
+      "workerdBinary": "node_modules/.bin/workerd",
+      "compatibilityDate": "2026-07-01",
+      "compatibilityFlags": [],
+      "killDomain": "process-per-invocation",
+      "wallClockTimeoutMs": 10000,
+      "hostCallTransport": "loopback-http-service-binding",
+      "allowlist": "packages/snapback-harness/allowlist.json",
+      "cloudflareJsLeg": {
+        "harness": "miniflare (cloudflare/test/twin-engine.mjs)",
+        "hostOps": "cloudflare/src/host-ops.js",
+        "invocationPath": "gateway → coordinator → handler Worker → DO SQLite",
+        "diffDimensions": [
+          "outcome",
+          "committed"
+        ],
+        "referenceLeg": "workerdV8"
+      }
+    },
+    "migration": {
+      "executor": "local-exclusive-single-writer",
+      "fenceLanes": [
+        "mutation",
+        "buffered-mutation",
+        "query",
+        "live-subscribe",
+        "live-resume",
+        "cron",
+        "action-stage",
+        "ephemeral-publish"
+      ]
+    },
+    "relationalQueries": {
+      "liveDelivery": "live_replace",
+      "retention": [
+        "none",
+        "opaque-authorized-snapshot-v1"
+      ]
+    },
+    "standardPatterns": {
+      "liveDelivery": "conservative-resnapshot",
+      "authScopeDisjointnessSkip": "disabled"
+    }
+  },
+  "cases": [
+    {
+      "name": "mutation-insert",
+      "handler": "addItem",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "id": "$ID:0"
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "alpha",
+                "rank": 1
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "alpha",
+              "rank": 1
+            }
+          ]
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "id": "$ID:0"
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "alpha",
+                "rank": 1
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "alpha",
+              "rank": 1
+            }
+          ]
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "id": "$ID:0"
+            }
+          }
+        },
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "alpha",
+              "rank": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "query-order-filter-take",
+      "handler": "listRanked",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 0
+                    }
+                  }
+                ],
+                "order": [
+                  {
+                    "field": "rank",
+                    "direction": "Asc"
+                  }
+                ],
+                "limit": 10,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 0,
+              "rows": []
+            }
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 0
+                    }
+                  }
+                ],
+                "order": [
+                  {
+                    "field": "rank",
+                    "direction": "Asc"
+                  }
+                ],
+                "limit": 10,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 0,
+              "rows": []
+            }
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "query-limit-edge-validation",
+      "handler": "queryLimitValidation",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "codes": [
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID"
+                ]
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "codes": [
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID"
+                ]
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "codes": [
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID"
+                ]
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "query-first",
+      "handler": "firstItem",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [],
+                "order": [
+                  {
+                    "field": "rank",
+                    "direction": "Asc"
+                  }
+                ],
+                "limit": 1,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 0,
+              "rows": []
+            }
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [],
+                "order": [
+                  {
+                    "field": "rank",
+                    "direction": "Asc"
+                  }
+                ],
+                "limit": 1,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 0,
+              "rows": []
+            }
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "read-your-writes",
+      "handler": "readYourWrites",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "visible": 1
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "ryw",
+                "rank": 1
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "label",
+                    "op": "Eq",
+                    "value": {
+                      "Literal": "ryw"
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": 1024,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 0,
+              "rows": [
+                {
+                  "_id": "$ID:0",
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "ryw",
+                  "rank": 1
+                }
+              ]
+            }
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "ryw",
+              "rank": 1
+            }
+          ]
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "visible": 1
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "ryw",
+                "rank": 1
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "label",
+                    "op": "Eq",
+                    "value": {
+                      "Literal": "ryw"
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": 1024,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 0,
+              "rows": [
+                {
+                  "_id": "$ID:0",
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "ryw",
+                  "rank": 1
+                }
+              ]
+            }
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "ryw",
+              "rank": 1
+            }
+          ]
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "visible": 1
+            }
+          }
+        },
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "ryw",
+              "rank": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "patch-get-delete",
+      "handler": "patchAndDelete",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 3,
+            "result": {
+              "existed": true,
+              "label": "patched",
+              "removed": true
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "temp",
+                "rank": 9
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "$ID:0",
+              "values": {
+                "label": "patched"
+              }
+            },
+            "ok": true,
+            "outcome": true
+          },
+          {
+            "seq": 2,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": {
+              "_id": "$ID:0",
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "patched",
+              "rank": 9
+            }
+          },
+          {
+            "seq": 3,
+            "op": "db.delete",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": true
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 3,
+            "result": {
+              "existed": true,
+              "label": "patched",
+              "removed": true
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "temp",
+                "rank": 9
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "$ID:0",
+              "values": {
+                "label": "patched"
+              }
+            },
+            "ok": true,
+            "outcome": true
+          },
+          {
+            "seq": 2,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": {
+              "_id": "$ID:0",
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "patched",
+              "rank": 9
+            }
+          },
+          {
+            "seq": 3,
+            "op": "db.delete",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": true
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 3,
+            "result": {
+              "existed": true,
+              "label": "patched",
+              "removed": true
+            }
+          }
+        },
+        "committed": {
+          "version": 1,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "runtime-now-id",
+      "handler": "nowAndId",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "now": "$MS",
+              "idLength": 36
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "runtime.now",
+            "args": {},
+            "ok": true,
+            "outcome": "$MS"
+          },
+          {
+            "seq": 1,
+            "op": "runtime.id",
+            "args": {},
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 2,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "stamped-$ID:0",
+                "rank": 2
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:1"
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:1",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "stamped-$ID:0",
+              "rank": 2
+            }
+          ]
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "now": "$MS",
+              "idLength": 36
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "runtime.now",
+            "args": {},
+            "ok": true,
+            "outcome": "$MS"
+          },
+          {
+            "seq": 1,
+            "op": "runtime.id",
+            "args": {},
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 2,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "stamped-$ID:0",
+                "rank": 2
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:1"
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:1",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "stamped-$ID:0",
+              "rank": 2
+            }
+          ]
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "now": "$MS",
+              "idLength": 36
+            }
+          }
+        },
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "stamped-$ID:1",
+              "rank": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "console-diagnostics-routed",
+      "handler": "logsThings",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": []
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "allowlist-slice-encoding-base64",
+      "handler": "allowlistSlice",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "bytes": [
+                  104,
+                  195,
+                  169,
+                  108,
+                  108,
+                  111,
+                  32,
+                  226,
+                  156,
+                  147,
+                  32,
+                  240,
+                  157,
+                  146,
+                  174
+                ],
+                "roundTrip": "héllo ✓ 𝒮",
+                "encoded": "c25hcGJhY2s=",
+                "decoded": "snapback"
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "bytes": [
+                  104,
+                  195,
+                  169,
+                  108,
+                  108,
+                  111,
+                  32,
+                  226,
+                  156,
+                  147,
+                  32,
+                  240,
+                  157,
+                  146,
+                  174
+                ],
+                "roundTrip": "héllo ✓ 𝒮",
+                "encoded": "c25hcGJhY2s=",
+                "decoded": "snapback"
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "bytes": [
+                  104,
+                  195,
+                  169,
+                  108,
+                  108,
+                  111,
+                  32,
+                  226,
+                  156,
+                  147,
+                  32,
+                  240,
+                  157,
+                  146,
+                  174
+                ],
+                "roundTrip": "héllo ✓ 𝒮",
+                "encoded": "c25hcGJhY2s=",
+                "decoded": "snapback"
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "write-in-query-denied",
+      "handler": "writeInQuery",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_WRITE_IN_QUERY"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_WRITE_IN_QUERY"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_WRITE_IN_QUERY"
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "export-missing",
+      "handler": "noSuchExport",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_EXPORT_MISSING"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_EXPORT_MISSING"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_EXPORT_MISSING"
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "result-not-serializable",
+      "handler": "returnsFunction",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_RESULT_INVALID"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "should-not-commit",
+                "rank": 4
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_RESULT_INVALID"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "should-not-commit",
+                "rank": 4
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_RESULT_INVALID"
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "settlement-hang",
+      "handler": "hangForever",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_DID_NOT_SETTLE"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_DID_NOT_SETTLE"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_DID_NOT_SETTLE"
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "unhandled-detached-rejection",
+      "handler": "detachedRejection",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "should-not-commit",
+                "rank": 3
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "should-not-commit",
+                "rank": 3
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "unhandled-detached-rejection-after-host-call",
+      "handler": "detachedHostCallRejection",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "detached-1",
+                "rank": 1
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "detached-2",
+                "rank": 2
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:1"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "detached-1",
+                "rank": 1
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "detached-2",
+                "rank": 2
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:1"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "detached-host-call-success",
+      "handler": "detachedHostCallSuccess",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "launched": true
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "detached-ok",
+                "rank": 7
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "detached-ok",
+              "rank": 7
+            }
+          ]
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "launched": true
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "detached-ok",
+                "rank": 7
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "detached-ok",
+              "rank": 7
+            }
+          ]
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 1,
+            "result": {
+              "launched": true
+            }
+          }
+        },
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "detached-ok",
+              "rank": 7
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "allowlist-decoder-fidelity",
+      "handler": "decoderFidelity",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "dataViewWindow": "cde",
+                "int8Window": "ef",
+                "truncated": "�",
+                "invalidByte": "�",
+                "badContinuation": "�A",
+                "bomStripped": "a",
+                "bomKept": true,
+                "encodeIntoFit": "3:4:104,195,169,33",
+                "encodeIntoTruncates": "1:1",
+                "fatalThrew": true
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "dataViewWindow": "cde",
+                "int8Window": "ef",
+                "truncated": "�",
+                "invalidByte": "�",
+                "badContinuation": "�A",
+                "bomStripped": "a",
+                "bomKept": true,
+                "encodeIntoFit": "3:4:104,195,169,33",
+                "encodeIntoTruncates": "1:1",
+                "fatalThrew": true
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "dataViewWindow": "cde",
+                "int8Window": "ef",
+                "truncated": "�",
+                "invalidByte": "�",
+                "badContinuation": "�A",
+                "bomStripped": "a",
+                "bomKept": true,
+                "encodeIntoFit": "3:4:104,195,169,33",
+                "encodeIntoTruncates": "1:1",
+                "fatalThrew": true
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "allowlist-encoding-boundary-fidelity",
+      "handler": "encodingBoundaryFidelity",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "base64": {
+                  "canonical": "a",
+                  "missingPadding": "a",
+                  "whitespace": "a",
+                  "splitPaddingWhitespace": "a",
+                  "fullQuantum": "abcd",
+                  "allPaddingRejected": true,
+                  "shortPaddingRejected": true,
+                  "extraPaddingRejected": true,
+                  "triplePaddingRejected": true,
+                  "leadingPaddingRejected": true,
+                  "truncatedPaddingRejected": true
+                },
+                "labels": {
+                  "utf8Hyphen": true,
+                  "utf8Compact": true,
+                  "unicode11Hyphen": true,
+                  "unicode11Compact": true,
+                  "unicode20Compact": true,
+                  "xUnicode20Compact": true,
+                  "asciiWhitespace": true,
+                  "aliasAsciiWhitespace": true,
+                  "internalSpaceRejected": true,
+                  "verticalTabRejected": true,
+                  "nonBreakingSpaceRejected": true,
+                  "nonUtf8Rejected": true,
+                  "symbolTypeError": true,
+                  "constructorIsWrapped": true,
+                  "constructorEscapeRejected": true
+                },
+                "streaming": {
+                  "twoByte": [
+                    "",
+                    "¢",
+                    ""
+                  ],
+                  "threeByte": [
+                    "",
+                    "",
+                    "€",
+                    ""
+                  ],
+                  "fourByte": [
+                    "",
+                    "",
+                    "",
+                    "😀",
+                    ""
+                  ],
+                  "fatalFourByte": [
+                    "",
+                    "",
+                    "",
+                    "😀",
+                    ""
+                  ],
+                  "flush": [
+                    "",
+                    "�",
+                    "A"
+                  ],
+                  "fatalFlush": {
+                    "first": "",
+                    "threw": true,
+                    "reuse": "A"
+                  },
+                  "fatalInvalid": {
+                    "first": "",
+                    "threw": true,
+                    "reuse": "B"
+                  },
+                  "bomReuse": {
+                    "first": "",
+                    "second": "",
+                    "complete": "A",
+                    "reuse": "B"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "base64": {
+                  "canonical": "a",
+                  "missingPadding": "a",
+                  "whitespace": "a",
+                  "splitPaddingWhitespace": "a",
+                  "fullQuantum": "abcd",
+                  "allPaddingRejected": true,
+                  "shortPaddingRejected": true,
+                  "extraPaddingRejected": true,
+                  "triplePaddingRejected": true,
+                  "leadingPaddingRejected": true,
+                  "truncatedPaddingRejected": true
+                },
+                "labels": {
+                  "utf8Hyphen": true,
+                  "utf8Compact": true,
+                  "unicode11Hyphen": true,
+                  "unicode11Compact": true,
+                  "unicode20Compact": true,
+                  "xUnicode20Compact": true,
+                  "asciiWhitespace": true,
+                  "aliasAsciiWhitespace": true,
+                  "internalSpaceRejected": true,
+                  "verticalTabRejected": true,
+                  "nonBreakingSpaceRejected": true,
+                  "nonUtf8Rejected": true,
+                  "symbolTypeError": true,
+                  "constructorIsWrapped": true,
+                  "constructorEscapeRejected": true
+                },
+                "streaming": {
+                  "twoByte": [
+                    "",
+                    "¢",
+                    ""
+                  ],
+                  "threeByte": [
+                    "",
+                    "",
+                    "€",
+                    ""
+                  ],
+                  "fourByte": [
+                    "",
+                    "",
+                    "",
+                    "😀",
+                    ""
+                  ],
+                  "fatalFourByte": [
+                    "",
+                    "",
+                    "",
+                    "😀",
+                    ""
+                  ],
+                  "flush": [
+                    "",
+                    "�",
+                    "A"
+                  ],
+                  "fatalFlush": {
+                    "first": "",
+                    "threw": true,
+                    "reuse": "A"
+                  },
+                  "fatalInvalid": {
+                    "first": "",
+                    "threw": true,
+                    "reuse": "B"
+                  },
+                  "bomReuse": {
+                    "first": "",
+                    "second": "",
+                    "complete": "A",
+                    "reuse": "B"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "base64": {
+                  "canonical": "a",
+                  "missingPadding": "a",
+                  "whitespace": "a",
+                  "splitPaddingWhitespace": "a",
+                  "fullQuantum": "abcd",
+                  "allPaddingRejected": true,
+                  "shortPaddingRejected": true,
+                  "extraPaddingRejected": true,
+                  "triplePaddingRejected": true,
+                  "leadingPaddingRejected": true,
+                  "truncatedPaddingRejected": true
+                },
+                "labels": {
+                  "utf8Hyphen": true,
+                  "utf8Compact": true,
+                  "unicode11Hyphen": true,
+                  "unicode11Compact": true,
+                  "unicode20Compact": true,
+                  "xUnicode20Compact": true,
+                  "asciiWhitespace": true,
+                  "aliasAsciiWhitespace": true,
+                  "internalSpaceRejected": true,
+                  "verticalTabRejected": true,
+                  "nonBreakingSpaceRejected": true,
+                  "nonUtf8Rejected": true,
+                  "symbolTypeError": true,
+                  "constructorIsWrapped": true,
+                  "constructorEscapeRejected": true
+                },
+                "streaming": {
+                  "twoByte": [
+                    "",
+                    "¢",
+                    ""
+                  ],
+                  "threeByte": [
+                    "",
+                    "",
+                    "€",
+                    ""
+                  ],
+                  "fourByte": [
+                    "",
+                    "",
+                    "",
+                    "😀",
+                    ""
+                  ],
+                  "fatalFourByte": [
+                    "",
+                    "",
+                    "",
+                    "😀",
+                    ""
+                  ],
+                  "flush": [
+                    "",
+                    "�",
+                    "A"
+                  ],
+                  "fatalFlush": {
+                    "first": "",
+                    "threw": true,
+                    "reuse": "A"
+                  },
+                  "fatalInvalid": {
+                    "first": "",
+                    "threw": true,
+                    "reuse": "B"
+                  },
+                  "bomReuse": {
+                    "first": "",
+                    "second": "",
+                    "complete": "A",
+                    "reuse": "B"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "deterministic-date-constructor",
+      "handler": "probeDateConstructor",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "explicit": true,
+                "zeroArgReachable": false,
+                "callReachable": false
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "explicit": true,
+                "zeroArgReachable": false,
+                "callReachable": false
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "explicit": true,
+                "zeroArgReachable": false,
+                "callReachable": false
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "queue-microtask-interleave",
+      "handler": "queueMicrotaskInterleave",
+      "class": "declared_engine_fact",
+      "notes": "the fine-grained interleave of queueMicrotask jobs with promise reactions                  differs between V8 and the Ibex vendored promise polyfill (thenable adoption                  and chained .then land at different ticks) — declared engine fact; handlers                  must not depend on cross-engine job ordering (ENG-23593)",
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "order": "qm1,p1,qm2,t1,p2"
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "order": "qm1,p1,qm2,p2,t1"
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "order": "qm1,p1,qm2,p2,t1"
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "ambient-denial-fetch",
+      "handler": "probeFetch",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "reachable": false,
+                "how": "denied"
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "reachable": false,
+                "how": "denied"
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "reachable": false,
+                "how": "denied"
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "busy-loop-wall-clock-kill",
+      "handler": "busyLoop",
+      "class": "declared_engine_fact",
+      "notes": "wall-clock kill is enforceable only at the workerd service boundary; the Ibex leg declares wall_clock_timeout Missing and running this case there would hang (LLP 0047 via LLP 0048 §Limits testbed)",
+      "ibex": {
+        "skipped": "declared engine fact — not runnable on this leg"
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED"
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "pre-kill",
+                "rank": 5
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "declared_engine_fact",
+      "cloudflareJsNotes": "wall-clock kill on the Cloudflare target is the platform CPU limit, not a harness capability — in the in-process Miniflare harness a busy loop would hang the runner (the settlement deadline is a setTimeout and cannot preempt spinning JS), so this case is a declared engine fact on this leg (LLP 0047)",
+      "cloudflareJs": {
+        "skipped": "declared engine fact — not runnable on this leg"
+      }
+    },
+    {
+      "name": "deterministic-members-date-now",
+      "handler": "probeDateNow",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "reachable": false
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "reachable": false
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "reachable": false
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "patch-on-missing-row",
+      "handler": "patchMissing",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "changedCount": 0,
+            "result": {
+              "existed": false,
+              "seen": null,
+              "existedAfter": false
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "no-such-id",
+              "values": {
+                "label": "phantom"
+              }
+            },
+            "ok": true,
+            "outcome": false
+          },
+          {
+            "seq": 1,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "no-such-id"
+            },
+            "ok": true,
+            "outcome": null
+          },
+          {
+            "seq": 2,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "no-such-id",
+              "values": {
+                "label": "phantom-2"
+              }
+            },
+            "ok": true,
+            "outcome": false
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "changedCount": 0,
+            "result": {
+              "existed": false,
+              "seen": null,
+              "existedAfter": false
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "no-such-id",
+              "values": {
+                "label": "phantom"
+              }
+            },
+            "ok": true,
+            "outcome": false
+          },
+          {
+            "seq": 1,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "no-such-id"
+            },
+            "ok": true,
+            "outcome": null
+          },
+          {
+            "seq": 2,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "no-such-id",
+              "values": {
+                "label": "phantom-2"
+              }
+            },
+            "ok": true,
+            "outcome": false
+          }
+        ],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "changedCount": 0,
+            "result": {
+              "existed": false,
+              "seen": null,
+              "existedAfter": false
+            }
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "buffered-point-overlay-timestamps",
+      "handler": "insertThenGet",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 2,
+            "result": {
+              "seen": {
+                "_id": "$ID:0",
+                "_createdAt": "$MS",
+                "_updatedAt": "$MS",
+                "label": "fresh",
+                "rank": 3
+              },
+              "patched": true,
+              "seenAfterPatch": {
+                "_id": "$ID:0",
+                "_createdAt": "$MS",
+                "_updatedAt": "$MS",
+                "label": "fresh",
+                "rank": 4
+              }
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "fresh",
+                "rank": 3
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": {
+              "_id": "$ID:0",
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 3
+            }
+          },
+          {
+            "seq": 2,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "$ID:0",
+              "values": {
+                "rank": 4
+              }
+            },
+            "ok": true,
+            "outcome": true
+          },
+          {
+            "seq": 3,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": {
+              "_id": "$ID:0",
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 4
+            }
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 4
+            }
+          ]
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 2,
+            "result": {
+              "seen": {
+                "_id": "$ID:0",
+                "_createdAt": "$MS",
+                "_updatedAt": "$MS",
+                "label": "fresh",
+                "rank": 3
+              },
+              "patched": true,
+              "seenAfterPatch": {
+                "_id": "$ID:0",
+                "_createdAt": "$MS",
+                "_updatedAt": "$MS",
+                "label": "fresh",
+                "rank": 4
+              }
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.insert",
+            "args": {
+              "table": "items",
+              "values": {
+                "label": "fresh",
+                "rank": 3
+              }
+            },
+            "ok": true,
+            "outcome": "$ID:0"
+          },
+          {
+            "seq": 1,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": {
+              "_id": "$ID:0",
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 3
+            }
+          },
+          {
+            "seq": 2,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "$ID:0",
+              "values": {
+                "rank": 4
+              }
+            },
+            "ok": true,
+            "outcome": true
+          },
+          {
+            "seq": 3,
+            "op": "db.get",
+            "args": {
+              "table": "items",
+              "id": "$ID:0"
+            },
+            "ok": true,
+            "outcome": {
+              "_id": "$ID:0",
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 4
+            }
+          }
+        ],
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 4
+            }
+          ]
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 1,
+            "changedCount": 2,
+            "result": {
+              "seen": {
+                "_id": "$ID:0",
+                "_createdAt": "$MS",
+                "_updatedAt": "$MS",
+                "label": "fresh",
+                "rank": 3
+              },
+              "patched": true,
+              "seenAfterPatch": {
+                "_id": "$ID:0",
+                "_createdAt": "$MS",
+                "_updatedAt": "$MS",
+                "label": "fresh",
+                "rank": 4
+              }
+            }
+          }
+        },
+        "committed": {
+          "version": 1,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 1,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "fresh",
+              "rank": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "buffered-patch-into-filter-set",
+      "handler": "patchIntoFilter",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 2,
+            "changedCount": 1,
+            "result": {
+              "before": 0,
+              "after": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 9
+                }
+              ]
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 5
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": 1024,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 1,
+              "rows": []
+            }
+          },
+          {
+            "seq": 1,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 0
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": 1024,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 1,
+              "rows": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 1
+                }
+              ]
+            }
+          },
+          {
+            "seq": 2,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "$ID:0",
+              "values": {
+                "rank": 9
+              }
+            },
+            "ok": true,
+            "outcome": true
+          },
+          {
+            "seq": 3,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 5
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": 1024,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 1,
+              "rows": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 9
+                }
+              ]
+            }
+          }
+        ],
+        "committed": {
+          "version": 2,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 2,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "stored-full",
+              "rank": 9
+            }
+          ]
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 2,
+            "changedCount": 1,
+            "result": {
+              "before": 0,
+              "after": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 9
+                }
+              ]
+            }
+          }
+        },
+        "trace": [
+          {
+            "seq": 0,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 5
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": 1024,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 1,
+              "rows": []
+            }
+          },
+          {
+            "seq": 1,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 0
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": 1024,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 1,
+              "rows": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 1
+                }
+              ]
+            }
+          },
+          {
+            "seq": 2,
+            "op": "db.patch",
+            "args": {
+              "table": "items",
+              "id": "$ID:0",
+              "values": {
+                "rank": 9
+              }
+            },
+            "ok": true,
+            "outcome": true
+          },
+          {
+            "seq": 3,
+            "op": "db.query",
+            "args": {
+              "plan": {
+                "table": "items",
+                "filters": [
+                  {
+                    "field": "rank",
+                    "op": "Gte",
+                    "value": {
+                      "Literal": 5
+                    }
+                  }
+                ],
+                "order": [],
+                "limit": 1024,
+                "indexed_by": null
+              }
+            },
+            "ok": true,
+            "outcome": {
+              "version": 1,
+              "rows": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 9
+                }
+              ]
+            }
+          }
+        ],
+        "committed": {
+          "version": 2,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 2,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "stored-full",
+              "rank": 9
+            }
+          ]
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 2,
+            "changedCount": 1,
+            "result": {
+              "before": 0,
+              "after": [
+                {
+                  "_id": "$ID:0",
+                  "_version": 1,
+                  "_createdAt": "$MS",
+                  "_updatedAt": "$MS",
+                  "label": "stored-full",
+                  "rank": 9
+                }
+              ]
+            }
+          }
+        },
+        "committed": {
+          "version": 2,
+          "rows": [
+            {
+              "_id": "$ID:0",
+              "_version": 2,
+              "_createdAt": "$MS",
+              "_updatedAt": "$MS",
+              "label": "stored-full",
+              "rank": 9
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "app-refusal-declared",
+      "handler": "declaredAppRefusal",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_APP_REFUSAL",
+          "details": {
+            "function": "declaredAppRefusal",
+            "message": "SNAPBACK_APP_REFUSAL: STALE_MOVE",
+            "appCode": "STALE_MOVE",
+            "appDetails": {
+              "expected": 1,
+              "actual": 2
+            }
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_APP_REFUSAL",
+          "details": {
+            "function": "declaredAppRefusal",
+            "message": "SNAPBACK_APP_REFUSAL: STALE_MOVE",
+            "appCode": "STALE_MOVE",
+            "appDetails": {
+              "expected": 1,
+              "actual": 2
+            }
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_APP_REFUSAL",
+          "details": {
+            "function": "declaredAppRefusal",
+            "message": "SNAPBACK_APP_REFUSAL: STALE_MOVE",
+            "appCode": "STALE_MOVE",
+            "appDetails": {
+              "expected": 1,
+              "actual": 2
+            }
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "app-refusal-undeclared",
+      "handler": "undeclaredAppRefusal",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_FAILED"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_FAILED"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_FAILED"
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "app-refusal-bare-claim",
+      "handler": "bareAppRefusalClaim",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_FAILED"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_FAILED"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_FAILED"
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    }
+  ]
+}

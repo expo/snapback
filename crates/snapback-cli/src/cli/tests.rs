@@ -1,6 +1,4 @@
-#[cfg(not(feature = "cli-owner"))]
 use super::AuthConstructionFailure;
-#[cfg(not(feature = "cli-owner"))]
 use super::mint_secret_read_via_http;
 use super::{
     AdminArgs, AdminCommand, AdminLinkReadyFile, Args, AssetsCommand, AuthCommand,
@@ -22,7 +20,6 @@ use super::{
 };
 use crate::guide::EmbeddedGuideFile;
 use crate::instance_lock::TargetInstanceReservation;
-#[cfg(not(feature = "cli-owner"))]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::store_state::path_with_filename_suffix;
 use clap::{CommandFactory, Parser};
@@ -901,7 +898,6 @@ fn admin_link_ready_file_is_owner_lifecycle_bound() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[cfg(not(feature = "cli-owner"))]
 async fn typed_target_runner_threads_descriptor_environment_into_store_meta() {
     let directory = tempfile::tempdir().expect("typed target runner fixture");
     let database = directory.path().join("app.sqlite3");
@@ -943,7 +939,7 @@ async fn typed_target_runner_threads_descriptor_environment_into_store_meta() {
     //   authoritative telemetry_meta identity, so observe the row rather
     //   than treating file existence as store readiness.
     let (app_id, environment): (String, String) = loop {
-        let connection = snapback_services::test_support::rusqlite::Connection::open(&telemetry)
+        let connection = rusqlite::Connection::open(&telemetry)
             .expect("typed target telemetry store should open");
         let telemetry_meta_exists: bool = connection
                 .query_row(
@@ -962,7 +958,7 @@ async fn typed_target_runner_threads_descriptor_environment_into_store_meta() {
             );
             match identity {
                 Ok(identity) => break identity,
-                Err(snapback_services::test_support::rusqlite::Error::QueryReturnedNoRows) => {}
+                Err(rusqlite::Error::QueryReturnedNoRows) => {}
                 Err(error) => panic!("typed target telemetry identity query failed: {error}"),
             }
         }
@@ -1594,7 +1590,6 @@ async fn omitted_construction_receipts_prevent_sessions_from_binding() {
 }
 
 #[tokio::test]
-#[cfg(not(feature = "cli-owner"))]
 async fn coordinator_and_worker_construction_fail_before_socket_bind() {
     let directory = tempfile::tempdir().unwrap();
     for failure in [
@@ -1684,7 +1679,6 @@ async fn sessions_startup_offloads_sqlite_and_ibex_from_async_workers() {
 /// loop's explicit native opt-in activates that complete successor without
 /// replacing the database. An incoherent successor remains nonmutating.
 #[cfg(unix)]
-#[cfg(not(feature = "cli-owner"))]
 #[tokio::test]
 async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
     use crate::auth::mode::{AuthProgramReadiness, FUNCTION_V1_PREFIX};
@@ -1732,7 +1726,7 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
         .unwrap();
     assert_eq!(settled.active, AuthMode::Sessions);
     let persisted_product_count = || {
-        snapback_services::test_support::rusqlite::Connection::open(&database)
+        rusqlite::Connection::open(&database)
             .unwrap()
             .query_row("SELECT COUNT(*) FROM products", [], |row| {
                 row.get::<_, i64>(0)
@@ -2352,7 +2346,6 @@ fn password_signup_cli_renders_recovery_codes_exactly_once() {
 }
 
 #[test]
-#[cfg(not(feature = "cli-owner"))]
 fn auth_logical_cli_moves_identity_facts_between_file_databases() {
     let directory = tempfile::tempdir().unwrap();
     let source_path = directory.path().join("source.sqlite3");
@@ -2362,24 +2355,12 @@ fn auth_logical_cli_moves_identity_facts_between_file_databases() {
     {
         let mut source = crate::storage::LocalDatabase::open(&source_path).unwrap();
         source.activate_current_auth_catalog().unwrap();
+        let mut catalog = source.auth_catalog();
+        catalog.insert_human_user_for_test("cli-human", 1).unwrap();
+        catalog
+            .insert_email_identity_for_test("cli-identity", "cli-human", "cli@example.com", 2)
+            .unwrap();
     }
-    let source = snapback_services::test_support::rusqlite::Connection::open(&source_path).unwrap();
-    source
-        .execute(
-            "INSERT INTO _auth_users(id, created_at_ms) VALUES('cli-human', 1)",
-            [],
-        )
-        .unwrap();
-    crate::storage::insert_test_email_identity(
-        &source,
-        "cli-identity",
-        "cli-human",
-        "cli@example.com",
-        2,
-        false,
-    )
-    .unwrap();
-    drop(source);
     {
         let mut target = crate::storage::LocalDatabase::open(&target_path).unwrap();
         target.activate_current_auth_catalog().unwrap();
@@ -2421,7 +2402,6 @@ fn store_describe_and_export_have_closed_cli_spellings() {
 }
 
 #[test]
-#[cfg(not(feature = "cli-owner"))]
 fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot_evidence() {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("app.sqlite3");
@@ -2429,15 +2409,14 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
     let telemetry = snapback.telemetry();
     let telemetry_path = crate::telemetry::Telemetry::path_for_database(&database_path);
     telemetry.force_flush().unwrap();
-    let generation_before: String =
-        snapback_services::test_support::rusqlite::Connection::open(&telemetry_path)
-            .unwrap()
-            .query_row(
-                "SELECT generation FROM telemetry_meta WHERE singleton=1",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+    let generation_before: String = rusqlite::Connection::open(&telemetry_path)
+        .unwrap()
+        .query_row(
+            "SELECT generation FROM telemetry_meta WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
     telemetry.point(
         "lifecycle",
         "current_boot_replay_witness",
@@ -2460,15 +2439,14 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
         "idempotent replay must not clear this boot's process evidence"
     );
     telemetry.force_flush().unwrap();
-    let generation_after_replay: String =
-        snapback_services::test_support::rusqlite::Connection::open(&telemetry_path)
-            .unwrap()
-            .query_row(
-                "SELECT generation FROM telemetry_meta WHERE singleton=1",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+    let generation_after_replay: String = rusqlite::Connection::open(&telemetry_path)
+        .unwrap()
+        .query_row(
+            "SELECT generation FROM telemetry_meta WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
     assert_eq!(generation_after_replay, generation_before);
     assert_eq!(
         telemetry.event_count_for_test("lifecycle", "process_start", "point"),
@@ -2495,15 +2473,14 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
     )
     .unwrap();
     telemetry.force_flush().unwrap();
-    let generation_after_apply: String =
-        snapback_services::test_support::rusqlite::Connection::open(&telemetry_path)
-            .unwrap()
-            .query_row(
-                "SELECT generation FROM telemetry_meta WHERE singleton=1",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+    let generation_after_apply: String = rusqlite::Connection::open(&telemetry_path)
+        .unwrap()
+        .query_row(
+            "SELECT generation FROM telemetry_meta WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
     assert_ne!(generation_after_apply, generation_before);
     assert_eq!(
         telemetry.event_count_for_test("lifecycle", "restore_generation_rotation", "point",),
@@ -2513,7 +2490,6 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
 }
 
 #[tokio::test]
-#[cfg(not(feature = "cli-owner"))]
 async fn physical_restore_is_quarantined_until_exact_prebind_declaration() {
     let directory = tempfile::tempdir().unwrap();
     let source_database = directory.path().join("source.sqlite3");
@@ -3606,37 +3582,30 @@ fn secret_read_root_path_substitution_is_refused_before_file_or_network_access()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[cfg(not(feature = "cli-owner"))]
 async fn ready_file_cli_mints_a_derived_lease_without_exposing_the_root() {
     let dir = tempfile::tempdir().unwrap();
     let ready = std::fs::canonicalize(dir.path())
         .unwrap()
         .join("server.json");
     let root_path = crate::admin_secret_read::secret_read_root_sibling(&ready);
-    let server_root = crate::admin_secret_read::resolve_secret_read_proof_root_with_io(
-        &root_path,
-        crate::secure_file::read_owner_only,
-        crate::secure_file::write_owner_only,
-    )
-    .unwrap();
+    let ready_target = ReadyFileTarget::open(&ready).unwrap();
+    let server_root = ready_target
+        .resolve_secret_read_proof_root(&root_path)
+        .unwrap();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let mut context =
         crate::admin::ServerContext::new(address.ip().to_string(), address.port(), true);
     context.admin_token = Some("ordinary-admin".to_owned());
-    let (state, operator) = crate::admin::AppState::try_from_snapback_with_secret_read_operator(
+    let startup_nonce = crate::identity::binary_identity().startup_nonce;
+    let state = snapback_server::test_support::app_state_with_secret_read_mint_for_test(
         crate::local::LocalSnapback::memory().unwrap(),
         context,
+        server_root,
+        startup_nonce.clone(),
     )
     .expect("CLI secret read app state");
-    let startup_nonce = crate::identity::binary_identity().startup_nonce;
-    let app = crate::server::app(state.with_secret_read_mint_bridge(
-        crate::admin_secret_read::SecretReadMintBridge::new(
-            operator,
-            server_root,
-            startup_nonce.clone(),
-        ),
-    ));
+    let app = crate::server::app(state);
     let server = tokio::spawn(async move {
         app.bind(listener).unwrap().serve().await.unwrap();
     });
@@ -3675,7 +3644,6 @@ async fn ready_file_cli_mints_a_derived_lease_without_exposing_the_root() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[cfg(not(feature = "cli-owner"))]
 async fn stale_ready_descriptor_sends_adversarial_server_no_admin_or_proof_material() {
     use axum::body::Bytes;
     use axum::http::HeaderMap;
@@ -4174,19 +4142,11 @@ fn ready_file_parent_swap_cannot_redirect_publish_or_cleanup() {
 // foreign replacement at the same path.
 #[cfg(unix)]
 #[test]
-#[cfg(not(feature = "cli-owner"))]
 fn secret_read_root_cleanup_removes_only_the_adopted_identity() {
     let dir = tempfile::tempdir().unwrap();
     let mut target = ReadyFileTarget::open(&dir.path().join("dev.ready.json")).unwrap();
     let root = crate::admin_secret_read::secret_read_root_sibling(target.pinned_path());
-    let resolve = |target: &ReadyFileTarget| {
-        crate::admin_secret_read::resolve_secret_read_proof_root_with_io(
-            &root,
-            |path| target.read_owner_only_sibling(path),
-            |path, bytes| target.write_owner_only_sibling(path, bytes),
-        )
-        .unwrap()
-    };
+    let resolve = |target: &ReadyFileTarget| target.resolve_secret_read_proof_root(&root).unwrap();
     resolve(&target);
     target.adopt_secret_read_root_sibling(&root).unwrap();
 

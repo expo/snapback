@@ -44,7 +44,7 @@ LLP 0231 / 0172 so visibility and function auth stop being warn-only.
 ## Method
 
 Primary sources: `crates/snapback/src/`, `packages/snapback-{client,contract,react,cli,codegen,expo}/`,
-`targets/cloudflare/src/`, `llp/0009`, `llp/0060`, `llp/0047`, `llp/0216`, `llp/0231`,
+`cloudflare/src/`, `llp/0009`, `llp/0060`, `llp/0047`, `llp/0216`, `llp/0231`,
 and the open `issues/` tree (to avoid duplicates). Provenance: `[observed]`
 for facts in this repository; `[inferred]` for reviewer judgment. The evidence
 snapshot is repository commit
@@ -56,7 +56,7 @@ The four read-only passes were: auth (`crates/snapback/src/auth/` plus server ad
 routes); execution isolation (`crates/snapback/src/runtime.rs`, local action hosts, Ibex and
 workerd/Cloudflare execution); storage/live/assets (`crates/snapback/src/storage/`, live-query
 matching, replication, and asset backends); and clients/CLI/Cloudflare
-(`packages/`, CLI surfaces, and `targets/cloudflare/`). P1 means a shipped path can
+(`packages/`, CLI surfaces, and `cloudflare/`). P1 means a shipped path can
 cause an authorization/confidentiality/integrity failure or duplicate external
 effect once its documented capability is enabled; P2 is material but
 target-limited, conditional, or presently masked; P3 has narrower impact.

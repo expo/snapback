@@ -1,12 +1,12 @@
 #![cfg(unix)]
 
+use rusqlite::{Connection, OpenFlags};
 use serde_json::{Value, json};
 use snapback::manifest::{
     FieldManifest, FieldType, HandlerInput, MutationPlan, MutationStep, SchemaManifest,
     TableManifest, ValueExpr,
 };
-use snapback::storage::LocalDatabase;
-use snapback_services::test_support::rusqlite::{Connection, OpenFlags};
+use snapback_kernel::storage::LocalDatabase;
 use std::collections::BTreeMap;
 use std::io::{Read as _, Write as _};
 use std::net::TcpStream;
@@ -40,7 +40,7 @@ fn test_schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -317,10 +317,7 @@ fn a_blocked_checkpoint_reports_on_stderr() {
     writer
         .execute(
             "INSERT OR REPLACE INTO _snapback_meta(key, value) VALUES (?1, ?2)",
-            snapback_services::test_support::rusqlite::params![
-                "shutdown-blocker",
-                json!({"active": true}).to_string()
-            ],
+            rusqlite::params!["shutdown-blocker", json!({"active": true}).to_string()],
         )
         .expect("append frame beyond pinned read snapshot");
     drop(writer);

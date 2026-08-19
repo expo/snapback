@@ -429,7 +429,7 @@ fn schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -720,9 +720,11 @@ fn standard_promise_combinators_produce_reaction_completion_proof() {
 #[test]
 fn harness_observes_an_immediately_rejected_handler_promise() {
     let mut snapback = configured();
-    let error = snapback
-        .invoke_mutation("immediateRejectedReturn", input(json!({})))
-        .expect_err("the handler's returned rejection must fail the invocation");
+    let error = snapback::runtime::with_development_handler_error_exposure(|| {
+        snapback
+            .invoke_mutation("immediateRejectedReturn", input(json!({})))
+            .expect_err("the handler's returned rejection must fail the invocation")
+    });
     assert_eq!(
         error.diagnostic.code, "SNAPBACK_HANDLER_FAILED",
         "the harness's own reaction must keep this out of the detached-rejection checkpoint"

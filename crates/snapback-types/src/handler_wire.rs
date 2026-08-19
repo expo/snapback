@@ -4,7 +4,7 @@
 //! Three private wire families cross the coordinator↔handler boundary on both
 //! arms — the local workerd loopback transport (`src/workerd_exec.rs` +
 //! `packages/snapback-harness/workerd/handler-server.mjs`) and the Cloudflare
-//! arm (`targets/cloudflare/src/coordinator.js` `invokeHandler`/`serveHostCall`, same
+//! arm (`cloudflare/src/coordinator.js` `invokeHandler`/`serveHostCall`, same
 //! harness server):
 //!
 //! 1. the coordinator→handler **invocation request** (`POST /invoke`),
@@ -20,7 +20,7 @@
 //! Real produced bytes are validated against the committed schemas on both
 //! arms: the local twin leg in `tests/workerd_twin_v0.rs` (workerd-produced
 //! envelopes through the capture seam) and the hosted leg in
-//! `targets/cloudflare/test/wire-schema-gate.mjs` (Miniflare service-binding capture).
+//! `cloudflare/test/wire-schema-gate.mjs` (Miniflare service-binding capture).
 //!
 //! Ownership split (frozen): LLP 0060 D6 owns the marker *semantics* —
 //! compatibility, service-binding integrity, rollout ordering, and the future
@@ -58,9 +58,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// The invocation mode member of the invoke request. The closed set mirrors
-/// `IbexInvocationMode` (`crates/snapback-runtime/src/runtime.rs`) and the
-/// engine's `mode_str` projection
-/// (`crates/snapback-engine/src/runtime/host_glue.rs`), plus the coordinator's
+/// `IbexInvocationMode` (`src/runtime.rs` `mode_str`) and the coordinator's
 /// `invokeHandler(fnName, mode, …)` callers.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
@@ -139,8 +137,7 @@ pub struct HandlerInvokeRequest {
 /// server answers `POST /invoke` with (`handler-server.mjs` `json(...)`
 /// call sites). One of three mutually exclusive shapes, dispatched by the
 /// receivers in mirrored order: `fatal` → `didNotSettle` → settled envelope
-/// (`crates/snapback-runtime/src/workerd_exec.rs` / `coordinator.js`
-/// `invokeHandler`).
+/// (`src/workerd_exec.rs` / `coordinator.js` `invokeHandler`).
 ///
 /// On the local arm the response additionally proves its origin with the
 /// `x-snapback-response-token` header echo before the body is read; that

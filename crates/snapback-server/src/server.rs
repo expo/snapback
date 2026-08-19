@@ -88,7 +88,7 @@ use crate::push::{
     PushTokenRegistrationResponse, PushTokenUnregisterResponse, RegisterPushTokenRequest,
     UnregisterPushTokenRequest,
 };
-#[cfg(all(test, not(feature = "server-owner")))]
+#[cfg(test)]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::runtime::{
     ActionStreamChunk, ActionStreamOpened, ActionStreamRequest, CapabilityState, IbexActionHost,
@@ -157,7 +157,7 @@ pub use response_types::*;
 use writer_gate::lock_managed_snapback;
 pub(crate) use writer_gate::{
     with_read_lane, with_snapback_authorization_write, with_snapback_staged_authorization_write,
-    with_snapback_stream_reset_admission_effect, with_snapback_then,
+    with_snapback_then,
 };
 
 /// Delegates to the writer gate. Kept as a `server.rs` item (not a re-export)
@@ -668,6 +668,7 @@ struct DetachedActionHost {
     deferred_push_grant: Option<crate::push::PushDeferredGrantV1>,
     external_effect_open: bool,
     external_effect_permit: Option<ServiceAuthorityExternalEffectPermit>,
+    http_target_policy: crate::outbound_policy::HttpTargetPolicy,
     response_streams: BTreeMap<String, OpenActionResponseStream>,
     closed_response_streams: BTreeSet<String>,
     last_stream_progress_commit: Option<Instant>,
@@ -1148,7 +1149,7 @@ impl DetachedActionHost {
         &self,
         ephemeral: EphemeralApi,
         preflight: crate::storage::AuthorizationCommitPreflight,
-    ) -> SnapbackResult<Box<dyn crate::storage::AuthorizationCommitReservation>> {
+    ) -> SnapbackResult<crate::storage::AuthorizationCommitReservation> {
         // @ref LLP 0059#authorization-write-handoff — detached actions publish
         //   one cancellable room wait to the watchdog and never retain Local.
         self.validate_live("runMutation")?;
@@ -1294,7 +1295,7 @@ impl IbexActionHost for DetachedActionHost {
                     reservation.cancel();
                     return Err(action_authorization_reservation_stale(name));
                 }
-                crate::storage::install_managed_authorization_reservation(reservation);
+                let reservation_scope = reservation.install();
                 let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     snapback.invoke_host_plan_mutation_guarded(
                         name,
@@ -1305,7 +1306,7 @@ impl IbexActionHost for DetachedActionHost {
                         || self.lock_commit_live("runMutation"),
                     )
                 }));
-                let unused = crate::storage::take_managed_authorization_reservation();
+                let unused = reservation_scope.take_unused();
                 drop(snapback);
                 if let Some(unused) = unused {
                     unused.cancel();
@@ -1400,7 +1401,7 @@ impl IbexActionHost for DetachedActionHost {
                         reservation.cancel();
                         return Err(action_authorization_reservation_stale(name));
                     }
-                    crate::storage::install_managed_authorization_reservation(reservation);
+                    let reservation_scope = reservation.install();
                     let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         snapback.commit_detached_ibex_mutation_guarded(
                             name,
@@ -1412,7 +1413,7 @@ impl IbexActionHost for DetachedActionHost {
                             || self.lock_commit_live("runMutation"),
                         )
                     }));
-                    let unused = crate::storage::take_managed_authorization_reservation();
+                    let unused = reservation_scope.take_unused();
                     drop(snapback);
                     if let Some(unused) = unused {
                         unused.cancel();
@@ -1595,7 +1596,7 @@ impl IbexActionHost for DetachedActionHost {
         // shared pinned/no-redirect/no-env-proxy transport.
         let prepared_target = crate::outbound_policy::prepare_http_target(
             &request.url,
-            crate::outbound_policy::action_http_target_policy(),
+            self.http_target_policy,
             4_096,
         )
         .map_err(action_stream_target_error)?;
@@ -1872,7 +1873,7 @@ impl IbexActionHost for DetachedActionHost {
         // one destination floor and the same DNS-pinned transport.
         let prepared_target = crate::outbound_policy::prepare_http_target(
             &request.url,
-            crate::outbound_policy::action_http_target_policy(),
+            self.http_target_policy,
             4_096,
         )
         .map_err(|error| match error.kind() {
@@ -2683,6 +2684,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     deferred_push_grant,
                     external_effect_open: false,
                     external_effect_permit: None,
+                    http_target_policy: crate::outbound_policy::action_http_target_policy(),
                     response_streams: BTreeMap::new(),
                     closed_response_streams: BTreeSet::new(),
                     last_stream_progress_commit: None,
@@ -4239,8 +4241,8 @@ async fn record_authenticated_poll_witness(
     let connection_id = connection_act.connection_id.clone();
     let grant_id = connection_act.grant_id.clone();
     let authority = authority.clone();
-    with_snapback(&runtime.snapback, move |snapback| {
-        snapback.register_authenticated_poll_client(
+    with_read_lane(&runtime.read, move |lane| {
+        lane.register_authenticated_poll_client(
             &authority,
             &connection_id,
             &grant_id,
@@ -11309,71 +11311,78 @@ async fn prepare_registered_route_authority(
     let profile = runtime.server.profile;
     let operator_authority = runtime.operator_authority.clone();
     let admission = (*admission).clone();
-    let authority = with_snapback(&runtime.snapback, move |snapback| match resolution {
-        RouteAuthorityResolution::Anonymous(publication) => snapback.prepare_anonymous_authority(
-            source,
-            active_mode,
-            profile,
-            admission,
-            &wire,
-            authority_now_ms,
-            publication,
-        ),
-        RouteAuthorityResolution::Dev(resolved) => snapback.prepare_dev_authority(
-            source,
-            profile,
-            admission,
-            &wire,
-            resolved,
-            authority_now_ms,
-        ),
-        RouteAuthorityResolution::Admin(publication) => snapback.prepare_admin_authority(
-            source,
-            profile,
-            admission,
-            &wire,
-            authority_now_ms,
-            publication,
-        ),
-        RouteAuthorityResolution::Operator(publication) => snapback.prepare_operator_authority(
-            &operator_authority,
-            admission,
-            &wire,
-            authority_now_ms,
-            publication,
-        ),
-        RouteAuthorityResolution::Bearer(prepared) => snapback.prepare_bearer_authority(
-            prepared,
-            source,
-            active_mode,
-            profile,
-            admission,
-            &wire,
-            authority_now_ms,
-        ),
-        RouteAuthorityResolution::Service(resolution, stream_publication) => snapback
-            .prepare_service_authority(
-                resolution,
-                source,
-                active_mode,
-                profile,
-                admission,
-                &wire,
-                authority_now_ms,
-                stream_publication,
-            ),
-        RouteAuthorityResolution::ConnectionService(resolution) => snapback
-            .prepare_connection_service_authority(
-                resolution,
-                source,
-                active_mode,
-                profile,
-                admission,
-                &wire,
-                authority_now_ms,
-            ),
-    })
-    .await
+    let authority = match resolution {
+        RouteAuthorityResolution::Dev(resolved) => {
+            with_read_lane(&runtime.read, move |lane| {
+                lane.prepare_dev_authority(source, profile, admission, &wire, resolved)
+            })
+            .await
+        }
+        resolution => {
+            with_snapback(&runtime.snapback, move |snapback| match resolution {
+                RouteAuthorityResolution::Anonymous(publication) => snapback
+                    .prepare_anonymous_authority(
+                        source,
+                        active_mode,
+                        profile,
+                        admission,
+                        &wire,
+                        authority_now_ms,
+                        publication,
+                    ),
+                RouteAuthorityResolution::Admin(publication) => snapback.prepare_admin_authority(
+                    source,
+                    profile,
+                    admission,
+                    &wire,
+                    authority_now_ms,
+                    publication,
+                ),
+                RouteAuthorityResolution::Operator(publication) => snapback
+                    .prepare_operator_authority(
+                        &operator_authority,
+                        admission,
+                        &wire,
+                        authority_now_ms,
+                        publication,
+                    ),
+                RouteAuthorityResolution::Bearer(prepared) => snapback.prepare_bearer_authority(
+                    prepared,
+                    source,
+                    active_mode,
+                    profile,
+                    admission,
+                    &wire,
+                    authority_now_ms,
+                ),
+                RouteAuthorityResolution::Service(resolution, stream_publication) => snapback
+                    .prepare_service_authority(
+                        resolution,
+                        source,
+                        active_mode,
+                        profile,
+                        admission,
+                        &wire,
+                        authority_now_ms,
+                        stream_publication,
+                    ),
+                RouteAuthorityResolution::ConnectionService(resolution) => snapback
+                    .prepare_connection_service_authority(
+                        resolution,
+                        source,
+                        active_mode,
+                        profile,
+                        admission,
+                        &wire,
+                        authority_now_ms,
+                    ),
+                RouteAuthorityResolution::Dev(_) => {
+                    unreachable!("dev authority is prepared on the read lane")
+                }
+            })
+            .await
+        }
+    }
     .map_err(ApiError::from)?;
     let authority = if source == InvocationSource::BootstrapHandshake
         && active_mode == crate::manifest::AuthMode::Dev
@@ -11479,6 +11488,8 @@ fn route_uses_managed_admission(spec: RouteSpec) -> bool {
                 | "/_snapback/api/storage/protected-erasure"
                 | "/_snapback/api/storage/operation-coverage/activate"
                 | "/_snapback/api/auth/mailbox"
+                | "/_snapback/api/auth/password/attempt"
+                | "/_snapback/api/auth/password/unlock"
                 | "/_snapback/api/admin-secret-read/mint"
                 | "/_snapback/api/auth/integrations"
                 | "/_snapback/api/auth/integrations/{id}/retire"
@@ -11489,6 +11500,7 @@ fn route_uses_managed_admission(spec: RouteSpec) -> bool {
                 | "/_snapback/api/auth/declared-clients/suspend"
                 | "/_snapback/api/auth/declared-clients/resume"
                 | "/_snapback/api/auth/declared-clients/delete"
+                | "/_snapback/api/debug/network-profile"
         )
 }
 
@@ -12709,13 +12721,17 @@ async fn enforce_registered_route_policy(
     next: Next,
 ) -> Response {
     let client_id_context = declared_client_id_context(spec, request.headers());
-    let mut response = enforce_registered_route_policy_inner(
+    // The shared policy future owns every registered route's bounded
+    // admission state. Keep that large state machine off the caller's poll
+    // stack; adversarial multi-value headers must not be able to push an
+    // otherwise valid request over the runtime's ordinary thread stack.
+    let mut response = Box::pin(enforce_registered_route_policy_inner(
         spec,
         runtime,
         request,
         next,
         client_id_context.clone(),
-    )
+    ))
     .await;
     if let Some(status) = client_id_context.and_then(|context| context.status()) {
         response.headers_mut().insert(
@@ -12741,6 +12757,13 @@ async fn enforce_registered_route_policy_inner(
         .map(str::to_owned);
     let policy_mode = runtime.active_policy_auth_mode();
     let effective = spec.effective_for(policy_mode);
+    let duplicate_impersonation_capability = {
+        let mut values = request
+            .headers()
+            .get_all(crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER)
+            .iter();
+        values.next().is_some() && values.next().is_some()
+    };
     if request.method() == Method::OPTIONS {
         request.extensions_mut().insert(spec);
         request.extensions_mut().insert(effective);
@@ -13653,6 +13676,21 @@ async fn enforce_registered_route_policy_inner(
         return finish_registered_response(
             response_policy,
             error.into_response(),
+            route_admission.as_ref(),
+            None,
+        );
+    }
+    // Count duplicate effect carriers before the deeper route state machine,
+    // but preserve the ordinary path-credential precedence above. Duplicate,
+    // malformed, stale, and missing impersonation bearers intentionally share
+    // one refusal and never reach capability verification or a handler.
+    if selected_policy.effect_policy == EffectPolicy::ImpersonationCapability
+        && duplicate_impersonation_capability
+        && !production_rehearsal_operation
+    {
+        return finish_registered_response(
+            response_policy,
+            ApiError::from(crate::admin_impersonation::impersonation_required()).into_response(),
             route_admission.as_ref(),
             None,
         );
@@ -21008,6 +21046,35 @@ fn auth_mint_session_mode_unavailable(runtime: &AppState) -> SnapbackError {
     }))
 }
 
+fn preflight_auth_session_host_runtime(
+    runtime: &AppState,
+    operation: &str,
+) -> Result<(), ApiError> {
+    if !matches!(
+        operation,
+        "auth.mintSession" | "auth.rehearsal.mint" | "auth.rehearsal.exercise"
+    ) {
+        return Ok(());
+    }
+    let mode = runtime.auth_mode_state();
+    if mode.active != crate::manifest::AuthMode::Sessions
+        || mode.desired != crate::manifest::AuthMode::Sessions
+        || mode.mode_state != crate::auth::mode::AuthModeStatus::Settled
+        || mode.app_data_availability != crate::auth::mode::AppDataAvailability::Available
+    {
+        return Err(auth_mint_session_mode_unavailable(runtime).into());
+    }
+    if !runtime.auth_catalog_ready
+        || runtime
+            .auth_provider
+            .as_ref()
+            .is_none_or(|provider| provider.readiness() != AuthProviderReadiness::Available)
+    {
+        return Err(auth_provider_unavailable());
+    }
+    Ok(())
+}
+
 /// Auth host operations acquire provider coordination before the outer
 /// app-instance lock. The handler repeats the selected-operation gate as a
 /// backstop so a direct invocation cannot substitute an admin, console,
@@ -21056,27 +21123,7 @@ async fn execute_auth_host_operation(
     )?;
     crate::admin::require_operation_profile(&runtime.server, &request.operation, false)?;
 
-    if matches!(
-        request.operation.as_str(),
-        "auth.mintSession" | "auth.rehearsal.mint" | "auth.rehearsal.exercise"
-    ) {
-        let mode = runtime.auth_mode_state();
-        if mode.active != crate::manifest::AuthMode::Sessions
-            || mode.desired != crate::manifest::AuthMode::Sessions
-            || mode.mode_state != crate::auth::mode::AuthModeStatus::Settled
-            || mode.app_data_availability != crate::auth::mode::AppDataAvailability::Available
-        {
-            return Err(auth_mint_session_mode_unavailable(runtime).into());
-        }
-        if !runtime.auth_catalog_ready
-            || runtime
-                .auth_provider
-                .as_ref()
-                .is_none_or(|provider| provider.readiness() != AuthProviderReadiness::Available)
-        {
-            return Err(auth_provider_unavailable());
-        }
-    }
+    preflight_auth_session_host_runtime(runtime, &request.operation)?;
 
     match request.operation.as_str() {
         "auth.rehearsal.mint" => {
@@ -22053,6 +22100,40 @@ async fn host_ops_handler_inner(
     let prepared_authority = authority.map(|Extension(authority)| authority);
     let route_admission = route_admission.map(|Extension(admission)| admission);
 
+    // Rescue carries an independent impersonation capability and has always
+    // projected profile refusal as an HTTP authorization error. Keep that
+    // narrower wire contract while still refusing before the auth dispatcher.
+    if request.operation == "auth.rescueCollidingTable" {
+        crate::admin::require_operation_profile(&ctx, &request.operation, false)?;
+    }
+
+    // Selection and credential/effect admission have already completed in
+    // middleware. Refuse a profile-forbidden host operation before entering
+    // the large dispatcher, but preserve host-ops' legacy HTTP-200 result
+    // envelope instead of turning the operation refusal into an HTTP error.
+    //
+    // @ref LLP 0024#authority-tuple — profile admission is part of the
+    // operation's registered authority and precedes any commit-capable branch.
+    let has_dev_user = request.user_id.is_some();
+    let profile_requirement =
+        crate::admin::operation_profile_requirement(&request.operation, has_dev_user);
+    if crate::admin::operation_profile_diagnostic(profile, &request.operation, profile_requirement)
+        .is_some()
+    {
+        let result = with_snapback(&state, move |snapback| {
+            crate::host_ops::execute_host_op_with_profile_and_authority(
+                snapback,
+                request,
+                server_url,
+                profile,
+                None,
+                crate::server::served_route_paths(),
+            )
+        })
+        .await;
+        return Ok(Json(result));
+    }
+
     if matches!(
         request.operation.as_str(),
         crate::data_patch::DATA_PATCH_PREVIEW_OPERATION
@@ -22145,25 +22226,41 @@ async fn host_ops_handler_inner(
             | "auth.integrationSuspend"
             | "auth.integrationResume"
     ) {
+        // Keep the cheap runtime-availability refusal outside the large auth
+        // dispatcher future. The dispatcher repeats the same helper as its
+        // direct-call backstop after the production rehearsal class refusal.
+        if !(runtime.server.profile == crate::contract_types::ServerProfile::Prod
+            && request.operation.starts_with("auth.rehearsal."))
+        {
+            preflight_auth_session_host_runtime(&runtime, &request.operation)?;
+        }
         // Keep the large, closed auth-operation state machine out of the
-        // surrounding Axum/Tower poll stack. Rehearsal variants make this
-        // future materially larger than the other host-operation branches.
-        let result = Box::pin(execute_auth_host_operation(
-            &runtime,
-            &headers,
-            impersonation.as_ref().map(|Extension(verified)| verified),
-            route_admission.as_ref().ok_or_else(|| {
-                ApiError::from(SnapbackError::error(
-                    "SNAPBACK_AUTH_MODE_PENDING",
-                    "auth",
-                    "host auth operation is missing managed admission",
-                ))
-            })?,
-            prepared_authority.as_ref(),
-            request,
-            server_url,
-        ))
-        .await?;
+        // surrounding Axum/Tower poll stack. Owner-crate composition adds
+        // enough middleware state that heap-pinning alone does not bound the
+        // nested poll call stack, so transfer the fully owned, already
+        // admitted operation to the existing cancellation-safe auth task.
+        let owned_admission = route_admission.ok_or_else(|| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_MODE_PENDING",
+                "auth",
+                "host auth operation is missing managed admission",
+            ))
+        })?;
+        let owned_runtime = runtime.clone();
+        let owned_impersonation = impersonation.map(|Extension(verified)| verified);
+        let transaction = spawn_owned_auth_transaction(async move {
+            execute_auth_host_operation(
+                &owned_runtime,
+                &headers,
+                owned_impersonation.as_ref(),
+                &owned_admission,
+                prepared_authority.as_ref(),
+                request,
+                server_url,
+            )
+            .await
+        });
+        let result = await_owned_auth_transaction(transaction).await??;
         return Ok(Json(result));
     }
 
@@ -23547,62 +23644,10 @@ async fn coordinated_app_reset_inner(
     input: CoordinatedResetInput,
 ) -> SnapbackResult<CoordinatedResetOutput> {
     let active_auth_mode = runtime.auth_mode_state().active;
-    if active_auth_mode == AuthMode::Dev
-        && runtime.auth_provider.is_none()
-        && runtime.auth_coordinator.is_none()
-    {
-        return with_snapback_stream_reset_admission_effect(
-            &runtime.snapback,
-            route_admission.clone(),
-            "app reset transaction and successor runtime projection",
-            move |snapback, predecessor, successor| match input {
-                CoordinatedResetInput::Legacy(seed) => {
-                    match snapback.attempt_reset_with_seed_and_authorization_stream(
-                        seed,
-                        predecessor,
-                        successor,
-                    ) {
-                        AuthTransactionAttempt::Committed(committed) => {
-                            AuthTransactionAttempt::Committed(CoordinatedResetOutput::Legacy(
-                                snapback.publish_coordinated_reset(committed),
-                            ))
-                        }
-                        AuthTransactionAttempt::RolledBack(error) => {
-                            AuthTransactionAttempt::RolledBack(error)
-                        }
-                        AuthTransactionAttempt::CommitUncertain(error) => {
-                            AuthTransactionAttempt::CommitUncertain(error)
-                        }
-                    }
-                }
-                CoordinatedResetInput::Versioned(request) => {
-                    match snapback.attempt_versioned_seed_reset_with_authorization_stream(
-                        request,
-                        predecessor,
-                        successor,
-                    ) {
-                        AuthTransactionAttempt::Committed(committed) => {
-                            AuthTransactionAttempt::Committed(CoordinatedResetOutput::Versioned(
-                                snapback.publish_coordinated_versioned_seed_reset(committed),
-                            ))
-                        }
-                        AuthTransactionAttempt::RolledBack(error) => {
-                            AuthTransactionAttempt::RolledBack(error)
-                        }
-                        AuthTransactionAttempt::CommitUncertain(error) => {
-                            AuthTransactionAttempt::CommitUncertain(error)
-                        }
-                    }
-                }
-            },
-        )
-        .await;
+    let provider = runtime.auth_provider.clone();
+    if active_auth_mode == AuthMode::Sessions && provider.is_none() {
+        return Err(auth_provider_unavailable_error());
     }
-
-    let provider = runtime
-        .auth_provider
-        .clone()
-        .ok_or_else(auth_provider_unavailable_error)?;
     let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
         SnapbackError::error(
             "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
@@ -23619,7 +23664,10 @@ async fn coordinated_app_reset_inner(
     // and mailbox cut; process projection happens after it is released.
     // @ref LLP 0057#concurrency-locks-and-linearization — provider guards and
     //   projection/connection locks occupy disjoint phases.
-    let maintenance = provider.exclusive_maintenance().await;
+    let maintenance = match provider.as_ref() {
+        Some(provider) => Some(provider.exclusive_maintenance().await),
+        None => None,
+    };
     let effect_admission = route_admission.clone();
     let attempt = match with_snapback_authorization_write(
         &runtime.snapback,
@@ -23671,17 +23719,21 @@ async fn coordinated_app_reset_inner(
             );
         }
     };
-    maintenance.clear_mailbox_after_committed_reset();
+    if let Some(maintenance) = maintenance.as_ref() {
+        maintenance.clear_mailbox_after_committed_reset();
+    }
     drop(maintenance);
 
     // The durable successor is known committed, but the coordinator's stream
     // ticket remains installed. Terminalize every predecessor carrier and
     // clear the router issuer before publishing reset-owned in-memory state;
     // no request can observe a half-installed successor through this window.
-    let close_by = provider
-        .monotonic_now()
+    let monotonic_now = provider
+        .as_ref()
+        .map_or_else(Instant::now, |provider| provider.monotonic_now());
+    let close_by = monotonic_now
         .checked_add(crate::auth::session_projection::TERMINAL_CLOSE_GRACE)
-        .unwrap_or_else(|| provider.monotonic_now());
+        .unwrap_or(monotonic_now);
     runtime
         .auth_terminal_lifecycle
         .committed_stream_reset(crate::live_wire::LiveAuthErrorReason::Reset, close_by);
@@ -23706,6 +23758,8 @@ async fn coordinated_app_reset_inner(
     // and publish the durable stream successor; only sessions reconstructs
     // the mode-owned issuer before the final stream-ticket release.
     if active_auth_mode == AuthMode::Sessions {
+        let provider =
+            provider.expect("sessions reset checked provider availability before premark");
         // Reserve and authenticate a boot issuer for the already-durable
         // successor while publication is still blocked. The old issuer is
         // scoped to the predecessor incarnation and must never be asked to
@@ -28930,8 +28984,8 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     // scoped-service grants intentionally create no principal witness.
     let witness_connection_id = connection_id.clone();
     let witness_grant_id = terminal_capture.grant_id.clone();
-    let managed_witness = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.register_managed_websocket_client(
+    let managed_witness = with_read_lane(&runtime.read, move |lane| {
+        lane.register_managed_websocket_client(
             &authority,
             &witness_connection_id,
             &witness_grant_id,

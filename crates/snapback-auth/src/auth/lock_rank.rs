@@ -79,10 +79,7 @@ pub fn ranked_mutex_lock<'a, T>(
     })
 }
 
-pub fn ranked_mutex_lock_unpoisoned<T>(
-    mutex: &Mutex<T>,
-    rank: u8,
-) -> RankedMutexGuard<'_, T> {
+pub fn ranked_mutex_lock_unpoisoned<T>(mutex: &Mutex<T>, rank: u8) -> RankedMutexGuard<'_, T> {
     let rank_guard = AuthLockRankGuard::enter(rank);
     let guard = mutex
         .lock()

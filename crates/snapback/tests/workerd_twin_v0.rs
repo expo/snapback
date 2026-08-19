@@ -217,7 +217,7 @@ fn schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -319,7 +319,7 @@ fn configured_batch_twin() -> LocalSnapback {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -1509,7 +1509,7 @@ fn ctx_answer_ledger_is_equivalent_across_engines() {
 /// envelope and host-call bodies, and the Rust-serialized invocation request
 /// — validate against the committed `handler.*` marker-envelope schemas. This
 /// is the local-arm real-bytes half of the drift gate; the hosted half is
-/// `targets/cloudflare/test/wire-schema-gate.mjs`.
+/// `cloudflare/test/wire-schema-gate.mjs`.
 #[test]
 fn handler_boundary_wire_bytes_validate_against_committed_schemas() {
     require_workerd!();

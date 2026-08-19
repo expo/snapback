@@ -95,6 +95,13 @@ impl LocalDatabase {
         request: &crate::push::PushSendRequestV1,
         now_ms: u64,
     ) -> SnapbackResult<crate::push::ReservedPushAttemptV1> {
+        if !authority.is_for(&self.commit_authority_identity) {
+            return Err(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_PUSH_AUTHORITY_INVALID",
+                "push",
+                "push admission carrier belongs to a different database",
+            ));
+        }
         self.with_auth_transaction(|tx| {
             crate::push::reserve_send_in(
                 tx,

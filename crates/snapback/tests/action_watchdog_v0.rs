@@ -22,7 +22,7 @@ use snapback::manifest::{
     ConfigEntryDefinition, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
     CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FieldManifest, FieldType,
     FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, IbexModule,
-    SchemaManifest, TableManifest,
+    SchemaManifest, TableManifest, TableVisibilityV1,
 };
 use snapback_server::test_support::axum::body::Body;
 use snapback_server::test_support::axum::http::Request;
@@ -181,7 +181,10 @@ fn watchdog_schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            // This fixture exercises watchdog and lock behavior, not an
+            // owner-policy write. Declare the phase-1a non-owner posture
+            // explicitly so generic writes cannot rely on omitted policy.
+            visibility: Some(TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()

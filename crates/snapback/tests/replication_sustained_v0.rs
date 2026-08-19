@@ -3,7 +3,7 @@
 use serde_json::Value;
 use snapback::auth::crypto::OsRandom;
 use snapback::auth::keyring::AuthKeyringStore;
-use snapback::storage::LocalDatabase;
+use snapback_kernel::storage::LocalDatabase;
 use std::fs;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
@@ -245,8 +245,7 @@ fn server_and_external_status_sustain_one_hundred_file_replica_commits() {
     frontier = status(binary, &remote, &key_file, &database)["frontier"]["txid"]
         .as_u64()
         .expect("final frontier txid");
-    let source = snapback_services::test_support::rusqlite::Connection::open(&database)
-        .expect("inspect stopped source");
+    let source = rusqlite::Connection::open(&database).expect("inspect stopped source");
     let source_version: u64 = source
         .query_row(
             "SELECT version FROM _snapback_version WHERE id=1",
@@ -268,10 +267,8 @@ fn server_and_external_status_sustain_one_hundred_file_replica_commits() {
     let restored: Value = serde_json::from_slice(&restored.stdout).expect("restore result JSON");
     assert_eq!(restored["position"]["txid"], Value::from(frontier));
     assert_eq!(restored["sourceVersion"], Value::from(source_version));
-    let image = snapback_services::test_support::rusqlite::Connection::open(
-        restore.join("database.sqlite3"),
-    )
-    .expect("open restored image");
+    let image =
+        rusqlite::Connection::open(restore.join("database.sqlite3")).expect("open restored image");
     assert_eq!(
         image
             .query_row("PRAGMA integrity_check", [], |row| row.get::<_, String>(0))

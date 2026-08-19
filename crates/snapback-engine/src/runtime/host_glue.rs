@@ -6694,10 +6694,7 @@ fn membership_writer_from_resolved_for_test_with_consent(
         ResolvedAppAuthority::AdminBypass { .. } => ResolvedMembershipWriter::AdminBypass,
         ResolvedAppAuthority::Anonymous => ResolvedMembershipWriter::Anonymous,
     };
-    MembershipWriter::from_resolved_with_authority_creating(
-        &resolved,
-        authority_creating_consent,
-    )
+    MembershipWriter::from_resolved_with_authority_creating(&resolved, authority_creating_consent)
 }
 
 #[cfg(test)]

@@ -29,9 +29,9 @@ function scratchRepo() {
     'schemas',
     'scripts/generate-control-catalog.mjs',
     'control-catalog',
-    'targets/cloudflare/hosted-adapter-manifest.json',
-    'targets/cloudflare/gateway-paths.inventory.json',
-    'targets/cloudflare/src/gateway.js',
+    'cloudflare/hosted-adapter-manifest.json',
+    'cloudflare/gateway-paths.inventory.json',
+    'cloudflare/src/gateway.js',
     'guide',
     'packages/snapback-cli',
     'packages/snapback-client',
@@ -386,7 +386,7 @@ test('rule 6 fails when a mediated row loses its negative custody witness', () =
 test('rule 11 fails when a hosted-adapter manifest entry drifts from the audited fixture', () => {
   const dir = scratchRepo();
   try {
-    const manifestPath = join(dir, 'targets/cloudflare/hosted-adapter-manifest.json');
+    const manifestPath = join(dir, 'cloudflare/hosted-adapter-manifest.json');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
     // Introduce a brand-new hand-routed case with no counterpart in the
     // audited gateway-paths.inventory.json fixture.
@@ -415,7 +415,7 @@ test('rule 11 fails when a hosted-adapter manifest entry drifts from the audited
 test('rule 11 fails when an audited fixture entry has no manifest counterpart', () => {
   const dir = scratchRepo();
   try {
-    const fixturePath = join(dir, 'targets/cloudflare/gateway-paths.inventory.json');
+    const fixturePath = join(dir, 'cloudflare/gateway-paths.inventory.json');
     const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'));
     fixture.entries.push({
       methods: ['POST'],
@@ -438,7 +438,7 @@ test('rule 11 fails when an audited fixture entry has no manifest counterpart', 
 test('gateway source parity fails on an unlisted forwarded app-data path', () => {
   const dir = scratchRepo();
   try {
-    const sourcePath = join(dir, 'targets/cloudflare/src/gateway.js');
+    const sourcePath = join(dir, 'cloudflare/src/gateway.js');
     const source = readFileSync(sourcePath, 'utf8').replace(
       "const FORWARDED_JSON_PATHS = new Set([",
       "const FORWARDED_JSON_PATHS = new Set(['/new-app-data-route', ",
@@ -455,7 +455,7 @@ test('gateway source parity fails on an unlisted forwarded app-data path', () =>
 test('gateway source parity fails when KIT_ROUTE changes without the fixture', () => {
   const dir = scratchRepo();
   try {
-    const sourcePath = join(dir, 'targets/cloudflare/src/gateway.js');
+    const sourcePath = join(dir, 'cloudflare/src/gateway.js');
     const source = readFileSync(sourcePath, 'utf8').replace(
       '(?:query|mutation|action)',
       '(?:query|mutation|action|command)',
@@ -472,7 +472,7 @@ test('gateway source parity fails when KIT_ROUTE changes without the fixture', (
 test('gateway source parity fails on an unlisted exact path comparison', () => {
   const dir = scratchRepo();
   try {
-    const sourcePath = join(dir, 'targets/cloudflare/src/gateway.js');
+    const sourcePath = join(dir, 'cloudflare/src/gateway.js');
     const source = readFileSync(sourcePath, 'utf8').replace(
       "if (path === '/health')",
       "if (path === '/new-exact') return json(200, {});\n    if (path === '/health')",

@@ -265,7 +265,8 @@ fn commit_mode_transaction<T>(
     conn: &mut Connection,
     predecessor: &AuthModeSnapshot,
     track_data_marker: bool,
-    interlock: Option<std::sync::Arc<dyn super::AuthorizationCommitInterlock>>,
+    interlock: bool,
+    commit_authority_identity: &std::sync::Arc<()>,
     transaction_body: impl FnOnce(
         &Transaction<'_>,
     ) -> SnapbackResult<(
@@ -332,7 +333,8 @@ fn commit_mode_transaction<T>(
         Some((witness, _)) if witness.event => match super::prepare_authorization_commit_interlock(
             witness,
             super::AuthorizationCommitImpact::AllProtectedRooms,
-            interlock.as_ref(),
+            interlock,
+            commit_authority_identity,
         ) {
             Ok(prepared) => prepared,
             Err(error) => {
@@ -589,6 +591,7 @@ impl LocalDatabase {
             Err(error) => return DurableModeCommit::RolledBack(error),
         };
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let order_field_bounds = self.order_field_bounds.clone();
         let mut predecessor_sequence_declarations = BTreeMap::new();
         let exact_active_predecessor =
@@ -625,6 +628,7 @@ impl LocalDatabase {
             &predecessor,
             track_data_marker,
             authorization_interlock,
+            &commit_authority_identity,
             |tx| {
                 let current = require_managed_snapshot(tx)?;
                 if current != predecessor {
@@ -868,6 +872,7 @@ impl LocalDatabase {
 
         before_auth_mode_consume_transaction();
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -958,6 +963,7 @@ impl LocalDatabase {
             authorization_predecessor,
             min_commit_version,
             authorization_interlock,
+            &commit_authority_identity,
         )?;
         self.schema = staged.schema_manifest;
         Ok(next)
@@ -1008,6 +1014,7 @@ impl LocalDatabase {
 
         before_auth_mode_consume_transaction();
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -1078,6 +1085,7 @@ impl LocalDatabase {
             authorization_predecessor,
             min_commit_version,
             authorization_interlock,
+            &commit_authority_identity,
         )?;
         self.schema = staged.schema_manifest;
         Ok(AuthModeDowngradeResult {
@@ -1165,6 +1173,7 @@ impl LocalDatabase {
         }
 
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let mut predecessor_sequence_declarations = BTreeMap::new();
         if current.state.active_deployment.as_ref() == Some(&deployment) {
             predecessor_sequence_declarations.extend(self.sequence_declarations.as_ref().clone());
@@ -1273,6 +1282,7 @@ impl LocalDatabase {
                     authorization_predecessor,
                     min_commit_version,
                     authorization_interlock,
+                    &commit_authority_identity,
                 )?;
             }
             None => tx.commit()?,
@@ -1352,6 +1362,7 @@ impl LocalDatabase {
             Err(error) => return DurableModeCommit::RolledBack(error),
         };
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let order_field_bounds = self.order_field_bounds.clone();
         let mut predecessor_sequence_declarations = BTreeMap::new();
         let sequence_declarations = super::sequence_declarations_from_function_manifest(&functions);
@@ -1374,6 +1385,7 @@ impl LocalDatabase {
             &predecessor,
             track_data_marker,
             authorization_interlock,
+            &commit_authority_identity,
             |tx| {
                 let current = require_managed_snapshot(tx)?;
                 if current != predecessor {
@@ -1599,6 +1611,7 @@ impl LocalDatabase {
         reject_field_retypes(&self.schema, &manifest)?;
         reject_unsafe_required_field_changes(&self.conn, &self.schema, &manifest)?;
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -1651,6 +1664,7 @@ impl LocalDatabase {
                     authorization_predecessor,
                     min_commit_version,
                     authorization_interlock,
+                    &commit_authority_identity,
                 )?;
             }
             None => tx.commit()?,
@@ -2381,57 +2395,53 @@ mod tests {
         fail_committed_ack: bool,
     }
 
-    struct RecordingModeCommit {
-        committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-        fail_committed_ack: bool,
-    }
-
-    struct RecordingModeReservation {
-        prepared: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-        committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-        fail_committed_ack: bool,
-    }
-
     impl RecordingModeInterlock {
-        fn reservation(&self) -> Box<dyn super::super::AuthorizationCommitReservation> {
-            Box::new(RecordingModeReservation {
-                prepared: self.prepared.clone(),
-                committed: self.committed.clone(),
-                fail_committed_ack: self.fail_committed_ack,
-            })
+        fn reservation(
+            &self,
+            carriers: &super::super::AuthorizationCommitCarrierFactory,
+        ) -> super::super::AuthorizationCommitReservation {
+            let prepared = self.prepared.clone();
+            let committed = self.committed.clone();
+            let fail_committed_ack = self.fail_committed_ack;
+            let prepared_carriers = carriers.clone();
+            carriers.reservation(
+                move |witness, impact| {
+                    assert!(witness.event);
+                    assert!(matches!(
+                        impact,
+                        super::super::AuthorizationCommitImpact::AllProtectedRooms
+                    ));
+                    prepared.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    Ok(prepared_carriers.prepared(
+                        move |_min_commit_version| {
+                            committed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            if fail_committed_ack {
+                                return Err(SnapbackError::error(
+                                    "TEST_AUTH_MODE_COMMITTED_ACK_FAILURE",
+                                    "auth",
+                                    "injected post-commit authorization acknowledgement failure",
+                                ));
+                            }
+                            Ok(())
+                        },
+                        || panic!("an exact mode predecessor or successor must reconcile the test commit"),
+                        || {},
+                    ))
+                },
+                || {},
+            )
         }
-    }
-
-    impl super::super::AuthorizationCommitReservation for RecordingModeReservation {
-        fn bind(
-            self: Box<Self>,
-            witness: &super::super::AuthorizationCommitWitness,
-            impact: super::super::AuthorizationCommitImpact<'_>,
-        ) -> SnapbackResult<Box<dyn super::super::PreparedAuthorizationCommit>> {
-            assert!(witness.event);
-            assert!(matches!(
-                impact,
-                super::super::AuthorizationCommitImpact::AllProtectedRooms
-            ));
-            self.prepared
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(Box::new(RecordingModeCommit {
-                committed: self.committed.clone(),
-                fail_committed_ack: self.fail_committed_ack,
-            }))
-        }
-
-        fn cancel(self: Box<Self>) {}
     }
 
     fn with_recording_mode_reservation<T>(
         interlock: &RecordingModeInterlock,
+        carriers: &super::super::AuthorizationCommitCarrierFactory,
         work: impl FnOnce() -> T,
     ) -> T {
-        super::super::install_managed_authorization_reservation(interlock.reservation());
+        let reservation_scope = interlock.reservation(carriers).install();
         let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
         let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(work));
-        let unused = super::super::take_managed_authorization_reservation();
+        let unused = reservation_scope.take_unused();
         let batch = scope.take_after_local_batch();
         drop(scope);
         if let Some(unused) = unused {
@@ -2441,27 +2451,6 @@ mod tests {
         match output {
             Ok(output) => output,
             Err(panic) => std::panic::resume_unwind(panic),
-        }
-    }
-
-    impl super::super::AuthorizationCommitInterlock for RecordingModeInterlock {}
-
-    impl super::super::PreparedAuthorizationCommit for RecordingModeCommit {
-        fn committed(self: Box<Self>, _min_commit_version: u64) -> SnapbackResult<()> {
-            self.committed
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            if self.fail_committed_ack {
-                return Err(SnapbackError::error(
-                    "TEST_AUTH_MODE_COMMITTED_ACK_FAILURE",
-                    "auth",
-                    "injected post-commit authorization acknowledgement failure",
-                ));
-            }
-            Ok(())
-        }
-
-        fn ambiguous(self: Box<Self>) {
-            panic!("an exact mode predecessor or successor must reconcile the test commit");
         }
     }
 
@@ -3094,7 +3083,13 @@ mod tests {
             committed: committed.clone(),
             fail_committed_ack: false,
         });
-        database.install_authorization_interlock(interlock.clone());
+        let authority = database
+            .claim_kernel_commit_authority()
+            .expect("kernel authority");
+        database
+            .enable_authorization_commit_interlock(&authority)
+            .expect("bind authorization interlock");
+        let carriers = authority.authorization_commit_carriers();
         let seed = SeedData {
             tables: BTreeMap::from([(
                 "permission_items".to_owned(),
@@ -3105,7 +3100,7 @@ mod tests {
             )]),
         };
         inject_auth_mode_commit_boundary_failure(AuthModeCommitBoundary::AfterRollback);
-        match with_recording_mode_reservation(&interlock, || {
+        match with_recording_mode_reservation(&interlock, &carriers, || {
             database.apply_same_mode_network_deployment_classified(identity, manifest, Some(seed))
         }) {
             DurableModeCommit::RolledBack(error) => assert_eq!(
@@ -3270,8 +3265,14 @@ mod tests {
             committed: committed.clone(),
             fail_committed_ack: true,
         });
-        uncertain.install_authorization_interlock(interlock.clone());
-        match with_recording_mode_reservation(&interlock, || {
+        let authority = uncertain
+            .claim_kernel_commit_authority()
+            .expect("kernel authority");
+        uncertain
+            .enable_authorization_commit_interlock(&authority)
+            .expect("bind authorization interlock");
+        let carriers = authority.authorization_commit_carriers();
+        match with_recording_mode_reservation(&interlock, &carriers, || {
             uncertain.apply_same_mode_network_deployment_with_functions_classified(
                 identity.clone(),
                 manifest,

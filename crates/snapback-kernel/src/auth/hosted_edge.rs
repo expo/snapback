@@ -16,7 +16,7 @@ fn refuse(code: &'static str, message: &'static str) -> SnapbackError {
     SnapbackError::error(code, "auth", message)
 }
 
-pub fn initialize_hosted_admission_watermark(connection: &Connection) -> SnapbackResult<()> {
+pub(crate) fn initialize_hosted_admission_watermark(connection: &Connection) -> SnapbackResult<()> {
     connection
         .execute_batch(&format!(
             "CREATE TABLE IF NOT EXISTS {ADMISSION_WATERMARK_TABLE} (
@@ -33,7 +33,7 @@ pub fn initialize_hosted_admission_watermark(connection: &Connection) -> Snapbac
         })
 }
 
-pub fn install_hosted_admission_commit(
+pub(crate) fn install_hosted_admission_commit(
     connection: &mut Connection,
     commit: HostedAdmissionCommit,
 ) -> SnapbackResult<()> {

@@ -627,7 +627,7 @@ carries no sample interval or confidence field, so this is one controlled
 observed-zero estimate, not an absolute event-absence or invoice guarantee.
 The raw aggregate and hourly evidence is
 checked in as
-[`measurements.remote.idle.2026-07-12.json`](../targets/cloudflare/generated/measurements.remote.idle.2026-07-12.json).
+[`measurements.remote.idle.2026-07-12.json`](../cloudflare/generated/measurements.remote.idle.2026-07-12.json).
 The Durable Object periodic/storage datasets lack script identity and remain
 account-wide context; storage had no positive control and its empty array is
 telemetry absence, not evidence of zero stored bytes. The per-script Worker and

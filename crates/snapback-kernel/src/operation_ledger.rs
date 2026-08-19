@@ -48,8 +48,7 @@ pub const HOST_CHILD_MUTATION_LANE_V1: &str = "hostChildMutation";
 /// operation-envelope lanes above. A derived fork can prove that every app-row
 /// write crossed a generated writer and its journal without claiming LLP
 /// 0163's deferred operation attribution.
-pub const DERIVED_FORK_ORDINARY_APP_ROW_JOURNAL_LANE_V1: &str =
-    "derivedForkOrdinaryAppRowJournal";
+pub const DERIVED_FORK_ORDINARY_APP_ROW_JOURNAL_LANE_V1: &str = "derivedForkOrdinaryAppRowJournal";
 pub const DERIVED_FORK_HOST_CHILD_APP_ROW_JOURNAL_LANE_V1: &str =
     "derivedForkHostChildAppRowJournal";
 /// Pending host operations use an effectively non-expiring lease. The lease
@@ -202,7 +201,7 @@ impl StoredOperationExplanationV1 {
     }
 }
 
-pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
+pub(crate) fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
     tx.execute_batch(
         "CREATE TABLE IF NOT EXISTS _snapback_operation_epochs_v1 (
            originator_class TEXT NOT NULL,
@@ -417,7 +416,7 @@ pub struct OperationCoverageContinuityV1 {
     pub gap_reason: Option<String>,
 }
 
-pub fn operation_coverage_continuity(
+pub(crate) fn operation_coverage_continuity(
     conn: &Connection,
     stream_id: &str,
 ) -> SnapbackResult<Option<OperationCoverageContinuityV1>> {
@@ -479,7 +478,7 @@ pub fn operation_coverage_continuity(
 ///
 /// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — a
 /// whole-window coverage gap is monotonic within the registered-writer class.
-pub fn break_operation_coverage_continuity(
+pub(crate) fn break_operation_coverage_continuity(
     conn: &Connection,
     stream_id: &str,
     expected_manifest_version: u64,
@@ -549,7 +548,7 @@ pub fn coverage_digest(
     )
 }
 
-pub fn register_coverage_in(
+pub(crate) fn register_coverage_in(
     tx: &Transaction<'_>,
     manifest: &OperationCoverageManifestV1,
     activated_at_ms: u64,
@@ -608,7 +607,7 @@ pub fn register_coverage_in(
     Ok(())
 }
 
-pub fn active_coverage_manifest(
+pub(crate) fn active_coverage_manifest(
     conn: &Connection,
     stream_id: &str,
 ) -> SnapbackResult<Option<OperationCoverageManifestV1>> {
@@ -652,7 +651,10 @@ fn validate_coverage_manifest(
     Ok(())
 }
 
-pub fn register_epoch_in(tx: &Transaction<'_>, epoch: &IdentityEpochV1) -> SnapbackResult<()> {
+pub(crate) fn register_epoch_in(
+    tx: &Transaction<'_>,
+    epoch: &IdentityEpochV1,
+) -> SnapbackResult<()> {
     if epoch.schema_version != 1
         || epoch.audience.is_empty()
         || epoch.authority_instance_id.is_empty()
@@ -722,7 +724,7 @@ pub fn register_epoch_in(tx: &Transaction<'_>, epoch: &IdentityEpochV1) -> Snapb
 ///
 /// @ref LLP 0162#1-the-universal-commit-envelope — host identities are
 ///   server-authenticated and derive from durable upstream identities.
-pub fn ensure_host_incarnation_in(
+pub(crate) fn ensure_host_incarnation_in(
     tx: &Transaction<'_>,
     stream_id: &str,
     authority_instance_id: &str,
@@ -801,7 +803,7 @@ pub fn ensure_host_incarnation_in(
     })
 }
 
-pub fn resolve_host_incarnation_audience_in(
+pub(crate) fn resolve_host_incarnation_audience_in(
     tx: &Transaction<'_>,
     issuance: &OperationIssuanceV1,
     authority_instance_id: &str,
@@ -842,7 +844,7 @@ pub fn resolve_host_incarnation_audience_in(
 ///
 /// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — a
 /// range-less host epoch closes only after its server incarnation has rotated.
-pub fn rotate_host_incarnation_in(
+pub(crate) fn rotate_host_incarnation_in(
     tx: &Transaction<'_>,
     audience: &str,
     retired_epoch_id: &str,
@@ -903,7 +905,7 @@ pub fn rotate_host_incarnation_in(
     Ok(())
 }
 
-pub fn register_client_range_in(
+pub(crate) fn register_client_range_in(
     tx: &Transaction<'_>,
     range: &ClientIdentityRangeV1,
 ) -> SnapbackResult<()> {
@@ -1018,7 +1020,7 @@ pub fn register_client_range_in(
 /// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — the
 ///   authority owns the range and mutation admission resolves its audience
 ///   from durable custody.
-pub fn resolve_client_range_audience_in(
+pub(crate) fn resolve_client_range_audience_in(
     tx: &Transaction<'_>,
     issuance: &OperationIssuanceV1,
     authority_instance_id: &str,
@@ -1076,7 +1078,7 @@ pub fn resolve_client_range_audience_in(
 /// @ref LLP 0162#1-the-universal-commit-envelope — lookup precedence remains
 ///   effective after issuer termination and must classify a below-floor retry
 ///   instead of executing it as novel.
-pub fn resolve_operation_audience_for_lookup(
+pub(crate) fn resolve_operation_audience_for_lookup(
     conn: &Connection,
     issuance: &OperationIssuanceV1,
     authority_instance_id: &str,
@@ -1162,7 +1164,7 @@ pub fn resolve_operation_audience_for_lookup(
 ///
 /// @ref LLP 0162#1-the-universal-commit-envelope — offline identities come
 ///   only from server-preallocated authenticated finite ranges.
-pub fn issue_client_range_in(
+pub(crate) fn issue_client_range_in(
     tx: &Transaction<'_>,
     _stream_id: &str,
     audience: &str,
@@ -1408,7 +1410,7 @@ pub fn issue_client_range_in(
 /// Range issuance never calls this: activation is server-controlled only
 /// after the named target's corpus and review gates pass.
 #[allow(dead_code)] // Intentionally dormant while the public capability remains Missing.
-pub fn activate_ordinary_mutation_coverage_in(
+pub(crate) fn activate_ordinary_mutation_coverage_in(
     tx: &Transaction<'_>,
     stream_id: &str,
     activated_at_ms: u64,
@@ -1427,7 +1429,7 @@ pub fn activate_ordinary_mutation_coverage_in(
 /// benchmark cut prevents measurement setup from accidentally advertising the
 /// Host child lane.
 #[allow(dead_code)] // Called only by the acceptance-gated publication step.
-pub fn activate_local_target_mutation_coverage_in(
+pub(crate) fn activate_local_target_mutation_coverage_in(
     tx: &Transaction<'_>,
     stream_id: &str,
     activated_at_ms: u64,
@@ -1453,7 +1455,7 @@ pub fn activate_local_target_mutation_coverage_in(
 /// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — the
 ///   fork cut proves journal writer completeness while attribution remains an
 ///   explicit absent fact.
-pub fn activate_derived_fork_app_row_journal_coverage_in(
+pub(crate) fn activate_derived_fork_app_row_journal_coverage_in(
     tx: &Transaction<'_>,
     stream_id: &str,
     activated_at_ms: u64,
@@ -1540,7 +1542,7 @@ fn activate_mutation_coverage_in(
 ///
 /// @ref LLP 0163#implementation-record--2026-08-05-c27-abandonment-and-c28-lifecycle-repair
 /// — writer insertion reclassifies retained identity state transactionally.
-pub fn record_operation_in(
+pub(crate) fn record_operation_in(
     tx: &Transaction<'_>,
     envelope: &CommitEnvelopeV1,
 ) -> SnapbackResult<()> {
@@ -1693,7 +1695,7 @@ pub fn record_operation_in(
 /// Refuse a new pending operation when the lane/audience budget is full.
 /// The exact retained identity remains admissible so crash recovery can
 /// finish it; no pending row is ever selected for eviction.
-pub fn require_pending_operation_capacity_in(
+pub(crate) fn require_pending_operation_capacity_in(
     conn: &Connection,
     lane: &str,
     audience: &str,
@@ -1740,7 +1742,7 @@ pub fn require_pending_operation_capacity_in(
 ///
 /// @ref LLP 0163#implementation-record--2026-08-05-c27-abandonment-and-c28-lifecycle-repair
 /// — pending and terminal publication share the same retained-state guard.
-pub fn record_pending_operation_in(
+pub(crate) fn record_pending_operation_in(
     tx: &Transaction<'_>,
     envelope: &CommitEnvelopeV1,
     lifecycle: &PendingOperationLifecycleV1,
@@ -1936,7 +1938,7 @@ fn load_validated_pending_lifecycle(
     Ok(Some(pending))
 }
 
-pub fn lookup_pending_operation(
+pub(crate) fn lookup_pending_operation(
     conn: &Connection,
     proposed: &OperationIdentityV1,
 ) -> SnapbackResult<PendingOperationLookupV1> {
@@ -2097,7 +2099,7 @@ fn validated_pending_lifecycles(
 /// evidence of P, while this additive carrier participates independently in
 /// host-window retention so the established v1 suppression wire shape does
 /// not need to change.
-pub fn finalize_pending_operation_in(
+pub(crate) fn finalize_pending_operation_in(
     tx: &Transaction<'_>,
     supplement: &PendingOperationTerminalSupplementV1,
     retained_terminal_projection: &Value,
@@ -2225,7 +2227,7 @@ pub fn finalize_pending_operation_in(
 /// Structural `HostIncarnation` shape is insufficient: the epoch must be open,
 /// its authority/authenticator must match, and its operation id must be the
 /// deterministic derivation of the recorded upstream identity.
-pub fn authenticate_host_identity(
+pub(crate) fn authenticate_host_identity(
     conn: &Connection,
     identity: &OperationIdentityV1,
 ) -> SnapbackResult<()> {
@@ -2352,7 +2354,7 @@ fn host_epoch_has_live_lease(
 /// Retain an authenticated host-only admission identity while external work is
 /// still live. Promotion tickets use this lease so incarnation rotation cannot
 /// reclaim their epoch before the ticket completes or expires.
-pub fn register_host_identity_lease_in(
+pub(crate) fn register_host_identity_lease_in(
     tx: &Transaction<'_>,
     identity: &OperationIdentityV1,
     expires_at_ms: u64,
@@ -2388,7 +2390,7 @@ pub fn register_host_identity_lease_in(
     Ok(())
 }
 
-pub fn complete_host_identity_lease_in(
+pub(crate) fn complete_host_identity_lease_in(
     tx: &Transaction<'_>,
     identity: &OperationIdentityV1,
     completed_at_ms: u64,
@@ -2488,7 +2490,7 @@ fn authenticate_operation_identity(
     Ok(epoch_sequence)
 }
 
-pub fn lookup_operation(
+pub(crate) fn lookup_operation(
     conn: &Connection,
     proposed: &OperationIdentityV1,
 ) -> SnapbackResult<OperationLookupV1> {
@@ -2724,7 +2726,7 @@ pub fn lookup_operation(
     Ok(OperationLookupV1::Novel)
 }
 
-pub fn acknowledge_and_reclaim_in(
+pub(crate) fn acknowledge_and_reclaim_in(
     tx: &Transaction<'_>,
     identity: &OperationIdentityV1,
     acknowledged_at_ms: u64,
@@ -2822,7 +2824,7 @@ pub fn acknowledge_and_reclaim_in(
     Ok(())
 }
 
-pub fn acknowledge_client_operation_by_id_in(
+pub(crate) fn acknowledge_client_operation_by_id_in(
     tx: &Transaction<'_>,
     client_mutation_id: &str,
     principal_fingerprint: &str,
@@ -2859,7 +2861,7 @@ pub fn acknowledge_client_operation_by_id_in(
 ///
 /// @ref LLP 0162#acceptance — row 14 requires operator purge to be explicit,
 ///   recorded, and unable to turn a retained operation into a novel write.
-pub fn operator_purge_client_operations_in(
+pub(crate) fn operator_purge_client_operations_in(
     tx: &Transaction<'_>,
     selector_class: &str,
     selector_digest: &str,
@@ -2929,7 +2931,7 @@ pub fn operator_purge_client_operations_in(
     Ok(reclaimed.len() as u64)
 }
 
-pub fn terminate_epoch_in(
+pub(crate) fn terminate_epoch_in(
     tx: &Transaction<'_>,
     originator_class: OperationOriginatorClassV1,
     audience: &str,
@@ -2963,7 +2965,7 @@ pub fn terminate_epoch_in(
 ///
 /// @ref LLP 0163#implementation-record--2026-08-05-c27-abandonment-and-c28-lifecycle-repair
 /// — only the contiguous closed prefix may advance the floor.
-pub fn close_epoch_if_complete_in(
+pub(crate) fn close_epoch_if_complete_in(
     tx: &Transaction<'_>,
     originator_class: OperationOriginatorClassV1,
     audience: &str,
@@ -3175,7 +3177,7 @@ pub fn close_epoch_if_complete_in(
     Ok(true)
 }
 
-pub fn explain_operation(
+pub(crate) fn explain_operation(
     conn: &Connection,
     identity: &OperationIdentityV1,
     authority: &CurrentExplanationAuthorityV1,
@@ -3212,7 +3214,7 @@ pub fn explain_operation(
 
 /// Independent compact-envelope retention clock. Suppression/tombstone/floor
 /// state remains untouched, so pruning cannot turn a known identity novel.
-pub fn prune_compact_envelope_in(
+pub(crate) fn prune_compact_envelope_in(
     tx: &Transaction<'_>,
     identity: &OperationIdentityV1,
 ) -> SnapbackResult<bool> {
@@ -3247,7 +3249,7 @@ pub fn prune_compact_envelope_in(
 
 /// Independent detail clock: retain compact digests/counts while making the
 /// absence explicit. Protected custody is not opened by this operation.
-pub fn expire_envelope_detail_in(
+pub(crate) fn expire_envelope_detail_in(
     tx: &Transaction<'_>,
     identity: &OperationIdentityV1,
 ) -> SnapbackResult<bool> {
@@ -3287,7 +3289,7 @@ pub fn expire_envelope_detail_in(
     Ok(true)
 }
 
-pub fn enumerate_explanations(
+pub(crate) fn enumerate_explanations(
     conn: &Connection,
     query: &ExplanationQueryV1,
     authority: &CurrentExplanationAuthorityV1,

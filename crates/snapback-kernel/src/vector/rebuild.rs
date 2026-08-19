@@ -494,7 +494,7 @@ fn scan_fixed_snapshot(
 ///
 /// @ref LLP 0081#2-canonical-plan-and-approval
 /// @ref LLP 0073#rebuilds-and-migrations
-pub fn begin_rebuild(
+pub(crate) fn begin_rebuild(
     conn: &mut Connection,
     schema: &SchemaManifest,
     plan: &VectorRebuildPlanV1,
@@ -905,7 +905,7 @@ fn catchup_batch(
 
 /// Execute one durable baseline or catch-up batch. Progress, shadow writes,
 /// the generation root, and lease renewal commit atomically.
-pub fn resume_rebuild(
+pub(crate) fn resume_rebuild(
     conn: &mut Connection,
     schema: &SchemaManifest,
     operation_id: &str,
@@ -985,7 +985,7 @@ pub fn resume_rebuild(
 /// Verify and publish a candidate under one bounded SQLite writer fence.
 /// Catch-up too large for the approved fence is refused without changing the
 /// active generation; the caller resumes ordinary batches first.
-pub fn activate_rebuild(
+pub(crate) fn activate_rebuild(
     conn: &mut Connection,
     schema: &SchemaManifest,
     operation_id: &str,
@@ -1111,7 +1111,7 @@ pub fn activate_rebuild(
 /// Republish the retained predecessor only while no successor-era source
 /// commit has occurred. The one-active-generation invariant and build state
 /// transition commit atomically.
-pub fn rollback_generation(
+pub(crate) fn rollback_generation(
     conn: &mut Connection,
     schema: &SchemaManifest,
     table_name: &str,
@@ -1210,7 +1210,7 @@ pub fn rollback_generation(
     })
 }
 
-pub fn inspect_rebuild(
+pub(crate) fn inspect_rebuild(
     conn: &Connection,
     operation_id: &str,
 ) -> SnapbackResult<VectorRebuildProgressV1> {

@@ -78,6 +78,6 @@
       "type": "object"
     }
   ],
-  "description": "The handler→coordinator response envelope: the JSON body the handler\nserver answers `POST /invoke` with (`handler-server.mjs` `json(...)`\ncall sites). One of three mutually exclusive shapes, dispatched by the\nreceivers in mirrored order: `fatal` → `didNotSettle` → settled envelope\n(`crates/snapback-runtime/src/workerd_exec.rs` / `coordinator.js`\n`invokeHandler`).\n\nOn the local arm the response additionally proves its origin with the\n`x-snapback-response-token` header echo before the body is read; that\ntransport-authentication echo is a header, not a body member.",
+  "description": "The handler→coordinator response envelope: the JSON body the handler\nserver answers `POST /invoke` with (`handler-server.mjs` `json(...)`\ncall sites). One of three mutually exclusive shapes, dispatched by the\nreceivers in mirrored order: `fatal` → `didNotSettle` → settled envelope\n(`src/workerd_exec.rs` / `coordinator.js` `invokeHandler`).\n\nOn the local arm the response additionally proves its origin with the\n`x-snapback-response-token` header echo before the body is read; that\ntransport-authentication echo is a header, not a body member.",
   "title": "HandlerInvokeResponse"
 }

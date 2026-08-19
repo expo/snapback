@@ -216,9 +216,7 @@ impl DeferredRehearsalAuthority {
         self.provenance.is_some()
     }
 
-    pub fn into_provenance(
-        self,
-    ) -> Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1> {
+    pub fn into_provenance(self) -> Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1> {
         self.provenance
     }
 }
@@ -311,7 +309,7 @@ impl JobDrainRecord {
     }
 }
 
-pub fn create_jobs_infra(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn create_jobs_infra(conn: &Connection) -> SnapbackResult<()> {
     conn.execute_batch(
         "
         CREATE TABLE IF NOT EXISTS _snapback_jobs_v1 (
@@ -409,7 +407,7 @@ pub fn create_jobs_infra(conn: &Connection) -> SnapbackResult<()> {
 /// detail expire after the terminal window while the scoped key, canonical
 /// digest, action/queue identity, terminal disposition, and successor link
 /// remain as the minimal tombstone.
-pub fn reap_terminal_jobs_in_tx(
+pub(crate) fn reap_terminal_jobs_in_tx(
     tx: &Connection,
     now_ms: u64,
     limit: usize,
@@ -632,7 +630,7 @@ pub struct ExistingIdempotentJob {
     pub rehearsal_provenance_digest: Option<String>,
 }
 
-pub fn find_job_by_scoped_idempotency(
+pub(crate) fn find_job_by_scoped_idempotency(
     conn: &Connection,
     queue: &str,
     action: &str,
@@ -704,7 +702,7 @@ pub fn idempotency_key_reused(queue: &str, action: &str, idempotency_key: &str) 
 /// byte-identical intents get a typed raced code (a retry converges on the
 /// existing job at the handler's execution-time lookup), and divergent reuse
 /// gets the fail-closed reuse code.
-pub fn insert_enqueued_jobs_in_tx(
+pub(crate) fn insert_enqueued_jobs_in_tx(
     tx: &Connection,
     producer: &JobProducer,
     snapshot_version: u64,
@@ -805,7 +803,7 @@ pub fn insert_enqueued_jobs_in_tx(
 ///
 /// The claim runs in ONE transaction — a concurrent drain cannot double-claim
 /// (the exactly-once-per-attempt-fence property the acceptance suite pins).
-pub fn claim_due_jobs_in_tx(
+pub(crate) fn claim_due_jobs_in_tx(
     tx: &Connection,
     now_ms: u64,
     limit: usize,
@@ -1002,7 +1000,7 @@ pub fn claim_due_jobs_in_tx(
 /// succeeded, retry-pending (with the deterministic backoff-plus-jitter
 /// delay), or dead. A stale fence publishes nothing but its own attempt row's
 /// outcome.
-pub fn finish_job_in_tx(
+pub(crate) fn finish_job_in_tx(
     tx: &Connection,
     claim: &ClaimedJob,
     outcome: &JobAttemptOutcome,
@@ -1105,7 +1103,10 @@ pub fn finish_job_in_tx(
     Ok(disposition)
 }
 
-pub fn job_status_row(conn: &Connection, job_id: &str) -> SnapbackResult<Option<JobStatusRow>> {
+pub(crate) fn job_status_row(
+    conn: &Connection,
+    job_id: &str,
+) -> SnapbackResult<Option<JobStatusRow>> {
     let row = conn
         .query_row(
             "SELECT job_id, queue, action, state, available_at_ms, enqueued_at_ms,
@@ -1171,7 +1172,10 @@ pub fn job_status_row(conn: &Connection, job_id: &str) -> SnapbackResult<Option<
     }))
 }
 
-pub fn job_attempts(conn: &Connection, job_id: &str) -> SnapbackResult<Vec<JobAttemptRecord>> {
+pub(crate) fn job_attempts(
+    conn: &Connection,
+    job_id: &str,
+) -> SnapbackResult<Vec<JobAttemptRecord>> {
     let mut statement = conn.prepare(
         "SELECT job_id, attempt, claim_id, fence, claimed_at_ms,
                 lease_expires_at_ms, drive, finished_at_ms, outcome, diagnostic_code
@@ -1197,7 +1201,10 @@ pub fn job_attempts(conn: &Connection, job_id: &str) -> SnapbackResult<Vec<JobAt
     Ok(records)
 }
 
-pub fn list_job_status_rows(conn: &Connection, limit: usize) -> SnapbackResult<Vec<JobStatusRow>> {
+pub(crate) fn list_job_status_rows(
+    conn: &Connection,
+    limit: usize,
+) -> SnapbackResult<Vec<JobStatusRow>> {
     let mut statement = conn.prepare(
         "SELECT job_id FROM _snapback_jobs_v1
           ORDER BY enqueued_at_ms DESC, job_id DESC LIMIT ?1",
@@ -1215,7 +1222,7 @@ pub fn list_job_status_rows(conn: &Connection, limit: usize) -> SnapbackResult<V
     Ok(rows)
 }
 
-pub fn pending_job_count(conn: &Connection) -> SnapbackResult<u64> {
+pub(crate) fn pending_job_count(conn: &Connection) -> SnapbackResult<u64> {
     Ok(conn.query_row(
         "SELECT COUNT(*) FROM _snapback_jobs_v1 WHERE state IN ('pending', 'claimed')",
         [],

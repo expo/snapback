@@ -155,7 +155,7 @@ extends the pattern to durable execution (LLP 0083 §Dynamic Workers). Two
 LLP 0014 platform facts went stale as a result (tracked as ENG-25387).
 
 **Why this is urgent-shaped.** Snapback's current hosted model
-([LLP 0040](./0040-cloudflare-narrow-proof.rfc.md); `targets/cloudflare/`) compiles
+([LLP 0040](./0040-cloudflare-narrow-proof.rfc.md); `cloudflare/`) compiles
 the app bundle into the deployed Workers at deploy time (esbuild alias
 `snapback-app` → `app/<name>.app.js`) across two or three per-app Worker
 services — gateway and handler isolate for the notes proof; All Aboard adds
@@ -182,7 +182,7 @@ boundary to avoid divergent copies.
    follow-up (fold the published Dynamic Workers pricing and a dated GA
    determination into LLP 0014).
 2. **Executing** — the time-boxed spike is LLP 0087 Phase 0 (first local
-   results are in `targets/cloudflare/spike-facets/`; the LLP 0009 isolation
+   results are in `cloudflare/spike-facets/`; the LLP 0009 isolation
    review, real-platform measurements, and facet-migration semantics remain
    open there).
 

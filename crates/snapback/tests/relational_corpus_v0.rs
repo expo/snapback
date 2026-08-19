@@ -23,7 +23,7 @@ use snapback::manifest::{
     HandlerPlan, RelationalQueryPlan, SchemaManifest, SeedData,
 };
 use snapback::rqs::relational_result_encoding_v1;
-use snapback::storage::LocalDatabase;
+use snapback_kernel::storage::LocalDatabase;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 

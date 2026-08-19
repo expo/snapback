@@ -1,6 +1,6 @@
 use super::*;
 use crate::manifest::FunctionDefinition;
-#[cfg(all(test, not(feature = "server-owner")))]
+#[cfg(test)]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::telemetry::CallerAttributionLocalExt as _;
 

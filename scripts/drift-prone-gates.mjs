@@ -352,6 +352,16 @@ export function runPrePush({
   const corroboratedInfrastructureGates = new Set();
   for (const plan of plans) {
     if (plan.gates.length === 0) continue;
+    const ownershipBaselines = plan.gates.includes('module-ownership')
+      ? baselineRevisionsForPlan(root, plan)
+      : null;
+    if (ownershipBaselines?.error) {
+      console.error(
+        `[snapback-drift] module-ownership attribution unavailable: ${ownershipBaselines.error}; `
+          + 'blocking fail-closed',
+      );
+      return 1;
+    }
     announceSelection(plan, context, { strictMode: true });
     const requiredSubmodules = [...new Set(plan.gates.flatMap((gate) => (
       context.policy.driftProneGates[gate].requiredSubmodules ?? []
@@ -366,15 +376,26 @@ export function runPrePush({
           const command = commandForGate(context, gate);
           const gateStarted = performance.now();
           console.log(`[snapback-drift] RUN ${gate}: ${command}`);
-          const gateEnvironment = { ...revisionEnv, ...env };
-          if (infrastructureFailOpen !== '0') {
+          // @ref LLP 0225#5 — ownership failures require the set-based protocol, never Boolean inherited-red fallback.
+          // Ownership receives every push merge-base and makes its own
+          // set-based verdict; a failure must never enter the Boolean
+          // pre-existing-staleness fallback below.
+          const gateEnvironment = gate === 'module-ownership'
+            ? {
+                ...revisionEnv,
+                ...env,
+                SNAPBACK_MODULE_OWNERSHIP_PREDECESSORS: ownershipBaselines.revisions.join(','),
+              }
+            : { ...revisionEnv, ...env };
+          if (gate !== 'module-ownership' && infrastructureFailOpen !== '0') {
             provisionEnvironmentPaths(
               root,
               cwd,
               metadata.requiredEnvironmentPaths ?? [],
             );
           }
-          const closureBeforeExecution = infrastructureFailOpen === '0'
+          const closureBeforeExecution = gate === 'module-ownership'
+            || infrastructureFailOpen === '0'
             ? null
             : observedExecutionClosureDigest({
                 cwd,
@@ -390,7 +411,10 @@ export function runPrePush({
             environmentRoot: root,
             requiredEnvironmentPaths: metadata.requiredEnvironmentPaths,
             requiredModules: metadata.requiredModules,
-            infrastructureClassification: infrastructureFailOpen === '0' ? 'legacy' : 'd3',
+            infrastructureClassification: infrastructureFailOpen === '0'
+              || gate === 'module-ownership'
+              ? 'legacy'
+              : 'd3',
           });
           if (!execution.ok) {
             // @ref LLP 0232#rollout-success-and-rollback — the tripwire restores the
@@ -406,6 +430,11 @@ export function runPrePush({
                   execution,
                 });
                 return 2;
+              }
+              if (gate === 'module-ownership') {
+                writeCapturedOutput(execution, { stripJavaScriptStack: true });
+                printRefusal({ gate, revision: plan.revision, metadata, cwd, command });
+                return 1;
               }
               writeCapturedOutput(execution, { stripJavaScriptStack: true });
               const baseline = baselineRevisionsForPlan(root, plan);
@@ -468,6 +497,24 @@ export function runPrePush({
               });
               preExistingGates.add(gate);
               continue;
+            }
+
+            // @ref LLP 0232#d-3-closed-outcome-classification-and-ticketing — module ownership keeps its set-based
+            // predecessor protocol and never enters generic outcome typing.
+            if (gate === 'module-ownership') {
+              if (execution.infrastructureReason) {
+                writeCapturedOutput(execution);
+                printInfrastructureFailure({
+                  gate,
+                  revision: plan.revision,
+                  command,
+                  execution,
+                });
+                return 2;
+              }
+              writeCapturedOutput(execution, { stripJavaScriptStack: true });
+              printRefusal({ gate, revision: plan.revision, metadata, cwd, command });
+              return 1;
             }
 
             const pushedEvidence = failureEvidence(execution);

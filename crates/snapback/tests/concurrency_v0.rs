@@ -19,7 +19,7 @@ use snapback::manifest::{
     FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, IndexManifest,
     MutationPlan, MutationStep, OrderDirection, OrderExpr, QueryPlan, ReturnValue, SchemaManifest,
-    TableManifest, ValueExpr,
+    TableManifest, TableVisibilityV1, ValueExpr,
 };
 use snapback_server::test_support::axum::body::Body;
 use snapback_server::test_support::axum::http::{Request, StatusCode};
@@ -246,7 +246,6 @@ async fn l7_busy_mutation_does_not_stall_other_endpoints() {
     })
     .await
     .expect("busy mutation must acquire the write lane");
-
     // We observed the writer holding the lane above. The completion-order
     // assertion below is the decisive lane proof and compares the reads to
     // the actual contending writer rather than to host wall-clock speed.
@@ -556,7 +555,6 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     })
     .await
     .expect("busy mutation must acquire the write lane");
-
     let ephemeral_request = |connection: &str| {
         json!({
             "collection": "cursors",
@@ -951,7 +949,7 @@ fn concurrency_schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()

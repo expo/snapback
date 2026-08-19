@@ -1,12 +1,13 @@
 //! Storage-owned derived-fork contracts and durable operations.
 
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use anyhow::Context as _;
-use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params};
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use rusqlite::{Connection, DatabaseName, OpenFlags, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -21,8 +22,134 @@ const QUARANTINE_META_KEY: &str = "instance_fork_quarantine_v1";
 const EGRESS_TABLE: &str = "_snapback_fork_egress_attempts_v1";
 pub const SERVER_EXPIRED_CODE: &str = "SNAPBACK_FORK_SERVER_EXPIRED";
 
+/// Kernel-validated private fork staging target. It is minted only while the
+/// target database is absent beneath a real staging directory carrying the
+/// sentinel, then consumed by kernel-owned clone and mint operations.
+pub struct StagedForkDatabase {
+    staging_directory: PathBuf,
+    database_path: PathBuf,
+    cloned: bool,
+}
+
+/// Read-only fork inspection operations. This wrapper exposes no connection
+/// accessor and no transaction/commit method; services may use it while they
+/// own a read-only replication snapshot.
+pub struct ForkReadView<'a> {
+    conn: &'a Connection,
+}
+
+impl<'a> ForkReadView<'a> {
+    /// Bind typed fork inspection to a connection SQLite itself reports as
+    /// read-only. This is the one audited cross-crate raw-SQL ingress: it can
+    /// project facts, but cannot become a canonical-store commit path.
+    pub fn new(conn: &'a Connection) -> SnapbackResult<Self> {
+        if !conn.is_readonly(DatabaseName::Main)? {
+            return Err(fork_error(
+                "SNAPBACK_FORK_READ_HANDLE_REQUIRED",
+                "fork inspection requires a SQLite read-only connection",
+            ));
+        }
+        Ok(Self { conn })
+    }
+
+    pub fn data_version_stream(&self) -> SnapbackResult<Option<String>> {
+        crate::seed_identity::strict_current_data_version_stream(self.conn)
+    }
+
+    pub fn change_journal_floor(&self) -> SnapbackResult<u64> {
+        crate::storage::change_journal_floor_on(self.conn)
+    }
+
+    pub fn active_schema(&self) -> SnapbackResult<Option<crate::manifest::SchemaManifest>> {
+        crate::storage::active_schema_manifest_from_connection(self.conn)
+    }
+
+    pub fn active_operation_coverage(
+        &self,
+        stream_id: &str,
+    ) -> SnapbackResult<Option<crate::commit_envelope::OperationCoverageManifestV1>> {
+        crate::operation_ledger::active_coverage_manifest(self.conn, stream_id)
+    }
+
+    pub fn operation_coverage_continuity(
+        &self,
+        stream_id: &str,
+    ) -> SnapbackResult<Option<crate::operation_ledger::OperationCoverageContinuityV1>> {
+        crate::operation_ledger::operation_coverage_continuity(self.conn, stream_id)
+    }
+}
+
+impl StagedForkDatabase {
+    pub fn prepare(staging_directory: &Path, database_file: &str) -> SnapbackResult<Self> {
+        if database_file.is_empty()
+            || Path::new(database_file).components().count() != 1
+            || Path::new(database_file)
+                .file_name()
+                .and_then(|v| v.to_str())
+                != Some(database_file)
+        {
+            return Err(fork_error(
+                "SNAPBACK_FORK_PATH_INVALID",
+                "staged fork database must be one direct UTF-8 child",
+            ));
+        }
+        let staging_directory = fs::canonicalize(staging_directory)
+            .map_err(|error| io_error("resolve fork staging directory", error))?;
+        let metadata = fs::symlink_metadata(staging_directory.join(STAGING_SENTINEL))
+            .map_err(|error| io_error("inspect fork staging sentinel", error))?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err(fork_error(
+                "SNAPBACK_FORK_STAGING_INVALID",
+                "fork staging sentinel must be a real direct-child file",
+            ));
+        }
+        let database_path = staging_directory.join(database_file);
+        if database_path.exists() {
+            return Err(fork_error(
+                "SNAPBACK_FORK_STAGING_INVALID",
+                "staged fork database must not exist when its handle is minted",
+            ));
+        }
+        Ok(Self {
+            staging_directory,
+            database_path,
+            cloned: false,
+        })
+    }
+
+    pub fn database_path(&self) -> &Path {
+        &self.database_path
+    }
+
+    fn validate(&self) -> SnapbackResult<()> {
+        let parent = self.database_path.parent().ok_or_else(|| {
+            fork_error(
+                "SNAPBACK_FORK_STAGING_INVALID",
+                "staged database has no parent",
+            )
+        })?;
+        let canonical_parent = fs::canonicalize(parent)
+            .map_err(|error| io_error("revalidate fork staging directory", error))?;
+        if canonical_parent != self.staging_directory {
+            return Err(fork_error(
+                "SNAPBACK_FORK_STAGING_INVALID",
+                "staged fork directory identity changed",
+            ));
+        }
+        let sentinel = fs::symlink_metadata(parent.join(STAGING_SENTINEL))
+            .map_err(|error| io_error("revalidate fork staging sentinel", error))?;
+        if sentinel.file_type().is_symlink() || !sentinel.is_file() {
+            return Err(fork_error(
+                "SNAPBACK_FORK_STAGING_INVALID",
+                "fork staging sentinel is no longer a real file",
+            ));
+        }
+        Ok(())
+    }
+}
+
 pub fn stored_app_id(database: &Path) -> anyhow::Result<String> {
-    let conn = Connection::open(database)?;
+    let conn = open_fork_connection(database)?;
     let stored: Option<String> = conn
         .query_row(
             "SELECT value
@@ -47,7 +174,7 @@ pub fn stored_app_id(database: &Path) -> anyhow::Result<String> {
 }
 
 pub fn source_parent_instance_id(database: &Path) -> anyhow::Result<String> {
-    let conn = Connection::open(database)?;
+    let conn = open_fork_connection(database)?;
     Ok(conn
         .query_row(
             "SELECT value FROM _snapback_meta WHERE key='auth_invalidation_data_version_stream_v1'",
@@ -669,6 +796,279 @@ pub struct ForkMintReceiptV1 {
     pub custody: BTreeMap<String, CustodyDisposition>,
 }
 
+fn custody_map() -> BTreeMap<&'static str, CustodyDisposition> {
+    TABLE_CUSTODY
+        .iter()
+        .map(|rule| (rule.name, rule.disposition))
+        .collect()
+}
+
+fn audit_connection(conn: &Connection) -> SnapbackResult<Vec<(String, CustodyDisposition)>> {
+    let manifest = custody_map();
+    let mut statement = conn.prepare(
+        "SELECT name FROM sqlite_schema
+         WHERE type = 'table'
+           AND (name GLOB '_snapback_*' OR name GLOB '_auth_*')
+         ORDER BY name",
+    )?;
+    let names = statement
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut classified = Vec::with_capacity(names.len());
+    for name in names {
+        let Some(disposition) = manifest.get(name.as_str()).copied() else {
+            return Err(fork_error(
+                "SNAPBACK_FORK_CUSTODY_UNCLASSIFIED",
+                "a Snapback-owned table has no declared fork custody",
+            )
+            .with_details(json!({ "table": name })));
+        };
+        if disposition == CustodyDisposition::Refuse {
+            let sql = format!(
+                "SELECT EXISTS(SELECT 1 FROM \"{}\" LIMIT 1)",
+                name.replace('"', "\"\"")
+            );
+            let occupied: bool = conn.query_row(&sql, [], |row| row.get(0))?;
+            if occupied {
+                return Err(fork_error(
+                    "SNAPBACK_FORK_CUSTODY_REFUSED",
+                    "source state belongs to a fork-incompatible subsystem",
+                )
+                .with_details(json!({ "table": name })));
+            }
+        }
+        classified.push((name, disposition));
+    }
+    Ok(classified)
+}
+
+pub fn clone_database_into_staging(
+    source_database: &Path,
+    staged: &mut StagedForkDatabase,
+) -> SnapbackResult<()> {
+    staged.validate()?;
+    if staged.cloned || staged.database_path.exists() {
+        return Err(fork_error(
+            "SNAPBACK_FORK_STAGING_INVALID",
+            "staged fork database clone is one-shot",
+        ));
+    }
+    let source =
+        open_fork_connection_with_flags(source_database, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    audit_connection(&source)?;
+    let mut target = open_fork_connection(&staged.database_path)?;
+    {
+        let backup = rusqlite::backup::Backup::new(&source, &mut target)?;
+        backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
+    }
+    drop(target);
+    staged.cloned = true;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn scrub_and_mint_staged_database(
+    staged: &StagedForkDatabase,
+    app_id: &str,
+    parent_instance_id: &str,
+    now_ms: u64,
+    with_secrets: bool,
+    expires_at_ms: Option<u64>,
+) -> SnapbackResult<ForkMintReceiptV1> {
+    staged.validate()?;
+    if !staged.cloned || !staged.database_path.is_file() {
+        return Err(fork_error(
+            "SNAPBACK_FORK_STAGING_INVALID",
+            "fork mint requires the exact kernel-cloned staged database",
+        ));
+    }
+    let mut conn = open_fork_connection(&staged.database_path)?;
+    let classified = audit_connection(&conn)?;
+    let fork_point_version = conn.query_row(
+        "SELECT version FROM _snapback_version WHERE id=1",
+        [],
+        |row| row.get::<_, u64>(0),
+    )?;
+    if conn
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key=?1",
+            [LINEAGE_META_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+        .is_some()
+    {
+        return Err(fork_error(
+            "SNAPBACK_FORK_NESTED_REFUSED",
+            "v1 does not fork an already-derived deployment",
+        ));
+    }
+    let lineage = DerivedForkLineageV1 {
+        format_version: 1,
+        fork_id: uuid::Uuid::now_v7().to_string(),
+        parent_instance_id: parent_instance_id.to_owned(),
+        app_id: app_id.to_owned(),
+        created_at_ms: now_ms,
+        fork_point_version,
+        expires_at_ms,
+        promotable: false,
+    };
+    let database_file = staged
+        .database_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| {
+            fork_error(
+                "SNAPBACK_FORK_PATH_INVALID",
+                "fork database needs a UTF-8 file name",
+            )
+        })?
+        .to_owned();
+    let mut custody = classified.into_iter().collect::<BTreeMap<_, _>>();
+    custody.extend(
+        SIDECAR_CUSTODY
+            .iter()
+            .map(|rule| (format!("sidecar:{}", rule.name), rule.disposition)),
+    );
+    if with_secrets {
+        custody.insert("sidecar:*.config.json".to_owned(), CustodyDisposition::Copy);
+    }
+    let tx = conn.transaction()?;
+    let quarantine = serde_json::to_string(&lineage)
+        .map_err(|error| fork_error("SNAPBACK_FORK_LINEAGE_INVALID", error.to_string()))?;
+    tx.execute(
+        "INSERT INTO _snapback_meta(key,value) VALUES(?1,?2)",
+        params![QUARANTINE_META_KEY, quarantine],
+    )?;
+    for rule in TABLE_CUSTODY {
+        if rule.disposition == CustodyDisposition::Scrub && table_exists(&tx, rule.name)? {
+            delete_table(&tx, rule.name)?;
+        }
+    }
+    rotate_protected_erasure_generation(&tx)?;
+    if table_exists(&tx, "_snapback_record_history_v1")? {
+        tx.execute(
+            "UPDATE _snapback_record_history_v1 SET operation_id=NULL WHERE operation_id IS NOT NULL",
+            [],
+        )?;
+    }
+    let authorization = crate::storage::auth_stream::rotate_authorization_version_in(&tx)?;
+    crate::storage::auth_invalidation::clear_retry_episodes_in(&tx)?;
+    let data_version_stream =
+        crate::storage::auth_invalidation::rotate_data_version_stream_in(&tx)?;
+    if table_exists(&tx, "_snapback_asset_signing_keys_v1")? {
+        crate::assets::rotate_signing_key(&tx, now_ms)?;
+    }
+    tx.execute(
+        "CREATE TABLE IF NOT EXISTS _snapback_fork_egress_attempts_v1 (
+           family TEXT PRIMARY KEY,
+           attempts INTEGER NOT NULL CHECK(attempts >= 1),
+           first_attempt_at_ms INTEGER NOT NULL,
+           last_attempt_at_ms INTEGER NOT NULL
+         )",
+        [],
+    )?;
+    let lineage_json = serde_json::to_string(&lineage)
+        .map_err(|error| fork_error("SNAPBACK_FORK_LINEAGE_INVALID", error.to_string()))?;
+    tx.execute(
+        "DELETE FROM _snapback_meta WHERE key=?1",
+        [QUARANTINE_META_KEY],
+    )?;
+    tx.execute(
+        "INSERT INTO _snapback_meta(key,value) VALUES(?1,?2)",
+        params![LINEAGE_META_KEY, lineage_json],
+    )?;
+    tx.commit()?;
+    checkpoint_when_fork_owns_wal(&conn)?;
+    Ok(ForkMintReceiptV1 {
+        format_version: 1,
+        lineage,
+        database_file,
+        authorization_stream_incarnation: authorization.incarnation,
+        data_version_stream,
+        custody,
+    })
+}
+
+pub fn retain_staged_base_snapshot(
+    staged: &StagedForkDatabase,
+    base_file: &str,
+) -> SnapbackResult<PathBuf> {
+    staged.validate()?;
+    if !staged.cloned || Path::new(base_file).components().count() != 1 {
+        return Err(fork_error(
+            "SNAPBACK_FORK_STAGING_INVALID",
+            "retained base must be one direct child of a cloned staging directory",
+        ));
+    }
+    let base_path = staged.staging_directory.join(base_file);
+    if base_path.exists() {
+        return Err(fork_error(
+            "SNAPBACK_FORK_STAGING_INVALID",
+            "retained base snapshot target already exists",
+        ));
+    }
+    let source =
+        open_fork_connection_with_flags(&staged.database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let mut target = open_fork_connection(&base_path)?;
+    {
+        let backup = rusqlite::backup::Backup::new(&source, &mut target)?;
+        backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
+    }
+    Ok(base_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn custody_sweep_fails_for_unknown_owned_table() {
+        let conn = Connection::open_in_memory().expect("memory database");
+        conn.execute("CREATE TABLE _snapback_future_authority(id TEXT)", [])
+            .expect("create unknown authority table");
+        let error = audit_connection(&conn).expect_err("unknown table must fail closed");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_CUSTODY_UNCLASSIFIED");
+        assert_eq!(
+            error.diagnostic.details["table"],
+            "_snapback_future_authority"
+        );
+    }
+
+    #[test]
+    fn fresh_runtime_schema_is_fully_classified() {
+        let directory = tempfile::tempdir().expect("fork custody tempdir");
+        let path = directory.path().join("app.sqlite3");
+        drop(crate::storage::LocalDatabase::open(&path).expect("create runtime database"));
+        let conn = Connection::open(path).expect("open runtime schema");
+        let classified = audit_connection(&conn).expect("classify runtime schema");
+        assert!(!classified.is_empty());
+        assert_eq!(
+            TABLE_CUSTODY
+                .iter()
+                .map(|rule| rule.name)
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            TABLE_CUSTODY.len(),
+            "table custody entries are unique"
+        );
+        assert_eq!(SIDECAR_CUSTODY.len(), 10);
+        assert!(SIDECAR_CUSTODY.iter().any(|rule| {
+            rule.name == "*.operation-detail-keyring.json"
+                && rule.disposition == CustodyDisposition::Rotate
+        }));
+        assert_eq!(
+            SIDECAR_CUSTODY
+                .iter()
+                .map(|rule| rule.name)
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            SIDECAR_CUSTODY.len(),
+            "sidecar custody conventions are unique"
+        );
+    }
+}
+
 fn fork_error(code: &'static str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(code, "instanceFork", message)
 }
@@ -701,13 +1101,34 @@ pub fn server_expired_error(lineage: &DerivedForkLineageV1, observed_at_ms: u64)
     }))
 }
 
-fn open_fork_connection_with_flags(path: &Path, flags: OpenFlags) -> SnapbackResult<Connection> {
-    let conn = Connection::open_with_flags(path, flags)?;
+// @ref LLP 0188#2-integration-point-the-whole-instance-database — persistent
+// WAL is connection-local, so every kernel fork backup, scrub, and lifecycle
+// handle preserves the replication owner's journal before touching SQLite.
+fn configure_fork_connection_wal_lifetime(conn: &Connection) -> SnapbackResult<()> {
     if crate::replication::configured_from_env() {
-        crate::replication::configure_connection_wal_lifetime(&conn)?;
+        crate::replication::configure_connection_wal_lifetime(conn)?;
         conn.execute_batch("PRAGMA wal_autocheckpoint = 0;")?;
     }
+    Ok(())
+}
+
+fn open_fork_connection(path: &Path) -> SnapbackResult<Connection> {
+    let conn = Connection::open(path)?;
+    configure_fork_connection_wal_lifetime(&conn)?;
     Ok(conn)
+}
+
+fn open_fork_connection_with_flags(path: &Path, flags: OpenFlags) -> SnapbackResult<Connection> {
+    let conn = Connection::open_with_flags(path, flags)?;
+    configure_fork_connection_wal_lifetime(&conn)?;
+    Ok(conn)
+}
+
+fn checkpoint_when_fork_owns_wal(conn: &Connection) -> SnapbackResult<()> {
+    if !crate::replication::configured_from_env() {
+        conn.execute_batch("PRAGMA wal_checkpoint(FULL);")?;
+    }
+    Ok(())
 }
 
 fn table_exists(conn: &Connection, name: &str) -> SnapbackResult<bool> {
@@ -740,7 +1161,9 @@ fn rotate_protected_erasure_generation(tx: &Transaction<'_>) -> SnapbackResult<(
 }
 
 /// Remove copied bearer and operation authority from an in-app branch head.
-pub fn scrub_copied_authority_for_in_app_branch(conn: &mut Connection) -> SnapbackResult<()> {
+pub(crate) fn scrub_copied_authority_for_in_app_branch(
+    conn: &mut Connection,
+) -> SnapbackResult<()> {
     let tx = conn.transaction()?;
     for rule in TABLE_CUSTODY {
         if rule.disposition == CustodyDisposition::Scrub && table_exists(&tx, rule.name)? {

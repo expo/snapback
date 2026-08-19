@@ -161,6 +161,9 @@
     }
     try { trustedFreeze(value); } catch (_) {}
   }
+  function snapbackParseInvocation(payload) {
+    return trustedReflectApply(trustedJsonParse, null, [payload]);
+  }
   // The deterministic Ibex ambient layer has already installed a sealed deny
   // function in this slot; replacing it would both weaken that boundary and
   // collide with Ibex's lazy ambient installer. Egress-action fetch is the
@@ -1812,5 +1815,6 @@
     }
   };
   installTrustedFunction("__snapbackInvoke", snapbackInvoke);
+  installTrustedFunction("__snapbackParseInvocation", snapbackParseInvocation);
   installTrustedFunction("__snapbackSettle", snapbackSettle);
 })(globalThis);

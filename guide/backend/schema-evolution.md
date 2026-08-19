@@ -4,7 +4,7 @@ id: backend.schema-evolution
 order: 29
 audience: agent-first
 capabilities: [backend.schema-evolution]
-authorities: [llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, llp/0160-ideal-migration-experience.rfc.md, crates/snapback-types/src/auth/mode.rs, crates/snapback-cli/src/cli.rs, crates/snapback-kernel/src/storage.rs, packages/snapback-cli/index.mjs]
+authorities: [llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, llp/0160-ideal-migration-experience.rfc.md, crates/snapback/src/auth/mode.rs, crates/snapback-cli/src/cli.rs, crates/snapback-kernel/src/storage.rs, packages/snapback-cli/index.mjs]
 examples: [packages/snapback-cli/sessions-dev-loop.test.mjs, crates/snapback-cli/src/cli/tests.rs, crates/snapback-kernel/src/storage/tests.rs]
 status: current
 targets: [local]

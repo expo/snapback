@@ -333,8 +333,7 @@ pub fn decode_and_verify_sealed_standard_pattern_cursor(
 
 /// Version identifier for the pinned relational result-byte encoding.
 pub use snapback_kernel::rqs::{
-    RELATIONAL_RESULT_ENCODING_VERSION, RelationalEncodingRefusal,
-    relational_result_encoding_v1,
+    RELATIONAL_RESULT_ENCODING_VERSION, RelationalEncodingRefusal, relational_result_encoding_v1,
 };
 
 /// The committed `schemas/relational.result-encoding-v1.json` artifact:
@@ -1203,10 +1202,7 @@ impl ResumeKeyring {
     /// @ref LLP 0157#sbsb2-plaintext-and-budget — `sbsb2` is a separate
     ///   purpose domain with the same bounded verification overlap as `sbsb1`.
     #[cfg_attr(not(test), allow(dead_code))] // Consumed by the v2 executor lane.
-    pub fn snapshot_batch_cursor_v2_materials(
-        &self,
-        now_ms: u64,
-    ) -> Vec<(String, [u8; 32])> {
+    pub fn snapshot_batch_cursor_v2_materials(&self, now_ms: u64) -> Vec<(String, [u8; 32])> {
         let mut keys = self
             .keys
             .iter()

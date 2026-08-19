@@ -95,7 +95,7 @@ flow drivable end-to-end by an agent through MCP instead of a browser.
 >
 > **Cloudflare `deploy-time-binding` backend as-built (2026-07-07, hardened
 > 2026-07-12 under ENG-24344/24362/24363/24366):** the first hosted backend class landed on
-> the LLP 0040/0049 proof target (`targets/cloudflare/src/coordinator.js`). Values
+> the LLP 0040/0049 proof target (`cloudflare/src/coordinator.js`). Values
 > live in gateway-Worker secret bindings under mechanical app-scoped names
 > (`SNAPBACK_SECRET_ALL_ABOARD_CALTRAIN_FEED`), one JSON-array secret per
 > pooled entry with the rotation cursor durable coordinator-side and applied
@@ -108,14 +108,14 @@ flow drivable end-to-end by an agent through MCP instead of a browser.
 > only at the coordinator's host-fetch boundary (LLP 0049 §Action Egress,
 > Phase 2). Handles are immutable, and the host resolves ids only through the
 > current function's private capability map. `config.set` is the guided controller flow
-> (`targets/cloudflare/config-set.mjs`): one `wrangler secret bulk` activation
+> (`cloudflare/config-set.mjs`): one `wrangler secret bulk` activation
 > carrying the changed entries plus the bumped `SNAPBACK_CONFIG_GENERATION`
 > secret-binding stamp. Secret material enters as one validated JSON object on
 > stdin, never argv; full `/config/status` requires the admin token. `applied`
 > is **attested** by observing both generation ≥ staged and every requested
 > declaration's set/member-count state (D7); an entry write with no
 > generation-bearing activation stays `pending` — asserted by
-> `targets/cloudflare/test/acceptance.secrets.mjs` (16 checks), which also pins
+> `cloudflare/test/acceptance.secrets.mjs` (16 checks), which also pins
 > reset-preserves-secrets, action-only grants, and no-key-material-on-any-
 > surface.
 

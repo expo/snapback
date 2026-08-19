@@ -109,9 +109,7 @@ impl StagedMediaProjectionProofV1 {
     /// The authoritative boundary takes ownership of the proof and consumes
     /// its occurrences once. Cancellation or a same-id winner drops the sole
     /// owner, so retry must execute again and mint a fresh invocation nonce.
-    pub fn consume_occurrences(
-        self,
-    ) -> SnapbackResult<Vec<MediaProjectionProofOccurrenceV1>> {
+    pub fn consume_occurrences(self) -> SnapbackResult<Vec<MediaProjectionProofOccurrenceV1>> {
         Ok(self.occurrences)
     }
 }

@@ -79,7 +79,8 @@ use snapback::manifest::{
     ConfigEntryDefinition, CronJobDefinition, CronSchedule, FunctionManifest, HandlerInput,
     MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationPlan, MutationRequest,
     REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
-    SchemaManifestValidationExt as _, SettlementLane, SourceSpan, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    SchemaManifestValidationExt as _, SettlementLane, SourceSpan,
+    TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
 use snapback::result_transform::{
     RESULT_TRANSFORM_V1_CASE_SCHEMA_FILE, RESULT_TRANSFORM_V1_CORPUS,
@@ -94,13 +95,14 @@ use snapback::runtime::{
 };
 use snapback::schema_export::{
     EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS, SchemaArtifact, artifact_instances, artifact_schemas,
+    http_routes_artifact,
 };
 use snapback::service_profile::{
     PublishedArtifactRef, RemoteAuthCapabilityManifest, RemoteCredentialPolicy,
     RemoteDataCapabilityManifest, RemoteEndpointPolicy, RemoteServiceDataTierIdentity,
     RemoteServiceGitPublication, RemoteServiceOperation, RemoteServiceProfile,
 };
-use snapback::storage::{ClientMutationRetentionInfo, StorageInfo};
+use snapback_kernel::storage::{ClientMutationRetentionInfo, StorageInfo};
 
 fn retention_info() -> ClientMutationRetentionInfo {
     ClientMutationRetentionInfo {
@@ -111,6 +113,21 @@ fn retention_info() -> ClientMutationRetentionInfo {
         max_bytes: 67_108_864,
         max_result_bytes: 65_536,
     }
+}
+
+#[test]
+fn external_run_schema_join_is_intentionally_null_until_executor_promotion() {
+    let artifact = http_routes_artifact();
+    let rows = artifact["routes"]
+        .as_array()
+        .expect("HTTP route/schema join rows");
+    let matching = rows
+        .iter()
+        .filter(|row| row["method"] == "POST" && row["path"] == "/api/v1/run")
+        .collect::<Vec<_>>();
+    assert_eq!(matching.len(), 1, "registered run route has one schema row");
+    assert_eq!(matching[0]["inputSchema"], Value::Null);
+    assert_eq!(matching[0]["outputSchema"], Value::Null);
 }
 
 fn representative_authentication_throttle_config() -> SharedAuthenticationThrottleConfig {
@@ -1000,9 +1017,10 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
             "authorizedLease": oversized_lease_query_instance
         }),
     );
-    let completeness_fixture: Value =
-        serde_json::from_str(include_str!("../../../tests/conformance/completeness-proof-v1.json"))
-            .expect("parse completeness proof fixture");
+    let completeness_fixture: Value = serde_json::from_str(include_str!(
+        "../../../tests/conformance/completeness-proof-v1.json"
+    ))
+    .expect("parse completeness proof fixture");
     assert_validates(
         "authorized-lease.query.output.schema.json",
         &json!({
@@ -2320,7 +2338,7 @@ fn dk7_representative_values_validate_against_committed_schemas() {
             schema: DataTierCaseSchema { tables: Vec::new() },
             seed: Default::default(),
             plan: MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: Vec::new(),
                 return_value: None,
             },
@@ -2846,7 +2864,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         ConnectionGrant, ErrorResponse, ErrorResponseFormatVersion, MutationResponse,
         OpenConnectionRequest,
     };
-    use snapback::storage::SequenceAllocationFact;
+    use snapback_kernel::storage::SequenceAllocationFact;
 
     for envelope in [
         LiveEnvelope::LiveReplace {
@@ -3533,7 +3551,7 @@ fn dk7_committed_demo_manifests_parse_through_runtime_structs() {
 /// in-band request grammar. The REAL produced bytes are additionally proven
 /// against the same schemas by the local twin capture test
 /// (`tests/workerd_twin_v0.rs`) and the hosted capture suite
-/// (`targets/cloudflare/test/wire-schema-gate.mjs`); these fixtures pin the accept /
+/// (`cloudflare/test/wire-schema-gate.mjs`); these fixtures pin the accept /
 /// reject envelope of each family.
 #[test]
 fn handler_marker_envelope_schemas_accept_served_shapes_and_reject_extensions() {
@@ -3632,7 +3650,7 @@ fn handler_marker_envelope_schemas_accept_served_shapes_and_reject_extensions() 
 
 /// The kit-socket in-band request grammar (LLP 0094 §0A.1 WS-kinds row): the
 /// schema's verdicts mirror `validateLiveSocketFrame` (`coordinator.js`);
-/// `targets/cloudflare/test/wire-schema-gate.mjs` proves the same corpus against the
+/// `cloudflare/test/wire-schema-gate.mjs` proves the same corpus against the
 /// served validator.
 #[test]
 fn kit_socket_request_schema_matches_the_served_validator_grammar() {
@@ -3840,9 +3858,10 @@ fn gap_row_schemas_accept_representative_values() {
         "dryRun": false
     });
     assert_validates("query.output.schema.json", &attributed);
-    let completeness_fixture: Value =
-        serde_json::from_str(include_str!("../../../tests/conformance/completeness-proof-v1.json"))
-            .expect("parse completeness proof fixture");
+    let completeness_fixture: Value = serde_json::from_str(include_str!(
+        "../../../tests/conformance/completeness-proof-v1.json"
+    ))
+    .expect("parse completeness proof fixture");
     let finite_carrier = json!({
         "version": 43,
         "rows": [{ "_id": "r1", "n": 1 }],

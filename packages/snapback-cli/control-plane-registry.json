@@ -23,6 +23,26 @@
     },
     {
       "method": "POST",
+      "path": "/_snapback/api/auth/password/attempt",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/auth/password/unlock",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "POST",
       "path": "/_snapback/api/auth/integrations/{id}/retire",
       "class": "SystemApi",
       "pathPolicy": "AdminWrite",
@@ -524,6 +544,16 @@
     {
       "method": "GET",
       "path": "/_snapback/api/inspect",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "SensitiveApplicationData"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/authority/effective",
       "class": "SystemApi",
       "pathPolicy": "AdminWrite",
       "credentialResolution": "AdminCredential",

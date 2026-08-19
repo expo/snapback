@@ -48,9 +48,13 @@ const PROOF_RUNNER = join(ROOT, 'scripts', 'lib', 'proof-runner.sh');
 const IMPLEMENTATION_FILES = [
   '.githooks/pre-push',
   'issues/closed/20260811-record-inventory-guide.md',
-  'crates/allowed-dependencies.v1.json',
+  'issues/20260809-0199-ownership-ratchet-worklist.md',
+  'issues/20260810-main-module-ownership-red-jobs-edges.md',
+  'issues/closed/20260810-main-module-ownership-red-rehearsal-edges.md',
+  'ownership.baseline.json',
+  'ownership.manifest.json',
+  'scripts/check-module-ownership.mjs',
   'scripts/check-path-migration-stragglers.mjs',
-  'scripts/check-workspace-graph.mjs',
   'scripts/drift-prone-gates.mjs',
   'scripts/check-contract-meta.mjs',
   'scripts/check-contract-meta.test.mjs',
@@ -63,7 +67,6 @@ const IMPLEMENTATION_FILES = [
   'scripts/verify-local-proof',
   'tests/agent_safe_publication_checker_v1.mjs',
   'tests/drift_prone_gates_v0.mjs',
-  'tests/workspace_graph_v1.mjs',
 ];
 const GUIDE_PREPARED_INPUTS = [
   'demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json',
@@ -221,6 +224,17 @@ function setupCommittedClone() {
   const baselineGuide = run(repo, process.execPath, ['scripts/generate-guide-manifest.mjs']);
   assert.equal(baselineGuide.status, 0, baselineGuide.output);
   installGuideDriftFixtureChecker(repo);
+  // This disposable repository tests changes *after* a coherent baseline.
+  // Normalize ratcheted ownership edges to the cloned source just as the
+  // Guide generator above normalizes its manifest/symbol-registry closure;
+  // otherwise unrelated pre-existing drift changes the fixture's expected
+  // PASS into ALLOWED-WITH-PRE-EXISTING-STALENESS.
+  const baselineOwnership = run(
+    repo,
+    process.execPath,
+    ['scripts/check-module-ownership.mjs', '--update-baseline'],
+  );
+  assert.equal(baselineOwnership.status, 0, baselineOwnership.output);
   commitAll(repo, 'test: install drift enforcement under committed state');
   git(ROOT, ['init', '--bare', '--quiet', remote]);
   git(repo, ['remote', 'rename', 'origin', 'source']);
@@ -676,7 +690,7 @@ test('drift selection preserves mapped triggers and tiers fail-closed paths', ()
   ));
   assert.deepEqual(
     context.policy.driftAlwaysRunGates,
-    ['path-migration-stragglers', 'workspace-graph'],
+    ['module-ownership', 'path-migration-stragglers'],
   );
   assert.ok(context.policy.driftFailClosedCoreGates.length > 0);
   for (const gate of context.policy.driftFailClosedCoreGates) {
@@ -684,12 +698,12 @@ test('drift selection preserves mapped triggers and tiers fail-closed paths', ()
   }
   assert.deepEqual(
     selectDriftProneGates(['README.md'], context).selectedDriftProneGates,
-    ['path-migration-stragglers', 'workspace-graph'],
+    ['module-ownership', 'path-migration-stragglers'],
   );
   const mapped = selectDriftProneGates(['guide/index.md'], context);
   assert.deepEqual(
     mapped.selectedDriftProneGates,
-    ['guide', 'path-migration-stragglers', 'workspace-graph'],
+    ['guide', 'module-ownership', 'path-migration-stragglers'],
   );
   assert.equal(mapped.driftFailClosedDisposition, null);
   const guideTriggerFiles = [
@@ -711,13 +725,13 @@ test('drift selection preserves mapped triggers and tiers fail-closed paths', ()
     selectDriftProneGates([
       'tests/agent_safe_publication_checker_v1.mjs',
     ], context).selectedDriftProneGates,
-    ['agent-safe-publication-fixtures', 'path-migration-stragglers', 'workspace-graph'],
+    ['agent-safe-publication-fixtures', 'module-ownership', 'path-migration-stragglers'],
   );
   assert.deepEqual(
     selectDriftProneGates([
       'diaries/0001-todo-demo.diary.md',
     ], context).selectedDriftProneGates,
-    ['diary-identity', 'path-migration-stragglers', 'workspace-graph'],
+    ['diary-identity', 'module-ownership', 'path-migration-stragglers'],
   );
   const unknown = selectDriftProneGates(['unclassified-drift-probe.xyz'], context);
   assert.equal(unknown.selectionClass, 'FAIL_CLOSED_FULL');
@@ -1187,6 +1201,22 @@ test('infrastructure kill-switch restores the old attribution loop without ticke
   assert.match(runs[0].output, /PRE-EXISTING STALE guide/u);
   assert.doesNotMatch(runs[0].output, /DETERMINISM CHECK|TICKET REQUEST/u);
   assert.deepEqual(outcomeLines(runs[0].output), []);
+  assert.deepEqual(requests, []);
+});
+
+test('module-ownership retains the broad prepare-failure infrastructure path', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'content:transient ownership prepare failure', check: 'pass' },
+    gateId: 'module-ownership',
+  });
+  assert.equal(runs[0].status, 2, runs[0].output);
+  assert.match(
+    runs[0].output,
+    /INFRASTRUCTURE ERROR: .* could not faithfully run module-ownership/u,
+  );
+  assert.match(runs[0].output, /infrastructure reason: prepare command failed/u);
+  assert.doesNotMatch(runs[0].output, /ATTRIBUTION CHECK|DETERMINISM CHECK|OUTCOME /u);
   assert.deepEqual(requests, []);
 });
 
@@ -1695,6 +1725,37 @@ test('diary identity backstop files one ticket for a new collision', { timeout: 
   }
 });
 
+test('ownership protocol failures never use Boolean inherited-red attribution', { timeout: 60_000 }, () => {
+  const { scratch, repo } = setupCommittedClone();
+  try {
+    // @ref LLP 0225#5 — the hook must refuse ownership failures without Boolean inherited-red attribution.
+    // Ownership owns its set/unassigned verdict; the generic runner must
+    // block that verdict instead of relabeling it as a Boolean inherited red.
+    const manifest = JSON.parse(readFileSync(join(repo, 'ownership.manifest.json'), 'utf8'));
+    manifest.modulesByOwner['shared-contract-types-leaf'] = manifest
+      .modulesByOwner['shared-contract-types-leaf']
+      .filter((path) => path !== 'src/api_envelope.rs');
+    manifest.modulesByOwner.unassigned = [
+      ...manifest.modulesByOwner.unassigned,
+      'src/api_envelope.rs',
+    ].sort();
+    writeFileSync(
+      join(repo, 'ownership.manifest.json'),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+    );
+    commitAll(repo, 'test: ownership protocol failure is never Boolean-attributed');
+    const result = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], {
+      env: { ...process.env, SNAPBACK_DRIFT_GATES_STRICT: '1' },
+    });
+    assert.equal(result.status, 1, result.output);
+    assert.match(result.output, /legacy unassigned bucket is shrink-only/u);
+    assert.match(result.output, /failed drift-prone gate module-ownership/u);
+    assert.doesNotMatch(result.output, /PRE-EXISTING STALE module-ownership/u);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('optimistic hook, strict mode, and main backstop operate on committed pushes', { timeout: 180_000 }, () => {
   const { scratch, repo } = setupCommittedClone();
   const env = {
@@ -1722,7 +1783,7 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
     assert.equal(deferred.status, 0, deferred.output);
     assert.match(
       deferred.output,
-      /DEFERRED BY DEFAULT: .* no gate commands ran: agent-safe-publication-fixtures, workspace-graph/u,
+      /DEFERRED BY DEFAULT: .* no gate commands ran: agent-safe-publication-fixtures, module-ownership/u,
     );
     assert.doesNotMatch(deferred.output, /dependency mirror cache|\[snapback-drift\] RUN /u);
     console.log(
@@ -1743,7 +1804,7 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
     );
     assert.equal(strict.status, 0, strict.output);
     assert.match(strict.output, /RUN agent-safe-publication-fixtures:/u);
-    assert.match(strict.output, /RUN workspace-graph:/u);
+    assert.match(strict.output, /RUN module-ownership:/u);
     assert.match(strict.output, /PASS agent-safe-publication-fixtures/u);
     assert.match(strict.output, /ALLOWED: 2 selected drift-prone gate\(s\) passed/u);
     console.log(
@@ -1803,10 +1864,10 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
     commitAll(repo, 'test: committed unmeasured path');
     const fast = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
     assert.equal(fast.status, 0, fast.output);
-    assert.match(fast.output, /selected 1 gate\(s\): workspace-graph/u);
-    assert.match(fast.output, /DEFERRED BY DEFAULT: .* no gate commands ran: workspace-graph/u);
-    assert.doesNotMatch(fast.output, /RUN workspace-graph|PASS workspace-graph/u);
-    console.log(`DEMO (c) committed docs-only path -> workspace graph selected and deferred\n${relevantLines(fast.output)}`);
+    assert.match(fast.output, /selected 1 gate\(s\): module-ownership/u);
+    assert.match(fast.output, /DEFERRED BY DEFAULT: .* no gate commands ran: module-ownership/u);
+    assert.doesNotMatch(fast.output, /RUN module-ownership|PASS module-ownership/u);
+    console.log(`DEMO (c) committed docs-only path -> ownership selected and deferred\n${relevantLines(fast.output)}`);
 
     const noOp = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
     assert.equal(noOp.status, 0, noOp.output);
@@ -1822,7 +1883,7 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
     assert.match(bypass.output, /COMPATIBILITY BYPASS: ordinary pushes already defer/u);
     assert.match(
       bypass.output,
-      /BYPASS ALLOWED: skipped 2 selected gate\(s\): guide, workspace-graph/u,
+      /BYPASS ALLOWED: skipped 2 selected gate\(s\): guide, module-ownership/u,
     );
     console.log(`DEMO (d) explicit bypass -> allowed and loud\n${relevantLines(bypass.output)}`);
 

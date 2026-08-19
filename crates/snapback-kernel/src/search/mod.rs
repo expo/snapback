@@ -23,7 +23,7 @@ pub mod unicode17_generated;
 
 pub use ast::{canonicalize_query, validate_query};
 pub use parser::parse_search_query;
-pub use sqlite::{maintain_search_indexes_in_tx, query_search_on};
+pub(crate) use sqlite::{maintain_search_indexes_in_tx, query_search_on};
 pub use types::*;
 
 pub fn local_full_text_search_facts_v1() -> FullTextSearchFactsV1 {

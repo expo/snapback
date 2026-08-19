@@ -38,7 +38,7 @@
     },
     {
       "claim": "shared authored ctx.fetchStream surface on the Workerd target",
-      "artifact": "targets/cloudflare/test/acceptance.egress.mjs",
+      "artifact": "cloudflare/test/acceptance.egress.mjs",
       "status": "passed-21-of-21"
     },
     {

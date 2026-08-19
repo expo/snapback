@@ -258,8 +258,8 @@ pub fn apply_declared_restore_plan<'a>(
     declaration_path: &'a Path,
     supplied_declaration_id: &'a str,
     now_ms: u64,
-) -> impl crate::auth::database_plan::AuthDatabasePlan<Output = SnapbackResult<DeclaredRestoreOutcome>> + 'a
-{
+) -> impl crate::auth::database_plan::AuthDatabasePlan<Output = SnapbackResult<DeclaredRestoreOutcome>>
++ 'a {
     crate::auth::database_plan::plan(move |database| {
         apply_declared_restore(
             database,

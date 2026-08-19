@@ -114,7 +114,7 @@ pub fn manifest_enabled(manifest: &SchemaManifest) -> bool {
 ///
 /// @ref LLP 0071#bounded-pre-auth-ledger — pre-authentication attribution
 /// exists only behind the declared external surface and remains exact/bounded.
-pub fn activate_manifest_in(
+pub(crate) fn activate_manifest_in(
     tx: &Transaction<'_>,
     manifest: &SchemaManifest,
 ) -> SnapbackResult<()> {
@@ -340,10 +340,7 @@ impl LocalDatabase {
         })
     }
 
-    pub fn mark_declared_client_refusal(
-        &mut self,
-        normalized_id: &str,
-    ) -> SnapbackResult<()> {
+    pub fn mark_declared_client_refusal(&mut self, normalized_id: &str) -> SnapbackResult<()> {
         if !table_exists(&self.conn)? {
             return Ok(());
         }

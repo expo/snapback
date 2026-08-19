@@ -150,10 +150,10 @@ LLP 0042 carry the same two gates in their amendment text
 - The Cloudflare Workers target is far behind: its committed capability
   manifest declares `supportedAuthModes: ["dev"]` and the honest all-
   `unavailable` `hostedAuth` tuple
-  (`targets/cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json:8-16`,
+  (`cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json:8-16`,
   `:121-127`), and its gateway serves no `/api/v1`, `/mcp`, or facade
   routes at all (route inventory:
-  `targets/cloudflare/hosted-adapter-manifest.json`, `targets/cloudflare/src/gateway.js`).
+  `cloudflare/hosted-adapter-manifest.json`, `cloudflare/src/gateway.js`).
   Sessions mode does not exist on that topology; D6's marker and the
   shared throttle/invalidation fences are unbuilt there.
 - Origin allowlisting: LLP 0039's deferred origin-allowlisting contract is
@@ -372,7 +372,7 @@ storage + schema work in the binary. P3: the LLP 0072 control plane
 operating the 0098 signer (key halves split off-deployment,
 `llp/0098-hosted-edge-adapter.spec.md` §2.1), platform TLS + loopback
 termination (Fly-shaped machine), deployment-identity digests (the
-existing machinery, cf. `targets/cloudflare/scripts/generate-deployment-identity.mjs`
+existing machinery, cf. `cloudflare/scripts/generate-deployment-identity.mjs`
 for the Workers analogue). P5: workerd feature work across the board.
 
 **Biggest risks.**

@@ -496,6 +496,7 @@ impl LocalDatabase {
         };
         let schema = self.schema.clone();
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let tx = match self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -553,7 +554,8 @@ impl LocalDatabase {
         let prepared = match prepare_authorization_commit_interlock(
             &authorization,
             AuthorizationCommitImpact::AllProtectedRooms,
-            authorization_interlock.as_ref(),
+            authorization_interlock,
+            &commit_authority_identity,
         ) {
             Ok(prepared) => prepared,
             Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
@@ -641,6 +643,7 @@ impl LocalDatabase {
         let schema = self.schema.clone();
         let projections = self.projections.clone();
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let tx = match self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -689,7 +692,8 @@ impl LocalDatabase {
         let prepared = match prepare_authorization_commit_interlock(
             &authorization,
             AuthorizationCommitImpact::AllProtectedRooms,
-            authorization_interlock.as_ref(),
+            authorization_interlock,
+            &commit_authority_identity,
         ) {
             Ok(prepared) => prepared,
             Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
@@ -780,6 +784,7 @@ impl LocalDatabase {
         let schema = self.schema.clone();
         let projections = self.projections.clone();
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -951,6 +956,7 @@ impl LocalDatabase {
             authorization_predecessor,
             version,
             authorization_interlock,
+            &commit_authority_identity,
         )?;
         Ok(crate::seed_identity::SeedEnsureResultV1::Installed { receipt })
     }
@@ -1131,6 +1137,7 @@ impl LocalDatabase {
             .enter(write_authority::LocalWriterLaneV1::StandaloneSeed)?;
         let schema = self.schema.clone();
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -1176,6 +1183,7 @@ impl LocalDatabase {
             authorization_predecessor,
             version,
             authorization_interlock,
+            &commit_authority_identity,
         )?;
 
         Ok(SeedCommit {
@@ -1295,10 +1303,7 @@ impl<'a> SchemaSeedKernel<'a> {
         self.db.seed(seed)
     }
 
-    pub fn preview_seed_changes(
-        &mut self,
-        seed: SeedData,
-    ) -> SnapbackResult<Vec<ChangedRow>> {
+    pub fn preview_seed_changes(&mut self, seed: SeedData) -> SnapbackResult<Vec<ChangedRow>> {
         self.db.preview_seed_changes(seed)
     }
 

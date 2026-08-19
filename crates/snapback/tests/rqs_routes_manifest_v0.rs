@@ -62,7 +62,7 @@ fn wall_schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -807,7 +807,7 @@ fn codegen_js_param_route_is_admitted_by_real_ensure_app() {
         fixture.path().join("schema.mjs"),
         format!(
             "import {{ defineSchema, defineTable, v }} from '{define_url}';\n\
-             export default defineSchema({{ todos: defineTable({{ title: v.string() }}).sync() }});\n"
+             export default defineSchema({{ todos: defineTable({{ title: v.string() }}).visibility({{ kind: 'public-read' }}).sync() }});\n"
         ),
     )
     .expect("write schema source");

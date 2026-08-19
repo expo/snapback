@@ -258,7 +258,7 @@
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/live.socket-client.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "A message a client sends on the live WebSocket. Tagged with `type` (not\n`kind`) — the client→server family predates the typed wire and deployed\nclients send it this way.\n\nThe exhaustive registration of these variants as app-data operations is\nenforced by `live_socket_operation_name` in\n`crates/snapback-server/src/server.rs`.\n\n@ref LLP 0031#enforcement — every accepted socket variant must be a\n  registered app-data operation.",
+  "description": "A message a client sends on the live WebSocket. Tagged with `type` (not\n`kind`) — the client→server family predates the typed wire and deployed\nclients send it this way.\n\nThe exhaustive registration of these variants as app-data operations is\nenforced by `live_socket_operation_name` in `src/server.rs`.\n\n@ref LLP 0031#enforcement — every accepted socket variant must be a\n  registered app-data operation.",
   "oneOf": [
     {
       "properties": {

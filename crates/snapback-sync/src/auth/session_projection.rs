@@ -9,25 +9,23 @@
 //! @ref LLP 0059#two-phase-mutation-protocol — unique tickets, rather than a
 //! saved session snapshot, own every reversible pre-commit marker.
 
-pub use snapback_kernel::auth::session_projection::{
-    AUTHORIZATION_STREAM_META_KEY, AdmittedProjectionSnapshot, AuthorizationStreamRecord,
-    ProjectionIdentityRow, ProjectionSessionRow, ProjectionSource, ProjectionTokenRow,
-    ProjectionUserRow,
+pub use crate::contract_types::TerminalAuthorityDisposition;
+use crate::contract_types::{
+    AuthorizationStreamIncarnation, RevocationReason, SessionTerminalCauseRecord, TokenDigest,
 };
+use crate::diagnostic::{SnapbackError, SnapbackResult};
+use serde::{Deserialize, Serialize};
 pub use snapback_auth::auth::lock_rank::{
     AUTH_LOCK_RANK_CONNECTION_REGISTRY, AUTH_LOCK_RANK_MODE_ADMISSION, AUTH_LOCK_RANK_SESSION,
     AUTH_LOCK_RANK_STREAM, AUTH_LOCK_RANK_TOPOLOGY, AuthLockRankGuard, RankedMutexGuard,
     ranked_mutex_lock, ranked_mutex_lock_unpoisoned,
 };
-pub use snapback_types::auth::session_projection::{
-    ProjectedSessionInsert, TERMINAL_CLOSE_GRACE,
+pub use snapback_kernel::auth::session_projection::{
+    AUTHORIZATION_STREAM_META_KEY, AdmittedProjectionSnapshot, AuthorizationStreamRecord,
+    ProjectionIdentityRow, ProjectionSessionRow, ProjectionSource, ProjectionTokenRow,
+    ProjectionUserRow,
 };
-use crate::contract_types::{
-    AuthorizationStreamIncarnation, RevocationReason, SessionTerminalCauseRecord, TokenDigest,
-};
-pub use crate::contract_types::TerminalAuthorityDisposition;
-use crate::diagnostic::{SnapbackError, SnapbackResult};
-use serde::{Deserialize, Serialize};
+pub use snapback_types::auth::session_projection::{ProjectedSessionInsert, TERMINAL_CLOSE_GRACE};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
 use std::num::NonZeroU64;
@@ -2338,10 +2336,7 @@ impl SessionProjection {
         })
     }
 
-    pub fn compare_unmark_stream(
-        &mut self,
-        ticket: &MutationTicket,
-    ) -> SnapbackResult<bool> {
+    pub fn compare_unmark_stream(&mut self, ticket: &MutationTicket) -> SnapbackResult<bool> {
         if self.ticket_index.get(ticket) != Some(&TicketOwner::Stream) {
             return Ok(false);
         }
@@ -2360,10 +2355,7 @@ impl SessionProjection {
     /// Finalize reset/restore on the existing shared stream-fence arc. Any
     /// predecessor grant that retained that arc now observes the successor
     /// incarnation and fails exact-incarnation validation.
-    pub fn finalize_stream_rotation(
-        &mut self,
-        ticket: &MutationTicket,
-    ) -> SnapbackResult<()> {
+    pub fn finalize_stream_rotation(&mut self, ticket: &MutationTicket) -> SnapbackResult<()> {
         if self.ticket_index.len() != 1
             || self.ticket_index.get(ticket) != Some(&TicketOwner::Stream)
         {

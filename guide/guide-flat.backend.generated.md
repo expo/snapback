@@ -6113,7 +6113,7 @@ id: backend.schema-evolution
 order: 29
 audience: agent-first
 capabilities: [backend.schema-evolution]
-authorities: [llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, llp/0160-ideal-migration-experience.rfc.md, crates/snapback-types/src/auth/mode.rs, crates/snapback-cli/src/cli.rs, crates/snapback-kernel/src/storage.rs, packages/snapback-cli/index.mjs]
+authorities: [llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, llp/0160-ideal-migration-experience.rfc.md, crates/snapback/src/auth/mode.rs, crates/snapback-cli/src/cli.rs, crates/snapback-kernel/src/storage.rs, packages/snapback-cli/index.mjs]
 examples: [packages/snapback-cli/sessions-dev-loop.test.mjs, crates/snapback-cli/src/cli/tests.rs, crates/snapback-kernel/src/storage/tests.rs]
 status: current
 targets: [local]
@@ -6666,8 +6666,8 @@ id: backend.streamed-actions
 order: 35
 audience: agent-first
 capabilities: [backend.streamed-actions]
-authorities: [llp/0076-bounded-streamed-actions.rfc.md, llp/0075-convex-checkpoint-protocol.spec.md, crates/snapback-sync/src/stream_attempt.rs, crates/snapback-server/src/server.rs, packages/snapback-harness/ctx-bootstrap.js, demos/competitive-checkpoint/snapback/handlers.mjs, targets/cloudflare/app/all-aboard.app.js]
-examples: [demos/competitive-checkpoint, targets/cloudflare/test/acceptance.egress.mjs]
+authorities: [llp/0076-bounded-streamed-actions.rfc.md, llp/0075-convex-checkpoint-protocol.spec.md, crates/snapback-sync/src/stream_attempt.rs, crates/snapback-server/src/server.rs, packages/snapback-harness/ctx-bootstrap.js, demos/competitive-checkpoint/snapback/handlers.mjs, cloudflare/app/all-aboard.app.js]
+examples: [demos/competitive-checkpoint, cloudflare/test/acceptance.egress.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -6738,7 +6738,7 @@ One reader owns the body. Each `read()` pulls at most one host-bounded chunk
 (≤ 16 KiB), so application backpressure is the default — the host never
 buffers ahead of you beyond one in-flight chunk per cursor:
 
-```js source=targets/cloudflare/app/all-aboard.app.js
+```js source=cloudflare/app/all-aboard.app.js
     const reader = response.body.getReader();
     let reads = 0;
     let totalBytes = 0;

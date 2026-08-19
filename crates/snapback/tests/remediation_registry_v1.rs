@@ -6,15 +6,18 @@
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::fs;
+use std::path::PathBuf;
 
 const SCHEMA_PATH: &str = "schemas/remediation-kinds.v1.schema.json";
 const REGISTRY_PATH: &str = "schemas/remediation-kinds.v1.registry.json";
 
 fn read_json(path: &str) -> Value {
+    let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join(path);
     serde_json::from_str(
-        &fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path}: {error}")),
+        &fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("read {}: {error}", path.display())),
     )
-    .unwrap_or_else(|error| panic!("parse {path}: {error}"))
+    .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()))
 }
 
 #[test]

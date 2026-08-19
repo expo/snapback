@@ -163,10 +163,7 @@ pub fn open_strict_owner_only(path: &Path) -> io::Result<File> {
 /// and remain the path's exact inode and size through the bounded read.
 // @ref LLP 0058#cold-startup-artifact-carrier — executable deployment authority is read once through a stable, non-writable inode.
 #[cfg(unix)]
-pub fn read_trusted_executable_artifact(
-    path: &Path,
-    maximum_bytes: usize,
-) -> io::Result<Vec<u8>> {
+pub fn read_trusted_executable_artifact(path: &Path, maximum_bytes: usize) -> io::Result<Vec<u8>> {
     use std::os::unix::fs::{MetadataExt as _, OpenOptionsExt as _};
 
     let mut file = std::fs::OpenOptions::new()

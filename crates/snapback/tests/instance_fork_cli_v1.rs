@@ -9,12 +9,16 @@ use base64::Engine as _;
 use serde_json::Value;
 use sha2::Digest as _;
 use snapback::manifest::SchemaManifest;
-use snapback::storage::LocalDatabase;
+use snapback_kernel::storage::LocalDatabase;
 use std::fs::File;
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::time::Duration;
+
+const VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV: &str =
+    "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG";
+const FORK_DEV_GOVERNANCE_CONFIG: &str = "visibility-governance-dev-target-config.json";
 
 fn snapback() -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_snapback"));
@@ -45,11 +49,18 @@ fn successful_scalar(mut command: Command, operation: &str) -> String {
 }
 
 fn assert_success(output: &Output, operation: &str) {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let referenced_log = stderr
+        .lines()
+        .find_map(|line| line.rsplit_once("; see ").map(|(_, path)| path.trim()))
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .unwrap_or_default();
     assert!(
         output.status.success(),
-        "{operation} failed\nstdout:\n{}\nstderr:\n{}",
+        "{operation} failed\nstdout:\n{}\nstderr:\n{}\nreferenced runtime log:\n{}",
         String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
+        stderr,
+        referenced_log,
     );
 }
 
@@ -110,6 +121,10 @@ fn fork_create_with_options(
     }
     if retain_base {
         command.arg("--retain-base");
+    }
+    let governance_config = app_root.join(".snapback").join(FORK_DEV_GOVERNANCE_CONFIG);
+    if governance_config.is_file() {
+        command.env(VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV, governance_config);
     }
     successful(command, "fork create")
 }
@@ -194,12 +209,25 @@ fn fork_admin_token(created: &Value) -> String {
 fn copy_todo_app_root(destination: &Path) {
     let generated = destination.join("snapback/generated");
     std::fs::create_dir_all(&generated).expect("create copied Todo generated directory");
-    let source = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
-        .join("demos/todo/snapback/generated");
+    let source_backend =
+        PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("demos/todo/snapback");
+    let source = source_backend.join("generated");
     for artifact in ["schema.manifest.json", "functions.manifest.json"] {
         std::fs::copy(source.join(artifact), generated.join(artifact))
             .unwrap_or_else(|error| panic!("copy Todo {artifact}: {error}"));
     }
+    let repository = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
+    let config_dir = destination.join(".snapback");
+    std::fs::create_dir_all(&config_dir).expect("create fork governance config directory");
+    let output = Command::new("node")
+        .arg(repository.join("scripts/mint-visibility-governance-dev-config.mjs"))
+        .arg(source_backend)
+        .arg("--out")
+        .arg(config_dir.join(FORK_DEV_GOVERNANCE_CONFIG))
+        .current_dir(&repository)
+        .output()
+        .expect("mint fork visibility-governance dev config");
+    assert_success(&output, "mint fork visibility-governance dev config");
 }
 
 struct ForkCleanup {
@@ -837,8 +865,7 @@ fn library_minted_never_launched_fork_diffs_only_for_its_owning_app_root() {
     );
 
     let database = destination.join("parent.sqlite3");
-    let conn = snapback_services::test_support::rusqlite::Connection::open(&database)
-        .expect("open never-launched fork");
+    let conn = rusqlite::Connection::open(&database).expect("open never-launched fork");
     conn.execute_batch(
         "BEGIN IMMEDIATE;
          INSERT INTO todos(_id,_version,_createdAt,_updatedAt,title,completed,userId)
@@ -1268,11 +1295,9 @@ fn signed_issue_status(server_url: &str, bearer: &str, asset_id: &str) -> u16 {
 }
 
 fn primary_blob_path(database: &Path, asset_id: &str) -> PathBuf {
-    let conn = snapback_services::test_support::rusqlite::Connection::open_with_flags(
-        database,
-        snapback_services::test_support::rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .expect("open asset database read-only");
+    let conn =
+        rusqlite::Connection::open_with_flags(database, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .expect("open asset database read-only");
     let physical_key: String = conn
         .query_row(
             "SELECT b.physical_key
@@ -1315,11 +1340,9 @@ fn asset_gc_sweep(ready: &Path, token: &str, now_ms: u64, operation: &str) -> Va
 }
 
 fn todo_titles(database: &Path) -> Vec<String> {
-    let conn = snapback_services::test_support::rusqlite::Connection::open_with_flags(
-        database,
-        snapback_services::test_support::rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .expect("open database read-only");
+    let conn =
+        rusqlite::Connection::open_with_flags(database, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .expect("open database read-only");
     let mut statement = conn
         .prepare("SELECT title FROM todos ORDER BY title")
         .expect("prepare todo title query");
@@ -2566,15 +2589,14 @@ fn resource_limits_refuse_create_and_diff_without_residue() {
 
     // Retained-history exhaustion through the executable diff surface.
     let database = fork_root.join("fork-existing/parent.sqlite3");
-    let conn = snapback_services::test_support::rusqlite::Connection::open(&database)
-        .expect("open fork database");
+    let conn = rusqlite::Connection::open(&database).expect("open fork database");
     conn.execute("UPDATE _snapback_version SET version=3 WHERE id=1", [])
         .unwrap();
     for index in 1..=3 {
         conn.execute(
             "INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
              VALUES(?1,'todos',?2,'insert','{}',100)",
-            snapback_services::test_support::rusqlite::params![index, format!("todo-{index}")],
+            rusqlite::params![index, format!("todo-{index}")],
         )
         .unwrap();
     }
@@ -2731,8 +2753,7 @@ fn executable_net_diff_names_its_substrate_and_requires_a_retained_base() {
     )
     .expect("publish base-bearing fork");
     let database = fork_root.join("fork-based/parent.sqlite3");
-    let conn = snapback_services::test_support::rusqlite::Connection::open(&database)
-        .expect("open fork database");
+    let conn = rusqlite::Connection::open(&database).expect("open fork database");
     conn.execute_batch(
         "INSERT INTO todos(_id,_version,_createdAt,_updatedAt,title,completed,userId)
          VALUES('todo-net',1,100,100,'net diff row',0,'user_net');

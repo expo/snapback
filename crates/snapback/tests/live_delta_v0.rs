@@ -64,7 +64,9 @@ fn live_delta_is_emitted_for_an_unordered_filtered_query() {
 
 /// A handwritten owner-visible query has no redundant ownerId filter. Its
 /// retained membership and point dependencies must still turn an ownership
-/// transfer into a remove instead of letting the client retain a forbidden row.
+/// post-image into a remove instead of letting the client retain a forbidden
+/// row. The post-image is synthetic because LLP 0264 correctly forbids the
+/// generic owner-transfer mutation that this older matcher regression used.
 ///
 /// @ref LLP 0008#reactivity-and-read-sets — false-negative matcher skips are
 ///   correctness bugs; captured row ids cover result exits as well as entries.
@@ -89,7 +91,11 @@ fn owner_visibility_transfer_emits_remove_on_the_delta_lane() {
     assert_eq!(added["ops"][0]["op"], "add");
     assert_eq!(added["ops"][0]["id"], id);
 
-    set_owner_visible_user(&mut snapback, &id, "bob");
+    let mut transferred = added["ops"][0]["row"].clone();
+    transferred["userId"] = json!("bob");
+    snapback
+        .publish_owner_visibility_exit_for_test("owner_todos", &id, transferred)
+        .expect("publish synthetic owner-visibility exit");
     let removed = drain_one_update(&mut snapback, "owner-conn");
     assert_eq!(removed["kind"], "live_delta");
     assert_eq!(removed["ops"].as_array().expect("ops").len(), 1);
@@ -447,24 +453,12 @@ fn create(snapback: &mut LocalSnapback, title: &str, user: &str) -> String {
 
 fn create_owner_visible(snapback: &mut LocalSnapback, title: &str, user: &str) -> String {
     snapback
-        .invoke_mutation(
-            "createOwnerTodo",
-            input(json!({ "title": title, "userId": user }), user),
-        )
+        .invoke_mutation("createOwnerTodo", input(json!({ "title": title }), user))
         .expect("create owner-visible row")
         .result
         .as_str()
         .expect("id")
         .to_owned()
-}
-
-fn set_owner_visible_user(snapback: &mut LocalSnapback, id: &str, user: &str) {
-    snapback
-        .invoke_mutation(
-            "setOwnerUser",
-            input(json!({ "id": id, "userId": user }), "admin"),
-        )
-        .expect("set owner-visible user");
 }
 
 fn set_user(snapback: &mut LocalSnapback, id: &str, user: &str) {
@@ -541,7 +535,7 @@ fn schema() -> SchemaManifest {
     SchemaManifest {
         schema_hash: Some("delta-v0".to_owned()),
         tables: vec![
-            todo_table("todos", None),
+            todo_table("todos", Some(TableVisibilityV1::PublicRead)),
             todo_table(
                 "owner_todos",
                 Some(TableVisibilityV1::Owner {
@@ -636,7 +630,7 @@ fn functions() -> FunctionManifest {
                 table: "owner_todos".to_owned(),
                 values: BTreeMap::from([
                     ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
-                    ("userId".to_owned(), ValueExpr::Arg("userId".to_owned())),
+                    ("userId".to_owned(), ValueExpr::AuthUserId),
                 ]),
                 bind_id_as: Some("id".to_owned()),
             }],
@@ -648,7 +642,7 @@ fn functions() -> FunctionManifest {
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Patch {
                     table: "todos".to_owned(),
                     id: ValueExpr::Arg("id".to_owned()),
@@ -743,22 +737,6 @@ fn functions() -> FunctionManifest {
         &mut list_owner_visible,
         documents_contract_for("owner_todos"),
     );
-    let owner_patch = FunctionDefinition::new(
-        "setOwnerUser",
-        FunctionKind::Mutation,
-        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
-            steps: vec![MutationStep::Patch {
-                table: "owner_todos".to_owned(),
-                id: ValueExpr::Arg("id".to_owned()),
-                values: BTreeMap::from([(
-                    "userId".to_owned(),
-                    ValueExpr::Arg("userId".to_owned()),
-                )]),
-            }],
-            return_value: Some(ReturnValue::ChangedCount),
-        })),
-    );
     let mut list_mine_narrow = filtered_query("listMineNarrow", Vec::new());
     install_result_contract(&mut list_mine_narrow, narrowed_records_contract());
     let mut list_mine_narrow_document = filtered_query("listMineNarrowDocument", Vec::new());
@@ -830,7 +808,6 @@ fn functions() -> FunctionManifest {
             list_owner_visible,
             insert,
             owner_insert,
-            owner_patch,
             create_with_priority,
             create_then_delete,
             patch("setUser", "userId"),

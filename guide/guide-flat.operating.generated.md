@@ -91,7 +91,7 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **154 operations** at digest `sha256:b99ba61f3035ef82eb85e79dfa3a950dbf07f684d6a2a2fa8656057b51c04512`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **154 operations** at digest `sha256:1f00b7b47a8eca4e9ee622eb654c372758afa27a2095185881309e8c2dcbb9a7`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
@@ -1203,7 +1203,7 @@ id: operating.diagnostics
 order: 3
 audience: agent-first
 capabilities: [operating.diagnostics, clients.dev-diagnostics]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0094-wire-envelope-contract.spec.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, crates/snapback-types/src/diagnostic.rs, crates/snapback-kernel/src/diagnostic.rs, crates/snapback-kernel/src/remediation.rs, crates/snapback-kernel/src/authoring_suggestion.rs, packages/snapback-client/remediation.mjs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs, packages/snapback-client/client-diagnostics.d.mts, packages/snapback-client/index.mjs, packages/snapback-react/implementation.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0094-wire-envelope-contract.spec.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, crates/snapback/src/diagnostic.rs, crates/snapback-kernel/src/remediation.rs, crates/snapback-kernel/src/authoring_suggestion.rs, packages/snapback-client/remediation.mjs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs, packages/snapback-client/client-diagnostics.d.mts, packages/snapback-client/index.mjs, packages/snapback-react/implementation.mjs]
 examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs, crates/snapback/tests/host_ops_v0.rs, packages/snapback-client/client-diagnostics.test.mjs, packages/snapback-react/dev-diagnostics-acceptance.test.mjs]
 status: current
 targets: [all]
@@ -2268,7 +2268,7 @@ id: operating.instance-forks
 order: 7
 audience: agent-first
 capabilities: [operating.instance-forks]
-authorities: [llp/0158-instance-forking.rfc.md, crates/snapback-cli/src/cli.rs, crates/snapback-kernel/src/instance_fork.rs, demos/_kit/instance-fork.mjs]
+authorities: [llp/0158-instance-forking.rfc.md, crates/snapback-cli/src/cli.rs, crates/snapback/src/instance_fork.rs, demos/_kit/instance-fork.mjs]
 examples: [demos/todo/tests/acceptance/forked-parent.mjs, crates/snapback/tests/instance_fork_cli_v1.rs, tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json]
 status: current
 targets: [local]

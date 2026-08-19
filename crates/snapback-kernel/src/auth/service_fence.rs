@@ -1,60 +1,136 @@
-//! Commit-interlock port for higher-layer finite service authority.
+//! Opaque commit carriers for finite service authority.
 
 use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use std::sync::Arc;
 
-pub trait PreparedServiceAuthorityTerminal: Send {
-    fn committed(self: Box<Self>) -> SnapbackResult<()>;
-    fn rolled_back(self: Box<Self>);
-    fn mark_ambiguous(&mut self);
+/// Kernel-owned settlement state. Higher crates can receive this value from a
+/// kernel factory, but cannot implement or construct an alternative terminal.
+pub struct PreparedServiceAuthorityTerminal {
+    identity: Arc<()>,
+    committed: Option<Box<dyn FnOnce() -> SnapbackResult<()> + Send>>,
+    rolled_back: Option<Box<dyn FnOnce() + Send>>,
+    ambiguous: Box<dyn FnMut() + Send>,
 }
 
-pub trait ServiceAuthorityCommitInterlock: Send + Sync {
-    fn prepare_terminal(
+impl PreparedServiceAuthorityTerminal {
+    pub(crate) fn committed(mut self) -> SnapbackResult<()> {
+        self.rolled_back = None;
+        self.committed
+            .take()
+            .expect("service terminal settles once")()
+    }
+
+    pub(crate) fn rolled_back(mut self) {
+        self.committed = None;
+        if let Some(rolled_back) = self.rolled_back.take() {
+            rolled_back();
+        }
+    }
+
+    pub(crate) fn mark_ambiguous(&mut self) {
+        (self.ambiguous)();
+    }
+}
+
+#[derive(Clone)]
+pub struct ServiceAuthorityTerminalFactory {
+    identity: Arc<()>,
+}
+
+impl ServiceAuthorityTerminalFactory {
+    pub fn prepared(
+        &self,
+        committed: impl FnOnce() -> SnapbackResult<()> + Send + 'static,
+        rolled_back: impl FnOnce() + Send + 'static,
+        ambiguous: impl FnMut() + Send + 'static,
+    ) -> PreparedServiceAuthorityTerminal {
+        PreparedServiceAuthorityTerminal {
+            identity: self.identity.clone(),
+            committed: Some(Box::new(committed)),
+            rolled_back: Some(Box::new(rolled_back)),
+            ambiguous: Box::new(ambiguous),
+        }
+    }
+}
+
+type PrepareTerminal = dyn Fn(&[String], ServiceAuthorityDisposition) -> SnapbackResult<PreparedServiceAuthorityTerminal>
+    + Send
+    + Sync;
+
+/// Database-bound service terminal operation. There is no public capability
+/// trait and no public raw installer.
+#[derive(Clone)]
+pub struct ServiceAuthorityCommitInterlock {
+    identity: Arc<()>,
+    prepare: Arc<PrepareTerminal>,
+}
+
+impl ServiceAuthorityCommitInterlock {
+    pub(crate) fn is_for(&self, identity: &Arc<()>) -> bool {
+        Arc::ptr_eq(&self.identity, identity)
+    }
+
+    pub(crate) fn prepare_terminal(
         &self,
         token_ids: &[String],
         disposition: ServiceAuthorityDisposition,
-    ) -> SnapbackResult<Box<dyn PreparedServiceAuthorityTerminal>>;
+    ) -> SnapbackResult<PreparedServiceAuthorityTerminal> {
+        let prepared = (self.prepare)(token_ids, disposition)?;
+        if !Arc::ptr_eq(&prepared.identity, &self.identity) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SERVICE_AUTHORITY_UNAVAILABLE",
+                "auth",
+                "service terminal belongs to a different database",
+            ));
+        }
+        Ok(prepared)
+    }
 }
 
-#[derive(Debug, Default)]
-struct UnavailableServiceAuthorityCommitInterlock;
+impl crate::storage::KernelCommitAuthority {
+    pub fn service_authority_terminal_factory(&self) -> ServiceAuthorityTerminalFactory {
+        ServiceAuthorityTerminalFactory {
+            identity: self.identity().clone(),
+        }
+    }
 
-impl ServiceAuthorityCommitInterlock for UnavailableServiceAuthorityCommitInterlock {
-    fn prepare_terminal(
+    pub fn service_authority_commit_interlock(
         &self,
-        _token_ids: &[String],
-        _disposition: ServiceAuthorityDisposition,
-    ) -> SnapbackResult<Box<dyn PreparedServiceAuthorityTerminal>> {
-        Err(SnapbackError::error(
-            "SNAPBACK_SERVICE_AUTHORITY_UNAVAILABLE",
-            "auth",
-            "service-authority commit interlock is not installed",
-        ))
+        prepare: impl Fn(
+            &[String],
+            ServiceAuthorityDisposition,
+        ) -> SnapbackResult<PreparedServiceAuthorityTerminal>
+        + Send
+        + Sync
+        + 'static,
+    ) -> ServiceAuthorityCommitInterlock {
+        ServiceAuthorityCommitInterlock {
+            identity: self.identity().clone(),
+            prepare: Arc::new(prepare),
+        }
     }
 }
 
-pub fn unavailable_service_authority_commit_interlock(
-) -> std::sync::Arc<dyn ServiceAuthorityCommitInterlock> {
-    std::sync::Arc::new(UnavailableServiceAuthorityCommitInterlock)
-}
-
-pub fn default_service_authority_commit_interlock(
-) -> std::sync::Arc<dyn ServiceAuthorityCommitInterlock> {
-    #[cfg(any(test, feature = "test-support"))]
-    {
-        return std::sync::Arc::new(RecordingServiceAuthorityCommitInterlock::default());
-    }
-    #[cfg(not(any(test, feature = "test-support")))]
-    {
-        unavailable_service_authority_commit_interlock()
+/// Kernel-unit-test default that exercises the concrete opaque terminal
+/// carrier without requiring a higher auth crate to install its registry.
+/// This is crate-private and absent from dependency builds, so it cannot
+/// become a production commit-authority fallback.
+#[cfg(test)]
+pub(crate) fn kernel_test_commit_interlock(identity: &Arc<()>) -> ServiceAuthorityCommitInterlock {
+    let factory = ServiceAuthorityTerminalFactory {
+        identity: identity.clone(),
+    };
+    ServiceAuthorityCommitInterlock {
+        identity: identity.clone(),
+        prepare: Arc::new(move |_, _| Ok(factory.prepared(|| Ok(()), || {}, || {}))),
     }
 }
 
 #[cfg(any(test, feature = "test-support"))]
 #[derive(Clone, Default)]
 pub struct RecordingServiceAuthorityCommitInterlock {
-    state: std::sync::Arc<RecordingState>,
+    state: Arc<RecordingState>,
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -69,7 +145,11 @@ struct RecordingState {
 #[cfg(any(test, feature = "test-support"))]
 impl RecordingServiceAuthorityCommitInterlock {
     pub fn plans(&self) -> Vec<(Vec<String>, ServiceAuthorityDisposition)> {
-        self.state.plans.lock().expect("recording interlock").clone()
+        self.state
+            .plans
+            .lock()
+            .expect("recording interlock")
+            .clone()
     }
 
     pub fn committed(&self) -> usize {
@@ -89,49 +169,40 @@ impl RecordingServiceAuthorityCommitInterlock {
             .ambiguous
             .load(std::sync::atomic::Ordering::SeqCst)
     }
-}
 
-#[cfg(any(test, feature = "test-support"))]
-struct RecordingPreparedServiceAuthorityTerminal {
-    state: std::sync::Arc<RecordingState>,
-}
-
-#[cfg(any(test, feature = "test-support"))]
-impl PreparedServiceAuthorityTerminal for RecordingPreparedServiceAuthorityTerminal {
-    fn committed(self: Box<Self>) -> SnapbackResult<()> {
-        self.state
-            .committed
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        Ok(())
-    }
-
-    fn rolled_back(self: Box<Self>) {
-        self.state
-            .rolled_back
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    }
-
-    fn mark_ambiguous(&mut self) {
-        self.state
-            .ambiguous
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    }
-}
-
-#[cfg(any(test, feature = "test-support"))]
-impl ServiceAuthorityCommitInterlock for RecordingServiceAuthorityCommitInterlock {
-    fn prepare_terminal(
+    pub fn bind(
         &self,
-        token_ids: &[String],
-        disposition: ServiceAuthorityDisposition,
-    ) -> SnapbackResult<Box<dyn PreparedServiceAuthorityTerminal>> {
-        self.state
-            .plans
-            .lock()
-            .expect("recording interlock")
-            .push((token_ids.to_vec(), disposition));
-        Ok(Box::new(RecordingPreparedServiceAuthorityTerminal {
-            state: self.state.clone(),
-        }))
+        authority: &crate::storage::KernelCommitAuthority,
+    ) -> ServiceAuthorityCommitInterlock {
+        let state = self.state.clone();
+        let factory = authority.service_authority_terminal_factory();
+        authority.service_authority_commit_interlock(move |token_ids, disposition| {
+            state
+                .plans
+                .lock()
+                .expect("recording interlock")
+                .push((token_ids.to_vec(), disposition));
+            let committed = state.clone();
+            let rolled_back = state.clone();
+            let ambiguous = state.clone();
+            Ok(factory.prepared(
+                move || {
+                    committed
+                        .committed
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    Ok(())
+                },
+                move || {
+                    rolled_back
+                        .rolled_back
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                },
+                move || {
+                    ambiguous
+                        .ambiguous
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                },
+            ))
+        })
     }
 }

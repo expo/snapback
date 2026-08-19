@@ -60,7 +60,7 @@
       ],
       "actualMember": "snapback",
       "expiresAt": "2026-09-15",
-      "reason": "The storage measurements now use a services-owned observation-only port, but the proof orchestrator still composes engine application calls, server HTTP routing, facade build identity, and the committed rank-7 baseline. Moving that orchestrator to background services would require upward engine/server edges, so it remains with the facade pending the planned tools-owned composition move.",
+      "reason": "The proof intentionally combines private services telemetry seams with engine and HTTP composition; moving it now would widen those confined seams, so the complete proof bundle remains rank 7 pending a capability-safe harness port.",
       "ticket": "issues/20260818-telemetry-proof-owner-burn-down.md"
     }
   ]

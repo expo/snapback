@@ -38,15 +38,7 @@ pub struct HostedAdmissionV2 {
 /// production profile, or an operator-managed reverse proxy as evidence that
 /// the target owns the hosted edge.
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Deserialize,
-    Eq,
-    PartialEq,
-    Serialize,
-    schemars::JsonSchema,
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum AuthDeploymentTarget {

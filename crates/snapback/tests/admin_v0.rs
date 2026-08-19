@@ -32,7 +32,7 @@ use snapback::manifest::{
     AppIdentity, AuthInput, AuthMode, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, IndexManifest,
     MutationPlan, MutationStep, OrderDirection, OrderExpr, QueryPlan, SchemaManifest, SeedData,
-    TableManifest, ValueExpr,
+    TableManifest, TableVisibilityV1, ValueExpr,
 };
 use snapback::server::{ErrorResponse, MutationResponse, PolicyAuthMode};
 use snapback_server::test_support::axum::body::Body;
@@ -2978,7 +2978,9 @@ fn todo_schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            // Admin-route tests need the historical non-owner table posture,
+            // but omission is no longer authority. Declare it explicitly.
+            visibility: Some(TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()

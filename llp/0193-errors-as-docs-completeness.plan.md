@@ -226,7 +226,7 @@ its Workers runtime); the route validates the schema and forwards the
 report to Linear (Exact project, `snapback-feedback` label) via an API
 token held as an EAS Hosting environment secret. Stated fallback: if
 the static→server flip is judged too coupled to the docs site, a
-dedicated minimal Worker under the repo's existing `targets/cloudflare/`
+dedicated minimal Worker under the repo's existing `cloudflare/`
 deploy tooling serves the same route at a dedicated hostname, same
 schema, same Linear forward. The CLI reads the endpoint URL from its
 build, not the environment.
@@ -266,7 +266,7 @@ errors (empty text, unknown flag) exit non-zero.
 **Proposals for the author** (concrete answers proposed above; confirm
 or adjust): (1) the 12-month retention window; (2) the primary
 endpoint's static→server flip of the docs site versus going straight
-to the `targets/cloudflare/` Worker fallback; (3) final wording sign-off on
+to the `cloudflare/` Worker fallback; (3) final wording sign-off on
 the consent copy. Everything else in this amendment is designed, not
 open.
 

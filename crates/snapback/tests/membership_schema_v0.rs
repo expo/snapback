@@ -19,7 +19,7 @@ use snapback::manifest::{
     MembershipManifest, MembershipOp, MembershipScope, MembershipTarget, MembershipTransition,
     MutationPlan, MutationStep, SchemaManifest, TableManifest, TableVisibilityV1, ValueExpr,
 };
-use snapback::storage::{LocalDatabase, MembershipWriter};
+use snapback_kernel::storage::{LocalDatabase, MembershipWriter};
 use std::collections::BTreeMap;
 
 // ---------------------------------------------------------------------------

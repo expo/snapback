@@ -936,7 +936,7 @@ When a behavior is not yet implemented, the capability report should say so and
 the tests should assert the reported gap rather than silently skipping it.
 
 **Cloudflare inventory as built (ENG-24498, 2026-07-12).**
-`targets/cloudflare/test/local-suite-manifest.mjs` is the canonical non-remote
+`cloudflare/test/local-suite-manifest.mjs` is the canonical non-remote
 inventory. Its runner asserts the exact suite ids and 18-check total, verifies
 per-suite completion evidence, and classifies every other test file as remote,
 helper, benchmark, or child protocol. A new file is therefore a failing

@@ -30,7 +30,7 @@ ticket preserves the RFC corrections that need author review.
    not a bare `git mv`; choose workspace membership versus a root-workspace
    `exclude`, then regenerate the performance-baseline build recipe and the
    paired-bin pins under review.
-3. **Correct the Cloudflare install-root claim.** `targets/cloudflare/` has no
+3. **Correct the Cloudflare install-root claim.** `cloudflare/` has no
    `package.json` and no lockfile. Miniflare, workerd, and Wrangler live in the
    root Bun workspace and resolve from root `node_modules`; Rust and the
    conformance twin reach `node_modules/.bin/workerd` through
@@ -46,7 +46,7 @@ ticket preserves the RFC corrections that need author review.
    the RFC intends to count if it meant expanded JSONL results rather than
    shell declarations.
 6. **Correct Guide transclusion counts.** Authored pages contain three
-   `source=targets/cloudflare/` transclusions and two `source=tests/*.rs`
+   `source=cloudflare/` transclusions and two `source=tests/*.rs`
    transclusions: five hand edits, not eleven. Including generated flat
    projections yields nine Cloudflare and six Rust-test occurrences, fifteen
    total. The RFC currently mixes authored and generated counting bases.
@@ -59,7 +59,7 @@ ticket preserves the RFC corrections that need author review.
    `scripts/check-module-ownership.mjs` globs `crates/snapback/src/**/*.rs`;
    `scripts/check-rustfmt.mjs` globs `crates/snapback/src/**` and `tests/**`; and
    `scripts/generate-control-catalog.mjs` reads
-   `targets/cloudflare/src/gateway.js`. Capability maturity's historical read is an
+   `cloudflare/src/gateway.js`. Capability maturity's historical read is an
    additional special case covered above.
 8. **Record the two non-clean auxiliary-bin moves.**
    `snapback-telemetry-bench` brings the `telemetry-phase1-proof` feature,

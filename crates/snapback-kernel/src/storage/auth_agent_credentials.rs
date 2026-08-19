@@ -3243,7 +3243,11 @@ mod tests {
             let monotonic = std::time::Instant::now();
             let interlock =
                 crate::auth::service_fence::RecordingServiceAuthorityCommitInterlock::default();
-            db.install_service_authority_commit_interlock(std::sync::Arc::new(interlock.clone()));
+            let authority = db
+                .claim_kernel_commit_authority()
+                .expect("kernel authority");
+            db.install_service_authority_commit_interlock(&authority, interlock.bind(&authority))
+                .expect("bind service terminal interlock");
             let deadline = ServiceAuthorityDeadlineTerminal {
                 token_id: resolved.token_id.clone(),
                 grant_id: resolved.grant_id.clone(),

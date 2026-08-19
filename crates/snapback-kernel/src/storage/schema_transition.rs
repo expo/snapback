@@ -84,7 +84,7 @@ fn schema_transition_corrupt(detail: String) -> SnapbackError {
 /// retention floor to `version` — the constructor enforces the floor
 /// equality so the amendment's "raised in the publication transaction"
 /// clause cannot drift from the event's own claim.
-pub fn record_schema_transition_event(
+pub(crate) fn record_schema_transition_event(
     tx: &Transaction<'_>,
     version: u64,
     kind: SchemaTransitionKind,
@@ -124,7 +124,7 @@ pub fn record_schema_transition_event(
     Ok(())
 }
 
-pub fn schema_transition_events_on(
+pub(crate) fn schema_transition_events_on(
     conn: &Connection,
     since_version: u64,
 ) -> SnapbackResult<Vec<SchemaTransitionEventV1>> {
@@ -207,7 +207,7 @@ impl LocalDatabase {
 /// at plan validation. Draining currently runnable work does not erase
 /// scheduled-future payloads from this check — the counts are of durable
 /// rows, not of what happens to be runnable.
-pub fn prove_retained_work_posture(
+pub(crate) fn prove_retained_work_posture(
     tx: &Transaction<'_>,
     posture: crate::migration::RetainedWorkPosture,
 ) -> SnapbackResult<()> {

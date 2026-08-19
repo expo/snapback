@@ -58,10 +58,6 @@ discharged; see Revision history)
 **Revised:** 2026-08-16 (v — §5 enforcement mechanics add joint
 tracking-ticket coverage and operational hardening; the rejected
 owner-reassignment re-key mechanic remains in needs-design)
-**Revised:** 2026-08-19 (w — LLP 0276 Phase 3 amendment pointer: §2's
-dependency direction and §3 commit boundaries remain authoritative; §5's
-module analyzer, manifest/baseline projection, ratchet, and projection
-amendment point are superseded by the crate workspace graph and LLP 0276)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -71,19 +67,11 @@ recovery), LLP 0141 (embeddable Rust library / `snapback::embed` façade),
 LLP 0189 (verification cadence and claim gating), LLP 0175 (local-proof
 selection), `issues/20260808-core-modularization-decision.md` (commission),
 `issues/closed/20260809-ownership-gate-prepush-tier.md` (enforcement-arm
-ruling), `issues/closed/20260809-0199-ownership-ratchet-worklist.md` (frozen-edge
+ruling), `issues/20260809-0199-ownership-ratchet-worklist.md` (frozen-edge
 burn-down), `issues/closed/20260810-ownership-gate-analyzer-gaps.md`
 (analyzer/enforcement completion)
 
 ## Context and relationship to LLP 0199
-
-**LLP 0276 Phase 3 amendment.** The historical module-level enforcement arm
-described below retired after the checked flip predicate passed. The live
-machine projection of §2 is now `crates/allowed-dependencies.v1.json`, enforced
-by `scripts/check-workspace-graph.mjs`; future owner/rank/edge amendments route
-through LLP 0276. This Decision remains authoritative for the dependency
-direction and §3 commit semantics. Historical analyzer mechanics below are
-retained as provenance, not live protocol.
 
 The 2026-08-08 full-repository review commissioned an architecture Decision
 choosing incremental boundary extraction over a rewrite
@@ -217,7 +205,7 @@ rank):
 
 Pre-existing violations are **frozen, not blessed**: `ownership.baseline.json`
 ratchets the graph at each landing, the gate blocks only *new* forbidden
-edges, and `issues/closed/20260809-0199-ownership-ratchet-worklist.md` is the
+edges, and `issues/20260809-0199-ownership-ratchet-worklist.md` is the
 standing burn-down of the grandfathered upward edges (kernel→background job
 helpers, kernel→sync auth call-ups, leaf residues, and their recorded
 growth). Inversions ride the owner slices that touch the same code.
@@ -233,7 +221,7 @@ inversion owner, and a deadline, referenced from this Decision's amendment
 record — matching LLP 0199 OQ5's accepted blocking rule. (The 2026-08-10
 `crates/snapback/src/local.rs → crates/snapback/src/connected_clients.rs` freeze predates this rule and is
 reclassified as such a waiver — its formal record is worklist item 8 in
-`issues/closed/20260809-0199-ownership-ratchet-worklist.md`, naming the edge, the
+`issues/20260809-0199-ownership-ratchet-worklist.md`, naming the edge, the
 inversion owner, and the bound; the parenthetical you are reading is a
 pointer, not the waiver.) The gate is required to
 enforce the comparison against the predecessor baseline at the push's
@@ -429,7 +417,7 @@ pre-existing `LocalSnapback` coupling following the moved code while the
 predecessor `crates/snapback/src/server.rs → crates/snapback/src/local.rs` edge is retained by remaining
 references. This is an edge-key *split*, which the arm's strict `relocation`
 disposition cannot express
-(`issues/closed/20260810-owngate-split-relocation-disposition-gap.md` routes the
+(`issues/20260810-owngate-split-relocation-disposition-gap.md` routes the
 vocabulary gap to the enforcement lane); the waiver record with inversion
 owner `transport-adapters` and deadline 2026-09-15 lives in the ratchet
 worklist, and the coupling drains with the `local.rs` remainder. The
@@ -495,9 +483,9 @@ owner `transport-adapters` and deadline 2026-09-15 because the re-key changes
 both target module and target owner, while `relocation` requires the
 predecessor owner pair. The vocabulary gap
 remains open in
-`issues/closed/20260810-owngate-split-relocation-disposition-gap.md`, with the
+`issues/20260810-owngate-split-relocation-disposition-gap.md`, with the
 sound-evidence design follow-up at
-`issues/closed/20260816-split-relocation-disposition-needs-sound-evidence.md`. The
+`issues/20260816-split-relocation-disposition-needs-sound-evidence.md`. The
 prose here
 carries the true disposition; the coupling drains with `local.rs`.
 
@@ -1004,7 +992,7 @@ requires its named worklist record in the same landing.
   and admits 386 frozen forbidden fingerprints; the rehearsal pair is
   admitted under the fleet's item-9 time-bounded waivers, and the two
   unadmitted jobs-wave fingerprints remain auditable through
-  `issues/closed/20260810-main-module-ownership-red-jobs-edges.md` rather than
+  `issues/20260810-main-module-ownership-red-jobs-edges.md` rather than
   being laundered into the baseline.
 - **Analyzer coverage.** The extractor resolves `crate::`, `super::`, and
   `self::` roots relative to the lexical/file module (including `#[path]`
@@ -1151,14 +1139,14 @@ so slices can follow product priorities.
   roots and chained re-exports (grouped/alias/`pub use crate::` forms are
   parsed today).
 - **2026-08-10 (f).** §2 waiver-record references: worklist items 9, 10, and
-  11 in `issues/closed/20260809-0199-ownership-ratchet-worklist.md` (slice-C
+  11 in `issues/20260809-0199-ownership-ratchet-worklist.md` (slice-C
   rehearsal pair, lane-J wire_version pair, logical-transfer pair), each
   naming the edge, the inversion owner, and the bound, recorded at the
   slice-1 re-application landing that froze them.
 - **2026-08-10 (e — UNREVIEWED).** Post-round-3 closing fixes, applied
   after the review budget closed and not seen by any reviewer: the
   connected-clients waiver gains its formal worklist record (item 8,
-  `issues/closed/20260809-0199-ownership-ratchet-worklist.md`) with owner and
+  `issues/20260809-0199-ownership-ratchet-worklist.md`) with owner and
   bound, and the §2 parenthetical becomes a pointer to it (both round-3
   reviews found the prior parenthetical violated the waiver rule it
   instantiates); the analyzer-gap ticket's wording is corrected to match
@@ -1221,7 +1209,7 @@ so slices can follow product priorities.
   merge-wave discoveries were recorded under item 13, and the jobs-wave
   edges (`crates/snapback/src/manifest.rs → crates/snapback/src/storage/jobs.rs`,
   `crates/snapback/src/storage.rs → crates/snapback/src/jobs.rs`) are the current unadmitted pair, tracked
-  by `issues/closed/20260810-main-module-ownership-red-jobs-edges.md`. Waiver
+  by `issues/20260810-main-module-ownership-red-jobs-edges.md`. Waiver
   deadlines are escalation metadata: an expired deadline blocks only NEW
   admissions and never wedges parsing of committed snapshots.
 - **2026-08-11 (n).** §4 rules the item-3 remainder that revision (m) left

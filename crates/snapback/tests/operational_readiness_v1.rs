@@ -11,14 +11,34 @@ use snapback::operational_readiness::{
 };
 use snapback_server::test_support::axum::body::{Body, to_bytes};
 use snapback_server::test_support::axum::http::{Request, StatusCode, header};
+use std::ffi::OsString;
 use std::fs;
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tower::ServiceExt as _;
 
 const ADMIN_TOKEN: &str = "operational-readiness-admin";
+const VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV: &str =
+    "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG";
+
+static GOVERNANCE_ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+struct EnvironmentRestore {
+    name: &'static str,
+    previous: Option<OsString>,
+}
+
+impl Drop for EnvironmentRestore {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => unsafe { std::env::set_var(self.name, value) },
+            None => unsafe { std::env::remove_var(self.name) },
+        }
+    }
+}
 
 struct ServerGuard(Child);
 
@@ -35,6 +55,27 @@ fn generated(file: &str) -> Value {
         .join(file);
     serde_json::from_str(&fs::read_to_string(path).expect("read generated artifact"))
         .expect("parse generated artifact")
+}
+
+fn mint_governance_config(destination: &Path) -> PathBuf {
+    let repository = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
+    let source_backend = repository.join("demos/todo/snapback");
+    let output_path = destination.join("visibility-governance-dev-target-config.json");
+    let output = Command::new("node")
+        .arg(repository.join("scripts/mint-visibility-governance-dev-config.mjs"))
+        .arg(source_backend)
+        .arg("--out")
+        .arg(&output_path)
+        .current_dir(&repository)
+        .output()
+        .expect("mint operational-readiness visibility-governance config");
+    assert!(
+        output.status.success(),
+        "mint operational-readiness visibility-governance config failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+    output_path
 }
 
 fn wait_for_cli_ready(child: &mut Child, path: &Path) -> HostReadyDescriptor {
@@ -145,6 +186,19 @@ async fn router_response_json(
 
 #[tokio::test]
 async fn in_process_router_serves_operational_readiness_authority() {
+    let governance_directory = tempfile::tempdir().expect("governance config directory");
+    let governance_config = mint_governance_config(governance_directory.path());
+    let _environment_lock = GOVERNANCE_ENV_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .expect("visibility-governance environment lock");
+    let previous = std::env::var_os(VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV);
+    unsafe { std::env::set_var(VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV, &governance_config) };
+    let _environment_restore = EnvironmentRestore {
+        name: VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV,
+        previous,
+    };
+
     let mut context = ServerContext::detached();
     context.profile = ServerProfile::Test;
     context.admin_token = Some(ADMIN_TOKEN.to_owned());
@@ -334,12 +388,14 @@ fn served_operational_readiness_declares_evaluates_and_splices() {
     let directory = tempfile::tempdir_in(target_directory).unwrap();
     let database = directory.path().join("operational-readiness.sqlite3");
     let ready_file = directory.path().join("host-ready.json");
+    let governance_config = mint_governance_config(directory.path());
     let mut child = Command::new(binary)
         .args(["start", "--port", "0", "--db"])
         .arg(&database)
         .arg("--ready-file")
         .arg(&ready_file)
         .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .env(VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV, governance_config)
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()

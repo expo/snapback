@@ -498,7 +498,7 @@ pub struct MigrationFenceV1 {
     pub closed_at_ms: u64,
 }
 
-pub fn migration_fence_on(conn: &Connection) -> SnapbackResult<Option<MigrationFenceV1>> {
+pub(crate) fn migration_fence_on(conn: &Connection) -> SnapbackResult<Option<MigrationFenceV1>> {
     if !super::sqlite_table_exists(conn, "_snapback_meta")? {
         return Ok(None);
     }
@@ -532,7 +532,7 @@ fn fence_closed(operation_id: &str) -> SnapbackError {
 /// Stronger than §4's consult-before-opening minimum: on the local profile
 /// each admission re-reads the persisted fence inside its own snapshot, so
 /// a crash between reopen and resume cannot readmit any lane.
-pub fn ensure_migration_fence_open(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn ensure_migration_fence_open(conn: &Connection) -> SnapbackResult<()> {
     match migration_fence_on(conn)? {
         Some(fence) => Err(fence_closed(&fence.operation_id)),
         None => Ok(()),
@@ -3223,7 +3223,7 @@ pub struct CleanupContext {
     pub input_version: u64,
 }
 
-pub fn run_cleanup_tail(
+pub(crate) fn run_cleanup_tail(
     conn: &mut Connection,
     context: &CleanupContext,
     terminal: CleanupTerminal,
@@ -3344,7 +3344,7 @@ fn cleanup_sweep(
 /// without the artifact — the sweep is inventory-driven; artifact-derived
 /// column drops from the interrupted run are re-derived as manifest-absent
 /// residue on the next operation, never guessed here.
-pub fn resume_pending_cleanup(
+pub(crate) fn resume_pending_cleanup(
     conn: &mut Connection,
     schema: &SchemaManifest,
 ) -> SnapbackResult<Option<Value>> {
@@ -5383,10 +5383,7 @@ impl LocalDatabase {
     /// Test-only: persist a fence + non-terminal ops row so reopen-path
     /// witnesses can prove the durable closure without running a real
     /// migration to a crash point.
-    pub fn install_migration_fence_for_test(
-        &mut self,
-        operation_id: &str,
-    ) -> SnapbackResult<()> {
+    pub fn install_migration_fence_for_test(&mut self, operation_id: &str) -> SnapbackResult<()> {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;

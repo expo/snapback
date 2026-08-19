@@ -1,0 +1,43 @@
+{
+  // LLP 0040 Cloudflare narrow proof — the checked-in deploy config
+  // (§Acceptance: a single-command deploy). compatibility_date and the empty
+  // compatibility_flags are single-sourced from
+  // packages/snapback-harness/compat.json (LLP 0048 §Single-sourced runtime
+  // flags); scripts/cf-check-compat asserts they match and refuses
+  // nodejs_compat*.
+  "name": "snapback-notes-proof",
+  "main": "src/gateway.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": [],
+  // /health exposes this platform-issued id so deploy.sh can prove it reached
+  // the exact activation it just created, not an older healthy edge version.
+  "version_metadata": { "binding": "SNAPBACK_VERSION_METADATA" },
+  // The LLP 0049 deploy-time app selector: each deploy config resolves the
+  // 'snapback-app' module to exactly one checked-in bundle. This config is
+  // the notes fixture — LLP 0040's pinned regression surface.
+  "alias": { "snapback-app": "./app/notes.app.js" },
+  // The destructive admin endpoints (/reset, /evict) are disabled unless a
+  // SNAPBACK_ADMIN_TOKEN secret is set (ENG-23587):
+  //   SNAPBACK_ADMIN_TOKEN='<secret>' ./cloudflare/deploy.sh
+  // deploy.sh verifies the lock-installed Wrangler before receiving the token,
+  // applies it transactionally, and attests the result. Never commit a value.
+  "services": [
+    // The handler isolate: the single-sourced LLP 0048 harness with the app
+    // bundle compiled in. The coordinator reaches it over this binding (the
+    // async, RPC-shaped seam), and its own HOST binding points back at the
+    // gateway so ctx host calls route to the coordinator that owns the
+    // invocation.
+    { "binding": "HANDLER", "service": "snapback-notes-handler" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "COORDINATOR", "class_name": "Coordinator" }]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      // new_sqlite_classes: the coordinator uses embedded SQLite storage
+      // (ctx.storage.sql), the LLP 0014 §Resolution store.
+      "new_sqlite_classes": ["Coordinator"]
+    }
+  ]
+}

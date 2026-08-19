@@ -1,7 +1,7 @@
 use snapback::instance_fork::{
     BASE_SNAPSHOT_FILE, ensure_expected_app, inspect_boot_at, publish_managed_with_base,
 };
-use snapback::storage::LocalDatabase;
+use snapback_kernel::storage::LocalDatabase;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 

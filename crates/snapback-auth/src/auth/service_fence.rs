@@ -23,8 +23,9 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 use tokio::sync::Notify;
 
-pub use snapback_kernel::auth::service_fence::{
+use snapback_kernel::auth::service_fence::{
     PreparedServiceAuthorityTerminal, ServiceAuthorityCommitInterlock,
+    ServiceAuthorityTerminalFactory,
 };
 
 const MAX_IN_FLIGHT_SERVICE_AUTHORITY_WORK: usize = 4_096;
@@ -1000,15 +1001,15 @@ impl Drop for PremarkedServiceAuthorityTerminal {
     }
 }
 
-impl PreparedServiceAuthorityTerminal for PremarkedServiceAuthorityTerminal {
-    fn committed(self: Box<Self>) -> SnapbackResult<()> {
+impl PremarkedServiceAuthorityTerminal {
+    fn committed(self) -> SnapbackResult<()> {
         // Commit hooks run while managed callers still own Local/SQLite. Move
         // both service-fence publication and exact-ticket settlement across
         // that boundary. The publication is an ordinary effect, so the
         // handler can queue lifecycle fanout behind it; settlement is a
         // finalizer, so no overlapping service ending can pass until that
         // fanout has completed.
-        let mut prepared = *self;
+        let mut prepared = self;
         prepared.ambiguous = true;
         let prepared = Arc::new(Mutex::new(Some(prepared)));
         let publication = Arc::clone(&prepared);
@@ -1033,8 +1034,8 @@ impl PreparedServiceAuthorityTerminal for PremarkedServiceAuthorityTerminal {
         Ok(())
     }
 
-    fn rolled_back(self: Box<Self>) {
-        let mut prepared = *self;
+    fn rolled_back(self) {
+        let mut prepared = self;
         prepared.ambiguous = true;
         crate::exec_guard::run_or_defer_after_local_finalizer(move || {
             prepared.release_ticket();
@@ -1049,12 +1050,24 @@ impl PreparedServiceAuthorityTerminal for PremarkedServiceAuthorityTerminal {
     }
 }
 
-impl ServiceAuthorityCommitInterlock for ServiceAuthorityFenceRegistry {
+impl ServiceAuthorityFenceRegistry {
+    /// Test-only operation that settles the exact terminal previously admitted
+    /// by the real fence gate. Tests can exercise timing without receiving the
+    /// opaque prepared terminal or implementing settlement semantics.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn commit_terminal_for_test(
+        &self,
+        token_ids: &[String],
+        disposition: ServiceAuthorityDisposition,
+    ) -> SnapbackResult<()> {
+        self.prepare_terminal(token_ids, disposition)?.committed()
+    }
+
     fn prepare_terminal(
         &self,
         token_ids: &[String],
         disposition: ServiceAuthorityDisposition,
-    ) -> SnapbackResult<Box<dyn PreparedServiceAuthorityTerminal>> {
+    ) -> SnapbackResult<PremarkedServiceAuthorityTerminal> {
         let token_ids = token_ids.iter().cloned().collect::<BTreeSet<_>>();
         let gate_scope_active = SERVICE_TERMINAL_GATE_SCOPE_ACTIVE.with(Cell::get);
         if gate_scope_active {
@@ -1076,9 +1089,7 @@ impl ServiceAuthorityCommitInterlock for ServiceAuthorityFenceRegistry {
                     .borrow_mut()
                     .take()
                     .expect("the exact installed terminal gate was just matched");
-                let output: Box<dyn PreparedServiceAuthorityTerminal> =
-                    Box::new(gate.take_prepared());
-                Ok(output)
+                Ok(gate.take_prepared())
             });
         }
 
@@ -1099,9 +1110,58 @@ impl ServiceAuthorityCommitInterlock for ServiceAuthorityFenceRegistry {
                 "retained service-authority work requires an async exact-token gate",
             ));
         }
-        let output: Box<dyn PreparedServiceAuthorityTerminal> = Box::new(prepared);
-        Ok(output)
+        Ok(prepared)
     }
+
+    pub fn kernel_commit_interlock(
+        &self,
+        authority: &snapback_kernel::storage::KernelCommitAuthority,
+    ) -> ServiceAuthorityCommitInterlock {
+        let registry = self.clone();
+        let factory = authority.service_authority_terminal_factory();
+        authority.service_authority_commit_interlock(move |token_ids, disposition| {
+            let prepared = registry.prepare_terminal(token_ids, disposition)?;
+            Ok(opaque_service_terminal(&factory, prepared))
+        })
+    }
+}
+
+fn opaque_service_terminal(
+    factory: &ServiceAuthorityTerminalFactory,
+    prepared: PremarkedServiceAuthorityTerminal,
+) -> PreparedServiceAuthorityTerminal {
+    let state = Arc::new(Mutex::new(Some(prepared)));
+    let committed = state.clone();
+    let rolled_back = state.clone();
+    let ambiguous = state;
+    factory.prepared(
+        move || {
+            committed
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .take()
+                .expect("service terminal settles once")
+                .committed()
+        },
+        move || {
+            if let Some(prepared) = rolled_back
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .take()
+            {
+                prepared.rolled_back();
+            }
+        },
+        move || {
+            if let Some(prepared) = ambiguous
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .as_mut()
+            {
+                prepared.mark_ambiguous();
+            }
+        },
+    )
 }
 
 fn service_authority_unavailable(message: &str) -> SnapbackError {

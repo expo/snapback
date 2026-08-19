@@ -2169,7 +2169,7 @@ auth-program implementation reconciliation) records. The evidence:
 
 **Cloudflare target — not covered; recorded capability gap, expected.** Open
 question 3 stands: the Cloudflare coordinator
-(`targets/cloudflare/src/coordinator.js`) has no authorization-version, obligation,
+(`cloudflare/src/coordinator.js`) has no authorization-version, obligation,
 lease, or `permissionBacking` machinery at all (its only "lease" strings are
 cron-claim leases, unrelated to §The lease), and it rebuilds subscriptions on
 deploy. The revocation-eviction differentiator claim therefore covers the

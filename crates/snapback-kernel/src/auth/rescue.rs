@@ -76,11 +76,7 @@ pub fn quote_identifier(value: &str) -> String {
     format!("\"{}\"", value.replace('"', "\"\""))
 }
 
-pub fn rewrite_create_table(
-    sql: &str,
-    source: &str,
-    target: &str,
-) -> Result<String, RewriteError> {
+pub fn rewrite_create_table(sql: &str, source: &str, target: &str) -> Result<String, RewriteError> {
     let tokens = tokenize(sql)?;
     let significant = significant_tokens(&tokens);
     let mut cursor = 0;
@@ -130,10 +126,7 @@ pub fn rewrite_create_index(
 /// Conservative dependency scan. Strings containing the source are ambiguous
 /// under SQLite's legacy quoting behavior, so they also cause refusal;
 /// comments are trivia and never count.
-pub fn sql_may_reference_identifier(
-    sql: &str,
-    identifier: &str,
-) -> Result<bool, RewriteError> {
+pub fn sql_may_reference_identifier(sql: &str, identifier: &str) -> Result<bool, RewriteError> {
     let folded_identifier = identifier.to_ascii_lowercase();
     Ok(tokenize(sql)?.iter().any(|token| match token.kind {
         TokenKind::Word | TokenKind::QuotedIdentifier => token

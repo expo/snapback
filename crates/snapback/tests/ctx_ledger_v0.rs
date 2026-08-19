@@ -100,7 +100,7 @@ fn schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -213,9 +213,9 @@ fn buffered_optional_order_fields_match_committed_null_last_ordering() {
     let ledger = CtxAnswerLedger {
         version: CTX_ANSWER_LEDGER_VERSION,
         ids: vec![
-            "z-high".to_owned(),
-            "a-omitted".to_owned(),
-            "m-low".to_owned(),
+            snapback::ids::format_id(snapback::ids::Kind::Opaque, &[2; 16]),
+            snapback::ids::format_id(snapback::ids::Kind::Opaque, &[0; 16]),
+            snapback::ids::format_id(snapback::ids::Kind::Opaque, &[1; 16]),
         ],
         now: 123,
         auth_fingerprint: None,

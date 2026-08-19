@@ -139,7 +139,6 @@ pub struct ProjectionTokenRow {
     pub superseded_at_ms: i64,
 }
 
-
 fn stream_corrupt(message: &str) -> SnapbackError {
     SnapbackError::error("SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT", "auth", message)
 }

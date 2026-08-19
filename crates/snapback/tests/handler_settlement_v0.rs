@@ -95,7 +95,7 @@ fn schema() -> SchemaManifest {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             },
             TableManifest {
@@ -115,7 +115,7 @@ fn schema() -> SchemaManifest {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             },
         ],

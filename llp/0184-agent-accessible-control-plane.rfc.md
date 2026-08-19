@@ -721,7 +721,7 @@ far joins the **Rust/local registry**, which the hosted (Cloudflare) target
 does not have. LLP 0031 records this directly: "the hosted arm has no
 enforceable route registry (the gateway is a hand-routed Worker)." Real
 hosted system controls exist — `/_snapback/api/object/evict` among them,
-hand-routed in `targets/cloudflare/src/gateway.js` — with no `RouteClass` entry a
+hand-routed in `cloudflare/src/gateway.js` — with no `RouteClass` entry a
 compiler can test. As drafted through round 3, the catalog's completeness
 claim was true only for the local/derived arm, while the RFC's own Acceptance
 criteria and Non-goals never scoped it that narrowly. This RFC's author has

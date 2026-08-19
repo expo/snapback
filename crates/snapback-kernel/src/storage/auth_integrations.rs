@@ -221,7 +221,7 @@ fn oauth_enabled(manifest: &SchemaManifest) -> bool {
 /// transaction as app tables and the push registry.
 ///
 /// @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — integration records are app-scoped reserved state and class invariants are checked before admission opens.
-pub fn activate_manifest_in(
+pub(crate) fn activate_manifest_in(
     tx: &Transaction<'_>,
     manifest: &SchemaManifest,
 ) -> SnapbackResult<()> {
@@ -797,10 +797,7 @@ pub(super) fn consume_oauth_authorization_code_on(
 }
 
 impl LocalDatabase {
-    pub fn oauth_bundle_names_for_grant(
-        &self,
-        grant_id: &str,
-    ) -> SnapbackResult<Vec<String>> {
+    pub fn oauth_bundle_names_for_grant(&self, grant_id: &str) -> SnapbackResult<Vec<String>> {
         let encoded = self
             .conn
             .query_row(
@@ -1086,10 +1083,7 @@ impl LocalDatabase {
     }
 
     #[cfg(any(test, feature = "test-support"))]
-    pub fn integration_grant_revoked_for_test(
-        &self,
-        grant_id: &str,
-    ) -> SnapbackResult<bool> {
+    pub fn integration_grant_revoked_for_test(&self, grant_id: &str) -> SnapbackResult<bool> {
         Ok(self.conn.query_row(
             "SELECT revoked_at_ms IS NOT NULL FROM _auth_grants WHERE id = ?1",
             params![grant_id],
@@ -1117,7 +1111,7 @@ impl LocalDatabase {
 /// it. The first named principal is returned for explicit operator repair.
 ///
 /// @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — activation refuses integration autonomous grants/memberships and malformed installation lineage.
-pub fn validate_class_invariants_on(
+pub(crate) fn validate_class_invariants_on(
     conn: &Connection,
     manifest: &SchemaManifest,
 ) -> SnapbackResult<()> {

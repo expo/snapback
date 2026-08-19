@@ -8,7 +8,7 @@ use crate::host_ops::{HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, Hos
 use crate::instance_lock::{DatabaseInstanceLock, StartupTargetReservation};
 use crate::local::{DiagnosticBoundary, LocalSnapback};
 use crate::manifest::{SNAPBACK_SCHEMA_VERSION, SchemaManifestValidationExt as _};
-#[cfg(all(test, not(feature = "cli-owner")))]
+#[cfg(test)]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::server;
 use anyhow::Context;
@@ -8556,14 +8556,14 @@ async fn run_composed(
     let connection_binding_receipt = server::connection_binding_construction_receipt();
     let two_phase_revocation_receipt = auth_runtime.two_phase_revocation_construction_receipt();
     let auth_coordinator_receipt = auth_runtime.auth_coordinator_construction_receipt();
-    #[cfg(all(test, not(feature = "cli-owner")))]
+    #[cfg(test)]
     let auth_coordinator_receipt = match args.auth_construction_failure {
         Some(AuthConstructionFailure::Coordinator) => {
             auth_coordinator_receipt.fail_before_build_for_test()
         }
         _ => auth_coordinator_receipt,
     };
-    #[cfg(all(test, not(feature = "cli-owner")))]
+    #[cfg(test)]
     let two_phase_revocation_receipt = match args.auth_construction_failure {
         Some(AuthConstructionFailure::ExpiryWorker) => {
             two_phase_revocation_receipt.fail_before_ready_for_test()

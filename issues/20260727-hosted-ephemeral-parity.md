@@ -158,8 +158,8 @@ ticket's own 2026-07-28 checkpoint: LLP 0111 selected
 single-instance-sticky-memory.v1 — the gate is now LLP 0111's Review
 status plus the carrier gap. Both capability manifests still declare
 ephemeralHostedAdapter:false (schemas/capability.manifest.local-dev-
-sqlite-ibex.json:130; targets/cloudflare/generated/...cloudflare-do-sqlite-
+sqlite-ibex.json:130; cloudflare/generated/...cloudflare-do-sqlite-
 v8.json:37, which also has ephemeralRealtime/WebSocketPublish false).
-Note: the CF arm lives in top-level targets/cloudflare/, not src/cloudflare.
+Note: the CF arm lives in top-level cloudflare/, not src/cloudflare.
 A hosted single-instance authority claim also depends on
 issues/20260730-0098-single-instance-enforcement.md.

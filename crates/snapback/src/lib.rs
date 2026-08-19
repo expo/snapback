@@ -208,14 +208,13 @@ pub mod instance_fork {
         ManagedForkTargetV1, NET_DIFF_UNAVAILABLE_CODE, PublicationCut, REGISTRY_DIRECTORY,
         RENEW_EXPIRED_CODE, RENEW_INTENT_FILE, RENEW_RECEIPT_FILE, RESOURCE_LIMIT_REFUSED_CODE,
         RenewCut, WRITER_COVERAGE_INVALID_CODE, admit_creation, arm_derived_fork_app_row_coverage,
-        audit_connection, clear_stale_registry_entry, clear_stale_registry_entry_locked,
-        diff_receipt, diff_receipt_bounded, drop_managed, drop_managed_locked,
-        enforce_creation_limits, ensure_expected_app, expired_managed, list_managed,
-        load_expected_app, lock_cleanup, managed_entry, managed_registry_ids, managed_target,
-        net_diff_receipt, publish, publish_managed, publish_managed_with_base,
-        record_managed_runtime, recover, recover_bound, refreshed_lineage, renew_managed,
-        renew_managed_with_crash_cut_for_test, resource_limit_refusal, scrub_and_mint,
-        verified_derived_fork_app_row_coverage,
+        clear_stale_registry_entry, clear_stale_registry_entry_locked, diff_receipt,
+        diff_receipt_bounded, drop_managed, drop_managed_locked, enforce_creation_limits,
+        ensure_expected_app, expired_managed, list_managed, load_expected_app, lock_cleanup,
+        managed_entry, managed_registry_ids, managed_target, net_diff_receipt, publish,
+        publish_managed, publish_managed_with_base, record_managed_runtime, recover, recover_bound,
+        refreshed_lineage, renew_managed, renew_managed_with_crash_cut_for_test,
+        resource_limit_refusal, verified_derived_fork_app_row_coverage,
     };
     pub(crate) use snapback_services::instance_fork::{
         arm_open_derived_fork_app_row_coverage, directory_tree_bytes,
@@ -332,15 +331,22 @@ pub(crate) use snapback_kernel::secure_file;
 #[doc(hidden)]
 pub use snapback_kernel::seed_identity;
 #[doc(hidden)]
-/// The services-only asset continuity capability is intentionally absent.
-///
-/// ```compile_fail
-/// use snapback::storage::AssetAttemptCurrentProof;
-/// ```
-///
-/// @ref LLP 0276#phases — raw lower-layer capability carriers must not be
-/// re-exported by the supported façade.
-pub use snapback_kernel::storage;
+pub mod storage {
+    pub use snapback_kernel::storage::{
+        MigrationKeysetScanCheckpointV1, SchemaTransitionEventBodyV1, StorageInfo,
+    };
+
+    pub mod migration_executor {
+        pub use snapback_kernel::storage::migration_executor::{
+            MigrationJournalEntryV1, MigrationReceiptV1, MigrationRollbackReceiptV1,
+            migration_journal_artifact,
+        };
+    }
+
+    pub mod auth_rehearsal {
+        pub use snapback_kernel::storage::auth_rehearsal::RehearsalStatusV1;
+    }
+}
 #[doc(hidden)]
 pub use snapback_server::server;
 pub(crate) use snapback_sync::snapshot_batch_cursor;
@@ -350,7 +356,6 @@ pub use snapback_sync::snapshot_batch_cursor_v2;
 pub use snapback_sync::stream_attempt;
 #[doc(hidden)]
 pub use snapback_types::service_profile;
-#[doc(hidden)]
 #[cfg(feature = "telemetry-phase1-proof")]
 #[path = "telemetry_bench.rs"]
 mod telemetry_phase1_bench;

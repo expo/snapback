@@ -35,12 +35,8 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
     fn remainder_activate_agent_safe_operation_coverage(
         &mut self,
         activated_at_ms: u64,
-    ) -> crate::diagnostic::SnapbackResult<
-        crate::commit_envelope::OperationCoverageManifestV1,
-    > {
-        snapback_engine::test_support::activate_agent_safe_operation_coverage(
-            self,
-            activated_at_ms,
-        )
+    ) -> crate::diagnostic::SnapbackResult<crate::commit_envelope::OperationCoverageManifestV1>
+    {
+        snapback_engine::test_support::activate_agent_safe_operation_coverage(self, activated_at_ms)
     }
 }

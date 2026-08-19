@@ -1887,7 +1887,7 @@ mod tests {
     }
 
     /// ENG-24369 — keep the local scheduler's strict-next arithmetic pinned to
-    /// the same boundary/downtime vectors as `targets/cloudflare/test/cron-utils.mjs`.
+    /// the same boundary/downtime vectors as `cloudflare/test/cron-utils.mjs`.
     /// @ref LLP 0028#delivery-overlap-and-missed-ticks — coalesce missed slots,
     /// then advance to the smallest nominal strictly after now.
     #[test]

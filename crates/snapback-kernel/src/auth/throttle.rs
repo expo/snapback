@@ -406,19 +406,16 @@ pub struct OccupancyBudgetTerms {
 // LLP 0057 compatibility values now have one numeric authority: the named
 // budget policy. Provider/mailbox compatibility symbols below re-export these
 // values instead of owning independent literals.
-pub const AUTH_DELIVERY_RECIPIENT_TERMS: RollingWindowBudgetTerms =
-    RollingWindowBudgetTerms {
-        limit: 5,
-        window_ms: 10 * 60 * 1_000,
-    };
+pub const AUTH_DELIVERY_RECIPIENT_TERMS: RollingWindowBudgetTerms = RollingWindowBudgetTerms {
+    limit: 5,
+    window_ms: 10 * 60 * 1_000,
+};
 pub const AUTH_CHALLENGE_GLOBAL_TERMS: RollingWindowBudgetTerms = RollingWindowBudgetTerms {
     limit: 120,
     window_ms: 60 * 1_000,
 };
-pub const AUTH_GUESSING_CHALLENGE_TERMS: FixedTotalBudgetTerms =
-    FixedTotalBudgetTerms { limit: 5 };
-pub const AUTH_CAPTURE_MAILBOX_TERMS: OccupancyBudgetTerms =
-    OccupancyBudgetTerms { limit: 1_024 };
+pub const AUTH_GUESSING_CHALLENGE_TERMS: FixedTotalBudgetTerms = FixedTotalBudgetTerms { limit: 5 };
+pub const AUTH_CAPTURE_MAILBOX_TERMS: OccupancyBudgetTerms = OccupancyBudgetTerms { limit: 1_024 };
 
 pub const AUTH_ADDRESS_REQUEST_LIMIT: usize = AUTH_DELIVERY_RECIPIENT_TERMS.limit as usize;
 pub const AUTH_ADDRESS_REQUEST_WINDOW_MS: u64 = AUTH_DELIVERY_RECIPIENT_TERMS.window_ms;
@@ -465,9 +462,7 @@ pub enum ServerVerifiedAuthTrustEvidence {
 
 /// @ref LLP 0215#7-server-derived-trust-tiers — tier selection is a sealed
 /// server result, never a header/body/query value, and every tier stays finite.
-pub fn derive_auth_trust_tier(
-    evidence: ServerVerifiedAuthTrustEvidence,
-) -> DerivedAuthTrustTier {
+pub fn derive_auth_trust_tier(evidence: ServerVerifiedAuthTrustEvidence) -> DerivedAuthTrustTier {
     DerivedAuthTrustTier(match evidence {
         ServerVerifiedAuthTrustEvidence::Anonymous => AuthTrustTier::Anonymous,
         ServerVerifiedAuthTrustEvidence::VerifiedContact => AuthTrustTier::VerifiedContact,
@@ -510,10 +505,7 @@ impl ResolvedCompatibilityAuthBudgetPolicy {
     ///
     /// @ref LLP 0215#8-repo-declared-policy-and-deployment-overlays — dev/demo
     /// omit only the recipient rule and remain covered by the global rule.
-    pub fn resolve(
-        profile: AuthBudgetDeploymentProfile,
-        trust: DerivedAuthTrustTier,
-    ) -> Self {
+    pub fn resolve(profile: AuthBudgetDeploymentProfile, trust: DerivedAuthTrustTier) -> Self {
         debug_assert!(
             compatibility_registry_is_closed(),
             "compiled authentication budget registry is closed"
@@ -1260,7 +1252,7 @@ fn idempotency_retention_ms(
     })
 }
 
-pub fn initialize_shared_authentication_throttle(
+pub(crate) fn initialize_shared_authentication_throttle(
     connection: &Connection,
 ) -> Result<(), AuthenticationThrottleError> {
     connection
@@ -1292,7 +1284,7 @@ pub fn initialize_shared_authentication_throttle(
 
 /// @ref LLP 0060#d3-shared-authentication-throttling — one serialized
 /// transaction advances the complete applicable key set even on denial.
-pub fn charge_shared_authentication_attempt(
+pub(crate) fn charge_shared_authentication_attempt(
     connection: &mut Connection,
     limiter_epoch: u64,
     key: &AuthenticationThrottleKey,
@@ -1319,7 +1311,7 @@ pub fn charge_shared_authentication_attempt(
 /// @ref LLP 0215#6-idempotency-and-retry-identity — exact retransmission is
 /// not double-charged and a changed guess cannot become a free attempt.
 #[allow(clippy::too_many_arguments)]
-pub fn charge_shared_authentication_attempt_idempotent(
+pub(crate) fn charge_shared_authentication_attempt_idempotent(
     connection: &mut Connection,
     limiter_epoch: u64,
     key: &AuthenticationThrottleKey,

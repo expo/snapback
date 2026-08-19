@@ -24,13 +24,14 @@ use snapback::commit_envelope::{
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
     AgentSafeAggregateStateV1, AgentSafeEnvelopeCoverageV1, AgentSafeExplanationProfileV1,
-    ArtifactGeneration, AuthInput, AuthMode, FunctionManifest, HandlerInput,
-    HistoryRetentionManifestV1, MutationSettlement, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
+    ArtifactGeneration, AuthInput, AuthMode, FunctionManifest, FunctionRuntime, HandlerInput,
+    HandlerPlan, HistoryRetentionManifestV1, MutationSettlement, OwnerWriteAbsentDispositionV1,
+    OwnerWriteCheckV1, SNAPBACK_SCHEMA_VERSION, SchemaManifest, TableVisibilityV1,
     TargetCapabilityId,
 };
 use snapback::operation_ledger::ORDINARY_MUTATION_LANE_V1;
 use snapback::server::{SnapbackApp, app};
-use snapback::storage::ClientMutationIdentity;
+use snapback_kernel::storage::ClientMutationIdentity;
 use snapback_server::test_support::axum::body::{Body, to_bytes};
 use snapback_server::test_support::axum::http::{Method, Request, StatusCode, header};
 use tower::ServiceExt;
@@ -63,6 +64,9 @@ fn generated_owned_crud_fixture() -> (SchemaManifest, FunctionManifest) {
         .iter_mut()
         .find(|table| table.name == "notes")
         .expect("generated notes table");
+    notes.visibility = Some(TableVisibilityV1::Owner {
+        field: "ownerId".to_owned(),
+    });
     notes.history = Some(HistoryRetentionManifestV1 {
         retain_ms: 60_000,
         max_versions_per_record: 32,
@@ -75,6 +79,21 @@ fn generated_owned_crud_fixture() -> (SchemaManifest, FunctionManifest) {
     functions
         .functions
         .retain(|function| matches!(function.name.as_str(), "createNote" | "updateNote"));
+    let update = functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "updateNote")
+        .expect("generated updateNote function");
+    let FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) = &mut update.runtime else {
+        panic!("generated updateNote stays a HostPlan mutation");
+    };
+    plan.owner_write_checks = vec![OwnerWriteCheckV1 {
+        step_index: 2,
+        // The generated Get/Guard pair below retains its stable identical-
+        // absent refusal. This sealed preflight only prevents the Patch from
+        // ever observing or mutating a foreign owner row.
+        absent: OwnerWriteAbsentDispositionV1::NoEffect,
+    }];
     (schema, functions)
 }
 

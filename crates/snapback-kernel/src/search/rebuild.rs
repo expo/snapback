@@ -16,7 +16,7 @@ pub struct SearchRebuildReceiptV1 {
     pub activated: bool,
 }
 
-pub fn quarantine_generation(
+pub(crate) fn quarantine_generation(
     conn: &Connection,
     table: &str,
     index: &str,
@@ -32,7 +32,7 @@ pub fn quarantine_generation(
     Ok(())
 }
 
-pub fn inspect_generation(
+pub(crate) fn inspect_generation(
     conn: &Connection,
     table: &str,
     index: &str,
@@ -58,7 +58,7 @@ pub fn inspect_generation(
     .transpose()
 }
 
-pub fn record_journal_lease(
+pub(crate) fn record_journal_lease(
     tx: &Transaction<'_>,
     table: &str,
     index: &str,

@@ -49,7 +49,7 @@ fn schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
             history: None,
         };
     SchemaManifest {
@@ -158,7 +158,7 @@ fn functions() -> FunctionManifest {
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps,
                 return_value: None,
             })),

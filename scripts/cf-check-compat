@@ -21,11 +21,11 @@ if [[ -n "$tracked_tool_caches" ]]; then
   fail=1
 fi
 for config in \
-  "$repo_root/targets/cloudflare/wrangler.jsonc" \
-  "$repo_root/targets/cloudflare/wrangler.handler.jsonc" \
-  "$repo_root/targets/cloudflare/wrangler.all-aboard.jsonc" \
-  "$repo_root/targets/cloudflare/wrangler.all-aboard.handler.jsonc" \
-  "$repo_root/targets/cloudflare/wrangler.all-aboard.action-handler.jsonc"; do
+  "$repo_root/cloudflare/wrangler.jsonc" \
+  "$repo_root/cloudflare/wrangler.handler.jsonc" \
+  "$repo_root/cloudflare/wrangler.all-aboard.jsonc" \
+  "$repo_root/cloudflare/wrangler.all-aboard.handler.jsonc" \
+  "$repo_root/cloudflare/wrangler.all-aboard.action-handler.jsonc"; do
   # Strip // comments so JSON parses.
   actual=$(node -e "
     const fs=require('fs');
@@ -49,13 +49,13 @@ for config in \
   fi
 done
 
-if ! node "$repo_root/targets/cloudflare/scripts/generate-deployment-identity.mjs" --check; then
+if ! node "$repo_root/cloudflare/scripts/generate-deployment-identity.mjs" --check; then
   echo "MISMATCH: Cloudflare deployment identities are stale" >&2
   fail=1
 fi
 
-if grep -Eq "compatibilityDate:[[:space:]]*['\"][0-9]{4}-[0-9]{2}-[0-9]{2}['\"]" "$repo_root/targets/cloudflare/test/harness.mjs"; then
-  echo "MISMATCH: targets/cloudflare/test/harness.mjs hardcodes a compatibilityDate instead of compat.json" >&2
+if grep -Eq "compatibilityDate:[[:space:]]*['\"][0-9]{4}-[0-9]{2}-[0-9]{2}['\"]" "$repo_root/cloudflare/test/harness.mjs"; then
+  echo "MISMATCH: cloudflare/test/harness.mjs hardcodes a compatibilityDate instead of compat.json" >&2
   fail=1
 fi
 

@@ -8,7 +8,7 @@ use snapback::manifest::{
     CronOverlapPolicy, CronRetryPolicy, CronSchedule, FieldManifest, FieldType, FunctionDefinition,
     FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
     IdentityBindingTableManifestV1, MutationPlan, MutationStep, SchemaManifest, TableManifest,
-    ValueExpr,
+    TableVisibilityV1, ValueExpr,
 };
 
 const SOURCE: &str = r#"
@@ -110,7 +110,7 @@ fn configured() -> LocalSnapback {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -309,7 +309,7 @@ fn ordinary_handler_cannot_write_declared_identity_binding_table() {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::PublicRead),
                 history: None,
             }],
             identity_binding_tables: vec![IdentityBindingTableManifestV1 {

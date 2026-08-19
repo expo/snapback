@@ -64,7 +64,7 @@ that must not be conflated.
   global commit version that last changed it.
 - **The bounded change journal** — `_snapback_changes` exists on both
   shipped targets (local Rust SQLite, `crates/snapback/src/storage.rs`; Cloudflare DO
-  coordinator, `targets/cloudflare/src/coordinator.js`) with the same essential
+  coordinator, `cloudflare/src/coordinator.js`) with the same essential
   shape: `(version, table_name, row_id, op, row_json)` — a **per-row
   post-image per committed version**. This is already, mechanically, a
   record history store within its retention window.

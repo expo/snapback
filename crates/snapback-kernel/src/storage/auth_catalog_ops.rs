@@ -146,8 +146,7 @@ pub struct CatalogSessionIssuancePlan<'a> {
     pub password_profile: Option<crate::storage::auth_identity::PasswordSecurityProfile>,
     pub challenge: Option<CatalogChallengeConsumption<'a>>,
     pub sender_issuance: Option<&'a crate::auth::sender_proof::SenderIssuanceCommitment>,
-    pub rehearsal_exercise:
-        Option<&'a crate::storage::auth_rehearsal::RehearsalExercisePlan>,
+    pub rehearsal_exercise: Option<&'a crate::storage::auth_rehearsal::RehearsalExercisePlan>,
     pub live_session_limit: u64,
 }
 
@@ -250,7 +249,7 @@ struct RawSessionRecord {
     revoked_at_ms: Option<i64>,
 }
 
-pub fn lookup_presented_session(
+pub(crate) fn lookup_presented_session(
     connection: &Connection,
     token_hash: &TokenHash,
 ) -> SnapbackResult<PresentedSessionLookup> {
@@ -437,7 +436,7 @@ fn exact_tombstone_time(
         .map(checked_stored_time)
         .transpose()
 }
-pub fn planned_revocation_transaction(
+pub(crate) fn planned_revocation_transaction(
     transaction: &Transaction<'_>,
     plan: &CatalogRevocationPlan,
     now_ms: u64,
@@ -531,7 +530,7 @@ pub fn planned_revocation_transaction(
     }
 }
 
-pub fn planned_family_alarm_transaction(
+pub(crate) fn planned_family_alarm_transaction(
     transaction: &Transaction<'_>,
     plan: &CatalogFamilyAlarmPlan,
 ) -> SnapbackResult<PlannedFamilyAlarmCommit> {
@@ -551,7 +550,7 @@ pub fn planned_family_alarm_transaction(
     }
 }
 
-pub fn reconcile_planned_revocation(
+pub(crate) fn reconcile_planned_revocation(
     connection: &Connection,
     plan: &CatalogRevocationPlan,
     now_ms: u64,
@@ -595,7 +594,7 @@ pub fn reconcile_planned_revocation(
     }
 }
 
-pub fn reconcile_planned_rotation(
+pub(crate) fn reconcile_planned_rotation(
     connection: &Connection,
     plan: &CatalogRotationPlan,
 ) -> SnapbackResult<DurableRotationReconcile> {
@@ -626,7 +625,7 @@ pub fn reconcile_planned_rotation(
     }
 }
 
-pub fn planned_rotation_transaction(
+pub(crate) fn planned_rotation_transaction(
     transaction: &Transaction<'_>,
     plan: &CatalogRotationPlan,
 ) -> SnapbackResult<PlannedRotationTransaction> {
@@ -681,7 +680,7 @@ pub fn planned_rotation_transaction(
     ))
 }
 
-pub fn authenticated_use_row(
+pub(crate) fn authenticated_use_row(
     connection: &Connection,
     session_id: &str,
     expected_generation: u64,
@@ -726,7 +725,7 @@ pub fn authenticated_use_row(
     .map(Option::flatten)
 }
 
-pub fn exchange_challenge_fact(
+pub(crate) fn exchange_challenge_fact(
     connection: &Connection,
     challenge_id: &ChallengeId,
 ) -> SnapbackResult<Option<ExchangeChallengeFact>> {
@@ -771,7 +770,7 @@ pub fn exchange_challenge_fact(
     .transpose()
 }
 
-pub fn session_issuance_facts(
+pub(crate) fn session_issuance_facts(
     connection: &Connection,
     address: &CanonicalAddress,
     candidate_user_id: &str,
@@ -847,7 +846,7 @@ pub fn session_issuance_facts(
     })
 }
 
-pub fn session_cap_facts(
+pub(crate) fn session_cap_facts(
     connection: &Connection,
     user_id: &str,
     now_ms: u64,
@@ -904,7 +903,7 @@ pub fn session_cap_facts(
     })
 }
 
-pub fn user_session_revocation_facts(
+pub(crate) fn user_session_revocation_facts(
     connection: &Connection,
     user_id: &str,
     excluded_session_id: Option<&str>,
@@ -954,7 +953,7 @@ pub fn user_session_revocation_facts(
 }
 
 /// Commit the expiry chosen by sync policy against the exact durable row.
-pub fn extend_authenticated_use_transaction(
+pub(crate) fn extend_authenticated_use_transaction(
     transaction: &Transaction<'_>,
     session_id: &str,
     expected_generation: u64,
@@ -1036,7 +1035,7 @@ fn commit_planned_revocation_set(
     Ok(committed)
 }
 
-pub fn planned_password_change_transaction(
+pub(crate) fn planned_password_change_transaction(
     transaction: &Transaction<'_>,
     plan: &CatalogPasswordChangePlan<'_>,
 ) -> SnapbackResult<CatalogPasswordChangeCommit> {
@@ -1089,7 +1088,7 @@ pub fn planned_password_change_transaction(
     })
 }
 
-pub fn reconcile_password_change(
+pub(crate) fn reconcile_password_change(
     connection: &Connection,
     plan: &CatalogPasswordChangePlan<'_>,
 ) -> SnapbackResult<CatalogPasswordChangeReconcile> {
@@ -1141,7 +1140,7 @@ pub fn reconcile_password_change(
     }
 }
 
-pub fn planned_session_issuance_transaction(
+pub(crate) fn planned_session_issuance_transaction(
     transaction: &Transaction<'_>,
     plan: &CatalogSessionIssuancePlan,
     exchange_proof: Option<(&AuthKeyMaterial, &VerificationCode)>,
@@ -1840,7 +1839,7 @@ fn issuance_revocations_are_exact_successors(
     Ok(committed)
 }
 
-pub fn reconcile_rejected_issuance(
+pub(crate) fn reconcile_rejected_issuance(
     connection: &Connection,
     plan: &CatalogSessionIssuancePlan,
 ) -> SnapbackResult<DurableRejectedIssuanceReconcile> {
@@ -1868,7 +1867,7 @@ pub fn reconcile_rejected_issuance(
     Ok(DurableRejectedIssuanceReconcile::DifferentValid)
 }
 
-pub fn reconcile_planned_issuance(
+pub(crate) fn reconcile_planned_issuance(
     connection: &Connection,
     plan: &CatalogSessionIssuancePlan,
 ) -> SnapbackResult<CatalogIssuanceReconcile> {
@@ -1948,7 +1947,7 @@ struct ChallengeTransactionRow {
     consumed: bool,
     superseded: bool,
 }
-pub fn rejected_exchange_transaction(
+pub(crate) fn rejected_exchange_transaction(
     transaction: &Transaction<'_>,
     plan: &CatalogRejectedExchangePlan<'_>,
 ) -> SnapbackResult<RejectedExchangeOutcome> {
@@ -2151,7 +2150,7 @@ fn insert_identity_session(
     Ok(())
 }
 
-pub fn reconcile_step_up_consumed_on(
+pub(crate) fn reconcile_step_up_consumed_on(
     connection: &Connection,
     proof: &StepUpProof,
 ) -> SnapbackResult<bool> {
@@ -2185,7 +2184,7 @@ pub fn reconcile_step_up_consumed_on(
         .map_err(crate::diagnostic::SnapbackError::from)
 }
 
-pub fn reconcile_step_up_unconsumed_on(
+pub(crate) fn reconcile_step_up_unconsumed_on(
     connection: &Connection,
     proof: &StepUpProof,
 ) -> SnapbackResult<bool> {
@@ -2219,7 +2218,7 @@ pub fn reconcile_step_up_unconsumed_on(
 /// Verify and consume one operation-bound proof inside the protected kernel
 /// transaction. The sync owner has already selected the proof and operation;
 /// this primitive only rechecks and commits its exact durable predecessor.
-pub fn consume_step_up_proof_on(
+pub(crate) fn consume_step_up_proof_on(
     transaction: &Transaction<'_>,
     proof: &StepUpProof,
     now_ms: u64,
@@ -2400,7 +2399,7 @@ fn test_catalog_v3(conn: &Connection) -> SnapbackResult<bool> {
 }
 
 #[cfg(any(test, feature = "test-support"))]
-pub fn insert_test_email_identity(
+pub(crate) fn insert_test_email_identity(
     conn: &Connection,
     id: &str,
     user: &str,
@@ -2418,7 +2417,7 @@ pub fn insert_test_email_identity(
 }
 
 #[cfg(any(test, feature = "test-support"))]
-pub fn insert_test_external_identity(
+pub(crate) fn insert_test_external_identity(
     conn: &Connection,
     id: &str,
     user: &str,
@@ -2447,7 +2446,7 @@ pub fn insert_test_external_identity(
 
 #[cfg(any(test, feature = "test-support"))]
 #[allow(clippy::too_many_arguments)]
-pub fn insert_test_identity_session(
+pub(crate) fn insert_test_identity_session(
     conn: &Connection,
     id: &str,
     user: &str,
@@ -4821,6 +4820,24 @@ impl<'a> AuthCatalogKernel<'a> {
     pub fn insert_human_user_for_test(&mut self, user_id: &str, now_ms: u64) -> SnapbackResult<()> {
         self.write_db()
             .auth_insert_human_user_for_test(user_id, now_ms)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn insert_email_identity_for_test(
+        &mut self,
+        identity_id: &str,
+        user_id: &str,
+        address: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        insert_test_email_identity(
+            &self.write_db().conn,
+            identity_id,
+            user_id,
+            address,
+            now_ms,
+            false,
+        )
     }
 
     #[cfg(any(test, feature = "test-support"))]

@@ -5,7 +5,7 @@ use crate::auth::keyring::AuthKeyringStore;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::instance_lock::FileIdentity;
 use crate::local::LocalSnapback;
-#[cfg(all(test, not(feature = "cli-owner")))]
+#[cfg(test)]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -23,7 +23,7 @@ const TEMP_CANDIDATE_ATTEMPTS: usize = 3;
 
 /// Database-bound registry members intentionally outside startup's path set.
 /// The divergence test requires every such difference to carry its reason here.
-#[cfg(all(test, not(feature = "cli-owner")))]
+#[cfg(test)]
 const STARTUP_MANAGED_PATH_ALLOWLIST: &[(&str, &str)] = &[
     (
         "operationDetailKeyring",
@@ -42,7 +42,7 @@ const STARTUP_MANAGED_PATH_ALLOWLIST: &[(&str, &str)] = &[
 /// These members are shared by the database directory rather than named from
 /// the database path. New members default to database-bound in the divergence
 /// test until they are deliberately classified here.
-#[cfg(all(test, not(feature = "cli-owner")))]
+#[cfg(test)]
 const DIRECTORY_SHARED_MEMBER_IDS: &[&str] = &[
     "completenessProofKeyring",
     "assetBlobs",
@@ -165,6 +165,15 @@ pub fn durable_state_members(database_path: &Path) -> SnapbackResult<Vec<Durable
             MemberDisposition::Optional,
             MemberKind::File,
             "Local administrative bearer authority",
+        ),
+        member(
+            "devIdentityCapability",
+            crate::dev_identity::dev_identity_capability_sibling(database_path).map_err(|_| {
+                store_invalid("developer identity capability path could not be derived")
+            })?,
+            MemberDisposition::InstanceLocal,
+            MemberKind::File,
+            "Per-boot developer identity capability removed on clean shutdown",
         ),
         member(
             "consoleCredentials",
@@ -1110,8 +1119,6 @@ fn store_error_with_publication_state(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[cfg(not(feature = "cli-owner"))]
     mod remainder_tests {
         use super::*;
         use crate::auth::crypto::{CryptoError, OsRandom};
@@ -1120,7 +1127,7 @@ mod tests {
         use crate::auth::runtime::{AuthProviderHealth, AuthRuntime};
         use crate::contract_types::AuthProviderProfile;
         use crate::local::LocalSnapback;
-        use snapback_services::test_support::rusqlite::Connection;
+        use rusqlite::Connection;
         use std::collections::BTreeSet;
         #[cfg(unix)]
         use std::os::unix::fs::PermissionsExt as _;
@@ -1290,7 +1297,7 @@ mod tests {
             )
             .unwrap();
             assert_eq!(runtime.health(), AuthProviderHealth::Available);
-            assert!(runtime.startup_diagnostic().is_none());
+            assert!(runtime.startup_diagnostics().is_empty());
             let connection = Connection::open(&exported_database).unwrap();
             let rows: i64 = connection
                 .query_row("SELECT COUNT(*) FROM app_rows", [], |row| row.get(0))
@@ -1313,9 +1320,10 @@ mod tests {
             let runtime =
                 AuthRuntime::inspect(&mut clone, Some(&clone_database), AuthProviderProfile::Test)
                     .unwrap();
-            let diagnostic = runtime
-                .startup_diagnostic()
-                .expect("ready catalog without its keyring must diagnose the exact missing member");
+            let diagnostic =
+                runtime.startup_diagnostics().into_iter().next().expect(
+                    "ready catalog without its keyring must diagnose the exact missing member",
+                );
             assert_eq!(diagnostic.code, "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE");
             assert_eq!(
                 diagnostic.details["path"],

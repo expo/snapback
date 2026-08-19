@@ -3005,7 +3005,7 @@
       },
       "lane": "core",
       "name": "negotiation.open.unknown_auth_invalidation_protocol_refused",
-      "notes": "LLP 0094 §0C.5: both open-time offer fields follow one matrix — known binds, unknown refuses, absent degrades to legacy. Both arms enforce this (crates/snapback-server/src/server.rs open_connection; targets/cloudflare/src/coordinator.js kitOpenConnection).",
+      "notes": "LLP 0094 §0C.5: both open-time offer fields follow one matrix — known binds, unknown refuses, absent degrades to legacy. Both arms enforce this (src/server.rs open_connection; cloudflare/src/coordinator.js kitOpenConnection).",
       "refusal": {
         "code": "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED",
         "status": 400
@@ -5554,7 +5554,7 @@
       },
       "lane": "live",
       "name": "auth.live.terminal_auth_durable_delete_disposition",
-      "notes": "T-AUTH-TERM's durable half: `authorityDisposition: durableDelete` reflects a durable authority deletion, not mere carrier loss — the client must additionally delete local durable authority state (crates/snapback-types/src/live_wire.rs LiveAuthorityDisposition doc). The disposition distinction is the whole reason this frame is not just a close code.",
+      "notes": "T-AUTH-TERM's durable half: `authorityDisposition: durableDelete` reflects a durable authority deletion, not mere carrier loss — the client must additionally delete local durable authority state (src/live_wire.rs LiveAuthorityDisposition doc). The disposition distinction is the whole reason this frame is not just a close code.",
       "profiles": [
         "auth/live"
       ],

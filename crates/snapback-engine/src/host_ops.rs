@@ -2398,7 +2398,6 @@ fn cli_only_host_op_message(operation: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use snapback_services::test_support::rusqlite;
 
     #[test]
     fn cli_only_refusals_name_the_catalog_cli_projection() {

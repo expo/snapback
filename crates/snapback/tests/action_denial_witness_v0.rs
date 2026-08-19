@@ -191,7 +191,9 @@ fn forged_denial_code_without_a_witness_stays_untyped() {
 #[test]
 fn caught_denial_with_unrelated_failure_is_not_restored() {
     let mut snapback = configured();
-    let result = snapback.run_function("caughtDenialOtherFailureAction", input("user_outsider"));
+    let result = snapback::runtime::with_development_handler_error_exposure(|| {
+        snapback.run_function("caughtDenialOtherFailureAction", input("user_outsider"))
+    });
     assert!(!result.ok);
     let diagnostic = result.diagnostic.expect("unrelated failure diagnostic");
     assert_eq!(

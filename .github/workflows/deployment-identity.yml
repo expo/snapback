@@ -1,8 +1,8 @@
 name: deployment-identity
 
 # LLP 0049 §Deployment-identity freshness gate (2026-07-25): the committed
-# targets/cloudflare/generated/deployment-identity.<app>.json manifests are the
-# source-derived state identity that targets/cloudflare/deploy.sh (via
+# cloudflare/generated/deployment-identity.<app>.json manifests are the
+# source-derived state identity that cloudflare/deploy.sh (via
 # scripts/cf-check-compat) refuses to deploy against when stale. Until this
 # lane existed nothing failed the OFFENDING commit — a landing that changed
 # deploy inputs (bundled sources, schema manifests, wrangler/compat configs)
@@ -62,4 +62,4 @@ jobs:
             demos/all-aboard/snapback/generated/artifacts.json
 
       - name: Recompute Cloudflare deployment identities and refuse drift
-        run: node targets/cloudflare/scripts/generate-deployment-identity.mjs --check
+        run: node cloudflare/scripts/generate-deployment-identity.mjs --check

@@ -12,8 +12,8 @@ use crate::auth::crypto::{CryptoError, DevIdentityBearer, RandomSource};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use std::fmt;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use subtle::ConstantTimeEq as _;
 use zeroize::{Zeroize as _, Zeroizing};
 
@@ -445,7 +445,12 @@ mod tests {
             error.diagnostic.code,
             "SNAPBACK_DEV_IDENTITY_CONFIG_FORBIDDEN"
         );
-        assert!(error.diagnostic.message.contains(&sidecar.display().to_string()));
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains(&sidecar.display().to_string())
+        );
     }
 
     #[test]

@@ -724,7 +724,7 @@ fn is_deactivated_on(conn: &Connection, user_id: &str) -> rusqlite::Result<bool>
 ///
 /// @ref LLP 0055#principal-kinds — eligibility, not sole-ness; same predicate as
 ///   LLP 0056 M2's eligible-holder rule.
-pub fn principal_is_eligible_on(
+pub(crate) fn principal_is_eligible_on(
     conn: &Connection,
     principal: &str,
     require_catalog_principal: bool,
@@ -819,7 +819,7 @@ pub fn principal_is_eligible_on(
 /// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
 ///   holder-set read is captured; the survivor row linearizes the race.
 #[allow(clippy::too_many_arguments)]
-pub fn eligible_protected_holder_rows(
+pub(crate) fn eligible_protected_holder_rows(
     conn: &Connection,
     table: &str,
     principal_column: &str,
@@ -1028,7 +1028,7 @@ fn has_other_eligible_holder(
 /// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
 ///   complete eligible-holder set is a commit-stage property shared with LLP
 ///   0055 lifecycle changes, not a planning-time approximation.
-pub fn validate_protected_membership_final_state(
+pub(crate) fn validate_protected_membership_final_state(
     conn: &Connection,
     manifest: &SchemaManifest,
     maximum: u64,

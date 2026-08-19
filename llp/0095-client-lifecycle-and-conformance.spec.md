@@ -123,7 +123,7 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   recomputed on subscribe, unsubscribe, socket close, and connection purge;
   there is no linger window. On the **hosted arm** subscribe refuses without
   a current socket session (`SNAPBACK_CONNECTION_SOCKET_REQUIRED`,
-  `targets/cloudflare/src/coordinator.js`) — socketless HTTP cannot arm hosted
+  `cloudflare/src/coordinator.js`) — socketless HTTP cannot arm hosted
   demand (LLP 0090; the one sanctioned exception is 0090/0092 bundle
   register mode, owned there). Fixture:
   `arm.hosted_subscribe_requires_socket`.
@@ -160,7 +160,7 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   120 s idle TTL (`CONNECTION_IDLE_TTL_MS`, `crates/snapback/src/server.rs`) reaps an
   abandoned socketless connection and releases its demand; on the hosted
   arm demand release is the socket close/error teardown (`webSocketClose`
-  teardown, `targets/cloudflare/src/coordinator.js`) — the 24 h default grant TTL
+  teardown, `cloudflare/src/coordinator.js`) — the 24 h default grant TTL
   is grant *expiry*, not demand release. A conformant client treats reaping
   as the crash backstop only.
 - **T-HB** (`ATTACHED_LIVE` self-loop / `→ RECOVERING`): 5 s heartbeat
@@ -200,7 +200,7 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   calls it today).
 - **T-BLACKOUT** (D3 fact 2a; `live/hosted` only): during a hosted socket
   outage the drain delivers nothing (the hosted drain is declared-empty,
-  `targets/cloudflare/src/coordinator.js`); reconnect-resubscribe is the **only**
+  `cloudflare/src/coordinator.js`); reconnect-resubscribe is the **only**
   recovery lane for `live/hosted`. Fixture:
   `arm.live_hosted_drain_declared_empty_blackout`.
 - **T-DB** (D3 fact 2b; `ATTACHED_LIVE`, connection-wide): a

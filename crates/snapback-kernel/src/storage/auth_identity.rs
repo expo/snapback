@@ -1235,7 +1235,7 @@ fn record_password_failure_in(
 ///
 /// @ref LLP 0227#principal-binding-same-sessions-no-parallel-identity — a stale proof neither
 ///   authorizes nor penalizes, while a lock acquired during KDF is honored.
-pub fn admit_password_issuance_in(
+pub(crate) fn admit_password_issuance_in(
     transaction: &Transaction<'_>,
     plan: &PasswordIssuanceCommitPlan,
     now_ms: u64,
@@ -1536,7 +1536,7 @@ pub fn admit_password_issuance_in(
 
 /// Apply the successful credential transition only after candidate-collision
 /// and exact cap admission have succeeded in the shared issuance transaction.
-pub fn apply_password_issuance_in(
+pub(crate) fn apply_password_issuance_in(
     transaction: &Transaction<'_>,
     plan: &PasswordIssuanceCommitPlan,
     now_ms: u64,
@@ -1900,7 +1900,7 @@ pub fn apply_password_issuance_in(
     Ok(())
 }
 
-pub fn finish_password_session_in(
+pub(crate) fn finish_password_session_in(
     transaction: &Transaction<'_>,
     plan: &PasswordIssuanceCommitPlan,
     session_id: &str,
@@ -1966,7 +1966,7 @@ pub fn finish_password_session_in(
     Ok(())
 }
 
-pub fn password_attempt_matches_on(
+pub(crate) fn password_attempt_matches_on(
     connection: &rusqlite::Connection,
     canonical_identifier: &str,
     expected: &PasswordAttemptState,
@@ -1974,7 +1974,7 @@ pub fn password_attempt_matches_on(
     Ok(read_password_attempt_on(connection, canonical_identifier)?.as_ref() == Some(expected))
 }
 
-pub fn password_issuance_is_exact_predecessor_on(
+pub(crate) fn password_issuance_is_exact_predecessor_on(
     connection: &rusqlite::Connection,
     plan: &PasswordIssuanceCommitPlan,
 ) -> SnapbackResult<bool> {
@@ -2148,7 +2148,7 @@ pub fn password_issuance_is_exact_predecessor_on(
     }
 }
 
-pub fn password_issuance_is_exact_successor_on(
+pub(crate) fn password_issuance_is_exact_successor_on(
     connection: &rusqlite::Connection,
     plan: &PasswordIssuanceCommitPlan,
     now_ms: u64,
@@ -2349,7 +2349,7 @@ pub fn password_issuance_is_exact_successor_on(
     }
 }
 
-pub fn admit_password_change_in(
+pub(crate) fn admit_password_change_in(
     transaction: &Transaction<'_>,
     plan: &PasswordChangeCommitPlan,
     now_ms: u64,
@@ -2394,7 +2394,7 @@ pub fn admit_password_change_in(
     })
 }
 
-pub fn apply_password_change_in(
+pub(crate) fn apply_password_change_in(
     transaction: &Transaction<'_>,
     plan: &PasswordChangeCommitPlan,
     now_ms: u64,
@@ -2443,7 +2443,7 @@ pub fn apply_password_change_in(
     Ok(())
 }
 
-pub fn password_change_is_exact_predecessor_on(
+pub(crate) fn password_change_is_exact_predecessor_on(
     connection: &rusqlite::Connection,
     plan: &PasswordChangeCommitPlan,
 ) -> SnapbackResult<bool> {
@@ -2456,7 +2456,7 @@ pub fn password_change_is_exact_predecessor_on(
         == Some(&plan.credential))
 }
 
-pub fn password_change_is_exact_successor_on(
+pub(crate) fn password_change_is_exact_successor_on(
     connection: &rusqlite::Connection,
     plan: &PasswordChangeCommitPlan,
     now_ms: u64,
@@ -2970,10 +2970,7 @@ impl LocalDatabase {
         })
     }
 
-    pub fn identity_reap_guests_default_tombstone(
-        &mut self,
-        now: u64,
-    ) -> SnapbackResult<u64> {
+    pub fn identity_reap_guests_default_tombstone(&mut self, now: u64) -> SnapbackResult<u64> {
         self.with_auth_transaction(|tx|{
             super::auth::require_identity_core_v3_on(tx)?;
             let mut stmt=tx.prepare("SELECT id FROM _auth_users WHERE guest_state='active' AND guest_expires_at_ms<=?1 ORDER BY id")?;
@@ -2983,10 +2980,7 @@ impl LocalDatabase {
         })
     }
 
-    pub fn password_snapshot(
-        &self,
-        username: &str,
-    ) -> SnapbackResult<Option<PasswordSnapshot>> {
+    pub fn password_snapshot(&self, username: &str) -> SnapbackResult<Option<PasswordSnapshot>> {
         let identifier = canonical_password_identifier(
             self.identity_floor_password_identifier_mode()?,
             username,

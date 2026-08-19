@@ -130,7 +130,6 @@ pub struct CreateWatchRecord {
     pub now_ms: u64,
 }
 
-
 #[derive(Clone, Debug)]
 pub enum EvaluationDecision {
     NoFire,
@@ -155,7 +154,7 @@ pub fn manifest_enabled(manifest: &SchemaManifest) -> bool {
 
 /// @ref LLP 0204#d93--durable-watches-end-user-automations — watch state exists exactly while the
 /// app's external API is activated; disabling that surface drops the catalog.
-pub fn activate_manifest_in(
+pub(crate) fn activate_manifest_in(
     tx: &Transaction<'_>,
     manifest: &SchemaManifest,
 ) -> SnapbackResult<()> {
@@ -220,10 +219,7 @@ fn authority_mode_name(mode: WatchAuthorityMode) -> &'static str {
 }
 
 impl LocalDatabase {
-    pub fn create_watch(
-        &mut self,
-        request: CreateWatchRecord,
-    ) -> SnapbackResult<WatchRecord> {
+    pub fn create_watch(&mut self, request: CreateWatchRecord) -> SnapbackResult<WatchRecord> {
         if !table_exists(&self.conn)? {
             return Err(SnapbackError::error(
                 "SNAPBACK_API_NOT_ENABLED",
@@ -314,11 +310,7 @@ impl LocalDatabase {
             .collect()
     }
 
-    pub fn watch_for_owner(
-        &self,
-        id: &str,
-        owner: &str,
-    ) -> SnapbackResult<Option<WatchRecord>> {
+    pub fn watch_for_owner(&self, id: &str, owner: &str) -> SnapbackResult<Option<WatchRecord>> {
         let record = row_for_id_on(&self.conn, id)?;
         match record {
             Some(record) if record.owner_principal_id == owner => Ok(Some(record)),
@@ -619,11 +611,7 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0204#d93--durable-watches-end-user-automations — invalidations wake durable work;
     /// the five-second floor coalesces storms without a polling loop.
-    pub fn schedule_watch_evaluation(
-        &mut self,
-        id: &str,
-        now_ms: u64,
-    ) -> SnapbackResult<bool> {
+    pub fn schedule_watch_evaluation(&mut self, id: &str, now_ms: u64) -> SnapbackResult<bool> {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;

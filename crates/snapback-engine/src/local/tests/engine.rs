@@ -1,5 +1,4 @@
 use super::*;
-use snapback_services::test_support::rusqlite;
 
 #[test]
 fn unbound_local_snapback_defaults_governance_activation_to_prod() {
@@ -4141,7 +4140,7 @@ fn public_auth_provision_port_rejects_an_unsupported_artifact_format() {
         seed: None,
     };
     let deployment = artifacts.deployment_identity(AuthMode::Sessions).unwrap();
-    let error = snapback_auth::auth::provision::PreparedAuthProvision::<LocalSnapback>::prepare(
+    let error = crate::auth::provision::PreparedAuthProvision::<LocalSnapback>::prepare(
         &mut snapback,
         AuthMode::Sessions,
         artifacts,
@@ -11630,13 +11629,12 @@ fn authorization_reservation_data_and_auth_frontiers_share_one_snapshot() {
     let (release_tx, release_rx) = std::sync::mpsc::channel();
     let _hook =
         crate::storage::set_storage_read_snapshot_debug_hook(&reader.db, reached_tx, release_rx);
-    let writer_path = path.clone();
+    let lane = reader.read_lane();
     let writer = std::thread::spawn(move || {
         reached_rx
             .recv_timeout(std::time::Duration::from_secs(5))
             .expect("reader pins the predecessor data head");
-        let mut writer = LocalSnapback::open(writer_path).expect("open sibling writer");
-        writer
+        reader
             .db
             .schema_seed()
             .seed_with_authorization(SeedData {
@@ -11648,16 +11646,16 @@ fn authorization_reservation_data_and_auth_frontiers_share_one_snapshot() {
                     ])],
                 )]),
             })
-            .expect("commit authorization-affecting sibling write");
-        let successor = writer
+            .expect("commit authorization-affecting write");
+        let successor = reader
             .authorization_reservation_snapshot()
             .expect("successor authorization pair");
         release_tx.send(()).expect("release pinned reader");
         successor
     });
 
-    let pinned = reader
-        .authorization_reservation_snapshot()
+    let pinned = lane
+        .authorization_reservation_snapshot_for_test()
         .expect("snapshot-bound authorization pair");
     let successor = writer.join().expect("writer joins");
     assert_eq!(pinned, baseline);
@@ -11665,7 +11663,7 @@ fn authorization_reservation_data_and_auth_frontiers_share_one_snapshot() {
     assert_eq!(successor.1.incarnation, baseline.1.incarnation);
     assert_eq!(successor.1.epoch, baseline.1.epoch + 1);
     assert_eq!(
-        reader.authorization_reservation_snapshot().unwrap(),
+        lane.authorization_reservation_snapshot_for_test().unwrap(),
         successor
     );
 }
@@ -17696,7 +17694,6 @@ fn snapshot_batch_v2_pins_mixed_nodes_across_a_sibling_commit() {
     let dir = tempfile::tempdir().expect("v2 snapshot directory");
     let path = dir.path().join("snapshot-batch-v2.sqlite3");
     let (schema, functions, _) = snapshot_batch_v2_publication_fixture(2, 2);
-    let writer_functions = functions.clone();
     let mut reader = LocalSnapback::open(&path).expect("v2 snapshot reader");
     reader.apply_schema(schema).expect("apply mixed schema");
     let diagnostics = reader.load_functions(functions);
@@ -17711,52 +17708,45 @@ fn snapshot_batch_v2_pins_mixed_nodes_across_a_sibling_commit() {
     let (release_tx, release_rx) = std::sync::mpsc::channel();
     let _hook =
         crate::storage::set_storage_read_snapshot_debug_hook(&reader.db, reached_tx, release_rx);
-    let writer_path = path.clone();
-    let writer =
-        std::thread::spawn(move || {
-            reached_rx
-                .recv_timeout(std::time::Duration::from_secs(5))
-                .expect("v2 reader pins predecessor snapshot");
-            let mut writer = LocalSnapback::open(writer_path).expect("v2 sibling writer");
-            let diagnostics = writer.load_functions(writer_functions);
-            assert!(
-                diagnostics.iter().all(|diagnostic| diagnostic.severity
-                    != crate::diagnostic::DiagnosticSeverity::Error)
-            );
-            writer
-                .invoke_mutation(
-                    "addChild",
-                    HandlerInput {
-                        args: json!({
-                            "parentId":"parent-a", "position":5, "label":"concurrent-v2",
-                            "active":false, "externalKey":"snapshot-v2-concurrent"
-                        }),
-                        auth: AuthInput {
-                            user_id: Some("user-a".to_owned()),
-                            ..AuthInput::default()
-                        },
-                        ..HandlerInput::default()
+    let lane = reader.read_lane();
+    let writer = std::thread::spawn(move || {
+        reached_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("v2 reader pins predecessor snapshot");
+        reader
+            .invoke_mutation(
+                "addChild",
+                HandlerInput {
+                    args: json!({
+                        "parentId":"parent-a", "position":5, "label":"concurrent-v2",
+                        "active":false, "externalKey":"snapshot-v2-concurrent"
+                    }),
+                    auth: AuthInput {
+                        user_id: Some("user-a".to_owned()),
+                        ..AuthInput::default()
                     },
-                )
-                .expect("sibling bounded commit");
-            writer
-                .seed(crate::manifest::SeedData {
-                    tables: BTreeMap::from([(
-                        "books".to_owned(),
-                        vec![
-                            json!({
-                                "_id":"book-concurrent", "title":"aardvark",
-                                "authorSlug":"ada", "ownerId":"user-a"
-                            })
-                            .as_object()
-                            .cloned()
-                            .expect("concurrent book"),
-                        ],
-                    )]),
-                })
-                .expect("sibling relational commit");
-            release_tx.send(()).expect("release v2 pinned reader");
-        });
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("bounded commit through the serving writer");
+        reader
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([(
+                    "books".to_owned(),
+                    vec![
+                        json!({
+                            "_id":"book-concurrent", "title":"aardvark",
+                            "authorSlug":"ada", "ownerId":"user-a"
+                        })
+                        .as_object()
+                        .cloned()
+                        .expect("concurrent book"),
+                    ],
+                )]),
+            })
+            .expect("relational commit through the serving writer");
+        release_tx.send(()).expect("release v2 pinned reader");
+    });
     let input = HandlerInput {
         args: json!({"parentId":"parent-a"}),
         auth: AuthInput {
@@ -17765,7 +17755,7 @@ fn snapshot_batch_v2_pins_mixed_nodes_across_a_sibling_commit() {
         },
         ..HandlerInput::default()
     };
-    let predecessor = reader
+    let predecessor = lane
         .invoke_query("mixedView", input.clone())
         .expect("v2 pinned predecessor");
     writer.join().expect("v2 sibling writer joins");
@@ -17783,7 +17773,7 @@ fn snapshot_batch_v2_pins_mixed_nodes_across_a_sibling_commit() {
     }
     assert_eq!(predecessor_nodes[1][0]["title"], "alpha");
 
-    let successor = reader
+    let successor = lane
         .invoke_query("mixedView", input)
         .expect("v2 successor snapshot");
     assert!(successor.version > predecessor.version);
@@ -18353,7 +18343,6 @@ fn snapshot_batch_pins_every_node_to_one_snapshot_across_a_sibling_commit() {
     let dir = tempfile::tempdir().expect("snapshot directory");
     let path = dir.path().join("snapshot-batch.sqlite3");
     let (schema, functions, _) = snapshot_batch_publication_fixture(3, 2);
-    let writer_functions = functions.clone();
     let mut reader = LocalSnapback::open(&path).expect("snapshot reader");
     reader.apply_schema(schema).expect("apply schema");
     let diagnostics = reader.load_functions(functions);
@@ -18369,37 +18358,29 @@ fn snapshot_batch_pins_every_node_to_one_snapshot_across_a_sibling_commit() {
     let (release_tx, release_rx) = std::sync::mpsc::channel();
     let _hook =
         crate::storage::set_storage_read_snapshot_debug_hook(&reader.db, reached_tx, release_rx);
-    let writer_path = path.clone();
-    let writer =
-        std::thread::spawn(move || {
-            reached_rx
-                .recv_timeout(std::time::Duration::from_secs(5))
-                .expect("reader pins its predecessor snapshot");
-            let mut writer = LocalSnapback::open(writer_path).expect("sibling writer");
-            let diagnostics = writer.load_functions(writer_functions);
-            assert!(
-                diagnostics.iter().all(|diagnostic| diagnostic.severity
-                    != crate::diagnostic::DiagnosticSeverity::Error),
-                "sibling fixture activates: {diagnostics:?}",
-            );
-            writer
-                .invoke_mutation(
-                    "addChild",
-                    HandlerInput {
-                        args: json!({
-                            "parentId":"parent-a", "position":5, "label":"concurrent",
-                            "active":false, "externalKey":"snapshot-concurrent"
-                        }),
-                        auth: AuthInput {
-                            user_id: Some("user-a".to_owned()),
-                            ..AuthInput::default()
-                        },
-                        ..HandlerInput::default()
+    let lane = reader.read_lane();
+    let writer = std::thread::spawn(move || {
+        reached_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("reader pins its predecessor snapshot");
+        reader
+            .invoke_mutation(
+                "addChild",
+                HandlerInput {
+                    args: json!({
+                        "parentId":"parent-a", "position":5, "label":"concurrent",
+                        "active":false, "externalKey":"snapshot-concurrent"
+                    }),
+                    auth: AuthInput {
+                        user_id: Some("user-a".to_owned()),
+                        ..AuthInput::default()
                     },
-                )
-                .expect("sibling commit while reader is pinned");
-            release_tx.send(()).expect("release pinned reader");
-        });
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("serving-writer commit while reader is pinned");
+        release_tx.send(()).expect("release pinned reader");
+    });
     let input = HandlerInput {
         args: json!({"parentId":"parent-a"}),
         auth: AuthInput {
@@ -18408,7 +18389,7 @@ fn snapshot_batch_pins_every_node_to_one_snapshot_across_a_sibling_commit() {
         },
         ..HandlerInput::default()
     };
-    let predecessor = reader
+    let predecessor = lane
         .invoke_query("boardView", input.clone())
         .expect("pinned predecessor batch");
     writer.join().expect("sibling writer joins");
@@ -18422,7 +18403,7 @@ fn snapshot_batch_pins_every_node_to_one_snapshot_across_a_sibling_commit() {
             "no node may observe the between-evaluation sibling commit",
         );
     }
-    let successor = reader
+    let successor = lane
         .invoke_query("boardView", input)
         .expect("successor batch");
     assert!(successor.version > predecessor.version);
@@ -27548,9 +27529,9 @@ fn lease_target_namespace() -> QueryNamespace {
     }
 }
 
-fn lease_request(request_id: &str) -> snapback_kernel::auth::lease::AuthorizedLeaseRequestIdentity {
+fn lease_request(request_id: &str) -> crate::auth::lease::AuthorizedLeaseRequestIdentity {
     let target = lease_target_namespace();
-    snapback_kernel::auth::lease::AuthorizedLeaseRequestIdentity {
+    crate::auth::lease::AuthorizedLeaseRequestIdentity {
         lease_request_id: request_id.to_owned(),
         client_store_id: target.client_store_id,
         query_key: target.query_key,
@@ -27601,14 +27582,14 @@ fn discharge_client_query_obligation(snapback: &mut LocalSnapback, namespace: Qu
 fn sign_captured_lease(
     capture: &super::AuthorizedLeaseCapture,
     issued_at_server_ms: u64,
-) -> snapback_kernel::auth::lease::AuthorizedLease {
-    snapback_kernel::auth::lease::AuthorizedLeaseAuthenticator::from_test_key(
+) -> crate::auth::lease::AuthorizedLease {
+    crate::auth::lease::AuthorizedLeaseAuthenticator::from_test_key(
         "sbak_AQEBAQEBAQEBAQEBAQEBAQ",
         [0x31; 32],
     )
     .issue(
         capture.issue.clone(),
-        snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
+        crate::auth::lease::AuthorizedLeaseConfig::default(),
         issued_at_server_ms,
         &capture.target_profile_id,
         &capture.app_id,
@@ -27651,7 +27632,7 @@ fn relational_retention_lease_class_admits_and_captures() {
         .reserve_captured_authorized_lease(
             capture,
             &lease,
-            snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
+            crate::auth::lease::AuthorizedLeaseConfig::default(),
             issued_at,
         )
         .expect("retained relational lease reserves end to end");
@@ -27757,7 +27738,7 @@ fn authorized_lease_capture_ignores_unrelated_obligations_and_blocks_matching_on
         .reserve_captured_authorized_lease(
             capture,
             &lease,
-            snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
+            crate::auth::lease::AuthorizedLeaseConfig::default(),
             issued_at,
         )
         .expect("unrelated obligations must not block reservation");
@@ -27800,7 +27781,7 @@ fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
         .reserve_captured_authorized_lease(
             capture,
             &lease,
-            snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
+            crate::auth::lease::AuthorizedLeaseConfig::default(),
             issued_at,
         )
         .expect_err("a racing matching obligation must fail the reservation");
@@ -27826,7 +27807,7 @@ fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
         .reserve_captured_authorized_lease(
             capture,
             &lease,
-            snapback_kernel::auth::lease::AuthorizedLeaseConfig::default(),
+            crate::auth::lease::AuthorizedLeaseConfig::default(),
             issued_at,
         )
         .expect("a racing unrelated obligation must not fail the reservation");

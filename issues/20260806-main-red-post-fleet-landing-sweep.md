@@ -77,7 +77,7 @@ umbrella. Do not track the already-landed governed rollover as still missing.
 
 ## Gates cleared during this sweep (not open actions)
 
-- `node targets/cloudflare/test/local-suite.mjs` passed all 29 checks without a
+- `node cloudflare/test/local-suite.mjs` passed all 29 checks without a
   Cloudflare change. Its earlier failure was not reproducible after the Rust
   build was repaired; there is no remaining Cloudflare owner action here.
 - `SNAPBACK_RUNTIME_BINARY=$PWD/target/debug/snapback npm --prefix

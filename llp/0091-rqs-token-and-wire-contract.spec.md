@@ -204,7 +204,7 @@ rowHash = SHA-256("snapback-rqs-row-v1\0" || jcs(row))        // 32 bytes
 
 Hash domain tags in this spec follow the repo's hash-tag convention
 (hyphenated name + NUL byte, as in
-`targets/cloudflare/scripts/generate-deployment-identity.mjs`); MAC transcript
+`cloudflare/scripts/generate-deployment-identity.mjs`); MAC transcript
 domains follow the dotted `put_string` convention of `crates/snapback/src/auth/lease.rs`.
 
 ### 0A.3 Leaf construction (domain-separated, length-framed)
@@ -351,7 +351,7 @@ components = put_string(deploymentIdentity)
 `sha256:`-prefixed identity string or the literal noted below.)
 
 - **Cloudflare arm:** components come from the generated deployment
-  identity artifact (`targets/cloudflare/scripts/generate-deployment-identity.mjs`,
+  identity artifact (`cloudflare/scripts/generate-deployment-identity.mjs`,
   format 2): `deploymentIdentity` = its `inputsHash`, `schemaIdentity` =
   its `schemaHash`; `functionsIdentity` and `capabilityIdentity` are the
   served instance's functions/capability manifest hashes. (The Round-6
@@ -538,7 +538,7 @@ this as "maybe-`CurrentAsOf`-with-subscribe".
 - **Token resume: forwarded from day one, by construction.** It rides the
   subscribe operation, and the gateway's `KIT_ROUTE` already forwards
   `/live/{name}/subscribe` to the coordinator DO
-  (`targets/cloudflare/src/gateway.js`); admission runs in the coordinator, which
+  (`cloudflare/src/gateway.js`); admission runs in the coordinator, which
   holds the resume keyring (§0A.1). The only gateway-adjacent obligation is
   that body-size limits admit the ≤1 KiB token (and, later, the rung-2
   witness cap — a 5a concern).
@@ -647,7 +647,7 @@ The Round-6 implementer-lens draft logged 16 decisions. Disposition here;
 components from `crates/snapback/src/deploy.rs` (`ReleaseCompatibility`). That file exists
 only on the unlanded `agent/llp-0074-competitive-tranche` branch; on main
 the deployment identity artifact is
-`targets/cloudflare/scripts/generate-deployment-identity.mjs` (§0A.6 uses it).
+`cloudflare/scripts/generate-deployment-identity.mjs` (§0A.6 uses it).
 
 **Spec-gap closure:** of the Round-6 review's 10 spec gaps, G1 (issuedAt),
 G3 (self-describing token), G4 (compressed root), G5 (JCS + framed leaf),
@@ -814,7 +814,7 @@ behavior is normative:
 ## Dated amendment: step-4 Cloudflare-arm reconciliation (2026-07-24, ENG-25455)
 
 LLP 0090 rollout step 4 landed RQS on the Cloudflare arm
-(`targets/cloudflare/src/rqs-host.mjs` + coordinator/gateway integration), sharing —
+(`cloudflare/src/rqs-host.mjs` + coordinator/gateway integration), sharing —
 never forking — the `packages/snapback-client/rqs.mjs` algebra by relative
 import, the same mechanism the coordinator already uses for
 `packages/snapback-harness/envelope.mjs` (esbuild and Wrangler both bundle
@@ -859,7 +859,7 @@ normative; the sections above read as amended:
    the `current_as_of` frame on the socket, with the kit HTTP subscribe
    output carrying `snapshot: null` plus `current_as_of: {version, resume}`.
    §0B.5's acceptance obligation is discharged in
-   `targets/cloudflare/test/acceptance.rqs.mjs`: a subscribe carrying
+   `cloudflare/test/acceptance.rqs.mjs`: a subscribe carrying
    `resumeFromToken` reaches coordinator admission through the gateway's
    existing forwarding, and a reattach POST keeps failing exactly as today.
 

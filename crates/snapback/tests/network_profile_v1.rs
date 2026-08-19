@@ -111,7 +111,16 @@ async fn middleware_refusals_are_profiled_and_handler_responses_release_once() {
         .await
         .expect("normal handler mutation response");
     let normal_handler_elapsed = normal_handler_started.elapsed();
-    assert_eq!(normal_handled.status(), StatusCode::OK);
+    if normal_handled.status() != StatusCode::OK {
+        let status = normal_handled.status();
+        let body = to_bytes(normal_handled.into_body(), usize::MAX)
+            .await
+            .expect("read failed normal handler response");
+        panic!(
+            "normal handler response was {status}: {}",
+            String::from_utf8_lossy(&body)
+        );
+    }
 
     let (state, app) = profiled_app().await;
 
@@ -503,7 +512,7 @@ fn configured() -> LocalSnapback {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..SchemaManifest::default()

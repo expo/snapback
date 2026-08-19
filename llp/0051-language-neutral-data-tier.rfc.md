@@ -658,7 +658,7 @@ shapes DK-7 stopped short of:
   `handler.host-call.input` committed schemas, instances in
   `crates/snapback/tests/artifact_schemas_v0.rs`, and real-bytes validation on both arms
   (the local twin's capture seam in `crates/snapback/tests/workerd_twin_v0.rs`; the hosted
-  service-binding capture in `targets/cloudflare/test/wire-schema-gate.mjs`). The
+  service-binding capture in `cloudflare/test/wire-schema-gate.mjs`). The
   local invoke request is serialized from the authority type itself. The D6
   versioned marker fields remain unimplemented; when 0060's rollout adds
   them, they land as ordinary schema changes through this same gate.
@@ -981,7 +981,7 @@ disciplines.
    `live.socket-client.sessions`), the kit-socket in-band request grammar
    (`live.kit-socket-request`), and the drain response
    (`live.outbox-drain.output`), and added the hosted executable
-   response-schema gate (`targets/cloudflare/test/wire-schema-gate.mjs`). That
+   response-schema gate (`cloudflare/test/wire-schema-gate.mjs`). That
    private inventory neither reopens the completed local client-visible
    HTTP claim nor implies a hosted target exists today.
 2. **The ctx-answer ledger (D1):** first, close the Ibex

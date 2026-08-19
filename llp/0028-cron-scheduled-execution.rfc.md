@@ -950,7 +950,7 @@ are two Cloudflare-compatible versions:
   `durableObjectStorage` have no script identity and remain account-wide; the
   storage dataset also had no positive control, so its empty array is telemetry
   absence, not evidence that durable bytes disappeared. The
-  [machine-readable closeout artifact](../targets/cloudflare/generated/measurements.remote.idle.2026-07-12.json)
+  [machine-readable closeout artifact](../cloudflare/generated/measurements.remote.idle.2026-07-12.json)
   preserves the status observations, window boundaries, raw dataset rows,
   summary, and controls. This is the direct deployed All Aboard idle→zero
   evidence the earlier watched window could not provide; the historical

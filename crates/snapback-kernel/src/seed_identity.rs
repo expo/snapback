@@ -423,7 +423,7 @@ pub struct ActiveSeedInstallationV1 {
     pub identity: ActiveSeedIdentityV1,
 }
 
-pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
+pub(crate) fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
     // @ref LLP 0109#15-round-2-author-reconciliation-for-the-first-landing —
     // identity is keyed by the already-rotated data stream, so an unmodified
     // predecessor reset cannot leave a stale identity active.
@@ -444,7 +444,7 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
     Ok(())
 }
 
-pub fn active_identity(
+pub(crate) fn active_identity(
     tx: &Transaction<'_>,
     data_version_stream: &str,
 ) -> SnapbackResult<ActiveSeedStateV1> {
@@ -454,7 +454,7 @@ pub fn active_identity(
     })
 }
 
-pub fn active_installation(
+pub(crate) fn active_installation(
     tx: &Transaction<'_>,
     data_version_stream: &str,
 ) -> SnapbackResult<Option<ActiveSeedInstallationV1>> {
@@ -517,7 +517,9 @@ pub fn active_installation(
 ///
 /// @ref LLP 0109#161-replay-observes-current-state-before-historical-completion
 /// — replay and preview observe currentness before classifying completion.
-pub fn strict_current_data_version_stream(conn: &Connection) -> SnapbackResult<Option<String>> {
+pub(crate) fn strict_current_data_version_stream(
+    conn: &Connection,
+) -> SnapbackResult<Option<String>> {
     let value: Option<(String, Vec<u8>)> = conn
         .query_row(
             "SELECT typeof(value), CAST(value AS BLOB)
@@ -551,7 +553,7 @@ pub fn expected_stream_matches(
     }
 }
 
-pub fn store_installation(
+pub(crate) fn store_installation(
     tx: &Transaction<'_>,
     artifact: &SeedArtifactV1,
     receipt: &SeedInstallReceiptV1,
@@ -576,7 +578,7 @@ pub fn store_installation(
     Ok(())
 }
 
-pub fn store_completed_operation(
+pub(crate) fn store_completed_operation(
     tx: &Transaction<'_>,
     predecessor_stream: Option<&str>,
     receipt: &SeedInstallReceiptV1,
@@ -613,7 +615,7 @@ pub fn store_completed_operation(
 ///
 /// @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate —
 /// historical seed rows are bounded without weakening current-stream replay.
-pub fn best_effort_prune_history(tx: &Transaction<'_>, current_stream: &str) {
+pub(crate) fn best_effort_prune_history(tx: &Transaction<'_>, current_stream: &str) {
     // Prune installations first while the full operation reference set is
     // still available. `rowid` is the insertion order for this append-only
     // idempotency table.
@@ -641,7 +643,7 @@ pub fn best_effort_prune_history(tx: &Transaction<'_>, current_stream: &str) {
     );
 }
 
-pub fn replay_completed_operation(
+pub(crate) fn replay_completed_operation(
     tx: &Transaction<'_>,
     operation_id: &str,
     request_digest: &str,

@@ -1,5 +1,5 @@
-use serde_json::Value;
 use crate::rqs_contract::{jcs_escape_into, jcs_into};
+use serde_json::Value;
 
 pub const RELATIONAL_RESULT_ENCODING_VERSION: &str = "relational-result-encoding-v1";
 

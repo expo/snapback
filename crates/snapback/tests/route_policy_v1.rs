@@ -304,6 +304,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/ephemeral/delete"),
         ("POST", "/_snapback/api/schema/load"),
         ("GET", "/_snapback/api/auth/mailbox"),
+        ("POST", "/_snapback/api/auth/password/attempt"),
         ("POST", "/_snapback/api/auth/password/unlock"),
         ("GET", "/_snapback/api/auth/integrations"),
         ("POST", "/_snapback/api/auth/integrations/{id}/retire"),
@@ -325,6 +326,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/_snapback/api/storage/operation-coverage/activate"),
         ("POST", "/_snapback/api/storage/protected-erasure"),
         ("POST", "/_snapback/api/host-ops"),
+        ("POST", "/_snapback/api/authority/effective"),
         (
             "POST",
             "/_snapback/api/connections/{connection_id}/disconnect",
@@ -2956,9 +2958,19 @@ async fn sessions_presented_optional_bearer_fails_closed_before_dispatch() {
     let router = app(sessions_runtime(bound_loopback_state(
         LocalSnapback::memory().expect("in-memory optional-bearer policy instance"),
     )));
-    for (uri, body) in [
-        ("/query/missing_function", json!({ "args": {} })),
-        ("/connection/open", json!({})),
+    for (uri, body, expected_status, expected_code) in [
+        (
+            "/query/missing_function",
+            json!({ "args": {} }),
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+        ),
+        (
+            "/connection/open",
+            json!({}),
+            StatusCode::UNAUTHORIZED,
+            "SNAPBACK_AUTH_REQUIRED",
+        ),
     ] {
         let mut request = request("POST", uri, Some(body));
         request.headers_mut().insert(
@@ -2974,10 +2986,11 @@ async fn sessions_presented_optional_bearer_fails_closed_before_dispatch() {
             .oneshot(request)
             .await
             .expect("optional-bearer fail-closed probe");
-        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE, "{uri}");
+        let status = response.status();
+        let code = diagnostic_code(response).await;
+        assert_eq!(status, expected_status, "{uri}");
         assert_eq!(
-            diagnostic_code(response).await,
-            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            code, expected_code,
             "{uri} treated an unresolved presented bearer as anonymous"
         );
     }

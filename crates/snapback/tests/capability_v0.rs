@@ -7,7 +7,7 @@
 // Regenerate the committed files with:
 //   SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_
 //   cargo run -p snapback-conformance --bin snapback-cf-manifest -- --out \
-//     targets/cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json
+//     cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json
 //
 // @ref LLP 0037#decision-ratified-2026-07-02 — Rust types are the source of
 //   truth for shared artifacts; the committed file is generated, and drift
@@ -30,7 +30,7 @@ fn committed_manifest_path(file_name: &str) -> PathBuf {
 
 fn committed_cloudflare_manifest_path() -> PathBuf {
     PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
-        .join("targets/cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json")
+        .join("cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json")
 }
 
 fn committed_maturity_registry_path() -> PathBuf {
@@ -185,7 +185,7 @@ fn p2_committed_cloudflare_manifest_matches_the_declared_target() {
     let committed: Value = serde_json::from_str(&fs::read_to_string(&path).expect(
         "Cloudflare capability manifest is missing; regenerate with cargo run \
              -p snapback-conformance --bin snapback-cf-manifest -- --out \
-             targets/cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
+             cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
     ))
     .expect("parse committed Cloudflare capability manifest");
     let declared = sorted_keys(
@@ -198,7 +198,7 @@ fn p2_committed_cloudflare_manifest_matches_the_declared_target() {
         declared,
         "the committed Cloudflare capability manifest drifted from its Rust target declaration; \
          regenerate it with cargo run -p snapback-conformance --bin snapback-cf-manifest -- --out \
-         targets/cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json"
+         cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json"
     );
 }
 

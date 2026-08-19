@@ -66,7 +66,7 @@ posture honest). Status stays Draft.) 2026-08-01 (v2,
 round-1 verify-then-fix: all six MATERIAL
 findings across both families verified against the tree and applied —
 the floor restated per-host after Codex M1 proved it false on the
-Cloudflare host (no admission counterpart under targets/cloudflare/src; blocker
+Cloudflare host (no admission counterpart under cloudflare/src; blocker
 ticket 20260801-0144-cloudflare-host-lacks-app-refusal-admission.md);
 Axis F rebuilt around the read-out as-built determination (fold always —
 `appCode` never crosses the host-call FFI) and split into observation

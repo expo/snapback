@@ -8,7 +8,6 @@ use crate::ids::{self, Kind};
 use crate::manifest::{AuthMode, MembershipManifest, MembershipScope, TableManifest};
 use crate::storage::{DbRead, LocalDatabase};
 use serde_json::{Map, Value, json};
-use snapback_services::test_support::rusqlite::{self, Connection, params};
 use std::collections::BTreeMap;
 
 trait PreparedPushRegistryTestExt {
@@ -59,11 +58,15 @@ fn authorize_send_for_prepared(
     request: &PushSendRequestV1,
 ) -> SnapbackResult<()> {
     authority.validate_admission("push send authorization")?;
-    snapback_kernel::push::authorize_send_in(
+    let mut authority_db = LocalDatabase::memory()?;
+    let kernel = authority_db
+        .claim_kernel_commit_authority()
+        .expect("fresh test database mints one authority");
+    snapback_kernel::push::test_support::authorize_send_in(
         tx,
         schema,
         audience,
-        &admitted_push_storage_authority(authority),
+        &admitted_push_storage_authority(&kernel, authority),
         trigger_mode,
         deferred_grant,
         request,
@@ -284,7 +287,11 @@ fn ledger_projection_is_authorized_and_never_releases_payload_or_token_bytes() {
         .expect("ledger fixture");
 
     let system = system_authority();
+    let kernel = db
+        .claim_kernel_commit_authority()
+        .expect("test database mints one authority");
     let (rows, dependency) = read_ledger_projection_for_prepared(
+        &kernel,
         &DbRead::Live(&db),
         &declaration,
         db.schema(),
@@ -305,6 +312,7 @@ fn ledger_projection_is_authorized_and_never_releases_payload_or_token_bytes() {
     let user = session_authority(&principal_id);
     assert_eq!(
         read_ledger_projection_for_prepared(
+            &kernel,
             &DbRead::Live(&db),
             &declaration,
             db.schema(),
@@ -657,14 +665,14 @@ fn deferred_grant_binds_request_and_revalidates_producer_membership() {
         },
     };
     let schema = app_membership_schema();
-    let connection = Connection::open_in_memory().expect("sqlite");
+    let connection = rusqlite::Connection::open_in_memory().expect("sqlite");
     connection
         .execute_batch("CREATE TABLE app_members(principal TEXT, role TEXT);")
         .expect("membership table");
     connection
         .execute(
             "INSERT INTO app_members(principal, role) VALUES(?1, 'sender')",
-            params![producer],
+            rusqlite::params![producer],
         )
         .expect("producer membership");
     let request = PushSendRequestV1 {
@@ -715,7 +723,7 @@ fn deferred_grant_binds_request_and_revalidates_producer_membership() {
     );
     tx.execute(
         "DELETE FROM app_members WHERE principal = ?1",
-        params![producer],
+        rusqlite::params![producer],
     )
     .expect("revoke producer membership");
     assert_eq!(
@@ -754,14 +762,14 @@ fn explicit_principals_and_membership_authorize_consume_their_declared_argument_
     args.insert("principalIds".into(), json!([recipient]));
     validate_audience_args(&audience, &args).expect("exact declared union");
 
-    let connection = Connection::open_in_memory().expect("sqlite");
+    let connection = rusqlite::Connection::open_in_memory().expect("sqlite");
     connection
         .execute_batch("CREATE TABLE app_members(principal TEXT, role TEXT);")
         .expect("membership table");
     connection
         .execute(
             "INSERT INTO app_members(principal, role) VALUES(?1, 'sender')",
-            params![sender],
+            rusqlite::params![sender],
         )
         .expect("sender membership");
     let schema = app_membership_schema();
@@ -788,8 +796,13 @@ fn explicit_principals_and_membership_authorize_consume_their_declared_argument_
     )
     .expect("immediate explicit-principal send is membership-authorized");
     assert_eq!(
-        resolve_audience_in(&tx, &schema, &audience.resolve, &args)
-            .expect("explicit-principal resolution"),
+        snapback_kernel::push::test_support::resolve_audience_in(
+            &tx,
+            &schema,
+            &audience.resolve,
+            &args,
+        )
+        .expect("explicit-principal resolution"),
         vec![recipient]
     );
 

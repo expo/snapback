@@ -15,6 +15,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
+const VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV: &str =
+    "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG";
+
 struct ServerGuard(Child);
 
 impl Drop for ServerGuard {
@@ -30,6 +33,27 @@ fn generated(file: &str) -> Value {
         .join(file);
     serde_json::from_str(&fs::read_to_string(path).expect("read generated artifact"))
         .expect("parse generated artifact")
+}
+
+fn mint_governance_config(destination: &Path) -> PathBuf {
+    let repository = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
+    let source_backend = repository.join("demos/todo/snapback");
+    let output_path = destination.join("visibility-governance-dev-target-config.json");
+    let output = Command::new("node")
+        .arg(repository.join("scripts/mint-visibility-governance-dev-config.mjs"))
+        .arg(source_backend)
+        .arg("--out")
+        .arg(&output_path)
+        .current_dir(&repository)
+        .output()
+        .expect("mint wait-cli visibility-governance config");
+    assert!(
+        output.status.success(),
+        "mint wait-cli visibility-governance config failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+    output_path
 }
 
 fn wait_for_cli_ready(child: &mut Child, path: &Path) -> HostReadyDescriptor {
@@ -54,12 +78,14 @@ fn wait_for_cli_ready(child: &mut Child, path: &Path) -> HostReadyDescriptor {
 fn spawn_server(directory: &Path) -> (ServerGuard, HostReadyDescriptor, PathBuf) {
     let database = directory.join("wait.sqlite3");
     let ready_file = directory.join("host-ready.json");
+    let governance_config = mint_governance_config(directory);
     let mut child = Command::new(env!("CARGO_BIN_EXE_snapback"))
         .args(["start", "--port", "0", "--db"])
         .arg(database)
         .arg("--ready-file")
         .arg(&ready_file)
         .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .env(VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV, governance_config)
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()

@@ -102,88 +102,42 @@ pub mod manifest;
 pub mod server;
 
 #[cfg(test)]
+mod remainder_adapter;
+
+#[cfg(test)]
 mod network_profile_facade_tests;
 #[cfg(test)]
 mod sync_upward_tests;
 
-#[cfg(feature = "benchmark-support")]
-#[doc(hidden)]
-pub mod benchmark_support {
-    use anyhow::Context as _;
-    use axum::body::{Body, to_bytes};
-    use axum::http::Request;
-    use snapback_engine::local::LocalSnapback;
-    use std::hint::black_box;
-    use tower::ServiceExt as _;
-
-    /// Exercises the real HTTP query adapter without exposing Axum request,
-    /// response, or body primitives across the transport-owner boundary.
-    pub async fn exercise_telemetry_query_pair(
-        enabled: LocalSnapback,
-        disabled: LocalSnapback,
-        body: Vec<u8>,
-        samples: usize,
-    ) -> anyhow::Result<()> {
-        let enabled_router = crate::server::router(enabled);
-        let disabled_router = crate::server::router(disabled);
-        for index in 0..samples {
-            let request = || {
-                Request::builder()
-                    .method("POST")
-                    .uri("/query/noop")
-                    .header("content-type", "application/json")
-                    .body(Body::from(body.clone()))
-                    .expect("benchmark request")
-            };
-            let responses = if index % 2 == 0 {
-                [
-                    enabled_router.clone().oneshot(request()).await,
-                    disabled_router.clone().oneshot(request()).await,
-                ]
-            } else {
-                [
-                    disabled_router.clone().oneshot(request()).await,
-                    enabled_router.clone().oneshot(request()).await,
-                ]
-            };
-            for response in responses {
-                let response = response.context("benchmark query transport failed")?;
-                anyhow::ensure!(
-                    response.status().is_success(),
-                    "benchmark query returned {}",
-                    response.status(),
-                );
-                black_box(
-                    to_bytes(response.into_body(), usize::MAX)
-                        .await
-                        .context("read benchmark query response")?,
-                );
-            }
-        }
-        Ok(())
-    }
-}
-
-/// Curated Axum shapes required by higher-rank integration tests. This is a
-/// dev-only compatibility projection, not a re-export of the confined crate.
 #[cfg(feature = "test-support")]
 #[doc(hidden)]
 pub mod test_support {
-    pub mod axum {
-        pub mod body {
-            pub use ::axum::body::{Body, to_bytes};
-        }
+    pub use axum;
 
-        pub mod extract {
-            pub use ::axum::extract::ConnectInfo;
-        }
+    /// Compose the real secret-read HTTP bridge without exposing its root or
+    /// bridge carrier to a higher-rank test crate.
+    pub fn app_state_with_secret_read_mint_for_test(
+        snapback: crate::local::LocalSnapback,
+        context: crate::admin::ServerContext,
+        root: crate::admin_secret_read::SecretReadProofRoot,
+        startup_nonce: String,
+    ) -> crate::diagnostic::SnapbackResult<crate::admin::AppState> {
+        let (state, operator) =
+            crate::admin::AppState::try_from_snapback_with_secret_read_operator(snapback, context)?;
+        Ok(
+            state.with_secret_read_mint_bridge(
+                crate::admin_secret_read::SecretReadMintBridge::new(operator, root, startup_nonce),
+            ),
+        )
+    }
 
-        pub mod http {
-            pub use ::axum::http::{Method, Request, StatusCode, Uri, header};
-        }
-
-        pub mod response {
-            pub use ::axum::response::Response;
-        }
+    /// Run one real maintenance pass while keeping the shared writer handle
+    /// and provider-ordering details inside the server owner crate.
+    pub async fn drive_push_maintenance_once_for_test(
+        state: &crate::admin::AppState,
+        profile: crate::contract_types::ServerProfile,
+        now_ms: u64,
+    ) -> crate::diagnostic::SnapbackResult<()> {
+        crate::server::drive_push_maintenance_once(&state.snapback, profile, now_ms).await
     }
 }

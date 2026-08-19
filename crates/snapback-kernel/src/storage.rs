@@ -31,9 +31,9 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
-use std::sync::{Arc, Mutex};
 #[cfg(any(test, feature = "test-support"))]
-use std::sync::{OnceLock, mpsc};
+use std::sync::mpsc;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -83,14 +83,12 @@ pub use self::jobs::{JobsKernel, JobsReadKernel};
 pub use api_envelope_state::{
     ApiEnvelopeCurrentRecord, ApiEnvelopeKernel, ApiEnvelopeReadKernel, ApiEnvelopeStateRecord,
 };
-pub use asset_attempts::{
-    AssetAttemptsKernel, AssetPreparedVariant, AssetPublishOutcome,
-};
+pub use asset_attempts::{AssetAttemptsKernel, AssetPreparedVariant, AssetPublishOutcome};
 pub use asset_maintenance::AssetMaintenanceKernel;
 pub use asset_reads::{AssetDelivery, AssetDeliveryOutcome, AssetReadsKernel};
 pub use auth_catalog_ops::AuthCatalogKernel;
 #[cfg(any(test, feature = "test-support"))]
-pub use auth_catalog_ops::{
+pub(crate) use auth_catalog_ops::{
     insert_test_email_identity, insert_test_external_identity, insert_test_identity_session,
 };
 pub use branch_ops::{BranchOpsKernel, BranchOpsReadKernel};
@@ -98,14 +96,14 @@ pub use checkpoints::{CheckpointsKernel, CheckpointsReadKernel};
 pub use connections::ReaderPool;
 #[cfg(any(test, feature = "test-support"))]
 pub use connections::registered_vector_writer_denies_sql_for_test;
+use connections::registered_writer_coverage_manifest;
 #[cfg(test)]
 use connections::{RegisteredSystemWriterPurposeV1, open_registered_system_writer_v1};
-use connections::registered_writer_coverage_manifest;
 pub use connections::{record_derived_fork_egress_attempt_v1, renew_derived_fork_lineage_v1};
 pub use generation_commit::{CommitFunctionGeneration, FunctionGenerationRecord};
 pub use membership_plans::{MembershipPlansKernel, MembershipPlansReadKernel};
 pub use membership_reads::MembershipReadsKernel;
-pub use migration_scan::migration_keyset_scan_batch_on;
+pub(crate) use migration_scan::migration_keyset_scan_batch_on;
 pub use migration_scan::{
     MIGRATION_SCAN_CHECKPOINT_VERSION, MIGRATION_SCAN_MAX_BATCH_BYTES,
     MIGRATION_SCAN_MAX_BATCH_MILLIS, MIGRATION_SCAN_MAX_BATCH_ROWS, MigrationKeysetScanBatch,
@@ -125,7 +123,7 @@ pub use schema_transition::{
     SCHEMA_TRANSITION_JOURNAL_TABLE, SchemaTransitionEventBodyV1, SchemaTransitionEventV1,
     SchemaTransitionKind,
 };
-pub use schema_transition::{
+pub(crate) use schema_transition::{
     prove_retained_work_posture, record_schema_transition_event, schema_transition_events_on,
 };
 pub use settlement::{SettlementKernel, SettlementReadKernel};
@@ -531,28 +529,259 @@ pub fn app_writes_are_authorization_event(schema: &SchemaManifest, changes: &[Ch
     authorization::app_writes_are_authorization_event(schema, changes)
 }
 
-/// Marker that this database participates in a process-local authorization
-/// sink interlock. The marker intentionally exposes no transaction-time
-/// preparation method: callers must install an [`AuthorizationCommitReservation`]
-/// before Local and SQLite, and the commit hook may only bind that carrier.
-pub trait AuthorizationCommitInterlock: Send + Sync {}
-
-pub trait PreparedAuthorizationCommit: Send {
-    fn committed(self: Box<Self>, min_commit_version: u64) -> SnapbackResult<()>;
-    fn ambiguous(self: Box<Self>);
+/// Take-once authority for minting commit carriers bound to one database.
+///
+/// The fields and constructor are kernel-private. Higher crates may carry this
+/// value after the engine claims a database, but cannot synthesize one or use
+/// a carrier minted for a different database.
+#[derive(Clone)]
+pub struct KernelCommitAuthority {
+    identity: Arc<()>,
+    _lease: Arc<KernelCommitAuthorityLease>,
 }
 
-/// An unbound room dependency reserved and quiesced before managed Local work.
-/// Binding consumes only transaction-derived immutable data and takes no
-/// process mutex; cancellation/finalization is owned after Local release.
-pub trait AuthorizationCommitReservation: Send {
+impl KernelCommitAuthority {
+    pub(crate) fn identity(&self) -> &Arc<()> {
+        &self.identity
+    }
+}
+
+struct KernelCommitAuthorityLease {
+    key: String,
+}
+
+impl Drop for KernelCommitAuthorityLease {
+    fn drop(&mut self) {
+        let mut claimed = kernel_commit_authority_registry()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        claimed.remove(&self.key);
+    }
+}
+
+fn kernel_commit_authority_registry() -> &'static Mutex<BTreeSet<String>> {
+    static CLAIMED: OnceLock<Mutex<BTreeSet<String>>> = OnceLock::new();
+    CLAIMED.get_or_init(|| Mutex::new(BTreeSet::new()))
+}
+
+fn memory_commit_authority_key() -> String {
+    format!("memory:{}", Uuid::new_v4())
+}
+
+fn file_commit_authority_key(path: &Path) -> SnapbackResult<String> {
+    let canonical = fs::canonicalize(path).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
+            "storage",
+            format!("cannot resolve database identity: {error}"),
+        )
+    })?;
+    let metadata = fs::metadata(&canonical).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
+            "storage",
+            format!("cannot inspect database identity: {error}"),
+        )
+    })?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt as _;
+        Ok(format!("file:{}:{}", metadata.dev(), metadata.ino()))
+    }
+    #[cfg(not(unix))]
+    {
+        Ok(format!("file:{}", canonical.display()))
+    }
+}
+
+type AuthorizationReservationBind = Box<
+    dyn for<'a> FnOnce(
+            &AuthorizationCommitWitness,
+            AuthorizationCommitImpact<'a>,
+        ) -> SnapbackResult<PreparedAuthorizationCommit>
+        + Send,
+>;
+
+/// Opaque room reservation minted by the kernel for one database identity.
+/// The callback plumbing is construction-only; callers cannot implement a
+/// substitute reservation or install a carrier minted for another database.
+pub struct AuthorizationCommitReservation {
+    identity: Arc<()>,
+    bind: Option<AuthorizationReservationBind>,
+    cancel: Option<Box<dyn FnOnce() + Send>>,
+}
+
+impl AuthorizationCommitReservation {
     fn bind(
-        self: Box<Self>,
+        mut self,
+        database_identity: &Arc<()>,
         witness: &AuthorizationCommitWitness,
         impact: AuthorizationCommitImpact<'_>,
-    ) -> SnapbackResult<Box<dyn PreparedAuthorizationCommit>>;
+    ) -> SnapbackResult<PreparedAuthorizationCommit> {
+        if !Arc::ptr_eq(&self.identity, database_identity) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "authorization reservation belongs to a different database",
+            ));
+        }
+        let bind = self
+            .bind
+            .take()
+            .expect("authorization reservation binds once");
+        self.cancel = None;
+        let prepared = bind(witness, impact)?;
+        if !Arc::ptr_eq(&prepared.identity, database_identity) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "prepared authorization carrier belongs to a different database",
+            ));
+        }
+        Ok(prepared)
+    }
 
-    fn cancel(self: Box<Self>);
+    /// Bounded owner-test seam: exercise the real opaque reservation without
+    /// exposing its database identity or a production settlement primitive.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn bind_for_test(
+        self,
+        witness: &AuthorizationCommitWitness,
+        impact: AuthorizationCommitImpact<'_>,
+    ) -> SnapbackResult<PreparedAuthorizationCommit> {
+        let identity = self.identity.clone();
+        self.bind(&identity, witness, impact)
+    }
+
+    pub fn cancel(mut self) {
+        if let Some(cancel) = self.cancel.take() {
+            cancel();
+        }
+    }
+
+    pub fn install(mut self) -> ManagedAuthorizationReservationScope {
+        MANAGED_AUTHORIZATION_RESERVATION.with(|slot| {
+            let previous = slot.borrow_mut().replace(self);
+            assert!(
+                previous.is_none(),
+                "managed authorization reservation already installed"
+            );
+        });
+        ManagedAuthorizationReservationScope { active: true }
+    }
+}
+
+impl Drop for AuthorizationCommitReservation {
+    fn drop(&mut self) {
+        if let Some(cancel) = self.cancel.take() {
+            cancel();
+        }
+    }
+}
+
+pub struct PreparedAuthorizationCommit {
+    identity: Arc<()>,
+    committed: Option<Box<dyn FnOnce(u64) -> SnapbackResult<()> + Send>>,
+    ambiguous: Option<Box<dyn FnOnce() + Send>>,
+    rolled_back: Option<Box<dyn FnOnce() + Send>>,
+}
+
+impl PreparedAuthorizationCommit {
+    fn committed(mut self, min_commit_version: u64) -> SnapbackResult<()> {
+        self.ambiguous = None;
+        self.rolled_back = None;
+        self.committed
+            .take()
+            .expect("prepared authorization commit settles once")(min_commit_version)
+    }
+
+    fn ambiguous(mut self) {
+        self.committed = None;
+        self.rolled_back = None;
+        if let Some(ambiguous) = self.ambiguous.take() {
+            ambiguous();
+        }
+    }
+
+    /// Bounded owner-test seam for settling the real opaque carrier after a
+    /// simulated durable commit. Production callers settle only through the
+    /// kernel transaction machinery below.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn committed_for_test(self, min_commit_version: u64) -> SnapbackResult<()> {
+        self.committed(min_commit_version)
+    }
+
+    /// Bounded owner-test seam for exercising the commit-uncertain path
+    /// without making that transition part of the production API.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn ambiguous_for_test(self) {
+        self.ambiguous();
+    }
+}
+
+impl Drop for PreparedAuthorizationCommit {
+    fn drop(&mut self) {
+        if let Some(rolled_back) = self.rolled_back.take() {
+            rolled_back();
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct AuthorizationCommitCarrierFactory {
+    identity: Arc<()>,
+    _lease: Arc<KernelCommitAuthorityLease>,
+}
+
+impl KernelCommitAuthority {
+    pub fn authorization_commit_carriers(&self) -> AuthorizationCommitCarrierFactory {
+        AuthorizationCommitCarrierFactory {
+            identity: self.identity.clone(),
+            _lease: self._lease.clone(),
+        }
+    }
+}
+
+impl AuthorizationCommitCarrierFactory {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn for_test() -> Self {
+        let mut database = LocalDatabase::memory().expect("isolated authorization test database");
+        database
+            .claim_kernel_commit_authority()
+            .expect("isolated authorization test authority")
+            .authorization_commit_carriers()
+    }
+
+    pub fn reservation(
+        &self,
+        bind: impl for<'a> FnOnce(
+            &AuthorizationCommitWitness,
+            AuthorizationCommitImpact<'a>,
+        ) -> SnapbackResult<PreparedAuthorizationCommit>
+        + Send
+        + 'static,
+        cancel: impl FnOnce() + Send + 'static,
+    ) -> AuthorizationCommitReservation {
+        AuthorizationCommitReservation {
+            identity: self.identity.clone(),
+            bind: Some(Box::new(bind)),
+            cancel: Some(Box::new(cancel)),
+        }
+    }
+
+    pub fn prepared(
+        &self,
+        committed: impl FnOnce(u64) -> SnapbackResult<()> + Send + 'static,
+        ambiguous: impl FnOnce() + Send + 'static,
+        rolled_back: impl FnOnce() + Send + 'static,
+    ) -> PreparedAuthorizationCommit {
+        PreparedAuthorizationCommit {
+            identity: self.identity.clone(),
+            committed: Some(Box::new(committed)),
+            ambiguous: Some(Box::new(ambiguous)),
+            rolled_back: Some(Box::new(rolled_back)),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -572,23 +801,32 @@ impl AuthorizationReservationCancellation {
 }
 
 thread_local! {
-    static MANAGED_AUTHORIZATION_RESERVATION: std::cell::RefCell<Option<Box<dyn AuthorizationCommitReservation>>> =
+    static MANAGED_AUTHORIZATION_RESERVATION: std::cell::RefCell<Option<AuthorizationCommitReservation>> =
         const { std::cell::RefCell::new(None) };
 }
 
-pub fn install_managed_authorization_reservation(
-    reservation: Box<dyn AuthorizationCommitReservation>,
-) {
-    MANAGED_AUTHORIZATION_RESERVATION.with(|slot| {
-        let previous = slot.borrow_mut().replace(reservation);
-        assert!(
-            previous.is_none(),
-            "managed authorization reservation already installed"
-        );
-    });
+pub struct ManagedAuthorizationReservationScope {
+    active: bool,
 }
 
-pub fn take_managed_authorization_reservation() -> Option<Box<dyn AuthorizationCommitReservation>> {
+impl ManagedAuthorizationReservationScope {
+    pub fn take_unused(mut self) -> Option<AuthorizationCommitReservation> {
+        self.active = false;
+        MANAGED_AUTHORIZATION_RESERVATION.with(|slot| slot.borrow_mut().take())
+    }
+}
+
+impl Drop for ManagedAuthorizationReservationScope {
+    fn drop(&mut self) {
+        if self.active {
+            MANAGED_AUTHORIZATION_RESERVATION.with(|slot| {
+                drop(slot.borrow_mut().take());
+            });
+        }
+    }
+}
+
+fn take_managed_authorization_reservation() -> Option<AuthorizationCommitReservation> {
     MANAGED_AUTHORIZATION_RESERVATION.with(|slot| slot.borrow_mut().take())
 }
 
@@ -606,9 +844,15 @@ fn commit_with_authorization_interlock(
     impact: AuthorizationCommitImpact<'_>,
     predecessor: Option<AuthorizationVersion>,
     min_commit_version: u64,
-    interlock: Option<Arc<dyn AuthorizationCommitInterlock>>,
+    interlock_enabled: bool,
+    database_identity: &Arc<()>,
 ) -> SnapbackResult<()> {
-    let prepared = prepare_authorization_commit_interlock(witness, impact, interlock.as_ref())?;
+    let prepared = prepare_authorization_commit_interlock(
+        witness,
+        impact,
+        interlock_enabled,
+        database_identity,
+    )?;
     commit_with_prepared_authorization_interlock(
         tx,
         witness,
@@ -628,12 +872,13 @@ fn commit_with_authorization_interlock(
 pub(super) fn prepare_authorization_commit_interlock(
     witness: &AuthorizationCommitWitness,
     impact: AuthorizationCommitImpact<'_>,
-    interlock: Option<&Arc<dyn AuthorizationCommitInterlock>>,
-) -> SnapbackResult<Option<Box<dyn PreparedAuthorizationCommit>>> {
+    interlock_enabled: bool,
+    database_identity: &Arc<()>,
+) -> SnapbackResult<Option<PreparedAuthorizationCommit>> {
     if !witness.event {
         return Ok(None);
     }
-    if interlock.is_none() {
+    if !interlock_enabled {
         return Ok(None);
     }
     // Any interlocked transaction must arrive with a dependency that was
@@ -647,7 +892,9 @@ pub(super) fn prepare_authorization_commit_interlock(
             "authorization write reached SQLite without an off-Local, off-SQLite room reservation",
         )
     })?;
-    reservation.bind(witness, impact).map(Some)
+    reservation
+        .bind(database_identity, witness, impact)
+        .map(Some)
 }
 
 /// Commit after any targeted room dependency has already quiesced. Callers
@@ -659,7 +906,7 @@ fn commit_with_prepared_authorization_interlock(
     witness: &AuthorizationCommitWitness,
     predecessor: Option<AuthorizationVersion>,
     min_commit_version: u64,
-    prepared: Option<Box<dyn PreparedAuthorizationCommit>>,
+    prepared: Option<PreparedAuthorizationCommit>,
 ) -> SnapbackResult<()> {
     let Some(prepared) = prepared else {
         return tx.commit().map_err(Into::into);
@@ -995,6 +1242,13 @@ impl BufferedWrite {
 
 pub struct LocalDatabase {
     conn: Connection,
+    /// Process-unique identity for opaque commit carriers. A carrier minted
+    /// for another database is never authority for this connection.
+    commit_authority_identity: Arc<()>,
+    /// Stable across independent opens of the same file, so a second handle
+    /// cannot claim a parallel serving authority while the first graph lives.
+    commit_authority_key: String,
+    commit_authority_claimed: bool,
     /// The connection-local generated writer facade and SQLite authorizer.
     /// It remains dormant until a durable coverage manifest is present.
     writer_authority: write_authority::WriterAuthorityV1,
@@ -1018,11 +1272,11 @@ pub struct LocalDatabase {
     // @ref LLP 0188#2-integration-point-the-whole-instance-database — the
     // replicator owns every checkpoint while the lane is enabled.
     replication_checkpoint_owner: bool,
-    authorization_interlock: Option<Arc<dyn AuthorizationCommitInterlock>>,
+    authorization_interlock: bool,
     /// One process registry belongs to this database instance. Every AppState
     /// clone borrows this same registry, so constructing another router cannot
     /// replace the interlock beneath already-running service publications.
-    service_authority_fences: Arc<dyn crate::auth::service_fence::ServiceAuthorityCommitInterlock>,
+    service_authority_fences: Option<crate::auth::service_fence::ServiceAuthorityCommitInterlock>,
     app_state_graph_claimed: bool,
     /// Active maintained-projection plans (LLP 0080 §5), installed by
     /// function-manifest activation after validation. Every mutation path
@@ -1553,6 +1807,9 @@ impl LocalDatabase {
         let mode_inspection = auth_mode::inspect_for_open(&conn)?;
         let mut db = Self {
             conn,
+            commit_authority_identity: Arc::new(()),
+            commit_authority_key: memory_commit_authority_key(),
+            commit_authority_claimed: false,
             writer_authority: write_authority::WriterAuthorityV1::default(),
             path: None,
             derived_fork: None,
@@ -1560,9 +1817,8 @@ impl LocalDatabase {
             schema: SchemaManifest::default(),
             reader_pool: None,
             replication_checkpoint_owner: false,
-            authorization_interlock: None,
-            service_authority_fences:
-                crate::auth::service_fence::default_service_authority_commit_interlock(),
+            authorization_interlock: false,
+            service_authority_fences: None,
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
             order_field_bounds: Arc::new(BTreeMap::new()),
@@ -1575,6 +1831,13 @@ impl LocalDatabase {
         db.writer_authority.set_schema(&db.schema)?;
         db.refresh_writer_authority_manifest()?;
         db.writer_authority.install(&db.conn)?;
+        #[cfg(test)]
+        {
+            db.service_authority_fences =
+                Some(crate::auth::service_fence::kernel_test_commit_interlock(
+                    &db.commit_authority_identity,
+                ));
+        }
         Ok(db)
     }
 
@@ -1592,6 +1855,7 @@ impl LocalDatabase {
             ));
         }
         let conn = Connection::open(&path)?;
+        let commit_authority_key = file_commit_authority_key(&path)?;
         // Distinguish a genuinely empty database from an existing database
         // before any additive DDL/default write. Recreating a missing head at
         // zero would make retained rows and journal entries appear uncommitted.
@@ -1610,6 +1874,9 @@ impl LocalDatabase {
         }
         let mut db = Self {
             conn,
+            commit_authority_identity: Arc::new(()),
+            commit_authority_key,
+            commit_authority_claimed: false,
             writer_authority: write_authority::WriterAuthorityV1::default(),
             path: Some(path.clone()),
             derived_fork,
@@ -1617,9 +1884,8 @@ impl LocalDatabase {
             schema: SchemaManifest::default(),
             reader_pool: None,
             replication_checkpoint_owner: crate::replication::configured_from_env(),
-            authorization_interlock: None,
-            service_authority_fences:
-                crate::auth::service_fence::default_service_authority_commit_interlock(),
+            authorization_interlock: false,
+            service_authority_fences: None,
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
             order_field_bounds: Arc::new(BTreeMap::new()),
@@ -1659,6 +1925,13 @@ impl LocalDatabase {
         db.writer_authority.set_schema(&db.schema)?;
         db.refresh_writer_authority_manifest()?;
         db.writer_authority.install(&db.conn)?;
+        #[cfg(test)]
+        {
+            db.service_authority_fences =
+                Some(crate::auth::service_fence::kernel_test_commit_interlock(
+                    &db.commit_authority_identity,
+                ));
+        }
         // The pool is created after configure/create_infra so readers open an
         // existing WAL database with the infra tables committed.
         db.reader_pool = Some(Arc::new(ReaderPool::new(
@@ -1838,8 +2111,12 @@ impl LocalDatabase {
             let backup = rusqlite::backup::Backup::new(&self.conn, &mut conn)?;
             backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
         }
-        let restored = Self {
+        #[allow(unused_mut)]
+        let mut restored = Self {
             conn,
+            commit_authority_identity: Arc::new(()),
+            commit_authority_key: memory_commit_authority_key(),
+            commit_authority_claimed: false,
             writer_authority: write_authority::WriterAuthorityV1::default(),
             path: None,
             derived_fork: self.derived_fork.clone(),
@@ -1847,14 +2124,20 @@ impl LocalDatabase {
             schema: self.schema.clone(),
             reader_pool: None,
             replication_checkpoint_owner: false,
-            authorization_interlock: None,
-            service_authority_fences:
-                crate::auth::service_fence::default_service_authority_commit_interlock(),
+            authorization_interlock: false,
+            service_authority_fences: None,
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
             order_field_bounds: self.order_field_bounds.clone(),
             sequence_declarations: self.sequence_declarations.clone(),
         };
+        #[cfg(test)]
+        {
+            restored.service_authority_fences =
+                Some(crate::auth::service_fence::kernel_test_commit_interlock(
+                    &restored.commit_authority_identity,
+                ));
+        }
         validate_sequence_activation(
             &restored.conn,
             &restored.schema,
@@ -1866,18 +2149,164 @@ impl LocalDatabase {
         Ok(restored)
     }
 
-    pub fn install_authorization_interlock(
+    /// Claim the one live commit authority for this database. The process-wide
+    /// file-identity lease prevents a separately opened handle from creating
+    /// a parallel authority graph for an already-serving store.
+    ///
+    /// @ref LLP 0276#phases — opaque carriers are meaningful only when the
+    /// mint itself cannot be reclaimed through another handle to the file.
+    pub fn claim_kernel_commit_authority(&mut self) -> Option<KernelCommitAuthority> {
+        if self.commit_authority_claimed {
+            return None;
+        }
+        let mut claimed = kernel_commit_authority_registry()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !claimed.insert(self.commit_authority_key.clone()) {
+            return None;
+        }
+        self.commit_authority_claimed = true;
+        Some(KernelCommitAuthority {
+            identity: self.commit_authority_identity.clone(),
+            _lease: Arc::new(KernelCommitAuthorityLease {
+                key: self.commit_authority_key.clone(),
+            }),
+        })
+    }
+
+    /// Join a second typed database handle to an already-claimed authority
+    /// graph for bounded owner tests. The opaque lease must name this exact
+    /// file identity; callers cannot use the seam to authorize another store.
+    #[cfg(feature = "test-support")]
+    #[doc(hidden)]
+    pub fn join_kernel_commit_authority_for_test(
         &mut self,
-        interlock: Arc<dyn AuthorizationCommitInterlock>,
-    ) {
-        self.authorization_interlock = Some(interlock);
+        authority: &KernelCommitAuthority,
+    ) -> SnapbackResult<()> {
+        if self.commit_authority_claimed || self.commit_authority_key != authority._lease.key {
+            return Err(SnapbackError::error(
+                "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
+                "storage",
+                "test database handle does not belong to the claimed commit-authority graph",
+            ));
+        }
+        self.commit_authority_identity = authority.identity.clone();
+        self.commit_authority_claimed = true;
+        Ok(())
+    }
+
+    /// Typed, token-bound setup for the dated promotion contention recorder.
+    /// The recorder receives only an opaque reservation; it never opens a
+    /// second writable SQLite handle.
+    #[doc(hidden)]
+    pub fn prepare_promotion_contention_reservation_for_bench(
+        &mut self,
+        authority: &KernelCommitAuthority,
+        canonical_stream_id: &str,
+        workers: usize,
+        issued_at_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion_bench::PromotionContentionReservation> {
+        if !Arc::ptr_eq(authority.identity(), &self.commit_authority_identity) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
+                "storage",
+                "promotion contention setup authority belongs to another database",
+            ));
+        }
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::BranchRegistry)?;
+        crate::fork_promotion_bench::prepare_promotion_contention_reservation_in(
+            &mut self.conn,
+            self.commit_authority_identity.clone(),
+            canonical_stream_id,
+            workers,
+            issued_at_ms,
+        )
+        .map_err(|error| {
+            SnapbackError::error("SNAPBACK_BENCH_SETUP_FAILED", "bench", error.to_string())
+        })
+    }
+
+    /// Initialize the recorder's kernel-owned system tables before its
+    /// application-write coverage manifest is armed.
+    #[doc(hidden)]
+    pub fn ensure_promotion_contention_infra_for_bench(
+        &mut self,
+        authority: &KernelCommitAuthority,
+    ) -> SnapbackResult<()> {
+        if !Arc::ptr_eq(authority.identity(), &self.commit_authority_identity) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
+                "storage",
+                "promotion contention infrastructure authority belongs to another database",
+            ));
+        }
+        let _schema_maintenance = self.writer_authority.enter_internal_schema_maintenance()?;
+        crate::fork_promotion::ensure_promotion_tables(&self.conn)
+    }
+
+    /// Activate a reservation minted for this exact database through the
+    /// sole engine-owned authority graph.
+    #[doc(hidden)]
+    pub fn activate_promotion_contention_reservation_for_bench(
+        &mut self,
+        authority: &KernelCommitAuthority,
+        reservation: crate::fork_promotion_bench::PromotionContentionReservation,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion_bench::PromotionContentionPolicy> {
+        if !Arc::ptr_eq(authority.identity(), &self.commit_authority_identity) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
+                "storage",
+                "promotion contention activation authority belongs to another database",
+            ));
+        }
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::BranchRegistry)?;
+        reservation.activate_in(&self.conn, &self.commit_authority_identity, now_ms)
+    }
+
+    /// Read-only verification for the dated contention recorder.
+    #[doc(hidden)]
+    pub fn committed_promotion_contention_rows_for_bench(&self) -> SnapbackResult<usize> {
+        crate::fork_promotion_bench::count_committed_contention_rows_in(&self.conn).map_err(
+            |error| SnapbackError::error("SNAPBACK_BENCH_READ_FAILED", "bench", error.to_string()),
+        )
+    }
+
+    pub fn enable_authorization_commit_interlock(
+        &mut self,
+        authority: &KernelCommitAuthority,
+    ) -> SnapbackResult<()> {
+        if !Arc::ptr_eq(authority.identity(), &self.commit_authority_identity) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
+                "storage",
+                "authorization interlock authority belongs to another database",
+            ));
+        }
+        self.authorization_interlock = true;
+        Ok(())
     }
 
     pub fn install_service_authority_commit_interlock(
         &mut self,
-        interlock: Arc<dyn crate::auth::service_fence::ServiceAuthorityCommitInterlock>,
-    ) {
-        self.service_authority_fences = interlock;
+        authority: &KernelCommitAuthority,
+        interlock: crate::auth::service_fence::ServiceAuthorityCommitInterlock,
+    ) -> SnapbackResult<()> {
+        if !Arc::ptr_eq(authority.identity(), &self.commit_authority_identity)
+            || !interlock.is_for(&self.commit_authority_identity)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
+                "storage",
+                "service interlock authority belongs to another database",
+            ));
+        }
+        self.service_authority_fences = Some(interlock);
+        Ok(())
     }
 
     pub fn claim_app_state_graph(&mut self) -> bool {
@@ -2107,9 +2536,63 @@ impl LocalDatabase {
                 .all(|entry| entry.envelope_mapped && entry.write_authority_enforced))
     }
 
+    /// Bounded fork-authorizer fixture. This attempts one fixed direct app-row
+    /// insert so an owner-crate test can prove SQLite refuses writes that do
+    /// not traverse the kernel mutation seam. The caller supplies neither SQL
+    /// nor a database handle.
     #[cfg(any(test, feature = "test-support"))]
-    pub fn execute_out_of_seam_app_sql_for_test(&self, sql: &str) -> rusqlite::Result<usize> {
-        self.conn.execute(sql, [])
+    pub fn attempt_unmediated_app_insert_for_test(&self) -> rusqlite::Result<usize> {
+        self.conn.execute(
+            "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title) \
+             VALUES('raw-bypass',2,102,102,'must be denied')",
+            [],
+        )
+    }
+
+    /// Bounded owner-crate matcher fixture. This changes only the declared
+    /// owner field of one owner-policy row so a higher-crate live matcher can
+    /// compare a synthetic post-image with a fresh query. It is deliberately
+    /// test-support-only and returns neither a raw handle nor commit authority.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn apply_owner_visibility_post_image_for_test(
+        &mut self,
+        table: &str,
+        id: &str,
+        new_owner: &str,
+    ) -> SnapbackResult<()> {
+        let table_manifest = schema_table(&self.schema, table)?;
+        let crate::manifest::TableVisibilityV1::Owner { field } =
+            table_manifest.visibility.as_ref().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_TEST_FIXTURE_INVALID",
+                    "storage",
+                    "owner-visibility matcher fixture requires an owner-policy table",
+                )
+            })?
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TEST_FIXTURE_INVALID",
+                "storage",
+                "owner-visibility matcher fixture requires an owner-policy table",
+            ));
+        };
+        let table = quote_ident(table)?;
+        let field = quote_ident(field)?;
+        let _writer = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::OrdinaryHostPlan)?;
+        let changed = self.conn.execute(
+            &format!("UPDATE {table} SET {field}=?1 WHERE \"_id\"=?2"),
+            params![new_owner, id],
+        )?;
+        if changed != 1 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TEST_FIXTURE_INVALID",
+                "storage",
+                "owner-visibility matcher fixture requires one existing row",
+            ));
+        }
+        Ok(())
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -2664,6 +3147,7 @@ impl LocalDatabase {
             .is_some_and(|(skew, policy)| skew <= policy.max_skew_ms);
         let settlement_time_sink_reached = Cell::new(false);
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let enforce_canonical_promotion_reservation =
             self.derived_fork.is_none() && self.in_app_branch.is_none();
         let tx = self
@@ -4025,7 +4509,8 @@ impl LocalDatabase {
                     schema: &schema,
                     changes: &changes,
                 },
-                authorization_interlock.as_ref(),
+                authorization_interlock,
+                &commit_authority_identity,
             )?;
             // Targeted room quiescence happens before this process-global
             // fence. The returned guard still lives through tx.commit(), but
@@ -4327,6 +4812,7 @@ impl LocalDatabase {
             .unwrap_or_else(now_millis);
         validate_portable_timestamp_millis(now_ms)?;
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let enforce_canonical_promotion_reservation =
             self.derived_fork.is_none() && self.in_app_branch.is_none();
         let tx = self
@@ -4890,7 +5376,8 @@ impl LocalDatabase {
                     schema: &schema,
                     changes: &changes,
                 },
-                authorization_interlock.as_ref(),
+                authorization_interlock,
+                &commit_authority_identity,
             )?;
             // No handler/plan or targeted room wait runs under this guard; it
             // linearizes only identity recording plus the final SQLite COMMIT.
@@ -5507,7 +5994,7 @@ fn load_schema_manifest_from_connection(
 /// Read the exact active schema across both legacy and capability-aware auth
 /// modes without opening a writer. Derived proof oracles use this to decode
 /// physical rows through the same portable type contract as ordinary reads.
-pub fn active_schema_manifest_from_connection(
+pub(crate) fn active_schema_manifest_from_connection(
     conn: &Connection,
 ) -> SnapbackResult<Option<SchemaManifest>> {
     Ok(auth_mode::inspect_for_open(conn)?
@@ -5521,7 +6008,7 @@ pub fn active_schema_manifest_from_connection(
 ///
 /// @ref LLP 0053#ephemeral-room-authority-invalidation — durable room
 /// permission lookup must remain on the admitted side of the commit barrier.
-pub fn room_permission_projection_granted_on(
+pub(crate) fn room_permission_projection_granted_on(
     conn: &Connection,
     schema: &SchemaManifest,
     table_name: &str,
@@ -5594,7 +6081,7 @@ fn with_pinned_read_snapshot<T>(
 
 /// Read the complete durable authorization witness from the caller's pinned
 /// transaction. Missing state is never interpreted as continuity.
-pub fn authorization_version_on(conn: &Connection) -> SnapbackResult<AuthorizationVersion> {
+pub(crate) fn authorization_version_on(conn: &Connection) -> SnapbackResult<AuthorizationVersion> {
     auth_stream::read_authorization_version_on(conn)?.ok_or_else(|| {
         SnapbackError::error(
             "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT",
@@ -5613,7 +6100,7 @@ pub fn authorization_version_on(conn: &Connection) -> SnapbackResult<Authorizati
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6: the
 /// version/rows pair must come from one snapshot; the read lane guarantees it
 /// with a pinned read transaction instead of the global mutex.
-pub fn query_on(
+pub(crate) fn query_on(
     conn: &Connection,
     schema: &SchemaManifest,
     plan: &QueryPlan,
@@ -6063,7 +6550,7 @@ pub fn query_relational_on_observed(
     ))
 }
 
-pub fn query_on_with_storage_limit(
+pub(crate) fn query_on_with_storage_limit(
     conn: &Connection,
     schema: &SchemaManifest,
     plan: &QueryPlan,
@@ -6100,7 +6587,7 @@ pub fn take_keyset_scan_stats() -> Vec<KeysetScanStats> {
 /// The relational root window's entry: the generic validated query path with
 /// an optional keyset boundary and the always-total `(order…, _id ASC)`
 /// ordering `root-window-v1` continuation identity depends on.
-pub fn query_on_keyset(
+pub(crate) fn query_on_keyset(
     conn: &Connection,
     schema: &SchemaManifest,
     plan: &QueryPlan,
@@ -6330,7 +6817,7 @@ fn query_on_with_storage_limit_visibility_keyset(
     })
 }
 
-pub fn get_on(
+pub(crate) fn get_on(
     conn: &Connection,
     schema: &SchemaManifest,
     table: &str,
@@ -6368,7 +6855,7 @@ pub fn get_on(
     })
 }
 
-pub fn get_many_on(
+pub(crate) fn get_many_on(
     conn: &Connection,
     schema: &SchemaManifest,
     table: &str,
@@ -6553,7 +7040,7 @@ fn prepare_unique_many_keys(
     Ok((index.clone(), prepared))
 }
 
-pub fn unique_many_on(
+pub(crate) fn unique_many_on(
     conn: &Connection,
     schema: &SchemaManifest,
     table_name: &str,
@@ -6641,7 +7128,7 @@ pub fn unique_many_on(
     })
 }
 
-pub fn current_version_on(conn: &Connection) -> SnapbackResult<u64> {
+pub(crate) fn current_version_on(conn: &Connection) -> SnapbackResult<u64> {
     crate::exec_guard::debug_assert_off_async_worker("a SQLite version read");
     let version: Option<SqlValue> = conn
         .query_row(
@@ -11660,7 +12147,7 @@ fn validate_read_set(
 /// 0044 §Internal model) — same machinery, same conflict semantics, so
 /// witness movement surfaces as the ordinary `SNAPBACK_MUTATION_CONFLICT`
 /// the finalizer catches to trigger re-validation.
-pub fn validate_asset_witness(
+pub(crate) fn validate_asset_witness(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
     input: &HandlerInput,
@@ -12247,7 +12734,7 @@ fn changes_to_table_since(
 ///
 /// @ref LLP 0073#rebuilds-and-migrations — catch-up advances gap-free from a
 ///   journal-floor lease and persists one complete source-version boundary.
-pub fn versioned_changes_to_table_batch(
+pub(crate) fn versioned_changes_to_table_batch(
     conn: &Connection,
     table: &str,
     after: u64,
@@ -12383,7 +12870,7 @@ pub fn versioned_changes_to_table_batch(
     Ok((out, cutoff))
 }
 
-pub fn change_journal_floor_on(conn: &Connection) -> SnapbackResult<u64> {
+pub(crate) fn change_journal_floor_on(conn: &Connection) -> SnapbackResult<u64> {
     retention_floor_at_most(conn, current_version_on(conn)?)
 }
 
@@ -14333,7 +14820,7 @@ fn cascade_asset_collection_parent_deletions(
 /// plans, and seeds — so enforcement lives at the storage boundary, not in a
 /// helper. Reverse edges commit in this same changeset, which is what makes
 /// `via-references` read grants and reference GC exact.
-pub fn enforce_asset_reference_changes(
+pub(crate) fn enforce_asset_reference_changes(
     schema: &SchemaManifest,
     tx: &Transaction<'_>,
     changes: &[ChangedRow],
@@ -14561,7 +15048,7 @@ pub struct AssetReadDecision {
     pub dependencies: Vec<CapturedReadDependency>,
 }
 
-pub fn asset_read_authorized(
+pub(crate) fn asset_read_authorized(
     schema: &SchemaManifest,
     tx: &Transaction<'_>,
     principal: Option<&str>,
@@ -14785,7 +15272,7 @@ fn via_reference_edge_disclosed_v1(_table: &TableManifest, _field: &str, _princi
 /// empty edge-range capture; an edge removal, row change, or membership
 /// change moves its dependency the same way).
 #[allow(dead_code)] // Exercised by tests; the live channel's governed-boundary re-check consumes it next.
-pub fn asset_read_dependencies_moved(
+pub(crate) fn asset_read_dependencies_moved(
     schema: &SchemaManifest,
     tx: &Transaction<'_>,
     principal: Option<&str>,
@@ -17597,7 +18084,7 @@ fn validate_staged_media_projection_commit_identity(
 /// Replace physical media asset ids with the two-member public projection
 /// while the caller's exact read/commit transaction is still pinned.
 /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
-pub fn project_media_fields_on(
+pub(crate) fn project_media_fields_on(
     conn: &Connection,
     table: &TableManifest,
     document: &mut Value,
@@ -17721,7 +18208,7 @@ fn media_projection_related_facts_on(
     Ok((record_kind, format!("sha256:{:x}", digest.finalize())))
 }
 
-pub fn media_projection_fact_digest_on(
+pub(crate) fn media_projection_fact_digest_on(
     conn: &Connection,
     asset_id: &str,
 ) -> SnapbackResult<String> {
@@ -17755,7 +18242,7 @@ fn record_change(
 /// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — promotion publishes
 /// one canonical version with durable write and operation-envelope truth.
 #[allow(clippy::too_many_arguments)]
-pub fn record_promotion_change(
+pub(crate) fn record_promotion_change(
     tx: &Transaction<'_>,
     version: u64,
     table: &str,
@@ -17826,7 +18313,7 @@ fn set_version(tx: &Transaction<'_>, version: u64) -> SnapbackResult<()> {
     Ok(())
 }
 
-pub fn set_promotion_version(tx: &Transaction<'_>, version: u64) -> SnapbackResult<()> {
+pub(crate) fn set_promotion_version(tx: &Transaction<'_>, version: u64) -> SnapbackResult<()> {
     set_version(tx, version)
 }
 

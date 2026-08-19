@@ -9,7 +9,7 @@ presence.
 
 `schemas/live.wire-fixtures.v1.json` is replayed by Rust and Swift
 (`clients/swift/.../FixtureConformanceTests.swift:160`) but **not** by any JS
-package — `rg "live.wire-fixtures" packages/ targets/cloudflare/` is empty. The JS
+package — `rg "live.wire-fixtures" packages/ cloudflare/` is empty. The JS
 client's wire correctness rests on its own unit suite, not the cross-arm corpus
 LLP 0095 designed; a coordinator/kit frame that diverges from the schema (see
 the pong `serverTimeMs` ticket) isn't caught cross-arm. *Ask:* add a JS replay

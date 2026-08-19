@@ -9,7 +9,7 @@
     "instrument": "demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs (LLP 0075 protocol v0.5; expectedChecks 7; PASS 7/7)",
     "lib": "cargo test --lib (src/server.rs + src/stream_attempt.rs stream tests)",
     "envelope": "cargo test --test action_stream_envelope_v0 (5/5)",
-    "workerdEgress": "targets/cloudflare/test/acceptance.egress.mjs under Miniflare/workerd (28/28)"
+    "workerdEgress": "cloudflare/test/acceptance.egress.mjs under Miniflare/workerd (28/28)"
   },
   "bullets": [
     {

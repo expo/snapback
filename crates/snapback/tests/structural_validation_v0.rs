@@ -9,10 +9,11 @@ use snapback::manifest::{
     AuthInput, BinaryOp, FieldManifest, FieldType, HandlerInput, IndexManifest, MutationPlan,
     MutationStep, ReturnValue, SchemaManifest, TableManifest, ValueExpr,
 };
-use snapback::storage::LocalDatabase;
+use snapback_kernel::storage::LocalDatabase;
 use std::collections::BTreeMap;
 
-const CORPUS_JSON: &str = include_str!("../../../tests/conformance/structural-validation.corpus.json");
+const CORPUS_JSON: &str =
+    include_str!("../../../tests/conformance/structural-validation.corpus.json");
 
 #[derive(Debug, Deserialize)]
 struct Corpus {
@@ -109,7 +110,7 @@ fn schema(corpus: &Corpus) -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -143,7 +144,7 @@ fn edge_schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -250,7 +251,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
                 .mutation_writes()
                 .execute_mutation(
                     &MutationPlan {
-            owner_write_checks: Vec::new(),
+                        owner_write_checks: Vec::new(),
                         steps: vec![MutationStep::Insert {
                             table: corpus.schema.table.clone(),
                             values: literal_values(&case.values),
@@ -265,7 +266,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
                 .mutation_writes()
                 .execute_mutation(
                     &MutationPlan {
-            owner_write_checks: Vec::new(),
+                        owner_write_checks: Vec::new(),
                         steps: vec![MutationStep::Patch {
                             table: corpus.schema.table.clone(),
                             id: ValueExpr::Literal(Value::String(
@@ -294,7 +295,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
                 db.mutation_writes()
                     .execute_mutation(
                         &MutationPlan {
-            owner_write_checks: Vec::new(),
+                            owner_write_checks: Vec::new(),
                             steps: vec![MutationStep::Insert {
                                 table: corpus.schema.table.clone(),
                                 values,
@@ -314,7 +315,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
                 db.mutation_writes()
                     .execute_mutation(
                         &MutationPlan {
-            owner_write_checks: Vec::new(),
+                            owner_write_checks: Vec::new(),
                             steps: vec![MutationStep::Patch {
                                 table: corpus.schema.table.clone(),
                                 id: ValueExpr::Literal(Value::String(
@@ -380,7 +381,7 @@ fn local_missing_rows_still_validate_the_shared_patch_corpus() {
         };
         let outcome = db.mutation_writes().execute_mutation(
             &MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Patch {
                     table: corpus.schema.table.clone(),
                     id: ValueExpr::Literal(Value::String(
@@ -442,7 +443,7 @@ fn local_declared_field_types_consume_the_shared_boundary_corpus() {
                     membership: None,
                     authority_profile: None,
                     asset_sharing: None,
-                    visibility: None,
+                    visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
                     history: None,
                 }],
                 ..SchemaManifest::default()
@@ -450,7 +451,7 @@ fn local_declared_field_types_consume_the_shared_boundary_corpus() {
             .expect("apply type-case schema");
         let outcome = db.mutation_writes().execute_mutation(
             &MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "typeRecords".to_owned(),
                     values: BTreeMap::from([(
@@ -527,7 +528,7 @@ fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
             .mutation_writes()
             .execute_mutation(
                 &MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Patch {
                         table: "edgeRecords".to_owned(),
                         id: ValueExpr::Literal(Value::String(id.to_owned())),
@@ -549,7 +550,7 @@ fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
         .mutation_writes()
         .execute_mutation(
             &MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "edgeRecords".to_owned(),
                     values: BTreeMap::from([(

@@ -70,12 +70,11 @@ fn out_of_space_copy_fails_closed_and_recover_reaps_the_staging_residue() {
     };
     let directory = tempfile::tempdir().expect("parent fixture");
     let source = directory.path().join("parent.sqlite3");
-    let parent = snapback::storage::LocalDatabase::open(&source).expect("parent database");
+    let parent = snapback_kernel::storage::LocalDatabase::open(&source).expect("parent database");
     drop(parent);
     {
         // Grow the parent well past the ~4 MB volume.
-        let conn = snapback_services::test_support::rusqlite::Connection::open(&source)
-            .expect("open parent");
+        let conn = rusqlite::Connection::open(&source).expect("open parent");
         conn.execute_batch("CREATE TABLE ballast(id INTEGER PRIMARY KEY, bytes BLOB)")
             .expect("ballast table");
         for row in 0..8 {
@@ -130,8 +129,7 @@ fn out_of_space_copy_fails_closed_and_recover_reaps_the_staging_residue() {
     assert!(!destination.exists());
 
     // The pressured volume never damaged the parent.
-    let conn = snapback_services::test_support::rusqlite::Connection::open(&source)
-        .expect("reopen parent");
+    let conn = rusqlite::Connection::open(&source).expect("reopen parent");
     let rows: u64 = conn
         .query_row("SELECT COUNT(*) FROM ballast", [], |row| row.get(0))
         .expect("parent intact");

@@ -1453,10 +1453,7 @@ impl ObligationRegistry {
     /// Preview the retirement frontier that removing `scope_id` would make
     /// available, without changing any registry state. This lets the caller
     /// authenticate the proof before the predecessor is irreversibly removed.
-    pub fn preview_scope_retirement(
-        &self,
-        scope_id: &ScopeId,
-    ) -> Option<ScopeRetirementCandidate> {
+    pub fn preview_scope_retirement(&self, scope_id: &ScopeId) -> Option<ScopeRetirementCandidate> {
         let ScopeId::Subscription {
             issuer_id,
             namespace,

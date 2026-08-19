@@ -209,6 +209,18 @@ pub struct AdmissionSnapshot {
 }
 
 impl AdmissionController {
+    /// Prove that a lease was minted by this exact process-local controller.
+    /// Composition uses this before preparing authority off the writer lane;
+    /// matching counters alone are never admission evidence.
+    #[doc(hidden)]
+    pub fn owns_lease(&self, lease: &AdmissionLease) -> bool {
+        lease
+            .token
+            .controller
+            .as_ref()
+            .is_some_and(|controller| Arc::ptr_eq(controller, &self.inner))
+    }
+
     /// Construct a dev-mode controller. This compatibility constructor is
     /// intentionally narrow; production composition should prefer
     /// [`Self::from_mode_state`] so the epoch binds the exact durable mode.
@@ -979,9 +991,7 @@ impl<T> CommittedModeTransition<T> {
 
     /// Explicitly publish the already-projected successor only after every
     /// off-Local terminal/runtime projection has completed.
-    pub fn publish_successor(
-        self,
-    ) -> SnapbackResult<(T, AuthModeStateRecord, AdmissionSnapshot)> {
+    pub fn publish_successor(self) -> SnapbackResult<(T, AuthModeStateRecord, AdmissionSnapshot)> {
         let Self {
             transition,
             output,
@@ -1374,7 +1384,6 @@ fn quiescence_timeout() -> SnapbackError {
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
-
 
 #[cfg(test)]
 mod tests {

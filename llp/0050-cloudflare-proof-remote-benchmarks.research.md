@@ -21,8 +21,8 @@ distributions for mutation, initial snapshot, live update, and
 reconnect/resubscribe against the **real** deployed notes proof
 (`snapback-notes-proof`), plus the maximum-practical-subscribers ladder and
 the storage/overload contention probes. The runner is
-`targets/cloudflare/test/measure.remote.mjs`; the fixture-bearing artifacts are
-`targets/cloudflare/generated/measurements.remote.2026-07-09.json` (run 1) and
+`cloudflare/test/measure.remote.mjs`; the fixture-bearing artifacts are
+`cloudflare/generated/measurements.remote.2026-07-09.json` (run 1) and
 `…/measurements.remote.followups.2026-07-09.jsonl` (the gentle-pacing
 ladder, the 64-way burst, and the oversized-value failure shape).
 
@@ -193,7 +193,7 @@ rewriting the historical remote observations above:
   message maps to overload, while an unrelated app exception remains
   `SNAPBACK_HANDLER_FAILED`.
 
-Local evidence: `node targets/cloudflare/test/acceptance.mjs` passes **50/50**. Its
+Local evidence: `node cloudflare/test/acceptance.mjs` passes **50/50**. Its
 32-way burst commits a gap-free subset and classifies every shed request as
 retryable admission overload; deterministic proof/kit saturation seams pin
 both envelope shapes. Per LLP 0040's evidence split, Miniflare cannot prove
@@ -226,12 +226,12 @@ part of this report.
 
 ENG-23841 supplies the direct All Aboard evidence that the 2026-07-09 caveat
 left open. The
-[machine-readable record](../targets/cloudflare/generated/measurements.remote.idle.2026-07-12.json)
+[machine-readable record](../cloudflare/generated/measurements.remote.idle.2026-07-12.json)
 pins the deployed Worker version IDs, reset and liveness witnesses, raw rows,
 sampling probe, and non-secret collection templates; the source commit was not
 retained by the deployed-version listing and is explicitly unknown. Recompute
 its timing, totals, controls, and caveats with
-`node targets/cloudflare/test/validate-idle-measurement.mjs`.
+`node cloudflare/test/validate-idle-measurement.mjs`.
 
 - **Demand was absent at every retained observation.** Five status observations from
   `2026-07-11T23:32:13Z` through `23:32:44Z` all reported zero demand; the

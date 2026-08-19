@@ -26,3 +26,16 @@ pub mod entrypoint;
 pub(crate) mod guide_mcp;
 #[doc(hidden)]
 pub mod store_state;
+
+#[cfg(test)]
+pub(crate) mod remainder_adapter {
+    pub(crate) trait RemainderLocalSnapbackExt {
+        fn remainder_auth_database_mut(&mut self) -> &mut snapback_kernel::storage::LocalDatabase;
+    }
+
+    impl RemainderLocalSnapbackExt for snapback_engine::local::LocalSnapback {
+        fn remainder_auth_database_mut(&mut self) -> &mut snapback_kernel::storage::LocalDatabase {
+            snapback_engine::test_support::auth_database_mut(self)
+        }
+    }
+}

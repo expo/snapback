@@ -595,10 +595,7 @@ impl LocalDatabase {
     /// activation caller: materialization stays unpinned until either the
     /// raw-dev generation or complete-pair record commits with it.
     #[allow(dead_code)] // Reserved compensation seam for a future non-transactional activation path.
-    pub fn clear_projection_plan_digests(
-        &mut self,
-        plan_ids: &[String],
-    ) -> SnapbackResult<()> {
+    pub fn clear_projection_plan_digests(&mut self, plan_ids: &[String]) -> SnapbackResult<()> {
         if plan_ids.is_empty() {
             return Ok(());
         }

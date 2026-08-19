@@ -204,6 +204,7 @@ impl LocalDatabase {
     ) -> SnapbackResult<AuthLogicalImportOutcomeV1> {
         artifact.validate()?;
         let authorization_interlock = self.authorization_interlock.clone();
+        let commit_authority_identity = self.commit_authority_identity.clone();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -381,6 +382,7 @@ impl LocalDatabase {
             authorization_predecessor,
             min_commit_version,
             authorization_interlock,
+            &commit_authority_identity,
         )?;
         Ok(AuthLogicalImportOutcomeV1::from_artifact(
             artifact,

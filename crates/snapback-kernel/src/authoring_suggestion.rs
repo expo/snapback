@@ -5,10 +5,6 @@ pub fn unknown_function_error(
     guessed: &str,
     expected_kinds: &[crate::manifest::FunctionKind],
 ) -> crate::diagnostic::SnapbackError {
-    snapback_types::authoring_suggestion::unknown_function_error(
-        manifest,
-        guessed,
-        expected_kinds,
-    )
-    .into()
+    snapback_types::authoring_suggestion::unknown_function_error(manifest, guessed, expected_kinds)
+        .into()
 }

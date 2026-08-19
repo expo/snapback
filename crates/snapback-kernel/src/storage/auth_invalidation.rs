@@ -1147,14 +1147,14 @@ fn persist_retry_counters(
 /// A destructive incarnation rotation makes every old retry witness
 /// permanently non-current. Remove episodes and both counter projections in
 /// the same transaction as that rotation; ordinary restart never calls this.
-pub fn clear_retry_episodes_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
+pub(crate) fn clear_retry_episodes_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
     tx.execute("DELETE FROM _snapback_auth_retry_episodes", [])?;
     tx.execute("DELETE FROM _snapback_auth_retry_counters", [])?;
     write_meta_u64(tx, RETRY_GLOBAL_COUNT_META_KEY, 0)?;
     Ok(())
 }
 
-pub fn rotate_data_version_stream_in(tx: &Transaction<'_>) -> SnapbackResult<String> {
+pub(crate) fn rotate_data_version_stream_in(tx: &Transaction<'_>) -> SnapbackResult<String> {
     let stream = Uuid::now_v7().hyphenated().to_string();
     write_text_meta(tx, DATA_VERSION_STREAM_META_KEY, &stream)?;
     Ok(stream)

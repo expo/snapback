@@ -15,13 +15,15 @@ use snapback::manifest::{
     SchemaManifest, SeedData, TableManifest, ValueExpr,
 };
 use snapback::runtime::CapabilityState;
-use snapback::storage::{
+use snapback_kernel::storage::{
     BufferedWrite, CapturedReadDependency, CapturedReadKind, ChangeOp, LocalDatabase,
 };
 use std::collections::BTreeMap;
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
+
+static CAPTURED_READ_DEBUG_HOOK_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
 fn local_sqlite_host_plan_runs_todo_live_query_and_mutation() {
@@ -1580,6 +1582,9 @@ fn read_set_conflict_rejects_stale_mutation() {
 
 #[test]
 fn captured_handler_read_conflict_rejects_without_client_read_set() {
+    let _hook_test = CAPTURED_READ_DEBUG_HOOK_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let dir = tempfile::tempdir().expect("tempdir");
     let db_path = dir.path().join("snapback.db");
 
@@ -1593,19 +1598,19 @@ fn captured_handler_read_conflict_rejects_without_client_read_set() {
         )
         .expect("create todo");
     let todo_id = created.result.as_str().unwrap().to_owned();
-    drop(setup);
+    let mut concurrent = setup
+        .open_commit_graph_sibling_for_test(&db_path)
+        .expect("join concurrent writer to the serving authority graph");
+    concurrent.load_functions(todo_functions());
 
     let (read_tx, read_rx) = std::sync::mpsc::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel();
     let _read_hook = snapback::runtime::set_captured_point_read_debug_hook(
         "todos", &todo_id, read_tx, release_rx,
     );
-    let thread_path = db_path.clone();
     let thread_id = todo_id.clone();
     let first = thread::spawn(move || {
-        let mut snapback = LocalSnapback::open(thread_path).expect("open first snapback");
-        snapback.load_functions(ibex_todo_functions(CONFLICT_HANDLER_SOURCE));
-        snapback
+        setup
             .invoke_mutation(
                 "setCompleted",
                 input(json!({ "id": thread_id, "completed": true }), "user_1"),
@@ -1618,8 +1623,6 @@ fn captured_handler_read_conflict_rejects_without_client_read_set() {
         .recv_timeout(Duration::from_secs(2))
         .expect("first handler captured the stale row read");
 
-    let mut concurrent = LocalSnapback::open(&db_path).expect("open concurrent snapback");
-    concurrent.load_functions(todo_functions());
     // Flip completed to a new value so the captured row version changes before
     // the first handler is released (the row starts at completed=false).
     concurrent
@@ -1649,6 +1652,9 @@ fn captured_handler_read_conflict_rejects_without_client_read_set() {
 // mixed before/after result that could commit successfully.
 #[test]
 fn captured_batch_read_is_one_snapshot_and_conflicts_as_a_unit() {
+    let _hook_test = CAPTURED_READ_DEBUG_HOOK_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let dir = tempfile::tempdir().expect("tempdir");
     let db_path = dir.path().join("snapback.db");
 
@@ -1669,20 +1675,21 @@ fn captured_batch_read_is_one_snapshot_and_conflicts_as_a_unit() {
         .as_str()
         .expect("second id")
         .to_owned();
-    drop(setup);
+    let mut concurrent = setup
+        .open_commit_graph_sibling_for_test(&db_path)
+        .expect("join concurrent writer to the serving authority graph");
+    concurrent.load_functions(todo_functions());
 
     let (read_tx, read_rx) = std::sync::mpsc::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel();
     let _read_hook = snapback::runtime::set_captured_point_read_debug_hook(
         "todos", &first_id, read_tx, release_rx,
     );
-    let thread_path = db_path.clone();
     let thread_first_id = first_id.clone();
     let thread_second_id = second_id.clone();
     let first = thread::spawn(move || {
-        let mut snapback = LocalSnapback::open(thread_path).expect("open batch snapback");
-        snapback.load_functions(batch_conflict_functions());
-        snapback
+        setup.load_functions(batch_conflict_functions());
+        setup
             .invoke_mutation(
                 "batchSetCompleted",
                 input(
@@ -1698,8 +1705,6 @@ fn captured_batch_read_is_one_snapshot_and_conflicts_as_a_unit() {
         .recv_timeout(Duration::from_secs(2))
         .expect("batch captured its pinned pre-write rows");
 
-    let mut concurrent = LocalSnapback::open(&db_path).expect("open concurrent snapback");
-    concurrent.load_functions(todo_functions());
     concurrent
         .invoke_mutation(
             "setCompleted",
@@ -3072,7 +3077,7 @@ fn todo_schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -5278,7 +5283,7 @@ fn l3_prune_preserves_cold_table_validation_version() {
         membership: None,
         authority_profile: None,
         asset_sharing: None,
-        visibility: None,
+        visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
         history: None,
     });
     snapback
@@ -5365,7 +5370,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
         membership: None,
         authority_profile: None,
         asset_sharing: None,
-        visibility: None,
+        visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
         history: None,
     });
     let mut db = LocalDatabase::memory().unwrap();
@@ -5732,8 +5737,7 @@ fn apply_schema_rejects_affinity_mismatch_with_surviving_physical_column() {
 }
 
 fn physical_column_not_null(path: &std::path::Path, table: &str, field: &str) -> bool {
-    let conn = snapback_services::test_support::rusqlite::Connection::open(path)
-        .expect("open sqlite for column inspection");
+    let conn = rusqlite::Connection::open(path).expect("open sqlite for column inspection");
     let mut statement = conn
         .prepare(&format!("PRAGMA table_info(\"{table}\")"))
         .expect("prepare table_info");
@@ -5969,8 +5973,7 @@ fn schema_reapply_repairs_legacy_required_but_nullable_column() {
         );
     }
     {
-        let conn = snapback_services::test_support::rusqlite::Connection::open(&path)
-            .expect("open raw legacy db");
+        let conn = rusqlite::Connection::open(&path).expect("open raw legacy db");
         let updated = conn
             .execute(
                 "UPDATE _snapback_meta SET value = ?1
@@ -6118,9 +6121,8 @@ fn readded_table_cannot_hide_a_preserved_required_physical_column() {
 /// directly from the database file; `None` when no index with that name
 /// exists.
 fn physical_index_definition(path: &std::path::Path, name: &str) -> Option<(String, Vec<String>)> {
-    use snapback_services::test_support::rusqlite::OptionalExtension;
-    let conn = snapback_services::test_support::rusqlite::Connection::open(path)
-        .expect("open sqlite for inspection");
+    use rusqlite::OptionalExtension;
+    let conn = rusqlite::Connection::open(path).expect("open sqlite for inspection");
     let table: Option<String> = conn
         .query_row(
             "SELECT tbl_name FROM sqlite_master WHERE type = 'index' AND name = ?1",
@@ -6166,7 +6168,7 @@ fn single_index_schema(hash: &str, table: &str, field: &str, index: &str) -> Sch
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(snapback::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()

@@ -100,7 +100,8 @@ fn plan() -> MigrationPlanArtifactV1 {
         }
     }
     let identity = |schema: &SchemaManifest| {
-        snapback::storage::migration_executor::schema_identity(schema).expect("schema identity")
+        snapback_kernel::storage::migration_executor::schema_identity(schema)
+            .expect("schema identity")
     };
     let body = MigrationPlanBody {
         schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),

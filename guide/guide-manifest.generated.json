@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:8330336254c1ce08af7e73f503f391d97895f17ec6ad132b4717a6154ec63442"
+    "sourceDigest": "sha256:636cce8fce42ac74e104d9b851027d71452751e45a9dc9f7ef1975fcda1c99b0"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1037,7 +1037,7 @@
         "llp/0231-entity-and-permissioning-recommendation.rfc.md",
         "llp/0240-application-authority-profiles.rfc.md",
         "crates/snapback-auth/src/auth/invalidation.rs",
-        "crates/snapback-types/src/auth/mode.rs",
+        "crates/snapback/src/auth/mode.rs",
         "crates/snapback-auth/src/auth/service_fence.rs",
         "crates/snapback-engine/src/local.rs",
         "crates/snapback-engine/src/local/authorization_acceptance.rs",
@@ -1061,7 +1061,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:3c291b748e3c46bd38618b661c1bd3ffd8c9125564eaf140621017774539867e",
-      "sha256": "d34f7e41d1e8cf2aeac3da429184b0940af4564b189e74683ee981d67b7c8c6b",
+      "sha256": "7e0bf45792e0898f48dfb65cb74e85084b2758ab0c37a5bdb3d8e2f8f5a0d422",
       "snippets": [
         {
           "lang": "js",
@@ -1250,7 +1250,7 @@
         "llp/0262-dev-identity-custody-capability.rfc.md",
         "packages/snapback-codegen/index.mjs",
         "crates/snapback-server/src/admin.rs",
-        "crates/snapback-types/src/auth/mode.rs",
+        "crates/snapback/src/auth/mode.rs",
         "crates/snapback-auth/src/auth/provider.rs",
         "crates/snapback-auth/src/dev_identity.rs",
         "crates/snapback-engine/src/host_ops.rs",
@@ -1279,7 +1279,7 @@
       ],
       "reviewed": "2026-08-16",
       "reviewedAuthoritiesDigest": "sha256:2ac1a38c4cdf294b94a69fe2733378017375a3c2ac6171aaa140926868346199",
-      "sha256": "db9ea62235849f4a78800f4e3cb92f4e4ca46c1bbda1b52f06d364559c0c5337",
+      "sha256": "d628b2c52051bb0d5d87eb2aecc1ca4e16c13f01c3c76450dd3f5773e232a098",
       "snippets": [
         {
           "lang": "js",
@@ -2428,7 +2428,7 @@
         "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "llp/0081-reviewed-storage-evolution-and-migrations.rfc.md",
         "llp/0160-ideal-migration-experience.rfc.md",
-        "crates/snapback-types/src/auth/mode.rs",
+        "crates/snapback/src/auth/mode.rs",
         "crates/snapback-cli/src/cli.rs",
         "crates/snapback-kernel/src/storage.rs",
         "packages/snapback-cli/index.mjs"
@@ -2440,7 +2440,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:0aa239149530db05c541bcb02491fd9d2f69e8aa558e1b34e8a293ba11aeaa7a",
-      "sha256": "76f2069a67dcb58c1d6e0bbec5ea428d56a25f33daa358706f1877179e3b1593",
+      "sha256": "b76364fa185879a0d22e3204c95ffda60e2a3b0d7310edeb4190babf68c42602",
       "snippets": []
     },
     "backend.sequences": {
@@ -2624,20 +2624,20 @@
         "crates/snapback-server/src/server.rs",
         "packages/snapback-harness/ctx-bootstrap.js",
         "demos/competitive-checkpoint/snapback/handlers.mjs",
-        "targets/cloudflare/app/all-aboard.app.js"
+        "cloudflare/app/all-aboard.app.js"
       ],
       "examples": [
         "demos/competitive-checkpoint",
-        "targets/cloudflare/test/acceptance.egress.mjs"
+        "cloudflare/test/acceptance.egress.mjs"
       ],
       "reviewed": "2026-08-03",
       "reviewedAuthoritiesDigest": "sha256:e0fd6cecbea08f7ee19b849395320ffc839983a8c3e87af1635f502f1c53bf8d",
-      "sha256": "13f430b8a4f2d45a78b7ac364702d8254ab462f82786387cfa4be86195421da7",
+      "sha256": "e3e322c1227a168b0d774dcf772cebaedf0547b8b182210352ccf658e1e48d70",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
-          "source": "targets/cloudflare/app/all-aboard.app.js"
+          "source": "cloudflare/app/all-aboard.app.js"
         },
         {
           "lang": "js",
@@ -2853,7 +2853,7 @@
       "examples": [],
       "reviewed": "2026-08-17",
       "reviewedAuthoritiesDigest": "sha256:7f9585e2924827e7f5057f9a42dfda3b1c15cefeb0c142a6f5c2a2fcaab3db64",
-      "sha256": "8f25a6a41a7ecdaa17e1e5bfec78034b533791e9281eb0825b602ba7aacb1298",
+      "sha256": "595635df487a26f45f462ab9327231d9119d3a9191304b57e5331d959fafa787",
       "snippets": []
     },
     "clients.app-cli": {
@@ -3571,25 +3571,25 @@
         "schemas/cloudflare.deploy-receipt-v1.schema.json",
         "schemas/live.kit-socket-request.schema.json",
         "schemas/live.kit-socket-reply.schema.json",
-        "targets/cloudflare/README.md",
-        "targets/cloudflare/deploy.sh",
-        "targets/cloudflare/src/gateway.js",
-        "targets/cloudflare/src/coordinator.js",
+        "cloudflare/README.md",
+        "cloudflare/deploy.sh",
+        "cloudflare/src/gateway.js",
+        "cloudflare/src/coordinator.js",
         "crates/snapback-server/src/server.rs",
-        "targets/cloudflare/test/local-suite-manifest.mjs"
+        "cloudflare/test/local-suite-manifest.mjs"
       ],
       "examples": [
         "demos/all-aboard",
-        "targets/cloudflare/app/all-aboard.app.js"
+        "cloudflare/app/all-aboard.app.js"
       ],
       "reviewed": "2026-08-12",
       "reviewedAuthoritiesDigest": "sha256:1c337a2cb1b8d1afc09c7addc6be2bd689e1fd5ac5a0e06b5a00bdfcbb526174",
-      "sha256": "66f5535ba643915d5a3457445aec13db50ce48847e72adc0b11018e33272990b",
+      "sha256": "42f9db1584b2d18e240467ce1840c6a0b83ee2c8e9b4457723074796d1072445",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
-          "source": "targets/cloudflare/app/all-aboard.app.js"
+          "source": "cloudflare/app/all-aboard.app.js"
         }
       ]
     },
@@ -3640,14 +3640,14 @@
         "packages/snapback-cli/index.mjs",
         "packages/snapback-cli/deployment-control.mjs",
         "packages/snapback-cli/hosted-control.mjs",
-        "targets/cloudflare/deploy.sh",
+        "cloudflare/deploy.sh",
         "issues/20260726-0072-fly-adapter-remaining-surface.md",
         "issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:b8d0b1c8db2169ff78afea78417374268e681164c440744c62ec88c7122a1297",
-      "sha256": "582b0f54f790daf6d1fd1c6e0fd63730bfbc5dc63bf1b3bf5e4b4c32b6f9669d",
+      "sha256": "2ad998425c3548867395b7b070a68b078a310b7238aae51fdd7b146f20750a0d",
       "snippets": []
     },
     "deploying.releases": {
@@ -4031,7 +4031,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedAuthoritiesDigest": "sha256:75f5b707ea9db54c16456455dbb49bbe5b8e4d5217ecb69f6cc061b87d64e04e",
-      "sha256": "9ff69eeb094e3a2f97c3396fa749071a2b796d5a53b31f8119561daa9ae5af4b",
+      "sha256": "ed58a19088ab84e12b46edd679cd8c8b1ee121521265569bd3a489fcad5cc2f9",
       "snippets": []
     },
     "operating.backup-and-copy": {
@@ -4123,8 +4123,7 @@
         "llp/0094-wire-envelope-contract.spec.md",
         "llp/0095-client-lifecycle-and-conformance.spec.md",
         "llp/0146-agentic-authoring-affordances.rfc.md",
-        "crates/snapback-types/src/diagnostic.rs",
-        "crates/snapback-kernel/src/diagnostic.rs",
+        "crates/snapback/src/diagnostic.rs",
         "crates/snapback-kernel/src/remediation.rs",
         "crates/snapback-kernel/src/authoring_suggestion.rs",
         "packages/snapback-client/remediation.mjs",
@@ -4150,7 +4149,7 @@
       ],
       "reviewed": "2026-08-10",
       "reviewedAuthoritiesDigest": "sha256:1c25648b54546e0cba48be11aa9c86c92fe3548afc6b94f50767aa6b4761deab",
-      "sha256": "8840f2c891430469c51dd8a3bccf1abf60a629b88de79ec75e1302838cae5346",
+      "sha256": "1c148a983a7d5a72bcd34ded51c79e3ccfa7c5ae819832e979578cd9cc0994ad",
       "snippets": [
         {
           "lang": "json",
@@ -4248,7 +4247,7 @@
       "authorities": [
         "llp/0158-instance-forking.rfc.md",
         "crates/snapback-cli/src/cli.rs",
-        "crates/snapback-kernel/src/instance_fork.rs",
+        "crates/snapback/src/instance_fork.rs",
         "demos/_kit/instance-fork.mjs"
       ],
       "examples": [
@@ -4258,7 +4257,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedAuthoritiesDigest": "sha256:e111ece9828fd85ebb3493ac42dc0901b77a579a80c5f9287b74c89b673db916",
-      "sha256": "81420596bc9b52889c784256d8f3a42301f6048cbc6605d90e48ac87b342295c",
+      "sha256": "123cce3c80b3760bdc08e3a83a6d58d2e35f6cf82b2f772831dc891f5ccd6d09",
       "snippets": [
         {
           "lang": "js",
@@ -5356,8 +5355,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:595a8bcfd76defc857b0948993e5f02386cba9cb9b084088f2c813559b7a5316",
-      "sha256": "d53b6d5316e4ebd7b27f30ca64926dfc637fefe3e1d0e5faa66a8abe8204c8d4",
+      "reviewedAuthoritiesDigest": "sha256:d2136f802241fc5014253a43d3057cb50fad7645cd062e318c36783ccc102d85",
+      "sha256": "44e99f9774055f7e7fb578f14d40402bb65a84cceab5fbbf376dcec14c7a6165",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -12289,7 +12288,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:359ad5ef75925fd5932dec2dcd91eb5a9de3e7d399a3bd0da2cd2e6444e5b133",
-      "sha256": "62dad887e9406728c9dd16ad3a933b66c7dd9b7ef5d947dc443fef9c1a3a543c",
+      "sha256": "0c36ad2f2d729752d8c4fa0dcd6ba7aeb4e878387c92f69b5eb4881a6c1722d0",
       "snippets": [
         {
           "lang": "js",
@@ -12327,8 +12326,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2579205,
-      "sha256": "547f0ad210575705dbac615d20b583ec47681df6209af0edcd50be065a2be785",
+      "bytes": 2578757,
+      "sha256": "8ec738c63f3c69d3127fcdf93d86e0805f03fa9a73f8a351b64f73f58081929a",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12337,7 +12336,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:a78a9262dcfe5d5dc0a645928a3bcced16c30e2f5dbd53c4426bacf45c014c14",
+      "sourceDigest": "sha256:8960a018d451db0e7d9ec53924432aced75f29a3381f2127f4dbe96ddde14477",
       "codes": 3429,
       "emittingSites": 11822
     }
@@ -12475,30 +12474,30 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3564004,
-      "sha256": "67f784f33eadd1bbd07af0fd1d44f652b28c0174dcd9d39b233370273a2fc94a"
+      "bytes": 3563666,
+      "sha256": "03b327ea9e0b44ba25b4f86208e36ae9c9aec5d02ce0c5bd710575afc7ac940b"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 149916,
-        "sha256": "6dc1b00ef9b517c1c0b380f2094a99b5789f08cb0d95abac47d5f3a3ce0040b0"
+        "bytes": 149900,
+        "sha256": "53d7d32d6f156e78ad61fb26fb6732db842592e33fa8280feaa4d3744059fe31"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.auth.generated.md",
         "uri": "snapback-guide://flat/auth",
-        "bytes": 166218,
-        "sha256": "298c86742207939d6388a3886186840af7c71bf6dcda4c596b57e411a906f2b3"
+        "bytes": 166206,
+        "sha256": "120c1b6d1dfb4568f3fd3c27593592baa8231db1cd1498e73babb970db3d8a78"
       },
       "backend": {
         "path": "guide/guide-flat.backend.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.backend.generated.md",
         "uri": "snapback-guide://flat/backend",
-        "bytes": 362077,
-        "sha256": "81eb808ca04eaf704ddd237f97bd6b3ac03f34d6fc4dc3d5c441888c1882ddbb"
+        "bytes": 362047,
+        "sha256": "9f17734c2a8a99430f7fecce3558ee615b830b991249c5625795a3c78dd6360d"
       },
       "clients": {
         "path": "guide/guide-flat.clients.generated.md",
@@ -12511,8 +12510,8 @@
         "path": "guide/guide-flat.deploying.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.deploying.generated.md",
         "uri": "snapback-guide://flat/deploying",
-        "bytes": 47678,
-        "sha256": "4a3da1ba94501099cd66a9f6e33f15920f2c0941edf17010119b8dd5558fe6ec"
+        "bytes": 47518,
+        "sha256": "25f7ef447b97f82189750a5b6e4ef71a07b5e9a4d9eacb53dcb2224b2a0d9306"
       },
       "getting-started": {
         "path": "guide/guide-flat.getting-started.generated.md",
@@ -12525,8 +12524,8 @@
         "path": "guide/guide-flat.operating.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.operating.generated.md",
         "uri": "snapback-guide://flat/operating",
-        "bytes": 178657,
-        "sha256": "753f4540aee410a938d35da8d7a9d8a04dec4749485c7fcaf0ed8a67e9e49cd6"
+        "bytes": 178602,
+        "sha256": "4f3778cdb9e799e4b43494e3803901b51795f26384d4fc6e7d830418a57a4ddf"
       },
       "protocol": {
         "path": "guide/guide-flat.protocol.generated.md",
@@ -12553,8 +12552,8 @@
         "path": "guide/guide-flat.reference.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
-        "bytes": 2034221,
-        "sha256": "471794cd1f66d758aeed63b64b1a888f7a872d7b4d9ac5e1bd04c4ce2cf98ed5"
+        "bytes": 2034164,
+        "sha256": "da8a47fa49914a475ea45583c64ab7613b190dc2463141d968b5831a868a9142"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -12574,10 +12573,10 @@
         "path": "guide/guide-flat.testing.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.testing.generated.md",
         "uri": "snapback-guide://flat/testing",
-        "bytes": 39527,
-        "sha256": "874c0e1679e2952466a23bde7598b29971058122c6d57bf8c43c0d6d9393162c"
+        "bytes": 39519,
+        "sha256": "e11731dc35c9388d0c2f512bb8ff5fd74f4a17c55de78ada999a947f7efdaeb5"
       }
     }
   },
-  "contentHash": "8330336254c1ce08af7e73f503f391d97895f17ec6ad132b4717a6154ec63442"
+  "contentHash": "636cce8fce42ac74e104d9b851027d71452751e45a9dc9f7ef1975fcda1c99b0"
 }

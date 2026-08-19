@@ -408,7 +408,7 @@ pub struct InAppBranchReceiptV1 {
     pub deny_all_attempt_count: u64,
 }
 
-pub fn ensure_in_app_branch_tables(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn ensure_in_app_branch_tables(conn: &Connection) -> SnapbackResult<()> {
     ensure_branch_registry(conn)?;
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _snapback_in_app_branch_profiles (
@@ -480,7 +480,7 @@ pub fn ensure_in_app_branch_tables(conn: &Connection) -> SnapbackResult<()> {
 /// Create a current-head, bounded, branch-scoped in-app fork. Both policies
 /// remain publication-gated; accepting CaptureOnly here activates only its
 /// durable internal carrier and does not advertise a capability.
-pub fn create_in_app_branch(
+pub(crate) fn create_in_app_branch(
     conn: &mut Connection,
     request: &InAppBranchCreateV1,
 ) -> SnapbackResult<InAppBranchReceiptV1> {
@@ -628,7 +628,7 @@ fn branch_profile(
     ))
 }
 
-pub fn inspect_in_app_branch(
+pub(crate) fn inspect_in_app_branch(
     conn: &Connection,
     branch_id: &BranchId,
 ) -> SnapbackResult<InAppBranchReceiptV1> {
@@ -802,7 +802,7 @@ fn managed_workspace_path(canonical_path: &Path, branch_id: &BranchId) -> Snapba
 /// Return the server-derived writable-head path only after the canonical
 /// custody row, local profile, immutable base, state, and expiry have all
 /// re-bound successfully.
-pub fn managed_in_app_branch_path(
+pub(crate) fn managed_in_app_branch_path(
     canonical: &Connection,
     canonical_path: &Path,
     branch_id: &BranchId,
@@ -982,7 +982,7 @@ fn reap_expired_managed_branches_bound(
 
 /// Reconcile interrupted custody, then deterministically reap every branch
 /// whose TTL or branch-scoped grant expires at or before `now_ms`.
-pub fn reap_expired_managed_in_app_branches(
+pub(crate) fn reap_expired_managed_in_app_branches(
     canonical: &mut Connection,
     canonical_path: &Path,
     now_ms: i64,
@@ -1026,7 +1026,7 @@ fn managed_custody_profile(
 ///
 /// @ref LLP 0162#3-safe-current-head-forks — production custody preserves the
 ///   exact current-head snapshot and never accepts a caller-chosen path.
-pub fn create_managed_in_app_branch(
+pub(crate) fn create_managed_in_app_branch(
     canonical: &mut Connection,
     canonical_path: &Path,
     request: &InAppBranchCreateV1,
@@ -1156,7 +1156,7 @@ pub fn create_managed_in_app_branch(
 
 /// Open a canonically enumerated branch and cross-check both its server-derived
 /// path and branch-local profile before returning either SQLite handle.
-pub fn open_managed_in_app_branch(
+pub(crate) fn open_managed_in_app_branch(
     canonical: &Connection,
     canonical_path: &Path,
     branch_id: &BranchId,
@@ -1198,7 +1198,7 @@ pub fn open_managed_in_app_branch(
     Ok(workspace)
 }
 
-pub fn inspect_managed_in_app_branch(
+pub(crate) fn inspect_managed_in_app_branch(
     canonical: &Connection,
     canonical_path: &Path,
     branch_id: &BranchId,
@@ -1213,7 +1213,7 @@ pub fn inspect_managed_in_app_branch(
     })
 }
 
-pub fn list_managed_in_app_branches(
+pub(crate) fn list_managed_in_app_branches(
     canonical: &Connection,
     canonical_path: &Path,
     now_ms: i64,
@@ -1265,7 +1265,7 @@ pub fn list_managed_in_app_branches(
 /// Tear down exactly the server-derived workspace named by canonical custody.
 /// The intermediate state is durable so a crash can never make a partially
 /// deleted branch look active again.
-pub fn drop_managed_in_app_branch(
+pub(crate) fn drop_managed_in_app_branch(
     canonical: &mut Connection,
     canonical_path: &Path,
     branch_id: &BranchId,
@@ -1622,7 +1622,7 @@ fn validate_public_carrier_draft(
 
 /// Execute a branch command and retain its replay inputs and observed facts in
 /// the same child-stream transaction as its physical branch writes.
-pub fn execute_branch_operation<F>(
+pub(crate) fn execute_branch_operation<F>(
     conn: &mut Connection,
     branch_id: &BranchId,
     draft: &BranchOperationDraftV1,
@@ -1658,7 +1658,7 @@ where
     Ok(operation)
 }
 
-pub fn execute_receipt_only_branch_operation(
+pub(crate) fn execute_receipt_only_branch_operation(
     conn: &mut Connection,
     branch_id: &BranchId,
     draft: &BranchOperationDraftV1,
@@ -1795,7 +1795,7 @@ fn record_branch_operation_in(
 ///
 /// @ref LLP 0162#acceptance — row 10 requires a branch-local operation to be
 ///   retained atomically with the commit that it makes promotable.
-pub fn record_branch_mutation_in(
+pub(crate) fn record_branch_mutation_in(
     tx: &Transaction<'_>,
     context: &BranchMutationCommitV1,
     committed_version: u64,
@@ -2102,7 +2102,7 @@ fn captured_effect_from_raw(
     })
 }
 
-pub fn captured_effect_intents(
+pub(crate) fn captured_effect_intents(
     conn: &Connection,
     branch_id: &BranchId,
 ) -> SnapbackResult<Vec<CapturedEffectIntentV1>> {
@@ -2256,7 +2256,7 @@ fn captured_effect_fact(intent: &CapturedEffectIntentV1) -> Value {
     })
 }
 
-pub fn finalize_captured_effect_operation(
+pub(crate) fn finalize_captured_effect_operation(
     conn: &mut Connection,
     context: &BranchEffectExecutionContextV1,
     result: Value,
@@ -2311,7 +2311,7 @@ pub fn finalize_captured_effect_operation(
     Ok(Some(operation))
 }
 
-pub fn branch_operation_log(
+pub(crate) fn branch_operation_log(
     conn: &Connection,
     branch_id: &BranchId,
 ) -> SnapbackResult<Vec<BranchOperationV1>> {
@@ -2331,7 +2331,7 @@ pub fn branch_operation_log(
 /// Resolve an exact public-carrier retry before any handler byte runs. A
 /// physical-key collision with different branch facts is a refusal, never a
 /// second execution under the reused host request identity.
-pub fn branch_operation_retry(
+pub(crate) fn branch_operation_retry(
     conn: &Connection,
     branch_id: &BranchId,
     draft: &BranchOperationDraftV1,
@@ -2371,7 +2371,7 @@ pub fn branch_operation_retry(
 /// therefore leaves a durable outcome-unknown refusal instead of permitting a
 /// duplicate retry. Row 10 remains Partial until recording moves into the app
 /// commit transaction.
-pub fn foreclose_branch_operation_admission(
+pub(crate) fn foreclose_branch_operation_admission(
     conn: &mut Connection,
     branch_id: &BranchId,
     draft: &BranchOperationDraftV1,
@@ -2456,7 +2456,7 @@ pub fn foreclose_branch_operation_admission(
 /// is intentionally separate from the pre-execution foreclosure above: a
 /// crash in between is safe but makes the branch non-promotable and its exact
 /// diff fail closed, which is the honest current Partial posture.
-pub fn retain_committed_branch_mutation(
+pub(crate) fn retain_committed_branch_mutation(
     conn: &mut Connection,
     branch_id: &BranchId,
     draft: &BranchOperationDraftV1,
@@ -2565,7 +2565,7 @@ pub struct DenyAllAttemptMarkerV1 {
 /// Durably record a payload-free marker and then fail loudly. The function does
 /// not accept a target or payload, so sensitive egress material cannot enter the
 /// marker table accidentally.
-pub fn deny_egress_attempt(
+pub(crate) fn deny_egress_attempt(
     conn: &mut Connection,
     branch_id: &BranchId,
     operation_id: Option<&str>,
@@ -2607,7 +2607,7 @@ pub fn deny_egress_attempt(
     ))
 }
 
-pub fn deny_all_attempt_markers(
+pub(crate) fn deny_all_attempt_markers(
     conn: &Connection,
     branch_id: &BranchId,
 ) -> SnapbackResult<Vec<DenyAllAttemptMarkerV1>> {
@@ -2723,7 +2723,7 @@ fn keyed_rows(rows: Vec<SnapshotRowV1>) -> SnapbackResult<BTreeMap<(String, Stri
 // @ref LLP 0162#4-journal-diff-instead-of-maintained-merkle-state — the
 // runtime result is journal-derived; the base/head scan is an independent
 // completeness oracle and declared digest work is bounded before hashing.
-pub fn exact_fork_diff<F>(
+pub(crate) fn exact_fork_diff<F>(
     workspace: &MaterializedBase,
     branch_id: &BranchId,
     scan: F,
@@ -3016,7 +3016,7 @@ fn approved_facts_digest(operations: &[BranchOperationV1]) -> SnapbackResult<Str
     digest_json(b"promotion-approved-facts", &facts)
 }
 
-pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
     // Promotion may be invoked on a pre-v2 store through the lower-level Rust
     // surface. Upgrade the proof/history infrastructure before replay writes
     // enter storage's central history seam.
@@ -3255,7 +3255,7 @@ fn decode_promoted_effect(raw: PromotedEffectRowV1) -> SnapbackResult<PromotedEf
     })
 }
 
-pub fn promoted_effect_intents(
+pub(crate) fn promoted_effect_intents(
     conn: &Connection,
     ticket_id: &str,
 ) -> SnapbackResult<Vec<PromotedEffectIntentV1>> {
@@ -3317,7 +3317,7 @@ fn effect_authority_matches(
 /// idempotency key; retry can recover it but cannot report the promotion as a
 /// no-op or launch under different authority.
 #[cfg(any(test, feature = "test-support"))]
-pub fn begin_promoted_effect_settlement(
+pub(crate) fn begin_promoted_effect_settlement(
     canonical: &mut Connection,
     ticket_id: &str,
     intent_id: &str,
@@ -3380,7 +3380,7 @@ pub fn begin_promoted_effect_settlement(
 }
 
 #[cfg(any(test, feature = "test-support"))]
-pub fn finish_promoted_effect_settlement(
+pub(crate) fn finish_promoted_effect_settlement(
     canonical: &mut Connection,
     ticket_id: &str,
     intent_id: &str,
@@ -3452,7 +3452,31 @@ pub fn finish_promoted_effect_settlement(
 /// `max(observedConcurrentForks, queuePosition + R)`. The caller-supplied
 /// policy must equal the frozen production v1 constants before admission.
 #[allow(clippy::too_many_arguments)]
-pub fn issue_promotion_ticket(
+pub(crate) fn issue_promotion_ticket(
+    canonical: &mut Connection,
+    ticket_identity: OperationIdentityV1,
+    branch_id: &BranchId,
+    canonical_stream_id: &str,
+    observed_concurrent_forks: u64,
+    expires_at_ms: i64,
+    now_ms: i64,
+    contention_policy: PromotionContentionPolicyV1,
+) -> SnapbackResult<PromotionAdmissionTicketV1> {
+    ensure_promotion_tables(canonical)?;
+    issue_promotion_ticket_with_prepared_infra(
+        canonical,
+        ticket_identity,
+        branch_id,
+        canonical_stream_id,
+        observed_concurrent_forks,
+        expires_at_ms,
+        now_ms,
+        contention_policy,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn issue_promotion_ticket_with_prepared_infra(
     canonical: &mut Connection,
     ticket_identity: OperationIdentityV1,
     branch_id: &BranchId,
@@ -3472,7 +3496,6 @@ pub fn issue_promotion_ticket(
             "promotion tickets require a server-authenticated host identity on the canonical stream",
         ));
     }
-    ensure_promotion_tables(canonical)?;
     // Ticket identity, idempotent replay, FIFO allocation, and host-lease
     // custody are one serialized admission decision. A deferred transaction
     // could let two issuers observe the same MAX(fifo_sequence) and turn fair
@@ -3729,7 +3752,8 @@ pub fn reseal_after_rebase(
             "automatic re-seal cannot preserve approval across a schema identity change",
         ));
     }
-    let operations = branch_operation_log(&rebased_workspace.conn, &rebased_diff.branch_id)?;
+    let operations =
+        branch_operation_log(rebased_workspace.writable_head(), &rebased_diff.branch_id)?;
     let rebased_facts = approved_facts_digest(&operations)?;
     if rebased_facts != prior.approved_facts_digest {
         return Err(error(
@@ -4935,7 +4959,7 @@ fn build_aggregate_envelope(
 /// applies only those approved logical writes and records every one through
 /// the canonical change/history journal before publication.
 #[allow(clippy::too_many_arguments)]
-pub fn promote_by_reexecution<F>(
+pub(crate) fn promote_by_reexecution<F>(
     canonical: &mut Connection,
     workspace: &MaterializedBase,
     diff: &ForkDiffReceiptV1,
@@ -5378,7 +5402,7 @@ pub enum CanonicalAdmissionV1 {
 /// Ordinary canonical writers consult this gate when a losing FIFO ticket has
 /// escalated to its bounded reservation. The v1 numeric terms are frozen by
 /// `PRODUCTION_PROMOTION_CONTENTION_POLICY_V1` and the admission validator.
-pub fn canonical_mutation_admission(
+pub(crate) fn canonical_mutation_admission(
     conn: &Connection,
     canonical_stream_id: &str,
     now_ms: i64,
@@ -5436,7 +5460,7 @@ fn canonical_mutation_admission_if_present(
 /// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — after the declared
 /// loss threshold, the FIFO head receives one bounded interval in which
 /// ordinary canonical mutations are deferred.
-pub fn enforce_canonical_mutation_admission_in(
+pub(crate) fn enforce_canonical_mutation_admission_in(
     conn: &Connection,
     canonical_stream_id: &str,
     now_ms: i64,
@@ -5453,12 +5477,20 @@ pub fn enforce_canonical_mutation_admission_in(
     }
 }
 
-pub fn request_head_reservation(
+pub(crate) fn request_head_reservation(
     conn: &Connection,
     ticket: &PromotionAdmissionTicketV1,
     now_ms: i64,
 ) -> SnapbackResult<i64> {
     ensure_promotion_tables(conn)?;
+    request_head_reservation_with_prepared_infra(conn, ticket, now_ms)
+}
+
+pub(crate) fn request_head_reservation_with_prepared_infra(
+    conn: &Connection,
+    ticket: &PromotionAdmissionTicketV1,
+    now_ms: i64,
+) -> SnapbackResult<i64> {
     let tx = Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)?;
     require_exact_durable_ticket(&tx, ticket)?;
     if now_ms >= ticket.expires_at_ms {
@@ -5552,7 +5584,7 @@ pub struct RebaseReplayReceiptV1 {
 /// Re-execute the retained log into a fresh current-head branch. The inherited
 /// admission ticket is intentionally not rewritten here; `reseal_after_rebase`
 /// carries it forward only when the complete approved-facts digest is equal.
-pub fn rebase_by_replay<F>(
+pub(crate) fn rebase_by_replay<F>(
     canonical: &mut Connection,
     prior_workspace: &MaterializedBase,
     prior_branch_id: &BranchId,
@@ -5593,7 +5625,7 @@ where
             causal_predecessors: prior.causal_predecessors.clone(),
         };
         let replayed = execute_branch_operation(
-            &mut rebased.conn,
+            rebased.writable_head_mut(),
             &create.branch_id,
             &draft,
             now_ms,
@@ -5603,7 +5635,7 @@ where
             divergent_operation_ids.push(prior.identity.key.operation_id.clone());
         }
     }
-    let rebased_operations = branch_operation_log(&rebased.conn, &create.branch_id)?;
+    let rebased_operations = branch_operation_log(rebased.writable_head(), &create.branch_id)?;
     let prior_digest = approved_facts_digest(&prior_operations)?;
     let rebased_digest = approved_facts_digest(&rebased_operations)?;
     let receipt = RebaseReplayReceiptV1 {
@@ -5633,7 +5665,7 @@ pub struct BranchReapReceiptV1 {
 /// Reap expired registry/profile rows. It does not read or write the canonical
 /// journal or replay-floor state; workspace files are separately destroyed by
 /// `MaterializedBase::teardown`.
-pub fn reap_expired_in_app_branches(
+pub(crate) fn reap_expired_in_app_branches(
     conn: &mut Connection,
     now_ms: i64,
 ) -> SnapbackResult<Vec<BranchReapReceiptV1>> {
@@ -9338,16 +9370,16 @@ mod tests {
     #[test]
     fn post_image_promotion_is_compile_disabled_and_reexecution_is_the_only_surface() {
         let legacy = include_str!("branches.rs");
-        assert!(legacy.contains("#[cfg(any())]\npub fn promote<F>("));
+        assert!(legacy.contains("#[cfg(any())]\npub(crate) fn promote<F>("));
         let replacement = include_str!("fork_promotion.rs");
-        assert!(replacement.contains("pub fn promote_by_reexecution"));
+        assert!(replacement.contains("pub(crate) fn promote_by_reexecution"));
         let product_source = replacement
             .split("\n#[cfg(test)]\nmod tests {")
             .next()
             .expect("product source");
         assert!(!product_source.contains("apply_write"));
         let implementation_start = product_source
-            .find("pub fn promote_by_reexecution")
+            .find("pub(crate) fn promote_by_reexecution")
             .expect("promotion implementation");
         let implementation_end = product_source[implementation_start..]
             .find("pub enum CanonicalAdmissionV1")

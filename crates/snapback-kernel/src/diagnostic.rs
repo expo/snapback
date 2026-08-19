@@ -3,10 +3,10 @@ use serde_json::{Value, json};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
+use snapback_types::diagnostic::SnapbackError as ContractError;
 pub use snapback_types::diagnostic::{
     CAPABILITY_UNSUPPORTED_GUIDE_URL, Diagnostic, DiagnosticSeverity, PublicDiagnostic,
 };
-use snapback_types::diagnostic::SnapbackError as ContractError;
 
 /// Remainder-owned integration adapter for confined infrastructure errors.
 ///

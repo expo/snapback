@@ -34,6 +34,10 @@ uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
 zeroize = "1.8"
 
 [dev-dependencies]
+axum = { version = "0.8.9", features = ["ws"] }
+rusqlite = { version = "0.31", features = ["backup", "bundled", "column_decltype", "functions", "hooks", "limits", "serialize"] }
+snapback-engine = { path = "../snapback-engine", features = ["test-support"] }
+snapback-server = { path = "../snapback-server", features = ["test-support"] }
 snapback-services = { path = "../snapback-services", features = ["remainder-tests"] }
 tempfile = "3.23"
 tokio = { version = "1.48", features = ["full", "test-util"] }

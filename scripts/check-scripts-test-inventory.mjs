@@ -5,7 +5,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { LOCAL_SUITES } from '../targets/cloudflare/test/local-suite-manifest.mjs';
+import { LOCAL_SUITES } from '../cloudflare/test/local-suite-manifest.mjs';
 import {
   PACKAGE_TEST_INVENTORIES,
   auditInventory as auditPackageInventory,
@@ -37,6 +37,11 @@ export const SCRIPTS_TEST_INVENTORY = Object.freeze([
     file: 'scripts/check-guide-shell-commands.test.mjs',
     disposition: 'run',
     runner: { mechanism: 'verify-local-proof', gateId: 'guide-shell-command-fixtures' },
+  },
+  {
+    file: 'scripts/check-module-ownership.test.mjs',
+    disposition: 'run',
+    runner: { mechanism: 'verify-local-proof', gateId: 'module-ownership-fixtures' },
   },
   {
     file: 'scripts/check-package-export-types.test.mjs',

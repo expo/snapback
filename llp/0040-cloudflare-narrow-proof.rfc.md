@@ -393,7 +393,7 @@ The proof is built, passes its full behavioral checklist under the local
 Miniflare surrogate, and — as of 2026-07-08 (ENG-23640) — has produced the
 decisive real-Cloudflare evidence: a genuine platform eviction observed and
 survived mid-subscription, and billing-surface observed-zero estimates over both idle windows
-(see §Real-Cloudflare evidence below). What landed in `targets/cloudflare/`:
+(see §Real-Cloudflare evidence below). What landed in `cloudflare/`:
 
 - **Worker + Durable Object target.** A gateway Worker (`src/gateway.js`)
   routes HTTP/WebSocket to one app coordinator Durable Object
@@ -421,21 +421,21 @@ survived mid-subscription, and billing-surface observed-zero estimates over both
   no runtime eval), ephemeral realtime, cron, external auth, assets,
   notifications, offline replay, retained-version resume, multi-app, and
   hosted marketplace.
-- **Acceptance + measurements.** `targets/cloudflare/test/acceptance.mjs` (Miniflare)
+- **Acceptance + measurements.** `cloudflare/test/acceptance.mjs` (Miniflare)
   passes its full checklist — **41/41 as of 2026-07-08**, grown from the
   original 16 by the review-hardening batch and the ENG-23606 null-semantics
   parity checks (the suite prints its own count):
   query, mutate, subscribe, disconnect, resubscribe; snapshot-before-delta
   ordering; gap-free versions; the on-target ambient denial;
   push-from-commit live delivery; and the eviction-surrogate rehydration
-  path. `targets/cloudflare/test/measure.mjs` records mutation, snapshot,
+  path. `cloudflare/test/measure.mjs` records mutation, snapshot,
   live-update, and fan-out latency next to each benchmark fixture (all
   Miniflare-local, explicitly non-comparable to LLP 0035 and to real
   Cloudflare). A checked-in `deploy.sh` deploys both Workers with one command,
   `scripts/cf-check-compat` guards the single-sourced compat pins,
-  `targets/cloudflare/test/acceptance.remote.mjs` is the real-Cloudflare runner
+  `cloudflare/test/acceptance.remote.mjs` is the real-Cloudflare runner
   (eviction legs, idle windows, in-run billing read), and
-  `targets/cloudflare/test/billing-windows.mjs` reads the GraphQL analytics billing
+  `cloudflare/test/billing-windows.mjs` reads the GraphQL analytics billing
   counters for any window/script set (also standalone, with hourly
   bucketing).
 
@@ -510,14 +510,14 @@ and storage had no positive control. The full method, controls, sampling limit,
 and storage caveat are recorded in
 [LLP 0050](./0050-cloudflare-proof-remote-benchmarks.research.md)
 §All Aboard no-subscriber idle evidence and the machine-readable artifact is
-`targets/cloudflare/generated/measurements.remote.idle.2026-07-12.json`.
+`cloudflare/generated/measurements.remote.idle.2026-07-12.json`.
 
 **Remaining against the accepted-proof checklist:** none measured — the
 percentile benchmark report, maximum-practical-subscribers, and DO
 contention/overload measurements landed 2026-07-09 (ENG-23713) as
 [LLP 0050](./0050-cloudflare-proof-remote-benchmarks.research.md), from the
-new real-deployment runner `targets/cloudflare/test/measure.remote.mjs`
-(machine-readable artifact in `targets/cloudflare/generated/`). The decisive items —
+new real-deployment runner `cloudflare/test/measure.remote.mjs`
+(machine-readable artifact in `cloudflare/generated/`). The decisive items —
 real eviction with the Hibernation API in use and both idle-window billing
 counters — were recorded 2026-07-08 above. Two diagnostics gaps the
 measurements exposed (oversized writes surface a raw platform HTML 500
@@ -703,7 +703,7 @@ the same code path.
 The local proof therefore preflights its runtime rather than fixing the
 transport (the deeper fix is upstream-shaped and out of scope here):
 
-- `targets/cloudflare/test/proof-runtime.mjs` compares the active Node major against the
+- `cloudflare/test/proof-runtime.mjs` compares the active Node major against the
   `.node-version` major (read, never hardcoded) and, on a mismatch, fails closed
   with `SNAPBACK_CLOUDFLARE_PROOF_NODE_UNSUPPORTED` and an actionable diagnostic
   directing the runner to the pinned Node. Support is exact-major equality;

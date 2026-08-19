@@ -12,7 +12,7 @@ use snapback::manifest::{
 use snapback::migration::{
     MigrationIntent, MigrationPlanArtifactV1, MigrationPreviewObservationV1,
 };
-use snapback::storage::LocalDatabase;
+use snapback_kernel::storage::LocalDatabase;
 
 fn schema(include_provider: bool) -> SchemaManifest {
     let mut fields = vec![FieldManifest {
@@ -222,7 +222,12 @@ fn migrate_streams_redaction_json_silence_and_render_first_approval() {
         ])
         .output()
         .expect("run refused approve");
-    assert_eq!(refused.status.code(), Some(1));
+    assert_eq!(
+        refused.status.code(),
+        Some(5),
+        "{}",
+        String::from_utf8_lossy(&refused.stderr)
+    );
     assert!(
         !refused_approval_path.exists(),
         "render-first gate precedes write"

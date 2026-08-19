@@ -229,7 +229,7 @@ subscribe → `LiveReplace` leg. First useful paint waits on HTML → bundle →
 health → ensureApp → subscribe → first snapshot: three-plus network round
 trips after the document arrives. The
 Cloudflare arm serves the same static shell via `env.ASSETS.fetch`
-(`targets/cloudflare/src/gateway.js`); query execution happens in the coordinator
+(`cloudflare/src/gateway.js`); query execution happens in the coordinator
 Durable Object, to which the gateway forwards requests.
 
 Native/embedded arms have the same shape plus worse constraints: a cold start

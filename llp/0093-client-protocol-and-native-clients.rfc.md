@@ -120,7 +120,7 @@ wasn't idle because a lingering subscriber kept the poll armed
 
 The lifecycle itself is deliberate and well-implemented — LLP 0049's
 demand-armed alarm, `reconcileCronActivation()`
-(`targets/cloudflare/src/coordinator.js:2437-2461`), `refresh_cron_active()`
+(`cloudflare/src/coordinator.js:2437-2461`), `refresh_cron_active()`
 (`crates/snapback/src/local.rs:10098-10103`), and the explicit "no last-subscriber linger
 window" non-behavior (`coordinator.js:2359-2360`). The defect is that none of
 it is stated anywhere a client implementer or test author would look. A
@@ -165,7 +165,7 @@ and the `/ephemeral/*` family (LLP 0013). There is no SSE lane. The route surfac
 **not arm-uniform**: `POST /live/{name}/resume` is local-arm only (the
 Cloudflare gateway forwards `subscribe|unsubscribe`, per LLP 0090), the
 hosted `/outbox/{id}` verifies the grant and intentionally returns an empty
-batch (`targets/cloudflare/src/coordinator.js:1763`, declared in the hosted
+batch (`cloudflare/src/coordinator.js:1763`, declared in the hosted
 capability manifest), and the follow-on Specs must carry an explicit
 arm × route matrix, including the admin/testing seams (D3.1).
 
@@ -439,7 +439,7 @@ cumulative tier would forbid:
   **Lane P is local-arm-only in v1.** The hosted arm deliberately binds
   demand to socket ownership: subscribe refuses without a current socket
   session (`SNAPBACK_CONNECTION_SOCKET_REQUIRED`,
-  `targets/cloudflare/src/coordinator.js:4400`) and the drain returns a
+  `cloudflare/src/coordinator.js:4400`) and the drain returns a
   declared-empty batch (`:1763`), consistent with LLP 0090's
   socketless-HTTP-cannot-arm-demand posture. One sanctioned exception
   exists and is owned elsewhere: LLP 0090/0092's credentialed
@@ -481,7 +481,7 @@ hosted teardown below; the kit comment at
 `crates/snapback/src/server.rs:14113`) additionally reaps an abandoned socketless
 connection and releases its demand; on the hosted arm demand is released
 by the socket close/error teardown
-(`webSocketClose` teardown, `targets/cloudflare/src/coordinator.js:5062`) — the 24 h default grant TTL
+(`webSocketClose` teardown, `cloudflare/src/coordinator.js:5062`) — the 24 h default grant TTL
 (`:141`) is grant expiry, not demand release. A
 conformant client treats reaping as the crash backstop, never the normal
 release path.
@@ -542,8 +542,8 @@ The spec must state, as normative client-facing contract:
    `POST /_snapback/api/cron/{name}/run` the existing browser suites use
    (`crates/snapback/src/admin.rs:1953-1985`, AdminWrite); on the hosted arm, the
    admin-gated `POST /cron/run` with `{job}` forwarded to the coordinator
-   (`targets/cloudflare/src/gateway.js:128-135`,
-   `targets/cloudflare/src/coordinator.js:912-924`) — there is no hosted tick
+   (`cloudflare/src/gateway.js:128-135`,
+   `cloudflare/src/coordinator.js:912-924`) — there is no hosted tick
    route. Documenting only one arm's seam would recreate the folklore
    problem for the other arm's test authors. The hosted route is
    root-level, which conflicts with Active LLP 0031's invariant that no
@@ -658,7 +658,7 @@ Follow-on Spec clusters, 0091/0092-style, in landing order:
   hand-mirrored frames LLP 0051 §D4 lists — landed through the schema
   drift gates. The socket-refusal change lands on **both arms** (the
   hosted coordinator independently echoes-only-when-offered,
-  `targets/cloudflare/src/coordinator.js` `acceptKitSocket` subprotocol echo). Before enabling refusal, P-0
+  `cloudflare/src/coordinator.js` `acceptKitSocket` subprotocol echo). Before enabling refusal, P-0
   records the blast-radius check — starting from the enumerable
   population of the repo's own non-kit socket consumers (acceptance
   suites, demo gateways) — of whether any consumer today offers no wire
@@ -743,7 +743,7 @@ version carrier (bound at `/connection/open`; see D1).
    gates rides LLP 0094 §0B's negotiation end state.
 6. ~~Hosted root system surface vs LLP 0031~~ — **DECIDED (author,
    2026-07-25): migrate.** The hosted arm's root-level system operations
-   (`/cron/run`, `/cron/status`, `targets/cloudflare/src/gateway.js:128-135`;
+   (`/cron/run`, `/cron/status`, `cloudflare/src/gateway.js:128-135`;
    plus `/config/status`, `/host-call`, `/reset`, `/evict`, the
    `/__test/*` family — non-exhaustive, audit driven by the gateway's
    actual route set) move under the reserved `/_snapback/*` namespace;

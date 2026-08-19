@@ -66,7 +66,7 @@ pub fn manifests_enabled(
     schema.ask_manifest().is_some() || functions.is_some_and(manifest_enabled)
 }
 
-pub fn activate_manifests_in(
+pub(crate) fn activate_manifests_in(
     tx: &Transaction<'_>,
     schema: &crate::manifest::SchemaManifest,
     functions: Option<&FunctionManifest>,
@@ -82,7 +82,7 @@ pub fn activate_manifests_in(
     validate_exact_schema(tx)
 }
 
-pub fn activate_manifest_in(
+pub(crate) fn activate_manifest_in(
     tx: &Transaction<'_>,
     manifest: &FunctionManifest,
 ) -> SnapbackResult<()> {
@@ -97,7 +97,7 @@ pub fn activate_manifest_in(
     validate_exact_schema(tx)
 }
 
-pub fn manifests_match_catalog(
+pub(crate) fn manifests_match_catalog(
     conn: &Connection,
     schema: &crate::manifest::SchemaManifest,
     functions: Option<&FunctionManifest>,
