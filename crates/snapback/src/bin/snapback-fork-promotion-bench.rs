@@ -22,7 +22,7 @@ use rusqlite::{Connection, Transaction, params};
 use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use snapback::bench::{
+use snapback::bench_support::{
     AgentSafeActiveContentionWriter, prepare_agent_safe_active_contention_database,
 };
 use snapback::branches::{BranchId, ChildStreamId, MaterializedBase};

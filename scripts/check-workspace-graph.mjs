@@ -38,7 +38,11 @@ const EXPECTED_CONFINEMENT = [
 ].map(([dependency, allowedMembers]) => ({ dependency, allowedMembers }));
 const EXPECTED_WORKSPACE_MEMBERS = ['crates/*'];
 const EXPECTED_WORKSPACE_DEFAULT_MEMBERS = ['crates/snapback'];
-const EXPECTED_WORKSPACE_EXCLUDE = ['vendor/ibex', 'vendor/celld-ltx'];
+const EXPECTED_WORKSPACE_EXCLUDE = [
+  'tools/agent-safe-baseline-worker',
+  'vendor/ibex',
+  'vendor/celld-ltx',
+];
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);

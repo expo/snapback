@@ -2,7 +2,11 @@
 resolver = "3"
 members = ["crates/*"]
 default-members = ["crates/snapback"]
-exclude = ["vendor/ibex", "vendor/celld-ltx"]
+exclude = [
+  "tools/agent-safe-baseline-worker",
+  "vendor/ibex",
+  "vendor/celld-ltx",
+]
 
 [workspace.package]
 version = "0.1.0"

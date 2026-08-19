@@ -14,7 +14,7 @@ use anyhow::Context;
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use snapback::bench::{BenchConfig, BenchReport, IdleObservation, measure_idle, run};
+use snapback_tools::bench::{BenchConfig, BenchReport, IdleObservation, measure_idle, run};
 
 const RECORDED_RUNS: usize = 11;
 const IDLE_RECORDED_RUNS: usize = 11;

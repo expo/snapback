@@ -20,7 +20,7 @@ use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use snapback::bench::{
+use snapback_tools::bench::{
     BenchConfig, BenchReport, IdleObservation, measure_idle_agent_safe_active_covered, run,
     run_agent_safe_active_covered,
 };

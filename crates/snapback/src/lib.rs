@@ -55,9 +55,9 @@ pub use snapback_services::assets_video;
 pub mod auth;
 pub(crate) use snapback_kernel::authoring_suggestion;
 #[doc(hidden)]
-pub mod bench;
+pub use snapback_engine::bench_support;
 #[doc(hidden)]
-pub mod bench_fixture;
+pub use snapback_types::bench_fixture;
 pub(crate) use snapback_sync::bounded_children_cursor;
 #[doc(hidden)]
 pub use snapback_kernel::branches;
@@ -240,7 +240,7 @@ pub(crate) use snapback_runtime::warm_vm;
 #[doc(hidden)]
 pub use snapback_types::value_expr;
 #[doc(hidden)]
-pub mod wire_fixtures;
+pub use snapback_types::wire_fixtures;
 #[doc(hidden)]
 pub use snapback_types::wire_version;
 #[doc(hidden)]

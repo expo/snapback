@@ -5,7 +5,7 @@
 **Systems:** Project, Runtime, Storage, Sync, Realtime, Security, Auth, API, Client integration, Contract/Exact, Cron, Ephemeral state, Tooling, Packaging, Testing, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-22 (LLP 0074 public-package checkpoint: the `@snapback/*` source/import namespace remains stable, while the first public artifacts use the already-implemented `@ccheever/snapback-*` alias mapping because a live npm probe found `@snapback/cli` occupied by an unrelated product and no project publication authority over that scope). 2026-07-17 (E2/L6 completeness and storage-ordering closure: buffered query overlays capture the exact overfetch and touched rows they consume; direct/live/in-memory query invocations pin their complete logical read view; query dependencies carry inseparable snapshot cursors; and SQLite allocates app commit versions only after its writer reservation). 2026-07-17 (S5.D4 post-COMMIT closure: durable mutation truth,
+**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-07-22 (LLP 0074 public-package checkpoint: the `@snapback/*` source/import namespace remains stable, while the first public artifacts use the already-implemented `@ccheever/snapback-*` alias mapping because a live npm probe found `@snapback/cli` occupied by an unrelated product and no project publication authority over that scope). 2026-07-17 (E2/L6 completeness and storage-ordering closure: buffered query overlays capture the exact overfetch and touched rows they consume; direct/live/in-memory query invocations pin their complete logical read view; query dependencies carry inseparable snapshot cursors; and SQLite allocates app commit versions only after its writer reservation). 2026-07-17 (S5.D4 post-COMMIT closure: durable mutation truth,
 internal invalidation, per-subscription fan-out isolation, and receipt
 publication are distinct cuts; publication failure cannot recast a committed
 write as rejected). 2026-07-17 (L2 owned-cleanup failure closure: maintenance retains
@@ -1046,7 +1046,7 @@ L6–L8.
   turns on); ephemeral publish cost at 20–60 Hz.
   **Done when:** results are committed as a Research LLP with methodology,
   and CI runs a smoke-scale variant to catch order-of-magnitude regressions.
-  **Landed 2026-07-01** — harness in `crates/snapback/src/bench.rs` (bin `snapback-bench`,
+  **Landed 2026-07-01** — harness now in `crates/snapback-tools/src/bench.rs` (bin `snapback-bench`,
   `--json`); first numbers + methodology committed as
   [LLP 0035](./0035-local-target-benchmarks.research.md); CI smoke lane is the
   `m1_bench_smoke` lib test (tiny scale, 10× threshold headroom). **Headline:**

@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Testing, Developer experience, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-07
-**Revised:** 2026-08-01 (the declared/undeclared/bare application-refusal
+**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-01 (the declared/undeclared/bare application-refusal
 triad now runs through all three serving surfaces; local admission occurs at
 the shared post-executor join and Cloudflare admission uses the resolved
 deploy-time function declaration, closing LLP 0144's widened parity gap).
@@ -393,7 +393,7 @@ The twin is built and its minimum gate is green. What landed:
   can neither learn callback authority nor forge a successful response. Public
   diagnostics read a fixed tail window from stderr and redact capability values
   and the private materialization path.
-- **Conformance runner + gate.** `crates/snapback/src/bin/snapback-conformance-twin.rs` runs
+- **Conformance runner + gate.** `crates/snapback-conformance/src/bin/snapback-conformance-twin.rs` runs
   one corpus (`tests/conformance/twin-corpus.handlers.js`) on both engines,
   normalizes ids/timestamps and strips diagnostic-only `runtime.log`, then
   diffs normalized outcomes, host-call traces, and committed storage. Current

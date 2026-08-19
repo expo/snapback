@@ -30,16 +30,16 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use serde_json::{Map, Value, json};
-use snapback::local::LocalSnapback;
-use snapback::manifest::CapabilityManifestLocalExt as _;
-use snapback::manifest::{
-    AuthInput, CapabilityManifest, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
-    FunctionManifest, HandlerInput, IbexModule, SchemaManifest, TableManifest,
-};
-use snapback::runtime::with_host_call_trace;
-use snapback::workerd_exec::{
+use snapback_engine::local::LocalSnapback;
+use snapback_engine::manifest::CapabilityManifestLocalExt as _;
+use snapback_engine::runtime::with_host_call_trace;
+use snapback_engine::workerd_exec::{
     HandlerBackend, compat_config, detect_workerd_binary, with_forced_backend,
     with_wall_clock_timeout_ms, workerd_version,
+};
+use snapback_types::manifest::{
+    AuthInput, CapabilityManifest, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
+    FunctionManifest, HandlerInput, IbexModule, SchemaManifest, TableManifest,
 };
 
 const CORPUS_MODULE_SOURCE: &str =
@@ -435,7 +435,7 @@ fn functions(cases: &[Case]) -> FunctionManifest {
             let mut definition = FunctionDefinition::new(
                 case.handler,
                 case.kind.clone(),
-                snapback::manifest::FunctionRuntime::IbexModule(IbexModule {
+                snapback_types::manifest::FunctionRuntime::IbexModule(IbexModule {
                     source: CORPUS_MODULE_SOURCE.to_owned(),
                     export: case.handler.to_owned(),
                 }),
@@ -454,7 +454,7 @@ fn functions(cases: &[Case]) -> FunctionManifest {
     functions.push(FunctionDefinition::new(
         "dumpItems",
         FunctionKind::Query,
-        snapback::manifest::FunctionRuntime::IbexModule(IbexModule {
+        snapback_types::manifest::FunctionRuntime::IbexModule(IbexModule {
             source: CORPUS_MODULE_SOURCE.to_owned(),
             export: "dumpItems".to_owned(),
         }),
@@ -919,7 +919,7 @@ fn main() {
         "compatibilityDate": compat.compatibility_date,
         "compatibilityFlags": compat.compatibility_flags,
         "killDomain": "process-per-invocation",
-        "wallClockTimeoutMs": snapback::workerd_exec::default_wall_clock_timeout_ms(),
+        "wallClockTimeoutMs": snapback_engine::workerd_exec::default_wall_clock_timeout_ms(),
         "hostCallTransport": "loopback-http-service-binding",
         "allowlist": "packages/snapback-harness/allowlist.json",
         // The third leg (ENG-23605): same corpus, the deployed target's own

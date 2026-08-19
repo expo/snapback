@@ -5,7 +5,7 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-10 (mutation-wire artifact identity amendment: finite
+**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-10 (mutation-wire artifact identity amendment: finite
 mutation requests offer an exact wire version and carry codegen-time artifact
 identity so successor-only migration floors can refuse blind predecessor
 writes; see the dated amendment below). 2026-08-04 (dated finite-carrier completeness amendment: ordinary
@@ -681,7 +681,7 @@ Follow-on Spec clusters, 0091/0092-style, in landing order:
   (`packages/snapback-client/index.mjs:3846`,
   `crates/snapback/src/server.rs:19004`).
   *Status (2026-07-25): landed as LLP 0095 (Draft) — state machine, corpus
-  contract + seeded generator (`crates/snapback/src/wire_fixtures.rs`), dispatch seam,
+  contract + seeded generator (`crates/snapback-types/src/wire_fixtures.rs`), dispatch seam,
   comment retirement; remaining coverage tracked by
   `issues/20260725-0093-p1-*`.*
   *Status (2026-07-30): the remaining corpus coverage landed as

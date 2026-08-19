@@ -33,7 +33,10 @@ pub use snapback_types::{
 
 pub mod workerd_exec {
     pub(crate) use snapback_runtime::workerd_exec::selected_backend;
-    pub use snapback_runtime::workerd_exec::{HandlerBackend, with_wall_clock_timeout_ms};
+    pub use snapback_runtime::workerd_exec::{
+        CompatConfig, HandlerBackend, compat_config, default_wall_clock_timeout_ms,
+        detect_workerd_binary, with_forced_backend, with_wall_clock_timeout_ms, workerd_version,
+    };
 }
 
 pub(crate) mod auth {
@@ -56,6 +59,9 @@ pub mod assets_store {
     pub use snapback_kernel::assets_store::*;
     pub use snapback_services::assets_store::*;
 }
+
+#[doc(hidden)]
+pub mod bench_support;
 
 pub mod cron {
     pub use snapback_services::cron::*;

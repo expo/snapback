@@ -2,7 +2,7 @@
 // proof's app surface (query, mutation, read-your-writes), the LLP 0009
 // conformance floor (settlement, detached rejection, denial), the allowlist
 // slice, and the LLP 0047 kill path. Executed unchanged on both engines by
-// src/bin/snapback-conformance-twin.rs and asserted case-by-case in
+// crates/snapback-conformance/src/bin/snapback-conformance-twin.rs and asserted case-by-case in
 // tests/conformance_twin_v0.rs-adjacent suites.
 globalThis.__snapbackHandlers = {
   async addItem(ctx, args) {

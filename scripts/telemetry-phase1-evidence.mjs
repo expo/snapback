@@ -26,10 +26,31 @@ const proofSourcePathspecs = [
   'Cargo.lock',
   'crates/snapback/Cargo.toml',
   'crates/snapback/build.rs',
-  // @ref LLP 0276#phases — telemetry evidence must hash the service-owned
-  // implementation after the crate carve.
+  // @ref LLP 0276#phases -- preserve the old monolith-wide compiled-input
+  // closure as implementation leaves the remainder. In particular, the
+  // benchmark fixture is now types-owned and its engine/server execution
+  // path must not disappear from the evidence digest.
+  'crates/snapback-activation/Cargo.toml',
+  'crates/snapback-activation/src',
+  'crates/snapback-auth/Cargo.toml',
+  'crates/snapback-auth/src',
+  'crates/snapback-engine/Cargo.toml',
+  'crates/snapback-engine/build.rs',
+  'crates/snapback-engine/src',
+  'crates/snapback-kernel/Cargo.toml',
+  'crates/snapback-kernel/src',
+  'crates/snapback-runtime/Cargo.toml',
+  'crates/snapback-runtime/build.rs',
+  'crates/snapback-runtime/src',
+  'crates/snapback-server/Cargo.toml',
+  'crates/snapback-server/build.rs',
+  'crates/snapback-server/src',
   'crates/snapback-services/Cargo.toml',
   'crates/snapback-services/src',
+  'crates/snapback-sync/Cargo.toml',
+  'crates/snapback-sync/src',
+  'crates/snapback-types/Cargo.toml',
+  'crates/snapback-types/src',
   'crates/snapback/src',
   'demos/_kit',
   'demos/todo/snapback',

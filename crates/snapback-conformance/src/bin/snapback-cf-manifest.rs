@@ -5,7 +5,8 @@
 //!
 //! Usage: snapback-cf-manifest [--out <path>]
 
-use snapback::manifest::{CapabilityManifest, CapabilityManifestLocalExt as _};
+use snapback_engine::manifest::CapabilityManifestLocalExt as _;
+use snapback_types::manifest::CapabilityManifest;
 
 fn main() {
     let manifest = CapabilityManifest::cloudflare_do_sqlite_v8_declared();

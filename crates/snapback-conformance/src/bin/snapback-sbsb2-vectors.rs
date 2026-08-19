@@ -1,13 +1,13 @@
 //! Emit or drift-check LLP 0157 §D8's Rust-owned `sbsb2` parity corpus.
 //!
 //! Usage:
-//!   cargo run --bin snapback-sbsb2-vectors -- --write
-//!   cargo run --bin snapback-sbsb2-vectors -- --check
+//!   cargo run -p snapback-conformance --bin snapback-sbsb2-vectors -- --write
+//!   cargo run -p snapback-conformance --bin snapback-sbsb2-vectors -- --check
 
 use std::path::PathBuf;
 
 fn main() {
-    let value = snapback::snapshot_batch_cursor_v2::reference_parity_fixture()
+    let value = snapback_engine::snapshot_batch_cursor_v2::reference_parity_fixture()
         .expect("sbsb2 reference vectors render");
     let rendered = format!(
         "{}\n",

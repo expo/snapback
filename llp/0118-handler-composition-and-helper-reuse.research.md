@@ -6,13 +6,13 @@
 generation, Runtime, Security
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-02 (decision-sitting propagation: OQ7 is answered — the
+**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-02 (decision-sitting propagation: OQ7 is answered — the
 first mechanism admits context-reader helpers, while declared reads/writes
 remain evidence rather than enforced ceilings; source:
 `issues/20260802-author-decision-packet.md`). 2026-07-31 (v0.6, OQ1 answered with benchmark receipts — the
 same-file splice mechanism landed at `4d72c407` (normative text: LLP 0108
 §Same-file helper sharing), and the respecified benchmark ran twice on the
-real fresh-per-invocation runtime path (`helper_splice`, `crates/snapback/src/bench.rs`)
+real fresh-per-invocation runtime path (`helper_splice`, `crates/snapback-tools/src/bench.rs`)
 against LLP 0035's fresh-invocation metric: splice duplication is
 +0.5–3.1% p50 per invocation with cross-run rank inversion (noise-level)
 and retains no per-invocation memory; the dated answer with the table
@@ -1068,7 +1068,7 @@ a small increment while near-identical detection is not (option 5).
    landed at `4d72c407` (LLP 0127 decision 6; normative text in LLP 0108
    §Same-file helper sharing). The empirical question: the respecified
    benchmark ran as the `helper_splice` section of the LLP 0035 harness
-   (`crates/snapback/src/bench.rs`, `snapback-bench`), on the real fresh-per-invocation
+   (`crates/snapback-tools/src/bench.rs`, `snapback-bench`), on the real fresh-per-invocation
    runtime path — real Hermes create+eval through `LocalSnapback`,
    pooling disabled, per-invocation `Instant` samples — over three
    per-operation modules in the exact splice-emitted byte shape (the

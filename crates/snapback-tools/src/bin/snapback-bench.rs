@@ -1,13 +1,13 @@
 //! Run the LLP 0032 M1 benchmark harness at full scale and print a report.
 //!
 //! Usage (macOS): `DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \`
-//!   `cargo run --release --bin snapback-bench`
+//!   `cargo run --release -p snapback-tools --bin snapback-bench`
 //!
 //! `--json` prints the machine-readable report; otherwise a labelled summary.
 //!
 //! @ref LLP 0032#phase-4--measurement — M1.
 
-use snapback::bench::{BenchConfig, run};
+use snapback_tools::bench::{BenchConfig, run};
 
 fn main() -> anyhow::Result<()> {
     let json = std::env::args().any(|arg| arg == "--json");

@@ -16,7 +16,7 @@ The author-facing deployment and capability guide is
 | `src/coordinator.js` | The coordinator Durable Object: SQLite version authority + journal, storage-backed subscriptions, WebSocket Hibernation, the commit pipeline. |
 | `src/host-ops.js` | The JS `ctx` host-op table (the analogue of the Rust `handle_host_call`). |
 | `src/handler-worker.js` | The stripped V8 handler isolate — the single-sourced LLP 0048 harness with the app bundle compiled in. |
-| `generated/capability.manifest.cloudflare-do-sqlite-v8.json` | The target capability manifest (emitted by `cargo run --bin snapback-cf-manifest`). |
+| `generated/capability.manifest.cloudflare-do-sqlite-v8.json` | The target capability manifest (emitted by `cargo run -p snapback-conformance --bin snapback-cf-manifest`). |
 | `generated/deployment-identity.*.json` | Source-derived state identity: esbuild transitive inputs plus normalized Wrangler/compat config. Regenerate with `node cloudflare/scripts/generate-deployment-identity.mjs`. |
 | `wrangler.jsonc` / `wrangler.handler.jsonc` | Deploy configs (compat pins single-sourced from `packages/snapback-harness/compat.json`). |
 
@@ -38,7 +38,8 @@ upstream-shaped) and adds no action retry that would mask a real transport
 failure.
 
 The handler harness is single-sourced with the LLP 0048 conformance twin; the
-twin's gate runs with `cargo run --bin snapback-conformance-twin`.
+twin's gate runs with
+`cargo run -p snapback-conformance --bin snapback-conformance-twin`.
 
 ## Deploy to real Cloudflare (needs a token)
 

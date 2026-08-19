@@ -12,6 +12,8 @@ pub mod args_contract;
 pub mod assets;
 pub mod auth;
 pub mod authoring_suggestion;
+#[doc(hidden)]
+pub mod bench_fixture;
 pub mod commit_envelope;
 pub mod completeness;
 pub mod contract_exact;
@@ -46,4 +48,6 @@ pub mod value_expr;
 pub mod vector;
 pub mod visibility_governance;
 pub mod watches;
+#[doc(hidden)]
+pub mod wire_fixtures;
 pub mod wire_version;

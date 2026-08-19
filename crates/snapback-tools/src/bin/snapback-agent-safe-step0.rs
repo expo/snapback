@@ -9,7 +9,7 @@ use std::process::Command;
 use std::time::Duration;
 
 use serde::Serialize;
-use snapback::bench::{BenchConfig, BenchReport, IdleObservation, measure_idle, run};
+use snapback_tools::bench::{BenchConfig, BenchReport, IdleObservation, measure_idle, run};
 
 const RECORDED_RUNS: usize = 11;
 const IDLE_RECORDED_RUNS: usize = 11;

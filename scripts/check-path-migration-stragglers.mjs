@@ -50,11 +50,13 @@ const EXTRACTED_WORKSPACE_MEMBERS = [
 const PHASE_2_CARVED_WORKSPACE_MEMBERS = new Set([
   'crates/snapback-activation',
   'crates/snapback-auth',
+  'crates/snapback-conformance',
   'crates/snapback-engine',
   'crates/snapback-kernel',
   'crates/snapback-runtime',
   'crates/snapback-services',
   'crates/snapback-sync',
+  'crates/snapback-tools',
   'crates/snapback-types',
 ]);
 
@@ -383,7 +385,7 @@ function validateEpochShape(epoch, root = ROOT) {
     forbidDirectory('targets/cloudflare');
     requireDirectory('tools/agent-safe-baseline-worker');
     forbidDirectory('examples');
-    forbidDirectory('crates/snapback-tools');
+    requireDirectory('crates/snapback-tools');
     requireDirectory('crates/snapback/examples');
     requireFile('crates/allowed-dependencies.v1.json');
     requireFile('scripts/check-module-ownership.mjs');
@@ -398,7 +400,7 @@ function validateEpochShape(epoch, root = ROOT) {
     forbidDirectory('src');
     requireDirectory('cloudflare');
     forbidDirectory('targets/cloudflare');
-    forbidDirectory('tools/agent-safe-baseline-worker');
+    requireDirectory('tools/agent-safe-baseline-worker');
     forbidDirectory('examples');
     requireDirectory('crates/snapback-tools');
     requireDirectory('crates/snapback/examples');
@@ -412,7 +414,7 @@ function validateEpochShape(epoch, root = ROOT) {
     forbidDirectory('src');
     requireDirectory('targets/cloudflare');
     forbidDirectory('cloudflare');
-    forbidDirectory('tools/agent-safe-baseline-worker');
+    requireDirectory('tools/agent-safe-baseline-worker');
     forbidDirectory('examples');
     requireDirectory('crates/snapback-tools');
     requireDirectory('crates/snapback/examples');
@@ -426,7 +428,7 @@ function validateEpochShape(epoch, root = ROOT) {
     forbidDirectory('src');
     requireDirectory('targets/cloudflare');
     forbidDirectory('cloudflare');
-    forbidDirectory('tools/agent-safe-baseline-worker');
+    requireDirectory('tools/agent-safe-baseline-worker');
     forbidDirectory('examples');
     requireDirectory('crates/snapback-tools');
     requireDirectory('crates/snapback/examples');

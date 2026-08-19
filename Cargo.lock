@@ -4122,6 +4122,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "snapback-conformance"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "snapback-engine",
+ "snapback-types",
+]
+
+[[package]]
 name = "snapback-engine"
 version = "0.1.0"
 dependencies = [
@@ -4246,6 +4255,21 @@ dependencies = [
  "tokio",
  "uuid",
  "zeroize",
+]
+
+[[package]]
+name = "snapback-tools"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "libc",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "snapback-engine",
+ "snapback-kernel",
+ "snapback-types",
+ "uuid",
 ]
 
 [[package]]

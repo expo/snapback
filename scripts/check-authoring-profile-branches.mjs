@@ -44,6 +44,8 @@ export const AUTHORING_PROFILE_SCAN_ROOTS = Object.freeze([
   'crates/snapback-runtime/src',
   'crates/snapback-services/src',
   'crates/snapback-engine/src',
+  'crates/snapback-conformance/src',
+  'crates/snapback-tools/src',
   'crates/snapback/src',
   'crates/snapback-sync/src',
   'crates/snapback-types/src',

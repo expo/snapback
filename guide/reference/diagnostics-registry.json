@@ -2,15 +2,15 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:ba0819e1b67cef1e28836019a0fa1bd79a83a4f0795243d02b44098295481eb2"
+    "sourceDigest": "sha256:6afc3dd0f551148a8d60d160bf36de97d808d25f3eb006a914b8e01f916d21c4"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
     "codes": 3429,
-    "sourceFiles": 572,
-    "emittingSites": 11819,
+    "sourceFiles": 577,
+    "emittingSites": 11820,
     "httpClassified": 1030,
     "guideAnchored": 418
   },
@@ -9635,6 +9635,11 @@
       "subsystem": "application",
       "sites": [
         {
+          "file": "crates/snapback-conformance/src/bin/snapback-conformance-twin.rs",
+          "line": 649,
+          "column": 49
+        },
+        {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
           "line": 5884,
           "column": 34
@@ -9703,11 +9708,6 @@
           "file": "crates/snapback-types/src/error_tracking.rs",
           "line": 183,
           "column": 26
-        },
-        {
-          "file": "crates/snapback/src/bin/snapback-conformance-twin.rs",
-          "line": 649,
-          "column": 49
         },
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -20222,6 +20222,16 @@
           "column": 15
         },
         {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1817,
+          "column": 26
+        },
+        {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1850,
+          "column": 26
+        },
+        {
           "file": "crates/snapback/src/server.rs",
           "line": 10766,
           "column": 18
@@ -20255,16 +20265,6 @@
           "file": "crates/snapback/src/server/api_error.rs",
           "line": 102,
           "column": 6
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1817,
-          "column": 26
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1850,
-          "column": 26
         },
         {
           "file": "packages/snapback-client/index.mjs",
@@ -20711,6 +20711,11 @@
           "column": 10
         },
         {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1292,
+          "column": 26
+        },
+        {
           "file": "crates/snapback/src/server.rs",
           "line": 5235,
           "column": 25
@@ -20729,11 +20734,6 @@
           "file": "crates/snapback/src/server/api_error.rs",
           "line": 104,
           "column": 6
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1292,
-          "column": 26
         },
         {
           "file": "packages/snapback-client/index.mjs",
@@ -23212,6 +23212,16 @@
           "column": 14
         },
         {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1735,
+          "column": 34
+        },
+        {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 2148,
+          "column": 416
+        },
+        {
           "file": "crates/snapback/src/admin.rs",
           "line": 2986,
           "column": 18
@@ -23342,16 +23352,6 @@
           "column": 12
         },
         {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1735,
-          "column": 34
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 2148,
-          "column": 416
-        },
-        {
           "file": "packages/snapback-cli/expo-dev.mjs",
           "line": 439,
           "column": 25
@@ -23422,6 +23422,31 @@
           "column": 10
         },
         {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1752,
+          "column": 34
+        },
+        {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1773,
+          "column": 34
+        },
+        {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1978,
+          "column": 34
+        },
+        {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 2003,
+          "column": 34
+        },
+        {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 2140,
+          "column": 26
+        },
+        {
           "file": "crates/snapback/src/server.rs",
           "line": 10682,
           "column": 18
@@ -23440,31 +23465,6 @@
           "file": "crates/snapback/src/server/api_error.rs",
           "line": 105,
           "column": 6
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1752,
-          "column": 34
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1773,
-          "column": 34
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1978,
-          "column": 34
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 2003,
-          "column": 34
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 2140,
-          "column": 26
         },
         {
           "file": "packages/snapback-client/index.mjs",
@@ -28373,8 +28373,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/bench.rs",
-          "line": 1569,
+          "file": "crates/snapback-tools/src/bench.rs",
+          "line": 1468,
           "column": 46
         }
       ],
@@ -28388,8 +28388,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/bench.rs",
-          "line": 1490,
+          "file": "crates/snapback-tools/src/bench.rs",
+          "line": 1389,
           "column": 22
         }
       ],
@@ -28403,8 +28403,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/bench.rs",
-          "line": 870,
+          "file": "crates/snapback-tools/src/bench.rs",
+          "line": 769,
           "column": 46
         }
       ],
@@ -28418,8 +28418,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/bench.rs",
-          "line": 850,
+          "file": "crates/snapback-tools/src/bench.rs",
+          "line": 749,
           "column": 14
         }
       ],
@@ -28433,8 +28433,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/bench.rs",
-          "line": 475,
+          "file": "crates/snapback-engine/src/bench_support.rs",
+          "line": 99,
           "column": 18
         },
         {
@@ -28453,8 +28453,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/bench.rs",
-          "line": 1428,
+          "file": "crates/snapback-tools/src/bench.rs",
+          "line": 1327,
           "column": 14
         }
       ],
@@ -28468,8 +28468,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/bench.rs",
-          "line": 445,
+          "file": "crates/snapback-engine/src/bench_support.rs",
+          "line": 73,
           "column": 18
         },
         {
@@ -28488,8 +28488,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "crates/snapback/src/bench.rs",
-          "line": 1332,
+          "file": "crates/snapback-tools/src/bench.rs",
+          "line": 1231,
           "column": 14
         }
       ],
@@ -30676,24 +30676,24 @@
       "subsystem": "cli",
       "sites": [
         {
-          "file": "crates/snapback-types/src/identity.rs",
-          "line": 68,
-          "column": 34
-        },
-        {
-          "file": "crates/snapback/src/bin/snapback-agent-safe-candidate.rs",
+          "file": "crates/snapback-tools/src/bin/snapback-agent-safe-candidate.rs",
           "line": 213,
           "column": 36
         },
         {
-          "file": "crates/snapback/src/bin/snapback-agent-safe-paired.rs",
+          "file": "crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs",
           "line": 758,
           "column": 22
         },
         {
-          "file": "crates/snapback/src/bin/snapback-agent-safe-step0.rs",
+          "file": "crates/snapback-tools/src/bin/snapback-agent-safe-step0.rs",
           "line": 125,
           "column": 36
+        },
+        {
+          "file": "crates/snapback-types/src/identity.rs",
+          "line": 68,
+          "column": 34
         },
         {
           "file": "crates/snapback/src/bin/snapback-fork-promotion-bench.rs",
@@ -30731,24 +30731,29 @@
       "subsystem": "cli",
       "sites": [
         {
-          "file": "crates/snapback-types/src/identity.rs",
-          "line": 74,
-          "column": 26
+          "file": "crates/snapback-tools/src/agent_safe_digest.rs",
+          "line": 18,
+          "column": 29
         },
         {
-          "file": "crates/snapback/src/bin/snapback-agent-safe-candidate.rs",
+          "file": "crates/snapback-tools/src/bin/snapback-agent-safe-candidate.rs",
           "line": 216,
           "column": 42
         },
         {
-          "file": "crates/snapback/src/bin/snapback-agent-safe-paired.rs",
+          "file": "crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs",
           "line": 762,
           "column": 22
         },
         {
-          "file": "crates/snapback/src/bin/snapback-agent-safe-step0.rs",
+          "file": "crates/snapback-tools/src/bin/snapback-agent-safe-step0.rs",
           "line": 128,
           "column": 42
+        },
+        {
+          "file": "crates/snapback-types/src/identity.rs",
+          "line": 74,
+          "column": 26
         },
         {
           "file": "crates/snapback/src/bin/snapback-fork-promotion-bench.rs",
@@ -31740,7 +31745,7 @@
       "subsystem": "capabilities",
       "sites": [
         {
-          "file": "crates/snapback/src/bin/snapback-conformance-twin.rs",
+          "file": "crates/snapback-conformance/src/bin/snapback-conformance-twin.rs",
           "line": 810,
           "column": 18
         },
@@ -31915,6 +31920,11 @@
       "subsystem": "capabilities",
       "sites": [
         {
+          "file": "crates/snapback-conformance/src/bin/snapback-conformance-twin.rs",
+          "line": 790,
+          "column": 14
+        },
+        {
           "file": "crates/snapback-runtime/src/workerd_exec.rs",
           "line": 205,
           "column": 6
@@ -31923,11 +31933,6 @@
           "file": "crates/snapback-runtime/src/workerd_exec.rs",
           "line": 230,
           "column": 10
-        },
-        {
-          "file": "crates/snapback/src/bin/snapback-conformance-twin.rs",
-          "line": 790,
-          "column": 14
         },
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -38739,7 +38744,7 @@
           "column": 36
         },
         {
-          "file": "crates/snapback/src/wire_fixtures.rs",
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
           "line": 1414,
           "column": 26
         },
@@ -38809,6 +38814,16 @@
           "column": 32
         },
         {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1504,
+          "column": 26
+        },
+        {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1521,
+          "column": 58
+        },
+        {
           "file": "crates/snapback/src/server.rs",
           "line": 6203,
           "column": 22
@@ -38852,16 +38867,6 @@
           "file": "crates/snapback/src/server/api_error.rs",
           "line": 643,
           "column": 12
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1504,
-          "column": 26
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1521,
-          "column": 58
         },
         {
           "file": "packages/snapback-client/index.mjs",
@@ -64795,8 +64800,8 @@
           "column": 61
         },
         {
-          "file": "crates/snapback/src/bench.rs",
-          "line": 1217,
+          "file": "crates/snapback-tools/src/bench.rs",
+          "line": 1116,
           "column": 42
         },
         {
@@ -84153,7 +84158,7 @@
         },
         {
           "file": "crates/snapback-sync/src/snapshot_batch_cursor_v2.rs",
-          "line": 844,
+          "line": 845,
           "column": 46
         },
         {
@@ -84180,12 +84185,12 @@
         },
         {
           "file": "crates/snapback-sync/src/snapshot_batch_cursor_v2.rs",
-          "line": 678,
+          "line": 679,
           "column": 20
         },
         {
           "file": "crates/snapback-sync/src/snapshot_batch_cursor_v2.rs",
-          "line": 1210,
+          "line": 1211,
           "column": 14
         },
         {
@@ -84444,7 +84449,7 @@
         },
         {
           "file": "crates/snapback-sync/src/snapshot_batch_cursor_v2.rs",
-          "line": 679,
+          "line": 680,
           "column": 20
         },
         {
@@ -94233,6 +94238,11 @@
           "column": 10
         },
         {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1317,
+          "column": 26
+        },
+        {
           "file": "crates/snapback-types/src/wire_version.rs",
           "line": 75,
           "column": 10
@@ -94246,11 +94256,6 @@
           "file": "crates/snapback/src/server/api_error.rs",
           "line": 112,
           "column": 6
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1317,
-          "column": 26
         },
         {
           "file": "packages/snapback-client/index.mjs",
@@ -94276,6 +94281,21 @@
           "file": "crates/snapback-engine/src/local/engine.rs",
           "line": 14937,
           "column": 22
+        },
+        {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1268,
+          "column": 26
+        },
+        {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1346,
+          "column": 26
+        },
+        {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "line": 1354,
+          "column": 138
         },
         {
           "file": "crates/snapback-types/src/wire_version.rs",
@@ -94308,21 +94328,6 @@
           "column": 6
         },
         {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1268,
-          "column": 26
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1346,
-          "column": 26
-        },
-        {
-          "file": "crates/snapback/src/wire_fixtures.rs",
-          "line": 1354,
-          "column": 138
-        },
-        {
           "file": "packages/snapback-client/index.mjs",
           "line": 406,
           "column": 4
@@ -94338,6 +94343,11 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "crates/snapback-conformance/src/bin/snapback-conformance-twin.rs",
+          "line": 791,
+          "column": 64
+        },
+        {
           "file": "crates/snapback-runtime/src/workerd_exec.rs",
           "line": 207,
           "column": 37
@@ -94346,11 +94356,6 @@
           "file": "crates/snapback-runtime/src/workerd_exec.rs",
           "line": 233,
           "column": 70
-        },
-        {
-          "file": "crates/snapback/src/bin/snapback-conformance-twin.rs",
-          "line": 791,
-          "column": 64
         }
       ],
       "httpStatus": null,

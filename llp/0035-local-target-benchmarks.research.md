@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Sync, Ephemeral state, Testing, Performance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-21 (superseded-fixtures note: the `37f1a2f` benchmark
+**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-07-21 (superseded-fixtures note: the `37f1a2f` benchmark
 corrections invalidate all pre-correction fan-out figures pending a full-scale
 rerun — LLP 0067 Recommendation 1). 2026-07-13 (§Current measurement contract — finite-query DK-4 probe, protected-live fan-out interpretation, and synchronized L6 A/B; 2026-07-02: §Idle cost, §M3, §After warm VM, §L6+L7)
 **Related:** LLP 0000, LLP 0003, LLP 0008, LLP 0009, LLP 0012, LLP 0022, LLP 0032
@@ -13,7 +13,7 @@ rerun — LLP 0067 Recommendation 1). 2026-07-13 (§Current measurement contract
 ## Summary
 
 This is the artifact of [LLP 0032](./0032-decision-and-implementation-hardening.plan.md)
-**M1**: the in-repo benchmark harness (`crates/snapback/src/bench.rs`, run by the
+**M1**: the in-repo benchmark harness (`crates/snapback-tools/src/bench.rs`, run by the
 `snapback-bench` bin) and its first numbers over the canonical local target
 (Ibex + in-memory SQLite). It turns the corpus's named unknowns into measured
 numbers so the deferred decisions can be made on evidence rather than intuition.
@@ -111,9 +111,9 @@ Reproduce:
 
 ```
 DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \
-  cargo run --release --bin snapback-bench        # labelled summary
+  cargo run --release -p snapback-tools --bin snapback-bench        # labelled summary
 DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \
-  cargo run --release --bin snapback-bench -- --json   # machine-readable
+  cargo run --release -p snapback-tools --bin snapback-bench -- --json   # machine-readable
 ```
 
 ## Results (2026-07-01, one machine, release)

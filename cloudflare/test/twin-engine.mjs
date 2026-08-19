@@ -3,7 +3,8 @@
 // Executes twin-corpus cases against the deployed target's real invocation
 // path in Miniflare — gateway → coordinator → handler Worker → JS host-op
 // table (src/host-ops.js) → Durable-Object SQLite — and reports each case's
-// raw outcome and committed storage for crates/snapback/src/bin/snapback-conformance-twin.rs
+// raw outcome and committed storage for
+// crates/snapback-conformance/src/bin/snapback-conformance-twin.rs
 // to normalize, diff, and classify against the Ibex and workerd legs.
 //
 // Protocol: a JSON case list on stdin, `[{name, handler, kind, args}]` with

@@ -1,0 +1,15 @@
+[package]
+name = "snapback-conformance"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+build = "build.rs"
+
+[dependencies]
+serde_json = "1.0"
+snapback-engine = { path = "../snapback-engine" }
+snapback-types = { path = "../snapback-types" }
+
+[lints]
+workspace = true

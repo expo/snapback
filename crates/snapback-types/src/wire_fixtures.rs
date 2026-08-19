@@ -3,7 +3,7 @@
 //! Canonical frames in, expected client transitions/actions out, judged
 //! against the abstract client state machine of LLP 0095 §1 — never against
 //! any one implementation's internals. The corpus is emitted through
-//! [`crate::schema_export::artifact_instances`] (the least-drift path LLP
+//! the façade's `schema_export::artifact_instances` (the least-drift path LLP
 //! 0093 OQ3 chose: the existing drift gate already walks the instances) and
 //! committed as `schemas/live.wire-fixtures.v1.json`, so a wire-type change
 //! that skips regeneration fails `tests/artifact_schemas_v0.rs`, and

@@ -543,7 +543,8 @@ fn presentation(body: &Body) -> Value {
 }
 
 /// Rust-owned emitter input for the complete shared LLP 0157 §D8 parity set.
-/// The small CLI in `src/bin/snapback-sbsb2-vectors.rs` is the only writer.
+/// The small CLI in
+/// `crates/snapback-conformance/src/bin/snapback-sbsb2-vectors.rs` is the only writer.
 /// Both the Rust drift test below and the independent Node consumer read the
 /// committed rendering.
 #[doc(hidden)]

@@ -16,7 +16,8 @@ use crate::manifest::{
     FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, TableManifest,
 };
 
-pub(crate) const HANDLER_SOURCE: &str = r#"
+#[doc(hidden)]
+pub const HANDLER_SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {
   async noop(ctx) { return []; },
   async listTodos(ctx) {
@@ -37,7 +38,8 @@ globalThis.__snapbackHandlers = {
 };
 "#;
 
-pub(crate) fn schema() -> SchemaManifest {
+#[doc(hidden)]
+pub fn schema() -> SchemaManifest {
     let string_field = |name: &str| FieldManifest {
         name: name.to_owned(),
         field_type: FieldType::String,
@@ -91,7 +93,8 @@ pub(crate) fn schema() -> SchemaManifest {
     }
 }
 
-pub(crate) fn functions() -> FunctionManifest {
+#[doc(hidden)]
+pub fn functions() -> FunctionManifest {
     let live_query = |name: &str, table: &str| {
         let mut def = FunctionDefinition::new(
             name,
@@ -155,7 +158,8 @@ pub(crate) fn functions() -> FunctionManifest {
     }
 }
 
-pub(crate) fn auth() -> AuthInput {
+#[doc(hidden)]
+pub fn auth() -> AuthInput {
     AuthInput {
         principal: Some("bench".to_owned()),
         session_id: None,
@@ -164,7 +168,8 @@ pub(crate) fn auth() -> AuthInput {
     }
 }
 
-pub(crate) fn args(value: Value) -> HandlerInput {
+#[doc(hidden)]
+pub fn args(value: Value) -> HandlerInput {
     HandlerInput {
         args: value,
         auth: auth(),

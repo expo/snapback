@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, API, Deployment, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-10
-**Revised:** 2026-08-10
+**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-10
 **Related:** LLP 0009, LLP 0047, LLP 0048, LLP 0040, LLP 0058, LLP 0134, LLP 0204
 
 ## Summary
@@ -279,7 +279,7 @@ LLP 0009 names as the prerequisite (comprehensive preemption).
 What concrete, testable evidence would justify flipping a runtime's
 `hosted_untrusted_code` gap to "profile evidenced"? The right vehicle already
 exists: the LLP 0048 conformance twin
-(`crates/snapback/src/bin/snapback-conformance-twin.rs`) and its adversarial corpus
+(`crates/snapback-conformance/src/bin/snapback-conformance-twin.rs`) and its adversarial corpus
 (`crates/snapback/tests/workerd_twin_v0.rs`). The battery below extends that corpus. Every item
 is an *adversary-authored program submitted through `/api/v1/run`'s real path*
 (not an owner handler), and the pass condition is a **stable `SNAPBACK_*`

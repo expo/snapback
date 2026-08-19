@@ -5,7 +5,7 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-15 (single-value query egress: query/live-query
+**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-15 (single-value query egress: query/live-query
 declarations admit `results.document` and `results.value`; authored handlers
 return that value directly while the existing query/live transport carries it
 as exactly one internal row, and typed consumers project the value back out).
@@ -978,7 +978,7 @@ the shipped fresh-per-invocation lifecycle. The per-invocation cost of that
 duplication was measured against LLP 0035's fresh-invocation baseline on
 2026-07-31 and is noise-level; the receipts live in LLP 0118 open question 1
 and the `helper_splice` section of the `snapback-bench` harness
-(`crates/snapback/src/bench.rs`).
+(`crates/snapback-tools/src/bench.rs`).
 
 ### Identity: the v2 implementation-hash format
 

@@ -5,7 +5,7 @@
 **Systems:** Storage, Performance, Schema, Sync, Realtime, Deployment, Testing
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned in the author's 2026-08-16 orchestration session under Charlie Cheever's 2026-08-15 performance-direction ruling)
 **Date:** 2026-08-16
-**Revised:** 2026-08-16 (v0.3 — Status Draft → Accepted, author ruling 2026-08-16)
+**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-16 (v0.3 — Status Draft → Accepted, author ruling 2026-08-16)
 **Related:** LLP 0007, LLP 0012, LLP 0046, LLP 0080, LLP 0113, LLP 0128, LLP 0163, LLP 0189, LLP 0198, LLP 0209, LLP 0225, LLP 0265, `issues/20260815-storage-graduation-plan-commission.md`
 
 ## 0. Charter and position
@@ -123,7 +123,7 @@ latency number.
    Arc<Mutex<LocalSnapback>>`; `crates/snapback/src/server/writer_gate.rs::with_snapback` moves
    that owned global guard into each write-lane blocking task and says paths
    that can reach Hermes or rusqlite use it or the read lane; and
-   `crates/snapback/src/bench.rs::Benchmarks::single_writer_mutations_per_sec` records that
+   `crates/snapback-tools/src/bench.rs::Benchmarks::single_writer_mutations_per_sec` records that
    every mutation serializes on it. Refactor the instance into concurrency-safe
    services and resource-specific guards. SQLite may retain its physical
    single-writer serialization, and runtime resources may keep their proven

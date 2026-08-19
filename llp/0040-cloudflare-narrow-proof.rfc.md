@@ -5,7 +5,7 @@
 **Systems:** Deployment, Runtime, Storage, Sync, Realtime, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-03 (LLP 0109 acceptance: dated amendment extending the compiled-seed invariant to versioned `SeedArtifactV1` identity — caller bytes attest, only exact-identity compiled bytes write, and the hosted arm stays a declared conformance GAP that advertises neither versioned-seed capability). 2026-08-01 (live fan-out now conservatively considers every subscribed live-query function on every non-empty commit, closing the under-declared/unwitnessed-read false-negative while retaining indexed durable-registry selection and equal-shape query grouping; All Aboard pins the two-table regression). 2026-07-17 (the pinned Node 24.18.0 protocol-hardening proof now uses an `Expect: 100-continue` header-only exchange for oversized uploads, preserving the real-loopback Content-Length fast path without starting a reset-prone uploader or retrying); 2026-07-12 (ENG-24341–ENG-24369 / ENG-24387–ENG-24388 final review: subscription rows/args and both legacy/total sockets have enforced manifest-advertised ceilings; foundational schema drift remains diagnosable/resettable; deploy health is pinned to Cloudflare's exact Worker-version metadata after code deploy and a post-secret final deploy. Earlier:
+**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-03 (LLP 0109 acceptance: dated amendment extending the compiled-seed invariant to versioned `SeedArtifactV1` identity — caller bytes attest, only exact-identity compiled bytes write, and the hosted arm stays a declared conformance GAP that advertises neither versioned-seed capability). 2026-08-01 (live fan-out now conservatively considers every subscribed live-query function on every non-empty commit, closing the under-declared/unwitnessed-read false-negative while retaining indexed durable-registry selection and equal-shape query grouping; All Aboard pins the two-table regression). 2026-07-17 (the pinned Node 24.18.0 protocol-hardening proof now uses an `Expect: 100-continue` header-only exchange for oversized uploads, preserving the real-loopback Content-Length fast path without starting a reset-prone uploader or retrying); 2026-07-12 (ENG-24341–ENG-24369 / ENG-24387–ENG-24388 final review: subscription rows/args and both legacy/total sockets have enforced manifest-advertised ceilings; foundational schema drift remains diagnosable/resettable; deploy health is pinned to Cloudflare's exact Worker-version metadata after code deploy and a post-secret final deploy. Earlier:
 whole-codebase review hardening closes hosted provisioning, schema/index,
 action/cron, secret, realtime-session, request-decoding, reset/migration,
 deployment-identity, config-operations, bootstrap, and cache-hygiene gaps; see
@@ -415,7 +415,7 @@ survived mid-subscription, and billing-surface observed-zero estimates over both
   freshly-evicted object rehydrates from rows. The object uses no
   `setTimeout`/`setInterval`; the live path pushes from the commit.
 - **Capability manifest.** `CapabilityManifest::cloudflare_do_sqlite_v8`
-  (emitted by `crates/snapback/src/bin/snapback-cf-manifest.rs`) serves
+  (emitted by `crates/snapback-conformance/src/bin/snapback-cf-manifest.rs`) serves
   `cloudflare-do-sqlite-v8`, validates against the generated JSON Schema, and
   names the missing features honestly — `code_hot_load` (deploy-time bundling,
   no runtime eval), ephemeral realtime, cron, external auth, assets,

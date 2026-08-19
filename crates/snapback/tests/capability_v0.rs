@@ -6,7 +6,7 @@
 //
 // Regenerate the committed files with:
 //   SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_
-//   cargo run --bin snapback-cf-manifest -- --out \
+//   cargo run -p snapback-conformance --bin snapback-cf-manifest -- --out \
 //     cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json
 //
 // @ref LLP 0037#decision-ratified-2026-07-02 — Rust types are the source of
@@ -183,8 +183,8 @@ fn p2_committed_capability_manifest_matches_the_declared_server_manifest() {
 fn p2_committed_cloudflare_manifest_matches_the_declared_target() {
     let path = committed_cloudflare_manifest_path();
     let committed: Value = serde_json::from_str(&fs::read_to_string(&path).expect(
-        "Cloudflare capability manifest is missing; regenerate with cargo run --bin \
-             snapback-cf-manifest -- --out \
+        "Cloudflare capability manifest is missing; regenerate with cargo run \
+             -p snapback-conformance --bin snapback-cf-manifest -- --out \
              cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
     ))
     .expect("parse committed Cloudflare capability manifest");
@@ -197,7 +197,7 @@ fn p2_committed_cloudflare_manifest_matches_the_declared_target() {
         sorted_keys(committed),
         declared,
         "the committed Cloudflare capability manifest drifted from its Rust target declaration; \
-         regenerate it with cargo run --bin snapback-cf-manifest -- --out \
+         regenerate it with cargo run -p snapback-conformance --bin snapback-cf-manifest -- --out \
          cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json"
     );
 }
