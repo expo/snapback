@@ -17,6 +17,17 @@ checked; module analyzer/manifest/baseline/ratchet retired; workspace graph
 promoted to the drift fail-closed core; root Cloudflare target moved under
 `targets/`; the measured authored transclusion count corrected from nine to
 three, with generated flats regenerated)
+**Revised:** 2026-08-19 (**Implemented, structurally** — the workspace, the
+gate transition and the Phase 3 consolidation landed on `main` at `18cb34fab`
+by fast-forward, with the rollback point tagged `pre-0276-rearchitecture`.
+Executed without the frozen-`main` window: Phase 0 landed as ordinary
+landings and Phases 1-3 ran on the `p2-integrate` integration branch while
+`main` continued to move, so the author ruling 1 freeze was never acquired.
+Phase 4 is **not** complete: the complete battery and cold-clone witnesses did
+not run against the final head, and **npm publication was deliberately not
+performed** because the authorization model has open privilege escalations.
+Follow-ups, including the blocking security work, are recorded in LLP 0283.)
+
 **Revised:** 2026-08-18 (**Accepted by Charlie Cheever**, in-session, after
 the super-refine loop converged dual-READY — codex gpt-5.6-sol xhigh and
 grok-4.6 xhigh both READY in the author-authorized round 4, verdicts bound
