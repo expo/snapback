@@ -2416,6 +2416,37 @@ pub(crate) fn insert_test_email_identity(
     Ok(())
 }
 
+impl LocalDatabase {
+    /// Seed one closed human/email logical-transfer fixture.
+    ///
+    /// @ref LLP 0285#53-defect-3--the-caller-selectable-raw-sqlite-feature —
+    /// cross-crate tests describe identity facts without receiving a database
+    /// connection or caller-selected SQL authority.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn insert_logical_email_identity_for_test(
+        &mut self,
+        user_id: &str,
+        identity_id: &str,
+        address: &str,
+        created_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.with_auth_transaction(|transaction| {
+            transaction.execute(
+                "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
+                params![user_id, created_at_ms],
+            )?;
+            insert_test_email_identity(
+                transaction,
+                identity_id,
+                user_id,
+                address,
+                created_at_ms,
+                false,
+            )
+        })
+    }
+}
+
 #[cfg(any(test, feature = "test-support"))]
 pub(crate) fn insert_test_external_identity(
     conn: &Connection,

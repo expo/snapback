@@ -700,7 +700,10 @@ mod tests {
     use crate::auth::provider::AuthClock;
     use crate::local::LocalSnapback;
     use crate::storage::auth::AUTH_GC_BATCH;
-    use snapback_services::test_support::rusqlite;
+    use snapback_auth::storage::auth_rescue::{
+        AuthCollisionFixtureIndexForTest, AuthCollisionFixtureRowForTest,
+        AuthCollisionFixtureTableForTest, install_auth_collision_fixtures_for_test,
+    };
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::{Arc, Mutex as StdMutex};
     use std::time::Instant;
@@ -885,11 +888,16 @@ mod tests {
     async fn dormant_foreign_auth_table_remains_servable_for_rescue() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
-        let connection = rusqlite::Connection::open(&database_path).unwrap();
-        connection
-            .execute_batch("CREATE TABLE _auth_foreign_row(id TEXT PRIMARY KEY)")
-            .unwrap();
-        drop(connection);
+        install_auth_collision_fixtures_for_test(
+            &database_path,
+            &[AuthCollisionFixtureTableForTest {
+                name: "_auth_foreign_row".to_owned(),
+                row: AuthCollisionFixtureRowForTest::Text(None),
+                index: AuthCollisionFixtureIndexForTest::None,
+            }],
+            None,
+        )
+        .unwrap();
         let mut snapback = LocalSnapback::open(&database_path).unwrap();
 
         let runtime = AuthRuntime::inspect(

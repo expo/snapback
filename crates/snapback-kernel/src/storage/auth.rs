@@ -1633,6 +1633,44 @@ impl LocalDatabase {
         })
     }
 
+    /// Return the exact logical state used to prove an auth backup restored
+    /// every protected table plus its large app-data fixture.
+    ///
+    /// @ref LLP 0285#53-defect-3--the-caller-selectable-raw-sqlite-feature —
+    /// backup tests receive typed values, never a raw database handle.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn auth_backup_fixture_state_for_test(
+        &self,
+        address: &str,
+    ) -> SnapbackResult<(BTreeMap<String, u64>, Option<(u64, u64, Option<u64>)>, u64)> {
+        const TABLES: &[&str] = &[
+            "_auth_credentials",
+            "_auth_recovery_code_sets",
+            "_auth_recovery_codes",
+            "_auth_assurances",
+            "_auth_security_events",
+            "_auth_password_attempts",
+        ];
+        require_password_identifier_mode_on(&self.conn)?;
+        let mut counts = BTreeMap::new();
+        for table in TABLES {
+            counts.insert(
+                (*table).to_owned(),
+                self.conn
+                    .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                        row.get(0)
+                    })?,
+            );
+        }
+        let attempt = self.password_attempt_for_test(address)?;
+        let payload_bytes = self.conn.query_row(
+            "SELECT length(payload) FROM backup_large_app_fixture",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok((counts, attempt, payload_bytes))
+    }
+
     /// Run a read through the protected lane. No raw connection accessor is
     /// exposed; callers must cross an exact recognized-catalog check for every
     /// operation.

@@ -1,12 +1,12 @@
 #![cfg(unix)]
 
+use rusqlite::{self, Connection, OpenFlags};
 use serde_json::{Value, json};
 use snapback::manifest::{
     FieldManifest, FieldType, HandlerInput, MutationPlan, MutationStep, SchemaManifest,
     TableManifest, ValueExpr,
 };
 use snapback_kernel::storage::LocalDatabase;
-use snapback_services::test_support::rusqlite::{self, Connection, OpenFlags};
 use std::collections::BTreeMap;
 use std::io::{Read as _, Write as _};
 use std::net::TcpStream;

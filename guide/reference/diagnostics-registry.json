@@ -2,15 +2,15 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:3d478f3c06310fc5175a3d1fad4dab2373abbb659a2f1833b832ffb925687cfe"
+    "sourceDigest": "sha256:89dbe3fdbfd2e9eac613f6610dade0617536ebd898de247b6dab908749ae6f18"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
     "codes": 3435,
-    "sourceFiles": 573,
-    "emittingSites": 11838,
+    "sourceFiles": 574,
+    "emittingSites": 11836,
     "httpClassified": 1030,
     "guideAnchored": 418
   },
@@ -4459,17 +4459,17 @@
         },
         {
           "file": "crates/snapback-server/src/auth/recovery.rs",
-          "line": 867,
+          "line": 782,
           "column": 18
         },
         {
           "file": "crates/snapback-server/src/auth/recovery.rs",
-          "line": 879,
+          "line": 794,
           "column": 18
         },
         {
           "file": "crates/snapback-server/src/auth/recovery.rs",
-          "line": 885,
+          "line": 800,
           "column": 18
         },
         {
@@ -9706,7 +9706,7 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 9453,
+          "line": 9573,
           "column": 39
         },
         {
@@ -16386,12 +16386,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 2661,
+          "line": 2699,
           "column": 27
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 2665,
+          "line": 2703,
           "column": 27
         }
       ],
@@ -16970,47 +16970,47 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 1823,
+          "line": 1861,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 3555,
+          "line": 3593,
           "column": 27
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 3905,
+          "line": 3943,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 3918,
+          "line": 3956,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 4314,
+          "line": 4352,
           "column": 48
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 4652,
+          "line": 4690,
           "column": 44
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 4664,
+          "line": 4702,
           "column": 44
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 4673,
+          "line": 4711,
           "column": 44
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 4710,
+          "line": 4748,
           "column": 44
         },
         {
@@ -17040,27 +17040,27 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_rescue.rs",
-          "line": 1646,
+          "line": 1849,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 2984,
+          "line": 3022,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 3007,
+          "line": 3045,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 4532,
+          "line": 4570,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/auth/recovery.rs",
-          "line": 1218,
+          "line": 1117,
           "column": 14
         },
         {
@@ -17085,22 +17085,22 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 2962,
+          "line": 3000,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 3495,
+          "line": 3533,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 3803,
+          "line": 3841,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 4635,
+          "line": 4673,
           "column": 14
         },
         {
@@ -19716,12 +19716,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 3037,
+          "line": 3075,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 3765,
+          "line": 3803,
           "column": 14
         },
         {
@@ -19801,17 +19801,17 @@
         },
         {
           "file": "crates/snapback-server/src/auth/recovery.rs",
-          "line": 873,
+          "line": 788,
           "column": 18
         },
         {
           "file": "crates/snapback-server/src/auth/recovery.rs",
-          "line": 891,
+          "line": 806,
           "column": 18
         },
         {
           "file": "crates/snapback-server/src/auth/recovery.rs",
-          "line": 897,
+          "line": 812,
           "column": 18
         },
         {
@@ -21482,7 +21482,7 @@
         },
         {
           "file": "crates/snapback-server/src/auth/runtime.rs",
-          "line": 1189,
+          "line": 1197,
           "column": 14
         },
         {
@@ -21687,7 +21687,7 @@
         },
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 2706,
+          "line": 2700,
           "column": 49
         },
         {
@@ -22542,12 +22542,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 3481,
+          "line": 3519,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 3813,
+          "line": 3851,
           "column": 14
         },
         {
@@ -23093,7 +23093,7 @@
         },
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 2667,
+          "line": 2661,
           "column": 14
         },
         {
@@ -23776,12 +23776,12 @@
         },
         {
           "file": "crates/snapback-server/src/auth/runtime.rs",
-          "line": 728,
+          "line": 731,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/auth/runtime.rs",
-          "line": 1503,
+          "line": 1511,
           "column": 14
         },
         {
@@ -23970,11 +23970,6 @@
           "column": 10
         },
         {
-          "file": "crates/snapback-cli/src/store_state.rs",
-          "line": 1319,
-          "column": 42
-        },
-        {
           "file": "crates/snapback-engine/src/host_ops.rs",
           "line": 1836,
           "column": 18
@@ -23996,12 +23991,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_catalog_ops.rs",
-          "line": 2609,
+          "line": 2640,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_catalog_ops.rs",
-          "line": 2969,
+          "line": 3000,
           "column": 22
         },
         {
@@ -24056,17 +24051,17 @@
         },
         {
           "file": "crates/snapback-server/src/auth/runtime.rs",
-          "line": 860,
+          "line": 863,
           "column": 44
         },
         {
           "file": "crates/snapback-server/src/auth/runtime.rs",
-          "line": 979,
+          "line": 987,
           "column": 38
         },
         {
           "file": "crates/snapback-server/src/auth/runtime.rs",
-          "line": 1007,
+          "line": 1015,
           "column": 48
         },
         {
@@ -25540,12 +25535,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_rescue.rs",
-          "line": 1661,
+          "line": 1864,
           "column": 48
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_rescue.rs",
-          "line": 1683,
+          "line": 1886,
           "column": 14
         },
         {
@@ -25570,7 +25565,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_rescue.rs",
-          "line": 1312,
+          "line": 1515,
           "column": 41
         },
         {
@@ -25595,13 +25590,8 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_rescue.rs",
-          "line": 1422,
+          "line": 1625,
           "column": 14
-        },
-        {
-          "file": "crates/snapback-kernel/src/storage/auth_rescue.rs",
-          "line": 1497,
-          "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_rescue.rs",
@@ -25609,8 +25599,13 @@
           "column": 18
         },
         {
+          "file": "crates/snapback-kernel/src/storage/auth_rescue.rs",
+          "line": 1903,
+          "column": 18
+        },
+        {
           "file": "crates/snapback-server/src/auth/recovery.rs",
-          "line": 1141,
+          "line": 1038,
           "column": 14
         },
         {
@@ -25923,12 +25918,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 2289,
+          "line": 2327,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 2337,
+          "line": 2375,
           "column": 22
         },
         {
@@ -26722,32 +26717,32 @@
         },
         {
           "file": "crates/snapback-server/src/auth/runtime.rs",
-          "line": 1377,
+          "line": 1385,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/auth/runtime.rs",
-          "line": 1648,
+          "line": 1656,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/auth/runtime.rs",
-          "line": 1685,
+          "line": 1693,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/auth/runtime.rs",
-          "line": 1742,
+          "line": 1750,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/auth/runtime.rs",
-          "line": 1817,
+          "line": 1825,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/auth/runtime.rs",
-          "line": 1854,
+          "line": 1862,
           "column": 14
         },
         {
@@ -27458,22 +27453,22 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_rescue.rs",
-          "line": 1181,
+          "line": 1384,
           "column": 36
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 2973,
+          "line": 3011,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 4513,
+          "line": 4551,
           "column": 44
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 4725,
+          "line": 4763,
           "column": 44
         },
         {
@@ -30409,7 +30404,7 @@
         },
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 2943,
+          "line": 2937,
           "column": 14
         },
         {
@@ -43901,12 +43896,12 @@
       "sites": [
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 9526,
+          "line": 9646,
           "column": 14
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 9594,
+          "line": 9714,
           "column": 22
         }
       ],
@@ -45106,7 +45101,7 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 10896,
+          "line": 11016,
           "column": 46
         }
       ],
@@ -45161,17 +45156,17 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 3141,
+          "line": 3261,
           "column": 18
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 3312,
+          "line": 3432,
           "column": 22
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 4238,
+          "line": 4358,
           "column": 22
         }
       ],
@@ -45196,12 +45191,12 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 11022,
+          "line": 11142,
           "column": 14
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 11033,
+          "line": 11153,
           "column": 48
         }
       ],
@@ -45246,22 +45241,22 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 2053,
+          "line": 2095,
           "column": 26
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 11059,
+          "line": 11179,
           "column": 14
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 11073,
+          "line": 11193,
           "column": 14
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 11098,
+          "line": 11218,
           "column": 14
         }
       ],
@@ -45281,7 +45276,7 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 3165,
+          "line": 3285,
           "column": 22
         }
       ],
@@ -45301,7 +45296,7 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 4409,
+          "line": 4529,
           "column": 18
         }
       ],
@@ -45326,7 +45321,7 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 10342,
+          "line": 10462,
           "column": 14
         }
       ],
@@ -45351,7 +45346,7 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 10335,
+          "line": 10455,
           "column": 14
         }
       ],
@@ -45376,12 +45371,12 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 2044,
+          "line": 2086,
           "column": 26
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 2075,
+          "line": 2117,
           "column": 22
         }
       ],
@@ -45401,7 +45396,7 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 3195,
+          "line": 3315,
           "column": 18
         }
       ],
@@ -47789,7 +47784,7 @@
       "sites": [
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 5966,
+          "line": 6086,
           "column": 36
         }
       ],
@@ -51601,12 +51596,12 @@
         },
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 2487,
+          "line": 2486,
           "column": 36
         },
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 2492,
+          "line": 2491,
           "column": 14
         },
         {
@@ -51781,37 +51776,37 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 5744,
+          "line": 5864,
           "column": 34
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 5773,
+          "line": 5893,
           "column": 28
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 9427,
+          "line": 9547,
           "column": 14
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 9692,
+          "line": 9812,
           "column": 14
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 9715,
+          "line": 9835,
           "column": 41
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 9751,
+          "line": 9871,
           "column": 27
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 9758,
+          "line": 9878,
           "column": 27
         },
         {
@@ -52594,12 +52589,12 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 9489,
+          "line": 9609,
           "column": 14
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 9507,
+          "line": 9627,
           "column": 14
         }
       ],
@@ -55029,7 +55024,7 @@
         },
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 2781,
+          "line": 2775,
           "column": 46
         },
         {
@@ -55044,7 +55039,7 @@
         },
         {
           "file": "crates/snapback-server/src/auth/recovery.rs",
-          "line": 946,
+          "line": 861,
           "column": 14
         },
         {
@@ -56222,17 +56217,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 5044,
+          "line": 5082,
           "column": 41
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 5075,
+          "line": 5113,
           "column": 41
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 5085,
+          "line": 5123,
           "column": 44
         },
         {
@@ -56327,7 +56322,7 @@
         },
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 2591,
+          "line": 2585,
           "column": 14
         },
         {
@@ -65688,7 +65683,7 @@
       "sites": [
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 6433,
+          "line": 6553,
           "column": 33
         }
       ],
@@ -70252,7 +70247,7 @@
         },
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 3035,
+          "line": 3029,
           "column": 71
         },
         {
@@ -70339,7 +70334,7 @@
         },
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 3032,
+          "line": 3026,
           "column": 10
         },
         {
@@ -78893,7 +78888,7 @@
         },
         {
           "file": "crates/snapback-server/src/auth/recovery.rs",
-          "line": 973,
+          "line": 888,
           "column": 18
         },
         {
@@ -83943,7 +83938,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth.rs",
-          "line": 1735,
+          "line": 1773,
           "column": 22
         }
       ],
@@ -83973,12 +83968,12 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 2600,
+          "line": 2594,
           "column": 46
         },
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 2608,
+          "line": 2602,
           "column": 46
         },
         {
@@ -84666,7 +84661,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 2486,
+          "line": 2485,
           "column": 38
         }
       ],
@@ -85528,7 +85523,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/host_ops.rs",
-          "line": 2535,
+          "line": 2529,
           "column": 57
         },
         {
@@ -85835,13 +85830,8 @@
         },
         {
           "file": "crates/snapback-cli/src/store_state.rs",
-          "line": 1071,
+          "line": 1070,
           "column": 27
-        },
-        {
-          "file": "crates/snapback-cli/src/store_state.rs",
-          "line": 1417,
-          "column": 48
         }
       ],
       "httpStatus": null,
@@ -85857,13 +85847,8 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/store_state.rs",
-          "line": 1079,
+          "line": 1078,
           "column": 27
-        },
-        {
-          "file": "crates/snapback-cli/src/store_state.rs",
-          "line": 1391,
-          "column": 48
         }
       ],
       "httpStatus": null,
@@ -90791,7 +90776,7 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 6311,
+          "line": 6431,
           "column": 14
         }
       ],
@@ -90816,7 +90801,7 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 6294,
+          "line": 6414,
           "column": 14
         }
       ],
@@ -90926,7 +90911,7 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 6349,
+          "line": 6469,
           "column": 14
         }
       ],
@@ -90941,12 +90926,12 @@
       "sites": [
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 5596,
+          "line": 5716,
           "column": 18
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 5644,
+          "line": 5764,
           "column": 14
         }
       ],
@@ -90986,12 +90971,12 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 6822,
+          "line": 6942,
           "column": 48
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 6849,
+          "line": 6969,
           "column": 48
         }
       ],
@@ -91011,12 +90996,17 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 2972,
+          "line": 2345,
           "column": 18
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 5947,
+          "line": 3092,
+          "column": 18
+        },
+        {
+          "file": "crates/snapback-services/src/telemetry.rs",
+          "line": 6067,
           "column": 44
         }
       ],
@@ -91051,7 +91041,7 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 6814,
+          "line": 6934,
           "column": 44
         }
       ],
@@ -91126,12 +91116,12 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 1472,
+          "line": 1514,
           "column": 18
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 2495,
+          "line": 2615,
           "column": 14
         }
       ],
@@ -91151,12 +91141,12 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 2836,
+          "line": 2956,
           "column": 18
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 3510,
+          "line": 3630,
           "column": 22
         }
       ],
@@ -91286,7 +91276,7 @@
         },
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 6791,
+          "line": 6911,
           "column": 14
         }
       ],
@@ -91301,7 +91291,7 @@
       "sites": [
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 3653,
+          "line": 3773,
           "column": 10
         }
       ],
@@ -91316,7 +91306,7 @@
       "sites": [
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 3085,
+          "line": 3205,
           "column": 18
         }
       ],
@@ -91331,7 +91321,7 @@
       "sites": [
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 3479,
+          "line": 3599,
           "column": 18
         }
       ],
@@ -91346,7 +91336,7 @@
       "sites": [
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 3042,
+          "line": 3162,
           "column": 18
         }
       ],
@@ -91416,7 +91406,7 @@
       "sites": [
         {
           "file": "crates/snapback-services/src/telemetry.rs",
-          "line": 6902,
+          "line": 7022,
           "column": 23
         }
       ],

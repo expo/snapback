@@ -489,14 +489,15 @@ mod tests {
     use super::*;
     use crate::auth::crypto::{CryptoError, RandomSource};
     use crate::manifest::{FieldManifest, FieldType, SchemaManifest, TableManifest};
-    use crate::storage::auth_mode::{
-        META_AUTH_MODE_STATE, META_CAPABILITY_AWARE_SCHEMA_MANIFEST, META_STAGED_AUTH_MODE_MANIFEST,
+    use crate::storage::auth_rescue::{
+        AuthCollisionFixtureIndexForTest, AuthCollisionFixtureRowForTest,
+        AuthCollisionFixtureTableForTest, AuthCollisionLogicalSnapshotForTest,
+        auth_collision_integer_transition_for_test, auth_collision_logical_snapshot_for_test,
+        install_auth_collision_fixtures_for_test,
     };
     use axum::body::{Body, to_bytes};
     use axum::http::{Method, Request};
     use serde_json::json;
-    use snapback_services::test_support::rusqlite::{Connection, OptionalExtension, params};
-    use std::collections::BTreeMap;
     use tempfile::TempDir;
     use tower::ServiceExt as _;
 
@@ -560,25 +561,6 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("collision.sqlite3");
         drop(LocalDatabase::open(&path).unwrap());
-        let connection = Connection::open(&path).unwrap();
-        for (ordinal, source) in sources.iter().enumerate() {
-            connection
-                .execute_batch(&format!(
-                    "CREATE TABLE {}(id INTEGER); INSERT INTO {}(id) VALUES({});",
-                    crate::auth::rescue::quote_identifier(source),
-                    crate::auth::rescue::quote_identifier(source),
-                    ordinal + 1,
-                ))
-                .unwrap();
-        }
-        if expression_index {
-            connection
-                .execute_batch(&format!(
-                    "CREATE INDEX unsupported_expr ON {}(abs(id));",
-                    crate::auth::rescue::quote_identifier(sources[0])
-                ))
-                .unwrap();
-        }
         let manifest = SchemaManifest {
             schema_hash: Some("legacy-schema".to_owned()),
             inputs_hash: Some("legacy-inputs".to_owned()),
@@ -588,24 +570,20 @@ mod tests {
                 .collect(),
             ..SchemaManifest::default()
         };
-        connection
-            .execute(
-                "DELETE FROM _snapback_meta WHERE key IN (?1, ?2, ?3)",
-                params![
-                    META_AUTH_MODE_STATE,
-                    META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
-                    META_STAGED_AUTH_MODE_MANIFEST,
-                ],
-            )
-            .unwrap();
-        connection
-            .execute(
-                "INSERT INTO _snapback_meta(key, value) VALUES('schema_manifest', ?1)
-                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                params![serde_json::to_string(&manifest).unwrap()],
-            )
-            .unwrap();
-        drop(connection);
+        let tables = sources
+            .iter()
+            .enumerate()
+            .map(|(ordinal, source)| AuthCollisionFixtureTableForTest {
+                name: (*source).to_owned(),
+                row: AuthCollisionFixtureRowForTest::Integer((ordinal + 1) as i64),
+                index: if expression_index && ordinal == 0 {
+                    AuthCollisionFixtureIndexForTest::IntegerAbs
+                } else {
+                    AuthCollisionFixtureIndexForTest::None
+                },
+            })
+            .collect::<Vec<_>>();
+        install_auth_collision_fixtures_for_test(&path, &tables, Some(&manifest)).unwrap();
         CollisionFixture {
             _directory: directory,
             path,
@@ -697,71 +675,8 @@ mod tests {
         .unwrap()
     }
 
-    #[derive(Debug, Eq, PartialEq)]
-    struct LogicalSnapshot {
-        schema: Vec<(String, String, String, Option<String>)>,
-        meta: Vec<(String, String)>,
-        counts: BTreeMap<String, i64>,
-    }
-
-    fn logical_snapshot(path: &Path) -> LogicalSnapshot {
-        let connection = Connection::open(path).unwrap();
-        let mut statement = connection
-            .prepare(
-                "SELECT type, name, tbl_name, sql FROM sqlite_schema
-                 WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name",
-            )
-            .unwrap();
-        let schema: Vec<(String, String, String, Option<String>)> = statement
-            .query_map([], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, Option<String>>(3)?,
-                ))
-            })
-            .unwrap()
-            .collect::<Result<Vec<_>, _>>()
-            .unwrap();
-        let mut statement = connection
-            .prepare("SELECT key, value FROM _snapback_meta ORDER BY key")
-            .unwrap();
-        let meta = statement
-            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
-            .unwrap()
-            .collect::<Result<Vec<_>, _>>()
-            .unwrap();
-        let mut counts = BTreeMap::new();
-        for (_, name, _, _) in &schema {
-            if connection
-                .query_row(
-                    "SELECT 1 FROM pragma_table_list WHERE schema='main' AND name=?1 AND type='table'",
-                    params![name],
-                    |_| Ok(()),
-                )
-                .optional()
-                .unwrap()
-                .is_some()
-            {
-                let count = connection
-                    .query_row(
-                        &format!(
-                            "SELECT COUNT(*) FROM {}",
-                            crate::auth::rescue::quote_identifier(name)
-                        ),
-                        [],
-                        |row| row.get(0),
-                    )
-                    .unwrap();
-                counts.insert(name.clone(), count);
-            }
-        }
-        LogicalSnapshot {
-            schema,
-            meta,
-            counts,
-        }
+    fn logical_snapshot(path: &Path) -> AuthCollisionLogicalSnapshotForTest {
+        auth_collision_logical_snapshot_for_test(path).unwrap()
     }
 
     #[tokio::test]
@@ -1027,13 +942,16 @@ mod tests {
         // The stored-manifest collision is the startup trigger; an additional
         // dormant collision can be rescued through the same still-live router
         // before restart.
-        let connection = Connection::open(&fixture.path).unwrap();
-        connection
-            .execute_batch(
-                "CREATE TABLE _auth_two(id INTEGER); INSERT INTO _auth_two(id) VALUES(2);",
-            )
-            .unwrap();
-        drop(connection);
+        install_auth_collision_fixtures_for_test(
+            &fixture.path,
+            &[AuthCollisionFixtureTableForTest {
+                name: "_auth_two".to_owned(),
+                row: AuthCollisionFixtureRowForTest::Integer(2),
+                index: AuthCollisionFixtureIndexForTest::None,
+            }],
+            None,
+        )
+        .unwrap();
         let error = ordinary_open_error(&fixture.path);
         assert!(eligible(&fixture.path, &error).unwrap());
         let (runtime, bearer) = runtime(&fixture.path);
@@ -1086,35 +1004,14 @@ mod tests {
         assert_eq!(second["data"]["catalogCollisionCleared"], true);
         assert_eq!(second["data"]["restartRequired"], true);
         assert!(LocalDatabase::open(&fixture.path).is_ok());
-        let connection = Connection::open(&fixture.path).unwrap();
         for (source, target, expected) in [
             ("_auth_one", "legacy_one", 1_i64),
             ("_auth_two", "legacy_two", 2_i64),
         ] {
-            assert!(
-                connection
-                    .query_row(
-                        "SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?1",
-                        params![source],
-                        |_| Ok(())
-                    )
-                    .optional()
-                    .unwrap()
-                    .is_none()
-            );
-            assert_eq!(
-                connection
-                    .query_row(
-                        &format!(
-                            "SELECT id FROM {}",
-                            crate::auth::rescue::quote_identifier(target)
-                        ),
-                        [],
-                        |row| row.get::<_, i64>(0)
-                    )
-                    .unwrap(),
-                expected
-            );
+            let (source_exists, target_id) =
+                auth_collision_integer_transition_for_test(&fixture.path, source, target).unwrap();
+            assert!(!source_exists);
+            assert_eq!(target_id, expected);
         }
     }
 
@@ -1203,14 +1100,16 @@ mod tests {
     #[test]
     fn exact_index_collision_and_non_repairable_manifest_never_enter_recovery() {
         let fixture = collision_fixture(&["_auth_legacy"], false);
-        let connection = Connection::open(&fixture.path).unwrap();
-        connection
-            .execute_batch(
-                "CREATE TABLE ordinary(id INTEGER);
-                 CREATE UNIQUE INDEX _auth_sessions_token_uq ON ordinary(id);",
-            )
-            .unwrap();
-        drop(connection);
+        install_auth_collision_fixtures_for_test(
+            &fixture.path,
+            &[AuthCollisionFixtureTableForTest {
+                name: "ordinary".to_owned(),
+                row: AuthCollisionFixtureRowForTest::Integer(0),
+                index: AuthCollisionFixtureIndexForTest::ExactSessionsToken,
+            }],
+            None,
+        )
+        .unwrap();
         let error = ordinary_open_error(&fixture.path);
         let collision = eligible(&fixture.path, &error).unwrap_err();
         assert_eq!(
@@ -1221,28 +1120,11 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("absent.sqlite3");
         drop(LocalDatabase::open(&path).unwrap());
-        let connection = Connection::open(&path).unwrap();
         let manifest = SchemaManifest {
             tables: vec![table_manifest("_auth_absent")],
             ..SchemaManifest::default()
         };
-        connection
-            .execute(
-                "DELETE FROM _snapback_meta WHERE key IN (?1, ?2, ?3)",
-                params![
-                    META_AUTH_MODE_STATE,
-                    META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
-                    META_STAGED_AUTH_MODE_MANIFEST,
-                ],
-            )
-            .unwrap();
-        connection
-            .execute(
-                "INSERT INTO _snapback_meta(key, value) VALUES('schema_manifest', ?1)",
-                params![serde_json::to_string(&manifest).unwrap()],
-            )
-            .unwrap();
-        drop(connection);
+        install_auth_collision_fixtures_for_test(&path, &[], Some(&manifest)).unwrap();
         let error = ordinary_open_error(&path);
         assert!(!eligible(&path, &error).unwrap());
     }

@@ -1015,6 +1015,209 @@ fn rescue_unsupported(message: &str) -> SnapbackError {
     )
 }
 
+/// One closed row shape accepted by the auth-collision fixture guard.
+///
+/// The type deliberately cannot carry SQL, a connection, or transaction
+/// authority. Callers describe only the logical collision needed by a test.
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AuthCollisionFixtureRowForTest {
+    Integer(i64),
+    Text(Option<(String, String)>),
+}
+
+/// One closed index shape accepted by the auth-collision fixture guard.
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AuthCollisionFixtureIndexForTest {
+    None,
+    IntegerAbs,
+    TextValue(String),
+    ExactSessionsToken,
+}
+
+/// Typed input to the auth-collision fixture guard.
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthCollisionFixtureTableForTest {
+    pub name: String,
+    pub row: AuthCollisionFixtureRowForTest,
+    pub index: AuthCollisionFixtureIndexForTest,
+}
+
+/// A logical database snapshot used to prove denied recovery requests do not
+/// mutate schema, metadata, or row counts.
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthCollisionLogicalSnapshotForTest {
+    pub schema: Vec<(String, String, String, Option<String>)>,
+    pub meta: Vec<(String, String)>,
+    pub counts: BTreeMap<String, u64>,
+}
+
+/// Install only the closed collision shapes required by recovery tests.
+///
+/// @ref LLP 0285#53-defect-3--the-caller-selectable-raw-sqlite-feature —
+/// test callers receive a typed fixture guard, never raw SQLite authority.
+#[cfg(any(test, feature = "test-support"))]
+pub fn install_auth_collision_fixtures_for_test(
+    path: &Path,
+    tables: &[AuthCollisionFixtureTableForTest],
+    manifest: Option<&SchemaManifest>,
+) -> SnapbackResult<()> {
+    let mut connection = Connection::open(path)?;
+    let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    for table in tables {
+        if !valid_identifier(&table.name) {
+            return Err(rescue_invalid("test collision table name is invalid"));
+        }
+        let table_name = quote_identifier(&table.name);
+        match &table.row {
+            AuthCollisionFixtureRowForTest::Integer(id) => {
+                transaction.execute_batch(&format!("CREATE TABLE {table_name}(id INTEGER);"))?;
+                transaction.execute(
+                    &format!("INSERT INTO {table_name}(id) VALUES(?1)"),
+                    params![id],
+                )?;
+            }
+            AuthCollisionFixtureRowForTest::Text(row) => {
+                transaction.execute_batch(&format!(
+                    "CREATE TABLE {table_name}(id TEXT PRIMARY KEY, value TEXT);"
+                ))?;
+                if let Some((id, value)) = row {
+                    transaction.execute(
+                        &format!("INSERT INTO {table_name}(id, value) VALUES(?1, ?2)"),
+                        params![id, value],
+                    )?;
+                }
+            }
+        }
+        match &table.index {
+            AuthCollisionFixtureIndexForTest::None => {}
+            AuthCollisionFixtureIndexForTest::IntegerAbs => {
+                transaction.execute_batch(&format!(
+                    "CREATE INDEX unsupported_expr ON {table_name}(abs(id));"
+                ))?;
+            }
+            AuthCollisionFixtureIndexForTest::TextValue(index) => {
+                if !valid_identifier(index) {
+                    return Err(rescue_invalid("test collision index name is invalid"));
+                }
+                transaction.execute_batch(&format!(
+                    "CREATE INDEX {} ON {table_name}(value);",
+                    quote_identifier(index)
+                ))?;
+            }
+            AuthCollisionFixtureIndexForTest::ExactSessionsToken => {
+                transaction.execute_batch(&format!(
+                    "CREATE UNIQUE INDEX _auth_sessions_token_uq ON {table_name}(id);"
+                ))?;
+            }
+        }
+    }
+    if let Some(manifest) = manifest {
+        let serialized = serde_json::to_string(manifest)
+            .map_err(|_| rescue_invalid("test collision manifest cannot be serialized"))?;
+        transaction.execute(
+            "DELETE FROM _snapback_meta WHERE key IN (?1, ?2, ?3)",
+            params![
+                META_AUTH_MODE_STATE,
+                META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+                META_STAGED_AUTH_MODE_MANIFEST,
+            ],
+        )?;
+        transaction.execute(
+            "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![META_SCHEMA_MANIFEST, serialized],
+        )?;
+    }
+    transaction.commit()?;
+    Ok(())
+}
+
+/// Read the exact logical state needed by recovery non-mutation assertions.
+///
+/// @ref LLP 0285#53-defect-3--the-caller-selectable-raw-sqlite-feature — the
+/// guard returns typed values and retains the connection inside the kernel.
+#[cfg(any(test, feature = "test-support"))]
+pub fn auth_collision_logical_snapshot_for_test(
+    path: &Path,
+) -> SnapbackResult<AuthCollisionLogicalSnapshotForTest> {
+    let connection = Connection::open_with_flags(
+        path,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    let mut statement = connection.prepare(
+        "SELECT type, name, tbl_name, sql FROM sqlite_schema
+         WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name",
+    )?;
+    let schema = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut statement = connection.prepare("SELECT key, value FROM _snapback_meta ORDER BY key")?;
+    let meta = statement
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut counts = BTreeMap::new();
+    for (_, name, _, _) in &schema {
+        if connection
+            .query_row(
+                "SELECT 1 FROM pragma_table_list
+                 WHERE schema='main' AND name=?1 AND type='table'",
+                params![name],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some()
+        {
+            counts.insert(name.clone(), table_row_count(&connection, name)?);
+        }
+    }
+    Ok(AuthCollisionLogicalSnapshotForTest {
+        schema,
+        meta,
+        counts,
+    })
+}
+
+/// Probe the exact source-to-target integer transition after a rescue.
+#[cfg(any(test, feature = "test-support"))]
+pub fn auth_collision_integer_transition_for_test(
+    path: &Path,
+    source: &str,
+    target: &str,
+) -> SnapbackResult<(bool, i64)> {
+    if !valid_identifier(source) || !valid_identifier(target) {
+        return Err(rescue_invalid("test transition table name is invalid"));
+    }
+    let connection = Connection::open_with_flags(
+        path,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    let source_exists = connection
+        .query_row(
+            "SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?1",
+            params![source],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    let target_id = connection.query_row(
+        &format!("SELECT id FROM {}", quote_identifier(target)),
+        [],
+        |row| row.get(0),
+    )?;
+    Ok((source_exists, target_id))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

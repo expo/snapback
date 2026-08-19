@@ -6,7 +6,6 @@ use snapback_auth::auth::lifecycle::{
 };
 use snapback_auth::storage::LocalDatabase;
 use snapback_auth::storage::auth::{AuthCatalogState, PasswordIdentifierMode};
-use snapback_services::test_support::rusqlite;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, Ordering};
 
@@ -225,8 +224,9 @@ fn backup_and_restore_publish_exact_owner_only_consistent_units() {
     let restored_keyring = AuthKeyringStore::file_for_database(&target_database);
     let key_id = AuthKeyId::parse(&restored.auth_retained_key_ids().unwrap()[0]).unwrap();
     restored_keyring.with_key(&key_id, |_| ()).unwrap();
-    drop(restored);
-    let restored_rows = rusqlite::Connection::open(&target_database).unwrap();
+    let (restored_counts, restored_attempt, restored_payload_bytes) = restored
+        .auth_backup_fixture_state_for_test("backup-ledger@example.com")
+        .unwrap();
     for table in [
         "_auth_credentials",
         "_auth_recovery_code_sets",
@@ -235,38 +235,12 @@ fn backup_and_restore_publish_exact_owner_only_consistent_units() {
         "_auth_security_events",
         "_auth_password_attempts",
     ] {
-        let count: u64 = restored_rows
-            .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
-                row.get(0)
-            })
-            .unwrap();
+        let count = restored_counts[table];
         assert!(count > 0, "v4 backup omitted state from {table}");
     }
+    assert_eq!(restored_attempt, Some((20, 4, Some(120))));
     assert_eq!(
-        restored_rows
-            .query_row(
-                "SELECT address,window_start_ms,failed_count,locked_until_ms
-                     FROM _auth_password_attempts",
-                [],
-                |row| Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, u64>(1)?,
-                    row.get::<_, u64>(2)?,
-                    row.get::<_, Option<u64>>(3)?,
-                )),
-            )
-            .unwrap(),
-        ("backup-ledger@example.com".to_owned(), 20, 4, Some(120))
-    );
-    assert_eq!(
-        restored_rows
-            .query_row(
-                "SELECT length(payload) FROM backup_large_app_fixture",
-                [],
-                |row| row.get::<_, u64>(0),
-            )
-            .unwrap(),
-        1_048_576,
+        restored_payload_bytes, 1_048_576,
         "the descriptor-safe backup must retain real multi-page app data",
     );
 }

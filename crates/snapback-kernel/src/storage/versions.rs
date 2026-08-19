@@ -7,9 +7,56 @@ use super::{
     version_to_sql_integer, with_pinned_read_snapshot, write_authority,
 };
 use rusqlite::params;
+#[cfg(any(test, feature = "test-support"))]
+use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
 
 impl LocalDatabase {
+    /// Install the non-integral durable head used by corruption diagnostics.
+    ///
+    /// @ref LLP 0285#53-defect-3--the-caller-selectable-raw-sqlite-feature —
+    /// the fault is exact and typed; no connection or caller SQL escapes.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_real_storage_version_for_test(path: &std::path::Path) -> SnapbackResult<()> {
+        let connection = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        connection.execute(
+            "UPDATE _snapback_version SET version = 1.5 WHERE id = 1",
+            [],
+        )?;
+        Ok(())
+    }
+
+    /// Install the zero durable head used at the mutation postcommit seam.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_zero_storage_version_for_test(path: &std::path::Path) -> SnapbackResult<()> {
+        let connection = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        connection.execute("UPDATE _snapback_version SET version = 0 WHERE id = 1", [])?;
+        Ok(())
+    }
+
+    /// Probe the exact durable successor asserted by the postcommit fault test.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn postcommit_items_state_for_test(path: &std::path::Path) -> SnapbackResult<(i64, i64)> {
+        let connection = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        Ok((
+            connection.query_row("SELECT COUNT(*) FROM items", [], |row| row.get(0))?,
+            connection.query_row(
+                "SELECT COUNT(*) FROM _snapback_changes WHERE version = 1",
+                [],
+                |row| row.get(0),
+            )?,
+        ))
+    }
+
     pub(super) fn current_version(&self) -> SnapbackResult<u64> {
         current_version_on(&self.conn)
     }

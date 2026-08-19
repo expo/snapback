@@ -34,7 +34,8 @@ uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
 zeroize = "1.8"
 
 [dev-dependencies]
-snapback-services = { path = "../snapback-services", features = ["remainder-tests"] }
+snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }
+snapback-services = { path = "../snapback-services", features = ["test-support"] }
 tempfile = "3.23"
 tokio = { version = "1.48", features = ["full", "test-util"] }
 

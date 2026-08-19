@@ -189,8 +189,7 @@ fn parent_with_schema(directory: &Path, ballast_mb: u64) -> PathBuf {
         .expect("apply parent schema");
     drop(parent);
     if ballast_mb > 0 {
-        let conn = snapback_services::test_support::rusqlite::Connection::open(&source)
-            .expect("open parent");
+        let conn = rusqlite::Connection::open(&source).expect("open parent");
         conn.execute_batch("CREATE TABLE ballast(id INTEGER PRIMARY KEY, bytes BLOB)")
             .unwrap();
         for row in 0..ballast_mb {
@@ -343,10 +342,8 @@ fn fork_lifecycle_row13_bench() {
     )
     .expect("publish net fixture");
     for destination in ["fork-attributed", "fork-net"] {
-        let conn = snapback_services::test_support::rusqlite::Connection::open(
-            diff_root.join(destination).join("parent.sqlite3"),
-        )
-        .unwrap();
+        let conn =
+            rusqlite::Connection::open(diff_root.join(destination).join("parent.sqlite3")).unwrap();
         conn.execute_batch(
             "UPDATE _snapback_version SET version=1 WHERE id=1;
              CREATE TABLE IF NOT EXISTS bench_rows(_id TEXT PRIMARY KEY, n INTEGER);",
@@ -356,7 +353,7 @@ fn fork_lifecycle_row13_bench() {
         for index in 0..10_000 {
             tx.execute(
                 "INSERT INTO bench_rows(_id, n) VALUES(?1, ?2)",
-                snapback_services::test_support::rusqlite::params![format!("row-{index}"), index],
+                rusqlite::params![format!("row-{index}"), index],
             )
             .unwrap();
             tx.execute(

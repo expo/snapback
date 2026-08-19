@@ -542,7 +542,7 @@ pub fn inspect_video(
 }
 
 /// Deterministic container fixtures shared with the finalizer e2e suites.
-#[cfg(any(test, feature = "remainder-tests"))]
+#[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
 pub mod fixtures {
     pub const GPS: &str = "+37.7749-122.4194/";
 

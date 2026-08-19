@@ -2398,7 +2398,6 @@ fn cli_only_host_op_message(operation: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use snapback_services::test_support::rusqlite;
 
     #[test]
     fn cli_only_refusals_name_the_catalog_cli_projection() {
@@ -2507,13 +2506,8 @@ mod tests {
         let dir = tempfile::tempdir().expect("host-ops tempdir");
         let path = dir.path().join("corrupt-version.sqlite3");
         let snapback = LocalSnapback::open(&path).expect("file-backed host-op fixture");
-        let raw = rusqlite::Connection::open(&path).expect("open corruption fixture");
-        raw.execute(
-            "UPDATE _snapback_version SET version = ?1 WHERE id = 1",
-            rusqlite::params![rusqlite::types::Value::Real(1.5)],
-        )
-        .expect("install malformed durable version");
-        drop(raw);
+        crate::storage::LocalDatabase::install_real_storage_version_for_test(&path)
+            .expect("install malformed durable version");
 
         let result = host_ops_result(
             &snapback,

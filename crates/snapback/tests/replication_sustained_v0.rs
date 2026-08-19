@@ -1,10 +1,10 @@
 #![cfg(unix)]
 
+use rusqlite;
 use serde_json::Value;
 use snapback::auth::crypto::OsRandom;
 use snapback::auth::keyring::AuthKeyringStore;
 use snapback_kernel::storage::LocalDatabase;
-use snapback_services::test_support::rusqlite;
 use std::fs;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};

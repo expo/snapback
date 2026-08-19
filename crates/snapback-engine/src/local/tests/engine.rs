@@ -1,5 +1,23 @@
 use super::*;
-use snapback_services::test_support::rusqlite;
+
+fn telemetry_events_for_test(
+    telemetry: &crate::telemetry::Telemetry,
+    kind: &str,
+    name: &str,
+) -> Vec<crate::telemetry_query::TelemetryEventV1> {
+    telemetry
+        .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
+            filter: crate::telemetry_query::TelemetryFilterV1 {
+                kind: Some(kind.to_owned()),
+                name: Some(name.to_owned()),
+                ..crate::telemetry_query::TelemetryFilterV1::default()
+            },
+            limit: crate::telemetry_query::MAX_EVENT_LIMIT,
+            ..crate::telemetry_query::TelemetryEventsRequestV1::default()
+        })
+        .expect("typed telemetry test query")
+        .events
+}
 
 #[test]
 fn unbound_local_snapback_defaults_governance_activation_to_prod() {
@@ -6255,19 +6273,13 @@ fn declared_application_refusal_round_trips_and_undeclared_folds() {
         .telemetry
         .force_flush()
         .expect("flush refusal emission evidence");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
-    .expect("open refusal telemetry sibling");
     let details_for = |name: &str| -> Value {
-        let encoded: String = raw
-                .query_row(
-                    "SELECT details FROM telemetry_events_visible WHERE kind='function_run' AND name=?1 ORDER BY id DESC LIMIT 1",
-                    rusqlite::params![name],
-                    |row| row.get(0),
-                )
-                .expect("function failure details");
-        serde_json::from_str(&encoded).expect("failure details decode")
+        telemetry_events_for_test(&snapback.telemetry, "function_run", name)
+            .into_iter()
+            .next_back()
+            .expect("function failure details")
+            .details
+            .expect("failure details payload")
     };
     let tracked_details = details_for("declaredRefusal");
     assert_eq!(tracked_details["failure_disposition"], "app_refusal");
@@ -6278,13 +6290,7 @@ fn declared_application_refusal_round_trips_and_undeclared_folds() {
     assert_eq!(untracked_details["failure_disposition"], "app_refusal");
     assert_eq!(untracked_details["issue_eligible"], false);
     assert!(untracked_details.get("fp_hash").is_none());
-    let grouped_names = raw
-        .prepare("SELECT name FROM error_groups_visible ORDER BY name")
-        .unwrap()
-        .query_map([], |row| row.get::<_, String>(0))
-        .unwrap()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap();
+    let grouped_names = snapback.telemetry.error_group_names_for_test().unwrap();
     assert_eq!(
         grouped_names,
         vec!["declaredRefusal".to_owned(), "undeclaredRefusal".to_owned()],
@@ -14666,20 +14672,17 @@ fn timeout_retirement_suppresses_cron_finish_and_result_ledger_publication() {
         .telemetry
         .force_flush()
         .expect("flush rejected cron terminal");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
-    .expect("open cron telemetry sibling");
-    let (phase, status, code): (String, i64, String) = raw
-            .query_row(
-                "SELECT phase,status,code FROM telemetry_events WHERE kind='job_run' AND name='gatedCron' ORDER BY id DESC LIMIT 1",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .expect("cron publication guard terminal observation");
+    let terminal = telemetry_events_for_test(&snapback.telemetry, "job_run", "gatedCron")
+        .into_iter()
+        .next_back()
+        .expect("cron publication guard terminal observation");
     assert_eq!(
-        (phase.as_str(), status, code.as_str()),
-        ("joined", 500, "SNAPBACK_AUTH_MODE_PENDING")
+        (
+            terminal.phase.as_str(),
+            terminal.status,
+            terminal.code.as_deref()
+        ),
+        ("joined", Some(500), Some("SNAPBACK_AUTH_MODE_PENDING"))
     );
 }
 
@@ -22987,12 +22990,7 @@ fn guarded_snapback() -> LocalSnapback {
 
 #[test]
 fn served_staging_and_managed_action_emit_function_and_runtime_log_observations() {
-    fn stage_and_commit(
-        snapback: &mut LocalSnapback,
-        database_path: &std::path::Path,
-        name: &str,
-        input: HandlerInput,
-    ) {
+    fn stage_and_commit(snapback: &mut LocalSnapback, name: &str, input: HandlerInput) {
         let correlation =
             telemetry_correlation(&input.correlation).expect("staged observation correlation");
         let authority = InvocationGate::prepare_dev_input(
@@ -23008,22 +23006,18 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
             .telemetry
             .force_flush()
             .expect("flush staged observations");
-        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-            database_path,
-        ))
-        .expect("open staged telemetry sibling");
-        let staged_successes: i64 = raw
-                .query_row(
-                    "SELECT COUNT(*) FROM telemetry_events WHERE kind='function_run' AND name=?1 AND phase='joined' AND status=200 AND correlation=?2",
-                    rusqlite::params![name, correlation],
-                    |row| row.get(0),
-                )
-                .unwrap();
+        let staged_successes = telemetry_events_for_test(&snapback.telemetry, "function_run", name)
+            .into_iter()
+            .filter(|event| {
+                event.phase == "joined"
+                    && event.status == Some(200)
+                    && event.correlation.as_deref() == Some(correlation.as_str())
+            })
+            .count();
         assert_eq!(
             staged_successes, 0,
             "staging cannot publish a successful terminal observation"
         );
-        drop(raw);
         let (result, _receipt) = snapback
             .try_with_direct_authorization_write(preflight, move |snapback| {
                 snapback.commit_staged_recorded_authorization_mutation(staged)
@@ -23070,18 +23064,8 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
         correlation: Some(json!(correlation)),
         ..input()
     };
-    stage_and_commit(
-        &mut snapback,
-        &database_path,
-        "hostInsert",
-        with_correlation("host-staged"),
-    );
-    stage_and_commit(
-        &mut snapback,
-        &database_path,
-        "ibexInsert",
-        with_correlation("ibex-staged"),
-    );
+    stage_and_commit(&mut snapback, "hostInsert", with_correlation("host-staged"));
+    stage_and_commit(&mut snapback, "ibexInsert", with_correlation("ibex-staged"));
 
     let refused_input = with_correlation("host-refused");
     let refused_authority = InvocationGate::prepare_dev_input(
@@ -23174,58 +23158,64 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
         .telemetry
         .force_flush()
         .expect("flush function observations");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
-    .expect("open function telemetry sibling");
     for (name, correlation) in [("hostInsert", "host-staged"), ("ibexInsert", "ibex-staged")] {
-        let count: i64 = raw
-                .query_row(
-                    "SELECT COUNT(*) FROM telemetry_events WHERE kind='function_run' AND name=?1 AND phase='joined' AND status=200 AND correlation=?2",
-                    rusqlite::params![name, correlation],
-                    |row| row.get(0),
-                )
-                .unwrap();
+        let count = telemetry_events_for_test(&snapback.telemetry, "function_run", name)
+            .into_iter()
+            .filter(|event| {
+                event.phase == "joined"
+                    && event.status == Some(200)
+                    && event.correlation.as_deref() == Some(correlation)
+            })
+            .count();
         assert_eq!(count, 1, "one completed function span for {name}");
     }
-    let refused_terminal: (i64, String) = raw
-            .query_row(
-                "SELECT status,code FROM telemetry_events WHERE kind='function_run' AND name='hostInsert' AND phase='joined' AND correlation='host-refused' ORDER BY id DESC LIMIT 1",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .expect("authoritative refusal observation");
-    assert_eq!(refused_terminal.0, 500);
-    assert!(!refused_terminal.1.is_empty());
-    let refused_successes: i64 = raw
-            .query_row(
-                "SELECT COUNT(*) FROM telemetry_events WHERE kind='function_run' AND name='hostInsert' AND phase='joined' AND status=200 AND correlation='host-refused'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+    let refused_events =
+        telemetry_events_for_test(&snapback.telemetry, "function_run", "hostInsert")
+            .into_iter()
+            .filter(|event| {
+                event.phase == "joined" && event.correlation.as_deref() == Some("host-refused")
+            })
+            .collect::<Vec<_>>();
+    let refused_terminal = refused_events
+        .last()
+        .expect("authoritative refusal observation");
+    assert_eq!(refused_terminal.status, Some(500));
+    assert!(
+        refused_terminal
+            .code
+            .as_ref()
+            .is_some_and(|code| !code.is_empty())
+    );
+    let refused_successes = refused_events
+        .iter()
+        .filter(|event| event.status == Some(200))
+        .count();
     assert_eq!(
         refused_successes, 0,
         "authoritative refusal cannot retain staging status=200"
     );
-    let managed_failure: (i64, String) = raw
-            .query_row(
-                "SELECT status,code FROM telemetry_events WHERE kind='function_run' AND name='emptyAction' AND phase='joined' AND correlation='managed-action' ORDER BY id DESC LIMIT 1",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
+    let managed_failure =
+        telemetry_events_for_test(&snapback.telemetry, "function_run", "emptyAction")
+            .into_iter()
+            .rev()
+            .find(|event| {
+                event.phase == "joined" && event.correlation.as_deref() == Some("managed-action")
+            })
             .expect("managed action handoff terminal");
     assert_eq!(
-        (managed_failure.0, managed_failure.1.as_str()),
-        (500, "SNAPBACK_AUTH_MODE_PENDING")
+        (managed_failure.status, managed_failure.code.as_deref()),
+        (Some(500), Some("SNAPBACK_AUTH_MODE_PENDING"))
     );
-    let logged: i64 = raw
-            .query_row(
-                "SELECT COUNT(*) FROM telemetry_events WHERE kind='log' AND name='log' AND correlation='ibex-staged' AND details LIKE '%staged-log%'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+    let logged = telemetry_events_for_test(&snapback.telemetry, "log", "log")
+        .into_iter()
+        .filter(|event| {
+            event.correlation.as_deref() == Some("ibex-staged")
+                && event
+                    .details
+                    .as_ref()
+                    .is_some_and(|details| details.to_string().contains("staged-log"))
+        })
+        .count();
     assert_eq!(logged, 1, "runtime.log stays bound to the staged handler");
 }
 
@@ -23247,25 +23237,14 @@ fn telemetry_config_persist_failure_restores_the_previous_runtime_policy() {
         .telemetry
         .force_flush()
         .expect("establish telemetry before failed config transition");
-    let telemetry_path = crate::telemetry::Telemetry::path_for_database(&database_path);
-    let raw = rusqlite::Connection::open(&telemetry_path)
-        .expect("open telemetry sibling before failed config transition");
-    let floor_before: i64 = raw
-        .query_row(
-            "SELECT retention_floor FROM telemetry_meta WHERE singleton=1",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap();
-    let visible_before: i64 = raw
-        .query_row(
-            "SELECT COUNT(*) FROM telemetry_events_visible WHERE name='before_failed_config'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap();
+    let floor_before = snapback
+        .telemetry
+        .durable_meta_for_test()
+        .unwrap()
+        .retention_floor;
+    let visible_before =
+        telemetry_events_for_test(&snapback.telemetry, "lifecycle", "before_failed_config").len();
     assert_eq!(visible_before, 1);
-    drop(raw);
     let config_path = crate::config::ConfigStore::path_for_database(&database_path);
     std::fs::create_dir(&config_path).expect("block atomic config rename with a directory");
 
@@ -23283,22 +23262,13 @@ fn telemetry_config_persist_failure_restores_the_previous_runtime_policy() {
         "failed persistence does not publish a new durable config"
     );
 
-    let raw = rusqlite::Connection::open(&telemetry_path)
-        .expect("reopen telemetry sibling after failed config transition");
-    let floor_after: i64 = raw
-        .query_row(
-            "SELECT retention_floor FROM telemetry_meta WHERE singleton=1",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap();
-    let visible_after: i64 = raw
-        .query_row(
-            "SELECT COUNT(*) FROM telemetry_events_visible WHERE name='before_failed_config'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap();
+    let floor_after = snapback
+        .telemetry
+        .durable_meta_for_test()
+        .unwrap()
+        .retention_floor;
+    let visible_after =
+        telemetry_events_for_test(&snapback.telemetry, "lifecycle", "before_failed_config").len();
     assert_eq!(
         floor_after, floor_before,
         "failed persistence cannot advance the privacy floor"
@@ -23307,8 +23277,6 @@ fn telemetry_config_persist_failure_restores_the_previous_runtime_policy() {
         visible_after, 1,
         "failed persistence cannot hide an existing event"
     );
-    drop(raw);
-
     snapback.telemetry.point(
         "lifecycle",
         "config_compensation_probe",
@@ -23322,15 +23290,12 @@ fn telemetry_config_persist_failure_restores_the_previous_runtime_policy() {
         .telemetry
         .force_flush()
         .expect("the compensated runtime accepts observations");
-    let raw =
-        rusqlite::Connection::open(&telemetry_path).expect("open unchanged telemetry sibling");
-    let count: i64 = raw
-            .query_row(
-                "SELECT COUNT(*) FROM telemetry_events WHERE kind='lifecycle' AND name='config_compensation_probe'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+    let count = telemetry_events_for_test(
+        &snapback.telemetry,
+        "lifecycle",
+        "config_compensation_probe",
+    )
+    .len();
     assert_eq!(count, 1);
 }
 
@@ -23416,49 +23381,32 @@ fn target_descriptor_identity_survives_restart_and_compatibility_open_unbinds() 
         .telemetry
         .force_flush()
         .expect("flush descriptor-bound process start");
-    let telemetry_path = crate::telemetry::Telemetry::path_for_database(&database_path);
-    let first: (String, Option<String>, Option<String>) =
-        rusqlite::Connection::open(&telemetry_path)
-            .unwrap()
-            .query_row(
-                "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .unwrap();
-    assert_eq!(first.1.as_deref(), Some(app_id.as_str()));
-    assert_eq!(first.2.as_deref(), Some(environment_id));
+    let first = snapback.telemetry.durable_meta_for_test().unwrap();
+    assert_eq!(first.app_id.as_deref(), Some(app_id.as_str()));
+    assert_eq!(first.environment.as_deref(), Some(environment_id));
     drop(snapback);
 
     let reopened = LocalSnapback::open_for_target(&database_path, &target)
         .expect("reopen under the same descriptor");
     reopened.telemetry.force_flush().unwrap();
-    let same: (String, Option<String>, Option<String>) =
-        rusqlite::Connection::open(&telemetry_path)
-            .unwrap()
-            .query_row(
-                "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .unwrap();
-    assert_eq!(same, first, "same descriptor does not rotate identity");
+    let same = reopened.telemetry.durable_meta_for_test().unwrap();
+    assert_eq!(
+        (same.generation, same.app_id, same.environment),
+        (
+            first.generation.clone(),
+            first.app_id.clone(),
+            first.environment.clone(),
+        ),
+        "same descriptor does not rotate identity"
+    );
     drop(reopened);
 
     let compatibility = LocalSnapback::open(&database_path)
         .expect("compatibility open remains available but unbound");
     compatibility.telemetry.force_flush().unwrap();
-    let unbound: (String, Option<String>, Option<String>) =
-        rusqlite::Connection::open(&telemetry_path)
-            .unwrap()
-            .query_row(
-                "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .unwrap();
-    assert_ne!(unbound.0, first.0);
-    assert_eq!((unbound.1, unbound.2), (None, None));
+    let unbound = compatibility.telemetry.durable_meta_for_test().unwrap();
+    assert_ne!(unbound.generation, first.generation);
+    assert_eq!((unbound.app_id, unbound.environment), (None, None));
 }
 
 #[test]
@@ -23470,15 +23418,11 @@ fn schema_app_identity_change_rotates_without_relabeling_predecessor_rows() {
     let mut snapback = LocalSnapback::open_for_target(&database_path, &target)
         .expect("open descriptor-bound instance");
     snapback.telemetry.force_flush().unwrap();
-    let telemetry_path = crate::telemetry::Telemetry::path_for_database(&database_path);
-    let predecessor_generation: String = rusqlite::Connection::open(&telemetry_path)
+    let predecessor_generation = snapback
+        .telemetry
+        .durable_meta_for_test()
         .unwrap()
-        .query_row(
-            "SELECT generation FROM telemetry_meta WHERE singleton=1",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap();
+        .generation;
 
     let same_app = SchemaManifest {
         generated_at: Some(1),
@@ -23487,14 +23431,11 @@ fn schema_app_identity_change_rotates_without_relabeling_predecessor_rows() {
     snapback
         .apply_schema(same_app)
         .expect("publish same-app schema");
-    let same_generation: String = rusqlite::Connection::open(&telemetry_path)
+    let same_generation = snapback
+        .telemetry
+        .durable_meta_for_test()
         .unwrap()
-        .query_row(
-            "SELECT generation FROM telemetry_meta WHERE singleton=1",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap();
+        .generation;
     assert_eq!(same_generation, predecessor_generation);
 
     let successor_app_id = "successor-app-identity".to_owned();
@@ -23511,26 +23452,16 @@ fn schema_app_identity_change_rotates_without_relabeling_predecessor_rows() {
         crate::diagnostic::DiagnosticSeverity::Error | crate::diagnostic::DiagnosticSeverity::Fatal
     )));
 
-    let raw = rusqlite::Connection::open(&telemetry_path).unwrap();
-    let successor_meta: (String, String, String) = raw
-        .query_row(
-            "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )
-        .unwrap();
-    assert_ne!(successor_meta.0, predecessor_generation);
-    assert_eq!(successor_meta.1, successor_app_id);
-    assert_eq!(successor_meta.2, environment_id);
-    let total: i64 = raw
-        .query_row("SELECT count(*) FROM telemetry_events", [], |row| {
-            row.get(0)
-        })
-        .unwrap();
-    let visible: i64 = raw
-        .query_row("SELECT count(*) FROM telemetry_events_visible", [], |row| {
-            row.get(0)
-        })
+    let successor_meta = snapback.telemetry.durable_meta_for_test().unwrap();
+    assert_ne!(successor_meta.generation, predecessor_generation);
+    assert_eq!(
+        successor_meta.app_id.as_deref(),
+        Some(successor_app_id.as_str())
+    );
+    assert_eq!(successor_meta.environment.as_deref(), Some(environment_id));
+    let (total, visible) = snapback
+        .telemetry
+        .physical_and_visible_event_counts_for_test()
         .unwrap();
     assert!(total > 0, "predecessor rows remain physically present");
     assert_eq!(visible, 0, "predecessor rows are generation-hidden");
@@ -23545,34 +23476,22 @@ fn descriptor_bound_reset_rotates_generation_and_preserves_exact_identity() {
     let mut snapback = LocalSnapback::open_for_target(&database_path, &target)
         .expect("open descriptor-bound reset fixture");
     snapback.telemetry.force_flush().unwrap();
-    let telemetry_path = crate::telemetry::Telemetry::path_for_database(&database_path);
-    let before: (String, String, String) = rusqlite::Connection::open(&telemetry_path)
-        .unwrap()
-        .query_row(
-            "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )
-        .unwrap();
+    let before = snapback.telemetry.durable_meta_for_test().unwrap();
 
     snapback.reset().expect("descriptor-bound reset commits");
     snapback
         .telemetry
         .force_flush()
         .expect("flush successor reset lifecycle");
-    let after: (String, String, String) = rusqlite::Connection::open(&telemetry_path)
-        .unwrap()
-        .query_row(
-            "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )
-        .unwrap();
-    assert_ne!(after.0, before.0);
-    assert_eq!(after.1, before.1);
-    assert_eq!(after.2, before.2);
-    assert_eq!(after.1, SchemaManifest::default().app_id);
-    assert_eq!(after.2, environment_id);
+    let after = snapback.telemetry.durable_meta_for_test().unwrap();
+    assert_ne!(after.generation, before.generation);
+    assert_eq!(after.app_id, before.app_id);
+    assert_eq!(after.environment, before.environment);
+    assert_eq!(
+        after.app_id.as_deref(),
+        Some(SchemaManifest::default().app_id.as_str())
+    );
+    assert_eq!(after.environment.as_deref(), Some(environment_id));
 }
 
 #[test]
@@ -23625,17 +23544,12 @@ fn telemetry_runtime_config_failure_compensates_the_durable_config() {
         .telemetry
         .force_flush()
         .expect("prior runtime policy remains live after failed transition");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
-    .expect("open runtime compensation telemetry sibling");
-    let count: i64 = raw
-            .query_row(
-                "SELECT COUNT(*) FROM telemetry_events_visible WHERE name='runtime_config_compensation_probe'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+    let count = telemetry_events_for_test(
+        &snapback.telemetry,
+        "lifecycle",
+        "runtime_config_compensation_probe",
+    )
+    .len();
     assert_eq!(count, 1);
 }
 
@@ -23674,24 +23588,10 @@ fn uncertain_reset_fence_drops_observations_until_boot_reconciliation() {
         .force_flush()
         .expect("flush fail-closed drop accounting");
 
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
-    .expect("open reset telemetry sibling");
-    let before: i64 = raw
-        .query_row(
-            "SELECT COUNT(*) FROM telemetry_events WHERE name='before_uncertain_reset'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap();
-    let after: i64 = raw
-        .query_row(
-            "SELECT COUNT(*) FROM telemetry_events WHERE name='after_uncertain_reset'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap();
+    let before =
+        telemetry_events_for_test(&snapback.telemetry, "lifecycle", "before_uncertain_reset").len();
+    let after =
+        telemetry_events_for_test(&snapback.telemetry, "lifecycle", "after_uncertain_reset").len();
     assert_eq!((before, after), (1, 0));
 }
 
@@ -24047,27 +23947,19 @@ fn dropped_staged_function_carriers_record_reserved_cancellation() {
         .telemetry
         .force_flush()
         .expect("flush carrier cancellations");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
-    .expect("open cancellation telemetry sibling");
     for (name, correlation) in [
         ("hostInsert", "cancelled-staged-mutation"),
         ("emptyAction", "cancelled-managed-action"),
     ] {
-        let (phase, status, code, details):
-                (String, i64, Option<String>, String) = raw
-                .query_row(
-                    "SELECT phase,status,code,details FROM telemetry_events WHERE kind='function_run' AND name=?1 AND correlation=?2",
-                    rusqlite::params![name, correlation],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-                )
-                .expect("cancelled carrier terminal");
-        assert_eq!((phase.as_str(), status, code), ("joined", 499, None));
+        let terminal = telemetry_events_for_test(&snapback.telemetry, "function_run", name)
+            .into_iter()
+            .find(|event| event.correlation.as_deref() == Some(correlation))
+            .expect("cancelled carrier terminal");
         assert_eq!(
-            serde_json::from_str::<Value>(&details).unwrap()["cause"],
-            "cancelled"
+            (terminal.phase.as_str(), terminal.status, terminal.code),
+            ("joined", Some(499), None)
         );
+        assert_eq!(terminal.details.unwrap()["cause"], "cancelled");
     }
 }
 
@@ -25612,24 +25504,15 @@ fn live_subscription_observations_join_once_and_record_disconnect_cause() {
         .telemetry
         .force_flush()
         .expect("flush admission before completion");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
-    .expect("open live telemetry sibling");
-    let admission_only: i64 = raw
-            .query_row(
-                "SELECT count(*) FROM telemetry_events WHERE kind='live_subscribe' AND phase='admission'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
-    let premature_terminal: i64 = raw
-            .query_row(
-                "SELECT count(*) FROM telemetry_events WHERE kind='live_subscribe' AND phase='terminal'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+    let admitted = telemetry_events_for_test(&snapback.telemetry, "live_subscribe", "listItems");
+    let admission_only = admitted
+        .iter()
+        .filter(|event| event.phase == "admission")
+        .count();
+    let premature_terminal = admitted
+        .iter()
+        .filter(|event| event.phase == "terminal")
+        .count();
     assert_eq!((admission_only, premature_terminal), (1, 0));
 
     snapback
@@ -25651,46 +25534,33 @@ fn live_subscription_observations_join_once_and_record_disconnect_cause() {
         .force_flush()
         .expect("flush live terminals");
 
-    let mut statement = raw
-            .prepare(
-                "SELECT observation,phase,generation,correlation,details,recorded_ts_ms FROM telemetry_events WHERE kind='live_subscribe' ORDER BY id",
-            )
-            .unwrap();
-    let rows = statement
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, Option<String>>(3)?,
-                row.get::<_, Option<String>>(4)?,
-                row.get::<_, i64>(5)?,
-            ))
-        })
-        .unwrap()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap();
+    let rows = telemetry_events_for_test(&snapback.telemetry, "live_subscribe", "listItems");
     let mut by_observation = BTreeMap::<String, Vec<_>>::new();
     for row in rows {
-        by_observation.entry(row.0.clone()).or_default().push(row);
+        by_observation
+            .entry(row.observation.clone())
+            .or_default()
+            .push(row);
     }
     assert_eq!(by_observation.len(), 2);
     let mut causes = BTreeSet::new();
     for records in by_observation.values() {
         assert_eq!(records.len(), 2, "one admission and one terminal");
-        assert_eq!(records[0].1, "admission");
-        assert_eq!(records[1].1, "terminal");
-        assert_eq!(records[0].2, records[1].2, "generation is admission-bound");
+        assert_eq!(records[0].phase, "admission");
+        assert_eq!(records[1].phase, "terminal");
         assert_eq!(
-            records[0].3, records[1].3,
+            records[0].generation, records[1].generation,
+            "generation is admission-bound"
+        );
+        assert_eq!(
+            records[0].correlation, records[1].correlation,
             "correlation remains connection-bound"
         );
-        let details: Value =
-            serde_json::from_str(records[1].4.as_deref().expect("terminal cause details")).unwrap();
+        let details = records[1].details.as_ref().expect("terminal cause details");
         causes.insert(details["cause"].as_str().unwrap().to_owned());
-        if records[0].3.as_deref() == Some("live-unsubscribe") {
+        if records[0].correlation.as_deref() == Some("live-unsubscribe") {
             assert!(
-                records[1].5 > records[0].5,
+                records[1].recorded_ts_ms > records[0].recorded_ts_ms,
                 "a later flush timestamps completion after admission"
             );
         }
@@ -25740,30 +25610,11 @@ fn live_resume_retires_predecessor_before_successor_admission() {
         .telemetry
         .force_flush()
         .expect("flush resume spans");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
-    .expect("open resume telemetry");
-    let rows = raw
-            .prepare(
-                "SELECT observation,phase,correlation,details FROM telemetry_events WHERE kind='live_subscribe' ORDER BY id",
-            )
-            .unwrap()
-            .query_map([], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, Option<String>>(2)?,
-                    row.get::<_, Option<String>>(3)?,
-                ))
-            })
-            .unwrap()
-            .collect::<Result<Vec<_>, _>>()
-            .unwrap();
+    let rows = telemetry_events_for_test(&snapback.telemetry, "live_subscribe", "listItems");
     assert_eq!(rows.len(), 4);
     assert_eq!(
         rows.iter()
-            .map(|row| (row.1.as_str(), row.2.as_deref()))
+            .map(|row| (row.phase.as_str(), row.correlation.as_deref()))
             .collect::<Vec<_>>(),
         vec![
             ("admission", Some("resume-before")),
@@ -25773,11 +25624,11 @@ fn live_resume_retires_predecessor_before_successor_admission() {
         ],
         "the resume commit retires the predecessor before admitting its successor"
     );
-    assert_eq!(rows[0].0, rows[1].0);
-    assert_eq!(rows[2].0, rows[3].0);
-    assert_ne!(rows[0].0, rows[2].0);
-    let predecessor: Value = serde_json::from_str(rows[1].3.as_deref().unwrap()).unwrap();
-    let successor: Value = serde_json::from_str(rows[3].3.as_deref().unwrap()).unwrap();
+    assert_eq!(rows[0].observation, rows[1].observation);
+    assert_eq!(rows[2].observation, rows[3].observation);
+    assert_ne!(rows[0].observation, rows[2].observation);
+    let predecessor = rows[1].details.as_ref().unwrap();
+    let successor = rows[3].details.as_ref().unwrap();
     assert_eq!(predecessor["cause"], "resumed");
     assert_eq!(successor["cause"], "unsubscribed");
 }
@@ -29065,9 +28916,7 @@ fn postcommit_head_corruption_preserves_confirmed_receipt_and_durable_truth() {
     let corrupt_path = path.clone();
     BEFORE_MUTATION_POSTCOMMIT_HOOK.with(|slot| {
         *slot.borrow_mut() = Some(Box::new(move || {
-            rusqlite::Connection::open(corrupt_path)
-                .unwrap()
-                .execute("UPDATE _snapback_version SET version = 0 WHERE id = 1", [])
+            crate::storage::LocalDatabase::install_zero_storage_version_for_test(&corrupt_path)
                 .unwrap();
         }));
     });
@@ -29107,17 +28956,8 @@ fn postcommit_head_corruption_preserves_confirmed_receipt_and_durable_truth() {
             .any(|diagnostic| { diagnostic.code == "SNAPBACK_STORAGE_VERSION_CORRUPT" })
     );
 
-    let raw = rusqlite::Connection::open(&path).unwrap();
-    let row_count: i64 = raw
-        .query_row("SELECT COUNT(*) FROM items", [], |row| row.get(0))
-        .unwrap();
-    let journal_count: i64 = raw
-        .query_row(
-            "SELECT COUNT(*) FROM _snapback_changes WHERE version = 1",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap();
+    let (row_count, journal_count) =
+        crate::storage::LocalDatabase::postcommit_items_state_for_test(&path).unwrap();
     assert_eq!(row_count, 1);
     assert_eq!(journal_count, 1);
 }
@@ -31254,20 +31094,17 @@ fn retired_job_publication_emits_a_failure_terminal() {
         .telemetry
         .force_flush()
         .expect("flush rejected job terminal");
-    let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
-        &database_path,
-    ))
-    .expect("open job telemetry sibling");
-    let (phase, status, code): (String, i64, String) = raw
-            .query_row(
-                "SELECT phase,status,code FROM telemetry_events WHERE kind='job_run' AND name='inertNotify' ORDER BY id DESC LIMIT 1",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .expect("job publication guard terminal observation");
+    let terminal = telemetry_events_for_test(&snapback.telemetry, "job_run", "inertNotify")
+        .into_iter()
+        .next_back()
+        .expect("job publication guard terminal observation");
     assert_eq!(
-        (phase.as_str(), status, code.as_str()),
-        ("joined", 500, "SNAPBACK_AUTH_MODE_PENDING")
+        (
+            terminal.phase.as_str(),
+            terminal.status,
+            terminal.code.as_deref()
+        ),
+        ("joined", Some(500), Some("SNAPBACK_AUTH_MODE_PENDING"))
     );
 }
 

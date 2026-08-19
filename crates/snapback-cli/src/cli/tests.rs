@@ -943,28 +943,16 @@ async fn typed_target_runner_threads_descriptor_environment_into_store_meta() {
     //   authoritative telemetry_meta identity, so observe the row rather
     //   than treating file existence as store readiness.
     let (app_id, environment): (String, String) = loop {
-        let connection = snapback_services::test_support::rusqlite::Connection::open(&telemetry)
-            .expect("typed target telemetry store should open");
-        let telemetry_meta_exists: bool = connection
-                .query_row(
-                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='telemetry_meta')",
-                    [],
-                    |row| row.get(0),
-                )
-                .unwrap_or_else(|error| {
-                    panic!("typed target telemetry schema query failed: {error}")
-                });
-        if telemetry_meta_exists {
-            let identity = connection.query_row(
-                "SELECT app_id,environment FROM telemetry_meta WHERE singleton=1",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+        if let Some(identity) =
+            crate::telemetry::Telemetry::durable_meta_for_database_for_test(&database)
+                .expect("typed target telemetry identity probe")
+        {
+            break (
+                identity.app_id.expect("typed target app identity"),
+                identity
+                    .environment
+                    .expect("typed target environment identity"),
             );
-            match identity {
-                Ok(identity) => break identity,
-                Err(snapback_services::test_support::rusqlite::Error::QueryReturnedNoRows) => {}
-                Err(error) => panic!("typed target telemetry identity query failed: {error}"),
-            }
         }
         if server.is_finished() {
             let outcome = server.await;
@@ -1732,11 +1720,9 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
         .unwrap();
     assert_eq!(settled.active, AuthMode::Sessions);
     let persisted_product_count = || {
-        snapback_services::test_support::rusqlite::Connection::open(&database)
+        crate::storage::LocalDatabase::open(&database)
             .unwrap()
-            .query_row("SELECT COUNT(*) FROM products", [], |row| {
-                row.get::<_, i64>(0)
-            })
+            .table_row_count_for_test("products")
             .unwrap()
     };
     assert_eq!(persisted_product_count(), 1);
@@ -2363,22 +2349,10 @@ fn auth_logical_cli_moves_identity_facts_between_file_databases() {
         let mut source = crate::storage::LocalDatabase::open(&source_path).unwrap();
         source.activate_current_auth_catalog().unwrap();
     }
-    let source = snapback_services::test_support::rusqlite::Connection::open(&source_path).unwrap();
+    let mut source = crate::storage::LocalDatabase::open(&source_path).unwrap();
     source
-        .execute(
-            "INSERT INTO _auth_users(id, created_at_ms) VALUES('cli-human', 1)",
-            [],
-        )
+        .insert_logical_email_identity_for_test("cli-human", "cli-identity", "cli@example.com", 2)
         .unwrap();
-    crate::storage::insert_test_email_identity(
-        &source,
-        "cli-identity",
-        "cli-human",
-        "cli@example.com",
-        2,
-        false,
-    )
-    .unwrap();
     drop(source);
     {
         let mut target = crate::storage::LocalDatabase::open(&target_path).unwrap();
@@ -2427,17 +2401,8 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
     let database_path = directory.path().join("app.sqlite3");
     let mut snapback = crate::local::LocalSnapback::open(&database_path).unwrap();
     let telemetry = snapback.telemetry();
-    let telemetry_path = crate::telemetry::Telemetry::path_for_database(&database_path);
     telemetry.force_flush().unwrap();
-    let generation_before: String =
-        snapback_services::test_support::rusqlite::Connection::open(&telemetry_path)
-            .unwrap()
-            .query_row(
-                "SELECT generation FROM telemetry_meta WHERE singleton=1",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+    let generation_before = telemetry.durable_meta_for_test().unwrap().generation;
     telemetry.point(
         "lifecycle",
         "current_boot_replay_witness",
@@ -2460,15 +2425,7 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
         "idempotent replay must not clear this boot's process evidence"
     );
     telemetry.force_flush().unwrap();
-    let generation_after_replay: String =
-        snapback_services::test_support::rusqlite::Connection::open(&telemetry_path)
-            .unwrap()
-            .query_row(
-                "SELECT generation FROM telemetry_meta WHERE singleton=1",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+    let generation_after_replay = telemetry.durable_meta_for_test().unwrap().generation;
     assert_eq!(generation_after_replay, generation_before);
     assert_eq!(
         telemetry.event_count_for_test("lifecycle", "process_start", "point"),
@@ -2495,15 +2452,7 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
     )
     .unwrap();
     telemetry.force_flush().unwrap();
-    let generation_after_apply: String =
-        snapback_services::test_support::rusqlite::Connection::open(&telemetry_path)
-            .unwrap()
-            .query_row(
-                "SELECT generation FROM telemetry_meta WHERE singleton=1",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
+    let generation_after_apply = telemetry.durable_meta_for_test().unwrap().generation;
     assert_ne!(generation_after_apply, generation_before);
     assert_eq!(
         telemetry.event_count_for_test("lifecycle", "restore_generation_rotation", "point",),

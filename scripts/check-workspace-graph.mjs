@@ -27,6 +27,7 @@ const EXPECTED_CRATES = [
   ['snapback-cli', 'transport-adapters', 6, ['snapback-activation', 'snapback-auth', 'snapback-engine', 'snapback-kernel', 'snapback-runtime', 'snapback-server', 'snapback-services', 'snapback-sync', 'snapback-types']],
   ['snapback', 'embed-facade', 7, ['snapback-activation', 'snapback-auth', 'snapback-cli', 'snapback-engine', 'snapback-kernel', 'snapback-runtime', 'snapback-server', 'snapback-services', 'snapback-sync', 'snapback-types']],
   ['snapback-conformance', 'proof-harness', 7, ['snapback-auth', 'snapback-engine', 'snapback-kernel', 'snapback-server', 'snapback-types']],
+  ['snapback-harness', 'proof-harness', 7, ['snapback-auth', 'snapback-cli', 'snapback-engine', 'snapback-kernel', 'snapback-server']],
   ['snapback-tools', 'dev-tools', 7, ['snapback-activation', 'snapback-auth', 'snapback-cli', 'snapback-engine', 'snapback-kernel', 'snapback-runtime', 'snapback-server', 'snapback-services', 'snapback-sync', 'snapback-types']],
 ].map(([name, owner, rank, allowedWorkspaceDependencies]) => ({ name, owner, rank, allowedWorkspaceDependencies }));
 
@@ -35,7 +36,7 @@ const EXPECTED_CONFINEMENT = [
   ['celld-ltx', ['snapback-services']],
   ['clap', ['snapback-cli']],
   ['ibex-runtime', ['snapback-runtime']],
-  ['rusqlite', ['snapback-kernel', 'snapback-services']],
+  ['rusqlite', ['snapback', 'snapback-harness', 'snapback-kernel', 'snapback-services']],
 ].map(([dependency, allowedMembers]) => ({ dependency, allowedMembers }));
 const EXPECTED_MEMBERSHIP_ASSIGNMENTS = [
   {

@@ -6,11 +6,11 @@
 //! fork directory that contains runtime/telemetry residue.
 
 use base64::Engine as _;
+use rusqlite;
 use serde_json::Value;
 use sha2::Digest as _;
 use snapback::manifest::SchemaManifest;
 use snapback_kernel::storage::LocalDatabase;
-use snapback_services::test_support::rusqlite;
 use std::fs::File;
 use std::io::Read as _;
 use std::path::{Path, PathBuf};

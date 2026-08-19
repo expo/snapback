@@ -4040,6 +4040,7 @@ dependencies = [
  "qrcode",
  "regex",
  "ring",
+ "rusqlite",
  "ryu-js",
  "schemars",
  "scrypt",
@@ -4176,6 +4177,20 @@ dependencies = [
  "ureq",
  "uuid",
  "zeroize",
+]
+
+[[package]]
+name = "snapback-harness"
+version = "0.1.0"
+dependencies = [
+ "rusqlite",
+ "serde_json",
+ "snapback-auth",
+ "snapback-cli",
+ "snapback-engine",
+ "snapback-kernel",
+ "snapback-server",
+ "tempfile",
 ]
 
 [[package]]

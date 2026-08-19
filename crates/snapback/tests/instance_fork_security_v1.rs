@@ -5,6 +5,7 @@
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
+use rusqlite::Connection;
 use snapback::admin::{AppState, ServerContext};
 use snapback::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRequest, SecretReadScope,
@@ -21,7 +22,6 @@ use snapback_kernel::storage::LocalDatabase;
 use snapback_server::test_support::axum;
 use snapback_services::assets_store::AssetStoreBackend;
 use snapback_services::instance_fork::publish;
-use snapback_services::test_support::rusqlite::Connection;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
