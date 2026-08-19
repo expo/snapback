@@ -2186,7 +2186,7 @@ impl ConnectionActivity {
         self.lock().len()
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn contains(&self, connection_id: &str) -> bool {
         self.lock().contains_key(connection_id)
     }
@@ -2341,8 +2341,8 @@ impl EphemeralApi {
             .begin_server_authorized_room_act(collection, scope)
     }
 
-    #[cfg(test)]
-    pub(crate) fn authorization_expectation_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn authorization_expectation_for_test(
         &self,
     ) -> Option<crate::storage::AuthorizationVersion> {
         self.store.authorization_expectation_for_test()
@@ -2527,8 +2527,8 @@ impl EphemeralApi {
             })
     }
 
-    #[cfg(test)]
-    pub(crate) fn drain_outbox_for_send_bound_if_active(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn drain_outbox_for_send_bound_if_active(
         &self,
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
@@ -2663,16 +2663,16 @@ impl EphemeralApi {
         self.store.begin_final_send(envelope)
     }
 
-    #[cfg(test)]
-    pub(crate) fn prepare_room_authorization_event_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn prepare_room_authorization_event_for_test(
         &self,
         authorization: crate::storage::AuthorizationVersion,
     ) -> SnapbackResult<crate::ephemeral::RoomDependencyTicket> {
         self.store.prepare_room_authorization_event(authorization)
     }
 
-    #[cfg(test)]
-    pub(crate) fn rollback_room_authorization_event_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn rollback_room_authorization_event_for_test(
         &self,
         ticket: &crate::ephemeral::RoomDependencyTicket,
     ) -> bool {
@@ -2743,13 +2743,13 @@ impl EphemeralApi {
             .purge_connection_effects_silently(connection_id, effect_fence);
     }
 
-    #[cfg(test)]
-    pub(crate) fn active_connection_count_for_test(&self) -> usize {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn active_connection_count_for_test(&self) -> usize {
         self.activity.len()
     }
 
-    #[cfg(test)]
-    pub(crate) fn has_connection_residue_for_test(&self, connection_id: &str) -> bool {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn has_connection_residue_for_test(&self, connection_id: &str) -> bool {
         self.activity.contains(connection_id)
             || self.store.has_connection_residue_for_test(connection_id)
     }
@@ -2779,14 +2779,14 @@ impl EphemeralApi {
         self.store.subscription_requires_permission(collection)
     }
 
-    #[cfg(test)]
-    pub(crate) fn enqueue_durable_for_test(&self, connection_id: &str, payload: Vec<u8>) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn enqueue_durable_for_test(&self, connection_id: &str, payload: Vec<u8>) {
         self.store
             .enqueue_durable(connection_id.to_owned(), payload);
     }
 
-    #[cfg(test)]
-    pub(crate) fn enqueue_durable_with_network_egress_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn enqueue_durable_with_network_egress_for_test(
         &self,
         connection_id: &str,
         payload: Vec<u8>,
@@ -2799,8 +2799,8 @@ impl EphemeralApi {
         );
     }
 
-    #[cfg(test)]
-    pub(crate) fn enqueue_durable_bound_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn enqueue_durable_bound_for_test(
         &self,
         connection_id: &str,
         payload: Vec<u8>,
@@ -2810,8 +2810,8 @@ impl EphemeralApi {
             .enqueue_durable_bound(connection_id.to_owned(), payload, effect_fence);
     }
 
-    #[cfg(test)]
-    pub(crate) fn overflow_outbox_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn overflow_outbox_for_test(
         &self,
         connection_id: &str,
         effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
@@ -2820,8 +2820,8 @@ impl EphemeralApi {
             .overflow_outbox_for_test(connection_id, effect_fence);
     }
 
-    #[cfg(test)]
-    pub(crate) fn enqueue_ephemeral_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn enqueue_ephemeral_for_test(
         &self,
         connection_id: &str,
         message: crate::ephemeral::EphemeralMessage,
@@ -2870,7 +2870,7 @@ impl AssetStoreConfig {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn for_backend(backend: crate::assets_store::AssetStoreBackend) -> Self {
         Self {
             backend: Ok(backend),
@@ -3002,8 +3002,8 @@ pub struct EngineInvalidationBinding {
 }
 
 impl EngineInvalidationBinding {
-    #[cfg(test)]
-    pub(crate) fn from_issuer_for_test(issuer: LiveInvalidationIssuer) -> Self {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn from_issuer_for_test(issuer: LiveInvalidationIssuer) -> Self {
         Self { issuer }
     }
 
@@ -3124,8 +3124,8 @@ pub struct ResolvedServiceAuthority {
 }
 
 impl ResolvedServiceAuthority {
-    #[cfg(test)]
-    pub(crate) fn synthetic_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn synthetic_for_test(
         resolved: ResolvedAppAuthority,
         publication: crate::auth::service_fence::ServiceAuthorityPublication,
     ) -> Self {
@@ -3863,7 +3863,7 @@ impl BundleRegisterTarget {
 pub struct LiveInvalidationAdmission {
     pub(crate) connection: Option<AuthorizationInvalidationConnection>,
     pub(crate) effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub(crate) session_mode: bool,
 }
 
@@ -3875,7 +3875,7 @@ impl LiveInvalidationAdmission {
         Self {
             connection,
             effect_fence: Some(effect_fence),
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             session_mode: false,
         }
     }
@@ -6149,8 +6149,8 @@ impl LocalSnapback {
         Self::open_with_optional_target(path.as_ref(), Some(target), asset_store_config)
     }
 
-    #[cfg(test)]
-    pub(crate) fn open_with_asset_store_backend_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn open_with_asset_store_backend_for_test(
         path: impl AsRef<Path>,
         backend: crate::assets_store::AssetStoreBackend,
     ) -> SnapbackResult<Self> {
@@ -6302,8 +6302,8 @@ impl LocalSnapback {
         self.network_profiles = state;
     }
 
-    #[cfg(test)]
-    pub(crate) fn server_profile_for_test(&self) -> ServerProfile {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn server_profile_for_test(&self) -> ServerProfile {
         self.server_profile
     }
 
@@ -6670,16 +6670,62 @@ impl LocalSnapback {
                 "the app schema does not declare the push send seam",
             )
         })?;
-        let attempt = self.db.push_registry().reserve_send_admitted_storage(
+        let attempt = self.reserve_push_send_with_schema(
+            authority,
             &declaration,
             &schema,
-            crate::push::admitted_push_storage_authority(authority),
             trigger_mode,
             deferred_grant,
             request,
             now_ms,
         )?;
         Ok((attempt, declaration))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn reserve_push_send_with_schema(
+        &mut self,
+        authority: &PreparedAuthority,
+        declaration: &crate::push::PushSeamDeclarationV1,
+        schema: &crate::manifest::SchemaManifest,
+        trigger_mode: crate::push::PushTriggerModeV1,
+        deferred_grant: Option<&crate::push::PushDeferredGrantV1>,
+        request: &crate::push::PushSendRequestV1,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::push::ReservedPushAttemptV1> {
+        self.db.push_registry().reserve_send_admitted_storage(
+            declaration,
+            schema,
+            crate::push::admitted_push_storage_authority(authority),
+            trigger_mode,
+            deferred_grant,
+            request,
+            now_ms,
+        )
+    }
+
+    #[cfg(test)]
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn reserve_push_send_with_schema_for_test(
+        &mut self,
+        authority: &PreparedAuthority,
+        declaration: &crate::push::PushSeamDeclarationV1,
+        schema: &crate::manifest::SchemaManifest,
+        trigger_mode: crate::push::PushTriggerModeV1,
+        deferred_grant: Option<&crate::push::PushDeferredGrantV1>,
+        request: &crate::push::PushSendRequestV1,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::push::ReservedPushAttemptV1> {
+        authority.validate_admission("push durable reservation")?;
+        self.reserve_push_send_with_schema(
+            authority,
+            declaration,
+            schema,
+            trigger_mode,
+            deferred_grant,
+            request,
+            now_ms,
+        )
     }
 
     /// Revalidate the exact finite service carrier while the caller owns the
@@ -7586,8 +7632,8 @@ impl LocalSnapback {
 
     /// Pre-bind only: align process admission with the final durable record
     /// after startup composition may have staged, consumed, or unstaged it.
-    #[cfg(test)]
-    pub(crate) fn synchronize_auth_mode_admission(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn synchronize_auth_mode_admission(
         &self,
         state: &crate::auth::mode::AuthModeStateRecord,
     ) -> SnapbackResult<crate::auth::admission::AdmissionSnapshot> {
@@ -8948,8 +8994,8 @@ impl LocalSnapback {
     /// mode change or activating a same-mode Sessions deployment must hold the
     /// transition guard supplied by the admission controller. Same-mode dev
     /// callers remain serialized by the app write lane alone.
-    #[cfg(test)]
-    pub(crate) fn commit_auth_provision(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn commit_auth_provision(
         &mut self,
         prepared: PreparedAuthProvision,
         profile: &str,
@@ -10693,8 +10739,8 @@ impl LocalSnapback {
         self.served_capability_manifest(self.capability_gaps())
     }
 
-    #[cfg(test)]
-    pub(crate) fn force_ibex_cli_unavailable_for_test(&mut self) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn force_ibex_cli_unavailable_for_test(&mut self) {
         self.runtime.force_ibex_cli_unavailable_for_test();
         self.refresh_read_manifests();
     }
@@ -17467,7 +17513,7 @@ impl LocalSnapback {
                         let invalidation = LiveInvalidationAdmission {
                             connection: target.invalidation_connection.clone(),
                             effect_fence: Some(target.effect_fence.clone()),
-                            #[cfg(test)]
+                            #[cfg(any(test, feature = "test-support"))]
                             session_mode: false,
                         };
                         let output = snapback
@@ -17782,7 +17828,7 @@ impl LocalSnapback {
                             LiveInvalidationAdmission {
                                 connection: target.invalidation_connection.clone(),
                                 effect_fence: Some(target.effect_fence.clone()),
-                                #[cfg(test)]
+                                #[cfg(any(test, feature = "test-support"))]
                                 session_mode: false,
                             },
                             invocation,
@@ -17936,8 +17982,8 @@ impl LocalSnapback {
 
     /// Compatibility scaffold for protocol unit tests. Production composition
     /// always supplies a server-prepared authority through the method below.
-    #[cfg(test)]
-    pub(crate) fn subscribe_live_with_invalidation(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn subscribe_live_with_invalidation(
         &mut self,
         name: &str,
         input: LiveSubscribeInput,
@@ -17946,7 +17992,7 @@ impl LocalSnapback {
         self.subscribe_live_with_invalidation_generation(name, input, invalidation, None)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn subscribe_live_with_invalidation_generation(
         &mut self,
         name: &str,
@@ -18158,8 +18204,8 @@ impl LocalSnapback {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn staged_live_effect_counts_for_test(&self) -> (usize, usize) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn staged_live_effect_counts_for_test(&self) -> (usize, usize) {
         (
             self.pending_local_live_effects.len(),
             self.subscriptions.len(),
@@ -20810,7 +20856,7 @@ impl LocalSnapback {
     /// Stage one action invocation for the cron flow (no envelope shaping):
     /// unknown functions and non-actions are `SnapbackError`s, exactly as
     /// `invoke_action` would report them (ENG-23324).
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn stage_action_invocation(&mut self, name: &str) -> SnapbackResult<StagedAction> {
         let admission = self.admission.admit()?;
         self.stage_action_invocation_with_admission(name, admission)
@@ -23790,8 +23836,8 @@ impl LocalSnapback {
         self.managed_local_handoff.clone()
     }
 
-    #[cfg(test)]
-    pub(crate) fn auth_invalidation_expectation_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn auth_invalidation_expectation_for_test(
         &self,
     ) -> Option<crate::storage::AuthorizationVersion> {
         self.auth_invalidation

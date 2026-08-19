@@ -35,4 +35,10 @@ pub mod telemetry;
 pub mod telemetry_query;
 pub mod webhooks;
 
+/// Confined dependencies needed by higher-rank workspace tests.
+#[cfg(feature = "remainder-tests")]
+pub mod test_support {
+    pub use rusqlite;
+}
+
 pub(crate) use snapback_kernel::{search, vector};

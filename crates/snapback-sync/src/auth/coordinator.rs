@@ -39,7 +39,7 @@ pub struct AuthCoordinator {
     topology: Mutex<CoordinatorTopology>,
     rehearsal_live_authority:
         crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fail_next_finalize: std::sync::atomic::AtomicBool,
 }
 
@@ -483,10 +483,22 @@ impl PreparedBearerAuthority {
         &self.authority
     }
 
+    #[cfg(feature = "test-support")]
+    pub fn authority(&self) -> &ResolvedAppAuthority {
+        &self.authority
+    }
+
+    #[cfg(not(feature = "test-support"))]
     pub(crate) fn authority(&self) -> &ResolvedAppAuthority {
         &self.authority
     }
 
+    #[cfg(feature = "test-support")]
+    pub fn into_parts(self) -> (ResolvedAppAuthority, FencedPublication) {
+        (self.authority, self.publication)
+    }
+
+    #[cfg(not(feature = "test-support"))]
     pub(crate) fn into_parts(self) -> (ResolvedAppAuthority, FencedPublication) {
         (self.authority, self.publication)
     }
@@ -546,7 +558,17 @@ impl AuthCoordinator {
         )?)
     }
 
+    #[cfg(feature = "test-support")]
+    pub fn new(projection: SessionProjection) -> SnapbackResult<Self> {
+        Self::new_inner(projection)
+    }
+
+    #[cfg(not(feature = "test-support"))]
     pub(crate) fn new(projection: SessionProjection) -> SnapbackResult<Self> {
+        Self::new_inner(projection)
+    }
+
+    fn new_inner(projection: SessionProjection) -> SnapbackResult<Self> {
         projection.check_invariants()?;
         Ok(Self {
             topology: Mutex::new(CoordinatorTopology {
@@ -555,7 +577,7 @@ impl AuthCoordinator {
                 global_rebuild_required: false,
             }),
             rehearsal_live_authority: Default::default(),
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             fail_next_finalize: std::sync::atomic::AtomicBool::new(false),
         })
     }
@@ -1885,19 +1907,19 @@ impl AuthCoordinator {
             .map_err(|_| projection_unavailable())
     }
 
-    #[cfg(test)]
-    pub(crate) fn inject_finalize_failure(&self) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn inject_finalize_failure(&self) {
         self.fail_next_finalize
             .store(true, std::sync::atomic::Ordering::SeqCst);
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn take_finalize_failpoint(&self) -> bool {
         self.fail_next_finalize
             .swap(false, std::sync::atomic::Ordering::SeqCst)
     }
 
-    #[cfg(not(test))]
+    #[cfg(not(any(test, feature = "test-support")))]
     fn take_finalize_failpoint(&self) -> bool {
         false
     }
@@ -2151,7 +2173,7 @@ fn session_expired(reason: RevocationReason) -> SnapbackError {
     }))
 }
 
-#[cfg(all(test, not(feature = "sync-owner")))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::auth::crypto::{CryptoError, RandomSource};
@@ -2162,9 +2184,7 @@ mod tests {
         ProjectionSessionRow, ProjectionSource, ProjectionUserRow,
     };
     use crate::contract_types::{AuthorizationStreamIncarnation, RevocationReason, ServerProfile};
-    use crate::local::LocalSnapback;
     use crate::manifest::AuthMode;
-    use crate::server::{SharedSnapback, spawn_owned_auth_transaction, with_snapback};
     use std::sync::Arc;
     use std::time::Duration;
 
@@ -2304,9 +2324,11 @@ mod tests {
 
     /// Model request cancellation at the dangerous boundary: the request owns
     /// only the join waiter while the carrier and its exact finish are already
-    /// owned by a task queued on the real LocalSnapback mutex.
+    /// owned by a task queued on the same owned async-mutex shape used by
+    /// `LocalSnapback`. The guarded value is irrelevant to this coordinator
+    /// ownership proof.
     async fn cancel_waiter_with_owned_rollback_blocked_on_local<P, T, F, Probe>(
-        local: SharedSnapback,
+        local: Arc<tokio::sync::Mutex<()>>,
         finish: F,
         blocked_probe: Probe,
     ) -> T
@@ -2319,16 +2341,14 @@ mod tests {
         let blocker = local.clone().lock_owned().await;
         let (queued_tx, queued_rx) = tokio::sync::oneshot::channel();
         let (finished_tx, finished_rx) = tokio::sync::oneshot::channel();
-        let transaction = spawn_owned_auth_transaction(async move {
+        let transaction = tokio::spawn(async move {
             let _ = queued_tx.send(());
-            let attempt = with_snapback(&local, |_snapback| {
-                AuthTransactionAttempt::<P>::RolledBack(SnapbackError::error(
-                    "TEST_ROLLBACK",
-                    "test",
-                    "known rollback",
-                ))
-            })
-            .await;
+            let _local = local.lock().await;
+            let attempt = AuthTransactionAttempt::<P>::RolledBack(SnapbackError::error(
+                "TEST_ROLLBACK",
+                "test",
+                "known rollback",
+            ));
             assert!(finished_tx.send(finish(attempt)).is_ok());
         });
         let waiter = tokio::spawn(transaction);
@@ -2348,10 +2368,8 @@ mod tests {
             .expect("owned transaction publishes its finish")
     }
 
-    fn local_blocker_fixture() -> SharedSnapback {
-        Arc::new(tokio::sync::Mutex::new(
-            LocalSnapback::memory().expect("owned auth transaction Local fixture"),
-        ))
+    fn local_blocker_fixture() -> Arc<tokio::sync::Mutex<()>> {
+        Arc::new(tokio::sync::Mutex::new(()))
     }
 
     #[test]

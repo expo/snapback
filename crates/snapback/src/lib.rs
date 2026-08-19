@@ -118,10 +118,6 @@ pub(crate) mod guide_reference;
 #[doc(hidden)]
 pub use snapback_types::handler_wire;
 #[doc(hidden)]
-#[cfg(not(test))]
-pub mod host_ops;
-#[cfg(test)]
-#[path = "../../snapback-engine/src/host_ops.rs"]
 pub mod host_ops;
 pub use snapback_types::host_ops_contract;
 #[doc(hidden)]
@@ -142,14 +138,10 @@ pub use snapback_kernel::live_matcher;
 #[doc(hidden)]
 pub use snapback_types::live_wire;
 #[doc(hidden)]
-#[cfg(not(test))]
 pub mod local {
     pub use snapback_activation::generation_activation::DiagnosticBoundary;
     pub use snapback_engine::local::*;
 }
-#[cfg(test)]
-#[path = "../../snapback-engine/src/local.rs"]
-pub mod local;
 #[doc(hidden)]
 pub mod manifest;
 pub use snapback_kernel::membership_rules;
@@ -170,7 +162,6 @@ pub(crate) use snapback_types::owner_only_file;
 // without publishing it as a forgeable façade surface.
 pub(crate) use snapback_kernel::proof_checkpoint;
 #[doc(hidden)]
-#[cfg(not(test))]
 pub mod push {
     pub use snapback_services::push::{
         PushAudienceReferenceV1, PushDeferredGrantV1, PushRegistryInspectionV1,
@@ -178,9 +169,6 @@ pub mod push {
     pub use snapback_types::push::*;
     pub(crate) use snapback_engine::push::*;
 }
-#[cfg(test)]
-#[path = "../../snapback-engine/src/push.rs"]
-pub mod push;
 pub use snapback_sync::realtime;
 #[doc(hidden)]
 pub use snapback_kernel::remediation;
@@ -195,11 +183,7 @@ pub use snapback_types::result_transform;
 pub use snapback_sync::rqs;
 pub use snapback_types::rqs_contract;
 #[doc(hidden)]
-#[cfg(not(test))]
 pub use snapback_engine::runtime;
-#[cfg(test)]
-#[path = "../../snapback-engine/src/runtime.rs"]
-pub mod runtime;
 #[doc(hidden)]
 pub mod schema_export;
 #[doc(hidden)]

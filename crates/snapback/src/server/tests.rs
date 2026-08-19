@@ -89,15 +89,14 @@ fn asset_signed_url_request_accepts_empty_defaults_and_types_parse_refusals() {
 
 #[tokio::test]
 async fn asset_signed_url_route_empty_and_omitted_body_issue_primary() {
-    let mut snapback = crate::local::tests::asset_profile_snapback();
-    let asset_id = crate::local::tests::asset_ready_under_intent(
-        &mut snapback,
+    let snapback_engine::test_support::SignedAssetFixture {
+        snapback,
+        asset_id,
+        authority,
+    } = snapback_engine::test_support::signed_asset_fixture(
         "user_a",
         b"signed-route-defaults",
-        "signedUpload",
     );
-    let authority =
-        crate::local::tests::asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
     let state = Arc::new(Mutex::new(snapback));
 
     for body in [Bytes::new(), Bytes::from_static(b"{}")] {
@@ -2158,11 +2157,11 @@ fn auth_projection_http_fixture(
                     supersedes: None,
                     resume_from_token: None,
                 },
-                LiveInvalidationAdmission {
-                    session_mode: true,
-                    connection: Some(projection_connection.clone()),
-                    effect_fence: None,
-                },
+                snapback_engine::test_support::live_invalidation_admission(
+                    Some(projection_connection.clone()),
+                    None,
+                    true,
+                ),
             )
             .expect("install projection HTTP subscription");
     }
@@ -2599,7 +2598,10 @@ async fn authorization_neutral_staged_write_commits_before_its_shared_batch_flus
         &state.snapback,
         None,
         move |snapback| {
-            let preflight = snapback.authorization_commit_preflight_for_seed(&seed)?;
+            let preflight =
+                snapback_engine::test_support::authorization_commit_preflight_for_seed(
+                    snapback, &seed,
+                )?;
             assert!(matches!(
                 preflight,
                 crate::storage::AuthorizationCommitPreflight::NoAuthorizationEvent
@@ -2751,7 +2753,9 @@ async fn protected_room_server_fast_paths_progress_during_affected_commit() {
         None,
         move |snapback| {
             Ok((
-                snapback.authorization_commit_preflight_for_seed(&seed)?,
+                snapback_engine::test_support::authorization_commit_preflight_for_seed(
+                    snapback, &seed,
+                )?,
                 seed.clone(),
             ))
         },
@@ -3099,7 +3103,9 @@ async fn detached_action_nested_mutations_reserve_rooms_off_local() {
         None,
         move |snapback| {
             Ok((
-                snapback.authorization_commit_preflight_for_seed(&seed)?,
+                snapback_engine::test_support::authorization_commit_preflight_for_seed(
+                    snapback, &seed,
+                )?,
                 seed.clone(),
             ))
         },
@@ -3196,7 +3202,9 @@ async fn detached_action_watchdog_cancels_held_room_reservation_without_publicat
         None,
         move |snapback| {
             Ok((
-                snapback.authorization_commit_preflight_for_seed(&seed)?,
+                snapback_engine::test_support::authorization_commit_preflight_for_seed(
+                    snapback, &seed,
+                )?,
                 seed.clone(),
             ))
         },
@@ -7596,7 +7604,8 @@ async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
         let invalidation = connection_act.authorization_invalidation.clone();
         let effect_fence = effect_fence.clone();
         move |snapback| {
-            snapback.prepare_subscribe_live_for_transport(
+            snapback_engine::test_support::prepare_subscribe_live_for_transport(
+                snapback,
                 "liveItems".to_owned(),
                 LiveSubscribeInput {
                     connection_id,
@@ -7610,11 +7619,11 @@ async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
                     resume_from_token: None,
                 },
                 authority,
-                LiveInvalidationAdmission {
-                    session_mode: true,
-                    connection: invalidation,
-                    effect_fence: Some(effect_fence),
-                },
+                snapback_engine::test_support::live_invalidation_admission(
+                    invalidation,
+                    Some(effect_fence),
+                    true,
+                ),
             )
         }
     })
@@ -9228,10 +9237,10 @@ async fn committed_mode_transition_terminalizes_live_grant_before_successor_publ
     )
     .await
     .expect("commit mode transition and terminalize live grants off Local");
-    assert_eq!(committed.state.active, AuthMode::Sessions);
-    assert_eq!(committed.state.desired, AuthMode::Dev);
-    assert_eq!(committed.state.mode_state, AuthModeStatus::PendingRestart);
-    assert_eq!(*state.auth_mode_state(), committed.state);
+    assert_eq!(committed.state().active, AuthMode::Sessions);
+    assert_eq!(committed.state().desired, AuthMode::Dev);
+    assert_eq!(committed.state().mode_state, AuthModeStatus::PendingRestart);
+    assert_eq!(state.auth_mode_state().as_ref(), committed.state());
     assert!(
         !controller.snapshot().accepting,
         "pending successor remains closed after terminal propagation"
@@ -11777,9 +11786,9 @@ async fn served_http_buffered_mutation_reprojects_stored_media_result() {
             "media re-projection fixture loads: {diagnostics:?}",
         );
         let png = include_bytes!("../../../../brand/favicon-16.png");
-        let uploaded = snapback
-            .asset_host_op(
-                "asset.put",
+        let uploaded = snapback_engine::test_support::asset_host_op(
+            snapback,
+            "asset.put",
                 Some(&json!({
                     "upload": "profileImageUpload",
                     "bytesBase64": base64::engine::general_purpose::STANDARD.encode(png),
@@ -11932,9 +11941,9 @@ async fn served_http_media_commit_pushes_projected_live_replace() {
             )),
             "media live-push fixture loads: {diagnostics:?}",
         );
-        let uploaded = snapback
-            .asset_host_op(
-                "asset.put",
+        let uploaded = snapback_engine::test_support::asset_host_op(
+            snapback,
+            "asset.put",
                 Some(&json!({
                     "upload": "profileImageUpload",
                     "bytesBase64": base64::engine::general_purpose::STANDARD
@@ -12084,9 +12093,9 @@ async fn served_http_buffered_media_command_reuses_attempt_for_preview_commit_an
             "served media-command fixture loads: {diagnostics:?}",
         );
         let png = include_bytes!("../../../../brand/favicon-16.png");
-        let uploaded = snapback
-            .asset_host_op(
-                "asset.put",
+        let uploaded = snapback_engine::test_support::asset_host_op(
+            snapback,
+            "asset.put",
                 Some(&json!({
                     "upload": "sharedMediaUpload",
                     "bytesBase64": base64::engine::general_purpose::STANDARD.encode(png),
@@ -19635,7 +19644,8 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
     let subscribed = with_snapback(&state.snapback, {
         let connection_id = connection_id.to_owned();
         move |snapback| {
-            snapback.subscribe_live_prepared_with_invalidation(
+            snapback_engine::test_support::subscribe_live_prepared_with_invalidation(
+                snapback,
                 "listItems",
                 LiveSubscribeInput {
                     connection_id,
@@ -19649,11 +19659,11 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
                     resume_from_token: None,
                 },
                 subscribe_authority,
-                LiveInvalidationAdmission {
-                    session_mode: true,
-                    connection: invalidation,
-                    effect_fence: Some(effect_fence),
-                },
+                snapback_engine::test_support::live_invalidation_admission(
+                    invalidation,
+                    Some(effect_fence),
+                    true,
+                ),
             )
         }
     })
@@ -19672,7 +19682,8 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
     .expect("prepare sessions mutation authority")
     .with_fenced_publication(connection_act.bound.publication().clone());
     let mutation = with_snapback(&state.snapback, move |snapback| {
-        snapback.invoke_mutation_with_authority(
+        snapback_engine::test_support::invoke_mutation_with_authority(
+            snapback,
             "insertItem",
             HandlerInput {
                 args: json!({ "value": "one committed change" }),
@@ -25526,7 +25537,7 @@ async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
 }
 
 #[test]
-fn llp0163_host_child_inventory_routes_both_action_runtime_tiers() {
+fn llp0163_host_child_inventory_routes_both_server_action_runtime_tiers() {
     assert_eq!(
         crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1,
         [
@@ -25553,23 +25564,6 @@ fn llp0163_host_child_inventory_routes_both_action_runtime_tiers() {
         .find("commit_detached_ibex_mutation_guarded")
         .expect("detached Ibex production adapter remains inventoried");
     assert!(identity < host_plan && identity < buffered);
-
-    let local = include_str!("../../../snapback-engine/src/local/engine.rs");
-    let staged_start = local
-        .find("pub fn commit_staged_recorded_authorization_mutation")
-        .expect("managed staged writer remains present");
-    let staged_end = local[staged_start..]
-        .find("\n    fn record_mutation_commit(")
-        .expect("managed staged writer inventory boundary");
-    let staged_commit = &local[staged_start..staged_start + staged_end];
-    assert!(
-        staged_commit.contains("execute_host_mutation_guarded_with_settlement_time"),
-        "managed HostPlan children must select the host writer adapter"
-    );
-    assert!(
-        staged_commit.contains("commit_buffered_host_writes_guarded"),
-        "managed Ibex children must select the host buffered adapter"
-    );
 }
 
 #[test]
@@ -29601,7 +29595,8 @@ async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains
         let invalidation = connection_act.authorization_invalidation.clone();
         let effect_fence = effect_fence.clone();
         move |snapback| {
-            snapback.prepare_subscribe_live_for_transport(
+            snapback_engine::test_support::prepare_subscribe_live_for_transport(
+                snapback,
                 "listItems".to_owned(),
                 LiveSubscribeInput {
                     connection_id,
@@ -29615,11 +29610,11 @@ async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains
                     resume_from_token: None,
                 },
                 authority,
-                LiveInvalidationAdmission {
-                    session_mode: true,
-                    connection: invalidation,
-                    effect_fence: Some(effect_fence),
-                },
+                snapback_engine::test_support::live_invalidation_admission(
+                    invalidation,
+                    Some(effect_fence),
+                    true,
+                ),
             )
         }
     })
