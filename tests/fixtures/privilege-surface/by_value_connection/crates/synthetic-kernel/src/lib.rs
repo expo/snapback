@@ -53,6 +53,26 @@ mod hidden_glob {
 
 pub use hidden_glob::*;
 
+mod hidden_crate_path {
+    pub fn crate_path_fn_leak() -> rusqlite::Connection {
+        panic!("scanner corpus is not executed")
+    }
+}
+
+pub use crate::hidden_crate_path::crate_path_fn_leak;
+
+mod hidden_super_path {
+    pub fn super_path_fn_leak() -> rusqlite::Connection {
+        panic!("scanner corpus is not executed")
+    }
+
+    pub mod child {
+        pub use super::super_path_fn_leak;
+    }
+}
+
+pub use hidden_super_path::child::super_path_fn_leak;
+
 #[cfg(not(unix))]
 pub fn non_unix_leak() -> rusqlite::Connection {
     panic!("scanner corpus is not executed")
@@ -62,6 +82,14 @@ pub struct AsRefWrapper;
 
 impl AsRef<rusqlite::Connection> for AsRefWrapper {
     fn as_ref(&self) -> &rusqlite::Connection {
+        panic!("scanner corpus is not executed")
+    }
+}
+
+pub struct FromWrapper;
+
+impl From<FromWrapper> for rusqlite::Connection {
+    fn from(_value: FromWrapper) -> Self {
         panic!("scanner corpus is not executed")
     }
 }
@@ -80,9 +108,53 @@ fn kernel_verified_membership_writer(_writer: &MembershipWriter) -> bool {
 
 fn sanctioned(_writer: &MembershipWriter) {}
 
+fn commit_membership_plan() {}
+
+fn is_privileged_noninvocation() {}
+
+fn membership_write_provenance() {}
+
+fn write_membership_creation_provenance() {}
+
+pub enum ChangeOp {
+    Insert,
+    Update,
+    Delete,
+}
+
+fn record_membership_transition(_op: ChangeOp, _writer: &MembershipWriter) {}
+
+fn provenance() {}
+
 pub fn plan_privileged_membership_insert(writer: &MembershipWriter) {
     if !kernel_verified_membership_writer(writer) {
         sanctioned(writer);
+    }
+}
+
+pub fn plan_membership_insert(_writer: &MembershipWriter) {}
+
+pub fn plan_membership_set_role(_writer: &MembershipWriter) {}
+
+pub fn plan_membership_remove(_writer: &MembershipWriter) {}
+
+pub fn plan_membership_remove_principal(_writer: &MembershipWriter) {}
+
+pub fn plan_membership_transfer_owner(_writer: &MembershipWriter) {}
+
+pub fn plan_membership_patch(_writer: &MembershipWriter) {}
+
+pub fn plan_membership_bootstrap(_writer: &MembershipWriter) {}
+
+pub fn plan_membership_teardown(_writer: &MembershipWriter) {}
+
+pub fn plan_membership_sweep_expired(_writer: &MembershipWriter) {}
+
+pub struct AuthorizedMembershipPlan;
+
+impl AuthorizedMembershipPlan {
+    pub fn user_transition(_writer: MembershipWriter) -> Self {
+        Self
     }
 }
 

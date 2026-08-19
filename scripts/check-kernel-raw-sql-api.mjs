@@ -147,6 +147,8 @@ export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
   const started = process.hrtime.bigint();
   const metadata = runCargoMetadata(resolve(root, 'Cargo.toml'));
   const packages = workspacePackages(metadata).filter(libraryTarget);
+  const registeredPrivilegeSinks = runAst(['privilege-sinks']);
+  const observedPrivilegeSinks = new Set();
   const aggregated = new Map();
   let cellCount = 0;
 
@@ -171,6 +173,10 @@ export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
         .map((finding) => finding.seedType)
         .filter(Boolean));
       for (const finding of parsed) {
+        if (finding.kind === 'sink-registry-observed') {
+          observedPrivilegeSinks.add(finding.item.split('::').at(-1));
+          continue;
+        }
         if (finding.kind === 'seed-ingress-candidate') {
           if (!obtainable.has(finding.seedType)) continue;
           finding.kind = 'seed-obtain';
@@ -188,6 +194,21 @@ export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
     ...finding,
     features: activeLabels(labels),
   }));
+  // @ref LLP 0284#38-authority-discriminators — a remembered sink spelling
+  // is not coverage unless that spelling resolves somewhere in the corpus the
+  // gate actually scanned. Keep registry drift as its own stable violation.
+  for (const sink of registeredPrivilegeSinks) {
+    if (observedPrivilegeSinks.has(sink)) continue;
+    findings.push({
+      crate: '<registry>',
+      file: 'scripts/security-gates-rust/src/main.rs',
+      line: 1,
+      kind: 'sink-registry-unresolved',
+      item: sink,
+      detail: `registered privilege sink ${sink} does not resolve to an item in the scanned corpus`,
+      features: ['all'],
+    });
+  }
   findings.sort((left, right) => left.file.localeCompare(right.file)
     || left.line - right.line
     || left.kind.localeCompare(right.kind)

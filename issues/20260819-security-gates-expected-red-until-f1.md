@@ -12,7 +12,7 @@ ticket is the honest record of the known product findings; it is not an
 allowlist, baseline, waiver, or permission for the APIs to remain public.
 
 The expected findings are exactly the four open F-1 escalation families. The
-2026-08-19 final adversarial gate fix round reports 80 unallowlisted scanner
+2026-08-19 surgical final gate fix round reports 127 unallowlisted scanner
 violations and 23 compiling attacks (33 inventoried attacks total):
 
 1. **Public claim/mint authority and duplicates.** The scanner reports
@@ -47,9 +47,14 @@ violations and 23 compiling attacks (33 inventoried attacks total):
    allowlisted.
 4. **Caller-selectable privileged membership authority.** The scanner's
    deliberately narrow I-16 ratchet reports caller-constructible
-   `MembershipWriter` and the fixed-name sanctioned, privileged-plan,
-   bypass, and provenance signatures that name it directly. It does not
-   perform body-flow taint analysis. Independently, the direct-dependent
+   `MembershipWriter`; `AuthorizedMembershipPlan::user_transition`; the nine
+   `plan_membership_*` operation families on `LocalDatabase`,
+   `MembershipPlansKernel`, and `MembershipPlansReadKernel`; and the fixed-name
+   sanctioned, privileged-plan, bypass, and provenance signatures that name it
+   directly, including the real transition-provenance writer,
+   `record_membership_transition`. Its adjacent `ChangeOp` only labels the
+   already-derived journal operation and is not an authority discriminator. It
+   does not perform body-flow taint analysis. Independently, the direct-dependent
    compiler witness constructs `MembershipWriter::Admin`, plans a privileged
    insert, and commits the plan. F-1 must replace the caller-selected
    discriminator with a kernel-derived unforgeable carrier and revalidate

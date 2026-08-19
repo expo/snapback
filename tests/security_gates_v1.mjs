@@ -41,6 +41,62 @@ test('privilege scanner catches aliases, private re-exports, traits, and structu
   assert.match(output, /synthetic_kernel::AsRefWrapper::AsRef/u);
 });
 
+test('local re-exports resolve crate and super prefixes', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const output = result.violations.map(({ item, detail }) => `${item}: ${detail}`).join('\n');
+  assert.match(output, /synthetic_kernel::crate_path_fn_leak: public return type exposes rusqlite::Connection/u);
+  assert.match(output, /synthetic_kernel::super_path_fn_leak: public return type exposes rusqlite::Connection/u);
+});
+
+test('From impls expose a raw foreign self type', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const output = result.violations.map(({ item, detail }) => `${item}: ${detail}`).join('\n');
+  assert.match(output, /synthetic_kernel::Connection::From: public trait implementation exposes rusqlite::Connection/u);
+});
+
+test('privilege sink registry resolves real items and fails closed when one disappears', () => {
+  const source = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(source);
+  assert.equal(
+    result.violations.some(({ kind }) => kind === 'sink-registry-unresolved'),
+    false,
+  );
+  assert(
+    result.violations.some(({ item }) => item.includes('record_membership_transition')),
+    'the real transition provenance writer must be registered',
+  );
+  assert.equal(
+    result.violations.some(({ item, seedType }) => item.includes('record_membership_transition')
+      && seedType === 'ChangeOp'),
+    false,
+    'the transition operation label is not an authority discriminator',
+  );
+
+  const parent = mkdtempSync(join(tmpdir(), 'snapback-sink-registry-'));
+  const corpus = join(parent, 'fixture');
+  try {
+    cpSync(source, corpus, { recursive: true });
+    const lib = join(corpus, 'crates/synthetic-kernel/src/lib.rs');
+    writeFileSync(
+      lib,
+      readFileSync(lib, 'utf8').replace(
+        'fn record_membership_transition(_op: ChangeOp, _writer: &MembershipWriter) {}',
+        'fn renamed_membership_transition(_op: ChangeOp, _writer: &MembershipWriter) {}',
+      ),
+    );
+    const missing = auditPrivilegeSurface(corpus).violations;
+    assert(
+      missing.some(({ kind, item }) => kind === 'sink-registry-unresolved'
+        && item === 'record_membership_transition'),
+      'a registered sink that no longer resolves must produce a distinct violation',
+    );
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
 test('direct sink signatures naming caller-constructible discriminants are ratcheted', () => {
   const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
   const result = auditPrivilegeSurface(corpus);

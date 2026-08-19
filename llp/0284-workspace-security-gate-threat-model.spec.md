@@ -20,6 +20,10 @@ re-export globs and non-function items, propagates obtainability through an
 obtainable seed receiver, joins fixture source references to claimed mounts,
 retains both Unix and Windows target predicates, narrows I-16 to its actual
 direct-signature check, and records the remaining scanner evasions in §3.7)
+**Revised:** 2026-08-19 (surgical final hardening: resolves `crate::`/`super::`
+local re-exports, covers raw-handle conversion impls in either trait/self
+position, replaces the dead transition-provenance sink spelling, and makes
+unresolved privilege-sink registry entries a distinct gate violation)
 **Related:** LLP 0283 (F-1, F-2), LLP 0276, LLP 0225, LLP 0189, LLP 0232, LLP 0141, LLP 0041, LLP 0059, LLP 0154, LLP 0009
 
 ## Summary
@@ -557,13 +561,13 @@ as security evidence. An unrelated error whose message matches a regex is a
   alias through a façade, and produces no finding. This is an explicit
   implementation deviation from §4.1's original cross-crate-resolution
   requirement, not a property the gate may claim.
-- **Trait/impl egress coverage has structural gaps.** The concrete I-5 probe
-  `impl From<Wrapper> for rusqlite::Connection` produces no finding because
-  the scanner checks trait arguments but not the raw impl self type; a caller
-  can nevertheless write `Connection::from(Wrapper)`. Probes using blanket or
-  generic impl methods, a trait object named only through a private path, and
-  a public trait whose sensitive contract is inherited only through a private
-  supertrait are also missed.
+- **Trait/impl egress coverage still has structural gaps.** Raw handles and
+  privilege seeds directly named in either the trait or self position are now
+  scanned, including `impl From<Wrapper> for rusqlite::Connection`. Blanket or
+  generic impl methods whose sensitive contract is visible only after type
+  substitution, a trait object named only through a private path, and a public
+  trait whose sensitive contract is inherited only through a private
+  supertrait remain missed.
 - **I-16 is direct-signature matching, not taint analysis.** The scanner does
   not inspect bodies. A probe that carries `UserWriter::Admin` through a helper,
   a `match`, a local, and a private `Wrapped { writer }` field into
@@ -601,7 +605,13 @@ field struct literals enter a public-constructibility set. The scanner
 intersects that set with type names written directly in the signatures of a
 fixed privilege-sink-name registry containing privileged planning,
 `MembershipCommitAuthority::sanctioned`, membership bypass gates, and
-provenance stamping. A direct intersection is a finding.
+provenance stamping. A direct intersection is a finding when the parameter
+selects or stamps authority. `record_membership_transition`'s `MembershipWriter`
+input qualifies; its `ChangeOp` input only labels the already-derived journal
+operation and is not an authority discriminator.
+Every registered sink name must also resolve to at least one real item in the
+scanned corpus; otherwise the gate emits a distinct
+`sink-registry-unresolved` violation. A dead spelling cannot count as coverage.
 
 This does **not** implement the broader semantic property that caller-
 constructible data never selects a privileged lane or authoritative
@@ -691,7 +701,9 @@ text is not.
 | Feature-gated versions of all of the above (I-7) | `remainder-tests`, `test-support`, `benchmark-support`, `telemetry-phase1-proof` |
 | `#[macro_export]` (I-14), public `impl Trait` returns (I-15) | as stated |
 | Renamed imports / private-module re-exports / trait forms | `use rusqlite::Connection as Handle`; `mod hidden { pub fn leak() -> KernelCommitAuthority } pub use hidden::leak`; `impl AsRef<rusqlite::Connection> for PublicWrapper` |
+| Rooted/parent local re-exports and reverse conversion impls | `pub use crate::hidden::leak`; `pub use super::leak`; `impl From<Wrapper> for rusqlite::Connection` |
 | Direct-signature caller discriminators (I-16) | caller-constructible `MembershipWriter` is named directly by fixed-name privileged-plan, sanctioned, bypass, and provenance sink signatures |
+| Dead privilege-sink registry entries (I-16) | every registered sink spelling resolves to a scanned Rust item or fails as `sink-registry-unresolved` |
 | Macro/build-generated API approximations (I-14) | ordinary `macro_rules!` tokens emitting a public seed API; public `OUT_DIR` Rust includes without an exact review row |
 
 On `ede899a20` this gate **must print violations and exit 1**, including
@@ -1136,7 +1148,8 @@ inventory LLP 0276 added) must contain at least:
    symbolic `caller-features` cell.
 8. A public enum discriminator named directly in registered privilege-sink
    signatures, plus the direct-dependent `MembershipWriter::Admin` product
-   witness. This is not body-flow coverage.
+   witness; removing a registered sink item produces the distinct
+   `sink-registry-unresolved` violation. This is not body-flow coverage.
 9. Nested `cfg_attr` path escape beyond one level.
 10. Ordinary-macro and public `OUT_DIR`-include generated API probes.
 11. A fake nonzero Cargo result with no rustc `compiler-message`, asserted as

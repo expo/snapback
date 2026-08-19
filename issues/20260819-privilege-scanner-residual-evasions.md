@@ -19,12 +19,12 @@ as follow-up work without blocking the bounded final F-2 hardening round.
    scanner finding. Renamed SQL imports are seeded, renamed privilege seeds are
    not, and crates are scanned independently rather than through the cross-
    crate symbol graph originally required by LLP 0284 §4.1.
-2. **Trait and impl forms.** `impl From<Wrapper> for
-   rusqlite::Connection` is missed even though callers can write
-   `Connection::from(Wrapper)`, making it a concrete I-5 egress. Separate
-   probes also miss blanket/generic impl methods, trait objects named only
+2. **Trait and impl forms.** Blanket/generic impl methods whose sensitive
+   contract is visible only after type substitution, trait objects named only
    through private paths, and sensitive contracts inherited through private
-   supertraits.
+   supertraits remain missed. Direct raw-handle/seed names in either the trait
+   or self position, including `impl From<Wrapper> for
+   rusqlite::Connection`, are now covered.
 3. **Macros across module/expansion boundaries.** A `macro_rules!` definition
    in one module and invocation in another is missed because macro recognition
    is module-local. In the concrete

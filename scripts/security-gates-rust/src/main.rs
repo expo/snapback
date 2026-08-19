@@ -40,14 +40,31 @@ const SEED_TYPES: &[&str] = &[
 // as residual evasions in LLP 0284 §3.7.
 const PRIVILEGE_SINKS: &[&str] = &[
     "plan_privileged_membership_insert",
+    "plan_membership_insert",
+    "plan_membership_set_role",
+    "plan_membership_remove",
+    "plan_membership_remove_principal",
+    "plan_membership_transfer_owner",
+    "plan_membership_patch",
+    "plan_membership_bootstrap",
+    "plan_membership_teardown",
+    "plan_membership_sweep_expired",
+    "user_transition",
     "commit_membership_plan",
     "sanctioned",
     "is_privileged_noninvocation",
     "membership_write_provenance",
     "write_membership_creation_provenance",
-    "write_membership_transition_provenance",
+    "record_membership_transition",
     "provenance",
 ];
+
+// @ref LLP 0284#38-authority-discriminators — `ChangeOp` selects the
+// transition journal's operation label; it does not
+// select a privileged lane or authoritative actor/effective/grant provenance.
+// The adjacent `MembershipWriter` input is the authority discriminator this
+// registered sink exists to ratchet.
+const NON_AUTHORITY_SINK_TYPES: &[(&str, &str)] = &[("record_membership_transition", "ChangeOp")];
 
 const SYMBOLIC_CALLER_FEATURES: &str = "__SNAPBACK_SYMBOLIC_CALLER_FEATURES__";
 
@@ -75,9 +92,11 @@ struct ModuleNames {
 struct PrivilegeScanner {
     crate_name: String,
     crate_root: PathBuf,
+    crate_lib: PathBuf,
     active_features: BTreeSet<String>,
     findings: Vec<Finding>,
     visited: HashSet<(PathBuf, bool, String)>,
+    reexport_visits: HashSet<(PathBuf, String, String, String)>,
     private_public_types: BTreeSet<String>,
     heuristic_returns: Vec<HeuristicCandidate>,
     heuristic_accepts: BTreeSet<String>,
@@ -749,7 +768,7 @@ impl PrivilegeScanner {
         let owner = exported_owner
             .map(str::to_owned)
             .unwrap_or_else(|| self.item_name(module, &self_name));
-        let impl_public = names.public_types.contains(&self_name)
+        let mut impl_public = names.public_types.contains(&self_name)
             || SEED_TYPES.contains(&self_name.as_str())
             || self_name == "LocalDatabase";
         if let Some((_, trait_path, _)) = &item_impl.trait_ {
@@ -763,11 +782,23 @@ impl PrivilegeScanner {
                 path: trait_path.clone(),
             });
             let trait_info = inspect_type(&trait_type, names);
+            // @ref LLP 0284#32-raw-sqlite — a conversion impl can expose a
+            // foreign raw handle from either side (`Into<Connection>` or
+            // `From<Local> for Connection`). Both positions make the impl part
+            // of the dependent-visible egress surface.
+            impl_public |= self_type.raw_handle.is_some()
+                || trait_info.raw_handle.is_some()
+                || self_type.seed_type.is_some()
+                || trait_info.seed_type.is_some();
             if matches!(
                 trait_name.as_str(),
                 "From" | "Into" | "TryFrom" | "Deref" | "AsRef" | "AsMut"
             ) {
-                if let Some(raw) = &trait_info.raw_handle {
+                if let Some(raw) = trait_info
+                    .raw_handle
+                    .as_ref()
+                    .or(self_type.raw_handle.as_ref())
+                {
                     self.push_finding(
                         "sql-egress",
                         format!("{owner}::{trait_name}"),
@@ -792,19 +823,23 @@ impl PrivilegeScanner {
                         Some(seed.clone()),
                     );
                 }
-                if matches!(
-                    trait_name.as_str(),
-                    "From" | "Into" | "TryFrom" | "FromIterator"
-                ) {
-                    self.push_finding(
-                        "seed-obtain",
-                        owner.clone(),
-                        source,
-                        item_impl.span(),
-                        format!("{self_name} implements public constructor trait {trait_name}"),
-                        Some(seed),
-                    );
-                }
+            }
+            if matches!(
+                trait_name.as_str(),
+                "From" | "Into" | "TryFrom" | "FromIterator"
+            ) && let Some(seed) = self_type
+                .seed_type
+                .clone()
+                .or_else(|| trait_info.seed_type.clone())
+            {
+                self.push_finding(
+                    "seed-obtain",
+                    owner.clone(),
+                    source,
+                    item_impl.span(),
+                    format!("{self_name} implements public constructor trait {trait_name}"),
+                    Some(seed),
+                );
             }
             for member in &item_impl.items {
                 if let ImplItem::Type(item_type) = member {
@@ -1098,9 +1133,18 @@ impl PrivilegeScanner {
         item: &str,
         span: Span,
     ) {
-        if !PRIVILEGE_SINKS.contains(&signature.ident.to_string().as_str()) {
+        let sink_name = signature.ident.to_string();
+        if !PRIVILEGE_SINKS.contains(&sink_name.as_str()) {
             return;
         }
+        self.push_finding(
+            "sink-registry-observed",
+            item.to_owned(),
+            source,
+            span,
+            format!("registered privilege sink {sink_name} resolves in the scanned corpus"),
+            None,
+        );
         let names = ModuleNames::default();
         let mut type_names = BTreeSet::new();
         for input in &signature.inputs {
@@ -1115,6 +1159,9 @@ impl PrivilegeScanner {
                 }
             }
         }
+        type_names.retain(|type_name| {
+            !NON_AUTHORITY_SINK_TYPES.contains(&(sink_name.as_str(), type_name.as_str()))
+        });
         self.discriminator_sinks.push(DiscriminatorSinkCandidate {
             type_names,
             item: item.to_owned(),
@@ -1211,42 +1258,11 @@ impl PrivilegeScanner {
             .filter(|segment| segment.as_str() != "self")
             .cloned()
             .collect::<Vec<_>>();
-        if segments.is_empty()
-            || matches!(segments[0].as_str(), "crate" | "super")
-            || segments[0].contains('-')
-        {
-            return Ok(());
-        }
-        if segments.len() == 1 {
-            for item in items {
-                let Item::Use(item_use) = item else {
-                    continue;
-                };
-                if !public(&item_use.vis) {
-                    continue;
-                }
-                for nested in flatten_use_tree(&item_use.tree) {
-                    if nested.exposed == segments[0] && nested.segments != segments {
-                        let resolved = UseBinding {
-                            segments: nested.segments,
-                            exposed: binding.exposed.clone(),
-                        };
-                        self.scan_local_reexport(
-                            items,
-                            source,
-                            module,
-                            module_dir,
-                            attribute_dir,
-                            &resolved,
-                            names,
-                        )?;
-                    }
-                }
-            }
+        if segments.is_empty() || segments[0].contains('-') {
             return Ok(());
         }
         let exported_item = self.item_name(module, &binding.exposed);
-        self.scan_local_reexport_path(
+        self.scan_local_reexport_segments(
             items,
             source,
             module,
@@ -1256,6 +1272,100 @@ impl PrivilegeScanner {
             &exported_item,
             names,
             module,
+        )
+    }
+
+    // @ref LLP 0284#41-kernel-raw-sql-api--privilege-surface-scanner — local
+    // re-export chains include ordinary Rust `crate::` and `super::` paths;
+    // resolve them from the crate root instead of treating them as foreign.
+    #[allow(clippy::too_many_arguments)]
+    fn scan_local_reexport_segments(
+        &mut self,
+        items: &[Item],
+        source: &Path,
+        module: &[String],
+        module_dir: &Path,
+        attribute_dir: &Path,
+        segments: &[String],
+        exported_item: &str,
+        names: &ModuleNames,
+        exported_module: &[String],
+    ) -> Result<(), String> {
+        if !self.reexport_visits.insert((
+            source.to_path_buf(),
+            module.join("::"),
+            segments.join("::"),
+            exported_item.to_owned(),
+        )) {
+            return Ok(());
+        }
+        let mut remaining = segments;
+        let mut rooted_module = module.to_vec();
+        let mut from_root = false;
+        if remaining.first().is_some_and(|segment| segment == "crate") {
+            rooted_module.clear();
+            remaining = &remaining[1..];
+            from_root = true;
+        } else {
+            while remaining.first().is_some_and(|segment| segment == "super") {
+                if rooted_module.pop().is_none() {
+                    return Ok(());
+                }
+                remaining = &remaining[1..];
+                from_root = true;
+            }
+        }
+        if remaining.is_empty() {
+            return Ok(());
+        }
+        if !from_root {
+            return self.scan_local_reexport_path(
+                items,
+                source,
+                module,
+                module_dir,
+                attribute_dir,
+                remaining,
+                exported_item,
+                names,
+                exported_module,
+            );
+        }
+
+        let mut rooted_segments = rooted_module;
+        rooted_segments.extend_from_slice(remaining);
+        let root_source = fs::canonicalize(&self.crate_lib).map_err(|error| {
+            format!(
+                "cannot resolve Rust library root {}: {error}",
+                self.crate_lib.display()
+            )
+        })?;
+        let root_text = fs::read_to_string(&root_source).map_err(|error| {
+            format!(
+                "cannot read Rust library root {}: {error}",
+                root_source.display()
+            )
+        })?;
+        let root_syntax = syn::parse_file(&root_text).map_err(|error| {
+            format!(
+                "cannot parse Rust library root {}: {error}",
+                root_source.display()
+            )
+        })?;
+        let root_dir = root_source
+            .parent()
+            .ok_or_else(|| format!("library root has no parent: {}", root_source.display()))?;
+        let root_names = self.collect_names(&root_syntax.items);
+        self.scan_local_reexport_path(
+            &root_syntax.items,
+            &root_source,
+            &[],
+            root_dir,
+            root_dir,
+            &rooted_segments,
+            exported_item,
+            &root_names,
+            exported_module,
         )
     }
 
@@ -1291,7 +1401,7 @@ impl PrivilegeScanner {
                     Item::Use(item_use) if public(&item_use.vis) => {
                         for nested in flatten_use_tree(&item_use.tree) {
                             if nested.exposed == *head {
-                                self.scan_local_reexport_path(
+                                self.scan_local_reexport_segments(
                                     items,
                                     source,
                                     module,
@@ -2242,9 +2352,11 @@ fn run() -> Result<(), String> {
             let findings = PrivilegeScanner {
                 crate_name,
                 crate_root,
+                crate_lib: lib.clone(),
                 active_features: features,
                 findings: Vec::new(),
                 visited: HashSet::new(),
+                reexport_visits: HashSet::new(),
                 private_public_types: BTreeSet::new(),
                 heuristic_returns: Vec::new(),
                 heuristic_accepts: BTreeSet::new(),
@@ -2259,6 +2371,13 @@ fn run() -> Result<(), String> {
                 "{}",
                 serde_json::to_string(&findings)
                     .map_err(|error| format!("cannot serialize privilege findings: {error}"))?
+            );
+        }
+        "privilege-sinks" => {
+            println!(
+                "{}",
+                serde_json::to_string(PRIVILEGE_SINKS)
+                    .map_err(|error| format!("cannot serialize privilege sinks: {error}"))?
             );
         }
         "units" => {
@@ -2296,7 +2415,7 @@ fn run() -> Result<(), String> {
         }
         _ => {
             return Err(
-                "usage: security-gates-rust <privilege|units|attack-span|crate-references> ..."
+                "usage: security-gates-rust <privilege|privilege-sinks|units|attack-span|crate-references> ..."
                     .to_owned(),
             );
         }
