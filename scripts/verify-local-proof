@@ -240,8 +240,6 @@ run path-migration-stragglers -- node scripts/check-path-migration-stragglers.mj
 run workspace-graph -- node scripts/check-workspace-graph.mjs
 run workspace-graph-fixtures -- node --test tests/workspace_graph_v1.mjs
 run rustfmt -- node scripts/check-rustfmt.mjs
-run module-ownership -- node scripts/check-module-ownership.mjs
-run module-ownership-fixtures -- node --test scripts/check-module-ownership.test.mjs
 run authoring-profile-branches -- node scripts/check-authoring-profile-branches.mjs
 run package-test-inventory -- node scripts/check-package-test-inventory.mjs
 # @ref LLP 0276#scripts — the Phase 0 scripts-test inventory is a cheap
@@ -383,7 +381,7 @@ run demo-materialization --requires generated-artifacts -- node tests/demo_setup
 # changes deploy inputs without regenerating fails, not the next deploy
 # (cf-check-compat refuses at deploy time; on 2026-07-25 main went
 # un-deployable twice this way). Fast-CI twin: .github/workflows/deployment-identity.yml.
-run deployment-identity --requires generated-artifacts -- node cloudflare/scripts/generate-deployment-identity.mjs --check
+run deployment-identity --requires generated-artifacts -- node targets/cloudflare/scripts/generate-deployment-identity.mjs --check
 run generated-types --requires generated-artifacts -- scripts/check-generated-types
 run demo-surfaces --requires generated-artifacts -- scripts/check-demo-surfaces
 # ENG-22543 (Diary 0011 flip-condition 2): production-build every REQUIRED demo
@@ -673,7 +671,7 @@ fi
 # regression. The runner pins suite IDs, the expected check count, completion
 # evidence, and a classification for every file so coverage cannot disappear
 # through a rename or an unreferenced standalone script.
-run cloudflare-local-suite -- node cloudflare/test/local-suite.mjs
+run cloudflare-local-suite -- node targets/cloudflare/test/local-suite.mjs
 
 if [ "$VERIFY_EXACT" != "0" ]; then
     if exact_available; then

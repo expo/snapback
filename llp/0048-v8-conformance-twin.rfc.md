@@ -510,11 +510,11 @@ all are fixed and gated by the twin suites and the conformance corpus:
 ## Third leg: the Cloudflare-JS host-op table (2026-07-08, ENG-23605)
 
 The deployed Cloudflare target's JS host-op table
-(`cloudflare/src/host-ops.js`) was a third op-table implementation outside
+(`targets/cloudflare/src/host-ops.js`) was a third op-table implementation outside
 this gate — parity held by review discipline plus point regression tests,
 which is how the ENG-23582 divergences drifted in silently. The twin runner
 now executes the same corpus on that leg too: one Miniflare process
-(`cloudflare/test/twin-engine.mjs`, app bundle `cloudflare/app/twin.app.js`)
+(`targets/cloudflare/test/twin-engine.mjs`, app bundle `targets/cloudflare/app/twin.app.js`)
 runs every participating case through the deployed invocation path —
 gateway → coordinator → handler Worker → DO SQLite — and the runner diffs
 normalized **outcomes and committed storage** against the workerd leg (same

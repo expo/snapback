@@ -1,0 +1,164 @@
+{
+  "$schemaNote": "Audited gateway inventory with a bounded source-parity gate. The compiler parses FORWARDED_JSON_PATHS, APP_DATA_PREFIXES, KIT_ROUTE, KIT_STREAM_ROUTE, and exact path === literals from targets/cloudflare/src/gateway.js and fails when this fixture does not list them. Imperative prefix/catch-all semantics beyond those declared seams remain hand-audited. Hosted-adapter Rule 11 continues to join the system/control entries by (method, path, operation), while appDataPlane covers the app-data dispatch and unsupported-target fallback namespaces.",
+  "generatedFrom": "targets/cloudflare/src/gateway.js",
+  "auditedAtCommit": "736e4913d27a57cc857c3017758fbea51f2cce5b",
+  "auditedDate": "2026-08-05",
+  "scope": "Source-parity covers exact path literals, forwarded JSON paths, kit regex families, and the app-data prefixes protected from SPA fallback. Rule 11's hosted-adapter catalog join remains scoped to system/control entries; static-asset and general SPA behavior remain outside that catalog domain.",
+  "sourceLiterals": {
+    "FORWARDED_JSON_PATHS": ["/query", "/mutation", "/_snapback/test/corrupt-meta", "/connection/open", "/app/ensure", "/app/bundle"],
+    "APP_DATA_PREFIXES": ["/auth", "/assets", "/ephemeral", "/push", "/app-api", "/client-mutations", "/live", "/outbox", "/query", "/mutation", "/action", "/connection"],
+    "KIT_ROUTE": "/^\\/(?:query|mutation|action)\\/[A-Za-z0-9_-]+$|^\\/live\\/[A-Za-z0-9_.-]+\\/(?:subscribe|unsubscribe)$|^\\/outbox\\/[A-Za-z0-9_.-]+$/",
+    "KIT_STREAM_ROUTE": "/^\\/live\\/[A-Za-z0-9_.-]+\\/stream$/",
+    "exactPaths": ["/_snapback", "/_snapback/api/app/reset", "/_snapback/api/config/status", "/_snapback/api/cron/run", "/_snapback/api/cron/status", "/_snapback/api/debug/network-profile", "/_snapback/api/object/evict", "/_snapback/host-call", "/capability", "/health", "/inspect", "/live/stream"]
+  },
+  "appDataPlane": {
+    "forwardedExactPaths": ["/query", "/mutation", "/connection/open", "/app/ensure", "/app/bundle"],
+    "kitRoute": "/^\\/(?:query|mutation|action)\\/[A-Za-z0-9_-]+$|^\\/live\\/[A-Za-z0-9_.-]+\\/(?:subscribe|unsubscribe)$|^\\/outbox\\/[A-Za-z0-9_.-]+$/",
+    "kitStreamRoute": "/^\\/live\\/[A-Za-z0-9_.-]+\\/stream$/",
+    "unsupportedSpaFallbackPrefixes": ["/auth", "/assets", "/ephemeral", "/push", "/app-api", "/client-mutations", "/live", "/outbox", "/query", "/mutation", "/action", "/connection"]
+  },
+  "entries": [
+    {
+      "methods": ["ANY"],
+      "path": "/inspect",
+      "operation": "capability.manifest.read",
+      "registrationStyle": "exact-path (path === check, OR'd with /capability)",
+      "gate": "none — public read",
+      "description": "Returns the app's capability manifest (LLP 0040 §Capability report). No method check in code; served as an unconditional 200 JSON read regardless of verb."
+    },
+    {
+      "methods": ["ANY"],
+      "path": "/capability",
+      "operation": "capability.manifest.read",
+      "registrationStyle": "exact-path (path === check, OR'd with /inspect)",
+      "gate": "none — public read",
+      "description": "Alias of /inspect; same handler, same capabilityManifest response."
+    },
+    {
+      "methods": ["ANY (forwarded to coordinator hard-coded as POST)"],
+      "path": "/_snapback/host-call",
+      "operation": "hostCall.dispatch",
+      "registrationStyle": "exact-path",
+      "gate": "per-invocation host-call token (x-snapback-host-token / x-snapback-do-id); not the admin model",
+      "description": "Re-entrant host call from the handler isolate back to the coordinator that owns the live invocation. The coordinator DO id rides x-snapback-do-id. gateway.js always forwards as POST to the coordinator regardless of the caller's original method (see @ref LLP 0031#the-invariant in source)."
+    },
+    {
+      "methods": ["ANY (forwarded to coordinator hard-coded as GET, no explicit method passed)"],
+      "path": "/health",
+      "operation": "health.read",
+      "registrationStyle": "exact-path",
+      "gate": "none — ungated per LLP 0031 §Server-binary identity",
+      "description": "Coordinator health/build-identity check. gateway.js does not forward request.method; the stub.fetch call carries no method override, so it always issues a GET to the coordinator."
+    },
+    {
+      "methods": ["<forwarded as request.method, unrestricted>"],
+      "path": "/_snapback/api/config/status",
+      "operation": "config.status.read",
+      "registrationStyle": "exact-path",
+      "gate": "hosted admin token (x-snapback-admin-token), GET-only per LLP 0031's amendment (gateway.js itself does not enforce the GET-only restriction — that lives in the coordinator)",
+      "description": "Operator config diagnosis: names, set/missing state, grants, generation — never values. Forwarded with the caller's method and headers, no body."
+    },
+    {
+      "methods": ["<forwarded as request.method, unrestricted>"],
+      "path": "/_snapback/api/cron/status",
+      "operation": "cron.status.read",
+      "registrationStyle": "exact-path",
+      "gate": "public bounded typed projection; admin token escalates to scrubbed operator detail",
+      "description": "Cron ledger/activation status. Forwarded with the caller's method and headers, no body."
+    },
+    {
+      "methods": ["<forwarded as request.method, unrestricted>"],
+      "path": "/_snapback/api/cron/run",
+      "operation": "cron.run.trigger",
+      "registrationStyle": "exact-path",
+      "gate": "hosted admin token, POST-only per LLP 0031's amendment (enforced downstream by the coordinator, not gateway.js)",
+      "description": "Admin-gated manual cron run trigger. Forwarded with the caller's method and headers; body forwarded unless the method is GET."
+    },
+    {
+      "methods": ["GET", "HEAD"],
+      "path": "/_snapback/api/debug/network-profile",
+      "operation": "debug.networkProfile.read",
+      "registrationStyle": "exact-path",
+      "gate": "admin-read gate (coordinator-owned)",
+      "description": "LLP 0167 runtime network-profile selector, read side. gateway.js hand-routes ALL methods for this single path to the coordinator (no method-level branch in gateway.js itself); the coordinator is the one that dispatches GET/HEAD through the admin-read gate. This is the RFC's worked example of why manifest entries must be keyed by (method, path, operation), not path alone — GET and every write method share this path but carry different authority, effect, and schema."
+    },
+    {
+      "methods": ["POST", "PUT", "PATCH", "DELETE", "<any method other than GET/HEAD>"],
+      "path": "/_snapback/api/debug/network-profile",
+      "operation": "debug.networkProfile.write",
+      "registrationStyle": "exact-path",
+      "gate": "admin-write activation gate (coordinator-owned)",
+      "description": "LLP 0167 runtime network-profile selector, write side. Same gateway.js route as the read entry above (gateway.js forwards method+body unchanged for every method except GET/HEAD, which drop the body); the coordinator dispatches any write method through the admin-write activation gate. Missing from LLP 0031's hosted route table prior to this audit (corrected — see the 2026-08-05 dated correction in llp/0031-server-route-taxonomy.spec.md)."
+    },
+    {
+      "methods": ["POST"],
+      "path": "/_snapback/test/corrupt-meta",
+      "operation": "test.corruptMeta",
+      "registrationStyle": "exact-path (member of the FORWARDED_JSON_PATHS Set; also matches the /_snapback/test/ prefix wildcard below, so both registration styles reach this path)",
+      "gate": "SNAPBACK_TESTING=1 profile gate (categorically absent from production deploys); POST-only enforced by gateway.js itself (405 otherwise)",
+      "description": "Testing seam that must stay reachable during a startup metadata-corruption refusal, so it is enumerated by exact path rather than relying only on the /_snapback/test/ prefix. Forwarded generically via the shared forward() helper (always POST to the coordinator)."
+    },
+    {
+      "methods": ["POST"],
+      "path": "/_snapback/test/*",
+      "operation": "test.<subpath-determined-by-coordinator>",
+      "registrationStyle": "prefix wildcard (path.startsWith('/_snapback/test/'))",
+      "gate": "SNAPBACK_TESTING=1 profile gate; POST-only enforced by gateway.js itself (405 otherwise)",
+      "description": "Generic testing-seam prefix (formerly /__test/* pre-migration, per LLP 0031's dated amendment). gateway.js forwards any path under this prefix to the identically-named coordinator path via the shared forward() helper; the specific operation identity per subpath is not determinable from gateway.js alone (coordinator-owned)."
+    },
+    {
+      "methods": ["<forwarded as request.method, unrestricted by gateway.js>"],
+      "path": "/_snapback/api/app/reset",
+      "operation": "app.reset",
+      "registrationStyle": "exact-path (OR'd with /_snapback/api/object/evict in one branch)",
+      "gate": "hosted admin token; mutex-serialized atomic reset (coordinator-enforced, POST-only per LLP 0031)",
+      "description": "Destructive admin app reset. gateway.js forwards only method+headers (no body) and never mints admin authority itself — the coordinator enforces the POST-only, token-gated admin surface (ENG-23587)."
+    },
+    {
+      "methods": ["<forwarded as request.method, unrestricted by gateway.js>"],
+      "path": "/_snapback/api/object/evict",
+      "operation": "object.evict",
+      "registrationStyle": "exact-path (OR'd with /_snapback/api/app/reset in one branch)",
+      "gate": "hosted admin token (coordinator-enforced)",
+      "description": "Destructive admin object eviction — the RFC's confirmed worked example of a hand-routed hosted control path with no RouteClass entry. gateway.js forwards only method+headers (no body)."
+    },
+    {
+      "methods": ["ANY"],
+      "path": "/_snapback",
+      "operation": "route.unknown.refuse",
+      "registrationStyle": "exact-path (OR'd into the same branch as the /_snapback/ prefix catch-all)",
+      "gate": "none — unconditional refusal",
+      "description": "Bare reserved-namespace root with no trailing segment; falls into the same explicit-404 branch as the prefix catch-all below."
+    },
+    {
+      "methods": ["ANY"],
+      "path": "/_snapback/*",
+      "operation": "route.unknown.refuse",
+      "registrationStyle": "catch-all prefix (path.startsWith('/_snapback/'), evaluated after every exact/prefix match above)",
+      "gate": "none — unconditional refusal",
+      "description": "Any /_snapback/* path not matched by one of the entries above returns an explicit JSON 404 (SNAPBACK_ROUTE_UNKNOWN). /_snapback/* never falls through to the SPA asset lane — this is what keeps the reserved namespace exhaustively system-owned on the hosted arm (LLP 0031's dated amendment)."
+    }
+  ],
+  "excludedNonSystemPaths": {
+    "note": "Enumerated during the same full read of gateway.js for audit completeness and to sanity-check that no registration style was missed; these are app-data-plane or asset-serving routes, not system/control, so they are excluded from 'entries' above per RFC 0184 §3a scope.",
+    "items": [
+      {"methods": ["POST"], "path": "/query", "registrationStyle": "exact-path (FORWARDED_JSON_PATHS Set member)"},
+      {"methods": ["POST"], "path": "/mutation", "registrationStyle": "exact-path (FORWARDED_JSON_PATHS Set member)"},
+      {"methods": ["POST"], "path": "/connection/open", "registrationStyle": "exact-path (FORWARDED_JSON_PATHS Set member)"},
+      {"methods": ["POST"], "path": "/app/ensure", "registrationStyle": "exact-path (FORWARDED_JSON_PATHS Set member)"},
+      {"methods": ["POST"], "path": "/app/bundle", "registrationStyle": "exact-path (FORWARDED_JSON_PATHS Set member); also the Channel A subrequest target"},
+      {"methods": ["POST", "GET (for /outbox/*)"], "path": "/(query|mutation|action)/{name} | /live/{name}/(subscribe|unsubscribe) | /outbox/{id}", "registrationStyle": "regex (KIT_ROUTE)"},
+      {"methods": ["GET (upgrade: websocket)"], "path": "/live/{name}/stream", "registrationStyle": "regex (KIT_STREAM_ROUTE), OR'd with the literal /live/stream"},
+      {"methods": ["GET (upgrade: websocket)"], "path": "/live/stream", "registrationStyle": "exact-path, OR'd with KIT_STREAM_ROUTE"},
+      {"methods": ["ANY"], "path": "/__exact/*", "registrationStyle": "prefix wildcard (path.startsWith('/__exact/')); Exact protocol endpoints served from the assets binding, never SPA-fallback"},
+      {"methods": ["GET"], "path": "<any other path>", "registrationStyle": "catch-all fallthrough to env.ASSETS.fetch(request) (static web bundle / Channel A inlined HTML), or an explicit JSON 404 when no assets binding is configured"}
+    ]
+  },
+  "registrationStylesConfirmed": [
+    "exact-path equality checks (path === '...')",
+    "a Set membership check (FORWARDED_JSON_PATHS.has(path))",
+    "path.startsWith(...) prefix wildcards (/_snapback/test/, /__exact/, /_snapback/)",
+    "regex routes (KIT_ROUTE, KIT_STREAM_ROUTE via RegExp.test)",
+    "a final catch-all (env.ASSETS.fetch fallback, or explicit JSON 404 with no assets binding)"
+  ]
+}

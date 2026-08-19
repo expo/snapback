@@ -79,7 +79,7 @@ Three concrete forcing functions, in descending order of embarrassment:
 
 3. **The only existing delay seams are invisible one-arm test hacks.** The
    Cloudflare coordinator carries two env-gated, test-only knobs behind
-   `SNAPBACK_TESTING === '1'` (`cloudflare/src/coordinator.js`):
+   `SNAPBACK_TESTING === '1'` (`targets/cloudflare/src/coordinator.js`):
    `SNAPBACK_TEST_SUBSCRIPTION_STAGE_DELAY_MS` (capped at 1,000 ms) and
    `SNAPBACK_TEST_NESTED_COMMIT_DELAY_MS` (applies the raw env value,
    uncapped). The Rust server has nothing at all. There is no shared

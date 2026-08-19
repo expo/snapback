@@ -25,11 +25,11 @@
     "check:surfaces": "scripts/check-demo-surfaces",
     "workout": "node scripts/run-workout-apps.mjs",
     "verify": "scripts/verify-local-proof",
-    "cf:accept": "node cloudflare/test/local-suite.mjs",
-    "cf:index-scaling": "node cloudflare/test/index-scaling.mjs",
-    "cf:measure": "node cloudflare/test/measure.mjs",
+    "cf:accept": "node targets/cloudflare/test/local-suite.mjs",
+    "cf:index-scaling": "node targets/cloudflare/test/index-scaling.mjs",
+    "cf:measure": "node targets/cloudflare/test/measure.mjs",
     "cf:compat": "scripts/cf-check-compat",
-    "cf:twin": "cargo run -p snapback-conformance --bin snapback-conformance-twin -- --out cloudflare/generated/conformance-twin-report.json"
+    "cf:twin": "cargo run -p snapback-conformance --bin snapback-conformance-twin -- --out targets/cloudflare/generated/conformance-twin-report.json"
   },
   "devDependencies": {
     "ajv": "^8.20.0",

@@ -34,7 +34,7 @@ const deploymentReviewDriftIndex = deploymentIdentityWorkflow.indexOf(
   'demos/all-aboard/snapback/generated/artifacts.json',
 );
 const deploymentIdentityCheckIndex = deploymentIdentityWorkflow.indexOf(
-  'node cloudflare/scripts/generate-deployment-identity.mjs --check',
+  'node targets/cloudflare/scripts/generate-deployment-identity.mjs --check',
 );
 assert(
   deploymentCodegenIndex >= 0

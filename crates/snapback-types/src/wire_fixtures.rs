@@ -1297,7 +1297,7 @@ pub fn wire_fixture_corpus() -> Value {
                 "actions": ["surface_capability_diagnostic"],
                 "forbiddenActions": ["retry_unchanged"]
             },
-            "notes": "LLP 0094 §0C.5: both open-time offer fields follow one matrix — known binds, unknown refuses, absent degrades to legacy. Both arms enforce this (src/server.rs open_connection; cloudflare/src/coordinator.js kitOpenConnection)."
+            "notes": "LLP 0094 §0C.5: both open-time offer fields follow one matrix — known binds, unknown refuses, absent degrades to legacy. Both arms enforce this (crates/snapback-server/src/server.rs open_connection; targets/cloudflare/src/coordinator.js kitOpenConnection)."
         },
         {
             "name": "negotiation.socket.wire_version_required",
@@ -1952,7 +1952,7 @@ pub fn wire_fixture_corpus() -> Value {
                 "actions": ["surface_terminal_auth", "delete_local_durable_authority"],
                 "forbiddenActions": ["attempt_reconnect"]
             },
-            "notes": "T-AUTH-TERM's durable half: `authorityDisposition: durableDelete` reflects a durable authority deletion, not mere carrier loss — the client must additionally delete local durable authority state (src/live_wire.rs LiveAuthorityDisposition doc). The disposition distinction is the whole reason this frame is not just a close code."
+            "notes": "T-AUTH-TERM's durable half: `authorityDisposition: durableDelete` reflects a durable authority deletion, not mere carrier loss — the client must additionally delete local durable authority state (crates/snapback-types/src/live_wire.rs LiveAuthorityDisposition doc). The disposition distinction is the whole reason this frame is not just a close code."
         },
         {
             "name": "auth.replay.descriptor_offer_required",

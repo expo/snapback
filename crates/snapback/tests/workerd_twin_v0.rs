@@ -1509,7 +1509,7 @@ fn ctx_answer_ledger_is_equivalent_across_engines() {
 /// envelope and host-call bodies, and the Rust-serialized invocation request
 /// — validate against the committed `handler.*` marker-envelope schemas. This
 /// is the local-arm real-bytes half of the drift gate; the hosted half is
-/// `cloudflare/test/wire-schema-gate.mjs`.
+/// `targets/cloudflare/test/wire-schema-gate.mjs`.
 #[test]
 fn handler_boundary_wire_bytes_validate_against_committed_schemas() {
     require_workerd!();

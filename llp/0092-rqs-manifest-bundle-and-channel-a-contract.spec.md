@@ -193,7 +193,7 @@ Target posture for the 2026-08-16 amendment:
 | Target | No-declaration public-exact admission | Status |
 |---|---|---|
 | local/Ibex (`crates/snapback/src/manifest.rs`) | codegen and the served host independently derive the class; `authorityIndependent` is not an input | Implemented |
-| Cloudflare (`cloudflare/src/rqs-host.mjs`) | still requires a validated `authorityIndependent: true` flag in addition to the closed HostPlan/read-summary proof | **Pending** — port the owner-derived proof and its adversarial acceptance before removing the flag |
+| Cloudflare (`targets/cloudflare/src/rqs-host.mjs`) | still requires a validated `authorityIndependent: true` flag in addition to the closed HostPlan/read-summary proof | **Pending** — port the owner-derived proof and its adversarial acceptance before removing the flag |
 
 Thus every unqualified no-declaration/default-retention claim in this dated
 amendment is local/Ibex-scoped. The older Cloudflare amendment below remains
@@ -908,9 +908,9 @@ the client fence path) — the recorded follow-on for the sessions arm.
 ## Dated amendment: step-4 Cloudflare arm (2026-07-24, ENG-25455)
 
 LLP 0090 rollout step 4 landed the Cloudflare arm (coordinator resume
-admission + bundle endpoint, gateway Channel A; `cloudflare/src/rqs-host.mjs`,
-`cloudflare/src/coordinator.js`, `cloudflare/src/gateway.js`; acceptance
-`cloudflare/test/acceptance.rqs.mjs`). Per LLP 0004 the implemented behavior
+admission + bundle endpoint, gateway Channel A; `targets/cloudflare/src/rqs-host.mjs`,
+`targets/cloudflare/src/coordinator.js`, `targets/cloudflare/src/gateway.js`; acceptance
+`targets/cloudflare/test/acceptance.rqs.mjs`). Per LLP 0004 the implemented behavior
 is normative; the sections above read as amended for this arm:
 
 1. **§0C.1 — the routes manifest is compiled into the Worker.** The app
@@ -964,7 +964,7 @@ is normative; the sections above read as amended for this arm:
    shell serves), the byte-pinned serializer
    (`packages/snapback-vite/rqs-serializer.mjs`, bundled into the Worker;
    the §0E.2 Cloudflare conformance home is
-   `cloudflare/test/acceptance.rqs.mjs` over the same fixture files), embed,
+   `targets/cloudflare/test/acceptance.rqs.mjs` over the same fixture files), embed,
    and §0E.4 response mechanics — `no-store`, static-shell validators
    dropped, `Content-Length` recomputed over the final identity bytes with
    compression left to the runtime after transformation, CSP headers carried
@@ -1113,7 +1113,7 @@ left them.)
   on real payloads, not only in tests. Named test homes (obligations, to
   land with cluster implementation, LLP 0091's stub pattern):
   `packages/snapback-vite/rqs-serializer.test.mjs` and, for the
-  Cloudflare-arm assembler, a `cloudflare/`-side test over the same fixture
+  Cloudflare-arm assembler, a `targets/cloudflare/`-side test over the same fixture
 files; a Rust-side `crates/snapback/tests/rqs_serializer_v0.rs` only if a Rust assembler
   ever exists.
 - **Closed-union schema parity:** fixtures proving the per-entry union of

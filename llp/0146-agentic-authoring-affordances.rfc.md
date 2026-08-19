@@ -364,7 +364,7 @@ Mutation commit validation is on firmer ground: it validates
 At the v0.5 review cut, the critique's original claim was simply correct.
 `fanOut` selected affected subscriptions with
 `functionTables(fn).some((table) => changedTables.has(table))`
-(`cloudflare/src/coordinator.js:5163-5167` at that cut), and `functionTables`
+(`targets/cloudflare/src/coordinator.js:5163-5167` at that cut), and `functionTables`
 returned the function's declared `fn.tables` — **or, when that list is absent or
 empty, `[schema.tables[0].name]`** (`:5539-5542`). The fallback is a second
 and arguably worse miss on the same arm: a live query with no declared
@@ -373,7 +373,7 @@ is arbitrary rather than conservative, and "no declaration yet" is exactly
 the state a code-first agent leaves a handler in. Captured reads were
 recorded on this arm but unused by fan-out: the coordinator's own header said
 "captured read sets are recorded but not yet validated"
-(`cloudflare/src/coordinator.js:22-23`), with serialisation standing in for
+(`targets/cloudflare/src/coordinator.js:22-23`), with serialisation standing in for
 the isolation the manifest declares.
 
 **Therefore, before the 2026-08-01 fix, a handler that declared table A and
@@ -420,7 +420,7 @@ recover it, not how to restore correctness.
     *non-erroring* derived predicate, requiring the single-table
     `HostPlan(Query)` profile; its own doc comment says a query failing the
     proof "is simply not eligible, never a load error." The Cloudflare arm
-    mirrors it (`cloudflare/src/rqs-host.mjs:194-223`).
+    mirrors it (`targets/cloudflare/src/rqs-host.mjs:194-223`).
 
   Every admitted shape has its summary checked against its plan, and
   hand-authored drift is only possible in opaque JS handlers, which both

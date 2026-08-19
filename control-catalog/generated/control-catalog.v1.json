@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:1f00b7b47a8eca4e9ee622eb654c372758afa27a2095185881309e8c2dcbb9a7",
+  "catalogDigest": "sha256:b99ba61f3035ef82eb85e79dfa3a950dbf07f684d6a2a2fa8656057b51c04512",
   "buildIdentity": {
-    "sourceCommit": "ed06d2b4b0d2d110c34774addf6d162add6a07c1",
+    "sourceCommit": "f53ccb297afff7f0a8f0b0b32c0ff4acc2b7f451",
     "dirty": true
   },
-  "generatedAtCommit": "ed06d2b4b0d2d110c34774addf6d162add6a07c1",
+  "generatedAtCommit": "f53ccb297afff7f0a8f0b0b32c0ff4acc2b7f451",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -562,7 +562,7 @@
       "sources": [
         "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs",
-        "cloudflare/src/gateway.js:172"
+        "targets/cloudflare/src/gateway.js:172"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -2960,7 +2960,7 @@
         "llp/0184-agent-accessible-control-plane §Design/3a"
       ],
       "sources": [
-        "cloudflare/src/gateway.js:102"
+        "targets/cloudflare/src/gateway.js:102"
       ],
       "cliDeferralReason": "The manifest is read from a deployed hosted adapter; no local CLI verb projects it.",
       "remediation": {
@@ -5177,7 +5177,7 @@
       ],
       "sources": [
         "crates/snapback-server/src/server.rs route_registry()",
-        "cloudflare/src/gateway.js:125"
+        "targets/cloudflare/src/gateway.js:125"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -6129,7 +6129,7 @@
         "llp/0184-agent-accessible-control-plane §Design/3a"
       ],
       "sources": [
-        "cloudflare/src/gateway.js:134"
+        "targets/cloudflare/src/gateway.js:134"
       ],
       "cliDeferralReason": "Hosted cron status is exposed by the deployed adapter rather than a local CLI command.",
       "remediation": {
@@ -6189,7 +6189,7 @@
       ],
       "sources": [
         "crates/snapback-server/src/server.rs route_registry()",
-        "cloudflare/src/gateway.js:140"
+        "targets/cloudflare/src/gateway.js:140"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -6484,7 +6484,7 @@
       "sources": [
         "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs",
-        "cloudflare/src/gateway.js:149"
+        "targets/cloudflare/src/gateway.js:149"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -6548,7 +6548,7 @@
       "sources": [
         "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs",
-        "cloudflare/src/gateway.js:149"
+        "targets/cloudflare/src/gateway.js:149"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
@@ -7402,7 +7402,7 @@
         "llp/0184-agent-accessible-control-plane §Design/3a"
       ],
       "sources": [
-        "cloudflare/src/gateway.js:122"
+        "targets/cloudflare/src/gateway.js:122"
       ],
       "cliDeferralReason": "Hosted health is read from the deployed adapter, not a local CLI verb.",
       "remediation": {
@@ -7702,7 +7702,7 @@
         "llp/0184-agent-accessible-control-plane §Design/3a"
       ],
       "sources": [
-        "cloudflare/src/gateway.js:110"
+        "targets/cloudflare/src/gateway.js:110"
       ],
       "internalReason": "System-to-system re-entrant call from the handler isolate back to its owning coordinator, gated by a per-invocation host-call token, not an author/operator action.",
       "remediation": {
@@ -7970,7 +7970,7 @@
         "llp/0184-agent-accessible-control-plane §Design/3a"
       ],
       "sources": [
-        "cloudflare/src/gateway.js:172"
+        "targets/cloudflare/src/gateway.js:172"
       ],
       "cliDeferralReason": "Object eviction is a hosted-adapter API operation with no local CLI projection.",
       "remediation": {
@@ -8248,7 +8248,7 @@
         "llp/0184-agent-accessible-control-plane §Design/3a"
       ],
       "sources": [
-        "cloudflare/src/gateway.js:178"
+        "targets/cloudflare/src/gateway.js:178"
       ],
       "internalReason": "Unconditional refusal branch, not an invocable operation.",
       "remediation": {
@@ -8763,7 +8763,7 @@
         "llp/0184-agent-accessible-control-plane §Design/3a"
       ],
       "sources": [
-        "cloudflare/src/gateway.js:156"
+        "targets/cloudflare/src/gateway.js:156"
       ],
       "internalReason": "SNAPBACK_TESTING=1 profile-gated testing seam; not an author/operator action.",
       "remediation": {
@@ -8816,7 +8816,7 @@
         "llp/0184-agent-accessible-control-plane §Design/3a"
       ],
       "sources": [
-        "cloudflare/src/gateway.js:156"
+        "targets/cloudflare/src/gateway.js:156"
       ],
       "internalReason": "SNAPBACK_TESTING=1 profile-gated testing seam, categorically absent from production deploys; not an author/operator action.",
       "remediation": {

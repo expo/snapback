@@ -1,7 +1,7 @@
 {
   "$defs": {
     "HandlerInvocationMode": {
-      "description": "The invocation mode member of the invoke request. The closed set mirrors\n`IbexInvocationMode` (`src/runtime.rs` `mode_str`) and the coordinator's\n`invokeHandler(fnName, mode, …)` callers.",
+      "description": "The invocation mode member of the invoke request. The closed set mirrors\n`IbexInvocationMode` (`crates/snapback-runtime/src/runtime.rs`) and the\nengine's `mode_str` projection\n(`crates/snapback-engine/src/runtime/host_glue.rs`), plus the coordinator's\n`invokeHandler(fnName, mode, …)` callers.",
       "enum": [
         "query",
         "mutation",

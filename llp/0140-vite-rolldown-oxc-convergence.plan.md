@@ -215,8 +215,8 @@ As of 2026-08-01, the known direct uses are:
 | `scripts/check-package-export-types.mjs` | dynamically loads TypeScript (`:77`) and uses `createProgram`/`getTypeChecker`/`SymbolFlags.Alias`/`SymbolFlags.Value` (`:210-234`) to check declared export types, **and** spawns the pinned `tsc` binary (`:66`) to compile a synthetic external-consumer fixture (`:192-200`) | **retain TypeScript**, both uses. Genuinely type-semantic; a repository script, not part of the published runtime closure. Recorded so it is a declared exception rather than a late discovery |
 | `packages/snapback-client/browser-closure.test.mjs` | esbuild proves the public client root browser-bundles without a Node builtin | move to a controlled Vite/Rolldown browser build |
 | `scripts/snapback-package-cold-install.mjs` | an external proof app invokes esbuild to prove the installed browser package closure | use the same Vite build path as the public React starter, with checkout access still forbidden |
-| `cloudflare/scripts/generate-deployment-identity.mjs` | esbuild discovers the transitive gateway/handler graph for deployment identity | move to Rolldown graph metadata while preserving the exact identity and fixed-point exclusions |
-| `cloudflare/test/harness.mjs` | esbuild bundles Workers and injects the selected app/seed for Miniflare | move to Rolldown with the same controlled alias/plugin behavior |
+| `targets/cloudflare/scripts/generate-deployment-identity.mjs` | esbuild discovers the transitive gateway/handler graph for deployment identity | move to Rolldown graph metadata while preserving the exact identity and fixed-point exclusions |
+| `targets/cloudflare/test/harness.mjs` | esbuild bundles Workers and injects the selected app/seed for Miniflare | move to Rolldown with the same controlled alias/plugin behavior |
 | `scripts/check-contract-meta.mjs` | TypeScript AST performs syntax-only exported-parameter/sidecar drift checks (`ts.createSourceFile` only; no program, no checker) | evaluate for Oxc parser migration; genuinely syntax-only, so this one should move |
 | `packages/snapback-contract/exact-package.mjs` | registers a module loader that runs `node:module`'s `stripTypeScriptTypes(source, { mode: 'transform' })` — full TypeScript lowering via Node's bundled amaro/swc — over **Exact's own checkout sources** (`:163-173`; transform mode is required because that tree uses non-erasable syntax). Ships in the published `@expo/snapback-contract` (`package.json:29`, subpath export `:111-113`) | **declared exception, owner: contract package.** It lowers a sibling checkout for optional dev integration, not admitted user definitions, and it hosts no transform *this* Plan owns. Recording it means the "one family" claim is scoped honestly: a third transform stack exists in the shipped closure and is deliberately out of scope |
 | `demos/competitive-checkpoint/surfaces/react-expo/scripts/bundle-runtime.mjs` | esbuild emits a browser ESM runtime fixture | migrate if the fixture remains maintained; otherwise freeze it as historical evidence with an explicit exemption |
@@ -1435,7 +1435,7 @@ migration with its own rollout.
    historical locks merely for cosmetic convergence.
 
 Gate: `node scripts/run-0140-corpus.mjs --stage 3` orchestrates
-`bun run cf:accept`, `node cloudflare/scripts/generate-deployment-identity.mjs`
+`bun run cf:accept`, `node targets/cloudflare/scripts/generate-deployment-identity.mjs`
 plus the drift check, `bun run --filter '@expo/snapback-client' test`, the React
 starter build, the Expo package proof, and the active-demo tests, and emits
 `llp/receipts/0140-stage3.json` with exact case IDs and counts, the corpus

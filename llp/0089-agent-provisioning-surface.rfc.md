@@ -216,11 +216,11 @@ provisioning motion before this contract passes review, LLP 0087 Phase 2's
 fallback rules govern, verbatim in effect: a minimal op set on the
 coordinator's existing admin-token-gated surface
 (`SNAPBACK_ADMIN_TOKEN`-checked endpoints in
-`cloudflare/src/coordinator.js`), explicitly marked pre-contract and
+`targets/cloudflare/src/coordinator.js`), explicitly marked pre-contract and
 non-public — reachable only with the admin token, enabled only on the
 non-production facets profile, absent from the emitted capability manifest
 — and **never** on the handler↔host op table
-(`cloudflare/src/host-ops.js`), the door-3 seam loaded app code can reach.
+(`targets/cloudflare/src/host-ops.js`), the door-3 seam loaded app code can reach.
 Any wrangler-automation path (scripting today's per-app deploy cycle) is
 the same class of fallback and follows the same rules. The fallback cannot
 satisfy any exit criterion here or any LLP 0087 gate.

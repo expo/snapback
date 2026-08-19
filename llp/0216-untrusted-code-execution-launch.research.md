@@ -81,7 +81,7 @@ eight-limit vocabulary:
 | `hosted_untrusted_code` gap | declared | declared |
 
 (Sources: `schemas/capability.manifest.local-dev-sqlite-ibex.json`,
-`cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json`.)
+`targets/cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json`.)
 
 Two facts fall straight out of that table. First, **even the killable V8 target
 cannot pass the gate as written** — it declares the gap and does not emit rows

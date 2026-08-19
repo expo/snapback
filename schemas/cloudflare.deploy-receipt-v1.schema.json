@@ -2,7 +2,7 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/cloudflare.deploy-receipt-v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "One successful cloudflare/deploy.sh run, bound to exact active Worker versions and the final live health probe.",
+  "description": "One successful targets/cloudflare/deploy.sh run, bound to exact active Worker versions and the final live health probe.",
   "properties": {
     "actionsTaken": {
       "items": {

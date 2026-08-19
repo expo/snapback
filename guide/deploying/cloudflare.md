@@ -4,8 +4,8 @@ id: deploying.cloudflare
 order: 2
 audience: agent-first
 capabilities: [deploy.cloudflare]
-authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0060-hosted-auth-security.rfc.md, llp/0094-wire-envelope-contract.spec.md, llp/0251-outbound-destination-policy.rfc.md, schemas/cloudflare.deploy-receipt-v1.schema.json, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/gateway.js, cloudflare/src/coordinator.js, crates/snapback-server/src/server.rs, cloudflare/test/local-suite-manifest.mjs]
-examples: [demos/all-aboard, cloudflare/app/all-aboard.app.js]
+authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0060-hosted-auth-security.rfc.md, llp/0094-wire-envelope-contract.spec.md, llp/0251-outbound-destination-policy.rfc.md, schemas/cloudflare.deploy-receipt-v1.schema.json, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, targets/cloudflare/README.md, targets/cloudflare/deploy.sh, targets/cloudflare/src/gateway.js, targets/cloudflare/src/coordinator.js, crates/snapback-server/src/server.rs, targets/cloudflare/test/local-suite-manifest.mjs]
+examples: [demos/all-aboard, targets/cloudflare/app/all-aboard.app.js]
 status: current
 targets: [cloudflare]
 maturity: partial
@@ -31,13 +31,13 @@ Use the Node major pinned in `.node-version` (24.x) and the repository-locked
 Wrangler:
 
 ```sh fragment reason="Canonical local Cloudflare regression commands, composed with the repository Node pin."
-volta run --node 24.18.0 -- node cloudflare/test/local-suite.mjs
-volta run --node 24.18.0 -- node cloudflare/test/measure.mjs
+volta run --node 24.18.0 -- node targets/cloudflare/test/local-suite.mjs
+volta run --node 24.18.0 -- node targets/cloudflare/test/measure.mjs
 ```
 
 The suite inventories every non-remote gate; the canonical check count is
 the `EXPECTED_LOCAL_SUITE_CHECKS` constant in
-[`cloudflare/test/local-suite-manifest.mjs`](repo:cloudflare/test/local-suite-manifest.mjs)
+[`targets/cloudflare/test/local-suite-manifest.mjs`](repo:targets/cloudflare/test/local-suite-manifest.mjs)
 (29 as of this review), and the runner asserts the executed count against it.
 Miniflare validates protocol, storage, handlers, secrets, egress, cron, and
 hibernation-event behavior, but it cannot prove platform eviction, placement,
@@ -69,12 +69,12 @@ Deployment mutates a real Cloudflare account. Use a Workers + Durable
 Objects-scoped token and an independently generated admin token; never commit
 either:
 
-```sh fragment reason="All Aboard selection added to the canonical cloudflare/README.md deployment sequence."
+```sh fragment reason="All Aboard selection added to the canonical targets/cloudflare/README.md deployment sequence."
 bun install --frozen-lockfile
 export CLOUDFLARE_API_TOKEN=...
 export CLOUDFLARE_ACCOUNT_ID=...
 export SNAPBACK_ADMIN_TOKEN=...
-SNAPBACK_CF_APP=all-aboard ./cloudflare/deploy.sh
+SNAPBACK_CF_APP=all-aboard ./targets/cloudflare/deploy.sh
 ```
 
 The script builds the same-origin Contract/native bundle, verifies the
@@ -99,8 +99,8 @@ is absent. Deployment reports absent, present-and-preserved, or unknown; only
 All Aboard declares `caltrainFeed` and `directions`. Send one JSON object of
 non-empty string arrays over stdin, never in argv or shell history:
 
-```sh source=cloudflare/README.md
-SNAPBACK_ADMIN_TOKEN=... node cloudflare/config-set.mjs \
+```sh source=targets/cloudflare/README.md
+SNAPBACK_ADMIN_TOKEN=... node targets/cloudflare/config-set.mjs \
   --url https://snapback-all-aboard-proof.<subdomain>.workers.dev \
   --entries-stdin < /secure/path/to/secret-pools.json
 ```
@@ -115,7 +115,7 @@ names, set/missing state, counts, and grant relationships—never values.
 App actions receive descriptor handles only. Values unwrap at the coordinator's
 host-fetch boundary into declared query-parameter or header slots:
 
-```js source=cloudflare/app/all-aboard.app.js
+```js source=targets/cloudflare/app/all-aboard.app.js
   const response = await ctx.fetch({
     url,
     headers: { Accept: 'application/json' },
@@ -150,7 +150,7 @@ After secrets are applied, run the real-deployment acceptance:
 ```sh fragment reason="All Aboard remote acceptance invocation from the runner header."
 SNAPBACK_PROOF_URL=https://snapback-all-aboard-proof.<subdomain>.workers.dev \
 SNAPBACK_ADMIN_TOKEN=... \
-  node cloudflare/test/acceptance.remote.all-aboard.mjs
+  node targets/cloudflare/test/acceptance.remote.all-aboard.mjs
 ```
 
 It proves cold start, same-origin Contract/native assets, ensure/seed, config
@@ -159,7 +159,7 @@ live 511/directions actions, demand-armed warm polling, eviction recovery, and
 secret redaction. Expect minutes rather than seconds because it waits for a
 real scheduled cycle.
 
-For the notes proof, `cloudflare/test/acceptance.remote.mjs` additionally
+For the notes proof, `targets/cloudflare/test/acceptance.remote.mjs` additionally
 records connected-idle billing windows and platform-eviction evidence. Cloudflare
 analytics may settle several minutes later; re-read the emitted window before
 calling observed-zero usage final.

@@ -9,7 +9,7 @@ id: deploying.index
 order: 0
 audience: agent-first
 capabilities: [deploy.release-build, deploy.target-control, deploy.cloudflare]
-authorities: [llp/0002-canonical-local-target.decision.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0111-fly-completion-and-hosted-ephemeral.plan.md, llp/0202-agentic-surface-audit-20260808.research.md, packages/snapback-cli/index.mjs, packages/snapback-cli/deployment-control.mjs, packages/snapback-cli/hosted-control.mjs, cloudflare/deploy.sh, issues/20260726-0072-fly-adapter-remaining-surface.md, issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md]
+authorities: [llp/0002-canonical-local-target.decision.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0111-fly-completion-and-hosted-ephemeral.plan.md, llp/0202-agentic-surface-audit-20260808.research.md, packages/snapback-cli/index.mjs, packages/snapback-cli/deployment-control.mjs, packages/snapback-cli/hosted-control.mjs, targets/cloudflare/deploy.sh, issues/20260726-0072-fly-adapter-remaining-surface.md, issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md]
 examples: []
 status: current
 targets: [all]
@@ -33,7 +33,7 @@ working product journey.
 | --- | --- | --- | --- |
 | Local | `snapback dev` runs the canonical local dev/test target. `snapback deploy build` can create and verify a target-neutral immutable release closure. | Every release built by that command has `activationEligible: false` and blocking `gaps`; the command does not upload, provision, activate, or host it. Local is not a hosting adapter. | The selected first complete hosted path, rather than a local-hosting adapter, is tracked by [the Fly adapter remaining-surface ticket](repo:issues/20260726-0072-fly-adapter-remaining-surface.md). |
 | Fly.io | Exact target registration, observation/doctoring, content-addressed planning, and the target-neutral lifecycle engine exist. Some Fly observation, backup primitive, supervisor, and custody evidence has also been retained. | Ordinary `deploy plan` output remains blocked, and `deploy apply` cannot obtain the zero-GAP adapter qualification and prepared release backed by the complete remote product journey. Upload, provision, activation, served inspection, migration, rollback, restore activation, and the final packed receipt remain open. | [Fly adapter remaining surface](repo:issues/20260726-0072-fly-adapter-remaining-surface.md). |
-| Cloudflare | `cloudflare/deploy.sh` can build, deploy, activate, health-probe, and emit an exact-version receipt for the checked-in `notes` or `all-aboard` proof from a Snapback source checkout. | `SNAPBACK_CF_APP` is a closed `notes | all-aboard` selector. The script is not wired to `snapback deploy build`, does not consume an arbitrary generated application, and is explicitly not a general Cloudflare hosting product. | The current product path to arbitrary app deployment is the [Fly adapter remaining-surface ticket](repo:issues/20260726-0072-fly-adapter-remaining-surface.md); the Cloudflare profile remains deliberately narrow under LLP 0040. |
+| Cloudflare | `targets/cloudflare/deploy.sh` can build, deploy, activate, health-probe, and emit an exact-version receipt for the checked-in `notes` or `all-aboard` proof from a Snapback source checkout. | `SNAPBACK_CF_APP` is a closed `notes | all-aboard` selector. The script is not wired to `snapback deploy build`, does not consume an arbitrary generated application, and is explicitly not a general Cloudflare hosting product. | The current product path to arbitrary app deployment is the [Fly adapter remaining-surface ticket](repo:issues/20260726-0072-fly-adapter-remaining-surface.md); the Cloudflare profile remains deliberately narrow under LLP 0040. |
 | Hosted lifecycle CLI | `snapback hosted plan`, `inspect`, and `logs` expose package-owned planning/read surfaces and the package publishes the exact lifecycle vocabulary. | Every one of the 17 `snapback hosted lifecycle` verbs returns `SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE` before credential resolution or provider I/O. | [Hosted lifecycle carrier and custody GAP](repo:issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md). |
 
 The Fly tracker appears for both the local and Cloudflare rows deliberately:
@@ -60,7 +60,7 @@ the Cloudflare proof before that work.
   effect or traffic activation.
 - **Do not treat a deterministic lifecycle-harness receipt as remote
   evidence.** Its explicit GAP is the point of the harness.
-- **Do not substitute `cloudflare/deploy.sh` for a general app adapter.** Its
+- **Do not substitute `targets/cloudflare/deploy.sh` for a general app adapter.** Its
   two proof apps and source-checkout inputs are closed.
 - **Do not bypass a hosted lifecycle refusal with direct Fly or Tigris
   credentials.** The missing carrier and custody closure is an authority
@@ -612,8 +612,8 @@ id: deploying.cloudflare
 order: 2
 audience: agent-first
 capabilities: [deploy.cloudflare]
-authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0060-hosted-auth-security.rfc.md, llp/0094-wire-envelope-contract.spec.md, llp/0251-outbound-destination-policy.rfc.md, schemas/cloudflare.deploy-receipt-v1.schema.json, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/gateway.js, cloudflare/src/coordinator.js, crates/snapback-server/src/server.rs, cloudflare/test/local-suite-manifest.mjs]
-examples: [demos/all-aboard, cloudflare/app/all-aboard.app.js]
+authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0060-hosted-auth-security.rfc.md, llp/0094-wire-envelope-contract.spec.md, llp/0251-outbound-destination-policy.rfc.md, schemas/cloudflare.deploy-receipt-v1.schema.json, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, targets/cloudflare/README.md, targets/cloudflare/deploy.sh, targets/cloudflare/src/gateway.js, targets/cloudflare/src/coordinator.js, crates/snapback-server/src/server.rs, targets/cloudflare/test/local-suite-manifest.mjs]
+examples: [demos/all-aboard, targets/cloudflare/app/all-aboard.app.js]
 status: current
 targets: [cloudflare]
 maturity: partial
@@ -639,13 +639,13 @@ Use the Node major pinned in `.node-version` (24.x) and the repository-locked
 Wrangler:
 
 ```sh fragment reason="Canonical local Cloudflare regression commands, composed with the repository Node pin."
-volta run --node 24.18.0 -- node cloudflare/test/local-suite.mjs
-volta run --node 24.18.0 -- node cloudflare/test/measure.mjs
+volta run --node 24.18.0 -- node targets/cloudflare/test/local-suite.mjs
+volta run --node 24.18.0 -- node targets/cloudflare/test/measure.mjs
 ```
 
 The suite inventories every non-remote gate; the canonical check count is
 the `EXPECTED_LOCAL_SUITE_CHECKS` constant in
-[`cloudflare/test/local-suite-manifest.mjs`](repo:cloudflare/test/local-suite-manifest.mjs)
+[`targets/cloudflare/test/local-suite-manifest.mjs`](repo:targets/cloudflare/test/local-suite-manifest.mjs)
 (29 as of this review), and the runner asserts the executed count against it.
 Miniflare validates protocol, storage, handlers, secrets, egress, cron, and
 hibernation-event behavior, but it cannot prove platform eviction, placement,
@@ -677,12 +677,12 @@ Deployment mutates a real Cloudflare account. Use a Workers + Durable
 Objects-scoped token and an independently generated admin token; never commit
 either:
 
-```sh fragment reason="All Aboard selection added to the canonical cloudflare/README.md deployment sequence."
+```sh fragment reason="All Aboard selection added to the canonical targets/cloudflare/README.md deployment sequence."
 bun install --frozen-lockfile
 export CLOUDFLARE_API_TOKEN=...
 export CLOUDFLARE_ACCOUNT_ID=...
 export SNAPBACK_ADMIN_TOKEN=...
-SNAPBACK_CF_APP=all-aboard ./cloudflare/deploy.sh
+SNAPBACK_CF_APP=all-aboard ./targets/cloudflare/deploy.sh
 ```
 
 The script builds the same-origin Contract/native bundle, verifies the
@@ -707,8 +707,8 @@ is absent. Deployment reports absent, present-and-preserved, or unknown; only
 All Aboard declares `caltrainFeed` and `directions`. Send one JSON object of
 non-empty string arrays over stdin, never in argv or shell history:
 
-```sh source=cloudflare/README.md
-SNAPBACK_ADMIN_TOKEN=... node cloudflare/config-set.mjs \
+```sh source=targets/cloudflare/README.md
+SNAPBACK_ADMIN_TOKEN=... node targets/cloudflare/config-set.mjs \
   --url https://snapback-all-aboard-proof.<subdomain>.workers.dev \
   --entries-stdin < /secure/path/to/secret-pools.json
 ```
@@ -723,7 +723,7 @@ names, set/missing state, counts, and grant relationships—never values.
 App actions receive descriptor handles only. Values unwrap at the coordinator's
 host-fetch boundary into declared query-parameter or header slots:
 
-```js source=cloudflare/app/all-aboard.app.js
+```js source=targets/cloudflare/app/all-aboard.app.js
   const response = await ctx.fetch({
     url,
     headers: { Accept: 'application/json' },
@@ -758,7 +758,7 @@ After secrets are applied, run the real-deployment acceptance:
 ```sh fragment reason="All Aboard remote acceptance invocation from the runner header."
 SNAPBACK_PROOF_URL=https://snapback-all-aboard-proof.<subdomain>.workers.dev \
 SNAPBACK_ADMIN_TOKEN=... \
-  node cloudflare/test/acceptance.remote.all-aboard.mjs
+  node targets/cloudflare/test/acceptance.remote.all-aboard.mjs
 ```
 
 It proves cold start, same-origin Contract/native assets, ensure/seed, config
@@ -767,7 +767,7 @@ live 511/directions actions, demand-armed warm polling, eviction recovery, and
 secret redaction. Expect minutes rather than seconds because it waits for a
 real scheduled cycle.
 
-For the notes proof, `cloudflare/test/acceptance.remote.mjs` additionally
+For the notes proof, `targets/cloudflare/test/acceptance.remote.mjs` additionally
 records connected-idle billing windows and platform-eviction evidence. Cloudflare
 analytics may settle several minutes later; re-read the emitted window before
 calling observed-zero usage final.

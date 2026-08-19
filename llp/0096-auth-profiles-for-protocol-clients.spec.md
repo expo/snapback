@@ -484,8 +484,8 @@ never-reused `queryInstanceId` and performs a fresh subscribe.
 The hosted arm's generated capability manifest declares
 `supportedAuthModes: ["dev"]` with `external_auth` in `capabilityGaps`
 and every `hostedAuth` fact `unavailable`
-(`cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json`),
-and neither `cloudflare/src/gateway.js` nor `cloudflare/src/coordinator.js`
+(`targets/cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json`),
+and neither `targets/cloudflare/src/gateway.js` nor `targets/cloudflare/src/coordinator.js`
 registers any `/auth/*` route. Every auth profile is therefore
 **local-arm-only today**; on the hosted arm the entire profile surface is
 a named gap, subordinate to the hosted-auth program (LLP 0060). When

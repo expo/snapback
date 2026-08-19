@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 
-import { classifyHandlerPlatformFailure } from '../../cloudflare/src/platform-errors.js';
+import { classifyHandlerPlatformFailure } from '../../targets/cloudflare/src/platform-errors.js';
 import { admitDeclaredRefusal, handlerEnvelopeCode, parseHandlerEnvelope } from './envelope.mjs';
 
 const bootstrap = await readFile(new URL('./ctx-bootstrap.js', import.meta.url), 'utf8');

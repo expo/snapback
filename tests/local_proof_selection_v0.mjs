@@ -133,7 +133,7 @@ test('package owners select their direct package and harness fixtures', () => {
     'harness-envelope-fixtures',
   ]);
 
-  const cloudflare = select(['cloudflare/src/platform-errors.js']);
+  const cloudflare = select(['targets/cloudflare/src/platform-errors.js']);
   includesAll(cloudflare, ['harness-envelope-fixtures']);
 
   const publication = select(['scripts/check-agent-safe-publication.mjs']);
@@ -251,30 +251,33 @@ test('every selected shell-out gate provisions its narrow workflow dependency', 
   }
 });
 
-test('Rust modules and ownership authorities select the module-ownership ratchet', () => {
-  for (const rustModule of ['src/storage.rs', 'src/new-owner-boundary.rs']) {
-    includesAll(select([rustModule]), ['module-ownership']);
+test('Rust modules and graph authorities select the workspace boundary gate', () => {
+  for (const rustModule of [
+    'crates/snapback-kernel/src/storage.rs',
+    'crates/snapback-engine/src/new-owner-boundary.rs',
+  ]) {
+    includesAll(select([rustModule]), ['workspace-graph', 'workspace-graph-fixtures']);
   }
 
   for (const authority of [
-    'ownership.manifest.json',
-    'ownership.baseline.json',
-    'scripts/check-module-ownership.mjs',
+    'crates/allowed-dependencies.v1.json',
+    'scripts/check-workspace-graph.mjs',
+    'tests/workspace_graph_v1.mjs',
   ]) {
     const plan = select([authority]);
     assert.equal(plan.selectionClass, 'FAST_ONLY', authority);
-    includesAll(plan, ['module-ownership']);
+    includesAll(plan, ['workspace-graph', 'workspace-graph-fixtures']);
   }
 });
 
 test('docs-only pushes still select the always-run migration drift gates', () => {
   assert.deepEqual(
     context.policy.driftAlwaysRunGates,
-    ['module-ownership', 'path-migration-stragglers'],
+    ['path-migration-stragglers', 'workspace-graph'],
   );
   assert.deepEqual(
     selectDriftProneGates(['README.md'], context).selectedDriftProneGates,
-    ['module-ownership', 'path-migration-stragglers'],
+    ['path-migration-stragglers', 'workspace-graph'],
   );
 });
 
@@ -288,7 +291,7 @@ test('native, Cloudflare, seed, and carrier changes select their unique claims',
     'telemetry-smoke',
   ]);
 
-  const cloudflare = select(['cloudflare/src/index.mjs']);
+  const cloudflare = select(['targets/cloudflare/src/index.mjs']);
   includesAll(cloudflare, ['cloudflare-local-suite', 'deployment-identity']);
   assert.equal(cloudflare.selectedGates.includes('rust-tests'), false);
 
@@ -338,7 +341,7 @@ test('shared authorities and unknown paths fail closed into the complete invento
 test('selected gates are transitively closed over static and dynamic prerequisites', () => {
   const plans = [
     select(['packages/snapback-client/index.mjs']),
-    select(['cloudflare/src/index.mjs']),
+    select(['targets/cloudflare/src/index.mjs']),
     select(['demos/todo/snapback/schema.mjs']),
   ];
   const dependencies = new Map();

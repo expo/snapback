@@ -1,4 +1,4 @@
-import { cloudflareClientOptions } from '../../../../cloudflare/client-options.mjs';
+import { cloudflareClientOptions } from '../../../../targets/cloudflare/client-options.mjs';
 import { snapbackBaseUrlForTarget } from '../../../_kit/target-origin.mjs';
 
 export function resolveSnapbackTargetProfile(configuredProfile: string | undefined): string {

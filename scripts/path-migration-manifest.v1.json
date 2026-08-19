@@ -8,7 +8,7 @@
     "derivation": "Rows are a mechanical, reviewed projection of the completed Phase 0 survey; currentPathExpression remains evidence and targetExpression is the migration obligation."
   },
   "epoch": {
-    "current": "phase-1",
+    "current": "phase-3",
     "order": [
       "pre-flip",
       "phase-1",
@@ -286,6 +286,10 @@
       {
         "id": "llp-reviews",
         "prefix": "llp/reviews/"
+      },
+      {
+        "id": "target-review-artifacts",
+        "prefix": "targets/cloudflare/spike-facets/reviews/"
       }
     ],
     "historicalSections": {
@@ -295,10 +299,6 @@
       "contract": "Markers exempt only the marked line or balanced section; an unterminated or unmatched marker fails closed."
     },
     "namedNegativeFixtures": [
-      {
-        "id": "module-ownership-fixture-repositories",
-        "prefix": "tests/fixtures/module-ownership/"
-      },
       {
         "id": "top-level-test-fixture-builders",
         "files": [
@@ -317,7 +317,6 @@
       {
         "id": "script-negative-fixture-tests",
         "files": [
-          "scripts/check-module-ownership.test.mjs",
           "scripts/generate-control-catalog.test.mjs",
           "scripts/telemetry-phase1-evidence.test.mjs",
           "scripts/telemetry-release-gate.test.mjs"
@@ -345,6 +344,10 @@
       {
         "id": "acceptance-evidence-markdown",
         "pattern": "^tests/acceptance/[^/]+-evidence\\.md$"
+      },
+      {
+        "id": "cloudflare-remote-measurements",
+        "prefix": "targets/cloudflare/generated/measurements.remote."
       }
     ]
   },
@@ -1287,6 +1290,23 @@
       "changeKind": "update",
       "applyByEpoch": "pre-flip",
       "surveyCitation": "path-migration-manifest.md:113"
+    },
+    {
+      "id": "s03-r015",
+      "category": "generated-frozen-records",
+      "consumer": "schemas/cloudflare.deploy-receipt-v1.schema.json:5",
+      "consumerFiles": [
+        "schemas/cloudflare.deploy-receipt-v1.schema.json"
+      ],
+      "currentPathExpression": "description names cloudflare/deploy.sh",
+      "targetExpression": "description names targets/cloudflare/deploy.sh after the Phase 3 target move",
+      "verification": "path-migration-stragglers policy-record-json projection over schemas/",
+      "changeKind": "update",
+      "applyByEpoch": "phase-3",
+      "surveyCitation": "Phase 3 exact-candidate review 2026-08-19",
+      "targetFiles": [
+        "schemas/cloudflare.deploy-receipt-v1.schema.json"
+      ]
     },
     {
       "id": "s04-r001",

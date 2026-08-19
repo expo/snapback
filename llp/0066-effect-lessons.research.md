@@ -146,8 +146,8 @@ transaction* as app rows and journal; retries that reach an
 already-committed mutation sequence receive the prior result rather than
 committing again; recovery is at-least-once, and **external egress may
 repeat** even when mutations are deduplicated (LLP 0028; implemented in
-`cloudflare/src/coordinator.js`, covered by
-`cloudflare/test/acceptance.cron-recovery.mjs`). LLP 0044 (asset pipeline)
+`targets/cloudflare/src/coordinator.js`, covered by
+`targets/cloudflare/test/acceptance.cron-recovery.mjs`). LLP 0044 (asset pipeline)
 and LLP 0045 (notifications outbox) each note the absence of a *general*
 durable background-job subsystem. The concurrently-drafted **LLP 0070**
 (durable background work; fenced leases, at-least-once delivery, idempotency

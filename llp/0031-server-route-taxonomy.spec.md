@@ -38,7 +38,7 @@ Earlier same day (LLP 0184 Phase 0 item 5 audit: corrected the
 2026-07-25 hosted route table, which was missing the
 `/_snapback/api/debug/network-profile` row — see the dated correction;
 the full first-pass audited inventory of `gateway.js`'s hand-routed
-system/control paths lives at `cloudflare/gateway-paths.inventory.json`.)
+system/control paths lives at `targets/cloudflare/gateway-paths.inventory.json`.)
 2026-08-04 (dated route-class registration for the
 landed `/app-api/*` app-data-plane envelope surface — LLP 0062 Phase 1:
 `GET /app-api/current` is the sessions-only `PublicNoStore` discovery
@@ -1186,7 +1186,7 @@ recorded as-is (a bounded typed public read living under `/_snapback/api/*`
 app-data/public identity surfaces, not system operations. The hosted arm
 has no enforceable route registry (the gateway is a hand-routed Worker);
 the Cloudflare acceptance suites are its enforcement seam, and
-`cloudflare/test/acceptance.mjs` + `acceptance.protocol-hardening.mjs`
+`targets/cloudflare/test/acceptance.mjs` + `acceptance.protocol-hardening.mjs`
 exercise the migrated paths and gates.
 
 *Dated correction (2026-08-05, LLP 0184 Phase 0 item 5 audit):* the hosted
@@ -1212,7 +1212,7 @@ specifies must key entries by `(method, path, operation)` rather than by
 path alone. The full first-pass audited inventory of `gateway.js`'s
 hand-routed system/control paths — including this correction — is checked
 in at
-[`cloudflare/gateway-paths.inventory.json`](../cloudflare/gateway-paths.inventory.json);
+[`targets/cloudflare/gateway-paths.inventory.json`](../targets/cloudflare/gateway-paths.inventory.json);
 Phase 1's hosted-adapter manifest is generated against that fixture.
 
 ### Hosted app-data SPA-fallback refusal (2026-08-08)

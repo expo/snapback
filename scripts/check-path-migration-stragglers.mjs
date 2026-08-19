@@ -58,7 +58,6 @@ const PHASE_2_CARVED_WORKSPACE_MEMBERS = new Set([
   'crates/snapback-server',
   'crates/snapback-services',
   'crates/snapback-sync',
-  'crates/snapback-tools',
   'crates/snapback-types',
 ]);
 
@@ -231,10 +230,10 @@ function validateManifest(manifest) {
   }
 
   const immutableIds = new Set((manifest?.exceptions?.immutableProvenanceCategories ?? []).map((entry) => entry.id));
-  for (const id of ['llp-tombstones', 'closed-issues', 'demo-diaries', 'llp-reviews']) {
+  for (const id of ['llp-tombstones', 'closed-issues', 'demo-diaries', 'llp-reviews', 'target-review-artifacts']) {
     expect(immutableIds.has(id), `missing immutable provenance exception ${id}`);
   }
-  expect((manifest?.exceptions?.namedNegativeFixtures ?? []).length === 4, 'namedNegativeFixtures must preserve the four surveyed fixture categories');
+  expect((manifest?.exceptions?.namedNegativeFixtures ?? []).length === 3, 'namedNegativeFixtures must preserve the three live fixture categories');
   const topLevelFixtureRule = (manifest?.exceptions?.namedNegativeFixtures ?? [])
     .find((entry) => entry.id === 'top-level-test-fixture-builders');
   expect(Array.isArray(topLevelFixtureRule?.files) && topLevelFixtureRule.files.length > 0, 'top-level-test-fixture-builders must enumerate exact files');
@@ -260,7 +259,7 @@ function validateManifest(manifest) {
       `${repositoryPath} is structurally unexemptable`,
     );
   }
-  expect((manifest?.exceptions?.namedDatedEvidence ?? []).length === 4, 'namedDatedEvidence must preserve the four surveyed evidence categories');
+  expect((manifest?.exceptions?.namedDatedEvidence ?? []).length === 5, 'namedDatedEvidence must preserve the five live evidence categories');
   expect((manifest?.surveySpotChecks ?? []).length >= 15, 'surveySpotChecks must retain at least 15 repository checks');
   expect(Array.isArray(manifest?.surveyCorrections), 'surveyCorrections must be an array');
 
@@ -421,16 +420,16 @@ function validateEpochShape(epoch, root = ROOT) {
     requireDirectory('crates/snapback-tools');
     requireDirectory('crates/snapback/examples');
     requireFile('crates/allowed-dependencies.v1.json');
-    requireFile('scripts/check-module-ownership.mjs');
+    forbidFile('scripts/check-module-ownership.mjs');
     requireWorkspaceMember('crates/snapback');
     for (const member of EXTRACTED_WORKSPACE_MEMBERS) requireWorkspaceMember(member);
-    requireRemainderExemption();
+    forbidRemainderExemption();
   } else if (epoch === 'post-migration') {
     requireDirectory('crates/snapback/src');
     forbidDirectory('src');
     requireDirectory('targets/cloudflare');
     forbidDirectory('cloudflare');
-    requireDirectory('tools/agent-safe-baseline-worker');
+    forbidDirectory('tools/agent-safe-baseline-worker');
     forbidDirectory('examples');
     requireDirectory('crates/snapback-tools');
     requireDirectory('crates/snapback/examples');
@@ -580,6 +579,7 @@ function projectionFiles(manifest, epochIndex) {
   );
   add('policy-record-json', walkFiles('tests/acceptance', (path) => /\.(?:json|md)$/u.test(path)));
   add('policy-record-json', walkFiles('tests/conformance', (path) => /\.(?:json|md)$/u.test(path)));
+  add('policy-record-json', walkFiles('schemas', (path) => /\.json$/u.test(path)));
 
   add('cargo-manifests', exactExisting(['Cargo.toml']));
   add('cargo-manifests', walkFiles('crates', (path) => /\/Cargo\.toml$/u.test(path)));
@@ -702,19 +702,11 @@ function lexicalCandidates(line) {
   return [...new Set(candidates)];
 }
 
-function escapeRegex(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-}
-
 function withoutDestinationForms(candidate, pattern) {
   let masked = candidate;
   for (const destination of pattern.destinationForms ?? []) {
     const normalized = normalizeLexicalSeparators(destination);
-    const destinationRegex = new RegExp(
-      `(^|[^a-zA-Z0-9_./-])((?:\\.{1,2}/)*)${escapeRegex(normalized)}`,
-      'gu',
-    );
-    masked = masked.replace(destinationRegex, '$1$2<destination>');
+    masked = masked.replaceAll(normalized, '<destination>');
   }
   return masked;
 }
@@ -724,13 +716,19 @@ function staleMovedSourceToken(candidate) {
   return [...candidate.matchAll(tokenRegex)].some((match) => {
     const suffix = match[3].replace(/[:#].*$/u, '');
     const literalPrefix = suffix.split(/[?*[{]/u, 1)[0].replace(/\/$/u, '');
-    const movedPath = join(ROOT, 'crates/snapback/src', literalPrefix);
-    return existsSync(movedPath);
+    const cratesRoot = join(ROOT, 'crates');
+    if (!existsSync(cratesRoot)) return false;
+    return readdirSync(cratesRoot, { withFileTypes: true }).some((entry) => (
+      entry.isDirectory() && existsSync(join(cratesRoot, entry.name, 'src', literalPrefix))
+    ));
   });
 }
 
 function candidateMatchesPattern(candidate, pattern) {
-  const source = withoutDestinationForms(candidate, pattern);
+  let source = withoutDestinationForms(candidate, pattern);
+  source = source.replace(/(?:https?:\/\/)?github\.com\/cloudflare\//gu, '<cloudflare-github-org>/');
+  if (pattern.id === 'cloudflare-root' && /@cloudflare\//u.test(source)) return false;
+  if (pattern.id === 'agent-safe-tools-root' && /tools\/agent-safe-baseline-worker(?:\/|\b)/u.test(source)) return false;
   if (pattern.id === 'root-build-script'
     && /(?:\bibexRoot\b|vendor\/ibex\/build\.rs|Ibex build\.rs)/u.test(source)) return false;
   if (pattern.matcher === 'normalized-root-path') {

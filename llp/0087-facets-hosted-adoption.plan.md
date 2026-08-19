@@ -67,7 +67,7 @@ doors):
 ## Motivation
 
 Today's hosted model ([LLP 0040](./0040-cloudflare-narrow-proof.rfc.md);
-`cloudflare/`) compiles each app's bundle into its deployed Workers at
+`targets/cloudflare/`) compiles each app's bundle into its deployed Workers at
 build time (the `snapback-app` esbuild alias) across two or three per-app
 services — gateway and handler isolate for the notes proof; All Aboard
 adds the third, a separate action handler
@@ -139,7 +139,7 @@ documents, not gate passes here.
 
 > **Progress note (2026-07-23, same day):** step 1 is done — the ENG-25387
 > LLP 0014 refresh landed. The spike has its first results
-> (`cloudflare/spike-facets/`): Worker Loader and facets **work under the
+> (`targets/cloudflare/spike-facets/`): Worker Loader and facets **work under the
 > pinned Miniflare/workerd** (lockfile-resolved miniflare 4.20260706.0 /
 > workerd 1.20260707.1 on Node 24.18.0 — recorded as resolved versions,
 > not `package.json` specifiers, so the claim stays evaluable if the
@@ -156,9 +156,9 @@ documents, not gate passes here.
 >
 > **Progress note (2026-07-23, later same day; reconciled 2026-07-25):**
 > the Phase 0 reconnaissance instruments now exist:
-> `cloudflare/spike-facets/harness.mjs` exercises partial, explicitly
+> `targets/cloudflare/spike-facets/harness.mjs` exercises partial, explicitly
 > non-gating shapes of P1/P2/P3/P4/P5/P7/P8 across A/B/C and the compiled-in
-> baseline, while `cloudflare/spike-facets/gate0-probe-list.md` v2 defines
+> baseline, while `targets/cloudflare/spike-facets/gate0-probe-list.md` v2 defines
 > the full P1–P13 suite-level and on-platform criteria. Local reconnaissance
 > observed green partial shapes for P1/P2/P3/P5/P8 in all three candidates
 > (including roughly 4–7 ms query p95 during a 1.5 s slow action), but those
@@ -235,9 +235,9 @@ documents, not gate passes here.
      because Phase 2's rollback rehearsal must cover it).
    - **Local-dev parity:** whether Miniflare/`workerd` support Worker
      Loader and facets. The entire local proof
-     (`cloudflare/test/local-suite.mjs`, 21 manifest checks: 20 gate
+     (`targets/cloudflare/test/local-suite.mjs`, 21 manifest checks: 20 gate
      suites plus the compatibility check, per
-     `cloudflare/test/local-suite-manifest.mjs`) runs on Miniflare —
+     `targets/cloudflare/test/local-suite-manifest.mjs`) runs on Miniflare —
      **no Miniflare support, no adoption.** (The progress note reports
      this answered locally: works under the pinned Miniflare/workerd.
      Gate 0 still requires it demonstrated on the suite harness itself,
@@ -245,7 +245,7 @@ documents, not gate passes here.
 
 **Gate 0 (go/reshape/kill)** — a checklist, evaluated per topology, its
 findings recorded as a machine-readable comparison artifact —
-`cloudflare/generated/gate0-facets-comparison.json`, one row per topology
+`targets/cloudflare/generated/gate0-facets-comparison.json`, one row per topology
 (A, B, C), each row carrying: repo SHA, toolchain identity
 (lockfile-resolved Node/Miniflare/workerd versions, compatibility date,
 recorded automatically rather than transcribed), the commands run,
@@ -262,7 +262,7 @@ result is kill) — plus prose findings in LLP 0014:
    restricted to the single `HOST` binding; the LLP 0009 reviewer signs
    off on this probe list *before* the spike's isolation leg runs and on
    the results after. The micro-spike already run
-   (`cloudflare/spike-facets/`) is pre-leg reconnaissance: its probes
+   (`targets/cloudflare/spike-facets/`) is pre-leg reconnaissance: its probes
    inform the probe list but do not discharge (or contaminate) this
    criterion — the reviewer-signed list still precedes the suite-level
    isolation leg on the candidate topologies.
@@ -287,7 +287,7 @@ result is kill) — plus prose findings in LLP 0014:
    absolute delta ≤ 250 ms. Cost measured over one calendar UTC billing
    day per profile with a defined activity shape — acceptance-suite runs
    at a fixed cadence plus measured idle, reusing the existing
-   billing-window methodology (`cloudflare/test/billing-windows.mjs`,
+   billing-window methodology (`targets/cloudflare/test/billing-windows.mjs`,
    `validate-idle-measurement.mjs`) — with the counted meters enumerated
    in the receipt; budget: ≤ 1.5× the deploy-time profile's cost on the
    same workload shape and window.
@@ -335,10 +335,10 @@ deploy-time profile:
   Workers) plus per-app artifact hashes, and the
   `test/deployment-identity.mjs` drift gate splits accordingly;
 - full acceptance parity: every check in
-  `cloudflare/test/local-suite-manifest.mjs` *at gate time* (21 as of
+  `targets/cloudflare/test/local-suite-manifest.mjs` *at gate time* (21 as of
   this revision; the manifest is the moving authority, and Phase 1's own
   load-path gates add to it) passes on the facets profile (the twin app,
-  `cloudflare/app/twin.app.js`, included), and the remote runners —
+  `targets/cloudflare/app/twin.app.js`, included), and the remote runners —
   `acceptance.remote.mjs` and `acceptance.remote.all-aboard.mjs`, with
   their required deployment credentials — pass against a deployed
   instance of the profile. No remote egress runner exists today
@@ -377,9 +377,9 @@ audit log, and the applicable LLP 0011 service-principal work rides with
 them; all of these are Phase 2 entry conditions. If CC-1 stalls in
 review, the fallback is a minimal op set on the coordinator's existing
 admin-token-gated surface (the `SNAPBACK_ADMIN_TOKEN`-checked
-`adminGated`/`adminReadGated` endpoints in `cloudflare/src/coordinator.js`,
+`adminGated`/`adminReadGated` endpoints in `targets/cloudflare/src/coordinator.js`,
 forwarded by the gateway) — **never** on the handler↔host op table
-(`cloudflare/src/host-ops.js`), which is the door-3 seam app code calls;
+(`targets/cloudflare/src/host-ops.js`), which is the door-3 seam app code calls;
 control-plane verbs must not ride the seam the loaded code can reach.
 The fallback is explicitly marked pre-contract and non-public — meaning,
 mechanically: reachable only with the admin token, enabled only on the

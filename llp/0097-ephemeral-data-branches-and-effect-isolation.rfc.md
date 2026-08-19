@@ -93,7 +93,7 @@ Non-promoted branches are discarded (§4) or kept as inert alternatives. A promo
 Following LLP 0088's discipline (never elevate a one-provider ops trick to product API):
 
 - **Local (Rust SQLite, `crates/snapback/src/storage.rs`):** COW overlay + branch substream over `_snapback_changes`; the reference implementation and conformance target.
-- **Cloudflare DO (`cloudflare/src/coordinator.js`):** DO PITR + lexically-comparable bookmarks (LLP 0083) are a recovery / read-consistency primitive; *whether* a bookmark can seed a forked child-DO base is **unverified** (LLP 0083 is silent on forking) and is Open Question 2 — a non-anchoring, one-provider, ops-layer candidate only. The portable contract is the branch/overlay/capture model above, not any bookmark mechanism.
+- **Cloudflare DO (`targets/cloudflare/src/coordinator.js`):** DO PITR + lexically-comparable bookmarks (LLP 0083) are a recovery / read-consistency primitive; *whether* a bookmark can seed a forked child-DO base is **unverified** (LLP 0083 is silent on forking) and is Open Question 2 — a non-anchoring, one-provider, ops-layer candidate only. The portable contract is the branch/overlay/capture model above, not any bookmark mechanism.
 - **Postgres graduation (LLP 0046):** branch semantics on Postgres (schema-per-branch vs row-namespace vs logical copy) is an Open Question; the portable contract must not assume any one of them.
 
 ## Capability classes and honesty

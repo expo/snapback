@@ -104,7 +104,7 @@ program covered it; its residue tickets remain accurate).
 ## The four P0s
 
 1. **Hosted gateway serves `index.html` with HTTP 200 for unrouted app-data
-   routes.** `cloudflare/src/gateway.js:258` falls through to an
+   routes.** `targets/cloudflare/src/gateway.js:258` falls through to an
    unconditional assets fetch, so `POST /auth/exchange`,
    `/ephemeral/publish`, asset byte lanes, push-token registration,
    `/app-api/current`, and `/client-mutations/acknowledge` — all present
@@ -113,7 +113,7 @@ program covered it; its residue tickets remain accurate).
 2. **No end-to-end deploy path for a user's own app on any target, stated
    nowhere.** Each surface stops short honestly in its own corner
    (`deploy build` deliberately activation-ineligible, `hosted lifecycle`
-   refusing on the carrier gap, `cloudflare/deploy.sh` hardcoded to two
+   refusing on the carrier gap, `targets/cloudflare/deploy.sh` hardcoded to two
    in-repo demos), but no page or GAP row states the aggregate. Ticket:
    `issues/20260808-deploy-posture-truth-page.md`.
 3. **Every published package is unlicensed on npm.** LLP 0033 ratified MIT

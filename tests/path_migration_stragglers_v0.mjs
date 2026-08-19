@@ -76,25 +76,31 @@ function materializeEpoch(root, epoch) {
   }
 
   const members = epoch === 'phase-1'
-    ? ['crates/snapback', 'crates/snapback-types']
+    ? WORKSPACE_MEMBERS.filter((member) => member !== 'crates/snapback-tools')
     : WORKSPACE_MEMBERS;
   writeWorkspace(root, members);
   writeFixtureFile(root, 'crates/snapback/src/.keep');
-  writeFixtureFile(root, 'scripts/check-module-ownership.mjs');
+  if (epoch === 'phase-1' || epoch === 'phase-2') {
+    writeFixtureFile(root, 'scripts/check-module-ownership.mjs');
+  }
   writeFixtureFile(
     root,
     'crates/allowed-dependencies.v1.json',
-    epoch === 'post-migration' ? '{}\n' : '{"remainderConfinementExemption": {}}\n',
+    epoch === 'phase-1' || epoch === 'phase-2'
+      ? '{"remainderConfinementExemption": {}}\n'
+      : '{}\n',
   );
   if (epoch === 'phase-1') {
-    for (const path of ['cloudflare/.keep', 'tools/agent-safe-baseline-worker/.keep', 'crates/snapback/examples/.keep']) {
+    for (const path of ['cloudflare/.keep', 'tools/agent-safe-baseline-worker/.keep', 'crates/snapback-tools/.keep', 'crates/snapback/examples/.keep']) {
       writeFixtureFile(root, path);
     }
   } else {
     writeFixtureFile(root, 'crates/snapback/examples/.keep');
     writeFixtureFile(root, epoch === 'phase-2' ? 'cloudflare/.keep' : 'targets/cloudflare/.keep');
+    if (epoch !== 'post-migration') {
+      writeFixtureFile(root, 'tools/agent-safe-baseline-worker/.keep');
+    }
   }
-  if (epoch === 'post-migration') rmSync(join(root, 'scripts/check-module-ownership.mjs'));
 }
 
 function withEpochFixture(epoch, callback) {
@@ -159,24 +165,24 @@ test('every adjacent epoch pair has unique exact, partial, both, and neither sha
             if (variant !== 'neither') writeFixtureFile(root, 'crates/snapback/src/.keep');
             if (variant !== 'both') rmSync(join(root, 'src'), { recursive: true, force: true });
           } else if (earlier === 'phase-1') {
-            if (variant !== 'neither') {
-              writeWorkspace(root, WORKSPACE_MEMBERS);
-              writeFixtureFile(root, 'crates/snapback-tools/.keep');
-            }
-            if (variant !== 'both') rmSync(join(root, 'tools/agent-safe-baseline-worker'), { recursive: true, force: true });
-            if (variant === 'partial') {
-              rmSync(join(root, 'crates/snapback/examples'), { recursive: true, force: true });
-            }
+            if (variant !== 'neither') writeWorkspace(root, WORKSPACE_MEMBERS);
+            if (variant === 'partial') rmSync(join(root, 'crates/snapback/examples'), { recursive: true, force: true });
+            else rmSync(join(root, 'tools/agent-safe-baseline-worker'), { recursive: true, force: true });
           } else if (earlier === 'phase-2') {
             if (variant !== 'neither') writeFixtureFile(root, 'targets/cloudflare/.keep');
             if (variant !== 'both') rmSync(join(root, 'cloudflare'), { recursive: true, force: true });
-            if (variant === 'partial') rmSync(join(root, 'scripts/check-module-ownership.mjs'), { force: true });
-          } else {
-            if (variant === 'both' || variant === 'partial') {
+            if (variant === 'neither') {
+              rmSync(join(root, 'scripts/check-module-ownership.mjs'), { force: true });
               writeFixtureFile(root, 'crates/allowed-dependencies.v1.json', '{}\n');
             }
-            if (variant !== 'both') rmSync(join(root, 'scripts/check-module-ownership.mjs'), { force: true });
-            if (variant === 'partial') rmSync(join(root, 'targets/cloudflare'), { recursive: true, force: true });
+          } else {
+            if (variant !== 'both') {
+              rmSync(join(root, 'tools/agent-safe-baseline-worker'), { recursive: true, force: true });
+            }
+            writeFixtureFile(root, 'scripts/check-module-ownership.mjs');
+            if (variant === 'neither') {
+              writeFixtureFile(root, 'crates/allowed-dependencies.v1.json', '{"remainderConfinementExemption": {}}\n');
+            }
           }
           assert.notDeepEqual(validateEpochShape(earlier, root), [], `${earlier}/${later} ${variant} accepted ${earlier}`);
           assert.notDeepEqual(validateEpochShape(later, root), [], `${earlier}/${later} ${variant} accepted ${later}`);
@@ -201,18 +207,14 @@ test('the named fixture exemption stops at exact fixture-builder files', () => {
   assert.match(ordinaryScriptTest.stdout, /scannedFiles=1, exemptFiles=0/u);
 
   const workflowAuthority = runChecker(['--epoch', 'phase-3', '--path', 'tests/ci_workflows_v0.mjs']);
-  assert.equal(workflowAuthority.status, 1);
-  assert.match(
-    workflowAuthority.stderr,
-    /tests\/ci_workflows_v0\.mjs:37 \[workflow-yaml\/cloudflare-root\].*node cloudflare\/scripts\/generate-deployment-identity\.mjs --check/u,
-  );
-  assert.match(workflowAuthority.stderr, /scannedFiles=1, exemptFiles=0/u);
+  assert.equal(workflowAuthority.status, 0, workflowAuthority.stderr);
+  assert.match(workflowAuthority.stdout, /scannedFiles=1, exemptFiles=0/u);
 
   const attemptedSwallow = structuredClone(manifest);
-  attemptedSwallow.exceptions.namedNegativeFixtures[0] = {
-    id: 'module-ownership-fixture-repositories',
+  attemptedSwallow.exceptions.namedNegativeFixtures.push({
+    id: 'attempted-broad-fixture-exemption',
     pattern: '^tests/.*\\.mjs$',
-  };
+  });
   assert.deepEqual(
     validateManifest(attemptedSwallow).filter((error) => error.includes('tests/ci_workflows_v0.mjs')),
     ['tests/ci_workflows_v0.mjs is structurally unexemptable'],
@@ -258,6 +260,18 @@ test('normalized root-path mutations cover relative, quoted, and concatenated fo
   assert.equal(clean.some(({ pattern }) => pattern === 'root-src-path'), false);
 });
 
+test('schema authority records reject the retired Cloudflare root', () => {
+  const findings = scanCommonPatterns({
+    source: '{"description":"One successful cloudflare/deploy.sh run"}',
+    repositoryPath: 'schemas/cloudflare.deploy-receipt-v1.schema.json',
+    projection: 'policy-record-json',
+    patterns: manifest.stalePathPatterns,
+    manifest,
+    epochIndex: manifest.epoch.order.indexOf('phase-3'),
+  });
+  assert.deepEqual(findings.map(({ pattern }) => pattern), ['cloudflare-root']);
+});
+
 test('due consumers are projected from the manifest and an unprojectable planted consumer fails', () => {
   const phase3 = manifest.epoch.order.indexOf('phase-3');
   const packageJson = runChecker(['--epoch', 'phase-3', '--path', 'package.json']);
@@ -268,7 +282,7 @@ test('due consumers are projected from the manifest and an unprojectable planted
     '--epoch',
     'phase-3',
     '--path',
-    'cloudflare/test/local-suite-manifest.mjs',
+    'targets/cloudflare/test/local-suite-manifest.mjs',
   ]);
   assert.notEqual(localSuiteManifest.status, 2, localSuiteManifest.stderr);
   assert.doesNotMatch(localSuiteManifest.stderr, /outside the checked projections/u);
@@ -383,12 +397,12 @@ fn snapback_root() -> PathBuf {
 });
 
 test('manifest rows retain the pre-flip inventory with structurally valid epochs', () => {
-  assert.equal(manifest.consumers.length, 210);
+  assert.equal(manifest.consumers.length, 212);
   assert.deepEqual(validateManifest(manifest), []);
   if (manifest.epoch.current === 'pre-flip') {
     assert.deepEqual(validateConsumerFiles(manifest, ROOT), []);
   } else {
-    assert.equal(manifest.epoch.current, 'phase-1');
+    assert.equal(manifest.epoch.current, 'phase-3');
   }
   assert.deepEqual(validateEpochAssignments(manifest), []);
   for (const epoch of manifest.epoch.order) {

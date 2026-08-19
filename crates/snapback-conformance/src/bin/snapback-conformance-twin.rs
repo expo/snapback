@@ -7,9 +7,9 @@
 //!
 //! Three legs (ENG-23605): the Ibex and workerd legs share the Rust host-op
 //! table with only the JS executor swapped; the Cloudflare-JS leg
-//! (cloudflare/test/twin-engine.mjs, Miniflare) runs the same corpus through
+//! (targets/cloudflare/test/twin-engine.mjs, Miniflare) runs the same corpus through
 //! the deployed target's own invocation path — coordinator, JS host-op table
-//! (cloudflare/src/host-ops.js), Durable-Object SQLite. That leg exposes no
+//! (targets/cloudflare/src/host-ops.js), Durable-Object SQLite. That leg exposes no
 //! host-call trace, so it is diffed on normalized outcomes and committed
 //! storage against the workerd leg (same V8+strip engine class, which
 //! isolates host-op/coordinator semantics from engine facts).
@@ -681,7 +681,7 @@ fn run_case_on(case: &Case, backend: HandlerBackend) -> RawRun {
 
 fn cloudflare_leg_toolchain() -> Result<(PathBuf, PathBuf), String> {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let script = manifest_dir.join("cloudflare/test/twin-engine.mjs");
+    let script = manifest_dir.join("targets/cloudflare/test/twin-engine.mjs");
     if !script.exists() {
         return Err(format!("missing runner {}", script.display()));
     }
@@ -925,8 +925,8 @@ fn main() {
         // The third leg (ENG-23605): same corpus, the deployed target's own
         // invocation path and JS host-op table, diffed trace-free.
         "cloudflareJsLeg": {
-            "harness": "miniflare (cloudflare/test/twin-engine.mjs)",
-            "hostOps": "cloudflare/src/host-ops.js",
+            "harness": "miniflare (targets/cloudflare/test/twin-engine.mjs)",
+            "hostOps": "targets/cloudflare/src/host-ops.js",
             "invocationPath": "gateway → coordinator → handler Worker → DO SQLite",
             "diffDimensions": ["outcome", "committed"],
             "referenceLeg": "workerdV8",

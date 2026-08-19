@@ -321,7 +321,7 @@ migration. [confirmed — github.com/denoland/celld README + docs
 **[inferred]** Four roles for Snapback. (1) *The stronger lock-in
 counterweight:* where Rivet clones the primitive with its own API, celld
 implements the API Snapback's Cloudflare port is written against —
-`cloudflare/src` (gateway + coordinator DO + handler Worker, wrangler.jsonc
+`targets/cloudflare/src` (gateway + coordinator DO + handler Worker, wrangler.jsonc
 in hand) needs exactly the surface celld supports, with cron the main gap.
 A cheap spike could run the notes bundle under celld against MinIO, and the
 LLP 0048 conformance twin could test celld as a third leg; this materially
@@ -339,7 +339,7 @@ permission-checked sync, no acceptance surface. Same discipline as Facets
 (LLP 0087): prior art, spike, and code-lift material today, not a
 rearchitecture trigger.
 
-**Spike executed 2026-08-09** (`cloudflare/spike-celld/RESULTS-20260809.md`,
+**Spike executed 2026-08-09** (`targets/cloudflare/spike-celld/RESULTS-20260809.md`,
 celld v0.1.0): **clean negative for faithful execution** — celld's runtime
 depends on configurable post-evaluation globals that the LLP 0048 handler
 harness's ambient-authority strip deliberately removes, and DO
@@ -415,7 +415,7 @@ role (2)'s code-lift proceeded independently (LLP 0188, vendored
 - **Rivet or celld as an eventual second hosted target** — real
   optionality, young substrates; decide against a concrete need, not
   preemptively. celld leads on API compatibility (runs the Workers/DO
-  surface `cloudflare/src` already targets); Rivet leads on placement
+  surface `targets/cloudflare/src` already targets); Rivet leads on placement
   maturity (live migration, multi-region). →
   [LLP 0014](./0014-cloudflare-strategy.rfc.md),
   [LLP 0033](./0033-license-posture.decision.md), LLP 0188.

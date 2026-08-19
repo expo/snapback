@@ -1655,13 +1655,13 @@ mod untrusted_code_profile_tests {
             (
                 "cloudflare",
                 include_bytes!(
-                    "../../../../cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json"
+                    "../../../../targets/cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json"
                 ),
             ),
             (
                 "cloudflare-all-aboard",
                 include_bytes!(
-                    "../../../../cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json"
+                    "../../../../targets/cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json"
                 ),
             ),
         ];

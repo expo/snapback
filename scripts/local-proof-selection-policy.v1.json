@@ -63,12 +63,12 @@
     ]
   },
   "driftAlwaysRunGates": [
-    "module-ownership",
-    "path-migration-stragglers"
+    "path-migration-stragglers",
+    "workspace-graph"
   ],
   "driftFailClosedCoreGates": [
-    "module-ownership",
     "path-migration-stragglers",
+    "workspace-graph",
     "contract-meta",
     "guide",
     "telemetry-receipt-check",
@@ -195,8 +195,6 @@
         "files": [
           "AGENTS.md",
           "Cargo.toml",
-          "ownership.baseline.json",
-          "ownership.manifest.json",
           "ref-check",
           "scripts/check-path-migration-stragglers.mjs",
           "scripts/path-migration-manifest.v1.json"
@@ -204,7 +202,7 @@
         "prefixes": [
           ".github/workflows/",
           ".githooks/",
-          "cloudflare/",
+          "targets/cloudflare/",
           "crates/",
           "guide/",
           "issues/",
@@ -219,26 +217,26 @@
       },
       "regenerateCommand": "node scripts/check-path-migration-stragglers.mjs"
     },
-    "module-ownership": {
+    "workspace-graph": {
       "records": [
-        "ownership.manifest.json module-to-owner assignments and ownership.baseline.json ratcheted dependency edges"
+        "crates/allowed-dependencies.v1.json workspace owner/rank matrix, external confinement, engine residue denylist, and named membership exceptions"
       ],
       "recordPaths": [
-        "ownership.baseline.json",
-        "ownership.manifest.json"
+        "crates/allowed-dependencies.v1.json"
       ],
       "triggerRules": {
         "files": [
-          "ownership.baseline.json",
-          "ownership.manifest.json",
-          "scripts/check-module-ownership.mjs"
+          "Cargo.lock",
+          "Cargo.toml",
+          "crates/allowed-dependencies.v1.json",
+          "scripts/check-workspace-graph.mjs",
+          "tests/workspace_graph_v1.mjs"
         ],
         "prefixes": [
-          "crates/snapback-cli/src/",
-          "crates/snapback/src/"
+          "crates/"
         ]
       },
-      "regenerateCommand": "node scripts/check-module-ownership.mjs"
+      "regenerateCommand": "node scripts/check-workspace-graph.mjs"
     },
     "generated-artifacts": {
       "records": [
@@ -461,8 +459,8 @@
       ],
       "triggerRules": {
         "files": [
-          "cloudflare/gateway-paths.inventory.json",
-          "cloudflare/hosted-adapter-manifest.json",
+          "targets/cloudflare/gateway-paths.inventory.json",
+          "targets/cloudflare/hosted-adapter-manifest.json",
           "guide/operating/host-ops.md",
           "guide/reference/control-catalog.md",
           "scripts/generate-control-catalog.mjs"
@@ -479,19 +477,19 @@
     },
     "deployment-identity": {
       "records": [
-        "cloudflare/generated/deployment-identity.notes.json",
-        "cloudflare/generated/deployment-identity.all-aboard.json"
+        "targets/cloudflare/generated/deployment-identity.notes.json",
+        "targets/cloudflare/generated/deployment-identity.all-aboard.json"
       ],
       "recordPaths": [
-        "cloudflare/generated/deployment-identity.notes.json",
-        "cloudflare/generated/deployment-identity.all-aboard.json"
+        "targets/cloudflare/generated/deployment-identity.notes.json",
+        "targets/cloudflare/generated/deployment-identity.all-aboard.json"
       ],
       "triggerRules": {
         "files": [
           "packages/snapback-harness/compat.json"
         ],
         "prefixes": [
-          "cloudflare/",
+          "targets/cloudflare/",
           "demos/all-aboard/",
           "packages/snapback-client/",
           "packages/snapback-contract/",
@@ -500,7 +498,7 @@
         ]
       },
       "prepareCommand": "env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/all-aboard/snapback",
-      "regenerateCommand": "node cloudflare/scripts/generate-deployment-identity.mjs",
+      "regenerateCommand": "node targets/cloudflare/scripts/generate-deployment-identity.mjs",
       "requiredModules": [
         "esbuild"
       ]
@@ -727,18 +725,18 @@
       ]
     },
     {
-      "id": "module-ownership-authority",
+      "id": "workspace-graph-authority",
       "groups": [
-        "module-ownership"
+        "workspace-graph"
       ],
       "files": [
-        "ownership.baseline.json",
-        "ownership.manifest.json",
-        "scripts/check-module-ownership.mjs",
-        "scripts/check-module-ownership.test.mjs"
+        "Cargo.toml",
+        "crates/allowed-dependencies.v1.json",
+        "scripts/check-workspace-graph.mjs",
+        "tests/workspace_graph_v1.mjs"
       ],
       "prefixes": [
-        "tests/fixtures/module-ownership/"
+        "crates/"
       ]
     },
     {
@@ -801,7 +799,7 @@
         "cloudflare"
       ],
       "prefixes": [
-        "cloudflare/"
+        "targets/cloudflare/"
       ]
     },
     {
@@ -908,9 +906,9 @@
     {
       "id": "native-runtime",
       "groups": [
-        "module-ownership",
         "native",
         "versioned-seed",
+        "workspace-graph",
         "telemetry"
       ],
       "prefixes": [
@@ -1113,11 +1111,11 @@
         "path-migration-stragglers"
       ]
     },
-    "module-ownership": {
+    "workspace-graph": {
       "lane": "fast",
       "gates": [
-        "module-ownership",
-        "module-ownership-fixtures"
+        "workspace-graph",
+        "workspace-graph-fixtures"
       ]
     },
     "rustfmt": {

@@ -1,11 +1,14 @@
 # LLP 0273: Sound git-content-proof derivation of ownership-disposition lineage
 
 **Type:** Decision
-**Status:** Accepted
+**Status:** Superseded
 **Systems:** Proof/gates, Rust core, LLP governance
 **Author:** Claude (Fable 5), orchestrated (author-proxy decisions recorded
 below are Charlie Cheever's "git-content-proof redesign" ruling of 2026-08-16)
 **Date:** 2026-08-16
+**Revised:** 2026-08-19 (superseded by LLP 0276 Phase 3 before implementation;
+the module-fingerprint disposition protocol retired behind the checked
+workspace-graph replacement, so this accepted design remains provenance only)
 **Revised:** 2026-08-16 (f — round-6 dual-family super-refine, terminal, now **ACCEPTED**
 (dual-READY: grok READY; codex conceded the already-coupled-allowed-host `LH` case is the
 conservation boundary, not a hole — recorded normatively in §3.6): both
@@ -44,9 +47,9 @@ reference sites across snapshots (no move proof).)
 monotonic baseline / waiver rules and §5 enforcement protocol, which this
 Decision amends), LLP 0199 (incremental core modularization, waiver blocking
 rule OQ5), LLP 0189 (verification cadence and claim gating),
-`issues/20260816-split-relocation-disposition-needs-sound-evidence.md` (the
+`issues/closed/20260816-split-relocation-disposition-needs-sound-evidence.md` (the
 motivating ticket and defeat history),
-`issues/20260810-owngate-split-relocation-disposition-gap.md` (the original
+`issues/closed/20260810-owngate-split-relocation-disposition-gap.md` (the original
 edge-key-split gap), `scripts/check-module-ownership.mjs` (the enforcement arm
 this design retargets)
 
@@ -133,7 +136,7 @@ it is *pre-existing*, not new — overloading `time-bounded-waiver` (reserved by
 LLP 0225 §2 for genuinely new coupling) is dishonest, and the naive
 `relocation` path is too weak. Every prior design shipped an unsound admission
 or an unsound discharge and was defeated
-(`issues/20260816-split-relocation-disposition-needs-sound-evidence.md`):
+(`issues/closed/20260816-split-relocation-disposition-needs-sound-evidence.md`):
 
 - **R1 — endpoint-assertion.** A retained frozen predecessor plus one shared
   endpoint admitted unrelated new coupling; and an *unchanged* fingerprint was
@@ -1065,7 +1068,7 @@ A legitimate drainage of `crates/snapback/src/local.rs`:
   **verbatim**. The record carries `lineage: relocation [P8]` (descriptive) and the
   verbatim obligation. **Admitted** — the god file drains, the obligation moves
   honestly. Exactly what
-  `issues/20260810-owngate-split-relocation-disposition-gap.md` needed.
+  `issues/closed/20260810-owngate-split-relocation-disposition-gap.md` needed.
 - **Discharge (drain + invert).** If the extraction also inverts the coupling (the
   moved code now calls **down** through a typed kernel operation), then
   `CurEdges(connected_clients)` loses that edge (`k` drops), the departing waiver is
@@ -1316,7 +1319,7 @@ lineage/obligation semantics.
 ## 7. Implementation scope (follow-on; this document is the design)
 
 This Decision is the sound model, not the patch. The implementing change (tracked
-from `issues/20260816-split-relocation-disposition-needs-sound-evidence.md`)
+from `issues/closed/20260816-split-relocation-disposition-needs-sound-evidence.md`)
 touches:
 
 - **`scripts/check-module-ownership.mjs`:**

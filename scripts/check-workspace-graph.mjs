@@ -5,7 +5,6 @@
 // external confinement, ownership assignment, and publish posture.
 
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { dirname, posix, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,7 +12,6 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(import.meta.dirname, '..');
 const ROOT_REAL = realpathSync(ROOT);
 const MATRIX_PATH = resolve(ROOT, 'crates/allowed-dependencies.v1.json');
-const OWNERSHIP_PATH = resolve(ROOT, 'ownership.manifest.json');
 const DIAGNOSTIC = 'SNAPBACK_WORKSPACE_GRAPH_VIOLATION';
 
 const EXPECTED_CRATES = [
@@ -39,6 +37,31 @@ const EXPECTED_CONFINEMENT = [
   ['ibex-runtime', ['snapback-runtime']],
   ['rusqlite', ['snapback-kernel', 'snapback-services']],
 ].map(([dependency, allowedMembers]) => ({ dependency, allowedMembers }));
+const EXPECTED_MEMBERSHIP_ASSIGNMENTS = [
+  {
+    name: 'fork-promotion-benchmark-composition',
+    actualMember: 'snapback',
+    assignments: [
+      { module: 'crates/snapback/src/bin/snapback-fork-promotion-bench.rs', assignedOwner: 'transport-adapters' },
+    ],
+  },
+  {
+    name: 'schema-export-facade-integration',
+    actualMember: 'snapback',
+    assignments: [
+      { module: 'crates/snapback/src/bin/snapback-schemagen.rs', assignedOwner: 'transport-adapters' },
+      { module: 'crates/snapback/src/schema_export.rs', assignedOwner: 'generation-activation-coordinator' },
+    ],
+  },
+  {
+    name: 'telemetry-proof-private-composition',
+    actualMember: 'snapback',
+    assignments: [
+      { module: 'crates/snapback/src/bin/snapback-telemetry-bench.rs', assignedOwner: 'transport-adapters' },
+      { module: 'crates/snapback/src/telemetry_bench.rs', assignedOwner: 'background-services' },
+    ],
+  },
+];
 const EXPECTED_WORKSPACE_MEMBERS = ['crates/*'];
 const EXPECTED_WORKSPACE_DEFAULT_MEMBERS = ['crates/snapback'];
 const EXPECTED_WORKSPACE_EXCLUDE = [
@@ -46,19 +69,6 @@ const EXPECTED_WORKSPACE_EXCLUDE = [
   'vendor/ibex',
   'vendor/celld-ltx',
 ];
-const OWNER_CRATE_ROOTS = {
-  'shared-contract-types-leaf': ['crates/snapback-types'],
-  'generation-activation-coordinator': ['crates/snapback-activation'],
-  'storage-migration-kernel': ['crates/snapback-kernel'],
-  'sync-realtime-engine': ['crates/snapback-sync'],
-  'background-services': ['crates/snapback-services'],
-  'transport-adapters': ['crates/snapback-cli', 'crates/snapback-server'],
-  'embed-facade': ['crates/snapback'],
-  unassigned: [],
-};
-const EXPECTED_OWNERSHIP_ASSIGNMENT_COUNT = 67;
-const EXPECTED_OWNERSHIP_ASSIGNMENT_SHA256 =
-  '4f55f9811d3b0f75c3ef8a922ca2a78e2d2a55f56512cee47ea2f0b204248765';
 const EXPECTED_ENGINE_DEFINITION_DENYLIST = [
   { kind: 'symbol', symbol: 'activation' },
   { kind: 'symbol', symbol: 'auth' },
@@ -241,10 +251,6 @@ function readRustTree(directory) {
     .join('\n');
 }
 
-function pathIsInside(path, root) {
-  return path === root || path.startsWith(`${root}/`);
-}
-
 function validateCanonicalRepositoryPath(path, label) {
   assert(typeof path === 'string' && path.length > 0, `${label} must be a non-empty string`);
   assert(!path.includes('\\'), `${label} must use repository '/' separators: ${path}`);
@@ -268,43 +274,31 @@ function workspaceMemberForPath(path) {
   return match?.[1];
 }
 
-// @ref LLP 0189#decision —
-//   analyzer retirement may not silently drop module-home coverage.
-export function validateModuleOwnership(
+// @ref LLP 0189#decision — analyzer retirement may not silently drop
+// module-home coverage. Every Rust file inherits its workspace member's
+// assigned owner; a named exception is the only other accepted home.
+export function validateModuleMembership(
   artifact,
-  ownership,
+  rustPaths,
   pathExists = (path) => canonicalRegularFileExists(ROOT_REAL, path),
   today = new Date().toISOString().slice(0, 10),
 ) {
-  assert(ownership?.schemaVersion === 'snapback.module-ownership-manifest.v1', 'ownership manifest schemaVersion is invalid');
-  assert(ownership.modulesByOwner && typeof ownership.modulesByOwner === 'object', 'ownership manifest modulesByOwner is invalid');
-  assert(
-    JSON.stringify(Object.keys(ownership.modulesByOwner).sort())
-      === JSON.stringify(Object.keys(OWNER_CRATE_ROOTS).sort()),
-    'ownership manifest must retain the complete Phase 2 owner-bucket schema',
-  );
-  assert(
-    JSON.stringify(ownership.mixedModuleScopes) === JSON.stringify({}),
-    'ownership manifest mixedModuleScopes must be empty at the Phase 2 flip',
-  );
-  const assignments = [];
-  for (const [owner, modules] of Object.entries(ownership.modulesByOwner)) {
-    assert(Object.hasOwn(OWNER_CRATE_ROOTS, owner), `ownership manifest contains unknown owner ${owner}`);
-    sortedUniqueStrings(modules, `modulesByOwner.${owner}`);
-    for (const module of modules) {
-      validateCanonicalRepositoryPath(module, `modulesByOwner.${owner} path`);
-      assert(
-        /^crates\/[a-z0-9-]+\/src\/.+\.rs$/u.test(module),
-        `modulesByOwner.${owner} must contain only Rust module source paths: ${module}`,
-      );
-    }
-    assignments.push(...modules.map((module) => ({ module, owner })));
-  }
-  const assignmentKeys = assignments.map(({ module }) => module);
-  assert(new Set(assignmentKeys).size === assignmentKeys.length, 'ownership manifest assigns a module more than once');
+  sortedUniqueStrings(rustPaths, 'workspace Rust paths');
+  const members = new Map((artifact.crates ?? []).map((entry) => [entry.name, entry]));
+  const owners = new Set((artifact.crates ?? []).map((entry) => entry.owner));
+  assert(rustPaths.length > 0, 'workspace Rust inventory must not be empty');
 
   const exceptions = artifact.membershipExceptions;
   assert(Array.isArray(exceptions), 'membershipExceptions must be an array');
+  const exceptionProjection = exceptions.map(({ name, actualMember, assignments }) => ({
+    name,
+    actualMember,
+    assignments,
+  }));
+  assert(
+    JSON.stringify(exceptionProjection) === JSON.stringify(EXPECTED_MEMBERSHIP_ASSIGNMENTS),
+    'membership exception assignments drifted from the reviewed Phase 2 flip inventory',
+  );
   const exceptionNames = new Set();
   const exceptionAssignments = new Map();
   for (const exception of exceptions) {
@@ -322,37 +316,39 @@ export function validateModuleOwnership(
     for (const assignment of exception.assignments) {
       assert(typeof assignment?.module === 'string' && assignment.module.length > 0, `${exception.name} contains an invalid module`);
       validateCanonicalRepositoryPath(assignment.module, `${exception.name} module`);
-      assert(Object.hasOwn(OWNER_CRATE_ROOTS, assignment.assignedOwner), `${exception.name} contains unknown assignedOwner ${assignment.assignedOwner}`);
-      const key = `${assignment.assignedOwner}\0${assignment.module}`;
-      assert(!exceptionAssignments.has(key), `membership exception assignment is duplicated: ${assignment.module}`);
-      exceptionAssignments.set(key, { ...exception, used: false });
+      assert(owners.has(assignment.assignedOwner), `${exception.name} contains unknown assignedOwner ${assignment.assignedOwner}`);
+      assert(!exceptionAssignments.has(assignment.module), `membership exception assignment is duplicated: ${assignment.module}`);
+      exceptionAssignments.set(assignment.module, {
+        ...exception,
+        assignedOwner: assignment.assignedOwner,
+        used: false,
+      });
     }
   }
 
-  for (const { module, owner } of assignments) {
-    assert(pathExists(module), `assigned module does not exist: ${module}`);
-    const assignedRoots = OWNER_CRATE_ROOTS[owner];
-    if (assignedRoots.some((root) => pathIsInside(module, root))) continue;
-    const key = `${owner}\0${module}`;
-    const exception = exceptionAssignments.get(key);
-    assert(exception, `module ${module} is outside assigned owner ${owner} and has no named membership exception`);
-    assert(workspaceMemberForPath(module) === exception.actualMember, `${exception.name} actualMember does not match ${module}`);
+  let moduleCount = 0;
+  for (const rustPath of rustPaths) {
+    validateCanonicalRepositoryPath(rustPath, 'workspace Rust path');
+    const isModule = /^crates\/[a-z0-9-]+\/(?:src|tests|examples|benches)\/.+\.rs$/u.test(rustPath);
+    const isBuildScript = /^crates\/[a-z0-9-]+\/build\.rs$/u.test(rustPath);
+    assert(isModule || isBuildScript, `unmatched Rust file outside a member source home: ${rustPath}`);
+    assert(pathExists(rustPath), `assigned Rust file does not exist: ${rustPath}`);
+    const actualMember = workspaceMemberForPath(rustPath);
+    const member = members.get(actualMember);
+    assert(member, `Rust file ${rustPath} is not inside an assigned workspace member`);
+    if (!isModule) continue;
+    moduleCount += 1;
+    const exception = exceptionAssignments.get(rustPath);
+    if (!exception) continue;
+    assert(actualMember === exception.actualMember, `${exception.name} actualMember does not match ${rustPath}`);
+    assert(member.owner !== exception.assignedOwner, `${exception.name} redundantly assigns ${rustPath} to its member owner`);
     exception.used = true;
-    exceptionAssignments.set(key, exception);
+    exceptionAssignments.set(rustPath, exception);
   }
-  for (const [key, exception] of exceptionAssignments) {
-    assert(exception.used, `${exception.name} does not match an out-of-owner manifest module (${key.split('\0')[1]})`);
+  for (const [module, exception] of exceptionAssignments) {
+    assert(exception.used, `${exception.name} does not match a workspace Rust module (${module})`);
   }
-  const assignmentProjection = assignments
-    .map(({ module, owner }) => `${owner}\0${module}`)
-    .sort()
-    .join('\n');
-  assert(
-    assignments.length === EXPECTED_OWNERSHIP_ASSIGNMENT_COUNT
-      && createHash('sha256').update(assignmentProjection).digest('hex')
-        === EXPECTED_OWNERSHIP_ASSIGNMENT_SHA256,
-    'ownership manifest must retain the exact 67-module Phase 2 assignment inventory',
-  );
+  return { moduleCount, exceptionCount: exceptionAssignments.size };
 }
 
 export function rustSourceFiles(directory) {
@@ -372,6 +368,49 @@ export function rustSourceFiles(directory) {
     if (!entry.isFile() || !entry.name.endsWith('.rs')) return [];
     return [{ path, source: readFileSync(path, 'utf8') }];
   });
+}
+
+// @ref LLP 0189#decision — retiring the module analyzer must preserve its
+// fail-closed handling of explicit Rust module mounts. A #[path] target is
+// code in the declaring crate even when its bytes live elsewhere, so every
+// mount stays canonical, real, inventoried, and inside that same member.
+export function validateWorkspacePathModules(
+  files,
+  pathExists = (path) => canonicalRegularFileExists(ROOT_REAL, path),
+) {
+  const inventoried = new Set(files.map(({ path }) => relative(ROOT, path).split(sep).join('/')));
+  for (const file of files) {
+    const declaringPath = relative(ROOT, file.path).split(sep).join('/');
+    const declaringMember = workspaceMemberForPath(declaringPath);
+    assert(declaringMember, `Rust source is not inside a workspace member: ${declaringPath}`);
+    for (const attribute of rustAttributes(file.source)) {
+      const head = /^#\s*!?\s*\[\s*([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*)/su.exec(attribute)?.[1];
+      if (head === 'cfg_attr' && /\bpath\s*=/su.test(attribute)) {
+        assert(false, `workspace cfg_attr may not hide a #[path] module: ${declaringPath}`);
+      }
+      if (head !== 'path') continue;
+      const match = /^#\s*!?\s*\[\s*path\s*=\s*"([^"\\]+)"\s*\]$/su.exec(attribute);
+      assert(match, `workspace #[path] must use one simple relative file path: ${declaringPath}`);
+      const modulePath = match[1];
+      assert(
+        modulePath.endsWith('.rs')
+          && !posix.isAbsolute(modulePath)
+          && posix.normalize(modulePath) === modulePath
+          && modulePath !== '..'
+          && !modulePath.startsWith('../'),
+        `workspace #[path] is not a canonical in-member Rust path: ${declaringPath} -> ${modulePath}`,
+      );
+      const target = resolve(dirname(file.path), modulePath);
+      const targetPath = relative(ROOT, target).split(sep).join('/');
+      assert(
+        workspaceMemberForPath(targetPath) === declaringMember
+          && new RegExp(`^crates/${declaringMember}/(?:src|tests|examples|benches)/.+\\.rs$`, 'u').test(targetPath),
+        `workspace #[path] escapes declaring member ${declaringMember}: ${declaringPath} -> ${targetPath}`,
+      );
+      assert(inventoried.has(targetPath), `workspace #[path] target is outside the Rust inventory: ${targetPath}`);
+      assert(pathExists(targetPath), `workspace #[path] target is not a canonical regular file: ${targetPath}`);
+    }
+  }
 }
 
 function maskRangeExceptNewlines(characters, start, end) {
@@ -828,6 +867,29 @@ function validateKernelAdmissionFacades() {
   );
 }
 
+function validateMemberTargets(member) {
+  const memberRoot = `crates/${member.name}`;
+  const manifestPath = `${memberRoot}/Cargo.toml`;
+  assert(
+    member.manifest_path === resolve(ROOT, manifestPath)
+      && canonicalRegularFileExists(ROOT_REAL, manifestPath),
+    `${member.name} package manifest must be the canonical physical ${manifestPath}`,
+  );
+  assert(Array.isArray(member.targets) && member.targets.length > 0, `${member.name} must declare at least one Rust target`);
+  for (const target of member.targets) {
+    assert(typeof target.src_path === 'string' && target.src_path.length > 0, `${member.name} target requires src_path`);
+    const targetPath = relative(ROOT, target.src_path).split(sep).join('/');
+    validateCanonicalRepositoryPath(targetPath, `${member.name} target src_path`);
+    assert(target.src_path === resolve(ROOT, targetPath), `${member.name} target src_path must be canonical: ${target.src_path}`);
+    assert(canonicalRegularFileExists(ROOT_REAL, targetPath), `${member.name} target src_path is not a canonical regular file: ${targetPath}`);
+    const customBuild = target.kind?.includes('custom-build');
+    const insideMember = customBuild
+      ? targetPath === `${memberRoot}/build.rs`
+      : new RegExp(`^${memberRoot}/(?:src|tests|examples|benches)/.+\\.rs$`, 'u').test(targetPath);
+    assert(insideMember, `${member.name} target src_path escapes its assigned member home: ${targetPath}`);
+  }
+}
+
 export function validateArtifactAndMetadata(artifact, metadata, workspaceManifestSource) {
   validateWorkspaceManifest(workspaceManifestSource);
   assert(artifact?.schemaVersion === 'snapback.allowed-dependencies.v1', 'matrix schemaVersion is invalid');
@@ -855,18 +917,13 @@ export function validateArtifactAndMetadata(artifact, metadata, workspaceManifes
     const row = matrix.get(member.name);
     assert(row, `workspace member ${member.name} has no owner/rank assignment`);
     assert(Array.isArray(member.publish) && member.publish.length === 0, `${member.name} must set publish = false`);
+    validateMemberTargets(member);
     const dependencies = new Set((member.dependencies ?? []).map((entry) => entry.name));
     if (member.name === 'snapback-engine') {
-      const engineManifest = resolve(ROOT, 'crates/snapback-engine/Cargo.toml');
       const engineLib = resolve(ROOT, 'crates/snapback-engine/src/lib.rs');
       const libTargets = (member.targets ?? []).filter((target) => target.kind?.includes('lib'));
       const nonBuildTargets = (member.targets ?? [])
         .filter((target) => !target.kind?.includes('custom-build'));
-      assert(
-        member.manifest_path === engineManifest
-          && canonicalRegularFileExists(ROOT_REAL, 'crates/snapback-engine/Cargo.toml'),
-        'snapback-engine package manifest must be the canonical physical crates/snapback-engine/Cargo.toml',
-      );
       assert(
         libTargets.length === 1
           && nonBuildTargets.length === 1
@@ -916,8 +973,12 @@ function main() {
   try {
     validateKernelAdmissionFacades();
     const artifact = JSON.parse(readFileSync(MATRIX_PATH, 'utf8'));
-    const ownership = JSON.parse(readFileSync(OWNERSHIP_PATH, 'utf8'));
-    validateModuleOwnership(artifact, ownership);
+    const rustFiles = rustSourceFiles(resolve(ROOT, 'crates'));
+    validateWorkspacePathModules(rustFiles);
+    const rustPaths = rustFiles
+      .map(({ path }) => relative(ROOT, path).split(sep).join('/'))
+      .sort();
+    const membership = validateModuleMembership(artifact, rustPaths);
     validateEngineDefinitionDenylist(artifact);
     const workspaceManifestSource = readFileSync(resolve(ROOT, 'Cargo.toml'), 'utf8');
     const metadata = JSON.parse(execFileSync(
@@ -926,7 +987,11 @@ function main() {
       { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
     ));
     const result = validateArtifactAndMetadata(artifact, metadata, workspaceManifestSource);
-    process.stdout.write(`[workspace-graph] PASS: ${result.members.length} members (${result.members.join(', ')}); ${result.plannedCrates} planned matrix rows\n`);
+    process.stdout.write(
+      `[workspace-graph] PASS: ${result.members.length} members (${result.members.join(', ')}); `
+        + `${result.plannedCrates} planned matrix rows; ${membership.moduleCount} Rust modules `
+        + `(${membership.exceptionCount} named membership exceptions)\n`,
+    );
   } catch (error) {
     process.stderr.write(`${DIAGNOSTIC}: ${error.message}\n`);
     process.exitCode = 1;

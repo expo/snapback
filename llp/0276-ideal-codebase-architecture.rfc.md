@@ -12,6 +12,11 @@ LLP 0259
 replace a compiler-enforced admission capability with a caller-asserted
 public trait, enum, or constructor; commit ports retain opaque capabilities
 and façade confinement, with negative compilation evidence.)
+**Revised:** 2026-08-19 (Phase 3 consolidation: all five flip conjuncts
+checked; module analyzer/manifest/baseline/ratchet retired; workspace graph
+promoted to the drift fail-closed core; root Cloudflare target moved under
+`targets/`; the measured authored transclusion count corrected from nine to
+three, with generated flats regenerated)
 **Revised:** 2026-08-18 (**Accepted by Charlie Cheever**, in-session, after
 the super-refine loop converged dual-READY — codex gpt-5.6-sol xhigh and
 grok-4.6 xhigh both READY in the author-authorized round 4, verdicts bound
@@ -135,7 +140,7 @@ layout is judged against.
   agent-first feedback loop of LLP 0000 working as designed. Untouched.
 - **The generated-vs-authored discipline where it exists**: dist trees
   gitignored; the deliberately committed generated sets (`schemas/`,
-  `admin-ui/generated/contract/`, `cloudflare/generated/`, `guide/*.generated.*`)
+  `admin-ui/generated/contract/`, `targets/cloudflare/generated/`, `guide/*.generated.*`)
   each guarded by a diff gate. Kept and extended.
 - **The npm package topology**: `@expo/snapback-contract` as a
   dependency-free root, client/codegen above it, framework bindings above
@@ -245,7 +250,7 @@ snapback/
 ├── packages/                 # ── npm workspace (published JS surface)
 ├── clients/                  # ── protocol-native non-npm clients (Swift; already at this path)
 ├── schemas/                  # ── the cross-language contract corpus
-├── targets/                  # ── target-local implementations (cloudflare/)
+├── targets/                  # ── target-local implementations (targets/cloudflare/)
 ├── demos/                    # ── executable proof surface
 ├── tests/                    # ── cross-language acceptance/conformance/receipts
 ├── benchmarks/               # ── competitive-authoring instrument (LLP 0186)
@@ -402,11 +407,12 @@ lockfiles and install roots.
   (`snapback-schemagen`, diff-gated per LLP 0037); the 23 fixture/registry
   corpora are authored, curated conformance data — the two kinds are listed
   in the corpus README so neither is mistaken for the other.
-- **`targets/cloudflare/`** (from root `cloudflare/`): the narrow proof and
+- **`targets/cloudflare/`** (moved from the former repository-root target): the narrow proof and
   any future target-local implementation live under `targets/`, making
   LLP 0225 §2's rule legible in the tree — targets bind the generated
-  contract artifacts, never the Rust crates. The 9 guide snippets that
-  transclude from `cloudflare/**` have their `source=` paths updated in the
+  contract artifacts, never the Rust crates. The 3 authored Guide transclusions
+  (the earlier count of 9 included generated flat projections) that
+  transclude from `targets/cloudflare/**` have their `source=` paths updated in the
   same commit series as the move (`check-guide` holds this).
 - **`demos/`** unchanged in role and gates. One formalization: undeclared
   research/bakeoff dirs move under `demos/_research/`, so the inventory rule
@@ -514,7 +520,7 @@ The seams the layout must keep legible, in generation/dependency order:
 | `crates/snapback/src/**`, `build.rs`, root `tests/*.rs` | `crates/*` per the matrix | `git mv` + carve | 1–2 |
 | `tools/agent-safe-baseline-worker` | `crates/snapback-tools` | `git mv` | 2 |
 | `examples/*.rs` | `crates/snapback/examples/` | `git mv` | 2 |
-| `cloudflare/` | `targets/cloudflare/` (+ 9 guide `source=` updates) | `git mv` | 3 |
+| former repository-root Cloudflare target | `targets/cloudflare/` (+ 3 authored Guide `source=` updates; generated flats regenerate) | `git mv` | 3 |
 | Root `app.json`, `eas.json` | `website/` | `git mv` | 0 |
 | `visibility-governance*.json` | beside their checker under `scripts/` | `git mv` | 0 |
 | `docs/`, `notes-archive/`, `spike-isolated-node-action/` | `archive/` | `git mv` | 0 |
@@ -625,7 +631,7 @@ Consequences:
   `ci_workflows_v0.mjs`; documented commands in AGENTS.md and guide pages;
   source-reading checkers (`scripts/guide-lib.mjs` → `crates/snapback/src/server.rs`,
   `scripts/capability-maturity.mjs` → `crates/snapback/src/manifest.rs`); the 11 guide
-  snippet transclusions from `cloudflare/**` and `tests/*.rs`;
+  snippet transclusions from `targets/cloudflare/**` and `tests/*.rs`;
   `SNAPBACK_REPO_ROOT` consumers; per-target/client roots; and a complete
   **`[[bin]]`/`crates/snapback/src/bin/*` → crate mapping** for the 12 auxiliary bins
   (conformance-twin/sbsb-vectors/cf-manifest → `snapback-conformance`;
@@ -766,7 +772,7 @@ On acceptance of this RFC:
 | --- | --- |
 | A path-sensitive consumer is missed (digest pathspecs, selection policy, CI, launchd, embed/link paths, `SNAPBACK_REPO_ROOT`, readiness receipts) | The Phase 0 path-migration manifest is the plan of record, checked by the deterministic straggler gate; Phase 1 lands the whole flip and qualifies (per the contract) before any carve; the battery's fail-closed inventories are the net behind the manifest. |
 | `@ref` and LLP path references break en masse | `ref-check` is in `alwaysGates` and validates repo paths; run per-phase, fix in-series. Per AGENTS.md, `@ref` glosses on files a carve or inversion **touches** are checked and updated in that phase — only untouched-corpus auditing defers to `llp-maintain`. |
-| Guide transclusion breaks | 11 snippets transclude from paths this program moves (9 × `cloudflare/**`, 2 × `tests/*.rs`); their `source=` updates land in the same series as each move, and `check-guide` runs in every phase regardless. |
+| Guide transclusion breaks | Three authored snippets transclude from the Cloudflare target paths (the prior count of nine included generated flat projections); their `source=` updates land in the same series as the move, generated flats regenerate, and `check-guide` runs in every phase regardless. |
 | A writer lands on `main` mid-window | The exclusive ruleset lease is the enforcement (non-operator bypass revoked or disabled, receipted); hook + banner are depth; the writer inventory catches automation; `main` only ever moves by the final fast-forward. |
 | The backstops push during the freeze | Both launchd jobs unloaded for the window (in the writer inventory); reinstalled at release. |
 | An illegal-but-compilable crate edge appears during the carves | The workspace-graph gate is live from Phase 1 (before the first carve) and holds the crate graph; the analyzer holds the shrinking single-crate remainder; the two overlap until the flip predicate passes. Neither "Cargo will catch it" nor the module analyzer alone is the safety argument. |

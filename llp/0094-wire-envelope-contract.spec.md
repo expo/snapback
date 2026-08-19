@@ -69,14 +69,14 @@ witnesses, and refusal/status registry); 2026-07-27 (§0F items 1–4
 implemented: marker envelopes, the kit-socket in-band request grammar,
 the §0C gap-row families, and the drain-response schema joined the LLP
 0051 §D4 drift gates; the hosted executable schema-validation gate landed
-as `cloudflare/test/wire-schema-gate.mjs`; §0A.5/§0C rows updated in
+as `targets/cloudflare/test/wire-schema-gate.mjs`; §0A.5/§0C rows updated in
 place — the in-band reply grammar deliberately stays out pending its
 §0C.6 item-6 convergence); 2026-07-27 (§0C.6 convergence
 executed under its ticket: ledger items 1-4 and 6-9 converged — hosted
 emitters now satisfy the committed schemas, the in-band kit-socket reply
 grammar is kit dialect, the local `attribution` flatten is admitted into
 the regenerated `mutation.output.schema.json`, and the executable
-emitter audit landed as `cloudflare/test/acceptance.wire-shapes.mjs`;
+emitter audit landed as `targets/cloudflare/test/acceptance.wire-shapes.mjs`;
 the tolerate-the-divergence caveat is retired for the converged items);
 2026-07-27 (§0B stages B1–B3
 implemented on both arms with the kit offer, under
@@ -141,7 +141,7 @@ their authoritative machine view; the fixture corpus (P-1) is normative
 for clients; the exact wire-shape tests are illustrative; prose loses to
 all of them. One qualification that rule always implied and this revision
 makes explicit: on the **hosted** arm several kit routes compose their
-bytes in JS (`cloudflare/src/coordinator.js`), so the serde/schema chain
+bytes in JS (`targets/cloudflare/src/coordinator.js`), so the serde/schema chain
 describes the *contract target* there, not automatically the served
 bytes; every audited place where served hosted bytes fall short of the
 schemas is enumerated in §0C.6 and tracked as a defect. Citations below
@@ -152,8 +152,8 @@ are file + symbol, line numbers as courtesy, pinned against origin/main
 
 The two served arms are **local** (`crates/snapback/src/server.rs` router, built from the
 LLP 0031 route registry) and **hosted** (the Cloudflare gateway Worker
-`cloudflare/src/gateway.js` fronting the coordinator Durable Object
-`cloudflare/src/coordinator.js`).
+`targets/cloudflare/src/gateway.js` fronting the coordinator Durable Object
+`targets/cloudflare/src/coordinator.js`).
 
 ### 0A.0 Route domain and the absence rule
 
@@ -192,7 +192,7 @@ means the LLP 0031 `ConnectionAuth` policy (the
 | `/live/authorization-invalidation/acknowledge`, `/manual-retry` | POST | Conn + exact negotiated invalidation protocol | served | **not served** |
 | `/ephemeral/publish`, `/subscribe`, `/delete` | POST | Conn | served (LLP 0013) | **not served** (`ephemeral_realtime` manifest gap) |
 | `/ephemeral/collections/ensure` | POST | Public (validate-only, identity-free) | served | **not served** |
-| WS message kinds on the kit stream | — | bound socket (LLP 0031 operation registry) | the `type`-tagged `LiveSocketClientMessage` family: `ephemeral_subscribe\|ephemeral_publish\|ephemeral_delete\|ephemeral_unsubscribe\|ping` (registry operation names prefix-map these; `ping` registers as `live_ping`); **no in-band durable subscribe/unsubscribe** — durable lifecycle is HTTP-only on this arm | request grammar `subscribe\|unsubscribe\|ping` (`webSocketMessage` → `validateLiveSocketFrame`, `coordinator.js`), schema-governed by `live.kit-socket-request.schema.json` (Rust authority `KitSocketRequestFrame`, `crates/snapback/src/live_wire.rs`; verdict parity with the served validator proven by `cloudflare/test/wire-schema-gate.mjs`); **no ephemeral kinds**. Reply grammar is **kit dialect throughout** (§0C.6 item 6, converged and schema-governed 2026-07-27 by `live.kit-socket-reply.schema.json`, Rust authority `KitSocketReplyFrame`): ping → `kind: "pong"` with `requestId` echo; subscribe with `resumeFromToken` answering rung 1 → `kind: "current_as_of"` (the one LLP 0091 step-5-contracted reply); plain subscribe → `kind: "snapshot"` with the kit frames' snake_case members (`subscription_id`, `function`, `version`, `rows`, optional `resume`/`resumeRefusal`; no proof `connectionKey`); every error → `kind: "error"` with the full committed `Diagnostic`; unsubscribe → session-scoped delete, **no reply frame**. Positive/negative Rust instances and real served-frame validation for all four reply variants live in the shared schema gates. The row is conformance-claimable; no first-party client currently sends in-band durable frames |
+| WS message kinds on the kit stream | — | bound socket (LLP 0031 operation registry) | the `type`-tagged `LiveSocketClientMessage` family: `ephemeral_subscribe\|ephemeral_publish\|ephemeral_delete\|ephemeral_unsubscribe\|ping` (registry operation names prefix-map these; `ping` registers as `live_ping`); **no in-band durable subscribe/unsubscribe** — durable lifecycle is HTTP-only on this arm | request grammar `subscribe\|unsubscribe\|ping` (`webSocketMessage` → `validateLiveSocketFrame`, `coordinator.js`), schema-governed by `live.kit-socket-request.schema.json` (Rust authority `KitSocketRequestFrame`, `crates/snapback/src/live_wire.rs`; verdict parity with the served validator proven by `targets/cloudflare/test/wire-schema-gate.mjs`); **no ephemeral kinds**. Reply grammar is **kit dialect throughout** (§0C.6 item 6, converged and schema-governed 2026-07-27 by `live.kit-socket-reply.schema.json`, Rust authority `KitSocketReplyFrame`): ping → `kind: "pong"` with `requestId` echo; subscribe with `resumeFromToken` answering rung 1 → `kind: "current_as_of"` (the one LLP 0091 step-5-contracted reply); plain subscribe → `kind: "snapshot"` with the kit frames' snake_case members (`subscription_id`, `function`, `version`, `rows`, optional `resume`/`resumeRefusal`; no proof `connectionKey`); every error → `kind: "error"` with the full committed `Diagnostic`; unsubscribe → session-scoped delete, **no reply frame**. Positive/negative Rust instances and real served-frame validation for all four reply variants live in the shared schema gates. The row is conformance-claimable; no first-party client currently sends in-band durable frames |
 | `/app/ensure` | POST | LLP 0012/0031 intent family | intent family (attest/provision/legacy) | deploy-identity compare + seed-if-empty (`kitEnsureApp`) — provisioning is compile-time |
 | `/app/bundle` | POST | LLP 0031 dated amendment (0090) | read + register modes | **read mode only** (register deferred, LLP 0092 step-4 amendment) |
 | `/query`, `/mutation` (root, un-named) | POST | LLP 0040 proof protocol | not served | served (`handleQuery`/`handleMutation`, `coordinator.js`; gateway forwards) — **LLP 0040 pinned proof surface, outside wire v1**; presence recorded per §0A.0, protocol specified by LLP 0040 |
@@ -281,7 +281,7 @@ against `drain_outbox` (`crates/snapback/src/server.rs`):
   2026-07-27, closing the P-2 defect ticket's residual): the local arm
   serializes the authority type directly, the hosted arm's declared-empty
   drain is validated against the same schema by
-  `cloudflare/test/wire-schema-gate.mjs`, and the positive instances
+  `targets/cloudflare/test/wire-schema-gate.mjs`, and the positive instances
   (empty array; the synthesized `unknown_or_reaped` batch below) are
   pinned in `crates/snapback/tests/artifact_schemas_v0.rs`.
 - **Unknown or reaped connections answer in-band, not with an HTTP
@@ -374,7 +374,7 @@ shared Cloudflare deployment until its post-B1 redeploy, executed
   offered and **admits offerless upgrades**.
 - **Hosted socket lane:** `acceptKitSocket` echoes only when offered —
   `protocols.includes('snapback.v1') ? { 'sec-websocket-protocol':
-  'snapback.v1' } : undefined` (`cloudflare/src/coordinator.js:4600`) —
+  'snapback.v1' } : undefined` (`targets/cloudflare/src/coordinator.js:4600`) —
   and likewise admits offerless upgrades.
 - **HTTP lane:** `POST /connection/open` carries one protocol offer
   today, `authInvalidationProtocol` (`OpenConnectionRequest`,
@@ -571,7 +571,7 @@ the other:
 - **B3** — the absent-class socket refusal is **on** (both arms), after
   re-running the §0B.7 enumeration at enablement (record appended
   there). The hosted `/live/stream` proof socket keeps its exemption,
-  pinned by fixture (`cloudflare/test/acceptance.wire-version.mjs`).
+  pinned by fixture (`targets/cloudflare/test/acceptance.wire-version.mjs`).
 
 **B4 remains staged** and unimplemented; its gate and dated-amendment
 requirement above are unchanged.
@@ -643,8 +643,8 @@ enumerable population of the repo's own socket consumers:
   `['snapback.v1', 'snapback.connection-token.<token>']` — compliant.
 - Rust in-crate socket tests (`crates/snapback/src/server.rs` test modules): offer
   `LIVE_STREAM_SUBPROTOCOL` — compliant.
-- `cloudflare/test/acceptance.remote.mjs`, `measure.remote.mjs`,
-  `cloudflare/test/harness.mjs:364`: offerless, but on the **proof
+- `targets/cloudflare/test/acceptance.remote.mjs`, `measure.remote.mjs`,
+  `targets/cloudflare/test/harness.mjs:364`: offerless, but on the **proof
   socket** `/live/stream`, which §0B.4 exempts.
 - Browser/demo suites (all-aboard, cursors-web, shindig, graffiti,
   partiful-matrix, chat-matrix): reach the wire through the kit —
@@ -658,7 +658,7 @@ suite, and generated client goes through it), plus the Swift client
 (`clients/swift/.../SnapbackClient.swift`, which constructs its own open
 body and already sends `wireVersion` with §0B.6 fallback — refresh
 addition at `137dee8c`), the hosted-suite direct opens in
-`cloudflare/test/*` (via the gateway with kit-shaped bodies), and Rust
+`targets/cloudflare/test/*` (via the gateway with kit-shaped bodies), and Rust
 in-crate tests constructing `OpenConnectionRequest` directly. All
 inherit B2 when the kit and test fixtures add the offer (the Swift
 client offers already); the B4 audit re-runs this enumeration — it is a
@@ -673,7 +673,7 @@ upgrade constructions existed (`crates/snapback/src/server.rs`: the protected-ro
 pressure-eviction, and terminal-socket tests; `crates/snapback/tests/admin_v0.rs` ×4
 including the header-transport probe; `crates/snapback/tests/concurrency_v0.rs` ×1;
 `crates/snapback/tests/route_policy_v1.rs` ×1), and the hosted suites held eleven more
-(`cloudflare/test/acceptance.security-hardening.mjs` ×8,
+(`targets/cloudflare/test/acceptance.security-hardening.mjs` ×8,
 `acceptance.protocol-hardening.mjs` ×1, `acceptance.rqs.mjs` ×1, plus the
 kit-socket probe the wire-version suite itself adds). All were brought
 compliant (offering `snapback.v1`) in the B3 landing. The rest of the
@@ -860,7 +860,7 @@ renegotiated contract.
 **Convergence record (2026-07-27, executed under the ticket):** items
 1–4 and 6–9 are **converged** — the emitters now satisfy the committed
 schemas, with per-item assertions plus a schema-validating audit gate in
-`cloudflare/test/acceptance.wire-shapes.mjs` (registered in the
+`targets/cloudflare/test/acceptance.wire-shapes.mjs` (registered in the
 non-remote local suite). The per-item entries below keep the audited
 divergence as a dated historical record and note what converged. The
 former caveat — clients targeting the hosted arm MUST tolerate the
@@ -897,7 +897,7 @@ wire-version probes recorded in
    right, but the inner `Diagnostic` omitted `severity` and `subsystem`
    and made `details` optional, all required by the schema. **Converged
    2026-07-27**: every kit-lane emitter composes the full Diagnostic
-   through `cloudflare/src/wire-diagnostic.js`, whose code-family →
+   through `targets/cloudflare/src/wire-diagnostic.js`, whose code-family →
    subsystem classification mirrors the local vocabulary (`realtime`,
    `server`, `storage`, `auth`, default `runtime`) and always emits
    `details` (`{}` when empty, the local default).
@@ -938,7 +938,7 @@ wire-version probes recorded in
    the LLP 0040 proof and `/_snapback/*` system/testing lanes keep the
    pinned `{ok, code, message, diagnostic}` shape (outside the
    governance rule below, byte-pinned by the protocol-hardening suite).
-8. **Gateway-lane refusals** (`cloudflare/src/gateway.js`): kit-route
+8. **Gateway-lane refusals** (`targets/cloudflare/src/gateway.js`): kit-route
    method refusals emitted an under-filled `Diagnostic`
    (`SNAPBACK_METHOD_NOT_ALLOWED`); the kit-stream non-upgrade branch
    emitted `{error: "expected websocket upgrade"}` (426) and the
@@ -952,7 +952,7 @@ wire-version probes recorded in
    deliberately keep their shapes (pinned in the audit gate's
    exemption inventory).
 9. **Hosted platform-failure responses on kit routes**
-   (`platformFailureResponse`, `cloudflare/src/platform-errors.js`,
+   (`platformFailureResponse`, `targets/cloudflare/src/platform-errors.js`,
    non-proof branch): `{diagnostic: {code, message, details}}` with the
    under-filled inner `Diagnostic` (no `severity`/`subsystem`; `details`
    dropped when undefined). **Converged 2026-07-27**: the kit branch
@@ -969,13 +969,13 @@ action kind-mismatch 400, the coded-refusal catch
 now emit the governed ErrorResponse **on kit routes only** (proof/system lanes
 keep their pinned shapes). The ledger enumerates **emitter functions**,
 not sampled responses; the executable audit the ticket owned is
-implemented in `cloudflare/test/acceptance.wire-shapes.mjs`: it
+implemented in `targets/cloudflare/test/acceptance.wire-shapes.mjs`: it
 schema-validates every enumerated lane's served bytes against the
 committed schemas AND pins the exact fingerprint set of remaining
 non-`wireDiagnostic` 4xx/5xx emitters in the served sources, so a **new**
 non-conformant error emitter fails the suite. The broader hosted-side
 response-schema gate landed the same day as
-`cloudflare/test/wire-schema-gate.mjs` (§0F items 1/3): conformant kit
+`targets/cloudflare/test/wire-schema-gate.mjs` (§0F items 1/3): conformant kit
 routes are hard-validated against the committed schemas, and its
 `KNOWN_DIVERGENT` allowlist — seeded from this ledger — shrinks to empty
 with this convergence. Nothing in this ledger is an evolution precedent.
@@ -1077,7 +1077,7 @@ items 1–4 were **executed 2026-07-27** under the item-1 ticket
    coordinator→handler invocation request, the handler→coordinator
    response envelope, and the handler→host call body, live on both arms
    (`packages/snapback-harness/workerd/handler-server.mjs`,
-   `cloudflare/src/coordinator.js` `serveHostCall` / `invokeHandler`,
+   `targets/cloudflare/src/coordinator.js` `serveHostCall` / `invokeHandler`,
    `crates/snapback/src/workerd_exec.rs` loopback transport) and previously
    hand-mirrored JS↔JS↔Rust; being private is not a hand-mirror
    exemption. **Implemented 2026-07-27**: Rust authorities in
@@ -1095,7 +1095,7 @@ items 1–4 were **executed 2026-07-27** under the item-1 ticket
    bytes through a capture seam
    (`crates/snapback/tests/workerd_twin_v0.rs::handler_boundary_wire_bytes_validate_against_committed_schemas`),
    and the hosted arm's service-binding bytes are captured and
-   validated by `cloudflare/test/wire-schema-gate.mjs`.
+   validated by `targets/cloudflare/test/wire-schema-gate.mjs`.
 2. **The hosted in-band socket frame grammar** — one validator,
    `validateLiveSocketFrame` (`coordinator.js`), serves **both** socket
    populations: the LLP 0040 proof sockets and the kit sockets (§0A.1
@@ -1126,7 +1126,7 @@ items 1–4 were **executed 2026-07-27** under the item-1 ticket
 3. **The hosted kit-route response composition** (`kitSubscribe` et al.
    compose subscribe outputs in JS): governed by the committed schemas
    but previously with no hosted-side executable drift gate.
-   **Implemented 2026-07-27**: `cloudflare/test/wire-schema-gate.mjs`
+   **Implemented 2026-07-27**: `targets/cloudflare/test/wire-schema-gate.mjs`
    (a `local-suite` gate) validates the served bytes of the conformant
    kit routes (`/connection/open`, `/live/{name}/subscribe`,
    `/query/{name}`, `/outbox/{connection_id}`, `/app/ensure`) against
@@ -1160,7 +1160,7 @@ live subscribe/unsubscribe paths; the Cloudflare non-remote suite for the
 §0A.3 migration. Landed with the 2026-07-27 §0F execution: the extended
 `artifact_schemas_v0` instance fixtures, the local twin real-bytes
 capture test (`workerd_twin_v0`), and
-`node cloudflare/test/wire-schema-gate.mjs` (registered in
+`node targets/cloudflare/test/wire-schema-gate.mjs` (registered in
 `local-suite-manifest.mjs`). The §0B/§0C.5 server changes land under their ticket
 with: offer-matrix acceptance fixtures on both arms (known/unknown/absent
 × open/socket), the socket-refusal style test mirroring
@@ -1175,7 +1175,7 @@ Landed with the B1–B3 stage record (2026-07-27): `cargo test --lib
 wire_version` (the pure predicates plus the registry/HTTP/socket offer
 matrices in `server::tests`); `cargo test --test artifact_schemas_v0
 --test admin_v0 --test route_policy_v1 --test concurrency_v0`;
-`node cloudflare/test/local-suite.mjs` (now 23 suites, including
+`node targets/cloudflare/test/local-suite.mjs` (now 23 suites, including
 `acceptance.wire-version.mjs`, 23/23 checks); the `@snapback/client`
 package suite including `wire-version.test.mjs`;
 `node demos/_kit/tests/live-wire-schema.mjs`; schema regen via

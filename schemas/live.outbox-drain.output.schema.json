@@ -467,7 +467,7 @@
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/live.outbox-drain.output.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "The `GET /outbox/{connection_id}` drain response body (LLP 0094 §0A.5): a\n**bare JSON array** of [`RealtimeEnvelope`] — not NDJSON, no object\nwrapper, possibly empty. The local `drain_outbox` (`src/server.rs`) serves\nthis type directly; the hosted arm's declared-empty drain (`[]`,\n`coordinator.js` kit outbox arm) is governed by the same schema. An\nadmitted-but-unknown/reaped connection answers in-band with the\nsynthesized single-element `resync_required { reason:\n\"unknown_or_reaped\", clear_retained: true }` batch rather than an HTTP\nerror; there is no client acknowledgement step (the LLP 0059 ownership\ncut rides the response handoff).",
+  "description": "The `GET /outbox/{connection_id}` drain response body (LLP 0094 §0A.5): a\n**bare JSON array** of [`RealtimeEnvelope`] — not NDJSON, no object\nwrapper, possibly empty. The local `drain_outbox`\n(`crates/snapback-server/src/server.rs`) serves this type directly; the\nhosted arm's declared-empty drain (`[]`,\n`coordinator.js` kit outbox arm) is governed by the same schema. An\nadmitted-but-unknown/reaped connection answers in-band with the\nsynthesized single-element `resync_required { reason:\n\"unknown_or_reaped\", clear_retained: true }` batch rather than an HTTP\nerror; there is no client acknowledgement step (the LLP 0059 ownership\ncut rides the response handoff).",
   "items": {
     "$ref": "#/$defs/RealtimeEnvelope"
   },

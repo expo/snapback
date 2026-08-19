@@ -16,6 +16,11 @@ enforcement; the scheduled backstop now uses D-3 classification and
 same-closure contradiction detection; irreversible/high-danger operations and
 known affected reds remain blocking; the observed closure binds the complete
 installed dependency mirror, including linked package targets)
+**Revised:** 2026-08-19 (LLP 0276 Phase 3 registry retirement: the
+`module-ownership` D-3 special case stops being live protocol with its gate;
+`workspace-graph` is the fail-closed core replacement and uses generic D-3
+classification; retirement events are recorded in
+`issues/closed/20260819-module-ownership-registry-retirement-events.md`)
 **Related:** LLP 0189, LLP 0175, LLP 0225, LLP 0041, LLP 0005,
 `issues/closed/20260810-prepush-gate-battery-landing-livelock.md`
 
@@ -120,8 +125,11 @@ and cannot be coerced into `INFRASTRUCTURE`. For `INHERITED_RED`, `INFRASTRUCTUR
 `NONDETERMINISTIC`, the pre-push runner emits an idempotent, signature-keyed durable signed
 ticket request as part of its receipt output. An explicitly authorized least-privilege
 source-ticket publisher—the same class as D-8's other publishers, or the existing backstop's committing identity—validates the request and projects it onto `main`. `INHERITED_RED` and `INFRASTRUCTURE` proceed on the recorded request, not main-committed ticket state; `NONDETERMINISTIC` remains blocking. The explicit unticketed interval is bounded by the next two-hour backstop cycle, which retries all three outcomes and ticket projection.
-`module-ownership` retains its set-based predecessor protocol and never enters generic
-Boolean inherited-red attribution. No indeterminate result may support repair attribution,
+Until LLP 0276 Phase 3, `module-ownership` retained its set-based predecessor
+protocol and never entered generic Boolean inherited-red attribution. That
+special case is no longer live protocol because the named gate and registry
+retired behind LLP 0276's checked flip predicate. Its `workspace-graph`
+replacement uses this section's generic closed classifier. No indeterminate result may support repair attribution,
 revert, claim, or promotion.
 
 Adversarial fixtures must cover pushed Rust build failure, baseline setup failure,

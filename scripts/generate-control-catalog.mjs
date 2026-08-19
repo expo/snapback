@@ -6,8 +6,8 @@
 // CONTROL_TOOLS), the CLI-only-declared family manifest
 // (control-catalog/cli-only-operations.json), the hand-authored
 // operability backfill (control-catalog/operability-overrides.json), and the
-// hosted-adapter manifest (cloudflare/hosted-adapter-manifest.json, checked
-// against the Phase 0 audited fixture cloudflare/gateway-paths.inventory.json)
+// hosted-adapter manifest (targets/cloudflare/hosted-adapter-manifest.json, checked
+// against the Phase 0 audited fixture targets/cloudflare/gateway-paths.inventory.json)
 // into one checked ControlCatalogV1 artifact
 // (control-catalog/generated/control-catalog.v1.json).
 //
@@ -60,9 +60,9 @@ const registryExport = readJson(registryExportPath);
 
 const cliOnlyManifest = readJson(join(ROOT, 'control-catalog/cli-only-operations.json'));
 const overridesManifest = readJson(join(ROOT, 'control-catalog/operability-overrides.json'));
-const hostedManifest = readJson(join(ROOT, 'cloudflare/hosted-adapter-manifest.json'));
-const gatewayInventory = readJson(join(ROOT, 'cloudflare/gateway-paths.inventory.json'));
-const gatewaySource = readFileSync(join(ROOT, 'cloudflare/src/gateway.js'), 'utf8');
+const hostedManifest = readJson(join(ROOT, 'targets/cloudflare/hosted-adapter-manifest.json'));
+const gatewayInventory = readJson(join(ROOT, 'targets/cloudflare/gateway-paths.inventory.json'));
+const gatewaySource = readFileSync(join(ROOT, 'targets/cloudflare/src/gateway.js'), 'utf8');
 
 // The package wrapper has its own declarative command owner. Read only the
 // data-only top-level registry block so catalog generation does not import the

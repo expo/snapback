@@ -3533,7 +3533,7 @@ fn dk7_committed_demo_manifests_parse_through_runtime_structs() {
 /// in-band request grammar. The REAL produced bytes are additionally proven
 /// against the same schemas by the local twin capture test
 /// (`tests/workerd_twin_v0.rs`) and the hosted capture suite
-/// (`cloudflare/test/wire-schema-gate.mjs`); these fixtures pin the accept /
+/// (`targets/cloudflare/test/wire-schema-gate.mjs`); these fixtures pin the accept /
 /// reject envelope of each family.
 #[test]
 fn handler_marker_envelope_schemas_accept_served_shapes_and_reject_extensions() {
@@ -3632,7 +3632,7 @@ fn handler_marker_envelope_schemas_accept_served_shapes_and_reject_extensions() 
 
 /// The kit-socket in-band request grammar (LLP 0094 §0A.1 WS-kinds row): the
 /// schema's verdicts mirror `validateLiveSocketFrame` (`coordinator.js`);
-/// `cloudflare/test/wire-schema-gate.mjs` proves the same corpus against the
+/// `targets/cloudflare/test/wire-schema-gate.mjs` proves the same corpus against the
 /// served validator.
 #[test]
 fn kit_socket_request_schema_matches_the_served_validator_grammar() {

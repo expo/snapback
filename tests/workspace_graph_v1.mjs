@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
@@ -19,21 +19,33 @@ import {
   rustSourceFiles,
   validateArtifactAndMetadata,
   validateEngineDefinitionDenylist,
-  validateModuleOwnership,
+  validateModuleMembership,
+  validateWorkspacePathModules,
 } from '../scripts/check-workspace-graph.mjs';
 
 const artifact = JSON.parse(readFileSync(new URL('../crates/allowed-dependencies.v1.json', import.meta.url)));
-const ownership = JSON.parse(readFileSync(new URL('../ownership.manifest.json', import.meta.url)));
 const workspaceManifestSource = readFileSync(new URL('../Cargo.toml', import.meta.url), 'utf8');
+const cratesRoot = fileURLToPath(new URL('../crates', import.meta.url));
+const repositoryRoot = fileURLToPath(new URL('..', import.meta.url));
+const workspaceRustFiles = rustSourceFiles(cratesRoot);
+const rustPaths = workspaceRustFiles
+  .map(({ path }) => relative(repositoryRoot, path).split(sep).join('/'))
+  .sort();
+const moduleCount = rustPaths.filter(
+  (path) => /^crates\/[a-z0-9-]+\/(?:src|tests|examples|benches)\/.+\.rs$/u.test(path),
+).length;
 
 function metadata(name = 'snapback', dependencies = []) {
   const names = new Set(artifact.crates.map((entry) => entry.name));
   names.add(name);
   const packages = [...names].map((packageName) => {
     const id = `${packageName} 0.1.0 (path+file:///fixture/${packageName})`;
-    const engine = packageName === 'snapback-engine'
+    const assigned = artifact.crates.some(({ name: assignedName }) => assignedName === packageName);
+    const packageRoot = assigned
+      ? fileURLToPath(new URL(`../crates/${packageName}/`, import.meta.url))
+      : `/fixture/${packageName}`;
+    const target = packageName === 'snapback-engine'
       ? {
-        manifest_path: fileURLToPath(new URL('../crates/snapback-engine/Cargo.toml', import.meta.url)),
         targets: [{
           kind: ['lib'],
           crate_types: ['lib'],
@@ -41,15 +53,23 @@ function metadata(name = 'snapback', dependencies = []) {
           src_path: fileURLToPath(new URL('../crates/snapback-engine/src/lib.rs', import.meta.url)),
         }],
         }
-      : {};
+      : {
+        targets: [{
+          kind: ['lib'],
+          crate_types: ['lib'],
+          name: packageName.replaceAll('-', '_'),
+          src_path: join(packageRoot, 'src/lib.rs'),
+        }],
+      };
     return {
       id,
       name: packageName,
       publish: [],
+      manifest_path: join(packageRoot, 'Cargo.toml'),
       dependencies: packageName === name
         ? dependencies.map((dependency) => ({ name: dependency }))
         : [],
-      ...engine,
+      ...target,
     };
   });
   const snapbackId = packages.find((entry) => entry.name === 'snapback').id;
@@ -69,6 +89,11 @@ test('the Phase 2 facade is assigned with no confined externals', () => {
     members: artifact.crates.map((entry) => entry.name).sort(),
     plannedCrates: 13,
   });
+  assert.deepEqual(validateModuleMembership(artifact, rustPaths), {
+    moduleCount,
+    exceptionCount: 5,
+  });
+  assert.doesNotThrow(() => validateWorkspacePathModules(workspaceRustFiles));
 });
 
 test('a missing Phase 2 workspace member fails closed', () => {
@@ -82,61 +107,87 @@ test('a missing Phase 2 workspace member fails closed', () => {
   );
 });
 
-test('a deliberately misplaced manifest module fails closed without an exception', () => {
-  const misplaced = structuredClone(ownership);
-  misplaced.modulesByOwner['shared-contract-types-leaf'][0] =
-    'crates/snapback/src/deliberately-misplaced.rs';
-  misplaced.modulesByOwner['shared-contract-types-leaf'].sort();
+test('a Rust file outside the assigned workspace members fails closed', () => {
+  const unmatched = [...rustPaths, 'crates/unassigned/src/deliberately-unmatched.rs'].sort();
   assert.throws(
-    () => validateModuleOwnership(
+    () => validateModuleMembership(
       artifact,
-      misplaced,
-      (path) => path === 'crates/snapback/src/deliberately-misplaced.rs'
+      unmatched,
+      (path) => path === 'crates/unassigned/src/deliberately-unmatched.rs'
         || path.startsWith('issues/')
-        || Object.values(ownership.modulesByOwner).flat().includes(path),
+        || rustPaths.includes(path),
       '2026-08-18',
     ),
-    /outside assigned owner shared-contract-types-leaf and has no named membership exception/u,
+    /not inside an assigned workspace member/u,
   );
 });
 
 test('a noncanonical module path cannot escape its assigned owner', () => {
-  const escaped = structuredClone(ownership);
-  escaped.modulesByOwner['shared-contract-types-leaf'][0] =
-    'crates/snapback-types/../snapback/src/schema_export.rs';
-  escaped.modulesByOwner['shared-contract-types-leaf'].sort();
   assert.throws(
-    () => validateModuleOwnership(artifact, escaped, () => true, '2026-08-18'),
+    () => validateModuleMembership(
+      artifact,
+      ['crates/snapback-types/../snapback/src/schema_export.rs'],
+      () => true,
+      '2026-08-18',
+    ),
     /must be canonical/u,
   );
 });
 
-test('the Phase 2 flip rejects any remaining mixed module scope', () => {
-  const mixed = structuredClone(ownership);
-  mixed.mixedModuleScopes = {
-    'crates/snapback/src/deliberately-mixed.rs': ['auth-substrate', 'embed-facade'],
-  };
+test('a named membership exception cannot disappear while its module stays put', () => {
+  const missing = structuredClone(artifact);
+  missing.membershipExceptions.shift();
   assert.throws(
-    () => validateModuleOwnership(artifact, mixed, () => true, '2026-08-18'),
-    /mixedModuleScopes must be empty/u,
+    () => validateModuleMembership(missing, rustPaths, undefined, '2026-08-18'),
+    /membership exception assignments drifted/u,
   );
 });
 
-test('the Phase 2 ownership inventory cannot disappear or admit non-modules', () => {
-  const empty = structuredClone(ownership);
-  empty.modulesByOwner = {};
+test('membership exceptions must match their physical member and stay bounded', () => {
+  const wrongMember = structuredClone(artifact);
+  wrongMember.membershipExceptions[0].actualMember = 'snapback-tools';
   assert.throws(
-    () => validateModuleOwnership(artifact, empty, () => true, '2026-08-18'),
-    /complete Phase 2 owner-bucket schema/u,
+    () => validateModuleMembership(wrongMember, rustPaths, undefined, '2026-08-18'),
+    /membership exception assignments drifted/u,
   );
 
-  const nonModule = structuredClone(ownership);
-  nonModule.modulesByOwner['shared-contract-types-leaf'][0] =
-    'crates/snapback-types/Cargo.toml';
-  nonModule.modulesByOwner['shared-contract-types-leaf'].sort();
+  const expired = structuredClone(artifact);
+  for (const exception of expired.membershipExceptions) exception.expiresAt = '2026-08-17';
   assert.throws(
-    () => validateModuleOwnership(artifact, nonModule, () => true, '2026-08-18'),
-    /only Rust module source paths/u,
+    () => validateModuleMembership(expired, rustPaths, undefined, '2026-08-18'),
+    /expired on 2026-08-17/u,
+  );
+});
+
+test('a loose Rust file outside the source and build-script homes fails closed', () => {
+  assert.throws(
+    () => validateModuleMembership(
+      artifact,
+      [...rustPaths, 'crates/snapback/loose.rs'].sort(),
+      (path) => path === 'crates/snapback/loose.rs'
+        || path.startsWith('issues/')
+        || rustPaths.includes(path),
+      '2026-08-18',
+    ),
+    /unmatched Rust file outside a member source home/u,
+  );
+});
+
+test('workspace #[path] mounts cannot escape or hide outside a member home', () => {
+  const sourcePath = fileURLToPath(new URL('../crates/snapback-types/src/lib.rs', import.meta.url));
+  assert.throws(
+    () => validateWorkspacePathModules([{
+      path: sourcePath,
+      source: '#[path = "../../snapback-auth/src/lib.rs"] mod escaped;\n',
+    }]),
+    /workspace #\[path\] is not a canonical in-member Rust path/u,
+  );
+  assert.throws(
+    () => validateWorkspacePathModules([{
+      path: sourcePath,
+      source: '#[cfg_attr(any(), path = "hidden.rs")] mod hidden;\n',
+    }]),
+    /cfg_attr may not hide a #\[path\] module/u,
   );
 });
 
@@ -341,7 +392,9 @@ test('the engine cannot hyphen-rename a dependency over a trusted crate binding'
 
 test('the engine definition scan is bound to its canonical lib target', () => {
   const value = metadata('snapback-engine');
-  packageNamed(value, 'snapback-engine').targets[0].src_path = '/fixture/outside.rs';
+  packageNamed(value, 'snapback-engine').targets[0].src_path = fileURLToPath(
+    new URL('../crates/snapback-engine/src/local.rs', import.meta.url),
+  );
   assert.throws(
     () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
     /only its canonical physical/u,
@@ -352,11 +405,31 @@ test('the engine definition scan is bound to its canonical lib target', () => {
     kind: ['bin'],
     crate_types: ['bin'],
     name: 'unscanned-engine-bin',
-    src_path: '/fixture/activation.rs',
+    src_path: fileURLToPath(new URL('../crates/snapback-engine/src/local.rs', import.meta.url)),
   });
   assert.throws(
     () => validateArtifactAndMetadata(artifact, extra, workspaceManifestSource),
     /only its canonical physical/u,
+  );
+});
+
+test('every Cargo target and manifest stays in its assigned member home', () => {
+  const escapedTarget = metadata();
+  packageNamed(escapedTarget, 'snapback-types').targets[0].src_path = fileURLToPath(
+    new URL('../crates/snapback-auth/src/lib.rs', import.meta.url),
+  );
+  assert.throws(
+    () => validateArtifactAndMetadata(artifact, escapedTarget, workspaceManifestSource),
+    /snapback-types target src_path escapes its assigned member home/u,
+  );
+
+  const escapedManifest = metadata();
+  packageNamed(escapedManifest, 'snapback-types').manifest_path = fileURLToPath(
+    new URL('../crates/snapback-auth/Cargo.toml', import.meta.url),
+  );
+  assert.throws(
+    () => validateArtifactAndMetadata(artifact, escapedManifest, workspaceManifestSource),
+    /snapback-types package manifest must be the canonical physical/u,
   );
 });
 

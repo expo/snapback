@@ -409,7 +409,8 @@ pub enum LiveAuthorityDisposition {
 /// clients send it this way.
 ///
 /// The exhaustive registration of these variants as app-data operations is
-/// enforced by `live_socket_operation_name` in `src/server.rs`.
+/// enforced by `live_socket_operation_name` in
+/// `crates/snapback-server/src/server.rs`.
 ///
 /// @ref LLP 0031#enforcement — every accepted socket variant must be a
 ///   registered app-data operation.
@@ -450,12 +451,12 @@ pub enum LiveSocketClientMessage {
 
 /// The hosted kit-socket **in-band request grammar** (LLP 0094 §0A.1 WS-kinds
 /// row, §0F item 2): the `type`-tagged frames `validateLiveSocketFrame`
-/// (`cloudflare/src/coordinator.js`) accepts on an authenticated kit stream —
+/// (`targets/cloudflare/src/coordinator.js`) accepts on an authenticated kit stream —
 /// `subscribe` / `unsubscribe` / `ping`. This Rust type is the schema
 /// authority for that JS validator (LLP 0051 §D4 — a hand-mirrored JS family
 /// gets a Rust serde authority); the Rust server itself does not decode this
 /// family (durable lifecycle is HTTP-only on the local arm), and
-/// `cloudflare/test/wire-schema-gate.mjs` proves the served validator's
+/// `targets/cloudflare/test/wire-schema-gate.mjs` proves the served validator's
 /// verdicts against the committed schema over a shared corpus.
 ///
 /// The closure mirrors the validator exactly: closed frames
@@ -595,8 +596,9 @@ pub enum KitSocketReplyFrame {
 
 /// The `GET /outbox/{connection_id}` drain response body (LLP 0094 §0A.5): a
 /// **bare JSON array** of [`RealtimeEnvelope`] — not NDJSON, no object
-/// wrapper, possibly empty. The local `drain_outbox` (`src/server.rs`) serves
-/// this type directly; the hosted arm's declared-empty drain (`[]`,
+/// wrapper, possibly empty. The local `drain_outbox`
+/// (`crates/snapback-server/src/server.rs`) serves this type directly; the
+/// hosted arm's declared-empty drain (`[]`,
 /// `coordinator.js` kit outbox arm) is governed by the same schema. An
 /// admitted-but-unknown/reaped connection answers in-band with the
 /// synthesized single-element `resync_required { reason:
