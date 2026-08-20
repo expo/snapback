@@ -1,4 +1,4 @@
-# LLP 0287: One proof inventory replacing the four test-inventory mechanisms
+# LLP 0287: One proof inventory replacing four runner mechanisms and one meta-inventory
 
 **Type:** RFC
 **Status:** Draft
@@ -6,30 +6,49 @@
 **Author:** codex `gpt-5.6-sol` (commissioned by Claude Opus 5 orchestrating LLP 0283 F-6),
 for Charlie Cheever
 **Date:** 2026-08-19
-**Revised:** 2026-08-19 (a — initial design)
+**Revised:** 2026-08-20 (b — answers the LLP 0005 NEEDS REVISION review:
+re-measures the five inventory surfaces, consistently distinguishes four runner
+mechanisms from the separately authored scripts-test meta-inventory, preserves
+`cargo-test-profile-clean` as one four-outcome conditional adapter, freezes the
+independent pre-cutover oracle through selector and executor comparison, names
+the loss of redundant-authorship defense in depth, and records the agreed
+sequence and deferral). 2026-08-19 (a — initial design)
 **Related:** LLP 0283 (F-6), LLP 0276 (D5), LLP 0175, LLP 0189, LLP 0289, LLP 0288
 
 > **Provenance.** LLP 0283 F-6 defers three programs, each "deserving its own reviewed
 > design." This is one of the three. It was authored against the tree by a model family
 > independent of the code it regroups, per LLP 0283's F-2 method lesson: do not let a lane
-> write the design that constrains it. It is **Draft** — it has not yet been through the
-> LLP 0005 review loop, and no implementation is authorized by it.
+> write the design that constrains it. The supplied same-family LLP 0005 review
+> returned **NEEDS REVISION**; revision (b) answers those
+> findings without treating that review as independent cross-family approval.
+> It remains **Draft**. No implementation or acceptance is authorized by it.
 
 ## Status and decision
 
-Create one canonical, data-only proof inventory. Make the existing four mechanisms consumers or generated projections of it, then retire their independently authored inventories after a dual-read period.
+Create one canonical, data-only proof inventory. Make the existing four runner
+mechanisms and the separately authored scripts-test meta-inventory consumers or
+generated projections of it, then retire their independently authored
+membership lists after a dual-read period.
 
 The guide and diagnostics manifests do not become part of this test inventory. They are artifact inventories produced and checked by proof gates.
 
 ## The four mechanisms as they exist
 
-The checked-out tree has advanced beyond LLP 0276’s 2026-08-17 measurements. The current values are:
+Revision (b) re-measured the checked-out tree rather than carrying LLP 0276's
+2026-08-17 counts forward. The current values are:
 
-- 173 `run` declarations and 172 stable local-proof gate IDs;
-- 19 package-test inventories covering 312 test files;
-- 30 Cloudflare local-suite checks;
-- 19 drift-prone gates;
-- 27 root script tests, all assigned a runner.
+- 173 `run` declarations and 172 stable local-proof gate IDs, including the
+  two mutually exclusive textual branches for `cargo-test-profile-clean`
+  (`scripts/check-local-proof-gates.mjs:22`,
+  `scripts/check-local-proof-gates.mjs:57`);
+- 19 package-test inventories covering 312 test files
+  (`scripts/check-package-test-inventory.mjs:14`,
+  `scripts/check-package-test-inventory.mjs:551`);
+- 30 Cloudflare local-suite checks
+  (`targets/cloudflare/test/local-suite-manifest.mjs:6-41`);
+- 19 drift-prone gates (`scripts/select-local-proof.mjs:112-186`);
+- 27 root script tests, all assigned a runner
+  (`scripts/check-scripts-test-inventory.mjs:312-323`).
 
 LLP 0276 recorded 164 gates, 18 drift gates, and six unowned scripts tests (`llp/0276-ideal-codebase-architecture.rfc.md:192`). The Phase 0 scripts-test bridge has since closed the last gap (`llp/0276-ideal-codebase-architecture.rfc.md:456`).
 
@@ -105,9 +124,17 @@ Drift mode:
 
 Every entry must name a gate already declared in the shell, so stable ID and command remain elsewhere. Trigger rules may overlap but need not match the ordinary proof path rules. Adding or renaming a frozen-record gate can require coordinated changes to the shell, groups, path rules, drift registry, and scripts-test inventory.
 
-### The scripts-test bridge is not a fifth runner mechanism
+### Four runner mechanisms, plus one meta-inventory
 
-`SCRIPTS_TEST_INVENTORY` is a meta-inventory. It maps every root script test to one of exactly the four mechanisms above (`scripts/check-scripts-test-inventory.mjs:250`, `scripts/check-scripts-test-inventory.mjs:259`, `scripts/check-scripts-test-inventory.mjs:277`, `scripts/check-scripts-test-inventory.mjs:285`). It currently solves only `scripts/*.test.mjs` and deliberately fails on nested tests.
+`SCRIPTS_TEST_INVENTORY` is a fifth separately authored exact inventory, but not
+a fifth runner mechanism. It maps every root script test to one of exactly the
+four runner mechanisms above (`scripts/check-scripts-test-inventory.mjs:250`,
+`scripts/check-scripts-test-inventory.mjs:259`,
+`scripts/check-scripts-test-inventory.mjs:277`,
+`scripts/check-scripts-test-inventory.mjs:285`) and is itself supplied as exact
+membership to the audit (`scripts/check-scripts-test-inventory.mjs:312-318`). It
+currently solves only `scripts/*.test.mjs` and deliberately fails on nested
+tests.
 
 It should become the generic completeness checker rather than survive as a separately authored file list.
 
@@ -168,7 +195,14 @@ A test artifact may be owned by multiple gates only when the manifest declares a
 
 The new model must preserve, not wish away, the awkward cases:
 
-- The two current declarations sharing `cargo-test-profile-clean` become two ordered steps of one stable gate. Declaration count changes from 173 to 172 while stable gate count remains 172.
+- The two current declarations sharing `cargo-test-profile-clean` are mutually
+  exclusive branches, not ordered steps. They become one stable gate backed by
+  one named conditional adapter. On CI, a `clean` measurement runs exactly one
+  `cargo clean --profile test`; measurement failure/unknown runs that same
+  command exactly once; `preserve` emits `not_selected`; and a non-CI run emits
+  `not_selected`. The adapter must preserve the current reasons and result
+  ordering at `scripts/verify-local-proof:457-477`; representing the two source
+  declarations as two steps is forbidden.
 - Conditional Swift execution is an explicit availability predicate with `not_selected` as its absence result, preserving `verify-local-proof:669-673`.
 - Exact-dependent sections and current shell functions use named adapters until they can be represented as structured argv.
 - Cloudflare completion strings remain per-child evidence.
@@ -199,7 +233,7 @@ For Rust, the inventory unit is the Cargo test target or compiled module, not ev
 
 ## Staged migration
 
-### Stage 0 — freeze current truth
+### Stage 0 — freeze current truth and its independent oracle
 
 Capture a golden census of:
 
@@ -211,11 +245,16 @@ Capture a golden census of:
 - 27 script tests and their runner ownership;
 - complete, affected, fail-closed-full, and single-gate selection receipts.
 
-No execution behavior changes.
+Also retain immutable copies and digests of the pre-cutover
+`verify-local-proof` shell, selection policy, old parsers, and their fixture
+corpus. That bundle is the independent legacy oracle through both selector and
+executor comparison. It is not generated from v2 and must remain runnable in
+the migration harness. No execution behavior changes.
 
 ### Stage 1 — shadow canonical manifest
 
-Populate `inventory.v2.json` while all four old inventories remain authoritative.
+Populate `inventory.v2.json` while all four old runner mechanisms and the
+scripts-test meta-inventory remain authoritative.
 
 A bidirectional equivalence gate must prove:
 
@@ -223,13 +262,17 @@ A bidirectional equivalence gate must prove:
 - every dependency, cadence group, trigger, requirement, drift record, and regeneration command agrees;
 - all 312 package files and all 30 Cloudflare checks have the same runner;
 - all 27 script tests retain their current disposition;
+- `cargo-test-profile-clean` produces the same one-of-four branch result for CI
+  `clean`, CI `preserve`, CI measurement failure, and non-CI execution;
 - no canonical record exists without an old counterpart unless explicitly marked migration-only.
 
 Any mismatch blocks the stage.
 
 ### Stage 2 — selector cutover
 
-Make the selector consume v2 while generating the old policy as a checked projection. Run old and new selectors against a fixed corpus containing every path-rule boundary and compare:
+Run the v2 selector in shadow against the frozen pre-cutover selector and
+policy. The production selector remains on the legacy oracle until the fixed
+corpus containing every path-rule boundary agrees on:
 
 - selected and not-selected gate sets;
 - prerequisite closure;
@@ -240,22 +283,29 @@ Make the selector consume v2 while generating the old policy as a checked projec
 
 Receipt schema advances to v2 because its inventory digest changes. The v1 validator remains available for retained historical receipts.
 
+Do **not** generate the old policy from v2 in this stage. A projection derived
+from the candidate authority cannot independently prove the candidate. The
+frozen legacy shell/policy/parser bundle remains the comparison oracle through
+Stage 3.
+
 ### Stage 3 — executor cutover
 
-Make `verify-local-proof` execute canonical plans while preserving its command-line interface and JSONL result contract.
+Make `verify-local-proof` execute canonical plans while preserving its command-line interface and JSONL result contract. For every migration slice, run the canonical executor and the frozen pre-cutover executor over equivalent fixtures and compare command count, branch choice, status, evidence, and result order.
 
 First cut over fixture-only gates, then package aggregates, Cloudflare, native/build gates, and finally complex conditional sections. During each slice, compare the planned command, cwd, environment contract, dependency state, and completion evidence with the old shell.
 
 No gate disappears during a slice: either the old or the new executor owns it, and the equivalence checker forbids ownership by neither.
 
-### Stage 4 — generate the four compatibility views
+### Stage 4 — generate compatibility views only after oracle comparison
 
-Generate and check:
+Only after selector and executor equivalence have passed against the independent
+pre-cutover bundle, generate and check:
 
 - package test scripts/inventory views;
 - Cloudflare local-suite view;
 - drift/backstop view;
-- legacy shell/policy view.
+- legacy shell/policy view;
+- scripts-test meta-inventory view.
 
 After two consecutive complete batteries exercise the v2 inventory without an orphan or selection mismatch, mark the old views read-only generated output.
 
@@ -275,10 +325,12 @@ Every stage requires:
 4. old/new inventory bidirectional equality;
 5. selector golden comparisons over all path rules;
 6. command-plan equality before executor cutover;
-7. actual child-receipt membership for package and Cloudflare aggregates;
-8. dependency-cycle and missing-prerequisite fixtures;
-9. unknown-path fail-broad fixtures;
-10. a complete battery after final cutover, on the normal LLP 0189 cadence.
+7. four-outcome `cargo-test-profile-clean` branch parity with exactly zero or
+   one `cargo clean` execution as appropriate;
+8. actual child-receipt membership for package and Cloudflare aggregates;
+9. dependency-cycle and missing-prerequisite fixtures;
+10. unknown-path fail-broad fixtures;
+11. a complete battery after final cutover, on the normal LLP 0189 cadence.
 
 Coverage moves only in a same-change overlap, following the repository rule that coverage never vanishes (`llp/0276-ideal-codebase-architecture.rfc.md:223`, `llp/0189-verification-cadence-and-claim-gating.decision.md:184`).
 
@@ -290,8 +342,21 @@ Coverage moves only in a same-change overlap, following the repository rule that
 - **The Cloudflare manifest’s independently authored count and ID array are lost.** Per-file classification, order, and completion evidence remain in the canonical source. Acceptable.
 - **The drift registry loses its separate review file.** A deterministic drift-only projection must remain available for focused review. Acceptable.
 - **The root-only scripts-test constraint is lost.** This is intentional and necessary for `scripts/tests/`.
-- **The special 173-declaration count becomes 172 gates with one multi-step gate.** Stable IDs and both commands remain. Acceptable.
+- **The special 173-declaration syntax disappears.** The canonical inventory has
+  172 stable gates. `cargo-test-profile-clean` remains one conditional gate,
+  never a multi-step gate; its two identical textual `cargo clean` branches and
+  two `not_selected` outcomes are preserved by the adapter. Losing the shell's
+  duplicate declaration count is acceptable; losing any branch behavior is not.
 - **Some shell chaining syntax may disappear.** It is acceptable only after command-plan and failure-semantic fixtures establish parity.
+- **Redundant-authorship disagreement detection is lost.** Today independently
+  authored inventories can catch one another disagreeing. One canonical
+  manifest removes that defense in depth and creates a correlated
+  manifest/validator failure domain. This loss is accepted only with a
+  separately implemented discovery auditor that walks conventional test roots
+  and actual aggregate child receipts without taking membership from the
+  manifest, plus independently frozen mutation/negative fixtures and the
+  frozen CI invocation. Generated filtered views aid review but do not count as
+  independent authorities and do not restore the lost signal.
 
 No loss is accepted for stable IDs, prerequisite closure, keep-going `FAIL`/`BLOCKED` behavior, `not_selected`, unknown-path fail-broad behavior, package commands, Cloudflare evidence, drift tiers, or LLP 0189 claim-scope bindings.
 
@@ -300,14 +365,23 @@ No loss is accepted for stable IDs, prerequisite closure, keep-going `FAIL`/`BLO
 - A monolithic inventory may become large. That is preferable to hidden authority duplication, but generated filtered views are necessary for reviewability.
 - Structured command data can become a bad programming language. Complex behavior stays in named adapters; the manifest selects adapters but does not embed arbitrary scripts.
 - Discovery by naming cannot infer arbitrary human intent. The enforced location/naming convention is part of the guarantee.
-- A bug in the canonical validator could affect all consumers. Its mutation fixtures and independently frozen CI invocation are therefore more important than any scalar test count.
+- A bug in the canonical validator could affect all consumers. The independent
+  discovery auditor, mutation fixtures, and independently frozen CI invocation
+  are therefore more important than any scalar test count; they mitigate but do
+  not erase the correlated-failure loss named above.
 - Combining cadence, drift, command, and claim metadata increases the stakes of one file. Schema review and filtered diffs are required.
 - This program touches the proof machinery that currently reports expected security reds. It should begin only after F-1/F-3 establish a clean baseline, not normalize those reds into the migration.
 
 ## Sequencing recommendation
 
-This is first of the three F-6 programs once F-1, F-3, and the blocked publication complete. It supplies the exhaustive ownership model needed by both the scripts regrouping and the release machine’s LLP 0189 D-6 gate derivation.
+Revision (b) records agreement with the LLP 0005 review on both order and
+deferral. This is first of the three F-6 programs because it supplies LLP 0289
+one inventory to relocate and LLP 0288 a stable LLP 0189 D-6 gate derivation.
 
-I agree with deferring implementation during the current security/publication blocker, but not with deferring it again after that blocker closes. It has direct coverage and comprehensibility value and should be the first ordinary follow-on.
+Implementation remains deferred until F-1 closes, F-3 closes, and the next
+qualified publication restores the baseline
+(`llp/0283-post-rearchitecture-followups.plan.md:47-57`). After those three
+conditions, it should be the first ordinary follow-on, but this revision stays
+Draft and the author decides whether it receives re-review or acceptance.
 
 ---

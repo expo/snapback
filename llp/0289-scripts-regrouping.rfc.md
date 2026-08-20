@@ -6,37 +6,56 @@
 **Author:** codex `gpt-5.6-sol` (commissioned by Claude Opus 5 orchestrating LLP 0283 F-6),
 for Charlie Cheever
 **Date:** 2026-08-19
-**Revised:** 2026-08-19 (a — initial design)
+**Revised:** 2026-08-20 (b — answers the LLP 0005 NEEDS REVISION review:
+re-measures 174 tracked artifacts and 1,696 exact-literal reference pairs,
+records the same-day 1,663 → 1,695 → 1,696 drift as proof that design-time
+freezing is structurally wrong, requires an implementation-time generated and
+digest-pinned census, adds an all-tracked-text reference fallback, strengthens
+Node/shell façade and importer parity, expands loss accounting, and records the
+agreed sequence and deferral). 2026-08-19 (a — initial design)
 **Related:** LLP 0283 (F-6), LLP 0276 (D5), LLP 0225, LLP 0189, LLP 0287, LLP 0288
 
 > **Provenance.** LLP 0283 F-6 defers three programs, each "deserving its own reviewed
 > design." This is one of the three. It was authored against the tree by a model family
 > independent of the code it regroups, per LLP 0283's F-2 method lesson: do not let a lane
-> write the design that constrains it. It is **Draft** — it has not yet been through the
-> LLP 0005 review loop, and no implementation is authorized by it.
+> write the design that constrains it. The supplied same-family LLP 0005 review
+> returned **NEEDS REVISION**; revision (b) answers those
+> findings without treating that review as independent cross-family approval.
+> It remains **Draft**. No implementation or acceptance is authorized by it.
 
 ## Status and decision
 
-Adopt the target `scripts/{proof,checks,release,generate,bootstrap,governance,launchd,lib,tests}/` layout from LLP 0276, but migrate through a checked compatibility layer. Do not perform a hard cutover.
+Adopt the target `scripts/{proof,checks,release,generate,bootstrap,governance,launchd,lib,tests}/` layout from LLP 0276, but migrate through a checked compatibility layer. Do not perform a hard cutover, and do not treat the measurements in this Draft as an implementation baseline.
 
-The regrouping should happen after the proof-inventory unification in Design 2. Moving first would require teaching four inventories about temporary paths and would collide with the current scripts-test checker, which explicitly rejects nested `scripts/**/*.test.mjs` files (`scripts/check-scripts-test-inventory.mjs:181`, `scripts/check-scripts-test-inventory.mjs:194`).
+The regrouping should happen after the proof-inventory unification in LLP 0287.
+Moving first would require teaching four runner mechanisms plus the scripts-test
+meta-inventory about temporary paths and would collide with the current
+scripts-test checker, which explicitly rejects nested `scripts/**/*.test.mjs`
+files (`scripts/check-scripts-test-inventory.mjs:181`,
+`scripts/check-scripts-test-inventory.mjs:194`).
 
 ## The problem in the current tree
 
 ### Census and role classification
 
-The current checkout contains 173 tracked artifacts beneath `scripts/`:
+Revision (b)'s handed-off re-measurement contains 174 tracked artifacts beneath
+`scripts/`:
 
 | Shape | Count |
 |---|---:|
-| Root-level files | 150 |
-| Root shebang-bearing commands | 101 |
+| Root-level files | 151 |
+| Root shebang-bearing commands | 102 |
 | Root `*.test.mjs` files | 27 |
 | Root support modules, manifests, data, and documentation | 22 |
 | Nested files | 23 |
-| Total | 173 |
+| Total | 174 |
 
-The nested set is 14 fixtures, two retained G2 receipts, two launchd templates, two library files, and three files for the Rust security-gate helper. One nested library, `scripts/lib/proof-runner.sh`, is itself executable.
+The additional root command is
+`scripts/generate-local-database-shared-borrow-census.mjs`, added during F-1
+work (`scripts/generate-local-database-shared-borrow-census.mjs:1-13`). The
+nested set remains 14 fixtures, two retained G2 receipts, two launchd templates,
+two library files, and three files for the Rust security-gate helper. One nested
+library, `scripts/lib/proof-runner.sh`, is itself executable.
 
 Role counts overlap because a release test may also be a proof gate and a CI entry point. That overlap is part of the design problem:
 
@@ -55,19 +74,33 @@ The directory already tries to present a smaller public surface: its README says
 
 ### The reference graph
 
-An exact-literal scan of tracked text files found 1,663 file-to-script reference pairs:
+Using the Draft's exact-literal, self-excluding file-to-script pair method, the
+handed-off current-tree measurement is 1,696 pairs:
 
-| Consumer stratum | Distinct script targets | Reference pairs | Consumer files |
-|---|---:|---:|---:|
-| GitHub workflows | 19 | 34 | 12 |
-| launchd templates | 2 | 2 | 2 |
-| Git hooks | 3 | 4 | 3 |
-| `AGENTS.md` and `CLAUDE.md` | 10 | 20 | 2 |
-| Other scripts | 131 | 326 | 50 |
-| Active numbered LLPs | 61 | 143 | 57 |
-| Other tracked files | 136 | 1,134 | 621 |
+| Consumer stratum | Reference pairs |
+|---|---:|
+| GitHub workflows | 34 |
+| launchd templates | 2 |
+| Git hooks | 4 |
+| `AGENTS.md` and `CLAUDE.md` | 20 |
+| Other scripts | 327 |
+| Active numbered LLPs | 165 |
+| Other tracked files | 1,144 |
+| **Total** | **1,696** |
 
 This is a lower bound: it finds literal `scripts/foo` strings but not paths assembled from fragments.
+
+More importantly, the number is not a design pin. The same census moved three
+times in one day: the initial Draft measured 1,663; the LLP 0005 review snapshot
+`7106a58ea023eda26204db3743c4193c06f19e14` measured 1,695; and the handed-off
+post-review measurement reached 1,696. The final pair came from the newly
+landed F-3 ticket's `scripts/cold-clone-check.sh` reference
+(`issues/20260820-all-aboard-offline-boot-chrome.md:6`). The first change was
+partly produced by these three designs; the second by this same follow-up
+program. This repository explicitly warns that `main` moves continuously
+(`CLAUDE.md:163-172`). A census frozen while designing against `main` is
+therefore structurally stale on arrival; Stage 0 must refresh and pin the
+implementation inputs instead.
 
 The high-risk edges are real:
 
@@ -111,7 +144,34 @@ A small set of root paths remains permanently stable as façades. At minimum it 
 - hook-facing commands;
 - release commands documented as operator interfaces, including the eventual unified release CLI.
 
-A shell façade must `exec` the canonical command so exit status, signals, standard streams, working directory, and argument boundaries are preserved. A Node façade must re-export the canonical module for importers and delegate CLI invocation without re-parsing arguments. It may not contain business logic.
+Façade type is explicit; executable aliases and sourced-shell aliases are not
+interchangeable:
+
+- A standalone shell-command façade contains only setup needed to locate the
+  repository plus `exec canonical "$@"`. It preserves the caller's cwd,
+  byte-for-byte stdout/stderr, empty/whitespace/newline/Unicode/leading-dash
+  arguments, `--` boundaries, exit status, and termination by signal. Both the
+  façade and canonical command retain the required tracked executable mode.
+- A sourced-shell alias must not `exec`. It either remains a permanent thin
+  `.`/`source` façade with fixtures for caller-shell variables, functions,
+  positional parameters, return status, `$0`, and source-stack behavior, or all
+  sourced consumers migrate in the same change. It may not be represented by a
+  standalone command façade while claiming parity.
+- A Node CLI façade imports and `await`s an exported canonical `main` in the
+  same process; it does not spawn Node, install signal handlers, rewrite argv,
+  catch/reformat a rejection, or call `process.exit`. `process.argv[1]` remains
+  the invoked façade path. The canonical module receives any needed entry URL
+  explicitly and may not infer CLI invocation from its own `import.meta.url`.
+  Any stack/path-dependent stderr difference must be normalized in the
+  canonical implementation or the move is blocked.
+- An importable Node façade re-exports the exact default and named export set
+  with value identity preserved. Importing either old or canonical path must
+  have the same side effects, rejection behavior, and API. A dual-use file must
+  satisfy both the same-process CLI and importer contracts.
+
+No façade contains business logic. Parity means byte-exact stdout/stderr, cwd,
+signals, executable mode, unusual argv boundaries, and importer behavior—not
+merely similar help text and status codes.
 
 This yields a deliberately shallow public namespace at `scripts/` while the implementation is grouped beneath it.
 
@@ -136,6 +196,9 @@ Introduce one reviewed `scripts/script-layout.v1.json` manifest. Every tracked a
 - `command`, `test`, `library`, `manifest`, `fixture`, `evidence`, or `template` kind;
 - compatibility class: `public`, `installed`, `tracked-internal`, or `private`;
 - façade type and retirement eligibility;
+- invocation class (`standalone-executable`, `sourced-shell`, `node-import`, or
+  an explicit valid combination), executable mode, export-surface digest, and
+  entry-identity treatment;
 - proof gate IDs and test membership;
 - known consumer categories;
 - source-root behavior;
@@ -145,7 +208,22 @@ The manifest is a migration and ownership record, not runtime dispatch configura
 
 ## Reference migration and stale-reference detection
 
-A new always-run layout checker owns the graph. It must use format-aware scanners for the known edge types:
+A new always-run layout checker owns the graph. Its completeness floor is an
+all-tracked-text exact-literal fallback:
+
+- enumerate every `git ls-files` path, classify text versus binary
+  deterministically, and scan every tracked text file for every old, canonical,
+  permanent-façade, and temporary-alias literal;
+- self-exclude only the generated census bytes and named negative fixtures;
+- require explicit manifest dispositions for binary files and for historical or
+  retained-evidence text that intentionally preserves an old path; each
+  exemption names its category, reason, owner, and permanent/expiry rule;
+- fail if an unsupported text format contains an unclassified old or canonical
+  `scripts/` path.
+
+This fallback covers the majority “other tracked files” stratum—currently
+1,144 pairs—rather than silently omitting it. Format-aware scanners layer on top
+to recover semantic and dynamically composed edges for the known types:
 
 - JavaScript: static imports, dynamic imports with literals, `new URL`, `join`/`resolve` calls rooted at known repository variables, and child-process argv.
 - Shell: sourced files, direct commands, quoted `$root/scripts/...` forms, and arrays used as argv.
@@ -165,20 +243,43 @@ The checker compares each reference with the layout manifest:
 - an unregistered `scripts/` artifact fails;
 - a façade whose target is absent or whose shape contains logic fails.
 
-Known dynamically composed paths receive explicit manifest rows and targeted fixtures. The checker must retain the existing path-migration checker’s honest limitation: no lexical or AST scanner proves the absence of every runtime-composed string. Negative fixtures should cover each supported composition idiom; unknown idioms fail review rather than being silently classified.
+Known dynamically composed paths receive explicit manifest rows and targeted fixtures. The checker must retain the existing path-migration checker’s honest limitation: no lexical or AST scanner proves the absence of every runtime-composed string. Negative fixtures should cover each supported composition idiom; unknown idioms fail review rather than being silently classified. That limitation applies only to non-literal composition; the all-tracked-text fallback makes literal coverage exhaustive over classified text inputs.
 
 Before moving any Node implementation, repository-root discovery is centralized in the stable `scripts/lib/` location. This removes the current assumption that every script is one directory below the root.
 
 ## Staged migration
 
-### Stage 0 — census and graph only
+### Stage 0 — refresh, generate, and pin the implementation census
 
-Add the layout manifest, graph checker, and fixtures without moving files. Freeze the measured 173-artifact inventory and the current tracked reference graph.
+The 174/1,696 values above are review observations, not exit criteria. After
+LLP 0287, LLP 0288, F-1, F-3, and the next qualified publication have completed,
+select the actual implementation base and run a committed deterministic census
+generator there. Without moving files, add the layout manifest, graph checker,
+fixtures, and a generated census record containing:
+
+- the selected source revision and a digest over every tracked census input,
+  self-excluding the generated record;
+- census algorithm/schema version and generator digest;
+- the complete artifact rows and role classifications;
+- the complete exact-literal reference-pair rows and consumer strata;
+- explicit text/binary and historical/evidence dispositions;
+- the measured scalar summaries, derived from those rows rather than authored.
+
+If integration/rebase changes any census input before Stage 0 lands, regenerate
+against the new tree; a stale source revision or input digest blocks. Once the
+checker lands, every later artifact/reference change updates the live generated
+projection in the same change, while the implementation-base record remains an
+immutable epoch for migration-delta accounting. This refresh-and-pin protocol,
+not any count written in this Draft, defines implementation truth.
 
 Exit criteria:
 
 - every artifact has one role and compatibility class;
-- all 1,663 literal reference pairs are classified;
+- every generated implementation-time literal reference pair is classified,
+  with scalar totals recomputed from the pinned rows;
+- an all-tracked-text fallback proves that unsupported text formats cannot hide
+  literal stale paths, and every binary/historical/evidence exemption is
+  explicit;
 - deliberately stale JS, shell, YAML, plist, JSON, Rust, and Markdown fixtures fail;
 - current invocation paths behave unchanged;
 - the existing path-migration and local-proof inventory gates still pass.
@@ -199,7 +300,14 @@ Move generators, bootstrap/setup helpers, libraries, fixtures, and evidence firs
 
 Exit criteria:
 
-- old and canonical command paths have parity for help, argument forwarding, exit status, and failure diagnostics;
+- old and canonical command paths have byte-exact stdout/stderr and cwd parity;
+- standalone façades preserve empty strings, whitespace, newlines, Unicode,
+  leading dashes, `--`, exit status, executable mode, and termination by signal;
+- sourced-shell aliases preserve caller-shell/return semantics and are never
+  substituted by an executable façade;
+- Node CLI façades run in-process with unchanged `process.argv[1]`, rejection,
+  and signal behavior, while importers see identical default/named exports,
+  value identity, and import side effects;
 - generators produce byte-identical outputs from the same fixture;
 - no proof gate ID, prerequisite edge, or selection receipt changes merely because of the move;
 - temporary aliases have an explicit remaining-consumer count.
@@ -235,7 +343,10 @@ Keep `scripts/verify-local-proof` as a permanent façade. Move its implementatio
 Exit criteria:
 
 - canonical stable gate IDs remain 172;
-- the former 173 command declarations project to the intended 172 gates, including the current special duplicate;
+- the former 173 command declarations project to the intended 172 gates, with
+  `cargo-test-profile-clean` preserving its mutually exclusive clean/unknown/
+  preserve/non-CI outcomes through one conditional adapter rather than a
+  duplicate or multi-step gate;
 - complete, affected, fail-closed-full, and single-gate selection fixtures are byte-identical apart from an explicitly versioned inventory digest;
 - CI and both backstops reopen the new selection receipt;
 - temporary aliases are removed only after zero-reference proof.
@@ -244,7 +355,8 @@ Exit criteria:
 
 Each landing runs:
 
-1. the new layout-manifest and reference-graph fixtures;
+1. the new layout-manifest, implementation-pin, all-tracked-text fallback, and
+   reference-graph fixtures;
 2. `check-local-proof-gates` or its Design 2 successor;
 3. proof-selection golden fixtures over a corpus covering every path rule;
 4. scripts-test and package-test inventory checks;
@@ -252,29 +364,64 @@ Each landing runs:
 6. hook fixtures with synthetic ref-update streams;
 7. launchd template rendering and non-mutating `--status` checks;
 8. generator byte-diff checks for moved generators;
-9. release state-machine fixtures for moved release files;
-10. `./ref-check --verbose`;
-11. the affected proof selected by the changed paths.
+9. façade parity fixtures covering byte-exact streams, cwd, unusual argv,
+   executable mode, signals, same-process Node rejection behavior, exact
+   default/named exports, and sourced-shell semantics;
+10. release state-machine fixtures for moved release files;
+11. `./ref-check --verbose`;
+12. the affected proof selected by the changed paths.
 
 A complete battery is not required at the exact landing commit. The normal LLP 0189 schedule remains authoritative (`llp/0189-verification-cadence-and-claim-gating.decision.md:96`, `llp/0189-verification-cadence-and-claim-gating.decision.md:131`). Any release-facing move additionally waits for the newest eligible claim-relevant battery before the next publication, per LLP 0189 D-6.
 
 ## Failure modes and honest limits
 
 - Permanent façades preserve documented paths but leave some root files. That is intentional: a perfectly empty root is less important than not breaking installed jobs.
-- A compatibility wrapper can accidentally change signal or exit behavior. Wrapper-shape checks and argv fixtures are mandatory.
+- A compatibility wrapper can accidentally change signals, exit/rejection
+  behavior, stream bytes, argv, cwd, export identity, or source semantics.
+  Wrapper-shape and full parity fixtures are mandatory; “re-export and
+  delegate” alone is not a contract.
 - Static reference scanning cannot prove that arbitrary string construction is absent. Explicit dynamic-path rows and fail-closed fixtures reduce but do not erase that limit.
 - Active LLPs are historical and normative records. Most command examples should migrate, but historical evidence that intentionally names an old path should be classified rather than rewritten blindly.
 - Moving release scripts before defining their common state boundary would conceal duplication rather than remove it.
 - The current tree has expected-red security gates while F-1 remains open (`llp/0283-post-rearchitecture-followups.plan.md:48`). The regrouping should not begin until that program and F-3 restore the intended green publication baseline.
 
+## Behaviors deliberately lost
+
+- Removing a temporary internal alias can break untracked automation, editor
+  tasks, installed copies not covered by the installed-path inventory, and
+  external repositories. Zero tracked references is not proof those consumers
+  do not exist. Permanent documented/installed façades and a declared
+  compatibility interval reduce this loss; they cannot erase it.
+- Direct invocation of a new canonical path intentionally observes that path in
+  `$0`, `process.argv[1]`, and `import.meta.url`. Invocation through a permanent
+  façade preserves the old entry identity under the contracts above. Any
+  business behavior keyed accidentally to the canonical module URL must be
+  removed before the move; raw identity equality between old and new canonical
+  locations is impossible and is not claimed.
+- Flat `scripts/*` globbing and root-level discoverability are lost as internal
+  implementations move into role directories. The generated layout inventory,
+  shallow permanent command namespace, and `scripts/README.md` become the
+  replacement discovery surfaces.
+- Shell history is only one unknowable consumer. The same honest limitation
+  applies to ad hoc cron, local IDE configuration, copied commands, and
+  downstream automation outside the tracked/installed graph.
+
 ## Sequencing recommendation
 
-This is third of the three programs:
+Revision (b) records agreement with the LLP 0005 review on both order and
+deferral. This is third of the three programs:
 
 1. unify the test/proof inventory;
 2. establish the release-family state machine;
 3. regroup `scripts/`.
 
-I agree with LLP 0283 that regrouping is still correct to defer now (`llp/0283-post-rearchitecture-followups.plan.md:245`). It is mostly navigational value with a very large path-sensitive blast radius. It becomes substantially safer after the other two designs replace the mechanisms whose current paths are most fragile.
+Implementation remains deferred until F-1 closes, F-3 closes, and the next
+qualified publication restores the baseline
+(`llp/0283-post-rearchitecture-followups.plan.md:47-57`). It then follows LLP
+0287 and the LLP 0288 reconciliation into LLP 0233: the first supplies one proof
+inventory to relocate, and the second supplies one release protocol to move.
+Regrouping remains mostly navigational value with a very large path-sensitive
+blast radius. This revision stays Draft; the author decides whether it receives
+re-review or acceptance.
 
 ---

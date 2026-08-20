@@ -6,20 +6,40 @@
 **Author:** codex `gpt-5.6-sol` (commissioned by Claude Opus 5 orchestrating LLP 0283 F-6),
 for Charlie Cheever
 **Date:** 2026-08-19
-**Revised:** 2026-08-19 (a — initial design)
+**Revised:** 2026-08-20 (b — answers the LLP 0005 NEEDS REVISION review:
+separates immutable release profile from monotone qualification evidence,
+confirms and explicitly retires the 0.1.22–0.1.24 fast-path dual-pointer
+behavior, adds bounded npm write/read-ambiguity recovery and pre-cutover real
+rehearsal, makes this RFC an amendment packet to be merged into LLP 0233 rather
+than a competing authority, and records the agreed sequence and deferral).
+2026-08-19 (a — initial design)
 **Related:** LLP 0283 (F-6), LLP 0276 (D5), LLP 0041, LLP 0233, LLP 0189, LLP 0232, LLP 0289, LLP 0287
 
 > **Provenance.** LLP 0283 F-6 defers three programs, each "deserving its own reviewed
 > design." This is one of the three. It was authored against the tree by a model family
 > independent of the code it regroups, per LLP 0283's F-2 method lesson: do not let a lane
-> write the design that constrains it. It is **Draft** — it has not yet been through the
-> LLP 0005 review loop, and no implementation is authorized by it.
+> write the design that constrains it. The supplied same-family LLP 0005 review
+> returned **NEEDS REVISION**; revision (b) answers those
+> findings without treating that review as independent cross-family approval.
+> It remains **Draft**. No implementation or acceptance is authorized by it.
 
 ## Status and decision
 
-Build one durable state machine for a complete Snapback package family and route both the qualified and rapid-publication profiles through it.
+Amend LLP 0233 to build one durable state machine for a complete Snapback
+package family and route both the qualified and rapid-publication profiles
+through it.
 
-Do not create a competing design beside LLP 0233. LLP 0233 already proposes continuous candidate preparation and a resumable state sequence (`llp/0233-continuous-qualified-npm-release.rfc.md:137`, `llp/0233-continuous-qualified-npm-release.rfc.md:261`), but it remains Draft and explicitly changes no current authority (`llp/0233-continuous-qualified-npm-release.rfc.md:556`). This design should be reviewed as the completion/reconciliation of that RFC’s D6, not as a second release protocol.
+This RFC is an amendment packet for LLP 0233, not an independently acceptable
+second protocol. LLP 0233 already defines continuous candidate preparation and
+one resumable shared operation record
+(`llp/0233-continuous-qualified-npm-release.rfc.md:137-168`,
+`llp/0233-continuous-qualified-npm-release.rfc.md:261-283`), remains Draft, and
+explicitly changes no current authority
+(`llp/0233-continuous-qualified-npm-release.rfc.md:556-561`). If the author
+chooses this design, its normative state vocabulary, recovery protocol, and
+rollout are merged into LLP 0233; LLP 0288 is then marked Superseded by that
+amended document. Only the amended LLP 0233 may proceed to acceptance. LLP 0288
+must not be accepted or implemented beside it.
 
 No real publication cutover occurs while LLP 0283 F-1 blocks npm publication (`llp/0283-post-rearchitecture-followups.plan.md:42`, `llp/0283-post-rearchitecture-followups.plan.md:50`).
 
@@ -45,7 +65,17 @@ The fast path writes its own ceremony with publication, byte verification, smoke
 
 After smoke, however, it moves `latest` in a direct serial loop (`scripts/snapback-fastpath-release.mjs:946`) and records an error if the final vector is incomplete (`scripts/snapback-fastpath-release.mjs:959`). It does not use the standing authority’s complete-vector journal and reverse rollback. A halfway failure can therefore leave a mixed `latest` vector requiring manual repair.
 
-That behavior predates and conflicts with the desired family-wide state boundary. The fast path may retain its explicitly weaker qualification profile, but it must not retain a separate default-tag mutation protocol.
+That behavior predates and conflicts with the desired family-wide state boundary. The fast path may retain its explicitly weaker release profile, but it must not retain a separate default-tag mutation protocol.
+
+Revision (b) also re-checked the last three fast-path releases. 0.1.22, 0.1.23,
+and 0.1.24 each advanced both `newestPublished` and `newestQualified`
+(`llp/0041-packaged-dev-loop.rfc.md:1437-1453`,
+`llp/0041-packaged-dev-loop.rfc.md:1455-1475`,
+`llp/0041-packaged-dev-loop.rfc.md:1510-1551`). That is existing behavior, not
+an inference. The post-cutover rule below deliberately stops a `rapid` release
+from advancing `newestQualified` until the separate qualified evidence tier is
+complete. The `legacy-observed` 0.1.24 genesis preserves the historical pointer
+facts; this RFC does not retroactively demote them.
 
 ### Durable truth is fragmented
 
@@ -76,13 +106,22 @@ One release family is identified by:
 - ordered public package vector;
 - staged tarball digest vector;
 - package-inventory digest;
-- qualification profile;
-- claim-scope digest;
+- immutable release profile (`qualified` or `rapid`);
 - operation ID.
 
 The current family uses one version across all packages, but the state shape records a vector rather than assuming permanent uniformity.
 
-Once any package version is accepted by npm, the family identity and bytes are immutable. A different source, tarball vector, qualification profile, or claim scope requires a successor family or, before publication, a new staging generation.
+Qualification is a separate append-only evidence axis, not family identity.
+Each evidence generation binds its qualification tier, claim-scope digest,
+canonical proof-inventory digest, scoped receipts, and currentness assessment.
+Evidence may monotonically advance from `rapid` to `qualified`; it may never be
+removed, downgraded, or rewritten.
+
+Once any package version is accepted by npm, the family identity, bytes, and
+release profile are immutable. A different source, tarball vector, or release
+profile requires a successor family or, before publication, a new staging
+generation. Later qualified evidence augments the same immutable family; it
+does not relabel the release profile or create a successor family.
 
 ## Durable representation
 
@@ -135,11 +174,12 @@ This avoids treating a later health red as if immutable package bytes had return
 
 | State | Required evidence and legal next states |
 |---|---|
-| `RESERVED` | Version reservation, source revision, package vector, qualification profile, claim scope, and proof-inventory digest are durably bound. npm confirms no package in the family already owns that version. Next: `STAGED` or `SUPERSEDED_UNPUBLISHED`. |
+| `RESERVED` | Version reservation, source revision, package vector, immutable release profile, initial evidence scope, and proof-inventory digest are durably bound. npm confirms no package in the family already owns that version. Next: `STAGED` or `SUPERSEDED_UNPUBLISHED`. |
 | `STAGED` | Clean source-bound tarballs, sealed runtime binaries, store qualification, staged ledger, scoped qualification digest, and source/package identity all validate. A new staging generation may supersede this generation only while no npm bytes exist. Next: `PUBLISHING`, `SUPERSEDED_UNPUBLISHED`, or hard refusal. |
-| `PUBLISHING` | At least one immutable candidate publication intent exists. Per-package effects record absent, published, or exact-already-published observations. Retry stays here. Next: `CANDIDATE`, `ABANDONED`, or `RECONCILIATION_REQUIRED`. |
+| `PUBLISHING` | At least one immutable candidate publication intent exists. Per-package effects record never-attempted, published, or exact-already-published observations. A lost/ambiguous response enters `PUBLISH_OBSERVATION_AMBIGUOUS`; absence alone is not retry authority after an attempt. Next: remain `PUBLISHING`, `PUBLISH_OBSERVATION_AMBIGUOUS`, `CANDIDATE`, `ABANDONED`, or `RECONCILIATION_REQUIRED`. |
+| `PUBLISH_OBSERVATION_AMBIGUOUS` | npm may have accepted bytes whose exact-version read has not converged. The record binds effect ID, attempt count, first/last observation, fixed deadline, maximum attempts, and every write/read response. Only the bounded protocol under §Halfway publication failures may exit to `PUBLISHING`/`CANDIDATE`; exhausted or contradictory evidence enters `RECONCILIATION_REQUIRED`. |
 | `CANDIDATE` | Every exact version exists under the source-bound non-default tag; registry re-download digests equal the staged vector. Next: `PROVEN` or `ABANDONED`. |
-| `PROVEN` | The qualification-profile-specific public consumer evidence is complete. Next: `READY`, evidence-refresh generation, or `ABANDONED`. |
+| `PROVEN` | The current qualification-evidence-tier-specific public consumer evidence is complete. Next: `READY`, evidence-refresh generation, or `ABANDONED`. |
 | `READY` | LLP 0189 D-6 is satisfied: green scoped evidence and the newest eligible complete battery is green on claim-relevant gates; unrelated reds are named and ticketed. Exact-current obligations such as telemetry are valid. Next: `AUTHORIZED`, readiness refresh, or `ABANDONED`. |
 | `AUTHORIZED` | Complete prior `latest` vector and prior closure are retained; a signed external lease binds the candidate, prior vector, intended vector, operation ID, and evidence digests. Next: `PROMOTING`, `ROLLING_BACK`, or `RECONCILIATION_REQUIRED`. |
 | `PROMOTING` | Each `latest` mutation has a durable intent, pre-vector, authority head, command result, and post-vector observation. Next: remain `PROMOTING`, `ROLLING_BACK`, `RELEASED`, or `RECONCILIATION_REQUIRED`. |
@@ -154,12 +194,18 @@ Transient infrastructure failures do not automatically create `ABANDONED`. They 
 
 `READY → READY` is a legal evidence-refresh transition: it adds a new currentness/battery evidence generation without rewriting the immutable candidate evidence.
 
-### Qualification profiles
+### Release profiles and qualification evidence
 
-The profile is bound at `RESERVED` and cannot be downgraded later.
+The release profile is bound at `RESERVED` and never changes. Qualification is
+an independent monotone evidence tier on the family record.
 
 - `qualified` requires the complete two-platform qualified-staging and public-consumer evidence. A released family may advance both `newestPublished` and `newestQualified`.
-- `rapid` preserves LLP 0041’s explicit fast-publication profile: sealed runtimes, both packaged-store receipts, complete byte verification, exact-version installed boot smoke, and the common authorized promotion protocol. It may advance `newestPublished`, but not `newestQualified`, unless the missing qualified evidence is later completed as an append-only evidence generation.
+- `rapid` preserves LLP 0041’s explicit fast-publication profile: sealed runtimes, both packaged-store receipts, complete byte verification, exact-version installed boot smoke, and the common authorized promotion protocol. It advances `newestPublished` only. If the missing full qualified evidence later completes as an append-only evidence generation, that evidence—not a profile change—may then advance `newestQualified` to the same family.
+
+This is the explicit post-cutover design choice. The two store receipts and rapid
+smoke that allowed 0.1.22–0.1.24 to advance both closure pointers are no longer
+sufficient for `newestQualified`. There is no Stage 0 option selection left on
+this point; changing it requires revising this Draft before author acceptance.
 
 Both profiles use the same `PUBLISHING` and `PROMOTING` engines. The current direct fast-path `latest` loop is retired.
 
@@ -238,11 +284,33 @@ Remain `PUBLISHING`.
 
 On restart, for every package:
 
-- absent version: publish using the same effect ID;
+- version never attempted and observed absent: publish using the stable effect
+  ID;
 - present version with exact expected registry digest and holding tag: record exact-already-completed and continue;
 - present version with any different digest or identity: enter `ABANDONED` or `RECONCILIATION_REQUIRED`; never overwrite or reuse the version.
 
 A partial candidate family never moves `latest`.
+
+After a publish request is sent, timeout, connection loss, unreadable metadata,
+or an absent exact-version read enters `PUBLISH_OBSERVATION_AMBIGUOUS`; the
+machine must not infer “absent means publish.” npm has already exhibited
+minutes of write/read lag and E403/E404 after successful first publishes
+(`llp/0041-packaged-dev-loop.rfc.md:1407-1413`,
+`llp/0041-packaged-dev-loop.rfc.md:1527-1532`). The durable recovery protocol is:
+
+1. At `RESERVED`, bind a finite observation deadline and maximum publish-attempt
+   count. Retry cannot extend either bound.
+2. Poll cache-busted exact-version metadata and tarball observations, retaining
+   each response. If the expected digest becomes readable, record the effect
+   completed exactly once and continue.
+3. A bounded retry may reuse only the same effect ID and exact tarball after the
+   configured observation interval. A “cannot publish over” response is
+   positive evidence that some write owns the version, not success and not a
+   semantic failure; return to observation until its bytes can be compared.
+4. A readable different digest/identity enters `RECONCILIATION_REQUIRED`
+   immediately. If the fixed deadline or attempt bound expires while the
+   version remains absent/unreadable, enter `RECONCILIATION_REQUIRED`; do not
+   keep publishing or call the family abandoned by guess.
 
 ### Failure after candidate publication but during proof
 
@@ -271,12 +339,21 @@ The family is already `RELEASED`; npm is public. Set `projectionStatus=RED`, ret
 
 ### Stage 0 — reconcile the governing documents
 
-Amend LLP 0041 and LLP 0233 into one accepted state vocabulary. Explicitly rule on:
+Merge this RFC into LLP 0233 rather than advancing two documents. Concretely:
 
-- rapid versus qualified evidence profiles;
-- removal of the fast path’s direct `latest` mutation;
-- post-close withdrawal authority;
-- external authority storage of pre-promotion family states.
+- preserve LLP 0233 D1's continuous conveyor, D6's shared durable operation
+  record, and D9's latency evidence;
+- replace LLP 0233 D6's state sketch with this family identity, three-axis
+  state table, bounded publish-ambiguity protocol, and common promoter;
+- encode the already-chosen rapid-release/qualified-evidence separation and
+  removal of the fast path's direct `latest` mutation in LLP 0233 D2-D6;
+- merge this RFC's rollout, acceptance, recovery, and loss accounting into LLP
+  0233's corresponding sections;
+- amend LLP 0041 only as the historical/as-built authority: retain its release
+  facts, but replace its live fast-path dual-pointer and direct-tag rules with
+  pointers to the amended LLP 0233;
+- after the author accepts the reconciled design, mark LLP 0288 Superseded by
+  LLP 0233. Do not accept both.
 
 No runtime or registry behavior changes.
 
@@ -295,10 +372,20 @@ Exit criteria:
 
 Have qualified staging and fast-path rehearsal emit shadow family events while the existing scripts remain authoritative. Compare projected candidate ledgers, evidence digests, package order, and terminal classifications.
 
+Before any mutating cutover, the common promoter must also run non-mutating
+shadow/rehearsal against the real current protocol: reopen the actual npm
+vector and authority head, derive the exact intents and rollback plan the new
+machine would have used, and compare them with the current ceremony's retained
+plan/receipts. Controlled-registry fault injection remains required, but does
+not substitute for this real read-path rehearsal.
+
 Exit criteria:
 
 - a rehearsal can be interrupted after every phase and resume without repeating a completed local effect;
 - shadow records reproduce existing ledgers;
+- at least one current real-family rehearsal produces the same complete prior
+  vector, intended vector, lease inputs, mutation order, and rollback order as
+  the current protocol without mutating npm;
 - fault injection covers missing artifacts, substituted receipts, stale scope, and invalid package vectors.
 
 ### Stage 3 — candidate publication cutover
@@ -308,14 +395,22 @@ Make the family journal authoritative before candidate publication. Existing com
 Exit criteria before the first real candidate:
 
 - controlled-registry fixtures inject process death before and after every package publish;
-- exact replay never republishes or changes bytes;
+- exact replay never republishes an observed-complete effect or changes bytes;
+  an ambiguous effect may use only the bounded same-ID/same-tarball retry
+  protocol above;
 - partial publication cannot reach `READY`;
 - registry ambiguity yields `RECONCILIATION_REQUIRED`;
-- F-1 and F-3 are closed and the release-scoped LLP 0189 evidence is green.
+- F-1 and F-3 are closed, the next qualified baseline publication has closed,
+  and the release-scoped LLP 0189 evidence is green.
 
 ### Stage 4 — common promotion cutover
 
 Route both qualified and rapid profiles through the standing authority and common promoter. Remove the fast path’s direct tag loop.
+
+The direct loop is removed only after Stage 2's real-protocol rehearsal and
+Stage 4's controlled-registry promoter fixtures pass. The first public mutation
+therefore exercises a promoter already compared with the current real protocol;
+it is not the first semantic rehearsal.
 
 Exit criteria:
 
@@ -336,16 +431,42 @@ Required verification includes:
 1. closed-schema and canonical-digest fixtures;
 2. exhaustive transition-table tests;
 3. state replay after process death at every external-effect boundary;
-4. controlled-registry partial publication, timeout, stale read, and digest-mismatch fixtures;
+4. controlled-registry partial publication, lost response, bounded absent read,
+   E403/E404 “cannot publish over,” timeout exhaustion, stale read, and
+   digest-mismatch fixtures;
 5. complete-vector tag mutation and reverse rollback fixtures;
 6. authority issue/acquire/close exact-replay tests;
-7. rapid and qualified profile non-downgrade tests;
-8. LLP 0189 scope and battery eligibility fixtures;
-9. unrelated-`main` movement fixtures;
-10. projection generation and historical-width validation;
-11. post-close known-red, supersession, and withdrawal fixtures;
-12. one non-mutating full rehearsal before each implementation stage;
-13. the governing release qualification before any real npm effect.
+7. release-profile immutability and qualification-evidence non-downgrade tests;
+8. immutable release-profile plus monotone evidence-tier tests, including a
+   rapid family that later becomes qualified without changing identity;
+9. LLP 0189 scope and battery eligibility fixtures;
+10. unrelated-`main` movement fixtures;
+11. projection generation and historical-width validation;
+12. post-close known-red, supersession, and withdrawal fixtures;
+13. one non-mutating full rehearsal before each implementation stage;
+14. a real-protocol read-only promoter rehearsal before mutating cutover;
+15. the governing release qualification before any real npm effect.
+
+## Behaviors deliberately lost
+
+- **Local-file progress authority is lost.** Ceremony files remain retained
+  evidence and projections, but only the durable external operation record may
+  authorize or resume an effect. This is intentional; checkout deletion must
+  not erase release truth.
+- **Direct fast-path `latest` mutation is lost.** Both release profiles use the
+  standing authority and common complete-vector promoter. A rapid lane can no
+  longer mutate tags in its own serial loop.
+- **Manual Guide closure projection is lost.**
+  `guide/published-closure.json` becomes generated from terminal family state.
+  Human edits cannot advance either pointer.
+- **Immediate fast-path dual-pointer advancement is lost.** 0.1.22, 0.1.23,
+  and 0.1.24 advanced both `newestPublished` and `newestQualified` from rapid
+  evidence (`llp/0041-packaged-dev-loop.rfc.md:1452-1453`,
+  `llp/0041-packaged-dev-loop.rfc.md:1474-1475`,
+  `llp/0041-packaged-dev-loop.rfc.md:1550-1551`). Post-cutover, a rapid family
+  advances only `newestPublished`; `newestQualified` waits for a distinct
+  append-only qualified evidence generation. Historical pointers are preserved
+  in the legacy genesis rather than rewritten.
 
 ## Failure modes and honest limits
 
@@ -354,14 +475,40 @@ Required verification includes:
 - Extending the publication authority makes it more critical. Its SQLite volume needs tested backup, restore, and signed export. Loss of authority state must block mutation rather than fall back to local files.
 - Artifact stores may expire or become unavailable. A retained digest proves identity, not continuing retrievability; availability must be a separate state.
 - Historical backfill is incomplete. The design deliberately starts with a signed genesis rather than claiming evidence not found in the tree.
-- The rapid profile remains weaker than full qualification. Its weaker claim must remain visible, and it must never advance `newestQualified` without the missing evidence.
+- The rapid release profile remains weaker than full qualification. Its weaker
+  initial evidence must remain visible, and it must never advance
+  `newestQualified` without a later qualified evidence generation.
 - A state machine can make effects resumable but cannot decide factual invalidity automatically. Withdrawal remains an explicitly authorized safety action.
-- LLP 0233 is still Draft. Implementing a second machine without reconciling it would worsen the exact fragmentation this program is intended to fix.
+- LLP 0233 is still Draft. This RFC cannot become a second machine: its only
+  author-acceptance path is reconciliation into LLP 0233 followed by LLP 0288
+  becoming Superseded.
+
+## Open question for the author
+
+- Should a claim-relevant red from the asynchronous post-`latest` audit ever
+  authorize automatic post-close rollback? LLP 0233 leaves that question open
+  (`llp/0233-continuous-qualified-npm-release.rfc.md:311-327`,
+  `llp/0233-continuous-qualified-npm-release.rfc.md:536-538`). This RFC does not
+  invent that authority: until the author rules otherwise, the family becomes
+  `KNOWN_RED` and any withdrawal/recovery transition requires explicit
+  authorization.
 
 ## Sequencing recommendation
 
-This is second after the proof-inventory unification and before scripts regrouping.
+Revision (b) records agreement with the LLP 0005 review on both order and
+deferral. This is second after proof-inventory unification and before scripts
+regrouping: LLP 0287 supplies the stable LLP 0189 gate derivation, and LLP 0289
+should move one reconciled release family rather than two protocols.
 
-Implementation should be deferred until F-1, F-3, and the next qualified publication restore the release baseline. Once that happens, the state machine should not be deferred again: the current fast path has a materially weaker partial-`latest` failure story than the qualified promoter.
+Implementation remains deferred until F-1 closes, F-3 closes, and the next
+qualified publication restores the release baseline
+(`llp/0283-post-rearchitecture-followups.plan.md:47-57`). Once those conditions
+hold, the state-machine amendment should not be deferred again: the current fast
+path has a materially weaker partial-`latest` failure story than the qualified
+promoter. This revision stays Draft; the author decides whether the reconciled
+LLP 0233 receives re-review or acceptance.
 
-The need should not be declined, but a separate new protocol should be. The correct program is to accept and amend LLP 0233 with this durable family model, funnel every release profile through it, and only then move the release files into `scripts/release/`.
+The need should not be declined, but a separate new protocol should be. If the
+author accepts the direction, the correct program is to amend LLP 0233 with
+this durable family model, funnel every release profile through it, and only
+then move the release files into `scripts/release/`.
