@@ -181,9 +181,7 @@ fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<
             Some("live.resume.input.schema.json"),
             Some("live.resume.output.schema.json"),
         ),
-        ("GET", "/outbox/{connection_id}") => {
-            (None, Some("live.outbox-drain.output.schema.json"))
-        }
+        ("GET", "/outbox/{connection_id}") => (None, Some("live.outbox-drain.output.schema.json")),
         ("POST", "/live/authorization-invalidation/acknowledge") => (
             Some("authorization-invalidation.ack.input.schema.json"),
             Some("authorization-invalidation.ack.output.schema.json"),
@@ -205,9 +203,7 @@ fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<
             Some("ephemeral.delete.output.schema.json"),
         ),
         ("GET", "/_snapback/api/inspect") => (None, Some("inspect.admin.schema.json")),
-        ("GET", "/_snapback/api/control-catalog") => {
-            (None, Some("control-catalog.v1.schema.json"))
-        }
+        ("GET", "/_snapback/api/control-catalog") => (None, Some("control-catalog.v1.schema.json")),
         (
             "POST",
             "/_snapback/api/auth/integrations/{id}/retire"

@@ -23,6 +23,14 @@ checked; module analyzer/manifest/baseline/ratchet retired; workspace graph
 promoted to the drift fail-closed core; root Cloudflare target moved under
 `targets/`; the measured authored transclusion count corrected from nine to
 three, with generated flats regenerated)
+**Revised:** 2026-08-19 (LLP 0283 F-5 schema-export follow-up: each crate owns
+the registrations for its carriers; `snapback-tools` owns downward-only
+assembly and `snapback-schemagen`, superseding the provisional types/activation
+placement without widening the dependency matrix)
+**Revised:** 2026-08-19 (LLP 0283 F-5 completion: telemetry and fork-promotion
+proof composition moved from the facade to rank-7 `snapback-tools`; both use
+one exact port of the facade commit/dirty build stamp and only downward crate
+dependencies)
 **Revised:** 2026-08-19 (**Implemented, structurally** — the workspace, the
 gate transition and the Phase 3 consolidation landed on `main` at `18cb34fab`
 by fast-forward, with the rollback point tagged `pre-0276-rearchitecture`.
@@ -311,7 +319,7 @@ a strictly lower rank; the matrix is therefore a DAG by construction.
 
 | Crate | Rank | Owner | May depend on (workspace) | Charter and today's principal modules |
 | --- | --- | --- | --- | --- |
-| `snapback-types` | 0 | `shared-contract-types-leaf` | — | Language-neutral schema/wire/id/value/generation types; `schemars` derives; hosts the `snapback-schemagen` bin that exports `schemas/`. Today: `contract_types.rs`, the DTO half of `manifest.rs`, `ids.rs`, `value_expr.rs`, wire shape structs, `schema_export.rs`, and the leaf-assigned `crates/snapback/src/auth/` modules per 0225 — `auth/identity_core.rs`, `auth/crypto.rs`, `auth/service_authority_contract.rs`. |
+| `snapback-types` | 0 | `shared-contract-types-leaf` | — | Language-neutral schema/wire/id/value/generation types; `schemars` derives; owns the common schema-artifact helpers and registrations for leaf carriers. Today: `contract_types.rs`, the DTO half of `manifest.rs`, `ids.rs`, `value_expr.rs`, wire shape structs, and the leaf-assigned `crates/snapback/src/auth/` modules per 0225 — `auth/identity_core.rs`, `auth/crypto.rs`, `auth/service_authority_contract.rs`. |
 | `snapback-kernel` | 1 | `storage-migration-kernel` | types | SQLite transactions — the only commit primitive for the canonical store (LLP 0059); schema lineage, migration executor, rollback artifacts, durability; **search + vector** as storage-level query machinery over the canonical store (their rebuild jobs stay above, in services, composing kernel ops). Today: `storage.rs` + **all of `storage/*` including every `storage/auth_*`** — after 0225's A2/A3 those are the kernel's typed durable operations (transaction scope + SQL), and they stay in the kernel; plus `migration*.rs`, `data_patch.rs`, `data_tier.rs`, `seed_identity.rs`, `instance_lock.rs`, `store_state.rs`, `crates/snapback/src/auth/throttle.rs` (kernel per 0225 A1 until its `auth_rehearsal` call-up inverts), `search/*`, `vector/*` (the generated `unicode17` table is a recorded generated-file exception). Any remaining `storage/* → crates/snapback/src/auth/*` call-up is an **inversion prerequisite for both the kernel and auth carves** — the fix is inverting the edge, never reassigning the calling file upward. |
 | `snapback-auth` | 2 | `auth-substrate` *(new owner)* | kernel, types | The auth **substrate**: provider, session/credential/lease/custody **policy and published substrate surfaces** (durability stays kernel), revocation **publication** through the LLP 0053 leaf shapes (`SessionProjection` itself stays in `snapback-sync` per 0225's landed cut), rescue, sender-proof, identity, hosted-edge *policy*. Sits **below** the domain rank so sync, services, and transport may all consume it without sideways edges — preserving 0225's landed item-3 cut. The boundary rule: `snapback-sync` keeps witnessed delivery obligations, resync fan-out, and subscription-invalidation *delivery*; auth owns authorization policy and its published epochs/leases, carried by the leaf's existing LLP 0053 shapes (authorization versions/epochs, lease ids, terminal-cause records) — not a new undirected pile; **the live matcher makes no per-row cross-crate call on the fan-out path** (the port pattern: policy compiles/publishes in auth, sync evaluates locally against leaf-shaped state, refresh rides auth commits through sync's existing invalidation delivery — off the fan-out path). A policy module that provably cannot leave sync without a hot-path hop stays in sync as a **bounded, named membership exception in `crates/allowed-dependencies.v1.json`** with a burn-down ticket — membership, never a matrix edge exception. Today: `crates/snapback/src/auth/*` **minus its already-leaf-assigned modules** (`identity_core.rs`, `crypto.rs`, `service_authority_contract.rs` are leaf-owned files staying with `snapback-types` per 0225's assignments) and minus `throttle.rs` (kernel per 0225 A1 until the `auth_rehearsal` call-up inverts) — i.e. policy: provider, sender-proof decisions, hosted-edge policy, identity/lifecycle, rescue; plus `membership_rules.rs`, `dev_identity.rs` — **not** the durable `storage/auth_*` operations, which are kernel. |
 | `snapback-activation` | 3 | `generation-activation-coordinator` | auth, kernel, types | Composes and atomically installs successor generations via kernel commits (LLP 0225 §3.2 unchanged). Today: `generation_activation.rs`, the activation logic of `local.rs`/`manifest.rs`. |
@@ -324,7 +332,7 @@ a strictly lower rank; the matrix is therefore a DAG by construction.
 | `snapback` | 7 | `embed-facade` / composition root | cli, server + all lower | The public crate: `snapback::embed` (LLP 0141 D1's sole supported Rust surface, source-compatible — its re-exports of engine/server types are exactly why this crate sits above the adapters) and the `snapback` binary. Its `build.rs` keeps the three binary-scoped jobs (guide-corpus embedding, build-identity stamping, Hermes rpaths for the final binary): the workspace's win here is rebuild-scope confinement, not job separation. `crates/snapback/examples/` holds the embed examples. |
 | `snapback-conformance` | 7 | `proof-harness` (non-product) | server, engine, kernel, auth, types | Wire fixtures, the conformance-twin bin, sbsb vectors, cf-manifest — proof bins exercising the contract from outside. |
 | `snapback-harness` | 7 | `proof-harness` (non-product) | server, engine, kernel, auth, cli | Integration tests that must inspect the canonical SQLite store directly, beginning with the store-export suite moved out of product crates. `rusqlite` is a dev-dependency only: the authority is explicit to the workspace-graph gate and does not propagate into downstream normal dependency graphs (LLP 0285 §5.3). |
-| `snapback-tools` | 7 | `dev-tools` (non-product) | any lower | The agent-safe worker (absorbs `tools/`), the agent-safe digest computation (leaves `build.rs`), benches. |
+| `snapback-tools` | 7 | `dev-tools` (non-product) | any lower | The agent-safe worker (absorbs `tools/`), the agent-safe digest computation (leaves `build.rs`), telemetry and fork-promotion proof orchestration, benches, and downward-only assembly of owner-local schema registrations through `snapback-schemagen`. Its build script reproduces the facade commit/dirty stamp for provenance-sensitive tool binaries. |
 
 Workspace-wide rules:
 
@@ -504,8 +512,9 @@ Install-root ownership for the non-workspace app trees: `admin-ui/` (own
 
 The seams the layout must keep legible, in generation/dependency order:
 
-1. **Type truth flows outward** (LLP 0037): `crates/snapback-types`
-   —`snapback-schemagen` (bin in that crate)→ `schemas/*.json` (committed,
+1. **Type truth flows outward** (LLP 0037): carrier-owning crates register
+   their own schemas → `crates/snapback-tools` assembles those registrations
+   through downward dependencies —`snapback-schemagen`→ `schemas/*.json` (committed,
    drift-gated) → consumed by `packages/snapback-codegen` (validation +
    generated app APIs), `packages/snapback-client` (wire validation),
    `clients/swift` (fixtures), `targets/cloudflare` (contract binding). The
@@ -658,9 +667,9 @@ Consequences:
   `SNAPBACK_REPO_ROOT` consumers; per-target/client roots; and a complete
   **`[[bin]]`/`crates/snapback/src/bin/*` → crate mapping** for the 12 auxiliary bins
   (conformance-twin/sbsb-vectors/cf-manifest → `snapback-conformance`;
-  agent-safe and bench bins → `snapback-tools`; the hosted-admission bin →
-  `snapback-server`; `snapback-local` alias → the façade;
-  `snapback-schemagen` → `snapback-types`) so none lands in the façade by
+  agent-safe, schema-generation, and bench bins → `snapback-tools`; the
+  hosted-admission bin → `snapback-server`; `snapback-local` alias → the façade)
+  so none lands in the façade by
   default. Phase 1 and Phase 3 execute against this manifest, and the
   manifest is itself checked by a **deterministic straggler gate**: named
   search projections (scripts, workflow YAML, policy JSON, Cargo manifests,

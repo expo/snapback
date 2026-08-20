@@ -1,30 +1,15 @@
 //! Schema registrations for engine-composition carriers.
 
-use snapback_types::schema_export::{SchemaArtifact, finish};
+use snapback_types::schema_export::{SchemaArtifact, finish_type};
 
 pub fn schema_registrations() -> Vec<SchemaArtifact> {
     vec![
-        finish(
-            "inspect.schema.json",
-            schemars::schema_for!(crate::local::InspectState),
-        ),
-        finish(
-            "inspect.public.schema.json",
-            schemars::schema_for!(crate::local::PublicInspect),
-        ),
-        finish(
-            "app.ensure.input.schema.json",
-            schemars::schema_for!(crate::local::EnsureAppRequest),
-        ),
-        finish(
-            "app.ensure.output.schema.json",
-            schemars::schema_for!(crate::local::EnsureAppResponse),
-        ),
-        finish(
+        finish_type::<crate::local::InspectState>("inspect.schema.json"),
+        finish_type::<crate::local::PublicInspect>("inspect.public.schema.json"),
+        finish_type::<crate::local::EnsureAppRequest>("app.ensure.input.schema.json"),
+        finish_type::<crate::local::EnsureAppResponse>("app.ensure.output.schema.json"),
+        finish_type::<snapback_types::manifest::FunctionResponse<crate::local::FunctionRunResult>>(
             "action.output.schema.json",
-            schemars::schema_for!(snapback_types::manifest::FunctionResponse<
-                crate::local::FunctionRunResult,
-            >),
         ),
     ]
 }

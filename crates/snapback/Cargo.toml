@@ -20,15 +20,6 @@ engine-owner = []
 server-owner = []
 services-owner = []
 sync-owner = []
-# Internal evidence harness for LLP 0154 Phase 1. This is deliberately absent
-# from ordinary contributor/server builds and is enabled only by the bounded
-# proof script.
-telemetry-phase1-proof = ["snapback-server/benchmark-support"]
-
-[[bin]]
-name = "snapback-telemetry-bench"
-path = "src/bin/snapback-telemetry-bench.rs"
-required-features = ["telemetry-phase1-proof"]
 
 [dependencies]
 anyhow = "1.0"

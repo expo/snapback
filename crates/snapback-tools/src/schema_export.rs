@@ -1,12 +1,10 @@
 //! Downward-only assembly of schema registrations owned beside their carriers.
 //!
-//! @ref LLP 0283#f-5-burn-down-the-five-named-membership-exceptions — rank-7
+//! @ref LLP 0283#f-5--named-exceptions-with-burn-down-tickets — rank-7
 //!   tooling may compose registrations from every lower rank without pulling
 //!   any carrier upward into the product facade.
 
-pub use snapback_types::schema_export::{
-    EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS, SchemaArtifact,
-};
+pub use snapback_types::schema_export::{EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS, SchemaArtifact};
 
 /// Assemble every owner registration through rank-7 downward dependencies.
 pub fn artifact_schemas() -> Vec<SchemaArtifact> {

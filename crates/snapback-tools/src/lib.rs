@@ -10,3 +10,5 @@ use snapback_types::{bench_fixture, manifest};
 pub mod agent_safe_digest;
 pub mod bench;
 pub mod schema_export;
+#[cfg(feature = "telemetry-phase1-proof")]
+pub mod telemetry_bench;

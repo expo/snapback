@@ -87,11 +87,11 @@ function packageNamed(value, name) {
 test('the Phase 2 facade is assigned with no confined externals', () => {
   assert.deepEqual(validateArtifactAndMetadata(artifact, metadata(), workspaceManifestSource), {
     members: artifact.crates.map((entry) => entry.name).sort(),
-    plannedCrates: 13,
+    plannedCrates: 14,
   });
   assert.deepEqual(validateModuleMembership(artifact, rustPaths), {
     moduleCount,
-    exceptionCount: 5,
+    exceptionCount: 0,
   });
   assert.doesNotThrow(() => validateWorkspacePathModules(workspaceRustFiles));
 });
@@ -103,7 +103,7 @@ test('a missing Phase 2 workspace member fails closed', () => {
   value.workspace_members = value.workspace_members.filter((id) => id !== missing.id);
   assert.throws(
     () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
-    /workspace member set must exactly match the 13-crate Phase 2 matrix/u,
+    /workspace member set must exactly match the 14-crate Phase 2 matrix/u,
   );
 });
 
@@ -134,25 +134,45 @@ test('a noncanonical module path cannot escape its assigned owner', () => {
   );
 });
 
-test('a named membership exception cannot disappear while its module stays put', () => {
-  const missing = structuredClone(artifact);
-  missing.membershipExceptions.shift();
+function syntheticMembershipException() {
+  return {
+    name: 'synthetic-membership-exception',
+    assignments: [{
+      module: 'crates/snapback-tools/src/bench.rs',
+      assignedOwner: 'background-services',
+    }],
+    actualMember: 'snapback-tools',
+    expiresAt: '2026-09-15',
+    reason: 'negative fixture for the fail-closed membership-exception contract',
+    ticket: 'issues/20260819-security-gates-expected-red-until-f1.md',
+  };
+}
+
+test('a named membership exception cannot appear outside the reviewed inventory', () => {
+  const added = structuredClone(artifact);
+  added.membershipExceptions.push(syntheticMembershipException());
   assert.throws(
-    () => validateModuleMembership(missing, rustPaths, undefined, '2026-08-18'),
+    () => validateModuleMembership(added, rustPaths, undefined, '2026-08-18'),
     /membership exception assignments drifted/u,
   );
 });
 
 test('membership exceptions must match their physical member and stay bounded', () => {
   const wrongMember = structuredClone(artifact);
-  wrongMember.membershipExceptions[0].actualMember = 'snapback-tools';
+  wrongMember.membershipExceptions.push({
+    ...syntheticMembershipException(),
+    actualMember: 'snapback',
+  });
   assert.throws(
     () => validateModuleMembership(wrongMember, rustPaths, undefined, '2026-08-18'),
-    /membership exception assignments drifted/u,
+    /actualMember does not match/u,
   );
 
   const expired = structuredClone(artifact);
-  for (const exception of expired.membershipExceptions) exception.expiresAt = '2026-08-17';
+  expired.membershipExceptions.push({
+    ...syntheticMembershipException(),
+    expiresAt: '2026-08-17',
+  });
   assert.throws(
     () => validateModuleMembership(expired, rustPaths, undefined, '2026-08-18'),
     /expired on 2026-08-17/u,

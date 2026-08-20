@@ -19,21 +19,23 @@ use crate::auth::rehearsal::{
 };
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
-    MailboxResponse, MintSessionRequest, PasswordAttemptAdminRequest,
-    PasswordAttemptAdminResponse, PasswordChangeRequest, PasswordCredentialRequest,
-    PasswordResetRequest, PasswordUnlockRequest, PasswordUnlockResponse, RecoveryConsumeRequest,
-    RequestCodeRequest, RequestCodeResponse, RescueCollidingTableRequest,
+    MailboxResponse, MintSessionRequest, PasswordAttemptAdminRequest, PasswordAttemptAdminResponse,
+    PasswordChangeRequest, PasswordCredentialRequest, PasswordResetRequest, PasswordUnlockRequest,
+    PasswordUnlockResponse, RecoveryConsumeRequest, RequestCodeRequest, RequestCodeResponse,
+    RescueCollidingTableRequest,
 };
 use crate::commit_envelope::{
-    ClientIdentityRangeV1, CommitEnvelopeV1, IdentityEpochV1,
-    OperationCoverageActivationRequestV1, OperationCoverageActivationResponseV1,
-    OperationCoverageManifestV1, OperationExplanationRequestV1, OperationExplanationResponseV1,
-    OperationExplanationV1, OperationIdentityRangeRequestV1, OperationIdentityRangeResponseV1,
+    ClientIdentityRangeV1, CommitEnvelopeV1, IdentityEpochV1, OperationCoverageActivationRequestV1,
+    OperationCoverageActivationResponseV1, OperationCoverageManifestV1,
+    OperationExplanationRequestV1, OperationExplanationResponseV1, OperationExplanationV1,
+    OperationIdentityRangeRequestV1, OperationIdentityRangeResponseV1,
     OperationIdentityTombstoneV1, OperationIdentityV1, OperationSuppressionRecordV1,
     PendingOperationLifecycleV1, PendingOperationTerminalSupplementV1,
 };
 use crate::diagnostic::Diagnostic;
-use crate::ephemeral::{DeleteRequest, EphemeralMessage, PublishRequest, RealtimeEnvelope, SubscribeRequest};
+use crate::ephemeral::{
+    DeleteRequest, EphemeralMessage, PublishRequest, RealtimeEnvelope, SubscribeRequest,
+};
 use crate::handler_wire::{HandlerHostCallRequest, HandlerInvokeRequest, HandlerInvokeResponse};
 use crate::host_ops_contract::{
     DryRunReport, HostOpsResult, HostReadyDescriptor, ManagedBranchCreateHostInputV1,
@@ -85,6 +87,12 @@ pub fn finish(file: &'static str, schema: impl serde::Serialize) -> SchemaArtifa
     }
 }
 
+/// Derive a schema for an owner-local carrier without requiring that owner to
+/// invoke an item-producing macro in its source tree.
+pub fn finish_type<T: schemars::JsonSchema>(file: &'static str) -> SchemaArtifact {
+    finish(file, schemars::schema_for!(T))
+}
+
 /// Canonicalize one generated public artifact instance.
 pub fn instance(file: &'static str, value: Value) -> SchemaArtifact {
     SchemaArtifact {
@@ -96,8 +104,14 @@ pub fn instance(file: &'static str, value: Value) -> SchemaArtifact {
 /// Schemas for carriers whose defining authority is `snapback-types`.
 pub fn schema_registrations() -> Vec<SchemaArtifact> {
     let mut artifacts = vec![
-        finish("schema.manifest.schema.json", schemars::schema_for!(SchemaManifest)),
-        finish("functions.manifest.schema.json", schemars::schema_for!(FunctionManifest)),
+        finish(
+            "schema.manifest.schema.json",
+            schemars::schema_for!(SchemaManifest),
+        ),
+        finish(
+            "functions.manifest.schema.json",
+            schemars::schema_for!(FunctionManifest),
+        ),
         finish(
             "result-transform-v1.corpus.schema.json",
             schemars::schema_for!(ResultTransformCorpusManifestV1),
@@ -106,9 +120,18 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "result-transform-v1.case.schema.json",
             schemars::schema_for!(ResultTransformCorpusCaseV1),
         ),
-        finish("capability.manifest.schema.json", schemars::schema_for!(CapabilityManifest)),
-        finish("operation.identity-v1.schema.json", schemars::schema_for!(OperationIdentityV1)),
-        finish("commit.envelope-v1.schema.json", schemars::schema_for!(CommitEnvelopeV1)),
+        finish(
+            "capability.manifest.schema.json",
+            schemars::schema_for!(CapabilityManifest),
+        ),
+        finish(
+            "operation.identity-v1.schema.json",
+            schemars::schema_for!(OperationIdentityV1),
+        ),
+        finish(
+            "commit.envelope-v1.schema.json",
+            schemars::schema_for!(CommitEnvelopeV1),
+        ),
         finish(
             "operation.identity-range-v1.schema.json",
             schemars::schema_for!(ClientIdentityRangeV1),
@@ -129,7 +152,10 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "operation.coverage-activation-response-v1.schema.json",
             schemars::schema_for!(OperationCoverageActivationResponseV1),
         ),
-        finish("operation.identity-epoch-v1.schema.json", schemars::schema_for!(IdentityEpochV1)),
+        finish(
+            "operation.identity-epoch-v1.schema.json",
+            schemars::schema_for!(IdentityEpochV1),
+        ),
         finish(
             "operation.suppression-v1.schema.json",
             schemars::schema_for!(OperationSuppressionRecordV1),
@@ -146,7 +172,10 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "operation.identity-tombstone-v1.schema.json",
             schemars::schema_for!(OperationIdentityTombstoneV1),
         ),
-        finish("operation.explanation-v1.schema.json", schemars::schema_for!(OperationExplanationV1)),
+        finish(
+            "operation.explanation-v1.schema.json",
+            schemars::schema_for!(OperationExplanationV1),
+        ),
         finish(
             "operation.explanation-request-v1.schema.json",
             schemars::schema_for!(OperationExplanationRequestV1),
@@ -183,8 +212,14 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "vector.request.schema.json",
             schemars::schema_for!(crate::vector::VectorRequestV1),
         ),
-        finish("vector.item.schema.json", schemars::schema_for!(crate::vector::VectorItemV1)),
-        finish("vector.page.schema.json", schemars::schema_for!(crate::vector::VectorPageV1)),
+        finish(
+            "vector.item.schema.json",
+            schemars::schema_for!(crate::vector::VectorItemV1),
+        ),
+        finish(
+            "vector.page.schema.json",
+            schemars::schema_for!(crate::vector::VectorPageV1),
+        ),
         finish(
             "auth.hosted-capabilities.schema.json",
             schemars::schema_for!(crate::auth::deployment::HostedAuthCapabilities),
@@ -193,7 +228,10 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "hosted-admission-v2.schema.json",
             schemars::schema_for!(crate::auth::deployment::HostedAdmissionV2),
         ),
-        finish("remote-service.profile.schema.json", schemars::schema_for!(RemoteServiceProfile)),
+        finish(
+            "remote-service.profile.schema.json",
+            schemars::schema_for!(RemoteServiceProfile),
+        ),
         finish(
             "remote-service.auth-capability.manifest.schema.json",
             schemars::schema_for!(RemoteAuthCapabilityManifest),
@@ -219,30 +257,75 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "remediation-fixtures.v1.schema.json",
             schemars::schema_for!(RemediationFixtureCorpusV1),
         ),
-        finish("host-ops.result.schema.json", schemars::schema_for!(HostOpsResult)),
-        finish("host-ready.schema.json", schemars::schema_for!(HostReadyDescriptor)),
-        finish("dry-run.report.schema.json", schemars::schema_for!(DryRunReport)),
-        finish("live.envelope.schema.json", schemars::schema_for!(LiveEnvelope)),
-        finish("live.socket-server.schema.json", schemars::schema_for!(LiveSocketServerFrame)),
-        finish("live.socket-client.schema.json", schemars::schema_for!(LiveSocketClientMessage)),
+        finish(
+            "host-ops.result.schema.json",
+            schemars::schema_for!(HostOpsResult),
+        ),
+        finish(
+            "host-ready.schema.json",
+            schemars::schema_for!(HostReadyDescriptor),
+        ),
+        finish(
+            "dry-run.report.schema.json",
+            schemars::schema_for!(DryRunReport),
+        ),
+        finish(
+            "live.envelope.schema.json",
+            schemars::schema_for!(LiveEnvelope),
+        ),
+        finish(
+            "live.socket-server.schema.json",
+            schemars::schema_for!(LiveSocketServerFrame),
+        ),
+        finish(
+            "live.socket-client.schema.json",
+            schemars::schema_for!(LiveSocketClientMessage),
+        ),
         finish("receipt.schema.json", schemars::schema_for!(Receipt)),
-        finish("realtime.envelope.schema.json", schemars::schema_for!(RealtimeEnvelope)),
-        finish("auth.request-code.input.schema.json", schemars::schema_for!(RequestCodeRequest)),
-        finish("auth.session.output.schema.json", schemars::schema_for!(AuthSessionResponse)),
-        finish("auth.request-code.output.schema.json", schemars::schema_for!(RequestCodeResponse)),
-        finish("auth.exchange.input.schema.json", schemars::schema_for!(ExchangeRequest)),
+        finish(
+            "realtime.envelope.schema.json",
+            schemars::schema_for!(RealtimeEnvelope),
+        ),
+        finish(
+            "auth.request-code.input.schema.json",
+            schemars::schema_for!(RequestCodeRequest),
+        ),
+        finish(
+            "auth.session.output.schema.json",
+            schemars::schema_for!(AuthSessionResponse),
+        ),
+        finish(
+            "auth.request-code.output.schema.json",
+            schemars::schema_for!(RequestCodeResponse),
+        ),
+        finish(
+            "auth.exchange.input.schema.json",
+            schemars::schema_for!(ExchangeRequest),
+        ),
         finish(
             "auth.password-credential.input.schema.json",
             schemars::schema_for!(PasswordCredentialRequest),
         ),
-        finish("auth.password-change.input.schema.json", schemars::schema_for!(PasswordChangeRequest)),
-        finish("auth.password-reset.input.schema.json", schemars::schema_for!(PasswordResetRequest)),
+        finish(
+            "auth.password-change.input.schema.json",
+            schemars::schema_for!(PasswordChangeRequest),
+        ),
+        finish(
+            "auth.password-reset.input.schema.json",
+            schemars::schema_for!(PasswordResetRequest),
+        ),
         finish(
             "auth.recovery-consume.input.schema.json",
             schemars::schema_for!(RecoveryConsumeRequest),
         ),
-        finish("auth.password-unlock.input.schema.json", schemars::schema_for!(PasswordUnlockRequest)),
-        finish("auth.password-unlock.output.schema.json", schemars::schema_for!(PasswordUnlockResponse)),
+        finish(
+            "auth.password-unlock.input.schema.json",
+            schemars::schema_for!(PasswordUnlockRequest),
+        ),
+        finish(
+            "auth.password-unlock.output.schema.json",
+            schemars::schema_for!(PasswordUnlockResponse),
+        ),
         finish(
             "auth.password-attempt-admin.input.schema.json",
             schemars::schema_for!(PasswordAttemptAdminRequest),
@@ -251,14 +334,38 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "auth.password-attempt-admin.output.schema.json",
             schemars::schema_for!(PasswordAttemptAdminResponse),
         ),
-        finish("auth.credential.output.schema.json", schemars::schema_for!(CredentialResponse)),
-        finish("auth.empty.input.schema.json", schemars::schema_for!(EmptyAuthRequest)),
-        finish("auth.family-alarm.output.schema.json", schemars::schema_for!(FamilyAlarmResponse)),
-        finish("auth.mailbox.query.schema.json", schemars::schema_for!(MailboxQuery)),
-        finish("auth.mailbox.output.schema.json", schemars::schema_for!(MailboxResponse)),
-        finish("auth.mint-session.input.schema.json", schemars::schema_for!(MintSessionRequest)),
-        finish("auth.rehearsal-grant.v1.schema.json", schemars::schema_for!(AuthRehearsalGrantV1)),
-        finish("auth.rehearsal-window.v1.schema.json", schemars::schema_for!(AuthRehearsalWindowV1)),
+        finish(
+            "auth.credential.output.schema.json",
+            schemars::schema_for!(CredentialResponse),
+        ),
+        finish(
+            "auth.empty.input.schema.json",
+            schemars::schema_for!(EmptyAuthRequest),
+        ),
+        finish(
+            "auth.family-alarm.output.schema.json",
+            schemars::schema_for!(FamilyAlarmResponse),
+        ),
+        finish(
+            "auth.mailbox.query.schema.json",
+            schemars::schema_for!(MailboxQuery),
+        ),
+        finish(
+            "auth.mailbox.output.schema.json",
+            schemars::schema_for!(MailboxResponse),
+        ),
+        finish(
+            "auth.mint-session.input.schema.json",
+            schemars::schema_for!(MintSessionRequest),
+        ),
+        finish(
+            "auth.rehearsal-grant.v1.schema.json",
+            schemars::schema_for!(AuthRehearsalGrantV1),
+        ),
+        finish(
+            "auth.rehearsal-window.v1.schema.json",
+            schemars::schema_for!(AuthRehearsalWindowV1),
+        ),
         finish(
             "auth.rehearsal-reachability.v1.schema.json",
             schemars::schema_for!(AuthRehearsalReachabilityV1),
@@ -271,8 +378,14 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "auth.rehearsal-logical-export.v1.schema.json",
             schemars::schema_for!(AuthRehearsalLogicalExportArtifactV1),
         ),
-        finish("auth.rehearsal-mint.input.v1.schema.json", schemars::schema_for!(RehearsalMintRequestV1)),
-        finish("auth.rehearsal-mint.output.v1.schema.json", schemars::schema_for!(RehearsalMintResultV1)),
+        finish(
+            "auth.rehearsal-mint.input.v1.schema.json",
+            schemars::schema_for!(RehearsalMintRequestV1),
+        ),
+        finish(
+            "auth.rehearsal-mint.output.v1.schema.json",
+            schemars::schema_for!(RehearsalMintResultV1),
+        ),
         finish(
             "auth.rehearsal-exercise.input.v1.schema.json",
             schemars::schema_for!(RehearsalExerciseRequestV1),
@@ -289,10 +402,22 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "auth.rescue-colliding-table.input.schema.json",
             schemars::schema_for!(RescueCollidingTableRequest),
         ),
-        finish("live.resume-token.schema.json", schemars::schema_for!(ResumeWire)),
-        finish("query.input.schema.json", schemars::schema_for!(FiniteQueryRequest)),
-        finish("action.input.schema.json", schemars::schema_for!(FunctionCallRequest)),
-        finish("mutation.input.schema.json", schemars::schema_for!(MutationRequest)),
+        finish(
+            "live.resume-token.schema.json",
+            schemars::schema_for!(ResumeWire),
+        ),
+        finish(
+            "query.input.schema.json",
+            schemars::schema_for!(FiniteQueryRequest),
+        ),
+        finish(
+            "action.input.schema.json",
+            schemars::schema_for!(FunctionCallRequest),
+        ),
+        finish(
+            "mutation.input.schema.json",
+            schemars::schema_for!(MutationRequest),
+        ),
         finish(
             "client-mutation.ack.input.schema.json",
             schemars::schema_for!(MutationAcknowledgementRequest),
@@ -301,9 +426,18 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "client-mutation.ack.output.schema.json",
             schemars::schema_for!(MutationAcknowledgementResponse),
         ),
-        finish("handler.invoke.input.schema.json", schemars::schema_for!(HandlerInvokeRequest)),
-        finish("handler.invoke.output.schema.json", schemars::schema_for!(HandlerInvokeResponse)),
-        finish("handler.host-call.input.schema.json", schemars::schema_for!(HandlerHostCallRequest)),
+        finish(
+            "handler.invoke.input.schema.json",
+            schemars::schema_for!(HandlerInvokeRequest),
+        ),
+        finish(
+            "handler.invoke.output.schema.json",
+            schemars::schema_for!(HandlerInvokeResponse),
+        ),
+        finish(
+            "handler.host-call.input.schema.json",
+            schemars::schema_for!(HandlerHostCallRequest),
+        ),
         finish(
             "live.kit-socket-request.schema.json",
             schemars::schema_for!(KitSocketRequestFrame),
@@ -312,15 +446,30 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "live.kit-socket-reply.schema.json",
             schemars::schema_for!(KitSocketReplyFrame),
         ),
-        finish("live.outbox-drain.output.schema.json", schemars::schema_for!(OutboxDrainOutput)),
+        finish(
+            "live.outbox-drain.output.schema.json",
+            schemars::schema_for!(OutboxDrainOutput),
+        ),
         finish(
             "query.output.schema.json",
             schemars::schema_for!(FunctionResponse<FiniteQueryOutput>),
         ),
-        finish("ephemeral.publish.input.schema.json", schemars::schema_for!(PublishRequest)),
-        finish("ephemeral.subscribe.input.schema.json", schemars::schema_for!(SubscribeRequest)),
-        finish("ephemeral.delete.input.schema.json", schemars::schema_for!(DeleteRequest)),
-        finish("ephemeral.subscribe.output.schema.json", schemars::schema_for!(EphemeralMessage)),
+        finish(
+            "ephemeral.publish.input.schema.json",
+            schemars::schema_for!(PublishRequest),
+        ),
+        finish(
+            "ephemeral.subscribe.input.schema.json",
+            schemars::schema_for!(SubscribeRequest),
+        ),
+        finish(
+            "ephemeral.delete.input.schema.json",
+            schemars::schema_for!(DeleteRequest),
+        ),
+        finish(
+            "ephemeral.subscribe.output.schema.json",
+            schemars::schema_for!(EphemeralMessage),
+        ),
         finish(
             "ephemeral.delete.output.schema.json",
             schemars::schema_for!(Option<EphemeralMessage>),
@@ -369,7 +518,11 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
 
 fn finish_remediation_set(file: &'static str, schema: impl serde::Serialize) -> SchemaArtifact {
     let mut artifact = finish(file, schema);
-    constrain_root_string(&mut artifact.schema, "schemaVersion", REMEDIATION_SET_SCHEMA_VERSION);
+    constrain_root_string(
+        &mut artifact.schema,
+        "schemaVersion",
+        REMEDIATION_SET_SCHEMA_VERSION,
+    );
     constrain_root_string(
         &mut artifact.schema,
         "registryVersion",
@@ -380,7 +533,10 @@ fn finish_remediation_set(file: &'static str, schema: impl serde::Serialize) -> 
         .pointer_mut("/properties/items")
         .and_then(Value::as_object_mut)
     {
-        items.insert("maxItems".to_owned(), Value::from(REMEDIATION_SET_MAX_ITEMS));
+        items.insert(
+            "maxItems".to_owned(),
+            Value::from(REMEDIATION_SET_MAX_ITEMS),
+        );
     }
     constrain_artifact_hashes(&mut artifact.schema);
     artifact.schema = sorted_keys(artifact.schema);
@@ -425,7 +581,10 @@ fn constrain_root_string(schema: &mut Value, name: &str, exact: &str) {
 fn constrain_artifact_hashes(value: &mut Value) {
     match value {
         Value::Object(object) => {
-            if let Some(property) = object.get_mut("artifactHash").and_then(Value::as_object_mut) {
+            if let Some(property) = object
+                .get_mut("artifactHash")
+                .and_then(Value::as_object_mut)
+            {
                 property.insert(
                     "pattern".to_owned(),
                     Value::String("^sha256:(?:[0-9a-f]{16}|[0-9a-f]{64})$".to_owned()),

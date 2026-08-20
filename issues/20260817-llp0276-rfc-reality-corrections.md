@@ -63,7 +63,7 @@ ticket preserves the RFC corrections that need author review.
    additional special case covered above.
 8. **Record the two non-clean auxiliary-bin moves.**
    `snapback-telemetry-bench` brings the `telemetry-phase1-proof` feature,
-   optional `tower` dependency, `crates/snapback/src/telemetry_bench.rs` library module, a
+   optional `tower` dependency, `crates/snapback-tools/src/telemetry_bench.rs` library module, a
    root-tests embed, and a two-bin build command that cannot span packages as
    written. `snapback-agent-safe-paired` pins literal `crates/snapback/src/` and `tools/` file
    sets mirrored by a frozen receipt. Their crate moves require coordinated

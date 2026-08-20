@@ -20,7 +20,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, bail};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use snapback::bench_support::{
+use snapback_engine::bench_support::{
     AgentSafeActiveContentionWriter, prepare_agent_safe_active_contention_database,
 };
 use snapback_kernel::fork_promotion_bench::{

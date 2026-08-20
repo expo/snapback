@@ -9,7 +9,7 @@
 //!
 //! @ref LLP 0037#decision-ratified-2026-07-02 — writes the generated, committed
 //!   schemas that make the Rust types the single source of truth.
-//! @ref LLP 0283#f-5-burn-down-the-five-named-membership-exceptions — schema
+//! @ref LLP 0283#f-5--named-exceptions-with-burn-down-tickets — schema
 //!   registration lives beside carriers and rank-7 tooling assembles it.
 
 use snapback_tools::schema_export::{
