@@ -39,6 +39,14 @@ impl ActivationHost for LocalSnapback {
         self.db.set_order_field_bounds(order_field_bounds);
     }
 
+    fn install_loaded_function_policies(
+        &mut self,
+        manifest: &FunctionManifest,
+    ) -> SnapbackResult<()> {
+        self.db
+            .install_loaded_function_policies(&self.loaded_function_policy_publisher, manifest)
+    }
+
     fn install_process_generation_marker(&mut self, generation: u64) {
         self.app_generation = generation;
         self.app_generation_fence

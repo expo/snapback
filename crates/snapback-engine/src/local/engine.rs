@@ -4059,6 +4059,9 @@ impl NoopCommitRecorder {
 
 pub struct LocalSnapback {
     db: crate::storage::ServingDatabase,
+    /// Unforgeable publisher paired with this serving database at adoption.
+    /// Only the activation owner can align kernel policy with `functions`.
+    loaded_function_policy_publisher: crate::storage::LoadedFunctionPolicyPublisher,
     /// Process-local service-authority policy lives above the storage kernel;
     /// the database retains only its commit-interlock port.
     service_authority_fences: crate::auth::service_fence::ServiceAuthorityFenceRegistry,
@@ -6132,11 +6135,11 @@ impl LocalSnapback {
     ) -> SnapbackResult<PreparedEffectApproval> {
         Self::require_effect_management_session(management)?;
         let approver_attribution = management.prepare_effect_approver_attribution()?;
+        let approver = management.resolve_kernel_principal(&mut self.db, now_ms)?;
         let pending = {
             let _effect = management.effect_guard("pending-effect approval preparation")?;
-            let owner = self.pending_effect_owner(management, now_ms)?;
             self.db
-                .prepare_pending_effect_approval(&owner, effect_id, now_ms)?
+                .prepare_pending_effect_approval(&approver, effect_id, now_ms)?
         };
         let approval = PreparedEffectApproval {
             pending,
@@ -6357,9 +6360,11 @@ impl LocalSnapback {
         id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
+        let approver = authority.resolve_kernel_principal(&mut self.db, now_ms)?;
         let _effect = authority.effect_guard("pending-effect denial transaction")?;
         let owner = self.pending_effect_owner(authority, now_ms)?;
-        self.db.deny_pending_effect_admitted(&owner, id, now_ms)
+        self.db
+            .deny_pending_effect_admitted(&owner, &approver, id, now_ms)
     }
 
     pub fn resolve_scoped_token_route_authority(
@@ -29452,11 +29457,14 @@ impl LocalSnapback {
     ) -> SnapbackResult<Self> {
         let stream_attempt_verifier =
             crate::stream_attempt::global_stream_attempt_registry().persistence_verifier()?;
-        Self::from_database_in_commit_graph(
-            crate::storage::ServingDatabase::adopt_with_stream_attempt_verifier(
+        let (db, policy_publisher) =
+            crate::storage::ServingDatabase::adopt_with_stream_attempt_verifier_and_loaded_function_policy_publisher(
                 db,
                 stream_attempt_verifier,
-            )?,
+            )?;
+        Self::from_database_in_commit_graph(
+            db,
+            policy_publisher,
             telemetry_store_identity,
             asset_store_config,
         )
@@ -29464,6 +29472,7 @@ impl LocalSnapback {
 
     fn from_database_in_commit_graph(
         mut db: crate::storage::ServingDatabase,
+        loaded_function_policy_publisher: crate::storage::LoadedFunctionPolicyPublisher,
         telemetry_store_identity: Option<crate::telemetry::TelemetryStoreIdentity>,
         asset_store_config: AssetStoreConfig,
     ) -> SnapbackResult<Self> {
@@ -29582,6 +29591,7 @@ impl LocalSnapback {
         )?;
         Ok(Self {
             db,
+            loaded_function_policy_publisher,
             service_authority_fences,
             // @ref LLP 0234#d4--production-authority-expires-fixtures-cannot-become-production
             // — an unbound in-crate graph must refuse the repository-local
