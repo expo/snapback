@@ -1,7 +1,7 @@
 # LLP 0285: Closing the kernel authorization model — the derived-authority design
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Superseded in part
 **Systems:** Security/authorization, Rust core, Storage, Auth, Live/realtime,
 Verification, Packaging
 **Author:** Claude (Opus 5), synthesizing two independent blind designs —
@@ -21,6 +21,14 @@ orchestrator re-verified against the tree; adds defect 4, corrects the step-2
 checkpoint, and resolves a self-contradiction in revision (a))
 **Related:** LLP 0283 (F-1), LLP 0284, LLP 0225, LLP 0276, LLP 0214, LLP 0264,
 LLP 0059, LLP 0053, LLP 0143, LLP 0189, LLP 0232, LLP 0041
+
+> **Status note (2026-08-20).** §2 author rulings 5-7 changed this spec's direction. The
+> diagnosis, the threat model (§1, §3), the defect analysis (§4, §5) and the risks (§8) still
+> stand and are still the best statement of the problem. **§6's fifteen-step migration is no
+> longer the plan for the forgery half** — ruling 5 directs deleting and rebuilding the
+> authority-creation surface rather than migrating it, on the basis that no current users
+> depend on stability (`CLAUDE.md:160`). Read §6 steps 5-15 as historical intent. LLP 0291
+> enumerates the real surface; a superseding design is in progress.
 
 ## Summary
 
@@ -107,6 +115,50 @@ DoS-prevention, **not** authorization; no safety argument here may rest on it.
    Consequences: the partial `ResolvedPrincipal` work on `lane/f1-forge` is held pending that
    design — LLP 0291 records that as specified it would *add* to the surface rather than
    replace it — and publication stays blocked, as it was.
+
+5. **Go directly to the end state; break compatibility (author ruling 2026-08-20).**
+   Asked whether there is "a faster, straighter path to the best place to end up" if we are
+   willing to break backwards compatibility, jettison code, and leave parts of what we have
+   written behind, the author ruled **yes — take it.**
+
+   The licensing fact is `CLAUDE.md:160`: *"No current users depend on stability; expected
+   users are agents who read the docs."* 14 of 16 crates are `publish = false`, and LLP 0283
+   records that npm publication was deliberately not performed after the rearchitecture. Much
+   of the planning in this spec — staged migration, derivation from existing state, census
+   before change — buys compatibility for an installed base that does not exist, and pays for
+   it in machinery and in eleven review rounds of the *"moved it one API earlier"* failure.
+
+   Direction, binding on the remaining F-1 work: prefer **deleting and rebuilding** the
+   authority-creation surface over migrating ~46 families one at a time. Prefer the simplest
+   correct end state over the most compatible path to it. Where a step in §6 exists only to
+   preserve something not worth preserving, drop it.
+
+   Two constraints survive this ruling and are NOT relaxed: anything **already published** to
+   npm is immutable forever (LLP 0041), and **durable local databases** — demos, dev
+   instances, fixtures, goldens — are real, though mostly regenerable. Everything genuinely
+   broken must be enumerated rather than waved at.
+
+   **This spec's §6 step list is therefore no longer authoritative** for the forgery half. A
+   superseding design is being produced; until it lands, §6 steps 5–15 should be read as
+   historical intent, not as the plan.
+
+6. **Q1 — `config.verify` becomes an exact but powerless probe lane (author ruling
+   2026-08-20).** Option Q1-C. `Anonymous` and `System` already produce the same empty
+   handler-auth projection, so the privilege is removed without changing what probes observe,
+   and LLP 0036 treats probes as ordinary actions with an implicit secret grant rather than
+   internal services. Under ruling 5 the compatibility caveat — that no census can prove some
+   deployed app relies on a `System`-only downstream effect — no longer binds. Zero `schemas/`
+   drift.
+
+7. **Q2 — the administrator trust anchor is required outright (author ruling 2026-08-20).**
+   Option Q2-A, chosen over Q2-B specifically because of ruling 5. Q2-B's automatic derivation
+   from an existing canonical token file exists to avoid breaking installed instances, and
+   pays for it with exact-mismatch, backup, restore, fork and rotation rules. With no
+   installed base to protect, requiring explicit provisioning is both simpler and stronger:
+   protected erasure fails closed with a stable diagnostic until an administrator provisions
+   the owner-only anchor from the raw token under the instance lock. No grace period, and no
+   digest-at-open fallback — the latter is substantively what §8 risk 2 already forbids.
+   Zero `schemas/` drift.
 
 ## 3. Threat model
 
