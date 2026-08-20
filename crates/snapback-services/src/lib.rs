@@ -31,6 +31,7 @@ pub mod manifest;
 pub mod outbound_policy;
 pub mod push;
 pub mod replication;
+pub mod schema_export;
 pub mod telemetry;
 pub mod telemetry_query;
 pub mod webhooks;

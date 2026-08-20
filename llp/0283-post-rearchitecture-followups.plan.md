@@ -9,6 +9,11 @@
 and still open. (c — record follow-up dispatch: F-1 designed in
 LLP 0285, F-2 specified in LLP 0284, F-4 fixed; author rulings of 2026-08-19;
 defect 4 added and reclassified after a second independent review)
+**Revised:** 2026-08-19 (e — F-5 schema-export exception closed through
+registration-beside-carrier and downward assembly in `snapback-tools`)
+**Revised:** 2026-08-19 (f — F-5 complete: telemetry and fork-promotion proof
+composition moved to `snapback-tools` with one exact build-identity port; all
+five assignment paths across the three named exceptions are gone)
 **Related:** LLP 0276, LLP 0225, LLP 0189, LLP 0232, LLP 0041, LLP 0214, LLP 0264, LLP 0010,
 LLP 0284 (F-2 threat model), LLP 0285 (F-1 closure design)
 
@@ -51,7 +56,7 @@ publication must wait until F-1 below is closed.
 | F-2 | **Done.** Specified as **LLP 0284**, independently authored by a model family that wrote neither the code nor the original gates, then implemented across four rounds under adversarial review. The three gates are rewritten on syn + `cargo metadata` + `rustc` span assertions (rustdoc JSON is unavailable on the pinned 1.97.0 toolchain). They are **RED on `main` by design** — 127 privilege violations over 26 feature cells, and 23 of 33 compile-fail attacks still compiling — because LLP 0284 §8.5 forbids allowlisting a live F-1 defect. Wired to the scheduled complete battery, not the landing path, until F-1 closes (`issues/20260819-security-gates-expected-red-until-f1.md`). |
 | F-3 | Not started; blocked behind F-1 (unchanged). Battery maps to `scripts/verify-local-proof --complete` (36 gates, already covering cloudflare/admin/swift-client/native-runtime/guide) plus `scripts/cold-clone-check.sh` and the npm closure/cold-install witnesses. |
 | F-4 | **Fixed.** `caught_denial_with_unrelated_failure_is_not_restored` triaged **pre-existing** (traced to `7437e6e07`; redaction landed in `a8787cb53`; reproduced at `pre-0276-rearchitecture`). The `auth_invocation_v1` refusal-precedence divergence was ruled a defect by the author and the JS-path ordering was fixed. Fixture drift repaired. |
-| F-5 | Unchanged backlog; all three burn-down tickets exist under `issues/`. |
+| F-5 | **Done.** Schema export, telemetry proof, and fork-promotion benchmark now compose downward in rank-7 `snapback-tools`; all three named exceptions are closed. |
 | F-6 | Unchanged; still correct to defer. |
 
 **A FOURTH escalation was found** (defect 4 below) — forgeable privileged
@@ -236,11 +241,21 @@ is the shape the Phase 4 witness needs.
 Three modules could not reach their assigned owner and are recorded as named
 membership exceptions rather than silently misplaced:
 
-- `schema-export-facade-integration` — `schema_export.rs` + `snapback-schemagen`;
-  cross-rank schema aggregation still needs façade/server carriers.
-- `telemetry-proof-private-composition` — `telemetry_bench.rs` + its binary.
-- `fork-promotion-benchmark-composition` — build provenance comes from the façade
-  build script.
+- `schema-export-facade-integration` — **resolved 2026-08-19**. Registrations
+  moved beside their carrier owners; rank-7 `snapback-tools` now performs the
+  downward-only assembly and owns `snapback-schemagen`. Regeneration produced
+  zero `schemas/` drift.
+- `telemetry-proof-private-composition` — **resolved 2026-08-19**. The module
+  and binary moved together to `snapback-tools`; lower owners retain engine,
+  storage-observation, and HTTP-routing details behind downward dependencies.
+- `fork-promotion-benchmark-composition` — **resolved 2026-08-19**. The
+  recorder moved to `snapback-tools`, preserving its report schema and using
+  the same tools-owned build stamp as the telemetry proof.
+
+The historical gate summary's “5 named membership exceptions” counted the
+five assignment paths held by these three named exception objects (2 + 2 + 1).
+Closing all three objects therefore leaves **zero** assignment paths; there
+are no unrelated two exceptions in either confinement artifact to retain.
 
 ## F-6 — Deferred by LLP 0276 D5 (unchanged, still correct to defer)
 
@@ -274,8 +289,8 @@ reviewed design.
 ## Sequencing
 
 F-1 and F-2 together, by an author independent of the previous attempts, then
-F-4's triage, then F-3's battery, and only then publication. F-5 and F-6 are
-ordinary backlog.
+F-4's triage, then F-3's battery, and only then publication. F-5 is complete;
+F-6 remains ordinary backlog.
 
 **Revised sequencing (author ruling 2026-08-19).** F-4 and F-2's gate rewrite
 land first, alongside F-1's design (LLP 0285); F-1's implementation then runs as

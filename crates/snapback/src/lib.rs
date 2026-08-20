@@ -50,7 +50,7 @@ pub mod assets {
         FinalizePreparationV1, FinalizePrepareTicketV1, FinalizePutTicketV1, prepare_asset_variant,
         prepare_required_asset_variants,
     };
-    pub use snapback_services::assets::{AssetFsStore, detect_content_type, schema_registrations};
+    pub use snapback_services::assets::{AssetFsStore, detect_content_type};
 }
 #[doc(hidden)]
 pub mod assets_cut {
@@ -322,8 +322,6 @@ pub use snapback_types::result_contract;
 pub use snapback_types::result_transform;
 pub use snapback_types::rqs_contract;
 #[doc(hidden)]
-pub mod schema_export;
-#[doc(hidden)]
 pub use snapback_cli::store_state;
 #[doc(hidden)]
 pub use snapback_kernel::search;
@@ -356,15 +354,8 @@ pub use snapback_sync::snapshot_batch_cursor_v2;
 pub use snapback_sync::stream_attempt;
 #[doc(hidden)]
 pub use snapback_types::service_profile;
-#[cfg(feature = "telemetry-phase1-proof")]
-#[path = "telemetry_bench.rs"]
-mod telemetry_phase1_bench;
 #[doc(hidden)]
 pub mod telemetry {
-    #[cfg(feature = "telemetry-phase1-proof")]
-    pub use crate::telemetry_phase1_bench::{
-        Phase1BenchmarkConfig, Phase1BenchmarkReport, run_phase1_benchmark,
-    };
     pub use snapback_services::telemetry::{
         BufferDiagnostics, DEFAULT_BATCH_SIZE, DEFAULT_BUFFER_CAPACITY, DEFAULT_DAILY_DAYS,
         DEFAULT_FILE_SIZE_CAP_BYTES, DEFAULT_HOURLY_DAYS, DEFAULT_MAX_AGE_MS, DEFAULT_MAX_DAYS,

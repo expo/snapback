@@ -4346,9 +4346,16 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "snapback-activation",
+ "snapback-auth",
  "snapback-engine",
  "snapback-kernel",
+ "snapback-server",
+ "snapback-services",
+ "snapback-sync",
  "snapback-types",
+ "tempfile",
+ "tokio",
  "uuid",
 ]
 

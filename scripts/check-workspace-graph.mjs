@@ -38,31 +38,7 @@ const EXPECTED_CONFINEMENT = [
   ['ibex-runtime', ['snapback-runtime']],
   ['rusqlite', ['snapback', 'snapback-harness', 'snapback-kernel', 'snapback-services']],
 ].map(([dependency, allowedMembers]) => ({ dependency, allowedMembers }));
-const EXPECTED_MEMBERSHIP_ASSIGNMENTS = [
-  {
-    name: 'fork-promotion-benchmark-composition',
-    actualMember: 'snapback',
-    assignments: [
-      { module: 'crates/snapback/src/bin/snapback-fork-promotion-bench.rs', assignedOwner: 'transport-adapters' },
-    ],
-  },
-  {
-    name: 'schema-export-facade-integration',
-    actualMember: 'snapback',
-    assignments: [
-      { module: 'crates/snapback/src/bin/snapback-schemagen.rs', assignedOwner: 'transport-adapters' },
-      { module: 'crates/snapback/src/schema_export.rs', assignedOwner: 'generation-activation-coordinator' },
-    ],
-  },
-  {
-    name: 'telemetry-proof-private-composition',
-    actualMember: 'snapback',
-    assignments: [
-      { module: 'crates/snapback/src/bin/snapback-telemetry-bench.rs', assignedOwner: 'transport-adapters' },
-      { module: 'crates/snapback/src/telemetry_bench.rs', assignedOwner: 'background-services' },
-    ],
-  },
-];
+const EXPECTED_MEMBERSHIP_ASSIGNMENTS = [];
 const EXPECTED_WORKSPACE_MEMBERS = ['crates/*'];
 const EXPECTED_WORKSPACE_DEFAULT_MEMBERS = ['crates/snapback'];
 const EXPECTED_WORKSPACE_EXCLUDE = [
@@ -291,15 +267,6 @@ export function validateModuleMembership(
 
   const exceptions = artifact.membershipExceptions;
   assert(Array.isArray(exceptions), 'membershipExceptions must be an array');
-  const exceptionProjection = exceptions.map(({ name, actualMember, assignments }) => ({
-    name,
-    actualMember,
-    assignments,
-  }));
-  assert(
-    JSON.stringify(exceptionProjection) === JSON.stringify(EXPECTED_MEMBERSHIP_ASSIGNMENTS),
-    'membership exception assignments drifted from the reviewed Phase 2 flip inventory',
-  );
   const exceptionNames = new Set();
   const exceptionAssignments = new Map();
   for (const exception of exceptions) {
@@ -349,6 +316,15 @@ export function validateModuleMembership(
   for (const [module, exception] of exceptionAssignments) {
     assert(exception.used, `${exception.name} does not match a workspace Rust module (${module})`);
   }
+  const exceptionProjection = exceptions.map(({ name, actualMember, assignments }) => ({
+    name,
+    actualMember,
+    assignments,
+  }));
+  assert(
+    JSON.stringify(exceptionProjection) === JSON.stringify(EXPECTED_MEMBERSHIP_ASSIGNMENTS),
+    'membership exception assignments drifted from the reviewed Phase 2 flip inventory',
+  );
   return { moduleCount, exceptionCount: exceptionAssignments.size };
 }
 

@@ -65,8 +65,8 @@ case "$PROOF_MODE" in
         prepare_rust_test_fixtures
         scripts/bootstrap-ibex-runtime
         node --check scripts/telemetry-phase1-idle-proof.mjs
-        cargo test --locked -p snapback --features telemetry-phase1-proof --lib \
-            telemetry::phase1_bench::tests::phase1_benchmark_smoke_exercises_every_gate \
+        cargo test --locked -p snapback-tools --features telemetry-phase1-proof --lib \
+            telemetry_bench::tests::phase1_benchmark_smoke_exercises_every_gate \
             -- --exact
         ;;
     --full)
@@ -78,11 +78,12 @@ case "$PROOF_MODE" in
         PROOF_REVISION="$(git rev-parse HEAD)"
         prepare_rust_test_fixtures
         scripts/bootstrap-ibex-runtime
-        cargo test --locked -p snapback --features telemetry-phase1-proof --lib \
-            telemetry::phase1_bench::tests::phase1_benchmark_smoke_exercises_every_gate \
+        cargo test --locked -p snapback-tools --features telemetry-phase1-proof --lib \
+            telemetry_bench::tests::phase1_benchmark_smoke_exercises_every_gate \
             -- --exact
-        cargo build --locked --release -p snapback --features telemetry-phase1-proof \
-            --bin snapback --bin snapback-telemetry-bench
+        cargo build --locked --release -p snapback --bin snapback
+        cargo build --locked --release -p snapback-tools --features telemetry-phase1-proof \
+            --bin snapback-telemetry-bench
         node packages/snapback-cli/runtime-readiness.mjs issue \
             --binary "$PROOF_ROOT/target/release/snapback" \
             --root "$PROOF_ROOT" --issuer telemetry-phase1-proof

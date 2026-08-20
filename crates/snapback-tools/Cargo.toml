@@ -10,15 +10,36 @@ build = "build.rs"
 name = "snapback_tools"
 path = "src/lib.rs"
 
+[features]
+default = []
+# Internal evidence harness for LLP 0154 Phase 1. This remains absent from
+# ordinary tool builds and is enabled only by the bounded proof script.
+telemetry-phase1-proof = [
+  "snapback-server/benchmark-support",
+  "snapback-services/benchmark-support",
+]
+
+[[bin]]
+name = "snapback-telemetry-bench"
+path = "src/bin/snapback-telemetry-bench.rs"
+required-features = ["telemetry-phase1-proof"]
+
 [dependencies]
 anyhow = "1.0"
 libc = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
+snapback-activation = { path = "../snapback-activation" }
+snapback-auth = { path = "../snapback-auth" }
 snapback-engine = { path = "../snapback-engine" }
 snapback-kernel = { path = "../snapback-kernel" }
+snapback-server = { path = "../snapback-server" }
+snapback-services = { path = "../snapback-services" }
+snapback-sync = { path = "../snapback-sync" }
 snapback-types = { path = "../snapback-types" }
+tempfile = "3.23"
+tokio = { version = "1.48", features = ["rt"] }
 uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
 
 [lints]

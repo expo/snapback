@@ -31,7 +31,7 @@ const registry = JSON.parse(
     assert.ok(
       byPrefix.has(prefix),
       `ids.mjs mints ${name} as ${prefix}_, which is not in schemas/id-registry.v1.json — `
-        + 'regenerate with `cargo run --bin snapback-schemagen` or fix the constant',
+        + 'regenerate with `cargo run -p snapback-tools --bin snapback-schemagen` or fix the constant',
     );
     assert.equal(
       byPrefix.get(prefix).body,

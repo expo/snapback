@@ -33,7 +33,7 @@ pub mod assets {
         FinalizePreparationV1, FinalizePrepareTicketV1, FinalizePutTicketV1, prepare_asset_variant,
         prepare_required_asset_variants,
     };
-    pub use snapback_services::assets::{AssetFsStore, detect_content_type, schema_registrations};
+    pub use snapback_services::assets::{AssetFsStore, detect_content_type};
 }
 
 pub mod assets_store {
@@ -99,6 +99,7 @@ pub mod guide;
 pub mod guide_reference;
 pub mod host_ops;
 pub mod manifest;
+pub mod schema_export;
 pub mod server;
 
 #[cfg(test)]
@@ -108,6 +109,68 @@ mod remainder_adapter;
 mod network_profile_facade_tests;
 #[cfg(test)]
 mod sync_upward_tests;
+
+#[cfg(feature = "benchmark-support")]
+#[doc(hidden)]
+pub mod benchmark_support {
+    use anyhow::Context as _;
+    use axum::body::{Body, to_bytes};
+    use axum::http::Request;
+    use snapback_engine::local::LocalSnapback;
+    use std::hint::black_box;
+    use tower::ServiceExt as _;
+
+    /// Exercise the real HTTP query adapter while keeping Axum request,
+    /// response, and body primitives inside the transport owner.
+    ///
+    /// @ref LLP 0283#f-5--named-exceptions-with-burn-down-tickets — the
+    /// tools-owned proof composes transport observations downward, without
+    /// acquiring transport primitives or moving the orchestrator into server.
+    pub async fn exercise_telemetry_query_pair(
+        enabled: LocalSnapback,
+        disabled: LocalSnapback,
+        body: Vec<u8>,
+        samples: usize,
+    ) -> anyhow::Result<()> {
+        let enabled_router = crate::server::router(enabled);
+        let disabled_router = crate::server::router(disabled);
+        for index in 0..samples {
+            let request = || {
+                Request::builder()
+                    .method("POST")
+                    .uri("/query/noop")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.clone()))
+                    .expect("benchmark request")
+            };
+            let responses = if index % 2 == 0 {
+                [
+                    enabled_router.clone().oneshot(request()).await,
+                    disabled_router.clone().oneshot(request()).await,
+                ]
+            } else {
+                [
+                    disabled_router.clone().oneshot(request()).await,
+                    enabled_router.clone().oneshot(request()).await,
+                ]
+            };
+            for response in responses {
+                let response = response.context("benchmark query transport failed")?;
+                anyhow::ensure!(
+                    response.status().is_success(),
+                    "benchmark query returned {}",
+                    response.status(),
+                );
+                black_box(
+                    to_bytes(response.into_body(), usize::MAX)
+                        .await
+                        .context("read benchmark query response")?,
+                );
+            }
+        }
+        Ok(())
+    }
+}
 
 #[cfg(feature = "test-support")]
 #[doc(hidden)]

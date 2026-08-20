@@ -45,6 +45,7 @@ pub mod push;
 pub mod remediation;
 pub mod replication;
 pub mod rqs;
+pub mod schema_export;
 pub mod search;
 pub mod secure_file;
 pub mod seed_identity;

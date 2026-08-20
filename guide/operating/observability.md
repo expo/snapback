@@ -4,13 +4,13 @@ id: operating.observability
 order: 5
 audience: agent-first
 capabilities: [backend.observability-v1]
-authorities: [llp/0154-minimal-observability.rfc.md, crates/snapback-services/src/telemetry.rs, crates/snapback-services/src/telemetry_query.rs, crates/snapback-cli/src/cli.rs, crates/snapback-engine/src/host_ops.rs, packages/snapback-cli/mcp-control.mjs, admin-ui/admin-boundary.mjs, scripts/telemetry-phase1-idle-proof.mjs, crates/snapback/src/telemetry_bench.rs]
+authorities: [llp/0154-minimal-observability.rfc.md, crates/snapback-services/src/telemetry.rs, crates/snapback-services/src/telemetry_query.rs, crates/snapback-cli/src/cli.rs, crates/snapback-engine/src/host_ops.rs, packages/snapback-cli/mcp-control.mjs, admin-ui/admin-boundary.mjs, scripts/telemetry-phase1-idle-proof.mjs, crates/snapback-tools/src/telemetry_bench.rs]
 examples: []
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:c39c3ad792dc3458af8398d113e6d24cb378de2094556d3bcb84fea4956a2e85
+reviewed: 2026-08-19
+reviewed-authorities-digest: sha256:e3e703626671703c1eed2b843555e7644074dc091c6590604b55b9cafe20286d
 ---
 
 # Backend observability

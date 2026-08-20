@@ -5,7 +5,6 @@
 //! maintenance primitives.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::telemetry::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest as _, Sha256};
@@ -14,6 +13,7 @@ use snapback_services::telemetry::benchmark_support::{
     StorageBenchmarkConfig, StorageBenchmarkReport, SweepReport, counted_application_rows,
     counted_kind_rows, run_storage_benchmark, wait_for_persisted_delta,
 };
+use snapback_services::telemetry::*;
 use std::fs;
 use std::hint::black_box;
 use std::path::PathBuf;

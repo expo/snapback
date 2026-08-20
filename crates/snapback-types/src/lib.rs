@@ -39,6 +39,7 @@ pub mod result_contract;
 pub mod result_transform;
 pub mod rqs_contract;
 pub mod runtime;
+pub mod schema_export;
 pub mod search;
 pub mod service_profile;
 pub mod storage;

@@ -4,7 +4,7 @@
 //!   the capacity gate covers amplification, burst/shedding, the physical cap,
 //!   flush/sweep/query stalls, and application latency on versus off.
 
-use snapback::telemetry::{Phase1BenchmarkConfig, run_phase1_benchmark};
+use snapback_tools::telemetry_bench::{Phase1BenchmarkConfig, run_phase1_benchmark};
 
 fn main() -> anyhow::Result<()> {
     let smoke = std::env::args().any(|argument| argument == "--smoke");

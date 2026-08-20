@@ -62,6 +62,15 @@ owner-reassignment re-key mechanic remains in needs-design)
 dependency direction and §3 commit boundaries remain authoritative; §5's
 module analyzer, manifest/baseline projection, ratchet, and projection
 amendment point are superseded by the crate workspace graph and LLP 0276)
+**Revised:** 2026-08-19 (x — LLP 0283 F-5 schema-export ownership move:
+schema registrations now live beside their carrier owners and rank-7
+`snapback-tools` performs the downward-only registry assembly and generation)
+**Revised:** 2026-08-19 (y — LLP 0283 F-5 telemetry-proof ownership move:
+rank-7 `snapback-tools` owns the cross-rank proof composition while storage
+and HTTP details remain behind their lower-owner observation ports)
+**Revised:** 2026-08-19 (z — LLP 0283 F-5 fork-promotion recorder move:
+rank-7 `snapback-tools` owns the benchmark and preserves the facade's exact
+compile-time source-identity contract)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -923,6 +932,40 @@ landing author in
 `issues/closed/20260811-main-unrecorded-kernel-sync-auth-identity-sender-proof-edge.md`
 per §2's requirement that every baseline growth event carry stated provenance.
 
+### LLP 0283 F-5 — named membership-exception burn-down (executed)
+
+The `schema-export-facade-integration` membership exception is closed. The
+former façade module mixed carriers owned by every architectural rank, so
+moving it whole to activation would have required activation to depend upward
+on engine and transport. The semantic cut follows §2's shape-down rule instead:
+each crate now registers the schemas and committed artifact instances for the
+carriers it owns, using the contract leaf's common `SchemaArtifact` helpers.
+The rank-7 `snapback-tools` crate concatenates those registries through its
+already-authorized downward dependencies, owns `snapback-schemagen`, and is the
+only production writer of the committed corpus.
+
+This is an ownership move, not an allowed-edge amendment: no lower-rank crate
+depends on tools or on a higher rank, and the committed dependency matrix is
+unchanged. Running the moved generator produced a byte-empty `schemas/` diff.
+The old façade module and binary paths are gone, so their two membership
+assignments were removed from both confinement artifacts.
+
+The `telemetry-proof-private-composition` exception is also closed. Its
+rank-7 orchestrator and binary moved together to `snapback-tools`; engine
+application calls, services-owned storage observations, types-owned request
+carriers, and server HTTP routing are composed only through downward
+dependencies. The server keeps Axum request/response primitives behind a
+feature-gated observation port, and the committed baseline remains addressed
+by the same repository-relative path. `snapback-tools/build.rs` ports the
+facade's runtime-input-scoped commit/dirty stamping once for all tools-owned
+evidence binaries.
+
+Finally, `snapback-fork-promotion-bench` moved to `snapback-tools` and consumes
+that same stamp. Its DB operations still enter through
+`snapback-engine::bench_support`; the artifact schema, provenance validation,
+and accepted-baseline binding are unchanged. Neither move adds a workspace
+edge: rank-7 tools already has downward permission to every consumed owner.
+
 ### Continuing sequence (order of intent, not a schedule)
 
 1. **Kernel typed-operation slices** (co-sequenced with owner 1 per 0199
@@ -1320,3 +1363,16 @@ so slices can follow product priorities.
   found it could launder a predecessor waiver's deadline and inversion owner;
   owner re-keys and retained-predecessor edge-key splits remain fail-closed or
   time-bounded waivers pending the open sound-evidence design follow-up.
+- **2026-08-19 (x).** LLP 0283 F-5's schema-export exception is closed by
+  placing each registration beside its carrier owner and assembling the
+  complete registry in rank-7 `snapback-tools`. The generator moved with the
+  assembly, no allowed edge widened, and regeneration left `schemas/`
+  byte-identical.
+- **2026-08-19 (y).** F-5's telemetry proof module and binary moved together
+  into rank-7 `snapback-tools`. Storage and HTTP internals remain behind
+  lower-owner ports, the committed baseline path is unchanged, and the tools
+  build script ports the facade's exact commit/dirty stamp for proof identity.
+- **2026-08-19 (z).** F-5's fork-promotion recorder moved to
+  `snapback-tools`, retaining its engine benchmark-support seam and complete
+  report schema while consuming the shared tools build-identity stamp. The
+  last reviewed membership assignment is removed without a matrix widening.
