@@ -4,14 +4,18 @@
     {
       "id": "embedded-guide-generated-table",
       "crate": "snapback-server",
-      "item": "snapback_server::guide::__SNAPBACK_OUT_DIR__/embedded_guide.rs",
+      "item": "snapback_server::guide::__SNAPBACK_OUT_DIR__/embedded_guide.rs via include",
       "kind": "generated-api",
       "features": [
         "default"
       ],
-      "reason": "The server build emits only the closed embedded-guide byte table and section-path constants; it does not name a privilege seed or raw SQL handle.",
+      "reason": "The exact Cargo-selected producer and direct include expression are reviewed debt; no executable expansion assurance is claimed.",
       "ticket": "issues/20260819-build-generated-guide-api-audit.md",
-      "expiresAt": "2026-09-19"
+      "expiresAt": "2026-09-19",
+      "source": "crates/snapback-server/src/guide.rs",
+      "expression": "include!(concat ! (env ! (\"OUT_DIR\") , \"/embedded_guide.rs\"))",
+      "producer": "crates/snapback-server/build.rs",
+      "producerSha256": "a7919366b1599abb2e9590a9f0b44802293d77c74cbcd57acb5b8c83abf4117a"
     }
   ]
 }

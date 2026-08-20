@@ -50,6 +50,7 @@ const IMPLEMENTATION_FILES = [
   'issues/closed/20260811-record-inventory-guide.md',
   'crates/allowed-dependencies.v1.json',
   'scripts/check-path-migration-stragglers.mjs',
+  'scripts/check-visibility-governance.mjs',
   'scripts/check-workspace-graph.mjs',
   'scripts/drift-prone-gates.mjs',
   'scripts/check-contract-meta.mjs',
@@ -128,6 +129,7 @@ function relevantLines(output) {
   return output.split(/\r?\n/u).filter((line) => (
     line.includes('[snapback-drift]')
       || line.includes('[snapback-drift-backstop]')
+      || line.includes('[visibility-governance]')
       || line.includes('[guide-check] error: guide/guide-manifest.generated.json')
       || line.includes('[guide-check] error: guide/guide-flat.generated.md')
   )).join('\n');
@@ -179,8 +181,15 @@ function setupCommittedClone() {
     symlinkSync(join(sourceModules, entry.name), join(targetModules, entry.name), entry.isDirectory() ? 'dir' : 'file');
   }
   mkdirSync(join(targetModules, '@expo'));
-  for (const name of readdirSync(join(sourceModules, '@expo'))) {
-    symlinkSync(join(repo, 'packages', name), join(targetModules, '@expo', name), 'dir');
+  const expoWorkspaces = readdirSync(join(repo, 'packages')).flatMap((directory) => {
+    const manifest = join(repo, 'packages', directory, 'package.json');
+    if (!existsSync(manifest)) return [];
+    const { name } = JSON.parse(readFileSync(manifest, 'utf8'));
+    if (typeof name !== 'string' || !name.startsWith('@expo/')) return [];
+    return [{ directory, name: name.slice('@expo/'.length) }];
+  });
+  for (const { directory, name } of expoWorkspaces) {
+    symlinkSync(join(repo, 'packages', directory), join(targetModules, '@expo', name), 'dir');
   }
   const sourceCodegenModules = join(dependencyRoot, 'packages/snapback-codegen/node_modules');
   const targetCodegenModules = join(repo, 'packages/snapback-codegen/node_modules');
@@ -1695,6 +1704,31 @@ test('diary identity backstop files one ticket for a new collision', { timeout: 
   }
 });
 
+test('tracked hook observes the compatibility bypass while keeping visibility governance active', { timeout: 60_000 }, () => {
+  const { scratch, repo } = setupCommittedClone();
+  try {
+    appendFileSync(join(repo, 'guide/index.md'), '\n<!-- compatibility bypass posture probe -->\n');
+    commitAll(repo, 'test: exercise compatibility bypass posture');
+    const pushed = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], {
+      env: { ...process.env, SNAPBACK_DRIFT_GATES_BYPASS: '1' },
+    });
+    assert.equal(pushed.status, 0, pushed.output);
+    assert.match(
+      pushed.output,
+      /\[visibility-governance\] COMPATIBILITY BYPASS OBSERVED: SNAPBACK_DRIFT_GATES_BYPASS=1.*synchronous visibility governance remains enforced/u,
+    );
+    assert.match(pushed.output, /\[visibility-governance\] ALLOWED: 1 governed ref update/u);
+    assert.match(pushed.output, /BYPASS ACTIVE: SNAPBACK_DRIFT_GATES_BYPASS=1/u);
+    assert.match(pushed.output, /COMPATIBILITY BYPASS: ordinary pushes already defer/u);
+    assert.match(
+      pushed.output,
+      /BYPASS ALLOWED: skipped 3 selected gate\(s\): guide, path-migration-stragglers, workspace-graph/u,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('optimistic hook, strict mode, and main backstop operate on committed pushes', { timeout: 180_000 }, () => {
   const { scratch, repo } = setupCommittedClone();
   const env = {
@@ -1722,7 +1756,7 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
     assert.equal(deferred.status, 0, deferred.output);
     assert.match(
       deferred.output,
-      /DEFERRED BY DEFAULT: .* no gate commands ran: agent-safe-publication-fixtures, workspace-graph/u,
+      /DEFERRED BY DEFAULT: .* no gate commands ran: agent-safe-publication-fixtures, path-migration-stragglers, workspace-graph/u,
     );
     assert.doesNotMatch(deferred.output, /dependency mirror cache|\[snapback-drift\] RUN /u);
     console.log(
@@ -1745,7 +1779,7 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
     assert.match(strict.output, /RUN agent-safe-publication-fixtures:/u);
     assert.match(strict.output, /RUN workspace-graph:/u);
     assert.match(strict.output, /PASS agent-safe-publication-fixtures/u);
-    assert.match(strict.output, /ALLOWED: 2 selected drift-prone gate\(s\) passed/u);
+    assert.match(strict.output, /ALLOWED(?: WITH PRE-EXISTING STALENESS|:)/u);
     console.log(
       `DEMO explicit strict trigger in isolated checkout -> executed and allowed\n`
         + relevantLines(strict.output),
@@ -1795,7 +1829,7 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
       { env: strictEnv },
     );
     assert.equal(allowed.status, 0, allowed.output);
-    assert.match(allowed.output, /ALLOWED: .* selected drift-prone gate\(s\) passed/u);
+    assert.match(allowed.output, /ALLOWED(?: WITH PRE-EXISTING STALENESS|:)/u);
     console.log(`DEMO (b) same committed change with generated record -> allowed\n${relevantLines(allowed.output)}`);
     console.log(`TIMING measured-surface git push: ${allowed.wallMs} ms`);
 
@@ -1803,10 +1837,13 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
     commitAll(repo, 'test: committed unmeasured path');
     const fast = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
     assert.equal(fast.status, 0, fast.output);
-    assert.match(fast.output, /selected 1 gate\(s\): workspace-graph/u);
-    assert.match(fast.output, /DEFERRED BY DEFAULT: .* no gate commands ran: workspace-graph/u);
+    assert.match(fast.output, /selected 2 gate\(s\): path-migration-stragglers, workspace-graph/u);
+    assert.match(
+      fast.output,
+      /DEFERRED BY DEFAULT: .* no gate commands ran: path-migration-stragglers, workspace-graph/u,
+    );
     assert.doesNotMatch(fast.output, /RUN workspace-graph|PASS workspace-graph/u);
-    console.log(`DEMO (c) committed docs-only path -> workspace graph selected and deferred\n${relevantLines(fast.output)}`);
+    console.log(`DEMO (c) committed docs-only path -> always-run gates selected and deferred\n${relevantLines(fast.output)}`);
 
     const noOp = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
     assert.equal(noOp.status, 0, noOp.output);
@@ -1818,11 +1855,15 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
       env: { ...env, SNAPBACK_DRIFT_GATES_BYPASS: '1' },
     });
     assert.equal(bypass.status, 0, bypass.output);
+    assert.match(
+      bypass.output,
+      /\[visibility-governance\] COMPATIBILITY BYPASS OBSERVED: SNAPBACK_DRIFT_GATES_BYPASS=1.*synchronous visibility governance remains enforced/u,
+    );
     assert.match(bypass.output, /BYPASS ACTIVE: SNAPBACK_DRIFT_GATES_BYPASS=1/u);
     assert.match(bypass.output, /COMPATIBILITY BYPASS: ordinary pushes already defer/u);
     assert.match(
       bypass.output,
-      /BYPASS ALLOWED: skipped 2 selected gate\(s\): guide, workspace-graph/u,
+      /BYPASS ALLOWED: skipped 3 selected gate\(s\): guide, path-migration-stragglers, workspace-graph/u,
     );
     console.log(`DEMO (d) explicit bypass -> allowed and loud\n${relevantLines(bypass.output)}`);
 
@@ -1836,7 +1877,7 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
     );
     assert.equal(preExisting.status, 0, preExisting.output);
     assert.match(preExisting.output, /PRE-EXISTING STALE guide: also fails at baseline [0-9a-f]{12}/u);
-    assert.match(preExisting.output, /ALLOWED WITH PRE-EXISTING STALENESS: 1 gate\(s\)/u);
+    assert.match(preExisting.output, /ALLOWED WITH PRE-EXISTING STALENESS: 2 gate\(s\)/u);
     console.log(
       `DEMO (e) baseline-stale gate -> allowed with attribution\n`
         + relevantLines(preExisting.output),

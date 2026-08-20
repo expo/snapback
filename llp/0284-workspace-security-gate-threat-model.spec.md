@@ -24,6 +24,19 @@ direct-signature check, and records the remaining scanner evasions in §3.7)
 local re-exports, covers raw-handle conversion impls in either trait/self
 position, replaces the dead transition-provenance sink spelling, and makes
 unresolved privilege-sink registry entries a distinct gate violation)
+**Revised:** 2026-08-19 (an attempted snapback-server embedded Guide expansion
+proof compiled and executed `build.rs`; the next revision records why
+independent review rejected and removed it)
+**Revised:** 2026-08-19 (independent review rejected that expansion proof: it
+executed the producer with ambient host authority and gate-distinctive inputs;
+the executable path is removed, the exact expiring review row is restored and
+pinned to Cargo's actual custom-build source digest, and qualified/aliased/local
+wrapper `include!` spellings are fail-closed within the limits in §3.7)
+**Revised:** 2026-08-19 (second independent fix round: scans generated Rust
+includes in module, impl, trait, and foreign item positions, including nested,
+conditional, and literal parameter-forwarded forms; narrows I-14 to that
+syntactic ratchet; and rejects execution of an untrusted producer as a future
+proof design)
 **Related:** LLP 0283 (F-1, F-2), LLP 0276, LLP 0225, LLP 0189, LLP 0232, LLP 0141, LLP 0041, LLP 0059, LLP 0154, LLP 0009
 
 ## Summary
@@ -527,17 +540,64 @@ as security evidence. An unrelated error whose message matches a regex is a
 
 ### 3.7 What is not an invariant (honest limits)
 
+- **There is no current build-generated output proof.** The rejected proof
+  compiled and executed the very custom-build source it purported to audit,
+  inherited the host environment, allowed ambient filesystem/network
+  authority, injected a gate-distinctive build identity, had no timeout, ran
+  once without package feature variables, and used the host target for every
+  scanner cell. The producer could therefore emit harmless output only under
+  audit, mutate the evidence or checkout before scanning, read inherited
+  credentials, write elsewhere, or hang. Calling its `OUT_DIR` isolated was
+  false: it was merely a destination, not an enforced sandbox. That executable
+  path has been removed. The gate does **not** execute the server build script,
+  parse `embedded_guide.rs`, validate missing/empty/invalid output, or make any
+  Cargo-equivalent target/feature expansion claim. The observed
+  `snapback-server::guide` direct include has an honest, exact, expiring
+  `generated-api` review row. The row matches the source module, logical output
+  and direct macro spelling, derives Cargo's actual `custom-build` source from
+  `cargo metadata`, and pins that source's SHA-256. Producer-source or
+  manifest-target drift fails and requires review, but this is change
+  detection, not assurance about the bytes emitted for any target or feature
+  assignment.
+
+  This specification chooses the **non-executable proof** direction for the
+  open debt. Executing an untrusted producer under audit is not a sound basis
+  for proof: the producer can probe a denied write, network access, environment
+  value, target detail, or any other audit/ordinary-build difference and emit a
+  harmless surface only for the gate. Making execution sound would require
+  every ordinary Cargo build on every supported host to use the identical
+  sandbox as part of the production build contract, at the cost of a mandatory
+  Cargo wrapper, host-specific confinement support, slower local builds, and
+  loss of ordinary Cargo portability. This repository does not choose that
+  tradeoff. A future replacement must ground evidence in committed bytes, for
+  example checked-in generated Rust or a committed, drift-checked API-shape
+  manifest verified against checked-in generated output. The scanner can parse
+  that committed artifact in the including module's lexical context and
+  drift-check the artifact, manifest, include, and producer source without
+  compiling or executing the producer. Ordinary builds must consume or verify
+  the same committed artifact; audit-time producer behavior is never evidence.
 - **syn cannot fully expand macros.** The scanner now token-scans ordinary
   `macro_rules!` definitions and invocations and rejects ones that can emit
   `pub` while naming a raw handle, seed, or resolved alias. `#[macro_export]`
-  remains fail-closed in the privilege-owning crates. Public-module
-  `include!(concat!(env!("OUT_DIR"), ...))` and unevaluable `include!` are
-  separately fail-closed as `generated-api`; the one existing embedded-guide
-  table has an exact, expiring review row. Residual limit: a procedural macro
-  or declarative macro that synthesizes every sensitive identifier without
-  leaving it in either definition or invocation tokens is not expansion-
-  visible to syn. This is stated, not silently claimed away; rustdoc JSON or
-  an expansion-capable stable compiler interface is the graduation path.
+  remains fail-closed in the privilege-owning crates. In a public item-expanding
+  context, `include!(concat!(env!("OUT_DIR"), ...))` is separately fail-closed
+  as `generated-api` in module, impl, trait, and foreign-item positions,
+  including public inline modules and active/symbolic `cfg` or `cfg_attr`
+  forms. Recognized spellings are bare and path-qualified `include!`, imports
+  directly aliasing `std::include`/`core::include`, module-local `macro_rules!`
+  wrappers whose token streams name those spellings, and parameterized macro
+  invocations that receive a literal recognized include identifier plus a
+  literal evaluable `OUT_DIR` expression. The exact invoked macro path is part
+  of the finding key, so the direct in-tree review row does not suppress
+  `std::include!`, an imported alias, or either wrapper form. An unevaluable
+  recognized include also fails. Residual limit: cross-module/re-exported
+  wrappers whose invocation does not carry the include identifier, and a
+  procedural or declarative macro that synthesizes the include spelling or
+  every sensitive identifier without a recognized literal token path, are not
+  expansion-visible to syn. The checker therefore does not claim that every
+  possible Rust macro spelling or item position of an `OUT_DIR` include is
+  covered; rustdoc JSON or an expansion-capable stable compiler interface is
+  the graduation path.
 - **Macro recognition is module-local and literal-token-based.** A probe with
   a `macro_rules!` definition in one module and its invocation in another is
   missed because `public_api_macros` is not propagated across modules. In the
@@ -583,10 +643,16 @@ as security evidence. An unrelated error whose message matches a regex is a
   A future `pub trait Sealed` would be a scanner hit (public trait
   named `Sealed` in a public module).
 
-**I-14 (SC).** No `#[macro_export]` in `snapback-kernel` or
-`snapback-services` without an allowlist row; no ordinary macro token stream
-that can generate a public raw-handle/seed API; and no public build-generated
-Rust include without an exact, expiring `generated-api` review row.
+**I-14 (SC, syntactic ratchet only).** The checker reports
+`#[macro_export]` in `snapback-kernel` or `snapback-services`, recognized
+ordinary macro token streams that name both public API and raw-handle/seed
+tokens, and the literal generated-Rust include shapes enumerated in §3.7 when
+they occur in the public contexts the scanner walks. Every observed
+`generated-api` finding requires its own exact, expiring review row. The
+checker pins the Guide row's include expression and Cargo-selected producer
+source; it neither inspects generated bytes nor proves that no other public
+build-generated Rust include exists. There is no expansion proof in the
+current tree.
 
 **I-15 (SC, conservative).** No `pub` function in `snapback-kernel`
 returns `impl Trait` unless allowlisted. This may have false positives;
@@ -699,7 +765,7 @@ text is not.
 | Rooted/parent local re-exports and reverse conversion impls | `pub use crate::hidden::leak`; `pub use super::leak`; `impl From<Wrapper> for rusqlite::Connection` |
 | Direct-signature caller discriminators (I-16) | caller-constructible `MembershipWriter` is named directly by fixed-name privileged-plan, sanctioned, bypass, and provenance sink signatures |
 | Dead privilege-sink registry entries (I-16) | every registered sink spelling resolves to a scanned Rust item or fails as `sink-registry-unresolved` |
-| Macro/build-generated API approximations (I-14) | ordinary `macro_rules!` tokens emitting a public seed API; public `OUT_DIR` Rust includes without an exact review row |
+| Macro/build-generated API approximations (I-14) | ordinary `macro_rules!` tokens emitting a public seed API; recognized direct, qualified, imported-alias, hardcoded-wrapper, and literal parameter-forwarded `OUT_DIR` Rust includes in module/impl/trait/foreign item positions without an exact review row; Cargo custom-build target/source drift under a generated-API review row |
 
 On `ede899a20` this gate **must print violations and exit 1**, including
 at least:
@@ -744,6 +810,11 @@ Discipline:
   F-1 must delete the items, not allowlist them.
 - Every allowlist id must be **observed** on this revision (the item
   still exists and still matches `kind`). Stale ids fail.
+- Every `generated-api` row must name the exact `source` and syn-canonical
+  `expression`, plus `producer` and `producerSha256`. The producer must be the
+  row's crate `custom-build` target from current `cargo metadata`, and its bytes
+  must match the digest. This pins an expiring review; it does not prove
+  generated output.
 - Expired `expiresAt` fails. Date is calendar, timezone `America/Los_Angeles`.
 - No glob ids (`storage::*` is invalid).
 - Widening the I-1 seed type list is an amendment to **this LLP**.
@@ -768,7 +839,7 @@ SNAPBACK_PRIVILEGE_SURFACE: N violation(s)
 Every run first prints `privilege-surface: this scanner is a ratchet, not a
 proof; residual evasions are documented in LLP 0284 §3.7`. Exit 1 if
 `N > 0`. Exit 0 additionally prints
-`privilege-surface: ok (<allowlisted ingress count> allowlisted ingress item(s); <cell count> feature cells)`.
+`privilege-surface: ok (<allowlisted count> allowlisted item(s); <cell count> feature cells)`.
 
 ### 4.2 `security-boundaries` — compile-fail witnesses with span assertions
 
@@ -1073,7 +1144,8 @@ is a fourth live defect.
 | `non-unix-public-api` | `#[cfg(not(unix))] pub fn leak() -> rusqlite::Connection` | corpus | MISS on Unix host | target-symbolic scanner RED |
 | `mount-source-mismatch` | replace the `snapback-sync` attack bin/source with the kernel-claim bin/source but retain `mount: snapback-sync` | harness inventory mutation | PASS | I-12 RED because the source does not reference `snapback_sync` |
 | `ordinary-macro-generated-api` | internal `macro_rules!` emits `pub fn leak() -> KernelCommitAuthority` | corpus | MISS | `macro-generated-api` RED |
-| `out-dir-generated-api` | public-module `include!(concat!(env!("OUT_DIR"), "/generated_privilege_api.rs"))` | corpus | MISS | `generated-api` RED absent an exact expiring review row |
+| `out-dir-generated-api` | bare `include!`, `std::include!`, direct imported alias, module-local hardcoded wrapper, and literal parameter-forwarding wrapper over `concat!(env!("OUT_DIR"), ...)`; direct includes appear at module, impl, trait, foreign, nested-inline-module, `cfg`, and `cfg_attr` positions | corpus | MISS | each recognized position/spelling is a `generated-api` RED absent its own exact review row; the direct snapback-server row does not suppress the variants |
+| `generated-producer-drift` | the real server custom-build source is changed to emit a raw SQL name, I-1 seed, authority discriminator, or gate-detecting harmless output; or Cargo selects `actual-build.rs` | harness temp package using the real producer source | forgeable PASS in the rejected proof | review invalid because the metadata-derived producer path or pinned source digest changed; the producer is never executed as audit evidence |
 | `unobtainable-seed-container` | private-state scope returns a seed but is created only by consuming that same seed; unit-constructible control returns it too | corpus | false positive on both | scope clean; constructible control RED |
 | `named-but-not-depended-on` | fixture metadata lists `snapback-conformance` but `[dependencies]` omits it (reproduce today's `Cargo.toml`) | harness test over a temp copy of the fixture manifest | old gate PASS | I-12 RED |
 | `unrelated-error-satisfies-regex` | `@attack` is `let _ = 1u32;`; a second, unmarked statement is `let _: () = snapback_kernel::storage::AuthorizationCommitInterlock;` (or any expression whose error text contains a former expected regex). The attack expression must not be in any primary span | `src/bin/unrelated_error_satisfies_regex.rs` in the **harness** suite, not the product-attack suite | old gate PASS if regex is `AuthorizationCommitInterlock` | product-attack runner must report this bin as RED (no span on `@attack`). Harness asserts the runner returned non-zero for this id |
@@ -1146,7 +1218,12 @@ inventory LLP 0276 added) must contain at least:
    witness; removing a registered sink item produces the distinct
    `sink-registry-unresolved` violation. This is not body-flow coverage.
 9. Nested `cfg_attr` path escape beyond one level.
-10. Ordinary-macro and public `OUT_DIR`-include generated API probes.
+10. Ordinary-macro and public `OUT_DIR`-include probes covering bare,
+    path-qualified, imported-alias, module-local hardcoded-wrapper, and literal
+    parameter-forwarded spellings at module, impl, trait, foreign,
+    nested-inline-module, `cfg`, and `cfg_attr` positions; the exact
+    snapback-server review finding; real producer mutations for raw SQL, seed,
+    discriminator, and gate-detection output; and Cargo custom-build retargeting.
 11. A fake nonzero Cargo result with no rustc `compiler-message`, asserted as
     `GateInfrastructureError`, plus an assertion that the unrelated-error
     control really emitted its intended diagnostic.
@@ -1231,6 +1308,14 @@ compilation-unit ownership, 420 product Rust files, approximately 6.5 seconds;
 negative-corpus harness cases, approximately 1.4 seconds.
 Each gate prints its own measured elapsed time, so scheduled evidence does not
 depend on these prose snapshots.
+
+The embedded Guide's `generated-api` review row was briefly removed on
+2026-08-19 for an executable proof, then restored after independent review
+showed the producer could forge that proof under ambient host authority. The
+gate no longer compiles or executes any build script. The restored row is
+scoped to the direct `snapback_server::guide` include finding and the SHA-256
+of the `custom-build` source derived from `cargo metadata`; changing either is
+RED. This remains an expiring human review, not generated-output inspection.
 
 ## 8. Acceptance
 

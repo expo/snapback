@@ -150,9 +150,18 @@ export function parsePrePushCommands(input) {
 }
 
 export function runPrePushAdmission({ input, root = ROOT, env = process.env }) {
-  if (env[BYPASS_ENV] !== undefined && env[BYPASS_ENV] !== '') {
+  const compatibilityBypass = env[BYPASS_ENV] ?? '';
+  if (compatibilityBypass !== '' && compatibilityBypass !== '1') {
     fail('SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION',
-      `${BYPASS_ENV} is not accepted by the synchronous visibility-governance class`);
+      `${BYPASS_ENV} must be exactly 1 when used`);
+  }
+  if (compatibilityBypass === '1') {
+    // @ref LLP 0234#d3--widening-requires-a-remotely-prior-artifact-closed-approval-receipt
+    // — the legacy drift spelling stays observable, but it is not authority
+    // for this independent synchronous class and cannot skip its comparison.
+    console.error(
+      `[visibility-governance] COMPATIBILITY BYPASS OBSERVED: ${BYPASS_ENV}=1 applies only to frozen-record drift gates; synchronous visibility governance remains enforced`,
+    );
   }
   const config = loadConfig(root);
   const commands = parsePrePushCommands(input);

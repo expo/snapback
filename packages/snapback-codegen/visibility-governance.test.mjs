@@ -1592,7 +1592,7 @@ test('approval-only, receipt-publisher, then widening yields an exact-identity g
   }
 });
 
-test('tracked hook never accepts the drift bypass and observer retains red evidence', () => {
+test('tracked hook observes the drift bypass without granting authority and observer retains red evidence', () => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-visibility-observer-'));
   try {
     git(root, 'init', '-q');
@@ -1622,8 +1622,24 @@ test('tracked hook never accepts the drift bypass and observer retains red evide
     const after = commitAll(root, 'same-update self approval');
     const input = `refs/heads/main ${after} refs/heads/main ${before}\n`;
     assert.throws(
-      () => runPrePushAdmission({ input, root, env: { SNAPBACK_DRIFT_GATES_BYPASS: '1' } }),
-      ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION',
+      () => runPrePushAdmission({ input, root, env: { SNAPBACK_DRIFT_GATES_BYPASS: 'yes' } }),
+      ({ code, message }) => code === 'SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION'
+        && /must be exactly 1 when used/u.test(message),
+    );
+    const observed = [];
+    const originalError = console.error;
+    console.error = (...args) => observed.push(args.join(' '));
+    try {
+      assert.throws(
+        () => runPrePushAdmission({ input, root, env: { SNAPBACK_DRIFT_GATES_BYPASS: '1' } }),
+        ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_OVERRIDE_SELF_APPROVAL',
+      );
+    } finally {
+      console.error = originalError;
+    }
+    assert.match(
+      observed.join('\n'),
+      /COMPATIBILITY BYPASS OBSERVED: SNAPBACK_DRIFT_GATES_BYPASS=1.*synchronous visibility governance remains enforced/u,
     );
 
     const { privateKey, publicKey } = generateKeyPairSync('ed25519');

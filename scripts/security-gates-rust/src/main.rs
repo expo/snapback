@@ -78,6 +78,8 @@ struct Finding {
     detail: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     seed_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    generated_expression: Option<String>,
 }
 
 #[derive(Default, Clone)]
@@ -87,6 +89,8 @@ struct ModuleNames {
     seed_aliases: BTreeMap<String, String>,
     public_types: BTreeSet<String>,
     public_api_macros: BTreeSet<String>,
+    include_macro_aliases: BTreeSet<String>,
+    generated_include_macros: BTreeSet<String>,
 }
 
 struct PrivilegeScanner {
@@ -238,7 +242,6 @@ impl PrivilegeScanner {
                 Some(declaration.type_name),
             );
         }
-
         let heuristic_returns = std::mem::take(&mut self.heuristic_returns);
         for candidate in heuristic_returns {
             if self.private_public_types.contains(&candidate.type_name)
@@ -486,7 +489,12 @@ impl PrivilegeScanner {
                 }
                 Item::Trait(item_trait) if module_public && public(&item_trait.vis) => {
                     let item_name = self.item_name(module, &item_trait.ident.to_string());
+                    let mut trait_module = module.to_vec();
+                    trait_module.push(item_trait.ident.to_string());
                     for member in &item_trait.items {
+                        if !attrs_active(trait_item_attrs(member), &self.active_features) {
+                            continue;
+                        }
                         match member {
                             syn::TraitItem::Fn(function) => self.scan_signature(
                                 &function.sig,
@@ -522,6 +530,14 @@ impl PrivilegeScanner {
                                     true,
                                 );
                             }
+                            syn::TraitItem::Macro(item_macro) => self.scan_generated_api(
+                                &item_macro.mac,
+                                None,
+                                item_macro.span(),
+                                &names,
+                                source,
+                                &trait_module,
+                            )?,
                             _ => {}
                         }
                     }
@@ -554,8 +570,25 @@ impl PrivilegeScanner {
                         None,
                     );
                 }
+                Item::ForeignMod(foreign_mod) if module_public => {
+                    for member in &foreign_mod.items {
+                        if !attrs_active(foreign_item_attrs(member), &self.active_features) {
+                            continue;
+                        }
+                        if let syn::ForeignItem::Macro(item_macro) = member {
+                            self.scan_generated_api(
+                                &item_macro.mac,
+                                None,
+                                item_macro.span(),
+                                &names,
+                                source,
+                                module,
+                            )?;
+                        }
+                    }
+                }
                 Item::Impl(item_impl) if module_public => {
-                    self.scan_impl(item_impl, &names, source, module, None);
+                    self.scan_impl(item_impl, &names, source, module, None)?;
                 }
                 Item::Macro(item_macro)
                     if matches!(
@@ -578,7 +611,14 @@ impl PrivilegeScanner {
                     );
                 }
                 Item::Macro(item_macro) if module_public => {
-                    self.scan_generated_api(item_macro, &names, source, module)?;
+                    self.scan_generated_api(
+                        &item_macro.mac,
+                        item_macro.ident.as_ref(),
+                        item_macro.span(),
+                        &names,
+                        source,
+                        module,
+                    )?;
                 }
                 Item::Mod(item_mod) => {
                     self.scan_module(
@@ -599,6 +639,7 @@ impl PrivilegeScanner {
     fn collect_names(&self, items: &[Item]) -> ModuleNames {
         let mut names = ModuleNames::default();
         let mut aliases = Vec::new();
+        let mut macro_definitions = Vec::new();
         for item in items {
             if !attrs_active(item_attrs(item), &self.active_features) {
                 continue;
@@ -612,6 +653,17 @@ impl PrivilegeScanner {
                                     names.sql_imports.insert(path.exposed.clone());
                                 }
                             }
+                        }
+                        if path
+                            .segments
+                            .last()
+                            .is_some_and(|segment| segment == "include")
+                            && path
+                                .segments
+                                .iter()
+                                .any(|segment| matches!(segment.as_str(), "std" | "core"))
+                        {
+                            names.include_macro_aliases.insert(path.exposed.clone());
                         }
                     }
                 }
@@ -628,6 +680,7 @@ impl PrivilegeScanner {
                     names.public_types.insert(item_union.ident.to_string());
                 }
                 Item::Macro(item_macro) if item_macro.mac.path.is_ident("macro_rules") => {
+                    macro_definitions.push(item_macro);
                     if token_ident_present(&item_macro.mac.tokens, "pub") {
                         if let Some(ident) = &item_macro.ident {
                             names.public_api_macros.insert(ident.to_string());
@@ -651,6 +704,31 @@ impl PrivilegeScanner {
                         names.seed_aliases.insert(alias.ident.to_string(), seed);
                         changed = true;
                     }
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+        // @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — a
+        // module-local macro_rules wrapper around include! is still a Rust
+        // source include. Resolve direct, imported-alias, and wrapper-to-wrapper
+        // spellings to a fixed point; literal parameter forwarding is handled
+        // at invocation scan time, while synthesized/procedural expansion
+        // remains an explicit LLP 0284 §3.7 limit.
+        loop {
+            let mut changed = false;
+            let mut include_names = names.include_macro_aliases.clone();
+            include_names.insert("include".to_owned());
+            include_names.extend(names.generated_include_macros.iter().cloned());
+            for definition in &macro_definitions {
+                let Some(ident) = &definition.ident else {
+                    continue;
+                };
+                if tokens_contain_any_ident(&definition.mac.tokens, &include_names)
+                    && names.generated_include_macros.insert(ident.to_string())
+                {
+                    changed = true;
                 }
             }
             if !changed {
@@ -762,7 +840,7 @@ impl PrivilegeScanner {
         source: &Path,
         module: &[String],
         exported_owner: Option<&str>,
-    ) {
+    ) -> Result<(), String> {
         let self_type = inspect_type(&item_impl.self_ty, names);
         let self_name = last_type_name(&item_impl.self_ty).unwrap_or_else(|| "<impl>".to_owned());
         let owner = exported_owner
@@ -857,8 +935,10 @@ impl PrivilegeScanner {
             }
         }
         if !impl_public {
-            return;
+            return Ok(());
         }
+        let mut impl_module = module.to_vec();
+        impl_module.push(self_name.clone());
         for member in &item_impl.items {
             if !attrs_active(impl_item_attrs(member), &self.active_features) {
                 continue;
@@ -907,9 +987,18 @@ impl PrivilegeScanner {
                         true,
                     );
                 }
+                ImplItem::Macro(item_macro) => self.scan_generated_api(
+                    &item_macro.mac,
+                    None,
+                    item_macro.span(),
+                    names,
+                    source,
+                    &impl_module,
+                )?,
                 _ => {}
             }
         }
+        Ok(())
     }
 
     fn scan_signature(
@@ -1170,23 +1259,63 @@ impl PrivilegeScanner {
         });
     }
 
+    // @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — generated
+    // includes are a syntactic ratchet across every public item-expanding AST
+    // position syn exposes, including literal parameter-forwarded include
+    // identifiers; this is deliberately not a macro-expansion proof.
     fn scan_generated_api(
         &mut self,
-        item_macro: &syn::ItemMacro,
+        mac: &syn::Macro,
+        definition_ident: Option<&syn::Ident>,
+        span: Span,
         names: &ModuleNames,
         source: &Path,
         module: &[String],
     ) -> Result<(), String> {
-        if item_macro.mac.path.is_ident("include") {
-            match evaluate_include(&item_macro.mac.tokens) {
-                Some((value, true)) => self.push_finding(
-                    "generated-api",
-                    self.item_name(module, &value),
-                    source,
-                    item_macro.span(),
-                    "public module includes build-generated Rust from OUT_DIR; expansion requires an explicit review row".to_owned(),
-                    None,
-                ),
+        let macro_path = macro_path_label(&mac.path);
+        let macro_name = mac
+            .path
+            .segments
+            .last()
+            .map(|segment| segment.ident.to_string())
+            .unwrap_or_else(|| "<anonymous-macro>".to_owned());
+        let is_direct_generated_include = macro_name == "include"
+            || names.include_macro_aliases.contains(&macro_name)
+            || names.generated_include_macros.contains(&macro_name);
+        let parameterized_include = if is_direct_generated_include {
+            None
+        } else {
+            parameterized_include_argument(&mac.tokens, names)
+        };
+        if is_direct_generated_include || parameterized_include.is_some() {
+            let evaluated = if is_direct_generated_include {
+                evaluate_include(&mac.tokens)
+            } else {
+                top_level_macro_arguments(&mac.tokens)
+                    .iter()
+                    .find_map(evaluate_include)
+            };
+            match evaluated {
+                Some((value, true)) => {
+                    self.push_finding(
+                        "generated-api",
+                        self.item_name(module, &format!("{value} via {macro_path}")),
+                        source,
+                        span,
+                        if let Some(include_path) = &parameterized_include {
+                            format!(
+                                "public item-position macro receives literal {include_path} and build-generated Rust from OUT_DIR; exact review is required"
+                            )
+                        } else {
+                            "public item position includes build-generated Rust from OUT_DIR; exact review is required".to_owned()
+                        },
+                        None,
+                    );
+                    if let Some(finding) = self.findings.last_mut() {
+                        finding.generated_expression =
+                            Some(format!("{macro_path}!({})", mac.tokens));
+                    }
+                }
                 Some((value, false)) => {
                     let target = source.parent().unwrap_or(&self.crate_root).join(value);
                     if target.exists() {
@@ -1198,42 +1327,38 @@ impl PrivilegeScanner {
                         )?;
                     }
                 }
-                None => self.push_finding(
-                    "generated-api",
-                    self.item_name(module, "include!"),
-                    source,
-                    item_macro.span(),
-                    "public module has an unevaluable Rust include; expansion is fail-closed".to_owned(),
-                    None,
-                ),
+                None => {
+                    self.push_finding(
+                        "generated-api",
+                        self.item_name(module, &format!("{macro_path}!")),
+                        source,
+                        span,
+                        "public item-position macro has an unevaluable direct, aliased, module-local wrapped, or literal parameter-forwarded Rust include; expansion is fail-closed".to_owned(),
+                        None,
+                    );
+                    if let Some(finding) = self.findings.last_mut() {
+                        finding.generated_expression =
+                            Some(format!("{macro_path}!({})", mac.tokens));
+                    }
+                }
             }
             return Ok(());
         }
 
-        let macro_name = item_macro
-            .ident
-            .as_ref()
+        let macro_name = definition_ident
             .map(ToString::to_string)
-            .or_else(|| {
-                item_macro
-                    .mac
-                    .path
-                    .segments
-                    .last()
-                    .map(|segment| segment.ident.to_string())
-            })
-            .unwrap_or_else(|| "<anonymous-macro>".to_owned());
-        let emits_public = item_macro.mac.path.is_ident("macro_rules")
-            && token_ident_present(&item_macro.mac.tokens, "pub");
+            .unwrap_or(macro_name);
+        let emits_public =
+            mac.path.is_ident("macro_rules") && token_ident_present(&mac.tokens, "pub");
         let invocation_of_public_macro = names.public_api_macros.contains(&macro_name);
         if (emits_public || invocation_of_public_macro)
-            && tokens_name_sensitive_type(&item_macro.mac.tokens, names)
+            && tokens_name_sensitive_type(&mac.tokens, names)
         {
             self.push_finding(
                 "macro-generated-api",
                 self.item_name(module, &macro_name),
                 source,
-                item_macro.span(),
+                span,
                 "ordinary macro tokens can generate a public privilege-bearing API".to_owned(),
                 None,
             );
@@ -1419,7 +1544,14 @@ impl PrivilegeScanner {
                         && item_ident(item).as_deref() == Some(head.as_str())
                         && public_item(item) =>
                     {
-                        self.scan_named_reexport(item, items, names, source, module, exported_item);
+                        self.scan_named_reexport(
+                            item,
+                            items,
+                            names,
+                            source,
+                            module,
+                            exported_item,
+                        )?;
                     }
                     _ => {}
                 }
@@ -1487,7 +1619,7 @@ impl PrivilegeScanner {
         source: &Path,
         module: &[String],
         exported_item: &str,
-    ) {
+    ) -> Result<(), String> {
         match item {
             Item::Fn(function) => self.scan_signature(
                 &function.sig,
@@ -1618,7 +1750,12 @@ impl PrivilegeScanner {
                 );
             }
             Item::Trait(item_trait) => {
+                let mut trait_module = module.to_vec();
+                trait_module.push(item_trait.ident.to_string());
                 for member in &item_trait.items {
+                    if !attrs_active(trait_item_attrs(member), &self.active_features) {
+                        continue;
+                    }
                     match member {
                         syn::TraitItem::Fn(function) => self.scan_signature(
                             &function.sig,
@@ -1654,6 +1791,14 @@ impl PrivilegeScanner {
                                 true,
                             );
                         }
+                        syn::TraitItem::Macro(item_macro) => self.scan_generated_api(
+                            &item_macro.mac,
+                            None,
+                            item_macro.span(),
+                            names,
+                            source,
+                            &trait_module,
+                        )?,
                         _ => {}
                     }
                 }
@@ -1662,7 +1807,7 @@ impl PrivilegeScanner {
         }
 
         let Some(reexported_type) = item_ident(item) else {
-            return;
+            return Ok(());
         };
         for sibling in sibling_items {
             let Item::Impl(item_impl) = sibling else {
@@ -1671,9 +1816,10 @@ impl PrivilegeScanner {
             if attrs_active(&item_impl.attrs, &self.active_features)
                 && last_type_name(&item_impl.self_ty).as_deref() == Some(reexported_type.as_str())
             {
-                self.scan_impl(item_impl, names, source, module, Some(exported_item));
+                self.scan_impl(item_impl, names, source, module, Some(exported_item))?;
             }
         }
+        Ok(())
     }
 
     fn item_name(&self, module: &[String], leaf: &str) -> String {
@@ -1704,6 +1850,7 @@ impl PrivilegeScanner {
             line: span.start().line,
             detail,
             seed_type,
+            generated_expression: None,
         });
     }
 }
@@ -1722,6 +1869,55 @@ fn token_ident_present(tokens: &TokenStream, sought: &str) -> bool {
         proc_macro2::TokenTree::Group(group) => token_ident_present(&group.stream(), sought),
         _ => false,
     })
+}
+
+fn tokens_contain_any_ident(tokens: &TokenStream, sought: &BTreeSet<String>) -> bool {
+    tokens.clone().into_iter().any(|token| match token {
+        proc_macro2::TokenTree::Ident(ident) => sought.contains(&ident.to_string()),
+        proc_macro2::TokenTree::Group(group) => tokens_contain_any_ident(&group.stream(), sought),
+        _ => false,
+    })
+}
+
+fn top_level_macro_arguments(tokens: &TokenStream) -> Vec<TokenStream> {
+    let mut arguments = vec![TokenStream::new()];
+    for token in tokens.clone() {
+        if matches!(&token, proc_macro2::TokenTree::Punct(punct) if punct.as_char() == ',') {
+            arguments.push(TokenStream::new());
+        } else if let Some(argument) = arguments.last_mut() {
+            argument.extend([token]);
+        }
+    }
+    arguments
+}
+
+fn parameterized_include_argument(tokens: &TokenStream, names: &ModuleNames) -> Option<String> {
+    top_level_macro_arguments(tokens)
+        .into_iter()
+        .filter_map(|argument| syn::parse2::<syn::Path>(argument).ok())
+        .find_map(|path| {
+            let name = path.segments.last()?.ident.to_string();
+            (name == "include"
+                || names.include_macro_aliases.contains(&name)
+                || names.generated_include_macros.contains(&name))
+            .then(|| macro_path_label(&path))
+        })
+}
+
+fn macro_path_label(path: &syn::Path) -> String {
+    let prefix = if path.leading_colon.is_some() {
+        "::"
+    } else {
+        ""
+    };
+    format!(
+        "{prefix}{}",
+        path.segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect::<Vec<_>>()
+            .join("::")
+    )
 }
 
 fn tokens_name_sensitive_type(tokens: &TokenStream, names: &ModuleNames) -> bool {
@@ -2079,6 +2275,26 @@ fn impl_item_attrs(item: &ImplItem) -> &[Attribute] {
         ImplItem::Fn(item) => &item.attrs,
         ImplItem::Type(item) => &item.attrs,
         ImplItem::Macro(item) => &item.attrs,
+        _ => &[],
+    }
+}
+
+fn trait_item_attrs(item: &syn::TraitItem) -> &[Attribute] {
+    match item {
+        syn::TraitItem::Const(item) => &item.attrs,
+        syn::TraitItem::Fn(item) => &item.attrs,
+        syn::TraitItem::Type(item) => &item.attrs,
+        syn::TraitItem::Macro(item) => &item.attrs,
+        _ => &[],
+    }
+}
+
+fn foreign_item_attrs(item: &syn::ForeignItem) -> &[Attribute] {
+    match item {
+        syn::ForeignItem::Fn(item) => &item.attrs,
+        syn::ForeignItem::Static(item) => &item.attrs,
+        syn::ForeignItem::Type(item) => &item.attrs,
+        syn::ForeignItem::Macro(item) => &item.attrs,
         _ => &[],
     }
 }

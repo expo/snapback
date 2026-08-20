@@ -6,6 +6,8 @@
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-12
 **Revised:** 2026-08-16 (LLP 0264 reciprocal write-axis amendment)
+**Revised:** 2026-08-19 (the legacy drift bypass is observable but
+non-authorizing in the independent synchronous visibility-governance class)
 **Related:** LLP 0000, LLP 0011, LLP 0053, LLP 0056, LLP 0070, LLP 0170, LLP 0172, LLP 0173, LLP 0189, LLP 0225, LLP 0230, LLP 0231, LLP 0264
 
 ## Summary
@@ -523,13 +525,18 @@ ledger, and they have different jobs:
    cannot make authority live.
 2. **The tracked pre-push hook runs a synchronous governance-admission class.**
    This fast-feedback class is deliberately not a frozen-record/drift gate: it
-   never defers to LLP 0232's backstop and refuses the
-   `SNAPBACK_DRIFT_GATES_BYPASS` spelling. When invoked, it compares the
-   advertised predecessor snapshot with each pushed governed-ref tip. The
-   matching approval, closure, and signed separation receipt must all exist
-   unchanged in that predecessor. If any first appears in the widening update,
-   the push refuses with
-   `SNAPBACK_TABLE_VISIBILITY_OVERRIDE_SELF_APPROVAL`.
+   never defers to LLP 0232's backstop. The legacy exact
+   `SNAPBACK_DRIFT_GATES_BYPASS=1` spelling is accepted and logged because the
+   repository-wide compatibility contract keeps it accepted and loud, but it
+   is authority only for the frozen-record drift runner. The synchronous class
+   does not branch around or weaken its comparison; non-exact values are
+   refused. When invoked, it compares the advertised predecessor snapshot with
+   each pushed governed-ref tip. The matching approval, closure, and signed
+   separation receipt must all exist unchanged in that predecessor. If any
+   first appears in the widening update, the push refuses with
+   `SNAPBACK_TABLE_VISIBILITY_OVERRIDE_SELF_APPROVAL`. Retirement of an
+   unrelated module-ownership gate changes none of these checks or authority
+   rules.
 3. **A protected remote observer is the separation and quarantine authority.**
    It receives the authenticated provider event, retains its immutable event
    input outside the repository, checks out the named OIDs, and runs the same
@@ -1793,10 +1800,12 @@ of the following:
    tracked hook is invoked, the synchronous governance-admission class rejects
    **two commits in one update** with
    `SNAPBACK_TABLE_VISIBILITY_OVERRIDE_SELF_APPROVAL`; it neither defers nor
-   accepts `SNAPBACK_DRIFT_GATES_BYPASS`. Approval-only update, protected
+   grants authority to `SNAPBACK_DRIFT_GATES_BYPASS=1`. The exact legacy
+   spelling is observable and loud, then the same synchronous comparison runs;
+   malformed values refuse before comparison. Approval-only update, protected
    receipt-publisher update, then widening update succeeds against the
-   advertised predecessor. Two commits in one push and an authored fake receipt
-   fail.
+   advertised predecessor. Two commits in one push and an authored fake
+   receipt fail even when the legacy drift spelling is present.
 4. A protected-observer fixture supplies authenticated real event inputs and
    OIDs and reaches the same comparator verdict. Hookless and `--no-verify`
    same-update widening fixtures may move the test ref but receive no separation

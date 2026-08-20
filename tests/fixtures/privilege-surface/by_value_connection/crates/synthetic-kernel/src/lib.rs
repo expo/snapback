@@ -218,6 +218,54 @@ generated_privilege_api!();
 
 include!(concat!(env!("OUT_DIR"), "/generated_privilege_api.rs"));
 
+std::include!(concat!(env!("OUT_DIR"), "/qualified_generated_privilege_api.rs"));
+
+use std::include as imported_include;
+imported_include!(concat!(env!("OUT_DIR"), "/aliased_generated_privilege_api.rs"));
+
+macro_rules! include_wrapper {
+    ($path:expr) => {
+        include!($path)
+    };
+}
+
+include_wrapper!(concat!(env!("OUT_DIR"), "/wrapped_generated_privilege_api.rs"));
+
+pub struct GeneratedImplCarrier;
+
+impl GeneratedImplCarrier {
+    include!(concat!(env!("OUT_DIR"), "/impl_generated_privilege_api.rs"));
+}
+
+pub trait GeneratedTraitCarrier {
+    include!(concat!(env!("OUT_DIR"), "/trait_generated_privilege_api.rs"));
+}
+
+unsafe extern "C" {
+    include!(concat!(env!("OUT_DIR"), "/foreign_generated_privilege_api.rs"));
+}
+
+pub mod nested_generated_api {
+    include!(concat!(env!("OUT_DIR"), "/nested_generated_privilege_api.rs"));
+}
+
+#[cfg(feature = "remainder-tests")]
+include!(concat!(env!("OUT_DIR"), "/cfg_generated_privilege_api.rs"));
+
+#[cfg_attr(feature = "services-owner", allow(dead_code))]
+include!(concat!(env!("OUT_DIR"), "/cfg_attr_generated_privilege_api.rs"));
+
+macro_rules! invoke_include_parameter {
+    ($macro_name:ident, $($tokens:tt)*) => {
+        $macro_name!($($tokens)*)
+    };
+}
+
+invoke_include_parameter!(
+    include,
+    concat!(env!("OUT_DIR"), "/parameterized_wrapper_generated_privilege_api.rs")
+);
+
 pub struct AuthorizationCommitReservation {
     _private: (),
 }

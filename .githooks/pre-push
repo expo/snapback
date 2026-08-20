@@ -35,8 +35,9 @@ if [ "${running_node#v}" != "$pinned_node" ]; then
 fi
 
 # @ref LLP 0234#d3--widening-requires-a-remotely-prior-artifact-closed-approval-receipt
-# the visibility-governance class is synchronous and never consumes the drift
-# bypass spelling; it sees Git's exact advertised predecessor for every ref.
+# the visibility-governance class observes the legacy drift bypass spelling but
+# never treats it as authority; it still compares Git's exact advertised
+# predecessor for every ref.
 node "$root/scripts/check-visibility-governance.mjs" pre-push --root "$root" < "$updates_file"
 
 # @ref LLP 0232#optimistic-landing-default-2026-08-13 — the tracked hook

@@ -3,10 +3,16 @@
 // @ref LLP 0284#41-kernel-raw-sql-api--privilege-surface-scanner — public
 // privilege closure is derived from syn ASTs over the metadata feature matrix.
 
-import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  existsSync,
+  readFileSync,
+  realpathSync,
+} from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  GateInfrastructureError,
   featureCells,
   libraryTarget,
   parseRootArgument,
@@ -41,6 +47,7 @@ function findingKey(finding) {
     finding.item,
     finding.detail,
     finding.seedType ?? '',
+    finding.generatedExpression ?? '',
   ].join('\0');
 }
 
@@ -59,7 +66,15 @@ function calendarDateLosAngeles() {
   }).format(new Date());
 }
 
-function validateAllowlist(root, findings, violations) {
+function sha256(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+// @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — generated Rust
+// is review debt, not executable evidence. The review is pinned to Cargo's
+// actual custom-build target so changing either the manifest target or its
+// source forces a new review instead of silently preserving the exception.
+function validateAllowlist(root, packages, findings, violations) {
   const path = resolve(root, ALLOWLIST_NAME);
   if (!existsSync(path)) return [];
   let document;
@@ -106,6 +121,27 @@ function validateAllowlist(root, findings, violations) {
     if (typeof entry.ticket !== 'string' || !entry.ticket.startsWith('issues/')) invalid.push('ticket');
     if (typeof entry.expiresAt !== 'string' || entry.expiresAt < today) invalid.push('expiresAt');
     if (!existsSync(resolve(root, entry.ticket ?? ''))) invalid.push('ticket missing');
+    if (entry.kind === 'generated-api') {
+      if (typeof entry.source !== 'string' || entry.source.includes('*')
+          || !existsSync(resolve(root, entry.source ?? ''))) invalid.push('source');
+      if (typeof entry.expression !== 'string' || entry.expression.length === 0) {
+        invalid.push('expression');
+      }
+      const pkg = packages.find((candidate) => candidate.name === entry.crate);
+      const producer = pkg?.targets.find((target) => target.kind.includes('custom-build'));
+      if (!producer) {
+        invalid.push('cargo metadata custom-build target missing');
+      } else {
+        const producerPath = repositoryPath(root, producer.src_path);
+        if (entry.producer !== producerPath) invalid.push('producer is not Cargo custom-build target');
+        if (typeof entry.producerSha256 !== 'string'
+            || !/^[0-9a-f]{64}$/u.test(entry.producerSha256)) {
+          invalid.push('producerSha256');
+        } else if (entry.producerSha256 !== sha256(producer.src_path)) {
+          invalid.push('producer source changed');
+        }
+      }
+    }
     const forbiddenLiveDefect = /claim_kernel_commit_authority|AuthorizationCommitCarrierFactory::(?:reservation|prepared)|service_authority_commit_interlock|rusqlite/u.test(entry.item)
       && ['sql-egress', 'seed-obtain', 'reexport'].includes(entry.kind);
     if (forbiddenLiveDefect) invalid.push('LLP 0283 F-1 live defect may not be allowlisted');
@@ -124,6 +160,8 @@ function validateAllowlist(root, findings, violations) {
     const match = findings.find((finding) => finding.crate === entry.crate
       && finding.item === entry.item
       && finding.kind === entry.kind
+      && (entry.kind !== 'generated-api' || (finding.file === entry.source
+        && finding.generatedExpression === entry.expression))
       && JSON.stringify(finding.features) === JSON.stringify([...entry.features].sort()));
     if (match) observed.add(entry.id);
   }
@@ -144,14 +182,16 @@ function validateAllowlist(root, findings, violations) {
 }
 
 export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
+  root = realpathSync(root);
   const started = process.hrtime.bigint();
   const metadata = runCargoMetadata(resolve(root, 'Cargo.toml'));
   const packages = workspacePackages(metadata).filter(libraryTarget);
-  const registeredPrivilegeSinks = runAst(['privilege-sinks']);
+  let registeredPrivilegeSinks;
   const observedPrivilegeSinks = new Set();
   const aggregated = new Map();
   let cellCount = 0;
 
+  registeredPrivilegeSinks = runAst(['privilege-sinks']);
   for (const pkg of packages) {
     const lib = libraryTarget(pkg);
     const crateRoot = dirname(pkg.manifest_path);
@@ -215,15 +255,23 @@ export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
     || left.item.localeCompare(right.item));
 
   const violations = [];
-  const allowlisted = validateAllowlist(root, findings, violations);
-  const allowedKeys = new Set(allowlisted.map((entry) =>
-    [entry.crate, entry.item, entry.kind, JSON.stringify([...entry.features].sort())].join('\0')));
+  const allowlisted = validateAllowlist(root, packages, findings, violations);
+  const allowedKeys = new Set(allowlisted.map((entry) => [
+    entry.crate,
+    entry.item,
+    entry.kind,
+    JSON.stringify([...entry.features].sort()),
+    entry.kind === 'generated-api' ? entry.source : '',
+    entry.kind === 'generated-api' ? entry.expression : '',
+  ].join('\0')));
   for (const finding of findings) {
     const key = [
       finding.crate,
       finding.item,
       finding.kind,
       JSON.stringify(finding.features),
+      finding.kind === 'generated-api' ? finding.file : '',
+      finding.kind === 'generated-api' ? finding.generatedExpression : '',
     ].join('\0');
     if (!allowedKeys.has(key)) violations.push(finding);
   }
@@ -255,7 +303,7 @@ function printResult(result) {
     return 1;
   }
   process.stdout.write(
-    `privilege-surface: ok (${result.allowlisted.length} allowlisted ingress item(s); ${result.cellCount} feature cells; ${(result.durationMs / 1000).toFixed(2)}s)\n`,
+    `privilege-surface: ok (${result.allowlisted.length} allowlisted item(s); ${result.cellCount} feature cells; ${(result.durationMs / 1000).toFixed(2)}s)\n`,
   );
   return 0;
 }
