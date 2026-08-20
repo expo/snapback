@@ -74,16 +74,22 @@ fn backup_and_restore_publish_exact_owner_only_consistent_units() {
 
     let mut fixture = Fixture::new();
     let database = &mut fixture.database;
+    let guest = database
+        .identity_guest_create(60_020, 20, &fixture.random)
+        .unwrap();
     fixture
         .keyring
         .with_active_key(20, &fixture.random, |key_id, key| {
-            database.identity_password_register(
+            database.identity_guest_claim_password(
+                &guest.bearer,
                 "backup-person",
                 &PasswordSecret::new("strong-backup-password-1".to_owned()),
                 20,
                 &fixture.random,
-                key_id.as_str(),
-                key.expose_secret(),
+                snapback_kernel::storage::auth_identity::RecoveryKeyMaterial::new(
+                    key_id.as_str(),
+                    key.expose_secret(),
+                ),
             )
         })
         .unwrap()
