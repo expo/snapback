@@ -433,13 +433,8 @@ dependent *obtain* a handle:
 
 Ingress (not an escalation by itself; scanned, allowlist-gated): a
 public function that *accepts* a caller-supplied `Connection` /
-`Transaction`. Today's tree has:
+`Transaction`. The remaining tree has only feature-selected test ingress:
 
-- `ForkReadView::new(conn: &'a Connection)` at
-  `instance_fork.rs:45` (read-only check via
-  `is_readonly(DatabaseName::Main)`).
-- `configure_connection_wal_lifetime(conn: &Connection)` at
-  `replication.rs:23`.
 - `push::test_support::{authorize_send_in, resolve_audience_in}` taking
   `&Transaction` under `test-support`.
 

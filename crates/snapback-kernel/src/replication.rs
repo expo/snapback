@@ -20,7 +20,9 @@ pub fn configured_from_env() -> bool {
 /// WAL checkpoint/removal while the LTX runtime owns the journal lifecycle.
 // @ref LLP 0188#2-integration-point-the-whole-instance-database — the kernel
 //   configures every connection while the service remains the replication owner.
-pub fn configure_connection_wal_lifetime(conn: &Connection) -> SnapbackResult<()> {
+// @ref LLP 0284#32-raw-sqlite — raw connection configuration remains inside
+//   the kernel rather than entering its dependent-visible API.
+pub(crate) fn configure_connection_wal_lifetime(conn: &Connection) -> SnapbackResult<()> {
     let mut enabled = 1_i32;
     // SAFETY: `conn.handle()` is valid for the call, `main` is a static
     // NUL-terminated schema name, and SQLite's PERSIST_WAL file-control takes

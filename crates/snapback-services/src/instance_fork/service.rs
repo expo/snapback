@@ -26,6 +26,394 @@ use snapback_kernel::instance_fork::{
     server_expired_error,
 };
 
+/// Services-private fork inspection over the read-only connection whose
+/// lifecycle and snapshot are already owned by this module.
+///
+/// @ref LLP 0284#32-raw-sqlite — cross-crate callers keep raw SQLite behind
+/// their own private boundary instead of passing it through the kernel API.
+struct ForkReadView<'a> {
+    conn: &'a Connection,
+}
+
+impl<'a> ForkReadView<'a> {
+    fn new(conn: &'a Connection) -> SnapbackResult<Self> {
+        if !conn.is_readonly(rusqlite::DatabaseName::Main)? {
+            return Err(fork_error(
+                "SNAPBACK_FORK_READ_HANDLE_REQUIRED",
+                "fork inspection requires a SQLite read-only connection",
+            ));
+        }
+        Ok(Self { conn })
+    }
+
+    fn data_version_stream(&self) -> SnapbackResult<Option<String>> {
+        let value: Option<(String, Vec<u8>)> = self
+            .conn
+            .query_row(
+                "SELECT typeof(value), CAST(value AS BLOB)
+                   FROM _snapback_meta
+                  WHERE key = 'auth_invalidation_data_version_stream_v1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        let Some((storage_class, bytes)) = value else {
+            return Ok(None);
+        };
+        if storage_class != "text" {
+            return Err(seed_identity_corrupt(
+                "current data-version stream is not SQLite text",
+            ));
+        }
+        let stream = std::str::from_utf8(&bytes)
+            .map_err(|_| seed_identity_corrupt("current data-version stream is not UTF-8"))?;
+        if !snapback_kernel::ids::is_minted_identifier(stream) {
+            return Err(seed_identity_corrupt(
+                "current data-version stream is not a canonical UUIDv7",
+            ));
+        }
+        Ok(Some(stream.to_owned()))
+    }
+
+    fn change_journal_floor(&self) -> SnapbackResult<u64> {
+        let current = required_storage_version(
+            self.conn
+                .query_row(
+                    "SELECT version FROM _snapback_version WHERE id = 1",
+                    [],
+                    |row| row.get(0),
+                )
+                .optional()?,
+            "global storage version",
+        )?;
+        let floor = match self
+            .conn
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = 'retention_floor'",
+                [],
+                |row| row.get::<_, rusqlite::types::Value>(0),
+            )
+            .optional()?
+        {
+            None => 0,
+            Some(rusqlite::types::Value::Text(value)) => {
+                let value = value.parse::<i64>().map_err(|_| {
+                    storage_version_corrupt(
+                        "change-journal retention floor is not a portable integer",
+                    )
+                })?;
+                portable_storage_version(value, "change-journal retention floor")?
+            }
+            Some(_) => {
+                return Err(storage_version_corrupt(
+                    "change-journal retention floor is not SQLite text",
+                ));
+            }
+        };
+        if floor > current {
+            return Err(storage_version_corrupt(
+                "change-journal retention floor is ahead of the applicable global storage head",
+            )
+            .with_details(json!({
+                "headVersion": current,
+                "observedVersion": floor,
+            })));
+        }
+        Ok(floor)
+    }
+
+    fn active_schema(&self) -> SnapbackResult<Option<crate::manifest::SchemaManifest>> {
+        active_schema_manifest(self.conn)
+    }
+
+    fn active_operation_coverage(
+        &self,
+        stream_id: &str,
+    ) -> SnapbackResult<Option<snapback_kernel::commit_envelope::OperationCoverageManifestV1>> {
+        let body: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT manifest_json FROM _snapback_operation_coverage_v1
+                  WHERE stream_id=?1 ORDER BY manifest_version DESC LIMIT 1",
+                [stream_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let manifest = body
+            .map(|body| {
+                serde_json::from_str::<
+                    snapback_kernel::commit_envelope::OperationCoverageManifestV1,
+                >(&body)
+                .map_err(|_| operation_ledger_invalid("active coverage manifest is corrupt"))
+            })
+            .transpose()?;
+        if let Some(manifest) = manifest.as_ref() {
+            if manifest.schema_version != 1
+                || manifest.manifest_version == 0
+                || manifest.stream_id != stream_id
+                || manifest.stream_id.is_empty()
+                || manifest.covered_lanes.is_empty()
+                || manifest.writer_choke_points.is_empty()
+                || manifest.coverage_digest
+                    != snapback_kernel::operation_ledger::coverage_digest(
+                        &manifest.stream_id,
+                        manifest.manifest_version,
+                        &manifest.covered_lanes,
+                        &manifest.writer_choke_points,
+                    )
+            {
+                return Err(operation_ledger_invalid("coverage manifest is invalid"));
+            }
+        }
+        Ok(manifest)
+    }
+
+    fn operation_coverage_continuity(
+        &self,
+        stream_id: &str,
+    ) -> SnapbackResult<Option<snapback_kernel::operation_ledger::OperationCoverageContinuityV1>>
+    {
+        let row = self
+            .conn
+            .query_row(
+                "SELECT state,expected_manifest_version,expected_coverage_digest,
+                        first_activated_at_ms,gap_detected_at_ms,gap_reason
+                   FROM _snapback_operation_coverage_continuity_v1
+                  WHERE stream_id=?1",
+                [stream_id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, u64>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, u64>(3)?,
+                        row.get::<_, Option<u64>>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                    ))
+                },
+            )
+            .optional()?;
+        let Some((
+            state,
+            expected_manifest_version,
+            expected_coverage_digest,
+            first_activated_at_ms,
+            gap_detected_at_ms,
+            gap_reason,
+        )) = row
+        else {
+            return Ok(None);
+        };
+        let valid_state = match state.as_str() {
+            "continuous" => gap_detected_at_ms.is_none() && gap_reason.is_none(),
+            "broken" => {
+                gap_detected_at_ms.is_some()
+                    && gap_reason.as_deref().is_some_and(|value| !value.is_empty())
+            }
+            _ => false,
+        };
+        if expected_manifest_version == 0 || expected_coverage_digest.is_empty() || !valid_state {
+            return Err(operation_ledger_invalid(
+                "coverage continuity carrier is invalid",
+            ));
+        }
+        Ok(Some(
+            snapback_kernel::operation_ledger::OperationCoverageContinuityV1 {
+                stream_id: stream_id.to_owned(),
+                state,
+                expected_manifest_version,
+                expected_coverage_digest,
+                first_activated_at_ms,
+                gap_detected_at_ms,
+                gap_reason,
+            },
+        ))
+    }
+}
+
+fn active_schema_manifest(
+    conn: &Connection,
+) -> SnapbackResult<Option<crate::manifest::SchemaManifest>> {
+    use snapback_kernel::auth::mode::{
+        AuthModeStateRecord, AuthModeStatus, LEGACY_MANIFEST_POISON, StagedAuthModeRecord,
+        mode_corrupt,
+    };
+    use snapback_kernel::storage::auth_mode::{
+        META_AUTH_MODE_STATE, META_CAPABILITY_AWARE_SCHEMA_MANIFEST, META_LEGACY_SCHEMA_MANIFEST,
+        META_STAGED_AUTH_MODE_MANIFEST,
+    };
+
+    let has_meta = conn
+        .query_row(
+            "SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = '_snapback_meta'",
+            [],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if !has_meta {
+        return Ok(None);
+    }
+    let mut statement = conn.prepare(
+        "SELECT key, value FROM _snapback_meta
+         WHERE key IN (?1, ?2, ?3, ?4)",
+    )?;
+    let values = statement
+        .query_map(
+            params![
+                META_LEGACY_SCHEMA_MANIFEST,
+                META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+                META_STAGED_AUTH_MODE_MANIFEST,
+                META_AUTH_MODE_STATE,
+            ],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )?
+        .collect::<Result<BTreeMap<_, _>, _>>()?;
+    let legacy = values.get(META_LEGACY_SCHEMA_MANIFEST).cloned();
+    let aware = values.get(META_CAPABILITY_AWARE_SCHEMA_MANIFEST).cloned();
+    let staged_raw = values.get(META_STAGED_AUTH_MODE_MANIFEST).cloned();
+    let state_raw = values.get(META_AUTH_MODE_STATE).cloned();
+
+    let Some(state_raw) = state_raw else {
+        if aware.is_some() || staged_raw.is_some() {
+            return Err(mode_corrupt(
+                "auth-mode companion key exists without mode state",
+            ));
+        }
+        return match legacy {
+            None => Ok(None),
+            Some(raw) if raw == LEGACY_MANIFEST_POISON => Err(mode_corrupt(
+                "legacy poison exists without its sessions activation record",
+            )),
+            Some(raw) => {
+                let manifest = parse_active_schema(&raw)?;
+                require_active_manifest_mode(&manifest, crate::manifest::AuthMode::Dev)?;
+                Ok(Some(manifest))
+            }
+        };
+    };
+
+    let state: AuthModeStateRecord = serde_json::from_str(&state_raw)
+        .map_err(|_| mode_corrupt("auth-mode record could not be parsed"))?;
+    state.validate_shape()?;
+    let staged = staged_raw
+        .as_deref()
+        .map(|raw| {
+            serde_json::from_str::<StagedAuthModeRecord>(raw)
+                .map_err(|_| mode_corrupt("auth-mode record could not be parsed"))
+        })
+        .transpose()?;
+    match state.mode_state {
+        AuthModeStatus::Settled if staged.is_some() => {
+            return Err(mode_corrupt("settled auth mode retains a staged key"));
+        }
+        AuthModeStatus::PendingRestart | AuthModeStatus::Quarantined if staged.is_none() => {
+            return Err(mode_corrupt("pending auth mode lacks its staged key"));
+        }
+        _ => {}
+    }
+    if let Some(staged) = &staged {
+        staged.validate_against(&state)?;
+    }
+
+    let active_manifest = aware.as_deref().map(parse_active_schema).transpose()?;
+    if let Some(manifest) = &active_manifest {
+        require_active_manifest_mode(manifest, state.active)?;
+    }
+    if let Some(identity) = &state.active_deployment {
+        let Some(manifest) = &active_manifest else {
+            return Err(mode_corrupt(
+                "active deployment lacks a capability-aware manifest",
+            ));
+        };
+        identity.validate_schema_half(manifest)?;
+    }
+    if state.active == crate::manifest::AuthMode::Sessions && active_manifest.is_none() {
+        return Err(mode_corrupt(
+            "settled sessions mode lacks its active manifest",
+        ));
+    }
+    if state.sessions_ever_activated {
+        if legacy.as_deref() != Some(LEGACY_MANIFEST_POISON) {
+            return Err(mode_corrupt(
+                "sessions activation evidence lacks permanent poison",
+            ));
+        }
+    } else {
+        if legacy.as_deref() == Some(LEGACY_MANIFEST_POISON) {
+            return Err(mode_corrupt("legacy poison precedes sessions activation"));
+        }
+        match (legacy.as_deref(), aware.as_deref()) {
+            (None, None) => {}
+            (Some(legacy), Some(aware)) if legacy == aware => {}
+            _ => {
+                return Err(mode_corrupt(
+                    "pre-sessions legacy and capability-aware manifests differ",
+                ));
+            }
+        }
+    }
+    Ok(active_manifest)
+}
+
+fn parse_active_schema(raw: &str) -> SnapbackResult<crate::manifest::SchemaManifest> {
+    serde_json::from_str(raw).map_err(|_| {
+        snapback_kernel::auth::mode::mode_corrupt("stored active schema could not be parsed")
+    })
+}
+
+fn require_active_manifest_mode(
+    manifest: &crate::manifest::SchemaManifest,
+    mode: crate::manifest::AuthMode,
+) -> SnapbackResult<()> {
+    if manifest.schema_version != mode.artifact_version() || manifest.effective_auth_mode() != mode
+    {
+        return Err(snapback_kernel::auth::mode::mode_corrupt(
+            "active schema manifest is not coherent with its auth mode",
+        ));
+    }
+    Ok(())
+}
+
+fn required_storage_version(
+    value: Option<rusqlite::types::Value>,
+    context: &str,
+) -> SnapbackResult<u64> {
+    match value {
+        Some(rusqlite::types::Value::Integer(value)) => portable_storage_version(value, context),
+        None => Err(storage_version_corrupt(
+            "global storage version row is missing",
+        )),
+        Some(rusqlite::types::Value::Null) => {
+            Err(storage_version_corrupt(format!("{context} is null")))
+        }
+        Some(_) => Err(storage_version_corrupt(format!(
+            "{context} is not an integer"
+        ))),
+    }
+}
+
+fn portable_storage_version(value: i64, context: &str) -> SnapbackResult<u64> {
+    u64::try_from(value)
+        .ok()
+        .filter(|version| *version <= crate::manifest::PORTABLE_STORAGE_VERSION_MAX)
+        .ok_or_else(|| {
+            storage_version_corrupt(format!("{context} is outside the portable integer domain"))
+        })
+}
+
+fn storage_version_corrupt(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_STORAGE_VERSION_CORRUPT", "storage", message)
+}
+
+fn seed_identity_corrupt(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_SEED_IDENTITY_CORRUPT", "seed", message)
+}
+
+fn operation_ledger_invalid(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_OPERATION_LEDGER_INVALID", "storage", message)
+}
+
 pub const RENEW_INTENT_FILE: &str = "fork-renew-intent.json";
 pub const RENEW_RECEIPT_FILE: &str = "fork-renew-receipt.json";
 pub const BASE_SNAPSHOT_FILE: &str = "fork-base.sqlite3";
@@ -2617,7 +3005,7 @@ fn diff_commit_boundaries(
             "fork mint receipt does not bind the diff base identity",
         ));
     }
-    let head_stream = snapback_kernel::instance_fork::ForkReadView::new(conn)?
+    let head_stream = ForkReadView::new(conn)?
         .data_version_stream()?
         .ok_or_else(|| {
             fork_error(
@@ -2682,8 +3070,7 @@ pub fn diff_receipt_bounded(
         [],
         |row| row.get::<_, u64>(0),
     )?;
-    let retention_floor =
-        snapback_kernel::instance_fork::ForkReadView::new(&tx)?.change_journal_floor()?;
+    let retention_floor = ForkReadView::new(&tx)?.change_journal_floor()?;
     if retention_floor > runtime.lineage.fork_point_version {
         return Err(fork_error(
             "SNAPBACK_FORK_DIFF_RETENTION_GAP",
@@ -2841,7 +3228,7 @@ fn verified_fork_app_row_coverage(
             "derived-fork writer coverage receipt does not bind the exact fork-point profile",
         ));
     }
-    let view = snapback_kernel::instance_fork::ForkReadView::new(conn)?;
+    let view = ForkReadView::new(conn)?;
     let stream = view
         .data_version_stream()?
         .ok_or_else(|| writer_coverage_invalid("fork has no active data-version stream"))?;
@@ -3033,18 +3420,17 @@ fn net_diff_receipt_with_limits(
     }
 
     let base = open_fork_read_connection(&base_path)?;
-    let base_schema = snapback_kernel::instance_fork::ForkReadView::new(&base)?.active_schema()?;
+    let base_schema = ForkReadView::new(&base)?.active_schema()?;
     let mut head = open_fork_read_connection(database_path)?;
     let tx = head.transaction()?;
     let wal_bytes = validate_sqlite_wal_integrity(database_path, limits.max_bytes)?;
-    let head_schema = snapback_kernel::instance_fork::ForkReadView::new(&tx)?.active_schema()?;
+    let head_schema = ForkReadView::new(&tx)?.active_schema()?;
     let observed_head_version = tx.query_row(
         "SELECT version FROM _snapback_version WHERE id=1",
         [],
         |row| row.get::<_, u64>(0),
     )?;
-    let retention_floor =
-        snapback_kernel::instance_fork::ForkReadView::new(&tx)?.change_journal_floor()?;
+    let retention_floor = ForkReadView::new(&tx)?.change_journal_floor()?;
     let coverage_receipt = verified_fork_app_row_coverage(&tx, directory, &runtime)?;
     let journal_cross_check_available = retention_floor <= runtime.lineage.fork_point_version;
     let mut work = NetDiffWorkV1 {

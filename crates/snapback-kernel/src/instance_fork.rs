@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Context as _;
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use rusqlite::{Connection, DatabaseName, OpenFlags, OptionalExtension, Transaction, params};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -29,54 +29,6 @@ pub struct StagedForkDatabase {
     staging_directory: PathBuf,
     database_path: PathBuf,
     cloned: bool,
-}
-
-/// Read-only fork inspection operations. This wrapper exposes no connection
-/// accessor and no transaction/commit method; services may use it while they
-/// own a read-only replication snapshot.
-pub struct ForkReadView<'a> {
-    conn: &'a Connection,
-}
-
-impl<'a> ForkReadView<'a> {
-    /// Bind typed fork inspection to a connection SQLite itself reports as
-    /// read-only. This is the one audited cross-crate raw-SQL ingress: it can
-    /// project facts, but cannot become a canonical-store commit path.
-    pub fn new(conn: &'a Connection) -> SnapbackResult<Self> {
-        if !conn.is_readonly(DatabaseName::Main)? {
-            return Err(fork_error(
-                "SNAPBACK_FORK_READ_HANDLE_REQUIRED",
-                "fork inspection requires a SQLite read-only connection",
-            ));
-        }
-        Ok(Self { conn })
-    }
-
-    pub fn data_version_stream(&self) -> SnapbackResult<Option<String>> {
-        crate::seed_identity::strict_current_data_version_stream(self.conn)
-    }
-
-    pub fn change_journal_floor(&self) -> SnapbackResult<u64> {
-        crate::storage::change_journal_floor_on(self.conn)
-    }
-
-    pub fn active_schema(&self) -> SnapbackResult<Option<crate::manifest::SchemaManifest>> {
-        crate::storage::active_schema_manifest_from_connection(self.conn)
-    }
-
-    pub fn active_operation_coverage(
-        &self,
-        stream_id: &str,
-    ) -> SnapbackResult<Option<crate::commit_envelope::OperationCoverageManifestV1>> {
-        crate::operation_ledger::active_coverage_manifest(self.conn, stream_id)
-    }
-
-    pub fn operation_coverage_continuity(
-        &self,
-        stream_id: &str,
-    ) -> SnapbackResult<Option<crate::operation_ledger::OperationCoverageContinuityV1>> {
-        crate::operation_ledger::operation_coverage_continuity(self.conn, stream_id)
-    }
 }
 
 impl StagedForkDatabase {

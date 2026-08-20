@@ -34,9 +34,7 @@ use uuid::Uuid;
 use crate::auth::keyring::{AUTH_KEYRING_MAXIMUM_BYTES, AuthKeyringStore};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
-pub use snapback_kernel::replication::{
-    ENV_TARGET, configure_connection_wal_lifetime, configured_from_env,
-};
+pub use snapback_kernel::replication::{ENV_TARGET, configured_from_env};
 pub const ENV_KEY_FILE: &str = "SNAPBACK_REPLICATION_KEY_FILE";
 pub const ENV_ENDPOINT: &str = "SNAPBACK_REPLICATION_ENDPOINT";
 pub const ENV_REGION: &str = "SNAPBACK_REPLICATION_REGION";
@@ -59,6 +57,34 @@ const MAX_METADATA_BYTES: usize = 1_048_576;
 
 fn replication_error(code: &'static str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(code, "replication", message.into())
+}
+
+/// Configure the WAL lifetime of a connection owned inside this crate.
+///
+/// @ref LLP 0284#32-raw-sqlite — the services layer no longer passes a raw
+/// connection through the kernel's dependent-visible API.
+pub(crate) fn configure_connection_wal_lifetime(conn: &Connection) -> SnapbackResult<()> {
+    let mut enabled = 1_i32;
+    // SAFETY: `conn.handle()` is valid for the call, `main` is a static
+    // NUL-terminated schema name, and SQLite's PERSIST_WAL file-control takes
+    // an `int *` that it consumes before returning.
+    let rc = unsafe {
+        rusqlite::ffi::sqlite3_file_control(
+            conn.handle(),
+            c"main".as_ptr(),
+            rusqlite::ffi::SQLITE_FCNTL_PERSIST_WAL,
+            std::ptr::from_mut(&mut enabled).cast(),
+        )
+    };
+    if rc != rusqlite::ffi::SQLITE_OK {
+        return Err(replication_error(
+            "SNAPBACK_REPLICATION_DATABASE_UNAVAILABLE",
+            format!(
+                "configure persistent WAL on Snapback connection: enable persistent WAL failed, sqlite code={rc}"
+            ),
+        ));
+    }
+    Ok(())
 }
 
 fn replication_failure_is_terminal(error: &SnapbackError) -> bool {
