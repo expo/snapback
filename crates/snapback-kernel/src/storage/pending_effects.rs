@@ -456,7 +456,6 @@ impl PreparedPendingEffectApproval {
 
 pub struct ApprovePendingEffectCommand {
     approval: PreparedPendingEffectApproval,
-    requires_step_up: bool,
     step_up: Option<crate::auth::crypto::StepUpProof>,
     now_ms: u64,
     owner: PendingEffectOwner,
@@ -544,7 +543,6 @@ impl crate::storage::KernelCommitAuthority {
         &self,
         owner: PendingEffectOwner,
         approval: PreparedPendingEffectApproval,
-        requires_step_up: bool,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<ApprovePendingEffectCommand> {
@@ -556,7 +554,6 @@ impl crate::storage::KernelCommitAuthority {
         }
         Ok(ApprovePendingEffectCommand {
             approval,
-            requires_step_up,
             step_up: step_up.cloned(),
             now_ms,
             owner,
@@ -1081,6 +1078,9 @@ impl LocalDatabase {
         if record.status != PendingEffectStatus::Pending {
             return Err(state_invalid());
         }
+        // @ref LLP 0303#the-fix-inherits-the-defect-and-the-test-that-guards-it-usually-doesnt-try —
+        // an absent durable approver is unassigned, not mismatched; only an
+        // explicitly different approver refuses this legitimate transition.
         if record
             .approver_principal_id
             .as_deref()
@@ -1106,7 +1106,6 @@ impl LocalDatabase {
         verify_command_identity(&command.approval.database_binding, &self.binding())?;
         let ApprovePendingEffectCommand {
             approval,
-            requires_step_up,
             step_up,
             now_ms,
             owner,
@@ -1133,6 +1132,15 @@ impl LocalDatabase {
             if current != prepared {
                 return Err(state_invalid());
             }
+            // @ref LLP 0303#the-governing-principle — derive the step-up
+            // requirement from the exact durable effect inside the same
+            // transaction that consumes the proof and records approval.
+            let requires_step_up = super::auth_scope_bases::current_authority_creating_on(
+                tx,
+                &current.function_id,
+                &current.function_kind,
+            )?
+            .ok_or_else(binding_stale)?;
             if requires_step_up {
                 let proof = step_up
                     .as_ref()
@@ -1354,6 +1362,14 @@ fn expired() -> SnapbackError {
     )
 }
 
+fn binding_stale() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_EFFECT_BINDING_STALE",
+        "effects",
+        "the pending effect's durable function policy is absent or no longer active",
+    )
+}
+
 fn catalog_corrupt() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_EFFECT_CATALOG_CORRUPT",
@@ -1390,6 +1406,14 @@ mod tests {
         db.conn.execute_batch(TABLE_SQL).unwrap();
         db.conn.execute_batch(APPROVER_INDEX_SQL).unwrap();
         db.conn.execute_batch(EXPIRY_INDEX_SQL).unwrap();
+        db.conn
+            .execute(
+                "INSERT INTO _auth_scope_bases(
+                   function_id, kind, generation, present, authority_creating
+                 ) VALUES('fn:write', 'mutation', 1, 1, 0)",
+                [],
+            )
+            .expect("durable function policy");
         let authority = db
             .claim_kernel_commit_authority()
             .expect("kernel authority");
@@ -1532,7 +1556,6 @@ mod tests {
                     .admit_pending_effect_approval(
                         management_owner(&db, "human-a"),
                         approval,
-                        false,
                         None,
                         20,
                     )
@@ -1624,6 +1647,31 @@ mod tests {
         assert_eq!(
             durable.22,
             serde_json::to_string(&executed.journal).unwrap()
+        );
+    }
+
+    #[test]
+    fn absent_approver_accepts_a_legitimate_derived_session_approval() {
+        let (mut db, authority) = ready();
+        let mut unassigned = request(10, DEFAULT_TTL_MS);
+        unassigned.approver_principal_id = None;
+        let created = db
+            .create_pending_effect(admit_creation(&db, &authority, unassigned))
+            .unwrap();
+        assert_eq!(created.approver_principal_id(), None);
+
+        let approval = db
+            .prepare_pending_effect_approval(&created.id, "human-a", 20)
+            .unwrap();
+        let command = authority
+            .admit_pending_effect_approval(management_owner(&db, "human-a"), approval, None, 20)
+            .unwrap();
+        let approved = db.approve_pending_effect(command).unwrap();
+
+        assert_eq!(approved.record.status, PendingEffectStatus::Approved);
+        assert_eq!(
+            approved.record.approver_identity.as_deref(),
+            Some("human-a")
         );
     }
 
@@ -2108,6 +2156,38 @@ mod tests {
                 .diagnostic
                 .code,
             "SNAPBACK_EFFECT_EXPIRED",
+        );
+    }
+
+    #[test]
+    fn approval_rederives_step_up_from_durable_policy_inside_the_transaction() {
+        let (mut db, authority) = ready();
+        let created = db
+            .create_pending_effect(admit_creation(&db, &authority, request(10, DEFAULT_TTL_MS)))
+            .unwrap();
+        db.conn
+            .execute(
+                "UPDATE _auth_scope_bases
+                 SET generation = generation + 1, authority_creating = 1
+                 WHERE function_id = 'fn:write'",
+                [],
+            )
+            .expect("durable policy changes before decision");
+
+        let approval = db
+            .prepare_pending_effect_approval(&created.id, "human-a", 20)
+            .unwrap();
+        let command = authority
+            .admit_pending_effect_approval(management_owner(&db, "human-a"), approval, None, 20)
+            .unwrap();
+        let error = db
+            .approve_pending_effect(command)
+            .err()
+            .expect("durably derived step-up must reject a missing proof");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
+        assert_eq!(
+            db.pending_effect(&created.id, 20).unwrap().status,
+            PendingEffectStatus::Pending,
         );
     }
 
