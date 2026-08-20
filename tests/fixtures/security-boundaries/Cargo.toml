@@ -379,6 +379,10 @@ path = "src/bin/publish_scope_retirement_without_commit.rs"
 name = "poison-scope-retirement-ceiling"
 path = "src/bin/poison_scope_retirement_ceiling.rs"
 
+[[bin]]
+name = "kernel-test-support-session-mint"
+path = "src/bin/kernel_test_support_session_mint.rs"
+
 # Harness-only counterexample: never part of attacks.v1.json.
 [[bin]]
 name = "unrelated-error-satisfies-regex"

@@ -21,7 +21,7 @@ use crate::auth::session_projection::{
     FencedAuthorityWorkPermit, FencedAuthorityWorkReservationError, FencedPublication,
     TerminalAuthorityDisposition,
 };
-use crate::contract_types::ServerProfile;
+use crate::contract_types::{ServerProfile, TokenDigest};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
     AuthInput, AuthMode, AuthRequirement, FunctionDefinition, FunctionKind, HandlerInput,
@@ -1535,6 +1535,10 @@ pub struct PreparedAuthority {
     /// this carrier also applies to the diagnostic `/auth/session` projection.
     service_publication: Option<ServiceAuthorityPublication>,
     authorization_stream_incarnation: Option<String>,
+    /// Digest retained only by a projection-resolved bearer carrier. It lets
+    /// authority-sensitive kernel commits re-resolve the live durable session
+    /// instead of accepting a caller-selected principal id.
+    principal_digest: Option<TokenDigest>,
     /// Server-derived, non-authoritative telemetry attribution for a
     /// classified invocation. Ordinary app calls use the closed first-party
     /// lane; this fact never participates in authorization.
@@ -2334,6 +2338,49 @@ impl PreparedAuthority {
         Option<&ServiceAuthorityPublication>,
     ) {
         (self.publication.as_ref(), self.service_publication.as_ref())
+    }
+
+    pub(crate) fn with_principal_digest(mut self, digest: Option<TokenDigest>) -> Self {
+        self.principal_digest = digest;
+        self
+    }
+
+    /// Resolve the durable kernel principal behind this exact bearer carrier.
+    /// Bearer-free retained authorities and generic prepared authorities have
+    /// no digest and therefore cannot authorize an attributed decision.
+    pub fn resolve_kernel_principal(
+        &self,
+        database: &mut crate::storage::ServingDatabase,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::ResolvedPrincipal> {
+        let digest = self.principal_digest.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PRINCIPAL_INVALID",
+                "auth",
+                "the prepared authority is not bound to a live bearer digest",
+            )
+        })?;
+        let principal = database.resolve_principal_from_session(digest, now_ms)?;
+        let ResolvedAppAuthority::Session(subject) = &self.resolved else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PRINCIPAL_INVALID",
+                "auth",
+                "the prepared authority is not session authority",
+            ));
+        };
+        if !principal.matches_session(
+            subject.user_id(),
+            subject.session_id(),
+            subject.generation(),
+            subject.authority_instance_id(),
+        ) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PRINCIPAL_INVALID",
+                "auth",
+                "the durable principal no longer matches the prepared authority",
+            ));
+        }
+        Ok(principal)
     }
 
     fn with_service_publication(mut self, publication: ServiceAuthorityPublication) -> Self {
@@ -3527,6 +3574,7 @@ impl InvocationGate {
             publication: None,
             service_publication: None,
             authorization_stream_incarnation: None,
+            principal_digest: None,
             caller_attribution: None,
             asset_callbacks_service: None,
             rehearsal_provenance,

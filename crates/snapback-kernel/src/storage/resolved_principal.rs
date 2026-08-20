@@ -8,6 +8,7 @@ use super::{DatabaseBinding, LocalDatabase};
 use crate::auth::crypto::{AgentCredential, TokenHash};
 use crate::contract_types::{PresentedSessionLookup, ResolvedSession, TokenDigest};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use rusqlite::{OptionalExtension, params};
 
 /// A principal identity proved by a kernel read of this database's durable
 /// authorization rows.
@@ -46,6 +47,19 @@ enum ResolvedPrincipalCredential {
         generation: u64,
         digest: TokenDigest,
     },
+}
+
+/// Private, copy-free decision proof extracted only from a kernel-resolved
+/// live human principal. The pending-effect command owns this snapshot and
+/// revalidates every coordinate in its committing transaction.
+#[derive(Clone)]
+pub(super) struct ResolvedEffectApprover {
+    pub(super) database_binding: DatabaseBinding,
+    pub(super) principal_id: String,
+    pub(super) session_id: String,
+    pub(super) generation: u64,
+    pub(super) authority_instance_id: String,
+    pub(super) digest: TokenDigest,
 }
 
 impl ResolvedPrincipal {
@@ -97,8 +111,30 @@ impl ResolvedPrincipal {
         &self.database_binding
     }
 
-    pub(super) fn principal_id(&self) -> &str {
+    pub fn principal_id(&self) -> &str {
         &self.principal_id
+    }
+
+    pub fn matches_session(
+        &self,
+        principal_id: &str,
+        session_id: &str,
+        generation: u64,
+        authority_instance_id: &str,
+    ) -> bool {
+        self.principal_id == principal_id
+            && matches!(self.class, ResolvedPrincipalClass::User)
+            && matches!(
+                &self.credential,
+                ResolvedPrincipalCredential::Session {
+                    row_id,
+                    generation: resolved_generation,
+                    authority_instance_id: resolved_authority,
+                    ..
+                } if row_id == session_id
+                    && *resolved_generation == generation
+                    && resolved_authority == authority_instance_id
+            )
     }
 
     pub(super) fn resolved_at_version(&self) -> u64 {
@@ -131,6 +167,75 @@ impl ResolvedPrincipal {
             } => Some((row_id, *generation, digest)),
         }
     }
+
+    pub(super) fn effect_approver(&self) -> SnapbackResult<ResolvedEffectApprover> {
+        let ResolvedPrincipalCredential::Session {
+            row_id,
+            generation,
+            authority_instance_id,
+            digest,
+        } = &self.credential
+        else {
+            return Err(invalid());
+        };
+        if !matches!(self.class, ResolvedPrincipalClass::User) {
+            return Err(invalid());
+        }
+        Ok(ResolvedEffectApprover {
+            database_binding: self.database_binding.clone(),
+            principal_id: self.principal_id.clone(),
+            session_id: row_id.clone(),
+            generation: *generation,
+            authority_instance_id: authority_instance_id.clone(),
+            digest: *digest,
+        })
+    }
+}
+
+pub(super) fn revalidate_effect_approver_on<'a>(
+    transaction: &rusqlite::Transaction<'_>,
+    approver: &'a ResolvedEffectApprover,
+    database_binding: &DatabaseBinding,
+    now_ms: u64,
+) -> SnapbackResult<&'a str> {
+    if !approver.database_binding.matches(database_binding) {
+        return Err(invalid());
+    }
+    let active_human = transaction
+        .query_row(
+            "SELECT 1 FROM _auth_users
+             WHERE id = ?1 AND kind = 'human' AND deactivated_at_ms IS NULL",
+            params![approver.principal_id],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if !active_human {
+        return Err(invalid());
+    }
+    let live_session = transaction
+        .query_row(
+            "SELECT 1 FROM _auth_sessions
+             WHERE id = ?1 AND user_id = ?2 AND generation = ?3
+               AND authority_instance_id = ?4 AND token_hash = ?5
+               AND revoked_at_ms IS NULL
+               AND ?6 < expires_at_ms AND ?6 < absolute_expires_at_ms",
+            params![
+                approver.session_id,
+                approver.principal_id,
+                approver.generation as i64,
+                approver.authority_instance_id,
+                approver.digest.as_bytes().as_slice(),
+                now_ms as i64,
+            ],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if !live_session {
+        return Err(invalid());
+    }
+    Ok(&approver.principal_id)
 }
 
 fn invalid() -> SnapbackError {
@@ -147,7 +252,7 @@ impl LocalDatabase {
     /// SQLite snapshot; callers cannot substitute the projected user or
     /// generation recorded in the returned opaque proof.
     pub fn resolve_principal_from_session(
-        &self,
+        &mut self,
         digest: &TokenDigest,
         now_ms: u64,
     ) -> SnapbackResult<ResolvedPrincipal> {
@@ -155,25 +260,71 @@ impl LocalDatabase {
             return Err(invalid());
         }
         let binding = self.binding();
-        self.with_auth_read(|connection| {
-            super::with_pinned_read_snapshot(connection, |connection| {
-                let token_hash = TokenHash::from_bytes(*digest.as_bytes());
-                let PresentedSessionLookup::Current(record) =
-                    super::auth_catalog_ops::lookup_presented_session(connection, &token_hash)?
-                else {
-                    return Err(invalid());
-                };
-                if !record.live_at(now_ms) {
+        self.with_auth_transaction(|transaction| {
+            // @ref LLP 0059#durable-session-clock-floor — a caller may sample
+            // below the durable high-water, but authorization evaluates at
+            // the non-decreasing floor and can never revive expired state.
+            let effective_now_ms =
+                super::auth::advance_session_clock_floor_on(transaction, now_ms)?;
+            let token_hash = TokenHash::from_bytes(*digest.as_bytes());
+            let PresentedSessionLookup::Current(mut record) =
+                super::auth_catalog_ops::lookup_presented_session(transaction, &token_hash)?
+            else {
+                return Err(invalid());
+            };
+            if !record.live_at(effective_now_ms)
+                || effective_now_ms >= record.session.absolute_expires_at_ms
+            {
+                return Err(invalid());
+            }
+            let active_human = transaction
+                .query_row(
+                    "SELECT 1 FROM _auth_users
+                     WHERE id = ?1 AND kind = 'human' AND deactivated_at_ms IS NULL",
+                    params![record.session.user_id],
+                    |_| Ok(()),
+                )
+                .optional()?
+                .is_some();
+            if !active_human {
+                return Err(invalid());
+            }
+            let use_row = super::auth_catalog_ops::authenticated_use_row(
+                transaction,
+                &record.session.session_id,
+                record.session.generation,
+            )?
+            .ok_or_else(invalid)?;
+            if !use_row.live_at(effective_now_ms) {
+                return Err(invalid());
+            }
+            if effective_now_ms.saturating_sub(use_row.last_used_at_ms)
+                >= crate::contract_types::AUTH_SESSION_USE_COALESCE_MS
+            {
+                let expires_at_ms = effective_now_ms
+                    .checked_add(crate::contract_types::AUTH_SESSION_SLIDING_WINDOW_MS)
+                    .unwrap_or(crate::contract_types::AUTH_MAX_SAFE_TIMESTAMP)
+                    .min(use_row.absolute_expires_at_ms);
+                let extended = super::auth_catalog_ops::extend_authenticated_use_transaction(
+                    transaction,
+                    &record.session.session_id,
+                    record.session.generation,
+                    effective_now_ms,
+                    expires_at_ms,
+                    crate::contract_types::AUTH_SESSION_USE_COALESCE_MS,
+                )?;
+                if !extended {
                     return Err(invalid());
                 }
-                let resolved_at_version = super::current_version_on(connection)?;
-                Ok(ResolvedPrincipal::from_session(
-                    binding,
-                    record.session,
-                    *digest,
-                    resolved_at_version,
-                ))
-            })
+                record.session.expires_at_ms = expires_at_ms;
+            }
+            let resolved_at_version = super::current_version_on(transaction)?;
+            Ok(ResolvedPrincipal::from_session(
+                binding,
+                record.session,
+                *digest,
+                resolved_at_version,
+            ))
         })
     }
 
