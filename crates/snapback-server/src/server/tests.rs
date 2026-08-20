@@ -21,23 +21,29 @@ use crate::storage::auth_rescue::{
     AuthCollisionFixtureTableForTest, install_auth_collision_fixtures_for_test,
 };
 
-fn telemetry_events_for_test(
-    telemetry: &crate::telemetry::Telemetry,
-    kind: &str,
-    name: &str,
+fn filter_telemetry_events_for_test(
+    rows: Vec<crate::telemetry_query::TelemetryEventV1>,
+    kind: Option<&str>,
+    name: Option<&str>,
 ) -> Vec<crate::telemetry_query::TelemetryEventV1> {
-    telemetry
-        .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
-            filter: crate::telemetry_query::TelemetryFilterV1 {
-                kind: Some(kind.to_owned()),
-                name: Some(name.to_owned()),
-                ..crate::telemetry_query::TelemetryFilterV1::default()
-            },
-            limit: crate::telemetry_query::MAX_EVENT_LIMIT,
-            ..crate::telemetry_query::TelemetryEventsRequestV1::default()
-        })
-        .expect("typed telemetry test query")
-        .events
+    rows.into_iter()
+        .filter(|event| kind.is_none_or(|kind| event.kind == kind))
+        .filter(|event| name.is_none_or(|name| event.name == name))
+        .collect()
+}
+
+fn physical_telemetry_events_for_test(
+    telemetry: &crate::telemetry::Telemetry,
+    kind: Option<&str>,
+    name: Option<&str>,
+) -> Vec<crate::telemetry_query::TelemetryEventV1> {
+    filter_telemetry_events_for_test(
+        telemetry
+            .physical_event_rows_for_test()
+            .expect("physical telemetry test query"),
+        kind,
+        name,
+    )
 }
 
 fn test_session_claims_for(
@@ -884,33 +890,39 @@ async fn http_telemetry_uses_registered_names_codes_and_private_unmatched_detail
     assert_eq!(unmatched.status(), StatusCode::NOT_FOUND);
 
     telemetry.force_flush().expect("flush HTTP observations");
-    let health_count = telemetry_events_for_test(&telemetry, "http_request", "/health")
-        .into_iter()
-        .filter(|event| event.phase == "joined")
-        .count();
+    let health_count =
+        physical_telemetry_events_for_test(&telemetry, Some("http_request"), Some("/health"))
+            .into_iter()
+            .filter(|event| event.phase == "joined")
+            .count();
     assert_eq!(
         health_count, 1,
         "the registered health operation is observed while inert OPTIONS is not"
     );
-    let failure_code = telemetry_events_for_test(&telemetry, "http_request", "/auth/request-code")
-        .into_iter()
-        .rev()
-        .find(|event| event.phase == "joined")
-        .expect("registered failure observation")
-        .code;
+    let failure_code = physical_telemetry_events_for_test(
+        &telemetry,
+        Some("http_request"),
+        Some("/auth/request-code"),
+    )
+    .into_iter()
+    .rev()
+    .find(|event| event.phase == "joined")
+    .expect("registered failure observation")
+    .code;
     assert!(
         failure_code
             .as_deref()
             .is_some_and(|code| code.starts_with("SNAPBACK_")),
         "the handler diagnostic code crosses the response seam: {failure_code:?}"
     );
-    let unmatched_details = telemetry_events_for_test(&telemetry, "http_request", "_unmatched")
-        .into_iter()
-        .rev()
-        .find(|event| event.phase == "joined")
-        .expect("unmatched observation")
-        .details
-        .expect("unmatched details JSON");
+    let unmatched_details =
+        physical_telemetry_events_for_test(&telemetry, Some("http_request"), Some("_unmatched"))
+            .into_iter()
+            .rev()
+            .find(|event| event.phase == "joined")
+            .expect("unmatched observation")
+            .details
+            .expect("unmatched details JSON");
     assert_eq!(unmatched_details["rawPath"], "/attacker/path");
     assert_eq!(unmatched_details["method"], "GET");
     assert!(!unmatched_details.to_string().contains("must-not-survive"));
@@ -936,17 +948,16 @@ fn ws_connect_observation_joins_once_with_generic_disconnect_cause() {
             true,
         ));
         telemetry.force_flush().expect("flush socket admission");
-        let phases =
-            telemetry_events_for_test(&telemetry, "ws_connect", "/live/{connection_id}/stream")
-                .into_iter()
-                .map(|event| event.phase)
-                .collect::<Vec<_>>();
+        let phases = physical_telemetry_events_for_test(&telemetry, Some("ws_connect"), None)
+            .into_iter()
+            .map(|event| event.phase)
+            .collect::<Vec<_>>();
         assert_eq!(phases, vec!["admission"]);
         observation.finish();
     }
     telemetry.force_flush().expect("flush socket terminal");
 
-    let rows = telemetry_events_for_test(&telemetry, "ws_connect", "/live/{connection_id}/stream");
+    let rows = physical_telemetry_events_for_test(&telemetry, Some("ws_connect"), None);
     assert_eq!(rows.len(), 2);
     assert_eq!(
         (rows[0].phase.as_str(), rows[1].phase.as_str()),
@@ -995,11 +1006,10 @@ fn ws_connect_observation_preserves_typed_terminal_code_and_reason() {
         observation.finish();
     }
     telemetry.force_flush().expect("flush typed terminal");
-    let terminal =
-        telemetry_events_for_test(&telemetry, "ws_connect", "/live/{connection_id}/stream")
-            .into_iter()
-            .find(|event| event.phase == "terminal")
-            .expect("typed socket terminal");
+    let terminal = physical_telemetry_events_for_test(&telemetry, Some("ws_connect"), None)
+        .into_iter()
+        .find(|event| event.phase == "terminal")
+        .expect("typed socket terminal");
     assert_eq!(terminal.status, Some(500));
     assert_eq!(
         terminal.code.as_deref(),
@@ -1043,10 +1053,10 @@ fn live_service_terminal_failure_emission_records_once() {
         );
     }
     telemetry.force_flush().expect("flush service diagnostic");
-    let count = telemetry_events_for_test(
+    let count = physical_telemetry_events_for_test(
         &telemetry,
-        "diagnostic",
-        "SNAPBACK_LIVE_SERVICE_TERMINAL_OBSERVATION_FAILED",
+        Some("diagnostic"),
+        Some("SNAPBACK_LIVE_SERVICE_TERMINAL_OBSERVATION_FAILED"),
     )
     .into_iter()
     .filter(|event| {
@@ -1068,7 +1078,9 @@ async fn successful_bind_records_process_ready_exactly_once() {
         .expect("bind ready listener");
     let _bound = super::app(state).bind(listener).expect("couple bound app");
     telemetry.force_flush().expect("flush ready lifecycle");
-    let count = telemetry_events_for_test(&telemetry, "lifecycle", "process_ready").len();
+    let count =
+        physical_telemetry_events_for_test(&telemetry, Some("lifecycle"), Some("process_ready"))
+            .len();
     assert_eq!(count, 1);
 
     let direct_path = directory.path().join("direct-ready.sqlite3");
@@ -1079,7 +1091,12 @@ async fn successful_bind_records_process_ready_exactly_once() {
     direct_telemetry
         .force_flush()
         .expect("flush pre-ready lifecycle");
-    let before = telemetry_events_for_test(&direct_telemetry, "lifecycle", "process_ready").len();
+    let before = physical_telemetry_events_for_test(
+        &direct_telemetry,
+        Some("lifecycle"),
+        Some("process_ready"),
+    )
+    .len();
     assert_eq!(before, 0, "construction alone is not readiness");
     tower::ServiceExt::ready(&mut direct)
         .await
@@ -1090,7 +1107,12 @@ async fn successful_bind_records_process_ready_exactly_once() {
     direct_telemetry
         .force_flush()
         .expect("flush direct readiness");
-    let after = telemetry_events_for_test(&direct_telemetry, "lifecycle", "process_ready").len();
+    let after = physical_telemetry_events_for_test(
+        &direct_telemetry,
+        Some("lifecycle"),
+        Some("process_ready"),
+    )
+    .len();
     assert_eq!(after, 1, "shared readiness authority is one-shot");
 }
 
@@ -29484,10 +29506,10 @@ async fn maintenance_cleanup_join_failure_retains_exact_retry_capture() {
     );
     state.connections.lock().assert_grant_indexes_consistent();
     telemetry.force_flush().expect("flush cleanup diagnostic");
-    let count = telemetry_events_for_test(
+    let count = physical_telemetry_events_for_test(
         &telemetry,
-        "diagnostic",
-        "SNAPBACK_CONNECTION_CLEANUP_FAILED",
+        Some("diagnostic"),
+        Some("SNAPBACK_CONNECTION_CLEANUP_FAILED"),
     )
     .into_iter()
     .filter(|event| event.code.as_deref() == Some("SNAPBACK_CONNECTION_CLEANUP_FAILED"))
@@ -32569,11 +32591,10 @@ async fn terminal_socket_sends_closed_auth_error_then_4401() {
     })
     .await
     .expect("typed socket observation completes");
-    let terminals =
-        telemetry_events_for_test(&telemetry, "ws_connect", "/live/{connection_id}/stream")
-            .into_iter()
-            .filter(|event| event.phase == "terminal")
-            .collect::<Vec<_>>();
+    let terminals = physical_telemetry_events_for_test(&telemetry, Some("ws_connect"), None)
+        .into_iter()
+        .filter(|event| event.phase == "terminal")
+        .collect::<Vec<_>>();
     assert_eq!(terminals.len(), 1);
     let terminal = &terminals[0];
     assert_eq!(terminal.status, Some(500));

@@ -15,8 +15,7 @@ default = ["services-owner"]
 # recorder and integration tests. Confined handles do not cross those APIs.
 services-owner = []
 benchmark-support = []
-test-support = []
-remainder-tests = ["test-support", "snapback-kernel/test-support"]
+remainder-tests = ["snapback-kernel/test-support"]
 
 [dependencies]
 anyhow = "1.0"

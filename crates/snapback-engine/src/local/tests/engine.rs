@@ -1,22 +1,42 @@
 use super::*;
 
-fn telemetry_events_for_test(
-    telemetry: &crate::telemetry::Telemetry,
-    kind: &str,
-    name: &str,
+fn filter_telemetry_events_for_test(
+    rows: Vec<crate::telemetry_query::TelemetryEventV1>,
+    kind: Option<&str>,
+    name: Option<&str>,
 ) -> Vec<crate::telemetry_query::TelemetryEventV1> {
-    telemetry
-        .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
-            filter: crate::telemetry_query::TelemetryFilterV1 {
-                kind: Some(kind.to_owned()),
-                name: Some(name.to_owned()),
-                ..crate::telemetry_query::TelemetryFilterV1::default()
-            },
-            limit: crate::telemetry_query::MAX_EVENT_LIMIT,
-            ..crate::telemetry_query::TelemetryEventsRequestV1::default()
-        })
-        .expect("typed telemetry test query")
-        .events
+    rows.into_iter()
+        .filter(|event| kind.is_none_or(|kind| event.kind == kind))
+        .filter(|event| name.is_none_or(|name| event.name == name))
+        .collect()
+}
+
+fn physical_telemetry_events_for_test(
+    telemetry: &crate::telemetry::Telemetry,
+    kind: Option<&str>,
+    name: Option<&str>,
+) -> Vec<crate::telemetry_query::TelemetryEventV1> {
+    filter_telemetry_events_for_test(
+        telemetry
+            .physical_event_rows_for_test()
+            .expect("physical telemetry test query"),
+        kind,
+        name,
+    )
+}
+
+fn visible_telemetry_events_for_test(
+    telemetry: &crate::telemetry::Telemetry,
+    kind: Option<&str>,
+    name: Option<&str>,
+) -> Vec<crate::telemetry_query::TelemetryEventV1> {
+    filter_telemetry_events_for_test(
+        telemetry
+            .visible_event_rows_for_test()
+            .expect("visible telemetry test query"),
+        kind,
+        name,
+    )
 }
 
 #[test]
@@ -6274,7 +6294,7 @@ fn declared_application_refusal_round_trips_and_undeclared_folds() {
         .force_flush()
         .expect("flush refusal emission evidence");
     let details_for = |name: &str| -> Value {
-        telemetry_events_for_test(&snapback.telemetry, "function_run", name)
+        visible_telemetry_events_for_test(&snapback.telemetry, Some("function_run"), Some(name))
             .into_iter()
             .next_back()
             .expect("function failure details")
@@ -14672,10 +14692,11 @@ fn timeout_retirement_suppresses_cron_finish_and_result_ledger_publication() {
         .telemetry
         .force_flush()
         .expect("flush rejected cron terminal");
-    let terminal = telemetry_events_for_test(&snapback.telemetry, "job_run", "gatedCron")
-        .into_iter()
-        .next_back()
-        .expect("cron publication guard terminal observation");
+    let terminal =
+        physical_telemetry_events_for_test(&snapback.telemetry, Some("job_run"), Some("gatedCron"))
+            .into_iter()
+            .next_back()
+            .expect("cron publication guard terminal observation");
     assert_eq!(
         (
             terminal.phase.as_str(),
@@ -23006,14 +23027,18 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
             .telemetry
             .force_flush()
             .expect("flush staged observations");
-        let staged_successes = telemetry_events_for_test(&snapback.telemetry, "function_run", name)
-            .into_iter()
-            .filter(|event| {
-                event.phase == "joined"
-                    && event.status == Some(200)
-                    && event.correlation.as_deref() == Some(correlation.as_str())
-            })
-            .count();
+        let staged_successes = physical_telemetry_events_for_test(
+            &snapback.telemetry,
+            Some("function_run"),
+            Some(name),
+        )
+        .into_iter()
+        .filter(|event| {
+            event.phase == "joined"
+                && event.status == Some(200)
+                && event.correlation.as_deref() == Some(correlation.as_str())
+        })
+        .count();
         assert_eq!(
             staged_successes, 0,
             "staging cannot publish a successful terminal observation"
@@ -23159,23 +23184,28 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
         .force_flush()
         .expect("flush function observations");
     for (name, correlation) in [("hostInsert", "host-staged"), ("ibexInsert", "ibex-staged")] {
-        let count = telemetry_events_for_test(&snapback.telemetry, "function_run", name)
-            .into_iter()
-            .filter(|event| {
-                event.phase == "joined"
-                    && event.status == Some(200)
-                    && event.correlation.as_deref() == Some(correlation)
-            })
-            .count();
+        let count = physical_telemetry_events_for_test(
+            &snapback.telemetry,
+            Some("function_run"),
+            Some(name),
+        )
+        .into_iter()
+        .filter(|event| {
+            event.phase == "joined"
+                && event.status == Some(200)
+                && event.correlation.as_deref() == Some(correlation)
+        })
+        .count();
         assert_eq!(count, 1, "one completed function span for {name}");
     }
-    let refused_events =
-        telemetry_events_for_test(&snapback.telemetry, "function_run", "hostInsert")
-            .into_iter()
-            .filter(|event| {
-                event.phase == "joined" && event.correlation.as_deref() == Some("host-refused")
-            })
-            .collect::<Vec<_>>();
+    let refused_events = physical_telemetry_events_for_test(
+        &snapback.telemetry,
+        Some("function_run"),
+        Some("hostInsert"),
+    )
+    .into_iter()
+    .filter(|event| event.phase == "joined" && event.correlation.as_deref() == Some("host-refused"))
+    .collect::<Vec<_>>();
     let refused_terminal = refused_events
         .last()
         .expect("authoritative refusal observation");
@@ -23194,19 +23224,20 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
         refused_successes, 0,
         "authoritative refusal cannot retain staging status=200"
     );
-    let managed_failure =
-        telemetry_events_for_test(&snapback.telemetry, "function_run", "emptyAction")
-            .into_iter()
-            .rev()
-            .find(|event| {
-                event.phase == "joined" && event.correlation.as_deref() == Some("managed-action")
-            })
-            .expect("managed action handoff terminal");
+    let managed_failure = physical_telemetry_events_for_test(
+        &snapback.telemetry,
+        Some("function_run"),
+        Some("emptyAction"),
+    )
+    .into_iter()
+    .rev()
+    .find(|event| event.phase == "joined" && event.correlation.as_deref() == Some("managed-action"))
+    .expect("managed action handoff terminal");
     assert_eq!(
         (managed_failure.status, managed_failure.code.as_deref()),
         (Some(500), Some("SNAPBACK_AUTH_MODE_PENDING"))
     );
-    let logged = telemetry_events_for_test(&snapback.telemetry, "log", "log")
+    let logged = physical_telemetry_events_for_test(&snapback.telemetry, Some("log"), Some("log"))
         .into_iter()
         .filter(|event| {
             event.correlation.as_deref() == Some("ibex-staged")
@@ -23243,7 +23274,8 @@ fn telemetry_config_persist_failure_restores_the_previous_runtime_policy() {
         .unwrap()
         .retention_floor;
     let visible_before =
-        telemetry_events_for_test(&snapback.telemetry, "lifecycle", "before_failed_config").len();
+        visible_telemetry_events_for_test(&snapback.telemetry, None, Some("before_failed_config"))
+            .len();
     assert_eq!(visible_before, 1);
     let config_path = crate::config::ConfigStore::path_for_database(&database_path);
     std::fs::create_dir(&config_path).expect("block atomic config rename with a directory");
@@ -23268,7 +23300,8 @@ fn telemetry_config_persist_failure_restores_the_previous_runtime_policy() {
         .unwrap()
         .retention_floor;
     let visible_after =
-        telemetry_events_for_test(&snapback.telemetry, "lifecycle", "before_failed_config").len();
+        visible_telemetry_events_for_test(&snapback.telemetry, None, Some("before_failed_config"))
+            .len();
     assert_eq!(
         floor_after, floor_before,
         "failed persistence cannot advance the privacy floor"
@@ -23290,10 +23323,10 @@ fn telemetry_config_persist_failure_restores_the_previous_runtime_policy() {
         .telemetry
         .force_flush()
         .expect("the compensated runtime accepts observations");
-    let count = telemetry_events_for_test(
+    let count = physical_telemetry_events_for_test(
         &snapback.telemetry,
-        "lifecycle",
-        "config_compensation_probe",
+        Some("lifecycle"),
+        Some("config_compensation_probe"),
     )
     .len();
     assert_eq!(count, 1);
@@ -23544,10 +23577,10 @@ fn telemetry_runtime_config_failure_compensates_the_durable_config() {
         .telemetry
         .force_flush()
         .expect("prior runtime policy remains live after failed transition");
-    let count = telemetry_events_for_test(
+    let count = visible_telemetry_events_for_test(
         &snapback.telemetry,
-        "lifecycle",
-        "runtime_config_compensation_probe",
+        None,
+        Some("runtime_config_compensation_probe"),
     )
     .len();
     assert_eq!(count, 1);
@@ -23588,10 +23621,18 @@ fn uncertain_reset_fence_drops_observations_until_boot_reconciliation() {
         .force_flush()
         .expect("flush fail-closed drop accounting");
 
-    let before =
-        telemetry_events_for_test(&snapback.telemetry, "lifecycle", "before_uncertain_reset").len();
-    let after =
-        telemetry_events_for_test(&snapback.telemetry, "lifecycle", "after_uncertain_reset").len();
+    let before = physical_telemetry_events_for_test(
+        &snapback.telemetry,
+        None,
+        Some("before_uncertain_reset"),
+    )
+    .len();
+    let after = physical_telemetry_events_for_test(
+        &snapback.telemetry,
+        None,
+        Some("after_uncertain_reset"),
+    )
+    .len();
     assert_eq!((before, after), (1, 0));
 }
 
@@ -23951,10 +23992,14 @@ fn dropped_staged_function_carriers_record_reserved_cancellation() {
         ("hostInsert", "cancelled-staged-mutation"),
         ("emptyAction", "cancelled-managed-action"),
     ] {
-        let terminal = telemetry_events_for_test(&snapback.telemetry, "function_run", name)
-            .into_iter()
-            .find(|event| event.correlation.as_deref() == Some(correlation))
-            .expect("cancelled carrier terminal");
+        let terminal = physical_telemetry_events_for_test(
+            &snapback.telemetry,
+            Some("function_run"),
+            Some(name),
+        )
+        .into_iter()
+        .find(|event| event.correlation.as_deref() == Some(correlation))
+        .expect("cancelled carrier terminal");
         assert_eq!(
             (terminal.phase.as_str(), terminal.status, terminal.code),
             ("joined", Some(499), None)
@@ -25504,7 +25549,8 @@ fn live_subscription_observations_join_once_and_record_disconnect_cause() {
         .telemetry
         .force_flush()
         .expect("flush admission before completion");
-    let admitted = telemetry_events_for_test(&snapback.telemetry, "live_subscribe", "listItems");
+    let admitted =
+        physical_telemetry_events_for_test(&snapback.telemetry, Some("live_subscribe"), None);
     let admission_only = admitted
         .iter()
         .filter(|event| event.phase == "admission")
@@ -25534,7 +25580,8 @@ fn live_subscription_observations_join_once_and_record_disconnect_cause() {
         .force_flush()
         .expect("flush live terminals");
 
-    let rows = telemetry_events_for_test(&snapback.telemetry, "live_subscribe", "listItems");
+    let rows =
+        physical_telemetry_events_for_test(&snapback.telemetry, Some("live_subscribe"), None);
     let mut by_observation = BTreeMap::<String, Vec<_>>::new();
     for row in rows {
         by_observation
@@ -25610,7 +25657,8 @@ fn live_resume_retires_predecessor_before_successor_admission() {
         .telemetry
         .force_flush()
         .expect("flush resume spans");
-    let rows = telemetry_events_for_test(&snapback.telemetry, "live_subscribe", "listItems");
+    let rows =
+        physical_telemetry_events_for_test(&snapback.telemetry, Some("live_subscribe"), None);
     assert_eq!(rows.len(), 4);
     assert_eq!(
         rows.iter()
@@ -31094,10 +31142,14 @@ fn retired_job_publication_emits_a_failure_terminal() {
         .telemetry
         .force_flush()
         .expect("flush rejected job terminal");
-    let terminal = telemetry_events_for_test(&snapback.telemetry, "job_run", "inertNotify")
-        .into_iter()
-        .next_back()
-        .expect("job publication guard terminal observation");
+    let terminal = physical_telemetry_events_for_test(
+        &snapback.telemetry,
+        Some("job_run"),
+        Some("inertNotify"),
+    )
+    .into_iter()
+    .next_back()
+    .expect("job publication guard terminal observation");
     assert_eq!(
         (
             terminal.phase.as_str(),

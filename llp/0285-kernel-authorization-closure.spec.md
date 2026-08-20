@@ -8,6 +8,11 @@ Verification, Packaging
 Claude (Opus 5) and codex `gpt-5.6-sol` — commissioned by Charlie Cheever
 (author rulings 2026-08-19, recorded in §2)
 **Date:** 2026-08-19
+**Revised:** 2026-08-19 (F-1 test-confinement implementation note: tiers 2–3
+add visible `rusqlite` dev-dependencies to `snapback` and the new rank-7
+`snapback-harness`; exact telemetry probes read unbounded physical rows when
+their predecessor assertions did; no separate caller-selectable
+`snapback-services/test-support` feature is introduced.)
 **Revised:** 2026-08-19 (c — second independent review fact-checked every
 citation; §5.4 reclassified from Attacker A to Attacker C and three factual
 errors in it corrected; counts and line citations corrected. (b — revised after an independent blind review of
@@ -284,6 +289,25 @@ three tiers:
 3. **Residue moves to a new `crates/snapback-harness`** with its own
    dev-dependency, taking the `snapback-cli` and residual
    `snapback-engine`/`snapback-server` sites.
+
+**F-1 implementation note (2026-08-19).** Tiers 2–3 widen the LLP 0276
+matrix deliberately: `snapback` and the new rank-7 `snapback-harness` may name
+`rusqlite` as dev-dependencies, so the workspace-graph gate sees the physical
+test authority and ordinary downstream dependency graphs do not inherit it.
+LLP 0276's crate table and external-confinement rule are amended in the same
+round. Typed telemetry replacements preserve their raw-SQL predecessor's
+projection: exact-count and physical-row assertions use an insertion-ordered,
+unbounded `telemetry_events` probe (so wrong-generation, retention-hidden, and
+row-501 duplicates remain visible); the few predecessor queries that used
+`telemetry_events_visible` use a separate unbounded visible-view probe.
+
+The intermediate state intentionally adds **no** separate caller-selectable
+`snapback-services/test-support` feature. All services seams needed by these
+tests remain behind the already conspicuous `remainder-tests` feature until
+steps 10–14 delete both that feature and `snapback-services::test_support`.
+This avoids creating a smaller second door to mutators such as
+`replace_store_for_test` and `fail_next_config_update_for_test`; it does not
+claim that the surviving `remainder-tests` door is confinement.
 
 Then delete `snapback-services::test_support`, the `remainder-tests` feature, and
 all four dev-dependency activations. Every `test-support` privilege seam demotes

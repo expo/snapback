@@ -7,7 +7,13 @@
 **Date:** 2026-08-17
 **Related:** LLP 0000, LLP 0002, LLP 0010, LLP 0037, LLP 0041, LLP 0053,
 LLP 0059, LLP 0061, LLP 0141, LLP 0189, LLP 0199, LLP 0225, LLP 0232,
-LLP 0259
+LLP 0259, LLP 0285
+**Revised:** 2026-08-19 (F-1 test-confinement amendment: add the rank-7
+`snapback-harness` proof crate and permit `rusqlite` in `snapback` and
+`snapback-harness` strictly as dev-dependencies. This makes raw-SQL test
+authority visible to the workspace-graph gate while keeping it out of
+downstream normal dependency graphs; rationale and migration sequence are in
+LLP 0285 §5.3.)
 **Revised:** 2026-08-18 (Phase 2 security-fix round: port inversion may not
 replace a compiler-enforced admission capability with a caller-asserted
 public trait, enum, or constructor; commit ports retain opaque capabilities
@@ -317,6 +323,7 @@ a strictly lower rank; the matrix is therefore a DAG by construction.
 | `snapback-cli` | 6 | `transport-adapters` | server + all lower | The clap surface (~40 command groups), guide command, MCP stdio, lifecycle commands; builds and starts the server app (hence rank above it). |
 | `snapback` | 7 | `embed-facade` / composition root | cli, server + all lower | The public crate: `snapback::embed` (LLP 0141 D1's sole supported Rust surface, source-compatible — its re-exports of engine/server types are exactly why this crate sits above the adapters) and the `snapback` binary. Its `build.rs` keeps the three binary-scoped jobs (guide-corpus embedding, build-identity stamping, Hermes rpaths for the final binary): the workspace's win here is rebuild-scope confinement, not job separation. `crates/snapback/examples/` holds the embed examples. |
 | `snapback-conformance` | 7 | `proof-harness` (non-product) | server, engine, kernel, auth, types | Wire fixtures, the conformance-twin bin, sbsb vectors, cf-manifest — proof bins exercising the contract from outside. |
+| `snapback-harness` | 7 | `proof-harness` (non-product) | server, engine, kernel, auth, cli | Integration tests that must inspect the canonical SQLite store directly, beginning with the store-export suite moved out of product crates. `rusqlite` is a dev-dependency only: the authority is explicit to the workspace-graph gate and does not propagate into downstream normal dependency graphs (LLP 0285 §5.3). |
 | `snapback-tools` | 7 | `dev-tools` (non-product) | any lower | The agent-safe worker (absorbs `tools/`), the agent-safe digest computation (leaves `build.rs`), benches. |
 
 Workspace-wide rules:
@@ -327,8 +334,13 @@ Workspace-wide rules:
   remains unclaimed (LLP 0141 D6) — no name reservation is required by this
   program.
 - **External-dependency confinement**, gate-enforced: `rusqlite` only in
-  `snapback-kernel` and `snapback-services` (the telemetry sidecar's
-  recorded exception); `ibex-runtime` only in `snapback-runtime`; `axum`
+  `snapback-kernel` and `snapback-services` for production storage ownership,
+  plus `snapback` and `snapback-harness` strictly as dev-dependencies for
+  tests whose physical-store assertions cannot be represented by closed
+  production APIs. The latter widening makes that test authority conspicuous
+  to the gate without propagating it to downstream normal graphs; it is the
+  LLP 0285 §5.3 tier-2/3 confinement amendment. `ibex-runtime` only in
+  `snapback-runtime`; `axum`
   only in `snapback-server`; `clap` only in `snapback-cli`; `celld-ltx`
   only in `snapback-services` (replication). Other externals are
   review-governed, not confinement-gated.

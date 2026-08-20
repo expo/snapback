@@ -628,7 +628,7 @@ pub fn canonicalize_strip(
     })
 }
 
-#[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+#[cfg(any(test, feature = "remainder-tests"))]
 pub mod fixtures {
     /// A deterministic JPEG carrying an EXIF APP1 segment with GPS
     /// coordinates, orientation, and DateTimeOriginal — the exact triple the

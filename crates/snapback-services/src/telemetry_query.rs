@@ -829,7 +829,7 @@ fn append_event_filter(sql: &mut String, values: &mut Vec<SqlValue>, filter: &Te
     }
 }
 
-fn event_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TelemetryEventV1> {
+pub(crate) fn event_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TelemetryEventV1> {
     Ok(TelemetryEventV1 {
         id: row.get(0)?,
         observation: row.get(1)?,

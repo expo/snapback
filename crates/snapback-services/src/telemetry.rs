@@ -1096,7 +1096,7 @@ pub struct Telemetry {
 }
 
 /// Closed durable telemetry identity facts used by cross-crate tests.
-#[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+#[cfg(any(test, feature = "remainder-tests"))]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TelemetryMetaForTest {
     pub generation: String,
@@ -1121,7 +1121,7 @@ impl Telemetry {
     ///
     /// @ref LLP 0285#53-defect-3--the-caller-selectable-raw-sqlite-feature —
     /// callers receive identity facts, never raw SQLite authority.
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn durable_meta_for_database_for_test(
         database_path: &Path,
     ) -> SnapbackResult<Option<TelemetryMetaForTest>> {
@@ -1235,7 +1235,7 @@ impl Telemetry {
         telemetry_path(database_path)
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn start_span(
         &self,
         kind: &str,
@@ -1326,7 +1326,7 @@ impl Telemetry {
         }
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     // The public observation seam keeps the complete closed point shape
     // explicit so producers cannot smuggle fields through an options bag.
     #[allow(clippy::too_many_arguments)]
@@ -1911,7 +1911,7 @@ impl Telemetry {
         Ok(())
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn fail_next_config_update_for_test(&self) {
         self.producer
             .shared
@@ -2232,7 +2232,7 @@ impl Telemetry {
         crate::telemetry_query::agent_export_page(connection, request, &context, continuation_key)
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn event_count_for_test(&self, kind: &str, name: &str, phase: &str) -> i64 {
         let mut store = self
             .producer
@@ -2252,7 +2252,7 @@ impl Telemetry {
             .expect("query telemetry event count")
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn event_outcomes_for_test(
         &self,
         kind: &str,
@@ -2279,7 +2279,7 @@ impl Telemetry {
             .expect("collect telemetry outcomes")
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn event_details_for_test(&self, kind: &str, name: &str) -> Vec<Option<Value>> {
         let mut store = self
             .producer
@@ -2307,7 +2307,7 @@ impl Telemetry {
             .expect("collect telemetry details")
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn event_releases_for_test(&self, kind: &str, name: &str) -> Vec<Option<String>> {
         let mut store = self
             .producer
@@ -2331,7 +2331,7 @@ impl Telemetry {
 
     /// Return the committed store identity and retention floor through a
     /// closed value probe.
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn durable_meta_for_test(&self) -> SnapbackResult<TelemetryMetaForTest> {
         let mut store = self
             .producer
@@ -2350,7 +2350,7 @@ impl Telemetry {
     }
 
     /// Return the bounded visible error-group names needed by grouping tests.
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn error_group_names_for_test(&self) -> SnapbackResult<Vec<String>> {
         let mut store = self
             .producer
@@ -2367,7 +2367,7 @@ impl Telemetry {
 
     /// Compare retained physical events with the current generation's visible
     /// projection without exposing the sibling connection.
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn physical_and_visible_event_counts_for_test(&self) -> SnapbackResult<(i64, i64)> {
         let mut store = self
             .producer
@@ -2385,9 +2385,60 @@ impl Telemetry {
             })?,
         ))
     }
+
+    /// Return every retained physical event in insertion order. This test
+    /// probe deliberately bypasses the generation/retention visibility view
+    /// and the public query API's 500-row page bound, while keeping the
+    /// SQLite connection itself confined to services. It is a pure read: the
+    /// caller controls the flush boundary exactly as the former raw query did.
+    ///
+    /// @ref LLP 0285#53-defect-3--the-caller-selectable-raw-sqlite-feature —
+    /// exact-count tests need closed values from the physical table, not a
+    /// visibility projection that can hide malformed duplicates.
+    #[cfg(any(test, feature = "remainder-tests"))]
+    pub fn physical_event_rows_for_test(
+        &self,
+    ) -> SnapbackResult<Vec<crate::telemetry_query::TelemetryEventV1>> {
+        self.event_rows_for_test(
+            "SELECT id,observation,phase,generation,class_v,ts_ms,recorded_ts_ms,kind,name,status,duration_ms,code,correlation,release,details
+             FROM telemetry_events ORDER BY id",
+        )
+    }
+
+    /// Return every event admitted by the generation/retention visibility
+    /// view in insertion order, without the public query API's page bound.
+    /// It does not flush or perform maintenance before observing the view.
+    #[cfg(any(test, feature = "remainder-tests"))]
+    pub fn visible_event_rows_for_test(
+        &self,
+    ) -> SnapbackResult<Vec<crate::telemetry_query::TelemetryEventV1>> {
+        self.event_rows_for_test(
+            "SELECT id,observation,phase,generation,class_v,ts_ms,recorded_ts_ms,kind,name,status,duration_ms,code,correlation,release,details
+             FROM telemetry_events_visible ORDER BY id",
+        )
+    }
+
+    #[cfg(any(test, feature = "remainder-tests"))]
+    fn event_rows_for_test(
+        &self,
+        sql: &'static str,
+    ) -> SnapbackResult<Vec<crate::telemetry_query::TelemetryEventV1>> {
+        let mut store = self
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let connection = store.ensure_connection(wall_now_ms())?;
+        let mut statement = connection.prepare(sql)?;
+        let rows = statement
+            .query_map([], crate::telemetry_query::event_from_row)?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
 }
 
-#[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+#[cfg(any(test, feature = "remainder-tests"))]
 fn telemetry_meta_for_test_on(
     connection: &Connection,
 ) -> SnapbackResult<Option<TelemetryMetaForTest>> {
@@ -2756,7 +2807,7 @@ struct Store {
     fail_before_commit: bool,
     #[cfg(test)]
     fail_rebind: bool,
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     fail_update_config: bool,
     #[cfg(test)]
     force_file_cap_estimator_miss: bool,
@@ -2822,7 +2873,7 @@ impl Store {
             fail_before_commit: false,
             #[cfg(test)]
             fail_rebind: false,
-            #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+            #[cfg(any(test, feature = "remainder-tests"))]
             fail_update_config: false,
             #[cfg(test)]
             force_file_cap_estimator_miss: false,
@@ -2878,7 +2929,7 @@ impl Store {
             fail_before_commit: false,
             #[cfg(test)]
             fail_rebind: false,
-            #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+            #[cfg(any(test, feature = "remainder-tests"))]
             fail_update_config: false,
             #[cfg(test)]
             force_file_cap_estimator_miss: false,
@@ -3185,7 +3236,7 @@ impl Store {
             self.config = config;
             return Ok(());
         }
-        #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+        #[cfg(any(test, feature = "remainder-tests"))]
         let fail_update_config = std::mem::take(&mut self.fail_update_config);
         let conn = self.ensure_connection(now_ms)?;
         let high_water: i64 = conn.query_row(
@@ -3199,7 +3250,7 @@ impl Store {
         } else {
             boundary_for(&config, clock)
         };
-        #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+        #[cfg(any(test, feature = "remainder-tests"))]
         if fail_update_config {
             return Err(SnapbackError::error(
                 "SNAPBACK_TELEMETRY_TEST_CONFIG_FAILED",
@@ -6067,6 +6118,130 @@ mod tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_TELEMETRY_IDENTITY_UNBOUND");
         assert!(record.get("appId").is_none());
         assert!(record.get("environment").is_none());
+    }
+
+    #[test]
+    fn physical_event_probe_makes_wrong_generation_duplicates_fail_exactly_once() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-physical-probe", "preview-physical-probe"),
+            config(),
+        )
+        .unwrap();
+        let generation = telemetry
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap()
+            .generation
+            .clone();
+        telemetry.enqueue(
+            joined_named(&generation, "lifecycle", "process_ready", 0),
+            true,
+        );
+        telemetry.force_flush().unwrap();
+        {
+            let store = telemetry.producer.shared.store.lock().unwrap();
+            store
+                .conn
+                .as_ref()
+                .unwrap()
+                .execute(
+                    "INSERT INTO telemetry_events(observation,phase,generation,class_v,ts_ms,recorded_ts_ms,kind,name,status,duration_ms,subject,code,correlation,release,details)
+                     VALUES('obs-wrong-generation','joined','wrong-generation',1,?1,?1,'lifecycle','process_ready',200,1.0,NULL,NULL,NULL,NULL,NULL)",
+                    params![wall_now_ms()],
+                )
+                .unwrap();
+        }
+
+        let visible_count = telemetry
+            .visible_event_rows_for_test()
+            .unwrap()
+            .into_iter()
+            .filter(|event| event.kind == "lifecycle" && event.name == "process_ready")
+            .count();
+        let physical_count = telemetry
+            .physical_event_rows_for_test()
+            .unwrap()
+            .into_iter()
+            .filter(|event| event.kind == "lifecycle" && event.name == "process_ready")
+            .count();
+        assert_eq!(visible_count, 1, "the visibility view hides the bad row");
+        assert_eq!(
+            physical_count, 2,
+            "the physical probe preserves the duplicate"
+        );
+
+        let exactly_once = std::panic::catch_unwind(|| {
+            assert_eq!(
+                physical_count, 1,
+                "converted process_ready assertion remains exactly-once"
+            );
+        });
+        assert!(
+            exactly_once.is_err(),
+            "a wrong-generation duplicate must fail the converted assertion"
+        );
+    }
+
+    #[test]
+    fn physical_event_probe_is_unbounded_past_the_public_page_limit() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-unbounded-probe", "preview-unbounded-probe"),
+            config(),
+        )
+        .unwrap();
+        {
+            let mut store = telemetry.producer.shared.store.lock().unwrap();
+            let generation = store.generation.clone();
+            let base = wall_now_ms();
+            let transaction = store.conn.as_mut().unwrap().transaction().unwrap();
+            {
+                let mut insert = transaction
+                    .prepare(
+                        "INSERT INTO telemetry_events(observation,phase,generation,class_v,ts_ms,recorded_ts_ms,kind,name,status,duration_ms,subject,code,correlation,release,details)
+                         VALUES(?1,'joined',?2,1,?3,?3,'lifecycle','page-bound',200,1.0,NULL,NULL,NULL,NULL,NULL)",
+                    )
+                    .unwrap();
+                for index in 0..=crate::telemetry_query::MAX_EVENT_LIMIT {
+                    insert
+                        .execute(params![
+                            format!("obs-unbounded-{index}"),
+                            generation,
+                            base + i64::try_from(index).unwrap(),
+                        ])
+                        .unwrap();
+                }
+            }
+            transaction.commit().unwrap();
+        }
+
+        let public_page = telemetry
+            .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
+                filter: crate::telemetry_query::TelemetryFilterV1 {
+                    kind: Some("lifecycle".to_owned()),
+                    name: Some("page-bound".to_owned()),
+                    ..Default::default()
+                },
+                limit: crate::telemetry_query::MAX_EVENT_LIMIT,
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(
+            public_page.events.len(),
+            crate::telemetry_query::MAX_EVENT_LIMIT
+        );
+        assert!(public_page.next_cursor.is_some());
+
+        let physical_count = telemetry
+            .physical_event_rows_for_test()
+            .unwrap()
+            .into_iter()
+            .filter(|event| event.kind == "lifecycle" && event.name == "page-bound")
+            .count();
+        assert_eq!(physical_count, crate::telemetry_query::MAX_EVENT_LIMIT + 1);
     }
 
     #[test]

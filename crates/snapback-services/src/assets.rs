@@ -690,12 +690,12 @@ impl FinalizePrepareTicketV1 {
         &self.app_id
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn store_for_test(&self) -> std::sync::Arc<dyn crate::assets_store::AssetStore> {
         self.store.clone()
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn replace_store_for_test(
         &mut self,
         store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
@@ -787,7 +787,7 @@ impl FinalizePutTicketV1 {
         (self.ticket, self.prepared, self.publication, self.grade)
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn publication_for_test(&self) -> &AssetPublicationRecordV1 {
         &self.publication
     }
@@ -866,7 +866,7 @@ impl AssetFsStore {
         Ok(self.blobs_dir.join(validated_key(physical_key)?))
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "remainder-tests"))]
     pub fn blobs_dir_for_test(&self) -> &Path {
         &self.blobs_dir
     }
