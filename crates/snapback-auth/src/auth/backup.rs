@@ -2833,15 +2833,22 @@ mod tests {
 
         let mut fixture = Fixture::new();
         let missing_key_id = "sbak_AAAAAAAAAAAAAAAAAAAAAA";
+        let guest = fixture
+            .database
+            .identity_guest_create(60_020, 20, &fixture.random)
+            .unwrap();
         fixture
             .database
-            .identity_password_register(
+            .identity_guest_claim_password(
+                &guest.bearer,
                 "missing-recovery-key",
                 &PasswordSecret::new("strong-missing-recovery-key-1".to_owned()),
                 20,
                 &fixture.random,
-                missing_key_id,
-                &[7_u8; 32],
+                snapback_kernel::storage::auth_identity::RecoveryKeyMaterial::new(
+                    missing_key_id,
+                    &[7_u8; 32],
+                ),
             )
             .unwrap();
 

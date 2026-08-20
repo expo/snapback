@@ -1094,8 +1094,16 @@ impl LocalDatabase {
                 "pending-effect approver belongs to a different database",
             ));
         }
+        // Commit the observation before the refusal-prone preparation
+        // transaction. Expiry or principal revalidation may roll that
+        // transaction back, but must not make the same effect live again at a
+        // lower subsequent sample.
+        // @ref LLP 0059#durable-session-clock-floor — refused observations
+        // advance the durable non-decreasing clock floor independently.
+        let observed_now_ms = self.advance_auth_session_clock_floor(now_ms)?;
         let (mut record, approver_principal_id) = self.with_auth_transaction(|tx| {
-            let effective_now_ms = super::auth::advance_session_clock_floor_on(tx, now_ms)?;
+            let effective_now_ms =
+                super::auth::advance_session_clock_floor_on(tx, observed_now_ms)?;
             lazy_expire(tx, Some(id), effective_now_ms)?;
             let record = read_record(tx, id)?.ok_or_else(not_found)?;
             if record.status == PendingEffectStatus::Expired {
@@ -1196,11 +1204,20 @@ impl LocalDatabase {
         } = approval;
         let id = prepared.id.clone();
         let database_binding = self.binding();
+        // Proof, policy, effect-state, or approver refusal rolls the decision
+        // transaction back. Persist the time observation first so none of
+        // those refusals can revive expired authority on a backdated retry.
+        // Equal or lower samples remain legitimate: advancing returns the
+        // existing high-water rather than refusing them.
+        // @ref LLP 0059#durable-session-clock-floor — authorization refusals
+        // still advance the durable non-decreasing clock floor.
+        let observed_now_ms = self.advance_auth_session_clock_floor(now_ms)?;
         self.with_auth_transaction(|tx| {
             // @ref LLP 0059#durable-session-clock-floor — every approval
             // decision uses the transaction-local high-water for expiry,
             // principal liveness, proof consumption, and durable timestamps.
-            let effective_now_ms = super::auth::advance_session_clock_floor_on(tx, now_ms)?;
+            let effective_now_ms =
+                super::auth::advance_session_clock_floor_on(tx, observed_now_ms)?;
             lazy_expire(tx, Some(&id), effective_now_ms)?;
             let mut current = read_record(tx, &id)?.ok_or_else(not_found)?;
             if current.status == PendingEffectStatus::Expired {
@@ -1306,12 +1323,19 @@ impl LocalDatabase {
             now_ms,
             ..
         } = command;
+        // Commit the time observation independently of the decision. Expiry,
+        // binding, approver, or proof refusal may roll the decision back, but
+        // none may revive authority at a lower subsequent sample.
+        // @ref LLP 0059#durable-session-clock-floor — authorization refusals
+        // still advance the durable non-decreasing clock floor.
+        let observed_now_ms = self.advance_auth_session_clock_floor(now_ms)?;
         let database_binding = self.binding();
         self.with_auth_transaction(|tx| {
             // @ref LLP 0059#durable-session-clock-floor — approval time is the
             // transaction-local durable high-water, never a rewindable caller
             // sample. Expiry, proof consumption, decision, and journal share it.
-            let effective_now_ms = super::auth::advance_session_clock_floor_on(tx, now_ms)?;
+            let effective_now_ms =
+                super::auth::advance_session_clock_floor_on(tx, observed_now_ms)?;
             lazy_expire(tx, Some(&id), effective_now_ms)?;
             let current = read_record(tx, &id)?.ok_or_else(not_found)?;
             if current.status == PendingEffectStatus::Expired {
@@ -2457,18 +2481,114 @@ mod tests {
         let created = db
             .create_pending_effect_admitted(&creation_owner, request)
             .unwrap();
-        db.auth_database_mut()
-            .advance_auth_session_clock_floor(21)
-            .expect("authoritative clock passes effect expiry");
-
         let approver = principal(&mut db, "human-a", 0xa0);
-        let error = db
+        let first_error = db
+            .prepare_pending_effect_approval(&approver, &created.id, 21)
+            .expect_err("the first preparation observes effect expiry");
+        assert_eq!(first_error.diagnostic.code, "SNAPBACK_EFFECT_EXPIRED");
+        let retry_error = db
             .prepare_pending_effect_approval(&approver, &created.id, 19)
-            .expect_err("a backdated decision cannot revive an expired effect");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_EFFECT_EXPIRED");
+            .expect_err("a retry before expiry cannot rewind a refused preparation");
+        assert_eq!(retry_error.diagnostic.code, "SNAPBACK_EFFECT_EXPIRED");
+        assert_eq!(
+            db.auth_database_mut()
+                .auth_session_clock_floor()
+                .expect("persisted decision refusal floor"),
+            21
+        );
         let expired = db.pending_effect(&created.id, 21).unwrap();
         assert_eq!(expired.status, PendingEffectStatus::Expired);
         assert_eq!(expired.journal.last().unwrap().at_ms, 21);
+    }
+
+    #[test]
+    fn expired_step_up_proof_cannot_be_retried_before_expiry() {
+        use crate::auth::crypto::{
+            AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, OsRandom, StepUpDigest,
+            StepUpProof, VerificationCode,
+        };
+
+        let mut db = ready();
+        install_loaded_policy(&mut db, true);
+        let request = request(10, DEFAULT_TTL_MS);
+        let creation_owner = test_owner(db.auth_database_mut(), request.authority.clone(), None);
+        let created = db
+            .create_pending_effect_admitted(&creation_owner, request)
+            .unwrap();
+        let approver = principal(&mut db, "human-a", 0xa0);
+        let address = CanonicalAddress::parse("human-a@example.com").unwrap();
+        let challenge_id = ChallengeId::generate(&OsRandom).unwrap();
+        let key_id = AuthKeyId::generate(&OsRandom).unwrap();
+        let key = AuthKeyMaterial::from_bytes([0x5a; 32]);
+        let code = VerificationCode::parse("123456").unwrap();
+        let submitted_digest = StepUpDigest::compute(
+            &key,
+            &challenge_id,
+            &address,
+            "human-a",
+            "session-human-a",
+            1,
+            "authority-human-a",
+            "pending-effect.approve",
+            &created.id,
+            &code,
+        );
+        db.auth_database_mut()
+            .conn
+            .execute(
+                "INSERT INTO _auth_verification_codes(
+                   challenge_id, canonical_address, code_digest, key_id,
+                   attempts, max_attempts, requested_at_ms, expires_at_ms,
+                   consumed_at_ms, superseded_by
+                 ) VALUES(?1, ?2, ?3, ?4, 0, ?5, 10, 20, NULL, NULL)",
+                params![
+                    challenge_id.as_str(),
+                    address.as_str(),
+                    submitted_digest.as_bytes().as_slice(),
+                    key_id.as_str(),
+                    crate::auth::throttle::AUTH_MAXIMUM_ATTEMPTS as i64,
+                ],
+            )
+            .expect("durable operation-bound proof");
+        let proof = StepUpProof {
+            challenge_id,
+            address,
+            key_id: Some(key_id),
+            submitted_digest,
+        };
+
+        let first_approval = db
+            .prepare_pending_effect_approval(&approver, &created.id, 19)
+            .expect("prepare approval before proof expiry");
+        let first_owner = management_owner(db.auth_database_mut(), "human-a");
+        let first_error = db
+            .approve_pending_effect_admitted(first_owner, first_approval, Some(&proof), 21)
+            .expect_err("the first decision observes proof expiry");
+        assert_eq!(
+            first_error.diagnostic.code,
+            "SNAPBACK_AUTH_STEP_UP_REQUIRED"
+        );
+        let retry_approval = db
+            .prepare_pending_effect_approval(&approver, &created.id, 19)
+            .expect("backdated preparation evaluates at the durable floor");
+        let retry_owner = management_owner(db.auth_database_mut(), "human-a");
+        let retry_error = db
+            .approve_pending_effect_admitted(retry_owner, retry_approval, Some(&proof), 19)
+            .expect_err("an expired proof cannot be revived by a backdated retry");
+        assert_eq!(
+            retry_error.diagnostic.code,
+            "SNAPBACK_AUTH_STEP_UP_REQUIRED"
+        );
+        assert_eq!(
+            db.auth_database_mut()
+                .auth_session_clock_floor()
+                .expect("persisted step-up refusal floor"),
+            21
+        );
+        assert_eq!(
+            db.pending_effect(&created.id, 21).unwrap().status,
+            PendingEffectStatus::Pending
+        );
     }
 
     #[test]

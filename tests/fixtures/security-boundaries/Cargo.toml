@@ -383,6 +383,10 @@ path = "src/bin/poison_scope_retirement_ceiling.rs"
 name = "kernel-test-support-session-mint"
 path = "src/bin/kernel_test_support_session_mint.rs"
 
+[[bin]]
+name = "kernel-test-support-composed-principal-mint"
+path = "src/bin/kernel_test_support_composed_principal_mint.rs"
+
 # Harness-only counterexample: never part of attacks.v1.json.
 [[bin]]
 name = "unrelated-error-satisfies-regex"
