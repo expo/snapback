@@ -3372,9 +3372,17 @@ mod tests {
             .password_snapshot("claimed@example.com")
             .expect("password snapshot")
             .expect("displaced credential");
+        let squatter_digest = crate::contract_types::TokenDigest::from_token_hash(
+            &SessionBearer::parse(&squatter_password_bearer)
+                .expect("squatter password bearer")
+                .token_hash(),
+        );
+        let squatter_principal = database
+            .resolve_principal_from_session(&squatter_digest, now_ms + 1)
+            .expect("durable squatter principal");
         let (_, _, squatter_other_bearer) = database
             .insert_other_identity_session_for_test(
-                &squatter_user,
+                &squatter_principal,
                 "other@example.com",
                 now_ms + 1,
                 &OsRandom,

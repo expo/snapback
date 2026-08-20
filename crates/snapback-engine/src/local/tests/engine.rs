@@ -30703,7 +30703,7 @@ fn insert_live_test_session(
     snapback
         .auth_database_mut()
         .auth_catalog()
-        .insert_email_session_for_test(
+        .insert_nonprincipal_email_session_for_test(
             user_id,
             &crate::ids::mint_time_ordered(crate::ids::Kind::Identity),
             session_id,
@@ -36098,7 +36098,7 @@ globalThis.__snapbackHandlers = {
     db.activate_current_auth_catalog()
         .expect("activate auth catalog");
     db.auth_catalog()
-        .insert_email_session_for_test(
+        .insert_nonprincipal_email_session_for_test(
             LEASE_USER_ID,
             LEASE_IDENTITY_ID,
             LEASE_SESSION_ID,

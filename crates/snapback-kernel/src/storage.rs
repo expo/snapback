@@ -1810,6 +1810,45 @@ impl DetachedReadSnapshot {
     }
 }
 
+#[derive(Clone)]
+pub(super) struct ActiveFunctionPolicy {
+    kind: crate::manifest::FunctionKind,
+    authority_creating: bool,
+}
+
+type ActiveFunctionPolicies = Arc<BTreeMap<String, ActiveFunctionPolicy>>;
+
+/// Single-owner capability held beside the engine's private loaded-function
+/// state. Public reconciliation and generation-commit APIs never receive it.
+pub struct LoadedFunctionPolicyPublisher {
+    database_binding: DatabaseBinding,
+}
+
+fn active_function_policies(
+    manifest: &crate::manifest::FunctionManifest,
+) -> SnapbackResult<ActiveFunctionPolicies> {
+    let mut policies = BTreeMap::new();
+    for function in &manifest.functions {
+        if policies
+            .insert(
+                function.id.clone(),
+                ActiveFunctionPolicy {
+                    kind: function.kind.clone(),
+                    authority_creating: function.authority_creating,
+                },
+            )
+            .is_some()
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_MANIFEST_INVALID",
+                "manifest",
+                "the loaded function manifest contains a duplicate function id",
+            ));
+        }
+    }
+    Ok(Arc::new(policies))
+}
+
 /// A live database paired with its sole commit fact-assertion root.
 ///
 /// There is deliberately no `DerefMut`: mutable and authority-bearing
@@ -1820,6 +1859,10 @@ pub struct ServingDatabase {
     stream_attempt_persistence_verifier:
         Option<crate::stream_attempt::StreamAttemptPersistenceVerifier>,
     stream_attempt_startup_reconciliation: Option<StreamAttemptStartupReconciliation>,
+    /// Canonical process-loaded function policy installed only by successful
+    /// generation/deployment operations. Public auth-scope reconciliation can
+    /// update its projection row but cannot rewrite this source of truth.
+    active_function_policies: ActiveFunctionPolicies,
 }
 
 /// One-use authority for the process-death reconciliation cut. Its private
@@ -1846,7 +1889,7 @@ impl ServingDatabase {
     }
 
     pub fn adopt(db: LocalDatabase) -> SnapbackResult<Self> {
-        Self::adopt_with_optional_stream_attempt_verifier(db, None)
+        Self::adopt_with_optional_stream_attempt_verifier(db, None).map(|(db, _publisher)| db)
     }
 
     /// Construct the serving graph authorized to persist batches authenticated
@@ -1858,6 +1901,20 @@ impl ServingDatabase {
         verifier: crate::stream_attempt::StreamAttemptPersistenceVerifier,
     ) -> SnapbackResult<Self> {
         Self::adopt_with_optional_stream_attempt_verifier(db, Some(verifier))
+            .map(|(db, _publisher)| db)
+    }
+
+    pub fn adopt_with_stream_attempt_verifier_and_loaded_function_policy_publisher(
+        db: LocalDatabase,
+        verifier: crate::stream_attempt::StreamAttemptPersistenceVerifier,
+    ) -> SnapbackResult<(Self, LoadedFunctionPolicyPublisher)> {
+        Self::adopt_with_optional_stream_attempt_verifier(db, Some(verifier))
+    }
+
+    pub fn adopt_with_loaded_function_policy_publisher(
+        db: LocalDatabase,
+    ) -> SnapbackResult<(Self, LoadedFunctionPolicyPublisher)> {
+        Self::adopt_with_optional_stream_attempt_verifier(db, None)
     }
 
     fn adopt_with_optional_stream_attempt_verifier(
@@ -1865,7 +1922,7 @@ impl ServingDatabase {
         stream_attempt_persistence_verifier: Option<
             crate::stream_attempt::StreamAttemptPersistenceVerifier,
         >,
-    ) -> SnapbackResult<Self> {
+    ) -> SnapbackResult<(Self, LoadedFunctionPolicyPublisher)> {
         let authority = db.claim_commit_authority().ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_KERNEL_COMMIT_AUTHORITY_ALREADY_CLAIMED",
@@ -1889,12 +1946,19 @@ impl ServingDatabase {
             SettlementKernel::new(&mut db)
                 .reconcile_orphaned_stream_attempts(startup_recovery, now_ms)?,
         );
-        Ok(Self {
-            db,
-            authority,
-            stream_attempt_persistence_verifier,
-            stream_attempt_startup_reconciliation,
-        })
+        let publisher = LoadedFunctionPolicyPublisher {
+            database_binding: db.binding(),
+        };
+        Ok((
+            Self {
+                db,
+                authority,
+                stream_attempt_persistence_verifier,
+                stream_attempt_startup_reconciliation,
+                active_function_policies: Arc::new(BTreeMap::new()),
+            },
+            publisher,
+        ))
     }
 
     /// Take the already-completed startup result for transcript repair. This
@@ -1904,6 +1968,22 @@ impl ServingDatabase {
         &mut self,
     ) -> Option<StreamAttemptStartupReconciliation> {
         self.stream_attempt_startup_reconciliation.take()
+    }
+
+    pub fn install_loaded_function_policies(
+        &mut self,
+        publisher: &LoadedFunctionPolicyPublisher,
+        manifest: &crate::manifest::FunctionManifest,
+    ) -> SnapbackResult<()> {
+        if !publisher.database_binding.matches(&self.binding()) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_GENERATION_INVALID",
+                "storage",
+                "loaded function policy publisher belongs to another database",
+            ));
+        }
+        self.active_function_policies = active_function_policies(manifest)?;
+        Ok(())
     }
 
     pub fn binding(&self) -> DatabaseBinding {
@@ -2707,14 +2787,12 @@ impl ServingDatabase {
 
     pub fn prepare_pending_effect_approval(
         &mut self,
-        owner: &pending_effects::PendingEffectOwner,
+        approver: &ResolvedPrincipal,
         id: &str,
         now_ms: u64,
     ) -> SnapbackResult<pending_effects::PreparedPendingEffectApproval> {
-        owner.verify_for(&self.binding())?;
-        let approver_principal_id = owner.require_session_principal()?;
         self.db
-            .prepare_pending_effect_approval(id, approver_principal_id, now_ms)
+            .prepare_pending_effect_approval_admitted(id, approver, now_ms)
     }
 
     /// @ref LLP 0303#the-governing-principle — the storage sink derives the
@@ -2727,22 +2805,35 @@ impl ServingDatabase {
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<pending_effects::ApprovedPendingEffect> {
-        let command = self
-            .authority
-            .admit_pending_effect_approval(owner, approval, step_up, now_ms)?;
+        let command = self.authority.admit_pending_effect_approval(
+            owner,
+            approval,
+            self.active_function_policies.clone(),
+            step_up,
+            now_ms,
+        )?;
         self.db.approve_pending_effect(command)
     }
 
     pub fn deny_pending_effect_admitted(
         &mut self,
         owner: &pending_effects::PendingEffectOwner,
+        approver: &ResolvedPrincipal,
         id: &str,
         now_ms: u64,
     ) -> SnapbackResult<pending_effects::PendingEffectRecord> {
         let command = self
             .authority
-            .admit_pending_effect_denial(owner, id, now_ms)?;
+            .admit_pending_effect_denial(owner, approver, id, now_ms)?;
         self.db.deny_pending_effect(command)
+    }
+
+    pub fn resolve_principal_from_session(
+        &mut self,
+        digest: &crate::contract_types::TokenDigest,
+        now_ms: u64,
+    ) -> SnapbackResult<ResolvedPrincipal> {
+        self.db.resolve_principal_from_session(digest, now_ms)
     }
 
     pub fn settle_pending_effect_admitted(
