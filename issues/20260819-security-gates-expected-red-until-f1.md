@@ -12,32 +12,38 @@ ticket is the honest record of the known product findings; it is not an
 allowlist, baseline, waiver, or permission for the APIs to remain public.
 
 The expected findings are exactly the four open F-1 escalation families. The
-2026-08-19 surgical final gate fix round reports 127 unallowlisted scanner
-violations and 23 compiling attacks (33 inventoried attacks total):
+2026-08-19 surgical final gate fix round reported 127 unallowlisted scanner
+violations and 23 compiling attacks (33 inventoried attacks total). After the
+LLP 0285 §6 steps 1–4 reachability half landed at `dc5d59efd`, the F-3
+fix-forward audit reports **102** unallowlisted scanner violations and **15**
+compiling attacks (35 inventoried attacks total). The reduced counts are real
+progress, not a green claim: the direct authority root, clone, and shared-borrow
+routes are closed, while the owner bridges and the forgery/test-confinement
+halves remain open.
 
-1. **Public claim/mint authority and duplicates.** The scanner reports
-   `LocalDatabase::claim_kernel_commit_authority`; `KernelCommitAuthority`
-   admission methods for system/user/other push, protected-record erasure, and
-   all four pending-effect commands; `Clone` on the root and its
-   privilege-bearing factories/carriers; public seed-returning/sink methods and
-   fields reachable from those roots; the `test-support` claim/join/bind seams;
+1. **Owner-reachable mint/admission bridges.** The root is now kernel-private
+   and non-`Clone`, and the direct claim plus test join/bind witnesses are green.
+   The scanner still reports `ServingDatabase` admission methods for
+   system/user/other push and protected-record erasure; its public
+   seed-returning/sink methods and fields; the `test-support` factory seam;
    `LocalEphemeralBackend::reserve_authorization_commit`,
-   `EphemeralApi::reserve_authorization_commit`, and the public
-   `LocalSnapback` promotion/ask-spend reservation seams exposed through
-   `local.rs`'s glob; and wholesale
-   `snapback_kernel::storage` re-exports from `snapback-auth`,
-   `snapback-activation`, `snapback-engine`, and `snapback-server`.
-   LLP 0284 R-2 also identifies the existing
+   `EphemeralApi::reserve_authorization_commit`, and the public `LocalSnapback`
+   promotion/ask-spend reservation seams. The compiler witnesses separately
+   prove that the four public `ServingDatabase::*_pending_effect_admitted`
+   operations still accept caller-selected facts. LLP 0284 R-2 also identifies
+   the existing
    `PromotionContentionReservation` and `AskSpendReservation` return/consume
    pairs as seed-type heuristic hits; their obtainability witnesses are part
-   of the expected pre-F-1 red set.
+   of the expected pre-forgery-closure red set. Wholesale storage re-exports
+   remain hygiene findings, but no longer expose the private root.
 2. **Caller-closure factories.** The scanner reports
-   `AuthorizationCommitCarrierFactory::{reservation,prepared}`,
-   `KernelCommitAuthority::{authorization_commit_carriers,
-   service_authority_terminal_factory,service_authority_commit_interlock}`,
+   `AuthorizationCommitCarrierFactory::{reservation,prepared}` and the
+   `ServingDatabase::{authorization_commit_carriers,
+   service_authority_terminal_factory,service_authority_commit_interlock}`
+   bridges,
    `ServiceAuthorityTerminalFactory::prepared`,
    `ServiceAuthorityFenceRegistry::kernel_commit_interlock`, and
-   `LocalDatabase::install_service_authority_commit_interlock`, together with
+   the serving/local interlock installers, together with
    the public seed values and reachable sinks those factories expose.
 3. **Caller-selectable raw SQLite.** The scanner reports
    `snapback_services::test_support::rusqlite` under
@@ -61,20 +67,14 @@ violations and 23 compiling attacks (33 inventoried attacks total):
    writer class/provenance at commit.
 
 The compile-fail gate is expected to report `attack compiled` for these exact
-attack ids until F-1 lands:
+attack ids until the remaining F-1 halves land:
 
-- `claim-kernel-commit-authority`
-- `claim-via-auth-reexport`
-- `claim-via-engine-reexport`
-- `claim-via-activation-reexport`
-- `claim-via-server-reexport`
 - `admit-system-push`
 - `admit-protected-record-erasure`
 - `admit-pending-effect-creation`
 - `admit-pending-effect-decision`
 - `admit-pending-effect-settlement`
 - `admit-pending-effect-refusal`
-- `clone-kernel-commit-authority`
 - `auth-commit-reservation-factory`
 - `auth-commit-prepared-factory`
 - `service-interlock-factory`
@@ -82,9 +82,6 @@ attack ids until F-1 lands:
   `snapback-services/remainder-tests`
 - `kernel-test-support-for-test-factory` with
   `snapback-kernel/test-support`
-- `kernel-test-support-join-authority` with
-  `snapback-kernel/test-support`
-- `recording-interlock-bind` with `snapback-kernel/test-support`
 - `obtain-promotion-contention-reservation`
 - `obtain-ask-spend-reservation`
 - `forge-membership-writer-admin`
@@ -96,5 +93,5 @@ new defect, not covered by this record.
 Until F-1 closes, the three product-tree gates remain in the scheduled complete
 battery and out of `alwaysGates`; the green `security-gate-fixtures` harness is
 always-on. As part of F-1's landing, all three product gate ids move into
-`alwaysGates`, this ticket closes with the green outputs, and the three
+`alwaysGates`, this ticket closes with the green outputs, and the four
 escalation families above must disappear without an allowlist row.

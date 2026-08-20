@@ -407,6 +407,7 @@ const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
         'packages/snapback-contract/derived-overlay.mjs',
         'packages/snapback-contract/index.mjs',
         'scripts/refresh-publication-carrier.mjs',
+        'crates/snapback-engine/src/local/auth_room_kick_acceptance.rs',
         'crates/snapback-engine/src/local-sequence-allocation-publication.v1.json',
         'crates/snapback-engine/src/manifest.rs',
         'crates/snapback-engine/src/runtime.rs',

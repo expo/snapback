@@ -1,10 +1,8 @@
-use snapback_kernel::storage::LocalDatabase;
+use snapback_kernel::storage::{LocalDatabase, ServingDatabase};
 
 fn main() {
-    let mut database = LocalDatabase::memory().unwrap();
+    let database = LocalDatabase::memory().unwrap();
+    let serving = ServingDatabase::adopt(database).unwrap();
     // @attack
-    let _ = database
-        .claim_kernel_commit_authority()
-        .unwrap()
-        .admit_system_push();
+    let _ = serving.admit_system_push();
 }

@@ -209,6 +209,18 @@ test('obtainability propagates through obtainable seed receivers in the default 
   }
 });
 
+test('the R-2 heuristic retains new opaque return-and-consume candidates', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const heuristic = result.findings.filter(({ detail }) =>
+    detail.startsWith('new seed-type heuristic:'));
+  assert(
+    heuristic.some(({ seedType, item }) => seedType === 'OpaqueReservation'
+      && item === 'synthetic_kernel::LocalDatabase::reserve_opaque'),
+    'an otherwise identical opaque return/consume carrier must remain a heuristic finding',
+  );
+});
+
 test('caller feature predicates are scanned without assuming default features', () => {
   const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
   const result = auditPrivilegeSurface(corpus);
@@ -304,6 +316,11 @@ test('a qualified custom env macro makes an include unevaluable and fail closed'
 
 test('the Guide wrapper is committed while generated expressions remain exact review debt', () => {
   const result = auditPrivilegeSurface(root);
+  assert(
+    !result.findings.some(({ kind, seedType }) => kind === 'seed-obtain'
+      && seedType === 'DatabaseBinding'),
+    'the audited identity-only DatabaseBinding must not be classified as a privilege seed',
+  );
   assert.equal(
     result.findings.some(({ kind, item }) => kind === 'generated-api'
       && item.includes('embedded_guide.rs')),

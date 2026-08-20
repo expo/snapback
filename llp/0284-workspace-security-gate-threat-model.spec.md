@@ -53,6 +53,14 @@ committed artifact's forbidden-identifier catalog)
 raw normalization widened qualified `include!`, `concat!`, and `env!` paths;
 keeps foreign qualified includes fail-closed and keeps `r#pub` distinct from
 the visibility keyword)
+**Revised:** 2026-08-20 (F-3 fix-forward: R-2 now distinguishes LLP 0285's
+audited, identity-only `DatabaseBinding` from opaque privilege candidates;
+the negative corpus pins that exact powerless carrier while retaining the
+generic return-and-consume heuristic.)
+**Revised:** 2026-08-20 (F-3 fix-forward: compile witnesses are retargeted
+after LLP 0285 §6 steps 1–4 so privatized claim/clone/join paths reject at the
+marked attack while surviving `ServingDatabase` admissions and factories keep
+compiling red; the current 102-finding/15-attack record is in the F-1 ticket.)
 **Related:** LLP 0283 (F-1, F-2), LLP 0276, LLP 0225, LLP 0189, LLP 0232, LLP 0141, LLP 0041, LLP 0059, LLP 0154, LLP 0009
 
 ## Summary
@@ -1126,7 +1134,14 @@ the scanner computes the complete semantic API closure.
 **R-2 (new seed types).** A new public type that is (i) constructed only
 with private fields, (ii) returned by a public method on
 `KernelCommitAuthority` or `LocalDatabase`, and (iii) accepted by a
-public `LocalDatabase` method, is a seed-type **heuristic hit**. The
+public `LocalDatabase` method, is a seed-type **heuristic hit**. The one
+audited exception is `DatabaseBinding`: LLP 0285 §§1 and 5.1 define it as a
+powerless database-identity token, its field and constructor are private, its
+only methods are crate-private identity comparisons/test construction, and
+every public `LocalDatabase` acceptance site requires a mutable receiver and
+rechecks exact database identity. The scanner therefore classifies that exact
+type as routing rather than privilege; a paired corpus control requires an
+otherwise identical opaque return-and-consume carrier to remain a finding. The
 scanner fails until the type is added to the I-1 list in this LLP *and*
 a product-attack fixture is added, or the methods are made `pub(crate)`.
 This heuristic is incomplete (a privilege type that never touches
@@ -1175,6 +1190,15 @@ implementors must record the code the actual F-1 shape produces. **On
 `ede899a20`, rows marked TODAY=compiles must make the gate RED.**
 
 ### 6.1 Live escalations (must RED today)
+
+The `TODAY` column below remains the historical `ede899a20` acceptance cut.
+After the reachability half landed at `dc5d59efd`, direct claim, clone, and
+test join/bind attacks reject at their marked expressions. Admission, pending-
+effect, closure-factory, promotion, and membership witnesses now enter through
+the explicit `ServingDatabase` owner surface; they still compile and therefore
+remain honest RED evidence for the unimplemented forgery/confinement halves.
+The current exact expected-red inventory is maintained in
+`issues/20260819-security-gates-expected-red-until-f1.md`.
 
 | id | Attack | Mount crate | Features | TODAY | After F-1 (expected) | Span |
 | --- | --- | --- | --- | --- | --- | --- |

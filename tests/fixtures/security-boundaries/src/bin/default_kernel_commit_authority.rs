@@ -1,6 +1,4 @@
-use snapback_kernel::storage::KernelCommitAuthority;
-
 fn main() {
     // @attack
-    let _ = KernelCommitAuthority::default();
+    let _ = snapback_kernel::storage::KernelCommitAuthority::default();
 }

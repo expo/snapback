@@ -1,9 +1,8 @@
-use snapback_kernel::storage::LocalDatabase;
+use snapback_kernel::storage::{LocalDatabase, ServingDatabase};
 
 fn main() {
-    let mut database = LocalDatabase::memory().unwrap();
-    let authority = database.claim_kernel_commit_authority().unwrap();
+    let database = LocalDatabase::memory().unwrap();
+    let mut serving = ServingDatabase::adopt(database).unwrap();
     // @attack
-    let _ =
-        database.prepare_promotion_contention_reservation_for_bench(&authority, "canonical", 2, 1);
+    let _ = serving.prepare_promotion_contention_reservation_for_bench("canonical", 2, 1);
 }

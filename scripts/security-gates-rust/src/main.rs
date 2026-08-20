@@ -83,6 +83,13 @@ const SEED_TYPES: &[&str] = &[
     "AskSpendReservation",
 ];
 
+// @ref LLP 0285#1-what-closed-means-here — these public carriers are
+// deliberately powerless: they route or bind an operation but assert no fact.
+// Keep this list semantic and exact; it is not an allowlist for scanner
+// findings. R-2 still reports every other private-field type that leaves and
+// re-enters LocalDatabase, and the negative corpus pins both sides.
+const POWERLESS_ROUTING_TYPES: &[(&str, &str)] = &[("snapback-kernel", "DatabaseBinding")];
+
 const RAW_SQL_IDENTIFIERS: &[&str] = &["Connection", "Transaction", "rusqlite"];
 const AUTHORITY_DISCRIMINATOR_TYPES: &[&str] = &["MembershipWriter"];
 
@@ -452,6 +459,10 @@ impl PrivilegeScanner {
             if self.private_public_types.contains(&candidate.type_name)
                 && self.heuristic_accepts.contains(&candidate.type_name)
                 && !SEED_TYPES.contains(&candidate.type_name.as_str())
+                && !POWERLESS_ROUTING_TYPES.contains(&(
+                    self.crate_name.as_str(),
+                    candidate.type_name.as_str(),
+                ))
             {
                 self.push_finding(
                     "seed-obtain",

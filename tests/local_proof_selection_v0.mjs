@@ -317,6 +317,18 @@ test('native, Cloudflare, seed, and carrier changes select their unique claims',
   const carrier = select(['tests/acceptance/local-store-carrier-exit-v1.mjs']);
   includesAll(carrier, ['local-store-carrier-receipt']);
 
+  // @ref LLP 0189#decision — the independent drift selector must route every
+  // changed frozen-carrier input to its owning scheduled gate.
+  const sequenceCarrierSource = selectDriftProneGates([
+    'crates/snapback-engine/src/local/auth_room_kick_acceptance.rs',
+  ], context);
+  assert(
+    sequenceCarrierSource.selectedDriftProneGates.includes(
+      'sequence-allocation-publication',
+    ),
+    'the sequence carrier gate must own drift in every pinned source',
+  );
+
   const fleet = select(['demos/fleet-observatory-move1/src/App.tsx']);
   includesAll(fleet, ['fleet-observatory-move1-receipt']);
 });

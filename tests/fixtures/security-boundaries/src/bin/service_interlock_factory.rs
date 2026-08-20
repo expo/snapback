@@ -1,14 +1,14 @@
-use snapback_kernel::storage::LocalDatabase;
+use snapback_kernel::storage::{LocalDatabase, ServingDatabase};
 
 fn main() {
-    let mut database = LocalDatabase::memory().unwrap();
-    let authority = database.claim_kernel_commit_authority().unwrap();
-    let factory = authority.service_authority_terminal_factory();
+    let database = LocalDatabase::memory().unwrap();
+    let mut serving = ServingDatabase::adopt(database).unwrap();
+    let factory = serving.service_authority_terminal_factory();
     // @attack
-    let interlock = authority.service_authority_commit_interlock(move |_, _| {
+    let interlock = serving.service_authority_commit_interlock(move |_, _| {
         Ok(factory.prepared(|| Ok(()), || {}, || {}))
     });
-    database
-        .install_service_authority_commit_interlock(&authority, interlock)
+    serving
+        .install_service_authority_commit_interlock(interlock)
         .unwrap();
 }

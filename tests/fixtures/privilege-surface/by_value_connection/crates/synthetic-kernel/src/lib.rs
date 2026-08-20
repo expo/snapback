@@ -222,6 +222,21 @@ impl AuthorizationCommitCarrierFactory {
     }
 }
 
+// R-2 control: a new opaque return-and-consume carrier remains a finding.
+pub struct OpaqueReservation {
+    _private: (),
+}
+
+pub struct LocalDatabase;
+
+impl LocalDatabase {
+    pub fn reserve_opaque(&self) -> OpaqueReservation {
+        panic!("scanner corpus is not executed")
+    }
+
+    pub fn settle_opaque(&mut self, _reservation: OpaqueReservation) {}
+}
+
 macro_rules! generated_privilege_api {
     () => {
         pub fn macro_generated_leak() -> KernelCommitAuthority {
