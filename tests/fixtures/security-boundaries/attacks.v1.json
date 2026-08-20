@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.security-boundary-attacks.v1",
   "rowCoverage": {
-    "unmappedAttackCount": 71,
-    "unmappedAttackIdsSha256": "fef60ba807c558d05b72697a12b692c0851f2a4a8dc16e53ed1c94ff92b05070",
+    "unmappedAttackCount": 70,
+    "unmappedAttackIdsSha256": "d188ced0de430bb1f014b5c1dd8fc1ea34ab01851907c2c96c76f4bc05230b7c",
     "unmappedReason": "Pinned legacy debt from issues/20260826-authorization-denominator-and-seam-map.md; any new omission or mapping changes this digest and fails row-corpus inventory."
   },
   "attacks": [
@@ -90,6 +90,7 @@
     { "id": "record-effect-approver-without-authority", "bin": "record-effect-approver-without-authority", "source": "src/bin/record_effect_approver_without_authority.rs", "mount": "snapback-sync", "featureSets": [[], ["snapback-engine/test-support"]], "expectedCode": "E0308", "row": "F129" },
     { "id": "publish-scope-retirement-without-commit", "bin": "publish-scope-retirement-without-commit", "source": "src/bin/publish_scope_retirement_without_commit.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-engine/test-support"]], "expectedCode": "E0308", "row": "F082" },
     { "id": "poison-scope-retirement-ceiling", "bin": "poison-scope-retirement-ceiling", "source": "src/bin/poison_scope_retirement_ceiling.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-engine/test-support"]], "expectedCode": "E0061", "row": "F082" },
-    { "id": "kernel-test-support-session-mint", "bin": "kernel-test-support-session-mint", "source": "src/bin/kernel_test_support_session_mint.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0599" }
+    { "id": "kernel-test-support-session-mint", "bin": "kernel-test-support-session-mint", "source": "src/bin/kernel_test_support_session_mint.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0599" },
+    { "id": "kernel-test-support-composed-principal-mint", "bin": "kernel-test-support-composed-principal-mint", "source": "src/bin/kernel_test_support_composed_principal_mint.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0599" }
   ]
 }

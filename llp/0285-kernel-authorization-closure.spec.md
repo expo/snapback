@@ -12,6 +12,10 @@ Claude (Opus 5) and codex `gpt-5.6-sol` — commissioned by Charlie Cheever
 sole `snapback_services::test_support` consumer now uses a fixed-schema
 kernel fixture and the services raw-crate re-export is deleted. The broader
 `remainder-tests` feature remains for separately inventoried services seams.)
+**Revised:** 2026-08-20 (follow-up fix round: closes the composed human/session
+test-support principal mint, installs loaded policy on same-mode deployment,
+and commits the clock floor before refusal-prone resolution and decision
+transactions. These repairs do not close LLP 0283 F-1 or §5 defects 1–4.)
 **Revised:** 2026-08-20 (pending-effect decision fix round: records the
 canonical loaded-function publisher, durable session/time revalidation, and
 per-parameter verification sites; this does not close LLP 0283 F-1 or §5
@@ -628,12 +632,23 @@ surface implemented in this round.
 
 | Review finding | Verdict | Kernel-owned verification |
 | --- | --- | --- |
-| F1 — caller-writable `authority_creating` projection | REPAIRED | A single-owner `LoadedFunctionPolicyPublisher`, minted with the serving database and retained in `LocalSnapback`'s private activation state, installs policy from the function manifest being process-activated. Public scope reconciliation and public generation-metadata commits do not possess that publisher. The decision transaction then compares `_auth_scope_bases.authority_creating` with this loaded policy and refuses a mismatch. |
-| F2 — forgeable/rewindable `ResolvedPrincipal` | REPAIRED | Session resolution advances the durable session-clock floor, rechecks a current unrevoked session and an active human user in one auth transaction, and uses the existing authenticated-use coalescing rule. The arbitrary named human session/digest mint is `#[cfg(test)]`; surviving cross-crate fixtures either create non-human rows rejected by resolution or require and transactionally revalidate an existing opaque same-database principal before adding a second session for that principal. |
+| F1 — caller-writable `authority_creating` projection | REPAIRED | A single-owner `LoadedFunctionPolicyPublisher`, minted with the serving database and retained in `LocalSnapback`'s private activation state, installs policy from every function manifest being process-activated, including the same-mode network deployment path after its durable commit and before function publication. Public scope reconciliation and public generation-metadata commits do not possess that publisher. The decision transaction compares `_auth_scope_bases.authority_creating` with this loaded policy and refuses a mismatch. |
+| F2 — forgeable/rewindable `ResolvedPrincipal` | REPAIRED | Session resolution first commits the durable session-clock observation independently, then rechecks a current unrevoked session, active human user, and authenticated use in the resolving transaction. Caller-chosen human insertion, caller-targeted push-session insertion, and password registration are `#[cfg(test)]`; surviving cross-crate fixtures either use kernel-minted human owner ids, atomically create non-human rows with collision refusal, or require and transactionally revalidate an existing opaque same-database principal. Fixed restore setup also refuses an existing user instead of preserving its kind. |
 | F3 — caller-selected `approver_principal_id` | REPAIRED | Decision admission accepts `&ResolvedPrincipal`, extracts a private session proof, and rechecks database binding, active human kind, session id, user id, generation, authority instance, digest, revocation and expiry inside the decision transaction. Only the re-derived principal id reaches the row and journal. |
-| F4 — rewindable decision `now_ms` | REPAIRED | The decision transaction advances the durable session-clock floor and uses that effective time for effect expiry, approver liveness, step-up consumption, the decision row and the journal entry. |
+| F4 — rewindable decision `now_ms` | REPAIRED | Decision admission commits the durable clock observation before entering the refusal-prone decision transaction, then re-advances inside that transaction to include concurrent observations. Effect expiry, approver liveness, step-up consumption, the decision row and the journal all use that effective time, while an expiry or proof refusal cannot roll the floor back. |
 
-### 7.2 Pending-effect decision parameter verification
+### 7.2 Follow-up review findings (2026-08-20)
+
+These are the subsequent review's **F1–F3 findings**. They are narrower than
+LLP 0283 F-1 and §5 defects 1–4, which remain unresolved.
+
+| Follow-up finding | Verdict | Repair and regression |
+| --- | --- | --- |
+| F1 — additive test surfaces compose an accepted human principal | REPAIRED | The caller-chosen human row, caller-targeted session/digest writer, and standalone password registration seams are unit-test-only. Cross-crate owner and push fixtures now use kernel-minted ids or a collision-refusing non-human transaction. The compile-negative regression composes the two reported seams in one attacked statement under `snapback-kernel/test-support`. |
+| F2 — same-mode deployment leaves loaded `authority_creating` stale | REPAIRED | `activate_same_mode_network_generation` installs the committed function manifest through the single-owner loaded-policy publisher before composing and publishing the function successor; post-commit installation failure is classified uncertain. The regression activates `false` to `true` through this exact path, publicly reconciles stale `false`, and requires binding-stale refusal. |
+| F3 — refused expiry rolls the durable clock floor back | REPAIRED | Session resolution and effect decision each commit the observation before the transaction that may refuse, then use the monotone result inside it. Separate regressions cover expired session resolution followed by rewind, expired effect decision followed by rewind, and expired step-up proof followed by rewind. |
+
+### 7.3 Pending-effect decision parameter verification
 
 | Admission parameter | Classification | In-transaction verification or derivation |
 | --- | --- | --- |
@@ -642,7 +657,7 @@ surface implemented in this round.
 | Loaded function policy | Publisher-protected process fact | Captured from the single-owner process activation publisher; function id/kind are matched and the durable scope projection is cross-checked in the transaction. |
 | `approve` | Requested transition, not an asserted authority fact | Selects approved/refused after approver revalidation; only approval evaluates loaded step-up policy. |
 | Optional step-up proof | Cryptographic evidence | Required only when the loaded policy derives `authority_creating = true`; operation binding, deadline and one-shot consumption are verified in the same transaction. |
-| Caller clock sample | Untrusted observation | Folded into the non-decreasing durable session-clock floor before any expiry, proof or timestamp decision. |
+| Caller clock sample | Untrusted observation | Committed independently into the non-decreasing durable session-clock floor before the refusal-prone resolver/decision transaction, then re-advanced inside that transaction before any expiry, proof or timestamp decision. |
 
 ## 8. Open risks
 
