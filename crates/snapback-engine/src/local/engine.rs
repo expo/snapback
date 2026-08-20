@@ -6306,6 +6306,9 @@ impl LocalSnapback {
             .refuse_pending_effect_admitted(&owner, id, outcome_code, now_ms)
     }
 
+    /// @ref LLP 0303#the-governing-principle — the engine forwards only the
+    /// prepared effect and optional proof; the kernel derives whether that
+    /// proof is required from durable policy in the approval transaction.
     pub fn approve_pending_effect(
         &mut self,
         approval: PreparedEffectApproval,
@@ -6318,19 +6321,14 @@ impl LocalSnapback {
         {
             return Err(effect_original_authority_mismatch());
         }
-        let function =
-            self.validate_prepared_effect_current(&approval, Some(&original.authority), now_ms)?;
+        self.validate_prepared_effect_current(&approval, Some(&original.authority), now_ms)?;
         let _effect = approval
             .management
             .effect_guard("pending-effect approval transaction")?;
         let owner = self.pending_effect_owner(&approval.management, now_ms)?;
-        let approved = self.db.approve_pending_effect_admitted(
-            owner,
-            approval.pending,
-            function.authority_creating,
-            step_up,
-            now_ms,
-        )?;
+        let approved =
+            self.db
+                .approve_pending_effect_admitted(owner, approval.pending, step_up, now_ms)?;
         drop(_effect);
         let (record, execution) = approved.into_parts();
         Ok(ApprovedEffectDispatch {
