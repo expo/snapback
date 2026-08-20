@@ -232,6 +232,14 @@ macro_rules! generated_privilege_api {
 
 generated_privilege_api!();
 
+macro_rules! private_raw_pub_identifier {
+    () => {
+        const r#pub: Option<KernelCommitAuthority> = None;
+    };
+}
+
+private_raw_pub_identifier!();
+
 mod split_macro_definition {
     macro_rules! make {
         ($name:ident, $return_type:ty) => {

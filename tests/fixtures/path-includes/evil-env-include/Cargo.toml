@@ -1,0 +1,5 @@
+[package]
+name = "path-evil-env-include"
+version = "0.0.0"
+edition = "2024"
+publish = false

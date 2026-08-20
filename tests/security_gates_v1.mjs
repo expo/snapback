@@ -250,6 +250,17 @@ test('macro- and OUT_DIR-generated public APIs fail closed in every item positio
   assert.match(output, /macro-generated-api .*literal_public_macro_invocation::paste/u);
 });
 
+test('a raw pub identifier remains private macro output', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  assert.equal(
+    result.findings.some(({ kind, item }) => kind === 'macro-generated-api'
+      && item.endsWith('private_raw_pub_identifier')),
+    false,
+    'r#pub is an identifier, not the pub visibility keyword',
+  );
+});
+
 test('compilation-unit discovery canonicalizes raw include spellings', () => {
   const source = resolve(
     root,
@@ -273,6 +284,22 @@ test('compilation-unit discovery canonicalizes raw include spellings', () => {
       `expected compilation-unit reference for ${expression}`,
     );
   }
+});
+
+test('a qualified custom env macro makes an include unevaluable and fail closed', () => {
+  const corpus = resolve(root, 'tests/fixtures/path-includes');
+  const source = resolve(corpus, 'evil-env-include/src/lib.rs');
+  const references = runAst(['units', '--file', source]);
+  assert(
+    references.some(({ kind, expression }) => kind === 'include-unevaluable'
+      && expression.includes('evil :: env ! ("OUT_DIR")')),
+    'evil::env! must not be evaluated as the built-in env!',
+  );
+  assert(
+    auditCrossCratePathIncludes(corpus).violations.some(({ source: file, kind }) =>
+      file === 'evil-env-include/src/lib.rs' && kind === 'include-unevaluable'),
+    'the cross-crate include gate must fail the evil::env! fixture',
+  );
 });
 
 test('the Guide wrapper is committed while generated expressions remain exact review debt', () => {
@@ -454,6 +481,7 @@ test('raw strings, cfg_attr, includes, and symlinks cannot cross compilation-uni
     assert.match(output, /nested-cfg-attr\/src\/lib\.rs path-escape/u);
     assert.match(output, /include\/src\/lib\.rs include-escape/u);
     assert.match(output, /raw-include\/src\/lib\.rs include-escape/u);
+    assert.match(output, /evil-env-include\/src\/lib\.rs include-unevaluable/u);
     assert.match(output, /symlink-source\/src\/stolen\.rs symlink-source/u);
     assert.match(output, /symlink-target\/src\/lib\.rs path-escape/u);
   } finally {

@@ -35,10 +35,31 @@ fn path_is_ident(path: &syn::Path, expected: &str) -> bool {
         })
 }
 
-fn path_ends_with_ident(path: &syn::Path, expected: &str) -> bool {
-    path.segments
-        .last()
-        .is_some_and(|segment| ident_matches(&segment.ident, expected))
+fn plain_path_segment_matches(segment: &syn::PathSegment, expected: &str) -> bool {
+    matches!(&segment.arguments, PathArguments::None) && ident_matches(&segment.ident, expected)
+}
+
+// @ref LLP 0284#43-cross-crate-path-includes--compilation-unit-ownership —
+// evaluating a custom macro with built-in semantics can turn an external path
+// into a synthetic OUT_DIR path. Normalize raw spelling, but keep resolution
+// strict to the bare built-in or its exact std/core re-export.
+fn path_is_builtin_macro(path: &syn::Path, expected: &str) -> bool {
+    let segments = path.segments.iter().collect::<Vec<_>>();
+    match segments.as_slice() {
+        [leaf] => path.leading_colon.is_none() && plain_path_segment_matches(leaf, expected),
+        [root, leaf] => {
+            plain_path_segment_matches(leaf, expected)
+                && matches!(ident_name(&root.ident).as_str(), "std" | "core")
+                && matches!(&root.arguments, PathArguments::None)
+        }
+        _ => false,
+    }
+}
+
+fn path_has_leaf_ident(path: &syn::Path, expected: &str) -> bool {
+    path.segments.last().is_some_and(|segment| {
+        matches!(&segment.arguments, PathArguments::None) && ident_matches(&segment.ident, expected)
+    })
 }
 
 // @ref LLP 0284#31-capability-obtainability-the-closure-not-the-spellings —
@@ -874,7 +895,7 @@ impl PrivilegeScanner {
                 }
                 Item::Macro(item_macro) if path_is_ident(&item_macro.mac.path, "macro_rules") => {
                     macro_definitions.push(item_macro);
-                    if token_ident_present(&item_macro.mac.tokens, "pub") {
+                    if token_keyword_present(&item_macro.mac.tokens, "pub") {
                         if let Some(ident) = &item_macro.ident {
                             names.public_api_macros.insert(ident_name(ident));
                         }
@@ -1554,11 +1575,11 @@ impl PrivilegeScanner {
 
         let macro_name = definition_ident.map(ident_name).unwrap_or(macro_name);
         let emits_public =
-            path_is_ident(&mac.path, "macro_rules") && token_ident_present(&mac.tokens, "pub");
+            path_is_ident(&mac.path, "macro_rules") && token_keyword_present(&mac.tokens, "pub");
         let invocation_of_public_macro = names.public_api_macros.contains(&macro_name)
             || self.crate_public_api_macros.contains(&macro_name);
         let invocation_carries_public =
-            definition_ident.is_none() && token_ident_present(&mac.tokens, "pub");
+            definition_ident.is_none() && token_keyword_present(&mac.tokens, "pub");
         if (emits_public || invocation_of_public_macro || invocation_carries_public)
             && tokens_name_sensitive_type(&mac.tokens, names)
         {
@@ -2071,10 +2092,13 @@ fn public_structure_constructor(fields: &Fields) -> bool {
     }
 }
 
-fn token_ident_present(tokens: &TokenStream, sought: &str) -> bool {
+// `pub` here is Rust syntax, not a sensitive identifier name. In particular,
+// `r#pub` is a private item's identifier and must not be canonicalized into the
+// visibility keyword.
+fn token_keyword_present(tokens: &TokenStream, sought: &str) -> bool {
     tokens.clone().into_iter().any(|token| match token {
-        proc_macro2::TokenTree::Ident(ident) => ident_matches(&ident, sought),
-        proc_macro2::TokenTree::Group(group) => token_ident_present(&group.stream(), sought),
+        proc_macro2::TokenTree::Ident(ident) => ident == sought,
+        proc_macro2::TokenTree::Group(group) => token_keyword_present(&group.stream(), sought),
         _ => false,
     })
 }
@@ -2532,7 +2556,7 @@ fn discover_crate_macros(
                 Item::Macro(item_macro) if path_is_ident(&item_macro.mac.path, "macro_rules") => {
                     if let Some(ident) = &item_macro.ident {
                         let name = ident_name(ident);
-                        if token_ident_present(&item_macro.mac.tokens, "pub") {
+                        if token_keyword_present(&item_macro.mac.tokens, "pub") {
                             inventory.public_api_macros.insert(name.clone());
                         }
                         inventory
@@ -2712,8 +2736,12 @@ impl<'ast> Visit<'ast> for UnitVisitor {
     }
 
     fn visit_macro(&mut self, node: &'ast syn::Macro) {
-        if path_ends_with_ident(&node.path, "include") {
-            match evaluate_include(&node.tokens) {
+        let built_in = path_is_builtin_macro(&node.path, "include");
+        // Preserve the widened gate's conservative coverage of foreign paths
+        // ending in `include`, but never evaluate them as Rust's built-in.
+        if built_in || path_has_leaf_ident(&node.path, "include") {
+            let evaluated = built_in.then(|| evaluate_include(&node.tokens)).flatten();
+            match evaluated {
                 Some((value, out_dir)) => self.references.push(UnitReference {
                     kind: "include".to_owned(),
                     line: node.path.span().start().line,
@@ -2754,7 +2782,7 @@ fn evaluate_include(tokens: &TokenStream) -> Option<(String, bool)> {
             ..
         }) => Some((value.value(), false)),
         Expr::Macro(macro_expression)
-            if path_ends_with_ident(&macro_expression.mac.path, "concat") =>
+            if path_is_builtin_macro(&macro_expression.mac.path, "concat") =>
         {
             let expressions = Punctuated::<Expr, Token![,]>::parse_terminated
                 .parse2(macro_expression.mac.tokens)
@@ -2768,7 +2796,7 @@ fn evaluate_include(tokens: &TokenStream) -> Option<(String, bool)> {
                         ..
                     }) => value.push_str(&part.value()),
                     Expr::Macro(environment)
-                        if path_ends_with_ident(&environment.mac.path, "env") =>
+                        if path_is_builtin_macro(&environment.mac.path, "env") =>
                     {
                         let variable = syn::parse2::<syn::LitStr>(environment.mac.tokens).ok()?;
                         if variable.value() != "OUT_DIR" {

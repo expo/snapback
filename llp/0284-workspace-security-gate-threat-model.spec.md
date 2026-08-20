@@ -41,14 +41,18 @@ proof design)
 and discovers public-API macro definitions across the crate module tree; the
 remaining cross-crate, trait-substitution, expansion, and I-16 limits are
 restated as literal evading programs rather than implied coverage)
-**Revised:** 2026-08-20 (replaces the expiring Guide generated-API review with
-a committed, syn-shaped, digest-pinned API artifact; ordinary builds now
-generate only typed expressions, and the gate never executes the producer)
+**Revised:** 2026-08-20 (records the attempted replacement of the expiring
+Guide generated-API review with a committed, syn-shaped, digest-pinned API
+artifact; its typed-expression premise is rejected by the next revision)
 **Revised:** 2026-08-20 (independent rustc review disproves the typed-expression
 closure premise: block expressions may contain non-local inherent impls; the
 exact 2026-09-19 generated-API review debt is restored, while raw identifiers
 are canonicalized across privilege names, macros, compilation units, and the
 committed artifact's forbidden-identifier catalog)
+**Revised:** 2026-08-20 (restores exact built-in macro path recognition after
+raw normalization widened qualified `include!`, `concat!`, and `env!` paths;
+keeps foreign qualified includes fail-closed and keeps `r#pub` distinct from
+the visibility keyword)
 **Related:** LLP 0283 (F-1, F-2), LLP 0276, LLP 0225, LLP 0189, LLP 0232, LLP 0141, LLP 0041, LLP 0059, LLP 0154, LLP 0009
 
 ## Summary
@@ -1024,12 +1028,15 @@ Resolution:
 4. Same for `#[cfg_attr(..., path = L)]` at arbitrary nesting depth — recurse
    through `cfg_attr(..., cfg_attr(..., path = L))` and **ignore every cfg**.
    A disabled cfg that would escape is still a violation (fail closed).
-5. For `include!(E)` where `E` is a string literal or
-   `concat!(env!("OUT_DIR"), ...)` that can be evaluated with
+5. For built-in `include!(E)` (bare or exact `std::include!` /
+   `core::include!`, after raw-identifier normalization) where `E` is a string
+   literal or built-in `concat!(env!("OUT_DIR"), ...)` under the same exact
+   bare-or-`std`/`core` path rule, that can be evaluated with
    `OUT_DIR` substituted by a fake absolute dir under
    `<target>/<pkg>/`, resolve and apply the same outside-`R` test.
-   Unevaluable `include!` forms fail closed
-   (`include-unevaluable`).
+   Unevaluable `include!` forms fail closed (`include-unevaluable`). A foreign
+   qualified path whose leaf is `include` remains conservatively recognized,
+   but is unevaluable rather than receiving built-in semantics.
 6. Directory symlinks encountered while walking: follow, then apply
    the outside-`R` test to every yielded file.
 
@@ -1213,6 +1220,8 @@ is a fourth live defect.
 | `ordinary-macro-generated-api` | internal `macro_rules!` emits `pub fn leak() -> KernelCommitAuthority` | corpus | MISS | `macro-generated-api` RED |
 | `out-dir-generated-api` | bare `include!`, `std::include!`, direct imported alias, module-local hardcoded wrapper, and literal parameter-forwarding wrapper over `concat!(env!("OUT_DIR"), ...)`; direct includes appear at module, impl, trait, foreign, nested-inline-module, `cfg`, and `cfg_attr` positions | corpus | MISS | each recognized position/spelling is a `generated-api` RED absent its own exact review row; the Guide committed-artifact proof suppresses none of them |
 | `raw-identifier-out-dir-generated-api` | `r#include!(...)` and `std::r#include!(concat!(env!("OUT_DIR"), "/hostile.rs"))` | corpus | MISS | raw macro names canonicalize to `include`; both are `generated-api` RED |
+| `qualified-custom-env-include` | `include!(concat!(evil::env!("OUT_DIR"), "/probe.rs"))` where the custom macro emits an external root | path-include corpus | forged synthetic `OUT_DIR` PASS | `evil::env!` is not a bare or `std`/`core` built-in path, so the include is unevaluable and RED |
+| `raw-pub-private-macro-item` | a macro emits private `const r#pub: Option<KernelCommitAuthority>` | privilege corpus | false-positive `macro-generated-api` RED | `r#pub` remains an identifier rather than the visibility keyword; fixture stays clean |
 | `generated-producer-drift` | the real server custom-build source changes, Cargo selects `actual-build.rs`, or the committed API artifact adds a raw SQL name, I-1 seed, authority discriminator, or any other public item | harness temp package using committed copies | forgeable PASS in the rejected proof | manifest invalid on producer/target digest, artifact digest, parsed item shape, or forbidden-identifier drift; the producer is never compiled or executed as audit evidence |
 | `unobtainable-seed-container` | private-state scope returns a seed but is created only by consuming that same seed; unit-constructible control returns it too | corpus | false positive on both | scope clean; constructible control RED |
 | `named-but-not-depended-on` | fixture metadata lists `snapback-conformance` but `[dependencies]` omits it (reproduce today's `Cargo.toml`) | harness test over a temp copy of the fixture manifest | old gate PASS | I-12 RED |
