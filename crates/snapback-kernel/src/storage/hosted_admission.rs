@@ -21,3 +21,12 @@ impl LocalDatabase {
         install_hosted_admission_commit(&mut self.conn, commit)
     }
 }
+
+impl super::ServingDatabase {
+    pub fn install_hosted_admission(
+        &mut self,
+        commit: HostedAdmissionCommit,
+    ) -> SnapbackResult<()> {
+        self.db.install_hosted_admission(commit)
+    }
+}

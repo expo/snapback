@@ -461,3 +461,17 @@ mod tests {
         );
     }
 }
+impl super::ServingDatabase {
+    pub fn settle_stream_transcript(
+        &mut self,
+        record: &StreamTranscriptRecord,
+    ) -> SnapbackResult<()> {
+        self.db.settle_stream_transcript(record)
+    }
+    pub fn reconcile_stream_transcript_from_attempt(
+        &mut self,
+        attempt: &PersistedStreamAttempt,
+    ) -> SnapbackResult<()> {
+        self.db.reconcile_stream_transcript_from_attempt(attempt)
+    }
+}

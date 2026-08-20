@@ -24,12 +24,12 @@ pub const PUSH_PROVIDER_RESPONSE_MAX_BYTES: u64 = 1_048_576;
 
 /// The admitted authority fact consumed by durable push authorization.
 ///
-/// This is a kernel-internal port value, not an admission capability. The
-/// public façade deliberately does not re-export it; its only production
-/// producer is the prepared-authority adapter in `snapback::push`.
-#[derive(Clone, Debug)]
+/// This is a kernel-minted port value, not an authority root. Production
+/// callers can request it only through the serving database that owns the
+/// kernel-private fact-assertion root.
+#[derive(Debug)]
 pub struct PushStorageAuthority {
-    database_identity: std::sync::Arc<()>,
+    database_binding: crate::storage::DatabaseBinding,
     kind: PushStorageAuthorityKind,
 }
 
@@ -40,32 +40,34 @@ enum PushStorageAuthorityKind {
     Other,
 }
 
+// @ref LLP 0285#51-defect-1--the-publicly-claimable-authority-root — fact
+// assertion stays on the kernel-private root, never on the cloneable binding.
 impl crate::storage::KernelCommitAuthority {
-    pub fn admit_system_push(&self) -> PushStorageAuthority {
+    pub(crate) fn admit_system_push(&self) -> PushStorageAuthority {
         PushStorageAuthority {
-            database_identity: self.identity().clone(),
+            database_binding: self.binding(),
             kind: PushStorageAuthorityKind::System,
         }
     }
 
-    pub fn admit_user_push(&self, principal_id: &str) -> PushStorageAuthority {
+    pub(crate) fn admit_user_push(&self, principal_id: &str) -> PushStorageAuthority {
         PushStorageAuthority {
-            database_identity: self.identity().clone(),
+            database_binding: self.binding(),
             kind: PushStorageAuthorityKind::User(principal_id.to_owned()),
         }
     }
 
-    pub fn admit_other_push(&self) -> PushStorageAuthority {
+    pub(crate) fn admit_other_push(&self) -> PushStorageAuthority {
         PushStorageAuthority {
-            database_identity: self.identity().clone(),
+            database_binding: self.binding(),
             kind: PushStorageAuthorityKind::Other,
         }
     }
 }
 
 impl PushStorageAuthority {
-    pub(crate) fn is_for(&self, identity: &std::sync::Arc<()>) -> bool {
-        std::sync::Arc::ptr_eq(&self.database_identity, identity)
+    pub(crate) fn is_for(&self, binding: &crate::storage::DatabaseBinding) -> bool {
+        self.database_binding.matches(binding)
     }
 
     fn is_system(&self) -> bool {

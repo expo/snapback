@@ -1422,6 +1422,7 @@ pub fn arm_derived_fork_app_row_coverage(
     if let Some(schema) = schema {
         database.schema_seed().apply_schema(schema)?;
     }
+    let mut database = crate::storage::ServingDatabase::adopt(database)?;
     arm_open_derived_fork_app_row_coverage(&mut database, activated_at_ms)
 }
 
@@ -1434,12 +1435,12 @@ pub fn arm_derived_fork_app_row_coverage(
 /// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — the
 ///   manifest is active from the fork point on the process-owned connection.
 pub fn arm_open_derived_fork_app_row_coverage(
-    database: &mut crate::storage::LocalDatabase,
+    database: &mut crate::storage::ServingDatabase,
     activated_at_ms: u64,
 ) -> SnapbackResult<ForkAppRowCoverageReceiptV1> {
-    let runtime = database
+    let lineage = database
         .branch_ops_read()
-        .derived_fork()
+        .derived_fork_lineage()
         .cloned()
         .ok_or_else(|| {
             writer_coverage_invalid("writer coverage activation requires a minted derived fork")
@@ -1450,13 +1451,13 @@ pub fn arm_open_derived_fork_app_row_coverage(
         .ok_or_else(|| {
             writer_coverage_invalid("writer coverage activation requires a file-backed fork")
         })?;
-    if database.versions_read().current_version()? != runtime.lineage.fork_point_version {
+    if database.versions_read().current_version()? != lineage.fork_point_version {
         return Err(writer_coverage_invalid(
             "derived-fork writer coverage must arm before the first post-fork commit",
         ));
     }
     let activation_head_version = database.versions_read().current_version()?;
-    if activation_head_version != runtime.lineage.fork_point_version {
+    if activation_head_version != lineage.fork_point_version {
         return Err(writer_coverage_invalid(
             "worktree schema preparation advanced the app-row head before writer coverage armed",
         ));
@@ -1472,9 +1473,9 @@ pub fn arm_open_derived_fork_app_row_coverage(
     let mut receipt = ForkAppRowCoverageReceiptV1 {
         schema_version: "snapback.fork-app-row-coverage.v1".to_owned(),
         profile: "derived-fork-app-rows-v1".to_owned(),
-        fork_id: runtime.lineage.fork_id,
+        fork_id: lineage.fork_id,
         data_version_stream: manifest.stream_id.clone(),
-        fork_point_version: runtime.lineage.fork_point_version,
+        fork_point_version: lineage.fork_point_version,
         activation_head_version,
         activated_at_ms,
         manifest_version: manifest.manifest_version,

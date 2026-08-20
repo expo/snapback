@@ -195,7 +195,7 @@ impl LocalDatabase {
         require_foreign_keys(&self.conn)?;
         let completion = rescue_on_connection(&mut self.conn, source, target)?;
         if let Some(manifest) = completion.rewritten_manifest {
-            self.schema = manifest;
+            self.replace_active_schema(manifest);
         }
         Ok(completion.result)
     }
@@ -215,6 +215,16 @@ impl LocalDatabase {
         connection.busy_timeout(std::time::Duration::from_secs(5))?;
         require_foreign_keys(&connection)?;
         Ok(rescue_on_connection(&mut connection, source, target)?.result)
+    }
+}
+
+impl super::ServingDatabase {
+    pub fn rescue_auth_collision(
+        &mut self,
+        source: &str,
+        target: &str,
+    ) -> SnapbackResult<crate::auth::rescue::CollisionRescueResult> {
+        self.db.rescue_auth_collision(source, target)
     }
 }
 

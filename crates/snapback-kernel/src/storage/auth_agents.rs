@@ -1601,3 +1601,60 @@ mod tests {
         );
     }
 }
+impl super::ServingDatabase {
+    #[allow(clippy::too_many_arguments)]
+    pub fn register_agent_principal_with_class(
+        &mut self,
+        mode: AgentsMode,
+        invitation: Option<&CreationInvitation>,
+        display_name: Option<String>,
+        operator_contact: Option<String>,
+        class: super::auth_integrations::AgentRegistrationClass,
+        integration_facts: super::auth_integrations::IntegrationRegistrationFacts,
+        profile: ServerProfile,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IssuedAgentCredential> {
+        self.db.register_agent_principal_with_class(
+            mode,
+            invitation,
+            display_name,
+            operator_contact,
+            class,
+            integration_facts,
+            profile,
+            now_ms,
+            random,
+        )
+    }
+    pub fn mint_agent_invitation(
+        &mut self,
+        user_id: &str,
+        profile: ServerProfile,
+        proof: &StepUpProof,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IssuedAgentInvitation> {
+        self.db
+            .mint_agent_invitation(user_id, profile, proof, now_ms, random)
+    }
+}
+impl super::ServingDatabase {
+    pub fn create_agent_principal(
+        &mut self,
+        user_id: &str,
+        created_at_ms: u64,
+        registration: &AgentRegistration,
+    ) -> SnapbackResult<()> {
+        self.db
+            .create_agent_principal(user_id, created_at_ms, registration)
+    }
+    pub fn deactivate_agent(
+        &mut self,
+        user_id: &str,
+        now_ms: u64,
+        manifest: &SchemaManifest,
+    ) -> SnapbackResult<()> {
+        self.db.deactivate_agent(user_id, now_ms, manifest)
+    }
+}

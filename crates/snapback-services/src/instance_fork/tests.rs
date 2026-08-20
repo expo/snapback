@@ -2259,6 +2259,43 @@ fn net_diff_scan_preflights_huge_text_blob_and_vector_before_owned_decode() {
 
 #[cfg(feature = "services-owner")]
 #[test]
+fn ordinary_unarmed_app_row_probe_requires_the_exclusive_serving_owner() {
+    let directory = tempfile::tempdir().unwrap();
+    let database_path = app_row_source_database(directory.path());
+    let mut database = crate::storage::ServingDatabase::adopt(
+        crate::storage::LocalDatabase::open(&database_path).unwrap(),
+    )
+    .unwrap();
+
+    assert!(
+        !database
+            .agent_safe_exact_operation_coverage_active()
+            .unwrap(),
+        "ordinary database must keep exact-operation writer authority unarmed"
+    );
+    assert_eq!(
+        database
+            .attempt_unmediated_app_insert_for_test()
+            .expect("the ordinary unarmed connection has no refusing authorizer"),
+        1
+    );
+    drop(database);
+    let raw_bypass_rows = Connection::open(&database_path)
+        .unwrap()
+        .query_row(
+            "SELECT COUNT(*) FROM items WHERE _id='raw-bypass'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .unwrap();
+    assert_eq!(
+        raw_bypass_rows, 1,
+        "the regression must prove the state-dependent runtime guard is absent"
+    );
+}
+
+#[cfg(feature = "services-owner")]
+#[test]
 fn net_diff_authorizer_backed_app_row_corpus_and_runtime_negative() {
     let directory = tempfile::tempdir().unwrap();
     let source = app_row_source_database(directory.path());
@@ -2277,7 +2314,10 @@ fn net_diff_authorizer_backed_app_row_corpus_and_runtime_negative() {
         fork_app_row_writer_choke_points()
     );
 
-    let mut fork = crate::storage::LocalDatabase::open(&database).unwrap();
+    let mut fork = crate::storage::ServingDatabase::adopt(
+        crate::storage::LocalDatabase::open(&database).unwrap(),
+    )
+    .unwrap();
     assert!(
         !fork
             .operation_lane_covered(crate::operation_ledger::ORDINARY_MUTATION_LANE_V1)
@@ -2448,19 +2488,19 @@ fn armed_derived_fork_maintenance_sweep_prunes_the_change_journal() {
             )
             .unwrap();
     }
-    let before = fork.versions_read().change_journal_len().unwrap();
+    let before = fork.versions().change_journal_len().unwrap();
     let deleted = fork
-        .versions_read()
+        .versions()
         .prune_change_journal(wall_clock_now_ms().saturating_add(1_000), 0, 0)
         .expect("armed maintenance writer prunes through its registered token");
-    let after = fork.versions_read().change_journal_len().unwrap();
+    let after = fork.versions().change_journal_len().unwrap();
     assert!(
         deleted > 0,
         "the maintenance sweep must remove retained rows"
     );
     assert_eq!(after, before - deleted);
     assert!(
-        fork.versions_read().journal_floor_version().unwrap() > 0,
+        fork.versions().journal_floor_version().unwrap() > 0,
         "the same armed sweep advances the monotonic retention floor"
     );
 }

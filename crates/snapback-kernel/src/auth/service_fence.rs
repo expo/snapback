@@ -33,7 +33,6 @@ impl PreparedServiceAuthorityTerminal {
     }
 }
 
-#[derive(Clone)]
 pub struct ServiceAuthorityTerminalFactory {
     identity: Arc<()>,
 }
@@ -60,7 +59,6 @@ type PrepareTerminal = dyn Fn(&[String], ServiceAuthorityDisposition) -> Snapbac
 
 /// Database-bound service terminal operation. There is no public capability
 /// trait and no public raw installer.
-#[derive(Clone)]
 pub struct ServiceAuthorityCommitInterlock {
     identity: Arc<()>,
     prepare: Arc<PrepareTerminal>,
@@ -88,14 +86,16 @@ impl ServiceAuthorityCommitInterlock {
     }
 }
 
+// @ref LLP 0285#51-defect-1--the-publicly-claimable-authority-root — closure
+// backed terminal construction is a fact-assertion job, not database identity.
 impl crate::storage::KernelCommitAuthority {
-    pub fn service_authority_terminal_factory(&self) -> ServiceAuthorityTerminalFactory {
+    pub(crate) fn service_authority_terminal_factory(&self) -> ServiceAuthorityTerminalFactory {
         ServiceAuthorityTerminalFactory {
             identity: self.identity().clone(),
         }
     }
 
-    pub fn service_authority_commit_interlock(
+    pub(crate) fn service_authority_commit_interlock(
         &self,
         prepare: impl Fn(
             &[String],
@@ -170,7 +170,7 @@ impl RecordingServiceAuthorityCommitInterlock {
             .load(std::sync::atomic::Ordering::SeqCst)
     }
 
-    pub fn bind(
+    pub(crate) fn bind(
         &self,
         authority: &crate::storage::KernelCommitAuthority,
     ) -> ServiceAuthorityCommitInterlock {

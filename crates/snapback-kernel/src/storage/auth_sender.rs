@@ -315,8 +315,11 @@ impl LocalDatabase {
 
     /// DDL authority retained exclusively by authenticated hosted preflight.
     /// Request admission never creates or repairs replay/nonce tables.
+    ///
+    /// @ref LLP 0285#8-open-risks — hosted DDL cannot be inherited through
+    /// `ServingDatabase`'s `Deref`.
     #[allow(dead_code)] // Invoked when a concrete hosted adapter installs authority.
-    pub fn initialize_sender_proof_after_hosted_preflight(&self) -> SnapbackResult<()> {
+    pub(crate) fn initialize_sender_proof_after_hosted_preflight(&self) -> SnapbackResult<()> {
         initialize_sender_proof_replay_on(&self.conn).map_err(|error| {
             let reason = match error {
                 ReplayConsumeError::Capacity => "capacity",
@@ -343,7 +346,7 @@ impl LocalDatabase {
     }
 
     #[cfg(any(test, feature = "test-support"))]
-    pub fn make_sender_proof_replay_unavailable_for_test(&self) -> SnapbackResult<()> {
+    pub(crate) fn make_sender_proof_replay_unavailable_for_test(&self) -> SnapbackResult<()> {
         self.conn
             .execute_batch("DROP TABLE _snapback_sender_proof_replay;")
             .map_err(Into::into)
@@ -821,4 +824,13 @@ pub(crate) fn tombstoned_sender_family_on(
         jwk_thumbprint,
         terminal_reason,
     }))
+}
+impl super::ServingDatabase {
+    pub fn sender_proof_authority(&mut self) -> SenderProofAuthority<'_> {
+        self.db.sender_proof_authority()
+    }
+    #[allow(dead_code)]
+    pub fn apply_sender_replay_epoch_floor(&mut self, floor: u64) -> SnapbackResult<()> {
+        self.db.apply_sender_replay_epoch_floor(floor)
+    }
 }

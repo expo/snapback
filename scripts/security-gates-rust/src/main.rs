@@ -82,6 +82,156 @@ struct Finding {
     generated_expression: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalSharedMethod {
+    method: String,
+    file: String,
+    line: usize,
+    end_line: usize,
+    visibility: String,
+    cfg: Vec<String>,
+}
+
+impl LocalSharedMethod {
+    fn is_public(&self) -> bool {
+        self.visibility == "pub"
+    }
+}
+
+struct LocalSharedMethodVisitor<'a> {
+    source_root: &'a Path,
+    source: &'a Path,
+    methods: Vec<LocalSharedMethod>,
+}
+
+impl<'ast> Visit<'ast> for LocalSharedMethodVisitor<'_> {
+    fn visit_item_impl(&mut self, item_impl: &'ast ItemImpl) {
+        if item_impl.trait_.is_none()
+            && last_type_name(&item_impl.self_ty).as_deref() == Some("LocalDatabase")
+        {
+            for item in &item_impl.items {
+                let ImplItem::Fn(function) = item else {
+                    continue;
+                };
+                let Some(FnArg::Receiver(receiver)) = function.sig.inputs.first() else {
+                    continue;
+                };
+                let shared = if receiver.colon_token.is_some() {
+                    matches!(receiver.ty.as_ref(), Type::Reference(reference) if reference.mutability.is_none())
+                } else {
+                    receiver.reference.is_some() && receiver.mutability.is_none()
+                };
+                if !shared {
+                    continue;
+                }
+                let visibility = match &function.vis {
+                    Visibility::Public(_) => "pub".to_owned(),
+                    Visibility::Restricted(restricted) => format!(
+                        "pub({})",
+                        restricted
+                            .path
+                            .segments
+                            .iter()
+                            .map(|segment| segment.ident.to_string())
+                            .collect::<Vec<_>>()
+                            .join("::")
+                    ),
+                    Visibility::Inherited => "private".to_owned(),
+                };
+                let cfg = function
+                    .attrs
+                    .iter()
+                    .filter_map(|attribute| match &attribute.meta {
+                        Meta::List(list)
+                            if list.path.is_ident("cfg") || list.path.is_ident("cfg_attr") =>
+                        {
+                            Some(format!(
+                                "#[{}({})]",
+                                list.path
+                                    .segments
+                                    .iter()
+                                    .map(|segment| segment.ident.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join("::"),
+                                list.tokens
+                            ))
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                self.methods.push(LocalSharedMethod {
+                    method: function.sig.ident.to_string(),
+                    file: self
+                        .source
+                        .strip_prefix(self.source_root)
+                        .unwrap_or(self.source)
+                        .to_string_lossy()
+                        .replace('\\', "/"),
+                    line: function.sig.ident.span().start().line,
+                    end_line: function.span().end().line,
+                    visibility,
+                    cfg,
+                });
+            }
+        }
+        visit::visit_item_impl(self, item_impl);
+    }
+}
+
+fn rust_source_files(root: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
+    let entries = fs::read_dir(root).map_err(|error| {
+        format!(
+            "cannot read Rust source directory {}: {error}",
+            root.display()
+        )
+    })?;
+    for entry in entries {
+        let entry = entry.map_err(|error| {
+            format!(
+                "cannot inspect Rust source directory {}: {error}",
+                root.display()
+            )
+        })?;
+        let path = entry.path();
+        if path.is_dir() {
+            rust_source_files(&path, files)?;
+        } else if path.extension().is_some_and(|extension| extension == "rs") {
+            files.push(path);
+        }
+    }
+    Ok(())
+}
+
+fn local_shared_methods(root: &Path) -> Result<Vec<LocalSharedMethod>, String> {
+    let mut files = Vec::new();
+    rust_source_files(root, &mut files)?;
+    files.sort();
+    let mut methods = Vec::new();
+    for source in files {
+        let text = fs::read_to_string(&source)
+            .map_err(|error| format!("cannot read Rust source {}: {error}", source.display()))?;
+        let syntax = syn::parse_file(&text)
+            .map_err(|error| format!("cannot parse Rust source {}: {error}", source.display()))?;
+        let mut visitor = LocalSharedMethodVisitor {
+            source_root: root,
+            source: &source,
+            methods: Vec::new(),
+        };
+        visitor.visit_file(&syntax);
+        methods.append(&mut visitor.methods);
+    }
+    methods.sort_by(|left, right| {
+        (&left.file, left.line, &left.method, &left.visibility).cmp(&(
+            &right.file,
+            right.line,
+            &right.method,
+            &right.visibility,
+        ))
+    });
+    Ok(methods)
+}
+
 #[derive(Default, Clone)]
 struct ModuleNames {
     sql_imports: BTreeSet<String>,
@@ -2596,6 +2746,19 @@ fn run() -> Result<(), String> {
                     .map_err(|error| format!("cannot serialize privilege sinks: {error}"))?
             );
         }
+        "local-shared-methods" => {
+            let root = PathBuf::from(required_arg(&args, "--source-root")?);
+            let public_only = args.iter().any(|argument| argument == "--public-only");
+            let mut methods = local_shared_methods(&root)?;
+            if public_only {
+                methods.retain(LocalSharedMethod::is_public);
+            }
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&methods)
+                    .map_err(|error| format!("cannot serialize shared methods: {error}"))?
+            );
+        }
         "units" => {
             let path = PathBuf::from(required_arg(&args, "--file")?);
             let source = fs::read_to_string(&path)
@@ -2631,7 +2794,7 @@ fn run() -> Result<(), String> {
         }
         _ => {
             return Err(
-                "usage: security-gates-rust <privilege|privilege-sinks|units|attack-span|crate-references> ..."
+                "usage: security-gates-rust <privilege|privilege-sinks|local-shared-methods|units|attack-span|crate-references> ..."
                     .to_owned(),
             );
         }

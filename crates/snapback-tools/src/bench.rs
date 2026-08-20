@@ -1068,7 +1068,7 @@ fn measure_spurious_conflict(config: &BenchConfig) -> crate::diagnostic::Snapbac
         db.schema_seed().apply_schema(schema())?;
         commit_insert(&mut db, "todos", json!({ "title": "match", "done": true }))?;
 
-        let captured_version = db.versions_read().table_change_version("todos")?;
+        let captured_version = db.versions().table_change_version("todos")?;
         let query_read = CapturedReadDependency {
             kind: CapturedReadKind::Query,
             table: Some("todos".to_owned()),

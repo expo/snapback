@@ -3466,3 +3466,61 @@ mod tests {
         );
     }
 }
+impl super::ServingDatabase {
+    pub fn auth_rehearsal_resolve(
+        &mut self,
+        carrier_hash: &[u8; 32],
+        bindings: &RehearsalBindingFacts,
+        now_ms: u64,
+    ) -> SnapbackResult<AuthRehearsalGrantV1> {
+        self.db
+            .auth_rehearsal_resolve(carrier_hash, bindings, now_ms)
+    }
+    pub fn auth_rehearsal_mint(
+        &mut self,
+        plan: RehearsalMintPlan,
+    ) -> SnapbackResult<MintedRehearsalGrant> {
+        self.db.auth_rehearsal_mint(plan)
+    }
+    pub fn auth_rehearsal_revoke(
+        &mut self,
+        grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<RehearsalStatusV1> {
+        self.db.auth_rehearsal_revoke(grant_id, now_ms)
+    }
+    pub fn auth_rehearsal_exercise(
+        &mut self,
+        plan: RehearsalExercisePlan,
+    ) -> SnapbackResult<RehearsalExerciseOutcome> {
+        self.db.auth_rehearsal_exercise(plan)
+    }
+    pub fn auth_rehearsal_create_identity(
+        &mut self,
+        exercise: RehearsalExercisePlan,
+        identity: crate::contract_types::PlannedIdentityState,
+        address: &crate::auth::crypto::CanonicalAddress,
+        provenance: &crate::auth::rehearsal::AuthRehearsalProvenanceV1,
+        governing_not_after_ms: u64,
+    ) -> SnapbackResult<RehearsalExerciseOutcome> {
+        self.db.auth_rehearsal_create_identity(
+            exercise,
+            identity,
+            address,
+            provenance,
+            governing_not_after_ms,
+        )
+    }
+    pub fn auth_rehearsal_install_window(
+        &mut self,
+        plan: RehearsalWindowInstallPlan,
+    ) -> SnapbackResult<(RehearsalExerciseOutcome, AuthRehearsalWindowV1)> {
+        self.db.auth_rehearsal_install_window(plan)
+    }
+    pub fn auth_rehearsal_advance_auth_clock(
+        &mut self,
+        exercise: RehearsalExercisePlan,
+    ) -> SnapbackResult<RehearsalExerciseOutcome> {
+        self.db.auth_rehearsal_advance_auth_clock(exercise)
+    }
+}

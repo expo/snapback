@@ -2684,3 +2684,88 @@ mod tests {
         assert_eq!(bulk.token_ids, ["token-two"]);
     }
 }
+impl super::ServingDatabase {
+    pub fn mint_pairing_code(
+        &mut self,
+        user_id: &str,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<MintedPairingCode> {
+        self.db.mint_pairing_code(user_id, now_ms, random)
+    }
+    pub fn present_pairing_code(
+        &mut self,
+        credential: &AgentCredential,
+        pairing_request_id: &str,
+        pairing_code: &PairingCode,
+        requested_scopes: &[GrantScopeRequest],
+        now_ms: u64,
+    ) -> SnapbackResult<PairingPresentation> {
+        self.db.present_pairing_code(
+            credential,
+            pairing_request_id,
+            pairing_code,
+            requested_scopes,
+            now_ms,
+        )
+    }
+    pub fn approve_grant_request(
+        &mut self,
+        effective_user_id: &str,
+        session_id: &str,
+        request_id: &str,
+        requested_ttl_ms: Option<u64>,
+        step_up_proof: Option<&StepUpProof>,
+        now_ms: u64,
+    ) -> SnapbackResult<GrantApproval> {
+        self.db.approve_grant_request(
+            effective_user_id,
+            session_id,
+            request_id,
+            requested_ttl_ms,
+            step_up_proof,
+            now_ms,
+        )
+    }
+    pub fn deny_grant_request(
+        &mut self,
+        effective_user_id: &str,
+        request_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db
+            .deny_grant_request(effective_user_id, request_id, now_ms)
+    }
+    pub fn pending_grant_requests(
+        &mut self,
+        effective_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<PendingGrantRequest>> {
+        self.db.pending_grant_requests(effective_user_id, now_ms)
+    }
+    pub fn grants_for_user(
+        &mut self,
+        effective_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<UserGrant>> {
+        self.db.grants_for_user(effective_user_id, now_ms)
+    }
+    pub fn revoke_grant_for_user(
+        &mut self,
+        effective_user_id: &str,
+        grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<GrantRevocation> {
+        self.db
+            .revoke_grant_for_user(effective_user_id, grant_id, now_ms)
+    }
+    pub fn revoke_grants_by_actor_for_user(
+        &mut self,
+        effective_user_id: &str,
+        actor_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<BulkGrantRevocation> {
+        self.db
+            .revoke_grants_by_actor_for_user(effective_user_id, actor_user_id, now_ms)
+    }
+}

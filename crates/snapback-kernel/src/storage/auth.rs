@@ -1807,7 +1807,7 @@ impl LocalDatabase {
     /// Settle the exact process ticket after an operation-specific durable
     /// reread proves the outcome of an ambiguous SQLite COMMIT. A failed or
     /// inconclusive reread deliberately leaves the ticket pending.
-    pub fn reconcile_ambiguous_service_terminal(
+    pub(crate) fn reconcile_ambiguous_service_terminal(
         &self,
         prepared: Option<crate::auth::service_fence::PreparedServiceAuthorityTerminal>,
         committed: bool,
@@ -2550,6 +2550,13 @@ pub fn install_frozen_v1_catalog_fixture(database: &mut LocalDatabase) -> Snapba
     require_ready_on(&tx)?;
     tx.commit()?;
     Ok(())
+}
+
+impl super::ServingDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_frozen_v1_catalog_fixture(&mut self) -> SnapbackResult<()> {
+        install_frozen_v1_catalog_fixture(&mut self.db)
+    }
 }
 
 /// Install the exact frozen version-2 catalog for recognition/no-migration
@@ -3675,8 +3682,11 @@ mod tests {
         let authority = db
             .claim_kernel_commit_authority()
             .expect("kernel authority");
-        db.install_service_authority_commit_interlock(&authority, interlock.bind(&authority))
-            .expect("bind service terminal interlock");
+        db.install_service_authority_commit_interlock(
+            &authority.binding(),
+            interlock.bind(&authority),
+        )
+        .expect("bind service terminal interlock");
 
         inject_service_rollback_uncertainty_for_test();
         let attempt: ServiceAuthTransactionAttempt<()> = db
@@ -4064,9 +4074,8 @@ mod tests {
             let prepared = self.prepared.clone();
             let committed = self.committed.clone();
             let expect_incarnation_rotated = self.expect_incarnation_rotated;
-            let prepared_carriers = carriers.clone();
             carriers.reservation(
-                move |witness, impact| {
+                move |prepared_carriers, witness, impact| {
                     assert!(witness.event);
                     assert_eq!(witness.incarnation_rotated, expect_incarnation_rotated);
                     assert!(matches!(
@@ -4122,7 +4131,7 @@ mod tests {
         let authority = db
             .claim_kernel_commit_authority()
             .expect("kernel authority");
-        db.enable_authorization_commit_interlock(&authority)
+        db.enable_authorization_commit_interlock(&authority.binding())
             .expect("bind authorization interlock");
         let carriers = authority.authorization_commit_carriers();
 
@@ -4445,7 +4454,7 @@ mod tests {
         let authority = db
             .claim_kernel_commit_authority()
             .expect("kernel authority");
-        db.enable_authorization_commit_interlock(&authority)
+        db.enable_authorization_commit_interlock(&authority.binding())
             .expect("bind authorization interlock");
         let carriers = authority.authorization_commit_carriers();
         crate::storage::inject_authorization_commit_fault_for_test(
@@ -4491,7 +4500,7 @@ mod tests {
         let authority = db
             .claim_kernel_commit_authority()
             .expect("kernel authority");
-        db.enable_authorization_commit_interlock(&authority)
+        db.enable_authorization_commit_interlock(&authority.binding())
             .expect("bind authorization interlock");
         let carriers = authority.authorization_commit_carriers();
 
@@ -5121,5 +5130,59 @@ mod tests {
             .get("_aUtH_users", "anything")
             .expect_err("runtime resolver must reject protected table");
         assert_eq!(error.diagnostic.code, "SNAPBACK_INVALID_IDENTIFIER");
+    }
+}
+impl super::ServingDatabase {
+    pub fn advance_auth_session_clock_floor(&mut self, observed_ms: u64) -> SnapbackResult<u64> {
+        self.db.advance_auth_session_clock_floor(observed_ms)
+    }
+}
+
+impl super::ServingDatabase {
+    pub fn activate_current_auth_catalog(&mut self) -> SnapbackResult<()> {
+        self.db.activate_current_auth_catalog()
+    }
+
+    pub fn auth_gc(&mut self, now_ms: u64) -> SnapbackResult<AuthGcResult> {
+        self.db.auth_gc(now_ms)
+    }
+
+    pub fn apply_auth_restore_declaration(
+        &mut self,
+        declaration_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<AuthRestoreResult> {
+        self.db
+            .apply_auth_restore_declaration(declaration_id, now_ms)
+    }
+}
+impl super::ServingDatabase {
+    pub fn activate_current_auth_catalog_with_password_identifier_mode(
+        &mut self,
+        mode: PasswordIdentifierMode,
+    ) -> SnapbackResult<()> {
+        self.db
+            .activate_current_auth_catalog_with_password_identifier_mode(mode)
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn insert_password_attempt_for_test(
+        &mut self,
+        address: &str,
+        window_start_ms: u64,
+        failed_count: u64,
+        locked_until_ms: Option<u64>,
+    ) -> SnapbackResult<()> {
+        self.db.insert_password_attempt_for_test(
+            address,
+            window_start_ms,
+            failed_count,
+            locked_until_ms,
+        )
+    }
+}
+impl super::ServingDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn insert_large_backup_fixture_for_test(&mut self) -> SnapbackResult<()> {
+        self.db.insert_large_backup_fixture_for_test()
     }
 }

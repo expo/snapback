@@ -1447,7 +1447,7 @@ mod tests {
         let manifest = oauth_api_manifest();
         db.with_auth_transaction(|tx| activate_manifest_in(tx, &manifest))
             .unwrap();
-        db.schema = manifest;
+        db.replace_active_schema(manifest);
         db.conn
             .execute(
                 "INSERT INTO _auth_scope_bases(
@@ -2288,5 +2288,58 @@ mod tests {
         );
         assert_eq!(error.diagnostic.details["userId"], integration.user_id);
         assert_eq!(error.diagnostic.details["reason"], "autonomous_grant");
+    }
+}
+impl super::ServingDatabase {
+    #[allow(clippy::too_many_arguments)]
+    pub fn begin_oauth_authorization(
+        &mut self,
+        consenting_user_id: &str,
+        client_id: &str,
+        redirect_uri: &str,
+        bundle_names: &[String],
+        code_challenge: &str,
+        oauth_state: Option<&str>,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<BegunOAuthAuthorization> {
+        self.db.begin_oauth_authorization(
+            consenting_user_id,
+            client_id,
+            redirect_uri,
+            bundle_names,
+            code_challenge,
+            oauth_state,
+            now_ms,
+            random,
+        )
+    }
+    pub fn issue_oauth_authorization_code(
+        &mut self,
+        consenting_user_id: &str,
+        request_id: &str,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<IssuedOAuthAuthorization> {
+        self.db
+            .issue_oauth_authorization_code(consenting_user_id, request_id, now_ms, random)
+    }
+    pub fn deny_oauth_authorization(
+        &mut self,
+        consenting_user_id: &str,
+        request_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<DeniedOAuthAuthorization> {
+        self.db
+            .deny_oauth_authorization(consenting_user_id, request_id, now_ms)
+    }
+    pub fn set_integration_suspended(
+        &mut self,
+        principal_user_id: &str,
+        suspended: bool,
+        now_ms: u64,
+    ) -> SnapbackResult<IntegrationRecord> {
+        self.db
+            .set_integration_suspended(principal_user_id, suspended, now_ms)
     }
 }

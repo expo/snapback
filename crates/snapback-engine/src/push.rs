@@ -23,30 +23,30 @@ pub use snapback_services::push::{
 };
 pub use snapback_types::push::*;
 
-/// The sole adapter from admitted invocation authority to the kernel's
-/// storage-only push fact. The kernel fact is intentionally not re-exported
-/// through the public façade, so callers cannot assert `System` themselves.
+/// Adapter from admitted invocation authority to the kernel's storage-only
+/// push fact. The serving database owns the kernel-private fact-assertion root;
+/// a cloneable database binding is deliberately insufficient here.
 ///
 /// @ref LLP 0276#phases — port inversion must preserve compiler-enforced
 /// admission rather than accept a caller assertion.
 pub(crate) fn admitted_push_storage_authority(
-    kernel: &crate::storage::KernelCommitAuthority,
+    database: &crate::storage::ServingDatabase,
     authority: &crate::auth::invocation::PreparedAuthority,
 ) -> PushStorageAuthority {
     if matches!(
         authority.resolved(),
         crate::auth::invocation::ResolvedAppAuthority::System
     ) {
-        kernel.admit_system_push()
+        database.admit_system_push()
     } else if let Some(user_id) = authority.projection().user_id() {
-        kernel.admit_user_push(user_id)
+        database.admit_user_push(user_id)
     } else {
-        kernel.admit_other_push()
+        database.admit_other_push()
     }
 }
 
 pub(crate) fn read_ledger_projection_for_prepared(
-    kernel: &crate::storage::KernelCommitAuthority,
+    database: &crate::storage::ServingDatabase,
     db: &crate::storage::DbRead<'_>,
     declaration: &PushSeamDeclarationV1,
     schema: &crate::manifest::SchemaManifest,
@@ -61,7 +61,7 @@ pub(crate) fn read_ledger_projection_for_prepared(
         db,
         declaration,
         schema,
-        &admitted_push_storage_authority(kernel, authority),
+        &admitted_push_storage_authority(database, authority),
         intent_id,
     )
 }

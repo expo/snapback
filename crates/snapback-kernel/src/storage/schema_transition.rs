@@ -248,10 +248,11 @@ pub(crate) fn prove_retained_work_posture(
 /// and floor witnesses in `local`.
 #[cfg(any(test, feature = "test-support"))]
 pub fn publish_schema_transition_for_test(
-    db: &mut LocalDatabase,
+    db: &mut super::ServingDatabase,
     posture: crate::migration::CompatibilityPosture,
     predecessor_schema_hash: &str,
 ) -> u64 {
+    let db = &mut db.db;
     let successor_schema_hash = db
         .schema()
         .schema_hash

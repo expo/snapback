@@ -469,9 +469,10 @@ fn another_owner_cannot_change_results_codes_counters_or_ordinary_inspection() {
     );
     let left_refusal = query_vector_on(&left, &left_schema, &query_plan(), &input(&query, 3), None)
         .expect_err("owner query without server authority refuses")
-        .error
+        .error()
         .diagnostic
-        .code;
+        .code
+        .clone();
     let right_refusal = query_vector_on(
         &right,
         &right_schema,
@@ -480,9 +481,10 @@ fn another_owner_cannot_change_results_codes_counters_or_ordinary_inspection() {
         None,
     )
     .expect_err("owner query without server authority refuses")
-    .error
+    .error()
     .diagnostic
-    .code;
+    .code
+    .clone();
     assert_eq!(left_refusal, right_refusal);
     assert_eq!(left_refusal, code::QUERY_INVALID);
 

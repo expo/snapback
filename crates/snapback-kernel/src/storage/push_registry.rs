@@ -24,13 +24,15 @@ impl LocalDatabase {
         declaration: crate::push::PushSeamDeclarationV1,
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| crate::push::activate_manifest_in(tx, Some(&declaration)))?;
-        self.schema.auth = Some(crate::manifest::AuthManifest {
+        let mut schema = self.schema.clone();
+        schema.auth = Some(crate::manifest::AuthManifest {
             mode: crate::manifest::AuthMode::Sessions,
             agents: None,
             password_identifier_mode: None,
             password_minimum_length: None,
         });
-        self.schema.push_seam = Some(declaration);
+        schema.push_seam = Some(declaration);
+        self.replace_active_schema(schema);
         Ok(())
     }
 
@@ -95,7 +97,7 @@ impl LocalDatabase {
         request: &crate::push::PushSendRequestV1,
         now_ms: u64,
     ) -> SnapbackResult<crate::push::ReservedPushAttemptV1> {
-        if !authority.is_for(&self.commit_authority_identity) {
+        if !authority.is_for(&self.binding()) {
             return Err(crate::diagnostic::SnapbackError::error(
                 "SNAPBACK_PUSH_AUTHORITY_INVALID",
                 "push",
@@ -1404,5 +1406,14 @@ impl PushRegistryKernel<'_> {
     ) -> SnapbackResult<()> {
         self.db
             .push_assert_idle_retention_for_test(declaration, retention)
+    }
+}
+impl super::ServingDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn activate_push_registry_for_test(
+        &mut self,
+        declaration: crate::push::PushSeamDeclarationV1,
+    ) -> SnapbackResult<()> {
+        self.db.activate_push_registry_for_test(declaration)
     }
 }

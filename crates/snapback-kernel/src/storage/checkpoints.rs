@@ -79,7 +79,7 @@ impl LocalDatabase {
         &self,
         request: &crate::proof_checkpoint::ProtectedRecordErasureRequestV1,
     ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1> {
-        if !request.authority.is_for(&self.commit_authority_identity) {
+        if !request.authority.is_for(&self.binding()) {
             return Err(crate::diagnostic::SnapbackError::error(
                 "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
                 "proofCheckpoint",
@@ -212,6 +212,9 @@ impl<'a> CheckpointsKernel<'a> {
 }
 
 /// Shared-borrow checkpoint operations for callers holding `&LocalDatabase`.
+///
+/// @ref LLP 0285#8-open-risks — the public carrier is inspection-only;
+/// destructive and recovery operations remain inside the kernel crate.
 pub struct CheckpointsReadKernel<'a> {
     db: &'a LocalDatabase,
 }
@@ -229,7 +232,7 @@ impl<'a> CheckpointsReadKernel<'a> {
         self.db.inspect_named_checkpoint(checkpoint_id, now_ms)
     }
 
-    pub fn erase_named_checkpoint(
+    pub(crate) fn erase_named_checkpoint(
         &self,
         checkpoint_id: &str,
         now_ms: u64,
@@ -237,14 +240,14 @@ impl<'a> CheckpointsReadKernel<'a> {
         self.db.erase_named_checkpoint(checkpoint_id, now_ms)
     }
 
-    pub fn erase_protected_record(
+    pub(crate) fn erase_protected_record(
         &self,
         request: &crate::proof_checkpoint::ProtectedRecordErasureRequestV1,
     ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1> {
         self.db.erase_protected_record(request)
     }
 
-    pub fn erase_protected_record_checkpoint_copies(
+    pub(crate) fn erase_protected_record_checkpoint_copies(
         &self,
         qualified_table: &str,
         row_id: &str,
@@ -259,7 +262,7 @@ impl<'a> CheckpointsReadKernel<'a> {
         )
     }
 
-    pub fn recover_named_checkpoint(
+    pub(crate) fn recover_named_checkpoint(
         &self,
         checkpoint_id: &str,
         now_ms: u64,

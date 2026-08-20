@@ -43,7 +43,7 @@ pub struct AskSpendSubject {
     pub integration_key: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct AskSpendReservation {
     day: String,
     month: String,
@@ -539,5 +539,24 @@ mod tests {
             .reserve_ask_spend(next_day, first_subject, &limits)
             .unwrap();
         assert_eq!(facts.principal_day_tokens, limits.per_request.max_tokens);
+    }
+}
+impl super::ServingDatabase {
+    pub fn reserve_ask_spend(
+        &mut self,
+        now_ms: u64,
+        subject: AskSpendSubject,
+        budgets: &ApiAskBudgets,
+    ) -> SnapbackResult<(AskSpendReservation, AskSpendFacts)> {
+        self.db.reserve_ask_spend(now_ms, subject, budgets)
+    }
+    pub fn settle_ask_spend(
+        &mut self,
+        reservation: &AskSpendReservation,
+        actual_tokens: u64,
+        actual_result_bytes: u64,
+    ) -> SnapbackResult<AskSpendFacts> {
+        self.db
+            .settle_ask_spend(reservation, actual_tokens, actual_result_bytes)
     }
 }

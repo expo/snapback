@@ -1138,3 +1138,12 @@ pub(super) fn maintain_projections_in_tx(
     }
     Ok(())
 }
+impl super::ServingDatabase {
+    pub fn rebuild_projection_if_stale(
+        &mut self,
+        plan: &crate::manifest::MaintainedProjectionPlan,
+        cause: &str,
+    ) -> SnapbackResult<Option<PendingProjectionPublication>> {
+        self.db.rebuild_projection_if_stale(plan, cause)
+    }
+}

@@ -152,6 +152,14 @@ path = "src/bin/forge_membership_writer_admin.rs"
 name = "reserve-authorization-via-sync"
 path = "src/bin/reserve_authorization_via_sync.rs"
 
+[[bin]]
+name = "shared-serving-database-unmediated-insert"
+path = "src/bin/shared_serving_database_unmediated_insert.rs"
+
+[[bin]]
+name = "shared-serving-database-deref-unmediated-insert"
+path = "src/bin/shared_serving_database_deref_unmediated_insert.rs"
+
 # Harness-only counterexample: never part of attacks.v1.json.
 [[bin]]
 name = "unrelated-error-satisfies-regex"

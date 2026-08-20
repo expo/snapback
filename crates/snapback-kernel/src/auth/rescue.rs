@@ -7,7 +7,7 @@
 
 use crate::auth::wire::RescueCollidingTableRequest;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::storage::LocalDatabase;
+use crate::storage::{LocalDatabase, ServingDatabase};
 use serde::Serialize;
 use std::path::Path;
 
@@ -26,7 +26,7 @@ pub struct CollisionRescueResult {
 /// Run rescue through an already-open ordinary database. The caller owns the
 /// exclusive maintenance guard and leaves the process restart-required.
 pub fn rescue_colliding_table(
-    database: &mut LocalDatabase,
+    database: &mut ServingDatabase,
     request: &RescueCollidingTableRequest,
 ) -> SnapbackResult<CollisionRescueResult> {
     validate_names(&request.source_table, &request.target_table)?;

@@ -502,22 +502,31 @@ pub fn registered_vector_writer_denies_sql_for_test(
 /// pool and need not take the write lock at all.
 pub struct ReaderPool {
     path: PathBuf,
+    binding: DatabaseBinding,
+    vector_quarantine_gate: Arc<crate::vector::sqlite::PendingVectorQuarantineGate>,
     idle: Mutex<Vec<Connection>>,
     closing: AtomicBool,
     replication_checkpoint_owner: bool,
 }
 
 impl ReaderPool {
-    pub(super) fn new(path: PathBuf, replication_checkpoint_owner: bool) -> Self {
+    pub(super) fn new(
+        path: PathBuf,
+        binding: DatabaseBinding,
+        vector_quarantine_gate: Arc<crate::vector::sqlite::PendingVectorQuarantineGate>,
+        replication_checkpoint_owner: bool,
+    ) -> Self {
         Self {
             path,
+            binding,
+            vector_quarantine_gate,
             idle: Mutex::new(Vec::new()),
             closing: AtomicBool::new(false),
             replication_checkpoint_owner,
         }
     }
 
-    pub fn close_for_shutdown(&self) -> Vec<String> {
+    pub(crate) fn close_for_shutdown(&self) -> Vec<String> {
         self.closing.store(true, AtomicOrdering::Release);
         let connections = {
             let mut idle = self
@@ -565,7 +574,12 @@ impl ReaderPool {
         let reader = self.checkout()?;
         let tx = reader.connection().unchecked_transaction()?;
         current_version_on(&tx)?;
-        let output = read(DbRead::pinned(&tx, schema))?;
+        let output = read(DbRead::pinned_bound(
+            &tx,
+            schema,
+            self.binding.clone(),
+            Arc::clone(&self.vector_quarantine_gate),
+        ))?;
         tx.commit()?;
         Ok(output)
     }
@@ -590,12 +604,21 @@ impl ReaderPool {
         Ok(conn)
     }
 
-    /// Quarantine one exact vector generation after its pooled read snapshot
-    /// has been released. This connection is intentionally write-capable but
-    /// exposes no application read or write surface.
-    pub fn quarantine_vector_generation(
+    /// Durably quarantine one exact vector generation after its pooled read
+    /// snapshot has been released. The process-local pending gate is already
+    /// active at this point. This connection is intentionally write-capable
+    /// but exposes no application read or write surface.
+    ///
+    /// @ref LLP 0285#8-open-risks — a public pool clone can reach this writer
+    /// only through an opaque failure bound to this pool's database identity,
+    /// and durable query-facts plus exact-generation re-derivation constrain
+    /// the resulting write.
+    /// @ref LLP 0132#candidate-to-release-consistency — release drift must
+    /// quarantine the exact generation after the pinned snapshot is released.
+    pub(crate) fn quarantine_vector_generation(
         &self,
         identity: &crate::vector::sqlite::VectorGenerationIdentity,
+        query_schema: &SchemaManifest,
     ) -> SnapbackResult<bool> {
         // This is the only production second writable connection for a
         // LocalDatabase. It reconstructs a connection-local authority/token
@@ -604,11 +627,42 @@ impl ReaderPool {
             &self.path,
             RegisteredSystemWriterPurposeV1::VectorIndex,
         )?;
-        crate::vector::sqlite::quarantine_generation_on(
+        crate::vector::sqlite::quarantine_generation_for_schema_on(
             &writer.conn,
             identity,
+            query_schema,
             "same-snapshot vector release recheck failed",
         )
+    }
+
+    /// Settle an opaque failure minted by this database's exact vector reader.
+    /// The private database binding prevents replaying a failure minted on a
+    /// caller-owned database against this pool. The bounded writer re-reads
+    /// the durable active query-facts projection and exact-generation manifest
+    /// before changing generation state, so a caller cannot select settlement
+    /// facts through `with_pinned_read`.
+    pub fn settle_vector_query_failure(
+        &self,
+        failure: crate::vector::sqlite::VectorSqliteQueryFailure,
+    ) -> SnapbackError {
+        let binding_matches = failure.is_bound_to(&self.binding);
+        let (error, target, binding, query_schema) = failure.into_parts();
+        if let Some(target) = target {
+            let Some(query_schema) = query_schema else {
+                return crate::vector::diagnostics::index_corrupt();
+            };
+            if binding.is_none() || !binding_matches {
+                return crate::vector::diagnostics::index_corrupt();
+            }
+            if self
+                .quarantine_vector_generation(&target, &query_schema)
+                .is_err()
+            {
+                return crate::vector::diagnostics::index_corrupt();
+            }
+            self.vector_quarantine_gate.clear(&target);
+        }
+        error
     }
 
     fn check_in(&self, conn: Connection) {

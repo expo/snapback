@@ -6,7 +6,7 @@ use snapback::manifest::{
     FieldManifest, FieldType, HandlerInput, MutationPlan, MutationStep, SchemaManifest,
     TableManifest, ValueExpr,
 };
-use snapback_kernel::storage::LocalDatabase;
+use snapback_kernel::storage::{LocalDatabase, ServingDatabase};
 use std::collections::BTreeMap;
 use std::io::{Read as _, Write as _};
 use std::net::TcpStream;
@@ -78,6 +78,7 @@ fn pooled_readers_no_longer_strand_the_wal_on_shutdown() {
         std::fs::metadata(&wal).expect("WAL before shutdown").len() > 0,
         "the regression needs a non-empty WAL"
     );
+    let db = ServingDatabase::adopt(db).expect("adopt serving database");
 
     // Retain an idle pooled reader that has read a real page, so it holds the
     // WAL-mode SHARED lock that defeats the writer's close-time checkpoint.
@@ -104,8 +105,12 @@ fn pooled_readers_no_longer_strand_the_wal_on_shutdown() {
         1
     );
     drop(verification);
+    drop(pool);
+    drop(db);
 
-    let reopened = LocalDatabase::open(&path).expect("reopen checkpointed database");
+    let reopened =
+        ServingDatabase::adopt(LocalDatabase::open(&path).expect("reopen checkpointed database"))
+            .expect("adopt reopened serving database");
     let reopened_pool = reopened.reader_pool().expect("reopened reader pool");
     let mode = reopened_pool
         .with_pinned_read(reopened.schema(), |reader| reader.journal_mode_for_test())
@@ -115,7 +120,6 @@ fn pooled_readers_no_longer_strand_the_wal_on_shutdown() {
     assert!(reopened_report.complete, "{}", reopened_report.summary());
     drop(reopened);
 
-    drop(db);
     assert!(!wal.exists(), "WAL reappeared after LocalDatabase drop");
     assert!(!shm.exists(), "SHM reappeared after LocalDatabase drop");
 }
@@ -152,7 +156,9 @@ fn plain_drop_strands_the_wal_only_once_the_reader_pool_is_warm() {
     );
 
     let warm = directory.path().join("warm.sqlite3");
-    let warm_db = LocalDatabase::open(&warm).expect("open queried database");
+    let warm_db =
+        ServingDatabase::adopt(LocalDatabase::open(&warm).expect("open queried database"))
+            .expect("adopt queried serving database");
     let pool = warm_db.reader_pool().expect("file-backed reader pool");
     pool.with_pinned_read(warm_db.schema(), |reader| {
         reader.current_version().map(|_| ())

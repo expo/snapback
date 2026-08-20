@@ -6,7 +6,8 @@
 
 #![allow(clippy::result_large_err)]
 
-pub use snapback_kernel::{conformance, diagnostic, instance_lock, manifest, secure_file, storage};
+pub use snapback_kernel::{conformance, diagnostic, instance_lock, manifest, secure_file};
+pub(crate) use snapback_kernel::storage;
 pub use snapback_types::{contract_types, exec_guard, ids, owner_only_file, remediation};
 
 pub mod auth;

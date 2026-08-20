@@ -965,7 +965,7 @@ impl LocalDatabase {
             authorization_interlock,
             &commit_authority_identity,
         )?;
-        self.schema = staged.schema_manifest;
+        self.replace_active_schema(staged.schema_manifest);
         Ok(next)
     }
 
@@ -1087,7 +1087,7 @@ impl LocalDatabase {
             authorization_interlock,
             &commit_authority_identity,
         )?;
-        self.schema = staged.schema_manifest;
+        self.replace_active_schema(staged.schema_manifest);
         Ok(AuthModeDowngradeResult {
             state: next,
             sessions_revoked,
@@ -1287,7 +1287,7 @@ impl LocalDatabase {
             }
             None => tx.commit()?,
         }
-        self.schema = manifest;
+        self.replace_active_schema(manifest);
         Ok(())
     }
 
@@ -1575,7 +1575,7 @@ impl LocalDatabase {
         if matches!(committed, DurableModeCommit::Committed(_)) {
             // This also covers a lost commit acknowledgement reconciled to the
             // exact successor above.
-            self.schema = manifest;
+            self.replace_active_schema(manifest);
         }
         committed
     }
@@ -1669,7 +1669,7 @@ impl LocalDatabase {
             }
             None => tx.commit()?,
         }
-        self.schema = manifest;
+        self.replace_active_schema(manifest);
         Ok(())
     }
 }
@@ -1828,7 +1828,7 @@ pub(super) fn adopt_after_infra(
     require_managed_snapshot(&tx)?;
     tx.commit()?;
     if let Some(manifest) = active_manifest {
-        db.schema = manifest;
+        db.replace_active_schema(manifest);
     }
     Ok(())
 }
@@ -2403,9 +2403,8 @@ mod tests {
             let prepared = self.prepared.clone();
             let committed = self.committed.clone();
             let fail_committed_ack = self.fail_committed_ack;
-            let prepared_carriers = carriers.clone();
             carriers.reservation(
-                move |witness, impact| {
+                move |prepared_carriers, witness, impact| {
                     assert!(witness.event);
                     assert!(matches!(
                         impact,
@@ -3087,7 +3086,7 @@ mod tests {
             .claim_kernel_commit_authority()
             .expect("kernel authority");
         database
-            .enable_authorization_commit_interlock(&authority)
+            .enable_authorization_commit_interlock(&authority.binding())
             .expect("bind authorization interlock");
         let carriers = authority.authorization_commit_carriers();
         let seed = SeedData {
@@ -3269,7 +3268,7 @@ mod tests {
             .claim_kernel_commit_authority()
             .expect("kernel authority");
         uncertain
-            .enable_authorization_commit_interlock(&authority)
+            .enable_authorization_commit_interlock(&authority.binding())
             .expect("bind authorization interlock");
         let carriers = authority.authorization_commit_carriers();
         match with_recording_mode_reservation(&interlock, &carriers, || {
@@ -3961,5 +3960,87 @@ mod tests {
             )
             .unwrap();
         assert_eq!(physical, 0);
+    }
+}
+impl super::ServingDatabase {
+    pub fn stage_auth_mode_with_functions(
+        &mut self,
+        requested_deployment: DeploymentIdentity,
+        schema_manifest: SchemaManifest,
+        functions: &FunctionManifest,
+        seed: Option<SeedData>,
+    ) -> SnapbackResult<AuthModeStateRecord> {
+        self.db.stage_auth_mode_with_functions(
+            requested_deployment,
+            schema_manifest,
+            functions,
+            seed,
+        )
+    }
+    pub fn stage_auth_mode_with_functions_classified(
+        &mut self,
+        requested_deployment: DeploymentIdentity,
+        schema_manifest: SchemaManifest,
+        functions: &FunctionManifest,
+        seed: Option<SeedData>,
+    ) -> DurableModeCommit<AuthModeStateRecord> {
+        self.db.stage_auth_mode_with_functions_classified(
+            requested_deployment,
+            schema_manifest,
+            functions,
+            seed,
+        )
+    }
+    pub fn quarantine_auth_mode(&mut self, code: &str) -> SnapbackResult<AuthModeStateRecord> {
+        self.db.quarantine_auth_mode(code)
+    }
+    pub fn unstage_auth_mode(&mut self) -> SnapbackResult<AuthModeStateRecord> {
+        self.db.unstage_auth_mode()
+    }
+    pub fn consume_sessions_auth_mode_with_functions(
+        &mut self,
+        readiness: &AuthProgramReadiness,
+        functions: &FunctionManifest,
+    ) -> SnapbackResult<AuthModeStateRecord> {
+        self.db
+            .consume_sessions_auth_mode_with_functions(readiness, functions)
+    }
+    pub fn consume_dev_downgrade_with_functions(
+        &mut self,
+        allow_auth_downgrade: bool,
+        now_ms: u64,
+        functions: &FunctionManifest,
+    ) -> SnapbackResult<AuthModeDowngradeResult> {
+        self.db
+            .consume_dev_downgrade_with_functions(allow_auth_downgrade, now_ms, functions)
+    }
+    pub fn apply_same_mode_dev_deployment_with_functions(
+        &mut self,
+        deployment: DeploymentIdentity,
+        manifest: SchemaManifest,
+        functions: &FunctionManifest,
+        seed: Option<SeedData>,
+    ) -> SnapbackResult<()> {
+        self.db
+            .apply_same_mode_dev_deployment_with_functions(deployment, manifest, functions, seed)
+    }
+}
+impl super::ServingDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn stage_auth_mode(
+        &mut self,
+        requested_deployment: DeploymentIdentity,
+        schema_manifest: SchemaManifest,
+        seed: Option<SeedData>,
+    ) -> SnapbackResult<AuthModeStateRecord> {
+        self.db
+            .stage_auth_mode(requested_deployment, schema_manifest, seed)
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn consume_sessions_auth_mode(
+        &mut self,
+        readiness: &AuthProgramReadiness,
+    ) -> SnapbackResult<AuthModeStateRecord> {
+        self.db.consume_sessions_auth_mode(readiness)
     }
 }

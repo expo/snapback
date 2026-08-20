@@ -515,7 +515,7 @@ impl PreparedBearerAuthority {
     #[allow(clippy::too_many_arguments)]
     pub fn prepare(
         self,
-        database: &mut crate::storage::LocalDatabase,
+        database: &mut crate::storage::ServingDatabase,
         source: InvocationSource,
         active_mode: AuthMode,
         profile: ServerProfile,

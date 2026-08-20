@@ -22,6 +22,7 @@ use crate::vector::types::{
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Mutex;
 
 const ROOT_PREFIX: &str = "sha256-xor-v1:";
 
@@ -252,26 +253,172 @@ pub struct VectorSqliteQueryResultV1 {
     pub counters: VectorWorkCountersV1,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[allow(dead_code)] // carried privately from read lane to writer quarantine
 pub struct VectorGenerationIdentity {
-    pub table: String,
-    pub index: String,
-    pub generation: u64,
+    table: String,
+    index: String,
+    generation: u64,
+}
+
+/// Process-local fence between corruption detection and durable quarantine.
+///
+/// A read transaction cannot update the generation row it has pinned. The
+/// fence therefore makes the exact generation unselectable immediately, while
+/// the detecting request releases its read and opens the bounded writer that
+/// records the durable quarantine. The generation query-facts binding covers
+/// the target table's complete field declarations and vector manifest, so a
+/// caller-made `ReaderPool::with_pinned_read` schema cannot fence a healthy
+/// generation while an unrelated additive schema activation remains outside
+/// the comparison.
+///
+/// @ref LLP 0132#candidate-to-release-consistency — release-recheck drift
+/// fails closed without a post-detection selection window.
+#[derive(Debug)]
+pub(crate) struct PendingVectorQuarantineGate {
+    state: Mutex<PendingVectorQuarantineState>,
+}
+
+#[derive(Debug)]
+struct PendingVectorQuarantineState {
+    schema: SchemaManifest,
+    generations: BTreeSet<VectorGenerationIdentity>,
+}
+
+impl PendingVectorQuarantineGate {
+    pub(crate) fn new(schema: &SchemaManifest) -> Self {
+        Self {
+            state: Mutex::new(PendingVectorQuarantineState {
+                schema: schema.clone(),
+                generations: BTreeSet::new(),
+            }),
+        }
+    }
+
+    pub(crate) fn set_schema(&self, schema: &SchemaManifest) {
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .schema = schema.clone();
+    }
+
+    fn mark_if_current_generation_query_facts(
+        &self,
+        identity: &VectorGenerationIdentity,
+        query_schema: &SchemaManifest,
+    ) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let current_facts = generation_query_facts_in_schema(&state.schema, identity);
+        let query_facts = generation_query_facts_in_schema(query_schema, identity);
+        if query_facts.is_some() && current_facts == query_facts {
+            state.generations.insert(identity.clone());
+        }
+    }
+
+    pub(crate) fn contains(&self, identity: &VectorGenerationIdentity) -> bool {
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .generations
+            .contains(identity)
+    }
+
+    pub(crate) fn clear(&self, identity: &VectorGenerationIdentity) {
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .generations
+            .remove(identity);
+    }
+}
+
+/// Every schema fact consumed by the SQLite vector query path. The full field
+/// list is load-bearing even for an unfiltered request because authoritative
+/// release decodes every physical source column before reconstructing the
+/// canonical posting. Other tables and non-vector table declarations are not
+/// consulted by this path and therefore do not make a surviving generation
+/// stale.
+#[derive(Debug, PartialEq)]
+struct VectorGenerationQueryFacts<'a> {
+    table_name: &'a str,
+    fields: &'a [crate::manifest::FieldManifest],
+    index: &'a VectorIndexManifestV1,
+}
+
+fn generation_query_facts_in_schema<'a>(
+    schema: &'a SchemaManifest,
+    identity: &VectorGenerationIdentity,
+) -> Option<VectorGenerationQueryFacts<'a>> {
+    let table = schema.table(&identity.table)?;
+    let index = table
+        .vector_indexes
+        .iter()
+        .find(|index| index.name == identity.index)?;
+    Some(VectorGenerationQueryFacts {
+        table_name: &table.name,
+        fields: &table.fields,
+        index,
+    })
 }
 
 #[derive(Clone, Debug, PartialEq)]
 #[allow(dead_code)] // consumed by the VEC runtime-integration lane
 pub struct VectorSqliteQueryFailure {
-    pub error: SnapbackError,
-    pub quarantine_target: Option<VectorGenerationIdentity>,
+    error: SnapbackError,
+    quarantine_target: Option<VectorGenerationIdentity>,
+    database_binding: Option<crate::storage::DatabaseBinding>,
+    query_schema: Option<SchemaManifest>,
 }
 
 impl VectorSqliteQueryFailure {
+    pub fn error(&self) -> &SnapbackError {
+        &self.error
+    }
+
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        SnapbackError,
+        Option<VectorGenerationIdentity>,
+        Option<crate::storage::DatabaseBinding>,
+        Option<SchemaManifest>,
+    ) {
+        (
+            self.error,
+            self.quarantine_target,
+            self.database_binding,
+            self.query_schema,
+        )
+    }
+
+    pub(crate) fn bind_to(
+        mut self,
+        database_binding: Option<crate::storage::DatabaseBinding>,
+    ) -> Self {
+        self.database_binding = database_binding;
+        self
+    }
+
+    pub(crate) fn is_bound_to(&self, database_binding: &crate::storage::DatabaseBinding) -> bool {
+        self.database_binding
+            .as_ref()
+            .is_some_and(|binding| binding.matches(database_binding))
+    }
+
+    pub(crate) fn with_query_schema(mut self, schema: &SchemaManifest) -> Self {
+        self.query_schema = Some(schema.clone());
+        self
+    }
+
     fn without_target(error: SnapbackError) -> Self {
         Self {
             error,
             quarantine_target: None,
+            database_binding: None,
+            query_schema: None,
         }
     }
 
@@ -282,6 +429,8 @@ impl VectorSqliteQueryFailure {
         Self {
             error,
             quarantine_target,
+            database_binding: None,
+            query_schema: None,
         }
     }
 }
@@ -304,6 +453,7 @@ fn active_query_generation(
     conn: &Connection,
     table: &TableManifest,
     index: &VectorIndexManifestV1,
+    quarantine_gate: Option<&PendingVectorQuarantineGate>,
 ) -> Result<VectorGenerationIdentity, VectorSqliteQueryFailure> {
     type ActiveGenerationRow = (i64, String, String, i64, String, String, Option<i64>);
     let active: Option<ActiveGenerationRow> = conn
@@ -355,6 +505,9 @@ fn active_query_generation(
         index: index.name.clone(),
         generation,
     };
+    if quarantine_gate.is_some_and(|gate| gate.contains(&identity)) {
+        return Err(VectorSqliteQueryFailure::without_target(index_corrupt()));
+    }
     let source_head = decode_nonnegative(source_head)
         .map_err(|error| VectorSqliteQueryFailure::for_generation(error, &identity))?;
     let predecessor = predecessor
@@ -434,6 +587,55 @@ pub(crate) fn quarantine_generation_on(
     Ok(changed == 1)
 }
 
+/// Re-derive every query-consumed schema fact plus the immutable vector
+/// manifest bound to the exact generation before an opaque read-lane failure
+/// can change generation state. This rejects a failure induced through
+/// `ReaderPool::with_pinned_read` with caller-made field or vector facts, even
+/// when the failure carries this database's private binding, while allowing an
+/// older whole-schema snapshot to settle when an unrelated additive activation
+/// preserved this generation and its complete query-facts projection.
+pub(crate) fn quarantine_generation_for_schema_on(
+    conn: &Connection,
+    identity: &VectorGenerationIdentity,
+    query_schema: &SchemaManifest,
+    reason: &'static str,
+) -> SnapbackResult<bool> {
+    let bound: Option<(String, String, String)> = conn
+        .query_row(
+            "SELECT semantic_version,manifest_digest,manifest_json
+             FROM _snapback_vector_generations
+             WHERE table_name=?1 AND index_name=?2 AND generation=?3",
+            params![
+                identity.table,
+                identity.index,
+                to_sql_u64(identity.generation, "vector generation")?
+            ],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let Some((semantic_version, stored_digest, stored_manifest)) = bound else {
+        return Err(index_corrupt());
+    };
+    let active_schema =
+        crate::storage::active_schema_manifest_from_connection(conn)?.ok_or_else(index_corrupt)?;
+    let active_facts =
+        generation_query_facts_in_schema(&active_schema, identity).ok_or_else(index_corrupt)?;
+    let query_facts =
+        generation_query_facts_in_schema(query_schema, identity).ok_or_else(index_corrupt)?;
+    let durable_manifest: VectorIndexManifestV1 =
+        serde_json::from_str(&stored_manifest).map_err(|_| index_corrupt())?;
+    if durable_manifest.name != identity.index
+        || active_facts != query_facts
+        || durable_manifest != *query_facts.index
+        || semantic_version != query_facts.index.semantic_version
+        || stored_digest != manifest_digest(query_facts.index)?
+        || stored_digest != manifest_digest(&durable_manifest)?
+    {
+        return Err(index_corrupt());
+    }
+    quarantine_generation_on(conn, identity, reason)
+}
+
 /// Evaluate one vector plan entirely inside the caller's already-pinned
 /// SQLite snapshot. Owner authority is accepted only through the explicit
 /// server-resolved `owner_subject`; `input.auth` is never consulted.
@@ -451,11 +653,28 @@ pub(crate) fn query_vector_on(
     input: &HandlerInput,
     owner_subject: Option<&str>,
 ) -> Result<VectorSqliteQueryResultV1, VectorSqliteQueryFailure> {
+    query_vector_on_with_quarantine_gate(conn, schema, plan, input, owner_subject, None)
+}
+
+pub(crate) fn query_vector_on_with_quarantine_gate(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    plan: &VectorQueryPlanV1,
+    input: &HandlerInput,
+    owner_subject: Option<&str>,
+    quarantine_gate: Option<&PendingVectorQuarantineGate>,
+) -> Result<VectorSqliteQueryResultV1, VectorSqliteQueryFailure> {
     let (table, index) =
         query_index(schema, plan).map_err(VectorSqliteQueryFailure::without_target)?;
     let snapshot_version = crate::storage::current_version_on(conn)
         .map_err(VectorSqliteQueryFailure::without_target)?;
-    let identity = active_query_generation(conn, table, index)?;
+    let identity =
+        active_query_generation(conn, table, index, quarantine_gate).map_err(|failure| {
+            if let (Some(gate), Some(identity)) = (quarantine_gate, &failure.quarantine_target) {
+                gate.mark_if_current_generation_query_facts(identity, schema);
+            }
+            failure
+        })?;
     query_vector_generation_on(
         conn,
         table,
@@ -465,7 +684,13 @@ pub(crate) fn query_vector_on(
         snapshot_version,
         &identity,
     )
-    .map_err(|error| VectorSqliteQueryFailure::for_generation(error, &identity))
+    .map_err(|error| {
+        let failure = VectorSqliteQueryFailure::for_generation(error, &identity);
+        if let (Some(gate), Some(identity)) = (quarantine_gate, &failure.quarantine_target) {
+            gate.mark_if_current_generation_query_facts(identity, schema);
+        }
+        failure
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1452,6 +1677,92 @@ mod tests {
         VectorTieBreakV1,
     };
 
+    #[test]
+    fn quarantine_failure_binding_cannot_cross_databases() {
+        let first = crate::storage::DatabaseBinding::isolated_for_test();
+        let second = crate::storage::DatabaseBinding::isolated_for_test();
+        let failure = VectorSqliteQueryFailure::for_generation(
+            index_corrupt(),
+            &VectorGenerationIdentity {
+                table: "documents".to_owned(),
+                index: "by_embedding".to_owned(),
+                generation: 1,
+            },
+        )
+        .bind_to(Some(first.clone()));
+
+        assert!(failure.is_bound_to(&first));
+        assert!(!failure.is_bound_to(&second));
+    }
+
+    #[test]
+    fn pending_quarantine_fences_a_generation_preserved_by_additive_schema_activation() {
+        let schema_s0 = schema(vec![index(
+            "by_embedding",
+            VectorVisibilityV1::Owner {
+                field: "owner".to_owned(),
+            },
+            8,
+        )]);
+        let gate = PendingVectorQuarantineGate::new(&schema_s0);
+        let generation_g = VectorGenerationIdentity {
+            table: "documents".to_owned(),
+            index: "by_embedding".to_owned(),
+            generation: 1,
+        };
+
+        // The reader captured S0 before pinning. An unrelated additive
+        // activation installs S1 while preserving this exact generation G.
+        let mut schema_s1 = schema_s0.clone();
+        schema_s1.tables.push(TableManifest {
+            name: "unrelated".to_owned(),
+            fields: Vec::new(),
+            indexes: Vec::new(),
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            syncable: false,
+            permission_backing: false,
+            permission_fields: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: None,
+            history: None,
+        });
+        gate.set_schema(&schema_s1);
+
+        let mut forged_schema = schema_s0.clone();
+        forged_schema.tables[0].vector_indexes[0].semantic_version =
+            "caller-selected-version".to_owned();
+        gate.mark_if_current_generation_query_facts(&generation_g, &forged_schema);
+        assert!(
+            !gate.contains(&generation_g),
+            "caller-selected vector facts must not fence a healthy generation"
+        );
+
+        let mut forged_field_schema = schema_s0.clone();
+        forged_field_schema.tables[0]
+            .fields
+            .iter_mut()
+            .find(|field| field.name == "status")
+            .expect("status field")
+            .field_type = FieldType::Boolean;
+        gate.mark_if_current_generation_query_facts(&generation_g, &forged_field_schema);
+        assert!(
+            !gate.contains(&generation_g),
+            "caller-selected field facts must not fence a healthy generation"
+        );
+
+        // Corruption detected by the S0 reader must still fence G: S1 changed
+        // the whole schema, not G's complete query-facts projection.
+        gate.mark_if_current_generation_query_facts(&generation_g, &schema_s0);
+        assert!(
+            gate.contains(&generation_g),
+            "an additive schema activation must not reopen a surviving corrupt generation"
+        );
+    }
+
     fn index(name: &str, visibility: VectorVisibilityV1, corpus: u32) -> VectorIndexManifestV1 {
         let classification = if matches!(visibility, VectorVisibilityV1::PublicRead) {
             VectorFieldClassV1::Public
@@ -1835,12 +2146,48 @@ mod tests {
         .unwrap();
         conn.execute("UPDATE _snapback_version SET version=2 WHERE id=1", [])
             .unwrap();
-        let failure = query_vector_on(&conn, &schema, &plan, &input, Some("alice"))
-            .expect_err("authoritative release drift refuses the whole page");
+        let quarantine_gate = PendingVectorQuarantineGate::new(&schema);
+        let failure = query_vector_on_with_quarantine_gate(
+            &conn,
+            &schema,
+            &plan,
+            &input,
+            Some("alice"),
+            Some(&quarantine_gate),
+        )
+        .expect_err("authoritative release drift refuses the whole page");
         assert_eq!(failure.error.diagnostic.code, code::INDEX_CORRUPT);
         let identity = failure
             .quarantine_target
             .expect("release corruption carries private generation identity");
+        assert!(
+            quarantine_gate.contains(&identity),
+            "detection immediately fences the generation in-process"
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT status FROM _snapback_vector_generations WHERE generation=1",
+                [],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap(),
+            "active",
+            "the pending fence precedes durable settlement"
+        );
+        let pending = query_vector_on_with_quarantine_gate(
+            &conn,
+            &schema,
+            &plan,
+            &input,
+            Some("alice"),
+            Some(&quarantine_gate),
+        )
+        .expect_err("a pending generation must be unselectable before settlement");
+        assert_eq!(pending.error.diagnostic.code, code::INDEX_CORRUPT);
+        assert!(
+            pending.quarantine_target.is_none(),
+            "the pending gate refuses before another reader selects the generation"
+        );
         assert!(
             quarantine_generation_on(
                 &conn,
@@ -1849,6 +2196,7 @@ mod tests {
             )
             .unwrap()
         );
+        quarantine_gate.clear(&identity);
         assert_eq!(
             conn.query_row(
                 "SELECT status FROM _snapback_vector_generations WHERE generation=1",

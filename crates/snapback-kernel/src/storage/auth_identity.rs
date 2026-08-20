@@ -4366,3 +4366,57 @@ mod tests {
         assert_eq!(count, 0);
     }
 }
+impl super::ServingDatabase {
+    pub fn clear_password_lockout(&mut self, identifier: &str) -> SnapbackResult<bool> {
+        self.db.clear_password_lockout(identifier)
+    }
+}
+
+impl super::ServingDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn identity_password_register(
+        &mut self,
+        username: &str,
+        password: &PasswordSecret,
+        now: u64,
+        random: &dyn RandomSource,
+        key_id: &str,
+        recovery_key: &[u8; 32],
+    ) -> SnapbackResult<IdentitySession> {
+        self.db
+            .identity_password_register(username, password, now, random, key_id, recovery_key)
+    }
+}
+impl super::ServingDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_imported_password_hash_for_test(
+        &mut self,
+        username: &str,
+        _algorithm: &str,
+        hash_phc: &str,
+    ) -> SnapbackResult<()> {
+        self.db
+            .install_imported_password_hash_for_test(username, _algorithm, hash_phc)
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn insert_other_identity_session_for_test(
+        &mut self,
+        user_id: &str,
+        subject: &str,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<(String, String, SessionBearer)> {
+        self.db
+            .insert_other_identity_session_for_test(user_id, subject, now_ms, random)
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn insert_typed_guest_session_for_test(
+        &mut self,
+        expires_at_ms: u64,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IdentitySession> {
+        self.db
+            .insert_typed_guest_session_for_test(expires_at_ms, now_ms, random)
+    }
+}

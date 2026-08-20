@@ -977,3 +977,21 @@ mod tests {
         );
     }
 }
+impl super::ServingDatabase {
+    pub fn reserve_authorized_lease(
+        &mut self,
+        lease: &AuthorizedLease,
+        config: AuthorizedLeaseConfig,
+        now_ms: u64,
+        no_pending_obligation: bool,
+        current_issuer_id: &IssuerId,
+    ) -> SnapbackResult<()> {
+        self.db.reserve_authorized_lease(
+            lease,
+            config,
+            now_ms,
+            no_pending_obligation,
+            current_issuer_id,
+        )
+    }
+}

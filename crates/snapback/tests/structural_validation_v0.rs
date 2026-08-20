@@ -233,7 +233,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
             seed_existing(&mut db, &corpus);
         }
         let version_before = db
-            .versions_read()
+            .versions()
             .current_version()
             .expect("version before case");
 
@@ -345,7 +345,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
             case.name, error.diagnostic.message
         );
         assert_eq!(
-            db.versions_read()
+            db.versions()
                 .current_version()
                 .expect("version after rejected case"),
             version_before,
@@ -368,7 +368,7 @@ fn local_missing_rows_still_validate_the_shared_patch_corpus() {
             .apply_schema(schema(&corpus))
             .expect("apply corpus schema");
         let version_before = db
-            .versions_read()
+            .versions()
             .current_version()
             .expect("version before case");
         let values = if case.operation == "patch" {
@@ -408,7 +408,7 @@ fn local_missing_rows_still_validate_the_shared_patch_corpus() {
             case.name
         );
         assert_eq!(
-            db.versions_read()
+            db.versions()
                 .current_version()
                 .expect("version after rejected case"),
             version_before,
@@ -521,7 +521,7 @@ fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
 
     for id in ["edge-existing", "edge-missing"] {
         let before = db
-            .versions_read()
+            .versions()
             .current_version()
             .expect("version before invalid patch");
         let error = db
@@ -543,7 +543,7 @@ fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
             )
             .expect_err("required JSON null is invalid independent of row existence");
         assert_eq!(error.diagnostic.code, "SNAPBACK_FIELD_TYPE_MISMATCH");
-        assert_eq!(db.versions_read().current_version().unwrap(), before);
+        assert_eq!(db.versions().current_version().unwrap(), before);
     }
 
     let insert_error = db

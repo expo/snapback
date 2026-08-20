@@ -3246,8 +3246,11 @@ mod tests {
             let authority = db
                 .claim_kernel_commit_authority()
                 .expect("kernel authority");
-            db.install_service_authority_commit_interlock(&authority, interlock.bind(&authority))
-                .expect("bind service terminal interlock");
+            db.install_service_authority_commit_interlock(
+                &authority.binding(),
+                interlock.bind(&authority),
+            )
+            .expect("bind service terminal interlock");
             let deadline = ServiceAuthorityDeadlineTerminal {
                 token_id: resolved.token_id.clone(),
                 grant_id: resolved.grant_id.clone(),
@@ -3384,7 +3387,7 @@ mod tests {
                 [],
             )
             .unwrap();
-        db.schema = serde_json::from_value(serde_json::json!({
+        let schema = serde_json::from_value(serde_json::json!({
             "auth": { "mode": "sessions" },
             "tables": [
                 { "name": "events" },
@@ -3403,6 +3406,7 @@ mod tests {
             ]
         }))
         .unwrap();
+        db.replace_active_schema(schema);
 
         let error = db
             .revoke_agent_credential_family(&issued.secret, 1_001)
@@ -3423,5 +3427,139 @@ mod tests {
         );
         db.resolve_agent_credential(&issued.secret, 1_002)
             .expect("refused restore rolls the authority purge back");
+    }
+}
+impl super::ServingDatabase {
+    pub fn rotate_agent_credential(
+        &mut self,
+        credential: &AgentCredential,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<RotatedAgentCredential> {
+        self.db.rotate_agent_credential(credential, now_ms, random)
+    }
+    pub fn revoke_agent_credential_family(
+        &mut self,
+        attributable: &AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<AgentFamilyRevocation> {
+        self.db.revoke_agent_credential_family(attributable, now_ms)
+    }
+    pub fn retire_integration_credential_family(
+        &mut self,
+        attributable: &AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<AgentFamilyRevocation> {
+        self.db
+            .retire_integration_credential_family(attributable, now_ms)
+    }
+    pub fn retire_integration_principal(
+        &mut self,
+        principal_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<AgentFamilyRevocation> {
+        self.db
+            .retire_integration_principal(principal_user_id, now_ms)
+    }
+    pub fn release_scoped_token(
+        &mut self,
+        token: &ScopedToken,
+        now_ms: u64,
+    ) -> SnapbackResult<ReleasedScopedToken> {
+        self.db.release_scoped_token(token, now_ms)
+    }
+    pub fn oauth_revoke_scoped_token(
+        &mut self,
+        token: &ScopedToken,
+        revoke_grant: bool,
+        now_ms: u64,
+    ) -> SnapbackResult<super::auth_grants::GrantRevocation> {
+        self.db
+            .oauth_revoke_scoped_token(token, revoke_grant, now_ms)
+    }
+    pub fn mint_scoped_token_for_oauth_code(
+        &mut self,
+        code: &str,
+        client_id: &str,
+        redirect_uri: &str,
+        verifier: &str,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IssuedScopedToken> {
+        self.db.mint_scoped_token_for_oauth_code(
+            code,
+            client_id,
+            redirect_uri,
+            verifier,
+            now_ms,
+            random,
+        )
+    }
+    pub fn mint_scoped_token(
+        &mut self,
+        credential: &AgentCredential,
+        grant_id: &str,
+        ttl_ms: Option<u64>,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IssuedScopedToken> {
+        self.db
+            .mint_scoped_token(credential, grant_id, ttl_ms, now_ms, random)
+    }
+    pub fn mint_scoped_token_for_pairing_request(
+        &mut self,
+        credential: &AgentCredential,
+        pairing_request_id: &str,
+        ttl_ms: Option<u64>,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IssuedScopedToken> {
+        self.db.mint_scoped_token_for_pairing_request(
+            credential,
+            pairing_request_id,
+            ttl_ms,
+            now_ms,
+            random,
+        )
+    }
+    pub fn resolve_scoped_token(
+        &mut self,
+        token: &ScopedToken,
+        now_ms: u64,
+    ) -> SnapbackResult<ResolvedScopedToken> {
+        self.db.resolve_scoped_token(token, now_ms)
+    }
+    pub fn retained_service_authority_is_live(
+        &mut self,
+        authority: RetainedServiceAuthority<'_>,
+        now_ms: u64,
+    ) -> SnapbackResult<bool> {
+        self.db
+            .retained_service_authority_is_live(authority, now_ms)
+    }
+    pub fn resolve_retained_service_authority(
+        &mut self,
+        authority: RetainedServiceAuthority<'_>,
+        now_ms: u64,
+    ) -> SnapbackResult<ResolvedScopedToken> {
+        self.db
+            .resolve_retained_service_authority(authority, now_ms)
+    }
+    pub fn terminalize_expired_service_authority(
+        &mut self,
+        deadline: &ServiceAuthorityDeadlineTerminal,
+    ) -> SnapbackResult<()> {
+        self.db.terminalize_expired_service_authority(deadline)
+    }
+}
+impl super::ServingDatabase {
+    pub fn issue_initial_agent_credential(
+        &mut self,
+        user_id: &str,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IssuedAgentCredential> {
+        self.db
+            .issue_initial_agent_credential(user_id, now_ms, random)
     }
 }

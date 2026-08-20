@@ -577,3 +577,40 @@ mod tests {
         );
     }
 }
+impl super::ServingDatabase {
+    pub fn declared_client_for_admission(
+        &mut self,
+        normalized_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<DeclaredClientRecord>> {
+        self.db.declared_client_for_admission(normalized_id, now_ms)
+    }
+    pub fn observe_declared_client(
+        &mut self,
+        normalized_id: &str,
+        now_ms: u64,
+        network_evidence_generation: u64,
+    ) -> SnapbackResult<DeclaredClientObservation> {
+        self.db
+            .observe_declared_client(normalized_id, now_ms, network_evidence_generation)
+    }
+    pub fn mark_declared_client_refusal(&mut self, normalized_id: &str) -> SnapbackResult<()> {
+        self.db.mark_declared_client_refusal(normalized_id)
+    }
+    pub fn set_declared_client_status(
+        &mut self,
+        normalized_id: &str,
+        status: DeclaredClientStatus,
+    ) -> SnapbackResult<DeclaredClientRecord> {
+        self.db.set_declared_client_status(normalized_id, status)
+    }
+    pub fn delete_declared_client(&mut self, normalized_id: &str) -> SnapbackResult<()> {
+        self.db.delete_declared_client(normalized_id)
+    }
+    pub fn list_declared_clients(
+        &mut self,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<DeclaredClientRecord>> {
+        self.db.list_declared_clients(now_ms)
+    }
+}

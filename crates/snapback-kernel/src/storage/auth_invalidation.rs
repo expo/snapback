@@ -569,7 +569,9 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 —
     ///   the receipt and active manifest share the pre-bind serving cut.
-    pub fn persist_derived_fork_app_row_coverage_receipt(
+    /// @ref LLP 0285#8-open-risks — shared-borrow persistence is available
+    ///   only through the explicit serving owner.
+    pub(crate) fn persist_derived_fork_app_row_coverage_receipt(
         &self,
         encoded: &str,
     ) -> SnapbackResult<()> {
@@ -1699,5 +1701,91 @@ mod tests {
             })
             .unwrap();
         assert!(matches!(attached, RetryReservation::Attached(_)));
+    }
+}
+impl super::ServingDatabase {
+    pub fn data_version_stream(&mut self) -> SnapbackResult<String> {
+        self.db.data_version_stream()
+    }
+    pub fn activate_ordinary_mutation_coverage_for_evidence(
+        &mut self,
+        activated_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db
+            .activate_ordinary_mutation_coverage_for_evidence(activated_at_ms)
+    }
+    pub fn activate_local_target_operation_coverage(
+        &mut self,
+        activated_at_ms: u64,
+    ) -> SnapbackResult<crate::commit_envelope::OperationCoverageManifestV1> {
+        self.db
+            .activate_local_target_operation_coverage(activated_at_ms)
+    }
+    pub fn reserve_invalidation_boot_issuer(
+        &mut self,
+    ) -> SnapbackResult<(crate::storage::AuthorizationVersion, String, u64)> {
+        self.db.reserve_invalidation_boot_issuer()
+    }
+    pub fn resolve_invalidation_retry_episode(
+        &mut self,
+        key: &RetryEpisodeKey,
+        proof: &crate::auth::invalidation::CompositeWitness,
+    ) -> SnapbackResult<bool> {
+        self.db.resolve_invalidation_retry_episode(key, proof)
+    }
+    pub fn reserve_manual_invalidation_retry(
+        &mut self,
+        key: &RetryEpisodeKey,
+        manual_retry_id: impl Into<String>,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::invalidation::RetryReservation> {
+        self.db
+            .reserve_manual_invalidation_retry(key, manual_retry_id, now_ms)
+    }
+}
+
+impl super::ServingDatabase {
+    pub fn activate_derived_fork_app_row_journal_coverage(
+        &mut self,
+        activated_at_ms: u64,
+    ) -> SnapbackResult<crate::commit_envelope::OperationCoverageManifestV1> {
+        self.db
+            .activate_derived_fork_app_row_journal_coverage(activated_at_ms)
+    }
+
+    pub fn reserve_invalidation_retry_episode(
+        &mut self,
+        key: &RetryEpisodeKey,
+        witness_floor: crate::auth::invalidation::CompositeWitness,
+        now_ms: u64,
+        kind: crate::auth::invalidation::RetryReservationKind,
+    ) -> SnapbackResult<crate::auth::invalidation::RetryReservation> {
+        self.db
+            .reserve_invalidation_retry_episode(key, witness_floor, now_ms, kind)
+    }
+
+    pub fn record_invalidation_retry_failure(
+        &mut self,
+        key: &RetryEpisodeKey,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db.record_invalidation_retry_failure(key, now_ms)
+    }
+}
+impl super::ServingDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn invalidation_retry_episodes_for_test(
+        &mut self,
+    ) -> SnapbackResult<BTreeMap<RetryEpisodeKey, RetryEpisode>> {
+        self.db.invalidation_retry_episodes_for_test()
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn seed_invalidation_retry_episodes_for_test(
+        &mut self,
+        episodes: &BTreeMap<RetryEpisodeKey, RetryEpisode>,
+        clock_high_water_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db
+            .seed_invalidation_retry_episodes_for_test(episodes, clock_high_water_ms)
     }
 }

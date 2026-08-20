@@ -321,3 +321,29 @@ mod tests {
         assert_eq!(dead.attempt_count, 8);
     }
 }
+impl super::ServingDatabase {
+    pub fn reserve_webhook_delivery(
+        &mut self,
+        request: ReserveDelivery,
+    ) -> SnapbackResult<DeliveryRecord> {
+        self.db.reserve_webhook_delivery(request)
+    }
+    pub fn settle_webhook_attempt(
+        &mut self,
+        delivery_id: &str,
+        attempt: u32,
+        outcome: &str,
+        http_status: Option<u16>,
+        diagnostic_code: Option<&str>,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db.settle_webhook_attempt(
+            delivery_id,
+            attempt,
+            outcome,
+            http_status,
+            diagnostic_code,
+            now_ms,
+        )
+    }
+}

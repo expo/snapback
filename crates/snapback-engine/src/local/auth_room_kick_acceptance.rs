@@ -1688,11 +1688,7 @@ fn replace_process_local_room_authority(snapback: &mut LocalSnapback) -> Ephemer
         .expect("fresh process reloads protected room definitions");
     fresh.install_authorization_issuer(issuer);
     fresh
-        .install_authorization_commit_carriers(
-            snapback
-                .kernel_commit_authority
-                .authorization_commit_carriers(),
-        )
+        .install_authorization_commit_carriers(snapback.db.authorization_commit_carriers())
         .expect("fresh process installs opaque authorization carriers");
     snapback.ephemeral = fresh;
     snapback.ephemeral_api()

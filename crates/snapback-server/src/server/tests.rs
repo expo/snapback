@@ -11288,7 +11288,6 @@ async fn hosted_sender_shared_throttle_charges_denials_before_proof_and_body() {
         .snapback
         .try_lock()
         .expect("borrow throttle authority")
-        .remainder_auth_database_mut()
         .make_authentication_throttle_unavailable_for_test()
         .expect("remove throttle table");
     let unavailable = router
@@ -12399,7 +12398,6 @@ async fn hosted_sender_issuance_outcome_matrix_is_transactional() {
             .try_lock()
             .expect("borrow sender authority for issuance failure injection");
         snapback
-            .remainder_auth_database_mut()
             .make_sender_proof_replay_unavailable_for_test()
             .expect("make issuance replay authority unavailable");
     }
@@ -12416,13 +12414,12 @@ async fn hosted_sender_issuance_outcome_matrix_is_transactional() {
         "sender replay-authority failure must fail closed",
     );
     {
-        let mut snapback = state
+        let snapback = state
             .snapback
             .try_lock()
             .expect("borrow sender authority for issuance repair");
         snapback
-            .remainder_auth_database_mut()
-            .initialize_sender_proof_after_hosted_preflight()
+            .restore_sender_proof_after_test_outage()
             .expect("repair issuance replay authority");
     }
     assert_eq!(
@@ -12724,7 +12721,6 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
             .try_lock()
             .expect("borrow sender authority for failure injection");
         snapback
-            .remainder_auth_database_mut()
             .make_sender_proof_replay_unavailable_for_test()
             .expect("make sender replay authority unavailable");
     }
@@ -12755,13 +12751,12 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
     );
 
     {
-        let mut snapback = state
+        let snapback = state
             .snapback
             .try_lock()
             .expect("borrow sender authority for test repair");
         snapback
-            .remainder_auth_database_mut()
-            .initialize_sender_proof_after_hosted_preflight()
+            .restore_sender_proof_after_test_outage()
             .expect("repair sender replay authority after refusal");
     }
     let mut retried_session_request = Request::builder()
@@ -12987,7 +12982,6 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
         .snapback
         .try_lock()
         .expect("borrow sender replay authority for grant outage")
-        .remainder_auth_database_mut()
         .make_sender_proof_replay_unavailable_for_test()
         .expect("make grant replay authority unavailable");
     for (index, (method, path, websocket_carrier)) in grant_route_matrix.iter().enumerate() {
@@ -13045,8 +13039,7 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
         .snapback
         .try_lock()
         .expect("borrow sender replay authority for grant repair")
-        .remainder_auth_database_mut()
-        .initialize_sender_proof_after_hosted_preflight()
+        .restore_sender_proof_after_test_outage()
         .expect("repair grant replay authority");
 
     let bare_grant = router

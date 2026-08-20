@@ -732,3 +732,25 @@ mod tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PROJECTION_CORRUPT");
     }
 }
+impl super::ServingDatabase {
+    pub fn ensure_authorization_stream_incarnation(
+        &mut self,
+    ) -> SnapbackResult<AuthorizationStreamIncarnation> {
+        self.db.ensure_authorization_stream_incarnation()
+    }
+    pub fn admitted_session_projection_snapshot(
+        &mut self,
+    ) -> SnapbackResult<AdmittedProjectionSnapshot> {
+        self.db.admitted_session_projection_snapshot()
+    }
+    pub fn admitted_stream_projection_snapshot(
+        &mut self,
+    ) -> SnapbackResult<AdmittedProjectionSnapshot> {
+        self.db.admitted_stream_projection_snapshot()
+    }
+}
+impl super::ServingDatabase {
+    pub fn session_projection_source(&mut self) -> SnapbackResult<ProjectionSource> {
+        self.db.session_projection_source()
+    }
+}

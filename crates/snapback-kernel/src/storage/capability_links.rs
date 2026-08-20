@@ -802,3 +802,44 @@ mod tests {
         );
     }
 }
+impl super::ServingDatabase {
+    pub fn mint_capability_link(
+        &mut self,
+        request: MintCapabilityLink,
+    ) -> SnapbackResult<MintedCapabilityLink> {
+        self.db.mint_capability_link(request)
+    }
+    pub fn consume_capability_link_use(
+        &mut self,
+        id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<CapabilityLinkUse> {
+        self.db.consume_capability_link_use(id, now_ms)
+    }
+    pub fn settle_capability_link_use(
+        &mut self,
+        id: &str,
+        ordinal: u64,
+        outcome: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db
+            .settle_capability_link_use(id, ordinal, outcome, now_ms)
+    }
+    pub fn revoke_capability_link(
+        &mut self,
+        id: &str,
+        minter_principal_id: &str,
+        minter_session_id: &str,
+        minter_authority_instance_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db.revoke_capability_link(
+            id,
+            minter_principal_id,
+            minter_session_id,
+            minter_authority_instance_id,
+            now_ms,
+        )
+    }
+}

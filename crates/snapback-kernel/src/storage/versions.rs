@@ -383,6 +383,9 @@ impl<'a> VersionsKernel<'a> {
 }
 
 /// Shared-borrow version/journal/history operations for callers holding `&LocalDatabase`.
+///
+/// @ref LLP 0285#8-open-risks — the public carrier is read-only; retention
+/// and policy changes remain inside the kernel crate.
 pub struct VersionsReadKernel<'a> {
     db: &'a LocalDatabase,
 }
@@ -400,7 +403,7 @@ impl<'a> VersionsReadKernel<'a> {
         self.db.table_change_version(table)
     }
 
-    pub fn prune_change_journal(
+    pub(crate) fn prune_change_journal(
         &self,
         now_ms: u64,
         retain_versions: u64,
@@ -414,14 +417,14 @@ impl<'a> VersionsReadKernel<'a> {
         self.db.journal_floor_version()
     }
 
-    pub fn configure_history_policy(
+    pub(crate) fn configure_history_policy(
         &self,
         policy: &crate::proof_checkpoint::HistoryRetentionPolicyV1,
     ) -> SnapbackResult<()> {
         self.db.configure_history_policy(policy)
     }
 
-    pub fn prune_record_history(&self, now_ms: u64) -> SnapbackResult<u64> {
+    pub(crate) fn prune_record_history(&self, now_ms: u64) -> SnapbackResult<u64> {
         self.db.prune_record_history(now_ms)
     }
 

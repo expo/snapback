@@ -383,6 +383,7 @@ fn simulate_versioned_seed_projection_rows(
     reset_first: bool,
 ) -> SnapbackResult<usize> {
     let mut simulation = database.detached_read_snapshot()?;
+    let simulation = &mut simulation.db;
     let _writer_token = simulation
         .writer_authority
         .enter(write_authority::LocalWriterLaneV1::DryRun)?;

@@ -1366,7 +1366,7 @@ impl IbexActionHost for DetachedActionHost {
                                     module,
                                     input.clone(),
                                     &binding.invocation,
-                                    crate::storage::DbRead::Live(db.as_ref()),
+                                    crate::storage::DbRead::Live(db.as_database()),
                                     None,
                                     Some(self.deadline),
                                 )
@@ -24975,18 +24975,16 @@ async fn invoke_ask_core(
             Some(initiator) => match start_ask_stream(state, initiator).await {
                 Ok(attempt) => Some(attempt),
                 Err(error) => {
-                    let release = reservation.clone();
                     let _ = with_snapback(state, move |snapback| {
-                        snapback.settle_ask_spend(&release, 0, 0)
+                        snapback.settle_ask_spend(&reservation, 0, 0)
                     })
                     .await;
                     return ApiError::from(error).into_response();
                 }
             },
             None => {
-                let release = reservation.clone();
                 let _ = with_snapback(state, move |snapback| {
-                    snapback.settle_ask_spend(&release, 0, 0)
+                    snapback.settle_ask_spend(&reservation, 0, 0)
                 })
                 .await;
                 return ApiError::from(ask_authority_refusal()).into_response();
@@ -26130,7 +26128,7 @@ async fn invoke_query(
                 Ok((output, facts, conformance))
             })
             .await
-        } else if read.available() {
+        } else if read.available() && !read.requires_serving_database(&name) {
             with_read_lane(&read, move |lane| {
                 lane.invoke_query_prepared_generation_with_facts(
                     &name,

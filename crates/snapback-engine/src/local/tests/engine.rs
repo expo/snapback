@@ -33240,16 +33240,17 @@ fn vector_runtime_uses_resolved_owner_and_quarantines_read_lane_drift() {
         &index,
     )
     .expect("vector result contract");
+    let vector_plan = VectorQueryPlanV1 {
+        table: "documents".to_owned(),
+        index: index.name.clone(),
+        distance_profile: VECTOR_DISTANCE_PROFILE_ID.to_owned(),
+        result_projection: VECTOR_RESULT_PROJECTION.to_owned(),
+        required_capability: VECTOR_CAPABILITY.to_owned(),
+    };
     let mut function = FunctionDefinition::new(
         "nearestDocuments",
         FunctionKind::Query,
-        FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(VectorQueryPlanV1 {
-            table: "documents".to_owned(),
-            index: index.name.clone(),
-            distance_profile: VECTOR_DISTANCE_PROFILE_ID.to_owned(),
-            result_projection: VECTOR_RESULT_PROJECTION.to_owned(),
-            required_capability: VECTOR_CAPABILITY.to_owned(),
-        })),
+        FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(vector_plan.clone())),
     );
     function.args_contract_hash =
         Some(args_contract_hash(&args_contract).expect("vector args contract hash"));
@@ -33310,14 +33311,170 @@ fn vector_runtime_uses_resolved_owner_and_quarantines_read_lane_drift() {
         .expect("read-lane vector query");
     assert_eq!(read.rows, direct.rows);
 
+    // The pool's read API accepts a schema snapshot, so settlement must
+    // re-read the durable manifest bound to the exact generation before its
+    // bounded writer can change generation state. Caller-made vector facts may
+    // produce a corruption-shaped failure, but cannot quarantine this healthy
+    // database.
+    let pool = snapback.db.reader_pool().expect("file-backed reader pool");
+    let mut forged_schema = snapback.db.schema().clone();
+    forged_schema.tables[0].vector_indexes[0].semantic_version =
+        "caller-selected-semantic-version".to_owned();
+    let mut forged_failure = None;
+    let forged_result = pool.with_pinned_read(&forged_schema, |db| {
+        db.vector(&vector_plan, &input(), Some("alice"))
+            .map(|_| ())
+            .map_err(|failure| {
+                let error = failure.error().clone();
+                forged_failure = Some(failure);
+                error
+            })
+    });
+    assert_eq!(
+        forged_result
+            .expect_err("caller-selected schema must fail closed")
+            .diagnostic
+            .code,
+        "SNAPBACK_VECTOR_INDEX_CORRUPT"
+    );
+    let forged_settlement = pool.settle_vector_query_failure(
+        forged_failure.expect("corruption-shaped failure carries private settlement facts"),
+    );
+    assert_eq!(
+        forged_settlement.diagnostic.code,
+        "SNAPBACK_VECTOR_INDEX_CORRUPT"
+    );
+    assert_eq!(
+        snapback
+            .db
+            .vector_generation_status_for_test("documents", "by_embedding")
+            .expect("inspect healthy generation after forged settlement"),
+        "active"
+    );
+
+    // Field declarations also participate in vector evaluation: even an
+    // unfiltered query validates every retained equality-filter posting
+    // against its declared field type. Keep the vector manifest unchanged and
+    // forge only `status: Boolean`; that caller-selected fact may produce an
+    // INDEX_CORRUPT-shaped failure, but must not quarantine healthy generation
+    // G when the retained posting contains the genuine String value.
+    let mut forged_field_schema = snapback.db.schema().clone();
+    let forged_status = forged_field_schema.tables[0]
+        .fields
+        .iter_mut()
+        .find(|field| field.name == "status")
+        .expect("status field");
+    forged_status.field_type = FieldType::Boolean;
+    assert_eq!(
+        forged_field_schema.tables[0].vector_indexes,
+        snapback.db.schema().tables[0].vector_indexes,
+        "the forged-field attack leaves the vector manifest unchanged"
+    );
+    let unfiltered_input = HandlerInput {
+        args: json!({
+            "vector": [1.0, 0.0],
+            "k": 1,
+        }),
+        auth: AuthInput {
+            user_id: Some("alice".to_owned()),
+            ..AuthInput::default()
+        },
+        ..HandlerInput::default()
+    };
+    let mut forged_field_failure = None;
+    let forged_field_result = pool.with_pinned_read(&forged_field_schema, |db| {
+        db.vector(&vector_plan, &unfiltered_input, Some("alice"))
+            .map(|_| ())
+            .map_err(|failure| {
+                let error = failure.error().clone();
+                forged_field_failure = Some(failure);
+                error
+            })
+    });
+    assert_eq!(
+        forged_field_result
+            .expect_err("forged field type must fail closed")
+            .diagnostic
+            .code,
+        "SNAPBACK_VECTOR_INDEX_CORRUPT"
+    );
+    let forged_field_settlement = pool.settle_vector_query_failure(
+        forged_field_failure.expect("forged field failure carries settlement facts"),
+    );
+    assert_eq!(
+        forged_field_settlement.diagnostic.code,
+        "SNAPBACK_VECTOR_INDEX_CORRUPT"
+    );
+    assert_eq!(
+        snapback
+            .db
+            .vector_generation_status_for_test("documents", "by_embedding")
+            .expect("inspect healthy generation after forged-field settlement"),
+        "active",
+        "caller-selected field types must not quarantine healthy generation G"
+    );
+
+    // Capture S0 exactly where the production read lane does: before pinning
+    // SQLite. Then install an unrelated additive S1 that preserves vector
+    // generation G. Corruption detected under S0 must still fence and durably
+    // quarantine G rather than being discarded as a stale whole-schema fact.
+    let schema_s0 = snapback.db.schema().clone();
+    let mut schema_s1 = schema_s0.clone();
+    schema_s1.tables.push(TableManifest {
+        name: "unrelated".to_owned(),
+        fields: Vec::new(),
+        indexes: Vec::new(),
+        syncable: false,
+        permission_backing: false,
+        permission_fields: None,
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility: None,
+        history: None,
+    });
+    let diagnostics = snapback
+        .apply_schema(schema_s1)
+        .expect("activate unrelated additive schema S1");
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "additive S1 must activate without changing vector generation G: {diagnostics:?}"
+    );
+    assert_eq!(
+        snapback
+            .db
+            .vector_generation_status_for_test("documents", "by_embedding")
+            .expect("inspect generation G after additive activation"),
+        "active",
+        "the unrelated additive activation preserves G"
+    );
+
     snapback
         .db
         .inject_vector_release_drift_for_test("documents", "doc-a")
         .expect("inject release drift outside maintenance");
-    let error = lane
-        .invoke_query("nearestDocuments", input())
-        .expect_err("same-snapshot release mismatch must fail closed");
+    let mut stale_schema_failure = None;
+    let error = pool
+        .with_pinned_read(&schema_s0, |db| {
+            db.vector(&vector_plan, &input(), Some("alice"))
+                .map(|_| ())
+                .map_err(|failure| {
+                    let error = failure.error().clone();
+                    stale_schema_failure = Some(failure);
+                    error
+                })
+        })
+        .expect_err("S0 release mismatch must fail closed after S1 activation");
     assert_eq!(error.diagnostic.code, "SNAPBACK_VECTOR_INDEX_CORRUPT");
+    let settled = pool.settle_vector_query_failure(
+        stale_schema_failure.expect("S0 corruption carries exact generation G"),
+    );
+    assert_eq!(settled.diagnostic.code, "SNAPBACK_VECTOR_INDEX_CORRUPT");
     assert_eq!(
         snapback
             .db

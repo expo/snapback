@@ -417,7 +417,7 @@ impl ExecutedIbexMutation {
     /// bookkeeping to staging, preview, or commit callers.
     pub(crate) fn authorize_membership_commands(
         &mut self,
-        db: &mut LocalDatabase,
+        db: &mut crate::storage::ServingDatabase,
     ) -> SnapbackResult<Vec<crate::storage::AuthorizedMembershipPlan>> {
         authorize_invocation_membership_commands(
             db,
@@ -430,7 +430,7 @@ impl ExecutedIbexMutation {
     /// crossing the same refusal boundary as the consuming path.
     pub(crate) fn preview_membership_commands(
         &mut self,
-        db: &mut LocalDatabase,
+        db: &mut crate::storage::ServingDatabase,
     ) -> SnapbackResult<Vec<crate::storage::AuthorizedMembershipPlan>> {
         authorize_invocation_membership_commands(
             db,
@@ -450,11 +450,11 @@ impl ExecutedIbexMutation {
 /// @ref LLP 0056#invalidation-the-llp-0053-mapping — denied membership reads
 ///   remain matcher-visible dependencies, including empty-result probes.
 pub(crate) fn authorize_invocation_membership_commands(
-    db: &mut LocalDatabase,
+    db: &mut crate::storage::ServingDatabase,
     commands: Vec<BufferedMembershipCommand>,
     invocation_reads: &mut Vec<CapturedReadDependency>,
 ) -> SnapbackResult<Vec<crate::storage::AuthorizedMembershipPlan>> {
-    crate::storage::authorize_invocation_membership_commands(db, commands, invocation_reads)
+    db.authorize_invocation_membership_commands(commands, invocation_reads)
 }
 
 #[derive(Debug)]
@@ -678,7 +678,7 @@ pub(crate) fn dry_run_ibex_mutation_prepared(
     module: &IbexModule,
     input: HandlerInput,
     prepared: &PreparedInvocation,
-    db: &mut LocalDatabase,
+    db: &mut crate::storage::ServingDatabase,
     pool: Option<&WarmVmPool>,
 ) -> SnapbackResult<MutationCommit> {
     let mut invocation = IbexHostContext::new_with_projection(
@@ -10215,7 +10215,7 @@ globalThis.__snapbackHandlers = {
             .expect_err("T1's stale counter read aborts the whole attempt");
         assert_eq!(t1_error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
         assert_eq!(
-            db.versions_read().current_version().unwrap(),
+            db.versions().current_version().unwrap(),
             committed_version
         );
         assert!(

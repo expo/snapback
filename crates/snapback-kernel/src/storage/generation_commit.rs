@@ -50,6 +50,12 @@ impl LocalDatabase {
     }
 }
 
+impl super::ServingDatabase {
+    pub fn generation_commit_ops(&mut self) -> GenerationCommitOps<'_> {
+        GenerationCommitOps { db: &mut self.db }
+    }
+}
+
 impl GenerationCommitOps<'_> {
     pub fn commit_function_generation(
         &mut self,

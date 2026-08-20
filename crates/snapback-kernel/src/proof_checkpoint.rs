@@ -656,9 +656,9 @@ pub struct ProtectedRecordCheckpointErasureReceiptV1 {
 /// Authenticated authority prepared by a product dispatcher. Its fields are
 /// intentionally private: callers outside the crate cannot mint an erasure
 /// authority by filling a public request structure.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ProtectedRecordErasureAuthorityV1 {
-    database_identity: std::sync::Arc<()>,
+    database_binding: crate::storage::DatabaseBinding,
     principal_id: String,
     authority_instance_id: String,
     authority_fingerprint: String,
@@ -669,7 +669,7 @@ impl ProtectedRecordErasureAuthorityV1 {
     /// protected-erasure policy. No wire DTO can deserialize this type.
     #[allow(clippy::too_many_arguments)]
     fn from_admitted_facts(
-        database_identity: std::sync::Arc<()>,
+        database_binding: crate::storage::DatabaseBinding,
         mode: &str,
         principal_id: &str,
         audit_class: &str,
@@ -705,7 +705,7 @@ impl ProtectedRecordErasureAuthorityV1 {
             ))
         );
         Ok(Self {
-            database_identity,
+            database_binding,
             principal_id: principal_id.to_owned(),
             authority_instance_id,
             authority_fingerprint,
@@ -732,8 +732,8 @@ impl ProtectedRecordErasureAuthorityV1 {
         }
     }
 
-    pub(crate) fn is_for(&self, identity: &std::sync::Arc<()>) -> bool {
-        std::sync::Arc::ptr_eq(&self.database_identity, identity)
+    pub(crate) fn is_for(&self, binding: &crate::storage::DatabaseBinding) -> bool {
+        self.database_binding.matches(binding)
     }
 }
 
@@ -755,7 +755,7 @@ pub struct ProtectedRecordErasureAuthorityFactsV1 {
     pub authority_fingerprint: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ProtectedRecordErasureRequestV1 {
     pub(crate) operation_id: String,
     pub(crate) authority: ProtectedRecordErasureAuthorityV1,
@@ -784,7 +784,7 @@ impl crate::storage::KernelCommitAuthority {
         Ok(ProtectedRecordErasureRequestV1 {
             operation_id,
             authority: ProtectedRecordErasureAuthorityV1::from_admitted_facts(
-                self.identity().clone(),
+                self.binding(),
                 mode,
                 principal_id,
                 audit_class,
@@ -4261,7 +4261,7 @@ mod tests {
         ProtectedRecordErasureRequestV1 {
             operation_id: operation_id.to_owned(),
             authority: ProtectedRecordErasureAuthorityV1::from_admitted_facts(
-                std::sync::Arc::new(()),
+                crate::storage::DatabaseBinding::isolated_for_test(),
                 "sessions",
                 "operator:admin-bypass",
                 "admin-bypass",
@@ -4859,22 +4859,33 @@ mod tests {
     fn concurrent_protected_erasure_exact_and_divergent_retries_serialize() {
         let exact_temp = tempfile::tempdir().expect("exact-retry tempdir");
         let exact_database_path = exact_temp.path().join("source.sqlite");
-        drop(seeded_file_database(&exact_database_path));
-        let exact_request =
-            protected_erasure_request("erase-concurrent-exact", "operator-a", "item-a", 75_000);
+        let mut exact_database = seeded_file_database(&exact_database_path);
+        let exact_authority = exact_database
+            .claim_kernel_commit_authority()
+            .expect("exact-retry database authority");
+        let exact_request = admitted_protected_erasure_request(
+            &exact_authority,
+            "erase-concurrent-exact",
+            "operator-a",
+            "item-a",
+            75_000,
+        );
         let exact_barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
         let exact_receipts = std::thread::scope(|scope| {
             let mut handles = Vec::new();
-            for now_ms in [75_000, 75_001] {
-                let database_path = exact_database_path.clone();
+            for _ in 0..2 {
                 let barrier = exact_barrier.clone();
-                let mut request = exact_request.clone();
-                request.now_ms = now_ms;
+                let request = &exact_request;
+                let mut database =
+                    LocalDatabase::open(&exact_database_path).expect("open exact-retry database");
+                database
+                    .join_kernel_commit_authority_for_test(&exact_authority)
+                    .expect("join exact-retry database to admitted authority");
                 handles.push(scope.spawn(move || {
-                    let database = Connection::open(database_path)
-                        .expect("open concurrent exact-retry database");
                     barrier.wait();
-                    erase_protected_record(&database, &schema(), &request)
+                    database
+                        .checkpoints_read()
+                        .erase_protected_record(request)
                         .expect("concurrent exact retry converges")
                 }));
             }
@@ -5064,10 +5075,9 @@ mod tests {
         let database_path = temp.path().join("source.sqlite");
         let destination = temp.path().join("racing-checkpoint");
         let mut database = seeded_file_database(&database_path);
-        let erasure_request =
-            protected_erasure_request("erase-racing-checkpoint", "operator-a", "item-a", 90_000);
         let hook_database = database_path.clone();
-        let hook_request = erasure_request.clone();
+        let hook_request =
+            protected_erasure_request("erase-racing-checkpoint", "operator-a", "item-a", 90_000);
         install_checkpoint_after_pin_hook(move || {
             let conn = Connection::open(&hook_database).expect("concurrent erasure connection");
             let receipt = erase_protected_record_with(
@@ -5163,14 +5173,13 @@ mod tests {
         let destination = temp.path().join("intent-race-checkpoint");
         let mut database = seeded_file_database(&database_path);
         let request = checkpoint_request(91_000);
-        let erasure = protected_erasure_request(
+        let hook_erasure = protected_erasure_request(
             "erase-after-checkpoint-intent",
             "operator-a",
             "item-a",
             91_001,
         );
         let hook_database = database_path.clone();
-        let hook_erasure = erasure.clone();
         install_checkpoint_after_intent_hook(move || {
             let conn = Connection::open(&hook_database).expect("concurrent erasure connection");
             let open = erase_protected_record_with(
@@ -5210,7 +5219,7 @@ mod tests {
                     .contains("intent-race-checkpoint.staging")),
             "the stale creator leaves no staging generation"
         );
-        let durable = protected_record_erasure_by_operation(&conn, &erasure.operation_id)
+        let durable = protected_record_erasure_by_operation(&conn, "erase-after-checkpoint-intent")
             .expect("receipt lookup")
             .expect("durable receipt");
         assert_eq!(durable.state, ProtectedRecordErasureStateV1::Complete);
@@ -5271,8 +5280,13 @@ mod tests {
             let checkpoint_id = record.receipt.checkpoint_id.clone();
             let staging = record.staging.clone().map(PathBuf::from);
 
-            let erasure = protected_erasure_request(
-                &format!("erase-crashed-producer-{index}"),
+            let erasure_operation_id = format!("erase-crashed-producer-{index}");
+            let authority = database
+                .claim_kernel_commit_authority()
+                .expect("crashed-producer database authority");
+            let erasure = admitted_protected_erasure_request(
+                &authority,
+                &erasure_operation_id,
                 "operator-a",
                 "item-a",
                 93_000 + index as u64,
@@ -5286,16 +5300,17 @@ mod tests {
             )
             .expect("external sweeper invalidates and destroys visible paths");
             assert_eq!(open.state, ProtectedRecordErasureStateV1::OpenObligations);
-            let mut early_retry = erasure.clone();
-            early_retry.now_ms += 1;
             assert_eq!(
-                erase_protected_record(&conn, &schema(), &early_retry)
+                database
+                    .checkpoints_read()
+                    .erase_protected_record(&erasure)
                     .expect("exact external retry remains honest")
                     .state,
                 ProtectedRecordErasureStateV1::OpenObligations,
                 "path absence alone cannot close an in-flight producer"
             );
             drop(conn);
+            drop(authority);
             drop(database);
 
             let mut reopened =

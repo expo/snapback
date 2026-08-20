@@ -6,7 +6,7 @@ use crate::auth::invocation::{
 use crate::contract_types::ServerProfile;
 use crate::ids::{self, Kind};
 use crate::manifest::{AuthMode, MembershipManifest, MembershipScope, TableManifest};
-use crate::storage::{DbRead, LocalDatabase};
+use crate::storage::{DbRead, LocalDatabase, ServingDatabase};
 use serde_json::{Map, Value, json};
 use snapback_services::test_support::rusqlite;
 use std::collections::BTreeMap;
@@ -59,15 +59,12 @@ fn authorize_send_for_prepared(
     request: &PushSendRequestV1,
 ) -> SnapbackResult<()> {
     authority.validate_admission("push send authorization")?;
-    let mut authority_db = LocalDatabase::memory()?;
-    let kernel = authority_db
-        .claim_kernel_commit_authority()
-        .expect("fresh test database mints one authority");
+    let authority_db = ServingDatabase::adopt(LocalDatabase::memory()?)?;
     snapback_kernel::push::test_support::authorize_send_in(
         tx,
         schema,
         audience,
-        &admitted_push_storage_authority(&kernel, authority),
+        &admitted_push_storage_authority(&authority_db, authority),
         trigger_mode,
         deferred_grant,
         request,
@@ -288,11 +285,9 @@ fn ledger_projection_is_authorized_and_never_releases_payload_or_token_bytes() {
         .expect("ledger fixture");
 
     let system = system_authority();
-    let kernel = db
-        .claim_kernel_commit_authority()
-        .expect("test database mints one authority");
+    let db = ServingDatabase::adopt(db).expect("test database mints one serving owner");
     let (rows, dependency) = read_ledger_projection_for_prepared(
-        &kernel,
+        &db,
         &DbRead::Live(&db),
         &declaration,
         db.schema(),
@@ -313,7 +308,7 @@ fn ledger_projection_is_authorized_and_never_releases_payload_or_token_bytes() {
     let user = session_authority(&principal_id);
     assert_eq!(
         read_ledger_projection_for_prepared(
-            &kernel,
+            &db,
             &DbRead::Live(&db),
             &declaration,
             db.schema(),

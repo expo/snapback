@@ -5089,6 +5089,7 @@ mod guarded_commit_tests {
         let mut restored = db
             .detached_read_snapshot()
             .expect("SQLite backup preserves protected relation state");
+        let restored = &mut restored.db;
         let restored_stamp: String = restored
             .conn
             .query_row(
@@ -15199,8 +15200,9 @@ mod membership_write_tests {
             .as_object_mut()
             .expect("membership declaration")
             .remove("lastHolder");
-        db.schema = serde_json::from_value(doctored)
+        let doctored = serde_json::from_value(doctored)
             .expect("authority profile without optional lastHolder remains parseable");
+        db.replace_active_schema(doctored);
 
         let second_owner = db
             .membership_plans()
@@ -17230,12 +17232,14 @@ mod membership_write_tests {
         // This storage-unit fixture exercises the sessions-mode eligibility
         // predicate without going through the deployment activation protocol,
         // whose staged artifact handshake is covered in auth_mode tests.
-        db.schema.auth = Some(crate::manifest::AuthManifest {
+        let mut active_schema = db.schema.clone();
+        active_schema.auth = Some(crate::manifest::AuthManifest {
             mode: AuthMode::Sessions,
             agents: None,
             password_identifier_mode: None,
             password_minimum_length: None,
         });
+        db.replace_active_schema(active_schema);
         seed_agent(&mut db, "agent-a");
         seed_agent(&mut db, "agent-b");
         let random = crate::auth::crypto::OsRandom;

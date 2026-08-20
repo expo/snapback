@@ -1816,3 +1816,108 @@ mod tests {
         );
     }
 }
+impl super::ServingDatabase {
+    pub fn create_watch(&mut self, request: CreateWatchRecord) -> SnapbackResult<WatchRecord> {
+        self.db.create_watch(request)
+    }
+    pub fn revalidate_watch_anchor(
+        &mut self,
+        record: &WatchRecord,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<WatchAnchorAuthority>> {
+        self.db.revalidate_watch_anchor(record, now_ms)
+    }
+    pub fn renew_watch_anchor_for_user(
+        &mut self,
+        id: &str,
+        effective_user_id: &str,
+        ttl_ms: u64,
+        now_ms: u64,
+    ) -> SnapbackResult<WatchRecord> {
+        self.db
+            .renew_watch_anchor_for_user(id, effective_user_id, ttl_ms, now_ms)
+    }
+    pub fn transition_watch(
+        &mut self,
+        id: &str,
+        owner: &str,
+        target: WatchStatus,
+        now_ms: u64,
+    ) -> SnapbackResult<WatchRecord> {
+        self.db.transition_watch(id, owner, target, now_ms)
+    }
+    pub fn schedule_watch_evaluation(&mut self, id: &str, now_ms: u64) -> SnapbackResult<bool> {
+        self.db.schedule_watch_evaluation(id, now_ms)
+    }
+    pub fn begin_watch_evaluation(
+        &mut self,
+        id: &str,
+        job_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<WatchRecord>> {
+        self.db.begin_watch_evaluation(id, job_id, now_ms)
+    }
+    pub fn decide_watch_evaluation(
+        &mut self,
+        id: &str,
+        job_id: &str,
+        predicate_state: bool,
+        dependencies: &[CapturedReadDependency],
+        now_ms: u64,
+    ) -> SnapbackResult<EvaluationDecision> {
+        self.db
+            .decide_watch_evaluation(id, job_id, predicate_state, dependencies, now_ms)
+    }
+    pub fn finish_watch_evaluation_failure(
+        &mut self,
+        id: &str,
+        job_id: &str,
+        code: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db
+            .finish_watch_evaluation_failure(id, job_id, code, now_ms)
+    }
+    pub fn record_watch_evaluation_retry(
+        &mut self,
+        id: &str,
+        job_id: &str,
+        code: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db
+            .record_watch_evaluation_retry(id, job_id, code, now_ms)
+    }
+    pub fn record_watch_firing_retry(
+        &mut self,
+        id: &str,
+        job_id: &str,
+        ordinal: u64,
+        code: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db
+            .record_watch_firing_retry(id, job_id, ordinal, code, now_ms)
+    }
+    pub fn settle_watch_firing(
+        &mut self,
+        id: &str,
+        job_id: &str,
+        ordinal: u64,
+        outcome: &str,
+        diagnostic_code: Option<&str>,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db
+            .settle_watch_firing(id, job_id, ordinal, outcome, diagnostic_code, now_ms)
+    }
+    pub fn mark_watch_dead(
+        &mut self,
+        id: &str,
+        reason: &str,
+        diagnostic_code: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db.mark_watch_dead(id, reason, diagnostic_code, now_ms)
+    }
+}

@@ -178,12 +178,12 @@ pub struct CreatePendingEffect {
 /// to adapters, but only the kernel commit authority can turn them into a
 /// writable transition.
 pub struct CreatePendingEffectCommand {
-    database_identity: std::sync::Arc<()>,
+    database_binding: crate::storage::DatabaseBinding,
     request: CreatePendingEffect,
 }
 
 pub struct DecidePendingEffectCommand {
-    database_identity: std::sync::Arc<()>,
+    database_binding: crate::storage::DatabaseBinding,
     id: String,
     approver_principal_id: String,
     approve: bool,
@@ -193,7 +193,7 @@ pub struct DecidePendingEffectCommand {
 }
 
 pub struct SettlePendingEffectCommand {
-    database_identity: std::sync::Arc<()>,
+    database_binding: crate::storage::DatabaseBinding,
     id: String,
     executed: bool,
     outcome_code: Option<String>,
@@ -201,7 +201,7 @@ pub struct SettlePendingEffectCommand {
 }
 
 pub struct RefusePendingEffectCommand {
-    database_identity: std::sync::Arc<()>,
+    database_binding: crate::storage::DatabaseBinding,
     id: String,
     outcome_code: String,
     now_ms: u64,
@@ -213,7 +213,7 @@ impl crate::storage::KernelCommitAuthority {
         request: CreatePendingEffect,
     ) -> CreatePendingEffectCommand {
         CreatePendingEffectCommand {
-            database_identity: self.identity().clone(),
+            database_binding: self.binding(),
             request,
         }
     }
@@ -229,7 +229,7 @@ impl crate::storage::KernelCommitAuthority {
         now_ms: u64,
     ) -> DecidePendingEffectCommand {
         DecidePendingEffectCommand {
-            database_identity: self.identity().clone(),
+            database_binding: self.binding(),
             id: id.to_owned(),
             approver_principal_id: approver_principal_id.to_owned(),
             approve,
@@ -247,7 +247,7 @@ impl crate::storage::KernelCommitAuthority {
         now_ms: u64,
     ) -> SettlePendingEffectCommand {
         SettlePendingEffectCommand {
-            database_identity: self.identity().clone(),
+            database_binding: self.binding(),
             id: id.to_owned(),
             executed,
             outcome_code: outcome_code.map(str::to_owned),
@@ -262,7 +262,7 @@ impl crate::storage::KernelCommitAuthority {
         now_ms: u64,
     ) -> RefusePendingEffectCommand {
         RefusePendingEffectCommand {
-            database_identity: self.identity().clone(),
+            database_binding: self.binding(),
             id: id.to_owned(),
             outcome_code: outcome_code.to_owned(),
             now_ms,
@@ -271,10 +271,10 @@ impl crate::storage::KernelCommitAuthority {
 }
 
 fn verify_command_identity(
-    actual: &std::sync::Arc<()>,
-    expected: &std::sync::Arc<()>,
+    actual: &crate::storage::DatabaseBinding,
+    expected: &crate::storage::DatabaseBinding,
 ) -> SnapbackResult<()> {
-    if std::sync::Arc::ptr_eq(actual, expected) {
+    if actual.matches(expected) {
         Ok(())
     } else {
         Err(SnapbackError::error(
@@ -508,7 +508,7 @@ impl LocalDatabase {
         &mut self,
         command: CreatePendingEffectCommand,
     ) -> SnapbackResult<PendingEffectRecord> {
-        verify_command_identity(&command.database_identity, &self.commit_authority_identity)?;
+        verify_command_identity(&command.database_binding, &self.binding())?;
         let request = command.request;
         if !table_exists(&self.conn)? {
             return Err(input_invalid("approval-gated effects require api.enabled"));
@@ -625,7 +625,7 @@ impl LocalDatabase {
         &mut self,
         command: DecidePendingEffectCommand,
     ) -> SnapbackResult<PendingEffectRecord> {
-        verify_command_identity(&command.database_identity, &self.commit_authority_identity)?;
+        verify_command_identity(&command.database_binding, &self.binding())?;
         let DecidePendingEffectCommand {
             id,
             approver_principal_id,
@@ -695,7 +695,7 @@ impl LocalDatabase {
         &mut self,
         command: SettlePendingEffectCommand,
     ) -> SnapbackResult<PendingEffectRecord> {
-        verify_command_identity(&command.database_identity, &self.commit_authority_identity)?;
+        verify_command_identity(&command.database_binding, &self.binding())?;
         let SettlePendingEffectCommand {
             id,
             executed,
@@ -732,7 +732,7 @@ impl LocalDatabase {
         &mut self,
         command: RefusePendingEffectCommand,
     ) -> SnapbackResult<()> {
-        verify_command_identity(&command.database_identity, &self.commit_authority_identity)?;
+        verify_command_identity(&command.database_binding, &self.binding())?;
         let RefusePendingEffectCommand {
             id,
             outcome_code,
@@ -954,5 +954,17 @@ mod tests {
             validate_exact_schema(&db.conn).unwrap_err().diagnostic.code,
             "SNAPBACK_EFFECT_CATALOG_CORRUPT",
         );
+    }
+}
+impl super::ServingDatabase {
+    pub fn pending_effect(&mut self, id: &str, now_ms: u64) -> SnapbackResult<PendingEffectRecord> {
+        self.db.pending_effect(id, now_ms)
+    }
+    pub fn pending_effects_for_approver(
+        &mut self,
+        principal_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<PendingEffectRecord>> {
+        self.db.pending_effects_for_approver(principal_id, now_ms)
     }
 }

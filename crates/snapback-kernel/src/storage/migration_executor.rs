@@ -1631,7 +1631,7 @@ impl LocalDatabase {
                 // read-only with respect to storage, but it must repair that
                 // in-memory serving posture before returning the retained
                 // terminal receipt.
-                self.schema = successor_schema.clone();
+                self.replace_active_schema(successor_schema.clone());
             }
             return Ok(receipt);
         }
@@ -2284,7 +2284,7 @@ impl LocalDatabase {
         // its receipt, so retry must return the singleton retained result.
         kill_point_check("terminal-response");
         // The serving handle adopts the successor schema.
-        self.schema = successor_schema.clone();
+        self.replace_active_schema(successor_schema.clone());
         // The physical cleanup tail (§3/§4): the rollback window closed at
         // release, so parked predecessor generations and artifact-declared
         // retired columns drop now. A tail error leaves the journal at
@@ -2706,7 +2706,7 @@ impl LocalDatabase {
             now_ms,
         )?;
         tx.commit()?;
-        self.schema = predecessor_schema.clone();
+        self.replace_active_schema(predecessor_schema.clone());
         kill_point_check("rollback-response");
         // The rollback's cleanup tail: the republished predecessor is
         // authoritative, so orphaned staged successor generations drop.
@@ -8714,5 +8714,32 @@ mod tests {
                 "fence clear after {kind}#{nth}"
             );
         }
+    }
+}
+impl super::ServingDatabase {
+    pub fn migrate_apply(
+        &mut self,
+        request: MigrationApplyRequest<'_>,
+    ) -> SnapbackResult<MigrationReceiptV1> {
+        self.db.migrate_apply(request)
+    }
+    pub fn migrate_rollback(
+        &mut self,
+        artifact: &MigrationPlanArtifactV1,
+        approval: &MigrationApprovalV1,
+        audience: &ResolvedLocalAudience,
+        now_ms: u64,
+    ) -> SnapbackResult<MigrationRollbackReceiptV1> {
+        self.db
+            .migrate_rollback(artifact, approval, audience, now_ms)
+    }
+    pub fn migrate_request_cancel(&mut self, operation_id: &str) -> SnapbackResult<()> {
+        self.db.migrate_request_cancel(operation_id)
+    }
+}
+impl super::ServingDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_migration_fence_for_test(&mut self, operation_id: &str) -> SnapbackResult<()> {
+        self.db.install_migration_fence_for_test(operation_id)
     }
 }

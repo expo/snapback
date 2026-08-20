@@ -11,10 +11,10 @@ pub(crate) use snapback_activation::{
 };
 pub use snapback_kernel::{
     authoring_suggestion, branches, conformance, data_patch, diagnostic, fork_promotion,
-    live_matcher, membership_rules, migration, operation_ledger, remediation, seed_identity,
-    storage, vector, watches,
+    live_matcher, membership_rules, migration, operation_ledger, remediation, seed_identity, vector,
+    watches,
 };
-pub(crate) use snapback_kernel::{operation_detail, proof_checkpoint, search};
+pub(crate) use snapback_kernel::{operation_detail, proof_checkpoint, search, storage};
 pub(crate) use snapback_runtime::{elevated_read_trace, warm_vm};
 #[cfg(test)]
 pub(crate) use snapback_services::{assets_image, assets_video};

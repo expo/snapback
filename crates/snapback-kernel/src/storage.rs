@@ -529,20 +529,84 @@ pub fn app_writes_are_authorization_event(schema: &SchemaManifest, changes: &[Ch
     authorization::app_writes_are_authorization_event(schema, changes)
 }
 
-/// Take-once authority for minting commit carriers bound to one database.
+/// Database identity shared by values that belong to one database.
 ///
-/// The fields and constructor are kernel-private. Higher crates may carry this
-/// value after the engine claims a database, but cannot synthesize one or use
-/// a carrier minted for a different database.
+/// The field and constructor remain private. The binding itself exposes no
+/// public fact-assertion operation. Five public `LocalDatabase` operations do
+/// accept it, but all five require `&mut LocalDatabase` and re-check that the
+/// binding names that exact database before performing their owner-scoped
+/// setup. Cloning therefore duplicates identity evidence, not a shared-borrow
+/// commit or push capability.
+///
+/// @ref LLP 0285#1-what-closed-means-here — a public carrier is acceptable
+/// only when it confers no unverified fact assertion.
 #[derive(Clone)]
-pub struct KernelCommitAuthority {
-    identity: Arc<()>,
-    _lease: Arc<KernelCommitAuthorityLease>,
+pub struct DatabaseBinding(Arc<()>);
+
+impl std::fmt::Debug for DatabaseBinding {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("DatabaseBinding(..)")
+    }
+}
+
+impl PartialEq for DatabaseBinding {
+    fn eq(&self, other: &Self) -> bool {
+        self.matches(other)
+    }
+}
+
+impl Eq for DatabaseBinding {}
+
+impl AsRef<DatabaseBinding> for DatabaseBinding {
+    fn as_ref(&self) -> &DatabaseBinding {
+        self
+    }
+}
+
+impl DatabaseBinding {
+    pub(crate) fn identity(&self) -> &Arc<()> {
+        &self.0
+    }
+
+    pub(crate) fn matches(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn isolated_for_test() -> Self {
+        Self(Arc::new(()))
+    }
+}
+
+/// Take-once kernel authority for asserting commit facts for one database.
+///
+/// The root never crosses the kernel boundary. Higher crates operate through
+/// `ServingDatabase`, whose explicit methods are the only reachable fact-
+/// assertion surface.
+pub(crate) struct KernelCommitAuthority {
+    binding: DatabaseBinding,
+    _lease: KernelCommitAuthorityLease,
 }
 
 impl KernelCommitAuthority {
     pub(crate) fn identity(&self) -> &Arc<()> {
-        &self.identity
+        self.binding.identity()
+    }
+
+    pub(crate) fn binding(&self) -> DatabaseBinding {
+        self.binding.clone()
+    }
+
+    pub(crate) fn authorization_commit_carriers(&self) -> AuthorizationCommitCarrierFactory {
+        AuthorizationCommitCarrierFactory {
+            identity: self.identity().clone(),
+        }
+    }
+}
+
+impl AsRef<DatabaseBinding> for KernelCommitAuthority {
+    fn as_ref(&self) -> &DatabaseBinding {
+        &self.binding
     }
 }
 
@@ -596,6 +660,7 @@ fn file_commit_authority_key(path: &Path) -> SnapbackResult<String> {
 
 type AuthorizationReservationBind = Box<
     dyn for<'a> FnOnce(
+            &AuthorizationCommitCarrierFactory,
             &AuthorizationCommitWitness,
             AuthorizationCommitImpact<'a>,
         ) -> SnapbackResult<PreparedAuthorizationCommit>
@@ -630,7 +695,10 @@ impl AuthorizationCommitReservation {
             .take()
             .expect("authorization reservation binds once");
         self.cancel = None;
-        let prepared = bind(witness, impact)?;
+        let factory = AuthorizationCommitCarrierFactory {
+            identity: self.identity.clone(),
+        };
+        let prepared = bind(&factory, witness, impact)?;
         if !Arc::ptr_eq(&prepared.identity, database_identity) {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
@@ -727,34 +795,24 @@ impl Drop for PreparedAuthorizationCommit {
     }
 }
 
-#[derive(Clone)]
 pub struct AuthorizationCommitCarrierFactory {
     identity: Arc<()>,
-    _lease: Arc<KernelCommitAuthorityLease>,
-}
-
-impl KernelCommitAuthority {
-    pub fn authorization_commit_carriers(&self) -> AuthorizationCommitCarrierFactory {
-        AuthorizationCommitCarrierFactory {
-            identity: self.identity.clone(),
-            _lease: self._lease.clone(),
-        }
-    }
 }
 
 impl AuthorizationCommitCarrierFactory {
     #[cfg(any(test, feature = "test-support"))]
     pub fn for_test() -> Self {
-        let mut database = LocalDatabase::memory().expect("isolated authorization test database");
-        database
-            .claim_kernel_commit_authority()
-            .expect("isolated authorization test authority")
-            .authorization_commit_carriers()
+        ServingDatabase::adopt(
+            LocalDatabase::memory().expect("isolated authorization test database"),
+        )
+        .expect("isolated authorization test authority")
+        .authorization_commit_carriers()
     }
 
     pub fn reservation(
         &self,
         bind: impl for<'a> FnOnce(
+            &AuthorizationCommitCarrierFactory,
             &AuthorizationCommitWitness,
             AuthorizationCommitImpact<'a>,
         ) -> SnapbackResult<PreparedAuthorizationCommit>
@@ -1265,6 +1323,10 @@ pub struct LocalDatabase {
     // connections so queries do not queue behind writes. `None` for in-memory
     // databases, which cannot run WAL; those fall back to the serialized lane.
     reader_pool: Option<Arc<ReaderPool>>,
+    /// Immediate in-process vector quarantine shared by the primary database
+    /// and every pooled reader. Durable settlement follows only after the
+    /// detecting read transaction releases its snapshot.
+    vector_quarantine_gate: Arc<crate::vector::sqlite::PendingVectorQuarantineGate>,
     /// The LLP 0188 self-hosted replicator, when configured, is the only
     /// authority allowed to checkpoint this WAL. Keeping the fact on the
     /// database prevents a legacy shutdown path from truncating frames before
@@ -1293,6 +1355,439 @@ pub struct LocalDatabase {
     /// scope table; handler calls retain their exact function-local access
     /// proof in the runtime context.
     sequence_declarations: Arc<BTreeMap<String, crate::manifest::SequenceDeclaration>>,
+}
+
+/// An owned read snapshot that cannot enter a serving authority graph.
+///
+/// The wrapped database is intentionally not extractable. Callers may borrow
+/// it for read execution, while kernel-internal simulations may mutate the
+/// disposable copy without turning a shared borrow of a serving database into
+/// a second adoptable handle.
+pub struct DetachedReadSnapshot {
+    db: LocalDatabase,
+}
+
+impl DetachedReadSnapshot {
+    pub fn as_database(&self) -> &LocalDatabase {
+        &self.db
+    }
+}
+
+/// A live database paired with its sole commit fact-assertion root.
+///
+/// There is deliberately no `DerefMut`: mutable and authority-bearing
+/// operations cross explicit methods on this owner.
+pub struct ServingDatabase {
+    db: LocalDatabase,
+    authority: KernelCommitAuthority,
+}
+
+impl ServingDatabase {
+    pub fn adopt(mut db: LocalDatabase) -> SnapbackResult<Self> {
+        let authority = db.claim_commit_authority().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_KERNEL_COMMIT_AUTHORITY_ALREADY_CLAIMED",
+                "storage",
+                "the database already belongs to a serving commit-authority graph",
+            )
+        })?;
+        Ok(Self { db, authority })
+    }
+
+    pub fn binding(&self) -> DatabaseBinding {
+        self.authority.binding()
+    }
+
+    /// @ref LLP 0285#51-defect-1--the-publicly-claimable-authority-root —
+    /// owner-only bridges retained until steps 5–6 replace
+    /// caller-selected push facts with kernel-derived principals.
+    #[doc(hidden)]
+    pub fn admit_system_push(&self) -> crate::push::PushStorageAuthority {
+        self.authority.admit_system_push()
+    }
+
+    #[doc(hidden)]
+    pub fn admit_user_push(&self, principal_id: &str) -> crate::push::PushStorageAuthority {
+        self.authority.admit_user_push(principal_id)
+    }
+
+    #[doc(hidden)]
+    pub fn admit_other_push(&self) -> crate::push::PushStorageAuthority {
+        self.authority.admit_other_push()
+    }
+
+    pub fn api_envelope(&mut self) -> ApiEnvelopeKernel<'_> {
+        ApiEnvelopeKernel::new(&mut self.db)
+    }
+
+    pub fn asset_attempts(&mut self) -> AssetAttemptsKernel<'_> {
+        AssetAttemptsKernel::new(&mut self.db)
+    }
+
+    pub fn asset_maintenance(&mut self) -> AssetMaintenanceKernel<'_> {
+        AssetMaintenanceKernel::new(&mut self.db)
+    }
+
+    pub fn asset_reads(&mut self) -> AssetReadsKernel<'_> {
+        AssetReadsKernel::new(&mut self.db)
+    }
+
+    pub fn auth_catalog(&mut self) -> AuthCatalogKernel<'_> {
+        AuthCatalogKernel::new(&mut self.db)
+    }
+
+    /// Lend the non-owner database view used by the auth compatibility seam.
+    ///
+    /// `LocalDatabase` cannot reach the serving authority root. In particular,
+    /// its public binding is identity-only and cannot mint an admitted carrier.
+    #[doc(hidden)]
+    pub fn auth_database_mut(&mut self) -> &mut LocalDatabase {
+        &mut self.db
+    }
+
+    pub fn branch_ops(&mut self) -> BranchOpsKernel<'_> {
+        BranchOpsKernel::new(&mut self.db)
+    }
+
+    /// Explicit serving-owner access to shared-borrow branch inspection.
+    ///
+    /// @ref LLP 0285#8-open-risks — privileged shared-borrow access must not
+    /// arrive accidentally through `Deref<Target = LocalDatabase>`.
+    pub fn branch_ops_read(&self) -> BranchOpsReadKernel<'_> {
+        BranchOpsReadKernel::new(&self.db)
+    }
+
+    pub fn membership_plans(&mut self) -> MembershipPlansKernel<'_> {
+        MembershipPlansKernel::new(&mut self.db)
+    }
+
+    pub fn membership_reads(&mut self) -> MembershipReadsKernel<'_> {
+        MembershipReadsKernel::new(&mut self.db)
+    }
+
+    pub fn mutation_writes(&mut self) -> MutationWritesKernel<'_> {
+        MutationWritesKernel::new(&mut self.db)
+    }
+
+    pub fn jobs(&mut self) -> JobsKernel<'_> {
+        JobsKernel::new(&mut self.db)
+    }
+
+    pub fn versions(&mut self) -> VersionsKernel<'_> {
+        VersionsKernel::new(&mut self.db)
+    }
+
+    /// Explicit serving-owner version reads. The returned public surface is
+    /// read-only; shared-borrow maintenance methods remain kernel-private.
+    ///
+    /// @ref LLP 0285#8-open-risks — shared read carriers must not retain
+    /// interior-mutable maintenance operations.
+    pub fn versions_read(&self) -> VersionsReadKernel<'_> {
+        VersionsReadKernel::new(&self.db)
+    }
+
+    /// Explicit owner maintenance over the shared SQLite connection. This is
+    /// intentionally not exposed by `VersionsReadKernel`.
+    pub fn prune_change_journal(
+        &self,
+        now_ms: u64,
+        retain_versions: u64,
+        retain_ms: u64,
+    ) -> SnapbackResult<u64> {
+        self.db
+            .versions_read()
+            .prune_change_journal(now_ms, retain_versions, retain_ms)
+    }
+
+    pub fn checkpoints(&mut self) -> CheckpointsKernel<'_> {
+        CheckpointsKernel::new(&mut self.db)
+    }
+
+    /// Explicit serving-owner checkpoint inspection. Destructive methods on
+    /// the shared-borrow carrier remain kernel-private; product erasure uses
+    /// the admitted request through `checkpoints(&mut self)`.
+    ///
+    /// @ref LLP 0285#8-open-risks — checkpoint erasure and recovery cannot be
+    /// inherited from `LocalDatabase` through `Deref`.
+    pub fn checkpoints_read(&self) -> CheckpointsReadKernel<'_> {
+        CheckpointsReadKernel::new(&self.db)
+    }
+
+    pub fn settlement(&mut self) -> SettlementKernel<'_> {
+        SettlementKernel::new(&mut self.db)
+    }
+
+    pub fn push_registry(&mut self) -> PushRegistryKernel<'_> {
+        PushRegistryKernel::new(&mut self.db)
+    }
+
+    pub fn query_reads(&mut self) -> QueryReadsKernel<'_> {
+        QueryReadsKernel::new(&mut self.db)
+    }
+
+    pub fn schema_seed(&mut self) -> SchemaSeedKernel<'_> {
+        SchemaSeedKernel::new(&mut self.db)
+    }
+
+    /// Clone the typed read pool without lending its kernel-private shutdown
+    /// or unconstrained writer-opening operations. The one public settlement
+    /// operation accepts only an opaque, exact-database-bound vector failure
+    /// and re-derives its schema from durable state before writing.
+    ///
+    /// @ref LLP 0285#8-open-risks — a cloned pool cannot open a second writer.
+    pub fn reader_pool(&self) -> Option<Arc<ReaderPool>> {
+        self.db.reader_pool()
+    }
+
+    pub fn prepare_replication_shutdown(&self) -> Vec<String> {
+        self.db.prepare_replication_shutdown()
+    }
+
+    pub fn shutdown_checkpoint(&self, bound: Duration) -> ShutdownCheckpointReport {
+        self.db.shutdown_checkpoint(bound)
+    }
+
+    fn quarantine_vector_generation(
+        &self,
+        identity: &crate::vector::sqlite::VectorGenerationIdentity,
+        query_schema: &SchemaManifest,
+    ) -> SnapbackResult<bool> {
+        self.db.quarantine_vector_generation(identity, query_schema)
+    }
+
+    /// Settle a kernel-minted vector failure after its read snapshot ends.
+    /// The opaque failure carries both the exact generation identity and this
+    /// database's private binding, so a failure from another database cannot
+    /// be replayed here. The bounded writer re-reads the durable active
+    /// query-facts projection and exact-generation manifest, rejecting forged
+    /// field or vector facts while tolerating unrelated additive activation.
+    pub fn settle_vector_query_failure(
+        &self,
+        failure: crate::vector::sqlite::VectorSqliteQueryFailure,
+    ) -> SnapbackError {
+        let binding_matches = failure.is_bound_to(&self.authority.binding);
+        let (error, target, binding, query_schema) = failure.into_parts();
+        if let Some(target) = target {
+            let Some(query_schema) = query_schema else {
+                return crate::vector::diagnostics::index_corrupt();
+            };
+            if binding.is_none() || !binding_matches {
+                return crate::vector::diagnostics::index_corrupt();
+            }
+            if self
+                .quarantine_vector_generation(&target, &query_schema)
+                .is_err()
+            {
+                return crate::vector::diagnostics::index_corrupt();
+            }
+            self.db.vector_quarantine_gate.clear(&target);
+        }
+        error
+    }
+
+    pub fn persist_derived_fork_app_row_coverage_receipt(
+        &self,
+        encoded: &str,
+    ) -> SnapbackResult<()> {
+        self.db
+            .persist_derived_fork_app_row_coverage_receipt(encoded)
+    }
+
+    pub fn initialize_sender_proof_after_hosted_preflight(&self) -> SnapbackResult<()> {
+        self.db.initialize_sender_proof_after_hosted_preflight()
+    }
+
+    pub fn initialize_authentication_throttle_after_hosted_preflight(
+        &self,
+    ) -> Result<(), crate::auth::throttle::AuthenticationThrottleError> {
+        self.db
+            .initialize_authentication_throttle_after_hosted_preflight()
+    }
+
+    /// Test-only destructive outage injection stays behind exclusive serving
+    /// ownership; it cannot be inherited from a shared `ServingDatabase`
+    /// borrow through `Deref`.
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn make_sender_proof_replay_unavailable_for_test(&mut self) -> SnapbackResult<()> {
+        self.db.make_sender_proof_replay_unavailable_for_test()
+    }
+
+    /// Test-only destructive outage injection stays behind exclusive serving
+    /// ownership; it cannot be inherited from a shared `ServingDatabase`
+    /// borrow through `Deref`.
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn make_authentication_throttle_unavailable_for_test(&mut self) -> SnapbackResult<()> {
+        self.db
+            .make_authentication_throttle_unavailable_for_test()
+            .map_err(Into::into)
+    }
+
+    pub fn install_service_authority_commit_interlock(
+        &mut self,
+        interlock: crate::auth::service_fence::ServiceAuthorityCommitInterlock,
+    ) -> SnapbackResult<()> {
+        let binding = self.binding();
+        self.db
+            .install_service_authority_commit_interlock(&binding, interlock)
+    }
+
+    #[doc(hidden)]
+    pub fn service_authority_terminal_factory(
+        &self,
+    ) -> crate::auth::service_fence::ServiceAuthorityTerminalFactory {
+        self.authority.service_authority_terminal_factory()
+    }
+
+    #[doc(hidden)]
+    pub fn service_authority_commit_interlock(
+        &self,
+        prepare: impl Fn(
+            &[String],
+            crate::auth::service_authority_contract::ServiceAuthorityDisposition,
+        )
+            -> SnapbackResult<crate::auth::service_fence::PreparedServiceAuthorityTerminal>
+        + Send
+        + Sync
+        + 'static,
+    ) -> crate::auth::service_fence::ServiceAuthorityCommitInterlock {
+        self.authority.service_authority_commit_interlock(prepare)
+    }
+
+    pub fn authorization_commit_carriers(&self) -> AuthorizationCommitCarrierFactory {
+        self.authority.authorization_commit_carriers()
+    }
+
+    pub fn enable_authorization_commit_interlock(&mut self) -> SnapbackResult<()> {
+        let binding = self.binding();
+        self.db.enable_authorization_commit_interlock(&binding)
+    }
+
+    pub fn prepare_promotion_contention_reservation_for_bench(
+        &mut self,
+        canonical_stream_id: &str,
+        workers: usize,
+        issued_at_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion_bench::PromotionContentionReservation> {
+        let binding = self.binding();
+        self.db.prepare_promotion_contention_reservation_for_bench(
+            &binding,
+            canonical_stream_id,
+            workers,
+            issued_at_ms,
+        )
+    }
+
+    pub fn ensure_promotion_contention_infra_for_bench(&mut self) -> SnapbackResult<()> {
+        let binding = self.binding();
+        self.db
+            .ensure_promotion_contention_infra_for_bench(&binding)
+    }
+
+    pub fn activate_promotion_contention_reservation_for_bench(
+        &mut self,
+        reservation: crate::fork_promotion_bench::PromotionContentionReservation,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion_bench::PromotionContentionPolicy> {
+        let binding = self.binding();
+        self.db
+            .activate_promotion_contention_reservation_for_bench(&binding, reservation, now_ms)
+    }
+
+    pub fn create_pending_effect_admitted(
+        &mut self,
+        request: pending_effects::CreatePendingEffect,
+    ) -> SnapbackResult<pending_effects::PendingEffectRecord> {
+        let command = self.authority.admit_pending_effect_creation(request);
+        self.db.create_pending_effect(command)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn decide_pending_effect_admitted(
+        &mut self,
+        id: &str,
+        approver_principal_id: &str,
+        approve: bool,
+        requires_step_up: bool,
+        step_up: Option<&crate::auth::crypto::StepUpProof>,
+        now_ms: u64,
+    ) -> SnapbackResult<pending_effects::PendingEffectRecord> {
+        let command = self.authority.admit_pending_effect_decision(
+            id,
+            approver_principal_id,
+            approve,
+            requires_step_up,
+            step_up,
+            now_ms,
+        );
+        self.db.decide_pending_effect(command)
+    }
+
+    pub fn settle_pending_effect_admitted(
+        &mut self,
+        id: &str,
+        executed: bool,
+        outcome_code: Option<&str>,
+        now_ms: u64,
+    ) -> SnapbackResult<pending_effects::PendingEffectRecord> {
+        let command =
+            self.authority
+                .admit_pending_effect_settlement(id, executed, outcome_code, now_ms);
+        self.db.settle_pending_effect(command)
+    }
+
+    pub fn refuse_pending_effect_admitted(
+        &mut self,
+        id: &str,
+        outcome_code: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        let command = self
+            .authority
+            .admit_pending_effect_refusal(id, outcome_code, now_ms);
+        self.db.refuse_pending_effect(command)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn admit_protected_record_erasure(
+        &self,
+        operation_id: String,
+        qualified_table: String,
+        row_id: String,
+        mode: &str,
+        principal_id: &str,
+        audit_class: &str,
+        profile: &str,
+        transition_generation: u64,
+        credential_class: &str,
+        credential_digest_sha256: &str,
+        authorization_stream_incarnation: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureRequestV1> {
+        self.authority.admit_protected_record_erasure(
+            operation_id,
+            qualified_table,
+            row_id,
+            mode,
+            principal_id,
+            audit_class,
+            profile,
+            transition_generation,
+            credential_class,
+            credential_digest_sha256,
+            authorization_stream_incarnation,
+            now_ms,
+        )
+    }
+}
+
+impl std::ops::Deref for ServingDatabase {
+    type Target = LocalDatabase;
+
+    fn deref(&self) -> &Self::Target {
+        &self.db
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1702,6 +2197,11 @@ fn inspect_storage_for_open(conn: &Connection) -> SnapbackResult<()> {
 }
 
 impl LocalDatabase {
+    pub(in crate::storage) fn replace_active_schema(&mut self, schema: SchemaManifest) {
+        self.schema = schema;
+        self.vector_quarantine_gate.set_schema(&self.schema);
+    }
+
     pub fn api_envelope(&mut self) -> ApiEnvelopeKernel<'_> {
         ApiEnvelopeKernel::new(self)
     }
@@ -1734,7 +2234,7 @@ impl LocalDatabase {
         BranchOpsKernel::new(self)
     }
 
-    pub fn branch_ops_read(&self) -> BranchOpsReadKernel<'_> {
+    pub(crate) fn branch_ops_read(&self) -> BranchOpsReadKernel<'_> {
         BranchOpsReadKernel::new(self)
     }
 
@@ -1742,7 +2242,7 @@ impl LocalDatabase {
         MembershipPlansKernel::new(self)
     }
 
-    pub fn membership_plans_read(&self) -> MembershipPlansReadKernel<'_> {
+    pub(crate) fn membership_plans_read(&self) -> MembershipPlansReadKernel<'_> {
         MembershipPlansReadKernel::new(self)
     }
 
@@ -1766,7 +2266,7 @@ impl LocalDatabase {
         VersionsKernel::new(self)
     }
 
-    pub fn versions_read(&self) -> VersionsReadKernel<'_> {
+    pub(crate) fn versions_read(&self) -> VersionsReadKernel<'_> {
         VersionsReadKernel::new(self)
     }
 
@@ -1774,7 +2274,7 @@ impl LocalDatabase {
         CheckpointsKernel::new(self)
     }
 
-    pub fn checkpoints_read(&self) -> CheckpointsReadKernel<'_> {
+    pub(crate) fn checkpoints_read(&self) -> CheckpointsReadKernel<'_> {
         CheckpointsReadKernel::new(self)
     }
 
@@ -1816,6 +2316,9 @@ impl LocalDatabase {
             in_app_branch: None,
             schema: SchemaManifest::default(),
             reader_pool: None,
+            vector_quarantine_gate: Arc::new(
+                crate::vector::sqlite::PendingVectorQuarantineGate::new(&SchemaManifest::default()),
+            ),
             replication_checkpoint_owner: false,
             authorization_interlock: false,
             service_authority_fences: None,
@@ -1883,6 +2386,9 @@ impl LocalDatabase {
             in_app_branch,
             schema: SchemaManifest::default(),
             reader_pool: None,
+            vector_quarantine_gate: Arc::new(
+                crate::vector::sqlite::PendingVectorQuarantineGate::new(&SchemaManifest::default()),
+            ),
             replication_checkpoint_owner: crate::replication::configured_from_env(),
             authorization_interlock: false,
             service_authority_fences: None,
@@ -1910,7 +2416,7 @@ impl LocalDatabase {
             // additive migration without requiring ordinary writers to stop.
             validate_existing_storage_ordering(conn, head)
         })?;
-        db.schema = stored_schema.unwrap_or_default();
+        db.replace_active_schema(stored_schema.unwrap_or_default());
         if let Some(push_seam) = &db.schema.push_seam {
             // @ref LLP 0143#d1-device-token-custody — every reopened writer
             // re-arms physical deletion and refuses a non-exact protected
@@ -1934,8 +2440,11 @@ impl LocalDatabase {
         }
         // The pool is created after configure/create_infra so readers open an
         // existing WAL database with the infra tables committed.
+        let reader_pool_binding = db.binding();
         db.reader_pool = Some(Arc::new(ReaderPool::new(
             path,
+            reader_pool_binding,
+            Arc::clone(&db.vector_quarantine_gate),
             db.replication_checkpoint_owner,
         )));
         Ok(db)
@@ -1945,14 +2454,14 @@ impl LocalDatabase {
     /// in-memory databases (no WAL, reads stay on the serialized write lane).
     ///
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
-    pub fn reader_pool(&self) -> Option<Arc<ReaderPool>> {
+    pub(crate) fn reader_pool(&self) -> Option<Arc<ReaderPool>> {
         self.reader_pool.clone()
     }
 
     /// Drain every pooled reader before the replication owner performs its
     /// final ship-and-TRUNCATE sequence. No direct checkpoint is performed
     /// here; the celld-ltx `Db` still holds the checkpoint authority.
-    pub fn prepare_replication_shutdown(&self) -> Vec<String> {
+    pub(crate) fn prepare_replication_shutdown(&self) -> Vec<String> {
         self.reader_pool
             .as_ref()
             .map_or_else(Vec::new, |pool| pool.close_for_shutdown())
@@ -1963,7 +2472,7 @@ impl LocalDatabase {
     /// read-only connections outlive the writable one in `LocalDatabase`'s
     /// field order, so SQLite's close-time checkpoint never runs; drain the
     /// pool first, then checkpoint under an explicit bound.
-    pub fn shutdown_checkpoint(&self, bound: Duration) -> ShutdownCheckpointReport {
+    pub(crate) fn shutdown_checkpoint(&self, bound: Duration) -> ShutdownCheckpointReport {
         let Some(path) = self.path.as_ref() else {
             return ShutdownCheckpointReport {
                 applicable: false,
@@ -2105,7 +2614,7 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0028#execution-the-action-class — ENG-24340 isolates nested
     /// mutation execution from the live in-memory write connection.
-    pub fn detached_read_snapshot(&self) -> SnapbackResult<Self> {
+    pub fn detached_read_snapshot(&self) -> SnapbackResult<DetachedReadSnapshot> {
         let mut conn = Connection::open_in_memory()?;
         {
             let backup = rusqlite::backup::Backup::new(&self.conn, &mut conn)?;
@@ -2123,6 +2632,9 @@ impl LocalDatabase {
             in_app_branch: self.in_app_branch.clone(),
             schema: self.schema.clone(),
             reader_pool: None,
+            vector_quarantine_gate: Arc::new(
+                crate::vector::sqlite::PendingVectorQuarantineGate::new(&self.schema),
+            ),
             replication_checkpoint_owner: false,
             authorization_interlock: false,
             service_authority_fences: None,
@@ -2146,7 +2658,7 @@ impl LocalDatabase {
         restored.writer_authority.set_schema(&restored.schema)?;
         restored.refresh_writer_authority_manifest()?;
         restored.writer_authority.install(&restored.conn)?;
-        Ok(restored)
+        Ok(DetachedReadSnapshot { db: restored })
     }
 
     /// Claim the one live commit authority for this database. The process-wide
@@ -2155,7 +2667,7 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0276#phases — opaque carriers are meaningful only when the
     /// mint itself cannot be reclaimed through another handle to the file.
-    pub fn claim_kernel_commit_authority(&mut self) -> Option<KernelCommitAuthority> {
+    fn claim_commit_authority(&mut self) -> Option<KernelCommitAuthority> {
         if self.commit_authority_claimed {
             return None;
         }
@@ -2167,19 +2679,39 @@ impl LocalDatabase {
         }
         self.commit_authority_claimed = true;
         Some(KernelCommitAuthority {
-            identity: self.commit_authority_identity.clone(),
-            _lease: Arc::new(KernelCommitAuthorityLease {
+            binding: self.binding(),
+            _lease: KernelCommitAuthorityLease {
                 key: self.commit_authority_key.clone(),
-            }),
+            },
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn claim_kernel_commit_authority(&mut self) -> Option<KernelCommitAuthority> {
+        self.claim_commit_authority()
+    }
+
+    /// Compatibility seam for downstream identity-binding tests. Claiming
+    /// through this feature yields only a database binding; the authority root
+    /// stays inside the kernel and is dropped before control returns.
+    #[cfg(all(feature = "test-support", not(test)))]
+    #[doc(hidden)]
+    pub fn claim_database_binding(&mut self) -> Option<DatabaseBinding> {
+        self.claim_commit_authority()
+            .map(|authority| authority.binding())
+    }
+
+    /// Return the non-privileged identity binding for this database.
+    pub fn binding(&self) -> DatabaseBinding {
+        DatabaseBinding(self.commit_authority_identity.clone())
     }
 
     /// Join a second typed database handle to an already-claimed authority
     /// graph for bounded owner tests. The opaque lease must name this exact
     /// file identity; callers cannot use the seam to authorize another store.
-    #[cfg(feature = "test-support")]
+    #[cfg(any(test, feature = "test-support"))]
     #[doc(hidden)]
-    pub fn join_kernel_commit_authority_for_test(
+    pub(crate) fn join_kernel_commit_authority_for_test(
         &mut self,
         authority: &KernelCommitAuthority,
     ) -> SnapbackResult<()> {
@@ -2190,7 +2722,7 @@ impl LocalDatabase {
                 "test database handle does not belong to the claimed commit-authority graph",
             ));
         }
-        self.commit_authority_identity = authority.identity.clone();
+        self.commit_authority_identity = authority.identity().clone();
         self.commit_authority_claimed = true;
         Ok(())
     }
@@ -2201,12 +2733,12 @@ impl LocalDatabase {
     #[doc(hidden)]
     pub fn prepare_promotion_contention_reservation_for_bench(
         &mut self,
-        authority: &KernelCommitAuthority,
+        binding: &DatabaseBinding,
         canonical_stream_id: &str,
         workers: usize,
         issued_at_ms: i64,
     ) -> SnapbackResult<crate::fork_promotion_bench::PromotionContentionReservation> {
-        if !Arc::ptr_eq(authority.identity(), &self.commit_authority_identity) {
+        if !binding.matches(&self.binding()) {
             return Err(SnapbackError::error(
                 "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
                 "storage",
@@ -2233,9 +2765,9 @@ impl LocalDatabase {
     #[doc(hidden)]
     pub fn ensure_promotion_contention_infra_for_bench(
         &mut self,
-        authority: &KernelCommitAuthority,
+        binding: &DatabaseBinding,
     ) -> SnapbackResult<()> {
-        if !Arc::ptr_eq(authority.identity(), &self.commit_authority_identity) {
+        if !binding.matches(&self.binding()) {
             return Err(SnapbackError::error(
                 "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
                 "storage",
@@ -2251,11 +2783,11 @@ impl LocalDatabase {
     #[doc(hidden)]
     pub fn activate_promotion_contention_reservation_for_bench(
         &mut self,
-        authority: &KernelCommitAuthority,
+        binding: &DatabaseBinding,
         reservation: crate::fork_promotion_bench::PromotionContentionReservation,
         now_ms: i64,
     ) -> SnapbackResult<crate::fork_promotion_bench::PromotionContentionPolicy> {
-        if !Arc::ptr_eq(authority.identity(), &self.commit_authority_identity) {
+        if !binding.matches(&self.binding()) {
             return Err(SnapbackError::error(
                 "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
                 "storage",
@@ -2278,9 +2810,9 @@ impl LocalDatabase {
 
     pub fn enable_authorization_commit_interlock(
         &mut self,
-        authority: &KernelCommitAuthority,
+        binding: &DatabaseBinding,
     ) -> SnapbackResult<()> {
-        if !Arc::ptr_eq(authority.identity(), &self.commit_authority_identity) {
+        if !binding.matches(&self.binding()) {
             return Err(SnapbackError::error(
                 "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
                 "storage",
@@ -2293,12 +2825,10 @@ impl LocalDatabase {
 
     pub fn install_service_authority_commit_interlock(
         &mut self,
-        authority: &KernelCommitAuthority,
+        binding: &DatabaseBinding,
         interlock: crate::auth::service_fence::ServiceAuthorityCommitInterlock,
     ) -> SnapbackResult<()> {
-        if !Arc::ptr_eq(authority.identity(), &self.commit_authority_identity)
-            || !interlock.is_for(&self.commit_authority_identity)
-        {
+        if !binding.matches(&self.binding()) || !interlock.is_for(&self.commit_authority_identity) {
             return Err(SnapbackError::error(
                 "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
                 "storage",
@@ -2536,12 +3066,13 @@ impl LocalDatabase {
                 .all(|entry| entry.envelope_mapped && entry.write_authority_enforced))
     }
 
-    /// Bounded fork-authorizer fixture. This attempts one fixed direct app-row
-    /// insert so an owner-crate test can prove SQLite refuses writes that do
-    /// not traverse the kernel mutation seam. The caller supplies neither SQL
-    /// nor a database handle.
+    /// Bounded writer-authorizer fixture. This attempts one fixed direct app-row
+    /// insert so owner tests can distinguish an armed derived fork (refused)
+    /// from an ordinary unarmed database (permitted). The caller supplies
+    /// neither SQL nor a database handle, and this shared-borrow form remains
+    /// kernel-private.
     #[cfg(any(test, feature = "test-support"))]
-    pub fn attempt_unmediated_app_insert_for_test(&self) -> rusqlite::Result<usize> {
+    pub(crate) fn attempt_unmediated_app_insert_for_test(&self) -> rusqlite::Result<usize> {
         self.conn.execute(
             "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title) \
              VALUES('raw-bypass',2,102,102,'must be denied')",
@@ -2983,16 +3514,19 @@ impl LocalDatabase {
             .map_err(SnapbackError::from)
     }
 
-    /// Quarantine only the generation named by a failed pinned vector read.
-    /// Callers invoke this after `with_pinned_read_view` returns, never while
+    /// Durably quarantine only the generation named by a failed pinned vector
+    /// read. Detection already installed the shared process-local pending gate;
+    /// callers invoke this after `with_pinned_read_view` returns, never while
     /// the read transaction that detected corruption is still open.
-    pub fn quarantine_vector_generation(
+    pub(crate) fn quarantine_vector_generation(
         &self,
         identity: &crate::vector::sqlite::VectorGenerationIdentity,
+        query_schema: &SchemaManifest,
     ) -> SnapbackResult<bool> {
-        crate::vector::sqlite::quarantine_generation_on(
+        crate::vector::sqlite::quarantine_generation_for_schema_on(
             &self.conn,
             identity,
+            query_schema,
             "same-snapshot vector release recheck failed",
         )
     }
@@ -7452,15 +7986,32 @@ fn notify_infra_migration_acquired(conn: &Connection) {
 pub struct PinnedDbRead<'a> {
     conn: &'a Connection,
     schema: &'a SchemaManifest,
+    binding: Option<DatabaseBinding>,
+    vector_quarantine_gate: Option<Arc<crate::vector::sqlite::PendingVectorQuarantineGate>>,
 }
 
 impl<'a> PinnedDbRead<'a> {
-    fn new(conn: &'a Connection, schema: &'a SchemaManifest) -> Self {
-        Self { conn, schema }
+    fn new(
+        conn: &'a Connection,
+        schema: &'a SchemaManifest,
+        binding: Option<DatabaseBinding>,
+        vector_quarantine_gate: Option<Arc<crate::vector::sqlite::PendingVectorQuarantineGate>>,
+    ) -> Self {
+        Self {
+            conn,
+            schema,
+            binding,
+            vector_quarantine_gate,
+        }
     }
 
     fn reborrow(&self) -> PinnedDbRead<'_> {
-        PinnedDbRead::new(self.conn, self.schema)
+        PinnedDbRead::new(
+            self.conn,
+            self.schema,
+            self.binding.clone(),
+            self.vector_quarantine_gate.clone(),
+        )
     }
 }
 
@@ -7471,7 +8022,21 @@ pub enum DbRead<'a> {
 
 impl DbRead<'_> {
     pub(crate) fn pinned<'a>(conn: &'a Connection, schema: &'a SchemaManifest) -> DbRead<'a> {
-        DbRead::Pinned(PinnedDbRead::new(conn, schema))
+        DbRead::Pinned(PinnedDbRead::new(conn, schema, None, None))
+    }
+
+    pub(crate) fn pinned_bound<'a>(
+        conn: &'a Connection,
+        schema: &'a SchemaManifest,
+        binding: DatabaseBinding,
+        vector_quarantine_gate: Arc<crate::vector::sqlite::PendingVectorQuarantineGate>,
+    ) -> DbRead<'a> {
+        DbRead::Pinned(PinnedDbRead::new(
+            conn,
+            schema,
+            Some(binding),
+            Some(vector_quarantine_gate),
+        ))
     }
 
     pub fn reborrow(&self) -> DbRead<'_> {
@@ -7485,6 +8050,13 @@ impl DbRead<'_> {
         match self {
             DbRead::Live(db) => Some(db),
             DbRead::Pinned(_) => None,
+        }
+    }
+
+    fn database_binding(&self) -> Option<DatabaseBinding> {
+        match self {
+            DbRead::Live(db) => Some(db.binding()),
+            DbRead::Pinned(read) => read.binding.clone(),
         }
     }
 
@@ -7577,8 +8149,9 @@ impl DbRead<'_> {
     }
 
     /// Run one exact-vector query inside this view's already-pinned snapshot.
-    /// The caller retains the private generation identity on corruption and
-    /// quarantines it only after the read transaction has ended.
+    /// Generation-specific corruption installs the process-local pending gate
+    /// before returning the private identity; durable quarantine follows only
+    /// after the read transaction has ended.
     pub fn vector(
         &self,
         plan: &crate::vector::VectorQueryPlanV1,
@@ -7588,22 +8161,29 @@ impl DbRead<'_> {
         crate::vector::sqlite::VectorSqliteQueryResultV1,
         crate::vector::sqlite::VectorSqliteQueryFailure,
     > {
-        match self {
-            DbRead::Pinned(read) => crate::vector::sqlite::query_vector_on(
+        let result = match self {
+            DbRead::Pinned(read) => crate::vector::sqlite::query_vector_on_with_quarantine_gate(
                 read.conn,
                 read.schema,
                 plan,
                 input,
                 owner_subject,
+                read.vector_quarantine_gate.as_deref(),
             ),
-            DbRead::Live(db) => crate::vector::sqlite::query_vector_on(
+            DbRead::Live(db) => crate::vector::sqlite::query_vector_on_with_quarantine_gate(
                 &db.conn,
                 &db.schema,
                 plan,
                 input,
                 owner_subject,
+                Some(&db.vector_quarantine_gate),
             ),
-        }
+        };
+        result.map_err(|failure| {
+            failure
+                .bind_to(self.database_binding())
+                .with_query_schema(self.schema())
+        })
     }
 
     pub fn search_database_identity(&self) -> SnapbackResult<String> {
@@ -13815,7 +14395,7 @@ pub struct AuthorizedMembershipPlan {
 ///
 /// @ref LLP 0056#invalidation-the-llp-0053-mapping — denied membership reads
 /// remain matcher-visible dependencies, including empty-result probes.
-pub fn authorize_invocation_membership_commands(
+pub(crate) fn authorize_invocation_membership_commands(
     db: &mut LocalDatabase,
     commands: Vec<BufferedMembershipCommand>,
     invocation_reads: &mut Vec<CapturedReadDependency>,
@@ -13823,6 +14403,16 @@ pub fn authorize_invocation_membership_commands(
     db.membership_plans()
         .authorize_membership_commands(commands)
         .map_err(|error| error.finalize_invocation_refusal(invocation_reads))
+}
+
+impl ServingDatabase {
+    pub fn authorize_invocation_membership_commands(
+        &mut self,
+        commands: Vec<BufferedMembershipCommand>,
+        invocation_reads: &mut Vec<CapturedReadDependency>,
+    ) -> SnapbackResult<Vec<AuthorizedMembershipPlan>> {
+        authorize_invocation_membership_commands(&mut self.db, commands, invocation_reads)
+    }
 }
 
 impl AuthorizedMembershipPlan {
@@ -20470,4 +21060,82 @@ fn now_millis() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+impl ServingDatabase {
+    pub fn claim_app_state_graph(&mut self) -> bool {
+        self.db.claim_app_state_graph()
+    }
+    pub fn resume_pending_migration_cleanup(&mut self) -> SnapbackResult<Option<Value>> {
+        self.db.resume_pending_migration_cleanup()
+    }
+    pub fn set_projections(&mut self, plans: Vec<crate::manifest::MaintainedProjectionPlan>) {
+        self.db.set_projections(plans)
+    }
+    pub fn set_order_field_bounds(&mut self, bounds: BTreeMap<(String, String), u64>) {
+        self.db.set_order_field_bounds(bounds)
+    }
+}
+impl ServingDatabase {
+    /// Owner-only test probe for the connection-local writer authorizer.
+    ///
+    /// Ordinary databases deliberately run with this authorizer unarmed, so
+    /// the fixed insert can succeed there. Requiring an exclusive serving-owner
+    /// borrow keeps that state-dependent write out of `Deref`'s public shared-
+    /// borrow surface.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn attempt_unmediated_app_insert_for_test(&mut self) -> rusqlite::Result<usize> {
+        self.db.attempt_unmediated_app_insert_for_test()
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn apply_owner_visibility_post_image_for_test(
+        &mut self,
+        table: &str,
+        id: &str,
+        new_owner: &str,
+    ) -> SnapbackResult<()> {
+        self.db
+            .apply_owner_visibility_post_image_for_test(table, id, new_owner)
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn initialize_data_version_stream_for_test(&mut self) -> SnapbackResult<String> {
+        self.db.initialize_data_version_stream_for_test()
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_operation_coverage_for_test(
+        &mut self,
+        mut lanes: Vec<String>,
+        mut writers: Vec<String>,
+    ) -> SnapbackResult<()> {
+        self.db.install_operation_coverage_for_test(lanes, writers)
+    }
+    pub fn begin_vector_rebuild(
+        &mut self,
+        plan: &crate::vector::VectorRebuildPlanV1,
+        approval: &crate::migration::MigrationApprovalV1,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::vector::VectorRebuildProgressV1> {
+        self.db.begin_vector_rebuild(plan, approval, now_ms)
+    }
+    pub fn resume_vector_rebuild(
+        &mut self,
+        operation_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::vector::VectorRebuildProgressV1> {
+        self.db.resume_vector_rebuild(operation_id, now_ms)
+    }
+    pub fn activate_vector_rebuild(
+        &mut self,
+        operation_id: &str,
+    ) -> SnapbackResult<crate::vector::VectorRebuildReceiptV1> {
+        self.db.activate_vector_rebuild(operation_id)
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn inject_vector_release_drift_for_test(
+        &mut self,
+        table: &str,
+        row_id: &str,
+    ) -> SnapbackResult<()> {
+        self.db.inject_vector_release_drift_for_test(table, row_id)
+    }
 }

@@ -33,6 +33,8 @@
     { "id": "obtain-promotion-contention-reservation", "bin": "obtain-promotion-contention-reservation", "source": "src/bin/obtain_promotion_contention_reservation.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["PromotionContentionReservation"] },
     { "id": "obtain-ask-spend-reservation", "bin": "obtain-ask-spend-reservation", "source": "src/bin/obtain_ask_spend_reservation.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["AskSpendReservation"] },
     { "id": "forge-membership-writer-admin", "bin": "forge-membership-writer-admin", "source": "src/bin/forge_membership_writer_admin.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["MembershipWriter"] },
-    { "id": "reserve-authorization-via-sync", "bin": "reserve-authorization-via-sync", "source": "src/bin/reserve_authorization_via_sync.rs", "mount": "snapback-sync", "featureSets": [[]], "seedTypes": ["AuthorizationCommitReservation"] }
+    { "id": "reserve-authorization-via-sync", "bin": "reserve-authorization-via-sync", "source": "src/bin/reserve_authorization_via_sync.rs", "mount": "snapback-sync", "featureSets": [[]], "seedTypes": ["AuthorizationCommitReservation"] },
+    { "id": "shared-serving-database-unmediated-insert", "bin": "shared-serving-database-unmediated-insert", "source": "src/bin/shared_serving_database_unmediated_insert.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0596" },
+    { "id": "shared-serving-database-deref-unmediated-insert", "bin": "shared-serving-database-deref-unmediated-insert", "source": "src/bin/shared_serving_database_deref_unmediated_insert.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0624" }
   ]
 }

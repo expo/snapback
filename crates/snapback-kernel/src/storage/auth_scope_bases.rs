@@ -576,3 +576,19 @@ mod tests {
         );
     }
 }
+impl super::ServingDatabase {
+    pub fn reconcile_auth_scope_bases(
+        &mut self,
+        manifest: &FunctionManifest,
+    ) -> SnapbackResult<ScopeBasisReconciliation> {
+        self.db.reconcile_auth_scope_bases(manifest)
+    }
+    pub fn reconcile_auth_scope_bases_with_schema(
+        &mut self,
+        manifest: &FunctionManifest,
+        schema: &crate::manifest::SchemaManifest,
+    ) -> SnapbackResult<ScopeBasisReconciliation> {
+        self.db
+            .reconcile_auth_scope_bases_with_schema(manifest, schema)
+    }
+}

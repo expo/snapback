@@ -4608,12 +4608,11 @@ impl LocalEphemeralBackend {
         crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
             "off-Local room-authority commit reservation",
         );
-        let factory = self
+        let commit_carriers = self
             .commit_carriers
             .read()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
-            .ok_or_else(|| {
+            .unwrap_or_else(PoisonError::into_inner);
+        let factory = commit_carriers.as_ref().ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
                     "auth",
@@ -4625,7 +4624,7 @@ impl LocalEphemeralBackend {
             AuthorizationCommitPreflight::NoAuthorizationEvent
         ) {
             return Ok(factory.reservation(
-                |_witness, _impact| {
+                |_factory, _witness, _impact| {
                     Err(authorization_reservation_stale(
                         "a mutation previewed as authorization-neutral produced an authorization event",
                     ))
@@ -4667,9 +4666,8 @@ impl LocalEphemeralBackend {
         let state = Arc::new(StdMutex::new(Some(reservation)));
         let bind_state = state.clone();
         let cancel_state = state;
-        let prepared_factory = factory.clone();
         Ok(factory.reservation(
-            move |witness, impact| {
+            move |prepared_factory, witness, impact| {
                 let prepared = lock(&bind_state)
                     .take()
                     .expect("room reservation settles once")

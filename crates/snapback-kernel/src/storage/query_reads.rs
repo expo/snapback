@@ -37,7 +37,14 @@ impl LocalDatabase {
         &self,
         read: impl FnOnce(DbRead<'_>) -> SnapbackResult<T>,
     ) -> SnapbackResult<T> {
-        with_pinned_read_snapshot(&self.conn, |conn| read(DbRead::pinned(conn, &self.schema)))
+        with_pinned_read_snapshot(&self.conn, |conn| {
+            read(DbRead::pinned_bound(
+                conn,
+                &self.schema,
+                self.binding(),
+                Arc::clone(&self.vector_quarantine_gate),
+            ))
+        })
     }
 
     pub(super) fn query_with_storage_limit(

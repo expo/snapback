@@ -375,12 +375,25 @@ impl<'a> BranchOpsReadKernel<'a> {
         Self { db }
     }
 
-    pub fn derived_fork(&self) -> Option<&'a crate::instance_fork::DerivedForkRuntime> {
-        self.db.derived_fork()
+    /// Project immutable lineage facts without lending the cloneable runtime
+    /// that can open the derived fork's bounded marker writer.
+    pub fn derived_fork_lineage(&self) -> Option<&'a crate::instance_fork::DerivedForkLineageV1> {
+        self.db.derived_fork().map(|runtime| &runtime.lineage)
     }
 
-    pub fn in_app_branch(&self) -> Option<&'a crate::fork_promotion::InAppBranchRuntime> {
-        self.db.in_app_branch()
+    /// Apply the exact boot-derived branch egress policy without handing a
+    /// cloneable runtime (and its writer-opening path) to the caller.
+    pub fn mediate_egress(
+        &self,
+        family: crate::instance_fork::EgressFamily,
+        now_ms: u64,
+    ) -> Option<SnapbackError> {
+        if let Some(runtime) = self.db.derived_fork() {
+            return Some(runtime.deny(family, now_ms));
+        }
+        self.db
+            .in_app_branch()
+            .map(|runtime| runtime.mediate(family, now_ms))
     }
 
     pub fn list_managed_in_app_branches(

@@ -1115,11 +1115,11 @@ impl ServiceAuthorityFenceRegistry {
 
     pub fn kernel_commit_interlock(
         &self,
-        authority: &snapback_kernel::storage::KernelCommitAuthority,
+        database: &snapback_kernel::storage::ServingDatabase,
     ) -> ServiceAuthorityCommitInterlock {
         let registry = self.clone();
-        let factory = authority.service_authority_terminal_factory();
-        authority.service_authority_commit_interlock(move |token_ids, disposition| {
+        let factory = database.service_authority_terminal_factory();
+        database.service_authority_commit_interlock(move |token_ids, disposition| {
             let prepared = registry.prepare_terminal(token_ids, disposition)?;
             Ok(opaque_service_terminal(&factory, prepared))
         })

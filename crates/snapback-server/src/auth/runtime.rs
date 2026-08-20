@@ -700,7 +700,7 @@ mod tests {
     use crate::auth::provider::AuthClock;
     use crate::local::LocalSnapback;
     use crate::storage::auth::AUTH_GC_BATCH;
-    use snapback_auth::storage::auth_rescue::{
+    use snapback_kernel::storage::auth_rescue::{
         AuthCollisionFixtureIndexForTest, AuthCollisionFixtureRowForTest,
         AuthCollisionFixtureTableForTest, install_auth_collision_fixtures_for_test,
     };

@@ -9,8 +9,8 @@ use crate::auth::session_projection::ProjectedSessionInsert;
 use crate::auth::throttle::*;
 use crate::auth::wire::*;
 use crate::contract_types::*;
-use crate::storage::LocalDatabase;
 use crate::storage::auth::AuthTransactionAttempt;
+use crate::storage::{LocalDatabase, ServingDatabase};
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher as _};
 use std::sync::Arc;
@@ -566,11 +566,8 @@ mod tests {
             .expect("mint session")
     }
 
-    fn direct_stream_facts(database: &LocalDatabase) -> (u64, i64) {
-        let version = database
-            .versions_read()
-            .current_version()
-            .expect("app version");
+    fn direct_stream_facts(database: &mut LocalDatabase) -> (u64, i64) {
+        let version = database.versions().current_version().expect("app version");
         let changes = database
             .auth_catalog_read()
             .change_journal_count_for_test()
@@ -634,7 +631,7 @@ mod tests {
         admission
             .request_code(&mut database, AUTH_ADDRESS_REQUEST_WINDOW_MS)
             .expect("lower boundary is excluded");
-        assert_eq!(direct_stream_facts(&database), (0, 0));
+        assert_eq!(direct_stream_facts(&mut database), (0, 0));
     }
 
     #[tokio::test]
@@ -778,7 +775,7 @@ mod tests {
             durable,
             super::super::mailbox::CAPTURE_MAILBOX_CAPACITY as i64
         );
-        assert_eq!(direct_stream_facts(&capacity_database), (0, 0));
+        assert_eq!(direct_stream_facts(&mut capacity_database), (0, 0));
     }
 
     #[tokio::test]
@@ -832,7 +829,7 @@ mod tests {
             .challenge_issue_facts_for_test(&request.challenge_id)
             .expect("durable facts");
         assert_eq!(facts, (5, 1, 1, 1));
-        assert_eq!(direct_stream_facts(&database), (0, 0));
+        assert_eq!(direct_stream_facts(&mut database), (0, 0));
     }
 
     #[tokio::test]
@@ -974,7 +971,7 @@ mod tests {
             )
             .expect_err("unknown challenge");
         assert_eq!(error.diagnostic().code, "SNAPBACK_AUTH_CODE_INVALID");
-        assert_eq!(direct_stream_facts(&database), (0, 0));
+        assert_eq!(direct_stream_facts(&mut database), (0, 0));
     }
 
     #[tokio::test]
@@ -1107,7 +1104,7 @@ mod tests {
             restart_reason.authority_disposition(),
             TerminalAuthorityDisposition::Carrier,
         );
-        assert_eq!(direct_stream_facts(&database), (0, 0));
+        assert_eq!(direct_stream_facts(&mut database), (0, 0));
     }
 
     #[tokio::test]
@@ -1181,7 +1178,7 @@ mod tests {
             .resolve_session(&database, "not-a-bearer", after_grace)
             .expect_err("malformed bearer");
         assert_eq!(malformed.diagnostic().code, "SNAPBACK_AUTH_REQUIRED");
-        assert_eq!(direct_stream_facts(&database), (0, 0));
+        assert_eq!(direct_stream_facts(&mut database), (0, 0));
     }
 
     #[tokio::test]
@@ -1308,7 +1305,7 @@ mod tests {
             .sole_session_generation_for_test()
             .expect("alarm generation");
         assert_eq!(generation, 2, "duplicates never increment a revoked family");
-        assert_eq!(direct_stream_facts(&database), (0, 0));
+        assert_eq!(direct_stream_facts(&mut database), (0, 0));
     }
 
     #[tokio::test]
@@ -1482,7 +1479,7 @@ mod tests {
                 .expect("revoked use"),
             AuthenticatedUse::NotLive
         );
-        assert_eq!(direct_stream_facts(&database), (0, 0));
+        assert_eq!(direct_stream_facts(&mut database), (0, 0));
     }
 
     #[tokio::test]
@@ -1571,7 +1568,7 @@ mod tests {
         assert_eq!(last_used, (start_ms + 87 * day) as i64);
         assert_eq!(expires, absolute as i64);
         assert_eq!((generation, revoked), (1, false));
-        assert_eq!(direct_stream_facts(&database), (0, 0));
+        assert_eq!(direct_stream_facts(&mut database), (0, 0));
     }
 
     #[tokio::test]
@@ -1653,7 +1650,7 @@ mod tests {
             request.diagnostic().code,
             "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
         );
-        assert_eq!(direct_stream_facts(&database), (0, 0));
+        assert_eq!(direct_stream_facts(&mut database), (0, 0));
     }
 
     #[tokio::test]
@@ -1972,7 +1969,8 @@ mod tests {
     #[tokio::test]
     async fn planned_issuance_atomically_binds_sender_key_proof_and_initial_nonce() {
         let now_ms = 45_000;
-        let (provider, mut database) = provider_database(now_ms);
+        let (provider, database) = provider_database(now_ms);
+        let mut database = ServingDatabase::adopt(database).expect("adopt serving database");
         database
             .initialize_sender_proof_after_hosted_preflight()
             .expect("initialize hosted sender authority");
@@ -2005,7 +2003,7 @@ mod tests {
             CatalogIssuanceReconcile::ExactPredecessor
         ));
         assert!(matches!(
-            admission.commit_planned_issuance(&mut database, &commit_plan),
+            admission.commit_planned_issuance(database.auth_database_mut(), &commit_plan),
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
         ));
         assert!(matches!(
@@ -2031,7 +2029,8 @@ mod tests {
     #[tokio::test]
     async fn planned_issuance_refuses_a_second_family_for_a_live_thumbprint() {
         let now_ms = 45_000;
-        let (provider, mut database) = provider_database(now_ms);
+        let (provider, database) = provider_database(now_ms);
+        let mut database = ServingDatabase::adopt(database).expect("adopt serving database");
         database
             .initialize_sender_proof_after_hosted_preflight()
             .expect("initialize hosted sender authority");
@@ -2059,7 +2058,8 @@ mod tests {
             .bind_sender_issuance(first_commitment, &OsRandom)
             .expect("bind first sender issuance");
         assert!(matches!(
-            first_admission.commit_planned_issuance(&mut database, &first_plan.commit_plan()),
+            first_admission
+                .commit_planned_issuance(database.auth_database_mut(), &first_plan.commit_plan()),
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
         ));
         // Address admissions retain their stripe guard. Release it before
@@ -2089,7 +2089,8 @@ mod tests {
             .expect("bind second sender issuance");
         let second_commit_plan = second_plan.commit_plan();
         assert!(matches!(
-            second_admission.commit_planned_issuance(&mut database, &second_commit_plan),
+            second_admission
+                .commit_planned_issuance(database.auth_database_mut(), &second_commit_plan),
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound)
         ));
         drop(second_admission);
@@ -2131,7 +2132,8 @@ mod tests {
             .bind_sender_issuance(third_commitment, &OsRandom)
             .expect("bind third sender issuance");
         assert!(matches!(
-            third_admission.commit_planned_issuance(&mut database, &third_plan.commit_plan()),
+            third_admission
+                .commit_planned_issuance(database.auth_database_mut(), &third_plan.commit_plan()),
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
         ));
     }

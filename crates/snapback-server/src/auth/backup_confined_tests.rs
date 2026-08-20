@@ -4,8 +4,8 @@ use snapback_auth::auth::keyring::AuthKeyringStore;
 use snapback_auth::auth::lifecycle::{
     EmailCodeReadiness, RESTORE_DECLARATION_FILE, RestoreDeclaration, activate_catalog,
 };
-use snapback_auth::storage::LocalDatabase;
-use snapback_auth::storage::auth::{AuthCatalogState, PasswordIdentifierMode};
+use snapback_kernel::storage::LocalDatabase;
+use snapback_kernel::storage::auth::{AuthCatalogState, PasswordIdentifierMode};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, Ordering};
 

@@ -344,3 +344,14 @@ mod tests {
         }
     }
 }
+impl super::ServingDatabase {
+    pub fn ensure_asset_callbacks_service_principal(
+        &mut self,
+        app_id: &str,
+        scope: ExactGrantScope,
+        now_ms: u64,
+    ) -> SnapbackResult<AssetCallbacksServicePrincipal> {
+        self.db
+            .ensure_asset_callbacks_service_principal(app_id, scope, now_ms)
+    }
+}

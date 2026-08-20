@@ -14,14 +14,18 @@ use crate::auth::throttle::{
 };
 
 impl LocalDatabase {
-    pub fn initialize_authentication_throttle_after_hosted_preflight(
+    /// @ref LLP 0285#8-open-risks — hosted DDL cannot be inherited through
+    /// `ServingDatabase`'s `Deref`.
+    pub(crate) fn initialize_authentication_throttle_after_hosted_preflight(
         &self,
     ) -> Result<(), AuthenticationThrottleError> {
         initialize_shared_authentication_throttle(&self.conn)
     }
 
     #[cfg(any(test, feature = "test-support"))]
-    pub fn make_authentication_throttle_unavailable_for_test(&self) -> Result<(), rusqlite::Error> {
+    pub(crate) fn make_authentication_throttle_unavailable_for_test(
+        &self,
+    ) -> Result<(), rusqlite::Error> {
         self.conn
             .execute_batch("DROP TABLE _snapback_auth_throttle;")
     }
@@ -162,5 +166,28 @@ mod tests {
             ),
             Err(AuthenticationThrottleError::Invalid)
         ));
+    }
+}
+impl super::ServingDatabase {
+    #[allow(clippy::too_many_arguments)]
+    pub fn charge_sender_authentication_attempt(
+        &mut self,
+        throttle: &HostedAuthenticationThrottle,
+        source: IpAddr,
+        subject: Option<String>,
+        access_token: Option<&str>,
+        bound_family: Option<&str>,
+        allow_superseded_grace: bool,
+        now_ms: u64,
+    ) -> Result<AuthenticationThrottleDecision, AuthenticationThrottleError> {
+        self.db.charge_sender_authentication_attempt(
+            throttle,
+            source,
+            subject,
+            access_token,
+            bound_family,
+            allow_superseded_grace,
+            now_ms,
+        )
     }
 }
