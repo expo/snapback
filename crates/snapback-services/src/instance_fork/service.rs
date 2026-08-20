@@ -76,6 +76,7 @@ impl<'a> ForkReadView<'a> {
     }
 
     fn change_journal_floor(&self) -> SnapbackResult<u64> {
+        snapback_kernel::exec_guard::debug_assert_off_async_worker("a SQLite version read");
         let current = required_storage_version(
             self.conn
                 .query_row(
@@ -86,6 +87,11 @@ impl<'a> ForkReadView<'a> {
                 .optional()?,
             "global storage version",
         )?;
+        #[cfg(any(test, feature = "remainder-tests"))]
+        snapback_kernel::storage::notify_external_storage_read_snapshot_pinned(
+            self.conn.path(),
+            current,
+        );
         let floor = match self
             .conn
             .query_row(

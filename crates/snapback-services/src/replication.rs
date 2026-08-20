@@ -63,6 +63,12 @@ fn replication_error(code: &'static str, message: impl Into<String>) -> Snapback
 ///
 /// @ref LLP 0284#32-raw-sqlite — the services layer no longer passes a raw
 /// connection through the kernel's dependent-visible API.
+///
+/// The kernel cannot own these already-pinned services connections without
+/// either returning its raw connection or moving their complete query
+/// lifecycles across the crate boundary. Both would defeat the typed ingress
+/// repair. `replication_wal_configuration_matches_kernel` is therefore an
+/// executable source-parity guard for this otherwise unavoidable adapter.
 pub(crate) fn configure_connection_wal_lifetime(conn: &Connection) -> SnapbackResult<()> {
     let mut enabled = 1_i32;
     // SAFETY: `conn.handle()` is valid for the call, `main` is a static
@@ -2321,6 +2327,44 @@ mod tests {
     use crate::storage::LocalDatabase;
     use serde_json::Value;
     use std::collections::BTreeMap;
+
+    fn function_source<'a>(source: &'a str, signature: &str) -> &'a str {
+        let start = source
+            .find(signature)
+            .unwrap_or_else(|| panic!("missing function signature {signature}"));
+        let body_start = source[start..]
+            .find('{')
+            .map(|offset| start + offset)
+            .expect("function body starts");
+        let mut depth = 0_u64;
+        for (offset, byte) in source.as_bytes()[body_start..].iter().enumerate() {
+            match byte {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return &source[start..=body_start + offset];
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!("unterminated function body for {signature}");
+    }
+
+    #[test]
+    fn replication_wal_configuration_matches_kernel() {
+        const SIGNATURE: &str = "pub(crate) fn configure_connection_wal_lifetime";
+        let services = function_source(include_str!("replication.rs"), SIGNATURE);
+        let kernel = function_source(
+            include_str!("../../snapback-kernel/src/replication.rs"),
+            SIGNATURE,
+        );
+        assert_eq!(
+            services, kernel,
+            "services-owned SQLite connections must apply the kernel's exact WAL-lifetime rule"
+        );
+    }
 
     fn file_config(root: &Path, key_file: &Path) -> ReplicationConfig {
         let root = root.to_path_buf();

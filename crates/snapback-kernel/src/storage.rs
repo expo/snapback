@@ -7221,11 +7221,16 @@ fn storage_read_snapshot_debug_hooks()
 
 #[cfg(any(test, feature = "test-support"))]
 fn notify_storage_read_snapshot_pinned(conn: &Connection, version: u64) {
+    notify_storage_read_snapshot_pinned_at_path(conn.path(), version);
+}
+
+#[cfg(any(test, feature = "test-support"))]
+fn notify_storage_read_snapshot_pinned_at_path(path: Option<&str>, version: u64) {
     let hook = {
         let mut hooks = storage_read_snapshot_debug_hooks()
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        conn.path().and_then(|path| hooks.remove(path))
+        path.and_then(|path| hooks.remove(path))
     };
     if let Some(hook) = hook
         && hook.reached.send(version).is_ok()
@@ -7234,6 +7239,15 @@ fn notify_storage_read_snapshot_pinned(conn: &Connection, version: u64) {
             .release
             .recv_timeout(std::time::Duration::from_secs(10));
     }
+}
+
+/// Notify the test-only snapshot observer after a non-kernel reader pins a
+/// storage head. This typed bridge preserves the concurrency instrumentation
+/// without exposing that reader's raw SQLite connection through the kernel.
+#[cfg(feature = "test-support")]
+#[doc(hidden)]
+pub fn notify_external_storage_read_snapshot_pinned(path: Option<&str>, version: u64) {
+    notify_storage_read_snapshot_pinned_at_path(path, version);
 }
 
 #[cfg(any(test, feature = "test-support"))]

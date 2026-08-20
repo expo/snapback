@@ -1,6 +1,57 @@
 use super::*;
 use snapback_kernel::instance_fork::DerivedForkRuntimeExt as _;
 
+#[test]
+fn copied_floor_reader_notifies_the_kernel_snapshot_hook() {
+    let directory = tempfile::tempdir().unwrap();
+    let database = directory.path().join("hook.sqlite3");
+    let owner = crate::storage::LocalDatabase::open(&database).unwrap();
+    let (reached_tx, reached_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let _hook = snapback_kernel::storage::set_storage_read_snapshot_debug_hook(
+        &owner, reached_tx, release_rx,
+    );
+
+    let reader = std::thread::spawn(move || {
+        let conn =
+            Connection::open_with_flags(&database, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        ForkReadView::new(&conn)
+            .unwrap()
+            .change_journal_floor()
+            .unwrap()
+    });
+    assert_eq!(
+        reached_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("copied floor reader reaches the kernel snapshot hook"),
+        0
+    );
+    release_tx.send(()).unwrap();
+    assert_eq!(reader.join().unwrap(), 0);
+}
+
+#[test]
+#[cfg(debug_assertions)]
+#[should_panic(expected = "a SQLite version read would block a tokio async worker")]
+fn copied_floor_reader_keeps_the_tokio_blocking_guard() {
+    let directory = tempfile::tempdir().unwrap();
+    let database = directory.path().join("blocking-guard.sqlite3");
+    drop(crate::storage::LocalDatabase::open(&database).unwrap());
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .unwrap();
+    runtime.block_on(async move {
+        let conn =
+            Connection::open_with_flags(&database, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        ForkReadView::new(&conn)
+            .unwrap()
+            .change_journal_floor()
+            .unwrap();
+    });
+}
+
 #[cfg(feature = "services-owner")]
 #[test]
 fn json_publication_hides_the_final_path_until_synced_temp_is_complete() {

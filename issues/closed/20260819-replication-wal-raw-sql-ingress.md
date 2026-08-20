@@ -21,7 +21,14 @@ connection openers). Two cross-crate callers were in `snapback-services`: the
 replication status connection and the instance-fork connection setup. The
 kernel helper is now `pub(crate)`, and services owns a separate `pub(crate)`
 implementation for its private connections; the former public services
-re-export was removed.
+re-export was removed. A follow-up review confirmed that a kernel-owned typed
+lifecycle wrapper cannot replace that services adapter without either exposing
+the wrapper's raw connection or moving the services-owned pinned transaction
+and fork query pipelines into the kernel. The two private implementations are
+therefore protected by the executable
+`replication_wal_configuration_matches_kernel` source-parity test: any file
+control, PRAGMA, ordering, or diagnostic change on one side fails the services
+replication suite until both sides agree.
 
 The `configure-connection-wal-lifetime` privilege-surface allowlist row was
 removed. The scanner no longer reports that item; the complete
