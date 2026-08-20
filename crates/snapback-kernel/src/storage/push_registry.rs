@@ -228,7 +228,7 @@ impl LocalDatabase {
     }
 
     #[cfg(any(test, feature = "test-support"))]
-    pub(super) fn push_insert_session_for_test(
+    pub(super) fn push_insert_nonprincipal_session_for_test(
         &mut self,
         principal_id: &str,
         session_id: &str,
@@ -239,7 +239,7 @@ impl LocalDatabase {
         self.with_auth_transaction(|tx| {
             let identity_id = format!("identity-{discriminator}");
             tx.execute(
-                "INSERT OR IGNORE INTO _auth_users(
+                "INSERT INTO _auth_users(
                    id, kind, registration_provenance, created_at_ms
                  ) VALUES(
                    ?1, 'agent', '{\"class\":\"nonprincipal-test-fixture\"}', 0
@@ -1167,6 +1167,27 @@ impl<'a> PushRegistryKernel<'a> {
 #[cfg(any(test, feature = "test-support"))]
 #[allow(private_interfaces)]
 impl PushRegistryKernel<'_> {
+    /// Seed a push-ledger session that is structurally incapable of resolving
+    /// as a human principal. An existing user id is a collision, never an
+    /// invitation to preserve a caller-authored kind.
+    pub fn insert_nonprincipal_session_for_test(
+        &mut self,
+        principal_id: &str,
+        session_id: &str,
+        generation: u64,
+        expires_at_ms: u64,
+        discriminator: u8,
+    ) -> SnapbackResult<()> {
+        self.db.push_insert_nonprincipal_session_for_test(
+            principal_id,
+            session_id,
+            generation,
+            expires_at_ms,
+            discriminator,
+        )
+    }
+
+    #[cfg(test)]
     pub fn insert_session_for_test(
         &mut self,
         principal_id: &str,
@@ -1175,7 +1196,7 @@ impl PushRegistryKernel<'_> {
         expires_at_ms: u64,
         discriminator: u8,
     ) -> SnapbackResult<()> {
-        self.db.push_insert_session_for_test(
+        self.db.push_insert_nonprincipal_session_for_test(
             principal_id,
             session_id,
             generation,

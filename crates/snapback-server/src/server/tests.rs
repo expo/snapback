@@ -6900,18 +6900,15 @@ async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
     .await
     .expect("construct finite-authority matrix fixture off async workers");
     let provider = state.auth_provider.clone().expect("matrix auth provider");
-    let effective_user_id = "018f0d90-7b30-7a22-8c33-445566778899".to_owned();
     let agent_user_id = "018f0d90-7b31-7a22-8c33-445566778899".to_owned();
     let grant_id = "018f0d90-7b32-7a22-8c33-445566778899".to_owned();
-    let setup_effective_user_id = effective_user_id.clone();
     let setup_agent_user_id = agent_user_id.clone();
     let setup_grant_id = grant_id.clone();
-    let (credential, token, token_id, token_expires_at_ms) =
+    let (effective_user_id, credential, token, token_id, token_expires_at_ms) =
         with_snapback(&state.snapback, move |snapback| {
             let db = snapback.remainder_auth_database_mut();
             db.reconcile_auth_scope_bases(&finite_authority_matrix_functions())?;
-            db.auth_catalog()
-                .insert_human_user_for_test(&setup_effective_user_id, start_ms)?;
+            let effective_user_id = db.auth_catalog().mint_human_user_for_test(start_ms)?;
             db.create_agent_principal(
                 &setup_agent_user_id,
                 start_ms,
@@ -6919,7 +6916,7 @@ async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
                     display_name: None,
                     operator_contact: None,
                     registration_provenance: "finite-authority-matrix".to_owned(),
-                    owner_user_id: Some(setup_effective_user_id.clone()),
+                    owner_user_id: Some(effective_user_id.clone()),
                 },
             )?;
             let credential = db.issue_initial_agent_credential(
@@ -6930,7 +6927,7 @@ async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
             db.auth_catalog().insert_finite_authority_grant_for_test(
                 &setup_grant_id,
                 &setup_agent_user_id,
-                &setup_effective_user_id,
+                &effective_user_id,
                 start_ms,
             )?;
             let issued = db.mint_scoped_token(
@@ -6941,6 +6938,7 @@ async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
                 provider.agent_random_source(),
             )?;
             Ok::<_, SnapbackError>((
+                effective_user_id,
                 credential.secret.expose_secret().to_owned(),
                 issued.secret.expose_secret().to_owned(),
                 issued.token_id,
@@ -18228,10 +18226,9 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
     let state = sessions_activation_server_fixture_async().await;
     let provider = state.auth_provider.clone().unwrap();
     let now_ms = provider.now_ms();
-    let credential = with_snapback(&state.snapback, move |snapback| {
+    let (grant_user, credential) = with_snapback(&state.snapback, move |snapback| {
         let db = snapback.remainder_auth_database_mut();
-        db.auth_catalog()
-            .insert_human_user_for_test("grant-user", now_ms)?;
+        let grant_user = db.auth_catalog().mint_human_user_for_test(now_ms)?;
         db.create_agent_principal(
             "route-agent",
             now_ms,
@@ -18239,7 +18236,7 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
                 display_name: Some("Route Agent".to_owned()),
                 operator_contact: None,
                 registration_provenance: "route-test".to_owned(),
-                owner_user_id: Some("grant-user".to_owned()),
+                owner_user_id: Some(grant_user.clone()),
             },
         )?;
         let issued = db.issue_initial_agent_credential(
@@ -18248,8 +18245,11 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
             provider.agent_random_source(),
         )?;
         db.auth_catalog()
-            .insert_agent_token_route_fixtures_for_test(now_ms)?;
-        Ok::<_, SnapbackError>(issued.secret.expose_secret().to_owned())
+            .insert_agent_token_route_fixtures_for_test(&grant_user, now_ms)?;
+        Ok::<_, SnapbackError>((
+            grant_user,
+            issued.secret.expose_secret().to_owned(),
+        ))
     })
     .await
     .unwrap();
@@ -18274,7 +18274,7 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
     assert_eq!(ordinary_status, StatusCode::OK, "{ordinary}");
     assert_eq!(ordinary["grantId"], "route-grant");
     assert_eq!(ordinary["actorUserId"], "route-agent");
-    assert_eq!(ordinary["effectiveUserId"], "grant-user");
+    assert_eq!(ordinary["effectiveUserId"], grant_user);
     assert_eq!(ordinary["grantExpiresAtMs"], now_ms + 60_000);
     assert!(
         ordinary["expiresInMs"]

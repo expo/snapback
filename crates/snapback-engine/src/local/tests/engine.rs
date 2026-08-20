@@ -13307,8 +13307,9 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
     let service_fences = snapback.service_authority_fences.clone();
     let (resolved, service_publication) = {
         let db = snapback.auth_database_mut();
-        db.auth_catalog()
-            .insert_human_user_for_test("activation-owner", now_ms)
+        let activation_owner = db
+            .auth_catalog()
+            .mint_human_user_for_test(now_ms)
             .expect("create activation owner");
         db.create_agent_principal(
             "activation-agent",
@@ -13317,7 +13318,7 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
                 display_name: Some("Activation agent".to_owned()),
                 operator_contact: None,
                 registration_provenance: r#"{"source":"activation-test"}"#.to_owned(),
-                owner_user_id: Some("activation-owner".to_owned()),
+                owner_user_id: Some(activation_owner.clone()),
             },
         )
         .expect("create activation agent");
@@ -13325,7 +13326,7 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
             .issue_initial_agent_credential("activation-agent", now_ms, &random)
             .expect("issue activation credential");
         db.auth_catalog()
-            .insert_activation_live_grant_for_test(now_ms)
+            .insert_activation_live_grant_for_test(&activation_owner, now_ms)
             .expect("create activation grant");
         let token = db
             .mint_scoped_token(
@@ -13641,6 +13642,133 @@ fn same_mode_sessions_activation_projects_live_successor_before_reopening() {
             .all(|frame| !frame.contains("\"kind\":\"live_delta\"")),
         "deployment authorization changes never escape as an unfenced live delta"
     );
+}
+
+#[test]
+fn same_mode_sessions_activation_replaces_loaded_effect_policy_before_decision() {
+    let write_function = |authority_creating| {
+        let mut function = FunctionDefinition::new(
+            "writeItem",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                owner_write_checks: Vec::new(),
+                steps: Vec::new(),
+                return_value: None,
+            })),
+        );
+        function.id = "fn:writeItem".to_owned();
+        function.authority_creating = authority_creating;
+        function.api_exposure = Some(crate::manifest::ApiFunctionExposure {
+            expose: true,
+            since: None,
+            approval: Some(crate::manifest::ApiFunctionApproval::Required),
+        });
+        function
+    };
+    let (mut schema, mut predecessor_functions) = sessions_activation_pair('b', false);
+    schema.auth.as_mut().expect("sessions auth").agents = Some(
+        crate::manifest::AgentsManifest::explicit(
+            crate::manifest::AgentsMode::Disabled,
+            crate::manifest::InvitedBy::Operators,
+        ),
+    );
+    schema.api = Some(crate::manifest::ApiManifest {
+        enabled: true,
+        functions: BTreeMap::from([(
+            "writeItem".to_owned(),
+            crate::manifest::ApiFunctionExposure {
+                expose: true,
+                since: None,
+                approval: Some(crate::manifest::ApiFunctionApproval::Required),
+            },
+        )]),
+        ..crate::manifest::ApiManifest::default()
+    });
+    for function in &mut predecessor_functions.functions {
+        function.api_exposure = Some(crate::manifest::ApiFunctionExposure::default());
+    }
+    predecessor_functions.functions.push(write_function(false));
+    let attacker_projection = predecessor_functions.clone();
+    let mut snapback = settled_sessions_activation_snapback(schema, predecessor_functions);
+    let _connection = install_test_invalidation(&mut snapback);
+
+    let now_ms = now_millis();
+    let session = snapback
+        .auth_database_mut()
+        .identity_guest_create(now_ms + 60_000, now_ms, &CounterRandom::new())
+        .expect("kernel-created approver session");
+    let approver = snapback
+        .db
+        .resolve_principal_from_session(
+            &crate::contract_types::TokenDigest::from_token_hash(&session.bearer.token_hash()),
+            now_ms + 1,
+        )
+        .expect("durable approver principal");
+    let created = snapback
+        .db
+        .create_pending_effect_admitted(crate::storage::pending_effects::CreatePendingEffect {
+            function_id: "fn:writeItem".to_owned(),
+            function_name: "writeItem".to_owned(),
+            function_kind: FunctionKind::Mutation,
+            args: json!({}),
+            caller_lane: "integration".to_owned(),
+            caller_key: "same-mode-policy-regression".to_owned(),
+            authority: crate::storage::pending_effects::PendingEffectAuthority::Anonymous,
+            generation: crate::manifest::ArtifactGeneration {
+                schema_version: "snapback.v1".to_owned(),
+                app_id: "same-mode-policy-regression".to_owned(),
+                schema_hash: "schema".to_owned(),
+                bundle_hash: "bundle".to_owned(),
+                inputs_hash: "inputs".to_owned(),
+            },
+            link_origin_id: None,
+            approver_principal_id: Some(session.user_id),
+            declared_write_set: vec!["items".to_owned()],
+            now_ms: now_ms + 1,
+            ttl_ms: 30_000,
+        })
+        .expect("pending effect under predecessor policy");
+
+    let (_, mut successor_functions) = sessions_activation_pair('d', true);
+    for function in &mut successor_functions.functions {
+        function.api_exposure = Some(crate::manifest::ApiFunctionExposure::default());
+    }
+    successor_functions.functions.push(write_function(true));
+    let prepared = snapback
+        .prepare_auth_provision(
+            EnsureAppMode::Sessions,
+            None,
+            Some(successor_functions),
+            None,
+        )
+        .expect("preflight same-mode authority-creating successor");
+    let transition = snapback
+        .admission
+        .clone()
+        .begin_transition()
+        .expect("close predecessor admission");
+    transition
+        .commit_and_project_mode_state(|projection_admission| {
+            let committed = snapback.commit_auth_provision_classified(
+                prepared,
+                "test",
+                Some(projection_admission),
+            )?;
+            let state = committed.state().clone();
+            Ok((committed, state))
+        })
+        .and_then(|committed| committed.publish_successor())
+        .expect("commit and publish same-mode successor");
+
+    snapback
+        .auth_database_mut()
+        .reconcile_auth_scope_bases(&attacker_projection)
+        .expect("public reconciliation writes the stale false projection");
+    let error = snapback
+        .db
+        .decide_pending_effect_admitted(&created.id, &approver, true, None, now_ms + 2)
+        .expect_err("the loaded true policy must disagree with the stale false projection");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_EFFECT_BINDING_STALE");
 }
 
 #[test]

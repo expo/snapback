@@ -2897,7 +2897,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn identity_password_register(
         &mut self,
         username: &str,
@@ -4381,7 +4381,7 @@ impl super::ServingDatabase {
 }
 
 impl super::ServingDatabase {
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn identity_password_register(
         &mut self,
         username: &str,

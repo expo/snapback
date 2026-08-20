@@ -450,6 +450,13 @@ impl<'a, H: ActivationHost + ?Sized> GenerationActivation<'a, H> {
         self.snapback
             .generation_commit_ops()
             .install_committed_sequence_declarations(sequence_declarations);
+        // @ref LLP 0058#same-mode-provisioning — the process may publish only
+        // the exact manifest whose policy projection the durable same-mode
+        // commit installed; a post-commit publisher failure stays uncertain
+        // and leaves admission closed rather than serving a stale map.
+        self.snapback
+            .install_loaded_function_policies(&functions)
+            .map_err(ModeCommitFailure::Uncertain)?;
         self.snapback
             .compose_function_generation_successor(functions, order_field_bounds);
         Self::install_process_generation(self.snapback, publication_generation);

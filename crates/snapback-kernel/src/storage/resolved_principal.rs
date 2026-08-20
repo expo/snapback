@@ -258,13 +258,21 @@ impl LocalDatabase {
         if now_ms > crate::contract_types::AUTH_MAX_SAFE_TIMESTAMP {
             return Err(invalid());
         }
+        // Persist the observation before the resolving transaction: expiry or
+        // any other refusal must not roll the high-water back with that
+        // transaction and make the same durable session live again.
+        // @ref LLP 0059#durable-session-clock-floor — refused observations
+        // advance the same monotone durable floor as successful resolutions.
+        let observed_now_ms = self.advance_auth_session_clock_floor(now_ms)?;
         let binding = self.binding();
         self.with_auth_transaction(|transaction| {
             // @ref LLP 0059#durable-session-clock-floor — a caller may sample
             // below the durable high-water, but authorization evaluates at
             // the non-decreasing floor and can never revive expired state.
-            let effective_now_ms =
-                super::auth::advance_session_clock_floor_on(transaction, now_ms)?;
+            let effective_now_ms = super::auth::advance_session_clock_floor_on(
+                transaction,
+                observed_now_ms,
+            )?;
             let token_hash = TokenHash::from_bytes(*digest.as_bytes());
             let PresentedSessionLookup::Current(mut record) =
                 super::auth_catalog_ops::lookup_presented_session(transaction, &token_hash)?
