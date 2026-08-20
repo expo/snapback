@@ -92,6 +92,22 @@ DoS-prevention, **not** authorization; no safety argument here may rest on it.
    Publication stays blocked until it completes (LLP 0041 immutability).
 3. **F-4's refusal-precedence ruling** was "fix the ordering," landed separately.
 
+4. **Stop patching forgery paths; design the chokepoint (author ruling 2026-08-20).**
+   After four independent review rounds each found a *different* authority-forgery route
+   rather than a variant of the previous one, the surface was enumerated as
+   **LLP 0291**: 30 no-feature forgery families, 16 more behind additive features, **no
+   existing chokepoint**, and authority creation split across roughly eleven independent
+   mechanisms. That materially exceeds what §6 step 6 anticipated — converting four
+   admissions — so §6 step 6 as written **understates the work** and should be read together
+   with LLP 0291.
+   The ruling: stop converting admissions one at a time, and design a single
+   chokepoint through which every authority-increasing durable write must pass. Two
+   independent blind designs were commissioned from different model families, matching the
+   provenance discipline this spec itself used.
+   Consequences: the partial `ResolvedPrincipal` work on `lane/f1-forge` is held pending that
+   design — LLP 0291 records that as specified it would *add* to the surface rather than
+   replace it — and publication stays blocked, as it was.
+
 ## 3. Threat model
 
 - **Attacker A — a direct dependent crate in this workspace (live today).** Any
