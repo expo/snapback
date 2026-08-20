@@ -23,12 +23,12 @@ import {
 const root = resolve(import.meta.dirname, '..');
 const fixtureRoot = resolve(root, 'tests/fixtures/security-boundaries');
 
-function reviewedGuideFixture() {
-  const scratch = mkdtempSync(join(tmpdir(), 'snapback-generated-api-review-'));
+function manifestedGuideFixture() {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-generated-api-manifest-'));
   const crate = join(scratch, 'crates/snapback-server');
   mkdirSync(join(crate, 'src'), { recursive: true });
+  mkdirSync(join(crate, 'generated'), { recursive: true });
   mkdirSync(join(scratch, 'crates'), { recursive: true });
-  mkdirSync(join(scratch, 'issues'), { recursive: true });
   writeFileSync(join(scratch, 'Cargo.toml'), [
     '[workspace]',
     'members = ["crates/snapback-server"]',
@@ -55,22 +55,24 @@ function reviewedGuideFixture() {
   writeFileSync(join(crate, 'src/lib.rs'), 'pub mod guide;\n');
   writeFileSync(
     join(crate, 'src/guide.rs'),
-    'include!(concat!(env!("OUT_DIR"), "/embedded_guide.rs"));\n',
+    [
+      'pub struct EmbeddedGuideFile;',
+      'include!("../generated/embedded_guide_api.rs");',
+      '',
+    ].join('\n'),
   );
   cpSync(resolve(root, 'crates/snapback-server/build.rs'), join(crate, 'build.rs'));
   cpSync(
-    resolve(root, 'issues/20260819-build-generated-guide-api-audit.md'),
-    join(scratch, 'issues/20260819-build-generated-guide-api-audit.md'),
+    resolve(root, 'crates/snapback-server/generated/embedded_guide_api.rs'),
+    join(crate, 'generated/embedded_guide_api.rs'),
   );
-  const review = JSON.parse(
-    readFileSync(resolve(root, 'crates/privilege-surface-allowlist.v1.json'), 'utf8'),
-  ).entries.find(({ id }) => id === 'embedded-guide-generated-table');
-  writeFileSync(
+  cpSync(
+    resolve(root, 'crates/snapback-server/generated/embedded-guide-api-shape.v1.json'),
+    join(crate, 'generated/embedded-guide-api-shape.v1.json'),
+  );
+  cpSync(
+    resolve(root, 'crates/privilege-surface-allowlist.v1.json'),
     join(scratch, 'crates/privilege-surface-allowlist.v1.json'),
-    `${JSON.stringify({
-      schemaVersion: 'snapback.privilege-surface-allowlist.v1',
-      entries: [review],
-    }, null, 2)}\n`,
   );
   return { scratch, crate };
 }
@@ -100,6 +102,20 @@ test('local re-exports resolve crate and super prefixes', () => {
   const output = result.violations.map(({ item, detail }) => `${item}: ${detail}`).join('\n');
   assert.match(output, /synthetic_kernel::crate_path_fn_leak: public return type exposes rusqlite::Connection/u);
   assert.match(output, /synthetic_kernel::super_path_fn_leak: public return type exposes rusqlite::Connection/u);
+});
+
+test('renamed privilege imports seed returns and facade re-exports', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const output = result.violations.map(({ kind, item, detail }) => `${kind} ${item}: ${detail}`).join('\n');
+  assert.match(
+    output,
+    /reexport synthetic_kernel::RenamedPrivilegeFacade: publicly re-exports privilege seed Root/u,
+  );
+  assert.match(
+    output,
+    /seed-obtain synthetic_kernel::leak_renamed_privilege_seed: returns privilege seed KernelCommitAuthority/u,
+  );
 });
 
 test('From impls expose a raw foreign self type', () => {
@@ -209,26 +225,31 @@ test('macro- and OUT_DIR-generated public APIs fail closed in every item positio
   assert.match(output, /generated-api .*cfg_generated_privilege_api\.rs via include/u);
   assert.match(output, /generated-api .*cfg_attr_generated_privilege_api\.rs via include/u);
   assert.match(output, /generated-api .*parameterized_wrapper_generated_privilege_api\.rs via invoke_include_parameter/u);
+  assert.match(output, /macro-generated-api .*split_macro_invocation::make/u);
+  assert.match(output, /macro-generated-api .*literal_public_macro_invocation::paste/u);
 });
 
-test('the exact snapback-server generated guide API remains explicit review debt', () => {
+test('the snapback-server Guide API is committed and manifest-verified without review debt', () => {
   const result = auditPrivilegeSurface(root);
-  const item = 'snapback_server::guide::__SNAPBACK_OUT_DIR__/embedded_guide.rs via include';
-  assert(
-    result.findings.some((finding) => finding.kind === 'generated-api' && finding.item === item),
-    'the opaque generated Rust include must remain an observed finding',
+  assert.equal(
+    result.findings.some(({ kind, item }) => kind === 'generated-api'
+      && item.includes('embedded_guide.rs')),
+    false,
+    'the public module must no longer include item-generating Rust from OUT_DIR',
   );
-  assert(
-    result.allowlisted.some(({ id }) => id === 'embedded-guide-generated-table'),
-    'the finding must be carried only by its exact expiring review row',
-  );
+  assert.equal(result.generatedApiManifests.length, 1);
+  assert.equal(result.allowlisted.some(({ kind }) => kind === 'generated-api'), false);
 });
 
-test('the exact Guide review does not suppress planted hostile include spellings', () => {
-  const { scratch, crate } = reviewedGuideFixture();
+test('the Guide manifest refuses an arbitrary OTHER OUT_DIR include and recovers after removal', () => {
+  const { scratch, crate } = manifestedGuideFixture();
   try {
+    const source = join(crate, 'src/guide.rs');
+    const original = readFileSync(source, 'utf8');
+    const control = auditPrivilegeSurface(scratch);
+    assert.equal(control.generatedApiManifests.length, 1);
     writeFileSync(join(crate, 'src/guide.rs'), [
-      'include!(concat!(env!("OUT_DIR"), "/embedded_guide.rs"));',
+      original.trimEnd(),
       'include!(concat!(env!("OUT_DIR"), "/hostile_privilege_api.rs"));',
       'std::include!(concat!(env!("OUT_DIR"), "/qualified_hostile_privilege_api.rs"));',
       '',
@@ -237,65 +258,71 @@ test('the exact Guide review does not suppress planted hostile include spellings
     assert(
       violations.some(({ kind, item }) => kind === 'generated-api'
         && item.endsWith('hostile_privilege_api.rs via include')),
-      'a second bare include must fail outside the exact review row',
+      'a second bare include must fail outside the committed API artifact',
     );
     assert(
       violations.some(({ kind, item }) => kind === 'generated-api'
         && item.endsWith('qualified_hostile_privilege_api.rs via std::include')),
-      'std::include! must fail and must not inherit the direct include! row',
+      'std::include! must fail and cannot inherit the committed artifact proof',
     );
+    assert(
+      violations.some(({ kind, detail }) => kind === 'generated-api-manifest-invalid'
+        && detail.includes('source include expression changed')),
+      'the committed source-include set must drift closed too',
+    );
+
+    writeFileSync(source, original);
+    const restored = auditPrivilegeSurface(scratch);
+    assert.equal(restored.generatedApiManifests.length, 1);
+    assert.equal(
+      restored.violations.some(({ kind }) => kind === 'generated-api'
+        || kind === 'generated-api-manifest-invalid'),
+      false,
+      'removing the planted include restores the committed manifest proof',
+    );
+
+    writeFileSync(
+      source,
+      original.replace(
+        'include!("../generated/embedded_guide_api.rs");',
+        'include!(concat!("../generated/", "embedded_guide_api.rs"));',
+      ),
+    );
+    const respelled = auditPrivilegeSurface(scratch);
+    assert(
+      respelled.violations.some(({ kind, detail }) => kind === 'generated-api-manifest-invalid'
+        && detail.includes('source include expression changed')),
+      'a semantically equivalent include respelling must still invalidate the pinned expression',
+    );
+    writeFileSync(source, original);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
 });
 
-test('real build producer drift cannot forge generated-API review evidence', { timeout: 60_000 }, () => {
-  const { scratch, crate } = reviewedGuideFixture();
+test('real build producer drift cannot forge committed generated-API evidence', { timeout: 60_000 }, () => {
+  const { scratch, crate } = manifestedGuideFixture();
   try {
     const producer = join(crate, 'build.rs');
     const original = readFileSync(producer, 'utf8');
     const control = auditPrivilegeSurface(scratch);
     assert(
-      control.allowlisted.some(({ id }) => id === 'embedded-guide-generated-table'),
-      `the copied real producer must begin at the reviewed digest: ${JSON.stringify({
-        allowlist: control.violations.filter(({ kind }) => kind.startsWith('allowlist')),
-        generated: control.findings.filter(({ kind }) => kind === 'generated-api'),
-      })}`,
+      control.generatedApiManifests.length === 1,
+      `the copied committed proof must begin valid: ${JSON.stringify(control.violations)}`,
     );
 
-    const outputMarker = '\n}\n\nfn collect_guide_files';
-    const outputMutations = [
-      ['raw SQL name', '    writeln!(output, "pub fn generated_raw_sql() -> rusqlite::Connection {{ todo!() }}").expect("probe");\n'],
-      ['seed type', '    writeln!(output, "pub fn generated_seed() -> KernelCommitAuthority {{ todo!() }}").expect("probe");\n'],
-      ['authority discriminator', '    writeln!(output, "pub fn sanctioned(_: MembershipWriter) {{}}").expect("probe");\n'],
-    ];
-    for (const [label, emitted] of outputMutations) {
-      assert(original.includes(outputMarker), 'real build.rs output function marker drifted');
-      writeFileSync(producer, original.replace(outputMarker, `\n${emitted}}\n\nfn collect_guide_files`));
-      const result = auditPrivilegeSurface(scratch);
-      assert(
-        result.violations.some(({ kind, detail }) => kind === 'allowlist-invalid'
-          && detail.includes('producer source changed')),
-        `${label} output mutation must invalidate the exact producer review`,
-      );
-    }
-
     const oldGateDetection = [
-      '    if std::env::var("SNAPBACK_BUILD_GIT_COMMIT").as_deref()',
-      '        == Ok("security-gate-expansion-audit")',
-      '    {',
-      '        let out = PathBuf::from(std::env::var("OUT_DIR").unwrap());',
-      '        fs::write(out.join("embedded_guide.rs"), "pub const HARMLESS: bool = true;\\n").unwrap();',
-      '        return;',
-      '    }',
       '',
+      '// A forged producer could probe an audit marker, but changing these',
+      '// committed bytes invalidates the manifest before the producer runs.',
+      '// SNAPBACK_BUILD_GIT_COMMIT=security-gate-expansion-audit',
     ].join('\n');
-    writeFileSync(producer, original.replace('fn main() {\n', `fn main() {\n${oldGateDetection}`));
+    writeFileSync(producer, `${original}${oldGateDetection}`);
     const detecting = auditPrivilegeSurface(scratch);
     assert(
-      detecting.violations.some(({ kind, detail }) => kind === 'allowlist-invalid'
+      detecting.violations.some(({ kind, detail }) => kind === 'generated-api-manifest-invalid'
         && detail.includes('producer source changed')),
-      'a producer that detects the retired gate marker must fail before receiving review credit',
+      'a producer that detects the retired gate marker must fail before receiving proof credit',
     );
 
     writeFileSync(join(crate, 'actual-build.rs'), `${original}\n// alternate malicious producer\n`);
@@ -308,10 +335,35 @@ test('real build producer drift cannot forge generated-API review evidence', { t
     );
     const retargeted = auditPrivilegeSurface(scratch);
     assert(
-      retargeted.violations.some(({ kind, detail }) => kind === 'allowlist-invalid'
+      retargeted.violations.some(({ kind, detail }) => kind === 'generated-api-manifest-invalid'
         && detail.includes('producer is not Cargo custom-build target')),
       'changing Cargo custom-build target must not leave the reviewed build.rs authoritative',
     );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('the committed Guide API artifact rejects raw SQL, seed, and discriminator names', () => {
+  const { scratch, crate } = manifestedGuideFixture();
+  try {
+    const artifact = join(crate, 'generated/embedded_guide_api.rs');
+    const original = readFileSync(artifact, 'utf8');
+    for (const [label, declaration, identifier] of [
+      ['raw SQL handle', 'pub fn hostile() -> rusqlite::Connection { todo!() }', 'Connection'],
+      ['LLP 0284 seed', 'pub fn hostile() -> KernelCommitAuthority { todo!() }', 'KernelCommitAuthority'],
+      ['authority discriminator', 'pub fn hostile(_: MembershipWriter) {}', 'MembershipWriter'],
+    ]) {
+      writeFileSync(artifact, `${original}\n${declaration}\n`);
+      const result = auditPrivilegeSurface(scratch);
+      assert(
+        result.violations.some(({ kind, detail }) => kind === 'generated-api-manifest-invalid'
+          && detail.includes('artifact bytes changed')
+          && detail.includes('parsed public API shape changed')
+          && detail.includes(identifier)),
+        `${label} must invalidate the committed API proof`,
+      );
+    }
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

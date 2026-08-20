@@ -6,6 +6,8 @@ use std::{fs, io};
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../../guide");
+    println!("cargo:rerun-if-changed=generated/embedded_guide_api.rs");
+    println!("cargo:rerun-if-changed=generated/embedded-guide-api-shape.v1.json");
     let build_commit = emit_build_commit();
     emit_embedded_guide(build_commit.as_deref());
     emit_runtime_loader_paths();
@@ -199,18 +201,20 @@ fn emit_embedded_guide(stamped_build_commit: Option<&str>) {
     )
     .expect("write build-bound embedded guide manifest");
 
-    let mut output = fs::File::create(out_dir.join("embedded_guide.rs"))
-        .expect("create generated embedded guide module");
-    writeln!(
-        output,
-        "pub const GUIDE_CONTENT_SHA256: &str = {content_hash:?};"
+    // The generated files are expressions consumed under types fixed by the
+    // committed API artifact. Expression-position include! cannot add module
+    // items, so environment-sensitive producer behavior cannot change the
+    // public API shape audited from committed bytes.
+    // @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — ordinary
+    // builds consume the committed, manifest-pinned API and generate data only.
+    fs::write(
+        out_dir.join("guide_content_sha256.expr.rs"),
+        format!("{content_hash:?}\n"),
     )
-    .expect("write guide hash");
-    writeln!(
-        output,
-        "pub static EMBEDDED_GUIDE_FILES: &[EmbeddedGuideFile] = &["
-    )
-    .expect("start embedded guide table");
+    .expect("write guide hash expression");
+    let mut output = fs::File::create(out_dir.join("embedded_guide_files.expr.rs"))
+        .expect("create generated embedded guide file-table expression");
+    writeln!(output, "&[").expect("start embedded guide table expression");
     for path in files {
         let content_type = guide_content_type(&path);
         if path == "guide-manifest.generated.json" {
@@ -228,13 +232,14 @@ fn emit_embedded_guide(stamped_build_commit: Option<&str>) {
             .expect("write embedded guide entry");
         }
     }
-    writeln!(output, "];").expect("finish embedded guide table");
-    writeln!(output, "pub static SECTION_FLAT_PATHS: &[&str] = &[")
-        .expect("start embedded guide section path table");
+    writeln!(output, "]").expect("finish embedded guide table expression");
+    let mut output = fs::File::create(out_dir.join("section_flat_paths.expr.rs"))
+        .expect("create generated section path-table expression");
+    writeln!(output, "&[").expect("start embedded guide section path table expression");
     for path in section_flat_paths {
         writeln!(output, "    {path:?},").expect("write embedded guide section path");
     }
-    writeln!(output, "];").expect("finish embedded guide section path table");
+    writeln!(output, "]").expect("finish embedded guide section path table expression");
 }
 
 fn collect_guide_files(root: &Path, dir: &Path, files: &mut Vec<String>) -> io::Result<()> {

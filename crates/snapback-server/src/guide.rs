@@ -15,7 +15,11 @@ pub struct EmbeddedGuideFile {
     pub content_type: &'static str,
 }
 
-include!(concat!(env!("OUT_DIR"), "/embedded_guide.rs"));
+// The public shape is committed and drift-checked. build.rs supplies only the
+// typed data expressions that this artifact consumes.
+// @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — generated data
+// cannot add module items through these expression-position includes.
+include!("../generated/embedded_guide_api.rs");
 
 pub const INDEX_PATH: &str = "index.md";
 pub const FLAT_PATH: &str = "guide-flat.generated.md";

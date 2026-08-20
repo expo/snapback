@@ -28,6 +28,14 @@ pub fn leak_renamed_import() -> ImportedHandle {
     panic!("scanner corpus is not executed")
 }
 
+use privilege_source::KernelCommitAuthority as Root;
+
+pub use Root as RenamedPrivilegeFacade;
+
+pub fn leak_renamed_privilege_seed() -> Root {
+    panic!("scanner corpus is not executed")
+}
+
 mod hidden {
     pub fn leak() -> rusqlite::Connection {
         panic!("scanner corpus is not executed")
@@ -215,6 +223,28 @@ macro_rules! generated_privilege_api {
 }
 
 generated_privilege_api!();
+
+mod split_macro_definition {
+    macro_rules! make {
+        ($name:ident, $return_type:ty) => {
+            pub fn $name() -> $return_type {
+                panic!("scanner corpus is not executed")
+            }
+        };
+    }
+
+    pub(crate) use make;
+}
+
+pub mod split_macro_invocation {
+    use super::split_macro_definition::make;
+
+    make!(cross_module_macro_leak, rusqlite::Connection);
+}
+
+pub mod literal_public_macro_invocation {
+    paste!(pub fn pasted_macro_leak() -> rusqlite::Connection);
+}
 
 include!(concat!(env!("OUT_DIR"), "/generated_privilege_api.rs"));
 

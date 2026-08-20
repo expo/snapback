@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "snapback.generated-api-shape.v1",
+  "crate": "snapback-server",
+  "source": "crates/snapback-server/src/guide.rs",
+  "sourceInclude": "../generated/embedded_guide_api.rs",
+  "sourceExpression": "include!(\"../generated/embedded_guide_api.rs\")",
+  "artifact": "crates/snapback-server/generated/embedded_guide_api.rs",
+  "artifactSha256": "d52c6a2ceb9b1e60341b4da6f4bc84fa32fb00559de485bc1757e8d36c14713b",
+  "producer": "crates/snapback-server/build.rs",
+  "producerSha256": "363799394f8cb9ee1edc5db00e42333a7935c3bd20b56138d642281f59e814fe",
+  "publicApi": [
+    {
+      "kind": "const",
+      "name": "GUIDE_CONTENT_SHA256",
+      "visibility": "pub",
+      "signature": "& str"
+    },
+    {
+      "kind": "static",
+      "name": "EMBEDDED_GUIDE_FILES",
+      "visibility": "pub",
+      "signature": "& [EmbeddedGuideFile]"
+    },
+    {
+      "kind": "static",
+      "name": "SECTION_FLAT_PATHS",
+      "visibility": "pub",
+      "signature": "& [& str]"
+    }
+  ],
+  "generatedDataIncludes": [
+    "__SNAPBACK_OUT_DIR__/guide_content_sha256.expr.rs",
+    "__SNAPBACK_OUT_DIR__/embedded_guide_files.expr.rs",
+    "__SNAPBACK_OUT_DIR__/section_flat_paths.expr.rs"
+  ],
+  "forbiddenIdentifiers": {
+    "rawSql": [
+      "Connection",
+      "Transaction",
+      "rusqlite"
+    ],
+    "privilegeSeeds": [
+      "KernelCommitAuthority",
+      "AuthorizationCommitCarrierFactory",
+      "AuthorizationCommitReservation",
+      "PreparedAuthorizationCommit",
+      "ServiceAuthorityCommitInterlock",
+      "ServiceAuthorityTerminalFactory",
+      "PreparedServiceAuthorityTerminal",
+      "PushStorageAuthority",
+      "ProtectedRecordErasureAuthorityV1",
+      "ProtectedRecordErasureRequestV1",
+      "CreatePendingEffectCommand",
+      "DecidePendingEffectCommand",
+      "SettlePendingEffectCommand",
+      "RefusePendingEffectCommand",
+      "PromotionContentionReservation",
+      "AskSpendReservation"
+    ],
+    "authorityDiscriminators": [
+      "MembershipWriter"
+    ]
+  }
+}

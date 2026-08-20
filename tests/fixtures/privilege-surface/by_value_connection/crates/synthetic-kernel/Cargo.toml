@@ -5,6 +5,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
+privilege-source = { path = "../privilege-source" }
 rusqlite = { path = "../rusqlite" }
 
 [features]

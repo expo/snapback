@@ -1,4 +1,5 @@
 use proc_macro2::{Span, TokenStream};
+use quote::ToTokens;
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::env;
@@ -33,6 +34,9 @@ const SEED_TYPES: &[&str] = &[
     "PromotionContentionReservation",
     "AskSpendReservation",
 ];
+
+const RAW_SQL_IDENTIFIERS: &[&str] = &["Connection", "Transaction", "rusqlite"];
+const AUTHORITY_DISCRIMINATOR_TYPES: &[&str] = &["MembershipWriter"];
 
 // @ref LLP 0284#38-authority-discriminators — this is the deliberately narrow
 // direct-signature sink-name registry. It is a ratchet for known shapes, not
@@ -259,6 +263,8 @@ struct PrivilegeScanner {
     obtainability_edges: Vec<ObtainabilityEdge>,
     seed_returns: Vec<SeedReturnCandidate>,
     discriminator_sinks: Vec<DiscriminatorSinkCandidate>,
+    crate_public_api_macros: BTreeSet<String>,
+    crate_generated_include_macros: BTreeSet<String>,
 }
 
 struct HeuristicCandidate {
@@ -694,7 +700,7 @@ impl PrivilegeScanner {
                 }
                 Item::Use(item_use) if module_public && public(&item_use.vis) => {
                     for path in flatten_use_tree(&item_use.tree) {
-                        self.scan_reexport(source, module, item_use.span(), &path);
+                        self.scan_reexport(source, module, item_use.span(), &path, &names);
                         self.scan_local_reexport(
                             items,
                             source,
@@ -814,6 +820,15 @@ impl PrivilegeScanner {
                                 .any(|segment| matches!(segment.as_str(), "std" | "core"))
                         {
                             names.include_macro_aliases.insert(path.exposed.clone());
+                        }
+                        if let Some(seed) = path
+                            .segments
+                            .iter()
+                            .find(|segment| SEED_TYPES.contains(&segment.as_str()))
+                        {
+                            names
+                                .seed_aliases
+                                .insert(path.exposed.clone(), seed.clone());
                         }
                     }
                 }
@@ -1293,7 +1308,14 @@ impl PrivilegeScanner {
         }
     }
 
-    fn scan_reexport(&mut self, source: &Path, module: &[String], span: Span, path: &UseBinding) {
+    fn scan_reexport(
+        &mut self,
+        source: &Path,
+        module: &[String],
+        span: Span,
+        path: &UseBinding,
+        names: &ModuleNames,
+    ) {
         if path.segments.is_empty() {
             return;
         }
@@ -1313,6 +1335,12 @@ impl PrivilegeScanner {
             .segments
             .iter()
             .find(|segment| SEED_TYPES.contains(&segment.as_str()))
+            .cloned()
+            .or_else(|| {
+                path.segments
+                    .iter()
+                    .find_map(|segment| names.seed_aliases.get(segment).cloned())
+            })
         {
             self.push_finding(
                 "reexport",
@@ -1320,7 +1348,7 @@ impl PrivilegeScanner {
                 source,
                 span,
                 format!("publicly re-exports privilege seed {rendered}"),
-                Some(seed.clone()),
+                Some(seed),
             );
             return;
         }
@@ -1431,7 +1459,8 @@ impl PrivilegeScanner {
             .unwrap_or_else(|| "<anonymous-macro>".to_owned());
         let is_direct_generated_include = macro_name == "include"
             || names.include_macro_aliases.contains(&macro_name)
-            || names.generated_include_macros.contains(&macro_name);
+            || names.generated_include_macros.contains(&macro_name)
+            || self.crate_generated_include_macros.contains(&macro_name);
         let parameterized_include = if is_direct_generated_include {
             None
         } else {
@@ -1500,8 +1529,11 @@ impl PrivilegeScanner {
             .unwrap_or(macro_name);
         let emits_public =
             mac.path.is_ident("macro_rules") && token_ident_present(&mac.tokens, "pub");
-        let invocation_of_public_macro = names.public_api_macros.contains(&macro_name);
-        if (emits_public || invocation_of_public_macro)
+        let invocation_of_public_macro = names.public_api_macros.contains(&macro_name)
+            || self.crate_public_api_macros.contains(&macro_name);
+        let invocation_carries_public =
+            definition_ident.is_none() && token_ident_present(&mac.tokens, "pub");
+        if (emits_public || invocation_of_public_macro || invocation_carries_public)
             && tokens_name_sensitive_type(&mac.tokens, names)
         {
             self.push_finding(
@@ -2398,6 +2430,152 @@ fn module_directory_for_file(target: &Path, parent: &Path, module_name: &str) ->
     }
 }
 
+#[derive(Default)]
+struct CrateMacroInventory {
+    public_api_macros: BTreeSet<String>,
+    include_aliases: BTreeSet<String>,
+    definitions: Vec<(String, TokenStream)>,
+}
+
+// @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — macro_rules
+// visibility crosses source-module boundaries. Discover definitions over the
+// whole syntactic module tree before scanning any public invocation so source
+// order and module placement cannot split `pub` from a sensitive type token.
+fn discover_crate_macros(
+    lib: &Path,
+    active_features: &BTreeSet<String>,
+) -> Result<(BTreeSet<String>, BTreeSet<String>), String> {
+    fn discover_file(
+        path: &Path,
+        module_dir: &Path,
+        active_features: &BTreeSet<String>,
+        visited: &mut HashSet<PathBuf>,
+        inventory: &mut CrateMacroInventory,
+    ) -> Result<(), String> {
+        let canonical = fs::canonicalize(path)
+            .map_err(|error| format!("cannot resolve Rust source {}: {error}", path.display()))?;
+        if !visited.insert(canonical.clone()) {
+            return Ok(());
+        }
+        let source = fs::read_to_string(&canonical)
+            .map_err(|error| format!("cannot read Rust source {}: {error}", canonical.display()))?;
+        let syntax = syn::parse_file(&source).map_err(|error| {
+            format!("cannot parse Rust source {}: {error}", canonical.display())
+        })?;
+        let attribute_dir = canonical.parent().unwrap_or(module_dir);
+        discover_items(
+            &syntax.items,
+            module_dir,
+            attribute_dir,
+            active_features,
+            visited,
+            inventory,
+        )
+    }
+
+    fn discover_items(
+        items: &[Item],
+        module_dir: &Path,
+        attribute_dir: &Path,
+        active_features: &BTreeSet<String>,
+        visited: &mut HashSet<PathBuf>,
+        inventory: &mut CrateMacroInventory,
+    ) -> Result<(), String> {
+        for item in items {
+            if !attrs_active(item_attrs(item), active_features) {
+                continue;
+            }
+            match item {
+                Item::Use(item_use) => {
+                    for path in flatten_use_tree(&item_use.tree) {
+                        if path
+                            .segments
+                            .last()
+                            .is_some_and(|segment| segment == "include")
+                            && path
+                                .segments
+                                .iter()
+                                .any(|segment| matches!(segment.as_str(), "std" | "core"))
+                        {
+                            inventory.include_aliases.insert(path.exposed);
+                        }
+                    }
+                }
+                Item::Macro(item_macro) if item_macro.mac.path.is_ident("macro_rules") => {
+                    if let Some(ident) = &item_macro.ident {
+                        let name = ident.to_string();
+                        if token_ident_present(&item_macro.mac.tokens, "pub") {
+                            inventory.public_api_macros.insert(name.clone());
+                        }
+                        inventory
+                            .definitions
+                            .push((name, item_macro.mac.tokens.clone()));
+                    }
+                }
+                Item::Mod(item_mod) => {
+                    let child_name = item_mod.ident.to_string();
+                    if let Some((_, child_items)) = &item_mod.content {
+                        discover_items(
+                            child_items,
+                            &module_dir.join(&child_name),
+                            &attribute_dir.join(&child_name),
+                            active_features,
+                            visited,
+                            inventory,
+                        )?;
+                        continue;
+                    }
+                    let explicit = path_attributes(&item_mod.attrs).into_iter().next();
+                    let target = if let Some(value) = explicit {
+                        attribute_dir.join(value)
+                    } else {
+                        let flat = module_dir.join(format!("{child_name}.rs"));
+                        let nested = module_dir.join(&child_name).join("mod.rs");
+                        if flat.exists() { flat } else { nested }
+                    };
+                    if target.exists() {
+                        let next_dir = module_directory_for_file(&target, module_dir, &child_name);
+                        discover_file(&target, &next_dir, active_features, visited, inventory)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    let module_dir = lib
+        .parent()
+        .ok_or_else(|| format!("library root has no parent: {}", lib.display()))?;
+    let mut visited = HashSet::new();
+    let mut inventory = CrateMacroInventory::default();
+    discover_file(
+        lib,
+        module_dir,
+        active_features,
+        &mut visited,
+        &mut inventory,
+    )?;
+    let mut generated_include_macros = BTreeSet::new();
+    loop {
+        let mut include_names = inventory.include_aliases.clone();
+        include_names.insert("include".to_owned());
+        include_names.extend(generated_include_macros.iter().cloned());
+        let mut changed = false;
+        for (name, tokens) in &inventory.definitions {
+            if tokens_contain_any_ident(tokens, &include_names)
+                && generated_include_macros.insert(name.clone())
+            {
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    Ok((inventory.public_api_macros, generated_include_macros))
+}
+
 fn item_attrs(item: &Item) -> &[Attribute] {
     match item {
         Item::Const(item) => &item.attrs,
@@ -2462,6 +2640,8 @@ struct UnitReference {
     module_path: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     module_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expression: Option<String>,
 }
 
 struct UnitVisitor {
@@ -2481,6 +2661,7 @@ impl<'ast> Visit<'ast> for UnitVisitor {
                     out_dir: false,
                     module_path: self.inline_path.clone(),
                     module_name: Some(node.ident.to_string()),
+                    expression: None,
                 });
             } else {
                 for path in paths {
@@ -2491,6 +2672,7 @@ impl<'ast> Visit<'ast> for UnitVisitor {
                         out_dir: false,
                         module_path: self.inline_path.clone(),
                         module_name: Some(node.ident.to_string()),
+                        expression: None,
                     });
                 }
             }
@@ -2511,6 +2693,11 @@ impl<'ast> Visit<'ast> for UnitVisitor {
                     out_dir,
                     module_path: self.inline_path.clone(),
                     module_name: None,
+                    expression: Some(format!(
+                        "{}!({})",
+                        macro_path_label(&node.path),
+                        node.tokens
+                    )),
                 }),
                 None => self.references.push(UnitReference {
                     kind: "include-unevaluable".to_owned(),
@@ -2519,6 +2706,11 @@ impl<'ast> Visit<'ast> for UnitVisitor {
                     out_dir: false,
                     module_path: self.inline_path.clone(),
                     module_name: None,
+                    expression: Some(format!(
+                        "{}!({})",
+                        macro_path_label(&node.path),
+                        node.tokens
+                    )),
                 }),
             }
         }
@@ -2595,6 +2787,162 @@ fn source_crate_references(path: &Path) -> Result<Vec<String>, String> {
     };
     visitor.visit_file(&syntax);
     Ok(visitor.references.into_iter().collect())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ApiShapeEntry {
+    kind: String,
+    name: String,
+    visibility: String,
+    signature: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ApiShape {
+    items: Vec<ApiShapeEntry>,
+    identifiers: Vec<String>,
+}
+
+fn visibility_shape(visibility: &Visibility) -> String {
+    visibility.to_token_stream().to_string()
+}
+
+// @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — the committed
+// Guide API artifact is compared by parsed item shape, not source text or an
+// execution of its custom-build producer.
+fn api_shape(path: &Path) -> Result<ApiShape, String> {
+    let source = fs::read_to_string(path)
+        .map_err(|error| format!("cannot read API artifact {}: {error}", path.display()))?;
+    let syntax = syn::parse_file(&source)
+        .map_err(|error| format!("cannot parse API artifact {}: {error}", path.display()))?;
+    let items = syntax
+        .items
+        .iter()
+        .map(|item| match item {
+            Item::Const(item) => ApiShapeEntry {
+                kind: "const".to_owned(),
+                name: item.ident.to_string(),
+                visibility: visibility_shape(&item.vis),
+                signature: item.ty.to_token_stream().to_string(),
+            },
+            Item::Static(item) => ApiShapeEntry {
+                kind: "static".to_owned(),
+                name: item.ident.to_string(),
+                visibility: visibility_shape(&item.vis),
+                signature: item.ty.to_token_stream().to_string(),
+            },
+            Item::Type(item) => ApiShapeEntry {
+                kind: "type".to_owned(),
+                name: item.ident.to_string(),
+                visibility: visibility_shape(&item.vis),
+                signature: item.ty.to_token_stream().to_string(),
+            },
+            Item::Fn(item) => ApiShapeEntry {
+                kind: "fn".to_owned(),
+                name: item.sig.ident.to_string(),
+                visibility: visibility_shape(&item.vis),
+                signature: item.sig.to_token_stream().to_string(),
+            },
+            Item::Struct(item) => ApiShapeEntry {
+                kind: "struct".to_owned(),
+                name: item.ident.to_string(),
+                visibility: visibility_shape(&item.vis),
+                signature: item.fields.to_token_stream().to_string(),
+            },
+            Item::Enum(item) => ApiShapeEntry {
+                kind: "enum".to_owned(),
+                name: item.ident.to_string(),
+                visibility: visibility_shape(&item.vis),
+                signature: item.variants.to_token_stream().to_string(),
+            },
+            Item::Union(item) => ApiShapeEntry {
+                kind: "union".to_owned(),
+                name: item.ident.to_string(),
+                visibility: visibility_shape(&item.vis),
+                signature: item.fields.to_token_stream().to_string(),
+            },
+            Item::Trait(item) => ApiShapeEntry {
+                kind: "trait".to_owned(),
+                name: item.ident.to_string(),
+                visibility: visibility_shape(&item.vis),
+                signature: item
+                    .items
+                    .iter()
+                    .map(ToTokens::to_token_stream)
+                    .map(|tokens| tokens.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            },
+            Item::Mod(item) => ApiShapeEntry {
+                kind: "mod".to_owned(),
+                name: item.ident.to_string(),
+                visibility: visibility_shape(&item.vis),
+                signature: if item.content.is_some() {
+                    "inline".to_owned()
+                } else {
+                    "external".to_owned()
+                },
+            },
+            Item::Use(item) => ApiShapeEntry {
+                kind: "use".to_owned(),
+                name: flatten_use_tree(&item.tree)
+                    .into_iter()
+                    .map(|binding| binding.exposed)
+                    .collect::<Vec<_>>()
+                    .join(","),
+                visibility: visibility_shape(&item.vis),
+                signature: item.tree.to_token_stream().to_string(),
+            },
+            Item::Impl(item) => ApiShapeEntry {
+                kind: "impl".to_owned(),
+                name: last_type_name(&item.self_ty).unwrap_or_else(|| "<impl>".to_owned()),
+                visibility: String::new(),
+                signature: item.self_ty.to_token_stream().to_string(),
+            },
+            Item::Macro(item) => ApiShapeEntry {
+                kind: "macro".to_owned(),
+                name: macro_path_label(&item.mac.path),
+                visibility: String::new(),
+                signature: item.mac.tokens.to_string(),
+            },
+            other => ApiShapeEntry {
+                kind: "other".to_owned(),
+                name: item_ident(other).unwrap_or_else(|| "<anonymous>".to_owned()),
+                visibility: String::new(),
+                signature: other.to_token_stream().to_string(),
+            },
+        })
+        .collect::<Vec<_>>();
+    let mut identifiers = BTreeSet::new();
+    collect_token_identifiers(&syntax.to_token_stream(), &mut identifiers);
+    Ok(ApiShape {
+        items,
+        identifiers: identifiers.into_iter().collect(),
+    })
+}
+
+fn collect_token_identifiers(tokens: &TokenStream, identifiers: &mut BTreeSet<String>) {
+    for token in tokens.clone() {
+        match token {
+            proc_macro2::TokenTree::Ident(ident) => {
+                identifiers.insert(ident.to_string());
+            }
+            proc_macro2::TokenTree::Group(group) => {
+                collect_token_identifiers(&group.stream(), identifiers);
+            }
+            _ => {}
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PrivilegeIdentifierCatalog {
+    raw_sql: &'static [&'static str],
+    privilege_seeds: &'static [&'static str],
+    authority_discriminators: &'static [&'static str],
 }
 
 #[derive(Serialize)]
@@ -2715,6 +3063,8 @@ fn run() -> Result<(), String> {
                 .filter(|feature| !feature.is_empty())
                 .map(str::to_owned)
                 .collect::<BTreeSet<_>>();
+            let (crate_public_api_macros, crate_generated_include_macros) =
+                discover_crate_macros(&lib, &features)?;
             let findings = PrivilegeScanner {
                 crate_name,
                 crate_root,
@@ -2731,6 +3081,8 @@ fn run() -> Result<(), String> {
                 obtainability_edges: Vec::new(),
                 seed_returns: Vec::new(),
                 discriminator_sinks: Vec::new(),
+                crate_public_api_macros,
+                crate_generated_include_macros,
             }
             .scan(&lib)?;
             println!(
@@ -2744,6 +3096,25 @@ fn run() -> Result<(), String> {
                 "{}",
                 serde_json::to_string(PRIVILEGE_SINKS)
                     .map_err(|error| format!("cannot serialize privilege sinks: {error}"))?
+            );
+        }
+        "privilege-identifiers" => {
+            println!(
+                "{}",
+                serde_json::to_string(&PrivilegeIdentifierCatalog {
+                    raw_sql: RAW_SQL_IDENTIFIERS,
+                    privilege_seeds: SEED_TYPES,
+                    authority_discriminators: AUTHORITY_DISCRIMINATOR_TYPES,
+                })
+                .map_err(|error| format!("cannot serialize privilege identifiers: {error}"))?
+            );
+        }
+        "api-shape" => {
+            let path = PathBuf::from(required_arg(&args, "--file")?);
+            println!(
+                "{}",
+                serde_json::to_string(&api_shape(&path)?)
+                    .map_err(|error| format!("cannot serialize API shape: {error}"))?
             );
         }
         "local-shared-methods" => {
@@ -2794,7 +3165,7 @@ fn run() -> Result<(), String> {
         }
         _ => {
             return Err(
-                "usage: security-gates-rust <privilege|privilege-sinks|local-shared-methods|units|attack-span|crate-references> ..."
+                "usage: security-gates-rust <privilege|privilege-sinks|privilege-identifiers|api-shape|local-shared-methods|units|attack-span|crate-references> ..."
                     .to_owned(),
             );
         }

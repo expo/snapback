@@ -14,30 +14,78 @@ as follow-up work without blocking the bounded final F-2 hardening round.
 
 ## Demonstrated residuals
 
-1. **Renamed seeds and cross-crate aliases.** A `bridge` crate can import
-   `KernelCommitAuthority as Root` and re-export it through a façade without a
-   scanner finding. Renamed SQL imports are seeded, renamed privilege seeds are
-   not, and crates are scanned independently rather than through the cross-
-   crate symbol graph originally required by LLP 0284 §4.1.
-2. **Trait and impl forms.** Blanket/generic impl methods whose sensitive
-   contract is visible only after type substitution, trait objects named only
-   through private paths, and sensitive contracts inherited through private
-   supertraits remain missed. Direct raw-handle/seed names in either the trait
-   or self position, including `impl From<Wrapper> for
-   rusqlite::Connection`, are now covered.
-3. **Macros across module/expansion boundaries.** A `macro_rules!` definition
-   in one module and invocation in another is missed because macro recognition
-   is module-local. In the concrete
-   `make!(name, rusqlite::Connection)` probe, `pub` exists only in the
-   definition and `Connection` only in the invocation, yet neither side fires.
-   `paste!`-style invocations can also carry literal `pub`, `rusqlite`, and
-   `Connection` tokens without a finding when the invoked macro name is not in
-   that module's registry.
+1. **Renamed seeds: closed; cross-crate symbol graph: open.** The committed
+   `renamed privilege imports seed returns and facade re-exports` corpus probe
+   imports `privilege_source::KernelCommitAuthority as Root`, returns `Root`,
+   and re-exports `Root as RenamedPrivilegeFacade`; both egresses now fail the
+   gate. Crates are still scanned independently rather than through the cross-
+   crate symbol graph LLP 0284 §4.1 originally required. Exact remaining
+   shape: an out-of-workspace dependency exports the seed only as `Root`, and a
+   workspace crate contains only `pub use opaque_bridge::Root as Facade;`.
+   That façade names neither a canonical seed nor an in-crate alias seeded from
+   one, so it is missed. For two workspace crates, the origin re-export is
+   rejected but a downstream `pub use bridge::Root as Facade;` is not
+   independently attributed.
+2. **Trait and impl forms: open.** Direct raw-handle/seed names in either the
+   trait or self position, including `impl From<Wrapper> for
+   rusqlite::Connection`, are covered. These exact shapes remain missed:
+
+   ```rust
+   pub trait Project { type Output; fn project(self) -> Self::Output; }
+   pub struct Wrapper<T>(pub T);
+   impl<T> Project for Wrapper<T> {
+       type Output = T;
+       fn project(self) -> T { self.0 }
+   }
+   // A dependent substitutes Wrapper<rusqlite::Connection>.
+   ```
+
+   ```rust
+   mod hidden {
+       pub trait GivesHandle { fn handle(&self) -> rusqlite::Connection; }
+   }
+   pub fn leak() -> Box<dyn hidden::GivesHandle> { todo!() }
+   pub trait PublicHandle: hidden::GivesHandle {}
+   ```
+
+   The first requires type substitution; the second and third require resolving
+   a private-path trait contract and inherited private supertrait contract.
+3. **Cross-module split-token macros: closed; expansion synthesis: open.** The
+   committed macro corpus now fails when `pub` exists only in a `make!`
+   definition in one module and `rusqlite::Connection` only in its invocation
+   in another. It also fails an otherwise unknown
+   `paste!(pub fn ... -> rusqlite::Connection)` invocation carrying all three
+   literal sensitive tokens. Macro expansion itself remains unavailable. This
+   exact identifier-synthesizing form is still missed:
+
+   ```rust
+   paste::paste! {
+       pub fn leak() -> [<rusq lite>]::[<Connec tion>] { todo!() }
+   }
+   ```
+
+   So is `external_emit::privilege_api!();` when an external macro emits the
+   entire public sensitive item and the invocation carries no sensitive token.
 4. **Authority-discriminator indirection and sink names.** I-16 performs no
-   body-flow taint analysis. A probe carrying `UserWriter::Admin` through a
-   helper, a `match`, a local, and a private `Wrapped { writer }` field into
-   `sanctioned(&Wrapped)` is missed; renaming `sanctioned` also evades the
-   fixed sink registry.
+   body-flow taint analysis. This exact shape is missed (with the registry
+   spellings resolving elsewhere in the scanned corpus):
+
+   ```rust
+   pub enum UserWriter { User, Admin }
+   struct Wrapped { writer: UserWriter }
+   fn helper(writer: UserWriter) -> UserWriter { writer }
+   fn sanctioned(_wrapped: &Wrapped) {}
+   pub fn execute_membership(writer: UserWriter) {
+       let writer = match writer {
+           UserWriter::Admin => helper(UserWriter::Admin),
+           other => helper(other),
+       };
+       sanctioned(&Wrapped { writer });
+   }
+   ```
+
+   Renaming the real sink to `renamed_sanctioned` is also missed when an
+   unrelated `sanctioned` elsewhere keeps the global registry entry observed.
 
 ## Done when
 
