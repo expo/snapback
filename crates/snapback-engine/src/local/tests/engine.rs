@@ -22746,18 +22746,96 @@ fn config_verify_gate_snapback() -> LocalSnapback {
     snapback
 }
 
+fn claim_config_verify_operator(snapback: &mut LocalSnapback) -> EngineOperatorAuthority {
+    let bindings = snapback
+        .claim_app_state_graph(
+            ServerProfile::Test,
+            crate::auth::deployment::AuthDeploymentTarget::Local,
+        )
+        .expect("claim config verify composition graph");
+    let (_, _, _, _, _, operator) = bindings.into_parts();
+    operator
+}
+
+#[test]
+fn config_verify_stages_exact_anonymous_authority_with_unchanged_projection() {
+    let mut snapback = config_verify_gate_snapback();
+    let operator = claim_config_verify_operator(&mut snapback);
+    let stage = match snapback
+        .stage_config_verify(&operator, "gateKey")
+        .expect("config probe stages")
+    {
+        super::StagedConfigVerify::Ready(stage) => stage,
+        super::StagedConfigVerify::Done(_) => panic!("valid probe must stage"),
+    };
+    let prepared = match stage.mode {
+        StagedAction::HostPlan(prepared) => prepared,
+        StagedAction::Detached(_) => panic!("fixture uses a host plan"),
+    };
+    assert_eq!(
+        prepared.authority().source(),
+        InvocationSource::ConfigVerify
+    );
+    assert!(matches!(
+        prepared.authority().resolved(),
+        ResolvedAppAuthority::Anonymous
+    ));
+    assert_eq!(
+        prepared.authority().audit(),
+        &crate::auth::invocation::AuthorityAuditFact::Anonymous
+    );
+    let former_system_projection = crate::auth::invocation::HandlerAuthProjection::from_authority(
+        &ResolvedAppAuthority::System,
+        None,
+    )
+    .expect("System has the same empty projection");
+    assert_eq!(prepared.projection(), &former_system_projection);
+}
+
+#[test]
+fn config_verify_refuses_authenticated_only_probe() {
+    let mut snapback = config_verify_gate_snapback();
+    snapback
+        .functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "configProbe")
+        .expect("probe function")
+        .auth_requirement = Some(AuthRequirement::Authenticated);
+    let operator = claim_config_verify_operator(&mut snapback);
+    let outcome = match snapback
+        .stage_config_verify(&operator, "gateKey")
+        .expect("policy refusal records a verification result")
+    {
+        super::StagedConfigVerify::Done(outcome) => outcome,
+        super::StagedConfigVerify::Ready(_) => {
+            panic!("authenticated-only probe must not reach execution")
+        }
+    };
+    assert!(!outcome.ok);
+    assert_eq!(
+        snapback
+            .config
+            .entry("gateKey")
+            .and_then(|entry| entry.verified.as_ref())
+            .and_then(|record| record.diagnostic.as_deref()),
+        Some("SNAPBACK_AUTH_REQUIRED: this function requires an authenticated user")
+    );
+}
+
 #[test]
 fn config_verify_admission_precedes_cooldown_and_retirement_suppresses_finish() {
     let mut snapback = config_verify_gate_snapback();
+    let operator = claim_config_verify_operator(&mut snapback);
     let guard = snapback.admission.begin_transition().unwrap();
-    let Err(error) = snapback.stage_config_verify("gateKey") else {
+    let Err(error) = snapback.stage_config_verify(&operator, "gateKey") else {
         panic!("closed config verification must fail before staging");
     };
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
     drop(guard);
 
     let stage = match snapback
-        .stage_config_verify("gateKey")
+        .stage_config_verify(&operator, "gateKey")
         .expect("closed attempt did not claim cooldown")
     {
         super::StagedConfigVerify::Ready(stage) => stage,
@@ -22798,6 +22876,34 @@ fn config_verify_admission_precedes_cooldown_and_retirement_suppresses_finish() 
     );
     assert!(snapback.config.entry("gateKey").unwrap().verified.is_none());
     assert_eq!(snapback.recent_diagnostics.len(), diagnostics_before);
+}
+
+#[test]
+fn config_verify_entry_revision_rejects_stale_publication() {
+    let mut snapback = config_verify_gate_snapback();
+    let operator = claim_config_verify_operator(&mut snapback);
+    let stage = match snapback
+        .stage_config_verify(&operator, "gateKey")
+        .expect("config probe stages")
+    {
+        super::StagedConfigVerify::Ready(stage) => stage,
+        super::StagedConfigVerify::Done(_) => panic!("valid probe must stage"),
+    };
+    snapback
+        .set_config_entry("gateKey", vec!["rotated".to_owned()], false, "test")
+        .expect("rotate config while probe is in flight");
+
+    let error = snapback
+        .finish_config_verify(
+            "gateKey",
+            stage.entry_revision,
+            stage.started_ms,
+            Ok(json!({ "ok": true })),
+            stage.admission,
+        )
+        .expect_err("a stale probe result must not attest the rotated value");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_VERIFY_STALE");
+    assert!(snapback.config.entry("gateKey").unwrap().verified.is_none());
 }
 
 #[test]

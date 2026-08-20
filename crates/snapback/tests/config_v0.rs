@@ -89,6 +89,17 @@ globalThis.__snapbackHandlers = {
       return { ok: false, message: 'HANDLER_CONTROLLED_CONFIG_DIAGNOSTIC_SENTINEL' };
     }
     return { ok: value.length > 0 };
+  },
+  async probeExact(ctx) {
+    // A shared probe receives the entry being verified, not every entry that
+    // happens to name this function as its probe.
+    ctx.secrets.get('feedKeys').expose();
+    try {
+      ctx.secrets.get('otherKey').expose();
+      return { ok: false, message: 'CONFIG_VERIFY_GRANT_WAS_NOT_EXACT' };
+    } catch (_error) {
+      return { ok: true };
+    }
   }
 };
 "#;
@@ -359,20 +370,33 @@ fn set_validation_rejects_undeclared_and_non_pool_shapes() {
 #[test]
 fn verify_runs_the_probe_records_the_outcome_and_cooldown_blocks() {
     let mut snapback = configured();
+    let (_, _, _, _, _, operator) = snapback
+        .claim_app_state_graph(
+            snapback::admin::ServerProfile::Test,
+            snapback::auth::deployment::AuthDeploymentTarget::Local,
+        )
+        .expect("claim config verify composition graph")
+        .into_parts();
     // Unset → verify refuses before running any probe.
-    let error = snapback.verify_config_entry("feedKeys").unwrap_err();
+    let error = snapback
+        .verify_config_entry(&operator, "feedKeys")
+        .unwrap_err();
     assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_MISSING");
 
     snapback
         .set_config_entry("feedKeys", vec!["k1".into()], false, "cli")
         .unwrap();
-    let outcome = snapback.verify_config_entry("feedKeys").expect("verify");
+    let outcome = snapback
+        .verify_config_entry(&operator, "feedKeys")
+        .expect("verify");
     assert!(outcome.ok, "{outcome:?}");
     let status = snapback.config_status();
     assert!(status.entries[0].verified.as_ref().unwrap().ok);
 
     // Immediately verifying again trips the cooldown.
-    let error = snapback.verify_config_entry("feedKeys").unwrap_err();
+    let error = snapback
+        .verify_config_entry(&operator, "feedKeys")
+        .unwrap_err();
     assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_VERIFY_COOLDOWN");
 
     // A value change resets verification: it attested the old values.
@@ -380,6 +404,83 @@ fn verify_runs_the_probe_records_the_outcome_and_cooldown_blocks() {
         .set_config_entry("feedKeys", vec!["k2".into()], false, "cli")
         .unwrap();
     assert!(snapback.config_status().entries[0].verified.is_none());
+}
+
+#[test]
+fn verify_rejects_an_authenticated_only_probe() {
+    let mut manifest = config_manifest();
+    manifest
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "probeKeys")
+        .expect("probe function")
+        .auth_requirement = Some(snapback::manifest::AuthRequirement::Authenticated);
+    let mut snapback = LocalSnapback::memory().expect("memory config verify fixture");
+    snapback.apply_schema(probe_schema()).expect("probe schema");
+    let diagnostics = snapback.load_functions(manifest);
+    assert!(
+        diagnostics.iter().all(
+            |diagnostic| diagnostic.severity != snapback::diagnostic::DiagnosticSeverity::Error
+        ),
+        "authenticated probe manifest loads so invocation policy can refuse it: {diagnostics:?}"
+    );
+    snapback
+        .set_config_entry("feedKeys", vec!["k1".to_owned()], false, "test")
+        .expect("set probe secret");
+    let (_, _, _, _, _, operator) = snapback
+        .claim_app_state_graph(
+            snapback::admin::ServerProfile::Test,
+            snapback::auth::deployment::AuthDeploymentTarget::Local,
+        )
+        .expect("claim config verify composition graph")
+        .into_parts();
+
+    let outcome = snapback
+        .verify_config_entry(&operator, "feedKeys")
+        .expect("authenticated-only probes record a closed verification failure");
+    assert!(!outcome.ok);
+    assert!(!outcome.verified.ok);
+}
+
+#[test]
+fn verify_grants_only_the_exact_entry_to_a_shared_probe() {
+    let mut feed = entry("feedKeys");
+    feed.probe = Some("probeExact".to_owned());
+    let mut other = entry("otherKey");
+    other.probe = Some("probeExact".to_owned());
+    let mut snapback = LocalSnapback::memory().expect("memory exact config verify fixture");
+    snapback.apply_schema(probe_schema()).expect("probe schema");
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        functions: vec![ibex_action("probeExact", &[])],
+        config: vec![feed, other],
+        ..FunctionManifest::default()
+    });
+    assert!(
+        diagnostics.iter().all(
+            |diagnostic| diagnostic.severity != snapback::diagnostic::DiagnosticSeverity::Error
+        ),
+        "shared probe manifest must load: {diagnostics:?}"
+    );
+    for name in ["feedKeys", "otherKey"] {
+        snapback
+            .set_config_entry(name, vec![format!("{name}-secret")], false, "test")
+            .expect("set shared probe secret");
+    }
+    let (_, _, _, _, _, operator) = snapback
+        .claim_app_state_graph(
+            snapback::admin::ServerProfile::Test,
+            snapback::auth::deployment::AuthDeploymentTarget::Local,
+        )
+        .expect("claim config verify composition graph")
+        .into_parts();
+
+    let outcome = snapback
+        .verify_config_entry(&operator, "feedKeys")
+        .expect("shared probe runs with an exact grant");
+    assert!(
+        outcome.ok,
+        "shared probe observed a non-target grant: {outcome:?}"
+    );
 }
 
 // --- HTTP surface ---------------------------------------------------------------
@@ -456,6 +557,15 @@ async fn config_ops_follow_the_admin_gate() {
         .await
         .unwrap();
     assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+    let denied_verify = gated
+        .clone()
+        .oneshot(post(
+            "/_snapback/api/config/verify",
+            json!({ "entry": "feedKeys" }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(denied_verify.status(), StatusCode::UNAUTHORIZED);
     let allowed = gated
         .clone()
         .oneshot(post_with_token(

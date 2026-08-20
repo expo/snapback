@@ -984,6 +984,13 @@ pub enum InvocationSource {
     /// The only admitted authority is the server-constructed branch principal;
     /// neither an admin bypass nor body-supplied authority is compatible.
     BranchOperation,
+    /// One owner-triggered config probe. Composition proves access to this
+    /// source separately; the handler itself always receives anonymous,
+    /// powerless authority plus the exact config grant staged by the engine.
+    ///
+    /// @ref LLP 0285#2-author-rulings-incorporated-2026-08-19 — ruling 6
+    ///   removes System authority without changing the empty handler projection.
+    ConfigVerify,
     Cron,
     NestedMutation,
     LiveInitialQuery,
@@ -1029,7 +1036,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 48] = [
+    pub const ALL: [Self; 49] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -1059,6 +1066,7 @@ impl InvocationSource {
         Self::ProtectedRecordErasure,
         Self::OperationCoverageActivation,
         Self::BranchOperation,
+        Self::ConfigVerify,
         Self::Cron,
         Self::NestedMutation,
         Self::LiveInitialQuery,
@@ -1092,7 +1100,7 @@ impl InvocationSource {
             | Self::AssetCallback
             | Self::HostOperationMutationDryRun
             | Self::NestedMutation => InvocationTarget::Function(FunctionKindConstraint::Mutation),
-            Self::HttpAction | Self::LocalAction | Self::Cron => {
+            Self::HttpAction | Self::LocalAction | Self::ConfigVerify | Self::Cron => {
                 InvocationTarget::Function(FunctionKindConstraint::Action)
             }
             Self::HttpMcp
@@ -2443,6 +2451,7 @@ fn source_allows_authority(
                 ..
             }
         ),
+        InvocationSource::ConfigVerify => matches!(resolved, ResolvedAppAuthority::Anonymous),
         InvocationSource::Cron => matches!(resolved, ResolvedAppAuthority::System),
         InvocationSource::LiveRerun => {
             allow_inherited_live_rerun
@@ -3385,6 +3394,33 @@ mod tests {
     }
 
     #[test]
+    fn config_verify_source_rejects_system_authority_in_every_mode() {
+        for mode in [AuthMode::Dev, AuthMode::Sessions] {
+            InvocationGate::prepare_authority(
+                InvocationSource::ConfigVerify,
+                mode,
+                ServerProfile::Test,
+                0,
+                0,
+                &WireAuthorityFields::default(),
+                ResolvedAppAuthority::Anonymous,
+            )
+            .expect("config verify admits only its powerless authority");
+            let error = InvocationGate::prepare_authority(
+                InvocationSource::ConfigVerify,
+                mode,
+                ServerProfile::Test,
+                0,
+                0,
+                &WireAuthorityFields::default(),
+                ResolvedAppAuthority::System,
+            )
+            .expect_err("config verify must never obtain System authority");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_INVOCATION_SOURCE_INVALID");
+        }
+    }
+
+    #[test]
     fn source_mode_authority_matrix_is_closed_and_exhaustive() {
         #[derive(Clone, Copy, Debug)]
         enum Kind {
@@ -3516,6 +3552,7 @@ mod tests {
                 | InvocationSource::ProtectedRecordErasure
                 | InvocationSource::OperationCoverageActivation => admin,
                 InvocationSource::BranchOperation => matches!(kind, Kind::Branch),
+                InvocationSource::ConfigVerify => matches!(kind, Kind::Anonymous),
                 InvocationSource::Cron => matches!(kind, Kind::System),
                 InvocationSource::NestedMutation | InvocationSource::LiveRerun => false,
             }

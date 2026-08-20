@@ -20896,12 +20896,15 @@ impl LocalSnapback {
     /// unknown functions and non-actions are `SnapbackError`s, exactly as
     /// `invoke_action` would report them (ENG-23324).
     #[cfg(any(test, feature = "test-support"))]
-    pub fn stage_action_invocation(&mut self, name: &str) -> SnapbackResult<StagedAction> {
+    pub fn stage_cron_action_invocation(&mut self, name: &str) -> SnapbackResult<StagedAction> {
         let admission = self.admission.admit()?;
-        self.stage_action_invocation_with_admission(name, admission)
+        self.stage_cron_action_invocation_with_admission(name, admission)
     }
 
-    pub fn stage_action_invocation_with_admission(
+    /// Cron's remaining raw-lease System staging seam. The exact
+    /// `AdmittedCronClaim` conversion is deliberately separate from the
+    /// powerless config-probe lane.
+    pub fn stage_cron_action_invocation_with_admission(
         &mut self,
         name: &str,
         admission: AdmissionLease,
@@ -20966,6 +20969,35 @@ impl LocalSnapback {
         invocation: PreparedInvocation,
         deferred_push_grant: Option<crate::push::PushDeferredGrantV1>,
     ) -> StagedAction {
+        let grants = self.config_grants(definition);
+        self.staged_mode_with_grants(
+            definition,
+            invocation,
+            deferred_push_grant,
+            grants,
+            &definition.uses,
+        )
+    }
+
+    fn staged_config_verify_mode(
+        &mut self,
+        definition: &FunctionDefinition,
+        invocation: PreparedInvocation,
+        entry: &str,
+    ) -> StagedAction {
+        let grant_names = Self::config_verify_grant_names(definition, entry);
+        let grants = self.config_grants_for_names(grant_names.clone());
+        self.staged_mode_with_grants(definition, invocation, None, grants, &grant_names)
+    }
+
+    fn staged_mode_with_grants(
+        &mut self,
+        definition: &FunctionDefinition,
+        invocation: PreparedInvocation,
+        deferred_push_grant: Option<crate::push::PushDeferredGrantV1>,
+        grants: Value,
+        granted_names: &[String],
+    ) -> StagedAction {
         match &definition.runtime {
             FunctionRuntime::IbexModule(module) => {
                 StagedAction::Detached(Box::new(DetachedIbexAction {
@@ -20995,13 +21027,14 @@ impl LocalSnapback {
                     telemetry: self.telemetry.clone(),
                     module: module.clone(),
                     // @ref LLP 0036#runtime-exposure-d5-d8 — grants are
-                    // computed per invocation from the function's `uses`
-                    // declaration, at staging time, under the lock.
-                    grants: self.config_grants(definition),
+                    // computed per invocation at staging time under the lock;
+                    // ordinary actions use `uses`, while config verification
+                    // also receives its one exact implicit entry.
+                    grants,
                     // Preserve the same staging-time secret identities for
                     // diagnostic scrubbing even if config rotates/unsets while
                     // this detached invocation is running.
-                    redactor: self.config.secret_redactor_for(&definition.uses),
+                    redactor: self.config.secret_redactor_for(granted_names),
                     runtime: self.runtime.clone(),
                     invocation,
                     app_generation: self.app_generation,
@@ -21567,8 +21600,12 @@ impl LocalSnapback {
     /// @ref LLP 0036#operations-and-projections-llp-0024 — probes run only on
     /// explicit verify, under cooldown, as ordinary actions with no special
     /// network powers; results land in verification state, never raw in logs.
-    pub fn verify_config_entry(&mut self, name: &str) -> SnapbackResult<ConfigVerifyOutcome> {
-        match self.stage_config_verify(name)? {
+    pub fn verify_config_entry(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        name: &str,
+    ) -> SnapbackResult<ConfigVerifyOutcome> {
+        match self.stage_config_verify(operator, name)? {
             StagedConfigVerify::Done(outcome) => Ok(*outcome),
             StagedConfigVerify::Ready(stage) => {
                 let admission = stage.admission.clone();
@@ -21579,12 +21616,14 @@ impl LocalSnapback {
                         stage.metadata,
                         prepared,
                     ),
-                    StagedAction::Detached(action) => self.invoke_action_prepared(
-                        &stage.probe,
-                        stage.input,
-                        stage.metadata,
-                        action.invocation,
-                    ),
+                    StagedAction::Detached(action) => self
+                        .invoke_action_prepared_with_staged_config(
+                            &stage.probe,
+                            stage.input,
+                            stage.metadata,
+                            action.invocation,
+                            Some((action.grants, action.redactor)),
+                        ),
                 };
                 self.finish_config_verify(
                     name,
@@ -21601,7 +21640,21 @@ impl LocalSnapback {
     /// happen here, under the global mutex, so concurrent verifies linearize
     /// through the cooldown stamp even when the probe itself runs off-lock
     /// (ENG-23493).
-    pub fn stage_config_verify(&mut self, name: &str) -> SnapbackResult<StagedConfigVerify> {
+    pub fn stage_config_verify(
+        &mut self,
+        operator: &EngineOperatorAuthority,
+        name: &str,
+    ) -> SnapbackResult<StagedConfigVerify> {
+        // @ref LLP 0285#2-author-rulings-incorporated-2026-08-19 — the
+        // owner-triggered route proves composition custody here, while the
+        // probe itself receives only anonymous application authority.
+        if !Arc::ptr_eq(&operator.identity, &self.operator_authority_identity) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "config verification requires the composition-owned operator carrier",
+            ));
+        }
         let admission = self.admission.admit()?;
         let definition = self.config_definition(name)?.clone();
         let Some(probe) = definition.probe.clone() else {
@@ -21647,7 +21700,7 @@ impl LocalSnapback {
             correlation: None,
             ctx_ledger: None,
         };
-        let mode = match self.stage_action_invocation_with_admission(&probe, admission.clone()) {
+        let mode = match self.stage_config_verify_action(&probe, name, admission.clone()) {
             Ok(mode) => mode,
             // A probe that cannot stage (unknown function, non-action) is a
             // failed verification, exactly as the in-lock run reported it.
@@ -21666,6 +21719,30 @@ impl LocalSnapback {
             mode,
             admission,
         })))
+    }
+
+    fn stage_config_verify_action(
+        &mut self,
+        probe: &str,
+        entry: &str,
+        admission: AdmissionLease,
+    ) -> SnapbackResult<StagedAction> {
+        let function = self.function(probe)?.clone();
+        admission.validate("config verify action staging")?;
+        let active_mode = admission
+            .active_mode()
+            .expect("LocalSnapback admissions are always controller-managed");
+        let authority = self.prepare_resolved_authority(
+            InvocationSource::ConfigVerify,
+            active_mode,
+            self.server_profile,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Anonymous,
+            now_millis(),
+        )?;
+        let prepared = InvocationGate::prepare_function(authority, &function)?;
+        Ok(self.staged_config_verify_mode(&function, prepared, entry))
     }
 
     /// Record the outcome of a probe run — in-lock or detached — as the
@@ -21752,21 +21829,29 @@ impl LocalSnapback {
         })
     }
 
-    /// The granted-config payload for one action invocation: the function's
-    /// `uses` entries (plus the entry a probe verifies, implicitly), with
-    /// value material and a rotation cursor for pools.
+    /// The granted-config payload for one ordinary action invocation: only
+    /// the function's declared `uses` entries, with value material and a
+    /// rotation cursor for pools. The exact config-verify lane adds its one
+    /// implicit entry through [`Self::config_verify_grant_names`].
     ///
     /// @ref LLP 0036#runtime-exposure-d5-d8 — grants are computed host-side
     /// per invocation; handler code never sees undeclared entries.
     fn config_grants(&mut self, function: &crate::manifest::FunctionDefinition) -> Value {
-        let mut names: Vec<String> = function.uses.clone();
-        for entry in &self.functions.config {
-            if entry.probe.as_deref() == Some(function.name.as_str())
-                && !names.contains(&entry.name)
-            {
-                names.push(entry.name.clone());
-            }
+        self.config_grants_for_names(function.uses.clone())
+    }
+
+    fn config_verify_grant_names(
+        function: &crate::manifest::FunctionDefinition,
+        entry: &str,
+    ) -> Vec<String> {
+        let mut names = function.uses.clone();
+        if !names.iter().any(|name| name == entry) {
+            names.push(entry.to_owned());
         }
+        names
+    }
+
+    fn config_grants_for_names(&mut self, names: Vec<String>) -> Value {
         let granted_defs: Vec<(String, bool)> = names
             .iter()
             .filter_map(|name| {
@@ -25859,6 +25944,17 @@ impl LocalSnapback {
         metadata: CronRunMetadata,
         prepared: PreparedInvocation,
     ) -> SnapbackResult<Value> {
+        self.invoke_action_prepared_with_staged_config(name, input, metadata, prepared, None)
+    }
+
+    fn invoke_action_prepared_with_staged_config(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        metadata: CronRunMetadata,
+        prepared: PreparedInvocation,
+        staged_config: Option<(Value, crate::config::SecretRedactor)>,
+    ) -> SnapbackResult<Value> {
         prepared.validate_admission("action execution")?;
         self.persist_and_validate_prepared_service_authority(prepared.authority())?;
         let function = self.function(name)?.clone();
@@ -25883,7 +25979,10 @@ impl LocalSnapback {
             correlation.as_deref(),
             prepared.telemetry_caller_details(),
         );
-        let invocation_redactor = self.config.secret_redactor_for(&function.uses);
+        let (staged_grants, invocation_redactor) = match staged_config {
+            Some((grants, redactor)) => (Some(grants), redactor),
+            None => (None, self.config.secret_redactor_for(&function.uses)),
+        };
         let telemetry = self.telemetry.clone();
         let result = crate::runtime::with_runtime_log_telemetry_redactor(
             telemetry,
@@ -25895,11 +25994,10 @@ impl LocalSnapback {
                 }
                 (FunctionKind::Action, FunctionRuntime::IbexModule(module)) => {
                     let runtime = self.runtime.clone();
-                    // @ref LLP 0036#runtime-exposure-d5-d8 — grants are computed
-                    // per invocation from the function's `uses` declaration; the
-                    // store is read through on every run (no caching), leaving VM
-                    // reuse questions to the DK-4 machinery.
-                    let grants = self.config_grants(&function);
+                    // @ref LLP 0036#runtime-exposure-d5-d8 — ordinary grants
+                    // are computed from `uses` on every run; an exact staged
+                    // config-probe grant is instead preserved verbatim.
+                    let grants = staged_grants.unwrap_or_else(|| self.config_grants(&function));
                     // One provenance root: runMutation (and the trait's unreachable
                     // raw-read defense) derives a reference from this *mut for one
                     // synchronous call, so no borrow outlives a later write.

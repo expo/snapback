@@ -3173,7 +3173,7 @@ pub(crate) async fn execute_cron_claim_detached(
         let action = action.clone();
         let admission = claim.admission_lease().clone();
         with_snapback(state, move |snapback| {
-            snapback.stage_action_invocation_with_admission(&action, admission)
+            snapback.stage_cron_action_invocation_with_admission(&action, admission)
         })
         .await
     };
@@ -20794,16 +20794,20 @@ async fn config_unset(
 /// wedge the instance, and a second short lock window records the
 /// verification outcome (ENG-23493, the same staged flow as ENG-23324).
 async fn config_verify(
-    State(state): State<SharedSnapback>,
-    State(ctx): State<Arc<ServerContext>>,
+    State(runtime): State<AppState>,
     headers: HeaderMap,
     Json(body): Json<ConfigEntryBody>,
 ) -> Result<Json<crate::local::ConfigVerifyOutcome>, ApiError> {
-    crate::admin::authorize(&ctx, &headers, true)?;
+    crate::admin::authorize(&runtime.server, &headers, true)?;
+    let state = runtime.snapback.clone();
     let entry = body.entry;
+    let operator = runtime.operator_authority.clone();
     let staged = {
         let entry = entry.clone();
-        with_snapback(&state, move |snapback| snapback.stage_config_verify(&entry)).await?
+        with_snapback(&state, move |snapback| {
+            snapback.stage_config_verify(&operator, &entry)
+        })
+        .await?
     };
     let outcome = match staged {
         StagedConfigVerify::Done(outcome) => *outcome,

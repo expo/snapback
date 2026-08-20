@@ -3144,7 +3144,7 @@ async fn detached_action_nested_mutations_reserve_rooms_off_local() {
         ("ibexKickRoomMember", IBEX_ROOM, IBEX_MEMBER),
     ] {
         let action = with_snapback(&state.snapback, |snapback| {
-            snapback.stage_action_invocation("heldRoomAction")
+            snapback.stage_cron_action_invocation("heldRoomAction")
         })
         .await
         .expect("stage held detached action");
@@ -3247,7 +3247,7 @@ async fn detached_action_watchdog_cancels_held_room_reservation_without_publicat
     .expect("capture pre-watchdog durable/receipt state");
 
     let action = with_snapback(&state.snapback, |snapback| {
-        snapback.stage_action_invocation("heldRoomAction")
+        snapback.stage_cron_action_invocation("heldRoomAction")
     })
     .await
     .expect("stage watchdog action");
@@ -24409,7 +24409,7 @@ async fn detached_action_execution_stays_bounded_under_repeated_saturation() {
     let mut staged = Vec::new();
     for _ in 0..10 {
         let action = super::with_snapback(&state, |snapback| {
-            snapback.stage_action_invocation("slowCron")
+            snapback.stage_cron_action_invocation("slowCron")
         })
         .await
         .expect("stage slow action");
@@ -25317,7 +25317,7 @@ fn generation_test_manifest() -> FunctionManifest {
 fn stage_held_action(state: &SharedSnapback) -> Box<crate::local::DetachedIbexAction> {
     let mut snapback = state.try_lock().expect("test owns instance lock");
     match snapback
-        .stage_action_invocation("heldAction")
+        .stage_cron_action_invocation("heldAction")
         .expect("stage detached action")
     {
         StagedAction::Detached(action) => action,
@@ -25451,7 +25451,7 @@ async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
         .expect("activate test-only host child coverage");
 
     let prepared = |snapback: &mut LocalSnapback| match snapback
-        .stage_action_invocation("carrierAction")
+        .stage_cron_action_invocation("carrierAction")
         .expect("stage production managed action")
     {
         StagedAction::HostPlan(prepared) => prepared,
@@ -27182,7 +27182,7 @@ async fn watchdog_abandonment_terminalizes_stream_attempts_with_timed_out() {
         let state = state.clone();
         async move {
             let action = super::with_snapback(&state, |snapback| {
-                snapback.stage_action_invocation("hungAttempt")
+                snapback.stage_cron_action_invocation("hungAttempt")
             })
             .await
             .expect("stage hung attempt action");
@@ -27268,7 +27268,7 @@ async fn stream_attempt_control_plane_settles_verbatim_through_the_real_action_p
         let state = state.clone();
         async move {
             let action = super::with_snapback(&state, |snapback| {
-                snapback.stage_action_invocation("attemptAction")
+                snapback.stage_cron_action_invocation("attemptAction")
             })
             .await
             .expect("stage attempt action");
@@ -27495,7 +27495,7 @@ async fn streaming_action_emits_through_runtime_and_reserved_live_room() {
     let staged = state
         .try_lock()
         .expect("stage stream output")
-        .stage_action_invocation("outputStream")
+        .stage_cron_action_invocation("outputStream")
         .expect("stream output action");
     let StagedAction::Detached(mut action) = staged else {
         panic!("Ibex streaming action must detach")
