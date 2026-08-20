@@ -2,8 +2,8 @@
   "format": 2,
   "app": "all-aboard",
   "schemaHash": "sha256:fd51b001a148ea271d12cad6a6a25590a940d37f4dbcc98e7996cef2e59da683",
-  "bundleHash": "sha256:2219a26b3590c52dc3f998048e2975fc93fa41f079ac955ed058a7882899f120",
-  "inputsHash": "sha256:6b7864f99b00800e055cd8e24fe87cf90a7746aa0c7caf7ca1b0f64f5df34699",
+  "bundleHash": "sha256:e210d9961f4bb3c6708610394252c09e631cf57d6b0fe2c47e98d1ee71999af6",
+  "inputsHash": "sha256:ea9638fca90753751ae55c4a86fe52599da86453341d730f51365f73b05947e6",
   "inputs": [
     "demos/all-aboard/snapback/generated/functions.manifest.json",
     "demos/all-aboard/snapback/generated/schema.manifest.json",

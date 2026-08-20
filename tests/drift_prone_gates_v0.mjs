@@ -1877,7 +1877,7 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
     );
     assert.equal(preExisting.status, 0, preExisting.output);
     assert.match(preExisting.output, /PRE-EXISTING STALE guide: also fails at baseline [0-9a-f]{12}/u);
-    assert.match(preExisting.output, /ALLOWED WITH PRE-EXISTING STALENESS: 2 gate\(s\)/u);
+    assert.match(preExisting.output, /ALLOWED WITH PRE-EXISTING STALENESS: 1 gate\(s\)/u);
     console.log(
       `DEMO (e) baseline-stale gate -> allowed with attribution\n`
         + relevantLines(preExisting.output),
