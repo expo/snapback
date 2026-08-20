@@ -289,14 +289,28 @@ mod resolved_principal_tests {
                 200,
             )
             .expect("durable session");
-        db.advance_auth_session_clock_floor(101)
-            .expect("durable clock passes session expiry");
+        let first_error = db
+            .resolve_principal_from_session(&digest, 101)
+            .err()
+            .expect("the first observation passes session expiry");
+        assert_eq!(
+            first_error.diagnostic.code,
+            "SNAPBACK_AUTH_PRINCIPAL_INVALID"
+        );
 
-        let error = db
+        let retry_error = db
             .resolve_principal_from_session(&digest, 99)
             .err()
-            .expect("a caller cannot revive the session with a pre-expiry timestamp");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PRINCIPAL_INVALID");
+            .expect("the refused observation must still close a pre-expiry retry");
+        assert_eq!(
+            retry_error.diagnostic.code,
+            "SNAPBACK_AUTH_PRINCIPAL_INVALID"
+        );
+        assert_eq!(
+            db.auth_session_clock_floor()
+                .expect("persisted refusal floor"),
+            101
+        );
     }
 
     #[test]

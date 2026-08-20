@@ -345,7 +345,7 @@ mod tests {
         discriminator: u8,
     ) {
         db.push_registry()
-            .insert_session_for_test(
+            .insert_nonprincipal_session_for_test(
                 principal_id,
                 session_id,
                 generation,
