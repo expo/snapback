@@ -279,23 +279,21 @@ test('compilation-unit discovery canonicalizes raw include spellings', () => {
     'tests/fixtures/privilege-surface/by_value_connection/crates/synthetic-kernel/src/lib.rs',
   );
   const references = runAst(['units', '--file', source]);
-  for (const [value, expression] of [
-    [
-      '__SNAPBACK_OUT_DIR__/raw_generated_privilege_api.rs',
-      'include!(concat ! (env ! ("OUT_DIR") , "/raw_generated_privilege_api.rs"))',
-    ],
-    [
-      '__SNAPBACK_OUT_DIR__/qualified_raw_generated_privilege_api.rs',
-      'std::include!(concat ! (env ! ("OUT_DIR") , "/qualified_raw_generated_privilege_api.rs"))',
-    ],
-  ]) {
-    assert(
-      references.some((reference) => reference.kind === 'include'
-        && reference.value === value
-        && reference.expression === expression),
-      `expected compilation-unit reference for ${expression}`,
-    );
-  }
+  const bareExpression =
+    'include!(concat ! (env ! ("OUT_DIR") , "/raw_generated_privilege_api.rs"))';
+  assert(
+    references.some((reference) => reference.kind === 'include'
+      && reference.value === '__SNAPBACK_OUT_DIR__/raw_generated_privilege_api.rs'
+      && reference.expression === bareExpression),
+    `expected compilation-unit reference for ${bareExpression}`,
+  );
+  const qualifiedExpression =
+    'std::include!(concat ! (env ! ("OUT_DIR") , "/qualified_raw_generated_privilege_api.rs"))';
+  assert(
+    references.some((reference) => reference.kind === 'include-unevaluable'
+      && reference.expression === qualifiedExpression),
+    `expected qualified path to fail closed for ${qualifiedExpression}`,
+  );
 });
 
 test('a qualified custom env macro makes an include unevaluable and fail closed', () => {
@@ -312,6 +310,25 @@ test('a qualified custom env macro makes an include unevaluable and fail closed'
       file === 'evil-env-include/src/lib.rs' && kind === 'include-unevaluable'),
     'the cross-crate include gate must fail the evil::env! fixture',
   );
+});
+
+test('shadowed std include paths are unevaluable and fail closed', () => {
+  const corpus = resolve(root, 'tests/fixtures/path-includes');
+  const violations = auditCrossCratePathIncludes(corpus).violations;
+  for (const fixture of ['shadowed-std-module', 'shadowed-std-alias']) {
+    const source = resolve(corpus, fixture, 'src/lib.rs');
+    const references = runAst(['units', '--file', source]);
+    assert(
+      references.some(({ kind, expression }) => kind === 'include-unevaluable'
+        && expression.includes('std::include!')),
+      `${fixture} must not receive built-in include! semantics`,
+    );
+    assert(
+      violations.some(({ source: file, kind }) =>
+        file === `${fixture}/src/lib.rs` && kind === 'include-unevaluable'),
+      `${fixture} must fail the cross-crate include gate`,
+    );
+  }
 });
 
 test('the Guide wrapper is committed while generated expressions remain exact review debt', () => {
@@ -499,6 +516,8 @@ test('raw strings, cfg_attr, includes, and symlinks cannot cross compilation-uni
     assert.match(output, /include\/src\/lib\.rs include-escape/u);
     assert.match(output, /raw-include\/src\/lib\.rs include-escape/u);
     assert.match(output, /evil-env-include\/src\/lib\.rs include-unevaluable/u);
+    assert.match(output, /shadowed-std-module\/src\/lib\.rs include-unevaluable/u);
+    assert.match(output, /shadowed-std-alias\/src\/lib\.rs include-unevaluable/u);
     assert.match(output, /symlink-source\/src\/stolen\.rs symlink-source/u);
     assert.match(output, /symlink-target\/src\/lib\.rs path-escape/u);
   } finally {

@@ -61,6 +61,10 @@ generic return-and-consume heuristic.)
 after LLP 0285 §6 steps 1–4 so privatized claim/clone/join paths reject at the
 marked attack while surviving `ServingDatabase` admissions and factories keep
 compiling red; the current 102-finding/15-attack record is in the F-1 ticket.)
+**Revised:** 2026-08-20 (qualified `std::`/`core::` macro paths no longer
+receive built-in semantics from spelling alone; the syn-only ownership checker
+cannot prove those roots are unshadowed, so qualified includes fail closed as
+unevaluable, with local-module and renamed-import `std` fixtures.)
 **Related:** LLP 0283 (F-1, F-2), LLP 0276, LLP 0225, LLP 0189, LLP 0232, LLP 0141, LLP 0041, LLP 0059, LLP 0154, LLP 0009
 
 ## Summary
@@ -598,9 +602,15 @@ as security evidence. An unrelated error whose message matches a regex is a
   context, `include!(concat!(env!("OUT_DIR"), ...))` is separately fail-closed
   as `generated-api` in module, impl, trait, and foreign-item positions,
   including public inline modules and active/symbolic `cfg` or `cfg_attr`
-  forms. Recognized spellings are bare and path-qualified `include!`, imports
-  directly aliasing `std::include`/`core::include`, module-local `macro_rules!`
-  wrappers whose token streams name those spellings, and parameterized macro
+  forms. Bare `include!`/`concat!`/`env!` spellings are the only spellings the
+  compilation-unit checker evaluates with built-in semantics. It cannot prove
+  from syn syntax whether a `std` or `core` path resolves to the prelude crate:
+  `mod std { ... }` and `use hostile_macros as std;` can shadow that name.
+  Therefore every qualified include path, including an actual
+  `std::include!` or `core::include!`, is recognized by its `include` leaf but
+  is deliberately unevaluable and a violation. The privilege-surface scanner
+  also recognizes direct imported aliases, module-local `macro_rules!`
+  wrappers whose token streams name include spellings, and parameterized macro
   invocations that receive a literal recognized include identifier plus a
   literal evaluable `OUT_DIR` expression. The Guide no longer has an
   item-position `OUT_DIR` include; its one exact review row is only for the
@@ -1036,15 +1046,16 @@ Resolution:
 4. Same for `#[cfg_attr(..., path = L)]` at arbitrary nesting depth — recurse
    through `cfg_attr(..., cfg_attr(..., path = L))` and **ignore every cfg**.
    A disabled cfg that would escape is still a violation (fail closed).
-5. For built-in `include!(E)` (bare or exact `std::include!` /
-   `core::include!`, after raw-identifier normalization) where `E` is a string
-   literal or built-in `concat!(env!("OUT_DIR"), ...)` under the same exact
-   bare-or-`std`/`core` path rule, that can be evaluated with
+5. For bare built-in `include!(E)` (after raw-identifier normalization) where
+   `E` is a string literal or bare built-in
+   `concat!(env!("OUT_DIR"), ...)`, that can be evaluated with
    `OUT_DIR` substituted by a fake absolute dir under
    `<target>/<pkg>/`, resolve and apply the same outside-`R` test.
-   Unevaluable `include!` forms fail closed (`include-unevaluable`). A foreign
+   Unevaluable `include!` forms fail closed (`include-unevaluable`). Every
    qualified path whose leaf is `include` remains conservatively recognized,
-   but is unevaluable rather than receiving built-in semantics.
+   including `std::include!` and `core::include!`, but is unevaluable rather
+   than receiving built-in semantics because syn does not resolve whether the
+   root is the prelude crate or a shadowing local name.
 6. Directory symlinks encountered while walking: follow, then apply
    the outside-`R` test to every yielded file.
 
@@ -1245,6 +1256,7 @@ is a fourth live defect.
 | `out-dir-generated-api` | bare `include!`, `std::include!`, direct imported alias, module-local hardcoded wrapper, and literal parameter-forwarding wrapper over `concat!(env!("OUT_DIR"), ...)`; direct includes appear at module, impl, trait, foreign, nested-inline-module, `cfg`, and `cfg_attr` positions | corpus | MISS | each recognized position/spelling is a `generated-api` RED absent its own exact review row; the Guide committed-artifact proof suppresses none of them |
 | `raw-identifier-out-dir-generated-api` | `r#include!(...)` and `std::r#include!(concat!(env!("OUT_DIR"), "/hostile.rs"))` | corpus | MISS | raw macro names canonicalize to `include`; both are `generated-api` RED |
 | `qualified-custom-env-include` | `include!(concat!(evil::env!("OUT_DIR"), "/probe.rs"))` where the custom macro emits an external root | path-include corpus | forged synthetic `OUT_DIR` PASS | `evil::env!` is not a bare or `std`/`core` built-in path, so the include is unevaluable and RED |
+| `shadowed-std-include` | `mod std { ... }` or `use hostile_macros as std;`, followed by `std::include!(concat!(env!("OUT_DIR"), "/forged-safe-path.rs"))` where the local macro emits an external include | path-include corpus | forged synthetic `OUT_DIR` PASS | every qualified include is unevaluable and RED; the checker makes no syntax-only claim that `std` is the prelude crate |
 | `raw-pub-private-macro-item` | a macro emits private `const r#pub: Option<KernelCommitAuthority>` | privilege corpus | false-positive `macro-generated-api` RED | `r#pub` remains an identifier rather than the visibility keyword; fixture stays clean |
 | `generated-producer-drift` | the real server custom-build source changes, Cargo selects `actual-build.rs`, or the committed API artifact adds a raw SQL name, I-1 seed, authority discriminator, or any other public item | harness temp package using committed copies | forgeable PASS in the rejected proof | manifest invalid on producer/target digest, artifact digest, parsed item shape, or forbidden-identifier drift; the producer is never compiled or executed as audit evidence |
 | `unobtainable-seed-container` | private-state scope returns a seed but is created only by consuming that same seed; unit-constructible control returns it too | corpus | false positive on both | scope clean; constructible control RED |
@@ -1327,7 +1339,9 @@ inventory LLP 0276 added) must contain at least:
     nested-inline-module, `cfg`, and `cfg_attr` positions; the exact
     snapback-server review finding; raw and ordinary forbidden-identifier
     mutations for SQL, seed, discriminator, and gate-detection output; and
-    Cargo custom-build retargeting.
+    Cargo custom-build retargeting. Path-ownership probes shadow `std` with
+    both a local module and a renamed import and require the qualified include
+    to fail as unevaluable.
 11. A fake nonzero Cargo result with no rustc `compiler-message`, asserted as
     `GateInfrastructureError`, plus an assertion that the unrelated-error
     control really emitted its intended diagnostic.

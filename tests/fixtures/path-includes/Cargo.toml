@@ -8,6 +8,8 @@ members = [
   "include",
   "raw-include",
   "evil-env-include",
+  "shadowed-std-module",
+  "shadowed-std-alias",
   "symlink-source",
   "symlink-target",
   "victim",

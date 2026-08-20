@@ -41,19 +41,17 @@ fn plain_path_segment_matches(segment: &syn::PathSegment, expected: &str) -> boo
 
 // @ref LLP 0284#43-cross-crate-path-includes--compilation-unit-ownership —
 // evaluating a custom macro with built-in semantics can turn an external path
-// into a synthetic OUT_DIR path. Normalize raw spelling, but keep resolution
-// strict to the bare built-in or its exact std/core re-export.
+// into a synthetic OUT_DIR path. This syn-only checker cannot prove that a
+// qualified `std`/`core` root resolves to the prelude crate, so only a bare
+// spelling receives built-in semantics. Qualified spellings remain recognized
+// by their leaf and fail closed as unevaluable.
 fn path_is_builtin_macro(path: &syn::Path, expected: &str) -> bool {
-    let segments = path.segments.iter().collect::<Vec<_>>();
-    match segments.as_slice() {
-        [leaf] => path.leading_colon.is_none() && plain_path_segment_matches(leaf, expected),
-        [root, leaf] => {
-            plain_path_segment_matches(leaf, expected)
-                && matches!(ident_name(&root.ident).as_str(), "std" | "core")
-                && matches!(&root.arguments, PathArguments::None)
-        }
-        _ => false,
-    }
+    path.leading_colon.is_none()
+        && path.segments.len() == 1
+        && path
+            .segments
+            .first()
+            .is_some_and(|leaf| plain_path_segment_matches(leaf, expected))
 }
 
 fn path_has_leaf_ident(path: &syn::Path, expected: &str) -> bool {
