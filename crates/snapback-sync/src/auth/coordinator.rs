@@ -433,6 +433,7 @@ pub struct PreparedBearerAuthority {
     authority: ResolvedAppAuthority,
     publication: FencedPublication,
     bearer: Option<Arc<SessionBearer>>,
+    principal_digest: Option<TokenDigest>,
 }
 
 /// Projection-owned authority used to mint one session-bound connection
@@ -441,6 +442,7 @@ pub struct PreparedBearerAuthority {
 #[derive(Clone, Debug)]
 pub struct PreparedConnectionSessionAuthority {
     authority: ResolvedAppAuthority,
+    principal_digest: TokenDigest,
     authorization_stream_incarnation: String,
     deadline_ms: u64,
     publication: FencedPublication,
@@ -453,6 +455,7 @@ impl PreparedConnectionSessionAuthority {
             authority: self.authority.clone(),
             publication: self.publication.clone(),
             bearer: Some(self.bearer.clone()),
+            principal_digest: Some(self.principal_digest.clone()),
         }
     }
 
@@ -568,7 +571,8 @@ impl PreparedBearerAuthority {
             self.authority,
             session_claims,
         )?
-        .with_fenced_publication(self.publication);
+        .with_fenced_publication(self.publication)
+        .with_principal_digest(self.principal_digest);
         Ok(match self.bearer {
             Some(bearer) => authority.with_pending_effect_session_bearer(bearer),
             None => authority,
@@ -1765,6 +1769,7 @@ impl AuthCoordinator {
                         authority,
                         topology.admission.lease_origin(),
                     ),
+                    principal_digest: digest,
                     authorization_stream_incarnation: incarnation,
                     deadline_ms,
                     publication,
@@ -1833,6 +1838,7 @@ impl AuthCoordinator {
                         authority,
                         publication,
                         bearer: None,
+                        principal_digest: None,
                     })
                 }
                 ProjectedBoundSessionResolution::Terminal { reason } => {
@@ -2127,6 +2133,9 @@ impl CoordinatorTopology {
         let publication = self
             .projection
             .session_publication_fence(authority.session_id(), authority.generation())?;
+        let principal_digest = bearer
+            .as_ref()
+            .map(|bearer| TokenDigest::from_token_hash(&bearer.token_hash()));
         Ok(PreparedBearerAuthority {
             authority: ResolvedAppAuthority::from_projected_session(
                 authority,
@@ -2134,6 +2143,7 @@ impl CoordinatorTopology {
             ),
             publication,
             bearer,
+            principal_digest,
         })
     }
 }

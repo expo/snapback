@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.security-boundary-attacks.v1",
   "rowCoverage": {
-    "unmappedAttackCount": 68,
-    "unmappedAttackIdsSha256": "220f90b3b6aba886d3b85648b0cedac8b91c3d5bb3a9068fd0313b7df111a772",
+    "unmappedAttackCount": 69,
+    "unmappedAttackIdsSha256": "14287fe1570e3606d2b4ac20bda5feaef439a2d73629796fbd6324149c5b0e09",
     "unmappedReason": "Pinned legacy debt from issues/20260826-authorization-denominator-and-seam-map.md; any new omission or mapping changes this digest and fails row-corpus inventory."
   },
   "attacks": [
@@ -1265,6 +1265,18 @@
       ],
       "expectedCode": "E0061",
       "row": "F082"
+    },
+    {
+      "id": "kernel-test-support-session-mint",
+      "bin": "kernel-test-support-session-mint",
+      "source": "src/bin/kernel_test_support_session_mint.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [
+          "snapback-kernel/test-support"
+        ]
+      ],
+      "expectedCode": "E0599"
     }
   ]
 }
