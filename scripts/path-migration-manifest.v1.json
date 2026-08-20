@@ -4179,13 +4179,13 @@
         "src/bin/snapback-schemagen.rs"
       ],
       "currentPathExpression": "CARGO_MANIFEST_DIR/schemas → ../../schemas from crates/snapback-types (§4d)",
-      "targetExpression": "Move snapback-schemagen.rs from src/bin to the snapback-types crate, preserving the path-sensitive obligations in currentPathExpression.",
+      "targetExpression": "Move snapback-schemagen.rs from src/bin to the snapback-tools crate (LLP 0283 F-5 closed it there, not in snapback-types: snapback-types is rank 0 and the generator assembles carriers downward from rank 7), preserving the path-sensitive obligations in currentPathExpression.",
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
       "surveyCitation": "path-migration-manifest.md:351",
       "targetFiles": [
-        "crates/snapback-types/src/bin/snapback-schemagen.rs"
+        "crates/snapback-tools/src/bin/snapback-schemagen.rs"
       ]
     }
   ]
