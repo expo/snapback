@@ -11,8 +11,35 @@ use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{
     Attribute, Expr, ExprLit, Fields, FnArg, ImplItem, Item, ItemImpl, ItemMod, Lit, Meta,
-    ReturnType, Stmt, Token, Type, UseTree, Visibility,
+    PathArguments, ReturnType, Stmt, Token, Type, UseTree, Visibility,
 };
+
+// Rust raw identifiers are spelling escapes, not distinct names. syn and
+// proc_macro2 preserve the `r#` prefix when rendering an Ident, so every name
+// comparison in these gates must go through this canonical form.
+fn ident_name(ident: &proc_macro2::Ident) -> String {
+    let rendered = ident.to_string();
+    rendered.strip_prefix("r#").unwrap_or(&rendered).to_owned()
+}
+
+fn ident_matches(ident: &proc_macro2::Ident, expected: &str) -> bool {
+    ident_name(ident) == expected
+}
+
+fn path_is_ident(path: &syn::Path, expected: &str) -> bool {
+    path.leading_colon.is_none()
+        && path.segments.len() == 1
+        && path.segments.first().is_some_and(|segment| {
+            matches!(&segment.arguments, PathArguments::None)
+                && ident_matches(&segment.ident, expected)
+        })
+}
+
+fn path_ends_with_ident(path: &syn::Path, expected: &str) -> bool {
+    path.segments
+        .last()
+        .is_some_and(|segment| ident_matches(&segment.ident, expected))
+}
 
 // @ref LLP 0284#31-capability-obtainability-the-closure-not-the-spellings —
 // these are privilege seeds, not a list of function spellings to grep.
@@ -137,7 +164,7 @@ impl<'ast> Visit<'ast> for LocalSharedMethodVisitor<'_> {
                             .path
                             .segments
                             .iter()
-                            .map(|segment| segment.ident.to_string())
+                            .map(|segment| ident_name(&segment.ident))
                             .collect::<Vec<_>>()
                             .join("::")
                     ),
@@ -148,14 +175,15 @@ impl<'ast> Visit<'ast> for LocalSharedMethodVisitor<'_> {
                     .iter()
                     .filter_map(|attribute| match &attribute.meta {
                         Meta::List(list)
-                            if list.path.is_ident("cfg") || list.path.is_ident("cfg_attr") =>
+                            if path_is_ident(&list.path, "cfg")
+                                || path_is_ident(&list.path, "cfg_attr") =>
                         {
                             Some(format!(
                                 "#[{}({})]",
                                 list.path
                                     .segments
                                     .iter()
-                                    .map(|segment| segment.ident.to_string())
+                                    .map(|segment| ident_name(&segment.ident))
                                     .collect::<Vec<_>>()
                                     .join("::"),
                                 list.tokens
@@ -165,7 +193,7 @@ impl<'ast> Visit<'ast> for LocalSharedMethodVisitor<'_> {
                     })
                     .collect();
                 self.methods.push(LocalSharedMethod {
-                    method: function.sig.ident.to_string(),
+                    method: ident_name(&function.sig.ident),
                     file: self
                         .source
                         .strip_prefix(self.source_root)
@@ -485,7 +513,7 @@ impl PrivilegeScanner {
                     &function.sig,
                     None,
                     source,
-                    &self.item_name(module, &function.sig.ident.to_string()),
+                    &self.item_name(module, &ident_name(&function.sig.ident)),
                     function.sig.ident.span(),
                 );
             }
@@ -499,7 +527,7 @@ impl PrivilegeScanner {
                             &function.sig,
                             Some(&self_name),
                             source,
-                            &format!("{owner}::{}", function.sig.ident),
+                            &format!("{owner}::{}", ident_name(&function.sig.ident)),
                             function.sig.ident.span(),
                         );
                     }
@@ -507,7 +535,7 @@ impl PrivilegeScanner {
             }
             match item {
                 Item::Fn(function) if module_public && public(&function.vis) => {
-                    let item_name = self.item_name(module, &function.sig.ident.to_string());
+                    let item_name = self.item_name(module, &ident_name(&function.sig.ident));
                     self.scan_signature(
                         &function.sig,
                         &names,
@@ -518,17 +546,17 @@ impl PrivilegeScanner {
                     );
                 }
                 Item::Struct(structure) if module_public && public(&structure.vis) => {
-                    let item_name = self.item_name(module, &structure.ident.to_string());
+                    let item_name = self.item_name(module, &ident_name(&structure.ident));
                     if public_structure_constructor(&structure.fields) {
                         self.record_constructible(
-                            &structure.ident.to_string(),
+                            &ident_name(&structure.ident),
                             &item_name,
                             source,
                             structure.ident.span(),
                         );
                     }
                     self.scan_seed_derives(
-                        &structure.ident.to_string(),
+                        &ident_name(&structure.ident),
                         &structure.attrs,
                         source,
                         &item_name,
@@ -537,19 +565,19 @@ impl PrivilegeScanner {
                     self.scan_fields(&structure.fields, &names, source, &item_name, false);
                     if structure.fields.iter().all(|field| !public(&field.vis)) {
                         self.private_public_types
-                            .insert(structure.ident.to_string());
+                            .insert(ident_name(&structure.ident));
                     }
                 }
                 Item::Enum(enumeration) if module_public && public(&enumeration.vis) => {
-                    let item_name = self.item_name(module, &enumeration.ident.to_string());
+                    let item_name = self.item_name(module, &ident_name(&enumeration.ident));
                     self.record_constructible(
-                        &enumeration.ident.to_string(),
+                        &ident_name(&enumeration.ident),
                         &item_name,
                         source,
                         enumeration.ident.span(),
                     );
                     self.scan_seed_derives(
-                        &enumeration.ident.to_string(),
+                        &ident_name(&enumeration.ident),
                         &enumeration.attrs,
                         source,
                         &item_name,
@@ -560,13 +588,13 @@ impl PrivilegeScanner {
                             &variant.fields,
                             &names,
                             source,
-                            &format!("{item_name}::{}", variant.ident),
+                            &format!("{item_name}::{}", ident_name(&variant.ident)),
                             true,
                         );
                     }
                 }
                 Item::Union(item_union) if module_public && public(&item_union.vis) => {
-                    let item_name = self.item_name(module, &item_union.ident.to_string());
+                    let item_name = self.item_name(module, &ident_name(&item_union.ident));
                     if item_union
                         .fields
                         .named
@@ -574,14 +602,14 @@ impl PrivilegeScanner {
                         .all(|field| public(&field.vis))
                     {
                         self.record_constructible(
-                            &item_union.ident.to_string(),
+                            &ident_name(&item_union.ident),
                             &item_name,
                             source,
                             item_union.ident.span(),
                         );
                     }
                     self.scan_seed_derives(
-                        &item_union.ident.to_string(),
+                        &ident_name(&item_union.ident),
                         &item_union.attrs,
                         source,
                         &item_name,
@@ -601,11 +629,11 @@ impl PrivilegeScanner {
                         .all(|field| !public(&field.vis))
                     {
                         self.private_public_types
-                            .insert(item_union.ident.to_string());
+                            .insert(ident_name(&item_union.ident));
                     }
                 }
                 Item::Type(alias) if module_public && public(&alias.vis) => {
-                    let item_name = self.item_name(module, &alias.ident.to_string());
+                    let item_name = self.item_name(module, &ident_name(&alias.ident));
                     let type_info = inspect_type(&alias.ty, &names);
                     self.report_type_exposure(
                         &type_info,
@@ -618,7 +646,7 @@ impl PrivilegeScanner {
                     );
                 }
                 Item::Static(item_static) if module_public && public(&item_static.vis) => {
-                    let item_name = self.item_name(module, &item_static.ident.to_string());
+                    let item_name = self.item_name(module, &ident_name(&item_static.ident));
                     let type_info = inspect_type(&item_static.ty, &names);
                     self.report_type_exposure(
                         &type_info,
@@ -631,7 +659,7 @@ impl PrivilegeScanner {
                     );
                 }
                 Item::Const(item_const) if module_public && public(&item_const.vis) => {
-                    let item_name = self.item_name(module, &item_const.ident.to_string());
+                    let item_name = self.item_name(module, &ident_name(&item_const.ident));
                     let type_info = inspect_type(&item_const.ty, &names);
                     self.report_type_exposure(
                         &type_info,
@@ -644,9 +672,9 @@ impl PrivilegeScanner {
                     );
                 }
                 Item::Trait(item_trait) if module_public && public(&item_trait.vis) => {
-                    let item_name = self.item_name(module, &item_trait.ident.to_string());
+                    let item_name = self.item_name(module, &ident_name(&item_trait.ident));
                     let mut trait_module = module.to_vec();
-                    trait_module.push(item_trait.ident.to_string());
+                    trait_module.push(ident_name(&item_trait.ident));
                     for member in &item_trait.items {
                         if !attrs_active(trait_item_attrs(member), &self.active_features) {
                             continue;
@@ -656,7 +684,7 @@ impl PrivilegeScanner {
                                 &function.sig,
                                 &names,
                                 source,
-                                &format!("{item_name}::{}", function.sig.ident),
+                                &format!("{item_name}::{}", ident_name(&function.sig.ident)),
                                 function.sig.ident.span(),
                                 None,
                             ),
@@ -667,7 +695,7 @@ impl PrivilegeScanner {
                                         &info,
                                         source,
                                         item_type.ident.span(),
-                                        &format!("{item_name}::{}", item_type.ident),
+                                        &format!("{item_name}::{}", ident_name(&item_type.ident)),
                                         "public trait associated type",
                                         false,
                                         true,
@@ -680,7 +708,7 @@ impl PrivilegeScanner {
                                     &info,
                                     source,
                                     item_const.ident.span(),
-                                    &format!("{item_name}::{}", item_const.ident),
+                                    &format!("{item_name}::{}", ident_name(&item_const.ident)),
                                     "public trait associated const",
                                     false,
                                     true,
@@ -715,7 +743,7 @@ impl PrivilegeScanner {
                 Item::ExternCrate(extern_crate)
                     if module_public
                         && public(&extern_crate.vis)
-                        && extern_crate.ident == "rusqlite" =>
+                        && ident_matches(&extern_crate.ident, "rusqlite") =>
                 {
                     self.push_finding(
                         "reexport",
@@ -836,19 +864,19 @@ impl PrivilegeScanner {
                     aliases.push(alias);
                 }
                 Item::Struct(structure) if public(&structure.vis) => {
-                    names.public_types.insert(structure.ident.to_string());
+                    names.public_types.insert(ident_name(&structure.ident));
                 }
                 Item::Enum(enumeration) if public(&enumeration.vis) => {
-                    names.public_types.insert(enumeration.ident.to_string());
+                    names.public_types.insert(ident_name(&enumeration.ident));
                 }
                 Item::Union(item_union) if public(&item_union.vis) => {
-                    names.public_types.insert(item_union.ident.to_string());
+                    names.public_types.insert(ident_name(&item_union.ident));
                 }
-                Item::Macro(item_macro) if item_macro.mac.path.is_ident("macro_rules") => {
+                Item::Macro(item_macro) if path_is_ident(&item_macro.mac.path, "macro_rules") => {
                     macro_definitions.push(item_macro);
                     if token_ident_present(&item_macro.mac.tokens, "pub") {
                         if let Some(ident) = &item_macro.ident {
-                            names.public_api_macros.insert(ident.to_string());
+                            names.public_api_macros.insert(ident_name(ident));
                         }
                     }
                 }
@@ -861,12 +889,12 @@ impl PrivilegeScanner {
             let mut changed = false;
             for alias in &aliases {
                 let info = inspect_type(&alias.ty, &names);
-                if info.raw_handle.is_some() && names.raw_aliases.insert(alias.ident.to_string()) {
+                if info.raw_handle.is_some() && names.raw_aliases.insert(ident_name(&alias.ident)) {
                     changed = true;
                 }
                 if let Some(seed) = info.seed_type {
-                    if !names.seed_aliases.contains_key(&alias.ident.to_string()) {
-                        names.seed_aliases.insert(alias.ident.to_string(), seed);
+                    if !names.seed_aliases.contains_key(&ident_name(&alias.ident)) {
+                        names.seed_aliases.insert(ident_name(&alias.ident), seed);
                         changed = true;
                     }
                 }
@@ -891,7 +919,7 @@ impl PrivilegeScanner {
                     continue;
                 };
                 if tokens_contain_any_ident(&definition.mac.tokens, &include_names)
-                    && names.generated_include_macros.insert(ident.to_string())
+                    && names.generated_include_macros.insert(ident_name(ident))
                 {
                     changed = true;
                 }
@@ -913,7 +941,7 @@ impl PrivilegeScanner {
         attribute_dir: &Path,
     ) -> Result<(), String> {
         let mut child_module = module.to_vec();
-        child_module.push(item_mod.ident.to_string());
+        child_module.push(ident_name(&item_mod.ident));
         let child_public = parent_public && public(&item_mod.vis);
         if let Some((_, items)) = &item_mod.content {
             return self.scan_items(
@@ -921,22 +949,22 @@ impl PrivilegeScanner {
                 source,
                 &child_module,
                 child_public,
-                &module_dir.join(item_mod.ident.to_string()),
-                &attribute_dir.join(item_mod.ident.to_string()),
+                &module_dir.join(ident_name(&item_mod.ident)),
+                &attribute_dir.join(ident_name(&item_mod.ident)),
             );
         }
         let explicit = path_attributes(&item_mod.attrs).into_iter().next();
         let target = if let Some(value) = explicit {
             attribute_dir.join(value)
         } else {
-            let flat = module_dir.join(format!("{}.rs", item_mod.ident));
-            let nested = module_dir.join(item_mod.ident.to_string()).join("mod.rs");
+            let flat = module_dir.join(format!("{}.rs", ident_name(&item_mod.ident)));
+            let nested = module_dir.join(ident_name(&item_mod.ident)).join("mod.rs");
             if flat.exists() { flat } else { nested }
         };
         if !target.exists() {
             return Ok(());
         }
-        let next_dir = module_directory_for_file(&target, module_dir, &item_mod.ident.to_string());
+        let next_dir = module_directory_for_file(&target, module_dir, &ident_name(&item_mod.ident));
         self.scan_file(&target, child_module, child_public, next_dir)
     }
 
@@ -1018,7 +1046,7 @@ impl PrivilegeScanner {
             let trait_name = trait_path
                 .segments
                 .last()
-                .map(|segment| segment.ident.to_string())
+                .map(|segment| ident_name(&segment.ident))
                 .unwrap_or_default();
             let trait_type = Type::Path(syn::TypePath {
                 qself: None,
@@ -1091,7 +1119,7 @@ impl PrivilegeScanner {
                         &info,
                         source,
                         item_type.ident.span(),
-                        &format!("{}::{trait_name}::{}", owner, item_type.ident),
+                        &format!("{}::{trait_name}::{}", owner, ident_name(&item_type.ident)),
                         "public trait implementation associated type",
                         false,
                         true,
@@ -1113,7 +1141,7 @@ impl PrivilegeScanner {
                     &function.sig,
                     Some(&self_name),
                     source,
-                    &format!("{owner}::{}", function.sig.ident),
+                    &format!("{owner}::{}", ident_name(&function.sig.ident)),
                     function.sig.ident.span(),
                 );
             }
@@ -1123,7 +1151,7 @@ impl PrivilegeScanner {
                         &function.sig,
                         names,
                         source,
-                        &format!("{owner}::{}", function.sig.ident),
+                        &format!("{owner}::{}", ident_name(&function.sig.ident)),
                         function.sig.ident.span(),
                         Some(&self_name),
                     )
@@ -1134,7 +1162,7 @@ impl PrivilegeScanner {
                         &info,
                         source,
                         item_const.ident.span(),
-                        &format!("{owner}::{}", item_const.ident),
+                        &format!("{owner}::{}", ident_name(&item_const.ident)),
                         "public associated const",
                         false,
                         true,
@@ -1146,7 +1174,7 @@ impl PrivilegeScanner {
                         &info,
                         source,
                         item_type.ident.span(),
-                        &format!("{owner}::{}", item_type.ident),
+                        &format!("{owner}::{}", ident_name(&item_type.ident)),
                         "public associated type",
                         false,
                         true,
@@ -1400,7 +1428,7 @@ impl PrivilegeScanner {
         item: &str,
         span: Span,
     ) {
-        let sink_name = signature.ident.to_string();
+        let sink_name = ident_name(&signature.ident);
         if !PRIVILEGE_SINKS.contains(&sink_name.as_str()) {
             return;
         }
@@ -1455,7 +1483,7 @@ impl PrivilegeScanner {
             .path
             .segments
             .last()
-            .map(|segment| segment.ident.to_string())
+            .map(|segment| ident_name(&segment.ident))
             .unwrap_or_else(|| "<anonymous-macro>".to_owned());
         let is_direct_generated_include = macro_name == "include"
             || names.include_macro_aliases.contains(&macro_name)
@@ -1524,11 +1552,9 @@ impl PrivilegeScanner {
             return Ok(());
         }
 
-        let macro_name = definition_ident
-            .map(ToString::to_string)
-            .unwrap_or(macro_name);
+        let macro_name = definition_ident.map(ident_name).unwrap_or(macro_name);
         let emits_public =
-            mac.path.is_ident("macro_rules") && token_ident_present(&mac.tokens, "pub");
+            path_is_ident(&mac.path, "macro_rules") && token_ident_present(&mac.tokens, "pub");
         let invocation_of_public_macro = names.public_api_macros.contains(&macro_name)
             || self.crate_public_api_macros.contains(&macro_name);
         let invocation_carries_public =
@@ -1742,13 +1768,13 @@ impl PrivilegeScanner {
         }
 
         let Some(item_mod) = items.iter().find_map(|item| match item {
-            Item::Mod(item_mod) if item_mod.ident == head.as_str() => Some(item_mod),
+            Item::Mod(item_mod) if ident_matches(&item_mod.ident, head) => Some(item_mod),
             _ => None,
         }) else {
             return Ok(());
         };
         let mut child_module = module.to_vec();
-        child_module.push(item_mod.ident.to_string());
+        child_module.push(ident_name(&item_mod.ident));
         if let Some((_, child_items)) = &item_mod.content {
             let child_names = self.collect_names(child_items);
             return self.scan_local_reexport_path(
@@ -1814,14 +1840,14 @@ impl PrivilegeScanner {
             Item::Struct(structure) => {
                 if public_structure_constructor(&structure.fields) {
                     self.record_constructible(
-                        &structure.ident.to_string(),
+                        &ident_name(&structure.ident),
                         exported_item,
                         source,
                         structure.ident.span(),
                     );
                 }
                 self.scan_seed_derives(
-                    &structure.ident.to_string(),
+                    &ident_name(&structure.ident),
                     &structure.attrs,
                     source,
                     exported_item,
@@ -1830,18 +1856,18 @@ impl PrivilegeScanner {
                 self.scan_fields(&structure.fields, names, source, exported_item, false);
                 if structure.fields.iter().all(|field| !public(&field.vis)) {
                     self.private_public_types
-                        .insert(structure.ident.to_string());
+                        .insert(ident_name(&structure.ident));
                 }
             }
             Item::Enum(enumeration) => {
                 self.record_constructible(
-                    &enumeration.ident.to_string(),
+                    &ident_name(&enumeration.ident),
                     exported_item,
                     source,
                     enumeration.ident.span(),
                 );
                 self.scan_seed_derives(
-                    &enumeration.ident.to_string(),
+                    &ident_name(&enumeration.ident),
                     &enumeration.attrs,
                     source,
                     exported_item,
@@ -1852,7 +1878,7 @@ impl PrivilegeScanner {
                         &variant.fields,
                         names,
                         source,
-                        &format!("{exported_item}::{}", variant.ident),
+                        &format!("{exported_item}::{}", ident_name(&variant.ident)),
                         true,
                     );
                 }
@@ -1865,14 +1891,14 @@ impl PrivilegeScanner {
                     .all(|field| public(&field.vis))
                 {
                     self.record_constructible(
-                        &item_union.ident.to_string(),
+                        &ident_name(&item_union.ident),
                         exported_item,
                         source,
                         item_union.ident.span(),
                     );
                 }
                 self.scan_seed_derives(
-                    &item_union.ident.to_string(),
+                    &ident_name(&item_union.ident),
                     &item_union.attrs,
                     source,
                     exported_item,
@@ -1892,7 +1918,7 @@ impl PrivilegeScanner {
                     .all(|field| !public(&field.vis))
                 {
                     self.private_public_types
-                        .insert(item_union.ident.to_string());
+                        .insert(ident_name(&item_union.ident));
                 }
             }
             Item::Type(alias) => {
@@ -1933,7 +1959,7 @@ impl PrivilegeScanner {
             }
             Item::Trait(item_trait) => {
                 let mut trait_module = module.to_vec();
-                trait_module.push(item_trait.ident.to_string());
+                trait_module.push(ident_name(&item_trait.ident));
                 for member in &item_trait.items {
                     if !attrs_active(trait_item_attrs(member), &self.active_features) {
                         continue;
@@ -1943,7 +1969,7 @@ impl PrivilegeScanner {
                             &function.sig,
                             names,
                             source,
-                            &format!("{exported_item}::{}", function.sig.ident),
+                            &format!("{exported_item}::{}", ident_name(&function.sig.ident)),
                             function.sig.ident.span(),
                             None,
                         ),
@@ -1954,7 +1980,7 @@ impl PrivilegeScanner {
                                     &info,
                                     source,
                                     item_type.ident.span(),
-                                    &format!("{exported_item}::{}", item_type.ident),
+                                    &format!("{exported_item}::{}", ident_name(&item_type.ident)),
                                     "publicly re-exported trait associated type",
                                     false,
                                     true,
@@ -1967,7 +1993,7 @@ impl PrivilegeScanner {
                                 &info,
                                 source,
                                 item_const.ident.span(),
-                                &format!("{exported_item}::{}", item_const.ident),
+                                &format!("{exported_item}::{}", ident_name(&item_const.ident)),
                                 "publicly re-exported trait associated const",
                                 false,
                                 true,
@@ -2047,7 +2073,7 @@ fn public_structure_constructor(fields: &Fields) -> bool {
 
 fn token_ident_present(tokens: &TokenStream, sought: &str) -> bool {
     tokens.clone().into_iter().any(|token| match token {
-        proc_macro2::TokenTree::Ident(ident) => ident == sought,
+        proc_macro2::TokenTree::Ident(ident) => ident_matches(&ident, sought),
         proc_macro2::TokenTree::Group(group) => token_ident_present(&group.stream(), sought),
         _ => false,
     })
@@ -2055,7 +2081,7 @@ fn token_ident_present(tokens: &TokenStream, sought: &str) -> bool {
 
 fn tokens_contain_any_ident(tokens: &TokenStream, sought: &BTreeSet<String>) -> bool {
     tokens.clone().into_iter().any(|token| match token {
-        proc_macro2::TokenTree::Ident(ident) => sought.contains(&ident.to_string()),
+        proc_macro2::TokenTree::Ident(ident) => sought.contains(&ident_name(&ident)),
         proc_macro2::TokenTree::Group(group) => tokens_contain_any_ident(&group.stream(), sought),
         _ => false,
     })
@@ -2078,7 +2104,7 @@ fn parameterized_include_argument(tokens: &TokenStream, names: &ModuleNames) -> 
         .into_iter()
         .filter_map(|argument| syn::parse2::<syn::Path>(argument).ok())
         .find_map(|path| {
-            let name = path.segments.last()?.ident.to_string();
+            let name = ident_name(&path.segments.last()?.ident);
             (name == "include"
                 || names.include_macro_aliases.contains(&name)
                 || names.generated_include_macros.contains(&name))
@@ -2096,7 +2122,7 @@ fn macro_path_label(path: &syn::Path) -> String {
         "{prefix}{}",
         path.segments
             .iter()
-            .map(|segment| segment.ident.to_string())
+            .map(|segment| ident_name(&segment.ident))
             .collect::<Vec<_>>()
             .join("::")
     )
@@ -2105,7 +2131,7 @@ fn macro_path_label(path: &syn::Path) -> String {
 fn tokens_name_sensitive_type(tokens: &TokenStream, names: &ModuleNames) -> bool {
     tokens.clone().into_iter().any(|token| match token {
         proc_macro2::TokenTree::Ident(ident) => {
-            let ident = ident.to_string();
+            let ident = ident_name(&ident);
             matches!(ident.as_str(), "Connection" | "Transaction" | "rusqlite")
                 || SEED_TYPES.contains(&ident.as_str())
                 || names.raw_aliases.contains(&ident)
@@ -2135,7 +2161,7 @@ fn inspect_type(ty: &Type, names: &ModuleNames) -> TypeInfo {
                 .path
                 .segments
                 .iter()
-                .map(|segment| segment.ident.to_string())
+                .map(|segment| ident_name(&segment.ident))
                 .collect::<Vec<_>>();
             let has_rusqlite = segments.iter().any(|segment| segment == "rusqlite");
             for segment in &segments {
@@ -2190,7 +2216,7 @@ fn last_type_name(ty: &Type) -> Option<String> {
             .path
             .segments
             .last()
-            .map(|segment| segment.ident.to_string()),
+            .map(|segment| ident_name(&segment.ident)),
         Type::Reference(reference) => last_type_name(&reference.elem),
         _ => None,
     }
@@ -2202,14 +2228,14 @@ fn public(visibility: &Visibility) -> bool {
 
 fn item_ident(item: &Item) -> Option<String> {
     match item {
-        Item::Const(item) => Some(item.ident.to_string()),
-        Item::Enum(item) => Some(item.ident.to_string()),
-        Item::Fn(item) => Some(item.sig.ident.to_string()),
-        Item::Static(item) => Some(item.ident.to_string()),
-        Item::Struct(item) => Some(item.ident.to_string()),
-        Item::Trait(item) => Some(item.ident.to_string()),
-        Item::Type(item) => Some(item.ident.to_string()),
-        Item::Union(item) => Some(item.ident.to_string()),
+        Item::Const(item) => Some(ident_name(&item.ident)),
+        Item::Enum(item) => Some(ident_name(&item.ident)),
+        Item::Fn(item) => Some(ident_name(&item.sig.ident)),
+        Item::Static(item) => Some(ident_name(&item.ident)),
+        Item::Struct(item) => Some(ident_name(&item.ident)),
+        Item::Trait(item) => Some(ident_name(&item.ident)),
+        Item::Type(item) => Some(ident_name(&item.ident)),
+        Item::Union(item) => Some(ident_name(&item.ident)),
         _ => None,
     }
 }
@@ -2231,13 +2257,13 @@ fn public_item(item: &Item) -> bool {
 fn attr_present(attrs: &[Attribute], name: &str) -> bool {
     attrs
         .iter()
-        .any(|attribute| attribute.path().is_ident(name))
+        .any(|attribute| path_is_ident(attribute.path(), name))
 }
 
 fn derive_names(attrs: &[Attribute]) -> Vec<String> {
     attrs
         .iter()
-        .filter(|attribute| attribute.path().is_ident("derive"))
+        .filter(|attribute| path_is_ident(attribute.path(), "derive"))
         .flat_map(|attribute| {
             attribute
                 .parse_args_with(Punctuated::<syn::Path, Token![,]>::parse_terminated)
@@ -2246,7 +2272,7 @@ fn derive_names(attrs: &[Attribute]) -> Vec<String> {
                 .filter_map(|path| {
                     path.segments
                         .last()
-                        .map(|segment| segment.ident.to_string())
+                        .map(|segment| ident_name(&segment.ident))
                 })
         })
         .collect()
@@ -2263,23 +2289,23 @@ fn flatten_use_tree(tree: &UseTree) -> Vec<UseBinding> {
         match tree {
             UseTree::Path(path) => {
                 let mut next = prefix;
-                next.push(path.ident.to_string());
+                next.push(ident_name(&path.ident));
                 walk(&path.tree, next, output);
             }
             UseTree::Name(name) => {
                 let mut next = prefix;
-                next.push(name.ident.to_string());
+                next.push(ident_name(&name.ident));
                 output.push(UseBinding {
                     segments: next,
-                    exposed: name.ident.to_string(),
+                    exposed: ident_name(&name.ident),
                 });
             }
             UseTree::Rename(rename) => {
                 let mut next = prefix;
-                next.push(rename.ident.to_string());
+                next.push(ident_name(&rename.ident));
                 output.push(UseBinding {
                     segments: next,
-                    exposed: rename.rename.to_string(),
+                    exposed: ident_name(&rename.rename),
                 });
             }
             UseTree::Glob(_) => {
@@ -2307,7 +2333,7 @@ fn attrs_active(attrs: &[Attribute], features: &BTreeSet<String>) -> bool {
     // private to owner tests; caller feature atoms are symbolic in the
     // conservative coverage cell.
     for attribute in attrs {
-        if !attribute.path().is_ident("cfg") {
+        if !path_is_ident(attribute.path(), "cfg") {
             continue;
         }
         let Ok(meta) = attribute.parse_args::<Meta>() else {
@@ -2329,14 +2355,16 @@ enum Truth {
 
 fn eval_cfg(meta: &Meta, features: &BTreeSet<String>) -> Truth {
     match meta {
-        Meta::Path(path) if path.is_ident("test") => Truth::False,
+        Meta::Path(path) if path_is_ident(path, "test") => Truth::False,
         // Security coverage is platform-symbolic: both `unix`/`windows` and
         // their negations remain visible instead of inheriting the scanner
         // host's target. Like symbolic caller features, contradictory target
         // formulas are retained conservatively.
-        Meta::Path(path) if path.is_ident("unix") || path.is_ident("windows") => Truth::Unknown,
+        Meta::Path(path) if path_is_ident(path, "unix") || path_is_ident(path, "windows") => {
+            Truth::Unknown
+        }
         Meta::Path(_) => Truth::Unknown,
-        Meta::NameValue(value) if value.path.is_ident("feature") => match &value.value {
+        Meta::NameValue(value) if path_is_ident(&value.path, "feature") => match &value.value {
             Expr::Lit(ExprLit {
                 lit: Lit::Str(feature),
                 ..
@@ -2359,7 +2387,7 @@ fn eval_cfg(meta: &Meta, features: &BTreeSet<String>) -> Truth {
                 .into_iter()
                 .map(|entry| eval_cfg(&entry, features))
                 .collect::<Vec<_>>();
-            if list.path.is_ident("all") {
+            if path_is_ident(&list.path, "all") {
                 if entries.iter().any(|entry| matches!(entry, Truth::False)) {
                     Truth::False
                 } else if entries.iter().all(|entry| matches!(entry, Truth::True)) {
@@ -2367,7 +2395,7 @@ fn eval_cfg(meta: &Meta, features: &BTreeSet<String>) -> Truth {
                 } else {
                     Truth::Unknown
                 }
-            } else if list.path.is_ident("any") {
+            } else if path_is_ident(&list.path, "any") {
                 if entries.iter().any(|entry| matches!(entry, Truth::True)) {
                     Truth::True
                 } else if entries.iter().all(|entry| matches!(entry, Truth::False)) {
@@ -2375,7 +2403,7 @@ fn eval_cfg(meta: &Meta, features: &BTreeSet<String>) -> Truth {
                 } else {
                     Truth::Unknown
                 }
-            } else if list.path.is_ident("not") && entries.len() == 1 {
+            } else if path_is_ident(&list.path, "not") && entries.len() == 1 {
                 match entries[0] {
                     Truth::True => Truth::False,
                     Truth::False => Truth::True,
@@ -2394,7 +2422,7 @@ fn path_attributes(attrs: &[Attribute]) -> Vec<String> {
     // when an enclosing predicate is false.
     fn collect(meta: &Meta, values: &mut Vec<String>) {
         match meta {
-            Meta::NameValue(value) if value.path.is_ident("path") => {
+            Meta::NameValue(value) if path_is_ident(&value.path, "path") => {
                 if let Expr::Lit(ExprLit {
                     lit: Lit::Str(path),
                     ..
@@ -2403,7 +2431,7 @@ fn path_attributes(attrs: &[Attribute]) -> Vec<String> {
                     values.push(path.value());
                 }
             }
-            Meta::List(list) if list.path.is_ident("cfg_attr") => {
+            Meta::List(list) if path_is_ident(&list.path, "cfg_attr") => {
                 let nested = Punctuated::<Meta, Token![,]>::parse_terminated
                     .parse2(list.tokens.clone())
                     .unwrap_or_default();
@@ -2501,9 +2529,9 @@ fn discover_crate_macros(
                         }
                     }
                 }
-                Item::Macro(item_macro) if item_macro.mac.path.is_ident("macro_rules") => {
+                Item::Macro(item_macro) if path_is_ident(&item_macro.mac.path, "macro_rules") => {
                     if let Some(ident) = &item_macro.ident {
-                        let name = ident.to_string();
+                        let name = ident_name(ident);
                         if token_ident_present(&item_macro.mac.tokens, "pub") {
                             inventory.public_api_macros.insert(name.clone());
                         }
@@ -2513,7 +2541,7 @@ fn discover_crate_macros(
                     }
                 }
                 Item::Mod(item_mod) => {
-                    let child_name = item_mod.ident.to_string();
+                    let child_name = ident_name(&item_mod.ident);
                     if let Some((_, child_items)) = &item_mod.content {
                         discover_items(
                             child_items,
@@ -2657,10 +2685,10 @@ impl<'ast> Visit<'ast> for UnitVisitor {
                 self.references.push(UnitReference {
                     kind: "module".to_owned(),
                     line: node.ident.span().start().line,
-                    value: Some(node.ident.to_string()),
+                    value: Some(ident_name(&node.ident)),
                     out_dir: false,
                     module_path: self.inline_path.clone(),
-                    module_name: Some(node.ident.to_string()),
+                    module_name: Some(ident_name(&node.ident)),
                     expression: None,
                 });
             } else {
@@ -2671,20 +2699,20 @@ impl<'ast> Visit<'ast> for UnitVisitor {
                         value: Some(path),
                         out_dir: false,
                         module_path: self.inline_path.clone(),
-                        module_name: Some(node.ident.to_string()),
+                        module_name: Some(ident_name(&node.ident)),
                         expression: None,
                     });
                 }
             }
         } else {
-            self.inline_path.push(node.ident.to_string());
+            self.inline_path.push(ident_name(&node.ident));
             visit::visit_item_mod(self, node);
             self.inline_path.pop();
         }
     }
 
     fn visit_macro(&mut self, node: &'ast syn::Macro) {
-        if node.path.is_ident("include") {
+        if path_ends_with_ident(&node.path, "include") {
             match evaluate_include(&node.tokens) {
                 Some((value, out_dir)) => self.references.push(UnitReference {
                     kind: "include".to_owned(),
@@ -2725,7 +2753,9 @@ fn evaluate_include(tokens: &TokenStream) -> Option<(String, bool)> {
             lit: Lit::Str(value),
             ..
         }) => Some((value.value(), false)),
-        Expr::Macro(macro_expression) if macro_expression.mac.path.is_ident("concat") => {
+        Expr::Macro(macro_expression)
+            if path_ends_with_ident(&macro_expression.mac.path, "concat") =>
+        {
             let expressions = Punctuated::<Expr, Token![,]>::parse_terminated
                 .parse2(macro_expression.mac.tokens)
                 .ok()?;
@@ -2737,7 +2767,9 @@ fn evaluate_include(tokens: &TokenStream) -> Option<(String, bool)> {
                         lit: Lit::Str(part),
                         ..
                     }) => value.push_str(&part.value()),
-                    Expr::Macro(environment) if environment.mac.path.is_ident("env") => {
+                    Expr::Macro(environment)
+                        if path_ends_with_ident(&environment.mac.path, "env") =>
+                    {
                         let variable = syn::parse2::<syn::LitStr>(environment.mac.tokens).ok()?;
                         if variable.value() != "OUT_DIR" {
                             return None;
@@ -2763,7 +2795,7 @@ fn source_crate_references(path: &Path) -> Result<Vec<String>, String> {
     impl<'ast> Visit<'ast> for CrateReferenceVisitor {
         fn visit_path(&mut self, node: &'ast syn::Path) {
             if let Some(first) = node.segments.first() {
-                self.references.insert(first.ident.to_string());
+                self.references.insert(ident_name(&first.ident));
             }
             visit::visit_path(self, node);
         }
@@ -2823,49 +2855,49 @@ fn api_shape(path: &Path) -> Result<ApiShape, String> {
         .map(|item| match item {
             Item::Const(item) => ApiShapeEntry {
                 kind: "const".to_owned(),
-                name: item.ident.to_string(),
+                name: ident_name(&item.ident),
                 visibility: visibility_shape(&item.vis),
                 signature: item.ty.to_token_stream().to_string(),
             },
             Item::Static(item) => ApiShapeEntry {
                 kind: "static".to_owned(),
-                name: item.ident.to_string(),
+                name: ident_name(&item.ident),
                 visibility: visibility_shape(&item.vis),
                 signature: item.ty.to_token_stream().to_string(),
             },
             Item::Type(item) => ApiShapeEntry {
                 kind: "type".to_owned(),
-                name: item.ident.to_string(),
+                name: ident_name(&item.ident),
                 visibility: visibility_shape(&item.vis),
                 signature: item.ty.to_token_stream().to_string(),
             },
             Item::Fn(item) => ApiShapeEntry {
                 kind: "fn".to_owned(),
-                name: item.sig.ident.to_string(),
+                name: ident_name(&item.sig.ident),
                 visibility: visibility_shape(&item.vis),
                 signature: item.sig.to_token_stream().to_string(),
             },
             Item::Struct(item) => ApiShapeEntry {
                 kind: "struct".to_owned(),
-                name: item.ident.to_string(),
+                name: ident_name(&item.ident),
                 visibility: visibility_shape(&item.vis),
                 signature: item.fields.to_token_stream().to_string(),
             },
             Item::Enum(item) => ApiShapeEntry {
                 kind: "enum".to_owned(),
-                name: item.ident.to_string(),
+                name: ident_name(&item.ident),
                 visibility: visibility_shape(&item.vis),
                 signature: item.variants.to_token_stream().to_string(),
             },
             Item::Union(item) => ApiShapeEntry {
                 kind: "union".to_owned(),
-                name: item.ident.to_string(),
+                name: ident_name(&item.ident),
                 visibility: visibility_shape(&item.vis),
                 signature: item.fields.to_token_stream().to_string(),
             },
             Item::Trait(item) => ApiShapeEntry {
                 kind: "trait".to_owned(),
-                name: item.ident.to_string(),
+                name: ident_name(&item.ident),
                 visibility: visibility_shape(&item.vis),
                 signature: item
                     .items
@@ -2877,7 +2909,7 @@ fn api_shape(path: &Path) -> Result<ApiShape, String> {
             },
             Item::Mod(item) => ApiShapeEntry {
                 kind: "mod".to_owned(),
-                name: item.ident.to_string(),
+                name: ident_name(&item.ident),
                 visibility: visibility_shape(&item.vis),
                 signature: if item.content.is_some() {
                     "inline".to_owned()
@@ -2927,7 +2959,7 @@ fn collect_token_identifiers(tokens: &TokenStream, identifiers: &mut BTreeSet<St
     for token in tokens.clone() {
         match token {
             proc_macro2::TokenTree::Ident(ident) => {
-                identifiers.insert(ident.to_string());
+                identifiers.insert(ident_name(&ident));
             }
             proc_macro2::TokenTree::Group(group) => {
                 collect_token_identifiers(&group.stream(), identifiers);

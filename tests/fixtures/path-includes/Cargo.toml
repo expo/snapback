@@ -6,6 +6,7 @@ members = [
   "cfg-attr",
   "nested-cfg-attr",
   "include",
+  "raw-include",
   "symlink-source",
   "symlink-target",
   "victim",

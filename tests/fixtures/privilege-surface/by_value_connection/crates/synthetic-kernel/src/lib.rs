@@ -2,6 +2,14 @@ pub fn leak() -> rusqlite::Connection {
     panic!("scanner corpus is not executed")
 }
 
+pub fn raw_identifier_leak() -> r#rusqlite::r#Connection {
+    panic!("scanner corpus is not executed")
+}
+
+pub fn raw_identifier_seed_leak() -> r#KernelCommitAuthority {
+    panic!("scanner corpus is not executed")
+}
+
 pub type Handle = rusqlite::Connection;
 
 pub fn leak_alias() -> Handle {
@@ -249,6 +257,10 @@ pub mod literal_public_macro_invocation {
 include!(concat!(env!("OUT_DIR"), "/generated_privilege_api.rs"));
 
 std::include!(concat!(env!("OUT_DIR"), "/qualified_generated_privilege_api.rs"));
+
+r#include!(concat!(env!("OUT_DIR"), "/raw_generated_privilege_api.rs"));
+
+std::r#include!(concat!(env!("OUT_DIR"), "/qualified_raw_generated_privilege_api.rs"));
 
 use std::include as imported_include;
 imported_include!(concat!(env!("OUT_DIR"), "/aliased_generated_privilege_api.rs"));

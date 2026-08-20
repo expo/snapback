@@ -13,7 +13,10 @@ import test from 'node:test';
 
 import { auditCrossCratePathIncludes } from '../scripts/check-cross-crate-path-includes.mjs';
 import { auditPrivilegeSurface } from '../scripts/check-kernel-raw-sql-api.mjs';
-import { GateInfrastructureError } from '../scripts/security-gates-lib.mjs';
+import {
+  GateInfrastructureError,
+  runAst,
+} from '../scripts/security-gates-lib.mjs';
 import {
   loadAttacks,
   runAttack,
@@ -29,6 +32,7 @@ function manifestedGuideFixture() {
   mkdirSync(join(crate, 'src'), { recursive: true });
   mkdirSync(join(crate, 'generated'), { recursive: true });
   mkdirSync(join(scratch, 'crates'), { recursive: true });
+  mkdirSync(join(scratch, 'issues'), { recursive: true });
   writeFileSync(join(scratch, 'Cargo.toml'), [
     '[workspace]',
     'members = ["crates/snapback-server"]',
@@ -74,6 +78,10 @@ function manifestedGuideFixture() {
     resolve(root, 'crates/privilege-surface-allowlist.v1.json'),
     join(scratch, 'crates/privilege-surface-allowlist.v1.json'),
   );
+  cpSync(
+    resolve(root, 'issues/20260819-build-generated-guide-api-audit.md'),
+    join(scratch, 'issues/20260819-build-generated-guide-api-audit.md'),
+  );
   return { scratch, crate };
 }
 
@@ -85,6 +93,14 @@ test('privilege scanner catches aliases, private re-exports, traits, and structu
   assert(result.violations.length >= 5);
   const output = result.violations.map(({ item, detail }) => `${item}: ${detail}`).join('\n');
   assert.match(output, /synthetic_kernel::leak: public return type exposes rusqlite::Connection/u);
+  assert.match(
+    output,
+    /synthetic_kernel::raw_identifier_leak: public return type exposes rusqlite::Connection/u,
+  );
+  assert.match(
+    output,
+    /synthetic_kernel::raw_identifier_seed_leak: returns privilege seed KernelCommitAuthority/u,
+  );
   assert.match(output, /synthetic_kernel::Handle: public type alias exposes rusqlite::Connection/u);
   assert.match(output, /synthetic_kernel::Wrap::conn: public field exposes rusqlite::Connection/u);
   assert.match(output, /synthetic_kernel::LeakingTrait::conn/u);
@@ -216,6 +232,11 @@ test('macro- and OUT_DIR-generated public APIs fail closed in every item positio
   assert.match(output, /macro-generated-api .*generated_privilege_api/u);
   assert.match(output, /generated-api .*generated_privilege_api\.rs via include/u);
   assert.match(output, /generated-api .*qualified_generated_privilege_api\.rs via std::include/u);
+  assert.match(output, /generated-api .*raw_generated_privilege_api\.rs via include/u);
+  assert.match(
+    output,
+    /generated-api .*qualified_raw_generated_privilege_api\.rs via std::include/u,
+  );
   assert.match(output, /generated-api .*aliased_generated_privilege_api\.rs via imported_include/u);
   assert.match(output, /generated-api .*wrapped_generated_privilege_api\.rs via include_wrapper/u);
   assert.match(output, /generated-api .*GeneratedImplCarrier.*impl_generated_privilege_api\.rs via include/u);
@@ -229,7 +250,32 @@ test('macro- and OUT_DIR-generated public APIs fail closed in every item positio
   assert.match(output, /macro-generated-api .*literal_public_macro_invocation::paste/u);
 });
 
-test('the snapback-server Guide API is committed and manifest-verified without review debt', () => {
+test('compilation-unit discovery canonicalizes raw include spellings', () => {
+  const source = resolve(
+    root,
+    'tests/fixtures/privilege-surface/by_value_connection/crates/synthetic-kernel/src/lib.rs',
+  );
+  const references = runAst(['units', '--file', source]);
+  for (const [value, expression] of [
+    [
+      '__SNAPBACK_OUT_DIR__/raw_generated_privilege_api.rs',
+      'include!(concat ! (env ! ("OUT_DIR") , "/raw_generated_privilege_api.rs"))',
+    ],
+    [
+      '__SNAPBACK_OUT_DIR__/qualified_raw_generated_privilege_api.rs',
+      'std::include!(concat ! (env ! ("OUT_DIR") , "/qualified_raw_generated_privilege_api.rs"))',
+    ],
+  ]) {
+    assert(
+      references.some((reference) => reference.kind === 'include'
+        && reference.value === value
+        && reference.expression === expression),
+      `expected compilation-unit reference for ${expression}`,
+    );
+  }
+});
+
+test('the Guide wrapper is committed while generated expressions remain exact review debt', () => {
   const result = auditPrivilegeSurface(root);
   assert.equal(
     result.findings.some(({ kind, item }) => kind === 'generated-api'
@@ -238,7 +284,16 @@ test('the snapback-server Guide API is committed and manifest-verified without r
     'the public module must no longer include item-generating Rust from OUT_DIR',
   );
   assert.equal(result.generatedApiManifests.length, 1);
-  assert.equal(result.allowlisted.some(({ kind }) => kind === 'generated-api'), false);
+  assert(
+    result.findings.some(({ kind, item, detail }) => kind === 'generated-api'
+      && item === 'snapback_server::guide::generated_data_expressions'
+      && detail.includes('uninspected build-generated Rust expressions')),
+    'the false expression-position premise must not suppress the generated bytes',
+  );
+  assert(
+    result.allowlisted.some(({ id }) => id === 'embedded-guide-generated-table'),
+    'the uninspected expression bytes must remain visible as expiring review debt',
+  );
 });
 
 test('the Guide manifest refuses an arbitrary OTHER OUT_DIR include and recovers after removal', () => {
@@ -351,7 +406,9 @@ test('the committed Guide API artifact rejects raw SQL, seed, and discriminator 
     const original = readFileSync(artifact, 'utf8');
     for (const [label, declaration, identifier] of [
       ['raw SQL handle', 'pub fn hostile() -> rusqlite::Connection { todo!() }', 'Connection'],
+      ['raw-identifier SQL handle', 'pub fn hostile() -> r#rusqlite::r#Connection { todo!() }', 'Connection'],
       ['LLP 0284 seed', 'pub fn hostile() -> KernelCommitAuthority { todo!() }', 'KernelCommitAuthority'],
+      ['raw-identifier LLP 0284 seed', 'pub fn hostile() -> r#KernelCommitAuthority { todo!() }', 'KernelCommitAuthority'],
       ['authority discriminator', 'pub fn hostile(_: MembershipWriter) {}', 'MembershipWriter'],
     ]) {
       writeFileSync(artifact, `${original}\n${declaration}\n`);
@@ -396,6 +453,7 @@ test('raw strings, cfg_attr, includes, and symlinks cannot cross compilation-uni
     assert.match(output, /cfg-attr\/src\/lib\.rs path-escape/u);
     assert.match(output, /nested-cfg-attr\/src\/lib\.rs path-escape/u);
     assert.match(output, /include\/src\/lib\.rs include-escape/u);
+    assert.match(output, /raw-include\/src\/lib\.rs include-escape/u);
     assert.match(output, /symlink-source\/src\/stolen\.rs symlink-source/u);
     assert.match(output, /symlink-target\/src\/lib\.rs path-escape/u);
   } finally {

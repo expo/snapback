@@ -99,6 +99,7 @@ function validateGuideApiManifest(root, packages, violations) {
       'artifactSha256',
       'crate',
       'forbiddenIdentifiers',
+      'generatedDataExpressions',
       'generatedDataIncludes',
       'producer',
       'producerSha256',
@@ -141,10 +142,18 @@ function validateGuideApiManifest(root, packages, violations) {
       const shape = runAst(['api-shape', '--file', artifact]);
       if (!sameJson(shape.items, manifest.publicApi)) invalid.push('parsed public API shape changed');
       const generatedIncludes = runAst(['units', '--file', artifact])
-        .filter(({ kind, outDir }) => kind === 'include' && outDir)
-        .map(({ value }) => value);
-      if (!sameJson(generatedIncludes, manifest.generatedDataIncludes)) {
+        .filter(({ kind, outDir }) => kind === 'include' && outDir);
+      if (!sameJson(
+        generatedIncludes.map(({ value }) => value),
+        manifest.generatedDataIncludes,
+      )) {
         invalid.push('generated data include set changed');
+      }
+      if (!sameJson(
+        generatedIncludes.map(({ expression }) => expression),
+        manifest.generatedDataExpressions,
+      )) {
+        invalid.push('generated data include expression changed');
       }
       const catalog = runAst(['privilege-identifiers']);
       if (!sameJson(manifest.forbiddenIdentifiers, catalog)) {
@@ -370,6 +379,22 @@ export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
 
   const violations = [];
   const generatedApiManifests = validateGuideApiManifest(root, packages, violations);
+  for (const manifest of generatedApiManifests) {
+    findings.push({
+      crate: manifest.crate,
+      file: manifest.artifact,
+      line: 4,
+      kind: 'generated-api',
+      item: 'snapback_server::guide::generated_data_expressions',
+      detail: 'public constants include uninspected build-generated Rust expressions; exact expiring review is required',
+      generatedExpression: JSON.stringify(manifest.generatedDataExpressions),
+      features: ['default'],
+    });
+  }
+  findings.sort((left, right) => left.file.localeCompare(right.file)
+    || left.line - right.line
+    || left.kind.localeCompare(right.kind)
+    || left.item.localeCompare(right.item));
   const allowlisted = validateAllowlist(root, packages, findings, violations);
   const allowedKeys = new Set(allowlisted.map((entry) => [
     entry.crate,

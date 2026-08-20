@@ -7,7 +7,7 @@
   "artifact": "crates/snapback-server/generated/embedded_guide_api.rs",
   "artifactSha256": "d52c6a2ceb9b1e60341b4da6f4bc84fa32fb00559de485bc1757e8d36c14713b",
   "producer": "crates/snapback-server/build.rs",
-  "producerSha256": "363799394f8cb9ee1edc5db00e42333a7935c3bd20b56138d642281f59e814fe",
+  "producerSha256": "c9a10f448f05fb61f4981054683eed9dacd45a8513325e3928bd66a31832984d",
   "publicApi": [
     {
       "kind": "const",
@@ -32,6 +32,11 @@
     "__SNAPBACK_OUT_DIR__/guide_content_sha256.expr.rs",
     "__SNAPBACK_OUT_DIR__/embedded_guide_files.expr.rs",
     "__SNAPBACK_OUT_DIR__/section_flat_paths.expr.rs"
+  ],
+  "generatedDataExpressions": [
+    "include!(concat ! (env ! (\"OUT_DIR\") , \"/guide_content_sha256.expr.rs\"))",
+    "include!(concat ! (env ! (\"OUT_DIR\") , \"/embedded_guide_files.expr.rs\"))",
+    "include!(concat ! (env ! (\"OUT_DIR\") , \"/section_flat_paths.expr.rs\"))"
   ],
   "forbiddenIdentifiers": {
     "rawSql": [

@@ -17,8 +17,9 @@ pub struct EmbeddedGuideFile {
 
 // The public shape is committed and drift-checked. build.rs supplies only the
 // typed data expressions that this artifact consumes.
-// @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — generated data
-// cannot add module items through these expression-position includes.
+// @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — the committed
+// wrapper is shape-checked, while its three generated expressions remain
+// exact, expiring review debt because nested impls are not expression-scoped.
 include!("../generated/embedded_guide_api.rs");
 
 pub const INDEX_PATH: &str = "index.md";

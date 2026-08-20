@@ -201,12 +201,11 @@ fn emit_embedded_guide(stamped_build_commit: Option<&str>) {
     )
     .expect("write build-bound embedded guide manifest");
 
-    // The generated files are expressions consumed under types fixed by the
-    // committed API artifact. Expression-position include! cannot add module
-    // items, so environment-sensitive producer behavior cannot change the
-    // public API shape audited from committed bytes.
-    // @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — ordinary
-    // builds consume the committed, manifest-pinned API and generate data only.
+    // These generated Rust expressions remain exact, expiring review debt.
+    // A block expression may contain a non-local inherent impl, so its fixed
+    // result type does not prove that emitted tokens preserve API shape.
+    // @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — the gate pins
+    // this producer and the include spellings without executing the producer.
     fs::write(
         out_dir.join("guide_content_sha256.expr.rs"),
         format!("{content_hash:?}\n"),
