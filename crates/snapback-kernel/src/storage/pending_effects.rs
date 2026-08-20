@@ -187,7 +187,6 @@ pub struct DecidePendingEffectCommand {
     id: String,
     approver_principal_id: String,
     approve: bool,
-    requires_step_up: bool,
     step_up: Option<crate::auth::crypto::StepUpProof>,
     now_ms: u64,
 }
@@ -218,13 +217,11 @@ impl crate::storage::KernelCommitAuthority {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn admit_pending_effect_decision(
         &self,
         id: &str,
         approver_principal_id: &str,
         approve: bool,
-        requires_step_up: bool,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> DecidePendingEffectCommand {
@@ -233,7 +230,6 @@ impl crate::storage::KernelCommitAuthority {
             id: id.to_owned(),
             approver_principal_id: approver_principal_id.to_owned(),
             approve,
-            requires_step_up,
             step_up: step_up.cloned(),
             now_ms,
         }
@@ -630,7 +626,6 @@ impl LocalDatabase {
             id,
             approver_principal_id,
             approve,
-            requires_step_up,
             step_up,
             now_ms,
             ..
@@ -651,7 +646,21 @@ impl LocalDatabase {
             {
                 return Err(approval_denied());
             }
-            if approve && requires_step_up {
+            // `with_auth_transaction` holds BEGIN IMMEDIATE here. Re-derive
+            // policy after reading the effect and consume any proof before the
+            // decision UPDATE, so policy activation cannot race verification
+            // and commit.
+            let requires_step_up = if approve {
+                super::auth_scope_bases::current_authority_creating_on(
+                    tx,
+                    &current.function_id,
+                    &current.function_kind,
+                )?
+                .ok_or_else(binding_stale)?
+            } else {
+                false
+            };
+            if requires_step_up {
                 let proof = step_up
                     .as_ref()
                     .ok_or_else(crate::auth::crypto::step_up_required_error)?;
@@ -800,6 +809,14 @@ fn expired() -> SnapbackError {
     )
 }
 
+fn binding_stale() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_EFFECT_BINDING_STALE",
+        "effects",
+        "the pending effect's durable function policy is absent or no longer active",
+    )
+}
+
 fn catalog_corrupt() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_EFFECT_CATALOG_CORRUPT",
@@ -819,6 +836,14 @@ mod tests {
         db.conn.execute_batch(TABLE_SQL).unwrap();
         db.conn.execute_batch(APPROVER_INDEX_SQL).unwrap();
         db.conn.execute_batch(EXPIRY_INDEX_SQL).unwrap();
+        db.conn
+            .execute(
+                "INSERT INTO _auth_scope_bases(
+                   function_id, kind, generation, present, authority_creating
+                 ) VALUES('fn:write', 'mutation', 1, 1, 0)",
+                [],
+            )
+            .expect("durable function policy");
         let authority = db
             .claim_kernel_commit_authority()
             .expect("kernel authority");
@@ -869,7 +894,6 @@ mod tests {
                 &created.id,
                 "human-a",
                 true,
-                false,
                 None,
                 20,
             ))
@@ -902,8 +926,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             db.decide_pending_effect(
-                authority
-                    .admit_pending_effect_decision(&denied.id, "human-b", false, false, None, 20,)
+                authority.admit_pending_effect_decision(&denied.id, "human-b", false, None, 20,)
             )
             .unwrap_err()
             .diagnostic
@@ -912,8 +935,7 @@ mod tests {
         );
         let refused = db
             .decide_pending_effect(
-                authority
-                    .admit_pending_effect_decision(&denied.id, "human-a", false, false, None, 20),
+                authority.admit_pending_effect_decision(&denied.id, "human-a", false, None, 20),
             )
             .unwrap();
         assert_eq!(refused.status, PendingEffectStatus::Refused);
@@ -929,7 +951,6 @@ mod tests {
                 &expiring.id,
                 "human-a",
                 true,
-                false,
                 None,
                 32,
             ))
@@ -937,6 +958,39 @@ mod tests {
             .diagnostic
             .code,
             "SNAPBACK_EFFECT_EXPIRED",
+        );
+    }
+
+    #[test]
+    fn approval_rederives_step_up_from_durable_policy_inside_the_transaction() {
+        let (mut db, authority) = ready();
+        let created = db
+            .create_pending_effect(
+                authority.admit_pending_effect_creation(request(10, DEFAULT_TTL_MS)),
+            )
+            .unwrap();
+        db.conn
+            .execute(
+                "UPDATE _auth_scope_bases
+                 SET generation = generation + 1, authority_creating = 1
+                 WHERE function_id = 'fn:write'",
+                [],
+            )
+            .expect("durable policy changes before decision");
+
+        let error = db
+            .decide_pending_effect(authority.admit_pending_effect_decision(
+                &created.id,
+                "human-a",
+                true,
+                None,
+                20,
+            ))
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
+        assert_eq!(
+            db.pending_effect(&created.id, 20).unwrap().status,
+            PendingEffectStatus::Pending,
         );
     }
 

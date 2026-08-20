@@ -74,6 +74,7 @@ mod mutation_writes;
 mod projection_rebuild;
 mod push_registry;
 mod query_reads;
+mod resolved_principal;
 mod schema_seed;
 mod schema_transition;
 mod settlement;
@@ -116,6 +117,7 @@ pub use projection_rebuild::ProjectionRebuildReceipt;
 use projection_rebuild::{ProjectionEffectCeiling, maintain_projections_in_tx};
 pub use push_registry::PushRegistryKernel;
 pub use query_reads::{QueryReadsKernel, QueryReadsReadKernel};
+pub use resolved_principal::ResolvedPrincipal;
 pub use schema_seed::SchemaSeedKernel;
 #[cfg(any(test, feature = "test-support"))]
 pub use schema_transition::publish_schema_transition_for_test;
@@ -1703,13 +1705,11 @@ impl ServingDatabase {
         self.db.create_pending_effect(command)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn decide_pending_effect_admitted(
         &mut self,
         id: &str,
         approver_principal_id: &str,
         approve: bool,
-        requires_step_up: bool,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<pending_effects::PendingEffectRecord> {
@@ -1717,7 +1717,6 @@ impl ServingDatabase {
             id,
             approver_principal_id,
             approve,
-            requires_step_up,
             step_up,
             now_ms,
         );

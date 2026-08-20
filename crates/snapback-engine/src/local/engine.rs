@@ -4938,14 +4938,8 @@ impl LocalSnapback {
         InvocationGate::validate_current_function_policy(original, &function)?;
         InvocationGate::validate_current_function_policy(management, &function)?;
         let _effect = management.effect_guard("pending-effect approval transaction")?;
-        self.db.decide_pending_effect_admitted(
-            &effect.id,
-            approver_id,
-            true,
-            function.authority_creating,
-            step_up,
-            now_ms,
-        )
+        self.db
+            .decide_pending_effect_admitted(&effect.id, approver_id, true, step_up, now_ms)
     }
 
     pub fn settle_pending_effect(
@@ -4970,7 +4964,7 @@ impl LocalSnapback {
     ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
         let _effect = authority.effect_guard("pending-effect denial transaction")?;
         self.db
-            .decide_pending_effect_admitted(id, approver_id, false, false, None, now_ms)
+            .decide_pending_effect_admitted(id, approver_id, false, None, now_ms)
     }
 
     pub fn resolve_scoped_token_route_authority(
