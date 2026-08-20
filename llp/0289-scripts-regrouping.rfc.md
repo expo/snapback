@@ -1,4 +1,4 @@
-# LLP 0286: Regrouping `scripts/` without breaking the reference graph
+# LLP 0289: Regrouping `scripts/` without breaking the reference graph
 
 **Type:** RFC
 **Status:** Draft

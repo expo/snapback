@@ -7,7 +7,7 @@
 for Charlie Cheever
 **Date:** 2026-08-19
 **Revised:** 2026-08-19 (a — initial design)
-**Related:** LLP 0283 (F-6), LLP 0276 (D5), LLP 0041, LLP 0233, LLP 0189, LLP 0232, LLP 0286, LLP 0287
+**Related:** LLP 0283 (F-6), LLP 0276 (D5), LLP 0041, LLP 0233, LLP 0189, LLP 0232, LLP 0289, LLP 0287
 
 > **Provenance.** LLP 0283 F-6 defers three programs, each "deserving its own reviewed
 > design." This is one of the three. It was authored against the tree by a model family
