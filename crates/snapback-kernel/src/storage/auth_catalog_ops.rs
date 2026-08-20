@@ -3763,7 +3763,11 @@ impl LocalDatabase {
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| {
             tx.execute(
-                "INSERT OR IGNORE INTO _auth_users(id, created_at_ms) VALUES('user-1', 0)",
+                "INSERT OR IGNORE INTO _auth_users(
+                   id, kind, registration_provenance, created_at_ms
+                 ) VALUES(
+                   'user-1', 'agent', '{\"class\":\"nonprincipal-test-fixture\"}', 0
+                 )",
                 [],
             )?;
             insert_test_email_identity(tx, "identity-1", "user-1", "user@example.com", 0, true)?;
@@ -3841,7 +3845,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub(super) fn auth_insert_email_session_for_test(
         &mut self,
@@ -3859,6 +3863,54 @@ impl LocalDatabase {
         self.with_auth_transaction(|transaction| {
             transaction.execute(
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
+                params![user_id, created_at_ms as i64],
+            )?;
+            insert_test_email_identity(
+                transaction,
+                identity_id,
+                user_id,
+                address,
+                created_at_ms,
+                false,
+            )?;
+            insert_test_identity_session(
+                transaction,
+                session_id,
+                user_id,
+                identity_id,
+                authority_instance_id,
+                token_hash,
+                created_at_ms,
+                last_used_at_ms,
+                expires_at_ms,
+                absolute_expires_at_ms,
+            )?;
+            Ok(())
+        })
+    }
+
+    /// Cross-crate remainder fixture. The caller may choose projection
+    /// coordinates, but the durable user is deliberately non-human, so neither
+    /// principal resolution nor attributed effect approval can consume it.
+    #[cfg(any(test, feature = "test-support"))]
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn auth_insert_nonprincipal_email_session_for_test(
+        &mut self,
+        user_id: &str,
+        identity_id: &str,
+        session_id: &str,
+        authority_instance_id: &str,
+        address: &str,
+        token_hash: &[u8],
+        created_at_ms: u64,
+        last_used_at_ms: u64,
+        expires_at_ms: u64,
+        absolute_expires_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.with_auth_transaction(|transaction| {
+            transaction.execute(
+                "INSERT INTO _auth_users(id, kind, registration_provenance, created_at_ms)
+                 VALUES(?1, 'agent', '{\"class\":\"nonprincipal-test-fixture\"}', ?2)",
                 params![user_id, created_at_ms as i64],
             )?;
             insert_test_email_identity(
@@ -3960,7 +4012,8 @@ impl LocalDatabase {
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| {
             tx.execute(
-                "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
+                "INSERT INTO _auth_users(id, kind, registration_provenance, created_at_ms)
+                 VALUES(?1, 'agent', '{\"class\":\"nonprincipal-test-fixture\"}', 0)",
                 params![user_id],
             )?;
             insert_test_email_identity(tx, identity_id, user_id, "push@example.com", 0, false)?;
@@ -4007,7 +4060,8 @@ impl LocalDatabase {
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|transaction| {
             transaction.execute(
-                "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
+                "INSERT INTO _auth_users(id, kind, registration_provenance, created_at_ms)
+                 VALUES(?1, 'agent', '{\"class\":\"nonprincipal-test-fixture\"}', 0)",
                 params![user_id],
             )?;
             insert_test_email_identity(
@@ -5466,7 +5520,10 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_insert_expired_challenges_for_test(count)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    // This arbitrary durable identity/session/digest mint is confined to this
+    // crate's unit-test compilation. Additive features are part of the public
+    // attacker surface and must not expose a ResolvedPrincipal seed.
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub fn insert_email_session_for_test(
         &mut self,
@@ -5520,6 +5577,36 @@ impl<'a> AuthCatalogKernel<'a> {
             now_ms,
             expires_at_ms,
         )
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_nonprincipal_email_session_for_test(
+        &mut self,
+        user_id: &str,
+        identity_id: &str,
+        session_id: &str,
+        authority_instance_id: &str,
+        address: &str,
+        token_hash: &[u8],
+        created_at_ms: u64,
+        last_used_at_ms: u64,
+        expires_at_ms: u64,
+        absolute_expires_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.write_db()
+            .auth_insert_nonprincipal_email_session_for_test(
+                user_id,
+                identity_id,
+                session_id,
+                authority_instance_id,
+                address,
+                token_hash,
+                created_at_ms,
+                last_used_at_ms,
+                expires_at_ms,
+                absolute_expires_at_ms,
+            )
     }
 
     #[cfg(any(test, feature = "test-support"))]

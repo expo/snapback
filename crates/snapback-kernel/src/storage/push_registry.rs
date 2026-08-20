@@ -299,7 +299,11 @@ impl LocalDatabase {
         self.with_auth_transaction(|tx| {
             let identity_id = format!("idn_{discriminator:026}");
             tx.execute(
-                "INSERT OR IGNORE INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
+                "INSERT OR IGNORE INTO _auth_users(
+                   id, kind, registration_provenance, created_at_ms
+                 ) VALUES(
+                   ?1, 'agent', '{\"class\":\"nonprincipal-test-fixture\"}', 0
+                 )",
                 params![principal_id],
             )?;
             super::insert_test_email_identity(

@@ -3449,11 +3449,13 @@ impl LocalDatabase {
     #[cfg(any(test, feature = "test-support"))]
     pub fn insert_other_identity_session_for_test(
         &mut self,
-        user_id: &str,
+        principal: &super::ResolvedPrincipal,
         subject: &str,
         now_ms: u64,
         random: &dyn RandomSource,
     ) -> SnapbackResult<(String, String, SessionBearer)> {
+        let approver = principal.effect_approver()?;
+        let database_binding = self.binding();
         let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::Identity);
         let session_id = crate::ids::mint_time_ordered(crate::ids::Kind::Session);
         let authority_instance_id =
@@ -3465,6 +3467,12 @@ impl LocalDatabase {
             )
         })?;
         self.with_auth_transaction(|transaction| {
+            let user_id = super::resolved_principal::revalidate_effect_approver_on(
+                transaction,
+                &approver,
+                &database_binding,
+                now_ms,
+            )?;
             transaction.execute(
                 "INSERT INTO _auth_identities(
                    id,user_id,kind,provider,subject,canonical_value,
@@ -4776,5 +4784,53 @@ mod tests {
 impl super::ServingDatabase {
     pub fn clear_password_lockout(&mut self, identifier: &str) -> SnapbackResult<bool> {
         self.db.clear_password_lockout(identifier)
+    }
+}
+impl super::ServingDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn identity_password_register(
+        &mut self,
+        username: &str,
+        password: &PasswordSecret,
+        now: u64,
+        random: &dyn RandomSource,
+        key_id: &str,
+        recovery_key: &[u8; 32],
+    ) -> SnapbackResult<IdentitySession> {
+        self.db
+            .identity_password_register(username, password, now, random, key_id, recovery_key)
+    }
+}
+impl super::ServingDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_imported_password_hash_for_test(
+        &mut self,
+        username: &str,
+        _algorithm: &str,
+        hash_phc: &str,
+    ) -> SnapbackResult<()> {
+        self.db
+            .install_imported_password_hash_for_test(username, _algorithm, hash_phc)
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn insert_other_identity_session_for_test(
+        &mut self,
+        principal: &super::ResolvedPrincipal,
+        subject: &str,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<(String, String, SessionBearer)> {
+        self.db
+            .insert_other_identity_session_for_test(principal, subject, now_ms, random)
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn insert_typed_guest_session_for_test(
+        &mut self,
+        expires_at_ms: u64,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IdentitySession> {
+        self.db
+            .insert_typed_guest_session_for_test(expires_at_ms, now_ms, random)
     }
 }

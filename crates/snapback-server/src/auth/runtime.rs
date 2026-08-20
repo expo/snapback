@@ -910,7 +910,7 @@ mod tests {
         snapback
             .remainder_auth_fixture()
             .auth_catalog()
-            .insert_email_session_for_test(
+            .insert_nonprincipal_email_session_for_test(
                 "user-1",
                 "identity-1",
                 "session-1",
@@ -1278,7 +1278,7 @@ mod tests {
         snapback
             .remainder_auth_fixture()
             .auth_catalog()
-            .insert_email_session_for_test(
+            .insert_nonprincipal_email_session_for_test(
                 &user_id,
                 &identity_id,
                 &session_id,
@@ -1559,7 +1559,7 @@ mod tests {
         snapback
             .remainder_auth_fixture()
             .auth_catalog()
-            .insert_email_session_for_test(
+            .insert_nonprincipal_email_session_for_test(
                 &user_id,
                 &identity_id,
                 &session_id,
