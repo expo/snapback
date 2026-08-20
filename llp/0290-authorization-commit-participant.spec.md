@@ -1,7 +1,7 @@
 # LLP 0290: Database-bound authorization commit participant and sync outbox split
 
 **Type:** Spec  
-**Status:** Draft  
+**Status:** Accepted  
 **Systems:** Security/authorization, Rust core, Storage, Live/realtime, Auth, Verification  
 **Author:** codex `gpt-5.6-sol`, synthesizing two independent blind designs — codex
 `gpt-5.6-sol` and grok-4.6 — orchestrated by Claude (Opus 5) for Charlie Cheever  
@@ -26,9 +26,26 @@ invalidation enable point; and enumerates every production
 >
 > **Review state.** A grok-4.6 LLP 0005 review — deliberately from a model
 > family other than the codex synthesizer — returned **NEEDS REVISION**. Revision
-> (b) answers its four load-bearing findings, but it authorizes no
-> implementation, ownership claim, or F-1 closure claim. This document remains
-> Draft, and LLP 0285 step 8 remains blocked until the author accepts it.
+> (b) answered its four load-bearing findings and the same reviewer returned
+> **READY**, confirming LLP 0285 §8 risk 4's two named failure modes are closed at
+> the specification level.
+>
+> **Accepted 2026-08-20 by Charlie Cheever. LLP 0285 §6 step 8 is UNBLOCKED.**
+>
+> Acceptance is of the SPECIFICATION and does not assert the design compiles. The
+> reviewer explicitly left open compilation and borrow-shape validation, complete
+> producer/caller coverage, exact outcome-lookup uniqueness, and whether a
+> kernel-opaque receipt can prove the auth-owned issuer stored its view without
+> creating an upward dependency. LLP 0285 §8 risk 7 records that nothing in the
+> source designs was ever compiled; that debt is inherited here and must be
+> discharged by implementation, not assumed.
+>
+> **Interaction with LLP 0292.** The straight-path plan rebuilds the authority-
+> CREATION surface and explicitly preserves LLP 0059's room, outbox, rollback and
+> ambiguity algorithms. This document moves the room-authority MECHANISM into the
+> kernel — a different concern — so step 8 may proceed in parallel with the
+> chokepoint work rather than waiting behind it. If 0292's final shape absorbs step
+> 8, that supersession must be recorded here rather than left implicit.
 
 ## Summary
 
@@ -1977,7 +1994,9 @@ If the cross-crate `MutexGuard` shape fails, the permitted fallback is an opaque
 
 ## 12. Status
 
-This document is **Draft**.
+This document is **Accepted** (Charlie Cheever, 2026-08-20), which unblocks LLP 0285
+§6 step 8. Acceptance is of the specification; the open items below are inherited by
+implementation and are not resolved by acceptance.
 
 The grok-4.6 LLP 0005 review returned **NEEDS REVISION**; revision (b) answers
 that review but has not itself received a READY verdict, has not been compiled,

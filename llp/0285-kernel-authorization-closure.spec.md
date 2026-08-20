@@ -160,6 +160,27 @@ DoS-prevention, **not** authorization; no safety argument here may rest on it.
    digest-at-open fallback — the latter is substantively what §8 risk 2 already forbids.
    Zero `schemas/` drift.
 
+8. **LLP 0290 accepted; step 8 unblocked (author ruling 2026-08-20).** The
+   `AuthorizationCommitParticipant` specification went through the LLP 0005 loop — an
+   independent grok-4.6 review of revision (a) returned NEEDS REVISION with four load-bearing
+   gaps, revision (b) closed them, and the same reviewer returned READY. §8 risk 4's two named
+   failure modes are closed **at the specification level**, and the author accepted it, so
+   **§6 step 8 is UNBLOCKED**.
+
+   Acceptance does not assert the design compiles. Compilation and borrow-shape validation,
+   complete producer/caller coverage, exact outcome-lookup uniqueness, and the kernel-opaque
+   receipt question remain open, and §8 risk 7's "nothing was ever compiled" debt is inherited
+   by the implementation.
+
+   One defect the review caught is worth recording here, because it is risk 4's exact failure
+   mode: revision (a)'s `bind` took a **caller-supplied** `ready_registry`, so a kernel helper
+   could have passed the reservation's own `Arc` and collapsed the A-beside-B check entirely.
+   Bind is the real check, and it must read kernel-owned state.
+
+   Step 8 may run in parallel with the LLP 0292 chokepoint work: 0292 rebuilds authority
+   *creation* and preserves LLP 0059's room/outbox/rollback/ambiguity algorithms, while step 8
+   moves the room-authority *mechanism* into the kernel.
+
 ## 3. Threat model
 
 - **Attacker A — a direct dependent crate in this workspace (live today).** Any
