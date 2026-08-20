@@ -16,10 +16,18 @@ libc = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
+snapback-activation = { path = "../snapback-activation" }
+snapback-auth = { path = "../snapback-auth" }
 snapback-engine = { path = "../snapback-engine" }
 snapback-kernel = { path = "../snapback-kernel" }
+snapback-server = { path = "../snapback-server" }
+snapback-services = { path = "../snapback-services" }
+snapback-sync = { path = "../snapback-sync" }
 snapback-types = { path = "../snapback-types" }
 uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
+
+[dev-dependencies]
+tempfile = "3.23"
 
 [lints]
 workspace = true

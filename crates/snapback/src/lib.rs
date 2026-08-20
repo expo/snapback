@@ -50,7 +50,7 @@ pub mod assets {
         FinalizePreparationV1, FinalizePrepareTicketV1, FinalizePutTicketV1, prepare_asset_variant,
         prepare_required_asset_variants,
     };
-    pub use snapback_services::assets::{AssetFsStore, detect_content_type, schema_registrations};
+    pub use snapback_services::assets::{AssetFsStore, detect_content_type};
 }
 #[doc(hidden)]
 pub mod assets_cut {
@@ -321,8 +321,6 @@ pub use snapback_types::result_contract;
 #[doc(hidden)]
 pub use snapback_types::result_transform;
 pub use snapback_types::rqs_contract;
-#[doc(hidden)]
-pub mod schema_export;
 #[doc(hidden)]
 pub use snapback_cli::store_state;
 #[doc(hidden)]

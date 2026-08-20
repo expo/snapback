@@ -21,6 +21,7 @@ pub mod live_coalesce;
 pub mod local;
 pub mod realtime;
 pub mod rqs;
+pub mod schema_export;
 pub mod snapshot_batch_cursor;
 pub mod snapshot_batch_cursor_v2;
 pub mod spike_trace;

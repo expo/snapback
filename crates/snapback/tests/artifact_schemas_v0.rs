@@ -1,6 +1,6 @@
 //! DK-7 / LLP 0037: the Rust serde types are the single source of truth for the
 //! Snapback-owned shared artifact shapes. The JSON Schemas under `schemas/` are
-//! generated from those types (`snapback::schema_export::artifact_schemas`) and
+//! generated from owner-local registrations assembled by `snapback-tools` and
 //! committed. These tests are:
 //!   1. the drift gate — committed `schemas/*` byte/value-match the schema the
 //!      Rust types generate right now (fails CI on an unregenerated type change);
@@ -12,7 +12,7 @@
 //!
 //! Regenerate the committed schemas with:
 //!   DYLD_FRAMEWORK_PATH="$PWD/vendor/ibex/ios/Frameworks" \
-//!     cargo run --bin snapback-schemagen
+//!     cargo run -p snapback-tools --bin snapback-schemagen
 //!
 //! @ref LLP 0037#decision-ratified-2026-07-02 — generated, committed,
 //!   drift-gated schemas instead of hand-synced shape definitions.
@@ -93,16 +93,35 @@ use snapback::result_transform::{
 use snapback::runtime::{
     CapabilityState, IbexCliCapability, IbexSubmoduleCapability, RuntimeCapabilities,
 };
-use snapback::schema_export::{
-    EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS, SchemaArtifact, artifact_instances, artifact_schemas,
-    http_routes_artifact,
-};
+use snapback_server::schema_export::http_routes_artifact;
+use snapback_types::schema_export::{EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS, SchemaArtifact};
 use snapback::service_profile::{
     PublishedArtifactRef, RemoteAuthCapabilityManifest, RemoteCredentialPolicy,
     RemoteDataCapabilityManifest, RemoteEndpointPolicy, RemoteServiceDataTierIdentity,
     RemoteServiceGitPublication, RemoteServiceOperation, RemoteServiceProfile,
 };
 use snapback_kernel::storage::{ClientMutationRetentionInfo, StorageInfo};
+
+fn artifact_schemas() -> Vec<SchemaArtifact> {
+    let mut artifacts = snapback_types::schema_export::schema_registrations();
+    artifacts.extend(snapback_kernel::schema_export::schema_registrations());
+    artifacts.extend(snapback_auth::schema_export::schema_registrations());
+    artifacts.extend(snapback_activation::schema_export::schema_registrations());
+    artifacts.extend(snapback_services::schema_export::schema_registrations());
+    artifacts.extend(snapback_sync::schema_export::schema_registrations());
+    artifacts.extend(snapback_engine::schema_export::schema_registrations());
+    artifacts.extend(snapback_server::schema_export::schema_registrations());
+    artifacts
+}
+
+fn artifact_instances() -> Vec<SchemaArtifact> {
+    let mut artifacts = snapback_types::schema_export::artifact_instances();
+    artifacts.extend(snapback_kernel::schema_export::artifact_instances());
+    artifacts.extend(snapback_services::schema_export::artifact_instances());
+    artifacts.extend(snapback_sync::schema_export::artifact_instances());
+    artifacts.extend(snapback_server::schema_export::artifact_instances());
+    artifacts
+}
 
 fn retention_info() -> ClientMutationRetentionInfo {
     ClientMutationRetentionInfo {
@@ -512,7 +531,7 @@ fn committed(file: &str) -> Value {
     let path = schemas_dir().join(file);
     let text = fs::read_to_string(&path).unwrap_or_else(|_| {
         panic!(
-            "{file} is missing; regenerate with `cargo run --bin snapback-schemagen` \
+            "{file} is missing; regenerate with `cargo run -p snapback-tools --bin snapback-schemagen` \
              (LLP 0037 / LLP 0032 P3c)"
         )
     });
@@ -648,7 +667,7 @@ fn dk7_committed_schemas_match_rust_types() {
         assert_eq!(
             on_disk, schema,
             "{file} drifted from the Rust types; regenerate with \
-             `cargo run --bin snapback-schemagen` (LLP 0037 / LLP 0032 P3c)"
+             `cargo run -p snapback-tools --bin snapback-schemagen` (LLP 0037 / LLP 0032 P3c)"
         );
     }
 
@@ -719,7 +738,7 @@ fn dk7_committed_public_instances_match_rust_types() {
         let on_disk = committed(file);
         assert_eq!(
             on_disk, schema,
-            "{file} drifted from the Rust authority; regenerate with `cargo run --bin snapback-schemagen`"
+            "{file} drifted from the Rust authority; regenerate with `cargo run -p snapback-tools --bin snapback-schemagen`"
         );
         if file == "http.routes.v1.json" {
             let routes = schema["routes"].as_array().expect("HTTP route rows");
@@ -1633,7 +1652,7 @@ fn dk7_every_artifact_has_a_committed_schema_file() {
     assert_eq!(
         generated, committed,
         "schemas/ is out of sync with the generator; regenerate with \
-         `cargo run --bin snapback-schemagen`"
+         `cargo run -p snapback-tools --bin snapback-schemagen`"
     );
     for path in EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS
         .iter()

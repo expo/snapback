@@ -33,7 +33,7 @@ pub mod assets {
         FinalizePreparationV1, FinalizePrepareTicketV1, FinalizePutTicketV1, prepare_asset_variant,
         prepare_required_asset_variants,
     };
-    pub use snapback_services::assets::{AssetFsStore, detect_content_type, schema_registrations};
+    pub use snapback_services::assets::{AssetFsStore, detect_content_type};
 }
 
 pub mod assets_store {
@@ -99,6 +99,7 @@ pub mod guide;
 pub mod guide_reference;
 pub mod host_ops;
 pub mod manifest;
+pub mod schema_export;
 pub mod server;
 
 #[cfg(test)]

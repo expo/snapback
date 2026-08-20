@@ -22,3 +22,4 @@ pub mod config;
 pub mod deploy;
 pub mod generation_activation;
 pub mod operational_readiness;
+pub mod schema_export;

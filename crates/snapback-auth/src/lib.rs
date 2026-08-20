@@ -11,6 +11,7 @@ pub use snapback_types::{contract_types, exec_guard, ids, owner_only_file, remed
 
 pub mod auth;
 pub mod dev_identity;
+pub mod schema_export;
 
 pub mod deploy {
     pub use snapback_types::auth::deployment::{HostedAdmissionV2, HostedAdmissionV2Version};

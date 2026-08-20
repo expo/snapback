@@ -84,6 +84,7 @@ pub mod local;
 pub mod manifest;
 pub mod push;
 pub mod runtime;
+pub mod schema_export;
 
 #[cfg(feature = "test-support")]
 pub mod test_support;
