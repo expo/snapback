@@ -77,6 +77,147 @@ mod resolved_principal_tests {
     }
 
     #[test]
+    fn session_resolver_cannot_rewind_below_the_durable_clock_floor() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        let digest = crate::contract_types::TokenDigest::from_bytes([8; 32]);
+        db.auth_catalog()
+            .insert_email_session_for_test(
+                "human-clock",
+                "identity-clock",
+                "session-clock",
+                "authority-clock",
+                "clock@example.com",
+                digest.as_bytes(),
+                1,
+                1,
+                100,
+                200,
+            )
+            .expect("durable session");
+        db.advance_auth_session_clock_floor(101)
+            .expect("durable clock passes session expiry");
+
+        let error = db
+            .resolve_principal_from_session(&digest, 99)
+            .err()
+            .expect("a caller cannot revive the session with a pre-expiry timestamp");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PRINCIPAL_INVALID");
+    }
+
+    #[test]
+    fn cross_crate_session_fixtures_cannot_mint_a_resolved_principal() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        let digest = crate::contract_types::TokenDigest::from_bytes([9; 32]);
+        db.auth_catalog()
+            .insert_nonprincipal_email_session_for_test(
+                "caller-chosen-alice",
+                "fixture-identity",
+                "fixture-session",
+                "fixture-authority",
+                "alice@example.com",
+                digest.as_bytes(),
+                1,
+                1,
+                100,
+                200,
+            )
+            .expect("nonprincipal durable fixture");
+
+        let error = db
+            .resolve_principal_from_session(&digest, 50)
+            .err()
+            .expect("a caller-created non-human fixture cannot resolve as user authority");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PRINCIPAL_INVALID");
+
+        let mut db = LocalDatabase::memory().expect("push fixture database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        db.activate_push_registry_for_test(crate::push::PushSeamDeclarationV1 {
+            app_scope: crate::push::PushAppScopeV1 {
+                eas_project_id: "fixture-project".to_owned(),
+                application_id: "com.example.fixture".to_owned(),
+                environment: "test".to_owned(),
+            },
+            registry: crate::push::PushRegistryDeclarationV1 {
+                idle_retention_ms: 86_400_000,
+            },
+            audiences: std::collections::BTreeMap::new(),
+            uses: Vec::new(),
+            ledger: None,
+        })
+        .expect("push fixture registry");
+        db.auth_catalog()
+            .insert_email_session_and_push_token_for_test(
+                "push-fixture-user",
+                "push-fixture-identity",
+                "push-fixture-session",
+                "push-fixture-authority",
+                172_800_000,
+            )
+            .expect("nonprincipal push fixture");
+        let digest = crate::contract_types::TokenDigest::from_bytes([0; 32]);
+        let error = db
+            .resolve_principal_from_session(&digest, 50)
+            .err()
+            .expect("the push fixture cannot resolve as user authority");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PRINCIPAL_INVALID");
+        db.push_registry()
+            .insert_session_for_test(
+                "push-ledger-fixture-user",
+                "push-ledger-fixture-session",
+                1,
+                200,
+                12,
+            )
+            .expect("nonprincipal push-ledger fixture");
+        let digest = crate::contract_types::TokenDigest::from_bytes([12; 32]);
+        let error = db
+            .resolve_principal_from_session(&digest, 50)
+            .err()
+            .expect("the push-ledger fixture cannot resolve as user authority");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PRINCIPAL_INVALID");
+
+        let mut db = LocalDatabase::memory().expect("restore fixture database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        let digest = crate::contract_types::TokenDigest::from_bytes([10; 32]);
+        db.auth_catalog()
+            .insert_restore_fixture_for_test(
+                "restore-fixture-session",
+                "restore-fixture-authority",
+                digest.as_bytes(),
+                "restore-fixture-challenge",
+                "restore@example.com",
+                &[11; 32],
+                "restore-fixture-key",
+            )
+            .expect("nonprincipal restore fixture");
+        let error = db
+            .resolve_principal_from_session(&digest, 50)
+            .err()
+            .expect("the restore fixture cannot resolve as user authority");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PRINCIPAL_INVALID");
+
+        let mut db = LocalDatabase::memory().expect("CLI restore fixture database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        db.auth_catalog()
+            .insert_restore_cli_fixture_for_test(
+                "cli-fixture-user",
+                "cli-fixture-identity",
+                "cli-fixture-session",
+                "cli-fixture-authority",
+                "cli-fixture-key",
+            )
+            .expect("nonprincipal CLI restore fixture");
+        let digest = crate::contract_types::TokenDigest::from_bytes([1; 32]);
+        let error = db
+            .resolve_principal_from_session(&digest, 50)
+            .err()
+            .expect("the CLI restore fixture cannot resolve as user authority");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PRINCIPAL_INVALID");
+    }
+
+    #[test]
     fn credential_resolver_does_not_promote_external_agents_to_internal_service() {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog().expect("auth catalog");

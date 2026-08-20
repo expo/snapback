@@ -25390,7 +25390,7 @@ fn insert_live_test_session(
     snapback
         .auth_database_mut()
         .auth_catalog()
-        .insert_email_session_for_test(
+        .insert_nonprincipal_email_session_for_test(
             user_id,
             &format!("identity-{session_id}"),
             session_id,
@@ -27423,7 +27423,7 @@ globalThis.__snapbackHandlers = {
     db.activate_current_auth_catalog()
         .expect("activate auth catalog");
     db.auth_catalog()
-        .insert_email_session_for_test(
+        .insert_nonprincipal_email_session_for_test(
             "user_1",
             "identity_1",
             "session_1",

@@ -1375,6 +1375,45 @@ impl DetachedReadSnapshot {
     }
 }
 
+#[derive(Clone)]
+pub(super) struct ActiveFunctionPolicy {
+    kind: crate::manifest::FunctionKind,
+    authority_creating: bool,
+}
+
+type ActiveFunctionPolicies = Arc<BTreeMap<String, ActiveFunctionPolicy>>;
+
+/// Single-owner capability held beside the engine's private loaded-function
+/// state. Public reconciliation and generation-commit APIs never receive it.
+pub struct LoadedFunctionPolicyPublisher {
+    database_binding: DatabaseBinding,
+}
+
+fn active_function_policies(
+    manifest: &crate::manifest::FunctionManifest,
+) -> SnapbackResult<ActiveFunctionPolicies> {
+    let mut policies = BTreeMap::new();
+    for function in &manifest.functions {
+        if policies
+            .insert(
+                function.id.clone(),
+                ActiveFunctionPolicy {
+                    kind: function.kind.clone(),
+                    authority_creating: function.authority_creating,
+                },
+            )
+            .is_some()
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_MANIFEST_INVALID",
+                "manifest",
+                "the loaded function manifest contains a duplicate function id",
+            ));
+        }
+    }
+    Ok(Arc::new(policies))
+}
+
 /// A live database paired with its sole commit fact-assertion root.
 ///
 /// There is deliberately no `DerefMut`: mutable and authority-bearing
@@ -1382,10 +1421,20 @@ impl DetachedReadSnapshot {
 pub struct ServingDatabase {
     db: LocalDatabase,
     authority: KernelCommitAuthority,
+    /// Canonical process-loaded function policy installed only by successful
+    /// generation/deployment operations. Public auth-scope reconciliation can
+    /// update its projection row but cannot rewrite this source of truth.
+    active_function_policies: ActiveFunctionPolicies,
 }
 
 impl ServingDatabase {
-    pub fn adopt(mut db: LocalDatabase) -> SnapbackResult<Self> {
+    pub fn adopt(db: LocalDatabase) -> SnapbackResult<Self> {
+        Self::adopt_with_loaded_function_policy_publisher(db).map(|(db, _publisher)| db)
+    }
+
+    pub fn adopt_with_loaded_function_policy_publisher(
+        mut db: LocalDatabase,
+    ) -> SnapbackResult<(Self, LoadedFunctionPolicyPublisher)> {
         let authority = db.claim_commit_authority().ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_KERNEL_COMMIT_AUTHORITY_ALREADY_CLAIMED",
@@ -1393,7 +1442,33 @@ impl ServingDatabase {
                 "the database already belongs to a serving commit-authority graph",
             )
         })?;
-        Ok(Self { db, authority })
+        let publisher = LoadedFunctionPolicyPublisher {
+            database_binding: db.binding(),
+        };
+        Ok((
+            Self {
+                db,
+                authority,
+                active_function_policies: Arc::new(BTreeMap::new()),
+            },
+            publisher,
+        ))
+    }
+
+    pub fn install_loaded_function_policies(
+        &mut self,
+        publisher: &LoadedFunctionPolicyPublisher,
+        manifest: &crate::manifest::FunctionManifest,
+    ) -> SnapbackResult<()> {
+        if !publisher.database_binding.matches(&self.binding()) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_GENERATION_INVALID",
+                "storage",
+                "loaded function policy publisher belongs to another database",
+            ));
+        }
+        self.active_function_policies = active_function_policies(manifest)?;
+        Ok(())
     }
 
     pub fn binding(&self) -> DatabaseBinding {
@@ -1708,19 +1783,28 @@ impl ServingDatabase {
     pub fn decide_pending_effect_admitted(
         &mut self,
         id: &str,
-        approver_principal_id: &str,
+        approver: &ResolvedPrincipal,
         approve: bool,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<pending_effects::PendingEffectRecord> {
         let command = self.authority.admit_pending_effect_decision(
             id,
-            approver_principal_id,
+            approver,
+            self.active_function_policies.clone(),
             approve,
             step_up,
             now_ms,
-        );
+        )?;
         self.db.decide_pending_effect(command)
+    }
+
+    pub fn resolve_principal_from_session(
+        &mut self,
+        digest: &crate::contract_types::TokenDigest,
+        now_ms: u64,
+    ) -> SnapbackResult<ResolvedPrincipal> {
+        self.db.resolve_principal_from_session(digest, now_ms)
     }
 
     pub fn settle_pending_effect_admitted(

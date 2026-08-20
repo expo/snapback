@@ -160,6 +160,10 @@ path = "src/bin/shared_serving_database_unmediated_insert.rs"
 name = "shared-serving-database-deref-unmediated-insert"
 path = "src/bin/shared_serving_database_deref_unmediated_insert.rs"
 
+[[bin]]
+name = "kernel-test-support-session-mint"
+path = "src/bin/kernel_test_support_session_mint.rs"
+
 # Harness-only counterexample: never part of attacks.v1.json.
 [[bin]]
 name = "unrelated-error-satisfies-regex"

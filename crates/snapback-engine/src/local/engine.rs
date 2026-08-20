@@ -3190,6 +3190,9 @@ impl EngineAppStateBindings {
 
 pub struct LocalSnapback {
     db: crate::storage::ServingDatabase,
+    /// Unforgeable publisher paired with this serving database at adoption.
+    /// Only the activation owner can align kernel policy with `functions`.
+    loaded_function_policy_publisher: crate::storage::LoadedFunctionPolicyPublisher,
     /// Process-local service-authority policy lives above the storage kernel;
     /// the database retains only its commit-interlock port.
     service_authority_fences: crate::auth::service_fence::ServiceAuthorityFenceRegistry,
@@ -4875,10 +4878,11 @@ impl LocalSnapback {
         effect: &crate::storage::pending_effects::PendingEffectRecord,
         original: &PreparedAuthority,
         management: &PreparedAuthority,
-        approver_id: &str,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
+        let approver = management.resolve_kernel_principal(&mut self.db, now_ms)?;
+        let approver_id = approver.principal_id();
         let function = self
             .function_definition(&effect.function_name)
             .cloned()
@@ -4939,7 +4943,7 @@ impl LocalSnapback {
         InvocationGate::validate_current_function_policy(management, &function)?;
         let _effect = management.effect_guard("pending-effect approval transaction")?;
         self.db
-            .decide_pending_effect_admitted(&effect.id, approver_id, true, step_up, now_ms)
+            .decide_pending_effect_admitted(&effect.id, &approver, true, step_up, now_ms)
     }
 
     pub fn settle_pending_effect(
@@ -4959,12 +4963,12 @@ impl LocalSnapback {
         &mut self,
         authority: &PreparedAuthority,
         id: &str,
-        approver_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
+        let approver = authority.resolve_kernel_principal(&mut self.db, now_ms)?;
         let _effect = authority.effect_guard("pending-effect denial transaction")?;
         self.db
-            .decide_pending_effect_admitted(id, approver_id, false, None, now_ms)
+            .decide_pending_effect_admitted(id, &approver, false, None, now_ms)
     }
 
     pub fn resolve_scoped_token_route_authority(
@@ -24180,8 +24184,11 @@ impl LocalSnapback {
         telemetry_store_identity: Option<crate::telemetry::TelemetryStoreIdentity>,
         asset_store_config: AssetStoreConfig,
     ) -> SnapbackResult<Self> {
+        let (db, policy_publisher) =
+            crate::storage::ServingDatabase::adopt_with_loaded_function_policy_publisher(db)?;
         Self::from_database_in_commit_graph(
-            crate::storage::ServingDatabase::adopt(db)?,
+            db,
+            policy_publisher,
             telemetry_store_identity,
             asset_store_config,
         )
@@ -24189,6 +24196,7 @@ impl LocalSnapback {
 
     fn from_database_in_commit_graph(
         mut db: crate::storage::ServingDatabase,
+        loaded_function_policy_publisher: crate::storage::LoadedFunctionPolicyPublisher,
         telemetry_store_identity: Option<crate::telemetry::TelemetryStoreIdentity>,
         asset_store_config: AssetStoreConfig,
     ) -> SnapbackResult<Self> {
@@ -24323,6 +24331,7 @@ impl LocalSnapback {
         ephemeral.install_authorization_commit_carriers(db.authorization_commit_carriers())?;
         Ok(Self {
             db,
+            loaded_function_policy_publisher,
             service_authority_fences,
             // @ref LLP 0234#d4--production-authority-expires-fixtures-cannot-become-production
             // — an unbound in-crate graph must refuse the repository-local

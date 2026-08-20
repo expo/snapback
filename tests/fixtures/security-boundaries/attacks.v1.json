@@ -35,6 +35,7 @@
     { "id": "forge-membership-writer-admin", "bin": "forge-membership-writer-admin", "source": "src/bin/forge_membership_writer_admin.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["MembershipWriter"] },
     { "id": "reserve-authorization-via-sync", "bin": "reserve-authorization-via-sync", "source": "src/bin/reserve_authorization_via_sync.rs", "mount": "snapback-sync", "featureSets": [[]], "seedTypes": ["AuthorizationCommitReservation"] },
     { "id": "shared-serving-database-unmediated-insert", "bin": "shared-serving-database-unmediated-insert", "source": "src/bin/shared_serving_database_unmediated_insert.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0596" },
-    { "id": "shared-serving-database-deref-unmediated-insert", "bin": "shared-serving-database-deref-unmediated-insert", "source": "src/bin/shared_serving_database_deref_unmediated_insert.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0624" }
+    { "id": "shared-serving-database-deref-unmediated-insert", "bin": "shared-serving-database-deref-unmediated-insert", "source": "src/bin/shared_serving_database_deref_unmediated_insert.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0624" },
+    { "id": "kernel-test-support-session-mint", "bin": "kernel-test-support-session-mint", "source": "src/bin/kernel_test_support_session_mint.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0599" }
   ]
 }

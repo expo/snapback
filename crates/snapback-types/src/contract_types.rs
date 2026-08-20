@@ -20,6 +20,8 @@ fn is_false(value: &bool) -> bool {
 }
 
 pub const AUTH_MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
+pub const AUTH_SESSION_SLIDING_WINDOW_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
+pub const AUTH_SESSION_USE_COALESCE_MS: u64 = 3 * 24 * 60 * 60 * 1_000;
 
 /// Reserved pseudo-table used by the declared job-status read contract and
 /// durable job lifecycle publications.

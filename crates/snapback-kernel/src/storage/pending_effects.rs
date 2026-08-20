@@ -185,7 +185,8 @@ pub struct CreatePendingEffectCommand {
 pub struct DecidePendingEffectCommand {
     database_binding: crate::storage::DatabaseBinding,
     id: String,
-    approver_principal_id: String,
+    approver: super::resolved_principal::ResolvedEffectApprover,
+    active_function_policies: super::ActiveFunctionPolicies,
     approve: bool,
     step_up: Option<crate::auth::crypto::StepUpProof>,
     now_ms: u64,
@@ -220,19 +221,29 @@ impl crate::storage::KernelCommitAuthority {
     pub fn admit_pending_effect_decision(
         &self,
         id: &str,
-        approver_principal_id: &str,
+        approver: &super::ResolvedPrincipal,
+        active_function_policies: super::ActiveFunctionPolicies,
         approve: bool,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
-    ) -> DecidePendingEffectCommand {
-        DecidePendingEffectCommand {
+    ) -> SnapbackResult<DecidePendingEffectCommand> {
+        let approver = approver.effect_approver()?;
+        if !approver.database_binding.matches(&self.binding) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+                "effects",
+                "the resolved approver belongs to a different database",
+            ));
+        }
+        Ok(DecidePendingEffectCommand {
             database_binding: self.binding(),
             id: id.to_owned(),
-            approver_principal_id: approver_principal_id.to_owned(),
+            approver,
+            active_function_policies,
             approve,
             step_up: step_up.cloned(),
             now_ms,
-        }
+        })
     }
 
     pub fn admit_pending_effect_settlement(
@@ -624,14 +635,20 @@ impl LocalDatabase {
         verify_command_identity(&command.database_binding, &self.binding())?;
         let DecidePendingEffectCommand {
             id,
-            approver_principal_id,
+            approver,
+            active_function_policies,
             approve,
             step_up,
             now_ms,
             ..
         } = command;
+        let database_binding = self.binding();
         self.with_auth_transaction(|tx| {
-            lazy_expire(tx, Some(&id), now_ms)?;
+            // @ref LLP 0059#durable-session-clock-floor — approval time is the
+            // transaction-local durable high-water, never a rewindable caller
+            // sample. Expiry, proof consumption, decision, and journal share it.
+            let effective_now_ms = super::auth::advance_session_clock_floor_on(tx, now_ms)?;
+            lazy_expire(tx, Some(&id), effective_now_ms)?;
             let current = read_record(tx, &id)?.ok_or_else(not_found)?;
             if current.status == PendingEffectStatus::Expired {
                 return Err(expired());
@@ -639,6 +656,12 @@ impl LocalDatabase {
             if current.status != PendingEffectStatus::Pending {
                 return Err(state_invalid());
             }
+            let approver_principal_id = super::resolved_principal::revalidate_effect_approver_on(
+                tx,
+                &approver,
+                &database_binding,
+                effective_now_ms,
+            )?;
             if current
                 .approver_principal_id
                 .as_deref()
@@ -651,12 +674,20 @@ impl LocalDatabase {
             // decision UPDATE, so policy activation cannot race verification
             // and commit.
             let requires_step_up = if approve {
-                super::auth_scope_bases::current_authority_creating_on(
+                let canonical = active_function_policies
+                    .get(&current.function_id)
+                    .filter(|policy| policy.kind == current.function_kind)
+                    .ok_or_else(binding_stale)?;
+                let projected = super::auth_scope_bases::current_authority_creating_on(
                     tx,
                     &current.function_id,
                     &current.function_kind,
                 )?
-                .ok_or_else(binding_stale)?
+                .ok_or_else(binding_stale)?;
+                if projected != canonical.authority_creating {
+                    return Err(binding_stale());
+                }
+                canonical.authority_creating
             } else {
                 false
             };
@@ -664,7 +695,7 @@ impl LocalDatabase {
                 let proof = step_up
                     .as_ref()
                     .ok_or_else(crate::auth::crypto::step_up_required_error)?;
-                if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, now_ms)?
+                if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, effective_now_ms)?
                     != crate::auth::crypto::StepUpConsumption::Verified
                 {
                     return Err(crate::auth::crypto::step_up_required_error());
@@ -681,7 +712,13 @@ impl LocalDatabase {
                  SET status = ?1, approver_identity = ?2, decided_at_ms = ?3,
                      outcome_code = ?4
                  WHERE id = ?5 AND status = 'pending'",
-                params![status, approver_principal_id, now_ms as i64, outcome, id],
+                params![
+                    status,
+                    approver_principal_id,
+                    effective_now_ms as i64,
+                    outcome,
+                    id
+                ],
             )?;
             if changed != 1 {
                 return Err(state_invalid());
@@ -690,7 +727,7 @@ impl LocalDatabase {
                 tx,
                 &id,
                 PendingEffectJournalEntry {
-                    at_ms: now_ms,
+                    at_ms: effective_now_ms,
                     transition: status.to_owned(),
                     actor: Some(approver_principal_id.to_owned()),
                     outcome_code: outcome.map(str::to_owned),
@@ -828,8 +865,12 @@ fn catalog_corrupt() -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::manifest::{
+        FunctionDefinition, FunctionManifest, FunctionRuntime, HandlerPlan, QueryPlan,
+    };
+    use crate::storage::{ResolvedPrincipal, ServingDatabase};
 
-    fn ready() -> (LocalDatabase, crate::storage::KernelCommitAuthority) {
+    fn ready() -> ServingDatabase {
         let mut db = LocalDatabase::memory().expect("pending-effect database");
         db.activate_current_auth_catalog()
             .expect("activate protected catalog");
@@ -844,10 +885,11 @@ mod tests {
                 [],
             )
             .expect("durable function policy");
-        let authority = db
-            .claim_kernel_commit_authority()
-            .expect("kernel authority");
-        (db, authority)
+        insert_session_on(&mut db, "human-a", 0xa0);
+        insert_session_on(&mut db, "human-b", 0xb0);
+        let mut serving = ServingDatabase::adopt(db).expect("serving database");
+        install_loaded_policy(&mut serving, false);
+        serving
     }
 
     fn request(now_ms: u64, ttl_ms: u64) -> CreatePendingEffect {
@@ -874,13 +916,74 @@ mod tests {
         }
     }
 
+    fn policy_manifest(authority_creating: bool) -> FunctionManifest {
+        let mut function = FunctionDefinition::new(
+            "write",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
+                table: "todos".to_owned(),
+                filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                membership_filters: Vec::new(),
+                indexed_by: None,
+            })),
+        );
+        function.id = "fn:write".to_owned();
+        function.authority_creating = authority_creating;
+        FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        }
+    }
+
+    fn insert_session_on(db: &mut LocalDatabase, principal: &str, token_byte: u8) {
+        db.auth_catalog()
+            .insert_email_session_for_test(
+                principal,
+                &format!("identity-{principal}"),
+                &format!("session-{principal}"),
+                &format!("authority-{principal}"),
+                &format!("{principal}@example.com"),
+                &[token_byte; 32],
+                1,
+                1,
+                1_000,
+                2_000,
+            )
+            .expect("durable approver session");
+    }
+
+    fn insert_session(db: &mut ServingDatabase, principal: &str, token_byte: u8) {
+        insert_session_on(db.auth_database_mut(), principal, token_byte);
+    }
+
+    fn install_loaded_policy(db: &mut ServingDatabase, authority_creating: bool) {
+        let manifest = policy_manifest(authority_creating);
+        db.auth_database_mut()
+            .reconcile_auth_scope_bases(&manifest)
+            .expect("install durable function policy projection");
+        db.active_function_policies = crate::storage::active_function_policies(&manifest)
+            .expect("install canonical process-loaded function policy");
+    }
+
+    fn principal(db: &mut ServingDatabase, principal: &str, token_byte: u8) -> ResolvedPrincipal {
+        let resolved = db
+            .resolve_principal_from_session(
+                &crate::contract_types::TokenDigest::from_bytes([token_byte; 32]),
+                10,
+            )
+            .expect("live durable approver principal");
+        assert_eq!(resolved.principal_id(), principal);
+        resolved
+    }
+
     #[test]
     fn disclosed_intent_is_bounded_and_journals_approve_execute() {
-        let (mut db, authority) = ready();
+        let mut db = ready();
         let created = db
-            .create_pending_effect(
-                authority.admit_pending_effect_creation(request(10, DEFAULT_TTL_MS)),
-            )
+            .create_pending_effect_admitted(request(10, DEFAULT_TTL_MS))
             .unwrap();
         assert!(created.id.starts_with("pfx_"));
         assert_eq!(created.status, PendingEffectStatus::Pending);
@@ -889,23 +992,13 @@ mod tests {
         assert_eq!(created.preview.args_digest, created.args_digest);
         assert_eq!(created.journal[0].transition, "created");
 
+        let approver = principal(&mut db, "human-a", 0xa0);
         let approved = db
-            .decide_pending_effect(authority.admit_pending_effect_decision(
-                &created.id,
-                "human-a",
-                true,
-                None,
-                20,
-            ))
+            .decide_pending_effect_admitted(&created.id, &approver, true, None, 20)
             .unwrap();
         assert_eq!(approved.status, PendingEffectStatus::Approved);
         let executed = db
-            .settle_pending_effect(authority.admit_pending_effect_settlement(
-                &created.id,
-                true,
-                Some("ok"),
-                21,
-            ))
+            .settle_pending_effect_admitted(&created.id, true, Some("ok"), 21)
             .unwrap();
         assert_eq!(executed.status, PendingEffectStatus::Executed);
         assert_eq!(
@@ -920,72 +1013,55 @@ mod tests {
 
     #[test]
     fn approver_deny_and_lazy_expiry_are_closed_transitions() {
-        let (mut db, authority) = ready();
-        let denied = db
-            .create_pending_effect(authority.admit_pending_effect_creation(request(10, 100)))
-            .unwrap();
+        let mut db = ready();
+        let denied = db.create_pending_effect_admitted(request(10, 100)).unwrap();
+        let human_b = principal(&mut db, "human-b", 0xb0);
         assert_eq!(
-            db.decide_pending_effect(
-                authority.admit_pending_effect_decision(&denied.id, "human-b", false, None, 20,)
-            )
-            .unwrap_err()
-            .diagnostic
-            .code,
+            db.decide_pending_effect_admitted(&denied.id, &human_b, false, None, 20)
+                .unwrap_err()
+                .diagnostic
+                .code,
             "SNAPBACK_EFFECT_APPROVAL_DENIED",
         );
+        let human_a = principal(&mut db, "human-a", 0xa0);
         let refused = db
-            .decide_pending_effect(
-                authority.admit_pending_effect_decision(&denied.id, "human-a", false, None, 20),
-            )
+            .decide_pending_effect_admitted(&denied.id, &human_a, false, None, 20)
             .unwrap();
         assert_eq!(refused.status, PendingEffectStatus::Refused);
 
-        let expiring = db
-            .create_pending_effect(authority.admit_pending_effect_creation(request(30, 1)))
-            .unwrap();
+        let expiring = db.create_pending_effect_admitted(request(30, 1)).unwrap();
         let expired = db.pending_effect(&expiring.id, 31).unwrap();
         assert_eq!(expired.status, PendingEffectStatus::Expired);
         assert_eq!(expired.journal.last().unwrap().transition, "expired");
         assert_eq!(
-            db.decide_pending_effect(authority.admit_pending_effect_decision(
-                &expiring.id,
-                "human-a",
-                true,
-                None,
-                32,
-            ))
-            .unwrap_err()
-            .diagnostic
-            .code,
+            db.decide_pending_effect_admitted(&expiring.id, &human_a, true, None, 32)
+                .unwrap_err()
+                .diagnostic
+                .code,
             "SNAPBACK_EFFECT_EXPIRED",
         );
     }
 
     #[test]
     fn approval_rederives_step_up_from_durable_policy_inside_the_transaction() {
-        let (mut db, authority) = ready();
+        let mut db = ready();
         let created = db
-            .create_pending_effect(
-                authority.admit_pending_effect_creation(request(10, DEFAULT_TTL_MS)),
-            )
+            .create_pending_effect_admitted(request(10, DEFAULT_TTL_MS))
             .unwrap();
-        db.conn
+        install_loaded_policy(&mut db, true);
+        db.auth_database_mut()
+            .conn
             .execute(
                 "UPDATE _auth_scope_bases
-                 SET generation = generation + 1, authority_creating = 1
+                 SET authority_creating = 1
                  WHERE function_id = 'fn:write'",
                 [],
             )
             .expect("durable policy changes before decision");
 
+        let approver = principal(&mut db, "human-a", 0xa0);
         let error = db
-            .decide_pending_effect(authority.admit_pending_effect_decision(
-                &created.id,
-                "human-a",
-                true,
-                None,
-                20,
-            ))
+            .decide_pending_effect_admitted(&created.id, &approver, true, None, 20)
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
         assert_eq!(
@@ -995,17 +1071,100 @@ mod tests {
     }
 
     #[test]
+    fn public_scope_reconciliation_cannot_downgrade_the_loaded_function_policy() {
+        let mut db = ready();
+        install_loaded_policy(&mut db, true);
+        let created = db
+            .create_pending_effect_admitted(request(10, DEFAULT_TTL_MS))
+            .unwrap();
+
+        db.auth_database_mut()
+            .reconcile_auth_scope_bases(&policy_manifest(false))
+            .expect("attacker rewrites the public durable projection");
+        let approver = principal(&mut db, "human-a", 0xa0);
+        let error = db
+            .decide_pending_effect_admitted(&created.id, &approver, true, None, 20)
+            .expect_err("the caller-written projection cannot bypass step-up");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_EFFECT_BINDING_STALE");
+        assert_eq!(
+            db.pending_effect(&created.id, 20).unwrap().status,
+            PendingEffectStatus::Pending,
+        );
+
+        db.auth_database_mut()
+            .reconcile_auth_scope_bases(&policy_manifest(true))
+            .expect("restore the canonical projection value");
+        db.generation_commit_ops()
+            .commit_function_generation(crate::storage::CommitFunctionGeneration {
+                manifest: policy_manifest(false),
+                trusted_active_generation: false,
+                projection_publications: Vec::new(),
+            })
+            .expect("caller can commit durable generation metadata but not publish loaded policy");
+        let error = db
+            .decide_pending_effect_admitted(&created.id, &approver, true, None, 20)
+            .expect_err("canonical authority-creating policy still requires proof");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
+    }
+
+    #[test]
+    fn decision_cannot_attribute_mallorys_approval_to_alice() {
+        let mut db = ready();
+        insert_session(&mut db, "alice", 0xa1);
+        insert_session(&mut db, "mallory", 0xb2);
+        let mallory_digest = crate::contract_types::TokenDigest::from_bytes([0xb2; 32]);
+        let mallory = db
+            .resolve_principal_from_session(&mallory_digest, 10)
+            .expect("Mallory has only Mallory's live durable principal");
+        assert_eq!(mallory.principal_id(), "mallory");
+        let mut assigned = request(10, DEFAULT_TTL_MS);
+        assigned.approver_principal_id = Some("alice".to_owned());
+        let created = db.create_pending_effect_admitted(assigned).unwrap();
+
+        let error = db
+            .decide_pending_effect_admitted(&created.id, &mallory, true, None, 20)
+            .expect_err("Mallory cannot submit Alice's identifier as approval authority");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_EFFECT_APPROVAL_DENIED");
+        assert_eq!(
+            db.pending_effect(&created.id, 20).unwrap().status,
+            PendingEffectStatus::Pending,
+        );
+    }
+
+    #[test]
+    fn decision_cannot_rewind_below_the_durable_clock_floor() {
+        let mut db = ready();
+        let created = db.create_pending_effect_admitted(request(10, 10)).unwrap();
+        db.auth_database_mut()
+            .advance_auth_session_clock_floor(21)
+            .expect("authoritative clock passes effect expiry");
+
+        let approver = principal(&mut db, "human-a", 0xa0);
+        let error = db
+            .decide_pending_effect_admitted(&created.id, &approver, true, None, 19)
+            .expect_err("a backdated decision cannot revive an expired effect");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_EFFECT_EXPIRED");
+        let expired = db.pending_effect(&created.id, 21).unwrap();
+        assert_eq!(expired.status, PendingEffectStatus::Expired);
+        assert_eq!(expired.journal.last().unwrap().at_ms, 21);
+    }
+
+    #[test]
     fn exact_catalog_rejects_unrecognized_shape() {
-        let (db, _authority) = ready();
-        validate_exact_schema(&db.conn).unwrap();
-        db.conn
+        let mut db = ready();
+        validate_exact_schema(&db.auth_database_mut().conn).unwrap();
+        db.auth_database_mut()
+            .conn
             .execute_batch(
                 "CREATE INDEX _snapback_pending_effects_unrecognized
              ON _snapback_pending_effects(function_name);",
             )
             .unwrap();
         assert_eq!(
-            validate_exact_schema(&db.conn).unwrap_err().diagnostic.code,
+            validate_exact_schema(&db.auth_database_mut().conn)
+                .unwrap_err()
+                .diagnostic
+                .code,
             "SNAPBACK_EFFECT_CATALOG_CORRUPT",
         );
     }

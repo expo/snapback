@@ -3149,11 +3149,13 @@ impl LocalDatabase {
     #[cfg(any(test, feature = "test-support"))]
     pub fn insert_other_identity_session_for_test(
         &mut self,
-        user_id: &str,
+        principal: &super::ResolvedPrincipal,
         subject: &str,
         now_ms: u64,
         random: &dyn RandomSource,
     ) -> SnapbackResult<(String, String, SessionBearer)> {
+        let approver = principal.effect_approver()?;
+        let database_binding = self.binding();
         let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::Identity);
         let session_id = crate::ids::mint_time_ordered(crate::ids::Kind::Session);
         let authority_instance_id =
@@ -3165,6 +3167,12 @@ impl LocalDatabase {
             )
         })?;
         self.with_auth_transaction(|transaction| {
+            let user_id = super::resolved_principal::revalidate_effect_approver_on(
+                transaction,
+                &approver,
+                &database_binding,
+                now_ms,
+            )?;
             transaction.execute(
                 "INSERT INTO _auth_identities(
                    id,user_id,kind,provider,subject,canonical_value,
@@ -4401,13 +4409,13 @@ impl super::ServingDatabase {
     #[cfg(any(test, feature = "test-support"))]
     pub fn insert_other_identity_session_for_test(
         &mut self,
-        user_id: &str,
+        principal: &super::ResolvedPrincipal,
         subject: &str,
         now_ms: u64,
         random: &dyn RandomSource,
     ) -> SnapbackResult<(String, String, SessionBearer)> {
         self.db
-            .insert_other_identity_session_for_test(user_id, subject, now_ms, random)
+            .insert_other_identity_session_for_test(principal, subject, now_ms, random)
     }
     #[cfg(any(test, feature = "test-support"))]
     pub fn insert_typed_guest_session_for_test(

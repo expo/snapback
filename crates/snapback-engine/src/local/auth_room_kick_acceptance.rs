@@ -167,7 +167,7 @@ impl KickFixture {
             snapback
                 .auth_database_mut()
                 .auth_catalog()
-                .insert_email_session_for_test(
+                .insert_nonprincipal_email_session_for_test(
                     user_id,
                     identity_id,
                     session_id,

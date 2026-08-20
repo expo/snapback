@@ -8,6 +8,10 @@ Verification, Packaging
 Claude (Opus 5) and codex `gpt-5.6-sol` — commissioned by Charlie Cheever
 (author rulings 2026-08-19, recorded in §2)
 **Date:** 2026-08-19
+**Revised:** 2026-08-20 (pending-effect decision fix round: records the
+canonical loaded-function publisher, durable session/time revalidation, and
+per-parameter verification sites; this does not close LLP 0283 F-1 or §5
+defects 1–4.)
 **Revised:** 2026-08-19 (F-1 test-confinement implementation note: tiers 2–3
 add visible `rusqlite` dev-dependencies to `snapback` and the new rank-7
 `snapback-harness`; exact telemetry probes read unbounded physical rows when
@@ -463,6 +467,31 @@ forgery. The gate must inspect privileged parameters and effects, and adoptable
   requires a table, maintained as the admissions convert, naming **per admission
   parameter, where in the kernel that parameter is verified.** An admission
   parameter with no named verification site is not closed.
+
+### 7.1 Pending-effect decision fix-round findings
+
+These rows track the independent review's **F1–F4 findings**, not LLP 0283
+**F-1** and not this spec's §5 defects 1–4. The latter remain unresolved. A
+`REPAIRED` verdict here is deliberately scoped to the pending-effect decision
+surface implemented in this round.
+
+| Review finding | Verdict | Kernel-owned verification |
+| --- | --- | --- |
+| F1 — caller-writable `authority_creating` projection | REPAIRED | A single-owner `LoadedFunctionPolicyPublisher`, minted with the serving database and retained in `LocalSnapback`'s private activation state, installs policy from the function manifest being process-activated. Public scope reconciliation and public generation-metadata commits do not possess that publisher. The decision transaction then compares `_auth_scope_bases.authority_creating` with this loaded policy and refuses a mismatch. |
+| F2 — forgeable/rewindable `ResolvedPrincipal` | REPAIRED | Session resolution advances the durable session-clock floor, rechecks a current unrevoked session and an active human user in one auth transaction, and uses the existing authenticated-use coalescing rule. The arbitrary named human session/digest mint is `#[cfg(test)]`; surviving cross-crate fixtures either create non-human rows rejected by resolution or require and transactionally revalidate an existing opaque same-database principal before adding a second session for that principal. |
+| F3 — caller-selected `approver_principal_id` | REPAIRED | Decision admission accepts `&ResolvedPrincipal`, extracts a private session proof, and rechecks database binding, active human kind, session id, user id, generation, authority instance, digest, revocation and expiry inside the decision transaction. Only the re-derived principal id reaches the row and journal. |
+| F4 — rewindable decision `now_ms` | REPAIRED | The decision transaction advances the durable session-clock floor and uses that effective time for effect expiry, approver liveness, step-up consumption, the decision row and the journal entry. |
+
+### 7.2 Pending-effect decision parameter verification
+
+| Admission parameter | Classification | In-transaction verification or derivation |
+| --- | --- | --- |
+| Effect `id` | Caller-selected resource key | Exact pending row is loaded after lazy expiry; missing, expired and non-pending rows refuse. |
+| `approver: &ResolvedPrincipal` | Opaque durable authority proof | Converted to private session coordinates at admission, then fully revalidated against `_auth_users` and `_auth_sessions`; the stored approver id is derived from that row. |
+| Loaded function policy | Publisher-protected process fact | Captured from the single-owner process activation publisher; function id/kind are matched and the durable scope projection is cross-checked in the transaction. |
+| `approve` | Requested transition, not an asserted authority fact | Selects approved/refused after approver revalidation; only approval evaluates loaded step-up policy. |
+| Optional step-up proof | Cryptographic evidence | Required only when the loaded policy derives `authority_creating = true`; operation binding, deadline and one-shot consumption are verified in the same transaction. |
+| Caller clock sample | Untrusted observation | Folded into the non-decreasing durable session-clock floor before any expiry, proof or timestamp decision. |
 
 ## 8. Open risks
 

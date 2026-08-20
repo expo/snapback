@@ -145,6 +145,11 @@ pub trait ActivationHost {
         order_field_bounds: BTreeMap<(String, String), u64>,
     );
 
+    fn install_loaded_function_policies(
+        &mut self,
+        manifest: &FunctionManifest,
+    ) -> SnapbackResult<()>;
+
     fn set_function_generation_recovery_state(&mut self, state: FunctionGenerationRecoveryState);
 }
 
@@ -304,6 +309,12 @@ impl<'a, H: ActivationHost + ?Sized> GenerationActivation<'a, H> {
         self.snapback
             .generation_commit_ops()
             .install_committed_sequence_declarations(sequence_declarations);
+        if let Err(error) = self.snapback.install_loaded_function_policies(&manifest) {
+            diagnostics.push(error.diagnostic);
+            self.snapback
+                .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
+            return diagnostics;
+        }
         self.snapback
             .compose_function_generation_successor(manifest, order_field_bounds);
         self.snapback.publish_generation_ephemeral_collections();

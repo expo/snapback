@@ -295,13 +295,11 @@ pub(super) async fn effect_approve(
         let check_effect = effect.clone();
         let check_original = original.clone();
         let check_management = management.clone();
-        let check_approver = approver_id.clone();
         let decided = with_snapback(&runtime.snapback, move |snapback| {
             snapback.approve_pending_effect(
                 &check_effect,
                 &check_original,
                 &check_management,
-                &check_approver,
                 proof_admission.as_ref().map(|admission| admission.proof()),
                 now_ms,
             )
@@ -401,13 +399,13 @@ pub(super) async fn effect_deny(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<crate::storage::pending_effects::PendingEffectRecord>, ApiError> {
-    let (approver_id, _) = require_effect_session(&authority)?;
+    let _ = require_effect_session(&authority)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
     let now_ms = installed_auth_provider(&runtime)?.now_ms();
     let effect_authority = authority.clone();
     Ok(Json(
         with_snapback(&runtime.snapback, move |snapback| {
-            snapback.deny_pending_effect(&effect_authority, &effect_id, &approver_id, now_ms)
+            snapback.deny_pending_effect(&effect_authority, &effect_id, now_ms)
         })
         .await?,
     ))

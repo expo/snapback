@@ -402,6 +402,7 @@ impl<T> AuthFinish<T> {
 pub struct PreparedBearerAuthority {
     authority: ResolvedAppAuthority,
     publication: FencedPublication,
+    principal_digest: Option<TokenDigest>,
 }
 
 /// Projection-owned authority used to mint one session-bound connection
@@ -410,6 +411,7 @@ pub struct PreparedBearerAuthority {
 #[derive(Clone, Debug)]
 pub struct PreparedConnectionSessionAuthority {
     authority: ResolvedAppAuthority,
+    principal_digest: TokenDigest,
     authorization_stream_incarnation: String,
     deadline_ms: u64,
     publication: FencedPublication,
@@ -420,6 +422,7 @@ impl PreparedConnectionSessionAuthority {
         PreparedBearerAuthority {
             authority: self.authority.clone(),
             publication: self.publication.clone(),
+            principal_digest: Some(self.principal_digest.clone()),
         }
     }
 
@@ -537,7 +540,11 @@ impl PreparedBearerAuthority {
             self.authority,
             session_claims,
         )
-        .map(|authority| authority.with_fenced_publication(self.publication))
+        .map(|authority| {
+            authority
+                .with_fenced_publication(self.publication)
+                .with_principal_digest(self.principal_digest)
+        })
     }
 }
 
@@ -1480,7 +1487,7 @@ impl AuthCoordinator {
                 ProjectedTokenResolution::Unavailable => return Err(projection_unavailable()),
                 ProjectedTokenResolution::Unknown => return Err(auth_required()),
             };
-        topology.prepare_bearer_authority(authority)
+        topology.prepare_bearer_authority(authority, Some(digest))
     }
 
     /// @ref LLP 0057#rotation — family operations own supersession outcomes.
@@ -1514,7 +1521,7 @@ impl AuthCoordinator {
                 ProjectedTokenResolution::Unavailable => return Err(projection_unavailable()),
                 ProjectedTokenResolution::Unknown => return Err(auth_required()),
             };
-        topology.prepare_bearer_authority(authority)
+        topology.prepare_bearer_authority(authority, Some(digest))
     }
 
     /// Bind an anonymous finite publication to the current authorization
@@ -1591,6 +1598,7 @@ impl AuthCoordinator {
                         provider_not_after_ms: None,
                         rehearsal_provenance: authority.rehearsal_provenance,
                     },
+                    principal_digest: digest,
                     authorization_stream_incarnation: incarnation,
                     deadline_ms,
                     publication,
@@ -1662,6 +1670,7 @@ impl AuthCoordinator {
                     BoundSessionResolution::Current(PreparedBearerAuthority {
                         authority,
                         publication,
+                        principal_digest: None,
                     })
                 }
                 ProjectedBoundSessionResolution::Terminal { reason } => {
@@ -1927,6 +1936,7 @@ impl CoordinatorTopology {
     fn prepare_bearer_authority(
         &self,
         authority: ProjectedSessionAuthority,
+        principal_digest: Option<TokenDigest>,
     ) -> SnapbackResult<PreparedBearerAuthority> {
         if self
             .rebuild_required_sessions
@@ -1951,6 +1961,7 @@ impl CoordinatorTopology {
                 rehearsal_provenance: authority.rehearsal_provenance,
             },
             publication,
+            principal_digest,
         })
     }
 }
