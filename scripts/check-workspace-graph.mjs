@@ -958,7 +958,7 @@ export function validateArtifactAndMetadata(artifact, metadata, workspaceManifes
   assert(
     JSON.stringify([...memberNames].sort())
       === JSON.stringify(EXPECTED_CRATES.map((entry) => entry.name).sort()),
-    'workspace member set must exactly match the 13-crate Phase 2 matrix',
+    `workspace member set must exactly match the ${EXPECTED_CRATES.length}-crate Phase 2 matrix`,
   );
   const defaultMembers = (metadata?.workspace_default_members ?? [])
     .map((id) => packagesById.get(id));

@@ -295,7 +295,11 @@ matrix deliberately: `snapback` and the new rank-7 `snapback-harness` may name
 `rusqlite` as dev-dependencies, so the workspace-graph gate sees the physical
 test authority and ordinary downstream dependency graphs do not inherit it.
 LLP 0276's crate table and external-confinement rule are amended in the same
-round. Typed telemetry replacements preserve their raw-SQL predecessor's
+round. After this round `crates/snapback-engine/src/push/authority_tests.rs`
+is the **sole** remaining `snapback_services::test_support` consumer, and
+`crates/snapback-engine/Cargo.toml`'s `remainder-tests` activation is the sole
+remaining feature activation — that exact census is what the final deletion
+step in tiers 4+ must burn down. Typed telemetry replacements preserve their raw-SQL predecessor's
 projection: exact-count and physical-row assertions use an insertion-ordered,
 unbounded `telemetry_events` probe (so wrong-generation, retention-hidden, and
 row-501 duplicates remain visible); the few predecessor queries that used

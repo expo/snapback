@@ -2408,6 +2408,13 @@ impl Telemetry {
     /// Return every event admitted by the generation/retention visibility
     /// view in insertion order, without the public query API's page bound.
     /// It does not flush or perform maintenance before observing the view.
+    ///
+    /// Not a pure read on a lazy file-backed store: it goes through
+    /// `ensure_connection`, which can create the SQLite file, create or
+    /// migrate schema, and initialize `telemetry_meta`. Every current caller
+    /// uses an initialized in-memory store or follows `force_flush()`, so this
+    /// does not affect the assertions it serves — but do not call it to probe
+    /// whether a sibling store exists.
     #[cfg(any(test, feature = "remainder-tests"))]
     pub fn visible_event_rows_for_test(
         &self,
