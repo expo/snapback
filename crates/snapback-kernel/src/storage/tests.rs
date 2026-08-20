@@ -222,6 +222,95 @@ mod kernel_commit_authority_tests {
 }
 
 #[cfg(test)]
+mod resolved_principal_tests {
+    use super::*;
+    use crate::auth::crypto::OsRandom;
+    use crate::storage::auth_agents::AgentRegistration;
+    use crate::storage::resolved_principal::ResolvedPrincipalClass;
+
+    #[test]
+    fn session_resolver_derives_an_opaque_live_principal_from_durable_rows() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        let digest = crate::contract_types::TokenDigest::from_bytes([7; 32]);
+        db.auth_catalog()
+            .insert_email_session_for_test(
+                "human-a",
+                "identity-a",
+                "session-a",
+                "authority-a",
+                "human@example.com",
+                digest.as_bytes(),
+                1,
+                1,
+                100,
+                200,
+            )
+            .expect("durable session");
+
+        let principal = db
+            .resolve_principal_from_session(&digest, 50)
+            .expect("resolved session principal");
+        assert_eq!(principal.principal_id(), "human-a");
+        assert!(matches!(principal.class(), ResolvedPrincipalClass::User));
+        assert!(principal.database_binding().matches(&db.binding()));
+        assert_eq!(principal.resolved_at_version(), 0);
+        let (row_id, generation, authority_instance_id, proof_digest) =
+            principal.session_proof().expect("session proof");
+        assert_eq!(row_id, "session-a");
+        assert_eq!(generation, 1);
+        assert_eq!(authority_instance_id, "authority-a");
+        assert_eq!(proof_digest, &digest);
+        assert!(principal.agent_credential_proof().is_none());
+
+        let error = db
+            .resolve_principal_from_session(&digest, 100)
+            .err()
+            .expect("expiry is refused");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PRINCIPAL_INVALID");
+    }
+
+    #[test]
+    fn credential_resolver_does_not_promote_external_agents_to_internal_service() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        db.create_agent_principal(
+            "agent-a",
+            0,
+            &AgentRegistration {
+                display_name: Some("Agent A".to_owned()),
+                operator_contact: None,
+                registration_provenance: r#"{"class":"agent","source":"test"}"#.to_owned(),
+                owner_user_id: None,
+            },
+        )
+        .expect("agent principal");
+        let issued = db
+            .issue_initial_agent_credential("agent-a", 1, &OsRandom)
+            .expect("agent credential");
+
+        let principal = db
+            .resolve_principal_from_credential(&issued.secret, 2)
+            .expect("resolved credential principal");
+        assert_eq!(principal.principal_id(), "agent-a");
+        assert!(matches!(
+            principal.class(),
+            ResolvedPrincipalClass::ServicePrincipal
+        ));
+        assert!(!matches!(
+            principal.class(),
+            ResolvedPrincipalClass::InternalService
+        ));
+        let (row_id, generation, _) = principal
+            .agent_credential_proof()
+            .expect("credential proof");
+        assert_eq!(row_id, issued.credential_id);
+        assert_eq!(generation, issued.generation);
+        assert!(principal.session_proof().is_none());
+    }
+}
+
+#[cfg(test)]
 mod authoring_suggestion_tests {
     use super::*;
 

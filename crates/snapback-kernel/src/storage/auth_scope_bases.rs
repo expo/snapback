@@ -112,6 +112,37 @@ impl LocalDatabase {
     }
 }
 
+/// Re-derive the current authority-creation policy for a function from the
+/// durable scope-basis row while the caller holds its commit transaction.
+/// Missing and tombstoned functions are returned as absent; malformed rows
+/// fail closed.
+///
+/// @ref LLP 0285#6-migration-order-and-the-trap-in-it — pending-effect approval must
+/// decide step-up from a durable row inside the transaction that records the
+/// decision.
+pub(super) fn current_authority_creating_on(
+    transaction: &rusqlite::Transaction<'_>,
+    function_id: &str,
+    kind: &FunctionKind,
+) -> SnapbackResult<Option<bool>> {
+    let row = transaction
+        .query_row(
+            "SELECT present, authority_creating
+             FROM _auth_scope_bases
+             WHERE function_id = ?1 AND kind = ?2",
+            params![function_id, function_kind_name(kind)],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+        )
+        .optional()?;
+    let Some((present, authority_creating)) = row else {
+        return Ok(None);
+    };
+    if !matches!(present, 0 | 1) || !matches!(authority_creating, 0 | 1) {
+        return Err(scope_basis_corrupt());
+    }
+    Ok((present == 1).then_some(authority_creating == 1))
+}
+
 /// Transactional core used by deployment activation. The caller owns the
 /// event-2 authorization hook and commit, so the basis tombstones and version
 /// advance cannot become externally visible in different cuts.
