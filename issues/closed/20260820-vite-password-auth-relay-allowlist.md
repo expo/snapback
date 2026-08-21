@@ -3,7 +3,7 @@
 **Status:** Closed
 **Opened:** 2026-08-20
 **Closed:** 2026-08-21
-**Landing SHA:** TBD
+**Landing SHA:** 97b628ae7 (with replay-safety follow-up 4e9b589b5)
 **Systems:** Vite integration, Password auth, Browser client, Guide
 **Related:** LLP 0277 P14; LLP 0295; diaries 0094, 0095, 0098, 0099,
 0102, 0103
