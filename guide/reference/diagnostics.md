@@ -19,7 +19,7 @@ reviewed-authorities-digest: sha256:49a42e042125ba58eead254f7626797bae3525bdff72
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,458 stable codes** from 587 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**3,459 stable codes** from 587 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |
@@ -978,7 +978,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-broker-partition-blocked"></a>`SNAPBACK_BROKER_PARTITION_BLOCKED` | client | — | — | `packages/snapback-client/demand-broker.mjs:472` | 1 |
 | <a id="diagnostic-snapback-broker-partition-mismatch"></a>`SNAPBACK_BROKER_PARTITION_MISMATCH` | client | — | — | `packages/snapback-client/demand-broker.mjs:111` | 3 |
 | <a id="diagnostic-snapback-broker-stale-writer-generation"></a>`SNAPBACK_BROKER_STALE_WRITER_GENERATION` | client | — | — | `packages/snapback-client/demand-broker.mjs:430` | 1 |
-| <a id="diagnostic-snapback-browser-executable"></a>`SNAPBACK_BROWSER_EXECUTABLE` | cli | — | — | `packages/snapback-cli/carrier-kit.mjs:984` | 2 |
+| <a id="diagnostic-snapback-browser-executable"></a>`SNAPBACK_BROWSER_EXECUTABLE` | cli | — | — | `packages/snapback-cli/carrier-kit.mjs:999` | 2 |
 | <a id="diagnostic-snapback-browser-ir-untyped-error"></a>`SNAPBACK_BROWSER_IR_UNTYPED_ERROR` | client | — | — | `packages/snapback-client/ir-evaluator.mjs:324` | 1 |
 | <a id="diagnostic-snapback-buffered-write-limit-exceeded"></a>`SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED` | server | 400 | [guide](../backend/mutations.md#bound-and-resume-bulk-work) | `crates/snapback-engine/src/runtime/host_glue.rs:4777` | 4 |
 | <a id="diagnostic-snapback-build-distribution"></a>`SNAPBACK_BUILD_DISTRIBUTION` | cli | — | — | `crates/snapback-types/src/identity.rs:29` | 2 |
@@ -1035,6 +1035,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-captured-read-serialize-failed"></a>`SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED` | server | — | — | `crates/snapback-kernel/src/live_matcher.rs:76` | 3 |
 | <a id="diagnostic-snapback-carrier-cleanup-lease-directory"></a>`SNAPBACK_CARRIER_CLEANUP_LEASE_DIRECTORY` | cli | — | — | `packages/snapback-cli/process-teardown.mjs:18` | 1 |
 | <a id="diagnostic-snapback-carrier-process-lease-marker"></a>`SNAPBACK_CARRIER_PROCESS_LEASE_MARKER` | cli | — | — | `packages/snapback-cli/process-teardown.mjs:24` | 1 |
+| <a id="diagnostic-snapback-carrier-process-lease-run-id"></a>`SNAPBACK_CARRIER_PROCESS_LEASE_RUN_ID` | cli | — | — | `packages/snapback-cli/process-teardown.mjs:25` | 1 |
 | <a id="diagnostic-snapback-checkpoint-copy-budget-exceeded"></a>`SNAPBACK_CHECKPOINT_COPY_BUDGET_EXCEEDED` | server | 413 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:2058` | 3 |
 | <a id="diagnostic-snapback-checkpoint-copy-failed"></a>`SNAPBACK_CHECKPOINT_COPY_FAILED` | server | — | — | `crates/snapback-kernel/src/proof_checkpoint.rs:2470` | 2 |
 | <a id="diagnostic-snapback-checkpoint-copy-fidelity-failed"></a>`SNAPBACK_CHECKPOINT_COPY_FIDELITY_FAILED` | server | — | — | `crates/snapback-kernel/src/proof_checkpoint.rs:2498` | 2 |

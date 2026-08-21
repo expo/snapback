@@ -6,6 +6,16 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-21 (x) — Closes the spawn-to-finalization kill window:
+each child has an owner-only, run-bound pending lease on disk before spawn,
+carrying its intended command and any unique browser profile; the launcher
+adds PID/start time without activating the transient shell command, and the
+post-exec inspection finalizes the exact leader identity. On owner death the
+reaper retains pending entries while it confirms the run marker or the exact
+leased-profile/command tuple, then reclaims the confirmed group rather than
+ignoring the pending state. Active cleanup also admits the canonical
+`npx --no-install …` → `npm exec …` title rewrite only on the same run-bound
+PID/start-time/process-group tuple, closing the real Expo happy-path residue.
 **Revised:** 2026-08-21 (w) — Narrows cleanup authority to generation-bound
 leases. Process-group signals require the recorded PID, OS start time, exact
 OS command, plus an unguessable inherited lease marker where the OS exposes

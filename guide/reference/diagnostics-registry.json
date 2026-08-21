@@ -2,15 +2,15 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:b65a682a3e04927c6eeeac18c6e61a98bd97fab12f46e64024657298ed58e71c"
+    "sourceDigest": "sha256:c5c8e5ba28ea1f96effc62edb3ce218aca349a913689929360321d5fda6455cf"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 3458,
+    "codes": 3459,
     "sourceFiles": 587,
-    "emittingSites": 11946,
+    "emittingSites": 11947,
     "httpClassified": 1030,
     "guideAnchored": 424
   },
@@ -31173,12 +31173,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/carrier-kit.mjs",
-          "line": 984,
+          "line": 999,
           "column": 17
         },
         {
           "file": "packages/snapback-cli/carrier-kit.mjs",
-          "line": 996,
+          "line": 1011,
           "column": 58
         }
       ],
@@ -32631,6 +32631,21 @@
         {
           "file": "packages/snapback-cli/process-teardown.mjs",
           "line": 24,
+          "column": 35
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_CARRIER_PROCESS_LEASE_RUN_ID": {
+      "code": "SNAPBACK_CARRIER_PROCESS_LEASE_RUN_ID",
+      "subsystem": "cli",
+      "sites": [
+        {
+          "file": "packages/snapback-cli/process-teardown.mjs",
+          "line": 25,
           "column": 35
         }
       ],

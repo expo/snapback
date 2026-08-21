@@ -558,11 +558,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-<<<<<<< HEAD
-  expectedTotal = 318,
-=======
-  expectedTotal = 316,
->>>>>>> 9d39ee78a (feat(cli): run template web carriers through supervised Expo web)
+  expectedTotal = 319,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1025,7 +1021,6 @@ export function checkPackageTestInventories(options = {}) {
 // clean external Metro bundle/first-render proof.
 // 314 -> 315 (2026-08-21, optional-user auth transition repair):
 // @expo/snapback-react gains the five-scenario settled-authority successor suite.
-<<<<<<< HEAD
 // 315 -> 316 (2026-08-21, LLP 0295 1A): @expo/snapback-vite gains the packed
 // external password/recovery relay lifecycle proof.
 // 316 -> 317 (2026-08-21, LLP 0181 native auth digest):
@@ -1033,10 +1028,8 @@ export function checkPackageTestInventories(options = {}) {
 // hashing-versus-secure-randomness capability-separation suite.
 // 317 -> 318 (2026-08-21, LLP 0295 1A round-2): @expo/snapback-vite retains
 // the packed browser/auth-barrier lifecycle proof alongside the native-server proof.
-=======
-// 315 -> 316 (2026-08-21, LLP 0294 W2): @expo/snapback-cli gains the
+// 318 -> 319 (2026-08-21, LLP 0294 W2): @expo/snapback-cli gains the
 // structured Expo web carrier origin, exact-child binding, and lifecycle suite.
->>>>>>> 9d39ee78a (feat(cli): run template web carriers through supervised Expo web)
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

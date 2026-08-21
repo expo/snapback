@@ -384,11 +384,15 @@ function startOwned(command, {
   stdio = ['ignore', 'pipe', 'pipe'],
   cleanupLease = null,
   label = 'carrier child',
+  profileDirectory = null,
+  finalizationReady = null,
 } = {}) {
   const log = logPath === null ? null : createWriteStream(logPath, { flags: 'a', mode: 0o600 });
   const child = spawnLeasedProcess(command, {
     cleanupLease,
     label,
+    profileDirectory,
+    finalizationReady,
     cwd,
     env,
     stdio,
@@ -744,6 +748,7 @@ function startCaptured(command, {
   cwd,
   env,
   cleanupLease = null,
+  profileDirectory = null,
   maximumBytes = 8 * 1024 * 1024,
 } = {}) {
   const child = startOwned(command, {
@@ -751,6 +756,7 @@ function startCaptured(command, {
     env,
     cleanupLease,
     label: 'carrier browser capture',
+    profileDirectory,
   });
   const stdout = [];
   const stderr = [];
@@ -799,13 +805,22 @@ async function waitForCaptured(capture, timeoutMs) {
   }
 }
 
-function startCdpBrowser(command, { cwd, env, logPath, cleanupLease = null }) {
+function startCdpBrowser(command, {
+  cwd,
+  env,
+  logPath,
+  cleanupLease = null,
+  profileDirectory = null,
+  finalizationReady = null,
+}) {
   const child = startOwned(command, {
     cwd,
     env,
     logPath,
     cleanupLease,
     label: 'carrier browser',
+    profileDirectory,
+    finalizationReady,
     stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe'],
   });
   const input = child.stdio[3];
@@ -1145,7 +1160,14 @@ async function runWebCarrier({
         env: process.env,
         logPath: browserLog,
         cleanupLease,
+        profileDirectory: browserProfile,
+        finalizationReady: testHooks.browserLeaseFinalizationReady ?? null,
       });
+      await testHooks.onBrowserLeaseReserved?.(Object.freeze({
+        directory: cleanupLease?.directory ?? null,
+        processId: browserProcess.pid,
+        profileDirectory: browserProfile,
+      }));
       browserExited = false;
       browserCdp = browserProcess;
       const page = await signals.race(attachCdpPage(browserCdp, readiness.origin));
@@ -1241,7 +1263,12 @@ async function runWebCarrier({
         `--screenshot=${screenshot}`,
         '--dump-dom',
         readiness.origin,
-      ], { cwd: root, env: process.env, cleanupLease });
+      ], {
+        cwd: root,
+        env: process.env,
+        cleanupLease,
+        profileDirectory: browserProfile,
+      });
       browserExited = false;
       const stdout = await signals.race(waitForCaptured(browserProcess, 60_000));
       writeFileSync(html, stdout);

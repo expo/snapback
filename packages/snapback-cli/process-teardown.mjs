@@ -17,11 +17,13 @@ import { fileURLToPath } from 'node:url';
 
 export const CLEANUP_LEASE_DIRECTORY_ENV = 'SNAPBACK_CARRIER_CLEANUP_LEASE_DIRECTORY';
 
-const CLEANUP_LEASE_FORMAT = 'snapback.carrier-cleanup-lease.v2';
-const CLEANUP_RESOURCE_FORMAT = 'snapback.carrier-cleanup-resource.v2';
+const CLEANUP_LEASE_FORMAT = 'snapback.carrier-cleanup-lease.v3';
+const CLEANUP_RESOURCE_FORMAT = 'snapback.carrier-cleanup-resource.v3';
 const CLEANUP_LEASE_PREFIX = 'snapback-carrier-cleanup-';
 const CLEANUP_RESOURCE_PREFIX = 'resource-';
 const PROCESS_LEASE_MARKER_ENV = 'SNAPBACK_CARRIER_PROCESS_LEASE_MARKER';
+const PROCESS_LEASE_RUN_ID_ENV = 'SNAPBACK_CARRIER_PROCESS_LEASE_RUN_ID';
+const PENDING_PROCESS_CONFIRM_MS = 1_000;
 const MODULE_PATH = fileURLToPath(import.meta.url);
 const LEASED_PROCESS_STATE = new WeakMap();
 
@@ -78,37 +80,60 @@ function processIdentity(pid, table = processTable()) {
   return table.find((candidate) => candidate.pid === pid) ?? null;
 }
 
-function processLeaseMarkerState(pid, marker) {
-  if (!Number.isSafeInteger(pid) || typeof marker !== 'string' || marker.length === 0) {
-    return 'mismatch';
-  }
+function processEnvironmentEntryStates(pid, entries) {
+  if (!Number.isSafeInteger(pid)
+      || !entries.every(({ name, value }) => (
+        typeof name === 'string'
+        && name.length > 0
+        && typeof value === 'string'
+        && value.length > 0
+      ))) return entries.map(() => 'mismatch');
   try {
     if (process.platform === 'linux') {
-      return readFileSync(`/proc/${pid}/environ`)
+      const environment = readFileSync(`/proc/${pid}/environ`)
         .toString('utf8')
-        .split('\0')
-        .includes(`${PROCESS_LEASE_MARKER_ENV}=${marker}`) ? 'match' : 'mismatch';
+        .split('\0');
+      return entries.map(({ name, value }) => (
+        environment.includes(`${name}=${value}`) ? 'match' : 'mismatch'
+      ));
     }
     const result = spawnSync('/bin/ps', ['eww', '-p', String(pid), '-o', 'command='], {
       encoding: 'utf8',
       env: { ...process.env, LC_ALL: 'C' },
       timeout: 10_000,
     });
-    if (result.error || result.status !== 0) return 'unavailable';
-    const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-    if (new RegExp(
-      `(?:^|\\s)${PROCESS_LEASE_MARKER_ENV}=${escapedMarker}(?:\\s|$)`,
-      'u',
-    ).test(result.stdout)) return 'match';
+    if (result.error || result.status !== 0) return entries.map(() => 'unavailable');
     // macOS withholds the environment for some platform binaries. In that
     // case use the documented PID + start-time + exact-command fallback;
     // when an environment is visible but the marker is absent, refuse it.
-    return /(?:^|\s)[A-Za-z_][A-Za-z0-9_]*=/u.test(result.stdout)
-      ? 'mismatch'
-      : 'unavailable';
+    const environmentVisible = /(?:^|\s)[A-Za-z_][A-Za-z0-9_]*=/u.test(result.stdout);
+    return entries.map(({ name, value }) => {
+      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+      const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+      return new RegExp(
+        `(?:^|\\s)${escapedName}=${escapedValue}(?:\\s|$)`,
+        'u',
+      ).test(result.stdout) ? 'match' : (environmentVisible ? 'mismatch' : 'unavailable');
+    });
   } catch {
-    return 'unavailable';
+    return entries.map(() => 'unavailable');
   }
+}
+
+function processLeaseEnvironmentStates(pid, marker, runId) {
+  const entries = [];
+  if (marker !== undefined) {
+    entries.push({ key: 'marker', name: PROCESS_LEASE_MARKER_ENV, value: marker });
+  }
+  if (runId !== undefined) {
+    entries.push({ key: 'runId', name: PROCESS_LEASE_RUN_ID_ENV, value: runId });
+  }
+  const observed = processEnvironmentEntryStates(pid, entries);
+  const states = { marker: 'not-required', runId: 'not-required' };
+  for (let index = 0; index < entries.length; index += 1) {
+    states[entries[index].key] = observed[index];
+  }
+  return Object.freeze(states);
 }
 
 function liveIdentity(identity, table = processTable()) {
@@ -116,10 +141,15 @@ function liveIdentity(identity, table = processTable()) {
       || typeof identity?.startTime !== 'string'
       || typeof identity?.command !== 'string') return false;
   const current = processIdentity(identity.pid, table);
+  const environment = identity.leaseMarker === undefined && identity.runId === undefined
+    ? null
+    : processLeaseEnvironmentStates(identity.pid, identity.leaseMarker, identity.runId);
   return current?.startTime === identity.startTime
     && current.command === identity.command
     && (identity.leaseMarker === undefined
-      || processLeaseMarkerState(identity.pid, identity.leaseMarker) !== 'mismatch');
+      || environment.marker !== 'mismatch')
+    && (identity.runId === undefined
+      || environment.runId !== 'mismatch');
 }
 
 function writeOwnerOnlyJson(path, value) {
@@ -145,6 +175,8 @@ function assertLeaseDirectory(directory) {
   const root = readJson(join(directory, 'lease.json'));
   if (root?.schemaVersion !== CLEANUP_LEASE_FORMAT
       || root.state !== 'active'
+      || typeof root.runId !== 'string'
+      || root.runId.length === 0
       || !Number.isSafeInteger(root.rootOwner?.pid)
       || typeof root.rootOwner?.startTime !== 'string'
       || typeof root.rootOwner?.command !== 'string') {
@@ -156,6 +188,7 @@ function assertLeaseDirectory(directory) {
 function cleanupLeaseHandle(directory, root, { ownsReaper = false } = {}) {
   return Object.freeze({
     directory,
+    runId: root.runId,
     rootOwner: Object.freeze({ ...root.rootOwner }),
     ownsReaper,
   });
@@ -183,6 +216,7 @@ export async function createCarrierCleanupLease() {
   const root = {
     schemaVersion: CLEANUP_LEASE_FORMAT,
     state: 'active',
+    runId: randomUUID(),
     rootOwner: {
       pid: rootOwner.pid,
       startTime: rootOwner.startTime,
@@ -220,7 +254,7 @@ function resourceFile(lease) {
   return join(lease.directory, `${CLEANUP_RESOURCE_PREFIX}${randomUUID()}.json`);
 }
 
-function reserveProcessGroup(lease, label, leaseMarker, command) {
+function reserveProcessGroup(lease, label, leaseMarker, command, profileDirectory) {
   if (lease === null || process.platform === 'win32') return null;
   assertLeaseDirectory(lease.directory);
   const owner = processIdentity(process.pid);
@@ -229,49 +263,80 @@ function reserveProcessGroup(lease, label, leaseMarker, command) {
   writeOwnerOnlyJson(path, {
     schemaVersion: CLEANUP_RESOURCE_FORMAT,
     kind: 'process-group',
-    state: 'reserved',
+    state: 'pending',
     label,
+    runId: lease.runId,
     reservationOwner: {
       pid: owner.pid,
       startTime: owner.startTime,
       command: owner.command,
     },
     leaseMarker,
-    targetCommand: command,
+    intendedCommand: command,
+    profileDirectory,
     createdAt: new Date().toISOString(),
   });
   return Object.freeze({ lease, path });
 }
 
-function scheduleProcessGroupIdentityFinalization(child, resource, leaseMarker) {
+function scheduleProcessGroupIdentityFinalization(
+  child,
+  resource,
+  leaseMarker,
+  finalizationReady,
+) {
   let attempts = 0;
   const inspect = () => {
+    if (typeof finalizationReady === 'function') {
+      try {
+        if (!finalizationReady()) {
+          if (!exited(child)) schedule();
+          return;
+        }
+      } catch {
+        if (!exited(child)) schedule();
+        return;
+      }
+    }
     attempts += 1;
     try {
       const record = readJson(resource.path);
       const identity = processIdentity(child.pid);
+      const environment = identity === null
+        ? null
+        : processLeaseEnvironmentStates(child.pid, leaseMarker, resource.lease.runId);
       if (record?.schemaVersion !== CLEANUP_RESOURCE_FORMAT
           || record.kind !== 'process-group'
-          || record.state !== 'active'
+          || record.state !== 'pending'
+          || record.runId !== resource.lease.runId
           || identity === null
-          || processLeaseMarkerState(child.pid, leaseMarker) === 'mismatch') {
+          || identity.processGroup !== child.pid
+          || record.spawned?.pid !== identity.pid
+          || record.spawned?.startTime !== identity.startTime
+          || record.spawned?.processGroup !== identity.processGroup
+          || environment.marker === 'mismatch'
+          || environment.runId === 'mismatch') {
         if (attempts < 100 && !exited(child)) schedule();
         return;
       }
       // Registration runs in a short-lived shell before exec. Record only the
       // post-exec OS command so a same-second PID reuse must also reproduce the
       // exact command and the unguessable inherited lease marker.
-      if (identity.command.includes('--cleanup-lease-register')) {
+      if (identity.command === record.spawned.command
+          || identity.command.includes('--cleanup-lease-register')) {
         if (attempts < 100 && !exited(child)) schedule();
         return;
       }
       writeOwnerOnlyJson(resource.path, {
         ...record,
+        state: 'active',
+        processGroup: identity.processGroup,
         leader: {
           pid: identity.pid,
           startTime: identity.startTime,
           command: identity.command,
           leaseMarker,
+          runId: resource.lease.runId,
         },
         identityFinalizedAt: new Date().toISOString(),
       });
@@ -311,6 +376,7 @@ export function reserveCleanupPath(lease, path, {
     kind: 'path',
     state: type === 'file' && !leaseUnique ? 'reserved' : 'active',
     label,
+    runId: lease.runId,
     reservationOwner: {
       pid: owner.pid,
       startTime: owner.startTime,
@@ -352,6 +418,7 @@ export function activateCleanupPath(resource, { runIdField, runId } = {}) {
   const record = readJson(resource.path);
   if (record?.schemaVersion !== CLEANUP_RESOURCE_FORMAT
       || record.kind !== 'path'
+      || record.runId !== resource.lease.runId
       || record.pathType !== 'file'
       || record.state !== 'reserved'
       || record.leaseUnique === true) {
@@ -372,13 +439,25 @@ export function releaseCleanupResource(resource) {
   rmSync(resource.path, { force: true });
 }
 
-// A tiny shell stays the group leader only long enough to run the registration
-// helper. The helper atomically records that future PGID and validates its
-// still-live reservation owner; only then does the shell exec the real child.
-// Thus the workload cannot begin in an unleased detached process group.
+function validateProfileDirectory(profileDirectory, command) {
+  if (profileDirectory === null || profileDirectory === undefined) return null;
+  if (!isAbsolute(profileDirectory)
+      || !command.includes(`--user-data-dir=${profileDirectory}`)) {
+    throw new Error('leased process profile directory must be absolute and present in its command');
+  }
+  return profileDirectory;
+}
+
+// @ref LLP 0181#web-browser — persist the run-scoped pending identity before
+// spawn. The short-lived shell records the new PID/start time without making
+// the lease active, then execs; asynchronous finalization binds the stable
+// post-exec command. A carrier death at either boundary leaves a reclaimable
+// pending record instead of an unowned Chrome/Metro group.
 export function spawnLeasedProcess(command, {
   cleanupLease = null,
   label = 'owned child',
+  profileDirectory = null,
+  finalizationReady = null,
   cwd,
   env,
   stdio,
@@ -386,10 +465,17 @@ export function spawnLeasedProcess(command, {
   if (!Array.isArray(command) || command.length === 0) {
     throw new TypeError('leased process command must be a non-empty array');
   }
+  if (finalizationReady !== null && typeof finalizationReady !== 'function') {
+    throw new TypeError('leased process finalization barrier must be a function');
+  }
+  const validatedProfileDirectory = validateProfileDirectory(profileDirectory, command);
   const leaseMarker = randomUUID();
   const childEnvironment = {
     ...(env ?? process.env),
     [PROCESS_LEASE_MARKER_ENV]: leaseMarker,
+    ...(cleanupLease === null ? {} : {
+      [PROCESS_LEASE_RUN_ID_ENV]: cleanupLease.runId,
+    }),
   };
   if (cleanupLease === null || process.platform === 'win32') {
     const [executable, ...args] = command;
@@ -411,21 +497,38 @@ export function spawnLeasedProcess(command, {
     LEASED_PROCESS_STATE.set(child, Object.freeze({ resource: null, leaseMarker, leader }));
     return child;
   }
-  const resource = reserveProcessGroup(cleanupLease, label, leaseMarker, command);
+  const resource = reserveProcessGroup(
+    cleanupLease,
+    label,
+    leaseMarker,
+    command,
+    validatedProfileDirectory,
+  );
   const registerThenExec = '"$1" "$2" --cleanup-lease-register "$3" && shift 3 && exec "$@"';
-  const child = spawn('/bin/sh', [
-    '-c', registerThenExec, 'snapback-leased-child',
-    process.execPath, MODULE_PATH, resource.path,
-    ...command,
-  ], {
-    cwd,
-    env: childEnvironment,
-    stdio,
-    detached: true,
-  });
+  let child;
+  try {
+    child = spawn('/bin/sh', [
+      '-c', registerThenExec, 'snapback-leased-child',
+      process.execPath, MODULE_PATH, resource.path,
+      ...command,
+    ], {
+      cwd,
+      env: childEnvironment,
+      stdio,
+      detached: true,
+    });
+  } catch (error) {
+    releaseCleanupResource(resource);
+    throw error;
+  }
   LEASED_PROCESS_STATE.set(child, Object.freeze({ resource, leaseMarker }));
   child.once('error', () => releaseCleanupResource(resource));
-  scheduleProcessGroupIdentityFinalization(child, resource, leaseMarker);
+  scheduleProcessGroupIdentityFinalization(
+    child,
+    resource,
+    leaseMarker,
+    finalizationReady,
+  );
   return child;
 }
 
@@ -519,27 +622,205 @@ async function stopGuardedProcessGroup(pgid, leader, graceMs, killWaitMs, depend
   throw new Error(`owned process group ${pgid} survived SIGKILL`);
 }
 
-function recordedProcessGroupLeader(child, state) {
+function intendedCommandMatches(resource, candidate) {
+  if (!Array.isArray(resource.intendedCommand)
+      || resource.intendedCommand.length === 0
+      || !resource.intendedCommand.every((part) => typeof part === 'string')) return false;
+  if (candidate.command === resource.intendedCommand.join(' ')) return true;
+  const [executable, ...args] = resource.intendedCommand;
+  if (basename(executable) !== 'npx' || args[0] !== '--no-install') return false;
+  return candidate.command === ['npm', 'exec', ...args.slice(1)].join(' ');
+}
+
+function validPendingProfileDirectory(resource, leasedProfiles) {
+  if (typeof resource.profileDirectory !== 'string') return false;
+  const profile = resolve(resource.profileDirectory);
+  return dirname(profile) === resolve(tmpdir())
+    && basename(profile).startsWith('snapback-carrier-browser-')
+    && leasedProfiles.has(profile);
+}
+
+function pendingCommandMatches(resource, candidate, leasedProfiles) {
+  if (!intendedCommandMatches(resource, candidate)) return false;
+  if (resource.profileDirectory === null || resource.profileDirectory === undefined) {
+    return resource.spawned?.pid === candidate.pid
+      && resource.spawned?.startTime === candidate.startTime
+      && resource.spawned?.processGroup === candidate.processGroup;
+  }
+  if (!validPendingProfileDirectory(resource, leasedProfiles)) return false;
+  const profileArgument = `--user-data-dir=${resource.profileDirectory}`;
+  return resource.intendedCommand.includes(profileArgument)
+    && candidate.command.includes(profileArgument);
+}
+
+function pendingProcessGroupResolution(
+  resource,
+  resourcePath,
+  rootRunId,
+  table,
+  leasedProfiles,
+) {
+  if (resource?.schemaVersion !== CLEANUP_RESOURCE_FORMAT
+      || resource.kind !== 'process-group'
+      || resource.state !== 'pending'
+      || resource.runId !== rootRunId
+      || typeof resource.leaseMarker !== 'string'
+      || resource.leaseMarker.length === 0) return Object.freeze({ status: 'discharged' });
+
+  const spawned = resource.spawned;
+  let candidates;
+  if (Number.isSafeInteger(spawned?.pid)
+      && typeof spawned?.startTime === 'string'
+      && spawned.processGroup === spawned.pid) {
+    candidates = table.filter((candidate) => (
+      candidate.pid === spawned.pid
+      && candidate.processGroup === spawned.processGroup
+      && candidate.startTime === spawned.startTime
+    ));
+  } else {
+    const intended = Array.isArray(resource.intendedCommand)
+      ? resource.intendedCommand.join(' ')
+      : '';
+    const profileArgument = typeof resource.profileDirectory === 'string'
+      ? `--user-data-dir=${resource.profileDirectory}`
+      : null;
+    candidates = table.filter((candidate) => (
+      candidate.pid === candidate.processGroup
+      && (
+        candidate.command === intended
+        || (profileArgument !== null && candidate.command.includes(profileArgument))
+        || (candidate.command.includes('--cleanup-lease-register')
+          && candidate.command.includes(resourcePath))
+      )
+    ));
+  }
+
+  if (candidates.length === 0) return Object.freeze({ status: 'absent' });
+  const owned = [];
+  let sawAmbiguous = false;
+  for (const candidate of candidates) {
+    const environment = processLeaseEnvironmentStates(
+      candidate.pid,
+      resource.leaseMarker,
+      rootRunId,
+    );
+    const { marker, runId: run } = environment;
+    if (marker === 'mismatch' || run === 'mismatch') continue;
+    const environmentMatches = marker === 'match' && run === 'match';
+    const commandMatches = marker === 'unavailable'
+      && run === 'unavailable'
+      && pendingCommandMatches(resource, candidate, leasedProfiles);
+    if (!environmentMatches && !commandMatches) {
+      sawAmbiguous = true;
+      continue;
+    }
+    // The registration shell is still before exec. Waiting avoids freezing
+    // its transient command into an active exact-command lease.
+    if (candidate.command === spawned?.command
+        || candidate.command.includes('--cleanup-lease-register')) {
+      return Object.freeze({ status: 'wait' });
+    }
+    owned.push(candidate);
+  }
+  if (owned.length !== 1) {
+    return Object.freeze({ status: sawAmbiguous || owned.length > 1 ? 'ambiguous' : 'discharged' });
+  }
+  const [candidate] = owned;
+  return Object.freeze({
+    status: 'owned',
+    leader: Object.freeze({
+      pid: candidate.pid,
+      startTime: candidate.startTime,
+      command: candidate.command,
+      leaseMarker: resource.leaseMarker,
+      runId: rootRunId,
+    }),
+  });
+}
+
+function refreshedActiveProcessGroupLeader(resource, table = processTable()) {
+  const leader = resource?.leader;
+  const current = processIdentity(leader?.pid, table);
+  if (current?.startTime !== leader?.startTime
+      || current.processGroup !== resource.processGroup) return leader;
+  if (current.command === leader.command) return leader;
+  const environment = processLeaseEnvironmentStates(
+    current.pid,
+    leader.leaseMarker,
+    leader.runId,
+  );
+  const inheritedIdentityMatches = environment.marker === 'match'
+    && (leader.runId === undefined || environment.runId === 'match');
+  const hiddenNpxRewriteMatches = environment.marker === 'unavailable'
+    && environment.runId === 'unavailable'
+    && resource.runId === leader.runId
+    && intendedCommandMatches(resource, current);
+  return inheritedIdentityMatches || hiddenNpxRewriteMatches
+    ? { ...leader, command: current.command }
+    : leader;
+}
+
+async function recordedProcessGroupLeader(child, state) {
   let leader = null;
+  let activeRecord = null;
   if (state?.resource === null) leader = state.leader;
   else if (state?.resource !== undefined) {
-    try {
-      const record = readJson(state.resource.path);
-      if (record?.schemaVersion === CLEANUP_RESOURCE_FORMAT
-          && record.kind === 'process-group'
-          && record.state === 'active'
-          && record.processGroup === child.pid
-          && record.leader?.pid === child.pid) leader = record.leader;
-    } catch { /* malformed or vanished identity is a safe discharge */ }
+    const deadline = Date.now() + PENDING_PROCESS_CONFIRM_MS;
+    while (leader === null && Date.now() < deadline) {
+      try {
+        const record = readJson(state.resource.path);
+        if (record?.schemaVersion === CLEANUP_RESOURCE_FORMAT
+            && record.kind === 'process-group'
+            && record.state === 'active'
+            && record.runId === state.resource.lease.runId
+            && record.processGroup === child.pid
+            && record.leader?.pid === child.pid) {
+          leader = record.leader;
+          activeRecord = record;
+          break;
+        }
+        if (record?.state !== 'pending') break;
+        const resolution = pendingProcessGroupResolution(
+          record,
+          state.resource.path,
+          state.resource.lease.runId,
+          processTable(),
+          new Set(typeof record.profileDirectory === 'string'
+            ? [resolve(record.profileDirectory)]
+            : []),
+        );
+        if (resolution.status === 'owned') {
+          leader = resolution.leader;
+          writeOwnerOnlyJson(state.resource.path, {
+            ...record,
+            state: 'active',
+            processGroup: leader.pid,
+            leader,
+            identityFinalizedAt: new Date().toISOString(),
+          });
+          break;
+        }
+        if (['discharged', 'absent'].includes(resolution.status) && exited(child)) break;
+      } catch { /* malformed or vanished identity is a safe discharge */ }
+      await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+    }
   }
   if (leader === null) return null;
+  if (activeRecord !== null) return refreshedActiveProcessGroupLeader(activeRecord);
   try {
     const current = processIdentity(child.pid);
+    const environment = processLeaseEnvironmentStates(
+      child.pid,
+      leader.leaseMarker,
+      leader.runId,
+    );
     // Executable shims may replace their command after registration while
     // preserving the original birth tuple. Refresh that mutable component
     // only when the unguessable inherited marker proves continuity.
     if (current?.startTime === leader.startTime
-        && processLeaseMarkerState(child.pid, leader.leaseMarker) === 'match') {
+        && environment.marker === 'match'
+        && (leader.runId === undefined
+          || environment.runId === 'match')) {
       return { ...leader, command: current.command };
     }
   } catch { /* the guard will conservatively validate the recorded identity */ }
@@ -554,7 +835,7 @@ export async function stopProcessGroup(child, {
   if (!child) return true;
   if (processGroup && process.platform !== 'win32') {
     const state = LEASED_PROCESS_STATE.get(child);
-    const leader = recordedProcessGroupLeader(child, state);
+    const leader = await recordedProcessGroupLeader(child, state);
     if (leader === null) {
       releaseLeasedProcess(child);
       return true;
@@ -627,7 +908,8 @@ export function cleanupLeasedPath(resource) {
   try {
     const record = readJson(resource.path);
     if (record?.schemaVersion !== CLEANUP_RESOURCE_FORMAT
-        || record.kind !== 'path') return false;
+        || record.kind !== 'path'
+        || record.runId !== resource.lease.runId) return false;
     removed = cleanupExactPath(record);
     return removed;
   } finally {
@@ -637,13 +919,50 @@ export function cleanupLeasedPath(resource) {
   }
 }
 
-async function cleanupResource(path, resource) {
+async function cleanupResource(path, resource, {
+  root,
+  table,
+  leasedProfiles,
+  pendingAbsentSince,
+}) {
+  if (resource.runId !== root.runId) return false;
   if (resource.kind === 'process-group' && resource.state === 'active') {
-    await cleanupProcessGroup(resource.processGroup, resource.leader);
+    await cleanupProcessGroup(
+      resource.processGroup,
+      refreshedActiveProcessGroupLeader(resource, table),
+    );
+  } else if (resource.kind === 'process-group' && resource.state === 'pending') {
+    const resolution = pendingProcessGroupResolution(
+      resource,
+      path,
+      root.runId,
+      table,
+      leasedProfiles,
+    );
+    if (resolution.status === 'owned') {
+      writeOwnerOnlyJson(path, {
+        ...resource,
+        state: 'active',
+        processGroup: resolution.leader.pid,
+        leader: resolution.leader,
+        identityFinalizedAt: new Date().toISOString(),
+        finalizedBy: 'cleanup-reaper',
+      });
+      await cleanupProcessGroup(resolution.leader.pid, resolution.leader);
+    } else if (resolution.status === 'absent') {
+      const firstAbsent = pendingAbsentSince.get(path) ?? Date.now();
+      pendingAbsentSince.set(path, firstAbsent);
+      if (Date.now() - firstAbsent < PENDING_PROCESS_CONFIRM_MS) return false;
+    } else if (resolution.status === 'wait' || resolution.status === 'ambiguous') {
+      pendingAbsentSince.delete(path);
+      return false;
+    }
   } else if (resource.kind === 'path' && resource.state === 'active') {
     cleanupExactPath(resource);
   }
+  pendingAbsentSince.delete(path);
   rmSync(path, { force: true });
+  return true;
 }
 
 async function runCleanupLeaseReaper(directory) {
@@ -653,6 +972,7 @@ async function runCleanupLeaseReaper(directory) {
     startedAt: new Date().toISOString(),
   });
   let forcedRelease = false;
+  const pendingAbsentSince = new Map();
   const release = () => { forcedRelease = true; };
   process.on('SIGINT', release);
   process.on('SIGTERM', release);
@@ -665,18 +985,56 @@ async function runCleanupLeaseReaper(directory) {
     }
     const rootLost = !liveIdentity(root.rootOwner, table);
     const requestedRelease = forcedRelease || existsSync(join(directory, 'release'));
-    const resources = readdirSync(directory)
+    const resourcePaths = readdirSync(directory)
       .filter((name) => name.startsWith(CLEANUP_RESOURCE_PREFIX) && name.endsWith('.json'))
       .map((name) => join(directory, name));
-    for (const path of resources) {
-      let resource;
-      try { resource = readJson(path); } catch { continue; }
-      if (resource?.schemaVersion !== CLEANUP_RESOURCE_FORMAT) continue;
+    const resources = resourcePaths.flatMap((path) => {
+      try { return [{ path, resource: readJson(path) }]; } catch { return []; }
+    }).filter(({ resource }) => resource?.schemaVersion === CLEANUP_RESOURCE_FORMAT);
+    const leasedProfiles = new Set(resources.flatMap(({ resource }) => (
+      resource.kind === 'path'
+      && resource.state === 'active'
+      && resource.runId === root.runId
+      && resource.pathType === 'browser-profile'
+        ? [resolve(resource.path)]
+        : []
+    )));
+    const processResources = resources.filter(({ resource }) => resource.kind === 'process-group');
+    for (const { path, resource } of processResources) {
       const reservationLost = !liveIdentity(resource.reservationOwner, table);
       if (!rootLost && !requestedRelease && !reservationLost) continue;
-      try { await cleanupResource(path, resource); } catch {
+      try {
+        await cleanupResource(path, resource, {
+          root,
+          table,
+          leasedProfiles,
+          pendingAbsentSince,
+        });
+      } catch {
         // Keep the durable record and retry. A failed cleanup is never
         // converted into a successful lease disposition.
+      }
+    }
+    const processRecordsRemain = readdirSync(directory)
+      .filter((name) => name.startsWith(CLEANUP_RESOURCE_PREFIX) && name.endsWith('.json'))
+      .some((name) => {
+        try { return readJson(join(directory, name))?.kind === 'process-group'; } catch { return true; }
+      });
+    if (!processRecordsRemain) {
+      for (const { path, resource } of resources.filter(({ resource }) => resource.kind === 'path')) {
+        const reservationLost = !liveIdentity(resource.reservationOwner, table);
+        if (!rootLost && !requestedRelease && !reservationLost) continue;
+        try {
+          await cleanupResource(path, resource, {
+            root,
+            table,
+            leasedProfiles,
+            pendingAbsentSince,
+          });
+        } catch {
+          // Keep the durable record and retry. A failed cleanup is never
+          // converted into a successful lease disposition.
+        }
       }
     }
     if (rootLost || requestedRelease) {
@@ -699,29 +1057,33 @@ function registerCleanupLeaseProcess(path) {
   const resource = readJson(path);
   if (resource?.schemaVersion !== CLEANUP_RESOURCE_FORMAT
       || resource.kind !== 'process-group'
-      || resource.state !== 'reserved') {
+      || resource.state !== 'pending'
+      || typeof resource.runId !== 'string'
+      || resource.runId.length === 0) {
     throw new Error('cleanup process-group reservation is malformed');
   }
+  const root = assertLeaseDirectory(dirname(path));
   const table = processTable();
   const owner = processIdentity(resource.reservationOwner?.pid, table);
   const launcher = processIdentity(process.ppid, table);
-  if (!liveIdentity(resource.reservationOwner, table)
+  if (resource.runId !== root.runId
+      || !liveIdentity(resource.reservationOwner, table)
       || launcher === null
       || launcher.ppid !== owner.pid
-      || launcher.processGroup !== launcher.pid) {
+      || launcher.processGroup !== launcher.pid
+      || process.env[PROCESS_LEASE_MARKER_ENV] !== resource.leaseMarker
+      || process.env[PROCESS_LEASE_RUN_ID_ENV] !== resource.runId) {
     throw new Error('cleanup process-group reservation owner or launcher changed before exec');
   }
   writeOwnerOnlyJson(path, {
     ...resource,
-    state: 'active',
-    processGroup: launcher.processGroup,
-    leader: {
+    spawned: {
       pid: launcher.pid,
       startTime: launcher.startTime,
       command: launcher.command,
-      leaseMarker: resource.leaseMarker,
+      processGroup: launcher.processGroup,
     },
-    activatedAt: new Date().toISOString(),
+    spawnedAt: new Date().toISOString(),
   });
 }
 

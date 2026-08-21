@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -24,6 +25,8 @@ import {
   closeCarrierCleanupLease,
   createCarrierCleanupLease,
   reserveCleanupPath,
+  spawnLeasedProcess,
+  stopProcessGroup,
 } from './process-teardown.mjs';
 
 const root = mkdtempSync(join(tmpdir(), 'snapback-carrier-kit-'));
@@ -31,6 +34,7 @@ const carrierKitUrl = pathToFileURL(join(import.meta.dirname, 'carrier-kit.mjs')
 const expoDevUrl = pathToFileURL(join(import.meta.dirname, 'expo-dev.mjs')).href;
 const teardownUrl = pathToFileURL(join(import.meta.dirname, 'process-teardown.mjs')).href;
 const verifier = join(root, 'verify.mjs');
+const npxShim = join(root, 'npx');
 const server = join(root, 'server.mjs');
 const supervisor = join(root, 'supervisor.mjs');
 const browser = join(root, 'browser.mjs');
@@ -112,6 +116,20 @@ writeFileSync('.snapback/verify-receipt.json', JSON.stringify({
   ok: true,
   status: 'passed',
 }));
+`);
+
+executable(npxShim, `
+import { existsSync, writeFileSync } from 'node:fs';
+
+const args = process.argv.slice(2);
+const [started, mutate, ready] = args.slice(-3);
+writeFileSync(started, String(process.pid));
+const timer = setInterval(() => {
+  if (!existsSync(mutate)) return;
+  clearInterval(timer);
+  process.title = ['npm', 'exec', ...args.slice(1)].join(' ');
+  writeFileSync(ready, String(process.pid));
+}, 10);
 `);
 
 // Every lifecycle case below uses a real TCP listener and real descendant
@@ -473,6 +491,38 @@ try {
     'a reused PGID observed during the wait must permanently discharge before SIGKILL',
   );
 
+  const npxStarted = join(root, 'npx-shim-started');
+  const npxMutate = join(root, 'npx-shim-mutate');
+  const npxReady = join(root, 'npx-shim-ready');
+  const npxLease = await createCarrierCleanupLease();
+  const npxProcess = spawnLeasedProcess([
+    npxShim,
+    '--no-install',
+    'expo',
+    'start',
+    '--localhost',
+    npxStarted,
+    npxMutate,
+    npxReady,
+  ], {
+    cleanupLease: npxLease,
+    label: 'mutable npx shim',
+    stdio: 'ignore',
+  });
+  await eventually(() => existsSync(npxStarted), 'npx shim start');
+  await eventually(
+    () => readdirSync(npxLease.directory)
+      .filter((name) => name.startsWith('resource-') && name.endsWith('.json'))
+      .map((name) => JSON.parse(readFileSync(join(npxLease.directory, name), 'utf8')))
+      .some((resource) => resource.label === 'mutable npx shim' && resource.state === 'active'),
+    'npx shim active lease',
+  );
+  writeFileSync(npxMutate, 'mutate');
+  await eventually(() => existsSync(npxReady), 'npx shim command-title mutation');
+  assert.equal(await stopProcessGroup(npxProcess, { graceMs: 250, killWaitMs: 1_000 }), true);
+  await eventually(() => !pidAlive(Number(readFileSync(npxReady, 'utf8'))), 'npx shim cleanup');
+  await closeCarrierCleanupLease(npxLease);
+
   const staleReaperArtifacts = join(root, 'stale-reaper-artifacts');
   mkdirSync(staleReaperArtifacts, { recursive: true });
   const staleDescriptor = join(staleReaperArtifacts, 'expo-supervisor.json');
@@ -651,11 +701,22 @@ try {
   const carrierDeathBrowserStarted = join(carrierDeathArtifacts, 'browser-started');
   const carrierDeathBrowserProfile = join(carrierDeathArtifacts, 'browser-profile');
   const carrierDeathBrowserPid = join(carrierDeathArtifacts, 'browser-pid');
+  const carrierDeathLeaseDirectory = join(carrierDeathArtifacts, 'cleanup-lease-directory');
+  const carrierDeathFinalizeBarrier = join(carrierDeathArtifacts, 'allow-browser-finalization');
   mkdirSync(carrierDeathArtifacts, { recursive: true });
   writeFileSync(carrierDeathRunner, `
+import { existsSync, writeFileSync } from 'node:fs';
 import { defineTemplateCarrierConfig, runTemplateCarrierCli } from ${JSON.stringify(carrierKitUrl)};
 const config = defineTemplateCarrierConfig(${JSON.stringify(config('success', 30_000))});
-await runTemplateCarrierCli(config, ['web-browser', '--browser', ${JSON.stringify(browser)}, '--artifacts', ${JSON.stringify(carrierDeathArtifacts)}], { root: ${JSON.stringify(root)} });
+await runTemplateCarrierCli(config, ['web-browser', '--browser', ${JSON.stringify(browser)}, '--artifacts', ${JSON.stringify(carrierDeathArtifacts)}], {
+  root: ${JSON.stringify(root)},
+  browserLeaseFinalizationReady() {
+    return existsSync(${JSON.stringify(carrierDeathFinalizeBarrier)});
+  },
+  onBrowserLeaseReserved(lease) {
+    writeFileSync(${JSON.stringify(carrierDeathLeaseDirectory)}, lease.directory);
+  },
+});
 `);
   const deathRunner = spawn(process.execPath, [carrierDeathRunner], {
     cwd: root,
@@ -672,6 +733,17 @@ await runTemplateCarrierCli(config, ['web-browser', '--browser', ${JSON.stringif
   const carrierDeathPidsPath = join(carrierDeathArtifacts, 'descendant-pids.json');
   await eventually(() => existsSync(carrierDeathPidsPath), 'carrier-death descendant inventory');
   await eventually(() => existsSync(carrierDeathBrowserStarted), 'carrier-death browser start');
+  const cleanupLeaseDirectory = readFileSync(carrierDeathLeaseDirectory, 'utf8');
+  const pendingBrowserLease = readdirSync(cleanupLeaseDirectory)
+    .filter((name) => name.startsWith('resource-') && name.endsWith('.json'))
+    .map((name) => JSON.parse(readFileSync(join(cleanupLeaseDirectory, name), 'utf8')))
+    .find((resource) => resource.kind === 'process-group' && resource.label === 'carrier browser');
+  assert.equal(pendingBrowserLease?.state, 'pending');
+  assert.equal(pendingBrowserLease?.runId.length > 0, true);
+  assert.deepEqual(pendingBrowserLease?.intendedCommand.slice(0, 2), [browser, '--headless=new']);
+  assert.equal(pendingBrowserLease?.profileDirectory, readFileSync(carrierDeathBrowserProfile, 'utf8'));
+  assert.equal(pendingBrowserLease?.spawned.pid, Number(readFileSync(carrierDeathBrowserPid, 'utf8')));
+  assert.equal(typeof pendingBrowserLease?.spawned.startTime, 'string');
   const carrierDeathPids = JSON.parse(readFileSync(carrierDeathPidsPath, 'utf8'));
   carrierDeathPids.push(Number(readFileSync(carrierDeathBrowserPid, 'utf8')));
   const carrierDeathProfile = readFileSync(carrierDeathBrowserProfile, 'utf8');
@@ -684,7 +756,7 @@ await runTemplateCarrierCli(config, ['web-browser', '--browser', ${JSON.stringif
   await eventually(() => !existsSync(carrierDeathProfile), 'carrier-death browser profile lease');
   assert.equal(existsSync(join(carrierDeathArtifacts, 'expo-supervisor.json')), false);
 
-  console.log('carrier-kit.test.mjs: identity-discharge simulation, run-bound descriptor lease, live ownership, attestation, takeover, stubborn/SIGKILL reclamation, and double-signal cleanup pass');
+  console.log('carrier-kit.test.mjs: identity discharge, run-bound descriptor and pending child leases, live ownership, attestation, takeover, stubborn/SIGKILL reclamation, and double-signal cleanup pass');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }
