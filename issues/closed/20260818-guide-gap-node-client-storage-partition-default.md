@@ -1,8 +1,9 @@
 # guide-gap: durable auth custody is process-global in Node without storagePartition
 
-**Status:** Open — reopened 2026-08-21 after independent review
+**Status:** Closed — 2026-08-21
 **Systems:** Guide, snapback-client custody
 **Date:** 2026-08-18
+**Landing SHA:** TBD
 **Evidence:** diary 0096 M2 ("every persona wrote as Henry"); its essay calls
 this the single most expensive fact of the lane.
 
@@ -42,3 +43,29 @@ partition vocabulary. The retained cold run at
 
 Partial evidence: retrieval, Guide, and first-read checks pass. They do not
 satisfy the missing packed vertical contract.
+
+## Resolution — 2026-08-21
+
+The client and custody pages now call out the default-partition behavior in
+the vocabulary recorded by diaries 0096 and 0104. The multi-persona recipe
+imports the root `DEFAULT_AUTH_STORAGE_PARTITION` spelling and assigns one
+stable explicit `storagePartition` per persona and worker.
+
+The in-process diagnostic was bounded without changing custody semantics:
+when a second Node client omits `storagePartition` and adopts an already-live,
+authenticated durable owner on the default partition, the shared diagnostics
+channel emits one warn-class
+`SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` event. Explicit partition
+reuse, volatile custody, and later clients sharing that owner do not emit an
+additional warning.
+
+Closure evidence:
+
+- retrieval cases 60 and 73 route the exact phrases “every persona wrote as
+  Henry”, “multiple clients same session”, “personas share login”, and “second
+  client same user” to the corrective recipe;
+- the packed-external vertical check typechecks the exact transcluded recipe,
+  proves two explicit persona partitions remain isolated, proves implicit
+  default clients adopt the same user, and proves the warning is bounded;
+- the client unit suite, Guide suite under Node 24.18.0, retrieval evaluation,
+  inventory check, and `ref-check` pass.

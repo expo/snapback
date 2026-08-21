@@ -930,7 +930,9 @@ test('browser durable custody restores the default record and keeps signed-in pa
   const input = { app, binding: makeBinding(app), platform };
   let first = null;
   let restored = null;
+  let sharedDefault = null;
   let partitioned = null;
+  let partitionedPeer = null;
   let inspector = null;
   try {
     first = await createSnapbackAppClient(input);
@@ -959,12 +961,36 @@ test('browser durable custody restores the default record and keeps signed-in pa
       'restoration does not fabricate the provider availability key as issuance provenance',
     );
     assert.equal(restored.bootstrapState().authoritySource, 'durable-restored');
+    sharedDefault = await createSnapbackAppClient(input);
+    assert.equal(sharedDefault.client, restored.client);
+    const implicitReuse = restored.client.diagnosticsChannel().snapshot().events.filter(
+      ({ code }) => code === 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
+    );
+    assert.equal(implicitReuse.length, 1);
+    assert.equal(implicitReuse[0].severity, 'warning');
+    assert.equal(implicitReuse[0].details.storagePartition, DEFAULT_AUTH_STORAGE_PARTITION);
+    assert.equal(
+      implicitReuse[0].details.guidePointer,
+      'guide/recipes/multi-persona-clients.md',
+    );
     partitioned = await createSnapbackAppClient({
       ...input,
       storagePartition: 'secondary-profile',
     });
     assert.equal(partitioned.auth.currentPrincipal().status, 'anonymous');
     await partitioned.auth.signUpWithPassword({ email: 'peer@example.com', password: PASSWORD });
+    partitionedPeer = await createSnapbackAppClient({
+      ...input,
+      storagePartition: 'secondary-profile',
+    });
+    assert.equal(partitionedPeer.client, partitioned.client);
+    assert.equal(
+      partitioned.client.diagnosticsChannel().snapshot().events.some(
+        ({ code }) => code === 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
+      ),
+      false,
+      'explicit reuse of a signed-in durable partition is intentional and silent',
+    );
     assert.equal(restored.auth.currentPrincipal().userId, USER);
     assert.equal(partitioned.auth.currentPrincipal().userId, PEER_USER);
 
@@ -1010,7 +1036,9 @@ test('browser durable custody restores the default record and keeps signed-in pa
     );
   } finally {
     await inspector?.close();
+    await partitionedPeer?.dispose();
     await partitioned?.dispose();
+    await sharedDefault?.dispose();
     await restored?.dispose();
     await first?.dispose();
     server.restore();
@@ -1762,6 +1790,13 @@ test('owner registry single-flights, reference-counts, evicts failures, and reac
   try {
     assert.equal(clients[0].client, clients[1].client);
     assert.equal(clients[1].client, clients[2].client);
+    assert.equal(
+      clients[0].client.diagnosticsChannel().snapshot().events.some(
+        ({ code }) => code === 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
+      ),
+      false,
+      'volatile owner reuse is outside the durable-session advisory',
+    );
     assert.equal(server.requests.filter(({ path }) => path === '/auth/session').length, 1);
     await clients[0].dispose();
     await clients[1].dispose();

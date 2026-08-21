@@ -470,7 +470,7 @@ requirement; multiple headless clients in one process shared a principal until
 given distinct `storagePartition`s; retained-query/auth stores were mistaken
 for one database file; and repair text sometimes named only SQLite while
 keyring siblings preserved the deployment pin. Existing tickets:
-`issues/20260818-guide-gap-node-client-storage-partition-default.md` and
+`issues/closed/20260818-guide-gap-node-client-storage-partition-default.md` and
 `issues/20260818-guide-gap-custody-store-repair-text-not-one-file.md`. This
 cluster consumed both correctness work (silent persona drift) and wall (serial
 re-authentication/reseed).

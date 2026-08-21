@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:bbc87267c8b921661a54c88b4fed921001f37e5e8177d0ea37a6523fc3aa3db8
+reviewed-authorities-digest: sha256:11c9d2853afe66d5857b7ec3dd3bde9bcb8b3b342a6b686beaf8a44ee212a767
 ---
 
 # Sessions and principals
@@ -197,6 +197,14 @@ deliberately delayed, uniform, empty response, so it cannot be used to probe
 which bearers are live.
 
 ## Mint test personas: the complete local recipe
+
+> **Do not equate client instances with persona custody.** When a Node harness
+> uses `createSnapbackAppClient`, multiple clients can have the same session
+> and every persona can write as one user if they omit `storagePartition`.
+> Assign one stable partition per actor/worker using the
+> [multi-persona client recipe](../recipes/multi-persona-clients.md). The
+> lower-level `asUser` helper below already constructs isolated memory custody;
+> that does not make implicit application-client custody isolated.
 
 A sessions-mode acceptance suite needs two or more genuine principals. The
 mailbox above is admin-gated **and** impersonation-gated; both carriers are
@@ -565,11 +573,6 @@ witnesses. For the shipped local role-per-resource surface, continue to
 [scoped roles and memberships](./scoped-roles.md).
 
 ## Anti-patterns
-
-For Node acceptance harnesses with several signed-in actors, first read the
-[storage-partition recipe](../recipes/multi-persona-clients.md): app-client
-instances do not imply separate durable custody when they share the default
-partition.
 
 - **Do not assert identity from the client** — no `userId` in bodies, no
   owner arguments on protected queries. The server derives it or the
@@ -976,7 +979,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:1d0ef691c71c6e84568069a4adeb495c7139f83d28d71e97180eb21177908ebf
+reviewed-authorities-digest: sha256:eaff689bf18067532fde1b0fc3ed72bc259043893ac37fd2c914974a76df01bd
 ---
 
 # Email and password
@@ -1073,6 +1076,13 @@ mechanisms.<name>.minimumLength` configuration path.
 
 <!-- since: 0.1.23 -->
 ## Sign up, then sign in
+
+> **One application client owner is one custody context.** In a Node
+> acceptance process, constructing multiple clients without an explicit
+> `storagePartition` can make personas share login: the second client adopts
+> the authenticated durable default owner and can have the same user. Use one
+> stable partition per persona/worker from the
+> [multi-persona client recipe](../recipes/multi-persona-clients.md).
 
 For an ordinary React application, construct one application client from the
 generated `app` and the admitted environment binding, then give that owner to

@@ -373,7 +373,7 @@ bisection.
 ### 1C. High-value guide routes
 
 - `issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`
-- `issues/20260818-guide-gap-node-client-storage-partition-default.md`
+- `issues/closed/20260818-guide-gap-node-client-storage-partition-default.md`
 - `issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`
 - `issues/20260818-guide-gap-presence-heartbeat-vs-bound-value.md`
 - `issues/20260820-guide-gap-familiar-handler-dialect.md`

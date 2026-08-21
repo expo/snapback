@@ -654,6 +654,7 @@ function preflight(input) {
     platform,
     policy,
     storagePartition,
+    storagePartitionExplicit: Object.hasOwn(input, 'storagePartition'),
     signal,
     rqsStore,
     rqsStoreIdentity: Object.hasOwn(input, 'rqsStore') ? rqsStore : undefined,
@@ -926,6 +927,37 @@ function publishReady(owner) {
   });
 }
 
+// @ref LLP 0258#d2-one-bootstrap-owner-constructs-the-auth-bearing-application-client
+// — same-key projection reuse remains intentional; this diagnoses only the
+// surprising Node + implicit-default + authenticated-durable combination.
+// @ref LLP 0219#channel-semantics — the advisory uses the bounded v2 warning
+// channel instead of changing custody semantics or widening the frozen v1
+// bootstrap diagnostic carrier.
+function warnImplicitDefaultPartitionReuse(owner) {
+  if (
+    owner.implicitDefaultPartitionReuseWarned
+    || owner.storagePartition !== DEFAULT_AUTH_STORAGE_PARTITION
+    || owner.custodyFacts.grade !== 'durable'
+    || owner.client.auth.currentPrincipal().status !== 'authenticated'
+    || typeof globalThis.process?.versions?.node !== 'string'
+  ) return;
+  owner.implicitDefaultPartitionReuseWarned = true;
+  owner.client.diagnosticsChannel().emit({
+    code: 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
+    severity: 'warning',
+    subsystem: 'auth',
+    message: 'A second Node application client adopted the authenticated durable session in the implicit default storage partition. Set one stable storagePartition per persona; see guide/recipes/multi-persona-clients.md.',
+    details: {
+      appId: owner.app.identity.app,
+      storagePartition: DEFAULT_AUTH_STORAGE_PARTITION,
+      defaultPartitionExport: 'DEFAULT_AUTH_STORAGE_PARTITION',
+      guidePointer: 'guide/recipes/multi-persona-clients.md',
+      repair: 'Pass one stable explicit storagePartition per persona or worker.',
+    },
+    site: 'createSnapbackAppClient:implicit-default-storage-partition',
+  });
+}
+
 const supervisedConflictAdvisory = (owner, supervisedPrincipal) => Object.freeze({
   diagnostic: refusal(
     'SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT',
@@ -1023,6 +1055,7 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
     entryInFlight: false,
     ownerTransitionInFlight: false,
     supervisedAdoptionCapture: null,
+    implicitDefaultPartitionReuseWarned: false,
     advisories: Object.freeze([]),
     authoritySource: 'fresh-anonymous',
     storage: null,
@@ -1602,12 +1635,17 @@ async function acquireSnapbackAppClient(input, bootstrapObserver) {
     }
     try {
       const owner = await entry.promise;
+      let adoptedExistingOwner = false;
       await serializeEntry(entry, async () => {
         if (entry.state !== 'live') return;
         assertCompatibleRebind(owner, candidate);
+        adoptedExistingOwner = entry.refCount > 0;
         entry.refCount += 1;
       });
       if (entry.state !== 'live') continue;
+      if (adoptedExistingOwner && !candidate.storagePartitionExplicit) {
+        warnImplicitDefaultPartitionReuse(owner);
+      }
       return projectionFor(entry, owner);
     } finally {
       if (observing) entry.bootstrapObservers.delete(bootstrapObserver);

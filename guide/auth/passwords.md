@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:1d0ef691c71c6e84568069a4adeb495c7139f83d28d71e97180eb21177908ebf
+reviewed-authorities-digest: sha256:eaff689bf18067532fde1b0fc3ed72bc259043893ac37fd2c914974a76df01bd
 ---
 
 # Email and password
@@ -107,6 +107,13 @@ mechanisms.<name>.minimumLength` configuration path.
 
 <!-- since: 0.1.23 -->
 ## Sign up, then sign in
+
+> **One application client owner is one custody context.** In a Node
+> acceptance process, constructing multiple clients without an explicit
+> `storagePartition` can make personas share login: the second client adopts
+> the authenticated durable default owner and can have the same user. Use one
+> stable partition per persona/worker from the
+> [multi-persona client recipe](../recipes/multi-persona-clients.md).
 
 For an ordinary React application, construct one application client from the
 generated `app` and the admitted environment binding, then give that owner to

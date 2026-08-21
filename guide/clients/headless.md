@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:8875590a04edf2aef777b79b859f0e8101720b9eea5d445b04b0c30dabcaebf0
+reviewed-authorities-digest: sha256:ee6b2fd3ea2d3c02fcde7255ef2fd62d613052d518df25cf370c0492f9de36ef
 ---
 
 # The headless client
@@ -59,11 +59,14 @@ operations, or a one-off verification script.
 
 ## Construct one client per backend and custody context
 
-Multiple app clients in one Node process share durable auth custody when both
-their app identity and `storagePartition` match; the implicit partition is
-`"default"`. A multi-persona harness must assign one stable partition per
-actor or every client may restore the same principal. Follow the
-[multiple Node personas recipe](../recipes/multi-persona-clients.md).
+> **Multiple Node clients can share one login.** App clients in one process
+> share durable auth custody when both their app identity and
+> `storagePartition` match; the implicit partition is `"default"`. A
+> multi-persona harness must assign one stable partition per actor or every
+> client may restore the same principal. A second implicit-default adoption of
+> an authenticated durable owner emits the bounded warning
+> `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE`. Follow the
+> [multiple Node personas recipe](../recipes/multi-persona-clients.md).
 
 When this client installs dev-mode, client-asserted identity, pass the current
 per-boot capability as `devIdentityCapability`; the client sends its dedicated

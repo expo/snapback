@@ -188,6 +188,12 @@ if (runConsistency) {
     'scripts/check-guide-auth-settlement-packed-proof.mjs',
     ['--check'],
   );
+  runExternalCheck(
+    'multi-persona clients packed vertical contract',
+    'scripts/check-guide-multi-persona-clients.mjs',
+    ['--check'],
+    ['typescript'],
+  );
 }
 
 let corpus = null;

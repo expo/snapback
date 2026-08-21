@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:94b99b835fc2d64a3750ed759e2065c4ad74ccb841a15665258ed42f93cc2c38
+reviewed-authorities-digest: sha256:d949f69bcb8c34a0ba4f906b80d1b3b65560096b6f66127f881b596cb84e2ac0
 ---
 
 # The React client
@@ -29,6 +29,12 @@ query cache, or manage presence intervals.
 
 <!-- since: 0.1.23 -->
 ## Add first-party application auth
+
+> **Node multi-persona harnesses need explicit partitions.** Repeating
+> `createSnapbackAppClient` does not create a new custody context when both
+> calls select the implicit default `storagePartition`; personas can share one
+> login. Use the [multi-persona client recipe](../recipes/multi-persona-clients.md)
+> and assign one stable partition per actor/worker.
 
 When the generated app declares an application auth bootstrap, use
 `createSnapbackAppClient`, pass that owner to `<SnapbackProvider

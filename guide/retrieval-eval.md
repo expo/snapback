@@ -660,7 +660,8 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     The run fails if it assumes separate client objects imply separate durable
     custody or omits one stable `storagePartition` per actor.
     Expected pages: `recipes/multi-persona-clients.md`.
-    Route terms: "every persona wrote as Henry", "storagePartition", "process-global in Node", "multi-persona harness".
+    Route terms: "every persona wrote as Henry", "multiple clients same session", "personas share login", "storagePartition", "process-global in Node", "multi-persona harness".
+    Required guidance: "one stable explicit storagePartition per persona or worker", "DEFAULT_AUTH_STORAGE_PARTITION".
 
 61. **Background writes during auth transitions:** "An eager route-entry
     receipt or feed write fails with
@@ -761,6 +762,7 @@ packed-package author to a nonexistent raw-client namespace.
     Route terms: "client.assets.start", "createAssetClient(client)",
     "raw SnapbackClient assets".
 
+<<<<<<< HEAD
 Cases 73–74 extend the provider-lifecycle repair with the remaining exact
 wrong vocabulary from the source diaries and review evidence.
 
@@ -872,6 +874,18 @@ authority.
     plus explicit capability-link POST without `Authorization`.
     Expected pages: `recipes/capability-links.md`.
     Route terms: "deep link grant".
+
+Case 87 preserves the second-client symptom vocabulary from the same diary
+miss and binds it to the runtime warning rather than prose alone.
+
+87. **Second client adopted the same user:** "Why does my second client have
+    the same user after another persona signed in?" The run fails if it treats
+    the warning as a refusal, proposes clearing shared custody as the default
+    repair, or omits the stable per-persona partition.
+    Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`.
+    Route terms: "second client same user", "multiple clients same session",
+    "personas share login", "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
+    Required guidance: "one stable explicit storagePartition per persona or worker".
 
 ## Static routing check
 

@@ -1789,7 +1789,8 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     The run fails if it assumes separate client objects imply separate durable
     custody or omits one stable `storagePartition` per actor.
     Expected pages: `recipes/multi-persona-clients.md`.
-    Route terms: "every persona wrote as Henry", "storagePartition", "process-global in Node", "multi-persona harness".
+    Route terms: "every persona wrote as Henry", "multiple clients same session", "personas share login", "storagePartition", "process-global in Node", "multi-persona harness".
+    Required guidance: "one stable explicit storagePartition per persona or worker", "DEFAULT_AUTH_STORAGE_PARTITION".
 
 61. **Background writes during auth transitions:** "An eager route-entry
     receipt or feed write fails with
@@ -1890,6 +1891,7 @@ packed-package author to a nonexistent raw-client namespace.
     Route terms: "client.assets.start", "createAssetClient(client)",
     "raw SnapbackClient assets".
 
+<<<<<<< HEAD
 Cases 73–74 extend the provider-lifecycle repair with the remaining exact
 wrong vocabulary from the source diaries and review evidence.
 
@@ -2002,6 +2004,18 @@ authority.
     Expected pages: `recipes/capability-links.md`.
     Route terms: "deep link grant".
 
+Case 87 preserves the second-client symptom vocabulary from the same diary
+miss and binds it to the runtime warning rather than prose alone.
+
+87. **Second client adopted the same user:** "Why does my second client have
+    the same user after another persona signed in?" The run fails if it treats
+    the warning as a refusal, proposes clearing shared custody as the default
+    repair, or omits the stable per-persona partition.
+    Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`.
+    Route terms: "second client same user", "multiple clients same session",
+    "personas share login", "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
+    Required guidance: "one stable explicit storagePartition per persona or worker".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:
@@ -2071,7 +2085,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:bbc87267c8b921661a54c88b4fed921001f37e5e8177d0ea37a6523fc3aa3db8
+reviewed-authorities-digest: sha256:11c9d2853afe66d5857b7ec3dd3bde9bcb8b3b342a6b686beaf8a44ee212a767
 ---
 
 # Sessions and principals
@@ -2253,6 +2267,14 @@ deliberately delayed, uniform, empty response, so it cannot be used to probe
 which bearers are live.
 
 ## Mint test personas: the complete local recipe
+
+> **Do not equate client instances with persona custody.** When a Node harness
+> uses `createSnapbackAppClient`, multiple clients can have the same session
+> and every persona can write as one user if they omit `storagePartition`.
+> Assign one stable partition per actor/worker using the
+> [multi-persona client recipe](../recipes/multi-persona-clients.md). The
+> lower-level `asUser` helper below already constructs isolated memory custody;
+> that does not make implicit application-client custody isolated.
 
 A sessions-mode acceptance suite needs two or more genuine principals. The
 mailbox above is admin-gated **and** impersonation-gated; both carriers are
@@ -2621,11 +2643,6 @@ witnesses. For the shipped local role-per-resource surface, continue to
 [scoped roles and memberships](./scoped-roles.md).
 
 ## Anti-patterns
-
-For Node acceptance harnesses with several signed-in actors, first read the
-[storage-partition recipe](../recipes/multi-persona-clients.md): app-client
-instances do not imply separate durable custody when they share the default
-partition.
 
 - **Do not assert identity from the client** — no `userId` in bodies, no
   owner arguments on protected queries. The server derives it or the
@@ -3032,7 +3049,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:1d0ef691c71c6e84568069a4adeb495c7139f83d28d71e97180eb21177908ebf
+reviewed-authorities-digest: sha256:eaff689bf18067532fde1b0fc3ed72bc259043893ac37fd2c914974a76df01bd
 ---
 
 # Email and password
@@ -3129,6 +3146,13 @@ mechanisms.<name>.minimumLength` configuration path.
 
 <!-- since: 0.1.23 -->
 ## Sign up, then sign in
+
+> **One application client owner is one custody context.** In a Node
+> acceptance process, constructing multiple clients without an explicit
+> `storagePartition` can make personas share login: the second client adopts
+> the authenticated durable default owner and can have the same user. Use one
+> stable partition per persona/worker from the
+> [multi-persona client recipe](../recipes/multi-persona-clients.md).
 
 For an ordinary React application, construct one application client from the
 generated `app` and the admitted environment binding, then give that owner to
@@ -13563,7 +13587,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:8875590a04edf2aef777b79b859f0e8101720b9eea5d445b04b0c30dabcaebf0
+reviewed-authorities-digest: sha256:ee6b2fd3ea2d3c02fcde7255ef2fd62d613052d518df25cf370c0492f9de36ef
 ---
 
 # The headless client
@@ -13612,11 +13636,14 @@ operations, or a one-off verification script.
 
 ## Construct one client per backend and custody context
 
-Multiple app clients in one Node process share durable auth custody when both
-their app identity and `storagePartition` match; the implicit partition is
-`"default"`. A multi-persona harness must assign one stable partition per
-actor or every client may restore the same principal. Follow the
-[multiple Node personas recipe](../recipes/multi-persona-clients.md).
+> **Multiple Node clients can share one login.** App clients in one process
+> share durable auth custody when both their app identity and
+> `storagePartition` match; the implicit partition is `"default"`. A
+> multi-persona harness must assign one stable partition per actor or every
+> client may restore the same principal. A second implicit-default adoption of
+> an authenticated durable owner emits the bounded warning
+> `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE`. Follow the
+> [multiple Node personas recipe](../recipes/multi-persona-clients.md).
 
 When this client installs dev-mode, client-asserted identity, pass the current
 per-boot capability as `devIdentityCapability`; the client sends its dedicated
@@ -14681,7 +14708,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:94b99b835fc2d64a3750ed759e2065c4ad74ccb841a15665258ed42f93cc2c38
+reviewed-authorities-digest: sha256:d949f69bcb8c34a0ba4f906b80d1b3b65560096b6f66127f881b596cb84e2ac0
 ---
 
 # The React client
@@ -14700,6 +14727,12 @@ query cache, or manage presence intervals.
 
 <!-- since: 0.1.23 -->
 ## Add first-party application auth
+
+> **Node multi-persona harnesses need explicit partitions.** Repeating
+> `createSnapbackAppClient` does not create a new custody context when both
+> calls select the implicit default `storagePartition`; personas can share one
+> login. Use the [multi-persona client recipe](../recipes/multi-persona-clients.md)
+> and assign one stable partition per actor/worker.
 
 When the generated app declares an application auth bootstrap, use
 `createSnapbackAppClient`, pass that owner to `<SnapbackProvider
@@ -27252,13 +27285,13 @@ id: recipes.multi-persona-clients
 order: 11
 audience: agent-first
 capabilities: [clients.headless, auth.sessions]
-authorities: [llp/0059-session-projection-and-client-barrier.spec.md, packages/snapback-client/app-client.mjs, packages/snapback-client/app-client.d.mts, packages/snapback-client/app-client.test.mjs]
-examples: [packages/snapback-client/app-client.test.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
+authorities: [llp/0059-session-projection-and-client-barrier.spec.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0295-published-matrix-improvement-program.plan.md, packages/snapback-client/app-client-defaults.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/app-client.d.mts, packages/snapback-client/app-client.test.mjs, scripts/check-guide-multi-persona-clients.mjs]
+examples: [tests/fixtures/guide-multi-persona-clients/multi-persona-clients.mts, packages/snapback-client/app-client.test.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:0aac45468f10f0b49fd624a7612f1e65a0809af8162a193de392be160fa0e4a5
+reviewed-authorities-digest: sha256:f5909b72b54dd6d3fd5b63221ca3448c2d03c2ded26e635dc6548e8f508aac48
 ---
 
 # Recipe: multiple Node personas and storage partitions
@@ -27278,25 +27311,54 @@ classic “every persona wrote as Henry” failure.
 In the diary's vocabulary, durable custody is “process-global in Node” unless
 the multi-persona harness selects distinct partitions.
 
-## Give every persona a stable partition
+> **Multiple clients can mean the same session.** If personas share login, a
+> second client can have the same user because both calls omitted
+> `storagePartition` and selected the default owner. Separate JavaScript
+> objects do not separate custody. The common symptom searches are “multiple
+> clients same session,” “personas share login,” and “second client same
+> user.”
 
-Choose a deterministic, non-secret partition per logical actor and pass it at
-construction:
+## Fix “multiple clients same session” with a stable partition per persona
 
-```ts fragment reason="application descriptors, admitted bindings, and platform adapters are fixture-specific"
-const henry = await createSnapbackAppClient({
-  app,
-  binding,
-  platform,
-  storagePartition: 'acceptance:henry',
-});
+The “second client same user” symptom has the same repair.
 
-const mia = await createSnapbackAppClient({
-  app,
-  binding,
-  platform,
-  storagePartition: 'acceptance:mia',
-});
+Choose a deterministic, non-secret partition per logical actor and worker, and
+pass it at construction. The packed external fixture imports the current root
+constant spelling, `DEFAULT_AUTH_STORAGE_PARTITION`, and rejects accidental
+use of it:
+
+```ts source=tests/fixtures/guide-multi-persona-clients/multi-persona-clients.mts
+import {
+  DEFAULT_AUTH_STORAGE_PARTITION,
+  createSnapbackAppClient,
+} from '@expo/snapback-client';
+
+type AppClientInput = Parameters<typeof createSnapbackAppClient>[0];
+
+export async function createAcceptancePersonas(
+  input: Omit<AppClientInput, 'storagePartition'>,
+  workerId: string,
+) {
+  const partitionFor = (persona: string) => `acceptance:${workerId}:${persona}`;
+  const henryPartition = partitionFor('henry');
+  const miaPartition = partitionFor('mia');
+  if (
+    henryPartition === DEFAULT_AUTH_STORAGE_PARTITION
+    || miaPartition === DEFAULT_AUTH_STORAGE_PARTITION
+  ) throw new Error('acceptance personas must not use the default auth storage partition');
+
+  const [henry, mia] = await Promise.all([
+    createSnapbackAppClient({
+      ...input,
+      storagePartition: henryPartition,
+    }),
+    createSnapbackAppClient({
+      ...input,
+      storagePartition: miaPartition,
+    }),
+  ]);
+  return { henry, mia };
+}
 ```
 
 The custody owner key is `(app identity, storagePartition)`. Reusing a
@@ -27314,6 +27376,20 @@ Dispose every app client at teardown. Durable state intentionally survives
 that disposal, so reuse the same partition only when a later run is meant to
 restore the same actor. Give parallel test workers an additional stable worker
 prefix when they must not share custody.
+
+## Read the implicit-reuse warning
+
+In Node, a second implicit-default client that adopts an already-authenticated
+durable owner emits one bounded warning on the shared client's diagnostics
+channel:
+
+`SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE`
+
+The warning does not refuse construction, log credentials, change custody, or
+guess that two callers represent different people. It names the default
+partition, this guide page, and the supported repair: pass one stable explicit
+`storagePartition` per persona or worker. It does not fire for explicit
+partition reuse, anonymous custody, or volatile custody.
 
 ## Anti-patterns
 
@@ -29241,7 +29317,7 @@ reviewed-authorities-digest: sha256:13a388a4f933e384a1da02620c9ccfb25b25600c9b19
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,467 stable codes** from 589 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**3,468 stable codes** from 589 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |
@@ -29813,28 +29889,28 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-binding-write-forbidden"></a>`SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN` | auth | 403 | [guide](../auth/app-identity-binding.md#claims-can-inform-behavior-they-cannot-populate-a-binding-yet) | `crates/snapback-engine/src/runtime/host_glue.rs:6959` | 8 |
 | <a id="diagnostic-snapback-auth-body-auth-unsupported"></a>`SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` | auth | 400 | [guide](../auth/sessions-and-principals.md#queries-are-scoped-by-the-server-not-by-arguments) | `crates/snapback-server/src/server.rs:10175` | 5 |
 | <a id="diagnostic-snapback-auth-bootstrap-app-invalid"></a>`SNAPBACK_AUTH_BOOTSTRAP_APP_INVALID` | auth | — | — | `packages/snapback-client/app-client.mjs:288` | 2 |
-| <a id="diagnostic-snapback-auth-bootstrap-binding-conflict"></a>`SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT` | auth | — | — | `packages/snapback-client/app-client.mjs:1153` | 3 |
+| <a id="diagnostic-snapback-auth-bootstrap-binding-conflict"></a>`SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT` | auth | — | — | `packages/snapback-client/app-client.mjs:1186` | 3 |
 | <a id="diagnostic-snapback-auth-bootstrap-binding-invalid"></a>`SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID` | auth | — | — | `packages/snapback-client/app-client.mjs:350` | 5 |
-| <a id="diagnostic-snapback-auth-bootstrap-binding-stale"></a>`SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE` | auth | — | — | `packages/snapback-client/app-client.mjs:1187` | 9 |
+| <a id="diagnostic-snapback-auth-bootstrap-binding-stale"></a>`SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE` | auth | — | — | `packages/snapback-client/app-client.mjs:1220` | 9 |
 | <a id="diagnostic-snapback-auth-bootstrap-capability-unavailable"></a>`SNAPBACK_AUTH_BOOTSTRAP_CAPABILITY_UNAVAILABLE` | auth | — | — | `packages/snapback-client/app-client.mjs:457` | 2 |
 | <a id="diagnostic-snapback-auth-bootstrap-completeness-unclassified"></a>`SNAPBACK_AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED` | auth | — | — | `packages/snapback-codegen/client-lifecycle.mjs:12` | 2 |
-| <a id="diagnostic-snapback-auth-bootstrap-digest-failed"></a>`SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED` | auth | — | [guide](../clients/react-expo.md#crypto-prerequisites-react-native-ships-no-webcrypto) | `packages/snapback-client/app-client.mjs:728` | 7 |
-| <a id="diagnostic-snapback-auth-bootstrap-digest-module-unavailable"></a>`SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE` | auth | — | [guide](../clients/react-expo.md#crypto-prerequisites-react-native-ships-no-webcrypto) | `packages/snapback-client/app-client.mjs:711` | 7 |
-| <a id="diagnostic-snapback-auth-bootstrap-failed"></a>`SNAPBACK_AUTH_BOOTSTRAP_FAILED` | auth | — | — | `packages/snapback-client/app-client.mjs:888` | 3 |
+| <a id="diagnostic-snapback-auth-bootstrap-digest-failed"></a>`SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED` | auth | — | [guide](../clients/react-expo.md#crypto-prerequisites-react-native-ships-no-webcrypto) | `packages/snapback-client/app-client.mjs:729` | 7 |
+| <a id="diagnostic-snapback-auth-bootstrap-digest-module-unavailable"></a>`SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE` | auth | — | [guide](../clients/react-expo.md#crypto-prerequisites-react-native-ships-no-webcrypto) | `packages/snapback-client/app-client.mjs:712` | 7 |
+| <a id="diagnostic-snapback-auth-bootstrap-failed"></a>`SNAPBACK_AUTH_BOOTSTRAP_FAILED` | auth | — | — | `packages/snapback-client/app-client.mjs:889` | 3 |
 | <a id="diagnostic-snapback-auth-bootstrap-input-invalid"></a>`SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID` | auth | — | — | `packages/snapback-client/app-client.mjs:577` | 4 |
 | <a id="diagnostic-snapback-auth-bootstrap-mechanism-unavailable"></a>`SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE` | auth | — | — | `packages/snapback-client/app-client.mjs:472` | 4 |
 | <a id="diagnostic-snapback-auth-bootstrap-partition-invalid"></a>`SNAPBACK_AUTH_BOOTSTRAP_PARTITION_INVALID` | auth | — | — | `packages/snapback-client/app-client.mjs:492` | 2 |
 | <a id="diagnostic-snapback-auth-bootstrap-platform-unsupported"></a>`SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED` | auth | — | — | `packages/snapback-client/app-client.mjs:523` | 7 |
 | <a id="diagnostic-snapback-auth-bootstrap-policy-invalid"></a>`SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID` | auth | — | — | `packages/snapback-client/app-client.mjs:319` | 2 |
-| <a id="diagnostic-snapback-auth-bootstrap-policy-rotation"></a>`SNAPBACK_AUTH_BOOTSTRAP_POLICY_ROTATION` | auth | — | — | `packages/snapback-client/app-client.mjs:1169` | 2 |
-| <a id="diagnostic-snapback-auth-bootstrap-rqs-store-conflict"></a>`SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT` | auth | — | — | `packages/snapback-client/app-client.mjs:1140` | 2 |
+| <a id="diagnostic-snapback-auth-bootstrap-policy-rotation"></a>`SNAPBACK_AUTH_BOOTSTRAP_POLICY_ROTATION` | auth | — | — | `packages/snapback-client/app-client.mjs:1202` | 2 |
+| <a id="diagnostic-snapback-auth-bootstrap-rqs-store-conflict"></a>`SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT` | auth | — | — | `packages/snapback-client/app-client.mjs:1173` | 2 |
 | <a id="diagnostic-snapback-auth-bootstrap-rqs-store-incompatible"></a>`SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_INCOMPATIBLE` | auth | — | — | `packages/snapback-client/app-client.mjs:619` | 1 |
 | <a id="diagnostic-snapback-auth-budget-authority-unavailable"></a>`SNAPBACK_AUTH_BUDGET_AUTHORITY_UNAVAILABLE` | auth | — | — | `crates/snapback-kernel/src/auth/throttle.rs:1159` | 2 |
 | <a id="diagnostic-snapback-auth-budget-policy-invalid"></a>`SNAPBACK_AUTH_BUDGET_POLICY_INVALID` | auth | — | — | `crates/snapback-kernel/src/auth/throttle.rs:1161` | 2 |
 | <a id="diagnostic-snapback-auth-catalog-corrupt"></a>`SNAPBACK_AUTH_CATALOG_CORRUPT` | auth | — | — | `crates/snapback-auth/src/auth/lifecycle.rs:64` | 11 |
 | <a id="diagnostic-snapback-auth-catalog-object-collision"></a>`SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION` | auth | 409 | — | `crates/snapback-kernel/src/storage/auth_rescue.rs:340` | 8 |
 | <a id="diagnostic-snapback-auth-catalog-version-unsupported"></a>`SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED` | auth | — | — | `crates/snapback-kernel/src/storage/auth_agents.rs:1600` | 6 |
-| <a id="diagnostic-snapback-auth-change-password-requires-authenticated"></a>`SNAPBACK_AUTH_CHANGE_PASSWORD_REQUIRES_AUTHENTICATED` | auth | — | — | `packages/snapback-client/app-client.mjs:1459` | 1 |
+| <a id="diagnostic-snapback-auth-change-password-requires-authenticated"></a>`SNAPBACK_AUTH_CHANGE_PASSWORD_REQUIRES_AUTHENTICATED` | auth | — | — | `packages/snapback-client/app-client.mjs:1492` | 1 |
 | <a id="diagnostic-snapback-auth-claims-authority-invalid"></a>`SNAPBACK_AUTH_CLAIMS_AUTHORITY_INVALID` | auth | — | — | `crates/snapback-sync/src/auth/invocation.rs:791` | 3 |
 | <a id="diagnostic-snapback-auth-claims-corrupt"></a>`SNAPBACK_AUTH_CLAIMS_CORRUPT` | auth | — | — | `crates/snapback-kernel/src/storage/auth_identity.rs:3478` | 5 |
 | <a id="diagnostic-snapback-auth-cli-failed"></a>`SNAPBACK_AUTH_CLI_FAILED` | auth | — | — | `crates/snapback-cli/src/cli.rs:4468` | 1 |
@@ -29872,9 +29948,9 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-dev-origin-refused"></a>`SNAPBACK_AUTH_DEV_ORIGIN_REFUSED` | auth | 403 | [guide](../auth/sessions-and-principals.md#a-browser-app-under-sessions-today) | `crates/snapback-server/src/server.rs:10185` | 3 |
 | <a id="diagnostic-snapback-auth-disposition-unsupported"></a>`SNAPBACK_AUTH_DISPOSITION_UNSUPPORTED` | auth | — | — | `packages/snapback-contract/client-store.mjs:1647` | 1 |
 | <a id="diagnostic-snapback-auth-effective-source-unavailable"></a>`SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE` | auth | — | — | `crates/snapback-server/src/server.rs:12540` | 2 |
-| <a id="diagnostic-snapback-auth-entry-authenticated"></a>`SNAPBACK_AUTH_ENTRY_AUTHENTICATED` | auth | — | — | `packages/snapback-client/app-client.mjs:1338` | 1 |
-| <a id="diagnostic-snapback-auth-entry-failed"></a>`SNAPBACK_AUTH_ENTRY_FAILED` | auth | — | — | `packages/snapback-client/app-client.mjs:1307` | 1 |
-| <a id="diagnostic-snapback-auth-entry-unsettled"></a>`SNAPBACK_AUTH_ENTRY_UNSETTLED` | auth | — | — | `packages/snapback-client/app-client.mjs:1255` | 2 |
+| <a id="diagnostic-snapback-auth-entry-authenticated"></a>`SNAPBACK_AUTH_ENTRY_AUTHENTICATED` | auth | — | — | `packages/snapback-client/app-client.mjs:1371` | 1 |
+| <a id="diagnostic-snapback-auth-entry-failed"></a>`SNAPBACK_AUTH_ENTRY_FAILED` | auth | — | — | `packages/snapback-client/app-client.mjs:1340` | 1 |
+| <a id="diagnostic-snapback-auth-entry-unsettled"></a>`SNAPBACK_AUTH_ENTRY_UNSETTLED` | auth | — | — | `packages/snapback-client/app-client.mjs:1288` | 2 |
 | <a id="diagnostic-snapback-auth-family-revoked"></a>`SNAPBACK_AUTH_FAMILY_REVOKED` | auth | — | — | `packages/snapback-client/index.mjs:1667` | 2 |
 | <a id="diagnostic-snapback-auth-grant-cap"></a>`SNAPBACK_AUTH_GRANT_CAP` | auth | 429 | — | `crates/snapback-kernel/src/storage/auth_grants.rs:1495` | 3 |
 | <a id="diagnostic-snapback-auth-grant-commit-uncertain"></a>`SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN` | auth | — | — | `crates/snapback-kernel/src/storage/auth_grants.rs:1776` | 6 |
@@ -30015,7 +30091,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-rate-budget"></a>`SNAPBACK_AUTH_RATE_BUDGET` | auth | 429 | — | `crates/snapback-kernel/src/auth/throttle.rs:670` | 3 |
 | <a id="diagnostic-snapback-auth-recovery-code-invalid"></a>`SNAPBACK_AUTH_RECOVERY_CODE_INVALID` | auth | 401 | — | `crates/snapback-kernel/src/storage/auth_identity.rs:2782` | 6 |
 | <a id="diagnostic-snapback-auth-recovery-policy-unsupported"></a>`SNAPBACK_AUTH_RECOVERY_POLICY_UNSUPPORTED` | auth | — | — | `packages/snapback-codegen/define.mjs:2052` | 2 |
-| <a id="diagnostic-snapback-auth-recovery-rotate-requires-authenticated"></a>`SNAPBACK_AUTH_RECOVERY_ROTATE_REQUIRES_AUTHENTICATED` | auth | — | — | `packages/snapback-client/app-client.mjs:1265` | 3 |
+| <a id="diagnostic-snapback-auth-recovery-rotate-requires-authenticated"></a>`SNAPBACK_AUTH_RECOVERY_ROTATE_REQUIRES_AUTHENTICATED` | auth | — | — | `packages/snapback-client/app-client.mjs:1298` | 3 |
 | <a id="diagnostic-snapback-auth-refresh-superseded"></a>`SNAPBACK_AUTH_REFRESH_SUPERSEDED` | auth | 409 | — | `crates/snapback-auth/src/auth/provider.rs:4949` | 9 |
 | <a id="diagnostic-snapback-auth-rehearsal-authority-ended"></a>`SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED` | auth | 403 | — | `crates/snapback-engine/src/local/engine.rs:21419` | 10 |
 | <a id="diagnostic-snapback-auth-rehearsal-binding-mismatch"></a>`SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH` | auth | 403 | — | `crates/snapback-kernel/src/storage/auth_rehearsal.rs:139` | 11 |
@@ -30085,9 +30161,10 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-startup-artifact-required"></a>`SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | auth | — | [guide](../backend/schema-evolution.md#diagnose-the-four-boundary-codes) | `crates/snapback-cli/src/cli.rs:58` | 4 |
 | <a id="diagnostic-snapback-auth-step-up-delivery-unavailable"></a>`SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE` | auth | — | [guide](../auth/sessions-and-principals.md#mint-a-local-session-from-a-trusted-server) | `crates/snapback-auth/src/auth/provider.rs:4865` | 2 |
 | <a id="diagnostic-snapback-auth-step-up-required"></a>`SNAPBACK_AUTH_STEP_UP_REQUIRED` | auth | 401 | [guide](../auth/sessions-and-principals.md#mint-a-local-session-from-a-trusted-server) | `crates/snapback-kernel/src/storage/auth_grants.rs:2070` | 6 |
+| <a id="diagnostic-snapback-auth-storage-partition-implicit-reuse"></a>`SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` | auth | — | [guide](../clients/headless.md#construct-one-client-per-backend-and-custody-context) | `packages/snapback-client/app-client.mjs:946` | 1 |
 | <a id="diagnostic-snapback-auth-stream-incarnation-corrupt"></a>`SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT` | auth | — | — | `crates/snapback-kernel/src/auth/session_projection.rs:143` | 12 |
 | <a id="diagnostic-snapback-auth-stream-reset"></a>`SNAPBACK_AUTH_STREAM_RESET` | auth | 401 | [guide](../backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients) | `clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift:1256` | 14 |
-| <a id="diagnostic-snapback-auth-supervised-principal-conflict"></a>`SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT` | auth | — | — | `packages/snapback-client/app-client.mjs:931` | 6 |
+| <a id="diagnostic-snapback-auth-supervised-principal-conflict"></a>`SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT` | auth | — | — | `packages/snapback-client/app-client.mjs:963` | 6 |
 | <a id="diagnostic-snapback-auth-table-collision"></a>`SNAPBACK_AUTH_TABLE_COLLISION` | auth | 409 | — | `crates/snapback-cli/src/cli.rs:9326` | 12 |
 | <a id="diagnostic-snapback-auth-table-visibility-implicit"></a>`SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT` | auth | — | [guide](../auth/protecting-data.md#declare-who-can-read-each-table) | `packages/snapback-codegen/index.mjs:3006` | 1 |
 | <a id="diagnostic-snapback-auth-throttled"></a>`SNAPBACK_AUTH_THROTTLED` | auth | 429 | — | `crates/snapback-auth/src/auth/mailbox.rs:172` | 22 |
@@ -40990,6 +41067,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED'
   | 'SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE'
   | 'SNAPBACK_AUTH_STEP_UP_REQUIRED'
+  | 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE'
   | 'SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT'
   | 'SNAPBACK_AUTH_STREAM_RESET'
   | 'SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT'
