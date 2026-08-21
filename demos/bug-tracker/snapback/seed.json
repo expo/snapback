@@ -1,0 +1,31 @@
+{
+  "seedVersion": "2026-08-17.1",
+  "tables": {
+    "bugs": [
+      {
+        "_id": "bug_keyboard_shortcut",
+        "title": "Keyboard shortcut closes the modal",
+        "description": "Pressing Escape inside the title field dismisses the editor without warning.",
+        "priority": "high",
+        "status": "open",
+        "createdAt": 1786991400000
+      },
+      {
+        "_id": "bug_empty_state",
+        "title": "Empty state needs a clearer next step",
+        "description": "Point new teammates toward creating their first issue.",
+        "priority": "medium",
+        "status": "in-progress",
+        "createdAt": 1786905000000
+      },
+      {
+        "_id": "bug_mobile_spacing",
+        "title": "Tighten mobile card spacing",
+        "description": "Issue metadata wraps too early on narrow screens.",
+        "priority": "low",
+        "status": "resolved",
+        "createdAt": 1786818600000
+      }
+    ]
+  }
+}

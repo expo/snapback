@@ -1,0 +1,476 @@
+# LLP 0295: Published-matrix agent experience improvement program
+
+**Type:** Plan
+**Status:** Draft
+**Systems:** Agent experience, Developer experience, Authoring, Code
+generation, Packaging, CLI, Local server lifecycle, Auth, Live queries,
+Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
+integration, Guide, Benchmarks, Testing, Performance
+**Author:** Charlie Cheever / Codex
+**Date:** 2026-08-20
+**Revised:** 2026-08-20 (initial Draft: turns the published 0.1.24
+model-by-profile-by-app matrix findings in LLP 0277 into a routed improvement
+program, separates straight repairs from decisions, and registers token/wall
+efficiency as a first-class outcome)
+**Related:** LLP 0059, LLP 0061, LLP 0095, LLP 0107, LLP 0186, LLP 0189,
+LLP 0198, LLP 0201, LLP 0223, LLP 0236, LLP 0237, LLP 0240, LLP 0252,
+LLP 0253, LLP 0259, LLP 0261, LLP 0275, LLP 0277, LLP 0278, LLP 0279,
+LLP 0280, LLP 0281,
+Diary 0092, Diary 0093, Diary 0094, Diary 0095, Diary 0096, Diary 0097,
+Diary 0098, Diary 0099, Diary 0100, Diary 0101, Diary 0102, Diary 0103
+
+## Summary
+
+The published Snapback 0.1.24 matrix demonstrated that the product's
+architectural center is now buildable across three model families, two
+authoring profiles, and two client stacks: all six Clique lanes completed
+M1-M3 green, all twelve lanes completed, and 35 of 36 milestone cells were
+green. It also demonstrated that agents still pay too much to reach that
+center. The repeated costs are lifecycle reconstruction, auth custody and
+transition debugging, Familiar dialect discovery, app-visible projections
+over private authority, provider connection management, browser reruns, and
+source inspection when a guide or diagnostic stops one fact short.
+
+LLP 0277 is the evidence register. This Plan is the higher-level response. It
+does not replace the subsystem owners already carrying mechanisms. It answers
+three cross-cutting questions they cannot answer independently:
+
+1. What end-to-end authoring journey should every supported client/profile
+   share?
+2. Which product and documentation decisions should be made before local
+   tickets are executed in parallel?
+3. How will the program prove that it reduced correction loops, wall clock,
+   and token usage rather than merely moved ceremony between packages?
+
+The program has two lanes. **Straight repairs**—a package cycle, relay
+allowlist omission, codegen/runtime mismatch, precise diagnostics, and bounded
+guide recipes—can proceed through their filesystem tickets without waiting for
+this Plan. **Design work** waits for the Phase 0 rulings below, then lands
+through the owning LLPs. This avoids repeating LLP 0207's failure mode: a
+coordination document must not become a second owner for mechanisms that
+already have one.
+
+## Evidence and claim boundary
+
+The evidence is the completed N=1 calibration matrix and its raw retained
+harness streams. It supports a prioritized improvement program, not a profile
+winner or comparative population claim. In particular:
+
+- host load heavily contaminated Grok Clique Familiar and Opus Clique
+  Explicit wall time;
+- the Opus Explicit lane was interrupted and resumed;
+- harness token vocabularies differ across Codex, Grok, and Claude;
+- lane totals do not attribute tokens to milestones or correction episodes;
+  and
+- correction-loop labels were authored by independent agents and are not yet
+  normalized enough to sum as a publication statistic.
+
+The raw accounting still gives a strong program signal. Across all twelve
+lanes Explicit and Familiar were nearly equal in total output tokens, but
+profile fit reversed by app: Clique Familiar used 16.8% more output tokens
+than Clique Explicit in aggregate, while Coterie Familiar used 13.5% fewer
+than Coterie Explicit. Same-model pair direction was consistent in all six
+comparisons. The next wave must explain this interaction rather than seek one
+global profile ranking.
+
+## Objectives
+
+1. **One paved first hour.** A published-package agent reaches password auth,
+   durable custody, a live two-client query, and an additive schema change
+   without source inspection, custom middleware, a custom binding environment,
+   or a destructive reseed.
+2. **Preserve the differentiators.** Explicit authority, exact generated
+   references, runtime-enforced result contracts, membership transitions,
+   typed assets, ephemeral state, build-bound documentation, and remediation-
+   bearing refusals stay intact.
+3. **Make Familiar familiar end to end.** Familiar may retain a deterministic
+   restricted runtime, but its first-read contract, generation phases, client
+   hooks, and runtime interpretation must agree. Familiar-looking code may
+   either work or refuse before output with the supported rewrite.
+4. **Make Explicit purposeful rather than repetitive.** Policy decisions stay
+   authored; mechanically derivable facts and recurring lifecycle ceremony do
+   not require transcription. LLP 0275's four-class ceremony taxonomy governs.
+5. **Reduce agent cost.** Lower semantic correction actions, output tokens,
+   time to M1 green, restart/reseed cycles, and full browser reruns under a
+   matched, load-isolated protocol.
+6. **Keep evidence honest.** Instrument defects and external Exact defects are
+   classified separately from Snapback product failures; no green count hides
+   structurally unobservable product behavior.
+
+## Non-goals
+
+- Selecting Familiar or Explicit as the default from this N=1 matrix.
+- Broadening the handler runtime merely to imitate unrestricted Node or
+  Convex. Portability, determinism, and declared capability boundaries remain
+  product constraints.
+- Making private authority tables public to avoid projection work.
+- Replacing Exact's issue tracker or LLP 0279 with Snapback-side duplicate
+  tickets.
+- Turning every benchmark-specific selector failure into product API design.
+- Optimizing prose volume while leaving correction loops intact. The retained
+  report artifacts are visible cost, but they are a small fraction of total
+  model output.
+
+## Phase 0: decisions and measurement before mechanism work
+
+The following rulings are required before cross-cutting implementation begins.
+Straight repair tickets in Phase 1 do not wait.
+
+### D0.1 — Canonical development lifecycle
+
+Choose one semantic lifecycle that covers:
+
+- tool-selected ports and caller-pinned ports;
+- Expo/React and external Vite/Exact clients;
+- fresh start, attach to an already-running server, regenerate, additive
+  schema successor, and shutdown;
+- sessions-mode deployment identity and store preservation;
+- binding delivery/admission without pretending a caller override is a
+  supervisor exchange; and
+- a single ready receipt naming server, app artifact, binding, authority mode,
+  and client origin.
+
+Default proposal: `snapback dev` remains the lifecycle owner, grows an
+explicit fixed-port/external-client profile, and treats `start --startup-
+artifacts` plus hand-written environment objects as diagnostic primitives,
+not an alternative golden path. LLP 0223/0261 own the design. Acceptance must
+prove one M1->M2 additive change with the original accounts and sessions
+intact.
+
+### D0.2 — Client authority-transition state machine
+
+Decide the total state and settlement contract shared by one-shot queries,
+live queries, mutations/outbox, React hooks, Familiar projections, and provider
+adapters across anonymous, authenticating, authenticated, revoking, and
+reconnecting states.
+
+The ruling must answer:
+
+- whether `optional-user` always restarts on principal-class change;
+- what an authenticated operation started while signed out returns;
+- which background writes may queue during an authorization barrier;
+- how foreground work avoids head-of-line blocking behind housekeeping;
+- which state is safe for subscribe-after-settle; and
+- which diagnostics expose queue, commit, and delivery time separately.
+
+LLP 0059/0107/0218 remain mechanism owners. This Plan requires one shared
+transition matrix and conformance suite so each surface cannot improvise.
+
+### D0.3 — Authoring-profile product contract
+
+Decide what Familiar promises beyond surface vocabulary and what Explicit
+promises beyond maximal declaration. The decision packet must include:
+
+- one-pass clean generation and phase parity;
+- the supported handler dialect and helper/module path;
+- result-kind partitions and generated-runtime equivalence;
+- ephemeral, assets, membership, and sequence feature parity;
+- when the generator should suggest switching profiles;
+- which Explicit facts are policy decisions versus derivable repetition; and
+- whether profile choice may vary by client stack/template without implying
+  a semantic fork.
+
+LLP 0252/0253 and LLP 0275 own the decisions. No default-profile change occurs
+until a later claim-eligible wave shows both outcome and cost evidence.
+
+### D0.4 — Authority relation versus product projection
+
+Choose the supported composition for a private membership relation plus a
+product-visible roster/history. Options to compare:
+
+1. app-authored maintained projection with a generated synchronized command
+   facade;
+2. projection fields declared on the authority profile and generated by the
+   platform; or
+3. an authorized roster query over a bounded redacted projection.
+
+The ruling must preserve private-row non-enumerability, transition atomicity,
+send-time recipient semantics, leave/rejoin history, and exact acceptance over
+absent/idempotent branches. LLP 0240/0278 own the mechanism; the new guide
+ticket can teach today's sanctioned pattern immediately.
+
+### D0.5 — Provider connection and publication budget
+
+Set explicit budgets and ownership for headless/provider adapters:
+
+- connections per app authority/origin;
+- live subscriptions per view/provider;
+- nested query behavior from update callbacks;
+- equal-snapshot deduplication and transport-only changes;
+- fan-out composition across visible entity sets;
+- teardown and retry after auth transitions; and
+- runtime/diagnostic inspection of active owners.
+
+LLP 0095/0278/0280 own the contracts. Exact's provider runtime must consume
+the same lifecycle facts through LLP 0279 rather than invent a parallel
+Snapback-specific adapter policy.
+
+### D0.6 — Efficiency instrument and target registration
+
+Before the next measured run, extend LLP 0186/0201's instrument so every
+milestone boundary records:
+
+- fresh input, cache read/write, output, and reasoning tokens using the native
+  harness fields without cross-harness normalization;
+- semantic actions (read, edit, generate, start/restart, suite, choreography,
+  source inspection, guide lookup, retry);
+- failure-to-recovery episodes with attribution and outcome;
+- server/process restart and reseed counts;
+- browser assertion attempts and time spent waiting;
+- host load and API interruption windows; and
+- orientation bytes plus selected skills before first product edit.
+
+The existing `issues/20260809-per-milestone-token-metering.md` remains the
+implementation ticket. The new skill-routing ticket covers the orientation
+carrier. A run that lacks phase usage may still debug product behavior but
+cannot adjudicate the efficiency target.
+
+## Phase 1: straightforward retirement batch
+
+These items need ordinary issue triage and affected-scope verification, not a
+new architecture decision. They may run in parallel while Phase 0 is reviewed.
+
+### 1A. Published package and compiler/runtime parity
+
+- `issues/20260820-vite-password-auth-relay-allowlist.md`
+- `issues/20260820-expo-metro-default-storage-partition-cycle.md`
+- `issues/20260820-familiar-vdoc-generation-runtime-parity.md`
+- `issues/20260820-optional-user-live-query-auth-transition-stall.md`
+- `issues/20260820-authenticated-query-signed-out-settlement.md`
+
+Exit: all five reproduce before the fix and pass through packed external
+packages afterward; no source-checkout-only proof closes them.
+
+### 1B. Precise diagnostics and typed hook contracts
+
+- `issues/20260820-structured-value-ceiling-diagnostic.md`
+- `issues/20260820-schema-asset-ref-retype-diagnostic.md`
+- `issues/20260820-asset-url-hook-nullability.md`
+- existing `issues/20260818-guide-gap-custody-store-repair-text-not-one-file.md`
+
+Exit: each matrix failure reaches a stable, bounded diagnostic or type error
+that names the violated semantic fact and a supported repair before runtime
+bisection.
+
+### 1C. High-value guide routes
+
+- `issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`
+- `issues/20260818-guide-gap-node-client-storage-partition-default.md`
+- `issues/20260818-guide-gap-background-writes-during-auth-transitions.md`
+- `issues/20260818-guide-gap-presence-heartbeat-vs-bound-value.md`
+- `issues/20260820-guide-gap-familiar-handler-dialect.md`
+- `issues/20260820-guide-gap-membership-roster-projection-recipe.md`
+- `issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`
+
+Every page fix adds retrieval-eval cases using the exact plausible wrong
+vocabulary the diary recorded, per LLP 0061/0187. Closing a guide ticket
+requires a cold retrieval probe, not only prose presence.
+
+## Phase 2: cross-cutting workstreams after the rulings
+
+### W1. One development loop, many clients
+
+Implement D0.1 through the existing CLI/lifecycle owners. The milestone is
+not a new flag in isolation; it is the deletion of custom binding environments,
+prebuilt startup-carrier scripts, and destructive reseeds from all four matrix
+templates. The same ready receipt should let the Expo, Vite/Exact, headless,
+and acceptance consumers prove they are attached to the intended app and
+authority mode.
+
+Efficiency hypothesis: removing restart/reseed and lifecycle source inspection
+will produce the largest M1 wall reduction, especially on clean lanes where M1
+was 3-6x either later milestone.
+
+### W2. One authority-transition participant
+
+Implement D0.2 as a shared core state machine plus per-surface projections.
+Background receipt/read work needs an admitted housekeeping lane or an explicit
+wait/skip policy; it may not silently serialize a foreground send. Provider
+adapters consume the same settled-authority state rather than poll their own
+client objects.
+
+Efficiency hypothesis: classified settlement removes long silent waits and
+avoids empirical retry cadences, reducing both wall and the highest-token
+source-inspection loops.
+
+### W3. Profile coherence and ceremony reduction
+
+Implement D0.3 in two parallel lanes:
+
+- **Familiar coherence:** one-pass generation; source/runtime parity; a first-
+  read dialect projection; exact types for nullability and result kinds; parity
+  for ephemeral/assets/membership; and pre-output refusals for unsupported
+  Convex-shaped forms.
+- **Explicit economy:** apply LLP 0275 to derive exact result/dependency facts,
+  scaffold recurring fixed lifecycle wiring, and preserve authored authority,
+  visibility, retention, and asset policy.
+
+Do not compare line counts alone. The success measure is fewer semantic
+correction actions while retaining the same generated manifest and authority
+evidence.
+
+### W4. Generated safe composition
+
+Implement D0.4 and D0.5 together where they share the same need: bounded,
+authorized composition over many entities. Candidate outputs include a
+generated roster projection, list-shaped aggregate query, chunked semijoin
+helper, and provider subscription group. LLP 0278 owns query shapes; LLP 0240
+owns authority; neither may weaken the other to simplify adapters.
+
+Efficiency hypothesis: delete app-authored mirror maintenance, N per-entity
+subscriptions, and bespoke page/merge code—the dominant Coterie adapter tax
+and a major Explicit verbosity source.
+
+### W5. Runtime cost visibility at the app boundary
+
+The matrix exposed reactive loops only after unrelated UI checks slowed down:
+unconditional receipt patches, per-keystroke durable writes, per-conversation
+message scans, and dozens of unnecessary asset hooks. Extend existing query
+cost guardrails and diagnostics to report:
+
+- mutation queue wait, authorization wait, execution, commit, and live-delivery
+  phases;
+- query examined rows, fan-out count, rerun cause, and subscriber count;
+- repeated equivalent writes/effects; and
+- React/provider subscription and asset-issuance multiplicity where the
+  framework owns enough information to know it.
+
+This is a design proposal to LLP 0267 and the React/client owners, not a ticket
+to add ambient telemetry. Redaction, bounded storage, and local/hosted posture
+must be settled first.
+
+### W6. Instrument and context economy
+
+Implement D0.6 plus LLP 0281:
+
+- correct typing observation boundaries and shared-page poisoning;
+- make media, receipt, avatar, and membership semantics observable;
+- replace broad text selectors with structural vocabulary;
+- refuse missing suite-status linkage before a run;
+- split feature failures from instrument/setup failures in the first line;
+- load one bounded lane packet and suppress irrelevant device/EAS skill
+  routing for a web-only lane; and
+- generate diary/final-report aggregates from one structured run record where
+  facts would otherwise be repeated manually.
+
+The last item reduces reporting work without deleting the qualitative essay:
+the essay remains pre-metrics narrative evidence, while pins, counts, timing,
+and correction tables become generated projections.
+
+### W7. Exact/Contract coordination
+
+LLP 0279 owns Exact-side generator, renderer, route, and provider fixes. The
+matrix-derived sequence is:
+
+1. correctness carriers (typed error codes, parseable generated metadata);
+2. route/input stability that prevents browser page poisoning;
+3. provider lifecycle integration with D0.5; then
+4. rerun Coterie against the same Snapback release as Clique.
+
+Snapback tickets close only Snapback behavior. Exact issues are graduated to
+the Exact repository with pointers rather than tracked live in both places.
+
+## Phase 3: qualification and rerun
+
+### R1. Cheap external journey
+
+Before a matrix rerun, run one cold packed-package probe per client stack and
+profile. Each must reach M1 green and perform one additive schema change with:
+
+- zero Snapback/Exact source inspection;
+- zero custom relay/binding middleware;
+- zero destructive reseed;
+- no out-of-scope skill packet;
+- phase token/action accounting present; and
+- every failure classified by owner.
+
+A failure returns to its owning workstream; it does not expand the benchmark
+matrix prematurely.
+
+### R2. Load-isolated calibration rerun
+
+Repeat the 12 cells with reserved machines or enforced load ceilings. Preserve
+model, effort, prompt, app scope, fixtures, and package pins except for the
+new published Snapback/Exact closures and versioned instrument migration.
+Record N=1 as calibration again; use it to validate mechanisms and variance,
+not publish a profile winner.
+
+### R3. Claim-eligible wave
+
+Only after R2 verifies the instrument and no material protocol correction is
+needed, run LLP 0201's preregistered N>=3 wave. Profile conclusions must be
+scoped by app/client stack if the 0.1.24 interaction persists.
+
+## Efficiency scorecard
+
+Phase 0 registers exact thresholds before implementation to avoid fitting the
+target to the result. The following are proposed commissioning targets for R2;
+the author may revise them at D0.6 with rationale:
+
+| Measure | 0.1.24 observation | R2 target |
+| --- | --- | --- |
+| Snapback/Exact source inspections for a paved M1-M3 path | repeated in most lanes | zero for facts covered by Phase 1/W1-W3 |
+| Custom fixed-origin relay/binding implementations | repeated | zero |
+| Destructive restart/reseed for additive milestone schema | repeated | zero |
+| Silent auth/query wait requiring an app timeout | repeated | zero |
+| Semantic correction actions | not normalized | >=40% lower median in matched cells after D0.6 registration |
+| Output tokens | lane totals available | >=20% lower median in matched cells, same harness/model |
+| M1 wall to first green | usually the longest phase | >=30% lower median, load-qualified cells |
+| Full choreography reruns caused by instrument state | repeated | at most one retry per failed assertion; unaffected checks isolated |
+| Orientation before first product edit | unmetered; irrelevant skills observed | one <=16 KiB deduplicated packet plus task-selected detail |
+
+These are internal program targets, not comparative claims. Missing phase
+metering, excessive host load, or an API interruption makes a cell ineligible
+for the efficiency scorecard while retaining its product findings.
+
+## Ownership and routing
+
+| Work | Owner | This Plan's role |
+| --- | --- | --- |
+| Evidence and pain register | LLP 0277 | consumes, does not duplicate |
+| Agent efficiency instrument/context | LLP 0186, LLP 0201, LLP 0259 | registers matrix-specific measures |
+| Guide retrieval and pages | LLP 0061 | prioritizes exact matrix intents |
+| Dev lifecycle / app composition | LLP 0223, LLP 0261 | requires one cross-client journey |
+| Familiar/Explicit authoring | LLP 0252, LLP 0253, LLP 0275 | requests profile contract and scorecard |
+| Auth/live/outbox transitions | LLP 0059, LLP 0107, LLP 0218 | requires one state matrix/conformance suite |
+| Membership/product projections | LLP 0240, LLP 0278 | requests one sanctioned composition |
+| Provider/paged composition | LLP 0278, LLP 0280 | requires bounded connection/query budgets |
+| Benchmark observability | LLP 0281 | sequences before R2 |
+| Exact-side defects | LLP 0279 / Exact repository | coordinates release and rerun only |
+
+## Risks
+
+1. **Umbrella without authority.** Mitigation: every mechanism names an owner;
+   this Plan owns sequencing and scorecard only.
+2. **Optimizing the benchmark instead of the product.** Mitigation: Phase 1
+   paths must be ordinary published-package journeys; benchmark-only selector
+   work stays in LLP 0281.
+3. **Reducing tokens by hiding guarantees.** Mitigation: outcome assertions and
+   generated authority evidence remain fixed; only semantic actions and
+   ceremony may fall.
+4. **Choosing Familiar from syntax preference.** Mitigation: no default ruling
+   before N>=3, and results stay client-stack scoped.
+5. **Telemetry becoming a new tax.** Mitigation: D0.6 uses harness-native
+   accounting and generated run records; W5 requires a bounded/redacted design
+   before runtime instrumentation.
+6. **Fast-moving main invalidates rerun setup.** Mitigation: qualify and run
+   against exact published closures; optimistic landing remains ordinary, and
+   claim evidence binds scoped package/instrument identities rather than a
+   quiet HEAD.
+
+## Open questions for author review
+
+1. Should D0.1 make fixed-port/external-client support a mode of `snapback dev`
+   (default proposal), or should one lower-level lifecycle primitive own both
+   `dev` and external orchestrators?
+2. Is Familiar intended to reach feature parity with Explicit, or may templates
+   choose profiles by workload while preserving one normalized definition?
+3. For private memberships, which D0.4 option should be prototyped first?
+4. Are the proposed 40% correction-action, 20% output-token, and 30% M1-wall
+   targets ambitious enough to discriminate a real improvement without being
+   dominated by variance?
+5. Should W5 cost visibility ship first as local developer diagnostics only,
+   with hosted telemetry explicitly deferred?
+6. Does the next R2 rerun include both Coterie and Clique immediately, or should
+   the cheap R1 probes gate each app independently before all twelve cells are
+   commissioned?

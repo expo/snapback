@@ -29,6 +29,7 @@ rows in `guide/capabilities.md`, the current capability truth.
 | `backend-bakeoff` | Signal Desk: one incident-response React product on Snapback, Convex, and Supabase for honest comparison | react three-backend product + native acceptances (required / comparison arms) | yes |
 | `browser-auth` | Local product-shaped browser sign-in: verified external assertion seam, immutable identity binding, protected app rows, IndexedDB reload custody, and logout | browser-auth-witness (integration) | yes |
 | `browser-local-first` | Real-Chrome witness for no-declaration public-exact IndexedDB retention, opaque refusal, and queued replay | browser-public-witness (integration) | yes |
+| `bug-tracker` | React/Vite bug tracker built from the public npm starter with sessions auth, live issue queries, and declarative create/status mutations | react (integration) | yes |
 | `campfire` | Campfire chat contract rebuilt on the first-class React surface and a registered generated bundle (query-group rerun arm) | reactQueryGroupArm (required-local-nonclaim) | yes |
 | `card-game` | Sessions-mode hidden-hand isolation, two-axis queue custody, live logout blanking, lease-bounded offline retention | sessionAuthProof (required) | yes |
 | `catalog-lens` | Owner-scoped books joined to a public publisher dimension through a bounded relational query | headless (required) | yes |

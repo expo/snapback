@@ -8,6 +8,12 @@ Memberships, Code generation, Runtime, Client integration, Exact/Contract
 integration, Diagnostics, Guide, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-17
+**Revised:** 2026-08-20 (0.1.24 matrix amendment: adds the completed
+three-model-family x two-profile x two-app published-package run, preserves
+its calibration-only claim posture, enumerates the positive and negative
+findings, and analyzes where wall clock, output tokens, and correction loops
+accumulated; routes straightforward defects to filesystem tickets and the
+cross-cutting remainder to LLP 0295)
 **Revised:** 2026-08-17 (initial Draft: synthesizes the Coterie
 Exact/Contract benchmark arc of Diary 0086 — the 2026-08-15 backendless
 baseline through the 2026-08-17 M1–M3 program closure — together with the
@@ -17,7 +23,9 @@ LLP 0236, LLP 0240, LLP 0243, LLP 0252, LLP 0253, LLP 0258, LLP 0264,
 LLP 0266, LLP 0267, LLP 0269, LLP 0270, LLP 0274, LLP 0278, LLP 0279,
 LLP 0280, LLP 0281,
 Diary 0078, Diary 0079, Diary 0080, Diary 0081, Diary 0082, Diary 0083,
-Diary 0084, Diary 0085, Diary 0086
+Diary 0084, Diary 0085, Diary 0086, Diary 0092, Diary 0093, Diary 0094,
+Diary 0095, Diary 0096, Diary 0097, Diary 0098, Diary 0099, Diary 0100,
+Diary 0101, Diary 0102, Diary 0103, LLP 0295
 
 ## Summary
 
@@ -52,10 +60,22 @@ data model:
    lifecycle, and one required-check red was a measurement artifact (routed
    to LLP 0281).
 
+The published 0.1.24 matrix materially advances that result. All six Clique
+lanes completed M1-M3 green, all twelve lanes completed, and 35 of 36
+milestone cells were green; the one red was an Exact choreography defect, not
+a Snapback capability failure. Three model families completed both authoring
+profiles from npm with no source-checkout escape. The architectural center is
+now repeatably buildable. The remaining tax is concentrated at the perimeter:
+dev attach and carrier lifecycle, auth custody and transitions, handler-dialect
+discoverability, client/provider lifecycle, membership projections, and
+instrument-driven correction loops.
+
 This document is a descriptive synthesis with routing. LLP 0236 continues to
-own the Clique cross-model friction register and its residual agenda; LLP 0266
-owns the Coterie benchmark plan; implementation routes to the planning
-documents and tickets named below.
+own the earlier Clique cross-model register; this amendment supplies its
+published-0.1.24 rerun evidence. LLP 0266 owns the Coterie benchmark, LLP 0281
+owns instrument observability, and LLP 0295 coordinates the matrix-derived
+cross-cutting improvement program. Implementation routes to the subsystem
+owners and tickets named below.
 
 ## Evidence boundary
 
@@ -85,12 +105,23 @@ documents and tickets named below.
    Explicit/Familiar agenda. This document does not re-own that synthesis; it
    records only the deltas that survived it or that the Coterie run
    independently corroborated.
+3. **The published 0.1.24 model x profile x app matrix**
+   (`benchmarks/runs/2026-08-17-model-profile-app-matrix/`), recorded in
+   Diaries 0092-0103. It crossed GPT-5.6 Sol, Grok 4.6, and Claude Opus 5
+   with Explicit and Familiar authoring over Clique (Expo Router web) and
+   Coterie (Exact/Contract web). All twelve lanes used published npm 0.1.24;
+   no lane read the Snapback source checkout. The retained external run
+   workspace contains harness event streams, per-lane run logs, load samples,
+   receipts, and `meta/final-metrics.json`; the committed run record is the
+   durable aggregate.
 
 ### Claim posture
 
-All lanes are N=1 exploratory or program evidence. Nothing here is scored,
-claim-eligible, or a promotion/default decision; LLP 0189 and LLP 0201 govern
-publication-grade claims. The Coterie evidence is strongest where it is
+All lanes are N=1 exploratory or calibration evidence. Nothing here is scored,
+claim-eligible, a profile-default decision, or a population comparison; LLP
+0189 and LLP 0201 govern publication-grade claims. In particular, host-load
+contamination and one interrupted Opus lane make cross-lane wall comparisons
+unsafe. The Coterie evidence is strongest where it is
 narrowest: headless generated-binding acceptance, two-client stream proofs,
 and conformance reports with stated operation scope. It is deliberately not
 browser-context, native-host, durability, or population evidence, and the
@@ -325,6 +356,281 @@ classes behind the 0.1.24 gate. The rerun obligation stands: none of these
 corrections has been revalidated by a fresh external-package Clique lane, and
 LLP 0236's recommended rerun protocol remains the instrument for that.
 
+## Published 0.1.24 matrix findings
+
+### Result and efficiency envelope
+
+The matrix completed. Clique was 18/18 milestone cells green across six
+lanes; the whole matrix was 35/36 green, with the single red attributed to
+Exact's SPA link-detachment behavior. This is a qualitative phase change from
+the 2026-08-13 pilot, where Familiar was unpublished, source-package closure
+dominated M1, and Grok's Familiar M3 never became green.
+
+The raw totals are useful as an accounting envelope, not a profile ranking:
+
+| App | Profile | Wall seconds (three lanes) | Output tokens | Approx. cost |
+| --- | --- | ---: | ---: | ---: |
+| Clique | Explicit | 35,338 | 649,428 | $192.68 |
+| Clique | Familiar | 36,461 | 758,637 | $233.45 |
+| Coterie | Explicit | 26,380 | 788,664 | $215.66 |
+| Coterie | Familiar | 22,916 | 682,322 | $164.58 |
+
+Across all six lanes per profile, Explicit and Familiar were nearly equal:
+1,438,092 versus 1,440,959 output tokens and 61,718 versus 59,377 wall
+seconds. That superficial tie hides a repeatable **app/profile interaction**:
+every Clique Familiar lane used more output tokens and cost than its same-model
+Explicit pair, while every Coterie Familiar lane used fewer. Harness activity
+counts point in the same direction where they are comparable: Grok used 214
+versus 271 usage events on Clique Explicit/Familiar and 425 versus 314 on
+Coterie Explicit/Familiar; Opus used 434 versus 541 turns on Clique and 421
+versus 336 on Coterie. This is exploratory, but it is strong enough to reject
+one global statement such as "Familiar is cheaper" or "Explicit is cheaper."
+
+Wall does not adjudicate the profiles. Grok Clique Familiar shared the
+heaviest machine load; Opus Clique Explicit was interrupted by an API 500 and
+later ran browser checks at load averages near 150-700. The correct next
+question is why profile fit changes by client stack, measured with repeated,
+load-isolated lanes and per-phase usage.
+
+### What was consistently good
+
+#### G1. Published closure and cross-family completion — convergent
+
+All three model families built both profiles from npm without reading the
+Snapback source checkout. None of the six pre-cut release-gate defect families
+(live subscriptions, auth queue-store isolation, Expo WASM export, and
+visibility stragglers among them) recurred on paths every lane exercised. The
+release-gate work converted a previously source-only experiment into a public
+surface agents could actually finish.
+
+#### G2. Server-homed invariants and exact references — convergent
+
+Every family praised the same center: generated exact references, idempotent
+set-state mutations, unique indexes for likes/reposts/DM pairs, server-derived
+principals, and domain functions whose authorization is inspectable. Explicit
+made the declarations maximally greppable; Familiar made ordinary schema and
+function code compact without moving authority to the client.
+
+#### G3. Live two-client behavior without transport code — convergent
+
+Profiles, feeds, counters, messages, and receipts propagated through the same
+query surfaces the UI already consumed. Builders did not implement a second
+WebSocket protocol or manual cache invalidation layer. When query shape and
+client lifecycle were correct, visible changes normally arrived within one
+network turn or well under a second.
+
+#### G4. Ephemeral state, membership, and assets — repeated
+
+The Opus lanes called membership-backed typing and TTL expiry category-level
+advantages over Convex-style durable heartbeat rows. Membership bootstrap and
+transition matrices turned multi-step group authority into one atomic command.
+Typed asset references plus declared delivery/image policy were a positive
+surprise where the correct intent and hook were reached. These mechanisms must
+not be weakened to make the first-use path shorter.
+
+#### G5. Refusals and diagnostics — convergent, with silent exceptions
+
+Typed refusals often named the stale identity, violated rule, source span,
+repair alternatives, and guide anchor. Multiple diaries judged this best in
+class and credited it with turning redesigns into sub-thirty-minute loops.
+The negative findings below are therefore especially diagnostic: time exploded
+where a failure was silent, crossed a package boundary, or carried technically
+correct but incomplete remediation.
+
+### Pain-point register
+
+The register separates a **straight repair** (ticketable without a new product
+decision) from a **design/program item** (requires a cross-subsystem ruling or
+sequencing). Ticket paths are the current live owner; LLP 0295 owns only the
+cross-cutting plan and success measures.
+
+#### P13. Fixed-origin and supervised dev attachment are not one paved path — convergent
+
+Pinned benchmark ports forced agents outside `snapback dev --expo`; they then
+reconstructed startup artifacts, attach semantics, binding delivery, and
+sessions-compatible regeneration by reading package source and refusal text.
+Some paths restarted and reseeded on every schema milestone. Existing ticket:
+`issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`. The higher-level
+question—one lifecycle for supervised and externally hosted clients—routes to
+LLP 0295 W1 and LLP 0223/0261.
+
+#### P14. Password auth is first-party but excluded by the Vite relay — convergent
+
+Coterie lanes independently found that `@expo/snapback-vite`'s `__snapback`
+relay omitted `/auth/password/*` and `/auth/recovery/*`. They added pre-Vite
+middleware or split auth and live-data origins, then paid additional handshake,
+CORS, and stream-continuity debugging. Straight repair:
+`issues/20260820-vite-password-auth-relay-allowlist.md`.
+
+#### P15. Auth custody scope is correct but undiscoverable — convergent
+
+The default Expo template's volatile custody silently failed Clique's reload
+requirement; multiple headless clients in one process shared a principal until
+given distinct `storagePartition`s; retained-query/auth stores were mistaken
+for one database file; and repair text sometimes named only SQLite while
+keyring siblings preserved the deployment pin. Existing tickets:
+`issues/20260818-guide-gap-node-client-storage-partition-default.md` and
+`issues/20260818-guide-gap-custody-store-repair-text-not-one-file.md`. This
+cluster consumed both correctness work (silent persona drift) and wall (serial
+re-authentication/reseed).
+
+#### P16. Authority transitions still have silent or misleading client states — repeated
+
+Three distinct cases appeared: an `optional-user` live query blanked at sign-in
+and never resubscribed while reporting ready/empty/disconnected; an
+authenticated query started while signed out could hang without issuing HTTP;
+and background receipt/outbox writes during an auth barrier serialized
+foreground sends. Straight defects:
+`issues/20260820-optional-user-live-query-auth-transition-stall.md` and
+`issues/20260820-authenticated-query-signed-out-settlement.md`. The background
+authoring recipe is already ticketed at
+`issues/20260818-guide-gap-background-writes-during-auth-transitions.md`; the
+composition ruling belongs to LLP 0295 W2 and LLP 0059/0107/0218.
+
+#### P17. Published Expo packages contain a Metro initialization cycle — single-run, blocking
+
+The Familiar Opus lane died before first render because
+`@expo/snapback-expo` -> app-client -> index re-exported
+`DEFAULT_AUTH_STORAGE_PARTITION` through a temporal-dead-zone cycle under
+Metro CJS interop. Importing the client package first was a load-order
+workaround. Straight repair:
+`issues/20260820-expo-metro-default-storage-partition-cycle.md`.
+
+#### P18. Familiar's first-generation and result-contract phases disagree — repeated within one lane
+
+`v.doc` functions required a schema-only bootstrap before normal generation,
+and a mutation `v.doc` result could pass generation then fail at runtime.
+Agents repeatedly regenerated schema first and preserved/reseeded stores around
+the mismatch. Straight parity ticket:
+`issues/20260820-familiar-vdoc-generation-runtime-parity.md`.
+
+#### P19. Familiar feels like TypeScript until its closed dialect appears — convergent
+
+Agents reached quickly for `query`/`mutation`, `v`, `ctx.db`, and `api.*`, then
+learned by refusal that dynamic computed access, captured constants, helper
+imports, result forms, clock-dependent visibility, and some sequence surfaces
+are restricted. The refusals were usually good; the consolidated pre-authoring
+map was not on the Familiar first-read path. Straight guide repair:
+`issues/20260820-guide-gap-familiar-handler-dialect.md`. Whether to broaden the
+dialect is a design question routed to LLP 0237/0252/0253 and LLP 0295 W3.
+
+#### P20. Storage and type contracts expose mismatched boundaries — repeated
+
+The run found an independent 32 KiB aggregate structured-value ceiling after
+child validators passed, an error that said "expected string, actual string"
+instead of naming `maxBytes`, optional persisted values returned as `null`
+while generated types suggested absence, and an AssetRef retype diagnostic
+that printed "AssetRef to AssetRef" without the differing intent identity.
+Straight diagnostic ticket:
+`issues/20260820-structured-value-ceiling-diagnostic.md`; the nullability and
+typed-structured-value model remain design-owned by LLP 0211 and the AssetRef
+identity issue is ticketed at
+`issues/20260820-schema-asset-ref-retype-diagnostic.md`.
+
+#### P21. Private membership authority needs a first-class product roster pattern — convergent
+
+Private roster rows correctly prevent accidental disclosure, but chat apps
+also need display names, join times, send-time recipient sets, and aggregate
+receipt membership. Builders independently maintained ordinary projection
+tables beside the authority relation and learned bootstrap/app-column rules by
+refusal. Straight teaching ticket:
+`issues/20260820-guide-gap-membership-roster-projection-recipe.md`. Whether
+projection maintenance should be generated, transactionally coupled, or
+remain app-authored is LLP 0240/0278 and LLP 0295 W4 work.
+
+#### P22. Presence APIs are strong but their lifecycle vocabulary causes write amplification — convergent
+
+Builders accidentally published for the lifetime of a nonempty draft, renewed
+leases every 400 ms, or modeled typing as durable expiring rows. The resulting
+write queues missed observation ceilings and in one case competed with
+foreground work. Existing ticket:
+`issues/20260818-guide-gap-presence-heartbeat-vs-bound-value.md`. A supported
+activity-presence recipe exists; retrieval and profile parity are the missing
+links.
+
+#### P23. Asset hooks and intent requirements have small but recurring sharp edges — repeated
+
+`useSnapbackAssetUrl` throws on an empty ID while its sibling image hook accepts
+null; mixed image/video intents require both location policies although examples
+usually show one; several lanes discovered hook or generated-reference paths by
+source inspection. Straight hook contract ticket:
+`issues/20260820-asset-url-hook-nullability.md`; broader asset ergonomics remain
+with LLP 0210 and the media program.
+
+#### P24. Provider connection lifecycle and budgets are under-taught — repeated
+
+Coterie adapters opened excess connections, issued nested queries from live
+callbacks, or rebuilt streams during auth establishment. The stable designs
+shared managers, subscribed after authority settled, deduplicated
+transport-only publications, and bounded fan-out; these rules came from
+failure traces rather than the provider guide. Straight guide ticket:
+`issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`. The
+cross-client provider architecture remains LLP 0278/0280/0293 W5 work.
+
+#### P25. Exact/Contract integration still adds generator and route-lifecycle tax — repeated
+
+Current lanes reproduced or added Exact-side issues: result alias collisions,
+multiline object types embedded in quoted metadata, controlled-input event
+gaps, scroll/flex sizing, route-link detachment, and whole-tree republishing on
+transport-only changes. These are not Snapback repository tickets. LLP 0279
+remains the Exact program owner; `issues/20260818-exact-spa-link-detachment-under-choreography.md`
+is the local cross-repo pointer for the one matrix red.
+
+#### P26. The benchmark instrument creates avoidable correction loops — convergent
+
+All lanes rediscovered profile navigation, Edit-first heading order, retained
+route DOM, quote-control nesting, and selector breadth. Media, semantic receipt,
+avatar, and membership checks remain structurally unobservable. Repeated
+best-of-three browser runs can poison one shared page and turn one route failure
+into several unrelated timeouts. LLP 0281 owns these repairs; the existing
+`issues/20260809-per-milestone-token-metering.md` is still open.
+
+### Where wall clock and tokens went
+
+The run meters lane totals but not tokens by milestone or correction episode,
+so the following is an evidence-bound attribution, not a causal allocation.
+
+1. **M1/setup dominated clean lanes.** Sol Clique Explicit spent 2,408 seconds
+   to M1 green, then 369 on M2 and 607 on M3. The recurrent M1 work was not
+   profiles: package/skill reading, scaffold correction, runtime qualification,
+   startup-carrier construction, fixed-origin binding, password/custody setup,
+   and first replay/acceptance harness construction.
+2. **Correction-loop count tracked output tokens better than profile name.**
+   Clique Familiar reported more loops/turns than Clique Explicit; Coterie
+   Familiar reported fewer than Coterie Explicit. The token direction matched
+   in all six same-model pairs. This supports investing in loop removal rather
+   than syntax terseness alone.
+3. **Source inspection was the expensive fallback.** Lanes inspected Vite
+   allowlists, Expo provider/environment modules, app-client custody,
+   generated bindings, Exact provider runtime, and route interception when the
+   guide or diagnostic stopped short. A good refusal collapsed a loop; a silent
+   lifecycle state or packaging seam created a bisection session.
+4. **Restart/reseed cycles multiplied every schema correction.** Leaving the
+   supervised loop made sessions identity exactness expensive: regenerate,
+   rebuild startup artifacts, restart, restore or reset, replay personas, then
+   rerun suite and choreography. Correctness is not the problem; lack of one
+   supported fixed-origin successor loop is.
+5. **Browser reruns amplified local defects.** Shared-page poisoning, fixed
+   10-second waits under load, Fast Refresh during assertions, and
+   action/remount races caused repeated full choreography segments. The one
+   Coterie red consumed many attempts after its feature suite was already
+   22/22 green.
+6. **Reactive write/read amplification was a hidden application tax.** Eager
+   receipt effects, unconditional watermark patches, per-keystroke durable
+   writes, per-conversation message scans, and rendering asset hooks on every
+   card degraded the client until unrelated operations timed out. Generated
+   N+1 advice helped at authoring time; runtime query/mutation/paint phase
+   attribution did not yet make these loops direct.
+7. **The reporting protocol itself is nonzero but not dominant.** The twelve
+   retained run-log/diary/essay/final-report sets total roughly 61,000 words,
+   while harness output totaled about 2.88 million tokens. Consolidating
+   repeated narrative facts would help, but the larger win is reducing the
+   hundreds of agent turns and correction loops that produced them.
+
+The next run needs boundary snapshots for tokens, semantic-action counts, and
+failure-to-recovery traces per LLP 0186/0201. Without those, a precise statement
+such as "P14 cost 12% of tokens" would be invented.
+
 ## Learnings worth institutionalizing
 
 1. **Freeze the contract before the second implementation.** Every Coterie
@@ -359,7 +665,8 @@ LLP 0236's recommended rerun protocol remains the instrument for that.
 | Cross-system write seams (signup, persona replacement, sign-out, attach residue) | LLP 0280 (new RFC); composition surface LLP 0258 |
 | Benchmark instrument observability and outcome classification | LLP 0281 (new Plan) under LLP 0201/0266 |
 | Ephemeral role narrowing, overlay Error arm, Coterie typing adoption | existing tickets + `issues/20260817-coterie-typing-allow-members-adoption.md` |
-| Clique Explicit/Familiar residual agenda and rerun protocol | LLP 0236 (unchanged owner) |
+| Published 0.1.24 cross-cutting authoring/lifecycle/efficiency program | LLP 0295 (new Plan), with mechanisms retained by their subsystem owners |
+| Clique Explicit/Familiar historical register and prior rerun protocol | LLP 0236; superseding matrix evidence is in this amendment and LLP 0295 |
 | Media/codec admission facts | LLP 0269 + `issues/20260817-upload-intent-codec-duration-admission-facts.md` |
 | Ceremony-reduction classification | LLP 0275 (already Draft; this run's evidence corroborates its derivation rule) |
 
@@ -375,5 +682,8 @@ LLP 0236's recommended rerun protocol remains the instrument for that.
 3. Should the second Coterie conformance lane (LLP 0266 OQ3) run before or
    after the Exact improvements in LLP 0279, given how much of the adapter
    tax was Exact-side?
-4. Which of this run's Snapback observations survive a rerun from the
-   published 0.1.24 closure rather than source checkouts?
+4. **Answered by the 0.1.24 amendment:** the architectural positives survived
+   and all twelve lanes completed from public packages; the residual perimeter
+   register is P13-P26. Which profile is cheaper remains open and must be
+   answered per client stack under LLP 0295's load-isolated, phase-metered
+   rerun.

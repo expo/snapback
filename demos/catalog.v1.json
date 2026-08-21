@@ -57,6 +57,19 @@
       "documentation": { "status": "contract", "path": "demos/browser-local-first/README.md" }
     },
     {
+      "id": "bug-tracker",
+      "directory": "demos/bug-tracker",
+      "teaches": "A small React and Vite bug tracker built from the public npm starter with a live issue list, declarative create and status-update mutations, priority, and client-side filtering.",
+      "clients": ["react", "headless"],
+      "targets": ["local", "web-client"],
+      "maturity": "integration",
+      "run": "bun run --cwd demos/bug-tracker dev",
+      "proof": "bun run --cwd demos/bug-tracker prove",
+      "expectedEvidence": "A sessions-auth receipt covering restoration, live seed reads, creation, and status updates.",
+      "evidence": ["demos/bug-tracker/acceptance.mjs"],
+      "documentation": { "status": "contract", "path": "demos/bug-tracker/README.md" }
+    },
+    {
       "id": "campfire",
       "directory": "demos/campfire",
       "teaches": "The Campfire chat contract (rooms, newest-first sequence-cursor pagination, reactions, live delivery) rebuilt as an in-repo rerun arm that consumes the LLP 0114 first-class React surface and a registered LLP 0112 generated query group, so a successor matrix rerun can score the React-surface path instead of driving only headless clients (LLP 0115 §Sequencing 5).",

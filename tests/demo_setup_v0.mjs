@@ -11,6 +11,7 @@ export const EXPECTED_DEMO_IDS = Object.freeze([
   'backend-bakeoff',
   'browser-auth',
   'browser-local-first',
+  'bug-tracker',
   'campfire',
   'card-game',
   'catalog-lens',

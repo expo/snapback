@@ -1,0 +1,48 @@
+{
+  "id": "bug-tracker",
+  "title": "Bugboard — live bug tracker",
+  "description": "A small React and Vite bug tracker built from the public npm starter with a live issue list, declarative create and status-update mutations, priority, and client-side filtering.",
+  "artifactSchemaVersion": "snapback.v1",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["API", "Storage", "Realtime", "Auth", "React", "Developer experience", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "host-plan",
+    "authMode": "sessions",
+    "liveSubscriptions": true,
+    "mutationReadSetValidation": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/seed.json",
+    "codegen": "bun run generate",
+    "generated": ["snapback/generated/artifacts.json"],
+    "stalenessPolicy": "regenerate with the npm CLI; freshness tracked by artifacts.json inputsHash"
+  },
+  "seed": {
+    "profile": "deterministic",
+    "file": "snapback/seed.json",
+    "rows": { "bugs": 3 }
+  },
+  "surfaces": {
+    "react": {
+      "requirement": "integration",
+      "buildTargets": ["web"],
+      "runner": "bun run prove",
+      "toolchain": "bun, Vite, and the qualified packaged Snapback runtime"
+    }
+  },
+  "acceptanceChecks": {
+    "react": [
+      "fresh isolated sessions server reaches anonymous readiness",
+      "password signup, reload restoration, sign-out, and artifact identity pass",
+      "live bug query returns the deterministic seed",
+      "createBug settles and appears through the live query",
+      "updateBugStatus settles and the changed status appears through the live query"
+    ]
+  },
+  "notClaiming": [
+    "hosted deployment or multi-tenant isolation",
+    "visual browser acceptance in the checked proof",
+    "complete read/write provenance in the current registered-path aggregate"
+  ]
+}
