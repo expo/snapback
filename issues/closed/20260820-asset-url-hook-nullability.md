@@ -5,7 +5,7 @@
 **Resolved:** 2026-08-21
 **Systems:** React/Expo, Assets, Generated types, Diagnostics
 **Related:** LLP 0114; LLP 0210; LLP 0277 P23; LLP 0295; Diary 0100
-**Landing SHA:** TBD
+**Landing SHA:** 9ee577812
 
 ## Problem
 
