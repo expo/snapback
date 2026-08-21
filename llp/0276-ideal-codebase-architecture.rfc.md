@@ -8,6 +8,13 @@
 **Related:** LLP 0000, LLP 0002, LLP 0010, LLP 0037, LLP 0041, LLP 0053,
 LLP 0059, LLP 0061, LLP 0141, LLP 0189, LLP 0199, LLP 0225, LLP 0232,
 LLP 0259
+**Revised:** 2026-08-19 (Phase 2 security closure: the kernel now mints
+database-bound opaque commit carriers, owns staged-fork scrub/mint commits,
+keeps raw SQL helpers crate-internal, and the façade uses an explicit storage
+allowlist. Direct-dependency compile-fail fixtures, a public raw-SQL API gate,
+and a cross-crate `#[path]` gate preserve the boundary. Owner tests use
+non-exported dev-only fixture dependencies rather than a public raw-handle
+re-export.)
 **Revised:** 2026-08-18 (Phase 2 security-fix round: port inversion may not
 replace a compiler-enforced admission capability with a caller-asserted
 public trait, enum, or constructor; commit ports retain opaque capabilities
@@ -310,12 +317,14 @@ Workspace-wide rules:
   compatibility posture applies to that façade alone. crates.io distribution
   remains unclaimed (LLP 0141 D6) — no name reservation is required by this
   program.
-- **External-dependency confinement**, gate-enforced: `rusqlite` only in
-  `snapback-kernel` and `snapback-services` (the telemetry sidecar's
-  recorded exception); `ibex-runtime` only in `snapback-runtime`; `axum`
-  only in `snapback-server`; `clap` only in `snapback-cli`; `celld-ltx`
-  only in `snapback-services` (replication). Other externals are
-  review-governed, not confinement-gated.
+- **External-dependency confinement**, gate-enforced for normal/build edges:
+  `rusqlite` only in `snapback-kernel` and `snapback-services` (the telemetry
+  sidecar's recorded exception); `ibex-runtime` only in `snapback-runtime`;
+  `axum` only in `snapback-server`; `clap` only in `snapback-cli`; `celld-ltx`
+  only in `snapback-services` (replication). A dev-only dependency may construct
+  owner test/example fixtures because Cargo does not export dev dependencies to
+  dependents; it may not be re-exported or appear in the member's production
+  source. Other externals are review-governed, not confinement-gated.
 - **Profiles:** Cargo package overrides cannot carry `lto`, so the shipped
   binary uses a named custom profile — `[profile.production]` inheriting
   `release` with `lto = "fat"`, `codegen-units = 1` — built as
@@ -338,8 +347,9 @@ Workspace-wide rules:
 fail-closed **workspace-graph gate** (over `cargo metadata`, reading
 `crates/allowed-dependencies.v1.json`) validates: every workspace member
 carries an owner/rank assignment; every normal, build, and dev dependency
-edge is within the matrix; the external confinement rules hold **for every
-extracted member**; an unassigned new member fails closed. **It lands in
+edge is within the matrix; the external confinement rules hold for every
+extracted member's normal/build edges (dev-only fixture edges are non-exported
+and tested as such); an unassigned new member fails closed. **It lands in
 Phase 1** — registered in the canonical proof inventory and selection
 policy in the same series, so the Phase 1 battery actually runs it — and is
 therefore live *before the first carve*, because the module analyzer
@@ -666,15 +676,41 @@ Consequences:
   admission carrier remains opaque across the boundary, its raw constructor
   and commit primitive are not re-exported by the façade, and a public trait
   or enum may not let the caller claim that admission occurred. Where Rust's
-  crate privacy requires a public inter-crate carrier, it remains confined to
-  an unpublished lower crate and only the higher authorized adapter projects
-  it into a reachable commit call. Each privilege-bearing carve records a
+  crate privacy requires a public inter-crate carrier, its constructor and
+  contents remain private, a take-once kernel authority mints it, and the
+  commit point validates that it belongs to the same database. Each
+  privilege-bearing carve records a
   negative compile probe for the pre-carve attack. Each carve: invert,
   `git mv`, split the sibling
   `tests.rs` along the same lines, resolve that module's grandfathered
   edges (the ratchet items die at their carve), compile, run affected gates.
   Coverage overlaps throughout: the workspace-graph gate holds the crate
   graph, the analyzer holds the shrinking remainder.
+
+  **Phase 2 hardening implementation note (2026-08-19).** Cross-crate
+  visibility alone is not an authority boundary because every higher rank may
+  depend on the kernel. Each canonical database therefore has one process-wide,
+  take-once `KernelCommitAuthority` lease; an independent handle to a serving
+  file cannot claim a parallel authority graph. Only that authority can mint
+  database-bound protected-erasure,
+  push, pending-effect, authorization-room, and finite-service terminal
+  carriers. Sender-proof storage operations are sealed, and caller-implemented
+  authorization/service commit traits no longer exist. Fork creation begins
+  with an opaque `StagedForkDatabase`; the kernel owns clone custody plus the
+  complete scrub/rotation/metadata/lineage transaction, while services retain
+  copying, read-only inspection, replication, sidecars, receipts, and
+  publication. `MaterializedBase` no longer exposes its writable connection,
+  raw `Connection`/`Transaction` helpers are crate-internal, and the
+  `snapback` façade allowlists storage DTOs rather than glob-exporting the
+  kernel module. Six compile-fail programs depend directly on all 13 crates
+  and pin the forged-authority, fake-port, raw-transition, and raw-handle
+  attacks. The kernel raw-SQL API gate allows exactly four audited non-commit
+  seams (one read-only fork view, two read-only push test queries, and one
+  connection-local replication control) and rejects every other public
+  `Connection`/`Transaction` signature. A fail-closed gate rejects every
+  `#[path]` whose resolved target leaves its workspace crate root; formerly
+  duplicated owner tests now compile in their owners, while genuinely upward
+  composition coverage lives in rank-7 integration targets.
 - **Phase 3 — consolidation (day 3).** The module-level machinery retires
   behind the checked flip predicate (gate already live since Phase 1), with
   the remainder-confinement exemption removed from

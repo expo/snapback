@@ -99,8 +99,10 @@ blob is a hard `ASSET_CUT_INCOMPLETE`).
 preserves continuity, and carrying the admin token also **copies local admin
 authority**, which the copy verb states in its receipt rather than hiding.
 
-**`InstanceLocal`** — `<db>.snapback.lock`, the target-instance restore
-reservation one directory up, `<db>.telemetry{,-wal,-shm,-journal}`,
+**`InstanceLocal`** — `<db>.snapback.lock`, `<db>.dev-identity` (the per-boot
+developer-identity capability rotated at startup and removed on clean
+shutdown), the target-instance restore reservation one directory up,
+`<db>.telemetry{,-wal,-shm,-journal}`,
 `<dir>/assets/staging/`, and the ready-file siblings
 (`<ready>.admin-token`, `<ready>.secret-read-root`, `<ready>.impersonation`).
 Telemetry is deliberately local observability history, not store state; the
