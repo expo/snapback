@@ -57,10 +57,10 @@ export default defineSchema(
       .index('by_workspace', ['workspaceId'])
       // Deliberately NOT the membership axis this table shares assets on.
       // Vector 6 revokes workspace membership and requires delivery to stop.
-      // If table visibility keyed on the same membership, revoking would deny
-      // the row read too, and the vector would pass even for an implementation
-      // that consults table visibility instead of `.assetSharing`. Public read
-      // holds the table axis constant so the revoke proves the asset axis.
+      // Keying table visibility on that same membership would deny the row
+      // read too, so the vector would pass even for an implementation that
+      // consults table visibility instead of `.assetSharing`. Public read
+      // holds the table axis constant so the revoke tests the asset axis.
       .visibility({ kind: 'public-read' })
       .assetSharing({ kind: 'membership', membership: 'workspaceMembers' })
       .sync(),
@@ -77,13 +77,11 @@ export default defineSchema(
       title: v.string(),
       attachment: v.optional(v.assetRef({ upload: 'photoUpload' })),
     })
-      // Vector 7's premise is that this row is READABLE by a non-owner while
-      // the asset stays denied, proving absence of `.assetSharing` confers
-      // nothing. Owner visibility made that stated premise false. It did not
-      // actually mask the proof -- mutation testing showed owner visibility
-      // still caught an asset layer that wrongly authorized undeclared tables,
-      // because `assets.record()` is an asset-metadata read that never
-      // traverses row visibility. This is an accuracy fix, not a hole.
+      // Vector 7 requires this row to be readable by a non-owner while the
+      // asset stays denied, proving absence of `.assetSharing` confers
+      // nothing. Owner visibility contradicted that premise. It was not a
+      // hole -- `assets.record()` never traverses row visibility -- but the
+      // declaration should match what the vector says it relies on.
       .visibility({ kind: 'public-read' })
       .sync(),
     openDocs: defineTable({
