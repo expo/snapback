@@ -1660,10 +1660,17 @@ discriminated by carrier:
   typed transport refusal
   (`issues/20260820-agent-auth-transition-residuals.md` residuals 1–2).
 
-The absent-axis rule composes with the missing/malformed-frame rule above:
-evidence without the closed disposition axis never authorizes destructive
-custody work, and for mode-pending it does not even end the carrier — it
-is a retryable transition window.
+The transient-occurrence retry rule applies **only** to the non-terminal
+refusal shapes named above — a finite HTTP or subscribe-admission refusal
+that arrives without any terminal frame or close for the captured
+authority. It does not extend to terminal-channel evidence: a live
+`auth_error` frame that is malformed or missing the required axis, an
+unrecognized disposition, or a close-only terminal signal — even one
+carrying `SNAPBACK_AUTH_MODE_PENDING` — unambiguously follows the existing
+fallback in the next paragraph (classify as `carrier`, quarantine the exact
+transport capture, fresh handshake). Both rules share the destructive
+floor: evidence without the closed `authorityDisposition: "durableDelete"`
+field never authorizes destructive durable custody work.
 
 A missing frame, malformed frame, unrecognized disposition, or close-only
 terminal signal is never proof of a committed backing-authority deletion. The

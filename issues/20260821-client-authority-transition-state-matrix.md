@@ -57,12 +57,17 @@ and LLP 0218 (dated amendment, same date) carry the surface-binding
 cross-references. The five client states (anonymous / authenticating /
 authenticated / revoking / reconnecting) are a partition defined onto the
 LLP 0059 barrier phases: the barrier decides between
-authenticating/revoking by predecessor, holds through phase-9 resume even
-after phase-8 custody settle, and takes precedence over reconnecting; a
-**transient watch-reload** `SNAPBACK_AUTH_MODE_PENDING` window is
-reconnecting state — retryable, never custody-clearing, never live-stream
-terminal (a real staged mode transition per LLP 0058 remains a barrier and
-runs item-5). Ruling numbers below match LLP 0059's "Rulings (the six D0.2
+authenticating/revoking by LLP 0059's **ordered classifier** —
+incarnation/staged auth-mode transitions classify revoking first, then an
+authenticated predecessor, else authenticating — is matrix-active from the
+phase-2 CAS (phase 1 observes the settled predecessor column), holds
+through phase-9 resume even after phase-8 custody settle, and takes
+precedence over reconnecting; a **transient watch-reload**
+`SNAPBACK_AUTH_MODE_PENDING` refusal (the axisless non-terminal occurrence
+per LLP 0059's mode-pending discriminant) is reconnecting state —
+retryable, never custody-clearing, never live-stream terminal (a real
+staged mode transition per LLP 0058 carries the disposition axis, remains
+a barrier, and runs item-5). Ruling numbers below match LLP 0059's "Rulings (the six D0.2
 questions)":
 
 1. Every live query — including `optional-user` — is a barrier participant:
