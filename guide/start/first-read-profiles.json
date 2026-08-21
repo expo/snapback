@@ -95,7 +95,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:e8971f80598581cbc0017f45d277334762033dbd6ef081e480d559a8e12cd5f5"
+      "digest": "sha256:b9b223617be3226522a90ebf538cb4c43dcae40e5dd3462fa83dc3265e8b321c"
     },
     "media-feed": {
       "template": "media-feed",
@@ -123,7 +123,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:21c8bf24cf47c6840e30d42ae901cfc3151c0eed830b93941054214ebb9ccc55"
+      "digest": "sha256:34a4c6642e553b3fcd5e014cf88603f2278277610ad77c1f618e3375362288fe"
     },
     "todo-contract": {
       "template": "todo-contract",
@@ -150,7 +150,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:980387403ea0ced62809cff2054f9eb3362f8c38fc5fbd4095e3569ee5aff1f6"
+      "digest": "sha256:577c82063cab4a0ad3cab3073f347b63fbe6f9a540067845307970e955ad3603"
     }
   }
 }

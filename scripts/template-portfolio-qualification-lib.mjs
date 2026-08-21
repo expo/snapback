@@ -37,12 +37,30 @@ const OBSERVATION_CARRIER_ORDER = Object.freeze([
   'carry:web-browser',
   'carry:native-simulator',
 ]);
+const COMPACT_GLOSSARY_TEMPLATES = new Set([
+  'crud-dashboard',
+  'media-feed',
+  'todo-contract',
+]);
 
-export function renderTemplateScriptGlossary(manifest) {
+export function renderTemplateScriptGlossary(manifest, { compact = false } = {}) {
   const observationScripts = OBSERVATION_CARRIER_ORDER
     .filter((script) => typeof manifest.scripts?.[script] === 'string')
     .map((script) => `\`bun run ${script}\``)
     .join(', ');
+  if (compact) {
+    return [
+      '<!-- script-glossary:begin -->',
+      '## Scripts',
+      '',
+      '`prove`: only done-oracle; writes the authoritative aggregate `snapback verify`',
+      'receipt (acceptance evidence, not formal proof). `npm test`: unwrapped',
+      '`acceptance.mjs` debug path. `test:static`: no-server coherence.',
+      `${observationScripts}: observations only after \`prove\`, never proof.`,
+      '`carry:self-check`: wiring only.',
+      '<!-- script-glossary:end -->',
+    ].join('\n');
+  }
   return [
     '<!-- script-glossary:begin -->',
     '## Script glossary',
@@ -85,8 +103,15 @@ export function assertTemplateScriptSurface({ name, manifest, readme, instructio
     }
   }
 
-  const expectedGlossary = renderTemplateScriptGlossary(manifest);
-  for (const [surface, document] of [['README', readme], ['start packet', instructions]]) {
+  const expectedGlossaries = [
+    ['README', readme, renderTemplateScriptGlossary(manifest)],
+    [
+      'start packet',
+      instructions,
+      renderTemplateScriptGlossary(manifest, { compact: COMPACT_GLOSSARY_TEMPLATES.has(name) }),
+    ],
+  ];
+  for (const [surface, document, expectedGlossary] of expectedGlossaries) {
     if (!document.includes(expectedGlossary)) {
       throw new Error(`${name} ${surface} script glossary disagrees with package.json`);
     }

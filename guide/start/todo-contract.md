@@ -20,18 +20,18 @@ Mental model first: [Snapback in one screen](./mental-model.md) — that page
 plus this stub is the whole first read (LLP 0259 Rung A).
 
 <!-- script-glossary:begin -->
-## Script glossary
+## Scripts
 
-`bun run prove`: ordinary completion and the only done-oracle—the authoritative
-aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
-`npm test`: raw acceptance implementation that `prove` wraps (debugging).
-`bun run test:static`: no-server source/generated coherence.
-`bun run carry:headless`: observation artifacts after accepting the `prove` receipt,
-never proof authority. `bun run carry:self-check` checks carrier wiring only.
-Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+`prove`: only done-oracle; writes the authoritative aggregate `snapback verify`
+receipt (acceptance evidence, not formal proof). `npm test`: unwrapped
+`acceptance.mjs` debug path. `test:static`: no-server coherence.
+`bun run carry:headless`: observations only after `prove`, never proof.
+`carry:self-check`: wiring only.
 <!-- script-glossary:end -->
 
 Backend + headless. Edit `snapback/{schema,functions}.mjs` and `seed.json`
 → `generate` → `dev` → `prove`; generated files are codegen-owned.
-`SnapbackClient` is the consumer. Escalate with `snapback guide <query>`.
+`SnapbackClient` is the consumer; no UI ships. Auth starts in dev mode: switch
+to `{ auth: { mode: 'sessions' } }` before users/uploads. Escalate:
+`snapback guide <query>`.
 <!-- start-packet:end -->

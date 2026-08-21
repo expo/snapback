@@ -1123,15 +1123,19 @@ The first templates:
 - a minimal headless test fixture.
 
 Each template includes a small acceptance script that can run without external
-services. As implemented 2026-08-05, the default `test` is runtime acceptance:
-it owns an isolated local server/database/ready descriptor, binds the loaded
-artifact identity to the generated review manifest, executes a real query and
-mutation through the template's product client, refuses zero/short execution,
-and emits a bounded `snapback.starter-acceptance.v1` receipt only after cleanup.
-Static generated-file/source coherence remains available as `test:static` and
-cannot satisfy the acceptance claim. The 2026-08-21 LLP 0196 script-surface
-ruling removed the byte-identical `test:live` compatibility alias from all five
-templates; callers use `npm test` for the same raw runtime acceptance path.
+services. As implemented 2026-08-05, `npm test` is the unwrapped
+`acceptance.mjs` debugging path: it owns an isolated local
+server/database/ready descriptor, binds the loaded artifact identity to the
+generated review manifest, executes a real query and mutation through the
+template's product client, refuses zero/short execution, and emits a bounded
+`snapback.starter-acceptance.v1` receipt only after cleanup. It is not the
+done-oracle. `bun run prove` delegates to `snapback verify` and writes the
+authoritative aggregate verify receipt; only `prove` decides ordinary
+completion. Static generated-file/source coherence remains available as
+`test:static` and cannot satisfy the acceptance claim. The 2026-08-21 LLP 0196
+script-surface ruling removed the byte-identical `test:live` compatibility
+alias from all five templates; callers use `npm test` for the same raw runtime
+acceptance path.
 
 ### Demo dependency policy
 

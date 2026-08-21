@@ -39,6 +39,9 @@ test('every registered template exposes a manifest-derived cold-agent glossary',
     browserObservation: null,
     simulatorObservation: null,
   });
+  const todo = fixture('todo-contract');
+  assert.match(todo.readme, /Migration: `test:live` was removed/u);
+  assert.doesNotMatch(todo.instructions, /Migration: `test:live` was removed/u);
 });
 
 test('missing scripts, changed command classes, and documentation drift fail closed', () => {

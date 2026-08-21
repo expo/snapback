@@ -5,6 +5,7 @@
 **Systems:** Templates, CLI, Guide, Testing, Agent experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-21 (LLP 0294 OQ5 records `prove` as the only done-oracle and `npm test` as the unwrapped `acceptance.mjs` debug path.)
 **Revised:** 2026-08-08 (Accepted by Charlie Cheever — author ruling in session; final review binding per llp/reviews/0193-*.run.md close-out: 0194 dual-READY at r8, the others accepted with the enumerated r9 tail.) 2026-08-08 (r9, round-7 fix: the exit-criterion half of the rule-10 correction actually applied — the r8 header claimed it but the r8 edit silently missed this site (wrapping mismatch; caught by both round-7 reviewers); holdout now uses rule 10's full aid scope with 0197 D4 owning publication timing.) 2026-08-08 (r8, round-6 fixes: stale 0197 "rules 4a/4b" pointer corrected to rule 10; holdout adopts rule 10's full aid scope and "substantially implemented" test incl. OQ3.) 2026-08-08 (r7, author-merge: Charlie's action-economy
 revision — T0 completes the existing chat starter before portfolio breadth;
 every template exposes one proof command delegating to LLP 0146 D2's
