@@ -10,7 +10,13 @@ Live Queries, Assets, Code generation, Diagnostics, Guide, Testing
 composition to prototype first is platform-generated projection facts declared
 on the authority profile, read through the existing D3 bounded/redacted roster
 surface; app-authored synchronized mirrors stay declined as the destination —
-see the dated amendment). 2026-08-17 (closes the Phase 3 review findings: membership-table
+see the dated amendment. Same-day review revision: projection maintenance is
+pinned to writer-seam row-image capture with `provenance: "full"` as an
+activation prerequisite rather than resting on the provenance-gated ledger;
+the D3 read surface is preserved-and-extended, with history as new D1-envelope
+operations; the send helper gains a declared recipient ceiling with typed
+refusal; and the absent/idempotent branches get a closed three-class outcome
+matrix). 2026-08-17 (closes the Phase 3 review findings: membership-table
 search projection is roster-bounded, named search handlers carry generation
 dependence, D6 evaluates the named index's lowered roles, and custom-evaluator
 policy reads join the static elevated-access inventory). 2026-08-16 (records the source-current Phase 3 implementation:
@@ -651,31 +657,72 @@ leave/rejoin history, send-time recipient sets, and receipt membership. LLP
 ### Why option 2 first
 
 The decisive fact is the writer seam. Every membership transition already
-passes through LLP 0056's central writer-class seam and already lands a
-transition-ledger row (the `_membership_pk`/transition-log plans D6 inspects).
-The platform therefore holds, inside the authoritative transaction, exactly
-the event stream a product-history projection is derived from. A
-platform-generated projection maintained in that same transaction is atomic by
-construction; an app-authored mirror (option 1) can only approximate that with
-discipline, and an authorized query (option 3) cannot reach facts the relation
-no longer stores. Option 2 is also the smallest authored-surface delta: the
-profile already declares `roster.visible`; it grows a declared product
-projection rather than a new table protocol.
+passes through LLP 0056's central writer-class seam, so the platform holds,
+inside the authoritative transaction, the complete before/after row images the
+product projection must be derived from. A platform-generated projection
+maintained **from those in-transaction row images at the writer seam** is
+atomic by construction; an app-authored mirror (option 1) can only approximate
+that with discipline, and an authorized query (option 3) cannot reach facts
+the relation no longer stores. Option 2 is also the smallest authored-surface
+delta: the profile already declares `roster.visible`; it grows a declared
+product projection rather than a new table protocol.
+
+The transition *ledger* is deliberately not the projection's data source. As
+shipped, `record_membership_transition`
+(`crates/snapback-kernel/src/storage.rs`) records rows only when the
+membership declares `provenance: "full"` — which D1 does not require — skips
+updates touching no authorization-affecting field, and stores authority axes
+(principal, resource, roles, writer provenance), not display values or join
+timestamps. The ledger is corroborating provenance and inspection evidence
+(D6); the projection's source of truth is the writer-seam row-image capture.
+
+### Projection activation, source capture, and backfill
+
+- **Activation.** Declaring a `projection` clause requires (and codegen
+  enforces) `provenance: "full"` on the same membership declaration, so the
+  ledger corroborates every projection-relevant transition from activation
+  forward. A profile without full provenance refuses the clause at generation
+  with the missing prerequisite named.
+- **Source capture.** Projection maintenance runs at the writer seam in the
+  same transaction as the transition, reading the transition's before/after
+  row images (including non-authorization product fields such as a display
+  name). It never re-derives product values from the ledger after the fact.
+- **Legacy profiles and backfill.** Activating `projection` on an existing
+  profile is an ordinary generation-rotating migration. Generated history
+  begins at an explicit **history horizon** — the activation commit — and the
+  read surface states the horizon rather than fabricating pre-activation
+  history. Where a full-provenance ledger predates activation,
+  `snapback authority plan` may offer role/status-fact backfill from it (never
+  display values the ledger does not hold), reported as a distinct
+  reviewed migration step.
 
 ### Authority facts versus product facts
 
-The ruling partitions the two roles explicitly rather than letting one
-representation silently serve both:
+The ruling partitions the roles explicitly rather than letting one
+representation silently serve both, and it maps each product fact to exactly
+one home:
 
 - **Authority facts** — current `(scope, principal, role, status)`, owner
   invariant, transition preconditions — live only in the profile's backing
   relation and IR. Nothing in this amendment widens who can read them.
-- **Product facts** — visible display fields, join time, leave/rejoin
-  incarnation history, send-time recipient snapshots, receipt membership —
-  are *generated projections* derived from the transition ledger and declared
-  on the profile (a `projection` clause beside `roster`, exact shape owned by
-  the prototype). They are product data: readable only through the generated
-  bounded surface, never a second authority evaluator.
+- **Current-state display fields** stay where D1/D3 already put them: on the
+  authority-backing app table, projected through `roster.visible`. The
+  `projection` clause must not duplicate a D3 current-state field; codegen
+  refuses the overlap. Only display metadata *beyond* the current row —
+  historical values, departed members' names — enters the projection.
+- **Join time and leave/rejoin incarnation history** are same-transaction
+  writer-seam projections captured from row images, declared in the
+  `projection` clause, durable product rows.
+- **Send-time recipient snapshots** are frozen by the generated helper onto
+  the sending mutation's own product rows (message/receipt rows) inside the
+  sending transaction. They are never ledger-derived and never recomputed at
+  read time.
+- **Receipt membership aggregates** over bounded entity sets are LLP 0278 D4
+  set-keyed aggregate shapes over those product receipt rows, not membership
+  projections.
+
+All product facts are readable only through the generated bounded surface,
+never a second authority evaluator.
 
 ### Invariants the prototype must preserve
 
@@ -687,27 +734,79 @@ representation silently serve both:
   writer-seam transaction as the transition; there is no asynchronous mirror
   and no observable window where roster and projection disagree.
 - **Send-time recipient semantics.** A generated recipient-snapshot helper
-  resolves the active member set inside the sending mutation's transaction and
-  freezes it as product data on the sent row/receipt set. Later join/leave
-  does not rewrite a prior send's recipients.
-- **Leave/rejoin history.** Leave closes an incarnation record rather than
-  erasing it; rejoin opens a new incarnation. The current-state relation stays
-  clean; history lives in the generated projection.
+  resolves the active member set inside the sending mutation's transaction
+  through the profile's indexed membership plan and freezes it as product data
+  on the sent row/receipt set. Later join/leave does not rewrite a prior
+  send's recipients. The helper is bounded: the profile declares a recipient
+  ceiling (provisional upper bound: the relational take ceiling, 1,024, from
+  `packages/snapback-contract/limits.mjs`), and a send into a scope whose
+  active membership exceeds the declared ceiling **refuses with a typed
+  structured refusal** — it never silently truncates the recipient set.
+- **Leave/rejoin history.** Leave or removal closes an incarnation record
+  rather than erasing it; rejoin opens a new incarnation. An incarnation is a
+  continuous membership presence: `changeRole` does **not** close an
+  incarnation — role changes record as events within the current incarnation.
+  The current-state relation stays clean; history lives in the generated
+  projection.
 - **Exact acceptance over absent/idempotent branches.** D3's posture is
   unchanged: unsupported transitions leave operations absent, not runtime
-  no-ops, and idempotent branches settle with typed receipts/refusal codes.
+  no-ops. The prototype pins each supported operation's absent/idempotent
+  branch, at codegen from the transition matrix, to exactly one of three
+  closed outcome classes:
+
+  1. **idempotent-success receipt marked `unchanged`** — the caller is
+     authorized and the requested end state already holds (e.g. `changeRole`
+     to the principal's current role);
+  2. **typed application refusal** naming the violated precondition — the
+     caller is authorized to observe the fact (e.g. `invite` of an
+     already-active member, `transferOwner` to the current owner); or
+  3. **non-enumerating denial** — the caller is not authorized to observe
+     scope/member existence (e.g. `leave`/`remove` against a scope or
+     principal the caller cannot see), indistinguishable from any other
+     denial per D3's non-enumeration contract.
+
+  Which class each operation-by-branch cell takes is generated manifest
+  metadata, not a runtime improvisation; the vertical fixture asserts one
+  cell from each class.
+
+### Read-surface compatibility ruling
+
+The shipped D3 surface is preserved, not versioned or broken:
+
+- `list` and `myRole` keep their exact shipped contracts — input
+  `{ scopeId, page?: { after?, limit? } }`, result
+  `AuthorityRosterPageV1 { rows, cursor }` with the AEAD `sbpc2` cursor, and
+  `list` continues to project only `roster.visible` current-state rows. `list`
+  never starts returning history or incarnation rows.
+- History/incarnation reads are **new generated operations** that reuse D3's
+  admission-before-cursor discipline and AEAD cursor custody while adopting
+  LLP 0278 D1's `{ rows, cursor, boundary }` envelope. They are new surface,
+  so no shipped consumer breaks and no bespoke roster page shape is invented.
+- `boundary` may join `AuthorityRosterPageV1` only as an explicitly additive
+  optional field through an ordinary generation rotation, never as a
+  retroactive required field.
+
+### Offline retention non-implication
+
+Restating this RFC's constraint for the new surface: a `projection` clause
+implies **no** protected offline retention. Generated history and recipient
+projections are online-read product data; offline eligibility, lease, purge,
+and real-store proof remain LLP 0243's separate ownership, and nothing in
+projection activation changes a profile's offline posture.
 
 ### Ownership and sequencing
 
 This RFC owns the authority side; LLP 0278 owns the read shapes (the paged
-roster/history envelope is a D1 consumer, and receipt aggregates over entity
-sets are a D4 candidate). Neither may weaken the other to simplify adapters
-(LLP 0295 W4). Migration for apps that already maintain a hand-rolled mirror
-goes through `snapback authority plan`, which learns to compare an existing
-projection table against the generated projection before adoption. Per LLP
-0295's program invariant, the prototype lands with a vertical packed-package
-contract fixture covering both authoring profiles. The implementation
-checklist lives in
+history envelope is a D1 consumer, and receipt aggregates over entity sets
+are ruled to ship as D4 set-keyed aggregates over the product receipt rows —
+until D4 lands, receipts read as bounded per-entity queries within the LLP
+0278 subscription budgets). Neither side may weaken the other to simplify
+adapters (LLP 0295 W4). Migration for apps that already maintain a
+hand-rolled mirror goes through `snapback authority plan`, which learns to
+compare an existing projection table against the generated projection before
+adoption. Per LLP 0295's vertical paved-path coherence invariant, the
+prototype lands with a vertical packed-package contract fixture covering both
+authoring profiles. The implementation checklist lives in
 `issues/20260821-private-authority-product-roster-decision.md`.
 
 ## Status

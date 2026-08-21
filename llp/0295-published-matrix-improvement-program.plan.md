@@ -631,9 +631,11 @@ for the efficiency scorecard while retaining its product findings.
 3. For private memberships, which D0.4 option should be prototyped first?
    **Answered 2026-08-21 (adopted; author may revise):** option 2 —
    platform-generated projection facts declared on the authority profile,
-   maintained inside the same writer-seam transaction as the transition, read
-   through LLP 0240 D3's existing bounded/redacted roster surface (which is
-   option 3's shape and stays the read path). Option 1 remains rejected as
+   maintained from in-transaction row images inside the same writer-seam
+   transaction as the transition, read through LLP 0240 D3's bounded/redacted
+   surface under a preserve-and-extend ruling (shipped `list`/`myRole`
+   unchanged; history as new D1-envelope operations — option 3's shape stays
+   the read path). Option 1 remains rejected as
    the destination and sanctioned only as the interim guide pattern. Rationale
    and invariants in the LLP 0240 dated amendment; checklist in
    `issues/20260821-private-authority-product-roster-decision.md`.

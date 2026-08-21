@@ -20,6 +20,7 @@ Diary 0105,
 `issues/20260817-coterie-message-envelope-growth.md`,
 `issues/20260817-guide-gap-chunked-semijoin-feed-recipe.md`,
 `issues/20260821-provider-connection-subscription-budget-decision.md`,
+`issues/20260821-private-authority-product-roster-decision.md`,
 `issues/20260820-familiar-live-subscription-contention.md`
 
 ## Summary
@@ -220,18 +221,25 @@ posture) and a regression that replays the run's originating failure.
 
 **Adopted per LLP 0295; author may revise.** LLP 0095 carries the companion
 connection-lifecycle half; LLP 0240 carries the authority half of D0.4. The
-decision ticket is
-`issues/20260821-provider-connection-subscription-budget-decision.md`.
+decision tickets are
+`issues/20260821-provider-connection-subscription-budget-decision.md` (D0.5)
+and `issues/20260821-private-authority-product-roster-decision.md` (D0.4).
 
 ### D0.4 read surface
 
 The LLP 0240 amendment selects platform-generated product-projection facts
-declared on the authority profile. Their read shapes are this RFC's: paged
-roster/history reads adopt the D1 envelope (`rows`/`cursor`/`boundary`) rather
-than a bespoke roster page shape, and receipt/aggregate membership counts over
-a bounded entity set are a D4 set-keyed-projection candidate. Neither side may
-weaken the other: authority admission and non-enumerability come from LLP
-0240; cost and cursor facts come from here (LLP 0295 W4).
+declared on the authority profile. Their read shapes are this RFC's, under
+LLP 0240's preserve-and-extend compatibility ruling: the shipped roster
+`list`/`myRole` contract (`AuthorityRosterPageV1 { rows, cursor }`) is
+unchanged, while the **new** generated history/incarnation operations adopt
+the D1 envelope (`rows`/`cursor`/`boundary`) and reuse D3-of-0240's admission
+and AEAD cursor custody, so no bespoke roster page shape is invented and no
+shipped consumer breaks (`boundary` may join the shipped roster page only as
+an explicitly additive optional field). Receipt/aggregate membership counts
+over a bounded entity set are ruled to ship as D4 set-keyed projections over
+the product receipt rows. Neither side may weaken the other: authority
+admission and non-enumerability come from LLP 0240; cost and cursor facts
+come from here (LLP 0295 W4).
 
 ### D0.5 subscription budgets (provisional)
 
@@ -272,15 +280,19 @@ conformance-frozen values.
   be standardized as the sole correct path.
 - **Fan-out composition.** One stream per visible entity is supported up to
   the per-view budget; past it, the paved path is D4's set-keyed aggregate
-  projection (one live result for N keys, reusing D3's operand-bound
-  handling). The budget diagnostic names D4 as the remediation.
+  projection (one live result for N keys, reusing this RFC's D3 semi-join
+  operand-bound handling). The budget diagnostic names D4 as the remediation.
 - **Equal-snapshot deduplication.** The version guard (LLP 0095 §1.3) already
   drops stale/equal-version durable frames. This ruling extends the contract
-  one layer up: transport-only events — reconnect supersession, resubscribe,
-  lane changes — that produce a snapshot value-equal to held rows at a
-  non-advancing version must not notify consumers; providers/hooks own
-  value-equality dedup at equal versions so a transport change is never a
-  render or a republished tree.
+  one layer up: providers/hooks own value-equality dedup of consumer
+  notification, and the answer for advancing versions is explicit — a
+  snapshot whose rows are value-equal to held rows must not notify consumers
+  **whether or not its version advances** (reconnect's fresh
+  snapshot-with-subscribe routinely delivers equal rows at an advanced
+  version). Version and resume-token bookkeeping always advances internally
+  per the LLP 0095 transitions; only the consumer notification is suppressed.
+  A transport-only event — reconnect supersession, resubscribe, lane change —
+  is therefore never a render or a republished tree.
 - **Nested queries from update callbacks.** Snapshot-delivery callbacks are
   not a scheduling context: issuing subscribe/unsubscribe or mutation
   dispatch synchronously from within a delivery callback is unsupported
@@ -290,5 +302,7 @@ conformance-frozen values.
   admitted but discouraged in favor of sampling already-delivered rows.
 
 Exact's provider runtime consumes these budgets and lifecycle facts through
-LLP 0279 (its D0.5 provider-lifecycle integration step); it does not invent a
-parallel Snapback-specific adapter policy.
+LLP 0295 W7's coordination sequence (step 3, provider lifecycle integration
+with D0.5), delivered on the Exact side under LLP 0279's graduation posture —
+Exact-repository tickets, coordinated here, with no parallel Snapback-specific
+adapter policy invented there.

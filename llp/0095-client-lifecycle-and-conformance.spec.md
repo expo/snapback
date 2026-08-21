@@ -6,9 +6,10 @@
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
 **Revised:** 2026-08-21 (LLP 0295 D0.5 ruling: provider connection-ownership,
-auth-transition teardown/retry, callback-reentrancy, and owner-inspection
+auth-transition teardown/retry, and owner-inspection
 contract recorded as a dated amendment; LLP 0278's matching amendment carries
-the subscription budgets); 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-10 (remediation-set fixture obligations assigned by the LLP 0146 OQ6 ruling — see the dated section); 2026-07-30 (Swift harness adopts format v3: all four §2.1
+the subscription budgets, equal-snapshot dedup, and callback-reentrancy
+rules); 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-10 (remediation-set fixture obligations assigned by the LLP 0146 OQ6 ruling — see the dated section); 2026-07-30 (Swift harness adopts format v3: all four §2.1
 judgment rules implemented, T-AUTH-TERM/T-GRANT-LOSS client transitions
 aligned to the corpus dispositions); 2026-07-30 (fixture-format v3: `client_to_server` and
 `client_lifecycle` directions with request/refusal fixtures, virtual-time and
@@ -679,19 +680,29 @@ tighten or confirm them before they are conformance-frozen as fixtures.
 
 ### Connection ownership per app authority/origin
 
-- The unit of connection ownership is the tuple **(app, server origin,
-  settled authority)** within one client runtime. A conformant
-  provider/headless composition holds **one** managed connection per tuple,
-  shared through a connection manager; N provider cells, hooks, or views over
-  the same tuple never imply N transport connections
-  (`issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`'s
-  regression fixture proves exactly this).
-- The provisional total budget is **at most 2 concurrent connections per
-  tuple-adjacent pair**, and only transiently: the sanctioned overlap is an
-  authority replacement in flight (predecessor draining teardown while the
-  successor opens). Steady-state parallel connections for one tuple are
-  unsupported composition and earn a structured diagnostic, not silent
-  admission.
+- The unit of connection ownership is the tuple **(canonical app id, storage
+  partition, server origin, settled authority)** within one JavaScript/native
+  execution context. This deliberately composes with the existing custody
+  owners rather than replacing them: LLP 0059 assigns exactly one
+  `AuthCoordinator` per (canonical app id, storage partition) per execution
+  context, and LLP 0114 keeps each prepared client's one `SnapbackProvider`
+  connection manager. The sharing key therefore includes the storage
+  partition — two clients on distinct custody partitions are distinct tuples
+  and are **never coalesced** onto one connection, even at the same app,
+  origin, and principal.
+- A conformant provider/headless composition holds **one** managed connection
+  per tuple, shared through the tuple's connection manager; N provider cells,
+  hooks, or views over the same tuple never imply N transport connections
+  (the regression fixture required by
+  `issues/20260820-guide-gap-provider-connection-lifecycle-budget.md` will
+  prove exactly this once written).
+- **Steady state is one connection per tuple.** The one sanctioned overlap is
+  an authority replacement in flight: the predecessor tuple (draining
+  teardown) and the successor tuple (differing only in settled authority)
+  briefly coexist — two connections belonging to two distinct tuples, never
+  two connections for one tuple. Steady-state parallel connections for one
+  tuple are unsupported composition and earn a structured diagnostic, not
+  silent admission.
 - Distinct settled authorities (two principals in a two-client test harness,
   anonymous versus authenticated) are distinct tuples and rightly hold
   distinct connections; the budget is per tuple, not per process.
@@ -700,10 +711,12 @@ tighten or confirm them before they are conformance-frozen as fixtures.
 
 - **Subscribe-after-settle.** Providers subscribe against the auth
   coordinator's *settled* authority state, never by polling their own client
-  objects or retrying on an empirical cadence. An operation started during an
-  authorization barrier follows LLP 0295 D0.2's transition matrix (owned
-  there); this spec's obligation is that the provider consumes that settled
-  state as an event, not a poll.
+  objects or retrying on an empirical cadence. This spec's obligation is
+  self-sufficient: the provider consumes settled authority as an event, not a
+  poll. What an operation started during an authorization barrier returns is
+  the settlement contract the still-open LLP 0295 D0.2 decision will pin
+  (`issues/20260821-client-authority-transition-state-matrix.md`); nothing
+  here presumes that matrix exists yet.
 - **Principal-class change tears down before it builds.** On authority
   replacement the provider releases every predecessor-owned subscription
   (T-UNSUB, presenting the establishing owner) and, in sessions mode, opens a
@@ -731,13 +744,18 @@ investigation lacked: every "missed delivery" claim should be answerable from
 inspection output rather than source reading. Diagnostics fire *before* a
 budget or ceiling refuses: approaching the 64-per-connection transport
 ceiling or exceeding the provisional per-view budget emits a structured
-warning naming the owner labels and the paved alternatives.
+warning naming the owner labels and the paved alternatives (the exact
+"approaching" threshold for the transport ceiling is deliberately left to the
+implementation ticket; only the per-view budget of 16 is set here, in the
+LLP 0278 amendment).
 
 ### Consumers
 
 Exact's `ContractDataProvider` runtime consumes this contract through LLP
-0279 (provider-lifecycle integration, W7 step 3) rather than inventing a
-parallel Snapback-specific adapter policy, and the provider guide recipe
+0295 W7's coordination sequence (step 3, provider lifecycle integration with
+D0.5); delivery happens on the Exact side under LLP 0279's graduation posture
+(Exact-repository tickets with local closed pointers) rather than by
+inventing a parallel Snapback-specific adapter policy, and the provider guide recipe
 (`issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`) teaches
 this contract rather than empirical adapter folklore once the follow-on
 tickets land.

@@ -40,49 +40,85 @@ Landed as the LLP 0240 dated amendment (authority half) and the LLP 0278
 2026-08-21 amendment (read-shape half). Summary:
 
 - **Prototype first: option 2** — product-projection facts declared on the
-  authority profile and generated/maintained by the platform inside the same
-  LLP 0056 writer-seam transaction as the membership transition. The writer
-  seam already sees every transition and lands the transition-ledger row, so
-  atomicity is by construction and the authored surface grows only a
-  `projection` clause beside the existing `roster` declaration.
+  authority profile and maintained by the platform **from in-transaction
+  row images at the LLP 0056 writer seam**, in the same transaction as the
+  membership transition, so atomicity is by construction. The transition
+  ledger is corroborating provenance, not the data source: as shipped it
+  records only under `provenance: "full"`, skips non-authorization updates,
+  and holds authority axes rather than display values or join timestamps.
+  Declaring a `projection` clause therefore requires `provenance: "full"`;
+  activation on an existing profile is a generation-rotating migration whose
+  history begins at an explicit history horizon (ledger-backed role/status
+  backfill optional, display backfill impossible and never fabricated).
 - **Option 3 is not a competitor** — LLP 0240 D3's `list`/`myRole` already is
-  the authorized bounded/redacted roster query, and it remains the read
-  surface for whatever option 2 generates (D1 paged envelope; D4 set-keyed
-  aggregates for receipt membership). Alone it cannot answer leave/rejoin
-  history or send-time recipient sets: the backing relation is current-state
-  only.
+  the authorized bounded/redacted roster query and is preserved unchanged
+  (`AuthorityRosterPageV1 { rows, cursor }`); history/incarnation reads are
+  **new** generated operations reusing D3 admission and AEAD custody on the
+  LLP 0278 D1 envelope. Option 3 alone cannot answer leave/rejoin history,
+  past roles, or send-time recipient sets: the backing relation is
+  current-state only.
 - **Option 1 is rejected as the destination** (consistent with LLP 0240's
   declined "two rosters plus generated synchronization" alternative); it stays
   the sanctioned interim pattern the guide ticket teaches, marked non-final.
-- **Authority/product partition:** current `(scope, principal, role, status)`
-  and the owner invariant are authority facts, readable only through the
-  profile machinery; display fields, join time, incarnation history, send-time
-  recipient snapshots, and receipt membership are generated product
-  projections derived from the transition ledger.
+- **Authority/product fact homes** (one home per fact): current
+  `(scope, principal, role, status)` and the owner invariant are authority
+  facts; current-state display fields stay on the authority row behind
+  `roster.visible` (the `projection` clause may not duplicate them); join
+  time and incarnation history are writer-seam projections captured from row
+  images; send-time recipient snapshots are frozen by the generated helper
+  onto message/receipt rows in the sending transaction; receipt membership
+  aggregates ship as LLP 0278 D4 set-keyed aggregates over those receipt
+  rows.
+- **Closed semantics** (LLP 0240 amendment): the send helper carries a
+  declared recipient ceiling (provisional upper bound 1,024, the relational
+  take ceiling) and refuses over-ceiling sends with a typed refusal, never
+  silent truncation; `changeRole` records within the current incarnation
+  (incarnations bound presence, not role); generated projections imply no
+  LLP 0243 offline retention; every absent/idempotent branch is pinned at
+  codegen to one of three closed outcome classes (idempotent-success
+  `unchanged` receipt, typed precondition refusal, non-enumerating denial).
+- **Per-option judgments on the packet's remaining axes:** role changes —
+  option 1 relies on app discipline to mirror them (divergence risk), option
+  3 cannot answer past roles at all, option 2 captures them in-transaction;
+  offline history — option 1 leaves offline exposure to app policy, options
+  2/3 inherit LLP 0240's explicit LLP 0243 non-implication; Explicit/Familiar
+  authoring cost — option 2 is one declaration clause plus generated surface
+  in both profiles, option 1 is recurring per-app mutation discipline.
 - All five D0.4 invariants are restated and bound in the LLP 0240 amendment:
   non-enumerability (D3 admission-before-cursor), transition atomicity
-  (same-transaction maintenance), send-time recipient snapshots (frozen at
-  the sending transaction), leave/rejoin incarnations (leave closes, rejoin
-  opens), and exact acceptance over absent/idempotent branches (absent
-  operations, typed receipts).
+  (same-transaction row-image maintenance), send-time recipient snapshots
+  (frozen at the sending transaction, bounded, refusal on overflow),
+  leave/rejoin incarnations (leave closes, rejoin opens, role changes
+  interior), and exact acceptance over absent/idempotent branches (absent
+  operations, closed outcome classes).
 
 ## W4 implementation checklist
 
 1. Profile `projection` declaration design and codegen lowering (LLP 0240
-   owner): declared history/recipient/receipt projection facts, refusal rules
-   for invisible fields, Explicit and Familiar parity.
-2. Writer-seam projection maintenance: same-transaction updates for every
-   transition writer class, including seed/import/admin lanes.
-3. Generated send-time recipient-snapshot helper for sending mutations.
-4. D3 read-surface extension: history/incarnation reads on the D1 paged
-   envelope with the existing AEAD cursor and non-enumeration contract;
-   receipt aggregates as an LLP 0278 D4 candidate.
+   owner): declared history/recipient projection facts, the
+   `provenance: "full"` activation prerequisite, refusal rules for invisible
+   or D3-duplicating fields, Explicit and Familiar parity.
+2. Writer-seam projection maintenance from in-transaction row images:
+   same-transaction updates for every transition writer class, including
+   seed/import/admin lanes; the ledger stays corroborating evidence only.
+3. Generated send-time recipient-snapshot helper: declared recipient ceiling
+   (provisional upper bound 1,024), typed over-ceiling refusal, frozen
+   snapshot on the sending mutation's product rows.
+4. New generated history/incarnation read operations on the LLP 0278 D1
+   envelope, reusing D3 admission and AEAD custody; shipped `list`/`myRole`
+   unchanged (`boundary` additive-optional only); receipt aggregates as LLP
+   0278 D4 set-keyed projections (bounded per-entity reads within budget
+   until D4 lands).
 5. `snapback authority plan` migration comparison of an existing app-managed
-   mirror table against the generated projection.
-6. Vertical packed-package contract fixture per LLP 0295's program invariant
+   mirror table against the generated projection, plus the activation
+   history-horizon and optional ledger backfill report.
+6. Codegen manifest pinning of the closed absent/idempotent outcome class
+   per operation-by-branch cell (one fixture cell from each class).
+7. Vertical packed-package contract fixture per LLP 0295's vertical
+   paved-path coherence invariant
    (both profiles, guide spelling through runtime through client nullability,
    one negative case with a stable diagnostic).
-7. Guide route update: replace the interim mirror recipe
+8. Guide route update: replace the interim mirror recipe
    (`issues/20260820-guide-gap-membership-roster-projection-recipe.md`) with
    the generated design once landed; fix the `resourceField: "_id"` drift in
    the same pass.
@@ -96,3 +132,8 @@ tickets for the chosen mechanism and its vertical packed fixture, then close
 this decision ticket. The existing Guide ticket may teach today's sanctioned
 pattern before this decision closes but must not imply that it is the final
 generated design.
+
+**Exit progress (2026-08-21):** the ruling has landed in the owning LLPs; the
+independently closable implementation tickets have **not** yet been filed
+(the checklist above is their source), so this ticket deliberately stays open
+until they exist.

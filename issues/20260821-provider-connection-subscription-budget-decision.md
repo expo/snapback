@@ -52,10 +52,13 @@ investigation (`issues/20260820-familiar-live-subscription-contention.md`,
 LLP 0295 1D) may tighten or confirm; they are not conformance-frozen yet.
 Summary against the seven D0.5 bullets:
 
-1. **Connections:** one managed connection per (app, origin, settled
-   authority) tuple per client runtime, shared via a manager; at most 2 only
-   transiently during authority replacement; N provider cells never imply N
-   connections.
+1. **Connections:** one managed connection per (canonical app id, storage
+   partition, origin, settled authority) tuple per execution context —
+   composing with LLP 0059's per-(app id, storage partition) coordinator and
+   LLP 0114's provider manager identity, so distinct custody partitions are
+   never coalesced; two connections only transiently during authority
+   replacement, and then as two distinct tuples (predecessor and successor),
+   never two for one tuple; N provider cells never imply N connections.
 2. **Subscriptions:** hard ceilings stay 64/connection and 2,048/app
    (`crates/snapback-engine/src/local/engine.rs`). Correctness envelope = the
    full hard ceiling (any admitted count must be live-correct; six independent
@@ -65,9 +68,11 @@ Summary against the seven D0.5 bullets:
    subscribe/unsubscribe/dispatch from a delivery callback is unsupported —
    defer to a scheduler boundary; structured diagnostic on attempt; one-shot
    reads admitted but sampling delivered rows preferred.
-4. **Equal-snapshot dedup:** transport-only events producing value-equal
-   snapshots at non-advancing versions must not notify consumers;
-   providers/hooks own value-equality dedup atop the LLP 0095 version guard.
+4. **Equal-snapshot dedup:** value-equal snapshots must not notify consumers
+   whether or not the version advances (reconnect routinely delivers equal
+   rows at an advanced version); version/resume-token bookkeeping still
+   advances internally; providers/hooks own the value-equality dedup atop the
+   LLP 0095 version guard.
 5. **Fan-out:** per-entity streams supported to the per-view budget; past it
    the paved path is LLP 0278 D4 set-keyed aggregates, named by the budget
    diagnostic.
@@ -84,7 +89,8 @@ standardized as the only correct path: independent and aggregate forms both
 carry explicit supported bounds, and the aggregate form is required only when
 the UI needs one atomic cross-set fact (the consistency criterion) — otherwise
 it is an optimization. Exact's provider runtime consumes these facts through
-LLP 0279 rather than inventing parallel policy.
+LLP 0295 W7 step 3 (provider lifecycle integration), delivered Exact-side per
+LLP 0279's graduation posture rather than inventing parallel policy.
 
 ## Follow-on checklist
 
@@ -108,3 +114,8 @@ lifecycle ownership. Follow-on tickets name the client/runtime enforcement,
 inspection/diagnostic surface, provider integration, Guide recipe, and
 conformance fixtures. The existing Guide ticket then teaches a product contract
 rather than empirical adapter folklore.
+
+**Exit progress (2026-08-21):** the budget contract has landed in the owning
+LLPs; the follow-on enforcement/inspection/provider/guide/conformance tickets
+have **not** yet been filed (the checklist above is their source), so this
+ticket deliberately stays open until they exist.

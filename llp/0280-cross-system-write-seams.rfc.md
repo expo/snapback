@@ -175,4 +175,5 @@ authority state. No new seam or mechanism is added here; this note exists so
 the seam register knows providers depend on the two-transition composition
 and so a future `replaceAuthority` coordinator operation (D2) is designed
 with the provider teardown/rebuild ordering in scope. Exact's provider
-runtime consumes the same facts through LLP 0279.
+runtime consumes the same facts through LLP 0295 W7's provider-lifecycle
+coordination step, delivered Exact-side per LLP 0279's graduation posture.
