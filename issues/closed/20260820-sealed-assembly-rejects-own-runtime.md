@@ -4,7 +4,7 @@
 **Filed:** 2026-08-20
 **Severity:** High — blocks the canonical publication path
 **Systems:** Packaging, Build, Distribution
-**Related:** LLP 0283 F-3, LLP 0041, `0f4181ad2`
+**Related:** LLP 0283 F-3, LLP 0041, `0f4181ad2`, `2fa5b1fc8`
 
 ## Finding
 
@@ -58,7 +58,15 @@ sealed binary, and created the restricted Hermes handler VM.
 
 ## Resolution
 
-**Resolved:** 2026-08-21. **Review-fix landing SHA:** TBD.
+**Resolved:** 2026-08-21. The original reviewed implementation was
+`f18078621296c45763f61a827f1a529dcd213252`; its rebased consolidation commit
+is `5e726666956e6b9e2259de596d5b40bf8dfa1d13`.
+
+The concurrent minimal fix `2fa5b1fc8f7dd1179b2fd7f168896b63538f4e23`
+landed on `main` first. It correctly added the package-local
+`crates/snapback-types/build.rs`, tracked that input, and retained a Darwin
+regression for commitless identity. This branch consolidates that landing into
+the reviewed superset below rather than duplicating or discarding it.
 
 `binary_identity()` remains in `snapback-types`. Its package-local `build.rs`
 and the `snapback` and `snapback-tools` build scripts now `include!` one source
@@ -68,8 +76,9 @@ invalidation, worktree/common-directory resolution, success-with-empty-output
 clean detection, conservative unknown handling, and explicit deterministic
 stamp precedence. `scripts/runtime-build-inputs.txt` covers the shared file.
 
-`--source-test-staging` again admits debug/dirty contributor binaries for the
-Linux local proof. The manufacturing script adds the distinct
+`--source-test-staging` again admits known-commit debug/dirty contributor
+binaries for local proof while every staging mode still rejects a missing or
+`unknown` source revision. The manufacturing script adds the distinct
 `--strict-clean-release` mode after building `--release` from a clean checkout;
 default public-package preparation remains strict as well. The Darwin
 staged-assembly regression proves a debug/dirty contributor binary stages in
@@ -91,5 +100,32 @@ and running `bun install --frozen-lockfile --cwd admin-ui`, the unchanged
 `bun run --cwd admin-ui build` completed and produced the static snapshot. No
 Exact/Vite temp-lifecycle workaround was required.
 
-Verification and final clean-checkout assembly evidence follow in the landing
-record after the review fix is committed.
+## Pre-rebase acceptance evidence
+
+The review fix was verified with:
+
+- `cargo build -p snapback-types -p snapback -p snapback-tools`
+- `cargo test -p snapback-types` — 223 passed, 0 failed, 1 ignored
+- `node --test scripts/runtime-package-authority.test.mjs` — 10 passed
+- `node packages/snapback-runtime-darwin-arm64/package.test.mjs`
+- `node packages/snapback-runtime-linux-x64/package.test.mjs`
+- `cargo fmt --all -- --check`
+- `./ref-check --verbose` — 296 LLP docs, 6,029 refs, 0 errors, 0 unchecked
+
+The required clean-checkout manufacturing acceptance then succeeded with no
+ambient identity overrides:
+
+```sh
+env -u SNAPBACK_BUILD_GIT_COMMIT \
+  -u SNAPBACK_BUILD_GIT_DIRTY \
+  -u SNAPBACK_BUILD_DISTRIBUTION \
+  scripts/assemble-runtime-package
+```
+
+Step 1 linked, launched, and restricted-VM-qualified the exact clean checkout;
+step 2 completed the clean release build; step 3 used Bun 1.3.12 and built the
+source-matched admin snapshot; and step 4 prepared and swapped
+`packages/snapback-runtime-darwin-arm64`. The final seal binds source revision
+`f18078621296c45763f61a827f1a529dcd213252`, `gitDirty: false`,
+`buildProfile: "release"`, `buildDistribution: "contributor-source"`, and a
+successful identity-matched restricted-VM qualification verdict.
