@@ -65,3 +65,210 @@ The new window ledger both “stop[s] before charging a unit that would exceed�
 - **Verdict:** READY. (The subsequent v0.4 delta was limited to the codex
   round-3 residual — the mixed-bundle timing seam — and was verified by the
   codex family's round-4 pass.)
+
+## Round 4 (delta) — 2026-08-21 — LLP 0267 §7 W5 revision (v0.8)
+
+**Reviewer family:** Grok
+**Provider / runtime:** grok-4.6 (Grok Build), reasoning xhigh
+**Date:** 2026-08-21
+**Redacted:** no
+**Method:** directed delta re-review of HEAD `f9399686e` against the
+prior dual xhigh round's 5 MAJOR + 10 MINOR claims; current tree only
+(not a mutually-blind first pass). This session did not author §7.
+
+**Target:** `llp/0267-query-cost-guardrails.rfc.md` §7 (v0.8), plus
+contradiction check against §§1–6 and the consumed Phase 0 rulings
+(LLP 0059 ruling 6; LLP 0095/0278 D0.5; LLP 0031 D3; LLP 0200 §3
+inspect serialization).
+
+**Verdict:** CLEAN-TO-LAND (READY). Prior MAJORs 1–5 are actually
+fixed. No new contradiction with §§1–6 or the Phase 0 rulings. Three
+non-blocking MINORs remain as implementer pins, not reopenings.
+
+### Overall assessment
+
+v0.8 is a real revision, not a recitation of the commit message. The
+eight claimed repairs are present in the current text and, where they
+depend on shipped seams, they match those seams. §7 stays a
+diagnostics/inspection amendment: no new bounds surface, no policy
+rung, no change to §§1–6 enforcement.
+
+### Checklist (the eight claimed fixes)
+
+1. **§7.4 consumes D0.5 verbatim (>16 warns, 64 hard ceiling only) —
+   FIXED.** Current §7.4: counts above the provisional 16-per-view
+   budget "remain **supported** and draw only a structured warning;
+   the sole hard refusal is the 64-per-connection transport ceiling,
+   with its own pre-refusal warning (LLP 0278/0095)." That matches
+   LLP 0278's D0.5 amendment (supported-but-flagged past 16;
+   correctness envelope = the 64 hard ceiling) and LLP 0095's
+   inspection-floor wording. The v0.7 sentence that treated 16 as a
+   refusal ("budget diagnostics fire before the 64-per-connection
+   ceiling or the provisional 16-per-view budget refuses") is gone.
+   §7.6 consumes the same ruled budgets and adds no refusal.
+
+2. **§7.1 bounds are now real — FIXED.** Three named ring families
+   (not §§7.2–7.6 as rings); dual bound of record count (512) **and**
+   byte-accounted per-family budgets summing to ≤4 MiB; variable-size
+   fields truncated with a visible `truncated` marker; oversize
+   records dropped with per-family `droppedRecords`; per-key maps
+   capped at 1,024 with LRU-on-update eviction into `otherKeys` plus
+   monotone `evictedKeys` so totals stay exact; recorder caps
+   disambiguated from §3.4 enforcement maxima. Equivalence hashing
+   reuses the §5 window-ledger canonical-args hash (named at
+   `llp/0267-query-cost-guardrails.rfc.md:514`) rather than minting a
+   second algorithm.
+
+3. **Redaction no longer overclaims — FIXED.** Hash is framed as a
+   **fingerprint** for low-entropy args and is gated-only; raw args
+   remain forbidden everywhere; `QueryCostObservationV1.fixtureIdentity`
+   is projected to `null` in the recorder (consistent with §1.1's
+   "qualification storage only"); D0.5 ownership tuple is projected
+   (authority class + instance self, never principal or literal URL)
+   while D0.5's sharing key itself is unchanged; owner labels are
+   constrained to framework surface identifiers and "must not embed
+   argument or row values"; `PublicInspect` gains no cost fields
+   (rings, counters, or correlation identities). Gated extensions
+   revert to §1.1's public rule at any future export boundary.
+   Acceptance fixtures name all of these.
+
+4. **Wave/subscription split — FIXED as to the original MAJOR.**
+   `LiveDeliveryWaveV1` is server-owned, emitted at §1.5 boundaries,
+   server-snapshot only. Client-observed facts (`deliveryLagMs`,
+   `suppressedEqualSnapshots`, `pendingDeliveryReason`) live on the
+   §7.4 inspection row. Join key is (`functionId`, `deliveredVersion`
+   ↔ `authoritativeRevision`). No wire carrier moves either record.
+   (See MINOR 1 for a domain pin, not a reopening.)
+
+5. **Causal vocabularies closed with precedence — FIXED.**
+   `rerunCause` is four trigger classes in listed precedence
+   (authorization-invalidation > mutation-invalidation > refresh >
+   reconnect-reestablish). Coalescing and memo delivery are execution
+   facts (`coalesced`, `memoDeliveries`, `coveredVersions`), not
+   causes — v0.7's `coalesced-flush` / `memo-delivery` cause members
+   are gone. `pendingDeliveryReason` is a closed six-member enum
+   with pinned first-match order; `authority-unavailable` is one
+   member whose *detail* carries LLP 0059's open-suffix spelling
+   (the enum itself has no wildcard); equal-snapshot dedup is
+   excluded (completed delivery, not a miss). New cause requires a
+   dated amendment.
+
+6. **`MutationPhaseCostV1` typed with nullability; delivery lag
+   moved — FIXED.** The typed record is in §7.2; every timestamp and
+   derived duration is `number | null`, null when either endpoint is
+   null. Formulas match ruling 6. `deliveryLagMs` is not a mutation
+   field; it lives on the §7.4 row, first covering delivery, both
+   endpoints client-observed on one clock. Server contributes
+   per-function counters only; the two clocks are never merged. No
+   undifferentiated "pending".
+
+7. **`LiveCoalesceStats` claim is now accurate — FIXED, verified
+   against the tree.** v0.7 claimed the 20260808 ticket kept these
+   counters off serialized inspect. That ticket is stale. Shipped
+   `InspectState` and `PublicInspect` both serialize
+   `live_coalesce: LiveCoalesceStats` as `liveCoalesce`
+   (`crates/snapback-engine/src/local/inspection.rs:37-38` and
+   `:127-128`); LLP 0200 §3 already accepted that schema rotation.
+   §7.3 now says the wave record complements those counters and adds
+   no second coalesce surface.
+
+8. **Acceptance wording and header hint — FIXED.** Header:
+   `Accepted (§7 only: Proposed per LLP 0295 W5; owners to accept)`
+   (ref-check still reads the first token as `Accepted`). §7.7:
+   "On acceptance, this RFC owns…" not "This RFC accepts". Open
+   questions still mark §7 as proposed. Guide sentence extends the
+   existing §4.2 page. Fixtures cover attribution, redaction
+   (including `fixtureIdentity`, projected D0.5 tuple, owner labels,
+   `PublicInspect`), byte/key bounds with visible markers, and
+   hosted-default-off.
+
+### No new contradiction with §§1–6 or Phase 0
+
+- §§1–6: explicit nonclaim of a new bounds surface; observed
+  `subscriberCount` / `distinctEvaluationGroups` do not substitute
+  for §1.6 declarations; wave clocks reuse §1.5 exactly; recorder
+  caps are not §3.4 maxima; §4.1 inheritance is the value-free rule,
+  not the query-cost detail field set; `fixtureIdentity` projection
+  matches §1.1's qualification-only note.
+- LLP 0059 ruling 6: timestamps and derived subtractions consumed;
+  delivery owned by the subscription projection; `blockedReason`
+  vocabulary not re-opened; no undifferentiated pending.
+- D0.5: 16 warns / 64 refuses; inspection floor consumed; equal-
+  snapshot dedup treated as completed delivery, matching LLP 0278.
+- LLP 0031 D3: cost snapshot is gated `/_snapback/api/inspect`-class
+  or in-process CLI; `PublicInspect` allowlist unchanged. Adding
+  rings to `InspectState` would fail the typed `From` projection
+  until they are dropped — that is the D3 compile-error guard, and
+  the fixture requires the drop.
+
+### Strengths
+
+The v0.7 overclaims that would have shipped a second bounds system,
+a fake 4 MiB cap, a wire cost carrier, and a non-reversible-hash
+lie are actually gone. Closing `pendingDeliveryReason` as a
+precedence enum over a defined owed-delivery condition, and moving
+coalesce/memo out of `rerunCause`, are the right shapes. Honest
+fingerprint framing plus gated-only correlation ids is the correct
+privacy posture for a local-dev recorder.
+
+### Concerns (non-blocking)
+
+1. SEVERITY: MINOR — `llp/0267-query-cost-guardrails.rfc.md:780`
+   (§7.3/§7.4 join key domain). The join
+   (`deliveredVersion` ↔ `authoritativeRevision`) and the owed-
+   delivery comparison ("committed version … newer than
+   `authoritativeRevision`") are only coherent if all three of
+   `deliveredVersion`, ruling-6 `authoritativeRevision`, and D0.5
+   "held snapshot version" are LLP 0095 §1.3 `LIVE(version)` —
+   the **storage commit version**. The tree also has a same-named
+   client-local counter in
+   `packages/snapback-client/external-store.mjs:147` that increments
+   per accepted row set and is used for optimistic-layer retirement.
+   Pin one sentence: these fields are the §1.3 storage version, not
+   that counter. Without the pin two implementers can join 1,2,3
+   against storage versions.
+
+2. SEVERITY: MINOR — `llp/0267-query-cost-guardrails.rfc.md:839`
+   (§7.4 `pendingDeliveryReason` writer). The row's new cost fields
+   are introduced as "each one an event the client itself observes,
+   so no server→client cost carrier is implied," but owed-delivery
+   is defined by **joined snapshots** and member 6 (`server-pending`)
+   is disambiguated by the server wave records / `liveCoalesce`
+   counters. Pin whether the field is live client state (own-commit
+   coverage + client-visible holds 1–5, with inspect-time join
+   filling `server-pending` for other-writer stalls) or an
+   inspect-time computed field. The W5 stalled-projection fixture
+   (own send) is client-observable either way.
+
+3. SEVERITY: MINOR — `llp/0267-query-cost-guardrails.rfc.md:728`
+   (§7.2/§7.4 `deliveryLagMs` cardinality). Lag is specified per
+   (subscription, covering delivery) pair — first covering delivery,
+   client clock — but stored as one scalar on the subscription row.
+   One subscription covers many commits. Pin "most recent covered
+   commit" (or equivalent) so two implementations do not disagree
+   on which pair the field reports. The single-send attribution
+   fixture does not need this; the general field does.
+
+### Suggestions (nits; do not block)
+
+- `MutationPhaseCostV1.disposition: string` could cite the LLP 0218
+  terminal-kind union instead of an open string.
+- "the §5 canonical-args hash the host computes anyway for cursor
+  binding" is true for pageable G0 queries, not for mutation
+  equivalent-enqueue; that path computes the hash for the counter.
+- Per-family default byte split (how 4 MiB divides across three
+  rings) can stay implementation-owned; a 1.3 / 1.3 / 1.3 default
+  would remove one implementation fork.
+- Recorder truncation of `accessPathConsultations` must copy; it
+  must not mutate the qualification-stored §1.1 observation.
+
+### Open questions
+
+None that §7 needs to reopen. The three MINORs are one-sentence
+pins, not design forks.
+
+### Recommended next step
+
+Ready for the owners (LLP 0267, LLP 0095/0114, LLP 0278) to accept
+§7. The three MINORs can land as a follow-up sentence each or as
+implementation-ticket pins; they should not hold acceptance.

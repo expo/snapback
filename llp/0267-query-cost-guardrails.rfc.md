@@ -1023,12 +1023,17 @@ these clients):
   is establishment racing ordinary traffic, and the establishment
   snapshot will subsume the charges.
 - **Client lifecycle-settled** (`RELEASED`, `TERMINAL_DELETED`,
-  connection `CLOSED`/`IDLE`): with the row **absent**, **neutral** —
-  already retired on both sides. With a row **present** (idle or
-  active-stage alike), **snapshot-skew** — the inverse skew: the server
-  snapshot may predate the T-UNSUB/teardown processing. Re-read both; a
-  skew that persists is the defect (an orphaned **server** subscription
-  leaking registry and evaluation work).
+  connection `CLOSED`): with the row **absent**, **neutral** — already
+  retired on both sides. With a row **present** (idle or active-stage
+  alike), **snapshot-skew** — the inverse skew: the server snapshot may
+  predate the T-UNSUB/teardown processing. Re-read both; a skew that
+  persists is the defect (an orphaned **server** subscription leaking
+  registry and evaluation work).
+- **Connection `IDLE`** is lifecycle-settled **only with the row
+  absent** (neutral, as above). With a row present, an `IDLE` client is
+  not step-0-classified: the pair proceeds to steps 1–2 exactly as in
+  v0.13, where it resolves as `server-pending`, neutral, or defect by
+  row state.
 
 **Step 1 — the closed reason enum**, in precedence (first match wins).
 Members 1–5 derive from the client row's ruled state **alone** — a
