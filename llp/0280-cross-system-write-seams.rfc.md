@@ -6,10 +6,14 @@
 Client integration, React, Diagnostics, Guide, Developer experience
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-17
-**Revised:** 2026-08-17 (initial Draft from LLP 0277 F4: the Coterie
+**Revised:** 2026-08-21 (LLP 0295 D0.5: registers provider connection rebuild
+across the persona-replacement seam as a named consumer — dated note at the
+end); 2026-08-17 (initial Draft from LLP 0277 F4: the Coterie
 adversarial auth cuts and the asset finalize/attach boundary)
-**Related:** LLP 0059, LLP 0151, LLP 0210, LLP 0236, LLP 0238, LLP 0247,
-LLP 0258, LLP 0269, LLP 0277, Diary 0086
+**Related:** LLP 0059, LLP 0095, LLP 0151, LLP 0210, LLP 0236, LLP 0238,
+LLP 0247,
+LLP 0258, LLP 0269, LLP 0277, LLP 0278, LLP 0295, Diary 0086,
+`issues/20260821-provider-connection-subscription-budget-decision.md`
 
 ## Summary
 
@@ -158,3 +162,17 @@ RFC records the decision.
 4. Should partial-registration state be observable through a generated
    query (so UIs can render "finish creating your profile") rather than only
    through the login outcome?
+
+## Note (2026-08-21 — LLP 0295 D0.5): provider rebuild consumes the persona-replacement seam
+
+**Adopted per LLP 0295; author may revise.** The D0.5 ruling (LLP 0095 and
+LLP 0278 amendments of the same date) makes provider/headless connection
+rebuild across an authority transition a named consumer of this RFC's
+persona-replacement composition: a provider tears down every
+predecessor-owned subscription (settling predecessor logout) before opening
+the successor's connection and subscribing after the coordinator's settled
+authority state. No new seam or mechanism is added here; this note exists so
+the seam register knows providers depend on the two-transition composition
+and so a future `replaceAuthority` coordinator operation (D2) is designed
+with the provider teardown/rebuild ordering in scope. Exact's provider
+runtime consumes the same facts through LLP 0279.

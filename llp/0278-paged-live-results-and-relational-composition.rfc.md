@@ -6,13 +6,21 @@
 Client integration, React, Guide, Testing, Developer experience
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-17
-**Revised:** 2026-08-17 (initial Draft from the LLP 0277 findings register:
+**Revised:** 2026-08-21 (records the LLP 0295 D0.4/D0.5 rulings' query-shape
+half: the generated authority product projection reads through D1/D4 shapes,
+and the provisional subscription budget contract with the independent-versus-
+aggregate consistency ruling lands as a dated amendment). 2026-08-17 (initial
+Draft from the LLP 0277 findings register:
 F1 window/whole-list reconciliation, F2 aggregate fan-out, F3 chunked
 semi-join)
-**Related:** LLP 0236, LLP 0264, LLP 0265, LLP 0266, LLP 0267, LLP 0270,
-LLP 0274, LLP 0277, Diary 0078, Diary 0086,
+**Related:** LLP 0095, LLP 0236, LLP 0240, LLP 0264, LLP 0265, LLP 0266,
+LLP 0267, LLP 0270,
+LLP 0274, LLP 0277, LLP 0279, LLP 0280, LLP 0295, Diary 0078, Diary 0086,
+Diary 0105,
 `issues/20260817-coterie-message-envelope-growth.md`,
-`issues/20260817-guide-gap-chunked-semijoin-feed-recipe.md`
+`issues/20260817-guide-gap-chunked-semijoin-feed-recipe.md`,
+`issues/20260821-provider-connection-subscription-budget-decision.md`,
+`issues/20260820-familiar-live-subscription-contention.md`
 
 ## Summary
 
@@ -207,3 +215,80 @@ posture) and a regression that replays the run's originating failure.
 4. Does D4 subsume the "generated multi-query composition" idea from Diary
    0086, or is a general composition primitive still needed for
    heterogeneous joins (profiles + stats + follow state in one result)?
+
+## Amendment (2026-08-21 — LLP 0295 D0.4/D0.5 rulings, query-shape half)
+
+**Adopted per LLP 0295; author may revise.** LLP 0095 carries the companion
+connection-lifecycle half; LLP 0240 carries the authority half of D0.4. The
+decision ticket is
+`issues/20260821-provider-connection-subscription-budget-decision.md`.
+
+### D0.4 read surface
+
+The LLP 0240 amendment selects platform-generated product-projection facts
+declared on the authority profile. Their read shapes are this RFC's: paged
+roster/history reads adopt the D1 envelope (`rows`/`cursor`/`boundary`) rather
+than a bespoke roster page shape, and receipt/aggregate membership counts over
+a bounded entity set are a D4 set-keyed-projection candidate. Neither side may
+weaken the other: authority admission and non-enumerability come from LLP
+0240; cost and cursor facts come from here (LLP 0295 W4).
+
+### D0.5 subscription budgets (provisional)
+
+The transport facts are already hard ceilings, not composition guidance:
+64 live subscriptions per connection and 2,048 durable registry rows per app
+(`MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION`, `MAX_LIVE_SUBSCRIPTIONS`,
+`crates/snapback-engine/src/local/engine.rs`). This amendment adds the missing
+*application composition contract* on top of them. All numbers below are
+**explicit provisional bounds**: the six-subscription investigation
+(`issues/20260820-familiar-live-subscription-contention.md`, LLP 0295 1D) is
+running in parallel, and its classification may tighten — or confirm — them.
+They are commissioning bounds for design and diagnostics, not yet
+conformance-frozen values.
+
+- **Correctness envelope = the hard ceiling.** Any admitted count of
+  independent live subscriptions, up to 64 per connection, must be *correct*:
+  live delivery within ordinary latency, per-subscription version-guard
+  consistency, and no cross-subscription starvation. Six ordinary independent
+  subscriptions are well inside the supported envelope; the Diary 0105
+  observation is a suspected defect under investigation, not a documented
+  bound.
+- **Ordinary per-view/provider budget: 16 (provisional).** A single rendered
+  view or provider cell composing more than 16 concurrent live subscriptions
+  is supported but flagged: a structured diagnostic (proposed
+  `SNAPBACK_LIVE_SUBSCRIPTION_VIEW_BUDGET` class; final code named by the
+  implementation ticket) names the owning view, the count, and the aggregate
+  alternatives below, *before* the hard connection ceiling refuses.
+- **Independent versus aggregate (LLP 0295 risk 7).** Both forms have
+  explicit supported bounds. Independent subscriptions do **not** share a
+  snapshot/version boundary: each holds its own `LIVE(version)` and may be
+  transiently ahead of or behind a sibling; a UI that requires one atomic
+  cross-set fact (e.g. a set-membership toggle derived from two sets) should
+  read it from one relational/aggregate query, which delivers one versioned
+  result. That is the *consistency* criterion for choosing the aggregate
+  form. Below the consistency criterion, consolidating N independent reads
+  into one relational singleton is only an optimization — it is never
+  required for correctness, and the relational-singleton workaround must not
+  be standardized as the sole correct path.
+- **Fan-out composition.** One stream per visible entity is supported up to
+  the per-view budget; past it, the paved path is D4's set-keyed aggregate
+  projection (one live result for N keys, reusing D3's operand-bound
+  handling). The budget diagnostic names D4 as the remediation.
+- **Equal-snapshot deduplication.** The version guard (LLP 0095 §1.3) already
+  drops stale/equal-version durable frames. This ruling extends the contract
+  one layer up: transport-only events — reconnect supersession, resubscribe,
+  lane changes — that produce a snapshot value-equal to held rows at a
+  non-advancing version must not notify consumers; providers/hooks own
+  value-equality dedup at equal versions so a transport change is never a
+  render or a republished tree.
+- **Nested queries from update callbacks.** Snapshot-delivery callbacks are
+  not a scheduling context: issuing subscribe/unsubscribe or mutation
+  dispatch synchronously from within a delivery callback is unsupported
+  composition — clients defer such work to a scheduler boundary (microtask or
+  framework effect), and a synchronous attempt earns a structured diagnostic
+  rather than undefined reentrancy. One-shot reads from a callback are
+  admitted but discouraged in favor of sampling already-delivered rows.
+
+Exact's provider runtime consumes these budgets and lifecycle facts through
+LLP 0279 (its D0.5 provider-lifecycle integration step); it does not invent a
+parallel Snapback-specific adapter policy.

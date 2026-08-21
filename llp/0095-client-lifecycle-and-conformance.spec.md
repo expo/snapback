@@ -5,7 +5,10 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Tests
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-10 (remediation-set fixture obligations assigned by the LLP 0146 OQ6 ruling — see the dated section); 2026-07-30 (Swift harness adopts format v3: all four §2.1
+**Revised:** 2026-08-21 (LLP 0295 D0.5 ruling: provider connection-ownership,
+auth-transition teardown/retry, callback-reentrancy, and owner-inspection
+contract recorded as a dated amendment; LLP 0278's matching amendment carries
+the subscription budgets); 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-10 (remediation-set fixture obligations assigned by the LLP 0146 OQ6 ruling — see the dated section); 2026-07-30 (Swift harness adopts format v3: all four §2.1
 judgment rules implemented, T-AUTH-TERM/T-GRANT-LOSS client transitions
 aligned to the corpus dispositions); 2026-07-30 (fixture-format v3: `client_to_server` and
 `client_lifecycle` directions with request/refusal fixtures, virtual-time and
@@ -23,7 +26,11 @@ auth-invalidation state machine, and reconnect witnesses); 2026-07-26
 and exact duplicate re-ACK fixtures); 2026-07-26 (Swift adversarial review:
 terminal no-resurrection, pending high-water, exact scope/expectation binding,
 resolution floor/shape validation, and mandatory supersession witness)
-**Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093, LLP 0108
+**Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093, LLP 0108,
+LLP 0278, LLP 0279, LLP 0280, LLP 0295,
+`issues/20260821-provider-connection-subscription-budget-decision.md`,
+`issues/20260820-familiar-live-subscription-contention.md`,
+`issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`
 
 ## Summary
 
@@ -655,3 +662,82 @@ version disables remediation interpretation without invalidating the
 surrounding diagnostic. The hard bound is eight items; every
 machine-applicable fixture binds item and carrier to the exact same observed
 artifact hash.
+
+## Provider connection-ownership and lifecycle contract (LLP 0295 D0.5 ruling) — 2026-08-21
+
+**Adopted per LLP 0295; author may revise.** This amendment records the
+connection-lifecycle half of the D0.5 decision packet
+(`issues/20260821-provider-connection-subscription-budget-decision.md`); the
+LLP 0278 amendment of the same date carries the subscription budgets,
+independent-versus-aggregate consistency ruling, equal-snapshot deduplication,
+fan-out, and callback-reentrancy contract. LLP 0280's matching note registers
+the auth-transition rebuild as a consumer of the persona-replacement seam.
+The numeric bounds here are **explicit provisional bounds**: the parallel
+six-subscription investigation
+(`issues/20260820-familiar-live-subscription-contention.md`, LLP 0295 1D) may
+tighten or confirm them before they are conformance-frozen as fixtures.
+
+### Connection ownership per app authority/origin
+
+- The unit of connection ownership is the tuple **(app, server origin,
+  settled authority)** within one client runtime. A conformant
+  provider/headless composition holds **one** managed connection per tuple,
+  shared through a connection manager; N provider cells, hooks, or views over
+  the same tuple never imply N transport connections
+  (`issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`'s
+  regression fixture proves exactly this).
+- The provisional total budget is **at most 2 concurrent connections per
+  tuple-adjacent pair**, and only transiently: the sanctioned overlap is an
+  authority replacement in flight (predecessor draining teardown while the
+  successor opens). Steady-state parallel connections for one tuple are
+  unsupported composition and earn a structured diagnostic, not silent
+  admission.
+- Distinct settled authorities (two principals in a two-client test harness,
+  anonymous versus authenticated) are distinct tuples and rightly hold
+  distinct connections; the budget is per tuple, not per process.
+
+### Teardown and retry after auth transitions
+
+- **Subscribe-after-settle.** Providers subscribe against the auth
+  coordinator's *settled* authority state, never by polling their own client
+  objects or retrying on an empirical cadence. An operation started during an
+  authorization barrier follows LLP 0295 D0.2's transition matrix (owned
+  there); this spec's obligation is that the provider consumes that settled
+  state as an event, not a poll.
+- **Principal-class change tears down before it builds.** On authority
+  replacement the provider releases every predecessor-owned subscription
+  (T-UNSUB, presenting the establishing owner) and, in sessions mode, opens a
+  fresh connection for the successor — the bearer is bound at
+  `/connection/open`, so a user switch is never a rebind (§1.4 T-UNSUB table;
+  LLP 0280's two-transition persona-replacement composition).
+- **Retry is the existing bounded machinery.** Socket loss and grant loss
+  recover through T-LOSS/T-RECONNECT backoff (250 ms → 10 s) and
+  T-GRANT-LOSS re-open-everything. Providers add no parallel retry loops on
+  top; a rebuilt stream after an auth transition is a fresh
+  snapshot-with-subscribe, and transport-only rebuilds that deliver
+  value-equal rows must not republish to consumers (dedup contract, LLP 0278
+  amendment).
+
+### Runtime and diagnostic inspection of active owners
+
+The client exposes an inspection surface (exact carrier named by the
+implementation ticket; the shape aligns with LLP 0295 W5) enumerating, per
+connection: the ownership tuple, connection state (§1.2), and grant age; and
+per subscription: the owning surface label (provider cell, hook, view, or
+headless caller), function name, subscription state (§1.3), held snapshot
+version, auth-barrier/readiness state, and — when delivery is suspended — the
+outbox suspension reason. This is the observability floor the Diary 0105
+investigation lacked: every "missed delivery" claim should be answerable from
+inspection output rather than source reading. Diagnostics fire *before* a
+budget or ceiling refuses: approaching the 64-per-connection transport
+ceiling or exceeding the provisional per-view budget emits a structured
+warning naming the owner labels and the paved alternatives.
+
+### Consumers
+
+Exact's `ContractDataProvider` runtime consumes this contract through LLP
+0279 (provider-lifecycle integration, W7 step 3) rather than inventing a
+parallel Snapback-specific adapter policy, and the provider guide recipe
+(`issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`) teaches
+this contract rather than empirical adapter folklore once the follow-on
+tickets land.

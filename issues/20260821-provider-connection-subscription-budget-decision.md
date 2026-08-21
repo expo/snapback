@@ -1,6 +1,7 @@
 # Decide the provider connection and subscription budget contract
 
-**Status:** Open — decision packet; implementation follows the ruling
+**Status:** Open — ruling recorded 2026-08-21 (adopted per LLP 0295; author
+may revise); remaining work is the follow-on checklist below
 **Opened:** 2026-08-21
 **Systems:** Headless client, Provider adapters, Live queries, Auth lifecycle,
 React, Diagnostics, Performance
@@ -38,6 +39,66 @@ Define and justify:
 Use the minimized six-subscription investigation as evidence, but do not set a
 product limit from the benchmark workaround unless the reproduction proves the
 limit is intentional.
+
+## Ruling (2026-08-21 — adopted per LLP 0295; author may revise)
+
+Landed as the LLP 0095 dated amendment (connection ownership, auth-transition
+teardown/retry, owner inspection), the LLP 0278 2026-08-21 amendment
+(subscription budgets, independent-versus-aggregate consistency,
+equal-snapshot dedup, fan-out, callback reentrancy), and an LLP 0280 note
+(provider rebuild consumes the persona-replacement seam). All numeric bounds
+are **explicit provisional bounds** that the parallel six-subscription
+investigation (`issues/20260820-familiar-live-subscription-contention.md`,
+LLP 0295 1D) may tighten or confirm; they are not conformance-frozen yet.
+Summary against the seven D0.5 bullets:
+
+1. **Connections:** one managed connection per (app, origin, settled
+   authority) tuple per client runtime, shared via a manager; at most 2 only
+   transiently during authority replacement; N provider cells never imply N
+   connections.
+2. **Subscriptions:** hard ceilings stay 64/connection and 2,048/app
+   (`crates/snapback-engine/src/local/engine.rs`). Correctness envelope = the
+   full hard ceiling (any admitted count must be live-correct; six independent
+   subscriptions are ordinary). Ordinary per-view/provider budget: 16
+   (provisional), diagnostic-flagged past it.
+3. **Nested queries from update callbacks:** synchronous
+   subscribe/unsubscribe/dispatch from a delivery callback is unsupported —
+   defer to a scheduler boundary; structured diagnostic on attempt; one-shot
+   reads admitted but sampling delivered rows preferred.
+4. **Equal-snapshot dedup:** transport-only events producing value-equal
+   snapshots at non-advancing versions must not notify consumers;
+   providers/hooks own value-equality dedup atop the LLP 0095 version guard.
+5. **Fan-out:** per-entity streams supported to the per-view budget; past it
+   the paved path is LLP 0278 D4 set-keyed aggregates, named by the budget
+   diagnostic.
+6. **Teardown/retry after auth transitions:** subscribe-after-settle on
+   coordinator state; predecessor teardown before successor establishment
+   (sessions: fresh connection); existing T-LOSS/T-RECONNECT/T-GRANT-LOSS
+   machinery only, no parallel provider retry loops.
+7. **Inspection:** owner-labeled enumeration of active connections and
+   subscriptions with state, snapshot version, auth-barrier/readiness, and
+   outbox suspension reason; diagnostics fire before a budget/ceiling refuses.
+
+Per LLP 0295 risk 7, the relational-singleton consolidation is **not**
+standardized as the only correct path: independent and aggregate forms both
+carry explicit supported bounds, and the aggregate form is required only when
+the UI needs one atomic cross-set fact (the consistency criterion) — otherwise
+it is an optimization. Exact's provider runtime consumes these facts through
+LLP 0279 rather than inventing parallel policy.
+
+## Follow-on checklist
+
+1. Client/runtime enforcement and the named diagnostic codes (final spellings
+   owned by the implementation change; the LLPs name only the classes).
+2. Inspection surface implementation aligned with LLP 0295 W5's redaction and
+   posture rules.
+3. Provider integration: connection-manager reuse fixture proving N cells do
+   not imply N connections
+   (`issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`).
+4. Guide recipe update teaching the contract, replacing adapter folklore.
+5. Conformance fixtures freezing the bounds once the 1D investigation
+   classifies the six-subscription observation (product defect versus
+   documented bound versus benchmark-app defect).
 
 ## Exit
 

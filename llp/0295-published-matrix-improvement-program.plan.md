@@ -8,7 +8,10 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-21 (Phase 1A Expo package-parity progress: closes the
+**Revised:** 2026-08-21 (D0.4 and D0.5 decision packets adopted — author may
+revise: rulings landed in LLP 0240/0278 and LLP 0095/0278/0280 respectively,
+with recommendations recorded under open questions 3 and 7);
+2026-08-21 (Phase 1A Expo package-parity progress: closes the
 cycle-free Expo Metro initialization ticket with a packed external proof);
 2026-08-21 (current-source corroboration amendment: incorporates
 the paired GPT-5.6 Sol high Clique Explicit/Familiar run at `708e2e5c`, adds a
@@ -626,6 +629,14 @@ for the efficiency scorecard while retaining its product findings.
 2. Is Familiar intended to reach feature parity with Explicit, or may templates
    choose profiles by workload while preserving one normalized definition?
 3. For private memberships, which D0.4 option should be prototyped first?
+   **Answered 2026-08-21 (adopted; author may revise):** option 2 —
+   platform-generated projection facts declared on the authority profile,
+   maintained inside the same writer-seam transaction as the transition, read
+   through LLP 0240 D3's existing bounded/redacted roster surface (which is
+   option 3's shape and stays the read path). Option 1 remains rejected as
+   the destination and sanctioned only as the interim guide pattern. Rationale
+   and invariants in the LLP 0240 dated amendment; checklist in
+   `issues/20260821-private-authority-product-roster-decision.md`.
 4. Are the proposed 40% correction-action, 20% output-token, and 30% M1-wall
    targets ambitious enough to discriminate a real improvement without being
    dominated by variance?
@@ -637,6 +648,18 @@ for the efficiency scorecard while retaining its product findings.
 7. What ordinary independent-subscription envelope should the client promise,
    and does the six-reference reproduction need to gate R2 or only the Familiar
    React cell?
+   **Recommendation 2026-08-21 (with the adopted D0.5 packet):** promise
+   correctness — liveness, per-subscription version-guard consistency, no
+   starvation — for any independent-subscription count up to the 64-per-
+   connection hard ceiling, with a provisional ordinary per-view/provider
+   budget of 16 that draws a diagnostic, not a refusal (LLP 0278/0095
+   amendments; the 1D classification may tighten these provisional bounds).
+   The minimized six-reference reproduction should gate only the Familiar
+   React cell of R2, not the whole rerun: the observation is currently
+   confined to that composition, and holding eleven unaffected cells hostage
+   to it contradicts the phase-order ruling's scoping. If 1D classifies it as
+   a product defect in shared client/runtime layers rather than the React
+   hook surface, promote it to an R2-wide gate at that point.
 8. Which debug posture should be the ordinary local binary after attribution:
    full inline debug, split debug information, or a reduced-debug developer
    profile with an explicit opt-in full-symbol build?
