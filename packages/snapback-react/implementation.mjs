@@ -389,23 +389,29 @@ function projectedAuthorityContext(capture, authority) {
   });
 }
 
-function generatedAuthenticatedAuthorityAdmission(
+function generatedLiveAuthorityAdmission(
   client,
   reference,
   authorityContext = null,
 ) {
+  const authRequirement = reference?.authRequirement;
   if (
     reference?.artifactKind !== 'functionReference'
-    || reference.authRequirement !== 'authenticated'
+    || (authRequirement !== 'authenticated' && authRequirement !== 'optional-user')
   ) return Object.freeze({ state: 'not-applicable', authorityContext: null });
   if (client.custody === 'anonymous-public') {
-    return Object.freeze({ state: 'anonymous', authorityContext: null });
+    return Object.freeze({
+      state: authRequirement === 'authenticated' ? 'anonymous' : 'optional-user',
+      authorityContext: null,
+    });
   }
   if (authorityContext !== null) {
     return Object.freeze({
-      state: authorityContext.authority?.kind === 'anonymous'
-        ? 'anonymous'
-        : 'authenticated',
+      state: authRequirement === 'authenticated'
+        ? authorityContext.authority?.kind === 'anonymous'
+          ? 'anonymous'
+          : 'authenticated'
+        : 'optional-user',
       authorityContext,
     });
   }
@@ -415,7 +421,11 @@ function generatedAuthenticatedAuthorityAdmission(
     const capture = coordinator.capture();
     const authority = coordinator.credentialFor(capture)?.authority;
     return Object.freeze({
-      state: authority?.kind === 'anonymous' ? 'anonymous' : 'authenticated',
+      state: authRequirement === 'authenticated'
+        ? authority?.kind === 'anonymous'
+          ? 'anonymous'
+          : 'authenticated'
+        : 'optional-user',
       authorityContext: projectedAuthorityContext(capture, authority),
     });
   } catch (error) {
@@ -429,6 +439,26 @@ function generatedAuthenticatedAuthorityAdmission(
       authorityContext: null,
     });
   }
+}
+
+function authTransitionSuccessorError(store, error, details = {}) {
+  if ((error?.diagnostic?.code ?? error?.code) === 'SNAPBACK_AUTH_TRANSITION_FAILED') {
+    return error;
+  }
+  const causeCode = error?.diagnostic?.code ?? error?.code ?? null;
+  const failure = diagnosticError(
+    'SNAPBACK_AUTH_TRANSITION_FAILED',
+    'a live query could not establish its successor under the settled authority',
+    {
+      phase: 'react-live-query-successor',
+      functionName: store.reference?.name ?? null,
+      authRequirement: store.reference?.authRequirement ?? null,
+      ...(causeCode === null ? {} : { causeCode }),
+      ...details,
+    },
+  );
+  failure.cause = error;
+  return failure;
 }
 
 function isAnonymousProtectedAuthorizationDenial(client, reference, error) {
@@ -1102,6 +1132,32 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }), generation);
   };
 
+  const publishAuthTransitionSuccessorFailure = (
+    store,
+    error,
+    generation,
+    details = {},
+  ) => {
+    const failure = authTransitionSuccessorError(store, error, details);
+    store.authorizationProjectionSuspended = true;
+    store.authoritativeData = validateQueryRows(store.resultContract, []);
+    store.generatedData = store.authoritativeData;
+    store.generatedPresentation = null;
+    store.freshness = 'unknown';
+    store.retention = null;
+    publish(store, Object.freeze({
+      status: 'error',
+      data: undefined,
+      error: serializeError(failure),
+      connection: 'error',
+      freshness: 'unknown',
+      retention: null,
+      optimisticPresentation: null,
+    }), generation);
+    recordDiagnostic(failure);
+    return failure;
+  };
+
   const publishGeneratedPresentation = (store, rows, detail, generation) => {
     store.generatedPresentation = detail?.optimisticPresentation ?? null;
     store.generatedData = validateQueryRows(store.resultContract, rows);
@@ -1167,10 +1223,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const startStore = (store, supersedes = null, authorityContext = null) => {
     if (terminal || runtimePaused() || store.handle || (store.consumers === 0 && store.pins === 0)) return;
     if (store.readOnlySnapshot !== null) return null;
-    const authorityAdmission = generatedAuthenticatedAuthorityAdmission(
+    const settledAuthorityContext = authorityContext ?? confirmedAuthorityContext;
+    const authorityAdmission = generatedLiveAuthorityAdmission(
       client,
       store.reference,
-      authorityContext ?? confirmedAuthorityContext,
+      settledAuthorityContext,
     );
     const authorityState = authorityAdmission.state;
     if (authorityState === 'settling') return null;
@@ -1200,6 +1257,17 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     const generation = ++store.generation;
     store.snapshot = pending('connecting');
     store.freshness = 'unknown';
+    // @ref LLP 0059#exposure-invariant — a staged participant-resume capture
+    // is the exact successor witness. Optional-user queries consume it just
+    // like authenticated queries; the distinction is admission while the
+    // settled authority is anonymous. This branch completes a restart the
+    // registry already elected; it does not define the shared restart policy
+    // reserved for LLP 0295 W2.
+    let transitionSuccessorPending = settledAuthorityContext !== null
+      && (
+        store.reference?.authRequirement === 'authenticated'
+        || store.reference?.authRequirement === 'optional-user'
+      );
     const notifyLivePublish = () => {
       if (terminal || generation !== store.generation) return;
       for (const listener of [...store.livePublishListeners.values()]) {
@@ -1207,7 +1275,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       }
     };
     let handle;
-    handle = client.startLiveQuery(store.reference, {
+    try {
+      handle = client.startLiveQuery(store.reference, {
       connectionId,
       args: store.args,
       transport: 'stream',
@@ -1228,6 +1297,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         ? {}
         : { registeredSubscription: store.registeredSubscription }),
       onUpdate(rows, detail) {
+        // Fence before touching any store-owned projection state. publish()
+        // also checks this generation, but predecessor callbacks mutate rows
+        // before publishing and therefore need this synchronous ingress cut.
+        if (
+          terminal
+          || generation !== store.generation
+          || (handle !== undefined && store.handle !== handle)
+        ) return;
         if (store.blockedPreparedPublication) return;
         notifyLivePublish();
         clearUnadoptedSubscription(store);
@@ -1236,6 +1313,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           || detail?.kind === 'authorization_delete'
           || detail?.kind === 'authorization_error'
         ) {
+          if (transitionSuccessorPending) {
+            const boundary = new Error(
+              `settled-authority successor received ${detail.kind} before authority`,
+            );
+            boundary.code = detail.kind;
+            publishAuthTransitionSuccessorFailure(
+              store,
+              detail.error ?? boundary,
+              generation,
+              { boundaryKind: detail.kind },
+            );
+            return;
+          }
           publishAuthorizationBoundary(store, detail, generation);
           return;
         }
@@ -1243,6 +1333,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           detail?.kind === 'authorization_snapshot'
           || detail?.kind === 'authorization_denied'
         ) {
+          transitionSuccessorPending = false;
           store.authorizationProjectionSuspended = false;
           if (store.optimisticCreate !== null) {
             if (detail?.kind === 'authorization_denied') {
@@ -1262,6 +1353,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           store.generatedPresentation = detail.optimisticPresentation;
         }
         if (detail?.kind === 'optimistic_projection') {
+          transitionSuccessorPending = false;
           if (store.freshness === 'unknown' && Array.isArray(detail?.authoritativeRows)) {
             if (detail.freshness === 'retained') {
               publishRetained(store, detail.authoritativeRows, generation, rows ?? []);
@@ -1301,6 +1393,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           return;
         }
         if (detail?.freshness === 'retained') {
+          transitionSuccessorPending = false;
           publishRetained(
             store,
             detail?.authoritativeRows ?? rows ?? [],
@@ -1309,6 +1402,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           );
           return;
         }
+        transitionSuccessorPending = false;
         publishAuthoritative(
           store,
           detail?.authoritativeRows ?? rows ?? [],
@@ -1317,6 +1411,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         );
       },
       onConnectionChange(connection, detail) {
+        if (
+          terminal
+          || generation !== store.generation
+          || (handle !== undefined && store.handle !== handle)
+        ) return;
         notifyLivePublish();
         const normalized = normalizeConnection(connection, detail);
         captureRetention(store);
@@ -1326,7 +1425,20 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           generation,
         );
       },
-    });
+      });
+    } catch (error) {
+      if (transitionSuccessorPending) {
+        publishAuthTransitionSuccessorFailure(
+          store,
+          error,
+          generation,
+          { creation: 'synchronous' },
+        );
+      } else {
+        throw error;
+      }
+      return null;
+    }
     if (store.registeredSubscription !== null) registeredConnectionAttached = true;
     store.registeredSubscription = null;
     store.handle = handle;
@@ -1337,6 +1449,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       if (store.blockedPreparedPublication) return;
       clearUnadoptedSubscription(store);
       if (store.snapshot.status === 'pending' && Array.isArray(handle.current?.rows)) {
+        transitionSuccessorPending = false;
         // A handle that established holding only retained rows (offline boot
         // survival — LLP 0129 Phase 0) must not have them republished as
         // authoritative here.
@@ -1372,10 +1485,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }, (error) => {
       if (store.generation !== generation || store.handle !== handle) return;
       const terminalProtocolRefusal = isTerminalLiveProtocolRefusal(error);
+      const subscribeError = transitionSuccessorPending
+        ? authTransitionSuccessorError(store, error, { creation: 'asynchronous' })
+        : error;
+      if (transitionSuccessorPending) recordDiagnostic(subscribeError);
       store.retry = () => {};
       void loadReactRuntime().then(({ handleSubscribeFailure }) => (
         handleSubscribeFailure([
-          store, error, generation, handle, clearUnadoptedSubscription,
+          store, subscribeError, generation, handle, clearUnadoptedSubscription,
           allHandles, recoverExpiredRegisteredConnection, publish, serializeError,
           () => !terminal && !runtimePaused(),
           () => startStore(store),
@@ -1411,7 +1528,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         publish(store, Object.freeze({
           status: 'error',
           data: undefined,
-          error: serializeError(error),
+          error: serializeError(subscribeError),
           connection: 'error',
           freshness: 'unknown',
           retention: store.retention,
