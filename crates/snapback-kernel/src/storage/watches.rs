@@ -290,6 +290,7 @@ impl LocalDatabase {
                 i64::from(request.initial_predicate_state),
             ],
         )?;
+        super::observe_durable_commit_for_test();
         tx.commit()?;
         self.watch_for_owner(&request.id, &request.owner_principal_id)?
             .ok_or_else(catalog_corrupt)

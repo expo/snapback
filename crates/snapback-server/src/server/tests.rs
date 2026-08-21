@@ -1,8 +1,8 @@
 use super::{
     ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
     ACTION_WORKER_LIMIT_MAX, ADMITTED_BODY_INGEST_DEADLINE_MS,
-    AFTER_AGENT_INVITATION_EFFECT_COMMIT_HOOK, AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK,
-    AdmissionLease, BEFORE_AGENT_INVITATION_EFFECT_GUARD_HOOK, CRON_DISPATCH_CONCURRENCY_DEFAULT,
+    AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK, AdmissionLease,
+    BEFORE_AGENT_INVITATION_EFFECT_GUARD_HOOK, CRON_DISPATCH_CONCURRENCY_DEFAULT,
     CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant, ConnectionOpenAttempt, DetachedActionHost,
     DetachedActionWorkerCounters, HostOperationParentV1, OpenConnectionRequest, PolicyAuthMode,
     PreparedAuthority, RealtimeEnvelope, SharedSnapback, SnapbackApp,
@@ -17655,31 +17655,26 @@ async fn agent_invitation_mint_refuses_retired_epoch_and_holds_the_guard_through
         "refused invitation mint must not add a durable row"
     );
 
-    let after_guard_controller = controller.clone();
+    let commit_observed = Arc::new(AtomicBool::new(false));
+    let commit_observed_in_hook = commit_observed.clone();
     install_targeted_agent_invitation_hook(
         &AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK,
         &user_id,
         move || {
             assert!(
-                !after_guard_controller.state_mutex_available_for_test(),
-                "AgentInvitationMint admission-state mutex was available after the \
+                crate::auth::admission::current_thread_holds_admission_effect_guard_for_test(),
+                "AgentInvitationMint admission effect guard was not live after the \
                  effect-guard statement; the guard was never acquired or was dropped \
                  before the durable write"
             );
-        },
-    );
-    let commit_observed = Arc::new(AtomicBool::new(false));
-    let commit_observed_in_hook = commit_observed.clone();
-    install_targeted_agent_invitation_hook(
-        &AFTER_AGENT_INVITATION_EFFECT_COMMIT_HOOK,
-        &user_id,
-        move || {
-            assert!(
-                !controller.state_mutex_available_for_test(),
-                "AgentInvitationMint admission-state mutex was available at the durable \
-                 commit; the effect guard was dropped after observation and before the write"
-            );
-            commit_observed_in_hook.store(true, Ordering::SeqCst);
+            snapback_kernel::storage::observe_next_durable_commits_for_test(1, move || {
+                assert!(
+                    crate::auth::admission::current_thread_holds_admission_effect_guard_for_test(),
+                    "AgentInvitationMint admission effect guard was not live at the durable \
+                     commit; the effect guard was dropped after observation and before the write"
+                );
+                commit_observed_in_hook.store(true, Ordering::SeqCst);
+            });
         },
     );
     let guarded = request_user_agent_invitation(&state, &router, &bearer).await;

@@ -24,7 +24,7 @@ use serde_json::Map;
 use std::collections::BTreeMap;
 use std::io::{Read, Seek, SeekFrom};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 
 const USER_ID: &str = "admission-fence-user";
 const SESSION_ID: &str = "admission-fence-session";
@@ -173,15 +173,15 @@ fn assert_retired_refusal(error: &SnapbackError, fired: &AtomicBool) {
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
 }
 
-/// Install a one-shot probe that runs only after the production guard call.
-/// It observes the admission mutex as locked both there and at the successful
-/// durable commit. The commit-point observation directly proves the guard is
-/// live across the write, without a worker, timeout, or scheduler inference.
+/// Install a probe that runs only after the production guard call. It observes
+/// test-only guard-lifetime bookkeeping there and at every SQLite commit
+/// attempt owned by this operation. The probe never acquires or re-enters the
+/// admission mutex it is proving held.
 fn observe_guard_through_next_commit(
     site: AdmissionEffectSite,
-    controller: AdmissionController,
-) -> Arc<AtomicBool> {
-    let commit_observed = Arc::new(AtomicBool::new(false));
+    _controller: AdmissionController,
+) -> Arc<AtomicUsize> {
+    let commit_observed = Arc::new(AtomicUsize::new(0));
     let commit_observed_in_hook = commit_observed.clone();
     AFTER_ADMISSION_EFFECT_GUARD_HOOK.with(|slot| {
         assert!(
@@ -194,34 +194,31 @@ fn observe_guard_through_next_commit(
                 "live retirement reached the wrong durable write"
             );
             assert!(
-                !controller.state_mutex_available_for_test(),
-                "{site:?} admission-state mutex was available after the effect-guard statement; \
+                crate::auth::admission::current_thread_holds_admission_effect_guard_for_test(),
+                "{site:?} admission effect guard was not live after the effect-guard statement; \
                  the guard was never acquired or was dropped before the durable write"
             );
-            AFTER_ADMISSION_EFFECT_COMMIT_HOOK.with(|slot| {
-                assert!(
-                    slot.borrow().is_none(),
-                    "an admission-effect commit hook is already installed"
-                );
-                *slot.borrow_mut() = Some(Box::new(move |committed_site| {
-                    assert_eq!(committed_site, site, "the wrong durable commit completed");
+            crate::storage::observe_next_durable_commits_for_test(
+                site.durable_commit_count(),
+                move || {
                     assert!(
-                        !controller.state_mutex_available_for_test(),
-                        "{site:?} admission-state mutex was available at the durable commit; \
+                        crate::auth::admission::current_thread_holds_admission_effect_guard_for_test(),
+                        "{site:?} admission effect guard was not live at a durable commit; \
                          the effect guard was dropped after observation and before the write"
                     );
-                    commit_observed_in_hook.store(true, Ordering::SeqCst);
-                }));
-            });
+                    commit_observed_in_hook.fetch_add(1, Ordering::SeqCst);
+                },
+            );
         }));
     });
     commit_observed
 }
 
-fn assert_guard_observed_at_commit(site: AdmissionEffectSite, observed: &AtomicBool) {
-    assert!(
+fn assert_guard_observed_at_commit(site: AdmissionEffectSite, observed: &AtomicUsize) {
+    assert_eq!(
         observed.load(Ordering::SeqCst),
-        "{site:?} durable commit hook did not directly observe the live effect guard"
+        site.durable_commit_count(),
+        "{site:?} commit-boundary hook did not observe the live effect guard at every durable commit"
     );
 }
 
@@ -707,6 +704,42 @@ fn capability_link_mint_refuses_retired_epoch_without_a_durable_row() {
     snapback
         .resolve_capability_link(&minted.token, NOW_MS + 1)
         .expect("the guarded mint is durably resolvable");
+    assert_guard_observed_at_commit(AdmissionEffectSite::CapabilityLinkMint, &commit_observed);
+}
+
+#[test]
+fn capability_link_mint_observes_the_guard_when_the_post_commit_read_fails() {
+    let (mut snapback, controller) = capability_link_fixture();
+    let authority = session_management_authority(&controller);
+    assert_eq!(
+        snapback
+            .auth_database_mut()
+            .capability_link_count_for_test()
+            .expect("count capability links before injected failure"),
+        0
+    );
+    snapback
+        .auth_database_mut()
+        .fail_next_capability_link_mint_post_commit_read_for_test();
+    let commit_observed =
+        observe_guard_through_next_commit(AdmissionEffectSite::CapabilityLinkMint, controller);
+
+    let error = snapback
+        .mint_capability_link(&authority, link_request(Some(1)))
+        .expect_err("the injected row read must fail after capability-link COMMIT");
+
+    assert_eq!(
+        error.diagnostic.code,
+        "TEST_CAPABILITY_LINK_POST_COMMIT_READ_FAILURE"
+    );
+    assert_eq!(
+        snapback
+            .auth_database_mut()
+            .capability_link_count_for_test()
+            .expect("count capability links after injected failure"),
+        1,
+        "the capability-link row must be durable even though the caller returned an error"
+    );
     assert_guard_observed_at_commit(AdmissionEffectSite::CapabilityLinkMint, &commit_observed);
 }
 

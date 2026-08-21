@@ -191,9 +191,6 @@ static BEFORE_AGENT_INVITATION_EFFECT_GUARD_HOOK: StdMutex<Option<TargetedAgentI
 #[cfg(test)]
 static AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK: StdMutex<Option<TargetedAgentInvitationHook>> =
     StdMutex::new(None);
-#[cfg(test)]
-static AFTER_AGENT_INVITATION_EFFECT_COMMIT_HOOK: StdMutex<Option<TargetedAgentInvitationHook>> =
-    StdMutex::new(None);
 
 #[cfg(test)]
 fn install_targeted_agent_invitation_hook(
@@ -14757,22 +14754,14 @@ async fn auth_agent_invitation(
         let _effect = effect_authority.effect_guard("agent invitation mint transaction")?;
         #[cfg(test)]
         run_targeted_agent_invitation_hook(&AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK, &user_id);
-        let result = snapback.mint_agent_invitation(
+        snapback.mint_agent_invitation(
             &_effect,
             &user_id,
             profile,
             proof.proof(),
             effect_provider.now_ms(),
             effect_provider.agent_random_source(),
-        );
-        #[cfg(test)]
-        if result.is_ok() {
-            run_targeted_agent_invitation_hook(
-                &AFTER_AGENT_INVITATION_EFFECT_COMMIT_HOOK,
-                &user_id,
-            );
-        }
-        result
+        )
     })
     .await?;
     Ok(Json(AgentInvitationSecretResponse {

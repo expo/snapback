@@ -263,11 +263,63 @@ pub mod auth_stream;
 type ResetCommitHook = Box<dyn FnOnce() -> SnapbackResult<()>>;
 
 #[cfg(any(test, feature = "test-support"))]
+struct DurableCommitObserverForTest {
+    remaining: usize,
+    observe: Box<dyn FnMut()>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
 thread_local! {
     /// Deterministic failure injection immediately before reset+seed commit.
     /// Thread-local keeps parallel tests from perturbing unrelated databases.
     static BEFORE_RESET_COMMIT_HOOK: std::cell::RefCell<Option<ResetCommitHook>> =
         const { std::cell::RefCell::new(None) };
+    /// Deterministic commit-attempt observation for admission-fence proofs.
+    /// The callback runs immediately before SQLite's commit primitive. It must
+    /// never acquire the non-reentrant admission mutex; callers use the auth
+    /// crate's thread-local guard-lifetime proof instead.
+    static DURABLE_COMMIT_OBSERVER_FOR_TEST:
+        std::cell::RefCell<Option<DurableCommitObserverForTest>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Observe the next `count` instrumented durable commit attempts on this
+/// thread. The observer is removed after the final attempt.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn observe_next_durable_commits_for_test(count: usize, observe: impl FnMut() + 'static) {
+    assert!(
+        count > 0,
+        "a durable-commit observer needs at least one commit"
+    );
+    DURABLE_COMMIT_OBSERVER_FOR_TEST.with(|slot| {
+        assert!(
+            slot.borrow().is_none(),
+            "a durable-commit observer is already installed on this thread"
+        );
+        *slot.borrow_mut() = Some(DurableCommitObserverForTest {
+            remaining: count,
+            observe: Box::new(observe),
+        });
+    });
+}
+
+#[inline]
+fn observe_durable_commit_for_test() {
+    #[cfg(any(test, feature = "test-support"))]
+    DURABLE_COMMIT_OBSERVER_FOR_TEST.with(|slot| {
+        let Some(mut observer) = slot.borrow_mut().take() else {
+            return;
+        };
+        (observer.observe)();
+        observer.remaining = observer
+            .remaining
+            .checked_sub(1)
+            .expect("durable-commit observer count underflowed");
+        if observer.remaining > 0 {
+            *slot.borrow_mut() = Some(observer);
+        }
+    });
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

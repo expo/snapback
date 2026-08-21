@@ -109,6 +109,7 @@ impl LocalDatabase {
             previous,
             issued_at_ms,
         )?;
+        super::observe_durable_commit_for_test();
         tx.commit()?;
         Ok(range)
     }
@@ -137,6 +138,7 @@ impl LocalDatabase {
             authority_instance_id,
             issued_at_ms,
         )?;
+        super::observe_durable_commit_for_test();
         tx.commit()?;
         Ok(
             crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
@@ -333,6 +335,7 @@ impl LocalDatabase {
                 })?;
             save_meta_u64(&tx, META_CLIENT_MUTATION_GC_TOTAL, gc_total)?;
         }
+        super::observe_durable_commit_for_test();
         tx.commit()?;
         Ok(deleted)
     }
@@ -450,6 +453,7 @@ impl LocalDatabase {
                 deleted
             }
         };
+        super::observe_durable_commit_for_test();
         tx.commit()?;
         Ok(deleted)
     }

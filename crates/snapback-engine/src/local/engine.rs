@@ -194,11 +194,6 @@ thread_local! {
     static AFTER_ADMISSION_EFFECT_GUARD_HOOK:
         std::cell::RefCell<Option<Box<dyn FnOnce(AdmissionEffectSite)>>> =
         std::cell::RefCell::new(None);
-    /// One-shot observation after a successful durable write and before its
-    /// admission effect guard leaves scope.
-    static AFTER_ADMISSION_EFFECT_COMMIT_HOOK:
-        std::cell::RefCell<Option<Box<dyn FnOnce(AdmissionEffectSite)>>> =
-        std::cell::RefCell::new(None);
 }
 
 #[cfg(test)]
@@ -223,6 +218,18 @@ enum AdmissionEffectSite {
 }
 
 #[cfg(test)]
+impl AdmissionEffectSite {
+    const fn durable_commit_count(self) -> usize {
+        match self {
+            // Canonical and legacy fingerprints are acknowledged in separate
+            // SQLite transactions; both must remain inside the same guard.
+            Self::ClientMutationAcknowledgement => 2,
+            _ => 1,
+        }
+    }
+}
+
+#[cfg(test)]
 fn run_before_admission_effect_guard_hook(site: AdmissionEffectSite) {
     BEFORE_ADMISSION_EFFECT_GUARD_HOOK.with(|slot| {
         if let Some(hook) = slot.borrow_mut().take() {
@@ -234,15 +241,6 @@ fn run_before_admission_effect_guard_hook(site: AdmissionEffectSite) {
 #[cfg(test)]
 fn run_after_admission_effect_guard_hook(site: AdmissionEffectSite) {
     AFTER_ADMISSION_EFFECT_GUARD_HOOK.with(|slot| {
-        if let Some(hook) = slot.borrow_mut().take() {
-            hook(site);
-        }
-    });
-}
-
-#[cfg(test)]
-fn run_after_admission_effect_commit_hook(site: AdmissionEffectSite) {
-    AFTER_ADMISSION_EFFECT_COMMIT_HOOK.with(|slot| {
         if let Some(hook) = slot.borrow_mut().take() {
             hook(site);
         }
@@ -4732,10 +4730,6 @@ impl LocalSnapback {
             now_ms,
             random,
         );
-        #[cfg(test)]
-        if result.is_ok() {
-            run_after_admission_effect_commit_hook(AdmissionEffectSite::OAuthDynamicRegistration);
-        }
         result
     }
 
@@ -5191,12 +5185,7 @@ impl LocalSnapback {
         let _effect = authority.effect_guard("capability-link mint transaction")?;
         #[cfg(test)]
         run_after_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkMint);
-        let result = self.db.mint_capability_link(request);
-        #[cfg(test)]
-        if result.is_ok() {
-            run_after_admission_effect_commit_hook(AdmissionEffectSite::CapabilityLinkMint);
-        }
-        result
+        self.db.mint_capability_link(request)
     }
 
     pub fn consume_capability_link_use(
@@ -5213,18 +5202,12 @@ impl LocalSnapback {
         let _effect = authority.effect_guard("capability-link use consumption transaction")?;
         #[cfg(test)]
         run_after_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkConsume);
-        let result = self
-            .db
+        self.db
             .consume_capability_link_use(link.id(), now_ms)
             .map(|use_| ConsumedCapabilityLinkUse {
                 link_id: link.id().to_owned(),
                 ordinal: use_.ordinal,
-            });
-        #[cfg(test)]
-        if result.is_ok() {
-            run_after_admission_effect_commit_hook(AdmissionEffectSite::CapabilityLinkConsume);
-        }
-        result
+            })
     }
 
     pub fn settle_capability_link_use(
@@ -5242,14 +5225,8 @@ impl LocalSnapback {
         let _effect = authority.effect_guard("capability-link use settlement transaction")?;
         #[cfg(test)]
         run_after_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkSettle);
-        let result =
-            self.db
-                .settle_capability_link_use(&use_.link_id, use_.ordinal, outcome, now_ms);
-        #[cfg(test)]
-        if result.is_ok() {
-            run_after_admission_effect_commit_hook(AdmissionEffectSite::CapabilityLinkSettle);
-        }
-        result
+        self.db
+            .settle_capability_link_use(&use_.link_id, use_.ordinal, outcome, now_ms)
     }
 
     pub fn revoke_capability_link(
@@ -5286,14 +5263,8 @@ impl LocalSnapback {
         let _effect = authority.effect_guard("capability-link revoke transaction")?;
         #[cfg(test)]
         run_after_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkRevoke);
-        let result =
-            self.db
-                .revoke_capability_link(id, user_id, session_id, authority_instance_id, now_ms);
-        #[cfg(test)]
-        if result.is_ok() {
-            run_after_admission_effect_commit_hook(AdmissionEffectSite::CapabilityLinkRevoke);
-        }
-        result
+        self.db
+            .revoke_capability_link(id, user_id, session_id, authority_instance_id, now_ms)
     }
 
     pub fn effective_agents_manifest(&self) -> crate::manifest::AgentsManifest {
@@ -6010,12 +5981,7 @@ impl LocalSnapback {
         let _effect = authority.effect_guard("push batch claim")?;
         #[cfg(test)]
         run_after_admission_effect_guard_hook(AdmissionEffectSite::PushBatchClaim);
-        let result = self.db.push_registry().claim_batch(batch_id, now_ms);
-        #[cfg(test)]
-        if result.is_ok() {
-            run_after_admission_effect_commit_hook(AdmissionEffectSite::PushBatchClaim);
-        }
-        result
+        self.db.push_registry().claim_batch(batch_id, now_ms)
     }
 
     pub fn mark_push_batch_transmitting(
@@ -6031,15 +5997,9 @@ impl LocalSnapback {
         let _effect = authority.effect_guard("push batch transmitting marker")?;
         #[cfg(test)]
         run_after_admission_effect_guard_hook(AdmissionEffectSite::PushBatchTransmitting);
-        let result = self
-            .db
+        self.db
             .push_registry()
-            .mark_batch_transmitting(claim, now_ms);
-        #[cfg(test)]
-        if result.is_ok() {
-            run_after_admission_effect_commit_hook(AdmissionEffectSite::PushBatchTransmitting);
-        }
-        result
+            .mark_batch_transmitting(claim, now_ms)
     }
 
     pub fn settle_push_batch(
@@ -6056,15 +6016,9 @@ impl LocalSnapback {
         let _effect = authority.effect_guard("push batch settlement")?;
         #[cfg(test)]
         run_after_admission_effect_guard_hook(AdmissionEffectSite::PushBatchSettlement);
-        let result = self
-            .db
+        self.db
             .push_registry()
-            .settle_batch(claim, settlement, now_ms);
-        #[cfg(test)]
-        if result.is_ok() {
-            run_after_admission_effect_commit_hook(AdmissionEffectSite::PushBatchSettlement);
-        }
-        result
+            .settle_batch(claim, settlement, now_ms)
     }
 
     pub fn push_intent_state(&mut self, intent_id: &str) -> SnapbackResult<String> {
@@ -6813,7 +6767,7 @@ impl LocalSnapback {
         let _effect = authority.effect_guard("push durable reservation")?;
         #[cfg(test)]
         run_after_admission_effect_guard_hook(AdmissionEffectSite::PushReservation);
-        let result = self.db.push_registry().reserve_send_admitted_storage(
+        self.db.push_registry().reserve_send_admitted_storage(
             declaration,
             schema,
             push_authority,
@@ -6821,12 +6775,7 @@ impl LocalSnapback {
             deferred_grant,
             request,
             now_ms,
-        );
-        #[cfg(test)]
-        if result.is_ok() {
-            run_after_admission_effect_commit_hook(AdmissionEffectSite::PushReservation);
-        }
-        result
+        )
     }
 
     #[cfg(test)]
@@ -10502,20 +10451,13 @@ impl LocalSnapback {
                 &descriptor.authority_instance_id,
                 ids,
             )?;
-        let result = current.checked_add(legacy).ok_or_else(|| {
+        current.checked_add(legacy).ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
                 "storage",
                 "acknowledged settlement count overflowed across auth aliases",
             )
-        });
-        #[cfg(test)]
-        if result.is_ok() {
-            run_after_admission_effect_commit_hook(
-                AdmissionEffectSite::ClientMutationAcknowledgement,
-            );
-        }
-        result
+        })
     }
 
     pub fn descriptor_for_prepared_authority(
@@ -22813,13 +22755,10 @@ impl LocalSnapback {
                 return Err(error);
             }
         };
-        let result = Ok(crate::watches::CreatedWatch {
+        Ok(crate::watches::CreatedWatch {
             watch,
             webhook_secret: generated_webhook_secret,
-        });
-        #[cfg(test)]
-        run_after_admission_effect_commit_hook(AdmissionEffectSite::WatchCreation);
-        result
+        })
     }
 
     pub fn list_watches(
