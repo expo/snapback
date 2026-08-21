@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:fcab1c6ba754e26aa6a92aae49abe13e8a25019c3c7efe23a86c0e44d9a23c50 -->
+<!-- start-packet:begin expo-chat digest=sha256:7ecc0dac7a82f92467ed9df0da06418745b2929be365438fdedb88b930e35648 -->
 This packet is the whole required first read for this app (LLP 0259
 Rung A). Open the edit targets below and work; open one further Guide page
 only via `snapback guide <query>` or on a trigger — the brief is outside
@@ -14,32 +14,33 @@ Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
 launches a device or simulator — Expo Go, a dev client, or
 `expo run:ios|android` is your job) → `bun run prove`.
 
-`bun run prove` (`npm run prove` is equivalent) is the acceptance command:
-it runs the registered live profile through `snapback verify` and writes
-the receipt to `.snapback/verify-receipt.json`. Done = green receipt.
-Carrier kits: `npm run carry:headless`, `npm run carry:web-browser`,
-`npm run carry:native-simulator` (owns simulator boot, deep-link drive, and
-screenshots); `npm run carry:self-check` validates without a server. If you
-launch Metro yourself, do not inherit `CI=1` — a truthy `CI` disables file
-watching and serves a stale bundle; prefer `bun run dev`.
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`, `bun run carry:native-simulator`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+The native carrier owns simulator boot, drive, and screenshots. Self-started
+Metro must not inherit `CI=1` (it disables watching); prefer `bun run dev`.
 
 ## Edit targets (work files — listed, not charged to the first read)
 
-- `snapback/schema.mjs` — sessions mode with guest, password, and email-code
-  entry (`defineAuth` + `{ auth: { mode: 'sessions' } }`), tables for users,
-  conversations, memberships, messages, reactions; ephemeral `typing`.
+- `snapback/schema.mjs` — sessions auth; user/conversation/membership/message/
+  reaction tables; ephemeral `typing`.
 - `snapback/functions.mjs` — inbox and thread live queries, `sendText` /
   `sendReply` / `react` mutations, and the bound `send` command.
 - `snapback/seed.json` — seeded demo personas and conversations.
-- `App.tsx` — boot: `SnapbackExpoProvider` with the generated `app`
-  descriptor; `registerExpoFileSystemRqsFiles` at the root gives retained
-  offline rendering on native (web uses the browser persistence arm).
-  `useSnapbackCurrentPrincipal` and `useSnapbackAuth` provide the ordinary
-  password signup/sign-in/current-principal/sign-out journey.
+- `App.tsx` — generated `app` → `SnapbackExpoProvider`; native retained files;
+  password entry via `useSnapbackCurrentPrincipal` / `useSnapbackAuth`.
 - `src/screens/inbox-screen.tsx` / `src/screens/chat-screen.tsx` — the
-  consumers: `useSnapbackQuery` for inbox rows; one `useSurface` handle
-  drives the thread (live reads, replies, reactions, typing presence,
-  image upload) from `@expo/snapback-expo`.
+  `useSnapbackQuery` inbox and `useSurface` thread (replies, reactions,
+  typing, upload) from `@expo/snapback-expo`.
 - `acceptance.mjs` + `snapback.verify.config.mjs` — the registered proof.
 
 `snapback/generated/` is codegen-owned: regenerate, commit
@@ -48,10 +49,8 @@ watching and serves a stale bundle; prefer `bun run dev`.
 ## Posture
 
 - **Auth: sessions mode, guest-first plus ordinary password entry.** The
-  generated application descriptor opts into the first-party auth path and
-  reaches anonymous `ready` before entry. Recovery codes surface once after
-  password signup. The supervised dev loop may also provide a guest session
-  for authenticated sends and in-app image upload.
+  app reaches anonymous `ready`; recovery codes surface once after signup.
+  Supervised dev may provide a guest session for sends and image upload.
 - **Custody: `volatile-explicit`.** Native durable custody is still pending
   Phase 2, so this disposable chat template says memory custody explicitly;
   it does not claim durable native custody or silently weaken a durable

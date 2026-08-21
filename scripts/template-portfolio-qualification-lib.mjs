@@ -24,6 +24,96 @@ import {
 // accept each entry against either exact tarballs or the published closure.
 const RECEIPT_SCHEMA_VERSION = 'snapback.template-portfolio-qualification.v1';
 const SNAPBACK_PACKAGE_PATTERN = /^@expo\/snapback-/u;
+const REQUIRED_TEMPLATE_SCRIPTS = Object.freeze([
+  'generate',
+  'prove',
+  'test',
+  'test:static',
+  'carry:headless',
+  'carry:self-check',
+]);
+const OBSERVATION_CARRIER_ORDER = Object.freeze([
+  'carry:headless',
+  'carry:web-browser',
+  'carry:native-simulator',
+]);
+
+export function renderTemplateScriptGlossary(manifest) {
+  const observationScripts = OBSERVATION_CARRIER_ORDER
+    .filter((script) => typeof manifest.scripts?.[script] === 'string')
+    .map((script) => `\`bun run ${script}\``)
+    .join(', ');
+  return [
+    '<!-- script-glossary:begin -->',
+    '## Script glossary',
+    '',
+    '`bun run prove`: ordinary completion and the only done-oracle—the authoritative',
+    'aggregate `snapback verify` receipt (acceptance evidence, not formal proof).',
+    '`npm test`: raw acceptance implementation that `prove` wraps (debugging).',
+    '`bun run test:static`: no-server source/generated coherence.',
+    `${observationScripts}: observation artifacts after accepting the \`prove\` receipt,`,
+    'never proof authority. `bun run carry:self-check` checks carrier wiring only.',
+    'Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.',
+    '<!-- script-glossary:end -->',
+  ].join('\n');
+}
+
+export function assertTemplateScriptSurface({ name, manifest, readme, instructions }) {
+  for (const script of REQUIRED_TEMPLATE_SCRIPTS) {
+    if (typeof manifest.scripts?.[script] !== 'string') {
+      throw new Error(`${name} omits ${script}`);
+    }
+  }
+  if (Object.hasOwn(manifest.scripts, 'test:live')) {
+    throw new Error(`${name} retains removed script test:live`);
+  }
+  const expectedCommands = new Map([
+    ['test', 'node acceptance.mjs'],
+    ['test:static', 'node acceptance.static.mjs'],
+    ['carry:headless', 'node carrier.mjs headless'],
+    ['carry:web-browser', 'node carrier.mjs web-browser'],
+    ['carry:native-simulator', 'node carrier.mjs native-simulator'],
+    ['carry:self-check', 'node carrier.mjs --self-check --json'],
+  ]);
+  if (!/^snapback verify snapback(?:\s|$)/u.test(manifest.scripts.prove)) {
+    throw new Error(`${name} changes prove command class: ${manifest.scripts.prove}`);
+  }
+  for (const [script, expected] of expectedCommands) {
+    const actual = manifest.scripts[script];
+    if (actual !== undefined && actual !== expected) {
+      throw new Error(`${name} changes ${script} command class: ${actual}`);
+    }
+  }
+
+  const expectedGlossary = renderTemplateScriptGlossary(manifest);
+  for (const [surface, document] of [['README', readme], ['start packet', instructions]]) {
+    if (!document.includes(expectedGlossary)) {
+      throw new Error(`${name} ${surface} script glossary disagrees with package.json`);
+    }
+    const documentedCarriers = new Set(document.match(/carry:(?:headless|web-browser|native-simulator|self-check)/gu) ?? []);
+    for (const script of documentedCarriers) {
+      if (typeof manifest.scripts[script] !== 'string') {
+        throw new Error(`${name} ${surface} documents missing script ${script}`);
+      }
+    }
+  }
+  return Object.freeze({
+    commands: Object.freeze({
+      ordinaryCompletion: 'bun run prove',
+      staticChecking: 'bun run test:static',
+      rawAcceptanceDebugging: 'npm test',
+      browserObservation: typeof manifest.scripts['carry:web-browser'] === 'string'
+        ? 'bun run carry:web-browser'
+        : null,
+      simulatorObservation: typeof manifest.scripts['carry:native-simulator'] === 'string'
+        ? 'bun run carry:native-simulator'
+        : null,
+    }),
+    carriers: OBSERVATION_CARRIER_ORDER
+      .filter((script) => typeof manifest.scripts[script] === 'string')
+      .map((script) => script.slice('carry:'.length)),
+  });
+}
 
 function run(command, args, {
   cwd,
@@ -351,13 +441,10 @@ export function selfCheckTemplatePortfolio(sourceCliRoot) {
   const records = templates.map((name) => {
     const root = join(cliRoot, 'templates', name);
     const manifest = readJson(join(root, 'package.json'));
+    const readme = readFileSync(join(root, 'README.md'), 'utf8');
     const instructions = readFileSync(join(root, 'AGENTS.md'), 'utf8');
     const carrier = readFileSync(join(root, 'carrier.mjs'), 'utf8');
-    for (const script of ['generate', 'prove', 'test:static', 'carry:headless', 'carry:self-check']) {
-      if (typeof manifest.scripts?.[script] !== 'string') {
-        throw new Error(`${name} omits ${script}`);
-      }
-    }
+    const scriptSurface = assertTemplateScriptSurface({ name, manifest, readme, instructions });
     if (!instructions.includes('carry:headless')
         || !carrier.includes('snapback.template-carriers.v1')) {
       throw new Error(`${name} does not register its carrier kit for a cold agent`);
@@ -370,6 +457,9 @@ export function selfCheckTemplatePortfolio(sourceCliRoot) {
         throw new Error(`${name} does not register its ${candidate} carrier for a cold agent`);
       }
       carriers.push(candidate);
+    }
+    if (carriers.join('\0') !== scriptSurface.carriers.join('\0')) {
+      throw new Error(`${name} carrier registration disagrees with its script glossary`);
     }
     return Object.freeze({ id: name, carriers });
   });

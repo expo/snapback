@@ -33,7 +33,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:6b0fe4b5843be43b7a0439461390cc21c52e33f00744b88b5074fe0e50266d42"
+      "digest": "sha256:b60ee02ef7bbbf9bc5e819d2a416b7f915df9d64def8c8bd08bde497ff08824c"
     },
     "expo-chat": {
       "template": "expo-chat",
@@ -68,7 +68,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:fcab1c6ba754e26aa6a92aae49abe13e8a25019c3c7efe23a86c0e44d9a23c50"
+      "digest": "sha256:7ecc0dac7a82f92467ed9df0da06418745b2929be365438fdedb88b930e35648"
     },
     "crud-dashboard": {
       "template": "crud-dashboard",
@@ -95,7 +95,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:b554883fef971228106e7cbf3e82738dd9dc815a7c9f205b05366930f4f089f0"
+      "digest": "sha256:e8971f80598581cbc0017f45d277334762033dbd6ef081e480d559a8e12cd5f5"
     },
     "media-feed": {
       "template": "media-feed",
@@ -123,7 +123,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:92fe4d7d97c203a257eb3747ce3020cf3b8ff1af51382a4ff49b3c1fe645b11a"
+      "digest": "sha256:21c8bf24cf47c6840e30d42ae901cfc3151c0eed830b93941054214ebb9ccc55"
     },
     "todo-contract": {
       "template": "todo-contract",
@@ -150,7 +150,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:b16be0861943e1b1d92e99ce4c6b625e797e5e06b216f3be1867da9a8fc87b32"
+      "digest": "sha256:980387403ea0ced62809cff2054f9eb3362f8c38fc5fbd4095e3569ee5aff1f6"
     }
   }
 }

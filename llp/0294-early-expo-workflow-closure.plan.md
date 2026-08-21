@@ -6,6 +6,9 @@
 Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-19
+**Revised:** 2026-08-21 (OQ5 resolved by orchestrator ruling under LLP 0196:
+keep `test` and `test:static`, remove the redundant template `test:live` alias,
+and require a manifest-checked script glossary.)
 **Revised:** 2026-08-19 (initial draft from early-user feedback)
 **Related:** LLP 0041, LLP 0044, LLP 0045, LLP 0146, LLP 0176, LLP 0181,
 LLP 0196, LLP 0259, LLP 0275, Diary 0091,
@@ -108,12 +111,12 @@ the boundary and recovery path, not substitute for a working command.
 4. Give every scaffold one short script glossary generated or checked from
    the actual `package.json`. It must state that `prove` is the authoritative
    aggregate, `test` is the raw starter acceptance implementation,
-   `test:static` is no-server coherence, `test:live` is currently an alias, and
-   `carry:*` drives a carrier only after accepting the `prove` receipt.
-5. Decide in LLP 0196 whether lower-level aliases remain public starter
-   scripts. If they remain, the glossary is mandatory; if they are internal
-   debugging inputs, move them behind one clearly named namespace without
-   breaking existing automation silently.
+   `test:static` is no-server coherence, `test:live` was removed with an
+   explicit migration to `test`, and `carry:*` drives a carrier only after
+   accepting the `prove` receipt.
+5. Apply the resolved LLP 0196 script-surface ruling recorded in OQ5: keep the
+   discoverable raw/static scripts, remove only the redundant live alias, and
+   drift-check the glossary against command classes in every template.
 
 Direct work is tracked by the two existing LLP 0275 tickets plus
 `issues/20260819-verify-starter-receipt-field-diagnostics.md` and
@@ -284,5 +287,15 @@ packages outside the repository workspace:
    retained HEIC original the better custody and export contract?
 4. Did the notification feedback mean SMS, in-app chat, or a composed workflow
    in which one durable message optionally fans out to SMS?
-5. After the glossary lands, do `test` and `test:live` still earn top-level
-   starter script names?
+5. **Resolved 2026-08-21 under LLP 0196 — starter script names.** Keep `test`
+   and `test:static` as top-level scripts: breaking bare `npm test` raises
+   discovery cost and breaks the cold-install proof, which runs it three
+   times. Remove `test:live` from all five templates because it was a
+   byte-identical alias of `test` with no consumer beyond equality assertions;
+   migrate callers to `npm test`. Every template README and start packet must
+   carry a `package.json`-derived or drift-checked glossary: `prove` is the
+   only done-oracle and its authoritative aggregate `snapback verify` receipt
+   is acceptance evidence, not formal proof; `test` is the raw acceptance
+   implementation for debugging; `test:static` is no-server coherence; and
+   `carry:*` retains observation artifacts only after accepting the `prove`
+   receipt, never as proof authority.

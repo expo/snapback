@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin react digest=sha256:6b0fe4b5843be43b7a0439461390cc21c52e33f00744b88b5074fe0e50266d42 -->
+<!-- start-packet:begin react digest=sha256:b60ee02ef7bbbf9bc5e819d2a416b7f915df9d64def8c8bd08bde497ff08824c -->
 This packet is the whole required first read for this app (LLP 0259
 Rung A). Open the edit targets below and work; open one further Guide page
 only via `snapback guide <query>` or on a trigger — the brief is outside
@@ -16,9 +16,18 @@ Vite; it prints the admin console URL) → `bun run prove`.
 `bun run prove` (`npm run prove` is equivalent) is the acceptance command:
 it runs the registered live profile through `snapback verify` and writes
 the receipt to `.snapback/verify-receipt.json`. Done = green receipt.
-Carrier kits when you need a driven environment: `npm run carry:headless`,
-`npm run carry:web-browser`; `npm run carry:self-check` validates without a
-server.
+
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
 
 ## Edit targets (work files — listed, not charged to the first read)
 

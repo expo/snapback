@@ -6,6 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (template script surface):** 2026-08-21 (the LLP 0196 ruling keeps
+top-level `test` and `test:static`, removes the redundant template `test:live`
+alias with migration to `npm test`, and makes the README/start-packet glossary
+manifest-checked.)
+
 **Revised (0.1.24 ceremony complete):** 2026-08-17 (the thirteen-package
 closure published and promoted from `f8cbf3d253b5`; custody first-published;
 the first-publish gate is closed; see §0.1.24 for the completed record and
@@ -108,7 +113,8 @@ channel and no longer stops the managed loop).
 **Revised (live generated acceptance defaults):** 2026-08-05 (the generated
 todo and React starters now map default `test` to isolated runtime acceptance
 with a bounded identity/check/cleanup receipt; static scaffold coherence is
-explicitly `test:static`, and `test:live` remains a compatibility alias.)
+explicitly `test:static`; `test:live` was a compatibility alias at this
+revision and was removed by the 2026-08-21 template script-surface ruling.)
 
 **Revised (first-publication bootstrap lineage):** 2026-08-01 (see §First-publication `latest` bootstrap lineage: "record and move on" — no bootstrap path built; 0.1.7's npm-auto-`latest` first publish recorded as dated lineage.)
 
@@ -1123,8 +1129,9 @@ artifact identity to the generated review manifest, executes a real query and
 mutation through the template's product client, refuses zero/short execution,
 and emits a bounded `snapback.starter-acceptance.v1` receipt only after cleanup.
 Static generated-file/source coherence remains available as `test:static` and
-cannot satisfy the acceptance claim. `test:live` is a compatibility alias for
-the runtime default, not a stronger opt-in tier.
+cannot satisfy the acceptance claim. The 2026-08-21 LLP 0196 script-surface
+ruling removed the byte-identical `test:live` compatibility alias from all five
+templates; callers use `npm test` for the same raw runtime acceptance path.
 
 ### Demo dependency policy
 

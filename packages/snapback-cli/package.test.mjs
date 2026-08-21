@@ -45,6 +45,7 @@ import {
   defineTemplateCarrierConfig,
   selfCheckTemplateCarrierConfig,
 } from './carrier-kit.mjs';
+import { assertTemplateScriptSurface } from '../../scripts/template-portfolio-qualification-lib.mjs';
 
 const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'snapback-cli-package-')));
 // issues/closed/20260810-expo-chat-template-pins-trail-the-closure: scaffoldApp
@@ -82,6 +83,14 @@ const assertStartPacketTransclusion = (agentInstructions, templateName) => {
     `${templateName} transcluded packet must match guide/start/${templateName}.md (run scripts/check-first-read.mjs --write)`,
   );
 };
+const assertScaffoldScriptSurface = (projectRoot, templateName, manifest) => (
+  assertTemplateScriptSurface({
+    name: templateName,
+    manifest,
+    readme: readFileSync(join(projectRoot, 'README.md'), 'utf8'),
+    instructions: readFileSync(join(projectRoot, 'AGENTS.md'), 'utf8'),
+  })
+);
 try {
   const packagedSkillContent = readFileSync(
     new URL('./skills/snapback-authoring/SKILL.md', import.meta.url),
@@ -436,7 +445,7 @@ console.log(JSON.stringify({
   assert.equal(manifest.dependencies['@expo/snapback-cli'], SCAFFOLD_PIN);
   assert.equal(manifest.scripts.test, 'node acceptance.mjs');
   assert.equal(manifest.scripts['test:static'], 'node acceptance.static.mjs');
-  assert.equal(manifest.scripts['test:live'], manifest.scripts.test);
+  assert.equal(manifest.scripts['test:live'], undefined);
   assert.match(manifest.scripts.prove, /^snapback verify snapback /u);
   assert.equal(manifest.scripts['carry:headless'], 'node carrier.mjs headless');
   assert.equal(manifest.scripts['carry:self-check'], 'node carrier.mjs --self-check --json');
@@ -453,6 +462,14 @@ console.log(JSON.stringify({
   );
   const todoAgentInstructions = readFileSync(join(project, 'AGENTS.md'), 'utf8');
   assertStartPacketTransclusion(todoAgentInstructions, 'todo-contract');
+  const todoScriptSurface = assertScaffoldScriptSurface(project, 'todo-contract', manifest);
+  assert.deepEqual(todoScriptSurface.commands, {
+    ordinaryCompletion: 'bun run prove',
+    staticChecking: 'bun run test:static',
+    rawAcceptanceDebugging: 'npm test',
+    browserObservation: null,
+    simulatorObservation: null,
+  });
   assert.match(todoAgentInstructions, /snapback guide <query>/u);
   assert.match(todoAgentInstructions, /snapback mcp/u);
   assert.match(todoAgentInstructions, /snapback-authoring/u);
@@ -476,12 +493,13 @@ console.log(JSON.stringify({
   assert.match(reactManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
   assert.equal(reactManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(reactManifest.scripts['test:static'], 'node acceptance.static.mjs');
-  assert.equal(reactManifest.scripts['test:live'], reactManifest.scripts.test);
+  assert.equal(reactManifest.scripts['test:live'], undefined);
   assert.match(reactManifest.scripts.prove, /^snapback verify snapback /u);
   assert.equal(reactManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
   assert.equal(existsSync(join(reactProject, 'snapback.verify.config.mjs')), true);
   const reactAgentInstructions = readFileSync(join(reactProject, 'AGENTS.md'), 'utf8');
   assertStartPacketTransclusion(reactAgentInstructions, 'react');
+  assertScaffoldScriptSurface(reactProject, 'react', reactManifest);
   assert.match(reactAgentInstructions, /snapback guide <query>/u);
   assert.match(reactAgentInstructions, /snapback mcp/u);
   assert.match(reactAgentInstructions, /snapback-authoring/u);
@@ -520,9 +538,13 @@ console.log(JSON.stringify({
   assertScaffoldedAuthoringSkill(crudProject, crudScaffold);
   const crudManifest = JSON.parse(readFileSync(join(crudProject, 'package.json'), 'utf8'));
   assert.match(crudManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
+  assert.equal(crudManifest.scripts.test, 'node acceptance.mjs');
+  assert.equal(crudManifest.scripts['test:static'], 'node acceptance.static.mjs');
+  assert.equal(crudManifest.scripts['test:live'], undefined);
   assert.match(crudManifest.scripts.prove, /^snapback verify snapback /u);
   assert.equal(crudManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
   assert.equal(existsSync(join(crudProject, 'snapback.verify.config.mjs')), true);
+  assertScaffoldScriptSurface(crudProject, 'crud-dashboard', crudManifest);
   const generatedCrud = await generateApp(join(crudProject, 'snapback'));
   assert.equal(generatedCrud.ok, true, JSON.stringify(generatedCrud.diagnostics));
   assert.equal(generatedCrud.summary.counts.degradedResults, 0);
@@ -545,9 +567,13 @@ console.log(JSON.stringify({
   assert.match(mediaManifest.dependencies['@expo/snapback-expo'], /^\^\d+\.\d+\.\d+/);
   assert.equal(mediaManifest.dependencies['expo-image-picker'], '~57.0.7');
   assert.equal(mediaManifest.scripts.web, 'expo start --web');
+  assert.equal(mediaManifest.scripts.test, 'node acceptance.mjs');
+  assert.equal(mediaManifest.scripts['test:static'], 'node acceptance.static.mjs');
+  assert.equal(mediaManifest.scripts['test:live'], undefined);
   assert.match(mediaManifest.scripts.prove, /^snapback verify snapback /u);
   assert.equal(mediaManifest.scripts['carry:native-simulator'], 'node carrier.mjs native-simulator');
   assert.equal(existsSync(join(mediaProject, 'snapback.verify.config.mjs')), true);
+  assertScaffoldScriptSurface(mediaProject, 'media-feed', mediaManifest);
   const generatedMedia = await generateApp(join(mediaProject, 'snapback'));
   assert.equal(generatedMedia.ok, true, JSON.stringify(generatedMedia.diagnostics));
   assert.equal(generatedMedia.summary.counts.degradedResults, 0);
@@ -578,7 +604,7 @@ console.log(JSON.stringify({
   assert.deepEqual(chatAppConfig.expo.platforms, ['ios', 'android', 'web']);
   assert.equal(chatManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(chatManifest.scripts['test:static'], 'node acceptance.static.mjs');
-  assert.equal(chatManifest.scripts['test:live'], chatManifest.scripts.test);
+  assert.equal(chatManifest.scripts['test:live'], undefined);
   assert.equal(chatManifest.scripts.web, 'expo start --web');
   assert.match(chatManifest.scripts.prove, /^snapback verify snapback /u);
   assert.equal(chatManifest.scripts['carry:native-simulator'], 'node carrier.mjs native-simulator');
@@ -594,6 +620,14 @@ console.log(JSON.stringify({
   assert.deepEqual(chatExpoManifest.expo.platforms, ['ios', 'android', 'web']);
   const chatAgentInstructions = readFileSync(join(chatProject, 'AGENTS.md'), 'utf8');
   assertStartPacketTransclusion(chatAgentInstructions, 'expo-chat');
+  const chatScriptSurface = assertScaffoldScriptSurface(chatProject, 'expo-chat', chatManifest);
+  assert.deepEqual(chatScriptSurface.commands, {
+    ordinaryCompletion: 'bun run prove',
+    staticChecking: 'bun run test:static',
+    rawAcceptanceDebugging: 'npm test',
+    browserObservation: 'bun run carry:web-browser',
+    simulatorObservation: 'bun run carry:native-simulator',
+  });
   assert.match(chatAgentInstructions, /snapback guide <query>/u);
   assert.match(chatAgentInstructions, /snapback mcp/u);
   assert.match(chatAgentInstructions, /snapback-authoring/u);

@@ -1,6 +1,6 @@
 # Explain and simplify scaffold proof scripts
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 4
 **Ease:** 4
@@ -46,3 +46,15 @@ The current semantics are non-obvious:
 - No carrier log or raw test output is described as a second proof authority.
 - Existing automation receives a documented migration if public script names
   change.
+
+## Resolution
+
+Resolved 2026-08-21 under the LLP 0196 ruling recorded at LLP 0294 OQ5.
+All five templates retain `test` and `test:static`; the byte-identical
+`test:live` alias is removed with migration to `npm test`. Every template
+README and start packet now carries the manifest-derived script glossary, and
+the template-portfolio qualification self-check fails on missing scripts,
+changed command classes, or documentation drift. The first-read packet and
+create/help surfaces use the same command taxonomy.
+
+**Landing SHA:** TBD

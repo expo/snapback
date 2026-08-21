@@ -10,7 +10,8 @@ const runtimeAcceptance = readFileSync(new URL('./acceptance.mjs', import.meta.u
 assert.equal(artifacts.artifactKind, 'artifactIndex');
 assert.deepEqual(functions.functions.map((fn) => fn.name).sort(), ['createTodo', 'listTodos']);
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
-assert.match(agentInstructions, /the acceptance command/);
+assert.match(agentInstructions, /only done-oracle/);
+assert.equal(packageManifest.scripts['test:live'], undefined);
 assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
 assert.match(agentInstructions, /carry:headless/);
 assert.match(carrierSource, /headless:\s*\{\}/);

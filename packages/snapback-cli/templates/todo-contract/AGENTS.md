@@ -1,23 +1,25 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin todo-contract digest=sha256:b16be0861943e1b1d92e99ce4c6b625e797e5e06b216f3be1867da9a8fc87b32 -->
+<!-- start-packet:begin todo-contract digest=sha256:980387403ea0ced62809cff2054f9eb3362f8c38fc5fbd4095e3569ee5aff1f6 -->
 Mental model first: [Snapback in one screen](/_snapback/guide/start/mental-model.md) — that page
 plus this stub is the whole first read (LLP 0259 Rung A).
 
-- This starter is backend + headless client only — no UI ships. Want a UI
-  out of the box? Scaffold `react` or `expo-chat` instead.
-- Loop: edit `snapback/schema.mjs` + `snapback/functions.mjs` +
-  `snapback/seed.json` → `bun run generate` → `bun run dev` →
-  `bun run prove` — the acceptance command (receipt:
-  `.snapback/verify-receipt.json`); carrier kit: `npm run carry:headless`.
-- Consumer: the headless `SnapbackClient` — `client.query(api.listTodos,
-  {})` and `client.mutate(api.createTodo, …)` as `acceptance.mjs` shows.
-- Auth: dev mode; flip to `{ auth: { mode: 'sessions' } }` before users or
-  uploads.
-- `snapback/generated/` is codegen-owned (commit
-  `generated/artifacts.json`).
-- Escalate one page at a time: `snapback guide <query>`.
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+Backend + headless. Edit `snapback/{schema,functions}.mjs` and `seed.json`
+→ `generate` → `dev` → `prove`; generated files are codegen-owned.
+`SnapbackClient` is the consumer. Escalate with `snapback guide <query>`.
 <!-- start-packet:end -->
 
 ## Operate it

@@ -1,25 +1,25 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin media-feed digest=sha256:92fe4d7d97c203a257eb3747ce3020cf3b8ff1af51382a4ff49b3c1fe645b11a -->
-Mental model first: [Snapback in one screen](/_snapback/guide/start/mental-model.md) — that page
-plus this stub is the whole first read (LLP 0259 Rung A).
+<!-- start-packet:begin media-feed digest=sha256:21c8bf24cf47c6840e30d42ae901cfc3151c0eed830b93941054214ebb9ccc55 -->
+Mental model: [Snapback in one screen](/_snapback/guide/start/mental-model.md); with this stub it is
+the whole first read.
 
-- Loop: edit `snapback/schema.mjs` + `snapback/functions.mjs` +
-  `snapback/seed.json` → `bun run generate` → `bun run dev` →
-  `bun run prove` — the acceptance command (receipt:
-  `.snapback/verify-receipt.json`); carrier kit:
-  `npm run carry:native-simulator`.
-- Edit targets: those three plus `App.tsx` and `pagination.mjs`;
-  `snapback/generated/` is codegen-owned (commit
-  `generated/artifacts.json`).
-- Consumer: Expo + `useSnapbackQuery`; the `publishEntry` command owns
-  upload → finalize → typed `assetRef` attach; sessions custody is
-  required for app-side uploads (the supervised loop adopts it).
-- Pagination keys on an immutable `pageKey`: the live head is whole-result
-  replacement; older pages accumulate in component state, deduplicated by
-  `_id`.
-- Escalate one page at a time: `snapback guide <query>`.
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`, `bun run carry:native-simulator`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+Edit `snapback/{schema,functions}.mjs`, `seed.json`, `App.tsx`, and
+`pagination.mjs` → `generate` → `dev` → `prove`. `publishEntry` owns
+upload/finalize/attach. Escalate with `snapback guide <query>`.
 <!-- start-packet:end -->
 
 ## Operate it

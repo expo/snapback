@@ -26,6 +26,11 @@ function usage() {
     ...templates.map((name) => `  ${name}${name === DEFAULT_TEMPLATE ? ' (default)' : ''}`),
     '',
     'Delegates to `snapback new <target-dir> --template <name>`.',
+    '',
+    'After scaffolding: `bun run prove` is ordinary completion and the only',
+    'done-oracle; `bun run test:static` is the no-server check; `npm test` is',
+    'raw acceptance debugging. README/AGENTS.md list template-specific browser',
+    'and simulator observation commands; carriers never replace the prove receipt.',
   ].join('\n');
 }
 
@@ -66,9 +71,12 @@ function nextSteps(result) {
     `  cd ${path}`,
     '  bun install',
     '  bun run dev',
+    '  bun run prove  # ordinary completion; writes the authoritative acceptance receipt',
     '',
-    'Then read AGENTS.md and the served Guide before adding features;',
-    '`bun run test:static` checks the acceptance suite without a live server.',
+    'Then read README.md and AGENTS.md before adding features.',
+    '`bun run test:static` checks no-server coherence; `npm test` runs raw acceptance for debugging.',
+    'README.md lists browser/simulator observation commands available to this template;',
+    'carrier artifacts never replace the prove receipt.',
   ].join('\n');
 }
 

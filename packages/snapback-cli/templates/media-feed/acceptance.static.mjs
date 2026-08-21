@@ -47,7 +47,8 @@ assert.equal(mergePagedArchive({ archive: rolledArchive, head: nextHead }), roll
 assert.match(appSource, /registerExpoFileSystemRqsFiles/);
 assert.deepEqual(expoManifest.expo.platforms, ['ios', 'android', 'web']);
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
-assert.match(instructions, /the acceptance command/);
+assert.match(instructions, /only done-oracle/);
+assert.equal(packageManifest.scripts['test:live'], undefined);
 assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
 assert.equal(packageManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
 assert.equal(packageManifest.scripts['carry:native-simulator'], 'node carrier.mjs native-simulator');

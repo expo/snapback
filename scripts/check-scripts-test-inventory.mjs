@@ -161,6 +161,11 @@ export const SCRIPTS_TEST_INVENTORY = Object.freeze([
     disposition: 'run',
     runner: { mechanism: 'verify-local-proof', gateId: 'telemetry-release-gate-fixtures' },
   },
+  {
+    file: 'scripts/template-portfolio-qualification-lib.test.mjs',
+    disposition: 'run',
+    runner: { mechanism: 'verify-local-proof', gateId: 'template-portfolio-qualification-fixtures' },
+  },
 ]);
 
 function difference(left, right) {

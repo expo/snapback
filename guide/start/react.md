@@ -30,9 +30,18 @@ Vite; it prints the admin console URL) → `bun run prove`.
 `bun run prove` (`npm run prove` is equivalent) is the acceptance command:
 it runs the registered live profile through `snapback verify` and writes
 the receipt to `.snapback/verify-receipt.json`. Done = green receipt.
-Carrier kits when you need a driven environment: `npm run carry:headless`,
-`npm run carry:web-browser`; `npm run carry:self-check` validates without a
-server.
+
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
 
 ## Edit targets (work files — listed, not charged to the first read)
 

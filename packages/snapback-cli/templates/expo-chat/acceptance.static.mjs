@@ -81,6 +81,8 @@ assert.equal(packageManifest.scripts.web, 'expo start --web');
 assert.equal(packageManifest.scripts.dev, 'snapback dev snapback --expo --expo-platform web');
 assert.equal(packageManifest.scripts['dev:native-refusal'], 'snapback dev snapback --expo --expo-platform ios');
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
+assert.match(agentInstructions, /only done-oracle/);
+assert.equal(packageManifest.scripts['test:live'], undefined);
 assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
 assert.equal(packageManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
 assert.equal(packageManifest.scripts['carry:native-simulator'], 'node carrier.mjs native-simulator');

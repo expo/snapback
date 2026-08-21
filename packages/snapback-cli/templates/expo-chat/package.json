@@ -17,8 +17,7 @@
     "typecheck": "tsc --noEmit",
     "prove": "snapback verify snapback --config ./snapback.verify.config.mjs --receipt ./.snapback/verify-receipt.json --json",
     "test": "node acceptance.mjs",
-    "test:static": "node acceptance.static.mjs",
-    "test:live": "node acceptance.mjs"
+    "test:static": "node acceptance.static.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.8",

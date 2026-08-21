@@ -425,6 +425,7 @@ run fastpath-release-fixtures -- node --test scripts/snapback-fastpath-release.t
 run hermes-carrier-staging-fixtures -- node --test scripts/stage-linux-hermes-release.test.mjs
 run package-cold-install-fixtures -- node --test scripts/snapback-package-cold-install.test.mjs
 run local-source-package-closure -- node --test scripts/local-source-package-closure.test.mjs
+run template-portfolio-qualification-fixtures -- node --test scripts/template-portfolio-qualification-lib.test.mjs
 run template-portfolio-self-check -- node scripts/template-registry-canary.mjs --self-check
 # @ref LLP 0196#program — the published-registry half of template freshness
 # is report-only and therefore belongs to LLP 0189's scheduled complete battery,

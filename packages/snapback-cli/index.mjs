@@ -5416,6 +5416,10 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     description: 'Scaffold a Snapback application from a packaged template (default: todo-contract).', lifecycle: 'one-shot',
     output: 'snapback.new.v1 JSON with --json; concise success text otherwise', exits: '0 success; 1 structured CLI/scaffold refusal',
     recovery: 'Fix the named argument/path diagnostic and rerun; existing files are not silently replaced.',
+    details: Object.freeze([
+      'After scaffolding, bun run prove is ordinary completion and the only done-oracle; bun run test:static is no-server coherence; npm test is raw acceptance debugging.',
+      'README.md and AGENTS.md list the browser/simulator observation commands available to that template; carrier artifacts never replace the prove receipt.',
+    ]),
   },
   {
     name: 'generate', usage: 'snapback generate [<backend-dir>] [--target-profile <id>] [--check] [--json]',

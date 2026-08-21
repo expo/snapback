@@ -53,6 +53,10 @@ try {
   assert.match(wrapped.stdout, /cd my-chat/u);
   assert.match(wrapped.stdout, /bun install/u);
   assert.match(wrapped.stdout, /bun run dev/u);
+  assert.match(wrapped.stdout, /bun run prove.*ordinary completion/u);
+  assert.match(wrapped.stdout, /bun run test:static.*no-server coherence/u);
+  assert.match(wrapped.stdout, /npm test.*raw acceptance/u);
+  assert.match(wrapped.stdout, /browser\/simulator observation commands/u);
   const viaSnapbackNew = run(snapbackBin, ['new', join(root, 'reference-chat'), '--template', 'expo-chat'], { cwd: root });
   assert.equal(viaSnapbackNew.status, 0, viaSnapbackNew.stderr);
   assert.deepEqual(
@@ -106,6 +110,10 @@ try {
     assert.ok(help.stdout.includes(template), `--help must list template ${template}`);
   }
   assert.match(help.stdout, /expo-chat \(default\)/u);
+  assert.match(help.stdout, /bun run prove.*ordinary completion/u);
+  assert.match(help.stdout, /bun run test:static.*no-server check/u);
+  assert.match(help.stdout, /npm test.*raw acceptance debugging/su);
+  assert.match(help.stdout, /browser.*simulator observation commands/su);
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

@@ -19,17 +19,19 @@ reviewed-authorities-digest: sha256:775cff52172764ba61fe9e51b068f63a7dd4afc72372
 Mental model first: [Snapback in one screen](./mental-model.md) — that page
 plus this stub is the whole first read (LLP 0259 Rung A).
 
-- This starter is backend + headless client only — no UI ships. Want a UI
-  out of the box? Scaffold `react` or `expo-chat` instead.
-- Loop: edit `snapback/schema.mjs` + `snapback/functions.mjs` +
-  `snapback/seed.json` → `bun run generate` → `bun run dev` →
-  `bun run prove` — the acceptance command (receipt:
-  `.snapback/verify-receipt.json`); carrier kit: `npm run carry:headless`.
-- Consumer: the headless `SnapbackClient` — `client.query(api.listTodos,
-  {})` and `client.mutate(api.createTodo, …)` as `acceptance.mjs` shows.
-- Auth: dev mode; flip to `{ auth: { mode: 'sessions' } }` before users or
-  uploads.
-- `snapback/generated/` is codegen-owned (commit
-  `generated/artifacts.json`).
-- Escalate one page at a time: `snapback guide <query>`.
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+Backend + headless. Edit `snapback/{schema,functions}.mjs` and `seed.json`
+→ `generate` → `dev` → `prove`; generated files are codegen-owned.
+`SnapbackClient` is the consumer. Escalate with `snapback guide <query>`.
 <!-- start-packet:end -->
