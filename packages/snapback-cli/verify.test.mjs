@@ -408,6 +408,7 @@ async function runStarterReceiptFixture({
       acceptanceFile,
       additionalTestFiles: [thisFile],
       paths,
+      provenanceBaseline: paths.map(({ id }) => id),
     });
     assert.deepEqual(starter.testFiles, [realpathSync(acceptanceFile), thisFile]);
     const identityContext = config().context;
@@ -418,6 +419,67 @@ async function runStarterReceiptFixture({
     assert.ok(outcome.conformance.every(({ report }) => (
       report.readProvenance === 'unsupported' && report.writeProvenance === 'unsupported'
     )));
+    assert.deepEqual(starter.coverageCapability, {
+      claim: 'identity-bound-path-observation',
+      baselinePathIds: ['starter-mutation', 'starter-query'],
+      readProvenance: 'unsupported',
+      writeProvenance: 'unsupported',
+    });
+
+    const receipt = await runVerify(config([starter]), passOptions({
+      artifactProbe: async () => starterArtifact(),
+    }));
+    const conformance = receipt.stages[2].evidence.conformance;
+    assert.equal(receipt.ok, true, JSON.stringify(receipt));
+    assert.equal(conformance.status, 'partial');
+    assert.equal(conformance.complete, false);
+    assert.equal(conformance.coverageRequirement, 'path-observation');
+    assert.ok(conformance.pathEvidence.every(({ status, report }) => (
+      status === 'unsupported'
+      && report.readProvenance === 'unsupported'
+      && report.writeProvenance === 'unsupported'
+    )));
+    assert.deepEqual(conformance.diagnostics, []);
+    assert.deepEqual(conformance.overDeclarations, []);
+    assert.equal(receipt.acceptanceProfiles[0].coverageCapability.claim, 'identity-bound-path-observation');
+    assert.equal(receipt.nonclaims.filter((entry) => entry.includes('identity-bound path observation only')).length, 1);
+    assert.equal(validateReceiptSchema(receipt), true, JSON.stringify(validateReceiptSchema.errors));
+
+    const strictReceipt = await runVerify(Object.freeze({
+      ...config([starter]),
+      coverageRequirement: 'complete-operation-provenance',
+    }), passOptions({
+      artifactProbe: async () => starterArtifact(),
+    }));
+    assert.equal(strictReceipt.ok, false);
+    assert.equal(strictReceipt.stages[2].status, 'failed');
+    assert.equal(strictReceipt.stages[2].evidence.conformance.complete, false);
+    assert.equal(
+      strictReceipt.stages[2].evidence.conformance.coverageRequirement,
+      'complete-operation-provenance',
+    );
+    assert.deepEqual(
+      strictReceipt.stages[2].diagnostics.map(({ code }) => code),
+      ['SNAPBACK_VERIFY_COVERAGE_PROVENANCE_REQUIRED'],
+    );
+    assert.equal(validateReceiptSchema(strictReceipt), true, JSON.stringify(validateReceiptSchema.errors));
+
+    const expandedWithoutBaseline = defineStarterVerifyProfile({
+      id: 'starter-expanded-without-baseline',
+      acceptanceFile,
+      paths,
+      provenanceBaseline: ['starter-query'],
+    });
+    const expandedReceipt = await runVerify(config([expandedWithoutBaseline]), passOptions({
+      artifactProbe: async () => starterArtifact(),
+    }));
+    assert.deepEqual(
+      expandedReceipt.stages[2].diagnostics.map(({ code, details }) => ({
+        code,
+        pathId: details.pathId,
+      })),
+      [{ code: 'SNAPBACK_VERIFY_COVERAGE_EVIDENCE_UNSUPPORTED', pathId: 'starter-mutation' }],
+    );
     cases += 1;
   } finally {
     rmSync(scratch, { recursive: true, force: true });

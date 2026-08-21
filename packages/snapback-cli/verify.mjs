@@ -60,6 +60,10 @@ const REPORT_KEYS = Object.freeze([
   'extraWrites',
 ]);
 const PROVENANCE = new Set(['complete', 'incomplete', 'unsupported']);
+const COVERAGE_REQUIREMENTS = new Set([
+  'path-observation',
+  'complete-operation-provenance',
+]);
 const NEXT_BY_STAGE = Object.freeze({
   'artifact-freshness': Object.freeze({
     code: 'SNAPBACK_VERIFY_REGENERATE_ARTIFACTS',
@@ -225,6 +229,30 @@ function normalizePath(path, profileId, index) {
   });
 }
 
+function normalizeCoverageCapability(value, profileId, paths) {
+  if (value === undefined || value === null) return null;
+  assert(plainObject(value), `profiles[${profileId}].coverageCapability must be an object`);
+  assert(
+    value.claim === 'identity-bound-path-observation',
+    `profiles[${profileId}].coverageCapability.claim must be identity-bound-path-observation`,
+  );
+  const baselinePathIds = normalizedStringArray(
+    value.baselinePathIds ?? [],
+    `profiles[${profileId}].coverageCapability.baselinePathIds`,
+  );
+  const registeredPathIds = new Set(paths.map(({ id }) => id));
+  assert(
+    baselinePathIds.every((pathId) => registeredPathIds.has(pathId)),
+    `profiles[${profileId}].coverageCapability.baselinePathIds must name registered paths`,
+  );
+  return Object.freeze({
+    claim: value.claim,
+    baselinePathIds,
+    readProvenance: 'unsupported',
+    writeProvenance: 'unsupported',
+  });
+}
+
 function normalizeProfile(profile, index, configDirectory) {
   assert(plainObject(profile), `profiles[${index}] must be an object`);
   assert(typeof profile.id === 'string' && profile.id.length > 0, `profiles[${index}].id must be a non-empty string`);
@@ -250,6 +278,7 @@ function normalizeProfile(profile, index, configDirectory) {
     testFiles: Object.freeze(testFiles),
     requiredCapabilities: normalizedStringArray(profile.requiredCapabilities ?? [], `profiles[${profile.id}].requiredCapabilities`),
     paths: Object.freeze(paths),
+    coverageCapability: normalizeCoverageCapability(profile.coverageCapability, profile.id, paths),
     timeoutMs: profile.timeoutMs ?? null,
     run: profile.run,
   });
@@ -822,6 +851,9 @@ async function runStarterAcceptanceProfile({ acceptanceFile, artifact, identityC
 // @ref LLP 0196#program — scaffold proof commands register the existing live
 // starter acceptance under LLP 0146 D2; this adapter runs that receipt instead
 // of creating a second verifier or duplicating its product assertions.
+// @ref LLP 0294#w7--turn-shipped-primitives-into-discoverable-application-workflows
+// — starter acceptance claims identity-bound path observation, while its
+// unsupported operation-provenance baseline is rendered once as a nonclaim.
 export function defineStarterVerifyProfile({
   id,
   title = id,
@@ -829,6 +861,7 @@ export function defineStarterVerifyProfile({
   additionalTestFiles = [],
   requiredCapabilities = [],
   paths = [],
+  provenanceBaseline = [],
   timeoutMs = 180_000,
 }) {
   assert(typeof id === 'string' && id.length > 0, 'starter profile id must be a non-empty string');
@@ -839,12 +872,17 @@ export function defineStarterVerifyProfile({
     resolveStarterAcceptanceFile(file)
   ));
   const normalizedPaths = Object.freeze(paths.map((path, index) => normalizePath(path, id, index)));
+  const coverageCapability = normalizeCoverageCapability({
+    claim: 'identity-bound-path-observation',
+    baselinePathIds: provenanceBaseline,
+  }, id, normalizedPaths);
   return Object.freeze({
     id,
     title,
     testFiles: Object.freeze([resolvedAcceptanceFile, ...resolvedAdditionalTestFiles]),
     requiredCapabilities: Object.freeze([...requiredCapabilities]),
     paths: normalizedPaths,
+    coverageCapability,
     run(context) {
       return runStarterAcceptanceProfile({
         acceptanceFile: resolvedAcceptanceFile,
@@ -1245,6 +1283,11 @@ export async function loadVerifyConfig(path, { backendDirectory = null } = {}) {
   const configDirectory = dirname(configPath);
   const profiles = (value.profiles ?? []).map((profile, index) => normalizeProfile(profile, index, configDirectory));
   assert(new Set(profiles.map(({ id }) => id)).size === profiles.length, 'profile ids must be unique');
+  const coverageRequirement = value.coverageRequirement ?? 'path-observation';
+  assert(
+    COVERAGE_REQUIREMENTS.has(coverageRequirement),
+    'coverageRequirement must be path-observation or complete-operation-provenance',
+  );
   return Object.freeze({
     schemaVersion: VERIFY_CONFIG_SCHEMA_VERSION,
     configPath,
@@ -1258,6 +1301,7 @@ export async function loadVerifyConfig(path, { backendDirectory = null } = {}) {
       : resolve(configDirectory, value.generatedDirectory),
     servedTarget: normalizeServedTarget(value.servedTarget),
     context: normalizeContext(value.context),
+    coverageRequirement,
     profiles: Object.freeze(profiles),
   });
 }
@@ -1275,6 +1319,7 @@ export function defaultVerifyConfig({ backendDirectory = 'snapback' } = {}) {
     generatedDirectory: null,
     servedTarget: null,
     context: normalizeContext(),
+    coverageRequirement: 'path-observation',
     profiles: Object.freeze([]),
   });
 }
@@ -1670,12 +1715,19 @@ function intersection(sets) {
   )].sort();
 }
 
-export function aggregateConformance(profiles, results) {
+export function aggregateConformance(profiles, results, {
+  coverageRequirement = 'path-observation',
+} = {}) {
+  assert(
+    COVERAGE_REQUIREMENTS.has(coverageRequirement),
+    'coverageRequirement must be path-observation or complete-operation-provenance',
+  );
   const registeredPathCount = profiles.reduce((count, profile) => count + profile.paths.length, 0);
   if (registeredPathCount === 0) {
     return Object.freeze({
       status: 'not-claimed',
       disposition: 'no-registered-acceptance-paths',
+      coverageRequirement,
       scope: 'registered-or-repository-adapted-paths',
       limitationReason: 'no configured or repository-adapted acceptance paths were selected',
       complete: false,
@@ -1691,6 +1743,7 @@ export function aggregateConformance(profiles, results) {
   const evidence = [];
   const diagnostics = [];
   for (const profile of profiles) {
+    const baselinePathIds = new Set(profile.coverageCapability?.baselinePathIds ?? []);
     const returned = resultByProfile.get(profile.id)?.conformance ?? [];
     const byPath = new Map();
     for (const [index, item] of returned.entries()) {
@@ -1718,7 +1771,13 @@ export function aggregateConformance(profiles, results) {
           ? 'authoritative'
           : 'incomplete';
       evidence.push(Object.freeze({ profileId: profile.id, ...path, status, report }));
-      if (status !== 'authoritative') {
+      // @ref LLP 0275#p4-evidence-obligations-are-proportional-to-the-claim —
+      // identity observation may be green without manufacturing operation
+      // provenance; a stronger configured claim remains fail-closed below.
+      const isDeclaredUnsupportedBaseline = status === 'unsupported'
+        && profile.coverageCapability?.claim === 'identity-bound-path-observation'
+        && baselinePathIds.has(path.id);
+      if (status !== 'authoritative' && !isDeclaredUnsupportedBaseline) {
         diagnostics.push(diagnostic(
           status === 'unsupported'
             ? 'SNAPBACK_VERIFY_COVERAGE_EVIDENCE_UNSUPPORTED'
@@ -1745,6 +1804,24 @@ export function aggregateConformance(profiles, results) {
     }
     const extras = [...byPath.keys()].filter((pathId) => !profile.paths.some(({ id }) => id === pathId)).sort();
     assert(extras.length === 0, `profile ${profile.id} returned conformance for unregistered paths: ${extras.join(', ')}`);
+    if (coverageRequirement === 'complete-operation-provenance') {
+      const incompletePathIds = evidence
+        .filter((entry) => entry.profileId === profile.id && entry.status !== 'authoritative')
+        .map(({ id }) => id)
+        .sort();
+      if (incompletePathIds.length > 0) {
+        diagnostics.push(diagnostic(
+          'SNAPBACK_VERIFY_COVERAGE_PROVENANCE_REQUIRED',
+          `acceptance profile ${profile.id} cannot satisfy the required complete read/write operation provenance`,
+          {
+            profileId: profile.id,
+            coverageRequirement,
+            profileClaim: profile.coverageCapability?.claim ?? null,
+            incompletePathIds,
+          },
+        ));
+      }
+    }
   }
   evidence.sort((left, right) => `${left.targetProfileId}\0${left.kind}\0${left.profileId}\0${left.id}`.localeCompare(`${right.targetProfileId}\0${right.kind}\0${right.profileId}\0${right.id}`));
   const observed = evidence.filter(({ report }) => report !== null);
@@ -1779,12 +1856,21 @@ export function aggregateConformance(profiles, results) {
   const missingEvidence = evidence.filter(({ report }) => report === null);
   const partialPaths = evidence.filter(({ status }) => status === 'incomplete' || status === 'unsupported');
   const complete = authoritative.length === evidence.length;
-  const ok = missingEvidence.length === 0 && underDeclarations.length === 0;
+  const completeProvenanceRequired = coverageRequirement === 'complete-operation-provenance';
+  const ok = missingEvidence.length === 0
+    && underDeclarations.length === 0
+    && (!completeProvenanceRequired || complete);
+  const hasIdentityBoundProfile = profiles.some(({ coverageCapability }) => (
+    coverageCapability?.claim === 'identity-bound-path-observation'
+  ));
   return Object.freeze({
     status: ok ? (complete ? 'passed' : 'partial') : 'failed',
     disposition: 'registered-path-aggregate-v0',
+    coverageRequirement,
     scope: 'registered-or-repository-adapted-paths',
-    limitationReason: 'repository-adapted legacy suites remain partial until they emit D1 capture evidence',
+    limitationReason: hasIdentityBoundProfile
+      ? 'one or more profiles claim identity-bound path observation only; complete read/write operation provenance is not supplied'
+      : 'repository-adapted legacy suites remain partial until they emit D1 capture evidence',
     complete,
     expectedPaths: evidence.length,
     observedPaths: observed.length,
@@ -1894,6 +1980,7 @@ async function runProfiles(config, context, options) {
       durationMs: finishedAtMs - startedAtMs,
       testBytes,
       context: identityContext,
+      coverageCapability: profile.coverageCapability ?? null,
       conformance: Array.isArray(returned.conformance) ? returned.conformance : [],
       diagnostics: Object.freeze(returned.diagnostics ?? []),
       ...(returned.unsafeDebug === undefined ? {} : { unsafeDebug: returned.unsafeDebug }),
@@ -2006,10 +2093,13 @@ export async function runVerify(config, options = {}) {
   let conformance;
   if (canRunProfiles) {
     try {
-      conformance = aggregateConformance(config.profiles, profileResults);
+      conformance = aggregateConformance(config.profiles, profileResults, {
+        coverageRequirement: config.coverageRequirement ?? 'path-observation',
+      });
     } catch (error) {
       conformance = Object.freeze({
         status: 'failed', disposition: 'invalid-profile-conformance', complete: false,
+        coverageRequirement: config.coverageRequirement ?? 'path-observation',
         scope: 'registered-or-repository-adapted-paths',
         limitationReason: 'one or more acceptance profiles returned malformed conformance evidence',
         expectedPaths: registeredPathCount,
@@ -2029,10 +2119,13 @@ export async function runVerify(config, options = {}) {
     // @ref LLP 0245#rollout-4-implementation-note--2026-08-15 — an upstream
     // verify failure cannot turn an empty registered path set into coverage.
     // Preserve the same zero-path nonclaim shape the aggregate producer emits.
-    conformance = aggregateConformance(config.profiles, profileResults);
+    conformance = aggregateConformance(config.profiles, profileResults, {
+      coverageRequirement: config.coverageRequirement ?? 'path-observation',
+    });
   } else {
     conformance = Object.freeze({
       status: 'blocked', disposition: 'upstream-stage-failed', complete: false,
+      coverageRequirement: config.coverageRequirement ?? 'path-observation',
       scope: 'registered-or-repository-adapted-paths',
       limitationReason: 'repository-adapted legacy suites remain partial until they emit D1 capture evidence',
       expectedPaths: registeredPathCount, observedPaths: 0,
@@ -2097,11 +2190,15 @@ export async function runVerify(config, options = {}) {
     durationMs: finishedAtMs - startedAtMs,
     profileSet: {
       ids: config.profiles.map(({ id }) => id).sort(),
-      identity: `sha256:${createHash('sha256').update(stableJson(config.profiles.map((profile) => ({
-        id: profile.id,
-        requiredCapabilities: profile.requiredCapabilities,
-        paths: profile.paths,
-      })))).digest('hex')}`,
+      identity: `sha256:${createHash('sha256').update(stableJson({
+        coverageRequirement: config.coverageRequirement ?? 'path-observation',
+        profiles: config.profiles.map((profile) => ({
+          id: profile.id,
+          requiredCapabilities: profile.requiredCapabilities,
+          paths: profile.paths,
+          coverageCapability: profile.coverageCapability ?? null,
+        })),
+      })).digest('hex')}`,
       testBytes: profileSetTestBytes,
     },
     context: identityContext,
@@ -2112,6 +2209,11 @@ export async function runVerify(config, options = {}) {
     nonclaims: Object.freeze([
       'a passing receipt proves readiness under the registered contract, not product completion',
       'no registered acceptance paths means D1 aggregate coverage is not claimed',
+      ...config.profiles.flatMap((profile) => (
+        profile.coverageCapability?.claim === 'identity-bound-path-observation'
+          ? [`acceptance profile ${profile.id} claims identity-bound path observation only; complete read/write operation provenance is not claimed`]
+          : []
+      )),
       ...(!servedTarget.claimed
         ? ['generated-artifact-local-admission does not claim a live target admitted the same bytes']
         : []),

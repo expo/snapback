@@ -24,5 +24,11 @@ export default defineVerifyConfig({
       { id: 'update-project-live-detail', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
       { id: 'delete-project', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
     ],
+    provenanceBaseline: [
+      'relational-project-directory',
+      'create-project',
+      'update-project-live-detail',
+      'delete-project',
+    ],
   })],
 });

@@ -24,5 +24,11 @@ export default defineVerifyConfig({
       { id: 'thumbnail-rendition-delivery', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
       { id: 'display-rendition-delivery', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
     ],
+    provenanceBaseline: [
+      'retained-live-feed-pages',
+      'session-upload-and-typed-attach',
+      'thumbnail-rendition-delivery',
+      'display-rendition-delivery',
+    ],
   })],
 });

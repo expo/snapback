@@ -1,6 +1,6 @@
 # Stop emitting an unactionable provenance warning on every starter proof
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 4
 **Ease:** 3
@@ -44,3 +44,33 @@ like a per-run application problem.
 - Strict coverage claims fail when the selected profile cannot supply the
   required provenance.
 
+## Resolution
+
+Resolved 2026-08-21. Starter verification profiles now declare an
+`identity-bound-path-observation` capability and an explicit baseline of paths
+whose read/write operation provenance is unsupported. Baseline-matching paths
+retain `unsupported` in the receipt while the limitation renders once as a
+profile-named receipt nonclaim; an unsupported or incomplete path outside the
+declared baseline still emits its path-addressed coverage diagnostic.
+
+The config-level `complete-operation-provenance` coverage requirement is
+fail-closed: any non-authoritative path fails admission-and-conformance with
+`SNAPBACK_VERIFY_COVERAGE_PROVENANCE_REQUIRED` while preserving the underlying
+path grades.
+
+**Dated orchestrator ruling (2026-08-21):** starter acceptance explicitly
+claims identity-bound path observation only. This lane does not implement real
+operation-provenance capture, does not relabel unsupported evidence complete,
+and does not weaken strict or claim-bearing coverage requirements.
+
+Verification (2026-08-21):
+
+- `SNAPBACK_RUNTIME_BINARY=/Users/ccheever/projects/snapback/target/debug/snapback node packages/snapback-cli/verify.test.mjs`
+  — 49 D2 cases passed.
+- A fresh `todo-contract` scaffold created and installed from local package
+  tarballs passed `npm run prove` with zero warning diagnostics, exactly one
+  identity-bound-observation nonclaim, and both registered paths retained as
+  `readProvenance: unsupported` / `writeProvenance: unsupported`.
+- `./ref-check --verbose` — 0 errors, 0 unchecked references.
+
+Landing SHA: TBD

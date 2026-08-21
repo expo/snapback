@@ -230,13 +230,14 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "status", "disposition", "scope", "limitationReason", "complete",
+        "status", "disposition", "coverageRequirement", "scope", "limitationReason", "complete",
         "expectedPaths", "observedPaths", "pathEvidence", "underDeclarations",
         "overDeclarations", "diagnostics"
       ],
       "properties": {
         "status": { "enum": ["passed", "partial", "failed", "not-claimed", "blocked"] },
         "disposition": { "type": "string", "minLength": 1 },
+        "coverageRequirement": { "enum": ["path-observation", "complete-operation-provenance"] },
         "scope": { "const": "registered-or-repository-adapted-paths" },
         "limitationReason": { "type": "string", "minLength": 1 },
         "complete": { "type": "boolean" },
@@ -297,7 +298,7 @@
     "profileResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["profileId", "title", "status", "startedAtMs", "finishedAtMs", "durationMs", "testBytes", "context", "conformance", "diagnostics"],
+      "required": ["profileId", "title", "status", "startedAtMs", "finishedAtMs", "durationMs", "testBytes", "context", "coverageCapability", "conformance", "diagnostics"],
       "properties": {
         "profileId": { "type": "string", "minLength": 1 },
         "title": { "type": "string", "minLength": 1 },
@@ -307,6 +308,22 @@
         "durationMs": { "type": "integer", "minimum": 0 },
         "testBytes": { "$ref": "#/$defs/testBytes" },
         "context": { "$ref": "#/$defs/context" },
+        "coverageCapability": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["claim", "baselinePathIds", "readProvenance", "writeProvenance"],
+              "properties": {
+                "claim": { "const": "identity-bound-path-observation" },
+                "baselinePathIds": { "$ref": "#/$defs/stringSet" },
+                "readProvenance": { "const": "unsupported" },
+                "writeProvenance": { "const": "unsupported" }
+              }
+            }
+          ]
+        },
         "conformance": { "type": "array" },
         "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } },
         "unsafeDebug": {

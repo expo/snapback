@@ -29,5 +29,6 @@ export default defineVerifyConfig({
       { id: 'list-todos', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex', functionId: 'react:listTodos' },
       { id: 'create-todo', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex', functionId: 'react:createTodo' },
     ],
+    provenanceBaseline: ['list-todos', 'create-todo'],
   })],
 });
