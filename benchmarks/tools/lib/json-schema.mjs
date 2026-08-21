@@ -170,7 +170,8 @@ function validateNode(schema, value, path, context, errors) {
 }
 
 export function validateJsonSchema(schema, value, options = {}) {
-  const schemas = [schema, ...(options.schemas ?? [])];
+  const rootSchema = options.rootSchema ?? schema;
+  const schemas = [rootSchema, ...(options.schemas ?? [])];
   const registry = new Map();
   for (const document of schemas) {
     if (typeof document?.$id !== "string") {
@@ -180,8 +181,8 @@ export function validateJsonSchema(schema, value, options = {}) {
   }
   const errors = [];
   validateNode(schema, value, "$", {
-    root: schema,
-    baseUri: new URL(schema.$id).href,
+    root: rootSchema,
+    baseUri: new URL(rootSchema.$id).href,
     registry,
     options: { tolerateAdditiveFields: false, ...options },
   }, errors);

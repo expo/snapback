@@ -113,29 +113,41 @@ keeps them so is not settled.
 
 1. Pick a brief from `briefs/` and use its `Lane-prompt block` verbatim as
    `{{BRIEF}}`.
+   The `lane-setup.mjs` flow below is currently scoped only to
+   `social-messenger.md` / Clique. Other brief families keep their own frozen
+   setup procedure and must not use this Clique-specific generator until they
+   gain a manifest and registered lane kind.
 2. Preflight the environment: confirm that npm `latest` resolves to the
    published closure the run claims to measure; survey occupied ports and
-   write the `{{PORT_EXCLUSIONS}}` sentence; then create one fresh workdir per
-   lane. Before starting its agent, run `tools/lane-setup.mjs setup` against
-   that initial directory and the read-only instrument snapshot. It writes the
-   bounded lane `AGENTS.md`, the one generated `BENCHMARK-ORIENTATION.md`, and
-   the initial `lane-report.json`. Do not put workdirs under `/private/tmp`
-   because Metro's watcher is blind there, and do not set `CI=1`, which
-   silently disables watching — the instrumented series hit these conditions
-   three times.
-3. For skill-equipped and native lanes, extract `{{SKILL_PAYLOAD}}` from the
+   write the `{{PORT_EXCLUSIONS}}` sentence. Provision one read-only instrument
+   snapshot carrying `instrument.manifest.json` and every tree it hashes. For
+   skill-equipped and native lanes, extract `{{SKILL_PAYLOAD}}` from the
    published consumer scaffold using the recipe below.
-4. Instantiate the appropriate templates from `lanes/`. When the expanded
-   prompt is too long for a harness field, write it to a lane-private file and
-   deliver the proven one-line instruction documented in `lanes/skill.md`.
+3. Create one fresh workdir per lane. Before starting its agent, run
+   `tools/lane-setup.mjs setup` with an explicit matching kind:
+   `snapback-web-clique`, `snapback-native-simulator`, or `competitor-web`.
+   Skill-equipped Snapback kinds also receive the complete extracted body
+   through `--skill-body snapback-authoring=/path/to/SKILL.md`; the body is
+   hashed and charged to the same 16 KiB ceiling as the generated packet. Bare
+   and competitor lanes use `--no-skills`. Setup refuses a missing, mismatched,
+   or escaped manifest artifact and never reads a live checkout as fallback. It writes
+   `AGENTS.md`, `BENCHMARK-ORIENTATION.md`, and `lane-report.json`. Do not put
+   workdirs under `/private/tmp` because Metro's watcher is blind there, and do
+   not set `CI=1`, which silently disables watching.
+4. Instantiate the lane template matching that kind from `lanes/`. When the
+   expanded prompt is too long for a harness field, write it to a lane-private
+   file and deliver the proven one-line instruction documented in
+   `lanes/skill.md`.
 5. Run the lanes serially and cold. Collect start/end epochs,
    `firstGreenProofAt`, per-lane token and tool-use counts from the orchestration
    harness, the first-product-edit snapshot, the four wall-clock and token phase
    splits, and each lane's final report. Join the snapshot into
    `lane-report.json` without charging its orientation tokens to M1 authoring.
-   At M1 preflight, run `tools/lane-setup.mjs preflight` over the harness JSONL;
-   retain any out-of-scope skill-family warning. P0 runs must provide all phase
-   values; ordinary records may mark a phase unavailable with a reason.
+   At M1 preflight, run `tools/lane-setup.mjs preflight` over the harness JSONL,
+   the explicit first-edit marker, and `lane-report.json`; the command
+   deterministically retains any registered out-of-allowlist skill warning in
+   that report. P0 runs must provide all phase values; ordinary records may
+   mark a phase unavailable with a reason.
 6. Attribute correction loops under `protocol.md`, then independently check
    each claimed proof result against the selected brief's acceptance bar and
    score every lane with the required messaging or non-messaging rubric.
@@ -194,6 +206,8 @@ remains **OPEN (LLP 0186 OQ5)**; this instrument does not decide it.
 - `lanes/` — four proven parameterized prompt templates.
 - `records/` — the record format, standing run records, and the series table.
 - `schema/` — the optional per-lane JSON run-record schema.
+- `instrument.manifest.json` — the frozen social-messenger artifact/version
+  manifest; its file and tree digests are verified before a lane packet exists.
 - `tools/` — the LLP 0197 checked record loader/publisher and publication-safe
   action-trace sanitizer, plus the lane setup/orientation/preflight generator.
   Its fixtures are synthetic and are never benchmark results; see

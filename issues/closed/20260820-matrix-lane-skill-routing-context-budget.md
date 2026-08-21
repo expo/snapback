@@ -43,19 +43,24 @@ reported separately from authoring tokens.
 
 `benchmarks/tools/lane-setup.mjs` now installs a deterministic lane-root
 `AGENTS.md`, the sole generated `BENCHMARK-ORIENTATION.md`, and an initial
-`lane-report.json`. The two steering artifacts share LLP 0259's 16 KiB
-delivered-byte ceiling, route only the selected Snapback skill, and classify
-the lane as web-only with device/EAS delivery and generic scaffold substitution
-out of scope.
+`lane-report.json`. Setup requires an explicit web-Snapback, native-Simulator,
+or competitor lane kind and renders the corresponding backend/proof contract.
+It verifies the frozen instrument pin, manifest digests, and choreography
+version without any live-source fallback.
 
-The lane report carries the selected skills and exact steering byte accounting.
+The lane report inventories and hashes every generated or skill-body pre-edit
+carrier, records content-hash deduplication, and enforces LLP 0259's component
+and true 16 KiB aggregate ceilings. It also carries the selected skill allowlist.
 Its first-product-edit seed and marker use the metering joiner's additive
 `{at, orientationBytes, orientationTokens, selectedSkills}` schema, preserving
-orientation tokens separately from milestone authoring. The preflight command
-warns when retained harness events show a known device/EAS or generic scaffold
-skill loaded before the first product edit.
+orientation tokens separately from milestone authoring with all five native
+counters. The preflight command classifies registered skill metadata against
+that allowlist, closes on the explicit marker timestamp, and deterministically
+retains detected warnings in the report.
 
-Unit coverage verifies deterministic bounded generation, schema compatibility,
-the marker shape, and pre-M1 warning behavior.
+Unit coverage verifies fail-closed snapshot provenance, matching lane-kind
+instructions, true steering caps/dedup, cross-root relocation determinism,
+warning retention, marker-bound classification, and positive/negative local-ref
+schema validation.
 
 landing SHA: TBD

@@ -35,25 +35,46 @@ and fails if the checked-in rendering differs.
 ### Lane setup and routing preflight
 
 Create every private lane directory before its agent starts, then generate its
-bounded first-read files against the already-provisioned read-only instrument:
+bounded first-read files against the already-provisioned read-only instrument.
+This command currently supports only the `social-messenger.md` / Clique brief;
+its registered kinds distinguish carrier/backend lanes within that brief, not
+arbitrary files under `benchmarks/briefs/`:
 
 ```sh
 node benchmarks/tools/lane-setup.mjs setup \
   --lane-dir /path/to/run/lanes/sol-high-clique-explicit-r01 \
   --lane-id sol-high-clique-explicit-r01 \
+  --lane-kind snapback-web-clique \
   --instrument-root /path/to/run/instrument \
   --profile snapback-explicit-v1 \
   --backend-pin '@expo/snapback-*@0.1.24' \
   --instrument-pin social-messenger@0.3.2-m8 \
-  --skill snapback-authoring
+  --skill snapback-authoring \
+  --skill-body snapback-authoring=/path/to/published-consumer/SKILL.md
 ```
 
 The command writes `AGENTS.md`, one `BENCHMARK-ORIENTATION.md`, and
 `lane-report.json` at the lane's initial directory. Rerunning the same input is
-deterministic; it refuses to overwrite a non-matching generated file. The two
-steering documents are measured as delivered UTF-8 bytes and refused above
-LLP 0259's 16 KiB ceiling. `lane-report.json` records that byte accounting and
-the selected skill set before its `firstProductEdit` snapshot is joined.
+deterministic; it refuses to overwrite a non-matching generated file. The
+instrument root must contain `instrument.manifest.json` from the frozen
+snapshot. Setup verifies its exact pin, every declared file/tree digest, and
+the choreography `VERSION`, rejects path/symlink escapes, and never falls back
+to repository source.
+
+`--lane-kind` is mandatory. Use `snapback-web-clique` with `lanes/skill.md` or
+`lanes/bare.md`, `snapback-native-simulator` with `lanes/native-simulator.md`,
+and `competitor-web` with `lanes/competitor.md`. The generated backend and proof
+instructions differ accordingly; a competitor lane does not receive Snapback
+instructions and a native lane does not receive web-only proof instructions.
+Use `--no-skills` for a bare Snapback lane or any other lane with an empty
+allowlist.
+
+Every pre-edit carrier is inventoried with bytes and SHA-256 in the report:
+the lane `AGENTS.md`, orientation document, and each complete embedded or
+installed skill body supplied via `--skill-body`. Identical bodies remain
+listed but are content-hash deduplicated. The generated packet is capped at
+6 KiB, each skill body at 10 KiB, and the true deduplicated aggregate at LLP
+0259's 16 KiB. Missing bodies for selected skills fail setup.
 
 Immediately before the driver's first product edit, stamp the metering marker
 from that report (the driver supplies its own event timestamp):
@@ -74,14 +95,19 @@ At the M1 preflight boundary, inspect the retained harness JSONL:
 ```sh
 node benchmarks/tools/lane-setup.mjs preflight \
   --lane-dir /path/to/run/lanes/sol-high-clique-explicit-r01 \
+  --lane-report /path/to/run/lanes/sol-high-clique-explicit-r01/lane-report.json \
+  --first-edit-marker /path/to/run/lanes/sol-high-clique-explicit-r01/first-product-edit.json \
   --events /path/to/run/logs/sol-high-clique-explicit-r01.jsonl
 ```
 
 The detector recognizes normalized `skill.loaded` events and skill-file reads
-in Codex-style command events. It warns, without relabeling the application
-result, when a physical-device/EAS-delivery or generic Expo/Tuft scaffold skill
-was loaded before the first product edit. Reporting-file edits do not close the
-orientation boundary.
+in Codex-style command events. It compares registered skill metadata with the
+report's configured allowlist and uses the driver's explicit marker timestamp
+as the boundary; file-change/scaffold events never infer it. Registered
+physical-device/EAS-delivery or generic scaffold loads before that timestamp
+produce warnings. The command deterministically joins those warnings into
+`lane-report.json`; rerunning it is idempotent, and the final record consumes
+that retained array.
 
 ## Additive P0.0 seam
 

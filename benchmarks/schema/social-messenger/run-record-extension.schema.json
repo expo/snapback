@@ -60,6 +60,8 @@
       "description": "Bounded lane steering generated before the agent starts. This block is additive to the milestone authoring clocks: deliveredBytes is context delivery, while the sibling firstProductEdit field is the cumulative harness-native orientation-token snapshot and MUST NOT be added to milestones.M1.authoring.tokens.",
       "required": [
         "schemaVersion",
+        "laneKind",
+        "instrument",
         "selectedSkills",
         "artifacts",
         "uniqueBytes",
@@ -71,9 +73,61 @@
         "schemaVersion": {
           "const": "benchmark-orientation.v1"
         },
+        "laneKind": {
+          "enum": [
+            "snapback-web-clique",
+            "snapback-native-simulator",
+            "competitor-web"
+          ],
+          "description": "Explicit lane/brief kind used to render mutually consistent backend and proof instructions."
+        },
+        "instrument": {
+          "type": "object",
+          "required": [
+            "pin",
+            "manifest",
+            "versions"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "pin": {
+              "type": "string",
+              "minLength": 1
+            },
+            "manifest": {
+              "type": "object",
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "const": "instrument.manifest.json"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
+            },
+            "versions": {
+              "type": "object",
+              "required": [
+                "choreography"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "choreography": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
         "selectedSkills": {
           "type": "array",
-          "minItems": 1,
           "uniqueItems": true,
           "items": {
             "type": "string",
@@ -86,9 +140,27 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["path", "bytes", "sha256"],
+            "required": [
+              "id",
+              "kind",
+              "path",
+              "bytes",
+              "sha256",
+              "deduplicated"
+            ],
             "additionalProperties": false,
             "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "enum": [
+                  "lane-packet",
+                  "orientation",
+                  "skill-body"
+                ]
+              },
               "path": {
                 "type": "string",
                 "minLength": 1
@@ -100,6 +172,10 @@
               "sha256": {
                 "type": "string",
                 "pattern": "^[a-f0-9]{64}$"
+              },
+              "deduplicated": {
+                "type": "boolean",
+                "description": "True when an earlier carrier has the same content digest and this occurrence adds no delivered bytes."
               }
             }
           }
@@ -113,7 +189,7 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 16384,
-          "description": "Delivered UTF-8 steering bytes after the packet/AGENTS dedup rule; separately reported from authoring tokens and bounded by LLP 0259."
+          "description": "Delivered UTF-8 steering bytes after content-hash deduplication across every pre-edit carrier, including installed or embedded skill bodies; separately reported from authoring tokens and bounded by LLP 0259."
         },
         "preflightWarnings": {
           "type": "array",
@@ -1101,6 +1177,21 @@
         }
       }
     },
+    "firstEditTokenCounts": {
+      "description": "The metering joiner's exact first-edit emission: all five harness-native counters are present, using explicit null when unavailable.",
+      "required": [
+        "input",
+        "output",
+        "cacheRead",
+        "cacheWrite",
+        "reasoning"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/tokenCounts"
+        }
+      ]
+    },
     "firstProductEditSnapshot": {
       "type": "object",
       "description": "The explicit first-product-edit boundary receipt required by LLP 0295 D0.6: exact orientation bytes and selected skills from the driver, plus the harness-native usage prefix at that timestamp. No transcript heuristic or provider estimator may fill this field.",
@@ -1130,7 +1221,7 @@
           "description": "Exact bytes loaded before the first product edit, measured by the lane driver; null when unmeasured."
         },
         "orientationTokens": {
-          "$ref": "#/$defs/tokenCounts"
+          "$ref": "#/$defs/firstEditTokenCounts"
         },
         "selectedSkills": {
           "type": "array",

@@ -21,11 +21,14 @@ LLP 0201's 2026-08-11 dated amendment).
   harness-native fresh/cache/output/reasoning
   counters, hash-bound session/receipt/clock provenance, the first-product-edit
   orientation snapshot, separate clocks, compaction, replay and probe results
-  with O5 band inputs, grading pointers). Its additive `orientation` block
-  carries the lane setup's selected skill set and bounded byte accounting.
-  The required sibling `firstProductEdit` field uses the metering joiner's
-  exact `{at, orientationBytes, orientationTokens, selectedSkills}` shape;
-  those cumulative orientation tokens are not M1 authoring.
+  with O5 band inputs, grading pointers). Its optional additive `orientation`
+  block carries the explicit lane kind, verified frozen-instrument identity,
+  selected skill set, full steering-carrier inventory, bounded deduplicated
+  byte accounting, and retained preflight warnings. The required sibling
+  `firstProductEdit` field uses the metering joiner's exact
+  `{at, orientationBytes, orientationTokens, selectedSkills}` shape. All five
+  native counters remain present even when their values are null; those
+  cumulative orientation tokens are not M1 authoring.
 - `run-record.schema.json` — the complete composed record schema. It restricts
   `tokens.source` by `capFamily`; requires native lane totals and attempted
   milestone phases; and requires advisory or explicitly unavailable metering

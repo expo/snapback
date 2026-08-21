@@ -1,12 +1,22 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { validateJsonSchema } from './lib/json-schema.mjs';
 import {
   AGENTS_FILE,
+  FIRST_EDIT_MARKER_FILE,
   LANE_REPORT_FILE,
   MAX_LANE_STEERING_BYTES,
   ORIENTATION_FILE,
@@ -14,30 +24,89 @@ import {
   createFirstProductEditMarker,
   generateLaneSetup,
   preflightSelectedSkills,
+  resolveInstrumentArtifacts,
 } from './lane-setup.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
+const SKILL_SOURCE = join(ROOT, 'skills/snapback-authoring/SKILL.md');
 
-function setupOptions(laneDir) {
+function provisionRun(prefix = 'snapback-lane-setup-') {
+  const runRoot = mkdtempSync(join(tmpdir(), prefix));
+  const instrumentRoot = join(runRoot, 'instrument');
+  const skillPath = join(runRoot, 'skill/SKILL.md');
+  cpSync(join(ROOT, 'benchmarks'), instrumentRoot, { recursive: true });
+  mkdirSync(join(runRoot, 'skill'), { recursive: true });
+  cpSync(SKILL_SOURCE, skillPath);
+  return { runRoot, instrumentRoot, skillPath };
+}
+
+function setupOptions(run, overrides = {}) {
   return {
-    laneDir,
+    laneDir: join(run.runRoot, 'lanes/sol-high-clique-explicit-r01'),
     laneId: 'sol-high-clique-explicit-r01',
-    instrumentRoot: ROOT,
-    sourceRoot: ROOT,
+    laneKind: 'snapback-web-clique',
+    instrumentRoot: run.instrumentRoot,
     profile: 'snapback-explicit-v1',
     milestones: ['M1', 'M2', 'M3'],
     backendPin: '@expo/snapback-*@0.1.24',
     instrumentPin: 'social-messenger@0.3.2-m8',
     selectedSkills: ['snapback-authoring'],
+    skillCarriers: [{ skillId: 'snapback-authoring', path: run.skillPath }],
+    ...overrides,
   };
 }
 
-test('lane setup emits one bounded, deterministic orientation packet at the lane root', () => {
-  const laneDir = mkdtempSync(join(tmpdir(), 'snapback-lane-setup-'));
-  const first = generateLaneSetup(setupOptions(laneDir));
-  const before = Object.fromEntries(first.files.map((file) => [file, readFileSync(join(laneDir, file), 'utf8')]));
-  const second = generateLaneSetup(setupOptions(laneDir));
-  const after = Object.fromEntries(second.files.map((file) => [file, readFileSync(join(laneDir, file), 'utf8')]));
+function generatedFiles(laneDir, files = [AGENTS_FILE, ORIENTATION_FILE, LANE_REPORT_FILE]) {
+  return Object.fromEntries(files.map((file) => [file, readFileSync(join(laneDir, file), 'utf8')]));
+}
+
+test('lane setup verifies the frozen manifest and never falls back to live source', () => {
+  const run = provisionRun();
+  const artifacts = resolveInstrumentArtifacts({
+    instrumentRoot: run.instrumentRoot,
+    instrumentPin: 'social-messenger@0.3.2-m8',
+  });
+  assert.equal(artifacts.manifest.versions.choreography, '0.3.2-m8');
+  assert.equal(artifacts.assertions.logicalPath, 'schema/social-messenger/assertions.json');
+
+  rmSync(join(run.instrumentRoot, 'schema/social-messenger/assertions.json'));
+  assert.throws(
+    () => generateLaneSetup(setupOptions(run)),
+    /does not resolve within the frozen instrument snapshot/,
+  );
+
+  const versionRun = provisionRun();
+  const manifestPath = join(versionRun.instrumentRoot, 'instrument.manifest.json');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  manifest.versions.choreography = '0.3.2-m7';
+  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  assert.throws(
+    () => generateLaneSetup(setupOptions(versionRun)),
+    /choreography VERSION mismatch/,
+  );
+
+  const digestRun = provisionRun();
+  writeFileSync(join(digestRun.instrumentRoot, 'briefs/social-messenger.md'), 'tampered\n');
+  assert.throws(
+    () => generateLaneSetup(setupOptions(digestRun)),
+    /artifact brief digest mismatch/,
+  );
+  assert.throws(
+    () => resolveInstrumentArtifacts({
+      instrumentRoot: run.instrumentRoot,
+      instrumentPin: 'social-messenger@wrong',
+    }),
+    /instrument pin mismatch/,
+  );
+});
+
+test('lane setup emits deterministic bounded steering with the full skill body inventoried', () => {
+  const run = provisionRun();
+  const options = setupOptions(run);
+  const first = generateLaneSetup(options);
+  const before = generatedFiles(options.laneDir, first.files);
+  const second = generateLaneSetup(options);
+  const after = generatedFiles(options.laneDir, second.files);
 
   assert.deepEqual(after, before);
   assert.deepEqual(first.files, [AGENTS_FILE, ORIENTATION_FILE, LANE_REPORT_FILE]);
@@ -45,33 +114,34 @@ test('lane setup emits one bounded, deterministic orientation packet at the lane
   assert.equal(first.orientation.uniqueBytes, first.orientation.deliveredBytes);
   assert.deepEqual(first.orientation.selectedSkills, ['snapback-authoring']);
 
+  const skillCarrier = first.orientation.artifacts.find(({ kind }) => kind === 'skill-body');
+  assert.equal(skillCarrier.bytes, readFileSync(SKILL_SOURCE).byteLength);
+  assert.match(skillCarrier.sha256, /^[a-f0-9]{64}$/u);
+  assert.equal(skillCarrier.deduplicated, false);
+  assert.equal(first.orientation.artifacts.length, 3);
+  assert.equal(first.orientation.laneKind, 'snapback-web-clique');
+  assert.equal(first.orientation.instrument.pin, 'social-messenger@0.3.2-m8');
+
   const agents = before[AGENTS_FILE];
-  assert.match(agents, /Web-only Expo Router benchmark/);
-  assert.match(agents, /No physical-device or delivery workflow/);
-  assert.match(agents, /Do not substitute a generic Expo, Tuft/);
-  assert.match(agents, /only applicable skill set is: `snapback-authoring`/);
+  assert.match(agents, /Web-only Expo Router Clique benchmark/);
+  assert.match(agents, /two-browser-context interaction proof/);
+  assert.match(agents, /skill allowlist is: `snapback-authoring`/);
 
   const orientation = before[ORIENTATION_FILE];
-  assert.match(orientation, /sole benchmark\s+orientation artifact/);
+  assert.match(orientation, /relocation-stable paths/);
   assert.match(orientation, /\| M1 \| Accounts and profiles \| 7 \| 3 \| 3 \| 0 \|/);
   assert.match(orientation, /starter-m1\.log/);
-  assert.match(orientation, /coverage-manifest\.json/);
-  assert.match(orientation, /firstProductEdit[\s\S]+harness-native snapshot/);
+  assert.match(orientation, /firstProductEdit/);
+  assert.match(orientation, /harness-native/);
 
   const report = JSON.parse(before[LANE_REPORT_FILE]);
-  assert.equal(report.orientation.deliveredBytes, first.orientation.deliveredBytes);
   assert.deepEqual(report.orientation.preflightWarnings, []);
-  assert.deepEqual(report.firstProductEdit, {
-    at: null,
-    orientationBytes: null,
-    orientationTokens: {
-      input: null,
-      output: null,
-      cacheRead: null,
-      cacheWrite: null,
-      reasoning: null,
-    },
-    selectedSkills: [],
+  assert.deepEqual(report.firstProductEdit.orientationTokens, {
+    input: null,
+    output: null,
+    cacheRead: null,
+    cacheWrite: null,
+    reasoning: null,
   });
   assert.deepEqual(
     createFirstProductEditMarker(report.orientation, '2026-08-21T12:34:56.000Z'),
@@ -83,84 +153,228 @@ test('lane setup emits one bounded, deterministic orientation packet at the lane
   );
 });
 
-test('skill preflight warns for device delivery and generic scaffold families only', () => {
-  const warnings = preflightSelectedSkills([
-    'tuft-app-builder',
-    'snapback-authoring',
-    'expo-app-delivery',
-    'tuft-app-builder',
-  ]);
-  assert.deepEqual(
-    warnings.map(({ code, skill }) => ({ code, skill })),
-    [
-      {
-        code: 'BENCHMARK_PREFLIGHT_OUT_OF_SCOPE_GENERIC_APP_SCAFFOLD_SKILL',
-        skill: 'tuft-app-builder',
-      },
-      {
-        code: 'BENCHMARK_PREFLIGHT_OUT_OF_SCOPE_DEVICE_EAS_SKILL',
-        skill: 'expo-app-delivery',
-      },
+test('lane kind is explicit and renders matching web, native-simulator, and competitor instructions', () => {
+  const run = provisionRun();
+  assert.throws(
+    () => generateLaneSetup(setupOptions(run, { laneKind: undefined })),
+    /laneKind is required/,
+  );
+
+  const native = setupOptions(run, {
+    laneDir: join(run.runRoot, 'lanes/native'),
+    laneId: 'native',
+    laneKind: 'snapback-native-simulator',
+  });
+  generateLaneSetup(native);
+  const nativeFiles = generatedFiles(native.laneDir);
+  assert.match(nativeFiles[AGENTS_FILE], /Native-carrier Clique/);
+  assert.match(nativeFiles[AGENTS_FILE], /xcrun simctl/);
+  assert.doesNotMatch(nativeFiles[AGENTS_FILE], /Web-only Expo Router Clique/);
+  assert.match(nativeFiles[ORIENTATION_FILE], /native iOS Simulator lane/);
+  assert.match(nativeFiles[ORIENTATION_FILE], /simulator\.md/);
+
+  const competitor = setupOptions(run, {
+    laneDir: join(run.runRoot, 'lanes/competitor'),
+    laneId: 'competitor',
+    laneKind: 'competitor-web',
+    profile: 'convex-web-v1',
+    backendPin: 'convex@1.26.2',
+    selectedSkills: [],
+    skillCarriers: [],
+  });
+  generateLaneSetup(competitor);
+  const competitorFiles = generatedFiles(competitor.laneDir);
+  assert.match(competitorFiles[AGENTS_FILE], /competitor-control benchmark/);
+  assert.match(competitorFiles[AGENTS_FILE], /Convex profile/);
+  assert.doesNotMatch(competitorFiles[AGENTS_FILE], /Snapback profile/);
+  assert.match(competitorFiles[ORIENTATION_FILE], /Backend\/profile: Convex/);
+  assert.doesNotMatch(competitorFiles[ORIENTATION_FILE], /Backend\/profile: Snapback/);
+});
+
+test('steering inventory deduplicates identical carriers and enforces the true aggregate cap', () => {
+  const duplicateRun = provisionRun();
+  const duplicate = generateLaneSetup(setupOptions(duplicateRun, {
+    skillCarriers: [
+      { skillId: 'snapback-authoring', path: duplicateRun.skillPath },
+      { skillId: 'snapback-authoring', path: duplicateRun.skillPath },
     ],
+  }));
+  const skillCarriers = duplicate.orientation.artifacts.filter(({ kind }) => kind === 'skill-body');
+  assert.equal(skillCarriers.length, 2);
+  assert.deepEqual(skillCarriers.map(({ deduplicated }) => deduplicated), [false, true]);
+  assert.equal(
+    duplicate.orientation.deliveredBytes,
+    duplicate.orientation.artifacts.filter(({ deduplicated }) => !deduplicated)
+      .reduce((sum, { bytes }) => sum + bytes, 0),
+  );
+
+  const capRun = provisionRun();
+  const secondBody = join(capRun.runRoot, 'skill/SECOND.md');
+  writeFileSync(secondBody, 'x'.repeat(10_000));
+  assert.throws(
+    () => generateLaneSetup(setupOptions(capRun, {
+      skillCarriers: [
+        { skillId: 'snapback-authoring', path: capRun.skillPath },
+        { skillId: 'snapback-authoring', path: secondBody, logicalPath: 'skills/snapback-authoring/SECOND.md' },
+      ],
+    })),
+    /lane steering is .* maximum is 16384/,
   );
 });
 
-test('social-messenger schema consumes the lane orientation and shared token-count shape additively', () => {
-  const schema = JSON.parse(readFileSync(
-    join(ROOT, 'benchmarks/schema/social-messenger/run-record-extension.schema.json'),
-    'utf8',
-  ));
-  const orientation = schema.properties.orientation;
-  assert.ok(orientation);
-  assert.equal(schema.required.includes('orientation'), false);
-  assert.equal(schema.required.includes('firstProductEdit'), false);
-  assert.equal(orientation.properties.deliveredBytes.maximum, MAX_LANE_STEERING_BYTES);
-  assert.equal(schema.properties.firstProductEdit.$ref, '#/$defs/firstProductEditSnapshot');
-  const editRecord = schema.$defs.firstProductEditSnapshot;
-  assert.deepEqual(editRecord.required, [
-    'at',
-    'orientationBytes',
-    'orientationTokens',
-    'selectedSkills',
-  ]);
-  assert.equal(editRecord.properties.orientationTokens.$ref, '#/$defs/tokenCounts');
-  assert.deepEqual(schema.$defs.tokenCounts.properties.reasoning.type, ['integer', 'null']);
+test('generated artifacts are byte-identical after relocating an equivalent run tree', () => {
+  const left = provisionRun('snapback-relocation-left-');
+  const right = provisionRun('snapback-relocation-right-');
+  const leftOptions = setupOptions(left, { laneDir: join(left.runRoot, 'lanes/lane'), laneId: 'relocation-lane' });
+  const rightOptions = setupOptions(right, { laneDir: join(right.runRoot, 'lanes/lane'), laneId: 'relocation-lane' });
+  generateLaneSetup(leftOptions);
+  generateLaneSetup(rightOptions);
+
+  assert.deepEqual(generatedFiles(leftOptions.laneDir), generatedFiles(rightOptions.laneDir));
+  assert.doesNotMatch(readFileSync(join(leftOptions.laneDir, ORIENTATION_FILE), 'utf8'), new RegExp(left.runRoot));
+  assert.doesNotMatch(readFileSync(join(rightOptions.laneDir, ORIENTATION_FILE), 'utf8'), new RegExp(right.runRoot));
 });
 
-test('event preflight stops skill accounting at the first product edit', () => {
-  const laneDir = '/tmp/benchmark-lane';
+test('preflight uses registered metadata, the allowlist, and the explicit marker timestamp', () => {
+  assert.deepEqual(
+    preflightSelectedSkills(['native-delivery'], { allowedSkillIds: ['native-delivery'] }),
+    [],
+  );
+  assert.deepEqual(
+    preflightSelectedSkills(['ios-device-build'], { allowedSkillIds: ['snapback-authoring'] })
+      .map(({ code, skill }) => ({ code, skill })),
+    [{ code: 'BENCHMARK_PREFLIGHT_OUT_OF_SCOPE_DEVICE_EAS_SKILL', skill: 'ios-device-build' }],
+  );
+  assert.deepEqual(
+    preflightSelectedSkills(['an-unregistered-native-delivery-name'], { allowedSkillIds: [] }),
+    [],
+  );
+
   const events = [
     {
+      at: '2026-08-21T12:00:00.000Z',
       type: 'item.completed',
-      item: {
-        type: 'command_execution',
-        command: "sed -n '1,200p' /tmp/benchmark-lane/.agents/skills/expo-app-delivery/SKILL.md",
-      },
+      item: { type: 'file_change', changes: [{ path: 'app/index.tsx', kind: 'add' }] },
     },
     {
-      type: 'item.completed',
-      item: {
-        type: 'file_change',
-        changes: [{ path: '/tmp/benchmark-lane/run-log.md', kind: 'add' }],
-      },
+      at: '2026-08-21T12:00:01.000Z',
+      type: 'skill.loaded',
+      skill: 'ios-device-build',
     },
     {
-      type: 'item.completed',
-      item: {
-        type: 'file_change',
-        changes: [{ path: '/tmp/benchmark-lane/app/index.tsx', kind: 'add' }],
-      },
-    },
-    {
+      at: '2026-08-21T12:00:03.000Z',
       type: 'skill.loaded',
       skill: 'tuft-app-builder',
     },
   ];
+  const result = analyzePreM1Events(events, {
+    firstEditAt: '2026-08-21T12:00:02.000Z',
+    allowedSkillIds: ['snapback-authoring'],
+    laneKind: 'snapback-web-clique',
+  });
+  assert.deepEqual(result.selectedSkills, ['ios-device-build']);
+  assert.deepEqual(result.firstProductEdit, {
+    at: '2026-08-21T12:00:02.000Z',
+    source: 'explicit-marker',
+  });
+  assert.deepEqual(result.warnings.map(({ skill }) => skill), ['ios-device-build']);
+});
 
-  const result = analyzePreM1Events(events, { laneDir });
-  assert.deepEqual(result.selectedSkills, ['expo-app-delivery']);
-  assert.deepEqual(result.firstProductEdit, { eventIndex: 2, paths: ['app/index.tsx'] });
-  assert.deepEqual(result.warnings.map((warning) => warning.code), [
-    'BENCHMARK_PREFLIGHT_OUT_OF_SCOPE_DEVICE_EAS_SKILL',
+test('deterministic preflight join retains detected warnings in lane-report.json', () => {
+  const run = provisionRun();
+  const options = setupOptions(run);
+  generateLaneSetup(options);
+  const reportPath = join(options.laneDir, LANE_REPORT_FILE);
+  const marker = createFirstProductEditMarker(
+    JSON.parse(readFileSync(reportPath, 'utf8')).orientation,
+    '2026-08-21T12:00:02.000Z',
+  );
+  writeFileSync(join(options.laneDir, FIRST_EDIT_MARKER_FILE), `${JSON.stringify(marker, null, 2)}\n`);
+  const eventsPath = join(run.runRoot, 'events.jsonl');
+  writeFileSync(eventsPath, `${JSON.stringify({
+    at: '2026-08-21T12:00:01.000Z',
+    type: 'skill.loaded',
+    skill: 'expo-app-delivery',
+  })}\n`);
+  const command = [
+    join(ROOT, 'benchmarks/tools/lane-setup.mjs'),
+    'preflight',
+    '--lane-dir', options.laneDir,
+    '--lane-report', reportPath,
+    '--first-edit-marker', join(options.laneDir, FIRST_EDIT_MARKER_FILE),
+    '--events', eventsPath,
+  ];
+  const first = spawnSync(process.execPath, command, { encoding: 'utf8' });
+  assert.equal(first.status, 0, first.stderr);
+  assert.match(first.stderr, /BENCHMARK_PREFLIGHT_OUT_OF_SCOPE_DEVICE_EAS_SKILL/);
+  const once = readFileSync(reportPath, 'utf8');
+  const second = spawnSync(process.execPath, command, { encoding: 'utf8' });
+  assert.equal(second.status, 0, second.stderr);
+  const twice = readFileSync(reportPath, 'utf8');
+  assert.equal(twice, once);
+  assert.deepEqual(
+    JSON.parse(twice).orientation.preflightWarnings.map(({ skill }) => skill),
+    ['expo-app-delivery'],
+  );
+});
+
+test('social-messenger schema resolves local refs and requires the joiner five-counter shape', () => {
+  const schema = JSON.parse(readFileSync(
+    join(ROOT, 'benchmarks/schema/social-messenger/run-record-extension.schema.json'),
+    'utf8',
+  ));
+  assert.equal(schema.required.includes('orientation'), false);
+  assert.equal(schema.required.includes('firstProductEdit'), true);
+  assert.equal(schema.properties.orientation.properties.deliveredBytes.maximum, MAX_LANE_STEERING_BYTES);
+  assert.equal(
+    schema.$defs.firstProductEditSnapshot.properties.orientationTokens.$ref,
+    '#/$defs/firstEditTokenCounts',
+  );
+  assert.deepEqual(schema.$defs.firstEditTokenCounts.required, [
+    'input',
+    'output',
+    'cacheRead',
+    'cacheWrite',
+    'reasoning',
   ]);
+
+  const schemaRun = provisionRun();
+  const schemaOptions = setupOptions(schemaRun);
+  generateLaneSetup(schemaOptions);
+  const generatedOrientation = JSON.parse(readFileSync(
+    join(schemaOptions.laneDir, LANE_REPORT_FILE),
+    'utf8',
+  )).orientation;
+  assert.deepEqual(validateJsonSchema(
+    schema.properties.orientation,
+    generatedOrientation,
+    { rootSchema: schema },
+  ), []);
+
+  const valid = {
+    at: '2026-08-21T12:00:02.000Z',
+    orientationBytes: 16000,
+    orientationTokens: {
+      input: 1,
+      output: 2,
+      cacheRead: null,
+      cacheWrite: 0,
+      reasoning: null,
+    },
+    selectedSkills: ['snapback-authoring'],
+  };
+  assert.deepEqual(validateJsonSchema(
+    schema.$defs.firstProductEditSnapshot,
+    valid,
+    { rootSchema: schema },
+  ), []);
+  const invalid = structuredClone(valid);
+  invalid.orientationTokens = { input: 1, output: 2 };
+  const errors = validateJsonSchema(
+    schema.$defs.firstProductEditSnapshot,
+    invalid,
+    { rootSchema: schema },
+  );
+  assert.ok(errors.some((error) => error.includes('/cacheRead: required field is missing')));
+  assert.ok(errors.some((error) => error.includes('/reasoning: required field is missing')));
 });
