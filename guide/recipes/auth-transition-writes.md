@@ -30,7 +30,7 @@ This includes the reproduced “eager route-entry receipt” and broader
 authorization-suspended foreground gesture.
 
 The multi-subscription trigger observed in the same run remains an open
-[contention investigation](../../issues/20260820-familiar-live-subscription-contention.md).
+[contention investigation](repo:issues/20260820-familiar-live-subscription-contention.md).
 This recipe describes how callers settle writes safely; it does not classify
 or close that separate liveness question.
 

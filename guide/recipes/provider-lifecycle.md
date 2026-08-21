@@ -4,7 +4,7 @@ id: recipes.provider-lifecycle
 order: 15
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.contract-provider-generation]
-authorities: [llp/0034-contract-source-seam-provider-side.rfc.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0095-client-lifecycle-and-conformance.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs]
+authorities: [llp/0034-contract-source-seam-provider-side.rfc.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0295-published-matrix-improvement-program.plan.md, demos/coterie/src/data/snapback-provider.ts, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs]
 examples: [packages/snapback-contract/keyed-provider.mjs]
 status: current
 targets: [local]

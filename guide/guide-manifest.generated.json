@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:01c154138371cdf9436a16433eb30ec18d37609e28896731a1dbe15a33cff808"
+    "sourceDigest": "sha256:995f1ea14f1626299c47fa7311ce6a376282614c93574681cc7c83dd71c472cd"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -4737,7 +4737,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:d8cac17f99ba2c4dcf845310194e20d29b6542948551e506397efdbc259e00ba",
-      "sha256": "945d53e2f4de4cdca6e225d78f450d3965410cb066341d5e17aba3b6c7f5f027",
+      "sha256": "329eb74813393174deb04c0b29bd5ce0612a2ed80b61981b027bb90412f9ec01",
       "snippets": []
     },
     "recipes.browser-auth": {
@@ -5042,6 +5042,7 @@
         "llp/0056-scoped-roles-and-memberships.rfc.md",
         "llp/0176-expo-messaging-golden-path.plan.md",
         "llp/0240-application-authority-profiles.rfc.md",
+        "llp/0295-published-matrix-improvement-program.plan.md",
         "demos/messaging-snapback/snapback/schema.mjs",
         "demos/messaging-snapback/snapback/functions.mjs"
       ],
@@ -5050,7 +5051,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:f8cdd66ec5f4c200d5e8b022f14e1d76730f26bca2df453a3b337acf8e44bdfa",
-      "sha256": "d9a7976db2dace77a5e9cbb515745ff48a7cb17ecf70e3a6ee1ad76db0de365b",
+      "sha256": "db54bfaf633face956a5b2ecca5a4903450b489d73d180c65e81d4ee3f469874",
       "snippets": []
     },
     "recipes.multi-persona-clients": {
@@ -5356,6 +5357,8 @@
         "llp/0034-contract-source-seam-provider-side.rfc.md",
         "llp/0063-partitime-platform-roadmap.plan.md",
         "llp/0095-client-lifecycle-and-conformance.spec.md",
+        "llp/0295-published-matrix-improvement-program.plan.md",
+        "demos/coterie/src/data/snapback-provider.ts",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/external-store.mjs"
       ],
@@ -5364,7 +5367,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:36b99758a988b2e5ddd7c19d12c8e5c88f4cce7ddef6f6d4ac8565d44235e3e1",
-      "sha256": "4639e73fad14dd6a35a8aa731a9a8a94defc25bab68a700e367798d807839ab1",
+      "sha256": "60b2b229f6adf7205200e0dd3e141649cb1b8dab68861637184adcee011b2756",
       "snippets": []
     },
     "recipes.sessions-fixture-install": {
@@ -12543,7 +12546,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2588969,
-      "sha256": "32d94ac1b8dd25101a063e7a1e9e06da5abab91dbdd408c592db0e793e3f3c8d",
+      "sha256": "59db726f4293372dbc7e79e4870c5d0e962559fdfd6966f7de486b5196b83f97",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12552,7 +12555,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:f10edbc98c73da130a5a33de24bd8d42a91431c39a47902a94ab5ca255cb05b6",
+      "sourceDigest": "sha256:aa702f0bacc7ed4046b9f81262523cc22d9ad8dcffa712ac74283d61a5ebe106",
       "codes": 3441,
       "emittingSites": 11860
     }
@@ -12690,8 +12693,8 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3608090,
-      "sha256": "8aa57edc01e09b2039dbf8709b3a3f8dc5b3158d57d2bdf34f95a3a0dbb889e5"
+      "bytes": 3608243,
+      "sha256": "72393082b72d44b56f14da1cc6868d6ce81f0d7b14b2ec173df74f72e3cad72f"
     },
     "sections": {
       "meta": {
@@ -12761,8 +12764,8 @@
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 156762,
-        "sha256": "8843ac753cd36562aca0285471201aba4c8d79dd3a8f5fd7802d4e0e9073931f"
+        "bytes": 156915,
+        "sha256": "6c3e42f2f17972c41585fd1d0b783ead22adc9b316fb6706602bf38c94806048"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
@@ -12794,5 +12797,5 @@
       }
     }
   },
-  "contentHash": "01c154138371cdf9436a16433eb30ec18d37609e28896731a1dbe15a33cff808"
+  "contentHash": "995f1ea14f1626299c47fa7311ce6a376282614c93574681cc7c83dd71c472cd"
 }

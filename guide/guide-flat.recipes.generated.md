@@ -3137,7 +3137,7 @@ This includes the reproduced “eager route-entry receipt” and broader
 authorization-suspended foreground gesture.
 
 The multi-subscription trigger observed in the same run remains an open
-[contention investigation](../../issues/20260820-familiar-live-subscription-contention.md).
+[contention investigation](repo:issues/20260820-familiar-live-subscription-contention.md).
 This recipe describes how callers settle writes safely; it does not classify
 or close that separate liveness question.
 
@@ -3260,7 +3260,7 @@ id: recipes.membership-roster-projection
 order: 14
 audience: agent-first
 capabilities: [auth.scoped-roles, authority.profile.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0240-application-authority-profiles.rfc.md, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/snapback/functions.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0240-application-authority-profiles.rfc.md, llp/0295-published-matrix-improvement-program.plan.md, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/snapback/functions.mjs]
 examples: [demos/messaging-snapback]
 status: current
 targets: [local]
@@ -3310,7 +3310,7 @@ promotion, or demotion: the demo declaration admits only owner-insert and
 self-remove. Do not copy this page as evidence those transitions synchronize.
 Add the needed transition rows, one atomic authority-plus-projection mutation
 per transition, and acceptance comparisons before claiming them. The reopened
-[guide-gap ticket](../../issues/20260820-guide-gap-membership-roster-projection-recipe.md)
+[guide-gap ticket](repo:issues/20260820-guide-gap-membership-roster-projection-recipe.md)
 tracks the missing proof and LLP 0295 vertical fixture.
 
 The projection is deliberately redundant. For the currently proved path,
@@ -3352,7 +3352,7 @@ id: recipes.provider-lifecycle
 order: 15
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.contract-provider-generation]
-authorities: [llp/0034-contract-source-seam-provider-side.rfc.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0095-client-lifecycle-and-conformance.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs]
+authorities: [llp/0034-contract-source-seam-provider-side.rfc.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0295-published-matrix-improvement-program.plan.md, demos/coterie/src/data/snapback-provider.ts, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs]
 examples: [packages/snapback-contract/keyed-provider.mjs]
 status: current
 targets: [local]

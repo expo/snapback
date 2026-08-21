@@ -4,7 +4,7 @@ id: recipes.membership-roster-projection
 order: 14
 audience: agent-first
 capabilities: [auth.scoped-roles, authority.profile.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0240-application-authority-profiles.rfc.md, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/snapback/functions.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0240-application-authority-profiles.rfc.md, llp/0295-published-matrix-improvement-program.plan.md, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/snapback/functions.mjs]
 examples: [demos/messaging-snapback]
 status: current
 targets: [local]
@@ -54,7 +54,7 @@ promotion, or demotion: the demo declaration admits only owner-insert and
 self-remove. Do not copy this page as evidence those transitions synchronize.
 Add the needed transition rows, one atomic authority-plus-projection mutation
 per transition, and acceptance comparisons before claiming them. The reopened
-[guide-gap ticket](../../issues/20260820-guide-gap-membership-roster-projection-recipe.md)
+[guide-gap ticket](repo:issues/20260820-guide-gap-membership-roster-projection-recipe.md)
 tracks the missing proof and LLP 0295 vertical fixture.
 
 The projection is deliberately redundant. For the currently proved path,
