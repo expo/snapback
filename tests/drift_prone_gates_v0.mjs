@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   appendFileSync,
   chmodSync,
@@ -46,6 +47,21 @@ import {
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROOF_RUNNER = join(ROOT, 'scripts', 'lib', 'proof-runner.sh');
+const FIXTURE_COMPLETION_RUN_ID = '12345678-1234-4123-8123-123456789abc';
+
+function writeBatteryCompletion(root, resultsPath, canonicalGates) {
+  const completionPath = join(root, 'proof-completion.json');
+  const resultsSource = readFileSync(resultsPath);
+  writeFileSync(completionPath, `${JSON.stringify({
+    schemaVersion: 'snapback.proof-completion.v1',
+    runId: FIXTURE_COMPLETION_RUN_ID,
+    proofId: 'local-proof',
+    selectedGateCount: canonicalGates.length,
+    selectedGateDigest: digestSelectedGateIds(canonicalGates),
+    resultsDigest: `sha256:${createHash('sha256').update(resultsSource).digest('hex')}`,
+  })}\n`);
+  return completionPath;
+}
 const IMPLEMENTATION_FILES = [
   '.githooks/pre-push',
   'issues/closed/20260811-record-inventory-guide.md',
@@ -1307,42 +1323,114 @@ test('backstop keys distinct reds by signature and updates an unchanged observat
 function captureDeclarationOrderBatteryFixture(scratch, context) {
   const resultsPath = join(scratch, 'declaration-order-results.jsonl');
   const selectedGatesPath = join(scratch, 'declaration-order-selected-gates.txt');
+  const proofBodyPath = join(scratch, 'declaration-order-proof-body.sh');
+  const completionPath = join(scratch, 'proof-completion.json');
   const seen = new Set();
   const declarationOrder = context.calls.flatMap(({ gateId }) => {
     if (seen.has(gateId)) return [];
     seen.add(gateId);
     return [gateId];
   });
-  writeFileSync(selectedGatesPath, declarationOrder.map((gateId) => `${gateId}\n`).join(''));
-  const script = [
+  const selectedOrder = context.inventory.canonicalGates;
+  writeFileSync(selectedGatesPath, selectedOrder.map((gateId) => `${gateId}\n`).join(''));
+  const proofBody = [
     'set -euo pipefail',
     `source ${JSON.stringify(PROOF_RUNNER)}`,
-    `proof_runner_init local-proof ${JSON.stringify(resultsPath)} 1 ${JSON.stringify(selectedGatesPath)} ${declarationOrder.length} ${JSON.stringify(digestSelectedGateIds(declarationOrder))}`,
+    `proof_runner_init local-proof ${JSON.stringify(resultsPath)} 1 ${JSON.stringify(selectedGatesPath)} ${selectedOrder.length} ${JSON.stringify(digestSelectedGateIds(selectedOrder))}`,
     ...declarationOrder.map((gateId) => (
       `proof_gate ${gateId} -- /usr/bin/true`
     )),
     'proof_runner_finish',
+  ].join('\n');
+  writeFileSync(proofBodyPath, proofBody);
+  const script = [
+    'set -euo pipefail',
+    `source ${JSON.stringify(PROOF_RUNNER)}`,
+    `SNAPBACK_PROOF_COMPLETION_RECEIPT=${JSON.stringify(completionPath)} proof_runner_supervise local-proof -- /bin/bash ${JSON.stringify(proofBodyPath)}`,
   ].join('\n');
   const run = spawnSync('/bin/bash', ['-c', script], {
     cwd: ROOT,
     encoding: 'utf8',
   });
   assert.equal(run.status, 0, `${run.stdout}\n${run.stderr}`);
-  return { declarationOrder, resultsPath };
+  return { declarationOrder, resultsPath, completionPath };
 }
 
 test('complete battery accepts a real proof-runner JSONL capture in declaration order', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-battery-declaration-order-'));
   try {
     const context = loadSelectionContext();
-    const { declarationOrder, resultsPath } = captureDeclarationOrderBatteryFixture(
+    const { declarationOrder, resultsPath, completionPath } = captureDeclarationOrderBatteryFixture(
       scratch,
       context,
     );
     assert.equal(declarationOrder[0], 'ref-check');
     assert.equal(context.inventory.canonicalGates[0], 'action-fetch-fence-fixtures');
     assert.deepEqual(new Set(declarationOrder), new Set(context.inventory.canonicalGates));
-    assert.equal(runBatteryReport({ resultsPath, root: scratch, context }), 0);
+    assert.equal(runBatteryReport({
+      resultsPath, completionPath, root: scratch, context,
+    }), 0);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('complete battery refuses missing, stale, or mismatched supervisor completion evidence', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-battery-completion-'));
+  try {
+    const context = { inventory: { canonicalGates: ['only-gate'] } };
+    const resultsPath = join(scratch, 'results.jsonl');
+    writeFileSync(resultsPath, `${JSON.stringify({
+      applicabilityEvidence: null,
+      applicabilityPredicate: null,
+      blockedBy: [],
+      command: '/usr/bin/true',
+      durationMs: 1,
+      endedAtMs: 2,
+      exitCode: 0,
+      failureSignature: null,
+      gateId: 'only-gate',
+      prerequisites: [],
+      proofId: 'local-proof',
+      schemaVersion: 'snapback.proof-gate-result.v3',
+      selectionReason: null,
+      startedAtMs: 1,
+      state: 'PASS',
+    })}\n`);
+    const completionPath = writeBatteryCompletion(
+      scratch,
+      resultsPath,
+      context.inventory.canonicalGates,
+    );
+    const validCompletion = readFileSync(completionPath, 'utf8');
+    const validResults = readFileSync(resultsPath, 'utf8');
+    rmSync(completionPath);
+    assert.throws(
+      () => runBatteryReport({
+        resultsPath, completionPath, root: scratch, context,
+      }),
+      /completion token is missing or invalid/u,
+    );
+
+    writeFileSync(completionPath, validCompletion);
+    writeFileSync(resultsPath, `${validResults}\n`);
+    assert.throws(
+      () => runBatteryReport({
+        resultsPath, completionPath, root: scratch, context,
+      }),
+      /completion token does not match/u,
+    );
+
+    const mismatched = JSON.parse(validCompletion);
+    writeFileSync(resultsPath, validResults);
+    mismatched.selectedGateDigest = `sha256:${'0'.repeat(64)}`;
+    writeFileSync(completionPath, `${JSON.stringify(mismatched)}\n`);
+    assert.throws(
+      () => runBatteryReport({
+        resultsPath, completionPath, root: scratch, context,
+      }),
+      /completion token does not match/u,
+    );
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
@@ -1404,11 +1492,18 @@ test('complete battery inventory rejects duplicate and missing gate ids independ
   try {
     const resultsPath = join(scratch, 'results.jsonl');
     writeFileSync(resultsPath, `${JSON.stringify(record)}\n`);
+    const context = { inventory: { canonicalGates: ['only-gate', 'missing-gate'] } };
+    const completionPath = writeBatteryCompletion(
+      scratch,
+      resultsPath,
+      context.inventory.canonicalGates,
+    );
     assert.throws(
       () => runBatteryReport({
         resultsPath,
+        completionPath,
         root: scratch,
-        context: { inventory: { canonicalGates: ['only-gate', 'missing-gate'] } },
+        context,
       }),
       /missing: missing-gate/u,
     );
@@ -1420,6 +1515,7 @@ test('complete battery inventory rejects duplicate and missing gate ids independ
 test('complete battery accepts only declared INAPPLICABLE pairs with predicate-valid evidence', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-battery-inapplicable-'));
   const resultsPath = join(scratch, 'results.jsonl');
+  let completionPath;
   const record = {
     applicabilityEvidence: { ci: false },
     applicabilityPredicate: 'ci-only',
@@ -1443,11 +1539,15 @@ test('complete battery accepts only declared INAPPLICABLE pairs with predicate-v
   };
   try {
     writeFileSync(resultsPath, `${JSON.stringify(record)}\n`);
-    assert.equal(runBatteryReport({ resultsPath, root: scratch, context }), 0);
+    completionPath = writeBatteryCompletion(scratch, resultsPath, context.inventory.canonicalGates);
+    assert.equal(runBatteryReport({
+      resultsPath, completionPath, root: scratch, context,
+    }), 0);
 
     assert.throws(
       () => runBatteryReport({
         resultsPath,
+        completionPath,
         root: scratch,
         context: { ...context, inapplicabilityDeclarations: [] },
       }),
@@ -1458,8 +1558,11 @@ test('complete battery accepts only declared INAPPLICABLE pairs with predicate-v
       ...record,
       applicabilityEvidence: { ci: true },
     })}\n`);
+    completionPath = writeBatteryCompletion(scratch, resultsPath, context.inventory.canonicalGates);
     assert.throws(
-      () => runBatteryReport({ resultsPath, root: scratch, context }),
+      () => runBatteryReport({
+        resultsPath, completionPath, root: scratch, context,
+      }),
       /ci-only evidence must be exactly/u,
     );
   } finally {
@@ -1615,6 +1718,7 @@ test('complete battery tickets track signatures, claims, streaks, closure, and r
       startedAtMs: 1,
       state,
     });
+    let completionPath;
     const writeResults = (rootState, signature = null) => {
       const dependentState = rootState === 'PASS' ? 'PASS'
         : ['NOT_SELECTED', 'INAPPLICABLE'].includes(rootState) ? rootState : 'BLOCKED';
@@ -1622,10 +1726,12 @@ test('complete battery tickets track signatures, claims, streaks, closure, and r
         result('root-gate', rootState, signature),
         result('dependent-gate', dependentState),
       ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+      completionPath = writeBatteryCompletion(repo, resultsPath, context.inventory.canonicalGates);
     };
     const runBattery = (runId) => runBatteryBackstop({
       head,
       resultsPath,
+      completionPath,
       runId,
       issuesDir,
       root: repo,

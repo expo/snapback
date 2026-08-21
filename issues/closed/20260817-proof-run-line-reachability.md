@@ -58,14 +58,25 @@ validated receipt's exact count and digest, rejects selected/results aliasing,
 and makes that in-memory snapshot the only runtime membership authority.
 `proof_runner_finish` reconciles every selected id against the runtime result
 ledger and exits nonzero with the missing ids when a shell guard or other
-control flow prevents a selected gate from being recorded. An EXIT trap turns
-top-level early success into a hard error, an `exec` interlock prevents shell
-replacement while reconciliation is armed, and gate commands run in a subshell
-so gate-local `exit`/`exec` cannot bypass recording.
+control flow prevents a selected gate from being recorded. The public proof
+entrypoint launches the proof body in a child shell and requires a private,
+run-bound completion token that `proof_runner_finish` writes atomically only
+after reconciliation; missing or mismatched evidence fails in the outer
+parent regardless of `exit`, dynamic `exec`, or signal behavior in the child.
+The verified retained token binds the selected-set and JSONL digests, and both
+GitHub's scheduled report and the launchd ticket publisher require it before
+consuming results.
+The EXIT trap remains defense in depth. Gate commands run under `set -e` in a
+subshell whose status is captured outside conditional context, so a
+function-valued gate cannot turn `false; true` into PASS. Selected/results
+descriptor pseudo-paths are rejected, and general alias identity is compared
+through opened descriptors before results are truncated.
 
 The proof-runner fixtures cover the original `if false; then ... fi` case and
-the same inventory with the gate unguarded. Static `run` parsing remains
-unchanged and fail-closed.
+the same inventory with the gate unguarded, dynamic `builtin`-`exec` spellings,
+an early-failing function with a later successful command, symlink/hardlink
+aliases, and `/dev/fd` pseudo-paths. Static `run` parsing remains unchanged and
+fail-closed.
 
 A complete-inventory reachability traversal surfaced 15 existing
 host-conditioned omissions in the canonical shell: the Darwin side of the

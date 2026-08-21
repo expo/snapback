@@ -13,8 +13,10 @@ resources outside the gate process group are not abandoned.)
 **Revised:** 2026-08-21 (the proof runner binds its immutable selected-id
 snapshot to the selector receipt's exact count/digest, reserves
 `NOT_SELECTED` for cadence exclusion, records declared host/policy absence as
-structured `INAPPLICABLE`, and fails closed if the proof shell exits before
-final reconciliation.)
+structured `INAPPLICABLE`, runs function-valued gates through an
+errexit-preserving child boundary, and requires the outer proof entry layer to
+verify a run-bound filesystem completion token written only after final
+reconciliation.)
 **Revised:** 2026-08-15 (a missing Cargo command now has the actionable
 `SNAPBACK_IBEX_CARGO_NOT_FOUND` host diagnostic; genuine exact-link probe
 driver faults retain `SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`).
@@ -909,6 +911,20 @@ signal-derived status. This is required for exact-owned resources that
 deliberately leave the gate process group, such as local fork servers using
 `setsid()`. Unknown detached writers are not claimed dead; bounded proof-capture
 drain detects them, makes the gate `timeout-cleanup-failed`, and returns.
+
+The public proof entrypoint supervises the proof body in a child shell. After
+the child exits, the parent requires an atomically written completion token
+whose run id matches the invocation and whose selected-set/results digests
+bind the completed ledger; a missing or mismatched token is a proof failure
+even when the child exited zero. Scheduled battery consumers require the
+supervisor-retained token beside the JSONL before reporting or mutating ticket
+state. The in-shell `EXIT` trap remains defense in depth, but shell syntax
+interception is not proof authority. Function-valued gates execute under
+`set -e` in a gate
+subshell whose status is captured outside conditional context, so an early
+failed command cannot fall through to a later successful command. Selected and
+result artifacts reject descriptor pseudo-paths and are identity-compared via
+opened descriptors before the result is truncated.
 
 Per-change execution is now selected by the checked
 `scripts/local-proof-selection-policy.v1.json` authority. Every canonical gate

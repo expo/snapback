@@ -369,7 +369,7 @@ assert.match(
 );
 assert.match(
   localProof,
-  /Report complete-battery verdict[\s\S]*if:\s*always\(\).*github\.event_name == 'schedule'.*github\.event_name == 'workflow_dispatch'[\s\S]*drift-prone-gates\.mjs battery-report[\s\S]*--results "\$SNAPBACK_PROOF_RESULTS"/u,
+  /Report complete-battery verdict[\s\S]*if:\s*always\(\).*github\.event_name == 'schedule'.*github\.event_name == 'workflow_dispatch'[\s\S]*drift-prone-gates\.mjs battery-report[\s\S]*--results "\$SNAPBACK_PROOF_RESULTS"[\s\S]*--completion "\$SNAPBACK_PROOF_COMPLETION_RECEIPT"/u,
   'scheduled and on-demand GitHub proofs must report the complete-battery verdict',
 );
 assert.doesNotMatch(
@@ -383,7 +383,7 @@ const localProofBackstop = readFileSync(
 );
 assert.match(
   localProofBackstop,
-  /scripts\/verify-local-proof --complete[\s\S]*drift-prone-gates\.mjs battery[\s\S]*git -C "\$battery_repo" add -A -- issues[\s\S]*git -C "\$battery_repo" push origin HEAD:main/u,
+  /scripts\/verify-local-proof --complete[\s\S]*drift-prone-gates\.mjs battery[\s\S]*--completion "\$completion_path"[\s\S]*git -C "\$battery_repo" add -A -- issues[\s\S]*git -C "\$battery_repo" push origin HEAD:main/u,
   'the local scheduled battery must run complete proof, project tickets, commit them, and push durable state',
 );
 const localProofBackstopPlist = readFileSync(

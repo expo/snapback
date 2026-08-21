@@ -3,6 +3,32 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# The public entry layer owns completion supervision. The proof body runs in a
+# child Bash process and can report success only after proof_runner_finish has
+# atomically written the run-bound completion token that this parent verifies.
+if [ "${PROOF_RUNNER_SUPERVISED:-0}" != "1" ]; then
+    if [ "$#" -eq 1 ] && { [ "$1" = "--help" ] || [ "$1" = "-h" ]; }; then
+        PROOF_RUNNER_SUPERVISED=1 /bin/bash "$ROOT/scripts/verify-local-proof" "$1"
+        exit $?
+    fi
+    # shellcheck source=scripts/lib/proof-runner.sh
+    source "$ROOT/scripts/lib/proof-runner.sh"
+    export SNAPBACK_PROOF_COMPLETION_RECEIPT="${SNAPBACK_PROOF_COMPLETION_RECEIPT:-$ROOT/target/proof/local-proof-completion.json}"
+    proof_supervisor_status=0
+    proof_runner_supervise local-proof -- /bin/bash "$ROOT/scripts/verify-local-proof" "$@" \
+        || proof_supervisor_status=$?
+    exit "$proof_supervisor_status"
+fi
+if ! { [ "$#" -eq 1 ] && { [ "$1" = "--help" ] || [ "$1" = "-h" ]; }; } \
+    && { [ -z "${PROOF_RUNNER_COMPLETION_PATH:-}" ] \
+        || [ -z "${PROOF_RUNNER_PHASE_PATH:-}" ] \
+        || [ -z "${PROOF_RUNNER_RUN_ID:-}" ]; }; then
+    printf '[snapback-proof] supervised proof body is missing its completion handshake\n' >&2
+    exit 2
+fi
+unset PROOF_RUNNER_SUPERVISED
+
 VERIFY_EXACT="${SNAPBACK_VERIFY_EXACT:-auto}"
 case "$VERIFY_EXACT" in
     0|1|auto) ;;
@@ -31,6 +57,7 @@ SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS overrides every gate's wall-clock cap
 (canonical positive decimal seconds, maximum 536870911; default 3600). Gates
 may declare --timeout-seconds with the same syntax.
 SNAPBACK_PROOF_GATE_TERM_GRACE_SECONDS controls TERM-to-KILL grace (default 5).
+SNAPBACK_PROOF_COMPLETION_RECEIPT sets the retained, supervisor-verified completion token.
 EOF
 }
 
@@ -534,13 +561,13 @@ build_current_binary() {
             return 1
             ;;
     esac
-    cargo clean -p snapback
+    cargo clean -p snapback || return $?
     env \
         SNAPBACK_BUILD_GIT_COMMIT="$SNAPBACK_BUILD_GIT_COMMIT" \
         SNAPBACK_BUILD_GIT_DIRTY="$SNAPBACK_BUILD_GIT_DIRTY" \
-        cargo build --locked --bin snapback
+        cargo build --locked --bin snapback || return $?
     local identity_json
-    identity_json="$("$ROOT/target/debug/snapback" build-identity)"
+    identity_json="$("$ROOT/target/debug/snapback" build-identity)" || return $?
     node -e '
 const identity = JSON.parse(process.argv[1])?.binary;
 const expectedCommit = process.argv[2];
@@ -552,7 +579,7 @@ if (identity?.gitCommit !== expectedCommit || identity?.gitDirty !== expectedDir
   });
   process.exit(1);
 }
-' "$identity_json" "$SNAPBACK_BUILD_GIT_COMMIT" "$SNAPBACK_BUILD_GIT_DIRTY"
+' "$identity_json" "$SNAPBACK_BUILD_GIT_COMMIT" "$SNAPBACK_BUILD_GIT_DIRTY" || return $?
 }
 run current-binary-build --requires native-runtime-bootstrap -- build_current_binary
 # The early bootstrap proves its own authoritative binary. Cargo tests and the

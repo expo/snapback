@@ -3,10 +3,12 @@ import { createHash } from 'node:crypto';
 import {
   closeSync,
   existsSync,
+  linkSync,
   mkdtempSync,
   openSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -41,6 +43,7 @@ function fixture(body, {
   timeoutSeconds = null,
   termGraceSeconds = null,
   captureDrainSeconds = null,
+  supervised = false,
 } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-proof-runner-'));
   const receipt = join(scratch, 'results.jsonl');
@@ -53,6 +56,7 @@ function fixture(body, {
   const signalCleanupGate = join(scratch, 'signal-cleanup-gate.mjs');
   const stdoutPath = join(scratch, 'fixture.stdout');
   const stderrPath = join(scratch, 'fixture.stderr');
+  const proofBodyPath = join(scratch, 'proof-body.sh');
   writeFileSync(detachedWriter, `import os
 import pathlib
 import signal
@@ -105,13 +109,21 @@ await runAcceptance(suite, async () => {
 }, { cleanups });
 `);
   writeFileSync(selectedGates, selectedGateBytes(selected));
-  const script = `
+  const proofBody = `
 set -euo pipefail
 source ${JSON.stringify(runner)}
 proof_runner_init fixture ${JSON.stringify(receipt)} ${keepGoing} ${JSON.stringify(selectedGates)} ${selected.length} ${JSON.stringify(selectedGateDigest(selected))}
 ${body}
 proof_runner_finish
 `;
+  writeFileSync(proofBodyPath, proofBody);
+  const script = supervised
+    ? `
+set -euo pipefail
+source ${JSON.stringify(runner)}
+proof_runner_supervise fixture -- /bin/bash ${JSON.stringify(proofBodyPath)}
+`
+    : proofBody;
   const env = {
     ...process.env,
     FIXTURE_MARKER: marker,
@@ -180,20 +192,75 @@ function processExists(pid) {
   }
 }
 
-test('init rejects path aliasing, truncated prefixes, and same-count id substitution', () => {
+test('init rejects path aliasing without overwriting the selected inventory', () => {
   const selected = ['first-gate', 'second-gate'];
-  for (const variant of ['alias', 'truncated', 'substituted']) {
+  for (const variant of ['alias', 'symlink', 'hardlink']) {
     const scratch = mkdtempSync(join(tmpdir(), `snapback-proof-runner-${variant}-`));
     const selectedGates = join(scratch, 'selected-gates.txt');
     const results = variant === 'alias' ? selectedGates : join(scratch, 'results.jsonl');
+    const original = selectedGateBytes(selected);
+    writeFileSync(selectedGates, original);
+    if (variant === 'symlink') symlinkSync(selectedGates, results);
+    if (variant === 'hardlink') linkSync(selectedGates, results);
+    const script = `
+set -euo pipefail
+source ${JSON.stringify(runner)}
+proof_runner_init fixture ${JSON.stringify(results)} 1 ${JSON.stringify(selectedGates)} ${selected.length} ${JSON.stringify(selectedGateDigest(selected))}
+`;
+    const result = spawnSync('/bin/bash', ['-c', script], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    try {
+      assert.equal(result.status, 2, `${result.stdout}\n${result.stderr}`);
+      assert.match(result.stderr, /selected-gates and results paths must not alias/u);
+      assert.equal(readFileSync(selectedGates, 'utf8'), original);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  }
+});
+
+test('init rejects descriptor pseudo-paths for selected and results artifacts', () => {
+  const selected = ['first-gate'];
+  for (const pseudoArtifact of ['selected', 'results']) {
+    const scratch = mkdtempSync(join(tmpdir(), `snapback-proof-runner-fd-${pseudoArtifact}-`));
+    const selectedGates = join(scratch, 'selected-gates.txt');
+    const results = join(scratch, 'results.jsonl');
+    const original = selectedGateBytes(selected);
+    writeFileSync(selectedGates, original);
+    const selectedArgument = pseudoArtifact === 'selected' ? '/dev/fd/7' : selectedGates;
+    const resultsArgument = pseudoArtifact === 'results' ? '/dev/fd/7' : results;
+    const script = `
+set -euo pipefail
+source ${JSON.stringify(runner)}
+exec 7< ${JSON.stringify(selectedGates)}
+proof_runner_init fixture ${JSON.stringify(resultsArgument)} 1 ${JSON.stringify(selectedArgument)} ${selected.length} ${JSON.stringify(selectedGateDigest(selected))}
+`;
+    const result = spawnSync('/bin/bash', ['-c', script], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    try {
+      assert.equal(result.status, 2, `${result.stdout}\n${result.stderr}`);
+      assert.match(result.stderr, /descriptor pseudo-paths are forbidden/u);
+      assert.equal(readFileSync(selectedGates, 'utf8'), original);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  }
+});
+
+test('init rejects truncated prefixes and same-count id substitution', () => {
+  const selected = ['first-gate', 'second-gate'];
+  for (const variant of ['truncated', 'substituted']) {
+    const scratch = mkdtempSync(join(tmpdir(), `snapback-proof-runner-${variant}-`));
+    const selectedGates = join(scratch, 'selected-gates.txt');
+    const results = join(scratch, 'results.jsonl');
     writeFileSync(
       selectedGates,
       selectedGateBytes(
-        variant === 'truncated'
-          ? selected.slice(0, 1)
-          : variant === 'substituted'
-            ? ['first-gate', 'different-gate']
-            : selected,
+        variant === 'truncated' ? selected.slice(0, 1) : ['first-gate', 'different-gate'],
       ),
     );
     const script = `
@@ -209,11 +276,7 @@ proof_runner_init fixture ${JSON.stringify(results)} 1 ${JSON.stringify(selected
       assert.equal(result.status, 2, `${result.stdout}\n${result.stderr}`);
       assert.match(
         result.stderr,
-        variant === 'alias'
-          ? /selected-gates and results paths must not alias/u
-          : variant === 'truncated'
-            ? /selected gate count mismatch/u
-            : /selected gate digest mismatch/u,
+        variant === 'truncated' ? /selected gate count mismatch/u : /selected gate digest mismatch/u,
       );
     } finally {
       rmSync(scratch, { recursive: true, force: true });
@@ -250,25 +313,30 @@ proof_not_selected selected-gate "attempted policy bypass"
   }
 });
 
-test('gate-local exit/exec are recorded while top-level exit/exec cannot bypass finish', () => {
+test('gate-local exit/exec are recorded while outer supervision catches every top-level exit/exec form', () => {
   const gateExit = fixture(`
 proof_gate selected-gate -- exit 0
-`, { selected: ['selected-gate'] });
+`, { selected: ['selected-gate'], supervised: true });
   const gateExec = fixture(`
 proof_gate selected-gate -- exec /usr/bin/true
-`, { selected: ['selected-gate'] });
+`, { selected: ['selected-gate'], supervised: true });
   const topLevelExit = fixture(`
 exit 0
-`, { selected: ['selected-gate'] });
+`, { selected: ['selected-gate'], supervised: true });
   const topLevelExec = fixture(`
 exec /usr/bin/true
-`, { selected: ['selected-gate'] });
+`, { selected: ['selected-gate'], supervised: true });
   const topLevelBuiltinExec = fixture(`
-builtin exec /usr/bin/true
-`, { selected: ['selected-gate'] });
-  const topLevelCommandExec = fixture(`
-command exec /usr/bin/true
-`, { selected: ['selected-gate'] });
+builtin 'exec' /usr/bin/true
+`, { selected: ['selected-gate'], supervised: true });
+  const topLevelDynamicBuiltinExec = fixture(`
+e=exec
+builtin "$e" /usr/bin/true
+`, { selected: ['selected-gate'], supervised: true });
+  const topLevelMismatchedTokenExec = fixture(`
+printf '{}\n' > "$PROOF_RUNNER_COMPLETION_PATH"
+builtin 'exec' /usr/bin/true
+`, { selected: ['selected-gate'], supervised: true });
   try {
     assert.equal(gateExit.result.status, 0, gateExit.result.stderr);
     assert.deepEqual(
@@ -287,21 +355,50 @@ command exec /usr/bin/true
     );
     assert.deepEqual(topLevelExit.records, []);
     assert.equal(topLevelExec.result.status, 2, topLevelExec.result.stderr);
-    assert.match(topLevelExec.result.stderr, /exec cannot replace an unreconciled proof shell/u);
+    assert.match(topLevelExec.result.stderr, /did not produce a matching completion token/u);
     assert.deepEqual(topLevelExec.records, []);
     assert.equal(topLevelBuiltinExec.result.status, 2, topLevelBuiltinExec.result.stderr);
-    assert.match(topLevelBuiltinExec.result.stderr, /exec cannot replace an unreconciled proof shell/u);
+    assert.match(topLevelBuiltinExec.result.stderr, /did not produce a matching completion token/u);
     assert.deepEqual(topLevelBuiltinExec.records, []);
-    assert.equal(topLevelCommandExec.result.status, 2, topLevelCommandExec.result.stderr);
-    assert.match(topLevelCommandExec.result.stderr, /exec cannot replace an unreconciled proof shell/u);
-    assert.deepEqual(topLevelCommandExec.records, []);
+    assert.equal(topLevelDynamicBuiltinExec.result.status, 2, topLevelDynamicBuiltinExec.result.stderr);
+    assert.match(topLevelDynamicBuiltinExec.result.stderr, /did not produce a matching completion token/u);
+    assert.deepEqual(topLevelDynamicBuiltinExec.records, []);
+    assert.equal(topLevelMismatchedTokenExec.result.status, 2, topLevelMismatchedTokenExec.result.stderr);
+    assert.match(topLevelMismatchedTokenExec.result.stderr, /did not produce a matching completion token/u);
+    assert.deepEqual(topLevelMismatchedTokenExec.records, []);
   } finally {
     rmSync(gateExit.scratch, { recursive: true, force: true });
     rmSync(gateExec.scratch, { recursive: true, force: true });
     rmSync(topLevelExit.scratch, { recursive: true, force: true });
     rmSync(topLevelExec.scratch, { recursive: true, force: true });
     rmSync(topLevelBuiltinExec.scratch, { recursive: true, force: true });
-    rmSync(topLevelCommandExec.scratch, { recursive: true, force: true });
+    rmSync(topLevelDynamicBuiltinExec.scratch, { recursive: true, force: true });
+    rmSync(topLevelMismatchedTokenExec.scratch, { recursive: true, force: true });
+  }
+});
+
+test('function-valued gates propagate an early command failure even when a later command succeeds', () => {
+  for (const captureSignatures of [false, true]) {
+    const run = fixture(`
+false_then_true() {
+  false
+  true
+}
+proof_gate selected-gate -- false_then_true
+`, { selected: ['selected-gate'], captureSignatures });
+    try {
+      assert.equal(run.result.status, 1, `${run.result.stdout}\n${run.result.stderr}`);
+      assert.deepEqual(
+        run.records.map(({ gateId, state, exitCode }) => [gateId, state, exitCode]),
+        [['selected-gate', 'FAIL', 1]],
+      );
+      assert.equal(
+        /^sha256:[0-9a-f]{64}$/u.test(run.records[0].failureSignature ?? ''),
+        captureSignatures,
+      );
+    } finally {
+      rmSync(run.scratch, { recursive: true, force: true });
+    }
   }
 });
 

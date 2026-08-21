@@ -82,12 +82,14 @@ fi
 "$battery_repo/scripts/bootstrap-ibex-runtime"
 
 results_path="$battery_repo/target/proof/local-proof-results.jsonl"
+completion_path="$battery_repo/target/proof/local-proof-completion.json"
 proof_status=0
 (
   cd "$battery_repo"
   env \
     SNAPBACK_PROOF_KEEP_GOING=1 \
     SNAPBACK_PROOF_RESULTS="$results_path" \
+    SNAPBACK_PROOF_COMPLETION_RECEIPT="$completion_path" \
     SNAPBACK_VERIFY_EXACT=1 \
     scripts/verify-local-proof --complete
 ) || proof_status=$?
@@ -100,6 +102,7 @@ battery_status=0
   node scripts/drift-prone-gates.mjs battery \
     --head HEAD \
     --results "$results_path" \
+    --completion "$completion_path" \
     --run-id "$run_id"
 ) || battery_status=$?
 

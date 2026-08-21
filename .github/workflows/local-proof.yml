@@ -197,6 +197,7 @@ jobs:
           SNAPBACK_VERIFY_EXACT: "1"
           CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
           SNAPBACK_PROOF_RESULTS: ${{ github.workspace }}/target/proof/local-proof-results.jsonl
+          SNAPBACK_PROOF_COMPLETION_RECEIPT: ${{ github.workspace }}/target/proof/local-proof-completion.json
           SNAPBACK_PROOF_SELECTION_RESULTS: ${{ runner.temp }}/local-proof-selection.json
           SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT: /opt/snapback-app-cli-test-${{ github.run_id }}
           # One red round names every broken gate instead of only the first
@@ -224,6 +225,7 @@ jobs:
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:
           SNAPBACK_PROOF_RESULTS: ${{ github.workspace }}/target/proof/local-proof-results.jsonl
+          SNAPBACK_PROOF_COMPLETION_RECEIPT: ${{ github.workspace }}/target/proof/local-proof-completion.json
         run: |
           set -euo pipefail
           test -s "$SNAPBACK_PROOF_RESULTS" || {
@@ -231,7 +233,8 @@ jobs:
             exit 2
           }
           node scripts/drift-prone-gates.mjs battery-report \
-            --results "$SNAPBACK_PROOF_RESULTS"
+            --results "$SNAPBACK_PROOF_RESULTS" \
+            --completion "$SNAPBACK_PROOF_COMPLETION_RECEIPT"
 
       # @ref LLP 0175#d5--make-test-economics-part-of-the-inventory — retain
       # every named gate's duration and PASS/FAIL/BLOCKED state even on red.
@@ -242,6 +245,7 @@ jobs:
           name: local-proof-gate-results-${{ github.run_id }}
           path: |
             target/proof/local-proof-results.jsonl
+            target/proof/local-proof-completion.json
             target/proof/template-registry-canary.json
             ${{ runner.temp }}/local-proof-selection.json
           if-no-files-found: warn

@@ -34,6 +34,7 @@ import { delimiter, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  digestSelectedGateIds,
   loadSelectionContext,
   selectChangedPaths,
   selectDriftProneGates,
@@ -224,16 +225,22 @@ async function main() {
   if (command === 'battery') {
     const head = option(args, '--head') ?? 'HEAD';
     const resultsPath = option(args, '--results', { required: true });
+    const completionPath = option(args, '--completion', { required: true });
     const runId = option(args, '--run-id', { required: true });
     const issuesDir = option(args, '--issues-dir') ?? 'issues';
-    assertNoUnknownOptions(args, ['--head', '--results', '--run-id', '--issues-dir']);
-    process.exitCode = runBatteryBackstop({ head, resultsPath, runId, issuesDir });
+    assertNoUnknownOptions(args, [
+      '--head', '--results', '--completion', '--run-id', '--issues-dir',
+    ]);
+    process.exitCode = runBatteryBackstop({
+      head, resultsPath, completionPath, runId, issuesDir,
+    });
     return;
   }
   if (command === 'battery-report') {
     const resultsPath = option(args, '--results', { required: true });
-    assertNoUnknownOptions(args, ['--results']);
-    process.exitCode = runBatteryReport({ resultsPath });
+    const completionPath = option(args, '--completion', { required: true });
+    assertNoUnknownOptions(args, ['--results', '--completion']);
+    process.exitCode = runBatteryReport({ resultsPath, completionPath });
     return;
   }
   if (command === 'battery-check') {
@@ -2161,12 +2168,53 @@ function validateCompleteBatteryInventory(records, expected) {
   }
 }
 
-function readCompleteBatteryResults({ root, resultsPath, context }) {
+function readProofCompletion({ root, completionPath, resultsSource, expectedGates }) {
+  if (typeof completionPath !== 'string' || completionPath === '') {
+    fail('complete battery completion token path is required');
+  }
+  const resolvedCompletion = resolve(root, completionPath);
+  if (resolvedCompletion === resolve(root)
+    || !resolvedCompletion.startsWith(`${resolve(root)}${sep}`)) {
+    fail(`battery completion token escapes repository: ${completionPath}`);
+  }
+  let token;
+  try {
+    token = JSON.parse(readFileSync(resolvedCompletion, 'utf8'));
+  } catch (error) {
+    fail(`battery completion token is missing or invalid: ${error.message}`);
+  }
+  const requiredKeys = [
+    'schemaVersion', 'runId', 'proofId', 'selectedGateCount',
+    'selectedGateDigest', 'resultsDigest',
+  ];
+  if (!token || typeof token !== 'object' || Array.isArray(token)
+    || JSON.stringify(Object.keys(token).sort()) !== JSON.stringify(requiredKeys.sort())
+    || token.schemaVersion !== 'snapback.proof-completion.v1'
+    || token.proofId !== 'local-proof'
+    || typeof token.runId !== 'string'
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
+      .test(token.runId)
+    || token.selectedGateCount !== expectedGates.length
+    || token.selectedGateDigest !== digestSelectedGateIds(expectedGates)
+    || token.resultsDigest !== `sha256:${createHash('sha256').update(resultsSource).digest('hex')}`) {
+    fail('battery completion token does not match the complete proof results and inventory');
+  }
+  return token;
+}
+
+function readCompleteBatteryResults({ root, resultsPath, completionPath, context }) {
   const resolvedResults = resolve(root, resultsPath);
   if (resolvedResults === resolve(root) || !resolvedResults.startsWith(`${resolve(root)}${sep}`)) {
     fail(`battery results escape repository: ${resultsPath}`);
   }
-  const records = parseBatteryResults(readFileSync(resolvedResults, 'utf8'));
+  const resultsSource = readFileSync(resolvedResults, 'utf8');
+  readProofCompletion({
+    root,
+    completionPath,
+    resultsSource,
+    expectedGates: context.inventory.canonicalGates,
+  });
+  const records = parseBatteryResults(resultsSource);
   validateCompleteBatteryInventory(records, context.inventory.canonicalGates);
   for (const record of records) {
     if (record.state === 'NOT_SELECTED') {
@@ -2189,10 +2237,13 @@ function readCompleteBatteryResults({ root, resultsPath, context }) {
 
 export function runBatteryReport({
   resultsPath,
+  completionPath,
   root = ROOT,
   context = loadSelectionContext(),
 } = {}) {
-  const records = readCompleteBatteryResults({ root, resultsPath, context });
+  const records = readCompleteBatteryResults({
+    root, resultsPath, completionPath, context,
+  });
   const counts = Object.fromEntries(
     ['PASS', 'FAIL', 'BLOCKED', 'NOT_SELECTED', 'INAPPLICABLE'].map((state) => [
       state,
@@ -2211,6 +2262,7 @@ export function runBatteryReport({
 export function runBatteryBackstop({
   head = 'HEAD',
   resultsPath,
+  completionPath,
   runId,
   issuesDir = 'issues',
   root = ROOT,
@@ -2222,7 +2274,9 @@ export function runBatteryBackstop({
     fail(`invalid battery run id ${runId}`);
   }
   const revision = resolveCommit(root, head);
-  const records = readCompleteBatteryResults({ root, resultsPath, context });
+  const records = readCompleteBatteryResults({
+    root, resultsPath, completionPath, context,
+  });
 
   const ticketRoot = safeIssuesRoot(root, issuesDir);
   mkdirSync(ticketRoot, { recursive: true });
@@ -3528,8 +3582,8 @@ function usage() {
   throw new Error(
     'usage: drift-prone-gates.mjs pre-push --remote NAME | '
       + 'backstop [--head REV] [--gate ID[,ID...]] [--issues-dir PATH] | '
-      + 'battery --results PATH --run-id ID [--head REV] [--issues-dir PATH] | '
-      + 'battery-report --results PATH | '
+      + 'battery --results PATH --completion PATH --run-id ID [--head REV] [--issues-dir PATH] | '
+      + 'battery-report --results PATH --completion PATH | '
       + 'battery-check [--head REV]',
   );
 }

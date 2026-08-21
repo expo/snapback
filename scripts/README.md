@@ -17,8 +17,8 @@ setup commands. Gate cadence and dependency selection come from
 | Set up or reset a demo backend explicitly | `scripts/demo-setup <demo>` |
 | Prove the All Aboard registry cold-clone path | `scripts/cold-clone-check.sh` |
 | Inspect or run frozen-record drift gates | `node scripts/drift-prone-gates.mjs backstop [--gate ID]` |
-| Report a complete-battery artifact without changing tickets | `node scripts/drift-prone-gates.mjs battery-report --results target/proof/local-proof-results.jsonl` |
-| Project complete-battery root failures into durable tickets | `node scripts/drift-prone-gates.mjs battery --results target/proof/local-proof-results.jsonl --run-id ID` |
+| Report a complete-battery artifact without changing tickets | `node scripts/drift-prone-gates.mjs battery-report --results target/proof/local-proof-results.jsonl --completion target/proof/local-proof-completion.json` |
+| Project complete-battery root failures into durable tickets | `node scripts/drift-prone-gates.mjs battery --results target/proof/local-proof-results.jsonl --completion target/proof/local-proof-completion.json --run-id ID` |
 | Install, inspect, or remove the macOS drift schedule | `scripts/install-drift-backstop-schedule [--status\|--uninstall]` |
 | Install, inspect, or remove the macOS complete-battery schedule | `scripts/install-local-proof-backstop-schedule [--status\|--uninstall]` |
 

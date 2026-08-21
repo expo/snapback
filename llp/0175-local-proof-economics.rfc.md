@@ -16,9 +16,10 @@ disables Cargo's target-level fail-fast behavior.)
 gate snapshot is count/digest-bound to the exact selector receipt and is the
 only runtime membership authority; selected gates cannot claim cadence-level
 `NOT_SELECTED`; statically declared host/policy predicates instead emit
-structured `INAPPLICABLE`; an EXIT guard and gate-command subshell prevent
-early successful termination from bypassing the final reconciliation, with a
-top-level `exec` interlock covering shell replacement.)
+structured `INAPPLICABLE`; function gates retain errexit in their command
+subshell; and the outer entry layer requires a run-bound filesystem completion
+token written only after reconciliation, with the in-shell EXIT guard retained
+as defense in depth.)
 **Revised:** 2026-08-11 (LLP 0232 accepting change, author ruling in session:
 the 2026-08-07 D2.1 ruling gains four narrowings — baseline-corroborated
 infrastructure fail-open, receipt-validated reuse for trigger-matched gates,
