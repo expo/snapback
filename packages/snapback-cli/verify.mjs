@@ -262,6 +262,9 @@ export function defineVerifyConfig(config) {
 
 const STARTER_ACCEPTANCE_SCHEMA_VERSION = 'snapback.starter-acceptance.v1';
 const STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
+const STARTER_ACCEPTANCE_MAX_INVALID_PATHS = 64;
+const STARTER_ACCEPTANCE_MAX_OPERATION_PATHS = 16;
+const STARTER_ACCEPTANCE_MAX_DIAGNOSTIC_MESSAGE_CHARS = 4_096;
 
 function resolveStarterAcceptanceFile(value) {
   if (value instanceof URL) return realpathSync(fileURLToPath(value));
@@ -282,6 +285,309 @@ function unsupportedConformance(paths) {
       writeProvenance: 'unsupported',
     }),
   }));
+}
+
+function receiptValueKind(value, present = true) {
+  if (!present) return 'missing';
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  if (Number.isInteger(value)) return 'integer';
+  return typeof value;
+}
+
+function receiptLeaf(parent, key) {
+  const present = plainObject(parent) && Object.hasOwn(parent, key);
+  return { present, value: present ? parent[key] : undefined };
+}
+
+function invalidReceiptPath(path, expectedKind, expectedState, value, present, observedState) {
+  return Object.freeze({
+    path,
+    expected: Object.freeze({ kind: expectedKind, state: expectedState }),
+    observed: Object.freeze({
+      kind: receiptValueKind(value, present),
+      state: present ? observedState : 'missing',
+    }),
+  });
+}
+
+function parseStarterAcceptanceReceipt(stdout) {
+  const trimmed = stdout.trim();
+  if (trimmed.length === 0) {
+    return Object.freeze({ kind: 'missing-receipt', receipt: null, invalidPaths: Object.freeze([
+      invalidReceiptPath('$', 'object', 'starter-acceptance-receipt-present', undefined, false, 'missing'),
+    ]) });
+  }
+
+  const lines = trimmed.split('\n');
+  let lastJson;
+  let sawJson = false;
+  let lastLineLooksLikeJson = false;
+  for (const [reverseIndex, line] of [...lines].reverse().entries()) {
+    const candidateLine = line.trim();
+    if (reverseIndex === 0) {
+      lastLineLooksLikeJson = candidateLine.startsWith('{') || candidateLine.startsWith('[');
+    }
+    try {
+      const candidate = JSON.parse(candidateLine);
+      if (!sawJson) {
+        lastJson = candidate;
+        sawJson = true;
+      }
+      if (candidate?.schemaVersion === STARTER_ACCEPTANCE_SCHEMA_VERSION) {
+        return Object.freeze({ kind: 'receipt', receipt: candidate, invalidPaths: Object.freeze([]) });
+      }
+    } catch {
+      // Human-readable output may precede the final JSON receipt. It is not
+      // receipt evidence and is never copied into structured diagnostics.
+    }
+  }
+
+  if (sawJson) {
+    const schemaVersion = receiptLeaf(lastJson, 'schemaVersion');
+    return Object.freeze({
+      kind: 'malformed-receipt',
+      receipt: null,
+      invalidPaths: Object.freeze([
+        plainObject(lastJson)
+          ? invalidReceiptPath(
+            '$.schemaVersion',
+            'string',
+            STARTER_ACCEPTANCE_SCHEMA_VERSION,
+            schemaVersion.value,
+            schemaVersion.present,
+            'unexpected',
+          )
+          : invalidReceiptPath('$', 'object', 'starter-acceptance-receipt', lastJson, true, 'wrong-kind'),
+      ]),
+    });
+  }
+
+  if (lastLineLooksLikeJson) {
+    return Object.freeze({ kind: 'malformed-receipt', receipt: null, invalidPaths: Object.freeze([
+      invalidReceiptPath('$', 'object', 'valid-json', '', true, 'invalid-json'),
+    ]) });
+  }
+
+  return Object.freeze({ kind: 'missing-receipt', receipt: null, invalidPaths: Object.freeze([
+    invalidReceiptPath('$', 'object', 'starter-acceptance-receipt-present', undefined, false, 'missing'),
+  ]) });
+}
+
+function operationReceiptPath(key) {
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(key)
+    ? `$.operations.${key}`
+    : `$.operations[${JSON.stringify(key)}]`;
+}
+
+// @ref LLP 0275#d5-make-acceptance-profiles-single-source-and-staleness-aware
+// — operation-set drift is one typed stale-registration remediation, not a
+// hidden requirement that every domain preserve generic receipt key names.
+// @ref LLP 0294#w1--make-proof-commands-trustworthy-and-legible — every other
+// incomplete passing receipt reports bounded expected-versus-observed paths.
+function validatePassingStarterReceipt(receipt, registeredPaths) {
+  const invalidPaths = [];
+  let invalidPathCount = 0;
+  const add = (entry) => {
+    invalidPathCount += 1;
+    if (invalidPaths.length < STARTER_ACCEPTANCE_MAX_INVALID_PATHS) invalidPaths.push(entry);
+  };
+  const requireLiteral = (path, parent, key, expectedKind, expectedState, predicate) => {
+    const leaf = receiptLeaf(parent, key);
+    if (!leaf.present || !predicate(leaf.value)) {
+      add(invalidReceiptPath(
+        path,
+        expectedKind,
+        expectedState,
+        leaf.value,
+        leaf.present,
+        leaf.present && receiptValueKind(leaf.value) !== expectedKind ? 'wrong-kind' : 'unexpected',
+      ));
+    }
+    return leaf;
+  };
+
+  const expectedCheckCount = requireLiteral(
+    '$.expectedCheckCount', receipt, 'expectedCheckCount', 'integer', 'positive',
+    (value) => Number.isInteger(value) && value > 0,
+  );
+  const executedCheckCount = requireLiteral(
+    '$.executedCheckCount', receipt, 'executedCheckCount', 'integer', 'present', Number.isInteger,
+  );
+  if (
+    expectedCheckCount.present
+    && Number.isInteger(expectedCheckCount.value)
+    && expectedCheckCount.value > 0
+    && executedCheckCount.present
+    && Number.isInteger(executedCheckCount.value)
+    && executedCheckCount.value !== expectedCheckCount.value
+  ) {
+    add(invalidReceiptPath(
+      '$.executedCheckCount',
+      'integer',
+      'matches-$.expectedCheckCount',
+      executedCheckCount.value,
+      true,
+      'count-mismatch',
+    ));
+  }
+
+  const checks = receiptLeaf(receipt, 'checks');
+  if (!checks.present || !Array.isArray(checks.value)) {
+    add(invalidReceiptPath(
+      '$.checks', 'array', 'present', checks.value, checks.present,
+      checks.present ? 'wrong-kind' : 'missing',
+    ));
+  } else {
+    if (
+      expectedCheckCount.present
+      && Number.isInteger(expectedCheckCount.value)
+      && expectedCheckCount.value > 0
+      && checks.value.length !== expectedCheckCount.value
+    ) {
+      add(invalidReceiptPath(
+        '$.checks.length',
+        'integer',
+        'matches-$.expectedCheckCount',
+        checks.value.length,
+        true,
+        'count-mismatch',
+      ));
+    }
+    for (const [index, check] of checks.value.entries()) {
+      requireLiteral(
+        `$.checks[${index}].status`, check, 'status', 'string', 'passed',
+        (value) => value === 'passed',
+      );
+    }
+  }
+
+  const identity = receiptLeaf(receipt, 'identity').value;
+  const artifactIdentity = receiptLeaf(identity, 'artifact').value;
+  const loadedIdentity = receiptLeaf(identity, 'loaded').value;
+  const artifactAppId = requireLiteral(
+    '$.identity.artifact.appId', artifactIdentity, 'appId', 'string', 'present',
+    (value) => typeof value === 'string',
+  );
+  const artifactBundleHash = requireLiteral(
+    '$.identity.artifact.bundleHash', artifactIdentity, 'bundleHash', 'string', 'present',
+    (value) => typeof value === 'string',
+  );
+  const loadedAppId = requireLiteral(
+    '$.identity.loaded.appId', loadedIdentity, 'appId', 'string', 'present',
+    (value) => typeof value === 'string',
+  );
+  const loadedBundleHash = requireLiteral(
+    '$.identity.loaded.bundleHash', loadedIdentity, 'bundleHash', 'string', 'present',
+    (value) => typeof value === 'string',
+  );
+  if (
+    artifactAppId.present && typeof artifactAppId.value === 'string'
+    && loadedAppId.present && typeof loadedAppId.value === 'string'
+    && loadedAppId.value !== artifactAppId.value
+  ) {
+    add(invalidReceiptPath(
+      '$.identity.loaded.appId', 'string', 'matches-$.identity.artifact.appId',
+      loadedAppId.value, true, 'identity-mismatch',
+    ));
+  }
+  if (
+    artifactBundleHash.present && typeof artifactBundleHash.value === 'string'
+    && loadedBundleHash.present && typeof loadedBundleHash.value === 'string'
+    && loadedBundleHash.value !== artifactBundleHash.value
+  ) {
+    add(invalidReceiptPath(
+      '$.identity.loaded.bundleHash', 'string', 'matches-$.identity.artifact.bundleHash',
+      loadedBundleHash.value, true, 'identity-mismatch',
+    ));
+  }
+
+  const lifecycle = receiptLeaf(receipt, 'lifecycle').value;
+  requireLiteral('$.lifecycle.owned', lifecycle, 'owned', 'boolean', 'true', (value) => value === true);
+  requireLiteral(
+    '$.lifecycle.applicationReadyObserved', lifecycle, 'applicationReadyObserved',
+    'boolean', 'true', (value) => value === true,
+  );
+  requireLiteral(
+    '$.lifecycle.waitLevel', lifecycle, 'waitLevel', 'string', 'application',
+    (value) => value === 'application',
+  );
+  requireLiteral(
+    '$.lifecycle.firstQueryRetries', lifecycle, 'firstQueryRetries', 'integer', 'zero',
+    (value) => value === 0,
+  );
+
+  const operationsLeaf = receiptLeaf(receipt, 'operations');
+  const operations = operationsLeaf.value;
+  const queryFunctionId = receiptLeaf(operations, 'queryFunctionId');
+  const mutationFunctionId = receiptLeaf(operations, 'mutationFunctionId');
+  const renamedOperationKeys = plainObject(operations)
+    ? Object.keys(operations).filter((key) => (
+      key !== 'queryFunctionId'
+      && key !== 'mutationFunctionId'
+      && key.length <= 128
+      && typeof operations[key] === 'string'
+    )).sort()
+    : [];
+  let remediation = null;
+  if (!queryFunctionId.present && !mutationFunctionId.present && renamedOperationKeys.length >= 2) {
+    add(invalidReceiptPath(
+      '$.operations',
+      'generated-operation-registration',
+      'current',
+      operations,
+      operationsLeaf.present,
+      'stale-registration',
+    ));
+    remediation = Object.freeze({
+      kind: 'refresh-generated-operation-registration',
+      staleReceiptPaths: Object.freeze([
+        '$.operations.queryFunctionId',
+        '$.operations.mutationFunctionId',
+      ]),
+      registeredPaths: Object.freeze(registeredPaths.slice(0, STARTER_ACCEPTANCE_MAX_OPERATION_PATHS).map((path) => Object.freeze({
+        pathId: path.id,
+        ...(path.functionId === null ? {} : { functionId: path.functionId }),
+      }))),
+      registeredPathsTruncated: registeredPaths.length > STARTER_ACCEPTANCE_MAX_OPERATION_PATHS,
+      unclaimedOperationPaths: Object.freeze(renamedOperationKeys
+        .slice(0, STARTER_ACCEPTANCE_MAX_OPERATION_PATHS)
+        .map(operationReceiptPath)),
+      unclaimedOperationPathsTruncated: renamedOperationKeys.length > STARTER_ACCEPTANCE_MAX_OPERATION_PATHS,
+      instruction: 'Refresh the starter acceptance registration from generated operation references and rerun snapback verify.',
+    });
+  } else {
+    requireLiteral(
+      '$.operations.queryFunctionId', operations, 'queryFunctionId', 'string', 'present',
+      (value) => typeof value === 'string',
+    );
+    requireLiteral(
+      '$.operations.mutationFunctionId', operations, 'mutationFunctionId', 'string', 'present',
+      (value) => typeof value === 'string',
+    );
+  }
+
+  const cleanup = receiptLeaf(receipt, 'cleanup').value;
+  requireLiteral('$.cleanup.attempted', cleanup, 'attempted', 'boolean', 'true', (value) => value === true);
+  requireLiteral(
+    '$.cleanup.clientResourcesReleased', cleanup, 'clientResourcesReleased',
+    'boolean', 'true', (value) => value === true,
+  );
+  requireLiteral('$.cleanup.devExited', cleanup, 'devExited', 'boolean', 'true', (value) => value === true);
+  requireLiteral(
+    '$.cleanup.temporaryStateRemoved', cleanup, 'temporaryStateRemoved',
+    'boolean', 'true', (value) => value === true,
+  );
+  requireLiteral('$.cleanup.ok', cleanup, 'ok', 'boolean', 'true', (value) => value === true);
+  requireLiteral('$.diagnostic', receipt, 'diagnostic', 'null', 'null', (value) => value === null);
+
+  return Object.freeze({
+    complete: invalidPathCount === 0,
+    invalidPathCount,
+    invalidPaths: Object.freeze(invalidPaths),
+    invalidPathsTruncated: invalidPathCount > invalidPaths.length,
+    remediation,
+  });
 }
 
 async function runStarterAcceptanceProfile({ acceptanceFile, identityContext, paths, timeoutMs }) {
@@ -318,42 +624,31 @@ async function runStarterAcceptanceProfile({ acceptanceFile, identityContext, pa
   clearTimeout(timeout);
   if (killTimeout !== null) clearTimeout(killTimeout);
 
-  let receipt = null;
-  for (const line of stdout.trim().split('\n').reverse()) {
-    try {
-      const candidate = JSON.parse(line);
-      if (candidate?.schemaVersion === STARTER_ACCEPTANCE_SCHEMA_VERSION) {
-        receipt = candidate;
-        break;
-      }
-    } catch {
-      // The starter receipt is the final JSON line; preceding human output is
-      // not evidence and remains available only in the bounded diagnostic.
-    }
-  }
-  const receiptComplete = receipt?.status === 'passed'
-    && Number.isInteger(receipt?.expectedCheckCount)
-    && receipt.expectedCheckCount > 0
-    && receipt.executedCheckCount === receipt.expectedCheckCount
-    && receipt.checks?.length === receipt.expectedCheckCount
-    && receipt.checks.every(({ status }) => status === 'passed')
-    && typeof receipt.identity?.artifact?.appId === 'string'
-    && receipt.identity?.loaded?.appId === receipt.identity.artifact.appId
-    && receipt.identity?.loaded?.bundleHash === receipt.identity.artifact.bundleHash
-    && receipt.lifecycle?.owned === true
-    && receipt.lifecycle?.applicationReadyObserved === true
-    && receipt.lifecycle?.waitLevel === 'application'
-    && receipt.lifecycle?.firstQueryRetries === 0
-    && typeof receipt.operations?.queryFunctionId === 'string'
-    && typeof receipt.operations?.mutationFunctionId === 'string'
-    && receipt.cleanup?.attempted === true
-    && receipt.cleanup?.clientResourcesReleased === true
-    && receipt.cleanup?.devExited === true
-    && receipt.cleanup?.temporaryStateRemoved === true
-    && receipt.cleanup?.ok === true
-    && receipt.diagnostic === null;
-  const ok = !overflow && !timedOut && exit.error === null && exit.code === 0 && receiptComplete;
-  const causeCode = exit.error?.code ?? receipt?.diagnostic?.code ?? null;
+  const parsed = parseStarterAcceptanceReceipt(stdout);
+  const receipt = parsed.receipt;
+  const processFailed = exit.error !== null || exit.code !== 0;
+  const passingValidation = receipt?.status === 'passed'
+    ? validatePassingStarterReceipt(receipt, paths)
+    : null;
+  const ok = !overflow
+    && !timedOut
+    && !processFailed
+    && parsed.kind === 'receipt'
+    && passingValidation?.complete === true;
+  const candidateCauseCode = exit.error?.code ?? receipt?.diagnostic?.code ?? null;
+  const causeCode = typeof candidateCauseCode === 'string'
+    && /^[A-Z][A-Z0-9_]{0,255}$/u.test(candidateCauseCode)
+    ? candidateCauseCode
+    : null;
+  const outcome = receipt?.status === 'failed'
+    ? 'failed-receipt'
+    : processFailed
+      ? 'process-failure'
+      : parsed.kind === 'missing-receipt'
+        ? 'missing-receipt'
+        : parsed.kind === 'malformed-receipt' || receipt?.status !== 'passed'
+          ? 'malformed-receipt'
+          : 'incomplete-passing-receipt';
   const diagnosticCode = overflow
     ? 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_OUTPUT_LIMIT'
     : timedOut
@@ -363,19 +658,48 @@ async function runStarterAcceptanceProfile({ acceptanceFile, identityContext, pa
     ? 'starter acceptance exceeded the bounded output limit'
     : timedOut
       ? `starter acceptance exceeded its ${timeoutMs}ms timeout`
-      : receipt?.diagnostic?.message
-        ?? exit.error?.message
-        ?? `starter acceptance exited ${exit.code ?? exit.signal ?? 'without a status'} or returned an incomplete receipt`;
+      : outcome === 'failed-receipt'
+        ? (typeof receipt?.diagnostic?.message === 'string'
+          ? receipt.diagnostic.message.slice(0, STARTER_ACCEPTANCE_MAX_DIAGNOSTIC_MESSAGE_CHARS)
+          : 'starter acceptance returned a failed receipt')
+        : outcome === 'process-failure'
+          ? (typeof exit.error?.message === 'string'
+            ? exit.error.message.slice(0, STARTER_ACCEPTANCE_MAX_DIAGNOSTIC_MESSAGE_CHARS)
+            : 'starter acceptance process failed before returning a successful receipt')
+          : outcome === 'missing-receipt'
+            ? 'starter acceptance did not return a receipt'
+            : outcome === 'malformed-receipt'
+              ? 'starter acceptance returned a malformed receipt'
+              : 'starter acceptance returned a passing receipt with incomplete evidence';
+  const invalidPaths = parsed.kind === 'receipt'
+    ? passingValidation?.invalidPaths ?? Object.freeze([
+      invalidReceiptPath(
+        '$.status', 'string', 'passed-or-failed', receipt?.status,
+        plainObject(receipt) && Object.hasOwn(receipt, 'status'), 'unexpected',
+      ),
+    ])
+    : parsed.invalidPaths;
   const diagnostics = ok ? [] : [diagnostic(
     diagnosticCode,
     diagnosticMessage,
     {
       acceptanceFile,
-      exitCode: exit.code,
-      signal: exit.signal,
-      receiptStatus: receipt?.status ?? null,
-      expectedCheckCount: receipt?.expectedCheckCount ?? null,
-      executedCheckCount: receipt?.executedCheckCount ?? null,
+      outcome,
+      ...(outcome === 'process-failure' || outcome === 'failed-receipt' ? {
+        exitCode: exit.code,
+        signal: exit.signal,
+        receiptStatus: receipt?.status === 'passed' || receipt?.status === 'failed' ? receipt.status : null,
+        expectedCheckCount: Number.isInteger(receipt?.expectedCheckCount) ? receipt.expectedCheckCount : null,
+        executedCheckCount: Number.isInteger(receipt?.executedCheckCount) ? receipt.executedCheckCount : null,
+      } : {}),
+      ...((outcome === 'malformed-receipt' || outcome === 'missing-receipt' || outcome === 'incomplete-passing-receipt') ? {
+        invalidPathCount: passingValidation?.invalidPathCount ?? invalidPaths.length,
+        invalidPaths,
+        invalidPathsTruncated: passingValidation?.invalidPathsTruncated ?? false,
+      } : {}),
+      ...(passingValidation?.remediation === null || passingValidation?.remediation === undefined
+        ? {}
+        : { remediation: passingValidation.remediation }),
       ...(typeof causeCode === 'string' ? { causeCode } : {}),
       stderr: stderr.slice(-16_384),
     },

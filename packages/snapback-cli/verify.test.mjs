@@ -126,6 +126,73 @@ const passOptions = (overrides = {}) => ({
 
 let cases = 0;
 
+const validStarterAcceptanceReceipt = () => ({
+  schemaVersion: 'snapback.starter-acceptance.v1',
+  status: 'passed',
+  expectedCheckCount: 2,
+  executedCheckCount: 2,
+  checks: [{ status: 'passed' }, { status: 'passed' }],
+  identity: {
+    artifact: { appId: 'starter', bundleHash: 'bundle' },
+    loaded: { appId: 'starter', bundleHash: 'bundle' },
+  },
+  lifecycle: {
+    owned: true,
+    applicationReadyObserved: true,
+    waitLevel: 'application',
+    firstQueryRetries: 0,
+  },
+  operations: { queryFunctionId: 'app:list', mutationFunctionId: 'app:create' },
+  cleanup: {
+    attempted: true,
+    clientResourcesReleased: true,
+    devExited: true,
+    temporaryStateRemoved: true,
+    ok: true,
+  },
+  diagnostic: null,
+});
+
+const starterReceiptPaths = Object.freeze([
+  Object.freeze({
+    id: 'starter-query',
+    kind: 'success',
+    targetProfileId: 'local-dev-sqlite-ibex',
+    functionId: 'app:list',
+  }),
+  Object.freeze({
+    id: 'starter-mutation',
+    kind: 'success',
+    targetProfileId: 'local-dev-sqlite-ibex',
+    functionId: 'app:create',
+  }),
+]);
+
+async function runStarterReceiptFixture({
+  receipt = null,
+  source = null,
+  paths = starterReceiptPaths,
+  timeoutMs = 10_000,
+} = {}) {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-starter-receipt-fixture-'));
+  const acceptanceFile = join(scratch, 'acceptance.mjs');
+  writeFileSync(
+    acceptanceFile,
+    source ?? `process.stdout.write(${JSON.stringify(`${JSON.stringify(receipt)}\n`)});\n`,
+  );
+  try {
+    const starter = defineStarterVerifyProfile({
+      id: 'starter-receipt-fixture',
+      acceptanceFile,
+      paths,
+      timeoutMs,
+    });
+    return await starter.run({ identityContext: config().context });
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
 {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-repository-verify-adapter-'));
   const catalogFile = join(scratch, 'catalog.v1.json');
@@ -364,6 +431,195 @@ let cases = 0;
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+}
+
+{
+  const omissionCases = [
+    ['$.schemaVersion', (receipt) => { delete receipt.schemaVersion; }, 'malformed-receipt'],
+    ['$.status', (receipt) => { delete receipt.status; }, 'malformed-receipt'],
+    ['$.expectedCheckCount', (receipt) => { delete receipt.expectedCheckCount; }],
+    ['$.executedCheckCount', (receipt) => { delete receipt.executedCheckCount; }],
+    ['$.checks', (receipt) => { delete receipt.checks; }],
+    ['$.checks[0].status', (receipt) => { delete receipt.checks[0].status; }],
+    ['$.checks[1].status', (receipt) => { delete receipt.checks[1].status; }],
+    ['$.identity.artifact.appId', (receipt) => { delete receipt.identity.artifact.appId; }],
+    ['$.identity.artifact.bundleHash', (receipt) => { delete receipt.identity.artifact.bundleHash; }],
+    ['$.identity.loaded.appId', (receipt) => { delete receipt.identity.loaded.appId; }],
+    ['$.identity.loaded.bundleHash', (receipt) => { delete receipt.identity.loaded.bundleHash; }],
+    ['$.lifecycle.owned', (receipt) => { delete receipt.lifecycle.owned; }],
+    ['$.lifecycle.applicationReadyObserved', (receipt) => { delete receipt.lifecycle.applicationReadyObserved; }],
+    ['$.lifecycle.waitLevel', (receipt) => { delete receipt.lifecycle.waitLevel; }],
+    ['$.lifecycle.firstQueryRetries', (receipt) => { delete receipt.lifecycle.firstQueryRetries; }],
+    ['$.operations.queryFunctionId', (receipt) => { delete receipt.operations.queryFunctionId; }],
+    ['$.operations.mutationFunctionId', (receipt) => { delete receipt.operations.mutationFunctionId; }],
+    ['$.cleanup.attempted', (receipt) => { delete receipt.cleanup.attempted; }],
+    ['$.cleanup.clientResourcesReleased', (receipt) => { delete receipt.cleanup.clientResourcesReleased; }],
+    ['$.cleanup.devExited', (receipt) => { delete receipt.cleanup.devExited; }],
+    ['$.cleanup.temporaryStateRemoved', (receipt) => { delete receipt.cleanup.temporaryStateRemoved; }],
+    ['$.cleanup.ok', (receipt) => { delete receipt.cleanup.ok; }],
+    ['$.diagnostic', (receipt) => { delete receipt.diagnostic; }],
+  ];
+  for (const [expectedPath, omit, expectedOutcome = 'incomplete-passing-receipt'] of omissionCases) {
+    const receipt = validStarterAcceptanceReceipt();
+    omit(receipt);
+    const outcome = await runStarterReceiptFixture({ receipt });
+    assert.equal(outcome.ok, false, expectedPath);
+    const failure = outcome.diagnostics[0];
+    assert.equal(failure.code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED', expectedPath);
+    assert.equal(failure.details.outcome, expectedOutcome, expectedPath);
+    assert.ok(failure.details.invalidPaths.some(({ path: invalidPath }) => invalidPath === expectedPath), expectedPath);
+    assert.ok(failure.details.invalidPaths.every(({ expected, observed }) => (
+      typeof expected.kind === 'string'
+      && typeof expected.state === 'string'
+      && typeof observed.kind === 'string'
+      && typeof observed.state === 'string'
+    )), expectedPath);
+    if (expectedOutcome === 'incomplete-passing-receipt') {
+      assert.equal(Object.hasOwn(failure.details, 'exitCode'), false, expectedPath);
+      assert.equal(Object.hasOwn(failure.details, 'receiptStatus'), false, expectedPath);
+    }
+  }
+  cases += 1;
+}
+
+{
+  const receipt = validStarterAcceptanceReceipt();
+  receipt.operations = {
+    expensesQuery: 'application-payload-must-not-appear-query',
+    addExpense: 'application-payload-must-not-appear-mutation',
+  };
+  const outcome = await runStarterReceiptFixture({ receipt });
+  assert.equal(outcome.ok, false);
+  const failure = outcome.diagnostics[0];
+  assert.equal(failure.code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED');
+  assert.equal(failure.details.outcome, 'incomplete-passing-receipt');
+  assert.equal(failure.details.invalidPathCount, 1);
+  assert.deepEqual(failure.details.invalidPaths, [{
+    path: '$.operations',
+    expected: { kind: 'generated-operation-registration', state: 'current' },
+    observed: { kind: 'object', state: 'stale-registration' },
+  }]);
+  assert.deepEqual(failure.details.remediation, {
+    kind: 'refresh-generated-operation-registration',
+    staleReceiptPaths: [
+      '$.operations.queryFunctionId',
+      '$.operations.mutationFunctionId',
+    ],
+    registeredPaths: [
+      { pathId: 'starter-query', functionId: 'app:list' },
+      { pathId: 'starter-mutation', functionId: 'app:create' },
+    ],
+    registeredPathsTruncated: false,
+    unclaimedOperationPaths: [
+      '$.operations.addExpense',
+      '$.operations.expensesQuery',
+    ],
+    unclaimedOperationPathsTruncated: false,
+    instruction: 'Refresh the starter acceptance registration from generated operation references and rerun snapback verify.',
+  });
+  assert.equal(JSON.stringify(failure).includes('application-payload-must-not-appear'), false);
+  cases += 1;
+}
+
+{
+  const processFailure = await runStarterReceiptFixture({
+    source: `process.stderr.write('x'.repeat(20_000)); process.exitCode = 7;\n`,
+  });
+  const missingReceipt = await runStarterReceiptFixture({ source: '// no receipt\n' });
+  const malformedReceipt = await runStarterReceiptFixture({
+    source: `process.stdout.write('{"schemaVersion":');\n`,
+  });
+  const malformedNullReceipt = await runStarterReceiptFixture({
+    source: `process.stdout.write('null\\n');\n`,
+  });
+  const failedReceiptValue = validStarterAcceptanceReceipt();
+  failedReceiptValue.status = 'failed';
+  failedReceiptValue.diagnostic = {
+    code: 'SNAPBACK_STARTER_CHECK_FAILED',
+    message: 'm'.repeat(10_000),
+  };
+  const failedReceipt = await runStarterReceiptFixture({
+    source: `process.stdout.write(${JSON.stringify(`${JSON.stringify(failedReceiptValue)}\n`)}); process.exitCode = 1;\n`,
+  });
+  const incompleteReceiptValue = validStarterAcceptanceReceipt();
+  delete incompleteReceiptValue.lifecycle.owned;
+  const incompleteReceipt = await runStarterReceiptFixture({ receipt: incompleteReceiptValue });
+
+  assert.deepEqual([
+    processFailure,
+    missingReceipt,
+    malformedReceipt,
+    failedReceipt,
+    incompleteReceipt,
+  ].map((outcome) => outcome.diagnostics[0].details.outcome), [
+    'process-failure',
+    'missing-receipt',
+    'malformed-receipt',
+    'failed-receipt',
+    'incomplete-passing-receipt',
+  ]);
+  assert.ok([
+    processFailure,
+    missingReceipt,
+    malformedReceipt,
+    failedReceipt,
+    incompleteReceipt,
+  ].every((outcome) => outcome.diagnostics[0].code === 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED'));
+  assert.equal(processFailure.diagnostics[0].details.exitCode, 7);
+  assert.equal(processFailure.diagnostics[0].details.stderr.length, 16_384);
+  assert.equal(malformedNullReceipt.diagnostics[0].details.outcome, 'malformed-receipt');
+  assert.equal(malformedNullReceipt.diagnostics[0].details.invalidPaths[0].path, '$');
+  assert.equal(failedReceipt.diagnostics[0].details.causeCode, 'SNAPBACK_STARTER_CHECK_FAILED');
+  assert.equal(failedReceipt.diagnostics[0].message.length, 4_096);
+  cases += 1;
+}
+
+{
+  const cleanupFailureValue = validStarterAcceptanceReceipt();
+  cleanupFailureValue.cleanup.ok = false;
+  const cleanupFailure = await runStarterReceiptFixture({ receipt: cleanupFailureValue });
+  const identityMismatchValue = validStarterAcceptanceReceipt();
+  identityMismatchValue.identity.loaded.bundleHash = 'different-bundle';
+  const identityMismatch = await runStarterReceiptFixture({ receipt: identityMismatchValue });
+  assert.equal(cleanupFailure.diagnostics[0].code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED');
+  assert.equal(cleanupFailure.diagnostics[0].details.invalidPaths[0].path, '$.cleanup.ok');
+  assert.equal(identityMismatch.diagnostics[0].code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED');
+  assert.equal(identityMismatch.diagnostics[0].details.invalidPaths[0].path, '$.identity.loaded.bundleHash');
+
+  const multipleFailuresValue = validStarterAcceptanceReceipt();
+  delete multipleFailuresValue.lifecycle.owned;
+  delete multipleFailuresValue.cleanup.ok;
+  const multipleFailures = await runStarterReceiptFixture({ receipt: multipleFailuresValue });
+  assert.equal(multipleFailures.diagnostics[0].details.invalidPathCount, 2);
+  assert.deepEqual(
+    multipleFailures.diagnostics[0].details.invalidPaths.map(({ path: invalidPath }) => invalidPath),
+    ['$.lifecycle.owned', '$.cleanup.ok'],
+  );
+
+  const boundedFailuresValue = validStarterAcceptanceReceipt();
+  boundedFailuresValue.expectedCheckCount = 100;
+  boundedFailuresValue.executedCheckCount = 100;
+  boundedFailuresValue.checks = Array.from({ length: 100 }, () => ({}));
+  const boundedFailures = await runStarterReceiptFixture({ receipt: boundedFailuresValue });
+  assert.equal(boundedFailures.diagnostics[0].details.invalidPathCount, 100);
+  assert.equal(boundedFailures.diagnostics[0].details.invalidPaths.length, 64);
+  assert.equal(boundedFailures.diagnostics[0].details.invalidPathsTruncated, true);
+  cases += 1;
+}
+
+{
+  const timeout = await runStarterReceiptFixture({
+    source: 'setInterval(() => {}, 1_000);\n',
+    timeoutMs: 20,
+  });
+  const outputLimit = await runStarterReceiptFixture({
+    source: `process.stdout.write('x'.repeat(${2 * 1024 * 1024 + 1024}));\n`,
+  });
+  assert.equal(timeout.diagnostics[0].code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_TIMEOUT');
+  assert.equal(outputLimit.diagnostics[0].code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_OUTPUT_LIMIT');
+  assert.ok(timeout.diagnostics[0].details.stderr.length <= 16_384);
+  assert.ok(outputLimit.diagnostics[0].details.stderr.length <= 16_384);
+  cases += 1;
 }
 
 {

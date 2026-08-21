@@ -1,6 +1,6 @@
 # Report exact starter-receipt completeness failures
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 4
 **Urgency:** 5
 **Ease:** 4
@@ -47,3 +47,22 @@ source and manually diff the receipt against the predicate.
 - Existing timeout, output-limit, child-error, failed-check, cleanup, and
   identity-mismatch cases retain stable codes and bounded details.
 - A fresh scaffold's valid receipt still passes unchanged.
+
+## Resolution (2026-08-21)
+
+Replaced the opaque completeness predicate with bounded path-addressed
+validation. Diagnostics now distinguish process failure, missing receipt,
+malformed receipt, failed receipt, and an incomplete passing receipt; invalid
+paths carry expected and observed kind/state without receipt payload values.
+
+For simultaneous operation-key renames, verification emits the single typed
+stale-registration remediation required by LLP 0275 D5. It names the stale
+canonical receipt paths and the new unclaimed operation paths without silently
+claiming the replacements.
+
+Added coverage for independently omitting every required leaf, both renamed
+operation keys, all five outcomes, stable special-case codes, detail bounds,
+multiple/truncated path failures, identity mismatch, cleanup failure, and an
+unchanged valid receipt.
+
+**Landing SHA:** TBD
