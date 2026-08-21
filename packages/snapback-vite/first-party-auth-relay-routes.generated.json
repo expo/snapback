@@ -1,30 +1,36 @@
 {
-  "formatVersion": "snapback.vite-first-party-auth-relay-routes.v1",
+  "formatVersion": "snapback.vite-first-party-auth-relay-routes.v2",
   "source": "snapback.server.route-registry.v1",
   "routes": [
     {
       "method": "POST",
-      "path": "/auth/password/change"
+      "path": "/auth/password/change",
+      "retrySafe": false
     },
     {
       "method": "POST",
-      "path": "/auth/password/reset"
+      "path": "/auth/password/reset",
+      "retrySafe": false
     },
     {
       "method": "POST",
-      "path": "/auth/password/signin"
+      "path": "/auth/password/signin",
+      "retrySafe": false
     },
     {
       "method": "POST",
-      "path": "/auth/password/signup"
+      "path": "/auth/password/signup",
+      "retrySafe": false
     },
     {
       "method": "POST",
-      "path": "/auth/recovery/consume"
+      "path": "/auth/recovery/consume",
+      "retrySafe": false
     },
     {
       "method": "POST",
-      "path": "/auth/recovery/rotate"
+      "path": "/auth/recovery/rotate",
+      "retrySafe": false
     }
   ]
 }

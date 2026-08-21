@@ -5,6 +5,7 @@ export interface AppRouteAllowlistEntry {
   readonly method: 'GET' | 'POST' | 'DELETE';
   readonly path: string;
   readonly ws: boolean;
+  readonly retrySafe: boolean;
 }
 
 export const APP_ROUTE_ALLOWLIST: readonly AppRouteAllowlistEntry[];

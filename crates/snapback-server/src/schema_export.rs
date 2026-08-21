@@ -92,6 +92,7 @@ pub fn vite_first_party_auth_relay_routes_artifact() -> Value {
             json!({
                 "method": route.method,
                 "path": route.path,
+                "retrySafe": false,
             })
         })
         .collect::<Vec<_>>();
@@ -102,7 +103,7 @@ pub fn vite_first_party_auth_relay_routes_artifact() -> Value {
             .then_with(|| left["method"].as_str().cmp(&right["method"].as_str()))
     });
     json!({
-        "formatVersion": "snapback.vite-first-party-auth-relay-routes.v1",
+        "formatVersion": "snapback.vite-first-party-auth-relay-routes.v2",
         "source": "snapback.server.route-registry.v1",
         "routes": routes,
     })

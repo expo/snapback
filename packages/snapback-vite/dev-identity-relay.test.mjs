@@ -61,10 +61,23 @@ const root = mkdtempSync(join(tmpdir(), 'snapback-vite-dev-identity-'));
 const backendWss = new WebSocketServer({ noServer: true });
 const observedHttpHeaders = [];
 const observedUpgradeHeaders = [];
+let recoveryCommits = 0;
 const backend = createServer((req, res) => {
   if (req.url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, binary: { startupNonce: 'fixture-nonce' } }));
+    res.end(JSON.stringify({
+      ok: true,
+      binary: { startupNonce: 'fixture-nonce' },
+      recoveryCommits,
+    }));
+    return;
+  }
+  if (req.method === 'POST' && req.url === '/auth/recovery/consume') {
+    req.resume();
+    req.on('end', () => {
+      recoveryCommits += 1;
+      req.socket.destroy();
+    });
     return;
   }
   observedHttpHeaders.push(req.headers);
@@ -102,11 +115,16 @@ try {
     logJson: false,
   });
   await external.start();
+  let refreshAttempts = 0;
   const proxy = createSnapbackProxy({
     base: '/__snapback',
     mode: 'external',
     getState: external.state,
     getDevIdentityCapability: external.readDevIdentityCapability,
+    refreshTarget: async () => {
+      refreshAttempts += 1;
+      return { serverUrl: backendUrl };
+    },
   });
   const externalRelay = await listenProxy(proxy);
   relayServers.push(externalRelay.server);
@@ -132,6 +150,22 @@ try {
   });
   assert.equal(query.status, 200);
   assert.equal(observedHttpHeaders[1][DEV_IDENTITY_HEADER], 'sbdev_relay_fixture_two');
+
+  const commitThenDrop = await fetch(`${relayUrl}/__snapback/auth/recovery/consume`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'ada@example.com', code: 'one-time-code' }),
+  });
+  assert.equal(commitThenDrop.status, 502, 'ambiguous post-commit drop surfaces as a transport error');
+  assert.equal(
+    (await commitThenDrop.json()).diagnostic.code,
+    'SNAPBACK_DEV_PROXY_UNREACHABLE',
+  );
+  const commitStatus = await fetch(`${relayUrl}/__snapback/health`);
+  assert.equal(commitStatus.status, 200);
+  assert.equal((await commitStatus.json()).recoveryCommits, 1, 'one-time auth request committed exactly once');
+  assert.equal(refreshAttempts, 0, 'one-time auth transport failure never entered target refresh/replay');
+  console.log('retry safety: commit-then-drop recovery request surfaces 502 and commits exactly once');
 
   const websocket = new WebSocket(`${relayUrl.replace('http:', 'ws:')}/__snapback/live/fixture/stream`, {
     headers: { [DEV_IDENTITY_HEADER]: 'sbdev_ws_client_supplied_must_be_overwritten' },

@@ -100,6 +100,21 @@ async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {
   for (const [method, path] of allowed) {
     assert.equal(matchAppRoute(method, path).allowed, true, `${method} ${path} should forward`);
   }
+  for (const path of [
+    '/auth/password/signup',
+    '/auth/password/signin',
+    '/auth/password/change',
+    '/auth/password/reset',
+    '/auth/recovery/consume',
+    '/auth/recovery/rotate',
+  ]) {
+    assert.equal(
+      matchAppRoute('POST', path).route.retrySafe,
+      false,
+      `POST ${path} must not be replayed after an ambiguous transport failure`,
+    );
+  }
+  assert.equal(matchAppRoute('POST', '/query/listTodos').route.retrySafe, true);
   const refused = [
     ['POST', '/app/ensure'],
     ['POST', '/_snapback/api/host-ops'],

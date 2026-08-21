@@ -21,11 +21,17 @@
 
 import firstPartyAuthRelayAuthority from './first-party-auth-relay-routes.generated.json' with { type: 'json' };
 
-const entry = (method, path, extra = {}) => Object.freeze({ method, path, ws: false, ...extra });
+const entry = (method, path, extra = {}) => Object.freeze({
+  method,
+  path,
+  ws: false,
+  retrySafe: true,
+  ...extra,
+});
 
 function firstPartyAuthRelayEntries(authority) {
   if (
-    authority?.formatVersion !== 'snapback.vite-first-party-auth-relay-routes.v1'
+    authority?.formatVersion !== 'snapback.vite-first-party-auth-relay-routes.v2'
     || authority?.source !== 'snapback.server.route-registry.v1'
     || !Array.isArray(authority?.routes)
     || authority.routes.length === 0
@@ -36,6 +42,7 @@ function firstPartyAuthRelayEntries(authority) {
   return authority.routes.map((route) => {
     const method = route?.method;
     const path = route?.path;
+    const retrySafe = route?.retrySafe;
     const key = `${method} ${path}`;
     if (
       typeof method !== 'string'
@@ -43,12 +50,13 @@ function firstPartyAuthRelayEntries(authority) {
       || typeof path !== 'string'
       || (!path.startsWith('/auth/password/') && !path.startsWith('/auth/recovery/'))
       || path.includes('{')
+      || retrySafe !== false
       || seen.has(key)
     ) {
       throw new TypeError(`generated first-party auth relay route is invalid: ${key}`);
     }
     seen.add(key);
-    return entry(method, path);
+    return entry(method, path, { retrySafe });
   });
 }
 

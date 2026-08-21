@@ -143,10 +143,11 @@ export function createSnapbackProxy({
       });
       return undefined;
     }
-    // The request body is buffered (dev-scale app-data payloads) so that a
-    // refused connection can be replayed once against a target re-resolved
-    // from the ready file — a `snapback dev` backend restart must not require
-    // restarting the client process for the relay to keep serving.
+    // The request body is buffered (dev-scale app-data payloads) so retry-safe
+    // routes can be replayed once against a target re-resolved from the ready
+    // file. Routes whose generated registry entry marks them unsafe never
+    // replay: ECONNRESET cannot distinguish a pre-send failure from a server
+    // commit followed by a dropped response.
     const forward = (serverUrl, body, mayRetry, devIdentityCapability) => {
       const upstream = new URL(serverUrl);
       const headers = {};
@@ -200,7 +201,12 @@ export function createSnapbackProxy({
     req.on('data', (chunk) => chunks.push(chunk));
     req.on('end', () => {
       const context = forwardContext();
-      forward(context.state.serverUrl ?? state.serverUrl, Buffer.concat(chunks), true, context.devIdentityCapability);
+      forward(
+        context.state.serverUrl ?? state.serverUrl,
+        Buffer.concat(chunks),
+        match.route.retrySafe,
+        context.devIdentityCapability,
+      );
     });
     req.on('error', () => res.destroy());
     return undefined;
