@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
@@ -349,12 +349,17 @@ try {
   ), {
     PATH: '/fixture/bin',
   }, 'older binaries leave spawned client environments unchanged');
-  const freshDatabase = join(root, 'fresh-cleanup.sqlite3');
-  const freshReadyFile = join(root, 'fresh-cleanup.ready.json');
-  const freshApplicationReadyFile = join(root, 'fresh-cleanup.application-ready.json');
-  const freshAssetBlobDirectory = join(root, 'assets', 'blobs');
+  const freshProjectRoot = join(root, 'fresh-cleanup');
+  const freshStoreRoot = join(freshProjectRoot, '.snapback');
+  const freshDatabase = join(freshStoreRoot, 'dev.sqlite3');
+  const freshReadyFile = join(freshStoreRoot, 'dev.ready.json');
+  const freshApplicationReadyFile = join(freshStoreRoot, 'dev.application-ready.json');
+  const freshAssetBlobDirectory = join(freshStoreRoot, 'assets', 'blobs');
   const freshAssetBlob = join(freshAssetBlobDirectory, 'sha256-fixture');
+  const freshStoreSentinel = join(freshStoreRoot, 'keep-me.txt');
+  const freshProjectAssetSentinel = join(freshProjectRoot, 'assets', 'icon.png');
   mkdirSync(freshAssetBlobDirectory, { recursive: true });
+  mkdirSync(join(freshProjectRoot, 'assets'), { recursive: true });
   const managedFreshState = [
     freshDatabase,
     `${freshDatabase}-wal`,
@@ -366,18 +371,22 @@ try {
     `${freshDatabase}.admin-token`,
     `${freshDatabase}.console-credentials`,
     `${freshDatabase}.dev-identity`,
-    join(root, 'completeness-proof-keyring.json'),
-    join(root, 'resume-keyring.json'),
+    join(freshStoreRoot, 'completeness-proof-keyring.json'),
+    join(freshStoreRoot, 'resume-keyring.json'),
     freshAssetBlob,
     freshReadyFile,
     `${freshReadyFile}.dev-identity`,
     freshApplicationReadyFile,
   ];
   for (const path of managedFreshState) writeFileSync(path, 'fixture');
+  for (const path of [freshStoreSentinel, freshProjectAssetSentinel]) {
+    writeFileSync(path, 'preserve');
+  }
   __test.removeManagedDatabaseState(
     freshDatabase,
     freshReadyFile,
     freshApplicationReadyFile,
+    freshStoreRoot,
   );
   for (const path of managedFreshState) {
     assert.equal(existsSync(path), false, `dev-fresh removes managed state ${path}`);
@@ -387,6 +396,86 @@ try {
     false,
     'dev-fresh removes the finalized asset-blob tree, not only one fixture blob',
   );
+  for (const path of [freshStoreSentinel, freshProjectAssetSentinel]) {
+    assert.equal(existsSync(path), true, `dev-fresh preserves unmanaged sentinel ${path}`);
+    assert.equal(readFileSync(path, 'utf8'), 'preserve');
+  }
+
+  const directoryProjectRoot = join(root, 'directory-as-database');
+  const directoryStoreRoot = join(directoryProjectRoot, '.snapback');
+  const directoryDatabase = join(directoryStoreRoot, 'dev.sqlite3');
+  const directorySentinel = join(directoryDatabase, 'keep-me.txt');
+  mkdirSync(directoryDatabase, { recursive: true });
+  writeFileSync(directorySentinel, 'preserve');
+  assert.throws(
+    () => __test.removeManagedDatabaseState(
+      directoryDatabase,
+      null,
+      null,
+      directoryStoreRoot,
+    ),
+    (error) => error?.code === 'SNAPBACK_RESET_DATABASE_PATH_INVALID'
+      && error?.diagnostic?.details?.observedType === 'directory',
+    'dev-fresh refuses a directory passed as its database before deleting its contents',
+  );
+  assert.equal(readFileSync(directorySentinel, 'utf8'), 'preserve');
+
+  const linkedAssetProjectRoot = join(root, 'linked-asset-root');
+  const linkedAssetStoreRoot = join(linkedAssetProjectRoot, '.snapback');
+  const linkedAssetDatabase = join(linkedAssetStoreRoot, 'dev.sqlite3');
+  const externalAssetRoot = join(root, 'external-asset-root');
+  const externalAssetSentinel = join(externalAssetRoot, 'blobs', 'keep-me');
+  mkdirSync(linkedAssetStoreRoot, { recursive: true });
+  mkdirSync(dirname(externalAssetSentinel), { recursive: true });
+  writeFileSync(linkedAssetDatabase, 'preserve');
+  writeFileSync(externalAssetSentinel, 'preserve');
+  symlinkSync(externalAssetRoot, join(linkedAssetStoreRoot, 'assets'), 'dir');
+  assert.throws(
+    () => __test.removeManagedDatabaseState(
+      linkedAssetDatabase,
+      null,
+      null,
+      linkedAssetStoreRoot,
+    ),
+    (error) => error?.code === 'SNAPBACK_RESET_STORE_OWNERSHIP_AMBIGUOUS'
+      && error?.diagnostic?.details?.member === 'asset-root'
+      && error?.diagnostic?.details?.observedType === 'symbolic-link',
+    'dev-fresh refuses recursive cleanup through a linked asset root',
+  );
+  assert.equal(readFileSync(linkedAssetDatabase, 'utf8'), 'preserve');
+  assert.equal(readFileSync(externalAssetSentinel, 'utf8'), 'preserve');
+
+  const sharedStoreRoot = join(root, 'shared-store');
+  const sharedDatabase = join(sharedStoreRoot, 'first.sqlite3');
+  const secondDatabase = join(sharedStoreRoot, 'second.sqlite3');
+  const sharedBlob = join(sharedStoreRoot, 'assets', 'blobs', 'second-database-blob');
+  const sharedState = [
+    sharedDatabase,
+    `${sharedDatabase}.auth-keyring.json`,
+    secondDatabase,
+    `${secondDatabase}.auth-keyring.json`,
+    join(sharedStoreRoot, 'resume-keyring.json'),
+    join(sharedStoreRoot, 'completeness-proof-keyring.json'),
+    sharedBlob,
+    join(sharedStoreRoot, 'keep-me.txt'),
+  ];
+  mkdirSync(dirname(sharedBlob), { recursive: true });
+  for (const path of sharedState) writeFileSync(path, 'preserve');
+  assert.throws(
+    () => __test.removeManagedDatabaseState(
+      sharedDatabase,
+      null,
+      null,
+      freshStoreRoot,
+    ),
+    (error) => error?.code === 'SNAPBACK_RESET_STORE_OWNERSHIP_AMBIGUOUS'
+      && error?.diagnostic?.details?.ownedDatabase === freshDatabase,
+    'dev-fresh refuses to guess ownership of directory-shared state for a custom database',
+  );
+  for (const path of sharedState) {
+    assert.equal(existsSync(path), true, `shared-store refusal preserves ${path}`);
+    assert.equal(readFileSync(path, 'utf8'), 'preserve');
+  }
   assert.equal(__test.runtimeReadinessRoot({
     binary: join(root, 'target', 'release', 'snapback'),
     checkoutRoot: root,

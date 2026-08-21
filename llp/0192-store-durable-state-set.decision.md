@@ -5,6 +5,9 @@
 **Systems:** Storage, Auth, Assets, Admin, Operations, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
+**Revised:** 2026-08-21 (the packaged `dev-fresh` reset now requires the
+canonical CLI-owned managed-store path, validates the database before deleting
+anything, and refuses shared-directory or symlink ambiguity)
 **Revised:** 2026-08-08
 **Related:** LLP 0018, LLP 0036, LLP 0044, LLP 0057, LLP 0061, LLP 0143,
 LLP 0158, LLP 0189,
@@ -117,6 +120,25 @@ established that a Snapback-owned artifact with no declared disposition must
 fail closed (`SNAPBACK_FORK_CUSTODY_UNCLASSIFIED`). The same discipline applies
 here: an unclassified or lineage-bearing member makes a copy that boots and is
 wrong, which is strictly worse than a copy that refuses.
+
+#### D-1a: reset ownership boundary
+
+The packaged `snapback reset --dev-fresh` may erase the complete registered
+store only for its canonical CLI-owned target,
+`<project>/.snapback/dev.sqlite3`. That path is the proof that the
+directory-shared `assets/blobs/`, `resume-keyring.json`, and
+`completeness-proof-keyring.json` belong to the managed dev store being reset.
+A custom `--db` path is ambiguous: another database in the same directory has
+the same derived directory-shared members, so resetting either database cannot
+safely assign those members to itself. `dev-fresh` refuses that case rather
+than performing a partial one-file reset or deleting another store's custody.
+
+Before removing any member, the database path must be a regular file or absent,
+and the managed-store and asset roots must be non-symlink directories. Only the
+owned `assets/blobs/` member receives directory-recursive removal; file members
+are removed non-recursively, and unregistered files in `.snapback/` survive.
+This keeps whole-store reset semantics on the paved managed target without
+turning an arbitrary path into recursive deletion authority.
 
 ### D-2: the store export verb
 

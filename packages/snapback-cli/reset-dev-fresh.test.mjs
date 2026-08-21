@@ -78,7 +78,18 @@ function fixture(name, { sessions = true } = {}) {
   const backendRoot = join(projectRoot, 'snapback');
   const expoRoot = join(projectRoot, 'app');
   cpSync(sourceFixture, backendRoot, { recursive: true });
+  const governanceFiles = [
+    'visibility-override-owner-baseline.json',
+    'visibility-override-baseline.json',
+    'table-visibility-policy-baseline.json',
+    'table-visibility-policy-transition-ledger.json',
+    'visibility-governance-quarantine-ledger.json',
+  ].map((name) => [name, readFileSync(join(backendRoot, 'generated', name))]);
   rmSync(join(backendRoot, 'generated'), { recursive: true, force: true });
+  mkdirSync(join(backendRoot, 'generated'), { recursive: true });
+  for (const [name, bytes] of governanceFiles) {
+    writeFileSync(join(backendRoot, 'generated', name), bytes);
+  }
   mkdirSync(expoRoot, { recursive: true });
   const seedPath = join(backendRoot, 'seed.json');
   const seed = JSON.parse(readFileSync(seedPath, 'utf8'));
@@ -110,8 +121,8 @@ function fixture(name, { sessions = true } = {}) {
 function evolveSchema(target) {
   const source = readFileSync(target.schemaPath, 'utf8');
   const evolved = source.replace(
-    'defineTable({ value: v.string() }).sync()',
-    "defineTable({ value: v.string() }).index('by_value', ['value']).sync()",
+    'const valueTable = () => defineTable({ value: v.string() })\n  .visibility',
+    "const valueTable = () => defineTable({ value: v.string() })\n  .index('by_value', ['value'])\n  .visibility",
   );
   assert.notEqual(evolved, source, 'schema evolution fixture must add an index');
   writeFileSync(target.schemaPath, evolved);
@@ -241,7 +252,7 @@ try {
     serverStdio: ['ignore', 'ignore', 'ignore'],
   });
   openHandles.push(first);
-  assert.equal(first.state, 'generated-and-loaded');
+  assert.equal(first.state, 'generated-and-loaded', JSON.stringify(first.diagnostics ?? null));
   await closeDev(first);
   openHandles.splice(openHandles.indexOf(first), 1);
   first = null;
@@ -427,9 +438,68 @@ try {
   assert.equal(bogus.documents.at(-1).diagnostics[0].code, 'SNAPBACK_CLI_ARGUMENT_INVALID');
   assert.equal(existsSync(argvLog), false, 'argument refusal must not execute the runtime');
 
+  const directoryDatabaseProject = join(scratchRoot, 'directory-database-refusal');
+  const directoryDatabaseState = join(directoryDatabaseProject, '.snapback');
+  const directoryDatabase = join(directoryDatabaseState, 'dev.sqlite3');
+  const directoryDatabaseSentinel = join(directoryDatabase, 'keep-me.txt');
+  mkdirSync(directoryDatabase, { recursive: true });
+  writeFileSync(directoryDatabaseSentinel, 'preserve');
+  const directoryDatabaseRefusal = await runCli([
+    'reset', join(directoryDatabaseProject, 'snapback'), '--dev-fresh',
+    '--db', directoryDatabase,
+    '--json',
+  ], { cwd: directoryDatabaseProject, env: mockEnv });
+  assert.equal(directoryDatabaseRefusal.status, 1);
+  assert.equal(
+    directoryDatabaseRefusal.documents.at(-1).diagnostics[0].code,
+    'SNAPBACK_RESET_DATABASE_PATH_INVALID',
+  );
+  assert.equal(
+    directoryDatabaseRefusal.documents.at(-1).diagnostics[0].details.observedType,
+    'directory',
+  );
+  assert.equal(readFileSync(directoryDatabaseSentinel, 'utf8'), 'preserve');
+  assert.equal(existsSync(argvLog), false, 'directory-as-db refusal must not execute the runtime');
+
+  const sharedDatabaseProject = join(scratchRoot, 'shared-database-refusal');
+  const sharedStore = join(sharedDatabaseProject, 'stores');
+  const sharedDatabase = join(sharedStore, 'first.sqlite3');
+  const secondDatabase = join(sharedStore, 'second.sqlite3');
+  const sharedBlob = join(sharedStore, 'assets', 'blobs', 'second-database-blob');
+  const sharedMembers = [
+    sharedDatabase,
+    `${sharedDatabase}.auth-keyring.json`,
+    secondDatabase,
+    `${secondDatabase}.auth-keyring.json`,
+    join(sharedStore, 'resume-keyring.json'),
+    join(sharedStore, 'completeness-proof-keyring.json'),
+    sharedBlob,
+    join(sharedStore, 'keep-me.txt'),
+  ];
+  mkdirSync(dirname(sharedBlob), { recursive: true });
+  for (const path of sharedMembers) writeFileSync(path, 'preserve');
+  const sharedStoreRefusal = await runCli([
+    'reset', join(sharedDatabaseProject, 'snapback'), '--dev-fresh',
+    '--db', sharedDatabase,
+    '--json',
+  ], { cwd: sharedDatabaseProject, env: mockEnv });
+  assert.equal(sharedStoreRefusal.status, 1);
+  assert.equal(
+    sharedStoreRefusal.documents.at(-1).diagnostics[0].code,
+    'SNAPBACK_RESET_STORE_OWNERSHIP_AMBIGUOUS',
+  );
+  assert.deepEqual(
+    sharedStoreRefusal.documents.at(-1).diagnostics[0].details.sharedMembers,
+    ['assets/blobs', 'resume-keyring.json', 'completeness-proof-keyring.json'],
+  );
+  for (const path of sharedMembers) {
+    assert.equal(readFileSync(path, 'utf8'), 'preserve', `shared-store refusal preserves ${path}`);
+  }
+  assert.equal(existsSync(argvLog), false, 'shared-store refusal must not execute the runtime');
+
   // A non-supervised live dev loop owns the target and must be driven through
   // its stdin verb instead of being raced by a second lifecycle owner.
-  const active = fixture('active-loop', { sessions: false });
+  const active = fixture('active-loop');
   const activeDev = await runDev({
     backendDirectory: active.backendRoot,
     projectRoot: active.projectRoot,

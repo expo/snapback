@@ -3436,30 +3436,139 @@ async function validateReadyDescriptorHealth(descriptor) {
   }
 }
 
-// @ref LLP 0192#d-1-the-durable-state-registry — dev-fresh removes the
-// database plus its Folded, Required, and Optional siblings, including the
-// path-bound keyrings and asset blobs.
-function removeManagedDatabaseState(database, readyFile = null, applicationReadyFile = null) {
-  const storeDirectory = dirname(database);
+// @ref LLP 0192#d-1a-reset-ownership-boundary — dev-fresh removes the
+// database plus its registered siblings only for the canonical CLI-owned
+// store; arbitrary database directories cannot confer recursive deletion
+// authority.
+function validateManagedDatabaseResetTarget(database, managedStoreRoot) {
+  const selectedDatabase = resolve(database);
+  const selectedStoreRoot = resolve(managedStoreRoot);
+  const ownedDatabase = join(selectedStoreRoot, 'dev.sqlite3');
+
+  let databaseMetadata = null;
+  try {
+    databaseMetadata = lstatSync(selectedDatabase);
+  } catch (cause) {
+    if (cause?.code !== 'ENOENT') {
+      const error = diagnosticError(
+        'SNAPBACK_RESET_DATABASE_PATH_INVALID',
+        'dev-fresh could not validate --db as a regular file or an absent path; no managed state was removed',
+        {
+          database: selectedDatabase,
+          observedType: 'unavailable',
+          causeCode: cause?.code ?? null,
+          requiredType: 'regular-file-or-absent',
+        },
+      );
+      error.cause = cause;
+      throw error;
+    }
+  }
+  if (databaseMetadata !== null && !databaseMetadata.isFile()) {
+    throw diagnosticError(
+      'SNAPBACK_RESET_DATABASE_PATH_INVALID',
+      'dev-fresh requires --db to name a regular file or an absent path; no managed state was removed',
+      {
+        database: selectedDatabase,
+        observedType: databaseMetadata.isSymbolicLink()
+          ? 'symbolic-link'
+          : databaseMetadata.isDirectory()
+            ? 'directory'
+            : 'non-regular-file',
+        requiredType: 'regular-file-or-absent',
+      },
+    );
+  }
+
+  if (selectedDatabase !== ownedDatabase) {
+    throw diagnosticError(
+      'SNAPBACK_RESET_STORE_OWNERSHIP_AMBIGUOUS',
+      'dev-fresh cannot reset a custom or shared database directory because its assets and custody keyrings may belong to another database; no managed state was removed',
+      {
+        database: selectedDatabase,
+        databaseDirectory: dirname(selectedDatabase),
+        managedStoreRoot: selectedStoreRoot,
+        ownedDatabase,
+        sharedMembers: [
+          'assets/blobs',
+          'resume-keyring.json',
+          'completeness-proof-keyring.json',
+        ],
+        recovery: 'use the canonical managed database for dev-fresh; preserve and repair a custom/shared store with store-specific tooling',
+      },
+    );
+  }
+
+  const managedDirectories = [
+    [selectedStoreRoot, 'managed-store-root'],
+    [join(selectedStoreRoot, 'assets'), 'asset-root'],
+    [join(selectedStoreRoot, 'assets', 'blobs'), 'asset-blob-root'],
+  ];
+  for (const [path, member] of managedDirectories) {
+    let metadata;
+    try {
+      metadata = lstatSync(path);
+    } catch (cause) {
+      if (cause?.code === 'ENOENT') continue;
+      const error = diagnosticError(
+        'SNAPBACK_RESET_STORE_OWNERSHIP_AMBIGUOUS',
+        'dev-fresh could not prove exclusive ownership of its managed-store directory; no managed state was removed',
+        {
+          database: selectedDatabase,
+          managedStoreRoot: selectedStoreRoot,
+          member,
+          path,
+          observedType: 'unavailable',
+          causeCode: cause?.code ?? null,
+        },
+      );
+      error.cause = cause;
+      throw error;
+    }
+    if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+      throw diagnosticError(
+        'SNAPBACK_RESET_STORE_OWNERSHIP_AMBIGUOUS',
+        'dev-fresh requires its managed-store and asset roots to be non-symlink directories before recursive cleanup; no managed state was removed',
+        {
+          database: selectedDatabase,
+          managedStoreRoot: selectedStoreRoot,
+          member,
+          path,
+          observedType: metadata.isSymbolicLink() ? 'symbolic-link' : 'non-directory',
+        },
+      );
+    }
+  }
+
+  return { database: selectedDatabase, storeRoot: selectedStoreRoot };
+}
+
+function removeManagedDatabaseState(
+  database,
+  readyFile = null,
+  applicationReadyFile = null,
+  managedStoreRoot = null,
+) {
+  const target = validateManagedDatabaseResetTarget(database, managedStoreRoot);
   for (const path of [
-    database,
-    `${database}-wal`,
-    `${database}-shm`,
-    `${database}-journal`,
-    `${database}.auth-keyring.json`,
-    `${database}.config.json`,
-    `${database}.operation-detail-keyring.json`,
-    `${database}.admin-token`,
-    `${database}.console-credentials`,
-    `${database}.dev-identity`,
-    join(storeDirectory, 'completeness-proof-keyring.json'),
-    join(storeDirectory, 'resume-keyring.json'),
-    join(storeDirectory, 'assets', 'blobs'),
+    target.database,
+    `${target.database}-wal`,
+    `${target.database}-shm`,
+    `${target.database}-journal`,
+    `${target.database}.auth-keyring.json`,
+    `${target.database}.config.json`,
+    `${target.database}.operation-detail-keyring.json`,
+    `${target.database}.admin-token`,
+    `${target.database}.console-credentials`,
+    `${target.database}.dev-identity`,
+    join(target.storeRoot, 'completeness-proof-keyring.json'),
+    join(target.storeRoot, 'resume-keyring.json'),
     ...(readyFile === null ? [] : [readyFile, `${readyFile}.dev-identity`]),
     ...(applicationReadyFile === null ? [] : [applicationReadyFile]),
   ]) {
-    rmSync(path, { force: true, recursive: true });
+    rmSync(path, { force: true });
   }
+  rmSync(join(target.storeRoot, 'assets', 'blobs'), { force: true, recursive: true });
 }
 
 const DEV_FRESH_RESET_ARTIFACTS = 'this removes only the selected database, its `-wal`, `-shm`, `.admin-token`, and `.dev-identity` siblings, and the managed ready/application-ready files; it does not remove the auth keyring, config store, operation-detail keyring, asset blobs, or any other database in the containing directory';
@@ -5126,7 +5235,6 @@ export async function runDev(options = {}) {
   const devFreshVerb = ({ requestId } = {}) => withDevLock(async () => {
     const tag = requestId === undefined ? {} : { requestId };
     if (closed) return null;
-    removeApplicationReadyReceipt();
     if (!managed || child === null) {
       return emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
@@ -5143,6 +5251,24 @@ export async function runDev(options = {}) {
         }],
       });
     }
+    try {
+      validateManagedDatabaseResetTarget(database, stateRoot);
+    } catch (error) {
+      return emitDevEvent({
+        schemaVersion: 'snapback.dev.v1',
+        ok: false,
+        state: 'dev-fresh-failed',
+        verb: 'dev-fresh',
+        ...tag,
+        diagnostics: [error.diagnostic ?? {
+          code: error.code ?? 'SNAPBACK_DEV_FRESH_FAILED',
+          severity: 'error',
+          subsystem: 'cli',
+          message: error.message,
+        }],
+      });
+    }
+    removeApplicationReadyReceipt();
     restarting = true;
     try {
       const previousPid = descriptor.pid ?? null;
@@ -5153,7 +5279,7 @@ export async function runDev(options = {}) {
         });
         await stopProcessGroup(child);
       }
-      removeManagedDatabaseState(database, readyFile, applicationReadyFile);
+      removeManagedDatabaseState(database, readyFile, applicationReadyFile, stateRoot);
       refreshStartupArtifacts();
       refreshVisibilityGovernanceDevEnvironment();
       child = spawnManagedRuntime(runtime.binary, [
@@ -5886,6 +6012,7 @@ export async function runCli(argv, options = {}) {
     const stateRoot = join(projectRoot, '.snapback');
     const readyFile = resolve(readyFileFlag ?? join(stateRoot, 'dev.ready.json'));
     const database = resolve(databaseFlag ?? join(stateRoot, 'dev.sqlite3'));
+    validateManagedDatabaseResetTarget(database, stateRoot);
     const supervisorFile = join(dirname(readyFile), 'expo-supervisor.json');
     const staleSupervisorError = (cause = null) => {
       const error = diagnosticError(
@@ -6013,7 +6140,7 @@ export async function runCli(argv, options = {}) {
       }
     }
 
-    removeManagedDatabaseState(database, readyFile);
+    removeManagedDatabaseState(database, readyFile, null, stateRoot);
     let dev = null;
     let failedResult = null;
     let report = null;
