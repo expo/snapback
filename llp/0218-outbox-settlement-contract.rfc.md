@@ -5,6 +5,13 @@
 **Systems:** Client integration, Sync, React arm
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-21 (LLP 0295 D0.2 cross-reference amendment: LLP 0059's
+dated authority-transition matrix amendment owns the cross-surface state and
+settlement semantics this contract's dispatch/queue/drain behavior composes
+into; registers the matrix-ruled W2 extensions — the typed `auth-barrier`
+blocked reason, the declared-housekeeping lane split so foreground sends
+never head-of-line block behind housekeeping, and the drop-on-principal-
+class-change rule for housekeeping intent; see "Dated amendment" below)
 **Revised:** 2026-08-15 (P6 implemented — deprecation closure executed after
 the window elapsed; Status → Implemented.)
 **Revised:** 2026-08-15 (removed the LLP 0255 S3.2 amendment after the author
@@ -54,7 +61,10 @@ gap-closure plan this RFC is the commissioned contract ruling for),
 LLP 0219 (dev diagnostics channel — owns §4.4's delivery
 surface; gets a producer-cadence wording amendment per §4.4), `benchmarks/records/2026-08-09-social-messenger-p2-pilot.md` (F5),
 `issues/20260809-outbox-silent-queue-dx.md`,
-`issues/20260731-js-arm-lease-custody-and-sessions-outbox.md`
+`issues/20260731-js-arm-lease-custody-and-sessions-outbox.md`,
+LLP 0059 (owner of the D0.2 authority-transition matrix this contract's
+queue/drain semantics compose into), LLP 0295 (D0.2 commissioning Plan),
+`issues/20260821-client-authority-transition-state-matrix.md`
 
 ## Summary
 
@@ -499,3 +509,44 @@ subpath-publication pickup), verified under the pinned node toolchain.
   affordances in `useSnapbackOutbox` (the hook mirrors the headless
   read/discard/re-record affordances and the §4.1 dispositions per P3;
   only the naming/shape is implementation-owned).
+
+## Dated amendment: authority-transition matrix participation (2026-08-21, LLP 0295 D0.2)
+
+LLP 0059's dated amendment "Total client authority-transition state and
+settlement matrix" (adopted per LLP 0295; the author may revise) is the
+single cross-surface owner of the
+anonymous/authenticating/authenticated/revoking/reconnecting state machine.
+This contract's shipped semantics — the dispatch union, the relinquishment
+cut, the disposition map, and the pause-with-observable-reason drain — are
+unchanged and remain this RFC's; the matrix binds how they compose across an
+authorization barrier and commissions three W2 extensions implemented
+through `issues/20260821-client-authority-transition-state-matrix.md`:
+
+1. **Typed `auth-barrier` blocked reason.** While a transition barrier is
+   active, the drain pauses with `blockedReason: auth-barrier` (joining the
+   existing typed reason vocabulary) and wakes level-triggered at barrier
+   settlement — the shipped custody/successor-bind wakeups already carry
+   this edge; the amendment pins the reason spelling so a barrier wait is
+   attributable, never an undifferentiated pending. No transport dispatch
+   occurs under unsettled authority.
+2. **Foreground/housekeeping lane split.** Writes explicitly declared
+   housekeeping (idempotent, coalescible latest-wins, valid under the
+   successor principal) drain in a separate housekeeping lane: coalesced,
+   skippable when superseded, and **dropped on principal-class change**
+   rather than replayed under a different principal. The foreground lane
+   keeps this RFC's ordered single-flight semantics unchanged within the
+   lane; a suspended or slow housekeeping write can never head-of-line
+   block a foreground send, and cross-lane ordering is explicitly not
+   promised. During a barrier, only declared-housekeeping writes targeting
+   the successor may durably queue (matrix ruling 3); other dispatches join
+   the bounded barrier settlement or refuse typed. The declaration spelling
+   (dispatch option or generated annotation) is W2 implementation-owned.
+3. **Predecessor intent at the barrier** continues to follow LLP 0059's
+   item-5 custody transition table (strand/delete); this RFC adds no
+   alternative.
+
+Queue, authorization, execution, commit, and delivery time remain separately
+observable per matrix ruling 6: `outboxStatus()` owns queue wait and
+suspension, `mutationStatus`/`subscribeMutation` own per-mutation
+disposition, the live projection owns delivery, and the LLP 0219 channel
+carries the events.

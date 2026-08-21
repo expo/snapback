@@ -5,6 +5,12 @@
 **Systems:** React, React/Expo, Ephemeral state, Client integration, Realtime, Auth, Mutation settlement, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
+**Revised:** 2026-08-21 (LLP 0295 D0.2 cross-reference: LLP 0059's dated
+authority-transition matrix amendment is the single cross-surface owner of
+the anonymous/authenticating/authenticated/revoking/reconnecting state and
+settlement semantics; React and Familiar surfaces here are presentation
+projections of that matrix and may not invent different terminal semantics —
+see "Authority-transition matrix participation" below)
 **Revised:** 2026-08-15 (LLP 0218 P6 removed the elapsed queued-property
 alias and throw-site-free `SnapbackQueuedMutationError` migration export)
 **Revised:** 2026-08-10 (LLP 0219 presence-churn, queue-condition, and
@@ -42,7 +48,7 @@ suites, guide, and exact ten-check retained receipt are complete; hosted
 presence remains unsupported). 2026-07-27 (final author reconciliation pins
 result-contract and expiry negotiation carriers plus remaining lifecycle
 diagnostics/tests)
-**Related:** LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0094, LLP 0095, LLP 0101, LLP 0114, LLP 0105
+**Related:** LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0094, LLP 0095, LLP 0101, LLP 0114, LLP 0105, LLP 0218, LLP 0295 (D0.2 — LLP 0059 owns the shared authority-transition matrix this surface projects)
 
 ## Summary
 
@@ -423,6 +429,37 @@ client channel and its default dev reporter. The normative replay-divergence
 pin remains exactly one advisory per `(mutation, query)` pair per provider;
 only the delivery surface changed. LLP 0218 P3's provider-owned automatic
 drain and `useSnapbackOutbox().drainNow()` remain the recovery authority.
+
+## Authority-transition matrix participation (2026-08-21 — LLP 0295 D0.2)
+
+LLP 0059's dated amendment "Total client authority-transition state and
+settlement matrix" is the single owner of the cross-surface state machine
+over anonymous → authenticating → authenticated → revoking → reconnecting.
+The React and Familiar surfaces specified here are presentation projections
+of that matrix's cells: they render the classified states (`blocked` with a
+transition-owner diagnostic, `resyncing`, the queued dispatch union,
+retain-stale freshness) and may adapt vocabulary, but may not invent
+different terminal semantics — in particular a Familiar projection may not
+collapse a fenced predecessor or a blocked authenticated query into
+`ready`/empty. Binding consequences for this Spec's surfaces:
+
+- **Every live query hook is a barrier participant regardless of its auth
+  declaration.** On a principal-class change an already-mounted
+  `optional-user` query is fenced at blank and re-armed as exactly one
+  successor subscription at resume, exactly like an authenticated one; a
+  blanked hook with no successor projecting `ready`/empty/`disconnected` is
+  a defect, never a settled state.
+- **Queued optimistic layers follow the matrix's revoking column:** the
+  item-5 custody transition table (strand/delete) plus this Spec's existing
+  synchronous blanking rule; the LLP 0218 §4.2 disposition map is unchanged.
+- **Presence rooms follow the ephemeral row:** fenced during a barrier,
+  rebuilt at resume, `resyncing` during reconnect, and never published under
+  unsettled authority. Awaited sign-in settlement includes usable ephemeral
+  authority (matrix ruling 5), so a hook armed immediately after an awaited
+  sign-in cannot observe `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`.
+- The W2 conformance suite replays the shared row table through the React
+  and Familiar projections; rows and checklist live in
+  `issues/20260821-client-authority-transition-state-matrix.md`.
 
 ## Package and acceptance
 
