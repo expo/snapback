@@ -20,7 +20,8 @@ Options:
 SNAPBACK_PROOF_KEEP_GOING=1 is the environment equivalent of --keep-going.
 SNAPBACK_PROOF_RESULTS sets the gate-result JSONL output path.
 SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS overrides every gate's wall-clock cap
-(positive integer seconds; default 3600). Gates may declare --timeout-seconds.
+(canonical positive decimal seconds, maximum 536870911; default 3600). Gates
+may declare --timeout-seconds with the same syntax.
 SNAPBACK_PROOF_GATE_TERM_GRACE_SECONDS controls TERM-to-KILL grace (default 5).
 EOF
 }

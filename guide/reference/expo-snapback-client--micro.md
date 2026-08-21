@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:9e7ed31c99b0584497273cb6034b02b6173f7ed3d4cc
 # @expo/snapback-client/micro
 
 Build-bound public API projection for `@expo/snapback-client/micro`. Canonical registry identity:
-`sha256:572836172089f4758568619a0d97b7f1dd7ba872d16489f93c352a2d16241a61`.
+`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro.mjs`.
 

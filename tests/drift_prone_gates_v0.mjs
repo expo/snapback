@@ -1353,16 +1353,46 @@ test('complete battery inventory rejects duplicate and missing gate ids independ
     endedAtMs: 1,
     exitCode: 0,
     failureSignature: null,
+    terminationReason: 'exit',
     gateId: 'only-gate',
     prerequisites: [],
     proofId: 'local-proof',
-    schemaVersion: 'snapback.proof-gate-result.v2',
+    schemaVersion: 'snapback.proof-gate-result.v3',
     startedAtMs: 1,
     state: 'PASS',
   };
   assert.throws(
     () => parseBatteryResults(`${JSON.stringify(record)}\n${JSON.stringify(record)}\n`),
     /battery result repeats gate only-gate/u,
+  );
+  const rootFailure = {
+    ...record,
+    exitCode: 124,
+    failureSignature: `sha256:${'a'.repeat(64)}`,
+    state: 'FAIL',
+  };
+  assert.equal(
+    parseBatteryResults(`${JSON.stringify({
+      ...rootFailure,
+      terminationReason: 'timeout',
+    })}\n`)[0].terminationReason,
+    'timeout',
+  );
+  assert.equal(
+    parseBatteryResults(`${JSON.stringify({
+      ...rootFailure,
+      terminationReason: 'exit',
+    })}\n`)[0].terminationReason,
+    'exit',
+    'a natural exit 124 remains structurally distinct from a runner timeout',
+  );
+  assert.throws(
+    () => parseBatteryResults(`${JSON.stringify({
+      ...rootFailure,
+      exitCode: 7,
+      terminationReason: 'timeout',
+    })}\n`),
+    /must use exit 124/u,
   );
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-battery-missing-gate-'));
   try {
@@ -1462,6 +1492,31 @@ test('complete battery tickets track signatures, claims, streaks, closure, and r
       stderr: `root failure at ${repo} after 93ms\n`,
       normalizationPaths: [repo],
     }));
+    const timeoutMarker = 'SNAPBACK_PROOF_GATE_TIMEOUT: gate=root-gate timeout_seconds=1 signal=TERM\n';
+    const timeoutSignature = batteryFailureSignature({
+      gateId: 'root-gate',
+      exitCode: 124,
+      terminationReason: 'timeout',
+      stdout: '',
+      stderr: timeoutMarker,
+      normalizationPaths: [repo],
+    });
+    assert.notEqual(timeoutSignature, batteryFailureSignature({
+      gateId: 'root-gate',
+      exitCode: 124,
+      terminationReason: 'timeout',
+      stdout: '',
+      stderr: '',
+      normalizationPaths: [repo],
+    }), 'the timeout marker must contribute to the normalized signature');
+    assert.notEqual(timeoutSignature, batteryFailureSignature({
+      gateId: 'root-gate',
+      exitCode: 124,
+      terminationReason: 'exit',
+      stdout: '',
+      stderr: timeoutMarker,
+      normalizationPaths: [repo],
+    }), 'the structural termination reason must contribute to the normalized signature');
     assert.equal(batteryFailureSignature({
       gateId: 'root-gate',
       exitCode: 7,
@@ -1489,10 +1544,11 @@ test('complete battery tickets track signatures, claims, streaks, closure, and r
       endedAtMs: 2,
       exitCode: state === 'FAIL' ? 7 : state === 'PASS' ? 0 : null,
       failureSignature: state === 'FAIL' ? signature : null,
+      terminationReason: state === 'FAIL' || state === 'PASS' ? 'exit' : null,
       gateId,
       prerequisites: gateId === 'dependent-gate' ? ['root-gate'] : [],
       proofId: 'local-proof',
-      schemaVersion: 'snapback.proof-gate-result.v2',
+      schemaVersion: 'snapback.proof-gate-result.v3',
       startedAtMs: 1,
       state,
     });

@@ -5,6 +5,11 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-21 (proof timeouts now share one canonical decimal parser
+between runtime and inventory, v3 gate JSONL distinguishes natural exits from
+timeouts/cleanup failures, FIFO capture completion is bounded, and the shared
+acceptance harness runs registered cleanup during TERM/INT grace so exact-owned
+resources outside the gate process group are not abandoned.)
 **Revised:** 2026-08-15 (a missing Cargo command now has the actionable
 `SNAPBACK_IBEX_CARGO_NOT_FOUND` host diagnostic; genuine exact-link probe
 driver faults retain `SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`).
@@ -880,10 +885,20 @@ explicit prerequisite set. Its terminal vocabulary is `PASS | FAIL | BLOCKED |
 NOT_SELECTED`: keep-going continues independent gates after a root `FAIL`, but
 does not execute a transitive dependent; a selected `BLOCKED` result still
 makes the proof red. The runner writes one JSONL result per gate with command,
-prerequisites, timestamps, duration, exit status, and causal blockers, and CI
-retains that artifact even on failure. The dependency inventory rejects an
-unknown prerequisite, duplicate stable id, or a newly added direct
-`startServer` gate that omits current-binary readiness.
+prerequisites, timestamps, duration, exit status, structural termination reason,
+and causal blockers, and CI retains that artifact even on failure. Executing
+v3 records use `exit`, `timeout`, or `timeout-cleanup-failed`, so exit 124 alone
+is never interpreted as evidence that the runner enforced a deadline. The
+dependency inventory rejects an unknown prerequisite, duplicate stable id, or
+a newly added direct `startServer` gate that omits current-binary readiness.
+
+The shared acceptance runner treats TERM/INT as a cleanup boundary, not an
+immediate default exit: it runs the live registered cleanup stack exactly once
+in reverse order during the proof runner's TERM grace, then exits with the
+signal-derived status. This is required for exact-owned resources that
+deliberately leave the gate process group, such as local fork servers using
+`setsid()`. Unknown detached writers are not claimed dead; bounded proof-capture
+drain detects them, makes the gate `timeout-cleanup-failed`, and returns.
 
 Per-change execution is now selected by the checked
 `scripts/local-proof-selection-policy.v1.json` authority. Every canonical gate

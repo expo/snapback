@@ -41,9 +41,10 @@ changes since `REV`; `--complete` runs the scheduled/on-demand inventory; and
 `--gate ID` re-runs one gate plus its prerequisites. `--keep-going` or
 `SNAPBACK_PROOF_KEEP_GOING=1` continues independent gates after a root failure.
 
-Gate results are v2 JSONL at `target/proof/local-proof-results.jsonl`; complete
-runs retain a normalized `failureSignature` on root `FAIL` records so the
-battery projector can distinguish failures of the same gate. Set
+Gate results are v3 JSONL at `target/proof/local-proof-results.jsonl`; complete
+runs retain a normalized `failureSignature` and structural `terminationReason`
+on root `FAIL` records, so the battery projector can distinguish a natural exit
+124 from a runner timeout and can identify timeout cleanup failures. Set
 `SNAPBACK_PROOF_RESULTS` to choose another path. Selection receipts are JSON
 and can be reopened with `--selection-receipt FILE`.
 

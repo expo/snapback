@@ -58,7 +58,7 @@ const INFRASTRUCTURE_TICKET_THRESHOLD = 3;
 // @ref LLP 0189#decision — D-1 keys complete-battery repair state on each
 // normalized root-failure signature and excludes BLOCKED dependents.
 const BATTERY_ESCALATION_THRESHOLD = 4;
-const BATTERY_RESULT_SCHEMA = 'snapback.proof-gate-result.v2';
+const BATTERY_RESULT_SCHEMA = 'snapback.proof-gate-result.v3';
 const BATTERY_TICKET_DATE_ENV = 'SNAPBACK_BATTERY_TICKET_DATE';
 const PUBLICATION_ROOT_CANDIDATES = Object.freeze([
   'crates/snapback-activation/src',
@@ -244,15 +244,18 @@ async function main() {
   if (command === 'failure-signature') {
     const gateId = option(args, '--gate', { required: true });
     const exitCode = Number(option(args, '--exit-code', { required: true }));
+    const terminationReason = option(args, '--termination-reason', { required: true });
     const stdoutPath = option(args, '--stdout', { required: true });
     const stderrPath = option(args, '--stderr', { required: true });
     const normalizationRoot = option(args, '--normalization-root') ?? ROOT;
     assertNoUnknownOptions(args, [
-      '--gate', '--exit-code', '--stdout', '--stderr', '--normalization-root',
+      '--gate', '--exit-code', '--termination-reason', '--stdout', '--stderr',
+      '--normalization-root',
     ]);
     process.stdout.write(`${batteryFailureSignature({
       gateId,
       exitCode,
+      terminationReason,
       stdout: readFileSync(stdoutPath, 'utf8'),
       stderr: readFileSync(stderrPath, 'utf8'),
       normalizationPaths: [normalizationRoot],
@@ -1132,6 +1135,7 @@ function backstopFailureSignature(execution, evidence = failureEvidence(executio
 export function batteryFailureSignature({
   gateId,
   exitCode,
+  terminationReason = 'exit',
   stdout,
   stderr,
   normalizationPaths = [],
@@ -1142,7 +1146,10 @@ export function batteryFailureSignature({
   if (!Number.isSafeInteger(exitCode) || exitCode <= 0) {
     fail(`invalid battery exit code ${exitCode}`);
   }
-  return backstopFailureSignature({
+  if (!['exit', 'timeout', 'timeout-cleanup-failed'].includes(terminationReason)) {
+    fail(`invalid battery termination reason ${terminationReason}`);
+  }
+  const normalizedFailure = backstopFailureSignature({
     phase: 'check',
     status: exitCode,
     signal: null,
@@ -1152,6 +1159,11 @@ export function batteryFailureSignature({
     stderr,
     normalizationPaths,
   });
+  // Preserve every pre-v3 natural-failure ticket identity. Only enforced
+  // timeout variants add a second framing layer for their structural reason.
+  return terminationReason === 'exit'
+    ? normalizedFailure
+    : digestJson({ terminationReason, normalizedFailure });
 }
 
 function contradictionEvidence({ closureDigest, first, second }) {
@@ -1670,7 +1682,7 @@ function validateBatteryResult(value, index) {
   const requiredKeys = [
     'schemaVersion', 'proofId', 'gateId', 'state', 'startedAtMs', 'endedAtMs',
     'durationMs', 'exitCode', 'prerequisites', 'blockedBy', 'command',
-    'failureSignature',
+    'failureSignature', 'terminationReason',
   ];
   const actualKeys = Object.keys(value).sort();
   if (JSON.stringify(actualKeys) !== JSON.stringify([...requiredKeys].sort())) {
@@ -1700,11 +1712,16 @@ function validateBatteryResult(value, index) {
   if (value.state === 'FAIL') {
     if (!Number.isSafeInteger(value.exitCode) || value.exitCode <= 0
       || typeof value.failureSignature !== 'string'
-      || !/^sha256:[0-9a-f]{64}$/u.test(value.failureSignature)) {
+      || !/^sha256:[0-9a-f]{64}$/u.test(value.failureSignature)
+      || !['exit', 'timeout', 'timeout-cleanup-failed'].includes(value.terminationReason)) {
       fail(`battery root failure ${value.gateId} lacks a normalized signature`);
     }
+    if (value.terminationReason !== 'exit' && value.exitCode !== 124) {
+      fail(`battery timeout ${value.gateId} must use exit 124`);
+    }
   } else if (value.exitCode !== (value.state === 'PASS' ? 0 : null)
-    || value.failureSignature !== null) {
+    || value.failureSignature !== null
+    || value.terminationReason !== (value.state === 'PASS' ? 'exit' : null)) {
     fail(`battery non-root result ${value.gateId} carries root-failure evidence`);
   }
   if (value.state === 'BLOCKED' && value.blockedBy.length === 0) {

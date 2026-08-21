@@ -5,11 +5,13 @@
 **Systems:** Testing, Developer experience, Build, Tooling, CI
 **Author:** Claude (Opus 5) / Codex (GPT-5) / Charlie Cheever
 **Date:** 2026-08-05
-**Revised:** 2026-08-21 (gate-execution honesty correction: every selected
-gate now has a finite wall-clock budget, timeout is a distinct exit-124 root
-failure, and TERM/KILL target the gate process group so Cargo descendants
-cannot outlive the gate; the Rust workspace gate also disables Cargo's
-target-level fail-fast behavior.)
+**Revised:** 2026-08-21 (gate-execution honesty correction and review closure:
+every selected gate now has a finite wall-clock budget parsed by one canonical
+decimal contract, timeout is structurally distinct from a natural exit 124,
+TERM/KILL target the gate process group, signal-aware acceptance cleanup owns
+known session-escaping resources, and bounded capture readers loudly retain
+unknown survivors as `timeout-cleanup-failed`; the Rust workspace gate also
+disables Cargo's target-level fail-fast behavior.)
 **Revised:** 2026-08-11 (LLP 0232 accepting change, author ruling in session:
 the 2026-08-07 D2.1 ruling gains four narrowings — baseline-corroborated
 infrastructure fail-open, receipt-validated reuse for trigger-matched gates,
@@ -330,15 +332,29 @@ second product defect.
 
 Every executing gate has a finite wall-clock budget. The runner default is
 3,600 seconds, deliberately about fourteen times the observed 249-second
-partial Rust run; a gate may declare another positive integer with
-`--timeout-seconds`, and `SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS` is the
-operator-wide override. On expiry the runner emits the stable
-`SNAPBACK_PROOF_GATE_TIMEOUT` marker, records exit 124 as `FAIL`, sends TERM to
-the gate's process group, and escalates to group KILL after five seconds. The
-same helper sits beneath both live execution and failure-signature capture, so
-a hang cannot bypass retained output or leave Cargo-spawned test binaries
-running. The `rust-tests` command separately uses Cargo `--no-fail-fast`, so
-one failing target cannot hide unrun workspace targets.
+partial Rust run; a gate may declare another value with `--timeout-seconds`,
+and `SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS` is the operator-wide override. Both
+the Bash runtime and static inventory call the same parser: a value is a
+canonical positive base-10 integer with no sign or leading zero and is at most
+536,870,911 seconds (the largest value whose quarter-second poll conversion is
+safe even for 32-bit signed Bash arithmetic). Empty, exponent, hexadecimal,
+octal-looking, zero-padded, zero, and over-range spellings are refused.
+
+On expiry the runner emits the stable `SNAPBACK_PROOF_GATE_TIMEOUT` marker,
+records exit 124 as `FAIL`, sends TERM to the gate's process group, and
+escalates to group KILL after five seconds. Process-group containment is not a
+claim about a descendant that calls `setsid()`: known acceptance-owned
+resources run their registered cleanup stack during the TERM grace (including
+the exact registry-bound fork drop), while capture readers have a finite drain
+budget. A reader still awaiting EOF after a timeout is killed, emits
+`SNAPBACK_PROOF_GATE_TIMEOUT_CLEANUP_FAILED`, and records
+`terminationReason: "timeout-cleanup-failed"`; the run therefore returns and
+cannot present escaped-writer contamination as clean. The authoritative v3
+JSONL uses `terminationReason: "exit" | "timeout" |
+"timeout-cleanup-failed"` for executing gates, distinguishing a natural exit
+124 from enforcement. Timeout signatures bind both that structural reason and
+the captured timeout marker. The `rust-tests` command separately uses Cargo
+`--no-fail-fast`, so one failing target cannot hide unrun workspace targets.
 
 The dependency graph itself is test inventory. A newly added real-server test
 that omits the current-binary prerequisite fails the inventory check.
@@ -969,8 +985,10 @@ executable code:
   native-runtime, current-binary, readiness, surface, and browser producer
   edges used by their dependents;
 - `tests/proof_runner_v0.mjs` proves independent continuation, transitive
-  blocking, ordinary-failure identity, timeout exit 124, and TERM-resistant
-  descendant cleanup, while `tests/local_proof_inventory_v0.mjs` proves
+  blocking, strict runtime/static timeout agreement, natural-124 versus
+  timeout identity, bounded capture with a surviving double-forked writer,
+  same-group TERM resistance, and signal cleanup of a genuine `setsid()`
+  descendant, while `tests/local_proof_inventory_v0.mjs` proves
   unknown edges, duplicate ids, missing producers, the bounded non-fail-fast
   Rust workspace command, and a new direct real-server gate without
   current-binary readiness fail closed;

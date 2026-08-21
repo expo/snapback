@@ -1,9 +1,19 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+
+import { parseGateCalls } from '../scripts/check-local-proof-gates.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const runner = join(root, 'scripts', 'lib', 'proof-runner.sh');
@@ -14,11 +24,69 @@ function fixture(body, {
   captureSignatures = false,
   timeoutSeconds = null,
   termGraceSeconds = null,
+  captureDrainSeconds = null,
 } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-proof-runner-'));
   const receipt = join(scratch, 'results.jsonl');
   const marker = join(scratch, 'dependent-ran');
   const childPid = join(scratch, 'child.pid');
+  const writerPid = join(scratch, 'writer.pid');
+  const detachedWriter = join(scratch, 'detached-writer.py');
+  const setsidChild = join(scratch, 'setsid-child.py');
+  const signalCleanupGate = join(scratch, 'signal-cleanup-gate.mjs');
+  const stdoutPath = join(scratch, 'fixture.stdout');
+  const stderrPath = join(scratch, 'fixture.stderr');
+  writeFileSync(detachedWriter, `import os
+import pathlib
+import signal
+import time
+
+if os.fork() != 0:
+    os._exit(0)
+os.setsid()
+if os.fork() != 0:
+    os._exit(0)
+os.environ.pop("SNAPBACK_PROOF_GATE_EXECUTION_TOKEN", None)
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+pathlib.Path(os.environ["FIXTURE_WRITER_PID"]).write_text(str(os.getpid()))
+time.sleep(60)
+`);
+  writeFileSync(setsidChild, `import os
+import pathlib
+import signal
+import time
+
+os.setsid()
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+devnull = os.open("/dev/null", os.O_RDWR)
+os.dup2(devnull, 1)
+os.dup2(devnull, 2)
+pathlib.Path(os.environ["FIXTURE_CHILD_PID"]).write_text(str(os.getpid()))
+time.sleep(60)
+`);
+  writeFileSync(signalCleanupGate, `import { spawn } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+
+import { createSuite, runAcceptance } from ${JSON.stringify(join(root, 'demos', '_kit', 'harness.mjs'))};
+
+const suite = createSuite('setsid signal cleanup fixture', { expectedChecks: 1 });
+const cleanups = [];
+await runAcceptance(suite, async () => {
+  const child = spawn('python3', [process.env.FIXTURE_SETSID_CHILD], {
+    env: process.env,
+    stdio: 'ignore',
+  });
+  cleanups.push(async () => {
+    const closed = new Promise((resolveClose) => child.once('close', resolveClose));
+    try { process.kill(child.pid, 'SIGKILL'); } catch (error) {
+      if (error?.code !== 'ESRCH') throw error;
+    }
+    await closed;
+    writeFileSync(process.env.FIXTURE_MARKER, 'signal cleanup ran');
+  });
+  await new Promise(() => {});
+}, { cleanups });
+`);
   const script = `
 set -euo pipefail
 source ${JSON.stringify(runner)}
@@ -26,25 +94,61 @@ proof_runner_init fixture ${JSON.stringify(receipt)} ${keepGoing} ${selectedCoun
 ${body}
 proof_runner_finish
 `;
-  const result = spawnSync('/bin/bash', ['-c', script], {
-    cwd: root,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      FIXTURE_MARKER: marker,
-      FIXTURE_CHILD_PID: childPid,
-      SNAPBACK_PROOF_CAPTURE_FAILURE_SIGNATURES: captureSignatures ? '1' : '0',
-      SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS: timeoutSeconds === null ? '' : String(timeoutSeconds),
-      SNAPBACK_PROOF_GATE_TERM_GRACE_SECONDS: termGraceSeconds === null
-        ? ''
-        : String(termGraceSeconds),
-    },
-    timeout: 15_000,
-  });
+  const env = {
+    ...process.env,
+    FIXTURE_MARKER: marker,
+    FIXTURE_CHILD_PID: childPid,
+    FIXTURE_WRITER_PID: writerPid,
+    FIXTURE_DETACHED_WRITER: detachedWriter,
+    FIXTURE_SETSID_CHILD: setsidChild,
+    FIXTURE_SIGNAL_CLEANUP_GATE: signalCleanupGate,
+    SNAPBACK_PROOF_CAPTURE_FAILURE_SIGNATURES: captureSignatures ? '1' : '0',
+  };
+  delete env.SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS;
+  delete env.SNAPBACK_PROOF_GATE_TERM_GRACE_SECONDS;
+  delete env.SNAPBACK_PROOF_CAPTURE_DRAIN_SECONDS;
+  if (timeoutSeconds !== null) {
+    env.SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS = String(timeoutSeconds);
+  }
+  if (termGraceSeconds !== null) {
+    env.SNAPBACK_PROOF_GATE_TERM_GRACE_SECONDS = String(termGraceSeconds);
+  }
+  if (captureDrainSeconds !== null) {
+    env.SNAPBACK_PROOF_CAPTURE_DRAIN_SECONDS = String(captureDrainSeconds);
+  }
+  const stdoutFd = openSync(stdoutPath, 'w');
+  const stderrFd = openSync(stderrPath, 'w');
+  const startedAt = Date.now();
+  let spawned;
+  try {
+    spawned = spawnSync('/bin/bash', ['-c', script], {
+      cwd: root,
+      env,
+      stdio: ['ignore', stdoutFd, stderrFd],
+      timeout: 15_000,
+    });
+  } finally {
+    closeSync(stdoutFd);
+    closeSync(stderrFd);
+  }
+  const result = {
+    ...spawned,
+    stdout: readFileSync(stdoutPath, 'utf8'),
+    stderr: readFileSync(stderrPath, 'utf8'),
+  };
   const records = existsSync(receipt)
     ? readFileSync(receipt, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse)
     : [];
-  return { scratch, receipt, marker, childPid, result, records };
+  return {
+    scratch,
+    receipt,
+    marker,
+    childPid,
+    writerPid,
+    result,
+    records,
+    elapsedMs: Date.now() - startedAt,
+  };
 }
 
 function processExists(pid) {
@@ -66,8 +170,10 @@ proof_gate never-reached -- /bin/bash -c 'touch "$FIXTURE_MARKER"'
     assert.equal(run.result.status, 23, run.result.stderr);
     assert.equal(existsSync(run.marker), false);
     assert.deepEqual(
-      run.records.map(({ gateId, state, exitCode }) => [gateId, state, exitCode]),
-      [['producer', 'FAIL', 23]],
+      run.records.map(({ gateId, state, exitCode, terminationReason }) => (
+        [gateId, state, exitCode, terminationReason]
+      )),
+      [['producer', 'FAIL', 23, 'exit']],
     );
     assert.doesNotMatch(
       `${run.result.stdout}\n${run.result.stderr}`,
@@ -93,8 +199,10 @@ wait
     assert.equal(run.result.status, 1, `${run.result.stdout}\n${run.result.stderr}`);
     assert.equal(run.records.length, 1);
     assert.deepEqual(
-      run.records.map(({ gateId, state, exitCode }) => [gateId, state, exitCode]),
-      [['hanging', 'FAIL', 124]],
+      run.records.map(({ gateId, state, exitCode, terminationReason }) => (
+        [gateId, state, exitCode, terminationReason]
+      )),
+      [['hanging', 'FAIL', 124, 'timeout']],
     );
     assert.match(
       run.result.stderr,
@@ -107,10 +215,108 @@ wait
     );
     assert.doesNotMatch(run.result.stderr, /SNAPBACK_PROOF_GATE_TIMEOUT_CLEANUP_FAILED/u);
     assert.match(run.records[0].failureSignature, /^sha256:[0-9a-f]{64}$/u);
+    const natural124 = fixture(`
+proof_gate natural-124 -- /bin/bash -c 'exit 124'
+`, { captureSignatures: true });
+    try {
+      assert.equal(natural124.records[0].terminationReason, 'exit');
+      assert.notEqual(
+        run.records[0].failureSignature,
+        natural124.records[0].failureSignature,
+        'the timeout marker/reason must not normalize like a natural exit 124',
+      );
+    } finally {
+      rmSync(natural124.scratch, { recursive: true, force: true });
+    }
     child = Number(readFileSync(run.childPid, 'utf8').trim());
     assert(Number.isSafeInteger(child) && child > 1, 'fixture must record its descendant pid');
     assert.equal(processExists(child), false, `descendant ${child} survived the timed-out gate`);
   } finally {
+    if (child && processExists(child)) process.kill(child, 'SIGKILL');
+    rmSync(run.scratch, { recursive: true, force: true });
+  }
+});
+
+test('runtime and static inventory reject every non-canonical timeout spelling', () => {
+  const invalid = ['', '00', '010', '08', '1e3', '0x10', '4611686018427387904'];
+  for (const value of invalid) {
+    const declaration = `run invalid-timeout --timeout-seconds ${JSON.stringify(value)} -- /usr/bin/true`;
+    assert.throws(
+      () => parseGateCalls(declaration),
+      /timeout must be a canonical positive decimal integer/u,
+      `static inventory accepted ${JSON.stringify(value)}`,
+    );
+    const run = fixture(`
+proof_gate invalid-timeout --timeout-seconds ${JSON.stringify(value)} -- /usr/bin/true
+`);
+    try {
+      assert.equal(
+        run.result.status,
+        2,
+        `runtime parser accepted ${JSON.stringify(value)}\n${run.result.stdout}\n${run.result.stderr}`,
+      );
+      assert.equal(run.records.length, 0);
+    } finally {
+      rmSync(run.scratch, { recursive: true, force: true });
+    }
+  }
+});
+
+test('capture completion is bounded when an escaped writer keeps both FIFOs open', () => {
+  const run = fixture(`
+proof_gate escaped-writer --timeout-seconds 1 -- /bin/bash -c '
+python3 "$FIXTURE_DETACHED_WRITER" &
+while [ ! -s "$FIXTURE_WRITER_PID" ]; do sleep 0.01; done
+sleep 60
+'
+`, { captureSignatures: true, termGraceSeconds: 0, captureDrainSeconds: 1 });
+  let writer;
+  try {
+    assert.equal(run.result.status, 1, `${run.result.stdout}\n${run.result.stderr}`);
+    assert(run.elapsedMs < 12_000, `capture path remained blocked for ${run.elapsedMs}ms`);
+    assert.deepEqual(
+      run.records.map(({ state, exitCode, terminationReason }) => (
+        [state, exitCode, terminationReason]
+      )),
+      [['FAIL', 124, 'timeout-cleanup-failed']],
+    );
+    assert.match(
+      run.result.stderr,
+      /SNAPBACK_PROOF_GATE_TIMEOUT_CLEANUP_FAILED: gate=escaped-writer capture_stream=/u,
+    );
+    assert.match(run.records[0].failureSignature, /^sha256:[0-9a-f]{64}$/u);
+    writer = Number(readFileSync(run.writerPid, 'utf8').trim());
+    assert.equal(processExists(writer), true, 'fixture must genuinely leave its FIFO writer alive');
+  } finally {
+    if (!writer && existsSync(run.writerPid)) {
+      writer = Number(readFileSync(run.writerPid, 'utf8').trim());
+    }
+    if (writer && processExists(writer)) process.kill(writer, 'SIGKILL');
+    rmSync(run.scratch, { recursive: true, force: true });
+  }
+});
+
+test('timeout cleanup reaches a genuinely setsid-detached descendant', () => {
+  const run = fixture(`
+proof_gate session-escape --timeout-seconds 1 -- node "$FIXTURE_SIGNAL_CLEANUP_GATE"
+`, { termGraceSeconds: 1 });
+  let child;
+  try {
+    assert.equal(run.result.status, 1, `${run.result.stdout}\n${run.result.stderr}`);
+    assert.deepEqual(
+      run.records.map(({ state, exitCode, terminationReason }) => (
+        [state, exitCode, terminationReason]
+      )),
+      [['FAIL', 124, 'timeout']],
+    );
+    child = Number(readFileSync(run.childPid, 'utf8').trim());
+    assert(Number.isSafeInteger(child) && child > 1, 'fixture must record its setsid child pid');
+    assert.equal(readFileSync(run.marker, 'utf8'), 'signal cleanup ran');
+    assert.equal(processExists(child), false, `setsid descendant ${child} survived timeout cleanup`);
+  } finally {
+    if (!child && existsSync(run.childPid)) {
+      child = Number(readFileSync(run.childPid, 'utf8').trim());
+    }
     if (child && processExists(child)) process.kill(child, 'SIGKILL');
     rmSync(run.scratch, { recursive: true, force: true });
   }
@@ -147,7 +353,8 @@ proof_gate distinct -- /bin/bash -c 'printf "another root cause\\n" >&2; exit 7'
     assert.match(run.records[0].failureSignature, /^sha256:[0-9a-f]{64}$/u);
     assert.equal(run.records[1].failureSignature, run.records[0].failureSignature);
     assert.notEqual(run.records[2].failureSignature, run.records[0].failureSignature);
-    assert(run.records.every(({ schemaVersion }) => schemaVersion === 'snapback.proof-gate-result.v2'));
+    assert(run.records.every(({ schemaVersion }) => schemaVersion === 'snapback.proof-gate-result.v3'));
+    assert(run.records.every(({ terminationReason }) => terminationReason === 'exit'));
   } finally {
     rmSync(run.scratch, { recursive: true, force: true });
   }

@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:1e941a7daecd9e15a2aa849542738725e080a0794966
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:572836172089f4758568619a0d97b7f1dd7ba872d16489f93c352a2d16241a61`.
+`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -8491,6 +8491,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_ELEVATED_READ_CAPABILITY_UNDECLARED'
   | 'SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE'
   | 'SNAPBACK_ELEVATED_READ_TRACE'
+  | 'SNAPBACK_EMBEDDED_GUIDE'
   | 'SNAPBACK_EMBED_APP_STATE_ALREADY_OWNED'
   | 'SNAPBACK_EMBED_APP_STATE_BUSY'
   | 'SNAPBACK_EMBED_ENTROPY_UNAVAILABLE'

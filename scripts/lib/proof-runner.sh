@@ -30,17 +30,23 @@ proof_now_ms() {
 }
 
 proof_resolve_gate_timeout_seconds() {
-    local gate_id="$1" gate_override="$2"
-    local timeout_seconds="${SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS:-$gate_override}"
-    timeout_seconds="${timeout_seconds:-3600}"
-    case "$timeout_seconds" in
-        ''|*[!0-9]*|0)
-            printf '[snapback-proof] gate %s timeout must be a positive integer, got %s\n' \
-                "$gate_id" "$timeout_seconds" >&2
-            return 2
-            ;;
-    esac
-    printf '%s\n' "$timeout_seconds"
+    local gate_id="$1" gate_override="$2" gate_override_set="$3"
+    local timeout_seconds=""
+    if [ "${SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS+x}" = "x" ]; then
+        timeout_seconds="$SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS"
+    elif [ "$gate_override_set" = "1" ]; then
+        timeout_seconds="$gate_override"
+    else
+        timeout_seconds=3600
+    fi
+    node "$PROOF_RUNNER_ROOT/scripts/lib/proof-timeout.mjs" \
+        --label "gate $gate_id timeout" "$timeout_seconds"
+}
+
+proof_resolve_nonnegative_duration_seconds() {
+    local label="$1" value="$2"
+    node "$PROOF_RUNNER_ROOT/scripts/lib/proof-timeout.mjs" \
+        --allow-zero --label "$label" "$value"
 }
 
 proof_gate_process_group_alive() {
@@ -54,22 +60,24 @@ proof_signal_gate_process_group() {
 }
 
 # Put the asynchronous command in its own process group using Bash job control,
-# which is available in the stock macOS Bash 3.2. A deadline signals the whole
-# group so cargo's test binaries cannot survive their cargo parent.
+# which is available in the stock macOS Bash 3.2. A deadline signals that group.
+# A descendant may deliberately escape with setsid(); signal-aware acceptance
+# cleanups own known detached resources, and the capture path below fails loudly
+# when an unknown escaped writer keeps a result pipe open.
 proof_run_gate_with_timeout() {
     local gate_id="$1" timeout_seconds="$2" command_pid="" command_status=0
     local poll_count=0 timeout_polls=$((timeout_seconds * 4)) timed_out=0
-    local term_grace_seconds="${SNAPBACK_PROOF_GATE_TERM_GRACE_SECONDS:-5}"
+    local term_grace_seconds=5
     local term_grace_polls=0 monitor_was_enabled=0
     shift 2
 
-    case "$term_grace_seconds" in
-        ''|*[!0-9]*)
-            printf '[snapback-proof] gate %s TERM grace must be a non-negative integer, got %s\n' \
-                "$gate_id" "$term_grace_seconds" >&2
-            return 2
-            ;;
-    esac
+    PROOF_GATE_LAST_TIMED_OUT=0
+    PROOF_GATE_LAST_TIMEOUT_CLEANUP_FAILED=0
+    if [ "${SNAPBACK_PROOF_GATE_TERM_GRACE_SECONDS+x}" = "x" ]; then
+        term_grace_seconds="$SNAPBACK_PROOF_GATE_TERM_GRACE_SECONDS"
+    fi
+    term_grace_seconds="$(proof_resolve_nonnegative_duration_seconds \
+        "gate $gate_id TERM grace" "$term_grace_seconds")" || return $?
     term_grace_polls=$((term_grace_seconds * 4))
 
     case "$-" in *m*) monitor_was_enabled=1 ;; esac
@@ -96,6 +104,7 @@ proof_run_gate_with_timeout() {
         fi
     fi
 
+    PROOF_GATE_LAST_TIMED_OUT=1
     printf 'SNAPBACK_PROOF_GATE_TIMEOUT: gate=%s timeout_seconds=%s signal=TERM\n' \
         "$gate_id" "$timeout_seconds" >&2
     proof_signal_gate_process_group TERM "$command_pid"
@@ -112,15 +121,18 @@ proof_run_gate_with_timeout() {
         proof_signal_gate_process_group KILL "$command_pid"
     fi
 
-    wait "$command_pid" 2>/dev/null || true
     poll_count=0
     while proof_gate_process_group_alive "$command_pid" && [ "$poll_count" -lt 20 ]; do
         sleep 0.25
         poll_count=$((poll_count + 1))
     done
     if proof_gate_process_group_alive "$command_pid"; then
+        PROOF_GATE_LAST_TIMEOUT_CLEANUP_FAILED=1
         printf 'SNAPBACK_PROOF_GATE_TIMEOUT_CLEANUP_FAILED: gate=%s process_group=%s\n' \
             "$gate_id" "$command_pid" >&2
+    elif ! kill -0 "$command_pid" 2>/dev/null; then
+        # The child is already gone, so this wait only reaps its cached status.
+        wait "$command_pid" 2>/dev/null || true
     fi
     return 124
 }
@@ -200,6 +212,7 @@ proof_json_csv_array() {
 proof_record() {
     local gate_id="$1" state="$2" started="$3" ended="$4" exit_code="$5"
     local prerequisites="$6" blocked_by="$7" command="$8" failure_signature="${9:-}"
+    local termination_reason="${10:-}"
     PROOF_GATE_IDS+=("$gate_id")
     PROOF_GATE_STATES+=("$state")
     PROOF_GATE_COMMANDS+=("$command")
@@ -208,16 +221,85 @@ proof_record() {
     PROOF_GATE_EXIT_CODES+=("$exit_code")
     local exit_json="null"
     local signature_json="null"
+    local termination_json="null"
     [ -z "$exit_code" ] || exit_json="$exit_code"
     [ -z "$failure_signature" ] || signature_json="$(proof_json_quote "$failure_signature")"
-    printf '{"schemaVersion":"snapback.proof-gate-result.v2","proofId":%s,"gateId":%s,"state":%s,"startedAtMs":%s,"endedAtMs":%s,"durationMs":%s,"exitCode":%s,"prerequisites":%s,"blockedBy":%s,"command":%s,"failureSignature":%s}\n' \
+    [ -z "$termination_reason" ] || termination_json="$(proof_json_quote "$termination_reason")"
+    printf '{"schemaVersion":"snapback.proof-gate-result.v3","proofId":%s,"gateId":%s,"state":%s,"startedAtMs":%s,"endedAtMs":%s,"durationMs":%s,"exitCode":%s,"prerequisites":%s,"blockedBy":%s,"command":%s,"failureSignature":%s,"terminationReason":%s}\n' \
         "$(proof_json_quote "$PROOF_ID")" \
         "$(proof_json_quote "$gate_id")" \
         "$(proof_json_quote "$state")" \
         "$started" "$ended" "$((ended - started))" "$exit_json" \
         "$(proof_json_csv_array "$prerequisites")" \
         "$(proof_json_csv_array "$blocked_by")" \
-        "$(proof_json_quote "$command")" "$signature_json" >> "$PROOF_RESULTS_PATH"
+        "$(proof_json_quote "$command")" "$signature_json" "$termination_json" >> "$PROOF_RESULTS_PATH"
+}
+
+proof_update_last_termination_reason() {
+    PROOF_GATE_LAST_TERMINATION_REASON=exit
+    if [ "${PROOF_GATE_LAST_TIMED_OUT:-0}" = "1" ]; then
+        PROOF_GATE_LAST_TERMINATION_REASON=timeout
+        if [ "${PROOF_GATE_LAST_TIMEOUT_CLEANUP_FAILED:-0}" = "1" ]; then
+            PROOF_GATE_LAST_TERMINATION_REASON=timeout-cleanup-failed
+        fi
+    fi
+}
+
+proof_background_job_running() {
+    local wanted="$1" running=""
+    for running in $(jobs -pr); do
+        if [ "$running" = "$wanted" ]; then return 0; fi
+    done
+    return 1
+}
+
+# A FIFO reader must never become an unbounded second wait after the gate's own
+# deadline. When it remains live after the drain budget, terminate the reader;
+# on a timed-out gate this is positive evidence that an escaped writer may still
+# exist, so retain a cleanup-failed termination reason instead of hiding it.
+proof_finish_capture_reader() {
+    local gate_id="$1" stream="$2" reader_pid="$3" drain_seconds="$4"
+    local poll_count=0 drain_polls=$((drain_seconds * 4)) reader_status=0
+    PROOF_CAPTURE_READER_FORCED=0
+    PROOF_CAPTURE_READER_UNCLEAN=0
+    PROOF_CAPTURE_READER_STATUS=0
+
+    while proof_background_job_running "$reader_pid" && \
+        [ "$poll_count" -lt "$drain_polls" ]; do
+        sleep 0.25
+        poll_count=$((poll_count + 1))
+    done
+    if proof_background_job_running "$reader_pid"; then
+        PROOF_CAPTURE_READER_FORCED=1
+        if [ "${PROOF_GATE_LAST_TIMED_OUT:-0}" = "1" ]; then
+            PROOF_GATE_LAST_TIMEOUT_CLEANUP_FAILED=1
+            printf 'SNAPBACK_PROOF_GATE_TIMEOUT_CLEANUP_FAILED: gate=%s capture_stream=%s reader_pid=%s\n' \
+                "$gate_id" "$stream" "$reader_pid" >&2
+        else
+            printf '[snapback-proof] gate %s capture stream %s did not reach EOF\n' \
+                "$gate_id" "$stream" >&2
+        fi
+        kill -TERM "$reader_pid" 2>/dev/null || true
+        poll_count=0
+        while proof_background_job_running "$reader_pid" && [ "$poll_count" -lt 4 ]; do
+            sleep 0.25
+            poll_count=$((poll_count + 1))
+        done
+        if proof_background_job_running "$reader_pid"; then
+            kill -KILL "$reader_pid" 2>/dev/null || true
+            poll_count=0
+            while proof_background_job_running "$reader_pid" && [ "$poll_count" -lt 4 ]; do
+                sleep 0.25
+                poll_count=$((poll_count + 1))
+            done
+        fi
+    fi
+    if proof_background_job_running "$reader_pid"; then
+        PROOF_CAPTURE_READER_UNCLEAN=1
+        return 0
+    fi
+    wait "$reader_pid" 2>/dev/null || reader_status=$?
+    PROOF_CAPTURE_READER_STATUS="$reader_status"
 }
 
 # @ref LLP 0189#decision — D-1 ticket identity comes from retained,
@@ -226,12 +308,26 @@ proof_execute_gate() {
     local gate_id="$1" timeout_seconds="$2" capture_dir="" stdout_fifo="" stderr_fifo=""
     local stdout_file="" stderr_file="" stdout_tee_pid="" stderr_tee_pid=""
     local command_status=0 signature_status=0 stdout_tee_status=0 stderr_tee_status=0
+    local capture_drain_seconds=5
+    local stdout_forced=0 stderr_forced=0 stdout_unclean=0 stderr_unclean=0
     shift 2
     PROOF_GATE_LAST_FAILURE_SIGNATURE=""
-    if [ "${SNAPBACK_PROOF_CAPTURE_FAILURE_SIGNATURES:-0}" != "1" ]; then
-        proof_run_gate_with_timeout "$gate_id" "$timeout_seconds" "$@"
-        return $?
+    PROOF_GATE_LAST_TERMINATION_REASON=exit
+    if [ "${SNAPBACK_PROOF_CAPTURE_DRAIN_SECONDS+x}" = "x" ]; then
+        capture_drain_seconds="$SNAPBACK_PROOF_CAPTURE_DRAIN_SECONDS"
     fi
+    if [ "${SNAPBACK_PROOF_CAPTURE_FAILURE_SIGNATURES:-0}" != "1" ]; then
+        if proof_run_gate_with_timeout "$gate_id" "$timeout_seconds" "$@"; then
+            command_status=0
+        else
+            command_status=$?
+        fi
+        proof_update_last_termination_reason
+        return "$command_status"
+    fi
+
+    capture_drain_seconds="$(proof_resolve_nonnegative_duration_seconds \
+        "gate $gate_id capture drain" "$capture_drain_seconds")" || return $?
 
     capture_dir="$(mktemp -d "${TMPDIR:-/tmp}/snapback-proof-gate.XXXXXX")" || {
         printf '[snapback-proof] could not create failure-capture directory for gate %s\n' \
@@ -258,20 +354,32 @@ proof_execute_gate() {
     else
         command_status=$?
     fi
-    wait "$stdout_tee_pid" || stdout_tee_status=$?
-    wait "$stderr_tee_pid" || stderr_tee_status=$?
+    proof_finish_capture_reader "$gate_id" stdout "$stdout_tee_pid" "$capture_drain_seconds"
+    stdout_tee_status="${PROOF_CAPTURE_READER_STATUS:-0}"
+    stdout_forced="$PROOF_CAPTURE_READER_FORCED"
+    stdout_unclean="$PROOF_CAPTURE_READER_UNCLEAN"
+    proof_finish_capture_reader "$gate_id" stderr "$stderr_tee_pid" "$capture_drain_seconds"
+    stderr_tee_status="${PROOF_CAPTURE_READER_STATUS:-0}"
+    stderr_forced="$PROOF_CAPTURE_READER_FORCED"
+    stderr_unclean="$PROOF_CAPTURE_READER_UNCLEAN"
+    proof_update_last_termination_reason
     if [ "$command_status" -ne 0 ]; then
         PROOF_GATE_LAST_FAILURE_SIGNATURE="$(node \
             "$PROOF_RUNNER_ROOT/scripts/drift-prone-gates.mjs" failure-signature \
             --gate "$gate_id" \
             --exit-code "$command_status" \
+            --termination-reason "$PROOF_GATE_LAST_TERMINATION_REASON" \
             --stdout "$stdout_file" \
             --stderr "$stderr_file" \
             --normalization-root "$PROOF_RUNNER_ROOT")" || signature_status=$?
     fi
     rm -rf -- "$capture_dir"
-    if [ "$stdout_tee_status" -ne 0 ] || [ "$stderr_tee_status" -ne 0 ] \
-        || [ "$signature_status" -ne 0 ] || {
+    if { [ "${PROOF_GATE_LAST_TIMED_OUT:-0}" != "1" ] && {
+        { [ "$stdout_tee_status" -ne 0 ] && [ "$stdout_forced" -ne 1 ]; } \
+            || { [ "$stderr_tee_status" -ne 0 ] && [ "$stderr_forced" -ne 1 ]; } \
+            || [ "$stdout_forced" -ne 0 ] || [ "$stderr_forced" -ne 0 ] \
+            || [ "$stdout_unclean" -ne 0 ] || [ "$stderr_unclean" -ne 0 ];
+    }; } || [ "$signature_status" -ne 0 ] || {
         [ "$command_status" -ne 0 ] && [ -z "$PROOF_GATE_LAST_FAILURE_SIGNATURE" ];
     }; then
         printf '[snapback-proof] could not normalize root-failure output for gate %s\n' \
@@ -303,6 +411,7 @@ proof_gate() {
     local gate_id="$1" prerequisites="" prerequisite="" prerequisite_index=""
     local blocked_by="" state="" command="" started="" ended="" gate_status=0
     local failure_signature="" timeout_override="" timeout_seconds="" saw_separator=0
+    local timeout_override_set=0 termination_reason=""
     shift
     while [ "$#" -gt 0 ]; do
         case "$1" in
@@ -316,12 +425,13 @@ proof_gate() {
                 shift 2
                 ;;
             --timeout-seconds)
-                if [ "$#" -lt 2 ] || [ -n "$timeout_override" ]; then
+                if [ "$#" -lt 2 ] || [ "$timeout_override_set" -eq 1 ]; then
                     printf '[snapback-proof] gate %s has an invalid --timeout-seconds option\n' \
                         "$gate_id" >&2
                     return 2
                 fi
                 timeout_override="$2"
+                timeout_override_set=1
                 shift 2
                 ;;
             --)
@@ -342,7 +452,8 @@ proof_gate() {
         printf '[snapback-proof] gate %s has no command\n' "$gate_id" >&2
         return 2
     fi
-    timeout_seconds="$(proof_resolve_gate_timeout_seconds "$gate_id" "$timeout_override")" || \
+    timeout_seconds="$(proof_resolve_gate_timeout_seconds \
+        "$gate_id" "$timeout_override" "$timeout_override_set")" || \
         return $?
     proof_validate_gate_id "$gate_id" || return $?
     PROOF_SELECTED_INDEX=$((PROOF_SELECTED_INDEX + 1))
@@ -394,15 +505,16 @@ proof_gate() {
     if proof_execute_gate "$gate_id" "$timeout_seconds" "$@"; then
         ended="$(proof_now_ms)"
         proof_record "$gate_id" PASS "$started" "$ended" 0 \
-            "$prerequisites" "" "$command"
+            "$prerequisites" "" "$command" "" exit
         printf '[snapback-verify] PASS %s (%d ms)\n' "$gate_id" "$((ended - started))"
         return 0
     else
         gate_status=$?
         failure_signature="$PROOF_GATE_LAST_FAILURE_SIGNATURE"
+        termination_reason="$PROOF_GATE_LAST_TERMINATION_REASON"
         ended="$(proof_now_ms)"
         proof_record "$gate_id" FAIL "$started" "$ended" "$gate_status" \
-            "$prerequisites" "" "$command" "$failure_signature"
+            "$prerequisites" "" "$command" "$failure_signature" "$termination_reason"
         printf '\n[snapback-verify] FAIL %s (exit %d, %d ms): %s\n' \
             "$gate_id" "$gate_status" "$((ended - started))" "$command"
         if [ "$PROOF_KEEP_GOING" = "1" ]; then

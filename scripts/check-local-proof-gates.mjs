@@ -8,6 +8,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { parseProofTimeoutSeconds } from './lib/proof-timeout.mjs';
+
 const ROOT = resolve(import.meta.dirname, '..');
 const CANONICAL_PROOF = 'scripts/verify-local-proof';
 
@@ -21,8 +23,8 @@ function unquote(value = '') {
 
 export function parseGateCalls(source) {
   const normalized = source.replace(/\\\n[ \t]*/gu, ' ');
-  const callPattern = /^\s*run\s+([a-z0-9-]+)((?:\s+--(?:requires|timeout-seconds)\s+(?:"[^"]+"|'[^']+'|[^\s]+))*)\s+--\s+(.+)$/gmu;
-  const optionPattern = /--(requires|timeout-seconds)\s+("[^"]+"|'[^']+'|[^\s]+)/gu;
+  const callPattern = /^\s*run\s+([a-z0-9-]+)((?:\s+--(?:requires|timeout-seconds)\s+(?:"[^"]*"|'[^']*'|[^\s]+))*)\s+--\s+(.+)$/gmu;
+  const optionPattern = /--(requires|timeout-seconds)\s+("[^"]*"|'[^']*'|[^\s]+)/gu;
   const calls = [];
   for (const match of normalized.matchAll(callPattern)) {
     let prerequisites = [];
@@ -36,10 +38,9 @@ export function parseGateCalls(source) {
       if (name === 'requires') {
         prerequisites = value.split(',').filter(Boolean);
       } else {
-        timeoutSeconds = Number(value);
-        if (!Number.isSafeInteger(timeoutSeconds) || timeoutSeconds <= 0) {
-          throw new Error(`gate ${match[1]} timeout must be a positive integer`);
-        }
+        timeoutSeconds = parseProofTimeoutSeconds(value, {
+          label: `gate ${match[1]} timeout`,
+        });
       }
     }
     const call = {

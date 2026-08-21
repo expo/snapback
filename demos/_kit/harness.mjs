@@ -74,6 +74,61 @@ export async function runAcceptance(suite, body, {
   reportExtra = null,
   reportFile = null,
 } = {}) {
+  let cleanupPromise = null;
+  const runRegisteredCleanups = (title) => {
+    if (cleanupPromise !== null) return cleanupPromise;
+    cleanupPromise = (async () => {
+      const cleanupErrors = [];
+      const registeredCleanups = [...cleanups];
+      let cleanupOrder = 0;
+      for (let registrationIndex = registeredCleanups.length - 1;
+        registrationIndex >= 0;
+        registrationIndex -= 1) {
+        const cleanup = registeredCleanups[registrationIndex];
+        try {
+          await cleanup();
+        } catch (error) {
+          const failure = cleanupFailureReport(error, cleanup, registrationIndex, cleanupOrder);
+          cleanupErrors.push(failure);
+          console.error(
+            `CLEANUP FAILURE ${title} [${failure.code}] `
+              + `(registered ${registrationIndex}, reverse order ${cleanupOrder}): `
+              + `${failure.stack ?? failure.message}`,
+          );
+        }
+        cleanupOrder += 1;
+      }
+      return cleanupErrors;
+    })();
+    return cleanupPromise;
+  };
+
+  // @ref LLP 0175#d1--make-keep-going-dependency-aware — a gate timeout sends
+  // TERM before KILL. Run the live cleanup stack during that grace so resources
+  // deliberately outside the gate process group (including fork servers that
+  // call setsid()) still follow their exact owner/drop lifecycle.
+  let signalCleanupStarted = false;
+  const signalHandlers = Object.freeze({
+    SIGINT: () => beginSignalCleanup('SIGINT', 130),
+    SIGTERM: () => beginSignalCleanup('SIGTERM', 143),
+  });
+  function beginSignalCleanup(signal, exitCode) {
+    if (signalCleanupStarted) return;
+    signalCleanupStarted = true;
+    console.error(`[snapback-acceptance] signal cleanup: signal=${signal}`);
+    void runRegisteredCleanups('interrupted acceptance run').then((cleanupErrors) => {
+      if (cleanupErrors.length > 0) {
+        console.error(
+          `[snapback-acceptance] signal cleanup failed: signal=${signal} `
+            + `failures=${cleanupErrors.length}`,
+        );
+      }
+      process.exit(exitCode);
+    });
+  }
+  process.on('SIGINT', signalHandlers.SIGINT);
+  process.on('SIGTERM', signalHandlers.SIGTERM);
+
   let setupFailed = false;
   let setupError;
   try {
@@ -93,23 +148,7 @@ export async function runAcceptance(suite, body, {
     report.ok = false;
     report.setupError = String(setupError?.message ?? setupError);
   }
-  const cleanupErrors = [];
-  const registeredCleanups = [...cleanups];
-  let cleanupOrder = 0;
-  for (let registrationIndex = registeredCleanups.length - 1; registrationIndex >= 0; registrationIndex -= 1) {
-    const cleanup = registeredCleanups[registrationIndex];
-    try {
-      await cleanup();
-    } catch (error) {
-      const failure = cleanupFailureReport(error, cleanup, registrationIndex, cleanupOrder);
-      cleanupErrors.push(failure);
-      console.error(
-        `CLEANUP FAILURE ${report.title} [${failure.code}] ` +
-          `(registered ${registrationIndex}, reverse order ${cleanupOrder}): ${failure.stack ?? failure.message}`,
-      );
-    }
-    cleanupOrder += 1;
-  }
+  const cleanupErrors = await runRegisteredCleanups(report.title);
   report.cleanupErrors = cleanupErrors;
   report.cleanupErrorCount = cleanupErrors.length;
   if (cleanupErrors.length > 0) {
@@ -123,6 +162,8 @@ export async function runAcceptance(suite, body, {
   if (reportFile !== null) writeMachineReport(reportFile, machineReport);
   console.log('\n--- machine-readable report ---');
   console.log(JSON.stringify(machineReport));
+  process.removeListener('SIGINT', signalHandlers.SIGINT);
+  process.removeListener('SIGTERM', signalHandlers.SIGTERM);
   process.exit(setupFailed || cleanupErrors.length > 0 ? 2 : report.ok ? 0 : 1);
 }
 
