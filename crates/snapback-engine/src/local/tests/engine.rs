@@ -5854,6 +5854,7 @@ fn asset_handler_commit(
                 membership_plans: Vec::new(),
                 read_dependencies: Vec::new(),
                 result: Value::Null,
+                handler_observable_commit_version: None,
                 ctx_ledger: crate::manifest::CtxAnswerLedger::default(),
                 job_enqueues: Vec::new(),
                 job_producer: None,
@@ -19896,6 +19897,220 @@ globalThis.__snapbackHandlers = {
     assert_eq!(result["payload"], json!({ "label": "read-your-writes" }));
 }
 
+/// A disjoint commit does not invalidate the buffered row read itself, but it
+/// must invalidate the commit-version candidate that handler code copied out
+/// of that row. A fresh execution then observes and persists the exact version
+/// selected by its successful commit.
+///
+/// @ref LLP 0108#runtime-validation-and-atomicity — handler-visible document
+///   versions are fenced against the authoritative commit allocator.
+#[test]
+fn copied_insert_version_conflicts_after_disjoint_commit_then_matches_fresh_commit() {
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async copyInsertedVersion(ctx) {
+    const sourceId = await ctx.db.insert('versionRows', { kind: 'source' });
+    const source = await ctx.db.get('versionRows', sourceId);
+    await ctx.db.insert('versionRows', {
+      kind: 'copy',
+      copiedVersion: source._version,
+    });
+    return source._version;
+  },
+};
+"#;
+    let schema = SchemaManifest {
+        tables: vec![TableManifest {
+            name: "versionRows".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "kind".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "copiedVersion".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: true,
+                },
+            ],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
+            history: None,
+        }],
+        ..SchemaManifest::default()
+    };
+    let mut copy_version = FunctionDefinition::new(
+        "copyInsertedVersion",
+        FunctionKind::Mutation,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "copyInsertedVersion".to_owned(),
+        }),
+    );
+    copy_version.required_capabilities = vec![
+        "ibex_ctx_db_host_bridge".to_owned(),
+        "mutation_read_set_validation".to_owned(),
+        "result_contract_v1".to_owned(),
+    ];
+    copy_version.write_set_summary.primary_table = Some("versionRows".to_owned());
+    copy_version.write_set_summary.tables = vec!["versionRows".to_owned()];
+    copy_version.write_set_summary.mode = Some("handlerDeclared".to_owned());
+    copy_version.result_contract = FunctionResultContract::Value {
+        value: ResultValueContract::Integer {
+            min: 0,
+            max: 9_007_199_254_740_991,
+        },
+    };
+    copy_version.result_contract_hash = Some(
+        crate::manifest::result_contract_hash(&copy_version.result_contract)
+            .expect("integer result contract hashes"),
+    );
+
+    let mut unrelated_values = BTreeMap::new();
+    unrelated_values.insert("kind".to_owned(), ValueExpr::Literal(json!("unrelated")));
+    let advance_version = FunctionDefinition::new(
+        "advanceVersion",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Insert {
+                table: "versionRows".to_owned(),
+                values: unrelated_values,
+                bind_id_as: None,
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        })),
+    );
+
+    let mut snapback = LocalSnapback::memory().expect("version-fence fixture");
+    snapback
+        .apply_schema(schema)
+        .expect("apply version-fence schema");
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        functions: vec![copy_version, advance_version],
+        acknowledged_experimental_capabilities: vec!["result_contract_v1".to_owned()],
+        ..FunctionManifest::default()
+    });
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "version-fence functions must activate: {diagnostics:?}",
+    );
+
+    let input = HandlerInput::default();
+    let authority = InvocationGate::prepare_dev_input(
+        InvocationSource::LocalMutation,
+        ServerProfile::Test,
+        &input,
+    )
+    .expect("prepare detached version-copy authority");
+    let (preflight, staged) = snapback
+        .stage_recorded_authorization_mutation(
+            "copyInsertedVersion",
+            input,
+            None,
+            None,
+            &[],
+            "test",
+            authority,
+        )
+        .expect("stage version-copy mutation at the initial head");
+
+    let unrelated = snapback
+        .invoke_mutation("advanceVersion", HandlerInput::default())
+        .expect("disjoint mutation advances the global version");
+    assert_eq!(unrelated.version, 1);
+
+    let (stale_result, _receipt) = snapback
+        .try_with_direct_authorization_write(preflight, move |snapback| {
+            snapback.commit_staged_recorded_authorization_mutation(staged)
+        })
+        .expect("reserve staged version-copy mutation")
+        .require_finalized()
+        .expect("finalize staged version-copy refusal")
+        .expect("record staged version-copy refusal");
+    let conflict = stale_result
+        .expect_err("a moved allocator must make the exposed version scenario uncommittable");
+    assert_eq!(conflict.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+    assert_eq!(
+        conflict.diagnostic.details["dependency"],
+        json!({
+            "kind": "commitVersionFence",
+            "expected": 1,
+            "actual": 2,
+        }),
+    );
+
+    let rows_after_conflict = snapback
+        .db
+        .query_reads_read()
+        .query(
+            &QueryPlan {
+                table_visibility: None,
+                table: "versionRows".to_owned(),
+                filters: Vec::new(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            },
+            &HandlerInput::default(),
+        )
+        .expect("read rows after fenced conflict")
+        .rows;
+    assert_eq!(
+        rows_after_conflict.len(),
+        1,
+        "the staged writes rolled back"
+    );
+    assert_eq!(rows_after_conflict[0]["kind"], "unrelated");
+
+    let fresh = snapback
+        .invoke_mutation("copyInsertedVersion", HandlerInput::default())
+        .expect("fresh version-copy mutation commits");
+    assert_eq!(fresh.version, 2);
+    assert_eq!(fresh.result, json!(fresh.version));
+    let committed_rows = snapback
+        .db
+        .query_reads_read()
+        .query(
+            &QueryPlan {
+                table_visibility: None,
+                table: "versionRows".to_owned(),
+                filters: Vec::new(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            },
+            &HandlerInput::default(),
+        )
+        .expect("read committed version-copy rows")
+        .rows;
+    let source = committed_rows
+        .iter()
+        .find(|row| row["kind"] == "source")
+        .expect("source row committed");
+    let copy = committed_rows
+        .iter()
+        .find(|row| row["kind"] == "copy")
+        .expect("copy row committed");
+    assert_eq!(source["_version"], json!(fresh.version));
+    assert_eq!(copy["_version"], json!(fresh.version));
+    assert_eq!(copy["copiedVersion"], json!(fresh.version));
+}
+
 // @ref LLP 0080#5-transactionally-maintained-projections — the
 //   maintenance engine end to end: source and output commit together
 //   at one version; the affected-key set closes over pre/post images;
@@ -28985,6 +29200,7 @@ fn executed_insert() -> ExecutedIbexMutation {
         media_projection_proof: None,
         media_projection_scope: None,
         result: json!("guarded_item"),
+        handler_observable_commit_version: None,
         ctx_ledger: CtxAnswerLedger {
             version: ctx_ledger_version(),
             ids: Vec::new(),

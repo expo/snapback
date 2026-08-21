@@ -34,6 +34,27 @@ fn buffered_document_result_uses_authoritative_committed_system_fields() {
     );
 }
 
+#[test]
+fn handler_observable_commit_version_fence_rejects_a_moved_allocator() {
+    validate_handler_observable_commit_version(None, 9)
+        .expect("an invocation that never observed an inserted version has no fence");
+    validate_handler_observable_commit_version(Some(9), 9)
+        .expect("the authoritative allocator admits the observed successor");
+
+    let error = validate_handler_observable_commit_version(Some(9), 10)
+        .expect_err("a disjoint commit must invalidate the observed successor");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+    assert_eq!(
+        error.diagnostic.details["dependency"],
+        json!({
+            "kind": "commitVersionFence",
+            "expected": 9,
+            "actual": 10,
+        }),
+    );
+    assert_eq!(error.diagnostic.details["retryPolicy"], "reject");
+}
+
 #[cfg(test)]
 mod kernel_commit_authority_tests {
     use super::*;
@@ -2984,6 +3005,7 @@ mod guarded_commit_tests {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    handler_observable_commit_version: None,
                     result_document_table: None,
                 },
                 identity,
@@ -8443,6 +8465,7 @@ mod guarded_commit_tests {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    handler_observable_commit_version: None,
                     result_document_table: None,
                 },
                 Some(&buffered_identity),
@@ -8682,6 +8705,7 @@ mod guarded_commit_tests {
                         asset_grant_ops: Vec::new(),
                         media_projection_proof: None,
                         expected_media_projection_binding: None,
+                        handler_observable_commit_version: None,
                         result_document_table: None,
                     },
                     Some(identity),
@@ -8774,6 +8798,7 @@ mod guarded_commit_tests {
                         asset_grant_ops: Vec::new(),
                         media_projection_proof: None,
                         expected_media_projection_binding: None,
+                        handler_observable_commit_version: None,
                         result_document_table: None,
                     },
                     Some(identity),
@@ -9364,6 +9389,7 @@ mod guarded_commit_tests {
             asset_grant_ops: Vec::new(),
             media_projection_proof: None,
             expected_media_projection_binding: None,
+            handler_observable_commit_version: None,
             result_document_table: None,
         };
         let first_buffered = both
@@ -10349,6 +10375,7 @@ mod guarded_commit_tests {
             asset_grant_ops: Vec::new(),
             media_projection_proof: None,
             expected_media_projection_binding: None,
+            handler_observable_commit_version: None,
             result_document_table: None,
         }
     }
@@ -14026,6 +14053,7 @@ mod guarded_commit_tests {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    handler_observable_commit_version: None,
                     result_document_table: None,
                 },
                 None,
@@ -15122,6 +15150,7 @@ mod membership_write_tests {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    handler_observable_commit_version: None,
                     result_document_table: None,
                 },
                 None,
@@ -20703,6 +20732,7 @@ mod media_ref_projection_acceptance_tests {
             membership_plans: Vec::new(),
             read_dependencies: Vec::new(),
             result: json!({ "proof": "fresh" }),
+            handler_observable_commit_version: None,
             result_document_table: None,
             ctx_ledger: CtxAnswerLedger::default(),
             job_enqueues: Vec::new(),
@@ -20731,6 +20761,7 @@ mod media_ref_projection_acceptance_tests {
                 Vec::new(),
                 json!({ "proof": "previewed" }),
                 None,
+                None,
                 CtxAnswerLedger::default(),
                 Vec::new(),
                 None,
@@ -20756,6 +20787,7 @@ mod media_ref_projection_acceptance_tests {
                     membership_plans: Vec::new(),
                     read_dependencies: Vec::new(),
                     result: json!({ "proof": "committed" }),
+                    handler_observable_commit_version: None,
                     result_document_table: None,
                     ctx_ledger: CtxAnswerLedger::default(),
                     job_enqueues: Vec::new(),
@@ -21745,6 +21777,7 @@ mod media_collection_acceptance_tests {
             asset_grant_ops: Vec::new(),
             media_projection_proof: None,
             expected_media_projection_binding: None,
+            handler_observable_commit_version: None,
             result_document_table: None,
         };
         let commit = db

@@ -5,10 +5,11 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-21 (buffered mutation document results validate against
-a structurally complete read-your-writes row, then replace its provisional
-system fields with the authoritative committed row before settlement or
-publication); 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-15 (single-value query egress: query/live-query
+**Revised:** 2026-08-21 (handler-visible buffered-insert versions use a
+commit-time allocator fence: a moved global head rejects the invocation before
+effects, while admitted document results still replace system fields from the
+authoritative changed row before settlement or publication); 2026-08-18 (LLP
+0276 crate-path relocation); 2026-08-15 (single-value query egress: query/live-query
 declarations admit `results.document` and `results.value`; authored handlers
 return that value directly while the existing query/live transport carries it
 as exactly one internal row, and typed consumers project the value back out).
@@ -486,16 +487,27 @@ Validation failure rolls back the writes, creates no successful retained
 output, advances no durable version, and publishes no optimistic settlement.
 This requires the commit seam, not a post-commit transport check.
 
-When a buffered JavaScript mutation returns a document it inserted and read in
-the same handler, the read-your-writes overlay includes a structurally valid
-provisional `_version` so the document contract can be checked before commit.
-That provisional value is validation-only: for an exact `document(table)`
-contract, the storage commit replaces `_version`, `_createdAt`, and
-`_updatedAt` from the authoritative changed row with the same table and `_id`
-before the result is retained, settled, or published. A mutation dry-run uses
-the identical projection from its authoritative would-be changed row before
-forming `DryRunReport.result`; rollback still discards that row. No guessed
-commit version may escape to a client or preview.
+When a buffered JavaScript mutation reads a document it inserted in the same
+handler, the read-your-writes overlay remains structurally complete, including
+`_version`. That value is handler-visible: code may return it through a value
+contract, copy it into another result shape, or persist it in another row. It is
+therefore the invocation's **fenced commit successor**, not a validation-only
+placeholder. The completed invocation carries that successor to storage; after
+the local writer acquires its `IMMEDIATE` reservation and runs the authoritative
+allocator, commit proceeds only when the selected version is identical. A
+disjoint intervening commit produces `SNAPBACK_MUTATION_CONFLICT` before any
+buffered effect is applied. This keeps handler execution outside the write lock
+and preserves complete read-your-writes documents without allowing a guessed
+version to commit or escape.
+
+For an exact `document(table)` contract, storage additionally replaces
+`_version`, `_createdAt`, and `_updatedAt` from the authoritative changed row
+with the same table and `_id` before the result is retained, settled, or
+published. This is defense in depth for the exact document carrier, not the
+correctness mechanism for values copied elsewhere. A mutation dry-run uses the
+same allocator fence and then the identical projection from its authoritative
+would-be changed row before forming `DryRunReport.result`; rollback still
+discards that row.
 
 Retained mutation output stores the complete original
 `ExpectedOperationV1`, `resultContractHash`, and a reference to the

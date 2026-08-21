@@ -44,11 +44,14 @@ composites continue to refuse before activation output with
 The typed headless query client projects the internal one-row carrier to the
 authored single value, matching the existing React projection.
 
-Buffered runtime documents now include a structurally valid provisional
-`_version` for handler-side validation. For an exact document result contract,
-commit settlement replaces `_version`, `_createdAt`, and `_updatedAt` from the
-authoritative changed row before retention or publication, so provisional
-storage metadata cannot escape to clients. Mutation dry-run carries the same
+Buffered runtime documents now include a structurally valid, handler-visible
+`_version` under a commit-time allocator fence. If a disjoint mutation advances
+the global version after handler execution, the stale invocation conflicts
+before applying any effect; a successful invocation's observed, returned, or
+persisted value therefore equals its authoritative commit version. For an exact
+document result contract, settlement additionally replaces `_version`,
+`_createdAt`, and `_updatedAt` from the authoritative changed row before
+retention or publication. Mutation dry-run carries the same version fence and
 document-table binding through its rollback path and projects the same fields
 from the authoritative would-be changed row into `DryRunReport.result`.
 
@@ -68,17 +71,18 @@ tests.
   nullable, and malformed single-value query carriers.
 - `cargo test -p snapback-engine structured_value_survives_the_handler_read_your_writes_overlay -- --nocapture` — passed; the dry-run result equals its predicted changed row, is discarded, and the committed result equals the stored row.
 - `cargo test -p snapback --test dry_run_v0 -- --nocapture` — 7/7 passed through the public `mutationDryRun` surface.
-- `cargo test -p snapback-engine batch_unique_many_overlays_buffered_insert_and_duplicate_keys -- --nocapture` — passed; buffered inserts expose a valid provisional version.
+- `cargo test -p snapback-engine batch_unique_many_overlays_buffered_insert_and_duplicate_keys -- --nocapture` — passed; buffered inserts expose their fenced commit successor.
+- `cargo test -p snapback-engine copied_insert_version_conflicts_after_disjoint_commit_then_matches_fresh_commit -- --nocapture` — passed; a disjoint commit moves the allocator from 1 to 2, the stale invocation rejects with `commitVersionFence` before either insert lands, and a fresh invocation returns and persists exactly version 2.
 - `scripts/bootstrap-ibex-runtime` — recovered and stamped the lazy Ibex/Hermes
   artifacts, then refused its duplicate clean-link probe after the stable
   900-second `SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT`; focused Cargo compilation
   subsequently completed without a product compile error.
-- `CARGO_TARGET_DIR=/Users/ccheever/projects/snapback/target cargo build
-  --locked --bin snapback` plus `runtime-readiness.mjs issue`/`verify` — rebuilt
-  the requested runtime carrier from this worktree and qualified its restricted
-  no-eval handler VM; the packed candidate binary digest was
-  `485d06c82a5770a00dda2820af561bd034835d011c4c2377c56ca7f04e02c04c`.
-- `SNAPBACK_RUNTIME_BINARY=/Users/ccheever/projects/snapback/target/debug/snapback
+- `cargo build --locked --bin snapback` plus `runtime-readiness.mjs
+  issue`/`verify` — rebuilt `target/debug/snapback` in this worktree and
+  qualified its restricted no-eval handler VM; the refreshed packed candidate
+  binary digest was
+  `61cd198659ca90e9e6dd7f24a1eeeb2d0316753397becd8d60a2139d15bf1c3e`.
+- `SNAPBACK_RUNTIME_BINARY=$PWD/target/debug/snapback
   node scripts/familiar-vdoc-vertical-contract.mjs` — packed seven-package
   closure passed from a fresh external app: Guide spelling, clean one-pass
   bare-`v.doc` generation, typecheck, native query/mutation/action acceptance,

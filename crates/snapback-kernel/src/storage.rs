@@ -1193,9 +1193,13 @@ pub struct BufferedCommitPayload {
     pub membership_plans: Vec<AuthorizedMembershipPlan>,
     pub read_dependencies: Vec<CapturedReadDependency>,
     pub result: Value,
+    /// Commit version already exposed to handler code through a materialized
+    /// buffered insert. The writer may admit this payload only if its
+    /// authoritative allocator selects the same version.
+    pub handler_observable_commit_version: Option<u64>,
     /// Named table for a `results.document(table)` handler result. Storage
-    /// uses this contract-bound fact to replace provisional read-your-writes
-    /// system fields with the exact committed row before settlement.
+    /// uses this contract-bound fact to replace fenced read-your-writes system
+    /// fields with the exact committed row before settlement.
     pub result_document_table: Option<String>,
     pub ctx_ledger: CtxAnswerLedger,
     /// Buffered `ctx.jobs.enqueue` intents, inserted inside the same SQLite
@@ -1249,6 +1253,7 @@ struct BufferedEffects<'a> {
     membership_plans: Vec<AuthorizedMembershipPlan>,
     read_dependencies: Vec<CapturedReadDependency>,
     result: Value,
+    handler_observable_commit_version: Option<u64>,
     result_document_table: Option<String>,
     job_enqueues: Vec<jobs::BufferedJobEnqueue>,
     job_producer: Option<jobs::JobProducer>,
@@ -5510,6 +5515,7 @@ impl LocalDatabase {
             membership_plans,
             read_dependencies,
             result,
+            handler_observable_commit_version,
             result_document_table,
             ctx_ledger,
             job_enqueues,
@@ -5542,6 +5548,7 @@ impl LocalDatabase {
                 membership_plans,
                 read_dependencies,
                 result,
+                handler_observable_commit_version,
                 result_document_table,
                 job_enqueues,
                 job_producer,
@@ -5619,6 +5626,7 @@ impl LocalDatabase {
             membership_plans,
             mut read_dependencies,
             mut result,
+            handler_observable_commit_version,
             result_document_table,
             job_enqueues,
             job_producer,
@@ -5735,6 +5743,15 @@ impl LocalDatabase {
         }
         let current_version = current_version_on(&tx)?;
         let next_version = next_storage_version(current_version)?;
+
+        // @ref LLP 0108#runtime-validation-and-atomicity — an inserted row's
+        // handler-visible `_version` is a conditional successor, never an
+        // unchecked guess. A disjoint commit that moves the allocator makes
+        // this invocation conflict before any buffered effect is applied.
+        validate_handler_observable_commit_version(
+            handler_observable_commit_version,
+            next_version,
+        )?;
 
         validate_touched_managed_tables(&tx, &schema, &touched_tables, current_version)?;
         validate_read_set(&tx, &schema, &input.read_set, current_version)?;
@@ -6232,9 +6249,9 @@ impl LocalDatabase {
             None => None,
         };
         // @ref LLP 0108#runtime-validation-and-atomicity — a buffered
-        // `ctx.db.get` observes provisional system fields during handler
-        // execution; `results.document(table)` settles only the exact system
-        // fields from the row written by this transaction.
+        // `ctx.db.get` observes fenced system fields during handler execution;
+        // `results.document(table)` settles only the exact system fields from
+        // the row written by this transaction.
         if let Some(table) = result_document_table.as_deref() {
             reproject_buffered_document_result_system_fields(table, &changes, &mut result);
         }
@@ -14143,6 +14160,32 @@ fn reproject_buffered_document_result_system_fields(
             result_object.insert(field.to_owned(), value.clone());
         }
     }
+}
+
+fn validate_handler_observable_commit_version(
+    expected: Option<u64>,
+    authoritative: u64,
+) -> SnapbackResult<()> {
+    let Some(expected) = expected else {
+        return Ok(());
+    };
+    if expected == authoritative {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_MUTATION_CONFLICT",
+        "storage",
+        "handler-observable document version changed before commit",
+    )
+    .with_detail(
+        "dependency",
+        json!({
+            "kind": "commitVersionFence",
+            "expected": expected,
+            "actual": authoritative,
+        }),
+    )
+    .with_detail("retryPolicy", "reject"))
 }
 
 // Mutation value evaluation carries the settlement-time witness explicitly;

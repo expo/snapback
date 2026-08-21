@@ -407,6 +407,10 @@ pub struct ExecutedIbexMutation {
     pub asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
     pub asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
     pub result: Value,
+    /// Commit version exposed through a read-your-writes inserted document.
+    /// Storage fences this candidate against its authoritative allocator
+    /// before either commit or dry-run output can succeed.
+    pub handler_observable_commit_version: Option<u64>,
     pub ctx_ledger: CtxAnswerLedger,
     pub media_projection_proof: Option<StagedMediaProjectionProofV1>,
     pub media_projection_scope: Option<MediaProjectionInvocationScopeV1>,
@@ -716,6 +720,7 @@ pub(crate) fn dry_run_ibex_mutation_prepared(
         mut reads,
         asset_admissions,
         asset_grant_ops,
+        handler_observable_commit_version,
         ..
     } = invocation;
     let membership_plans =
@@ -727,6 +732,7 @@ pub(crate) fn dry_run_ibex_mutation_prepared(
         membership_plans,
         reads,
         result,
+        handler_observable_commit_version.get(),
         match prepared.result_contract() {
             FunctionResultContract::Document { table, .. } => Some(table.clone()),
             _ => None,
@@ -840,6 +846,7 @@ pub fn execute_ibex_mutation_prepared(
         reads,
         asset_admissions,
         asset_grant_ops,
+        handler_observable_commit_version,
         ..
     } = invocation;
     prepared.validate_admission("ibex mutation completion")?;
@@ -855,6 +862,7 @@ pub fn execute_ibex_mutation_prepared(
         asset_admissions,
         asset_grant_ops,
         result,
+        handler_observable_commit_version: handler_observable_commit_version.get(),
         ctx_ledger,
         media_projection_proof,
         media_projection_scope,
@@ -1315,6 +1323,10 @@ pub(crate) struct IbexHostContext<'a> {
     membership_writer: MembershipWriter,
     reads: Vec<CapturedReadDependency>,
     read_keys: HashSet<String>,
+    /// Set when handler code materializes a buffered insert. The value is
+    /// usable only under the commit-time allocator fence carried with the
+    /// completed invocation.
+    handler_observable_commit_version: Cell<Option<u64>>,
     media_entries: BTreeMap<String, MediaProvenanceEntryV1>,
     media_handoff: Option<Vec<MediaHandoffOccurrenceV1>>,
     next_media_entry: u64,
@@ -1444,6 +1456,7 @@ impl<'a> IbexHostContext<'a> {
             membership_writer,
             reads,
             read_keys,
+            handler_observable_commit_version: Cell::new(None),
             media_entries: BTreeMap::new(),
             media_handoff: None,
             next_media_entry: 1,
@@ -1519,6 +1532,7 @@ impl<'a> IbexHostContext<'a> {
             membership_writer: MembershipWriter::System,
             reads,
             read_keys,
+            handler_observable_commit_version: Cell::new(None),
             media_entries: BTreeMap::new(),
             media_handoff: None,
             next_media_entry: 1,
@@ -4616,10 +4630,9 @@ impl<'a> IbexHostContext<'a> {
 
     /// Fold this invocation's buffered writes for `(table, id)` over a stored
     /// row, producing the row the handler should observe. A buffered insert's
-    /// system fields mirror `insert_document`'s shape with a provisional
-    /// `_version` (the next version after the pinned snapshot) and frozen
-    /// handler timestamps. The commit seam replaces those system fields from
-    /// the exact changed row before settlement.
+    /// system fields mirror `insert_document`'s shape with the fenced commit
+    /// successor and frozen handler timestamps. A successful commit or dry
+    /// run is possible only while that successor remains authoritative.
     ///
     /// @ref LLP 0032#phase-2--execution-semantics-honesty — E2 read-your-writes overlay.
     fn apply_buffered_to_point(
@@ -4666,14 +4679,13 @@ impl<'a> IbexHostContext<'a> {
     fn materialize_insert(&self, id: &str, values: &Map<String, Value>) -> Value {
         let mut document = Map::new();
         document.insert("_id".to_owned(), Value::String(id.to_owned()));
-        document.insert(
-            "_version".to_owned(),
-            json!(
-                self.pinned_snapshot
-                    .saturating_add(1)
-                    .min(SEQUENCE_MAX_SAFE_INTEGER)
-            ),
-        );
+        let commit_version = self
+            .pinned_snapshot
+            .saturating_add(1)
+            .min(SEQUENCE_MAX_SAFE_INTEGER);
+        self.handler_observable_commit_version
+            .set(Some(commit_version));
+        document.insert("_version".to_owned(), json!(commit_version));
         document.insert("_createdAt".to_owned(), json!(self.now_ms));
         document.insert("_updatedAt".to_owned(), json!(self.now_ms));
         for (key, value) in values {
@@ -8707,7 +8719,7 @@ globalThis.__snapbackHandlers = {
                     .saturating_add(1)
                     .min(super::SEQUENCE_MAX_SAFE_INTEGER)
             ),
-            "buffered inserts expose a structurally valid provisional document version",
+            "buffered inserts expose their fenced commit successor",
         );
         assert_eq!(result["rows"][0]["slug"], "buffered");
         assert_eq!(result["rows"][1], result["rows"][0]);
@@ -9896,6 +9908,7 @@ mod membership_bridge_tests {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    handler_observable_commit_version: None,
                     result_document_table: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),
@@ -9970,6 +9983,7 @@ mod membership_bridge_tests {
             reads,
             asset_admissions,
             asset_grant_ops,
+            handler_observable_commit_version,
             ..
         } = ctx;
         assert!(membership_commands.is_empty());
@@ -9979,6 +9993,7 @@ mod membership_bridge_tests {
             membership_plans: Vec::new(),
             read_dependencies: reads,
             result,
+            handler_observable_commit_version: handler_observable_commit_version.get(),
             ctx_ledger,
             job_enqueues,
             job_producer: None,
@@ -10041,6 +10056,7 @@ mod membership_bridge_tests {
                     membership_plans: Vec::new(),
                     read_dependencies: Vec::new(),
                     result: json!({ "sequence": 1 }),
+                    handler_observable_commit_version: None,
                     ctx_ledger: crate::manifest::CtxAnswerLedger::default(),
                     job_enqueues: Vec::new(),
                     job_producer: None,
@@ -10481,6 +10497,7 @@ globalThis.__snapbackHandlers = {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    handler_observable_commit_version: None,
                     result_document_table: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),
@@ -11062,6 +11079,7 @@ globalThis.__snapbackHandlers = {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    handler_observable_commit_version: None,
                     result_document_table: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),

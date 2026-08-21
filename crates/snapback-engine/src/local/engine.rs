@@ -15613,6 +15613,8 @@ impl LocalSnapback {
                                     membership_plans,
                                     read_dependencies: executed.reads,
                                     result: executed.result,
+                                    handler_observable_commit_version: executed
+                                        .handler_observable_commit_version,
                                     result_document_table: match &function.result_contract {
                                         crate::manifest::FunctionResultContract::Document {
                                             table,
@@ -15653,6 +15655,7 @@ impl LocalSnapback {
                                             payload.membership_plans.clone(),
                                             payload.read_dependencies.clone(),
                                             payload.result.clone(),
+                                            payload.handler_observable_commit_version,
                                             payload.result_document_table.clone(),
                                             payload.ctx_ledger.clone(),
                                             payload.job_enqueues.clone(),
@@ -16420,6 +16423,8 @@ impl LocalSnapback {
                         membership_plans,
                         read_dependencies: executed.reads,
                         result: executed.result,
+                        handler_observable_commit_version: executed
+                            .handler_observable_commit_version,
                         result_document_table: match &function.result_contract {
                             crate::manifest::FunctionResultContract::Document { table, .. } => {
                                 Some(table.clone())
@@ -16823,6 +16828,7 @@ impl LocalSnapback {
                     membership_plans,
                     read_dependencies: executed.reads,
                     result: executed.result,
+                    handler_observable_commit_version: executed.handler_observable_commit_version,
                     result_document_table: match &function.result_contract {
                         crate::manifest::FunctionResultContract::Document { table, .. } => {
                             Some(table.clone())
@@ -21463,6 +21469,7 @@ impl LocalSnapback {
                 membership_plans,
                 executed.reads.clone(),
                 executed.result.clone(),
+                executed.handler_observable_commit_version,
                 match &function.result_contract {
                     crate::manifest::FunctionResultContract::Document { table, .. } => {
                         Some(table.clone())
