@@ -1,6 +1,6 @@
 # `effect_guard` fences the global mode epoch, not session logout or grant revocation
 
-**Status:** Open — reframes the unguarded-write program
+**Status:** Open — DEMONSTRATED; sharper than originally filed
 **Filed:** 2026-08-21
 **Found by:** codex and grok, independently, reviewing `065363756`
 **Related:** `issues/20260821-unguarded-durable-writes-admission-fence.md`
@@ -76,3 +76,48 @@ Both reviewers said so explicitly, with per-class guidance:
 3. Re-frame `issues/20260821-unguarded-durable-writes-admission-fence.md`: its
    reachability analysis stands, but "add an `AdmissionEffectGuard`" is not by itself
    the remedy.
+
+
+## Demonstrated — 2026-08-21, and it is worse than filed
+
+A regression now exists on `lane/logoutreg` (`cc460f310`), committed FAILING.
+Request A pauses at `BeforeHandler` after middleware attaches
+`PreparedAuthority`; a real `POST /auth/logout` runs with the same bearer; A is
+released.
+
+Every earlier assertion passes:
+
+- logout returns **204**
+- the session becomes **terminal**
+- **both global mode counters are unchanged** — so nothing here retires the
+  global epoch, which is exactly what the twelve landed fences and their sixteen
+  mutation proofs all rely on, and exactly why none of them observes this
+- A returns the typed **`SNAPBACK_AUTH_SESSION_EXPIRED`** diagnostic
+
+And then:
+
+```
+assertion failed: the logged-out authority must not add a durable row
+  left: 2   right: 1
+```
+
+### The refinement that matters
+
+**A is refused and its write commits anyway.**
+
+This was filed as "the fence does not see logout," implying the write proceeds
+unchallenged. It does not. The authorization layer correctly identifies the
+session as expired and returns a typed refusal — and the durable row still
+lands.
+
+That is a different defect class: **a refusal with a durable side effect**. The
+caller is told the operation failed while the effect persists. Fixing the fence
+so it "sees" logout may not address this at all, because the refusal is already
+being produced; what is missing is that the refusal does not prevent — or does
+not roll back — the write.
+
+The remedy in `issues/20260821-authorized-effect-fence-design.md` should be
+re-examined against this: a split-phase authorized-effect reservation prevents
+work from STARTING, but this write starts before logout lands and commits after
+a refusal is already computed. Determine whether the correct fix is reservation,
+rollback-on-refusal, or both.
