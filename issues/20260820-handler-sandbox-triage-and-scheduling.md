@@ -34,6 +34,33 @@ not sufficient, because a dependency's polyfill can trip these without anyone in
 
 This falls short of the application-code security boundary LLP 0009 intends.
 
+## Author ruling 2026-08-20 — not a blocker for pre-public-release npm
+
+**The next npm closures do NOT assert adversarial-handler containment.** Charlie Cheever ruled
+that this boundary is *"eventually yes, but not for pre-public-release npm releases."*
+
+Consequences, in the order they bind:
+
+1. **These five findings are NOT publication blockers for pre-public-release closures.** They
+   do not gate the next npm release, and they should not be treated as gating one.
+2. **The release claim must EXPLICITLY DISCLAIM the boundary.** This is the load-bearing half
+   of the ruling. Leaving it unstated is not the same as not claiming it: a closure that is
+   silent on handler containment will be read as asserting it, particularly by the agents
+   LLP 0041 names as the expected audience. The disclaimer must say plainly that application
+   handler JavaScript is not treated as an adversarial security principal in this release.
+3. **They remain open work, not accepted risk.** Before any release that DOES assert the
+   boundary — a public release — these must be closed and qualified on both engines. The
+   ruling defers the assertion; it does not retire the findings.
+4. **The "safe to use" guidance below is unaffected.** It describes what is true of the
+   product, not what a release claims, and it stays accurate: a hostile or compromised handler
+   can bypass generated membership admission, and several findings can be tripped
+   *accidentally* by polyfills or prototype monkey-patching in well-intentioned dependencies.
+
+The scheduling judgment below was written before this ruling. Its *engineering* reasoning
+still holds — the durable registry fix overlaps LLP 0292's exact-operation registry and should
+be designed with it rather than built twice. What changes is urgency: this is no longer on the
+critical path to the next npm closure.
+
 ## Scheduling judgment
 
 **Fix alongside LLP 0292, front-loaded ahead of its Phase 3 authority reconnection, and ahead

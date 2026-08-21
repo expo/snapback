@@ -38,8 +38,11 @@ Publication is not gated on F-1 alone:
    explicit disposition; ~29 items, 7-20 engineer-days.
 3. **Cold-clone qualification** — 33/34; offline boot shows blocking chrome rather than an
    honestly labelled board.
-4. **Handler-sandbox scope** — five live findings mean application JavaScript cannot be
-   treated as an adversarial principal.
+4. ~~**Handler-sandbox scope**~~ — **RESOLVED by author ruling 2026-08-20.** The next
+   npm closures do not assert adversarial-handler containment, so the five findings are
+   not publication blockers for pre-public-release closures. **The release claim must
+   explicitly disclaim the boundary** rather than stay silent on it. The findings remain
+   open work and must be closed before any release that does assert it.
 
 ## Three decisions the author still owes
 
