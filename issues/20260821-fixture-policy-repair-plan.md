@@ -113,12 +113,34 @@ open-write would incorrectly widen owner-shaped cases. That is exactly the
 reclassification the brief asked for rather than defaulting to the weakest
 posture.
 
-### The 163 figure is stale
+### The 163 figure is NOT stale — I was wrong about that
 
-Measured per-target failure totals on current main exceed the earlier
-decomposition — `admin_v0` alone shows 45, `workerd_twin_v0` 32. The 163 came
-from the `f99b92cee` battery; main has moved considerably since. Re-measure
-before planning against these numbers again.
+An earlier revision of this section claimed the counts had drifted, citing
+`admin_v0` 45 and `workerd_twin_v0` 32 from the repair lane's report. That was
+wrong, and wrong in the way this repository keeps getting caught: **those were
+sandbox numbers**. The lane runs where `127.0.0.1` binds are denied, which
+inflates any target that needs loopback.
+
+Re-measured unsandboxed on `aec754689` with `--no-fail-fast`:
+
+**3284 passed / 179 failed across 117 test binaries, 32 failing targets** —
+identical to the `f99b92cee` battery total, and the per-target counts match this
+plan closely:
+
+| Target | Failures |
+|---|---:|
+| `local_v0` | 50 |
+| `unhandled_rejection_v0` | 16 |
+| `rqs_bundle_v0` | 12 |
+| `workerd_twin_v0` | 11 |
+| `live_coalesce_v0` | 10 |
+| `live_delta_v0` | 9 |
+| `handler_settlement_v0` | 8 |
+| `data_patch_v1`, `ctx_ledger_v0`, `concurrency_v0`, `lib.rs` | 6 each |
+
+`workerd_twin_v0` is 11 unsandboxed, not 32. So the decomposition, the leverage
+ranking, and the 163/179 figures in this plan all stand and can be planned
+against.
 
 ### Revised order
 
