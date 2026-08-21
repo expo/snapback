@@ -2,10 +2,15 @@
 
 **Type:** Plan
 **Status:** Draft
-**Systems:** Expo, Templates, CLI, Verification, Assets, Notifications, Guide,
-Developer experience, Testing
+**Systems:** Expo, Templates, CLI, Verification, Assets, Notifications, Auth,
+Client integration, Scheduled work, Guide, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-19
+**Revised:** 2026-08-21 (reconciled the complete Messtimate 0.1.24 feedback
+summary against current main; added guest entry, native crypto, binding refresh,
+asset-guide parity, capability-link/scheduled-work recipes, proof-warning,
+acceptance-harness, type-coupling, and field-masking routes without creating
+competing subsystem owners.)
 **Revised:** 2026-08-21 (OQ5 resolved by orchestrator ruling under LLP 0196:
 keep `test` and `test:static`, remove the redundant template `test:live` alias,
 and require a manifest-checked script glossary.)
@@ -18,7 +23,17 @@ issues/closed/20260819-template-script-surface-glossary.md,
 issues/20260819-expo-everyday-simulator-launch.md,
 issues/20260819-heic-image-normalization.md,
 issues/20260819-minimal-expo-starter.md,
-issues/20260819-readme-notifications-capability-overclaim.md
+issues/20260819-readme-notifications-capability-overclaim.md,
+issues/20260821-guide-gap-asset-client-accessor-mismatch.md,
+issues/20260821-guest-session-client-entry.md,
+issues/20260821-expo-native-auth-crypto-adapter.md,
+issues/20260821-expo-supervised-binding-refresh.md,
+issues/20260821-guide-gap-capability-link-app-flows.md,
+issues/20260821-starter-verify-provenance-warning.md,
+issues/20260821-0275-acceptance-harness-library.md,
+issues/20260821-0235-field-masking-productization.md,
+issues/20260821-authority-independent-type-coupling.md,
+issues/20260821-guide-gap-scheduled-status-flips.md
 
 ## Summary
 
@@ -90,6 +105,24 @@ The important product lesson is not merely “write more documentation.” When 
 workflow is common and mechanically owned by the platform, its cheapest path
 belongs in a template command or generated API. Documentation should explain
 the boundary and recovery path, not substitute for a working command.
+
+The complete Messtimate summary supplied on 2026-08-21 adds four present-tense
+contradictions on current main, not only 0.1.24 historical findings:
+
+- the assets Guide still uses `client.assets.start(...)` in its minimal example
+  and later says that exact accessor does not exist;
+- `guestPolicy` and the guest mechanism are declarable while the generated
+  client lifecycle explicitly excludes guest as an entry mechanism;
+- the Expo native auth-custody path still passes `globalThis.crypto` into a
+  digest path that requires `crypto.subtle`; and
+- the supervised bootstrap exchange serves one one-hour binding indefinitely
+  unless another rotation event happens.
+
+It also supplies product-demand evidence for mechanisms whose design already
+has an owner: capability links (LLP 0204/0150), field masking (LLP 0235),
+scheduled work (LLP 0028/0070), and proof-ceremony reduction (LLP 0275). This
+Plan routes and sequences those owners; it does not redefine their security or
+evidence contracts.
 
 ## Program
 
@@ -222,19 +255,116 @@ Independently, repair public wording now: the README must distinguish shipped
 local Expo push from design-only first-class email/SMS/push. Tracked by
 `issues/20260819-readme-notifications-capability-overclaim.md`.
 
+### W6 — Make native auth entry and long dev sessions self-sustaining
+
+Three defects compose into the native first-use boundary:
+
+1. Implement LLP 0214's declared guest-creation transition through the
+   framework-neutral application client and project it through React/Expo under
+   LLP 0258's existing coordinator. A declared `guestPolicy` must either have a
+   usable entry or be described as server-design-only; the current split is not
+   acceptable.
+2. Resolve the auth-custody partition digest through a provider-owned Expo
+   crypto adapter. Binding-digest fallback and security-bearing randomness
+   remain separate facts: a SHA-256 adapter does not create a CSPRNG.
+3. Refresh supervised AppBindings before expiry. The supervisor must remain the
+   issuer and preserve its generation/descriptor/route boundary; the app must
+   not paper over expiry by extending timestamps locally.
+
+The guest route is a security-bearing feature and waits for its owner review.
+The crypto and binding-refresh defects are straight repairs and should proceed
+first with packed native witnesses. Tracked by
+`issues/20260821-guest-session-client-entry.md`,
+`issues/20260821-expo-native-auth-crypto-adapter.md`, and
+`issues/20260821-expo-supervised-binding-refresh.md`.
+
+### W7 — Turn shipped primitives into discoverable application workflows
+
+1. Correct the assets Guide/API contradiction immediately and compile the exact
+   snippet against packed packages. This is a current docs defect, not a design
+   debate.
+2. Teach the shipped anonymous-set capability-link journey end to end, including
+   Expo deep-link parsing, inert GET, explicit invocation, expiry/revocation,
+   and the boundary before granted-operation or identity-bearing links.
+3. Add a scheduled-expiry/status-flip recipe over cron action -> bounded
+   mutation, with one-off-job and notification-delivery boundaries named.
+4. Make starter provenance limitations a declared receipt nonclaim instead of
+   an unactionable warning repeated on every green run.
+5. Extract common acceptance lifecycle/receipt plumbing into one supported
+   runner after LLP 0275 D5 supplies the single operation identity. Application
+   journey intent and assertions stay app-authored.
+
+Tracked by `issues/20260821-guide-gap-asset-client-accessor-mismatch.md`,
+`issues/20260821-guide-gap-capability-link-app-flows.md`,
+`issues/20260821-guide-gap-scheduled-status-flips.md`,
+`issues/20260821-starter-verify-provenance-warning.md`, and
+`issues/20260821-0275-acceptance-harness-library.md`.
+
+### W8 — Route cross-cutting authoring demands to their existing owners
+
+The feedback also validates two non-Expo product directions without granting
+this Plan authority over them:
+
+- conditional field disclosure is real app demand, but LLP 0235 already owns
+  the security contract. Prioritize its review and smallest claimable slice;
+  do not ship a projection-only `maskField` convenience ahead of its
+  noninterference and physical-plan gates; and
+- `authorityIndependent: true` plus authenticated-only auth is correctly
+  rejected by codegen, but TypeScript should make the exact invalid literal
+  pair unrepresentable while retaining runtime validation for JavaScript,
+  casts, and version skew.
+
+Tracked by `issues/20260821-0235-field-masking-productization.md` and
+`issues/20260821-authority-independent-type-coupling.md`.
+
+## Current-main disposition of the remaining 0.1.24 suggestions
+
+No new ticket is needed for the following observations because current main
+already has an owner and a shipped or explicit tracked posture:
+
+- Micro entrypoints are published and documented at
+  `@expo/snapback-client/micro`, `./micro/core`, and `./micro/live` under LLP
+  0147 and `guide/clients/headless.md`.
+- Value-expression arithmetic (`add`, `sub`, `mul`, `div`, `mod`, comparisons,
+  conditionals, and `runtimeNow`) is shipped and documented in the declarative
+  plans Guide.
+- `snapback dev --fresh` is shipped; versioned seed identity remains an
+  intentional safety boundary rather than an invitation to delete `.snapback`.
+- The local host-op session mint is now explicitly documented as
+  non-production; hosted production auth remains a separately named gap, so a
+  convenience broker must not imply otherwise.
+- React/Expo lifecycle integration already follows `AppState`, pausing and
+  resynchronizing the provider; qualified offline mutation custody remains
+  tracked by `issues/20260816-qualify-expo-local-first-carrier.md`.
+- Expo config plugins and simulator onboarding/dialog automation are shipped
+  and documented; the ordinary simulator-launch ergonomics remain W2.
+- Secure native auth custody is owned by the first-party custody module under
+  LLP 0258; W6's crypto ticket is the remaining digest-adapter defect, not a
+  request for a second session store.
+- Scheduled execution primitives already ship under cron and durable jobs; W7
+  adds the missing product-intent recipe rather than a new scheduler.
+
 ## Sequencing
 
-1. Land W1's field diagnostic and W2's web-carrier repair first. They are
+1. Land W1's field diagnostic, W2's web-carrier repair, W7's asset-guide
+   correction, and W6's binding/crypto repairs first. They are
    shipped-command defects and should not wait for portfolio design.
-2. Land the README honesty correction with or before those fixes.
-3. Complete LLP 0275 D3/D4 and the script-surface ruling as one first-use
+2. Land the README honesty correction and starter-warning classification with
+   or before those fixes.
+3. Complete LLP 0275 D3/D4/D5, the script-surface ruling, and the common-harness
+   decision as one first-use
    ceremony wave.
-4. Add the ordinary simulator command and retain its live installed-package
+4. Add the ordinary simulator command, guest entry after owner review, and
+   retain live installed-package
    witness.
 5. Amend LLP 0196 and implement the domain-neutral Expo shell.
-6. Run the HEIC design amendment and implementation only after the processor
+6. Land the capability-link and scheduled-work recipes against the shipped
+   primitives; they need no new platform authority.
+7. Run the HEIC design amendment and implementation only after the processor
    and custody decision is accepted.
-7. Revisit SMS only with clarified demand; hosted object-store rollout remains
+8. Review/cost LLP 0235 independently; do not block straight Expo repairs on
+   field-masking implementation.
+9. Revisit SMS only with clarified demand; hosted object-store rollout remains
    on its existing target program.
 
 ## Acceptance
@@ -262,6 +392,17 @@ packages outside the repository workspace:
    in-app messages, Expo push, email, and SMS ship on each target.
 9. A rerun of the original feedback tasks records which former misses now land
    on the intended template/command without package-source archaeology.
+10. A guest-enabled app can enter through the ordinary application client, or
+    the declaration is narrowed until that route ships; schema and client entry
+    may not disagree.
+11. Fresh native auth boot requires no app-installed crypto global, and a
+    supervised loop survives multiple binding TTLs and cold boots.
+12. The asset minimal-path snippet compiles against packed packages; capability
+    links and scheduled expiry each have a cold-retrievable executable recipe.
+13. A green starter proof emits no warning the application author cannot act
+    on, while retaining an honest provenance grade.
+14. LLP 0235 has an explicit accepted/shelved product ruling informed by the
+    phone-field case; no unsafe masking convenience ships in advance.
 
 ## Non-goals
 
@@ -274,6 +415,10 @@ packages outside the repository workspace:
 - Implementing SMS before the reported meaning of “text message” is clarified.
 - Hiding security, auth, delivery-policy, or evidence decisions in a minimal
   template.
+- Inventing an Expo-only auth/session owner instead of projecting LLP 0258.
+- Treating an Expo crypto digest adapter as secure-randomness authority.
+- Replacing LLP 0235's masking contract with client-side projection redaction.
+- Relabeling the local `auth.mintSession` host op as a production session broker.
 
 ## Open questions
 
@@ -299,3 +444,10 @@ packages outside the repository workspace:
    implementation for debugging; `test:static` is no-server coherence; and
    `carry:*` retains observation artifacts only after accepting the `prove`
    receipt, never as proof authority.
+6. Should guest entry be a method on the generated application auth facade, a
+   coordinator method projected into hooks, or both views of one owner?
+7. Should supervised bindings refresh lazily per exchange or proactively on a
+   supervisor timer? Which choice makes concurrent cold boots and fake-clock
+   tests simplest without creating background lifecycle work in the app?
+8. Does the common acceptance runner remain template-internal first, or is its
+   compatibility contract stable enough for a public package entrypoint?
