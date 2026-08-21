@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
   assertCleanTree,
@@ -325,6 +332,40 @@ test('default re-exec continues from the isolated script with isolate off', () =
     spawned[0].env.SNAPBACK_FASTPATH_ISOLATED_WORKTREE,
     '/tmp/snapback-fastpath-wt',
   );
+});
+
+test('default re-exec rejects exit zero without a JSON result', () => {
+  assert.throws(
+    () => defaultContinueInWorktree({
+      worktree: { path: '/tmp/snapback-fastpath-wt', revision: 'abc123' },
+      options: {
+        subcommand: 'stage',
+        version: '0.1.20',
+        out: '/abs/out',
+        runtimePlatforms: 'all',
+      },
+      spawn: () => ({ status: 0, stdout: '', stderr: '', error: null }),
+    }),
+    (error) => error.code === 'SNAPBACK_FASTPATH_ISOLATE_FAILED'
+      && error.details?.stdout === '',
+  );
+});
+
+test('CLI entry runs when the script path has a symlinked ancestor', () => {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-fastpath-symlink-'));
+  const scriptsAlias = join(root, 'symlinked-scripts');
+  symlinkSync(dirname(fileURLToPath(import.meta.url)), scriptsAlias, 'dir');
+  try {
+    const result = spawnSync(process.execPath, [
+      join(scriptsAlias, 'snapback-fastpath-release.mjs'),
+      'stage',
+      '--help',
+    ], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /^usage:\n  node scripts\/snapback-fastpath-release\.mjs/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('isolated re-exec argv disables isolate and keeps absolute outputs', () => {

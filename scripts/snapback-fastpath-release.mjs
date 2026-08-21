@@ -12,6 +12,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -426,7 +427,7 @@ export function defaultContinueInWorktree({
     process.stdout.write(split.prefix.endsWith('\n') ? split.prefix : `${split.prefix}\n`);
   }
   if (result.stderr) process.stderr.write(result.stderr);
-  if (result.error || (result.status !== 0 && split.value == null)) {
+  if (result.error || split.value == null) {
     throw codedError(
       'SNAPBACK_FASTPATH_ISOLATE_FAILED',
       `isolated ceremony failed (${result.signal ?? result.status ?? result.error?.message})`,
@@ -985,8 +986,16 @@ function usage() {
 `;
 }
 
+function realpathOrResolve(path) {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+}
+
 const invoked = process.argv[1]
-  && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  && realpathOrResolve(process.argv[1]) === realpathOrResolve(fileURLToPath(import.meta.url));
 if (invoked) {
   try {
     const options = parseArguments(process.argv.slice(2));

@@ -1,6 +1,6 @@
 # Fastpath isolated-worktree ceremony silently no-ops (ok:true) under a symlinked TMPDIR
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 4
@@ -44,3 +44,24 @@ this here; the defect is latent for any macOS default TMPDIR.
   trailing JSON as a failure, never as `ok:true` — the stage/release passes
   always emit a JSON result line on success.
 - Regression test covering a symlinked tmpdir.
+
+## Resolution — 2026-08-20
+
+The entry guard now canonicalizes both `process.argv[1]` and
+`fileURLToPath(import.meta.url)` with `realpathSync`, falling back safely to
+`resolve` if canonicalization is unavailable. This preserves the existing CLI
+entry shape while making a symlinked ancestor such as macOS's
+`/var/folders` → `/private/var/folders` compare by filesystem identity rather
+than path spelling.
+
+`defaultContinueInWorktree` now refuses every child result without a parseable
+JSON result line, including status 0, with
+`SNAPBACK_FASTPATH_ISOLATE_FAILED`. It can no longer synthesize `{ok:true}`
+from an empty successful exit.
+
+The existing fastpath test suite now launches the script through a symlinked
+directory and proves the ceremony CLI entry runs, and separately proves that
+an exit-0 child with empty stdout fails closed. No real stage, release,
+registry, or publication operation is exercised.
+
+**Landing SHA:** TBD
