@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:c16c05a106e01b76fc2303aa9e82ab1dbf2a99b52b7f258408dad602b4cba2e6"
+    "sourceDigest": "sha256:773826bc116f39e577f181556bf4603179631d1c312ea3a8103a75521163afbc"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,7 +10,7 @@
   "counts": {
     "codes": 3442,
     "sourceFiles": 584,
-    "emittingSites": 11862,
+    "emittingSites": 11863,
     "httpClassified": 1030,
     "guideAnchored": 418
   },
@@ -4616,12 +4616,12 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 253,
+          "line": 260,
           "column": 26
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 363,
+          "line": 370,
           "column": 26
         }
       ],
@@ -30996,6 +30996,11 @@
           "column": 34
         },
         {
+          "file": "crates/snapback-types/src/identity.rs",
+          "line": 114,
+          "column": 30
+        },
+        {
           "file": "packages/snapback-cli/prepared-runtime-reuse.mjs",
           "line": 58,
           "column": 4
@@ -31704,22 +31709,22 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 143,
+          "line": 145,
           "column": 8
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 149,
+          "line": 151,
           "column": 8
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 198,
+          "line": 200,
           "column": 8
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 204,
+          "line": 206,
           "column": 8
         }
       ],
@@ -55549,7 +55554,7 @@
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 131,
+          "line": 133,
           "column": 8
         },
         {
@@ -55559,7 +55564,7 @@
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 184,
+          "line": 186,
           "column": 8
         }
       ],
@@ -55619,22 +55624,22 @@
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 233,
+          "line": 240,
           "column": 12
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 239,
+          "line": 246,
           "column": 10
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 308,
+          "line": 315,
           "column": 12
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 314,
+          "line": 321,
           "column": 10
         }
       ],
@@ -69600,7 +69605,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 249,
+          "line": 256,
           "column": 12
         }
       ],
@@ -69615,12 +69620,12 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 261,
+          "line": 268,
           "column": 10
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 371,
+          "line": 378,
           "column": 10
         }
       ],
@@ -69650,17 +69655,17 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 169,
+          "line": 172,
           "column": 8
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 187,
+          "line": 192,
           "column": 8
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 274,
+          "line": 279,
           "column": 8
         }
       ],
@@ -81047,7 +81052,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 212,
+          "line": 214,
           "column": 8
         }
       ],
@@ -81127,12 +81132,12 @@
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 137,
+          "line": 139,
           "column": 8
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 192,
+          "line": 194,
           "column": 8
         }
       ],
@@ -81167,7 +81172,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 36,
+          "line": 38,
           "column": 15
         }
       ],
@@ -81182,7 +81187,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 40,
+          "line": 42,
           "column": 15
         }
       ],
@@ -81249,7 +81254,7 @@
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 337,
+          "line": 344,
           "column": 10
         }
       ],
@@ -81269,7 +81274,7 @@
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 349,
+          "line": 356,
           "column": 10
         }
       ],
@@ -81284,7 +81289,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 154,
+          "line": 156,
           "column": 20
         }
       ],
@@ -81299,7 +81304,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 158,
+          "line": 160,
           "column": 20
         }
       ],
@@ -81314,7 +81319,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 152,
+          "line": 154,
           "column": 20
         }
       ],
@@ -81329,7 +81334,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 150,
+          "line": 152,
           "column": 20
         }
       ],
@@ -81344,7 +81349,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 359,
+          "line": 366,
           "column": 12
         }
       ],
@@ -81359,7 +81364,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 148,
+          "line": 150,
           "column": 20
         }
       ],
@@ -81374,7 +81379,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 156,
+          "line": 158,
           "column": 20
         }
       ],
@@ -81409,42 +81414,42 @@
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 96,
+          "line": 98,
           "column": 10
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 103,
+          "line": 105,
           "column": 8
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 294,
+          "line": 301,
           "column": 10
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 313,
+          "line": 320,
           "column": 8
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 129,
+          "line": 131,
           "column": 10
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 136,
+          "line": 138,
           "column": 8
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 407,
+          "line": 414,
           "column": 10
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 426,
+          "line": 433,
           "column": 8
         }
       ],
@@ -81459,7 +81464,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 32,
+          "line": 34,
           "column": 15
         }
       ],
