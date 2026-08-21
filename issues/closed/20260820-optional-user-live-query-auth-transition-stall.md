@@ -31,12 +31,16 @@ state-machine ruling remains pending.
 
 Predecessor callbacks are rejected at callback ingress by generation and
 handle identity before they can mutate store-owned rows, freshness, or
-connection state. Successor creation failures and authorization-boundary
-frames received before the successor's first authority-bearing delivery now
-publish `SNAPBACK_AUTH_TRANSITION_FAILED` with phase
-`react-live-query-successor`, rather than settling as ready/empty/disconnected.
-Familiar `useQuery` continues to project the same canonical registry owner;
-its mounted transition is covered separately from the core entry.
+connection state. Successor creation failures publish
+`SNAPBACK_AUTH_TRANSITION_FAILED` with phase `react-live-query-successor` and
+retry through the bounded subscribe ladder with the exact successor capture.
+Authorization prelude frames (`authorization_quarantine`,
+`authorization_delete`, and `authorization_error`) instead keep the live
+handle on the explicit blank boundary until its canonical `snapshot`, verified
+retained `persisted` seed, or `authorization_denied` result arrives. They are
+normal successor sequencing, not terminal transition failures. Familiar
+`useQuery` continues to project the same canonical registry owner; its mounted
+transition is covered separately from the core entry.
 
 This provides two reusable pieces for the related authenticated-query
 signed-out settlement ticket: exact settled-capture admission and a classified
@@ -78,6 +82,13 @@ source-checkout-only witness.
 - Forced synchronous and asynchronous successor-creation refusals publish
   `SNAPBACK_AUTH_TRANSITION_FAILED` on the canonical query state and the client
   diagnostics channel.
+- A transition successor that delivers quarantine before its production-shaped
+  `snapshot` remains blank through the prelude and recovers to current `ready`
+  on the same live handle. A verified retained `persisted` seed also releases
+  the boundary as `refreshing` before the later current snapshot.
+- Two consecutive synchronous successor-creation failures remain on the
+  timer-owned backoff ladder; both retries retain the exact settled capture and
+  the eventual production-shaped snapshot recovers to `ready`.
 - The established authenticated blocked-to-successor suite and Familiar,
   authorization-denial, subscribe-retry, and runtime-import-fallback suites
   remain green.

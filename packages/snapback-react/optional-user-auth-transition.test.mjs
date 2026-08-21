@@ -60,6 +60,8 @@ function fakeClient({ initialAuthority = 'anonymous' } = {}) {
     attempts: [],
     diagnostics,
     failNextSuccessor: null,
+    synchronousSuccessorFailures: 0,
+    nextSuccessorFrames: null,
   };
   const captureForState = () => Object.freeze({
     authorityEpoch: state.authorityEpoch,
@@ -129,8 +131,15 @@ function fakeClient({ initialAuthority = 'anonymous' } = {}) {
         disposed: false,
       };
       state.attempts.push(attempt);
-      if (state.failNextSuccessor === 'synchronous') {
+      if (
+        state.failNextSuccessor === 'synchronous'
+        || state.synchronousSuccessorFailures > 0
+      ) {
         state.failNextSuccessor = null;
+        state.synchronousSuccessorFailures = Math.max(
+          0,
+          state.synchronousSuccessorFailures - 1,
+        );
         const error = new Error('successor transport could not be created');
         error.code = 'SNAPBACK_TRANSPORT_UNAVAILABLE';
         throw error;
@@ -170,7 +179,7 @@ function fakeClient({ initialAuthority = 'anonymous' } = {}) {
       });
       attempt.handle = handle;
       attempt.publish = (rows = current.rows, detail = {}) => options.onUpdate(rows, {
-        kind: 'authorization_snapshot',
+        kind: 'snapshot',
         freshness: 'current',
         authoritativeRows: rows,
         ...detail,
@@ -178,8 +187,17 @@ function fakeClient({ initialAuthority = 'anonymous' } = {}) {
       attempt.connection = (connection, detail = {}) => (
         options.onConnectionChange(connection, detail)
       );
+      const successorFrames = state.nextSuccessorFrames;
+      state.nextSuccessorFrames = null;
       queueMicrotask(() => {
-        if (!attempt.disposed) attempt.publish();
+        if (attempt.disposed) return;
+        if (successorFrames === null) {
+          attempt.publish();
+          return;
+        }
+        for (const frame of successorFrames) {
+          attempt.publish(frame.rows, frame.detail);
+        }
       });
       return handle;
     },
@@ -389,15 +407,80 @@ test('optional-user successor creation failure is a classified projection', asyn
   }
 });
 
-test('retryable synchronous optional-user successor failure recovers on the retry timer', async (t) => {
+test('optional-user transition keeps a quarantine boundary through the production snapshot', async () => {
+  const client = fakeClient();
+  const mounted = await mountRegistry(client);
+  try {
+    client.state.nextSuccessorFrames = [
+      {
+        rows: Object.freeze([]),
+        detail: { kind: 'authorization_quarantine', freshness: 'unknown' },
+      },
+      { rows: rowsFor('A'), detail: { kind: 'snapshot', freshness: 'current' } },
+    ];
+    const { capture } = await client.transitionAuthority(
+      'A',
+      'sign-in-quarantine-before-snapshot',
+    );
+
+    assertSingleSettledSuccessor(client, capture);
+    assertReadyFor(mounted, 'A');
+    assert.equal(client.state.attempts.at(-1).disposed, false);
+    assert.equal(
+      client.state.diagnostics.some((entry) => entry.code === 'SNAPBACK_AUTH_TRANSITION_FAILED'),
+      false,
+    );
+  } finally {
+    mounted.lease.release();
+    await mounted.provider.dispose();
+  }
+});
+
+test('optional-user transition accepts a retained seed after quarantine', async () => {
+  const client = fakeClient();
+  const mounted = await mountRegistry(client);
+  try {
+    client.state.nextSuccessorFrames = [
+      {
+        rows: Object.freeze([]),
+        detail: { kind: 'authorization_quarantine', freshness: 'unknown' },
+      },
+      { rows: rowsFor('A'), detail: { kind: 'persisted', freshness: 'retained' } },
+    ];
+    const { capture } = await client.transitionAuthority(
+      'A',
+      'sign-in-quarantine-before-retained-seed',
+    );
+
+    assertSingleSettledSuccessor(client, capture);
+    assert.deepEqual(mounted.snapshot(), {
+      status: 'refreshing',
+      data: rowsFor('A'),
+      error: null,
+      connection: 'live',
+      freshness: 'retained',
+      answerClass: 'labeled-retained',
+      retention: null,
+      optimisticPresentation: null,
+    });
+
+    client.state.attempts.at(-1).publish(rowsFor('A'));
+    assertReadyFor(mounted, 'A');
+  } finally {
+    mounted.lease.release();
+    await mounted.provider.dispose();
+  }
+});
+
+test('repeated synchronous optional-user successor failures stay on the retry ladder', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const client = fakeClient();
   const mounted = await mountRegistry(client);
   try {
-    client.state.failNextSuccessor = 'synchronous';
+    client.state.synchronousSuccessorFailures = 2;
     const { capture } = await client.transitionAuthority(
       'A',
-      'sign-in-synchronous-retryable-failure',
+      'sign-in-repeated-synchronous-retryable-failure',
     );
     await flush();
 
@@ -410,7 +493,16 @@ test('retryable synchronous optional-user successor failure recovers on the retr
 
     t.mock.timers.tick(1);
     await flush();
-    assert.equal(client.state.attempts.length, 3, 'the retry timer creates one successor');
+    assert.equal(client.state.attempts.length, 3, 'the first retry remains classified');
+    assert.deepEqual(client.state.attempts.at(-1).capture, capture);
+
+    t.mock.timers.tick((LIVE_RECONNECT_BASE_DELAY_MS * 2) - 1);
+    await flush();
+    assert.equal(client.state.attempts.length, 3, 'the second retry respects backoff');
+
+    t.mock.timers.tick(1);
+    await flush();
+    assert.equal(client.state.attempts.length, 4, 'the second retry creates one successor');
     assert.deepEqual(client.state.attempts.at(-1).capture, capture);
     assertReadyFor(mounted, 'A');
   } finally {

@@ -1118,7 +1118,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }
     // @ref LLP 0107#resync-authority-and-lifecycle — authorization fencing
     //   publishes the exact blank projection without replaying predecessor
-    //   optimistic reducers; only a proof-bearing authorization snapshot
+    //   optimistic reducers; only an authority-bearing snapshot or denial
     //   releases the suspended overlays.
     publish(store, freezeBootDelivery(store, {
       status: 'ready',
@@ -1139,7 +1139,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     details = {},
   ) => {
     const failure = authTransitionSuccessorError(store, error, details);
-    store.authorizationProjectionSuspended = true;
     store.authoritativeData = validateQueryRows(store.resultContract, []);
     store.generatedData = store.authoritativeData;
     store.generatedPresentation = null;
@@ -1205,6 +1204,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     terminalProtocolRefusal,
     failureAlreadyPublished = false,
     cause = error,
+    retryAuthorityContext = null,
   ) => {
     if (store.generation !== generation || store.handle !== handle) return;
     store.retry ??= () => {};
@@ -1213,7 +1213,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         store, error, generation, handle, clearUnadoptedSubscription,
         allHandles, recoverExpiredRegisteredConnection, publish, serializeError,
         () => !terminal && !runtimePaused(),
-        () => startStore(store),
+        () => startStore(store, null, retryAuthorityContext),
         () => isAnonymousProtectedAuthorizationDenial(
           client,
           store.reference,
@@ -1267,7 +1267,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         if (store.retry !== cancelRetry) return;
         store.retry = null;
         if (!terminal && !runtimePaused() && (store.consumers > 0 || store.pins > 0)) {
-          startStore(store);
+          startStore(store, null, retryAuthorityContext);
         }
       }, REACT_RUNTIME_FALLBACK_RETRY_MS);
       retryHandle?.unref?.();
@@ -1337,6 +1337,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       return;
     }
     const generation = ++store.generation;
+    store.authorizationProjectionSuspended = false;
     store.snapshot = pending('connecting');
     store.freshness = 'unknown';
     // @ref LLP 0059#exposure-invariant — a staged participant-resume capture
@@ -1395,26 +1396,16 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           || detail?.kind === 'authorization_delete'
           || detail?.kind === 'authorization_error'
         ) {
-          if (transitionSuccessorPending) {
-            const boundary = new Error(
-              `settled-authority successor received ${detail.kind} before authority`,
-            );
-            boundary.code = detail.kind;
-            publishAuthTransitionSuccessorFailure(
-              store,
-              detail.error ?? boundary,
-              generation,
-              { boundaryKind: detail.kind },
-            );
-            return;
-          }
           publishAuthorizationBoundary(store, detail, generation);
           return;
         }
-        if (
+        const authorityBearingFrame = (
           detail?.kind === 'authorization_snapshot'
           || detail?.kind === 'authorization_denied'
-        ) {
+          || detail?.kind === 'snapshot'
+          || detail?.kind === 'persisted'
+        );
+        if (authorityBearingFrame) {
           transitionSuccessorPending = false;
           store.authorizationProjectionSuspended = false;
           if (store.optimisticCreate !== null) {
@@ -1509,29 +1500,28 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       },
       });
     } catch (error) {
-      if (transitionSuccessorPending) {
-        // Arm the held failure window before notifying subscribers. A render
-        // synchronously prompted by the error snapshot must not turn the
-        // retryable creation failure into an immediate subscribe loop.
-        store.retry = () => {};
-        const subscribeError = publishAuthTransitionSuccessorFailure(
+      // Arm the held failure window before notifying subscribers. A render
+      // synchronously prompted by the error snapshot must not turn the
+      // retryable creation failure into an immediate subscribe loop.
+      store.retry = () => {};
+      const subscribeError = transitionSuccessorPending
+        ? publishAuthTransitionSuccessorFailure(
           store,
           error,
           generation,
           { creation: 'synchronous' },
-        );
-        classifySubscribeFailure(
-          store,
-          subscribeError,
-          generation,
-          null,
-          isTerminalLiveProtocolRefusal(error),
-          true,
-          error,
-        );
-      } else {
-        throw error;
-      }
+        )
+        : error;
+      classifySubscribeFailure(
+        store,
+        subscribeError,
+        generation,
+        null,
+        isTerminalLiveProtocolRefusal(error),
+        transitionSuccessorPending,
+        error,
+        settledAuthorityContext,
+      );
       return null;
     }
     if (store.registeredSubscription !== null) registeredConnectionAttached = true;
@@ -1592,6 +1582,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         terminalProtocolRefusal,
         false,
         error,
+        settledAuthorityContext,
       );
     });
     void handle.settled().finally(() => allHandles.delete(handle));
@@ -3443,6 +3434,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           closeOptimisticCreate(store, store.optimisticCreate, { force: true });
         }
         store.generation += 1;
+        store.authorizationProjectionSuspended = false;
         store.snapshot = pending('idle');
         store.generatedData = Object.freeze([]);
         store.generatedPresentation = null;
