@@ -9676,10 +9676,25 @@ impl LocalSnapback {
 
     pub fn seed(&mut self, seed: SeedData) -> SnapbackResult<MutationOutput> {
         let preflight = self.authorization_commit_preflight_for_seed(&seed)?;
+        let admission = self.admission.admit()?;
         self.try_with_direct_authorization_write(preflight, move |snapback| {
-            let output = snapback.db.schema_seed().seed(seed)?;
-            snapback.notify_live_subscriptions(&[]);
-            Ok(output)
+            // Keep the sole admission fence around the durable transaction,
+            // then drop it before post-commit publication takes its own
+            // short-lived effect guards. This is the same ownership shape as
+            // ordinary mutations and avoids nesting the non-reentrant
+            // admission mutex.
+            //
+            // @ref LLP 0058#gate-algorithm — one admitted effect guard spans
+            // the SQLite commit; post-commit projections run after it drops.
+            let commit = {
+                let _effect = admission.effect_guard("seed transaction")?;
+                snapback.db.schema_seed().seed_with_authorization(seed)?
+            };
+            // @ref LLP 0290#56-issuer-expectation-and-committed-observation —
+            // preserve the storage witness so the issuer's ordinary
+            // after-Local projection is queued before the kernel finalizer.
+            snapback.notify_seed_commit(&commit, &admission);
+            Ok(commit.output)
         })?
     }
 
@@ -27215,6 +27230,57 @@ impl LocalSnapback {
             self.dispatch_live_data_fanout(changes, &BTreeSet::new(), frame_version, &admission);
         self.end_live_commit_egress();
         if let Err(error) = result {
+            self.record_attached_diagnostics(vec![error.diagnostic]);
+        }
+    }
+
+    /// Publish the authorization witness retained by a standalone seed.
+    /// Seed does not return its exact changed-row set, so data subscribers use
+    /// the established empty-change full-refresh signal. The authorization
+    /// projection cannot use `notify_live_subscriptions`: that helper returns
+    /// early when there are no subscriptions, but issuer settlement is still
+    /// mandatory before the deferred kernel finalizer runs.
+    fn notify_seed_commit(
+        &mut self,
+        commit: &crate::storage::SeedCommit,
+        admission: &AdmissionLease,
+    ) {
+        let authorization_event = commit.authorization.event && self.auth_invalidation.is_some();
+        if !authorization_event {
+            self.notify_live_subscriptions(&[]);
+            return;
+        }
+
+        self.schedule_invalidated_watches(&[]);
+        let frame_version = commit.output.version;
+        self.begin_live_commit_egress(Instant::now());
+        let result = (|| -> SnapbackResult<()> {
+            let observed = self.db.versions_read().current_version()?;
+            if observed != frame_version {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                    "storage",
+                    "post-commit storage head does not match the committed seed version",
+                )
+                .with_details(json!({
+                    "committedVersion": frame_version,
+                    "observedVersion": observed,
+                })));
+            }
+
+            self.begin_live_delivery_frame(self.subscriptions.len());
+            let resynced = self.notify_authorization_event_in_frame(
+                &commit.authorization,
+                frame_version,
+                admission,
+            )?;
+            self.dispatch_live_data_fanout(&[], &resynced, frame_version, admission)
+        })();
+        self.end_live_commit_egress();
+        if let Err(error) = result {
+            // The durable commit remains truth. The kernel ticket is still
+            // fail-closed and its strict finalizer will expose any impossible
+            // projection failure instead of silently advancing room authority.
             self.record_attached_diagnostics(vec![error.diagnostic]);
         }
     }

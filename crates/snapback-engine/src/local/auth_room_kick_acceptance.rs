@@ -1239,6 +1239,40 @@ fn codegen_membership_snapback() -> LocalSnapback {
     snapback
 }
 
+#[test]
+fn authorization_affecting_seed_projects_issuer_before_kernel_finalizer() {
+    let mut snapback = codegen_membership_snapback();
+    let before = snapback
+        .authorization_reservation_snapshot()
+        .expect("capture predecessor authorization frontier");
+
+    let output = snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "conversationMembers".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("member-c")),
+                    ("userId".to_owned(), json!(USER_C)),
+                    ("conversationId".to_owned(), json!(BOARD_ID)),
+                    ("role".to_owned(), json!("member")),
+                ])],
+            )]),
+        })
+        .expect("authorization-affecting seed commits and settles");
+
+    let after = snapback
+        .authorization_reservation_snapshot()
+        .expect("capture settled authorization frontier");
+    assert_eq!(output.changed_count, 1);
+    assert_eq!(after.0, before.0 + 1, "seed advances the data frontier");
+    assert_eq!(after.1.incarnation, before.1.incarnation);
+    assert_eq!(
+        after.1.epoch,
+        before.1.epoch + 1,
+        "the deferred finalizer settles the projected authorization successor"
+    );
+}
+
 fn game_schema() -> SchemaManifest {
     SchemaManifest {
         schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),

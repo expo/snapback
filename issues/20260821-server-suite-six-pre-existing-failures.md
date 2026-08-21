@@ -54,3 +54,45 @@ inventory-drift red and unrelated to the other five.
 
 Run this suite unsandboxed. Agent sandboxes deny `127.0.0.1` binds, which
 turns ~128 healthy tests into failures and buries the real six.
+
+## Partial resolution — 2026-08-21
+
+The three room-path panics share one upstream engine defect, not a stale
+kernel reservation. `LocalDatabase::seed_with_authorization` committed the
+permission-backing rows and returned the exact `AuthorizationCommitWitness`,
+but `LocalSnapback::seed` called the output-only `SchemaSeedKernel::seed`
+adapter and discarded that witness. Its generic empty-change live notifier
+also returned immediately when no subscription existed. Consequently no
+ordinary after-Local issuer projection was queued, while the kernel's known
+commit finalizer was queued during SQLite commit. After Local, the finalizer
+correctly found `issuer_projected == false`, left the authorization ticket and
+rooms closed, and raised `SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE`; the
+caller's `expect` then panicked.
+
+The repair retains the seed witness, holds exactly one admission effect guard
+across the durable seed commit, drops that guard before post-commit
+publication, and runs the same exact issuer projection used by ordinary
+mutations. The kernel `expect` remains: once SQLite has committed a bound
+same-incarnation authorization successor, failure to project that exact
+successor is still an invariant breach and must not silently advance room
+authority. The regression exercises the production `LocalSnapback::seed`
+surface with an installed database-bound issuer and failed at the original
+kernel line before the repair.
+
+`connection_registry_negotiates_exact_invalidation_v1_with_bound_authority`
+is unrelated. Its fixture installed boot issuer 1, but the test demanded a
+prior-issuer retirement proof. Boot 1 has no prior issuer, and the protocol
+correctly returns `None` rather than authenticating a fictional boot 0. The
+test now installs a real boot-2 successor and retains its retirement-proof
+coverage.
+
+The three kernel-panic paths are production-reachable even though the reliable
+reproducers are tests: `LocalSnapback::seed` is a public engine operation and
+the supported `ensureApp({ ..., seed })` provisioning path calls it; the kernel
+authorization interlock and deferred finalizer are likewise not test-only. A
+reachable panic there can terminate the blocking worker, panic the awaiting
+server task, and leave the affected ticket/rooms deliberately unavailable,
+making this a denial-of-service defect. The fourth failure was only a stale
+test assertion; boot-1 retirement behavior was correct in production. This
+ticket remains open for `authorization_neutral_stage_mispreview_still_fails_closed`
+and `s5_d10_production_diagnostic_inventory_cannot_drift`.

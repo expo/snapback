@@ -28484,14 +28484,27 @@ fn connection_previous_token_reuse_compares_every_authority_field() {
 #[test]
 fn connection_registry_negotiates_exact_invalidation_v1_with_bound_authority() {
     let registry = ConnectionRegistry::default();
-    let state = auth_invalidation_reset_fixture();
-    let binding = state
-        .connections
-        .invalidation_issuer
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .clone()
-        .expect("fixture installs a database-bound invalidation issuer");
+    let mut snapback = LocalSnapback::memory().expect("memory connection registry fixture");
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    activate_catalog(
+        snapback.remainder_auth_database_mut(),
+        keyring.as_ref(),
+        super::now_millis(),
+        &OsRandom,
+    )
+    .expect("activate connection registry auth catalog");
+    let provider = AuthProvider::new(AuthProviderProfile::Test, keyring)
+        .expect("construct connection registry auth provider");
+    // Boot 1 has no predecessor and correctly carries no retirement proof.
+    // Install it, then install the next real boot so this test retains its
+    // retirement coverage instead of asserting that boot 1 retires a
+    // nonexistent boot 0.
+    snapback
+        .install_authenticated_auth_invalidation(&provider, None)
+        .expect("install predecessor database-bound invalidation issuer");
+    let binding = snapback
+        .install_authenticated_auth_invalidation(&provider, None)
+        .expect("install a successor database-bound invalidation issuer");
     let expected_authorization = binding.authorization_expectation().unwrap();
     registry.install_invalidation_binding(binding);
 
@@ -28534,6 +28547,7 @@ fn connection_registry_negotiates_exact_invalidation_v1_with_bound_authority() {
     assert_eq!(descriptor.connection_generation, 1);
     assert_eq!(descriptor.authorization, expected_authorization);
     assert!(crate::ids::is_minted_identifier(&descriptor.version_stream));
+    assert_eq!(descriptor.issuer_id.boot_sequence, 2);
     assert_eq!(
         descriptor
             .issuer_retirement
