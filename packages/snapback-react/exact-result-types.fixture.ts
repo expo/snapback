@@ -57,6 +57,16 @@ const query = useSnapbackQuery(todos, { owner: 'ada' });
 if (query.status === 'ready' || query.status === 'refreshing') {
   query.data[0]?.title.toUpperCase();
 }
+if (query.status === 'blocked') {
+  const owner: 'auth-coordinator' = query.transitionOwner;
+  const reason: 'authentication-required' | 'authentication-not-settled' = query.reason;
+  void owner;
+  void reason;
+}
+if (query.status === 'error' && query.transitionOwner !== undefined) {
+  const owner: 'auth-coordinator' = query.transitionOwner;
+  void owner;
+}
 
 const group = useSnapbackQueries({
   todos: { ref: todos, args: { owner: 'ada' } },

@@ -748,13 +748,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.micro, clients.optimistic-mutation-view]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/generated-mutation-ir.mjs, packages/snapback-client/optimistic-rebase.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/_kit/server-process.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/generated-mutation-ir.mjs, packages/snapback-client/optimistic-rebase.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/auth-anonymous-read-recovery.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/_kit/server-process.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:6b68e7615f3702c753f1dbaa9422dd8f05265ca3947ec058f5698b9bfec1c2cd
+reviewed-authorities-digest: sha256:4c06e9fbc28e5cf509d885b1177e357c7d4a981a6cd3af6374e91aa757cd3ee9
 ---
 
 # The headless client
@@ -1212,6 +1212,29 @@ generated JSDoc come from the same lifecycle table and bind every operation's
 semantic id, implementation and contract hashes, auth requirement, required
 capabilities, legal verbs, freshness, retention, and guide anchor to the
 generated build.
+
+## Branch on one-shot auth settlement without a timeout
+
+`query`, `run`/`action`, and `mutate` never wait merely because the auth
+coordinator cannot yet admit transport. Their promise either succeeds or
+rejects with one of these classified states:
+
+| Client authority state | One-shot settlement |
+| --- | --- |
+| signed out | generated authenticated references reject with `SNAPBACK_AUTH_REQUIRED`, `reason: "authentication-required"` |
+| signing in or signing out | reject with `SNAPBACK_CLIENT_AUTHORITY_CLEARING`, `reason: "authentication-not-settled"` |
+| signed in | issue under the exact settled capture and resolve or return the server's ordinary classified refusal |
+| revoked/terminal | reject with the recorded terminal code, `reason: "authentication-terminated"` |
+
+Every local refusal carries
+`diagnostic.details.transitionOwner: "auth-coordinator"`,
+`effectMayHaveCommitted: false`, and performs no operation transport. The
+transition check is reference-independent: an older generated reference that
+lacks `authRequirement` still refuses promptly while custody is clearing.
+Once custody is settled, such a legacy reference reaches the server because
+only the server can authoritatively classify its operation auth requirement.
+Provider code should branch on the code/reason/owner tuple; do not add a timer
+to distinguish auth admission from a transport stall.
 
 Mutation dispatch and settlement remain separate. Durable dispositions are
 exactly `pending | settled | failed | stranded | quarantined | resultGone |
@@ -1849,13 +1872,13 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react, clients.dev-diagnostics]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/app-client.mjs, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/generated-optimistic-default.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, packages/snapback-client/client-diagnostics.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/app-client.mjs, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/auth-blocked-resource.test.mjs, packages/snapback-react/optional-user-auth-transition.test.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/generated-optimistic-default.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, packages/snapback-client/client-diagnostics.mjs]
 examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, demos/_kit/tests/provider-live-conformance.mjs, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/optimistic-create.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-react/dev-diagnostics.test.mjs, packages/snapback-react/dev-diagnostics-acceptance.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:422eb1717130f3aad1be98301f8ac6dcb28610fdac92292248623a5de76b1433
+reviewed-authorities-digest: sha256:94b99b835fc2d64a3750ed759e2065c4ad74ccb841a15665258ed42f93cc2c38
 ---
 
 # The React client
@@ -2081,11 +2104,14 @@ returned by `snapback guide QueryState`.
 
 `useSnapbackQuery` returns:
 
-- `status`: `pending | ready | refreshing | error | skipped | blocked` —
-  `blocked` is the stable state a protected read renders while the client is
-  anonymous (public reason `authentication-required`); it never oscillates or
-  retries, and a later sign-in rebuilds a fresh instance across the authority
-  barrier;
+- `status`: `pending | ready | refreshing | error | skipped | blocked` — a
+  protected read is `blocked` with `reason: "authentication-required"` while
+  signed out and `reason: "authentication-not-settled"` while signing in or
+  signing out. Both states carry `transitionOwner: "auth-coordinator"`; they
+  never oscillate or retry. A later settled sign-in rebuilds a fresh instance
+  across the authority barrier. Revocation and successor-establishment failure
+  project `status: "error"` with the same `transitionOwner` (also present in
+  `error.details`) and the terminal or `SNAPBACK_AUTH_TRANSITION_FAILED` code;
 - `data`: immutable result rows only for `ready` or `refreshing`, otherwise
   `undefined`;
 - `connection`: `idle | connecting | live | polling | stale | disconnected |

@@ -342,9 +342,12 @@ function pending(connection = 'idle') {
   });
 }
 
+const AUTH_TRANSITION_OWNER = 'auth-coordinator';
+
 const AUTHENTICATION_REQUIRED_BLOCKED = Object.freeze({
   status: 'blocked',
   reason: 'authentication-required',
+  transitionOwner: AUTH_TRANSITION_OWNER,
   data: undefined,
   error: null,
   connection: 'idle',
@@ -352,6 +355,37 @@ const AUTHENTICATION_REQUIRED_BLOCKED = Object.freeze({
   answerClass: 'unknown',
   retention: null,
 });
+
+const AUTHENTICATION_NOT_SETTLED_BLOCKED = Object.freeze({
+  status: 'blocked',
+  reason: 'authentication-not-settled',
+  transitionOwner: AUTH_TRANSITION_OWNER,
+  data: undefined,
+  error: null,
+  connection: 'idle',
+  freshness: 'unknown',
+  answerClass: 'unknown',
+  retention: null,
+});
+
+const generatedAuthScopedLiveReference = (reference) => (
+  reference?.artifactKind === 'functionReference'
+  && (
+    reference.authRequirement === 'authenticated'
+    || reference.authRequirement === 'optional-user'
+  )
+);
+
+function authOwnedDiagnostic(error) {
+  const projected = serializeError(error);
+  return Object.freeze({
+    ...projected,
+    details: Object.freeze({
+      ...(projected?.details ?? {}),
+      transitionOwner: AUTH_TRANSITION_OWNER,
+    }),
+  });
+}
 
 function generatedAuthenticatedAuthorityState(client, reference, authority = undefined) {
   if (
@@ -451,6 +485,7 @@ function authTransitionSuccessorError(store, error, details = {}) {
     'a live query could not establish its successor under the settled authority',
     {
       phase: 'react-live-query-successor',
+      transitionOwner: AUTH_TRANSITION_OWNER,
       functionName: store.reference?.name ?? null,
       authRequirement: store.reference?.authRequirement ?? null,
       ...(causeCode === null ? {} : { causeCode }),
@@ -1116,14 +1151,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       store.optimisticLayers = [];
       store.pendingMutations.clear();
     }
-    // @ref LLP 0107#resync-authority-and-lifecycle — authorization fencing
-    //   publishes the exact blank projection without replaying predecessor
-    //   optimistic reducers; only an authority-bearing snapshot or denial
-    //   releases the suspended overlays.
+    const terminalError = detail?.kind === 'authorization_error' && detail?.terminal === true
+      ? detail.error ?? detail.authorization
+      : null;
+    // @ref LLP 0059#typed-terminal-auth-error — terminal authority loss is a
+    // classified error owned by the coordinator, never a successful empty
+    // answer. Nonterminal quarantine/delete keeps the existing blank fence.
     publish(store, freezeBootDelivery(store, {
-      status: 'ready',
-      data: projectQueryRows(store.resultContract, blank),
-      error: null,
+      status: terminalError === null ? 'ready' : 'error',
+      data: terminalError === null
+        ? projectQueryRows(store.resultContract, blank)
+        : undefined,
+      error: terminalError === null ? null : authOwnedDiagnostic(terminalError),
+      ...(terminalError === null ? {} : { transitionOwner: AUTH_TRANSITION_OWNER }),
       connection: normalizeConnection(store.handle?.current?.connection ?? 'disconnected'),
       freshness: 'unknown',
       answerClass: 'unknown',
@@ -1148,6 +1188,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       status: 'error',
       data: undefined,
       error: serializeError(failure),
+      transitionOwner: AUTH_TRANSITION_OWNER,
       connection: 'error',
       freshness: 'unknown',
       retention: null,
@@ -1312,9 +1353,23 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       settledAuthorityContext,
     );
     const authorityState = authorityAdmission.state;
-    if (authorityState === 'settling') return null;
+    if (authorityState === 'settling') {
+      if (
+        store.snapshot.status !== 'blocked'
+        || store.snapshot.reason !== 'authentication-not-settled'
+      ) {
+        const generation = ++store.generation;
+        store.freshness = 'unknown';
+        store.retention = null;
+        publish(store, AUTHENTICATION_NOT_SETTLED_BLOCKED, generation);
+      }
+      return null;
+    }
     if (authorityState === 'anonymous') {
-      if (store.snapshot.status !== 'blocked') {
+      if (
+        store.snapshot.status !== 'blocked'
+        || store.snapshot.reason !== 'authentication-required'
+      ) {
         const generation = ++store.generation;
         store.freshness = 'unknown';
         store.retention = null;
@@ -3426,7 +3481,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       confirmedAuthorityContext = null;
       await quiesceRegistry();
     },
-    blank() {
+    blank(context = {}) {
       custodyPaused = true;
       confirmedAuthorityContext = null;
       for (const store of stores.values()) {
@@ -3435,7 +3490,29 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         }
         store.generation += 1;
         store.authorizationProjectionSuspended = false;
-        store.snapshot = pending('idle');
+        if (context.terminal === true) {
+          store.snapshot = Object.freeze({
+            status: 'error',
+            data: undefined,
+            error: authOwnedDiagnostic(
+              context.terminalError
+                ?? diagnosticError(
+                  'SNAPBACK_AUTH_TRANSITION_FAILED',
+                  'the live query authority terminated',
+                ),
+            ),
+            transitionOwner: AUTH_TRANSITION_OWNER,
+            connection: 'error',
+            freshness: 'unknown',
+            answerClass: 'unknown',
+            retention: null,
+            optimisticPresentation: null,
+          });
+        } else {
+          store.snapshot = generatedAuthScopedLiveReference(store.reference)
+            ? AUTHENTICATION_NOT_SETTLED_BLOCKED
+            : pending('idle');
+        }
         store.generatedData = Object.freeze([]);
         store.generatedPresentation = null;
         store.freshness = 'unknown';

@@ -202,12 +202,48 @@ const assertLocalAuthRequired = async (operation) => {
     assert.equal(error?.diagnostic?.reason, 'authentication-required');
     assert.deepEqual(error?.diagnostic?.details, {
       reason: 'authentication-required',
+      transitionOwner: 'auth-coordinator',
       retryable: true,
       retryStrategy: 'after-authentication',
       effectCommitted: false,
     });
     return true;
   });
+};
+
+const promptRejection = async (operation, expectedCode, expectedReason) => {
+  let outcome = null;
+  const observed = operation.then(
+    () => { outcome = { status: 'resolved' }; },
+    (error) => { outcome = { status: 'rejected', error }; },
+  );
+  await Promise.resolve();
+  assert.notEqual(outcome, null, 'local auth admission settles in the promise microtask queue');
+  assert.equal(outcome.status, 'rejected');
+  assert.equal(outcome.error?.code, expectedCode);
+  assert.equal(outcome.error?.reason, expectedReason);
+  assert.equal(
+    outcome.error?.diagnostic?.details?.transitionOwner,
+    'auth-coordinator',
+  );
+  assert.equal(outcome.error?.effectMayHaveCommitted, false);
+  await observed;
+};
+
+let transitionGateSequence = 0;
+const gateNextTransitionCommit = (coordinator) => {
+  let reportEntered;
+  let releaseCommit;
+  const entered = new Promise((resolve) => { reportEntered = resolve; });
+  const held = new Promise((resolve) => { releaseCommit = resolve; });
+  const unregister = coordinator.registerParticipant({
+    name: `auth-one-shot-transition-gate-${++transitionGateSequence}`,
+    async commitDurable() {
+      reportEntered();
+      await held;
+    },
+  });
+  return Object.freeze({ entered, release: releaseCommit, unregister });
 };
 
 test('anonymous protected one-shots recover on the same client', async (t) => {
@@ -265,6 +301,135 @@ test('anonymous protected one-shots recover on the same client', async (t) => {
         { id: 'private-1' },
       ]);
     } finally {
+      await fixture.close();
+    }
+  });
+
+  await t.test('legacy protected query refuses a transition instead of joining its barrier', async () => {
+    const fixture = makeFixture();
+    let gate = null;
+    try {
+      await fixture.client.authSession();
+      gate = gateNextTransitionCommit(fixture.coordinator);
+      const signingIn = fixture.coordinator.transition(
+        fixture.coordinator.capture(),
+        {
+          authority: {
+            kind: 'session',
+            authMode: 'sessions',
+            authorizationStreamIncarnation: INCARNATION,
+            sessionId: SESSION_ID,
+            userId: USER_ID,
+          },
+          bearer: BEARER,
+          refreshAfterMs: Date.now() + 60_000,
+        },
+        'login',
+      );
+      await gate.entered;
+      const requestsBeforeRefusal = fixture.requests.length;
+      await promptRejection(
+        fixture.client.query(legacyProtectedQuery),
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'authentication-not-settled',
+      );
+      assert.equal(
+        fixture.requests.length,
+        requestsBeforeRefusal,
+        'transition refusal performs no query transport request',
+      );
+      gate.release();
+      await signingIn;
+      await gate.unregister();
+      gate = null;
+      assert.deepEqual((await fixture.client.query(legacyProtectedQuery)).rows, [
+        { id: 'private-1' },
+      ]);
+    } finally {
+      gate?.release();
+      await gate?.unregister();
+      await fixture.close();
+    }
+  });
+
+  await t.test('protected query settles across the five authority states', async () => {
+    const fixture = makeFixture();
+    let gate = null;
+    try {
+      await fixture.client.authSession();
+      const anonymousCapture = fixture.coordinator.capture();
+      const anonymousAuthority = fixture.coordinator.credentialFor(anonymousCapture).authority;
+
+      const requestsBeforeSignedOut = fixture.requests.length;
+      await promptRejection(
+        fixture.client.query(protectedQuery),
+        'SNAPBACK_AUTH_REQUIRED',
+        'authentication-required',
+      );
+      assert.equal(fixture.requests.length, requestsBeforeSignedOut);
+
+      gate = gateNextTransitionCommit(fixture.coordinator);
+      const signingIn = fixture.client.authExchange({
+        challengeId: 'challenge-state-matrix-signin',
+        code: '135790',
+      });
+      await gate.entered;
+      const requestsBeforeSigningInRefusal = fixture.requests.length;
+      await promptRejection(
+        fixture.client.query(protectedQuery),
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'authentication-not-settled',
+      );
+      assert.equal(fixture.requests.length, requestsBeforeSigningInRefusal);
+      gate.release();
+      await signingIn;
+      await gate.unregister();
+      gate = null;
+
+      assert.deepEqual((await fixture.client.query(protectedQuery)).rows, [
+        { id: 'private-1' },
+      ]);
+
+      gate = gateNextTransitionCommit(fixture.coordinator);
+      const signingOut = fixture.coordinator.transition(
+        fixture.coordinator.capture(),
+        { authority: anonymousAuthority, bearer: null, refreshAfterMs: null },
+        'logout',
+      );
+      await gate.entered;
+      const requestsBeforeSigningOutRefusal = fixture.requests.length;
+      await promptRejection(
+        fixture.client.query(protectedQuery),
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'authentication-not-settled',
+      );
+      assert.equal(fixture.requests.length, requestsBeforeSigningOutRefusal);
+      gate.release();
+      await signingOut;
+      await gate.unregister();
+      gate = null;
+
+      await fixture.client.authExchange({
+        challengeId: 'challenge-state-matrix-revocation',
+        code: '246801',
+      });
+      const revoked = new Error('SNAPBACK_AUTH_SESSION_REVOKED: session was revoked');
+      revoked.code = 'SNAPBACK_AUTH_SESSION_REVOKED';
+      const terminal = fixture.client.handleTerminalAuthLoss(
+        fixture.coordinator.capture(),
+        revoked,
+      );
+      await terminal.settlement;
+      const requestsBeforeRevokedRefusal = fixture.requests.length;
+      await promptRejection(
+        fixture.client.query(protectedQuery),
+        'SNAPBACK_AUTH_SESSION_REVOKED',
+        'authentication-terminated',
+      );
+      assert.equal(fixture.requests.length, requestsBeforeRevokedRefusal);
+    } finally {
+      gate?.release();
+      await gate?.unregister();
       await fixture.close();
     }
   });

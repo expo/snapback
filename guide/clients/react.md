@@ -4,13 +4,13 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react, clients.dev-diagnostics]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/app-client.mjs, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/generated-optimistic-default.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, packages/snapback-client/client-diagnostics.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/app-client.mjs, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/auth-blocked-resource.test.mjs, packages/snapback-react/optional-user-auth-transition.test.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/generated-optimistic-default.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, packages/snapback-client/client-diagnostics.mjs]
 examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, demos/_kit/tests/provider-live-conformance.mjs, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/optimistic-create.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-react/dev-diagnostics.test.mjs, packages/snapback-react/dev-diagnostics-acceptance.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:422eb1717130f3aad1be98301f8ac6dcb28610fdac92292248623a5de76b1433
+reviewed-authorities-digest: sha256:94b99b835fc2d64a3750ed759e2065c4ad74ccb841a15665258ed42f93cc2c38
 ---
 
 # The React client
@@ -236,11 +236,14 @@ returned by `snapback guide QueryState`.
 
 `useSnapbackQuery` returns:
 
-- `status`: `pending | ready | refreshing | error | skipped | blocked` —
-  `blocked` is the stable state a protected read renders while the client is
-  anonymous (public reason `authentication-required`); it never oscillates or
-  retries, and a later sign-in rebuilds a fresh instance across the authority
-  barrier;
+- `status`: `pending | ready | refreshing | error | skipped | blocked` — a
+  protected read is `blocked` with `reason: "authentication-required"` while
+  signed out and `reason: "authentication-not-settled"` while signing in or
+  signing out. Both states carry `transitionOwner: "auth-coordinator"`; they
+  never oscillate or retry. A later settled sign-in rebuilds a fresh instance
+  across the authority barrier. Revocation and successor-establishment failure
+  project `status: "error"` with the same `transitionOwner` (also present in
+  `error.details`) and the terminal or `SNAPBACK_AUTH_TRANSITION_FAILED` code;
 - `data`: immutable result rows only for `ready` or `refreshing`, otherwise
   `undefined`;
 - `connection`: `idle | connecting | live | polling | stale | disconnected |

@@ -640,6 +640,8 @@ const isServerAuthorityStaleResult = (error) => (
 const GENERATED_AUTHENTICATED_REQUIREMENT = 'authenticated';
 const AUTHENTICATION_REQUIRED_REASON = 'authentication-required';
 const AUTHENTICATION_NOT_SETTLED_REASON = 'authentication-not-settled';
+const AUTHENTICATION_TERMINATED_REASON = 'authentication-terminated';
+const AUTH_TRANSITION_OWNER = 'auth-coordinator';
 
 const requiresGeneratedAuthenticatedAuthority = (ref) => (
   ref !== null
@@ -660,6 +662,7 @@ const oneShotAuthAdmissionError = ({
 }) => {
   const details = Object.freeze({
     reason,
+    transitionOwner: AUTH_TRANSITION_OWNER,
     retryable: true,
     retryStrategy,
     effectCommitted: false,
@@ -687,12 +690,11 @@ const oneShotAuthAdmissionError = ({
   return error;
 };
 
-const authenticatedOneShotAdmissionError = (ref, {
-  authCoordinator = null,
-  custody = null,
-} = {}, operation = null) => {
-  if (!requiresGeneratedAuthenticatedAuthority(ref)) return null;
+const authenticatedOneShotAdmissionError = (ref, client = {}, operation = null) => {
+  const { authCoordinator = null, custody = null } = client;
+  const authenticatedRequired = requiresGeneratedAuthenticatedAuthority(ref);
   if (custody === 'anonymous-public') {
+    if (!authenticatedRequired) return null;
     return oneShotAuthAdmissionError({
       code: 'SNAPBACK_AUTH_REQUIRED',
       message: 'authentication is required for this generated operation',
@@ -702,12 +704,33 @@ const authenticatedOneShotAdmissionError = (ref, {
       refKind: ref.kind ?? null,
     });
   }
+  const terminal = typeof client.authTerminalStatus === 'function'
+    ? client.authTerminalStatus()
+    : null;
+  if (terminal?.terminated === true) {
+    // @ref LLP 0059#typed-terminal-auth-error — a terminal carrier is not
+    // admissible merely because its last durable capture remains inspectable.
+    // Every fresh one-shot settles locally until explicit replacement clears
+    // the terminal fact.
+    return oneShotAuthAdmissionError({
+      code: terminal.code ?? 'SNAPBACK_AUTH_TRANSITION_FAILED',
+      message: 'the authority for this operation has terminated',
+      reason: AUTHENTICATION_TERMINATED_REASON,
+      retryStrategy: 'after-authentication-replacement',
+      operation,
+      refKind: ref?.kind ?? null,
+    });
+  }
   if (!authCoordinator) return null;
   let capture;
   try {
     capture = authCoordinator.capture();
   } catch (cause) {
     if (!isAuthorityFenceUnsettledError(cause)) throw cause;
+    // A blank coordinator is still allowed to bootstrap a legacy/public
+    // operation. Only an active clearing phase is the no-transport boundary
+    // this legacy-reference fallback closes.
+    if (!authenticatedRequired && authCoordinator.phase !== 'clearing') return null;
     return oneShotAuthAdmissionError({
       code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
       message: 'authentication custody is not settled for this generated operation',
@@ -715,9 +738,16 @@ const authenticatedOneShotAdmissionError = (ref, {
       retryStrategy: 'after-authentication-settles',
       cause,
       operation,
-      refKind: ref.kind ?? null,
+      refKind: ref?.kind ?? null,
     });
   }
+  // Transition admission is reference-independent. Legacy generated
+  // references can lack authRequirement, but they still must not join a
+  // coordinator barrier whose transport phase has not made a request
+  // admissible. Once custody is settled, only metadata-rich authenticated
+  // references can be refused locally; legacy references continue to the
+  // server for its authoritative classification.
+  if (!authenticatedRequired) return null;
   const authority = authCoordinator.credentialFor(capture).authority;
   if (authority?.kind !== 'anonymous') return null;
   return oneShotAuthAdmissionError({
@@ -11051,7 +11081,11 @@ export class SnapbackClient {
     }
     args = argumentsAlreadyNormalized ? args : validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
-    const authAdmissionError = authenticatedOneShotAdmissionError(ref, this, 'mutation');
+    const authAdmissionError = (
+      __authorizationDispatchOwnership === OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP
+    )
+      ? null
+      : authenticatedOneShotAdmissionError(ref, this, 'mutation');
     if (authAdmissionError !== null) throw authAdmissionError;
     if (queue !== 'auto' && queue !== false && queue !== true) {
       throw new TypeError("mutate queue option must be 'auto', true, or false");
@@ -16155,10 +16189,18 @@ export class SnapbackClient {
         // world's denial fact must not linger into it (0137 A1-Expo f4).
         handle.authorizationDenial = null;
         markAuthorityCapture(authoritativeRows, handleAuthorityCapture);
+        const terminalError = context.terminal === true
+          ? context.terminalError ?? staleAuthorityError()
+          : null;
         const detail = {
           version: handle.version,
-          kind: 'authorization_delete',
-          authorization: { kind: 'delete', reason: 'authority_blanked' },
+          kind: terminalError === null ? 'authorization_delete' : 'authorization_error',
+          terminal: terminalError !== null,
+          authorization: {
+            kind: context.disposition ?? 'delete',
+            reason: context.reason ?? 'authority_blanked',
+          },
+          ...(terminalError === null ? {} : { error: terminalError }),
         };
         try { onAuthorizationBoundary?.(authoritativeRows, detail); } catch { /* blank remains */ }
         deliverIsolated(onUpdate, authoritativeRows, detail);

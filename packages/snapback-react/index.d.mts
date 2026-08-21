@@ -150,13 +150,14 @@ export type SnapbackAnswerClass =
 /** Refuse-with-clarity retainability fact, surfaced from the headless
  * handle (LLP 0129 Phase 0); null until the subscription is classified. */
 export type SnapbackRetention = LiveQueryRetention;
+export type SnapbackAuthTransitionOwner = 'auth-coordinator';
 
 export type QueryState<Result> = (
   | Readonly<{ status: 'pending'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>
-  | Readonly<{ status: 'blocked'; reason: 'authentication-required'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>
+  | Readonly<{ status: 'blocked'; reason: 'authentication-required' | 'authentication-not-settled'; transitionOwner: SnapbackAuthTransitionOwner; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>
   | Readonly<{ status: 'ready'; data: Result; error: null; connection: SnapbackConnection; freshness: 'current' | 'snapshot'; retention: SnapbackRetention | null }>
   | Readonly<{ status: 'refreshing'; data: Result; error: null; connection: SnapbackConnection; freshness: 'retained' | 'current'; retention: SnapbackRetention | null }>
-  | Readonly<{ status: 'error'; data: undefined; error: SnapbackDiagnostic; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>
+  | Readonly<{ status: 'error'; data: undefined; error: SnapbackDiagnostic; transitionOwner?: SnapbackAuthTransitionOwner; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>
   | Readonly<{ status: 'skipped'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>
 ) & Readonly<{
   answerClass: SnapbackAnswerClass;

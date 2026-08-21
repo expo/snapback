@@ -139,12 +139,13 @@ function fakeClient({ initialAuthority = 'anonymous', raceToAnonymous = false } 
       queueMicrotask(() => options.onUpdate(current.rows, { freshness: 'current' }));
       return Object.freeze(handle);
     },
-    async transitionAuthority(authority, reason) {
+    async transitionAuthority(authority, reason, duringBarrier = null) {
       const participant = state.participant;
       assert.ok(participant, 'React provider registered its authority barrier participant');
       state.publicationPaused = true;
       await participant.quiesce({ reason });
       participant.blank({ reason });
+      await duringBarrier?.();
       participant.clearMemory({ reason });
       state.authority = authority;
       state.authorityEpoch += 1;
@@ -176,6 +177,24 @@ function fakeClient({ initialAuthority = 'anonymous', raceToAnonymous = false } 
       state.beforeStagedFlush?.();
       for (const commit of staged) commit(authorityView);
       state.afterStagedFlush?.();
+      state.publicationPaused = false;
+    },
+    async revoke(duringBarrier = null) {
+      const participant = state.participant;
+      assert.ok(participant, 'React provider registered its authority barrier participant');
+      const error = new Error('SNAPBACK_AUTH_SESSION_REVOKED: session was revoked');
+      error.code = 'SNAPBACK_AUTH_SESSION_REVOKED';
+      const context = Object.freeze({
+        reason: error.code,
+        terminal: true,
+        terminalError: error,
+        disposition: 'quarantine',
+      });
+      state.publicationPaused = true;
+      await participant.quiesce(context);
+      participant.blank(context);
+      await duringBarrier?.();
+      participant.clearMemory(context);
       state.publicationPaused = false;
     },
     async signIn() { return this.transitionAuthority('session', 'login'); },
@@ -213,6 +232,7 @@ async function assertBlockedStability(mounted, client, expectedAttempts) {
   assert.deepEqual(blocked, {
     status: 'blocked',
     reason: 'authentication-required',
+    transitionOwner: 'auth-coordinator',
     data: undefined,
     error: null,
     connection: 'idle',
@@ -407,6 +427,60 @@ test('protected React live resources remain auth-blocked until barrier resume', 
       assert.strictEqual(mounted.lease, mountedLease, 'consumer lease was not remounted');
       assert.equal(mounted.registry.snapshot(mounted.descriptor).status, 'ready');
       assert.equal(client.state.attempts, 2, 'second signin starts one fresh query');
+    } finally {
+      mounted.lease.release();
+      await mounted.provider.dispose();
+    }
+  });
+
+  await t.test('live query projects the five-state auth settlement matrix', async () => {
+    const client = fakeClient();
+    const mounted = await mount(client);
+    const assertTransitionBlocked = (label) => {
+      const snapshot = mounted.registry.snapshot(mounted.descriptor);
+      assert.equal(snapshot.status, 'blocked', `${label} is not pending`);
+      assert.equal(snapshot.reason, 'authentication-not-settled');
+      assert.equal(snapshot.transitionOwner, 'auth-coordinator');
+      assert.equal(snapshot.error, null);
+    };
+    try {
+      let snapshot = mounted.registry.snapshot(mounted.descriptor);
+      assert.equal(snapshot.status, 'blocked');
+      assert.equal(snapshot.reason, 'authentication-required');
+      assert.equal(snapshot.transitionOwner, 'auth-coordinator');
+
+      await client.transitionAuthority('session', 'login', () => {
+        assertTransitionBlocked('signing-in');
+      });
+      await flush();
+      snapshot = mounted.registry.snapshot(mounted.descriptor);
+      assert.equal(snapshot.status, 'ready', 'signed-in projects the successful answer');
+
+      await client.transitionAuthority('anonymous', 'logout', () => {
+        assertTransitionBlocked('signing-out');
+      });
+      await flush();
+      snapshot = mounted.registry.snapshot(mounted.descriptor);
+      assert.equal(snapshot.status, 'blocked', 'signed-out projects a stable refusal');
+      assert.equal(snapshot.reason, 'authentication-required');
+      assert.equal(snapshot.transitionOwner, 'auth-coordinator');
+
+      await client.signIn();
+      await flush();
+      await client.revoke(() => {
+        const revoked = mounted.registry.snapshot(mounted.descriptor);
+        assert.equal(revoked.status, 'error');
+        assert.equal(revoked.error?.code, 'SNAPBACK_AUTH_SESSION_REVOKED');
+        assert.equal(revoked.transitionOwner, 'auth-coordinator');
+        assert.equal(
+          revoked.error?.details?.transitionOwner,
+          'auth-coordinator',
+        );
+      });
+      snapshot = mounted.registry.snapshot(mounted.descriptor);
+      assert.equal(snapshot.status, 'error', 'revoked remains classified');
+      assert.equal(snapshot.error?.code, 'SNAPBACK_AUTH_SESSION_REVOKED');
+      assert.equal(snapshot.transitionOwner, 'auth-coordinator');
     } finally {
       mounted.lease.release();
       await mounted.provider.dispose();

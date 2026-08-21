@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:36204de542028c5735b92c5ddf791a3240e8585dc840
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:a3c605129173baf540f2f68e87dc38e6dc239187444df6499860ddfb9b03c281`.
+`sha256:ecedd2c6cb0845f3347cd417ca5cc2ab545c817d511dc64b8a3abb815685ab4c`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 

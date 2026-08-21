@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:adc65c2b566d5ffcd7518907cd3cdbeaa21c1161260d
 # @expo/snapback-react/familiar
 
 Build-bound public API projection for `@expo/snapback-react/familiar`. Canonical registry identity:
-`sha256:a3c605129173baf540f2f68e87dc38e6dc239187444df6499860ddfb9b03c281`.
+`sha256:ecedd2c6cb0845f3347cd417ca5cc2ab545c817d511dc64b8a3abb815685ab4c`.
 Runtime parity condition:
 `import` → `packages/snapback-react/familiar.mjs`.
 
@@ -141,7 +141,7 @@ export type QueryReference<Name extends string = string, Args = Record<string, u
 
 Stable identity: `npm:@expo/snapback-react/familiar#skip`
 Kind: `runtime-constant`
-Source: `packages/snapback-react/index.d.mts:272`
+Source: `packages/snapback-react/index.d.mts:273`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 skip: unique symbol
@@ -152,7 +152,7 @@ skip: unique symbol
 
 Stable identity: `npm:@expo/snapback-react/familiar#SnapbackProvider`
 Kind: `runtime-function`
-Source: `packages/snapback-react/index.d.mts:475`
+Source: `packages/snapback-react/index.d.mts:476`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function SnapbackProvider(props: SnapbackProviderProps): any;
@@ -176,7 +176,7 @@ export function useAction<Ref extends FamiliarActionReference>(
 
 Stable identity: `npm:@expo/snapback-react/familiar#useAuth`
 Kind: `runtime-function`
-Source: `packages/snapback-react/index.d.mts:484`
+Source: `packages/snapback-react/index.d.mts:485`
 
 Stable projection of the framework-neutral application's auth facade.
 
@@ -189,7 +189,7 @@ export function useSnapbackAuth(): SnapbackAuthFacade;
 
 Stable identity: `npm:@expo/snapback-react/familiar#useCurrentPrincipal`
 Kind: `runtime-function`
-Source: `packages/snapback-react/index.d.mts:481`
+Source: `packages/snapback-react/index.d.mts:482`
 
 Exact LLP 0238 current-principal projection from the ordinary app owner.
 Official providers withhold hook consumers until ready. Custom SSR trees
@@ -232,7 +232,7 @@ export function useQuery<Ref extends FamiliarLiveQueryReference>(
 
 Stable identity: `npm:@expo/snapback-react/familiar#useQueryState`
 Kind: `runtime-function`
-Source: `packages/snapback-react/index.d.mts:486`
+Source: `packages/snapback-react/index.d.mts:487`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function useSnapbackQuery<Ref extends QueryReference>(
