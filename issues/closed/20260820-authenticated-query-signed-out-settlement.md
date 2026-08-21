@@ -3,7 +3,7 @@
 **Status:** Resolved
 **Opened:** 2026-08-20
 **Resolved:** 2026-08-21
-**Landing SHA:** TBD
+**Landing SHA:** 5521ca7eb
 **Systems:** Headless client, Auth, Queries, Settlement, Diagnostics
 **Related:** LLP 0059; LLP 0095; LLP 0277 P16; LLP 0295; Diary 0099
 
