@@ -9,8 +9,8 @@ examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receip
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:5c1d6d246c233b4f592773af065ccd8a887ba43ff60c75fccf21e57c22279cf9
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:299115fe806bead910521204724986e78926c9c97645a649e2ff36500595f62d
 ---
 
 # React Expo Online clients
@@ -225,6 +225,12 @@ credential without exposing the master admin token. Check it before falling
 back to `curl`, raw host operations, or a one-off verification script.
 
 ## Run the supervised Expo development loop
+
+If the backend origin or Metro process must instead be owned and pinned by an
+external harness, use the
+[fixed-origin attach recipe](../recipes/fixed-origin-development.md). Do not
+pass a raw origin as a `SnapbackExpoProvider` binding override or wrap an
+independently owned fixed listener in the supervised `--expo` loop.
 
 <!-- since: 0.1.10 -->
 

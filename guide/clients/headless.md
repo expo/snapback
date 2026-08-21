@@ -4,13 +4,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.micro, clients.optimistic-mutation-view]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/generated-mutation-ir.mjs, packages/snapback-client/optimistic-rebase.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/auth-anonymous-read-recovery.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/_kit/server-process.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/generated-mutation-ir.mjs, packages/snapback-client/optimistic-rebase.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/_kit/server-process.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:4c06e9fbc28e5cf509d885b1177e357c7d4a981a6cd3af6374e91aa757cd3ee9
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:8875590a04edf2aef777b79b859f0e8101720b9eea5d445b04b0c30dabcaebf0
 ---
 
 # The headless client
@@ -58,6 +58,12 @@ same running backend — check it before falling back to `curl`, raw host
 operations, or a one-off verification script.
 
 ## Construct one client per backend and custody context
+
+Multiple app clients in one Node process share durable auth custody when both
+their app identity and `storagePartition` match; the implicit partition is
+`"default"`. A multi-persona harness must assign one stable partition per
+actor or every client may restore the same principal. Follow the
+[multiple Node personas recipe](../recipes/multi-persona-clients.md).
 
 When this client installs dev-mode, client-asserted identity, pass the current
 per-boot capability as `devIdentityCapability`; the client sends its dedicated
@@ -469,29 +475,6 @@ semantic id, implementation and contract hashes, auth requirement, required
 capabilities, legal verbs, freshness, retention, and guide anchor to the
 generated build.
 
-## Branch on one-shot auth settlement without a timeout
-
-`query`, `run`/`action`, and `mutate` never wait merely because the auth
-coordinator cannot yet admit transport. Their promise either succeeds or
-rejects with one of these classified states:
-
-| Client authority state | One-shot settlement |
-| --- | --- |
-| signed out | generated authenticated references reject with `SNAPBACK_AUTH_REQUIRED`, `reason: "authentication-required"` |
-| signing in or signing out | reject with `SNAPBACK_CLIENT_AUTHORITY_CLEARING`, `reason: "authentication-not-settled"` |
-| signed in | issue under the exact settled capture and resolve or return the server's ordinary classified refusal |
-| revoked/terminal | reject with the recorded terminal code, `reason: "authentication-terminated"` |
-
-Every local refusal carries
-`diagnostic.details.transitionOwner: "auth-coordinator"`,
-`effectMayHaveCommitted: false`, and performs no operation transport. The
-transition check is reference-independent: an older generated reference that
-lacks `authRequirement` still refuses promptly while custody is clearing.
-Once custody is settled, such a legacy reference reaches the server because
-only the server can authoritatively classify its operation auth requirement.
-Provider code should branch on the code/reason/owner tuple; do not add a timer
-to distinguish auth admission from a transport stall.
-
 Mutation dispatch and settlement remain separate. Durable dispositions are
 exactly `pending | settled | failed | stranded | quarantined | resultGone |
 unknown`; do not infer another state from promise completion. Live handles use
@@ -627,6 +610,11 @@ store is lifecycle/state ownership, not a second transport
 or cache: generated Snapback refs and `SnapbackClient.liveQuery` still own the
 actual query.
 
+For the connection manager, authority-settlement, inspection, and teardown
+sequence around this registry, use the
+[provider lifecycle recipe](../recipes/provider-lifecycle.md). In particular,
+do not mint a fresh `connectionId` per cell or query.
+
 ## Subscribe to ephemeral state
 
 `subscribeEphemeral(ref, { connectionId, scope, ... })` returns an overlay
@@ -657,6 +645,12 @@ consumers, socket demand, timers, and listeners; it is not application state
 or an authorization API.
 
 ## Enter and leave session authority
+
+Protected writes can be intentionally suspended while this authority owner
+retires a predecessor and proves a successor. The
+[auth-transition write recipe](../recipes/auth-transition-writes.md) separates
+queueable background intent from fenced foreground gestures and gives the
+required handling for `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`.
 
 The session entry points are:
 

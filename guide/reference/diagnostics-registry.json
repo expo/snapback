@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:139ad5d7db12cc500b1710cc7c94d2a87c35058961b24e580adfaea4e4bb535c"
+    "sourceDigest": "sha256:2c41367d197345f36a965bbcf2ebbf0741d3024cede9fea63f0b624f4d5ce388"
   },
   "limits": {
     "lookupBytes": 16384
@@ -12,7 +12,7 @@
     "sourceFiles": 585,
     "emittingSites": 11868,
     "httpClassified": 1030,
-    "guideAnchored": 420
+    "guideAnchored": 422
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -7162,8 +7162,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly",
+      "guideAnchors": [
+        "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly"
+      ]
     },
     "SNAPBACK_APP_BINDING_SCHEMA_INVALID": {
       "code": "SNAPBACK_APP_BINDING_SCHEMA_INVALID",
@@ -7387,8 +7389,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/sync/offline-and-retention.md#branch-on-a-persisted-binding-receipt-at-offline-cold-boot",
+      "guideAnchor": "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly",
       "guideAnchors": [
+        "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly",
         "/_snapback/guide/sync/offline-and-retention.md#branch-on-a-persisted-binding-receipt-at-offline-cold-boot",
         "/_snapback/guide/sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes"
       ]
@@ -25678,8 +25681,7 @@
       "guideAnchor": "/_snapback/guide/auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals",
       "guideAnchors": [
         "/_snapback/guide/auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals",
-        "/_snapback/guide/backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients",
-        "/_snapback/guide/clients/headless.md#branch-on-one-shot-auth-settlement-without-a-timeout"
+        "/_snapback/guide/backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients"
       ]
     },
     "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT": {
@@ -33377,10 +33379,8 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/clients/headless.md#branch-on-one-shot-auth-settlement-without-a-timeout",
-      "guideAnchors": [
-        "/_snapback/guide/clients/headless.md#branch-on-one-shot-auth-settlement-without-a-timeout"
-      ]
+      "guideAnchor": null,
+      "guideAnchors": []
     },
     "SNAPBACK_CLIENT_AUTHORITY_STALE": {
       "code": "SNAPBACK_CLIENT_AUTHORITY_STALE",
@@ -46688,8 +46688,11 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly",
+      "guideAnchors": [
+        "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly",
+        "/_snapback/guide/retrieval-eval.md#seed-intents"
+      ]
     },
     "SNAPBACK_EXPO_LISTENER_ENUMERATION_UNAVAILABLE": {
       "code": "SNAPBACK_EXPO_LISTENER_ENUMERATION_UNAVAILABLE",
@@ -69074,8 +69077,14 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/clients/headless.md#enter-and-leave-session-authority",
+      "guideAnchors": [
+        "/_snapback/guide/clients/headless.md#enter-and-leave-session-authority",
+        "/_snapback/guide/index.md#recipes",
+        "/_snapback/guide/recipes/auth-transition-writes.md#fence-non-queueable-gestures",
+        "/_snapback/guide/recipes/auth-transition-writes.md#recipe-writes-during-authentication-transitions",
+        "/_snapback/guide/retrieval-eval.md#seed-intents"
+      ]
     },
     "SNAPBACK_OUTBOX_DRAIN_BARRIER_REFUSED": {
       "code": "SNAPBACK_OUTBOX_DRAIN_BARRIER_REFUSED",

@@ -10,8 +10,8 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.24
-reviewed: 2026-08-17
-reviewed-authorities-digest: sha256:6655d93fe02e6bd5a58ecd5bd0240c2479195e265404cec00047e8fdd5e2e4fd
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:67cf0c31b9ed7947afdf9c708c7291d5c2a3d6a9d061db862f9e4bbd8a4341b0
 ---
 
 # Recipe: membership-scoped typing indicators
@@ -96,6 +96,10 @@ memberships, multi-field scope, unknown declarations, wrong-table ids, and any
 mix of `allow.members()` with `allow.all()`.
 
 ## 2. Publish on activity and withdraw on idle
+
+For the shorter decision rule between continuous value binding,
+`useSnapbackActivityPresence`, and explicit publish/delete ownership, read the
+[activity presence recipe](./activity-presence.md).
 
 At the screen boundary, the demo's hook gives the component peers plus two
 intent-first actions:

@@ -14,8 +14,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-17
-reviewed-authorities-digest: sha256:7f9585e2924827e7f5057f9a42dfda3b1c15cefeb0c142a6f5c2a2fcaab3db64
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:90f41a3deed106338959d819e7672ddf869e4685d5d1b757cff2ab40cb52ccca
 ---
 
 # Capability index
@@ -55,7 +55,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.handler-runtime-profile | Current-rule handler admission profile + complete non-replacing generation preflight: operation selection, build-bound diagnostics, exact definition paths, separate executable/raw-evidence digests | handler runtime profile, generate --check, Can I import a helper?, Can I use Node crypto?, BUNDLE_UNSUPPORTED_IMPORT, SNAPBACK_INLINE_HELPER_INADMISSIBLE, SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED, SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE | all | shipped | packages/snapback-codegen/handler-runtime-profile.test.mjs + packages/snapback-cli/generate-check.test.mjs | llp/0237, llp/0108 | backend/handler-runtime.md |
 | backend.batch-reads | Experimental local exact-id and complete-unique-key batches; unsupported targets refuse at generation | batch get, getMany, uniqueMany, N+1, dataloader, IN clause, where id in, Convex db.get loop | local | partial | crates/snapback-engine/src/runtime/host_glue.rs batch tests + crates/snapback/tests/local_v0.rs snapshot test + packages/snapback-harness/envelope.test.mjs host-call test | llp/0248 | backend/queries.md |
 | backend.handler-typescript | Single-file `.ts`/`.mts` handler modules under the pinned syntax-erasing `bounded-handler-typescript-v1` profile | typescript handler, .ts backend, ts handler, type-check handler, erasure | local | partial | `transformTypeScriptHandler` in packages/snapback-codegen/typescript-transform.mjs | llp/0246 | GAP (page pending multi-file custody; owner: LLP 0246, review: 2026-09-15; issue: issues/20260812-0246-remaining-rollouts-stacked-on-0237.md); getting-started/generated-artifacts.md |
-| backend.familiar-profile-v1 | Familiar TS: generated API, scalar queries, assets, Expo Router, first-party bearer-only SecureStore custody | familiar profile, snapback-familiar-ts-v1, authoringProfile, Familiar TypeScript, api.todos.list, SecureStore custody, Expo Router familiar | local | partial | packages/snapback-codegen/familiar-phase-b.test.mjs + packages/snapback-expo/app-binding.test.mjs + packages/snapback-contract/auth-custody-secure-store.test.mjs | llp/0253, llp/0252, llp/0059 | backend/familiar-profile.md |
+| backend.familiar-profile-v1 | Familiar TS: generated API, qualified singleton-row point reads, assets, Expo Router, first-party bearer-only SecureStore custody | familiar profile, snapback-familiar-ts-v1, authoringProfile, Familiar TypeScript, api.todos.list, SecureStore custody, Expo Router familiar | local | partial | packages/snapback-codegen/familiar-phase-b.test.mjs + packages/snapback-expo/app-binding.test.mjs + packages/snapback-contract/auth-custody-secure-store.test.mjs | llp/0253, llp/0252, llp/0059 | backend/familiar-profile.md |
 | authoring.declaration-suggestions | Review/apply result-only candidates; committed declaration stays authoritative | infer result, suggest contract, write my result contract, convex-style inference | local | partial | packages/snapback-codegen/declaration-suggestion.test.mjs | llp/0245, llp/0108 | getting-started/the-authoring-loop.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense `ctx.sequence.allocate` with replay/contention/exhaustion evidence; contributor-source local only | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | crates/snapback-engine/src/local-sequence-allocation-publication.v1.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public/hosted qualification; owner: Charlie, review: 2026-09-30; issue: issues/20260808-main-drift-sequence-allocation-publication.md); backend/sequences.md |
@@ -169,8 +169,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-17
-reviewed-authorities-digest: sha256:a1dc0e2d283ff9760c313447d61e7250a32c29f2bc61c40f321c005882cf885d
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:5b94f039ad4881714e875e9322f194ff8d28e51dfbe9f289d83c24da928aa3ad
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -548,6 +548,23 @@ proof command, and honest nonclaims without opening every demo.
   — one restart-safe installer for password accounts, principal-owned profile
   rows, ordinary avatar uploads, typed attachment, and matched repeats that
   sign in but skip asset uploads and application-data writes.
+- [Fixed-origin development and attach](./recipes/fixed-origin-development.md)
+  — keep one backend port while `snapback dev --attach` regenerates and loads,
+  including sessions startup carriers and honest Expo/Vite binding ownership.
+- [Multiple Node personas](./recipes/multi-persona-clients.md) — isolate
+  process-global durable custody with one stable `storagePartition` per actor.
+- [Writes during auth transitions](./recipes/auth-transition-writes.md) —
+  queue background intent, fence foreground gestures, and handle
+  `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` without effect loops.
+- [Activity presence](./recipes/activity-presence.md) — distinguish a
+  continuously bound value from activity touch, heartbeat, and explicit
+  withdrawal.
+- [Private membership and a product roster](./recipes/membership-roster-projection.md)
+  — keep authority backing private while maintaining visible current and
+  historical product projections.
+- [Provider connection lifecycle](./recipes/provider-lifecycle.md) — share
+  managers and stores, settle authority, deduplicate snapshots, inspect, and
+  retire resources without inventing an undecided numeric budget.
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).
@@ -1112,8 +1129,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:622ed35a0850ae6e4bec99ff59db20df0c12e2820962f76c97cfcc2d05d9a58a
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:10af46608872447c531a418afe66fcbdafccb07872e6f8a0a20c6b3257b73c57
 ---
 
 # Retrieval eval protocol
@@ -1740,6 +1757,96 @@ installation and inverse provider-neutral Contract adaptation.
     "ContractDataProvider adapter", "foreign declaration digest",
     "no polling above the seam".
 
+Cases 59–70 absorb the Phase 1C high-value route misses reproduced in diaries
+0092–0105 and tracked by LLP 0295. Their route terms deliberately preserve the
+familiar-looking or failure-shaped vocabulary the builders actually used.
+
+59. **Fixed-origin development:** "Attach Expo web to an already-running
+    fixed-origin Snapback server, keep its pinned port, and hot-load generated
+    artifacts." The run fails if it expects `snapback dev` to pin the port,
+    parses logs instead of a ready descriptor, omits the sessions startup
+    carrier, passes a raw origin to `SnapbackExpoProvider`, or lets two
+    supervisors own the same listener.
+    Expected pages: `recipes/fixed-origin-development.md`.
+    Route terms: "attach Expo web to already-running --port server", "fixed origin", "pinned port", "startup-carrier rewrite", "SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE".
+
+60. **Node multi-persona custody:** "Several app clients run as different
+    people in one Node acceptance process, but every persona wrote as Henry."
+    The run fails if it assumes separate client objects imply separate durable
+    custody or omits one stable `storagePartition` per actor.
+    Expected pages: `recipes/multi-persona-clients.md`.
+    Route terms: "every persona wrote as Henry", "storagePartition", "process-global in Node", "multi-persona harness".
+
+61. **Background writes during auth transitions:** "An eager route-entry
+    receipt or feed write fails with
+    `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` while login changes." The run
+    fails if it creates an unbounded effect/retry loop, treats suspension as a
+    content refusal, or declares a queued mutation settled.
+    Expected pages: `recipes/auth-transition-writes.md`.
+    Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
+
+62. **Presence heartbeat versus bound value:** "I passed
+    `useSurface({ typing: value })`; why is the surface presence value a
+    continuous publish, and how does that compare with Supabase
+    `track({ typing: true })`?" The run fails if it omits heartbeat plus delete,
+    uses TTL as the ordinary withdrawal path, or adds a second timer around
+    `useSnapbackActivityPresence`.
+    Expected pages: `recipes/activity-presence.md`.
+    Route terms: "surface presence value is a continuous publish", "heartbeat vs bound value", "track({ typing: true })", "publish + delete".
+
+63. **Familiar dynamic array access:** "Use `array[i]` inside a Familiar
+    handler." The run fails if it claims dynamic computed access is admitted
+    or omits the iterate/static-literal rewrite.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "array[i]", "dynamic computed access".
+
+64. **Familiar imported helper:** "Use an imported helper in a Familiar
+    handler." The run fails if it adds an import/bundler alias instead of a
+    reachable same-file named function declaration.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "imported helper", "same-file function declaration".
+
+65. **Familiar captured constant:** "Reference a top-level const from a
+    Familiar handler." The run fails if it claims the value is captured into
+    executable bytes rather than moving it local or passing validated args.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "top-level const", "captured constants".
+
+66. **Familiar trusted time:** "Call `Date.now()` in a Familiar mutation."
+    The run fails if it admits ambient time instead of `ctx.runtime.now()`.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "Date.now", "ctx.runtime.now".
+
+67. **Familiar mutation document arrays:** "Return mutation document arrays
+    with `v.array(v.doc('todos'))`." The run fails if it promises that result
+    carrier instead of one document or a closed receipt/id array.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "mutation document arrays", "v.array(v.doc".
+
+68. **Familiar sequence allocation:** "Allocate a dense scoped invoice number
+    from a Familiar mutation." The run fails if it invents an app-level
+    read/increment/write counter or claims `ctx.sequence.allocate` is in the
+    Familiar surface rather than routing the backend to Explicit.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "sequence allocation", "ctx.sequence.allocate", "dense scoped number".
+
+69. **Private authority plus product roster:** "Render a chat display roster
+    with join dates and keep send-time recipients, but the membership roster is
+    private." The run fails if it makes membership backing public, treats an
+    ordinary projection as authority, uses Familiar
+    `resourceField: \"_id\"`, or rewrites old receipt membership after a leave.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "private membership roster", "product-visible roster projection", "display roster", "send-time recipient set".
+
+70. **Provider connection lifecycle:** "My Contract provider creates a
+    connection per subscription; N cells imply N transport connections and
+    teardown leaks timers." The run fails if it mints connection ids per
+    mount, subscribes before authority settles, nests reads in callbacks,
+    omits `localResourceInspection`, or invents a numeric platform budget that
+    Phase 0 has not selected.
+    Expected pages: `recipes/provider-lifecycle.md`.
+    Route terms: "connection per subscription", "N cells imply N transport connections", "provider lifecycle budget", "active connections and subscriptions by owner".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:
@@ -1805,8 +1912,8 @@ examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapb
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:2ac1a38c4cdf294b94a69fe2733378017375a3c2ac6171aaa140926868346199
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:bbc87267c8b921661a54c88b4fed921001f37e5e8177d0ea37a6523fc3aa3db8
 ---
 
 # Sessions and principals
@@ -2356,6 +2463,11 @@ witnesses. For the shipped local role-per-resource surface, continue to
 [scoped roles and memberships](./scoped-roles.md).
 
 ## Anti-patterns
+
+For Node acceptance harnesses with several signed-in actors, first read the
+[storage-partition recipe](../recipes/multi-persona-clients.md): app-client
+instances do not imply separate durable custody when they share the default
+partition.
 
 - **Do not assert identity from the client** — no `userId` in bodies, no
   owner arguments on protected queries. The server derives it or the
@@ -3883,8 +3995,8 @@ examples: [demos/rbac, demos/shindig, demos/team-chat, packages/snapback-codegen
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:c4978542d3184b50789dde574d70e83214609204f5e9767ede6470c5557cbaf7
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:fa6f20093e85881242d40167887408a823b2bc4e9ad9e76dc000450ed31b44ed
 ---
 
 # Scoped roles and memberships
@@ -3932,6 +4044,11 @@ and pending-to-active self transitions exist. Neither path exposes a private
 membership row id.
 
 ## Declare one roster for an application resource
+
+This roster is private authorization backing. If the product must render
+handles, avatars, join time, or historical recipients, follow the
+[private membership and product roster recipe](../recipes/membership-roster-projection.md)
+rather than exposing the backing rows.
 
 The RBAC demo uses one application row as the resource scope. Its membership
 table is simultaneously the product roster and the authority relation:
@@ -7152,14 +7269,14 @@ id: backend.familiar-profile
 order: 5
 audience: agent-first
 capabilities: [backend.familiar-profile-v1, authority.profile.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0240-application-authority-profiles.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, crates/snapback-engine/src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0237-bounded-handler-modules.rfc.md, llp/0240-application-authority-profiles.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, crates/snapback-engine/src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
 examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-contract/auth-custody-secure-store.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:8d755dadfc7074bdf2071561aa83601ad521d4c7ae7d5e3b80404ca4c6bf73e0
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:2d6275363dfe790730aed135fec80e708549fbcebe299b5dcb6f9385b1edebd4
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -7261,12 +7378,51 @@ export const list = query({
 Every function requires `args`, `returns`, `auth`, and `handler`. Queries add
 `reads`; mutations add `reads` and `writes`; actions may add `secrets`.
 Queries are live by default; set `delivery: "read"` for a one-shot query.
-Row-shaped query returns remain arrays. A point query can declare an exact
-single value such as `returns: v.union([v.doc("todos"), v.null()])` or a closed
-`v.object(...)` and return that value directly; `useQuery` receives the object
-or `null`, not a one-row array. Familiar actions can read auth/runtime/secrets,
-refuse, and call a generated mutation reference; they do not expose `ctx.db`,
-fetch, assets, jobs, realtime, or streaming.
+Row-shaped query returns remain arrays. Although the lowering layer recognizes
+some direct `v.object(...)` and nullable-document values, the current
+generation-and-execution path has not qualified those shapes end to end. For a
+point read, declare a relational array with `{ maxItems: 1 }` and return `[]`
+or `[row]`; unwrap the first row in application code. A mutation may return one
+`v.doc(table)`, but a mutation document array is refused; return an array of
+closed receipt records or ids instead. Familiar actions can read
+auth/runtime/secrets, refuse, and call a generated mutation reference; they do
+not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
+
+## Translate the Familiar handler dialect
+
+Familiar is TypeScript-shaped source lowered into the bounded Snapback handler
+runtime. It is not unrestricted Node or browser TypeScript. Use this compact
+rewrite table before authoring:
+
+Diary search terms: dynamic computed access; imported helper; same-file function declaration.
+Further terms: captured constants; mutation document arrays; dense scoped number.
+
+| Intent | Familiar-looking form that refuses | Shipped rewrite | Choose Explicit when… |
+| --- | --- | --- | --- |
+| Read a dynamic array position | `array[i]` | Iterate with `for...of`, or use a literal property/index when the position is statically fixed. | Dynamic indexed algorithms are central to the operation. |
+| Share logic | `import { helper } from './helper'` | Put a named function declaration in the same function module. | The backend requires a real multi-file handler graph. |
+| Capture configuration | a referenced top-level `const` | Put the literal/local value inside the handler or pass validated data through `args`; top-level values are not spliced into executable bytes. | Many operations need a shared authored configuration graph. |
+| Read trusted time | `Date.now()` or `new Date()` | Call `ctx.runtime.now()` and store integer epoch milliseconds. | The operation needs unsupported timers or ambient APIs. |
+| Return several written documents | mutation `returns: v.array(v.doc('todos'))` | Return one document, or a closed array of receipt records/ids. | The exact document-array carrier is part of the public contract. |
+| Allocate a dense number | `ctx.sequence.allocate(...)` in a Familiar mutation | Use the Explicit profile's declared `sequences` mutation surface. Do not replace it with an app read/increment/write counter. | Dense scoped sequence allocation is required. |
+
+The complete source/runtime refusal matrix remains in
+[Handler runtime profile and generation preflight](./handler-runtime.md).
+In particular, a same-file helper is a function declaration, not a captured
+arrow assigned to a top-level constant.
+
+### Escape to shared declarations, not a second runtime
+
+The profile still generates the canonical `api`, `groups`, asset, and
+ephemeral references used by the ordinary clients. Shared schema declarations
+may use the lower-level public schema vocabulary when the Familiar convenience
+entrypoint does not re-export a constructor. For a membership-backed ephemeral
+collection, import `defineEphemeral` and `ephemeral` from
+`@expo/snapback-codegen/define`, while keeping Familiar functions on
+`query`/`mutation` from `./generated/server`. The declaration still lowers into
+the same canonical generated `api.ephemeral` reference; it does not create a
+second backend or authorize mixing Explicit function builders into the
+Familiar module tree.
 
 ## Declare non-derived asset intents
 
@@ -7309,17 +7465,13 @@ the caller is an active member or administrator of an app resource. For every
 protected handler, make the active-member/admin decision before returning rows
 or performing effects.
 
-Start with declarative table visibility. A membership declaration can protect
-its resource table through the resource row's system id and protect direct
-children through their required resource id:
+Start with declarative table visibility. In generated Familiar TypeScript,
+bind child visibility through an authored resource key. The system `_id` is
+not an authored field in the table's generated field union, so admit the root
+resource through the authority profile/handler declaration rather than copying
+an untypeable `resourceField: "_id"` binding:
 
-```ts fragment reason="membership declaration is application-specific; this shows the two shipped visibility bindings"
-conversations: defineTable({ title: v.string() }).visibility({
-  kind: "membership",
-  declaration: conversationMembers,
-  resourceField: "_id",
-  roles: ["member", "admin"],
-}),
+```ts fragment reason="membership declaration is application-specific; this shows the authored child-resource binding"
 messages: defineTable({
   conversationId: v.id("conversations"),
   body: v.string(),
@@ -7334,7 +7486,9 @@ messages: defineTable({
 Ordinary `ctx.db` reads enforce those policies, including inside familiar
 queries and mutations. Prefer that fail-closed path whenever the governed row
 directly names the membership resource; it makes an omitted handler check hide
-the row instead of widening access.
+the row instead of widening access. For a product-visible roster alongside the
+private authority rows, follow the
+[private membership and product roster recipe](../recipes/membership-roster-projection.md).
 
 <!-- since: 0.1.23 -->
 
@@ -12417,13 +12571,13 @@ id: clients.contract-adapter
 order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0266-coterie-exact-contract-benchmark.plan.md, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs, packages/snapback-vite/allowlist.mjs, packages/snapback-vite/first-party-auth-relay-routes.generated.json, demos/coterie/src/data/provider-factory.ts, demos/coterie/src/data/snapback-provider.ts, demos/coterie/src/data/generated/coterie.bindings.ts, demos/coterie/tests/snapback-provider.integration.test.ts]
-examples: [demos/todo-v2/snapback/codegen.policy.json, demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, demos/pointing-room, demos/coterie, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-vite/password-recovery-relay.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
+authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0266-coterie-exact-contract-benchmark.plan.md, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs, demos/coterie/src/data/provider-factory.ts, demos/coterie/src/data/snapback-provider.ts, demos/coterie/src/data/generated/coterie.bindings.ts, demos/coterie/tests/snapback-provider.integration.test.ts]
+examples: [demos/todo-v2/snapback/codegen.policy.json, demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, demos/pointing-room, demos/coterie, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:c4b6790716a2d0dba83efc6d1fade29d72b3cf409ecc4404fa0a2adfa23c50ec
+reviewed-authorities-digest: sha256:07e25fc91a4d8b6859d623234e4dba3d66ecd830f7cff7e0b51b840dcc467995
 ---
 
 # The Contract adapter
@@ -12579,6 +12733,12 @@ another app or hand-maintain the generated `.contract-meta.ts` mirror. Stable
 external publication remains a later packaged-loop gate in LLP 0063.
 
 ## Adapt an already-frozen provider-neutral declaration
+
+Before copying this demo adapter's per-subscription mechanics, read the
+[provider lifecycle recipe](../recipes/provider-lifecycle.md). A production
+provider owns a stable connection identity above its cells and multiplexes
+logical subscriptions; the bounded foreign-declaration example below is not a
+numeric connection-budget policy.
 
 Sometimes the declaration, generated bindings, and declaration digest already
 belong to an application that supports several providers. In that inverse
@@ -12811,18 +12971,6 @@ what's missing, seeds only empty tables — a reload never resets data; LLP
 0034 §5). If the backend is unreachable, the surface may still boot from an
 authorized retained snapshot; a true first run fails with the original
 network error instead of inventing an empty app.
-
-<!-- since: 0.1.25 unreleased -->
-
-> **Unreleased.** The exact password/recovery relay projection is not in the
-> newest published `@expo/snapback-*` closure, 0.1.24.
-
-A Contract/Vite surface can use the generated app binding for signup, sign-in,
-recovery, logout, and live data without splitting auth onto the backend origin.
-The Vite relay admits only the exact server-registered password and recovery
-method/path set; follow the
-[same-origin Vite password lifecycle](../getting-started/the-authoring-loop.md#use-password-and-recovery-through-the-vite-origin)
-rather than adding provider middleware or a broad `/auth/*` proxy.
 
 A sessions-mode Contract/Vite surface that needs its one-time code during
 local boot should use the
@@ -13168,13 +13316,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.micro, clients.optimistic-mutation-view]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/generated-mutation-ir.mjs, packages/snapback-client/optimistic-rebase.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/auth-anonymous-read-recovery.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/_kit/server-process.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/generated-mutation-ir.mjs, packages/snapback-client/optimistic-rebase.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/_kit/server-process.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:4c06e9fbc28e5cf509d885b1177e357c7d4a981a6cd3af6374e91aa757cd3ee9
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:8875590a04edf2aef777b79b859f0e8101720b9eea5d445b04b0c30dabcaebf0
 ---
 
 # The headless client
@@ -13222,6 +13370,12 @@ same running backend — check it before falling back to `curl`, raw host
 operations, or a one-off verification script.
 
 ## Construct one client per backend and custody context
+
+Multiple app clients in one Node process share durable auth custody when both
+their app identity and `storagePartition` match; the implicit partition is
+`"default"`. A multi-persona harness must assign one stable partition per
+actor or every client may restore the same principal. Follow the
+[multiple Node personas recipe](../recipes/multi-persona-clients.md).
 
 When this client installs dev-mode, client-asserted identity, pass the current
 per-boot capability as `devIdentityCapability`; the client sends its dedicated
@@ -13633,29 +13787,6 @@ semantic id, implementation and contract hashes, auth requirement, required
 capabilities, legal verbs, freshness, retention, and guide anchor to the
 generated build.
 
-## Branch on one-shot auth settlement without a timeout
-
-`query`, `run`/`action`, and `mutate` never wait merely because the auth
-coordinator cannot yet admit transport. Their promise either succeeds or
-rejects with one of these classified states:
-
-| Client authority state | One-shot settlement |
-| --- | --- |
-| signed out | generated authenticated references reject with `SNAPBACK_AUTH_REQUIRED`, `reason: "authentication-required"` |
-| signing in or signing out | reject with `SNAPBACK_CLIENT_AUTHORITY_CLEARING`, `reason: "authentication-not-settled"` |
-| signed in | issue under the exact settled capture and resolve or return the server's ordinary classified refusal |
-| revoked/terminal | reject with the recorded terminal code, `reason: "authentication-terminated"` |
-
-Every local refusal carries
-`diagnostic.details.transitionOwner: "auth-coordinator"`,
-`effectMayHaveCommitted: false`, and performs no operation transport. The
-transition check is reference-independent: an older generated reference that
-lacks `authRequirement` still refuses promptly while custody is clearing.
-Once custody is settled, such a legacy reference reaches the server because
-only the server can authoritatively classify its operation auth requirement.
-Provider code should branch on the code/reason/owner tuple; do not add a timer
-to distinguish auth admission from a transport stall.
-
 Mutation dispatch and settlement remain separate. Durable dispositions are
 exactly `pending | settled | failed | stranded | quarantined | resultGone |
 unknown`; do not infer another state from promise completion. Live handles use
@@ -13791,6 +13922,11 @@ store is lifecycle/state ownership, not a second transport
 or cache: generated Snapback refs and `SnapbackClient.liveQuery` still own the
 actual query.
 
+For the connection manager, authority-settlement, inspection, and teardown
+sequence around this registry, use the
+[provider lifecycle recipe](../recipes/provider-lifecycle.md). In particular,
+do not mint a fresh `connectionId` per cell or query.
+
 ## Subscribe to ephemeral state
 
 `subscribeEphemeral(ref, { connectionId, scope, ... })` returns an overlay
@@ -13821,6 +13957,12 @@ consumers, socket demand, timers, and listeners; it is not application state
 or an authorization API.
 
 ## Enter and leave session authority
+
+Protected writes can be intentionally suspended while this authority owner
+retires a predecessor and proves a successor. The
+[auth-transition write recipe](../recipes/auth-transition-writes.md) separates
+queueable background intent from fenced foreground gestures and gives the
+required handling for `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`.
 
 The session entry points are:
 
@@ -15880,8 +16022,8 @@ examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receip
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:5c1d6d246c233b4f592773af065ccd8a887ba43ff60c75fccf21e57c22279cf9
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:299115fe806bead910521204724986e78926c9c97645a649e2ff36500595f62d
 ---
 
 # React Expo Online clients
@@ -16096,6 +16238,12 @@ credential without exposing the master admin token. Check it before falling
 back to `curl`, raw host operations, or a one-off verification script.
 
 ## Run the supervised Expo development loop
+
+If the backend origin or Metro process must instead be owned and pinned by an
+external harness, use the
+[fixed-origin attach recipe](../recipes/fixed-origin-development.md). Do not
+pass a raw origin as a `SnapbackExpoProvider` binding override or wrap an
+independently owned fixed listener in the supervised `--expo` loop.
 
 <!-- since: 0.1.10 -->
 
@@ -23062,8 +23210,8 @@ examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-17
-reviewed-authorities-digest: sha256:450da96937a6405df735bd10bb8444ceebb57c2dc307f852030433f45844dbac
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:1190009b17d3ac0b05067a12e6d0d94c12cb6f39ef982633ba5734eda65e7bd8
 ---
 
 # Ephemeral realtime state
@@ -23085,6 +23233,11 @@ Use this page when choosing collection options or handling recovery.
 <!-- since: 0.1.23 -->
 
 ## Stop publishing when activity goes idle
+
+First decide whether the value is continuously bound or activity-driven. The
+[activity presence recipe](../recipes/activity-presence.md) maps a Supabase
+`track(...)` mental model to Snapback publish, heartbeat, and delete, and
+explains why a bound surface value can continuously republish.
 
 In the schema and headless client this feature is named **ephemeral**. In the
 React client the base scoped hook is named **`useSnapbackPresence`**, and
@@ -24045,8 +24198,8 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.24
-reviewed: 2026-08-17
-reviewed-authorities-digest: sha256:6655d93fe02e6bd5a58ecd5bd0240c2479195e265404cec00047e8fdd5e2e4fd
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:67cf0c31b9ed7947afdf9c708c7291d5c2a3d6a9d061db862f9e4bbd8a4341b0
 ---
 
 # Recipe: membership-scoped typing indicators
@@ -24131,6 +24284,10 @@ memberships, multi-field scope, unknown declarations, wrong-table ids, and any
 mix of `allow.members()` with `allow.all()`.
 
 ## 2. Publish on activity and withdraw on idle
+
+For the shorter decision rule between continuous value binding,
+`useSnapbackActivityPresence`, and explicit publish/delete ownership, read the
+[activity presence recipe](./activity-presence.md).
 
 At the screen boundary, the demo's hook gives the component peers plus two
 intent-first actions:
@@ -26606,6 +26763,513 @@ only `matched` promises the no-write repeat path.
 
 ---
 
+<!-- snapback-guide-source: guide/recipes/fixed-origin-development.md -->
+---
+title: "Recipe: fixed-origin development and attach"
+id: recipes.fixed-origin-development
+order: 10
+audience: agent-first
+capabilities: [operating.packaged-dev-loop]
+authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, packages/snapback-cli/index.mjs, packages/snapback-vite/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-environment.mjs]
+examples: [packages/snapback-cli/dev-loop.test.mjs, packages/snapback-cli/sessions-dev-loop.test.mjs, packages/snapback-vite/package.test.mjs]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:d107fc61d303c72dad7aea17644f1bd1295c021f2aec7ac50c9009aac7e8410f
+---
+
+# Recipe: fixed-origin development and attach
+
+> **Local target only.** This page describes an explicitly owned development
+> server. It is not a hosted deployment recipe.
+
+Use this route when a test, browser shell, or native harness must keep one
+backend origin stable while generated artifacts continue to change. Ordinary
+`snapback dev` owns its server and may choose a free port. A pinned-port setup
+has two owners instead: `snapback start` owns the process and
+`snapback dev --attach` owns generate-and-load.
+
+This is the diary's exact “attach Expo web to already-running --port server”
+route: fixed origin, pinned port, and startup-carrier rewrite are separate
+ownership facts rather than one magic flag.
+
+## Start the fixed server, then attach the loader
+
+Use one absolute database path and one ready file throughout. For dev-auth
+projects the minimal split is:
+
+```sh
+snapback start --port 42080 --db "$PWD/.snapback/fixed.sqlite3" \
+  --ready-file "$PWD/.snapback/fixed.ready.json"
+```
+
+In a second terminal, attach the generator and watcher:
+
+```sh
+snapback dev snapback --attach \
+  --db "$PWD/.snapback/fixed.sqlite3" \
+  --ready-file "$PWD/.snapback/fixed.ready.json"
+```
+
+`--attach` requires the existing ready descriptor and verifies the live
+server and database identity before loading. It never takes process ownership,
+chooses another port, or restarts the server. `--no-watch` performs one
+generate/load pass and exits; omit it for the hot-load loop.
+
+Do not infer the origin from logs. Read the descriptor named by
+`--ready-file`; it is the owner-authenticated carrier for the actual listener
+and startup nonce.
+
+## Preserve the sessions startup carrier
+
+Sessions mode must establish the generated schema and functions before the
+listener opens. First let the packaged dev loop produce the sibling
+`.snapback/startup-artifacts.json`; then stop that managed run and start the
+fixed server with the exact carrier:
+
+```sh
+snapback dev snapback --no-watch \
+  --db "$PWD/.snapback/fixed.sqlite3" \
+  --ready-file "$PWD/.snapback/bootstrap.ready.json"
+
+snapback start --port 42080 \
+  --db "$PWD/.snapback/fixed.sqlite3" \
+  --ready-file "$PWD/.snapback/fixed.ready.json" \
+  --startup-artifacts "$PWD/.snapback/startup-artifacts.json"
+```
+
+Now run the same attach command from the previous section. Each successful
+regeneration rewrites that startup carrier as well as loading the running
+server, so a later restart can establish the same generated deployment before
+bind. Keep the database, ready descriptor, and startup carrier together. An
+`AUTH_MODE_PENDING` or `STARTUP_ARTIFACT_MISMATCH` refusal means that ownership
+triangle is incomplete or mixed; do not delete the database or hand-edit a
+digest.
+
+## Bind a separately owned client honestly
+
+For web, the first-class fixed-origin path is `@expo/snapback-vite` in attach
+mode. Give the Vite plugin the same ready file and database; import the
+generated app binding from `virtual:snapback/dev`. The browser then uses the
+same-origin relay while the plugin privately reads the ready carrier. This
+avoids both a hard-coded backend URL and privileged carrier bytes in page
+code.
+
+The default `SnapbackExpoProvider` is supervisor-owned. A raw `{ origin }` or
+raw binding override is not a supported substitute for its admitted
+environment and can refuse with `SNAPBACK_APP_BINDING_UNAVAILABLE` or
+`SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED`. For a separately owned native
+Expo process, the application shell must own a complete admitted
+`SnapbackExpoEnvironmentV1` (binding plus authority/custody lifecycle), or use
+the lower-level app client with that admitted binding. There is currently no
+safe “just pass the fixed URL” shortcut.
+
+Keep the Expo/Metro process separately owned when pinning both sides. Do not
+wrap the pair in `snapback dev --expo`: its listener enumeration supervises
+the client process it started, and an independently owned fixed listener can
+correctly fail with `SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE`.
+
+## Anti-patterns
+
+- Expecting `snapback dev` to preserve a requested backend port.
+- Running `--attach` without the exact live ready descriptor and database.
+- Starting sessions mode without the generated startup-artifact carrier.
+- Parsing server logs for the origin instead of consuming the ready file.
+- Passing a raw origin to `SnapbackExpoProvider` or weakening binding
+  admission after an override refusal.
+- Letting two supervisors both believe they own the fixed backend or Expo
+  listener.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/multi-persona-clients.md -->
+---
+title: "Recipe: multiple Node personas and storage partitions"
+id: recipes.multi-persona-clients
+order: 11
+audience: agent-first
+capabilities: [clients.headless, auth.sessions]
+authorities: [llp/0059-session-projection-and-client-barrier.spec.md, packages/snapback-client/app-client.mjs, packages/snapback-client/app-client.d.mts, packages/snapback-client/app-client.test.mjs]
+examples: [packages/snapback-client/app-client.test.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:0aac45468f10f0b49fd624a7612f1e65a0809af8162a193de392be160fa0e4a5
+---
+
+# Recipe: multiple Node personas and storage partitions
+
+In one Node process, `createSnapbackAppClient` deliberately shares durable
+auth custody for the same application and storage partition. The default
+partition is literally `"default"`. That is useful for two handles belonging
+to one persona, but wrong for an acceptance harness, bot runner, or seed replay
+that represents several users. Without explicit partitions, every persona can
+restore and write as the last principal in the shared default custody — the
+classic “every persona wrote as Henry” failure.
+
+In the diary's vocabulary, durable custody is “process-global in Node” unless
+the multi-persona harness selects distinct partitions.
+
+## Give every persona a stable partition
+
+Choose a deterministic, non-secret partition per logical actor and pass it at
+construction:
+
+```ts fragment reason="application descriptors, admitted bindings, and platform adapters are fixture-specific"
+const henry = await createSnapbackAppClient({
+  app,
+  binding,
+  platform,
+  storagePartition: 'acceptance:henry',
+});
+
+const mia = await createSnapbackAppClient({
+  app,
+  binding,
+  platform,
+  storagePartition: 'acceptance:mia',
+});
+```
+
+The custody owner key is `(app identity, storagePartition)`. Reusing a
+partition means “same persona, shared durable session”; changing it means
+“different persona, isolated durable session.” The value must be non-empty,
+at most 128 characters, and contain no NUL. It is an isolation label, not a
+password, principal assertion, or server-side authorization boundary.
+
+Sign in each client independently, wait for its authority to settle, and
+assert `currentAuthorizationScope().principalScope.userId` before performing
+persona-labelled writes. That assertion catches an accidentally reused
+partition at the test boundary instead of after corrupted expectations.
+
+Dispose every app client at teardown. Durable state intentionally survives
+that disposal, so reuse the same partition only when a later run is meant to
+restore the same actor. Give parallel test workers an additional stable worker
+prefix when they must not share custody.
+
+## Anti-patterns
+
+- Creating multiple Node clients without `storagePartition` and assuming
+  object identity isolates their sessions.
+- Using a display name as authorization evidence instead of checking the
+  settled principal.
+- Generating a fresh random partition on every boot when session restoration
+  is part of the test.
+- Treating a storage partition as a server-side tenant or permission scope.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/auth-transition-writes.md -->
+---
+title: "Recipe: writes during authentication transitions"
+id: recipes.auth-transition-writes
+order: 12
+audience: agent-first
+capabilities: [clients.outbox-drain, clients.mutation-outcomes, auth.invalidation-barrier]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/outbox-store.test.mjs]
+examples: [packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/outbox-store.test.mjs, demos/browser-local-first]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:d8cac17f99ba2c4dcf845310194e20d29b6542948551e506397efdbc259e00ba
+---
+
+# Recipe: writes during authentication transitions
+
+Login, logout, refresh, and bearer replacement create a real authority
+barrier. Protected subscriptions blank and foreground sends may pause while
+the predecessor is retired and the successor is proven. A background effect
+that writes during that interval can receive
+`SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`; this is a custody signal, not a
+content refusal and not evidence that the mutation reached the server.
+This includes the reproduced “eager route-entry receipt” and broader
+“background writes during auth transitions” cases, as well as an
+authorization-suspended foreground gesture.
+
+## Prefer queueable generated mutations
+
+For receipts, route-entry bookkeeping, feed acknowledgements, and other
+background work that remains meaningful after the same logical user settles,
+use the generated queueable mutation path. During the barrier it resolves as
+queued with `authorizationDisposition: "authorization-suspended"`; the outbox
+drain resumes only after authority proof. Render that as pending and observe
+the mutation settlement rather than turning it into an unhandled UI error.
+
+Capture the logical intent once. Do not let a React effect manufacture a new
+mutation id on every auth snapshot or retry tick. After a principal change,
+the outbox custody rules may strand or privacy-delete predecessor work; follow
+the reported disposition rather than silently replaying it as the successor.
+
+## Fence non-queueable gestures
+
+A foreground operation declared with `queue: false` rejects locally while
+authority is suspended and does not reach transport. Disable or defer the
+gesture until the coordinator/app client reports settled authority. If a race
+still produces `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`, keep the same logical
+intent, wait for that barrier to settle once, and offer or perform one bounded
+retry only if the resulting principal is still the intended actor.
+
+Treat every terminal branch explicitly: success, queued, application refusal,
+auth terminal status, and genuine transport/lifecycle failure. An uncaught
+authorization-suspended rejection can poison a route even though the system is
+behaving correctly.
+
+## Anti-patterns
+
+- Retrying from an unbounded effect whose dependency is the changing auth
+  object.
+- Converting authorization suspension into a content refusal or “server
+  failed” message.
+- Assuming a foreground rejection means the mutation may already have
+  committed.
+- Re-recording predecessor work under a successor principal without the
+  explicit stranded-intent workflow.
+- Hiding queued status and declaring success before settlement.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/activity-presence.md -->
+---
+title: "Recipe: activity presence, heartbeats, and withdrawal"
+id: recipes.activity-presence
+order: 13
+audience: agent-first
+capabilities: [realtime.ephemeral]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, packages/snapback-react/index.mjs, packages/snapback-react/implementation.mjs]
+examples: [demos/messaging-snapback, packages/snapback-cli/templates/expo-chat]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:f645f4b9705e5a52f2adb649c71a1e2c03d5a3bc13a19c40d81957c5a4b4f054
+---
+
+# Recipe: activity presence, heartbeats, and withdrawal
+
+Snapback presence is an ephemeral lease. A bound value is not a durable row,
+and publishing it once does not promise that it remains present. Conversely,
+a convenience surface can continuously republish a non-null bound value. This
+is why `useSurface({ typing: value })` may look like simple state binding while
+behaving like a continuous publish.
+
+Put in the diary's exact terms: “surface presence value is a continuous
+publish.” The heartbeat vs bound value decision determines whether the owner
+should continuously publish or explicitly publish + delete.
+
+Search phrase: surface presence value is a continuous publish.
+
+Choose the lifetime you actually mean:
+
+- **Continuous bound value:** keep publishing while the component and scope
+  are active. Use for “online in this room” when mounting is the activity.
+- **Activity-driven value:** use `useSnapbackActivityPresence` when input,
+  focus, pointer, or another activity signal should touch the lease. It owns
+  the activity deadline and withdrawal after the idle window; the provider
+  owns lease heartbeat/renewal.
+- **Explicit event:** call the presence publisher on activity and the delete
+  path on blur, send, cancel, scope change, or unmount. Use this in a
+  headless/adapter owner that already owns those transitions.
+
+For a typing indicator, call `touch()` on meaningful input and withdraw on
+send, clear, blur, room change, and dispose. The provider renews the published
+lease while the activity owner remains active; do not add a second timer. TTL
+is the crash/disconnect backstop; explicit or idle withdrawal is the ordinary
+stop signal. The mental translation from Supabase
+`track({ typing: true })` is therefore “publish plus heartbeat plus delete,”
+not “assign a bound value forever.”
+
+The generated room scope and membership admission remain authoritative.
+Heartbeat extends only an already admitted ephemeral entry; it does not grant
+membership or make presence durable history.
+
+## Anti-patterns
+
+- Passing a truthy presence value continuously when the product means “for a
+  few seconds after activity.”
+- Publishing once and relying on a long TTL as the normal stop mechanism.
+- Adding an independent app timer when the activity-presence owner already
+  owns heartbeat and withdrawal.
+- Treating an expired or deleted entry as a durable offline-status record.
+- Reusing presence as membership, authorization, or message history.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/membership-roster-projection.md -->
+---
+title: "Recipe: private membership and a product roster"
+id: recipes.membership-roster-projection
+order: 14
+audience: agent-first
+capabilities: [auth.scoped-roles, authority.profile.v1]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0240-application-authority-profiles.rfc.md, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/snapback/functions.mjs]
+examples: [demos/messaging-snapback]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:f8cdd66ec5f4c200d5e8b022f14e1d76730f26bca2df453a3b337acf8e44bdfa
+---
+
+# Recipe: private membership and a product roster
+
+Generated membership rows are current authorization state. They are private,
+profile-owned backing data, not presentation records and not message history.
+When an application needs avatars, handles, join dates, or a visible room
+roster, keep a separate ordinary product projection keyed by an authored
+resource field.
+
+This is the private membership roster plus product-visible roster projection
+pattern: the display roster is current product state, while the send-time
+recipient set is historical product state.
+
+Search phrase: send-time recipient set.
+
+The Messaging demo uses this split:
+
+- `conversationMemberships` is the membership declaration and authority
+  source;
+- `conversationMembers` is an ordinary app table with authored
+  `conversationId`, `principal`, and presentation fields;
+- child tables such as messages bind membership visibility through their
+  authored `conversationId`, not through a private membership-row id.
+
+## Update authority and projection in one mutation
+
+Creation bootstraps the resource membership through the generated declaration
+command, then inserts the initial product roster rows in the same mutation.
+Join/invite adds the membership and inserts the projection if absent. Leave or
+removal changes membership and deletes or marks the current roster row. One
+mutation may issue one generated membership command and ordinary application
+writes; do not attempt a second membership transition in that mutation.
+
+Promotion or demotion changes the generated membership role in the same
+mutation that updates any role-dependent product fields. If the visible roster
+does not expose role, the ordinary projection need not change; the acceptance
+comparison must still confirm the new authority role. An already-present row
+on join and an already-absent row on leave/removal are successful idempotent
+branches once the generated membership result agrees with the requested end
+state.
+
+The projection is deliberately redundant, so acceptance tests must compare it
+with the authority profile after create, join, leave, removal, and retry. Make
+the product row unique by `(conversationId, principal)` and make retries
+idempotent. Include promotion/demotion in the comparison when the product
+mirrors role. Authorization always consults the membership declaration even if
+a projection row is stale.
+
+## Keep history separate from the current roster
+
+A current roster answers “who is a member now?” Historical delivery answers
+“who received this message when it was sent?” If the product needs the latter,
+store a principal snapshot or receipt records at send time in an ordinary
+history table. Later joins and leaves must not rewrite old receipts.
+
+In Familiar schema, use authored relational keys such as
+`conversationId` for child visibility. Do not copy a `resourceField: "_id"`
+example into generated Familiar TypeScript today: the system id is not an
+authored schema field in that type surface. Admit access to the root resource
+through the authority profile/handler declaration, and bind child rows through
+their authored resource key.
+
+## Anti-patterns
+
+- Reading private membership backing rows directly to render the roster.
+- Treating the product projection as the authorization source.
+- Using a private membership-row id as a public recipient or display id.
+- Rewriting historical recipient snapshots when current membership changes.
+- Adding multiple membership commands to one mutation.
+- Using `resourceField: "_id"` in a Familiar schema declaration that cannot
+  typecheck that system field.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/provider-lifecycle.md -->
+---
+title: "Recipe: provider connection and subscription lifecycle"
+id: recipes.provider-lifecycle
+order: 15
+audience: agent-first
+capabilities: [clients.headless, clients.external-store, clients.contract-provider-generation]
+authorities: [llp/0034-contract-source-seam-provider-side.rfc.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0095-client-lifecycle-and-conformance.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs]
+examples: [demos/coterie, demos/signal-desk, packages/snapback-contract/keyed-provider.mjs]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:36b99758a988b2e5ddd7c19d12c8e5c88f4cce7ddef6f6d4ac8565d44235e3e1
+---
+
+# Recipe: provider connection and subscription lifecycle
+
+A framework provider should own one stable connection label for one admitted
+app/authority/origin lifetime, then multiplex query consumers over that
+connection. Mounting N cells may create N logical subscriptions; it must not
+create N sockets merely because each cell mounted independently.
+
+This repairs the “connection per subscription” failure: N cells imply N
+transport connections only in a broken owner model. The recipe also supplies
+the current provider lifecycle budget boundary and an inspection of active
+connections and subscriptions by owner.
+
+Search phrase: N cells imply N transport connections.
+Inspection phrase: active connections and subscriptions by owner.
+
+## Put one owner above the cells
+
+Construct the client and connection label at provider scope. Reuse the
+client's `liveStreamManager(connectionId)` and the shared external-store
+registry for every matching child subscription. The registry deduplicates
+equal provider/query/authority/args identities and refcounts listeners; the
+last listener disposes the upstream handle. Keyed scopes replace whole route
+generations without app-authored generation counters.
+
+Wait for settled principal authority before starting protected subscriptions.
+On a transport-only reconnect, update the connection fact and let the manager
+resume its consumers; do not rebuild every query owner. Query callbacks should
+publish the delivered rows, not start nested queries. Suppress equal snapshots
+at the store boundary so a provider does not turn connection churn into render
+churn.
+
+On provider disposal, release child handles and close scopes/registries. The
+last demand lease closes and retires the stream manager; then await
+`client.close()` for final client cleanup. A subscription handle's `settled()`
+waits for its lifecycle boundary; it does not replace `dispose()`.
+
+## Inspect the lifecycle in acceptance tests
+
+Use `client.localResourceInspection()` only as an acceptance inspection. It
+reports managers, grants, lane consumers, socket demand, timers, and listeners.
+A useful regression mounts many equal cells, waits for data, and asserts one
+manager/connection with refcounted consumers; after unmount and provider close,
+it asserts the scoped manager, grants, demand, timers, and listeners retire.
+Provider-specific `inspection()` projections may add store/subscription counts,
+but neither inspection surface is product state or authorization evidence.
+
+## Current budget boundary
+
+The sanctioned decision-independent floor is qualitative: stable connection
+identity, multiplexing, deduplication, explicit disposal, and zero owned
+resources after teardown. Snapback does **not yet publish a numeric per-provider
+connection/subscription/timer budget**. That Phase 0 decision remains tracked
+in `issues/20260821-provider-connection-subscription-budget-decision.md`.
+Do not invent a threshold in application docs or tests and call it platform
+policy; record measured counts and keep the qualitative invariants above.
+
+## Anti-patterns
+
+- Minting a new `connectionId` for every query or component mount.
+- Starting protected subscriptions before authority settles.
+- Running a second query from inside each subscription callback.
+- Treating reconnect as a reason to reconstruct every logical store.
+- Forgetting to dispose handles because their current row snapshot looks
+  empty.
+- Advertising a numeric resource budget before the Phase 0 decision lands.
+
+---
+
 <!-- snapback-guide-source: guide/reference/diagnostics.md -->
 ---
 title: Diagnostic code registry
@@ -26883,13 +27547,13 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-app-binding-identity-mismatch"></a>`SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` | application | — | [guide](../clients/react-expo.md#diagnose-a-binding-identity-mismatch) | `packages/snapback-expo/app-binding.mjs:469` | 1 |
 | <a id="diagnostic-snapback-app-binding-integrity-invalid"></a>`SNAPBACK_APP_BINDING_INTEGRITY_INVALID` | application | — | — | `packages/snapback-client/app-client.mjs:449` | 9 |
 | <a id="diagnostic-snapback-app-binding-not-yet-valid"></a>`SNAPBACK_APP_BINDING_NOT_YET_VALID` | application | — | [guide](../clients/react-expo.md#choose-simulator-emulator-or-usb-routing) | `packages/snapback-expo/app-binding.mjs:512` | 1 |
-| <a id="diagnostic-snapback-app-binding-override-unconfirmed"></a>`SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED` | application | — | — | `packages/snapback-expo/app-binding.mjs:543` | 4 |
+| <a id="diagnostic-snapback-app-binding-override-unconfirmed"></a>`SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED` | application | — | [guide](../recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly) | `packages/snapback-expo/app-binding.mjs:543` | 4 |
 | <a id="diagnostic-snapback-app-binding-schema-invalid"></a>`SNAPBACK_APP_BINDING_SCHEMA_INVALID` | application | — | — | `packages/snapback-expo/app-binding.mjs:142` | 10 |
 | <a id="diagnostic-snapback-app-binding-source-mismatch"></a>`SNAPBACK_APP_BINDING_SOURCE_MISMATCH` | application | — | — | `packages/snapback-expo/app-binding.mjs:198` | 9 |
 | <a id="diagnostic-snapback-app-binding-source-unsupported"></a>`SNAPBACK_APP_BINDING_SOURCE_UNSUPPORTED` | application | — | — | `packages/snapback-expo/app-binding.mjs:159` | 2 |
 | <a id="diagnostic-snapback-app-binding-target-invalid"></a>`SNAPBACK_APP_BINDING_TARGET_INVALID` | application | — | — | `packages/snapback-client/app-client.mjs:407` | 8 |
 | <a id="diagnostic-snapback-app-binding-target-unadmitted"></a>`SNAPBACK_APP_BINDING_TARGET_UNADMITTED` | application | — | — | `packages/snapback-expo/app-binding.mjs:575` | 2 |
-| <a id="diagnostic-snapback-app-binding-unavailable"></a>`SNAPBACK_APP_BINDING_UNAVAILABLE` | application | — | [guide](../sync/offline-and-retention.md#branch-on-a-persisted-binding-receipt-at-offline-cold-boot) | `packages/snapback-expo/provider.mjs:412` | 2 |
+| <a id="diagnostic-snapback-app-binding-unavailable"></a>`SNAPBACK_APP_BINDING_UNAVAILABLE` | application | — | [guide](../recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly) | `packages/snapback-expo/provider.mjs:412` | 2 |
 | <a id="diagnostic-snapback-app-cli-aborted"></a>`SNAPBACK_APP_CLI_ABORTED` | application | — | — | `packages/snapback-app-cli/code-mode-ibex.mjs:311` | 2 |
 | <a id="diagnostic-snapback-app-cli-agent-admission-timeout"></a>`SNAPBACK_APP_CLI_AGENT_ADMISSION_TIMEOUT` | application | — | — | `packages/snapback-app-cli/auth.mjs:454` | 2 |
 | <a id="diagnostic-snapback-app-cli-agent-origin-unsafe"></a>`SNAPBACK_APP_CLI_AGENT_ORIGIN_UNSAFE` | application | — | — | `packages/snapback-app-cli/auth.mjs:307` | 5 |
@@ -27673,7 +28337,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-cleanup-state-invalid"></a>`SNAPBACK_CLEANUP_STATE_INVALID` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/index.mjs:893` | 1 |
 | <a id="diagnostic-snapback-client-agent-credential-validation-required"></a>`SNAPBACK_CLIENT_AGENT_CREDENTIAL_VALIDATION_REQUIRED` | client | — | — | `packages/snapback-client/agent-authority.mjs:103` | 3 |
 | <a id="diagnostic-snapback-client-artifact-stale"></a>`SNAPBACK_CLIENT_ARTIFACT_STALE` | client | — | [guide](../sync/offline-and-retention.md#migration-boundaries-quarantine-dont-fail) | `packages/snapback-contract/client-store.mjs:2195` | 3 |
-| <a id="diagnostic-snapback-client-authority-clearing"></a>`SNAPBACK_CLIENT_AUTHORITY_CLEARING` | client | — | [guide](../clients/headless.md#branch-on-one-shot-auth-settlement-without-a-timeout) | `packages/snapback-client/index.mjs:630` | 20 |
+| <a id="diagnostic-snapback-client-authority-clearing"></a>`SNAPBACK_CLIENT_AUTHORITY_CLEARING` | client | — | — | `packages/snapback-client/index.mjs:630` | 20 |
 | <a id="diagnostic-snapback-client-authority-stale"></a>`SNAPBACK_CLIENT_AUTHORITY_STALE` | client | — | [guide](../clients/headless.md#call-ordinary-functions) | `packages/snapback-client/agent-authority.mjs:99` | 63 |
 | <a id="diagnostic-snapback-client-authorization-task-generation-exhausted"></a>`SNAPBACK_CLIENT_AUTHORIZATION_TASK_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:14456` | 1 |
 | <a id="diagnostic-snapback-client-auth-barrier-generation-exhausted"></a>`SNAPBACK_CLIENT_AUTH_BARRIER_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/agent-authority.mjs:2643` | 1 |
@@ -28230,7 +28894,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-expo-ios-usb-reverse-forward-unavailable"></a>`SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE` | cli | — | [guide](../clients/react-expo.md#choose-simulator-emulator-or-usb-routing) | `packages/snapback-cli/expo-dev.mjs:718` | 1 |
 | <a id="diagnostic-snapback-expo-legacy-file-delete-unconfirmed"></a>`SNAPBACK_EXPO_LEGACY_FILE_DELETE_UNCONFIRMED` | client | — | — | `packages/snapback-client/rqs-store-file.mjs:327` | 1 |
 | <a id="diagnostic-snapback-expo-legacy-migration-fence-lost"></a>`SNAPBACK_EXPO_LEGACY_MIGRATION_FENCE_LOST` | client | — | — | `packages/snapback-client/rqs-store-file.mjs:411` | 1 |
-| <a id="diagnostic-snapback-expo-listener-enumeration-incomplete"></a>`SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1292` | 1 |
+| <a id="diagnostic-snapback-expo-listener-enumeration-incomplete"></a>`SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE` | cli | — | [guide](../recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly) | `packages/snapback-cli/expo-dev.mjs:1292` | 1 |
 | <a id="diagnostic-snapback-expo-listener-enumeration-unavailable"></a>`SNAPBACK_EXPO_LISTENER_ENUMERATION_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1156` | 3 |
 | <a id="diagnostic-snapback-expo-listener-exposed"></a>`SNAPBACK_EXPO_LISTENER_EXPOSED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1282` | 3 |
 | <a id="diagnostic-snapback-expo-metro-exited"></a>`SNAPBACK_EXPO_METRO_EXITED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1269` | 2 |
@@ -29105,7 +29769,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-outbox-authorization-deferred"></a>`SNAPBACK_OUTBOX_AUTHORIZATION_DEFERRED` | client | — | — | `packages/snapback-client/index.mjs:8223` | 5 |
 | <a id="diagnostic-snapback-outbox-authorization-delete-tombstone"></a>`SNAPBACK_OUTBOX_AUTHORIZATION_DELETE_TOMBSTONE` | client | — | — | `packages/snapback-client/index.mjs:578` | 1 |
 | <a id="diagnostic-snapback-outbox-authorization-stale"></a>`SNAPBACK_OUTBOX_AUTHORIZATION_STALE` | client | — | — | `packages/snapback-client/index.mjs:633` | 9 |
-| <a id="diagnostic-snapback-outbox-authorization-suspended"></a>`SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` | client | — | — | `packages/snapback-client/index.mjs:632` | 13 |
+| <a id="diagnostic-snapback-outbox-authorization-suspended"></a>`SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` | client | — | [guide](../clients/headless.md#enter-and-leave-session-authority) | `packages/snapback-client/index.mjs:632` | 13 |
 | <a id="diagnostic-snapback-outbox-drain-barrier-refused"></a>`SNAPBACK_OUTBOX_DRAIN_BARRIER_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:10268` | 2 |
 | <a id="diagnostic-snapback-outbox-drain-barrier-timeout"></a>`SNAPBACK_OUTBOX_DRAIN_BARRIER_TIMEOUT` | client | — | — | `packages/snapback-client/index.mjs:9904` | 3 |
 | <a id="diagnostic-snapback-outbox-drain-stopped"></a>`SNAPBACK_OUTBOX_DRAIN_STOPPED` | client | — | — | `packages/snapback-client/index.mjs:9897` | 2 |
@@ -66122,8 +66786,8 @@ examples: [packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:e07d541390899cfe56369a926f42311454acea946eea744cd20f36c8ec25de65
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:fa5149534a7e89282b33bbc909f7bf781c85381bb7d3b0771d1f0bcfd095c65a
 ---
 
 # Start packet: the `expo-chat` template
@@ -66216,10 +66880,9 @@ up, do not linear-read. Deeper pages, only when triggered:
 [ephemeral state](../realtime/ephemeral-state.md).
 
 <!-- llp0259:stop-fence -->
-**Stop signs.** Familiar `query()` / `useQuery` (the TypeScript `schema.ts`
-profile) is an experimental, non-default surface — not
-this template's path. Writing either without an explicit brief means you
-left the golden path.
+**Stop sign.** Familiar `query()` / `useQuery` is experimental, non-default,
+and outside this template. If a brief selects it, read the
+[Familiar handler dialect](../backend/familiar-profile.md) before editing.
 <!-- /llp0259:stop-fence -->
 <!-- start-packet:end -->
 

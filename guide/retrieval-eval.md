@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:622ed35a0850ae6e4bec99ff59db20df0c12e2820962f76c97cfcc2d05d9a58a
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:10af46608872447c531a418afe66fcbdafccb07872e6f8a0a20c6b3257b73c57
 ---
 
 # Retrieval eval protocol
@@ -636,6 +636,96 @@ installation and inverse provider-neutral Contract adaptation.
     Route terms: "frozen provider-neutral declaration",
     "ContractDataProvider adapter", "foreign declaration digest",
     "no polling above the seam".
+
+Cases 59–70 absorb the Phase 1C high-value route misses reproduced in diaries
+0092–0105 and tracked by LLP 0295. Their route terms deliberately preserve the
+familiar-looking or failure-shaped vocabulary the builders actually used.
+
+59. **Fixed-origin development:** "Attach Expo web to an already-running
+    fixed-origin Snapback server, keep its pinned port, and hot-load generated
+    artifacts." The run fails if it expects `snapback dev` to pin the port,
+    parses logs instead of a ready descriptor, omits the sessions startup
+    carrier, passes a raw origin to `SnapbackExpoProvider`, or lets two
+    supervisors own the same listener.
+    Expected pages: `recipes/fixed-origin-development.md`.
+    Route terms: "attach Expo web to already-running --port server", "fixed origin", "pinned port", "startup-carrier rewrite", "SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE".
+
+60. **Node multi-persona custody:** "Several app clients run as different
+    people in one Node acceptance process, but every persona wrote as Henry."
+    The run fails if it assumes separate client objects imply separate durable
+    custody or omits one stable `storagePartition` per actor.
+    Expected pages: `recipes/multi-persona-clients.md`.
+    Route terms: "every persona wrote as Henry", "storagePartition", "process-global in Node", "multi-persona harness".
+
+61. **Background writes during auth transitions:** "An eager route-entry
+    receipt or feed write fails with
+    `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` while login changes." The run
+    fails if it creates an unbounded effect/retry loop, treats suspension as a
+    content refusal, or declares a queued mutation settled.
+    Expected pages: `recipes/auth-transition-writes.md`.
+    Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
+
+62. **Presence heartbeat versus bound value:** "I passed
+    `useSurface({ typing: value })`; why is the surface presence value a
+    continuous publish, and how does that compare with Supabase
+    `track({ typing: true })`?" The run fails if it omits heartbeat plus delete,
+    uses TTL as the ordinary withdrawal path, or adds a second timer around
+    `useSnapbackActivityPresence`.
+    Expected pages: `recipes/activity-presence.md`.
+    Route terms: "surface presence value is a continuous publish", "heartbeat vs bound value", "track({ typing: true })", "publish + delete".
+
+63. **Familiar dynamic array access:** "Use `array[i]` inside a Familiar
+    handler." The run fails if it claims dynamic computed access is admitted
+    or omits the iterate/static-literal rewrite.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "array[i]", "dynamic computed access".
+
+64. **Familiar imported helper:** "Use an imported helper in a Familiar
+    handler." The run fails if it adds an import/bundler alias instead of a
+    reachable same-file named function declaration.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "imported helper", "same-file function declaration".
+
+65. **Familiar captured constant:** "Reference a top-level const from a
+    Familiar handler." The run fails if it claims the value is captured into
+    executable bytes rather than moving it local or passing validated args.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "top-level const", "captured constants".
+
+66. **Familiar trusted time:** "Call `Date.now()` in a Familiar mutation."
+    The run fails if it admits ambient time instead of `ctx.runtime.now()`.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "Date.now", "ctx.runtime.now".
+
+67. **Familiar mutation document arrays:** "Return mutation document arrays
+    with `v.array(v.doc('todos'))`." The run fails if it promises that result
+    carrier instead of one document or a closed receipt/id array.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "mutation document arrays", "v.array(v.doc".
+
+68. **Familiar sequence allocation:** "Allocate a dense scoped invoice number
+    from a Familiar mutation." The run fails if it invents an app-level
+    read/increment/write counter or claims `ctx.sequence.allocate` is in the
+    Familiar surface rather than routing the backend to Explicit.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "sequence allocation", "ctx.sequence.allocate", "dense scoped number".
+
+69. **Private authority plus product roster:** "Render a chat display roster
+    with join dates and keep send-time recipients, but the membership roster is
+    private." The run fails if it makes membership backing public, treats an
+    ordinary projection as authority, uses Familiar
+    `resourceField: \"_id\"`, or rewrites old receipt membership after a leave.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "private membership roster", "product-visible roster projection", "display roster", "send-time recipient set".
+
+70. **Provider connection lifecycle:** "My Contract provider creates a
+    connection per subscription; N cells imply N transport connections and
+    teardown leaks timers." The run fails if it mints connection ids per
+    mount, subscribes before authority settles, nests reads in callbacks,
+    omits `localResourceInspection`, or invents a numeric platform budget that
+    Phase 0 has not selected.
+    Expected pages: `recipes/provider-lifecycle.md`.
+    Route terms: "connection per subscription", "N cells imply N transport connections", "provider lifecycle budget", "active connections and subscriptions by owner".
 
 ## Static routing check
 

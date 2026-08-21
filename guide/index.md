@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-17
-reviewed-authorities-digest: sha256:a1dc0e2d283ff9760c313447d61e7250a32c29f2bc61c40f321c005882cf885d
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:5b94f039ad4881714e875e9322f194ff8d28e51dfbe9f289d83c24da928aa3ad
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -388,6 +388,23 @@ proof command, and honest nonclaims without opening every demo.
   — one restart-safe installer for password accounts, principal-owned profile
   rows, ordinary avatar uploads, typed attachment, and matched repeats that
   sign in but skip asset uploads and application-data writes.
+- [Fixed-origin development and attach](./recipes/fixed-origin-development.md)
+  — keep one backend port while `snapback dev --attach` regenerates and loads,
+  including sessions startup carriers and honest Expo/Vite binding ownership.
+- [Multiple Node personas](./recipes/multi-persona-clients.md) — isolate
+  process-global durable custody with one stable `storagePartition` per actor.
+- [Writes during auth transitions](./recipes/auth-transition-writes.md) —
+  queue background intent, fence foreground gestures, and handle
+  `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` without effect loops.
+- [Activity presence](./recipes/activity-presence.md) — distinguish a
+  continuously bound value from activity touch, heartbeat, and explicit
+  withdrawal.
+- [Private membership and a product roster](./recipes/membership-roster-projection.md)
+  — keep authority backing private while maintaining visible current and
+  historical product projections.
+- [Provider connection lifecycle](./recipes/provider-lifecycle.md) — share
+  managers and stores, settle authority, deduplicate snapshots, inspect, and
+  retire resources without inventing an undecided numeric budget.
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).

@@ -14,8 +14,8 @@ examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapb
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:2ac1a38c4cdf294b94a69fe2733378017375a3c2ac6171aaa140926868346199
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:bbc87267c8b921661a54c88b4fed921001f37e5e8177d0ea37a6523fc3aa3db8
 ---
 
 # Sessions and principals
@@ -565,6 +565,11 @@ witnesses. For the shipped local role-per-resource surface, continue to
 [scoped roles and memberships](./scoped-roles.md).
 
 ## Anti-patterns
+
+For Node acceptance harnesses with several signed-in actors, first read the
+[storage-partition recipe](../recipes/multi-persona-clients.md): app-client
+instances do not imply separate durable custody when they share the default
+partition.
 
 - **Do not assert identity from the client** — no `userId` in bodies, no
   owner arguments on protected queries. The server derives it or the
@@ -2092,8 +2097,8 @@ examples: [demos/rbac, demos/shindig, demos/team-chat, packages/snapback-codegen
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:c4978542d3184b50789dde574d70e83214609204f5e9767ede6470c5557cbaf7
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:fa6f20093e85881242d40167887408a823b2bc4e9ad9e76dc000450ed31b44ed
 ---
 
 # Scoped roles and memberships
@@ -2141,6 +2146,11 @@ and pending-to-active self transitions exist. Neither path exposes a private
 membership row id.
 
 ## Declare one roster for an application resource
+
+This roster is private authorization backing. If the product must render
+handles, avatars, join time, or historical recipients, follow the
+[private membership and product roster recipe](../recipes/membership-roster-projection.md)
+rather than exposing the backing rows.
 
 The RBAC demo uses one application row as the resource scope. Its membership
 table is simultaneously the product roster and the authority relation:

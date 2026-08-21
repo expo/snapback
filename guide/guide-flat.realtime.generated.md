@@ -291,8 +291,8 @@ examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-17
-reviewed-authorities-digest: sha256:450da96937a6405df735bd10bb8444ceebb57c2dc307f852030433f45844dbac
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:1190009b17d3ac0b05067a12e6d0d94c12cb6f39ef982633ba5734eda65e7bd8
 ---
 
 # Ephemeral realtime state
@@ -314,6 +314,11 @@ Use this page when choosing collection options or handling recovery.
 <!-- since: 0.1.23 -->
 
 ## Stop publishing when activity goes idle
+
+First decide whether the value is continuously bound or activity-driven. The
+[activity presence recipe](../recipes/activity-presence.md) maps a Supabase
+`track(...)` mental model to Snapback publish, heartbeat, and delete, and
+explains why a bound surface value can continuously republish.
 
 In the schema and headless client this feature is named **ephemeral**. In the
 React client the base scoped hook is named **`useSnapbackPresence`**, and

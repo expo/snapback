@@ -14,8 +14,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-17
-reviewed-authorities-digest: sha256:a1dc0e2d283ff9760c313447d61e7250a32c29f2bc61c40f321c005882cf885d
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:5b94f039ad4881714e875e9322f194ff8d28e51dfbe9f289d83c24da928aa3ad
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -393,6 +393,23 @@ proof command, and honest nonclaims without opening every demo.
   — one restart-safe installer for password accounts, principal-owned profile
   rows, ordinary avatar uploads, typed attachment, and matched repeats that
   sign in but skip asset uploads and application-data writes.
+- [Fixed-origin development and attach](./recipes/fixed-origin-development.md)
+  — keep one backend port while `snapback dev --attach` regenerates and loads,
+  including sessions startup carriers and honest Expo/Vite binding ownership.
+- [Multiple Node personas](./recipes/multi-persona-clients.md) — isolate
+  process-global durable custody with one stable `storagePartition` per actor.
+- [Writes during auth transitions](./recipes/auth-transition-writes.md) —
+  queue background intent, fence foreground gestures, and handle
+  `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` without effect loops.
+- [Activity presence](./recipes/activity-presence.md) — distinguish a
+  continuously bound value from activity touch, heartbeat, and explicit
+  withdrawal.
+- [Private membership and a product roster](./recipes/membership-roster-projection.md)
+  — keep authority backing private while maintaining visible current and
+  historical product projections.
+- [Provider connection lifecycle](./recipes/provider-lifecycle.md) — share
+  managers and stores, settle authority, deduplicate snapshots, inspect, and
+  retire resources without inventing an undecided numeric budget.
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).
@@ -433,8 +450,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-17
-reviewed-authorities-digest: sha256:7f9585e2924827e7f5057f9a42dfda3b1c15cefeb0c142a6f5c2a2fcaab3db64
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:90f41a3deed106338959d819e7672ddf869e4685d5d1b757cff2ab40cb52ccca
 ---
 
 # Capability index
@@ -474,7 +491,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.handler-runtime-profile | Current-rule handler admission profile + complete non-replacing generation preflight: operation selection, build-bound diagnostics, exact definition paths, separate executable/raw-evidence digests | handler runtime profile, generate --check, Can I import a helper?, Can I use Node crypto?, BUNDLE_UNSUPPORTED_IMPORT, SNAPBACK_INLINE_HELPER_INADMISSIBLE, SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED, SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE | all | shipped | packages/snapback-codegen/handler-runtime-profile.test.mjs + packages/snapback-cli/generate-check.test.mjs | llp/0237, llp/0108 | backend/handler-runtime.md |
 | backend.batch-reads | Experimental local exact-id and complete-unique-key batches; unsupported targets refuse at generation | batch get, getMany, uniqueMany, N+1, dataloader, IN clause, where id in, Convex db.get loop | local | partial | crates/snapback-engine/src/runtime/host_glue.rs batch tests + crates/snapback/tests/local_v0.rs snapshot test + packages/snapback-harness/envelope.test.mjs host-call test | llp/0248 | backend/queries.md |
 | backend.handler-typescript | Single-file `.ts`/`.mts` handler modules under the pinned syntax-erasing `bounded-handler-typescript-v1` profile | typescript handler, .ts backend, ts handler, type-check handler, erasure | local | partial | `transformTypeScriptHandler` in packages/snapback-codegen/typescript-transform.mjs | llp/0246 | GAP (page pending multi-file custody; owner: LLP 0246, review: 2026-09-15; issue: issues/20260812-0246-remaining-rollouts-stacked-on-0237.md); getting-started/generated-artifacts.md |
-| backend.familiar-profile-v1 | Familiar TS: generated API, scalar queries, assets, Expo Router, first-party bearer-only SecureStore custody | familiar profile, snapback-familiar-ts-v1, authoringProfile, Familiar TypeScript, api.todos.list, SecureStore custody, Expo Router familiar | local | partial | packages/snapback-codegen/familiar-phase-b.test.mjs + packages/snapback-expo/app-binding.test.mjs + packages/snapback-contract/auth-custody-secure-store.test.mjs | llp/0253, llp/0252, llp/0059 | backend/familiar-profile.md |
+| backend.familiar-profile-v1 | Familiar TS: generated API, qualified singleton-row point reads, assets, Expo Router, first-party bearer-only SecureStore custody | familiar profile, snapback-familiar-ts-v1, authoringProfile, Familiar TypeScript, api.todos.list, SecureStore custody, Expo Router familiar | local | partial | packages/snapback-codegen/familiar-phase-b.test.mjs + packages/snapback-expo/app-binding.test.mjs + packages/snapback-contract/auth-custody-secure-store.test.mjs | llp/0253, llp/0252, llp/0059 | backend/familiar-profile.md |
 | authoring.declaration-suggestions | Review/apply result-only candidates; committed declaration stays authoritative | infer result, suggest contract, write my result contract, convex-style inference | local | partial | packages/snapback-codegen/declaration-suggestion.test.mjs | llp/0245, llp/0108 | getting-started/the-authoring-loop.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense `ctx.sequence.allocate` with replay/contention/exhaustion evidence; contributor-source local only | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | crates/snapback-engine/src/local-sequence-allocation-publication.v1.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public/hosted qualification; owner: Charlie, review: 2026-09-30; issue: issues/20260808-main-drift-sequence-allocation-publication.md); backend/sequences.md |
@@ -1112,8 +1129,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:622ed35a0850ae6e4bec99ff59db20df0c12e2820962f76c97cfcc2d05d9a58a
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:10af46608872447c531a418afe66fcbdafccb07872e6f8a0a20c6b3257b73c57
 ---
 
 # Retrieval eval protocol
@@ -1739,6 +1756,96 @@ installation and inverse provider-neutral Contract adaptation.
     Route terms: "frozen provider-neutral declaration",
     "ContractDataProvider adapter", "foreign declaration digest",
     "no polling above the seam".
+
+Cases 59–70 absorb the Phase 1C high-value route misses reproduced in diaries
+0092–0105 and tracked by LLP 0295. Their route terms deliberately preserve the
+familiar-looking or failure-shaped vocabulary the builders actually used.
+
+59. **Fixed-origin development:** "Attach Expo web to an already-running
+    fixed-origin Snapback server, keep its pinned port, and hot-load generated
+    artifacts." The run fails if it expects `snapback dev` to pin the port,
+    parses logs instead of a ready descriptor, omits the sessions startup
+    carrier, passes a raw origin to `SnapbackExpoProvider`, or lets two
+    supervisors own the same listener.
+    Expected pages: `recipes/fixed-origin-development.md`.
+    Route terms: "attach Expo web to already-running --port server", "fixed origin", "pinned port", "startup-carrier rewrite", "SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE".
+
+60. **Node multi-persona custody:** "Several app clients run as different
+    people in one Node acceptance process, but every persona wrote as Henry."
+    The run fails if it assumes separate client objects imply separate durable
+    custody or omits one stable `storagePartition` per actor.
+    Expected pages: `recipes/multi-persona-clients.md`.
+    Route terms: "every persona wrote as Henry", "storagePartition", "process-global in Node", "multi-persona harness".
+
+61. **Background writes during auth transitions:** "An eager route-entry
+    receipt or feed write fails with
+    `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` while login changes." The run
+    fails if it creates an unbounded effect/retry loop, treats suspension as a
+    content refusal, or declares a queued mutation settled.
+    Expected pages: `recipes/auth-transition-writes.md`.
+    Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
+
+62. **Presence heartbeat versus bound value:** "I passed
+    `useSurface({ typing: value })`; why is the surface presence value a
+    continuous publish, and how does that compare with Supabase
+    `track({ typing: true })`?" The run fails if it omits heartbeat plus delete,
+    uses TTL as the ordinary withdrawal path, or adds a second timer around
+    `useSnapbackActivityPresence`.
+    Expected pages: `recipes/activity-presence.md`.
+    Route terms: "surface presence value is a continuous publish", "heartbeat vs bound value", "track({ typing: true })", "publish + delete".
+
+63. **Familiar dynamic array access:** "Use `array[i]` inside a Familiar
+    handler." The run fails if it claims dynamic computed access is admitted
+    or omits the iterate/static-literal rewrite.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "array[i]", "dynamic computed access".
+
+64. **Familiar imported helper:** "Use an imported helper in a Familiar
+    handler." The run fails if it adds an import/bundler alias instead of a
+    reachable same-file named function declaration.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "imported helper", "same-file function declaration".
+
+65. **Familiar captured constant:** "Reference a top-level const from a
+    Familiar handler." The run fails if it claims the value is captured into
+    executable bytes rather than moving it local or passing validated args.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "top-level const", "captured constants".
+
+66. **Familiar trusted time:** "Call `Date.now()` in a Familiar mutation."
+    The run fails if it admits ambient time instead of `ctx.runtime.now()`.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "Date.now", "ctx.runtime.now".
+
+67. **Familiar mutation document arrays:** "Return mutation document arrays
+    with `v.array(v.doc('todos'))`." The run fails if it promises that result
+    carrier instead of one document or a closed receipt/id array.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "mutation document arrays", "v.array(v.doc".
+
+68. **Familiar sequence allocation:** "Allocate a dense scoped invoice number
+    from a Familiar mutation." The run fails if it invents an app-level
+    read/increment/write counter or claims `ctx.sequence.allocate` is in the
+    Familiar surface rather than routing the backend to Explicit.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "sequence allocation", "ctx.sequence.allocate", "dense scoped number".
+
+69. **Private authority plus product roster:** "Render a chat display roster
+    with join dates and keep send-time recipients, but the membership roster is
+    private." The run fails if it makes membership backing public, treats an
+    ordinary projection as authority, uses Familiar
+    `resourceField: \"_id\"`, or rewrites old receipt membership after a leave.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "private membership roster", "product-visible roster projection", "display roster", "send-time recipient set".
+
+70. **Provider connection lifecycle:** "My Contract provider creates a
+    connection per subscription; N cells imply N transport connections and
+    teardown leaks timers." The run fails if it mints connection ids per
+    mount, subscribes before authority settles, nests reads in callbacks,
+    omits `localResourceInspection`, or invents a numeric platform budget that
+    Phase 0 has not selected.
+    Expected pages: `recipes/provider-lifecycle.md`.
+    Route terms: "connection per subscription", "N cells imply N transport connections", "provider lifecycle budget", "active connections and subscriptions by owner".
 
 ## Static routing check
 

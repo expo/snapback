@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:e07d541390899cfe56369a926f42311454acea946eea744cd20f36c8ec25de65
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:fa5149534a7e89282b33bbc909f7bf781c85381bb7d3b0771d1f0bcfd095c65a
 ---
 
 # Start packet: the `expo-chat` template
@@ -103,9 +103,8 @@ up, do not linear-read. Deeper pages, only when triggered:
 [ephemeral state](../realtime/ephemeral-state.md).
 
 <!-- llp0259:stop-fence -->
-**Stop signs.** Familiar `query()` / `useQuery` (the TypeScript `schema.ts`
-profile) is an experimental, non-default surface — not
-this template's path. Writing either without an explicit brief means you
-left the golden path.
+**Stop sign.** Familiar `query()` / `useQuery` is experimental, non-default,
+and outside this template. If a brief selects it, read the
+[Familiar handler dialect](../backend/familiar-profile.md) before editing.
 <!-- /llp0259:stop-fence -->
 <!-- start-packet:end -->

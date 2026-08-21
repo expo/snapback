@@ -1,6 +1,6 @@
 # guide-gap: pinned-port / fixed-origin dev loop needs a first-class recipe
 
-**Status:** Open
+**Status:** Resolved 2026-08-21
 **Systems:** Guide, CLI dev loop, Expo client
 **Date:** 2026-08-18
 **Evidence:** diaries 0092 (hand-built fixed-origin Expo binding), 0096
@@ -26,3 +26,18 @@ listener as an incomplete enumeration and tore down the working fixed-port
 pair with `SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE`. The Familiar lane
 again needed a managed-runtime port wrapper plus a separately owned Expo
 server. This is now repeated across both profiles and two benchmark rounds.
+
+## Resolution
+
+Added `guide/recipes/fixed-origin-development.md` and linked it from the
+authoring and React/Expo paths. It names the one-server ownership model,
+ready-file/startup carrier, `dev --attach` hot-load loop, Vite attach mode,
+Expo virtual binding, and the fixed-origin listener refusal. Retrieval case 59
+uses the diary's exact fixed-origin, pinned-port, startup-carrier, attach, and
+diagnostic vocabulary. The retained cold run at
+`guide/eval-runs/2026-08-21/fixed-origin-development.md` passed in 9/15 tool
+uses.
+
+Closure evidence: `node scripts/check-retrieval-eval.mjs --check` (70 cases,
+0 errors), `node scripts/check-guide.mjs` under Node 24 (19 passed, 0 failed),
+and `node scripts/check-first-read.mjs --check` (5 profiles) all pass.

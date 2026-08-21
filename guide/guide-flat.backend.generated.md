@@ -2031,14 +2031,14 @@ id: backend.familiar-profile
 order: 5
 audience: agent-first
 capabilities: [backend.familiar-profile-v1, authority.profile.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0240-application-authority-profiles.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, crates/snapback-engine/src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0237-bounded-handler-modules.rfc.md, llp/0240-application-authority-profiles.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, crates/snapback-engine/src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
 examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-contract/auth-custody-secure-store.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:8d755dadfc7074bdf2071561aa83601ad521d4c7ae7d5e3b80404ca4c6bf73e0
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:2d6275363dfe790730aed135fec80e708549fbcebe299b5dcb6f9385b1edebd4
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -2140,12 +2140,51 @@ export const list = query({
 Every function requires `args`, `returns`, `auth`, and `handler`. Queries add
 `reads`; mutations add `reads` and `writes`; actions may add `secrets`.
 Queries are live by default; set `delivery: "read"` for a one-shot query.
-Row-shaped query returns remain arrays. A point query can declare an exact
-single value such as `returns: v.union([v.doc("todos"), v.null()])` or a closed
-`v.object(...)` and return that value directly; `useQuery` receives the object
-or `null`, not a one-row array. Familiar actions can read auth/runtime/secrets,
-refuse, and call a generated mutation reference; they do not expose `ctx.db`,
-fetch, assets, jobs, realtime, or streaming.
+Row-shaped query returns remain arrays. Although the lowering layer recognizes
+some direct `v.object(...)` and nullable-document values, the current
+generation-and-execution path has not qualified those shapes end to end. For a
+point read, declare a relational array with `{ maxItems: 1 }` and return `[]`
+or `[row]`; unwrap the first row in application code. A mutation may return one
+`v.doc(table)`, but a mutation document array is refused; return an array of
+closed receipt records or ids instead. Familiar actions can read
+auth/runtime/secrets, refuse, and call a generated mutation reference; they do
+not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
+
+## Translate the Familiar handler dialect
+
+Familiar is TypeScript-shaped source lowered into the bounded Snapback handler
+runtime. It is not unrestricted Node or browser TypeScript. Use this compact
+rewrite table before authoring:
+
+Diary search terms: dynamic computed access; imported helper; same-file function declaration.
+Further terms: captured constants; mutation document arrays; dense scoped number.
+
+| Intent | Familiar-looking form that refuses | Shipped rewrite | Choose Explicit when… |
+| --- | --- | --- | --- |
+| Read a dynamic array position | `array[i]` | Iterate with `for...of`, or use a literal property/index when the position is statically fixed. | Dynamic indexed algorithms are central to the operation. |
+| Share logic | `import { helper } from './helper'` | Put a named function declaration in the same function module. | The backend requires a real multi-file handler graph. |
+| Capture configuration | a referenced top-level `const` | Put the literal/local value inside the handler or pass validated data through `args`; top-level values are not spliced into executable bytes. | Many operations need a shared authored configuration graph. |
+| Read trusted time | `Date.now()` or `new Date()` | Call `ctx.runtime.now()` and store integer epoch milliseconds. | The operation needs unsupported timers or ambient APIs. |
+| Return several written documents | mutation `returns: v.array(v.doc('todos'))` | Return one document, or a closed array of receipt records/ids. | The exact document-array carrier is part of the public contract. |
+| Allocate a dense number | `ctx.sequence.allocate(...)` in a Familiar mutation | Use the Explicit profile's declared `sequences` mutation surface. Do not replace it with an app read/increment/write counter. | Dense scoped sequence allocation is required. |
+
+The complete source/runtime refusal matrix remains in
+[Handler runtime profile and generation preflight](./handler-runtime.md).
+In particular, a same-file helper is a function declaration, not a captured
+arrow assigned to a top-level constant.
+
+### Escape to shared declarations, not a second runtime
+
+The profile still generates the canonical `api`, `groups`, asset, and
+ephemeral references used by the ordinary clients. Shared schema declarations
+may use the lower-level public schema vocabulary when the Familiar convenience
+entrypoint does not re-export a constructor. For a membership-backed ephemeral
+collection, import `defineEphemeral` and `ephemeral` from
+`@expo/snapback-codegen/define`, while keeping Familiar functions on
+`query`/`mutation` from `./generated/server`. The declaration still lowers into
+the same canonical generated `api.ephemeral` reference; it does not create a
+second backend or authorize mixing Explicit function builders into the
+Familiar module tree.
 
 ## Declare non-derived asset intents
 
@@ -2188,17 +2227,13 @@ the caller is an active member or administrator of an app resource. For every
 protected handler, make the active-member/admin decision before returning rows
 or performing effects.
 
-Start with declarative table visibility. A membership declaration can protect
-its resource table through the resource row's system id and protect direct
-children through their required resource id:
+Start with declarative table visibility. In generated Familiar TypeScript,
+bind child visibility through an authored resource key. The system `_id` is
+not an authored field in the table's generated field union, so admit the root
+resource through the authority profile/handler declaration rather than copying
+an untypeable `resourceField: "_id"` binding:
 
-```ts fragment reason="membership declaration is application-specific; this shows the two shipped visibility bindings"
-conversations: defineTable({ title: v.string() }).visibility({
-  kind: "membership",
-  declaration: conversationMembers,
-  resourceField: "_id",
-  roles: ["member", "admin"],
-}),
+```ts fragment reason="membership declaration is application-specific; this shows the authored child-resource binding"
 messages: defineTable({
   conversationId: v.id("conversations"),
   body: v.string(),
@@ -2213,7 +2248,9 @@ messages: defineTable({
 Ordinary `ctx.db` reads enforce those policies, including inside familiar
 queries and mutations. Prefer that fail-closed path whenever the governed row
 directly names the membership resource; it makes an omitted handler check hide
-the row instead of widening access.
+the row instead of widening access. For a product-visible roster alongside the
+private authority rows, follow the
+[private membership and product roster recipe](../recipes/membership-roster-projection.md).
 
 <!-- since: 0.1.23 -->
 

@@ -333,8 +333,8 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.24
-reviewed: 2026-08-17
-reviewed-authorities-digest: sha256:6655d93fe02e6bd5a58ecd5bd0240c2479195e265404cec00047e8fdd5e2e4fd
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:67cf0c31b9ed7947afdf9c708c7291d5c2a3d6a9d061db862f9e4bbd8a4341b0
 ---
 
 # Recipe: membership-scoped typing indicators
@@ -419,6 +419,10 @@ memberships, multi-field scope, unknown declarations, wrong-table ids, and any
 mix of `allow.members()` with `allow.all()`.
 
 ## 2. Publish on activity and withdraw on idle
+
+For the shorter decision rule between continuous value binding,
+`useSnapbackActivityPresence`, and explicit publish/delete ownership, read the
+[activity presence recipe](./activity-presence.md).
 
 At the screen boundary, the demo's hook gives the component peers plus two
 intent-first actions:
@@ -2891,3 +2895,510 @@ only `matched` promises the no-write repeat path.
   asset client and attach through the typed, owner-authorized mutation.
 - **Do not call this atomic.** It is restart-safe application installation;
   each account, mutation, upload, and attach keeps its own settlement boundary.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/fixed-origin-development.md -->
+---
+title: "Recipe: fixed-origin development and attach"
+id: recipes.fixed-origin-development
+order: 10
+audience: agent-first
+capabilities: [operating.packaged-dev-loop]
+authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, packages/snapback-cli/index.mjs, packages/snapback-vite/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-environment.mjs]
+examples: [packages/snapback-cli/dev-loop.test.mjs, packages/snapback-cli/sessions-dev-loop.test.mjs, packages/snapback-vite/package.test.mjs]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:d107fc61d303c72dad7aea17644f1bd1295c021f2aec7ac50c9009aac7e8410f
+---
+
+# Recipe: fixed-origin development and attach
+
+> **Local target only.** This page describes an explicitly owned development
+> server. It is not a hosted deployment recipe.
+
+Use this route when a test, browser shell, or native harness must keep one
+backend origin stable while generated artifacts continue to change. Ordinary
+`snapback dev` owns its server and may choose a free port. A pinned-port setup
+has two owners instead: `snapback start` owns the process and
+`snapback dev --attach` owns generate-and-load.
+
+This is the diary's exact “attach Expo web to already-running --port server”
+route: fixed origin, pinned port, and startup-carrier rewrite are separate
+ownership facts rather than one magic flag.
+
+## Start the fixed server, then attach the loader
+
+Use one absolute database path and one ready file throughout. For dev-auth
+projects the minimal split is:
+
+```sh
+snapback start --port 42080 --db "$PWD/.snapback/fixed.sqlite3" \
+  --ready-file "$PWD/.snapback/fixed.ready.json"
+```
+
+In a second terminal, attach the generator and watcher:
+
+```sh
+snapback dev snapback --attach \
+  --db "$PWD/.snapback/fixed.sqlite3" \
+  --ready-file "$PWD/.snapback/fixed.ready.json"
+```
+
+`--attach` requires the existing ready descriptor and verifies the live
+server and database identity before loading. It never takes process ownership,
+chooses another port, or restarts the server. `--no-watch` performs one
+generate/load pass and exits; omit it for the hot-load loop.
+
+Do not infer the origin from logs. Read the descriptor named by
+`--ready-file`; it is the owner-authenticated carrier for the actual listener
+and startup nonce.
+
+## Preserve the sessions startup carrier
+
+Sessions mode must establish the generated schema and functions before the
+listener opens. First let the packaged dev loop produce the sibling
+`.snapback/startup-artifacts.json`; then stop that managed run and start the
+fixed server with the exact carrier:
+
+```sh
+snapback dev snapback --no-watch \
+  --db "$PWD/.snapback/fixed.sqlite3" \
+  --ready-file "$PWD/.snapback/bootstrap.ready.json"
+
+snapback start --port 42080 \
+  --db "$PWD/.snapback/fixed.sqlite3" \
+  --ready-file "$PWD/.snapback/fixed.ready.json" \
+  --startup-artifacts "$PWD/.snapback/startup-artifacts.json"
+```
+
+Now run the same attach command from the previous section. Each successful
+regeneration rewrites that startup carrier as well as loading the running
+server, so a later restart can establish the same generated deployment before
+bind. Keep the database, ready descriptor, and startup carrier together. An
+`AUTH_MODE_PENDING` or `STARTUP_ARTIFACT_MISMATCH` refusal means that ownership
+triangle is incomplete or mixed; do not delete the database or hand-edit a
+digest.
+
+## Bind a separately owned client honestly
+
+For web, the first-class fixed-origin path is `@expo/snapback-vite` in attach
+mode. Give the Vite plugin the same ready file and database; import the
+generated app binding from `virtual:snapback/dev`. The browser then uses the
+same-origin relay while the plugin privately reads the ready carrier. This
+avoids both a hard-coded backend URL and privileged carrier bytes in page
+code.
+
+The default `SnapbackExpoProvider` is supervisor-owned. A raw `{ origin }` or
+raw binding override is not a supported substitute for its admitted
+environment and can refuse with `SNAPBACK_APP_BINDING_UNAVAILABLE` or
+`SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED`. For a separately owned native
+Expo process, the application shell must own a complete admitted
+`SnapbackExpoEnvironmentV1` (binding plus authority/custody lifecycle), or use
+the lower-level app client with that admitted binding. There is currently no
+safe “just pass the fixed URL” shortcut.
+
+Keep the Expo/Metro process separately owned when pinning both sides. Do not
+wrap the pair in `snapback dev --expo`: its listener enumeration supervises
+the client process it started, and an independently owned fixed listener can
+correctly fail with `SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE`.
+
+## Anti-patterns
+
+- Expecting `snapback dev` to preserve a requested backend port.
+- Running `--attach` without the exact live ready descriptor and database.
+- Starting sessions mode without the generated startup-artifact carrier.
+- Parsing server logs for the origin instead of consuming the ready file.
+- Passing a raw origin to `SnapbackExpoProvider` or weakening binding
+  admission after an override refusal.
+- Letting two supervisors both believe they own the fixed backend or Expo
+  listener.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/multi-persona-clients.md -->
+---
+title: "Recipe: multiple Node personas and storage partitions"
+id: recipes.multi-persona-clients
+order: 11
+audience: agent-first
+capabilities: [clients.headless, auth.sessions]
+authorities: [llp/0059-session-projection-and-client-barrier.spec.md, packages/snapback-client/app-client.mjs, packages/snapback-client/app-client.d.mts, packages/snapback-client/app-client.test.mjs]
+examples: [packages/snapback-client/app-client.test.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:0aac45468f10f0b49fd624a7612f1e65a0809af8162a193de392be160fa0e4a5
+---
+
+# Recipe: multiple Node personas and storage partitions
+
+In one Node process, `createSnapbackAppClient` deliberately shares durable
+auth custody for the same application and storage partition. The default
+partition is literally `"default"`. That is useful for two handles belonging
+to one persona, but wrong for an acceptance harness, bot runner, or seed replay
+that represents several users. Without explicit partitions, every persona can
+restore and write as the last principal in the shared default custody — the
+classic “every persona wrote as Henry” failure.
+
+In the diary's vocabulary, durable custody is “process-global in Node” unless
+the multi-persona harness selects distinct partitions.
+
+## Give every persona a stable partition
+
+Choose a deterministic, non-secret partition per logical actor and pass it at
+construction:
+
+```ts fragment reason="application descriptors, admitted bindings, and platform adapters are fixture-specific"
+const henry = await createSnapbackAppClient({
+  app,
+  binding,
+  platform,
+  storagePartition: 'acceptance:henry',
+});
+
+const mia = await createSnapbackAppClient({
+  app,
+  binding,
+  platform,
+  storagePartition: 'acceptance:mia',
+});
+```
+
+The custody owner key is `(app identity, storagePartition)`. Reusing a
+partition means “same persona, shared durable session”; changing it means
+“different persona, isolated durable session.” The value must be non-empty,
+at most 128 characters, and contain no NUL. It is an isolation label, not a
+password, principal assertion, or server-side authorization boundary.
+
+Sign in each client independently, wait for its authority to settle, and
+assert `currentAuthorizationScope().principalScope.userId` before performing
+persona-labelled writes. That assertion catches an accidentally reused
+partition at the test boundary instead of after corrupted expectations.
+
+Dispose every app client at teardown. Durable state intentionally survives
+that disposal, so reuse the same partition only when a later run is meant to
+restore the same actor. Give parallel test workers an additional stable worker
+prefix when they must not share custody.
+
+## Anti-patterns
+
+- Creating multiple Node clients without `storagePartition` and assuming
+  object identity isolates their sessions.
+- Using a display name as authorization evidence instead of checking the
+  settled principal.
+- Generating a fresh random partition on every boot when session restoration
+  is part of the test.
+- Treating a storage partition as a server-side tenant or permission scope.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/auth-transition-writes.md -->
+---
+title: "Recipe: writes during authentication transitions"
+id: recipes.auth-transition-writes
+order: 12
+audience: agent-first
+capabilities: [clients.outbox-drain, clients.mutation-outcomes, auth.invalidation-barrier]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/outbox-store.test.mjs]
+examples: [packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/outbox-store.test.mjs, demos/browser-local-first]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:d8cac17f99ba2c4dcf845310194e20d29b6542948551e506397efdbc259e00ba
+---
+
+# Recipe: writes during authentication transitions
+
+Login, logout, refresh, and bearer replacement create a real authority
+barrier. Protected subscriptions blank and foreground sends may pause while
+the predecessor is retired and the successor is proven. A background effect
+that writes during that interval can receive
+`SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`; this is a custody signal, not a
+content refusal and not evidence that the mutation reached the server.
+This includes the reproduced “eager route-entry receipt” and broader
+“background writes during auth transitions” cases, as well as an
+authorization-suspended foreground gesture.
+
+## Prefer queueable generated mutations
+
+For receipts, route-entry bookkeeping, feed acknowledgements, and other
+background work that remains meaningful after the same logical user settles,
+use the generated queueable mutation path. During the barrier it resolves as
+queued with `authorizationDisposition: "authorization-suspended"`; the outbox
+drain resumes only after authority proof. Render that as pending and observe
+the mutation settlement rather than turning it into an unhandled UI error.
+
+Capture the logical intent once. Do not let a React effect manufacture a new
+mutation id on every auth snapshot or retry tick. After a principal change,
+the outbox custody rules may strand or privacy-delete predecessor work; follow
+the reported disposition rather than silently replaying it as the successor.
+
+## Fence non-queueable gestures
+
+A foreground operation declared with `queue: false` rejects locally while
+authority is suspended and does not reach transport. Disable or defer the
+gesture until the coordinator/app client reports settled authority. If a race
+still produces `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`, keep the same logical
+intent, wait for that barrier to settle once, and offer or perform one bounded
+retry only if the resulting principal is still the intended actor.
+
+Treat every terminal branch explicitly: success, queued, application refusal,
+auth terminal status, and genuine transport/lifecycle failure. An uncaught
+authorization-suspended rejection can poison a route even though the system is
+behaving correctly.
+
+## Anti-patterns
+
+- Retrying from an unbounded effect whose dependency is the changing auth
+  object.
+- Converting authorization suspension into a content refusal or “server
+  failed” message.
+- Assuming a foreground rejection means the mutation may already have
+  committed.
+- Re-recording predecessor work under a successor principal without the
+  explicit stranded-intent workflow.
+- Hiding queued status and declaring success before settlement.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/activity-presence.md -->
+---
+title: "Recipe: activity presence, heartbeats, and withdrawal"
+id: recipes.activity-presence
+order: 13
+audience: agent-first
+capabilities: [realtime.ephemeral]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, packages/snapback-react/index.mjs, packages/snapback-react/implementation.mjs]
+examples: [demos/messaging-snapback, packages/snapback-cli/templates/expo-chat]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:f645f4b9705e5a52f2adb649c71a1e2c03d5a3bc13a19c40d81957c5a4b4f054
+---
+
+# Recipe: activity presence, heartbeats, and withdrawal
+
+Snapback presence is an ephemeral lease. A bound value is not a durable row,
+and publishing it once does not promise that it remains present. Conversely,
+a convenience surface can continuously republish a non-null bound value. This
+is why `useSurface({ typing: value })` may look like simple state binding while
+behaving like a continuous publish.
+
+Put in the diary's exact terms: “surface presence value is a continuous
+publish.” The heartbeat vs bound value decision determines whether the owner
+should continuously publish or explicitly publish + delete.
+
+Search phrase: surface presence value is a continuous publish.
+
+Choose the lifetime you actually mean:
+
+- **Continuous bound value:** keep publishing while the component and scope
+  are active. Use for “online in this room” when mounting is the activity.
+- **Activity-driven value:** use `useSnapbackActivityPresence` when input,
+  focus, pointer, or another activity signal should touch the lease. It owns
+  the activity deadline and withdrawal after the idle window; the provider
+  owns lease heartbeat/renewal.
+- **Explicit event:** call the presence publisher on activity and the delete
+  path on blur, send, cancel, scope change, or unmount. Use this in a
+  headless/adapter owner that already owns those transitions.
+
+For a typing indicator, call `touch()` on meaningful input and withdraw on
+send, clear, blur, room change, and dispose. The provider renews the published
+lease while the activity owner remains active; do not add a second timer. TTL
+is the crash/disconnect backstop; explicit or idle withdrawal is the ordinary
+stop signal. The mental translation from Supabase
+`track({ typing: true })` is therefore “publish plus heartbeat plus delete,”
+not “assign a bound value forever.”
+
+The generated room scope and membership admission remain authoritative.
+Heartbeat extends only an already admitted ephemeral entry; it does not grant
+membership or make presence durable history.
+
+## Anti-patterns
+
+- Passing a truthy presence value continuously when the product means “for a
+  few seconds after activity.”
+- Publishing once and relying on a long TTL as the normal stop mechanism.
+- Adding an independent app timer when the activity-presence owner already
+  owns heartbeat and withdrawal.
+- Treating an expired or deleted entry as a durable offline-status record.
+- Reusing presence as membership, authorization, or message history.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/membership-roster-projection.md -->
+---
+title: "Recipe: private membership and a product roster"
+id: recipes.membership-roster-projection
+order: 14
+audience: agent-first
+capabilities: [auth.scoped-roles, authority.profile.v1]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0240-application-authority-profiles.rfc.md, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/snapback/functions.mjs]
+examples: [demos/messaging-snapback]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:f8cdd66ec5f4c200d5e8b022f14e1d76730f26bca2df453a3b337acf8e44bdfa
+---
+
+# Recipe: private membership and a product roster
+
+Generated membership rows are current authorization state. They are private,
+profile-owned backing data, not presentation records and not message history.
+When an application needs avatars, handles, join dates, or a visible room
+roster, keep a separate ordinary product projection keyed by an authored
+resource field.
+
+This is the private membership roster plus product-visible roster projection
+pattern: the display roster is current product state, while the send-time
+recipient set is historical product state.
+
+Search phrase: send-time recipient set.
+
+The Messaging demo uses this split:
+
+- `conversationMemberships` is the membership declaration and authority
+  source;
+- `conversationMembers` is an ordinary app table with authored
+  `conversationId`, `principal`, and presentation fields;
+- child tables such as messages bind membership visibility through their
+  authored `conversationId`, not through a private membership-row id.
+
+## Update authority and projection in one mutation
+
+Creation bootstraps the resource membership through the generated declaration
+command, then inserts the initial product roster rows in the same mutation.
+Join/invite adds the membership and inserts the projection if absent. Leave or
+removal changes membership and deletes or marks the current roster row. One
+mutation may issue one generated membership command and ordinary application
+writes; do not attempt a second membership transition in that mutation.
+
+Promotion or demotion changes the generated membership role in the same
+mutation that updates any role-dependent product fields. If the visible roster
+does not expose role, the ordinary projection need not change; the acceptance
+comparison must still confirm the new authority role. An already-present row
+on join and an already-absent row on leave/removal are successful idempotent
+branches once the generated membership result agrees with the requested end
+state.
+
+The projection is deliberately redundant, so acceptance tests must compare it
+with the authority profile after create, join, leave, removal, and retry. Make
+the product row unique by `(conversationId, principal)` and make retries
+idempotent. Include promotion/demotion in the comparison when the product
+mirrors role. Authorization always consults the membership declaration even if
+a projection row is stale.
+
+## Keep history separate from the current roster
+
+A current roster answers “who is a member now?” Historical delivery answers
+“who received this message when it was sent?” If the product needs the latter,
+store a principal snapshot or receipt records at send time in an ordinary
+history table. Later joins and leaves must not rewrite old receipts.
+
+In Familiar schema, use authored relational keys such as
+`conversationId` for child visibility. Do not copy a `resourceField: "_id"`
+example into generated Familiar TypeScript today: the system id is not an
+authored schema field in that type surface. Admit access to the root resource
+through the authority profile/handler declaration, and bind child rows through
+their authored resource key.
+
+## Anti-patterns
+
+- Reading private membership backing rows directly to render the roster.
+- Treating the product projection as the authorization source.
+- Using a private membership-row id as a public recipient or display id.
+- Rewriting historical recipient snapshots when current membership changes.
+- Adding multiple membership commands to one mutation.
+- Using `resourceField: "_id"` in a Familiar schema declaration that cannot
+  typecheck that system field.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/provider-lifecycle.md -->
+---
+title: "Recipe: provider connection and subscription lifecycle"
+id: recipes.provider-lifecycle
+order: 15
+audience: agent-first
+capabilities: [clients.headless, clients.external-store, clients.contract-provider-generation]
+authorities: [llp/0034-contract-source-seam-provider-side.rfc.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0095-client-lifecycle-and-conformance.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs]
+examples: [demos/coterie, demos/signal-desk, packages/snapback-contract/keyed-provider.mjs]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:36b99758a988b2e5ddd7c19d12c8e5c88f4cce7ddef6f6d4ac8565d44235e3e1
+---
+
+# Recipe: provider connection and subscription lifecycle
+
+A framework provider should own one stable connection label for one admitted
+app/authority/origin lifetime, then multiplex query consumers over that
+connection. Mounting N cells may create N logical subscriptions; it must not
+create N sockets merely because each cell mounted independently.
+
+This repairs the “connection per subscription” failure: N cells imply N
+transport connections only in a broken owner model. The recipe also supplies
+the current provider lifecycle budget boundary and an inspection of active
+connections and subscriptions by owner.
+
+Search phrase: N cells imply N transport connections.
+Inspection phrase: active connections and subscriptions by owner.
+
+## Put one owner above the cells
+
+Construct the client and connection label at provider scope. Reuse the
+client's `liveStreamManager(connectionId)` and the shared external-store
+registry for every matching child subscription. The registry deduplicates
+equal provider/query/authority/args identities and refcounts listeners; the
+last listener disposes the upstream handle. Keyed scopes replace whole route
+generations without app-authored generation counters.
+
+Wait for settled principal authority before starting protected subscriptions.
+On a transport-only reconnect, update the connection fact and let the manager
+resume its consumers; do not rebuild every query owner. Query callbacks should
+publish the delivered rows, not start nested queries. Suppress equal snapshots
+at the store boundary so a provider does not turn connection churn into render
+churn.
+
+On provider disposal, release child handles and close scopes/registries. The
+last demand lease closes and retires the stream manager; then await
+`client.close()` for final client cleanup. A subscription handle's `settled()`
+waits for its lifecycle boundary; it does not replace `dispose()`.
+
+## Inspect the lifecycle in acceptance tests
+
+Use `client.localResourceInspection()` only as an acceptance inspection. It
+reports managers, grants, lane consumers, socket demand, timers, and listeners.
+A useful regression mounts many equal cells, waits for data, and asserts one
+manager/connection with refcounted consumers; after unmount and provider close,
+it asserts the scoped manager, grants, demand, timers, and listeners retire.
+Provider-specific `inspection()` projections may add store/subscription counts,
+but neither inspection surface is product state or authorization evidence.
+
+## Current budget boundary
+
+The sanctioned decision-independent floor is qualitative: stable connection
+identity, multiplexing, deduplication, explicit disposal, and zero owned
+resources after teardown. Snapback does **not yet publish a numeric per-provider
+connection/subscription/timer budget**. That Phase 0 decision remains tracked
+in `issues/20260821-provider-connection-subscription-budget-decision.md`.
+Do not invent a threshold in application docs or tests and call it platform
+policy; record measured counts and keep the qualitative invariants above.
+
+## Anti-patterns
+
+- Minting a new `connectionId` for every query or component mount.
+- Starting protected subscriptions before authority settles.
+- Running a second query from inside each subscription callback.
+- Treating reconnect as a reason to reconstruct every logical store.
+- Forgetting to dispose handles because their current row snapshot looks
+  empty.
+- Advertising a numeric resource budget before the Phase 0 decision lands.

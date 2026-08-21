@@ -68,7 +68,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:7ecc0dac7a82f92467ed9df0da06418745b2929be365438fdedb88b930e35648"
+      "digest": "sha256:32afe6565d235b20c94c10f9a9c16c11312c4cc2307d662d6bb261e13c03d9e5"
     },
     "crud-dashboard": {
       "template": "crud-dashboard",

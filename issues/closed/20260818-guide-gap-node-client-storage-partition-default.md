@@ -1,6 +1,6 @@
 # guide-gap: durable auth custody is process-global in Node without storagePartition
 
-**Status:** Open
+**Status:** Resolved 2026-08-21
 **Systems:** Guide, snapback-client custody
 **Date:** 2026-08-18
 **Evidence:** diary 0096 M2 ("every persona wrote as Henry"); its essay calls
@@ -21,3 +21,16 @@ Multiple actor clients adopted the same default durable authority and wrote as
 one persona until the lane assigned one `storagePartition` per actor. The
 correct API exists; the default remains surprising for the ordinary
 multi-persona test/agent case.
+
+## Resolution
+
+Added `guide/recipes/multi-persona-clients.md` and loud custody links from the
+sessions and headless-client pages. The recipe assigns one stable
+`storagePartition` per persona/worker, verifies the settled principal, and
+covers restart and negative isolation evidence. Retrieval case 60 preserves
+the diary phrase “every persona wrote as Henry” plus the exact Node/default
+partition vocabulary. The retained cold run at
+`guide/eval-runs/2026-08-21/multi-persona-clients.md` passed in 11/15 tool uses.
+
+Closure evidence: the 70-case retrieval check, the 19-part Guide check, and
+the 5-profile first-read check pass with no failures.

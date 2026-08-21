@@ -14,6 +14,11 @@ parity including the ephemeral re-export amendment to S3.1/S3.2, feature
 parity by class, profile-switch suggestion rules, template-scoped profile
 choice — and the W3 vertical contract fixture catalogue. Adopted per
 LLP 0295; author may revise.)
+2026-08-21 (qualification reconciliation: the Guide no longer
+claims direct object/nullable-document query values from lowering evidence
+alone; until a generation-and-execution fixture qualifies them, the paved
+Familiar point-read contract is a singleton relational array. This records a
+shipped-evidence ceiling, not a change to S4.3's target lowering.)
 **Revised:** 2026-08-16 (publication-closure clarification: the Experimental
 native custody package is an optional config-plugin add-on, not an umbrella
 dependency or re-export; LLP 0041 owns its thirteen-package publication row)

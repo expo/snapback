@@ -1,6 +1,6 @@
 # guide-gap: put the complete Familiar handler dialect on its first-read path
 
-**Status:** Open
+**Status:** Resolved 2026-08-21
 **Opened:** 2026-08-20
 **Systems:** Guide, Familiar authoring, Handler runtime, Code generation
 **Related:** LLP 0237; LLP 0252; LLP 0253; LLP 0259; LLP 0277 P19; LLP 0295;
@@ -49,3 +49,18 @@ does not prevent repeated correction loops.
 
 A cold Familiar agent encounters the supported rewrite before authoring each
 of the matrix's replicated dialect violations.
+
+## Resolution
+
+Expanded `guide/backend/familiar-profile.md` with the bounded handler-dialect
+table and shared-declaration escape. The Guide now keeps point reads at the
+qualified singleton-relational-array contract; LLP 0253 records why the
+direct-value target is not yet a shipped Guide promise. The Familiar start
+packet links the dialect. Retrieval cases 63–68 independently preserve
+`array[i]`, imported helper, top-level const, `Date.now`, mutation document
+arrays, and sequence-allocation vocabulary. The retained cold run at
+`guide/eval-runs/2026-08-21/familiar-handler-dialect.md` passed all rewrites in
+12/15 tool uses.
+
+Closure evidence: all new terms route in the 70-case retrieval check; the full
+Guide check, first-read check, and `./ref-check --verbose` pass.

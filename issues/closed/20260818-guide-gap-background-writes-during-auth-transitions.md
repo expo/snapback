@@ -1,6 +1,6 @@
 # guide-gap: pattern for background writes during authorization transitions
 
-**Status:** Open
+**Status:** Resolved 2026-08-21
 **Systems:** Guide, client outbox, auth invalidation
 **Date:** 2026-08-18
 **Evidence:** diary 0092 M3 — eager route-entry receipt writes hit
@@ -25,3 +25,18 @@ The recipe should cover foreground gesture handling as well as background
 effects and link to
 `issues/20260820-familiar-live-subscription-contention.md` for the underlying
 multi-subscription investigation.
+
+## Resolution
+
+Added `guide/recipes/auth-transition-writes.md` and linked it from the
+headless-client authority transition. It distinguishes queueable background
+intent from `queue: false` foreground gestures, keeps authorization suspension
+local/pending, requires settlement observation, and permits only a bounded
+same-principal retry. Retrieval case 61 includes the exact diagnostic, eager
+route-entry receipt, and foreground vocabulary. The retained cold run at
+`guide/eval-runs/2026-08-21/auth-transition-writes.md` passed in 12/15 tool
+uses.
+
+Closure evidence: the 70-case retrieval check and the full Guide check pass.
+The separate live-subscription contention investigation remains open and is
+not silently decided by this authoring recipe.
