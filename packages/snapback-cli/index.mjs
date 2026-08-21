@@ -4738,6 +4738,20 @@ export async function runDev(options = {}) {
     }
   };
 
+  const forceRegenerateAndLoad = async (...args) => {
+    const forcedResult = await regenerateAndLoad(...args);
+    // @ref LLP 0041#watch-mode — a forced pass supersedes debounce state that
+    // was queued before it settled: that disk state was just regenerated and
+    // loaded. Clear the filename as well as the timer because the timer may
+    // already have stacked a drain on workChain. This runs synchronously before
+    // the forced task releases the chain, so a later watch event schedules a
+    // fresh timer and filename after this retirement point.
+    clearTimeout(timer);
+    timer = null;
+    queuedFilename = null;
+    return forcedResult;
+  };
+
   // One dev operation at a time: watcher passes, forced reloads, and backend
   // restarts serialize on the same chain, so a verb never races a hot-push.
   let workChain = Promise.resolve();
@@ -4934,7 +4948,7 @@ export async function runDev(options = {}) {
     client: clientStatus(),
   }));
   const reloadVerb = ({ requestId } = {}) => withDevLock(
-    () => regenerateAndLoad('(reload)', {
+    () => forceRegenerateAndLoad('(reload)', {
       verb: 'reload',
       ...(requestId === undefined ? {} : { requestId }),
     }),
@@ -5037,7 +5051,7 @@ export async function runDev(options = {}) {
         pid: descriptor.pid ?? null,
         serverUrl: descriptor.serverUrl,
       });
-      return await regenerateAndLoad('(restart)', { ...tag });
+      return await forceRegenerateAndLoad('(restart)', { ...tag });
     } catch (error) {
       let refined = refineGeneratedArtifactFailure(error, {
         binary: runtime.binary,
@@ -5143,7 +5157,7 @@ export async function runDev(options = {}) {
         pid: descriptor.pid ?? null,
         serverUrl: descriptor.serverUrl,
       });
-      return await regenerateAndLoad(
+      return await forceRegenerateAndLoad(
         '(dev-fresh)',
         { verb: 'dev-fresh', ...tag },
         { seed: true, failureState: 'dev-fresh-failed' },

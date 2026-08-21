@@ -35,19 +35,30 @@ debounced `functions.mjs` event, so a starved debounce callback could exhaust
 the test's event timeout even though the product path was intact.
 
 Those two writes now send the existing machine-readable `reload` command and
-wait for its request-correlated terminal load acknowledgment. The supervisor
-serializes forced reloads and watcher passes on the same work chain, so the
-acknowledgment proves the authored bytes completed generation and load without
-depending on when the debounce timer runs. A correlated `generation-failed`
-or `generated-but-not-loaded` event fails immediately, and the subsequent
-`runtimeTypo` mutation still proves the loaded handler produces the expected
-enriched runtime diagnostic. The later live-edit and generation-failure/
-recovery waves remain watcher-driven, preserving the dev-loop acceptance
-coverage.
+wait for its request-correlated terminal load acknowledgment. An adversarial
+review then found a product race in that synchronization: the write's watcher
+timer could fire during the forced pass and stack a drain behind it on the
+supervisor work chain. The forced acknowledgment would arrive first, leaving
+the uncorrelated drain able to satisfy a later wave's wait with stale causal
+provenance.
+
+The supervisor now retires both the pending timer and queued filename after a
+forced regenerate-and-load completes. Clearing the filename is load-bearing
+when the timer already stacked its drain; doing it synchronously before the
+forced task releases the work chain ensures a later watcher event installs a
+fresh debounce instead of being erased. Reload, restart, and dev-fresh share
+this rule. A correlated `generation-failed` or `generated-but-not-loaded`
+event still fails the typo wave immediately, and the subsequent `runtimeTypo`
+mutation proves the loaded handler produces the expected enriched runtime
+diagnostic.
+
+The later watcher coverage now also adds a new query export, proves the watch
+path discovers and serves it, removes it through a second watched edit, and
+asserts `404` / `SNAPBACK_UNKNOWN_FUNCTION`. The existing live-edit and
+generation-failure/recovery waves remain watcher-driven as well.
 
 This was preferred over a larger timeout because it removes debounce timing
-from the typo assertion rather than merely reducing the probability of the
-same failure. No supervisor change was needed; inspection found no evidence of
-a product-visible regeneration race in this failure.
+from the typo assertion and retires the product-side causal residue rather
+than merely reducing the probability of the same failure.
 
 **Landing SHA:** TBD

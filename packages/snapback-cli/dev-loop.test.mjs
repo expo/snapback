@@ -133,8 +133,24 @@ export const runtimeTypo = defineJsMutation({
   handler: async (ctx) => ctx.runtime.newId(),
 });
 `);
+  const functionsDescWithWatcherExport = functionsDesc.concat(`
+
+export const watcherDiscoveredTodos = defineLiveQuery({
+  table: 'todos',
+  args: {},
+  filter: [eq('userId', authUserId())],
+  order: [desc('_createdAt')],
+  index: 'by_user',
+  authScopeField: 'userId',
+});
+`);
   assert.notEqual(functionsDesc, functionsAsc, 'template edit fixture must actually change the query order');
   assert.notEqual(functionsRuntimeTypo, functionsAsc, 'runtime typo fixture must add an inline handler');
+  assert.notEqual(
+    functionsDescWithWatcherExport,
+    functionsDesc,
+    'watcher fixture must add a new exported query',
+  );
   const database = join(project, '.snapback', 'dev.sqlite3');
 
   // The client arm is the REAL SC-2a plugin over a minimal Vite app run by
@@ -307,6 +323,41 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   );
   assert.deepEqual(await listTitles(), ['second todo', 'first todo']);
   console.log('functions.mjs edit observable through the relay without restarting either process');
+
+  // Watcher-driven export discovery and retirement must not borrow an event
+  // from either request-correlated typo reload above. The new query becomes
+  // callable after its watched edit, then disappears after a second watched
+  // edit restores the prior source.
+  mark = stream.mark();
+  writeFileSync(functionsPath, functionsDescWithWatcherExport);
+  await stream.waitFor(
+    (event) => event.state === 'generated-and-loaded' && /functions\.mjs$/.test(event.changed ?? ''),
+    { from: mark, label: 'watcher discovers new exported query' },
+  );
+  const discoveredResponse = await fetch(`${relay}/query/watcherDiscoveredTodos`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ args: {}, auth: auth(ADA), read_set: [] }),
+  });
+  assert.equal(discoveredResponse.status, 200);
+  const discovered = await discoveredResponse.json();
+  assert.deepEqual(discovered.rows.map((row) => row.title), ['second todo', 'first todo']);
+
+  mark = stream.mark();
+  writeFileSync(functionsPath, functionsDesc);
+  await stream.waitFor(
+    (event) => event.state === 'generated-and-loaded' && /functions\.mjs$/.test(event.changed ?? ''),
+    { from: mark, label: 'watcher retires removed exported query' },
+  );
+  const retiredResponse = await fetch(`${relay}/query/watcherDiscoveredTodos`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ args: {}, auth: auth(ADA), read_set: [] }),
+  });
+  assert.equal(retiredResponse.status, 404);
+  const retired = await retiredResponse.json();
+  assert.equal(retired.diagnostic.code, 'SNAPBACK_UNKNOWN_FUNCTION');
+  console.log('watcher discovered and retired a new functions.mjs export');
 
   // --- generation failure surfaces machine-readably and recovers -------------
   mark = stream.mark();
