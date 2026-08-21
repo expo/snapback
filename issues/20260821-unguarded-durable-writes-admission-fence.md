@@ -30,7 +30,7 @@ complete over guards, not over durable writes.
 Inverting the search — enumerate commits, then ask which have a guard — is what
 surfaced this set.
 
-## The 19 found
+## The first 19 found
 
 Grouped by subsystem; each is individually assessed in
 `issues/20260821-complete-admission-effect-guard-commit-proof-coverage.md`.
@@ -64,7 +64,45 @@ The vector-query operation is fixed on `lane/fenceproof`: both engine
 settlement callers now hold the prepared invocation's exact admission guard
 across registered-writer opening and quarantine. It has moved to Set 2 of the
 coverage document pending its own removal-mutation proof. The other **18 remain
-unfixed** and are still the active scope of this issue.
+unfixed** in that first-pass lower bound.
+
+## SQLite-side census extended to 22
+
+A subsequent systematic sweep of non-`tx.commit()` durable writes extended the
+SQLite-side source census from 19 to **22 operation families** (23 sinks;
+coverage-gap persistence writes both SQLite and, when fork evidence exists, a
+synced sidecar). This does not invalidate the first-pass 19/18 arithmetic: 19
+was the then-known lower bound, vector-query quarantine moved to the guarded
+Set 2, and its other 18 families remain unfixed. The later sweep adds three
+more unfixed families, making the current SQLite-side accounting 22 found, one
+guarded, and **21 unguarded**.
+
+The three later families are:
+
+1. **Derived-fork egress-denial marker** — `LocalIbexActionHost` retains a
+   `PreparedAuthority`, but `deny_derived_fork_host_op` records the bounded
+   marker through `connections::record_derived_fork_egress_attempt_v1` before
+   it calls `validate_admission`. The registered writer constrains what SQL may
+   run; it does not turn this durable result of an admitted action into a
+   non-app lane. The request is always refused, so severity is bounded to a
+   capped attempt count and first/last timestamps.
+2. **Registered-writer coverage-gap persistence** — internally opening a
+   registered writer can durably break the SQLite continuity row and, for a
+   derived fork, sync a sidecar before returning the refusal. The vector-query
+   callers are now guarded across writer opening; the derived-fork action-host
+   caller remains unguarded.
+3. **Post-reset cron-state persistence** — the admitted reset guard spans the
+   primary reset transaction, then `finish_committed_reset` persists cron state
+   through an implicit-autocommit `jobs::save_cron_state` after that guard has
+   dropped.
+
+This sweep is source-complete for the reviewed SQLite-side durability classes:
+logical mutations, raw commits, write-capable PRAGMAs, backup destinations,
+bare-`Connection` helpers, and internally opened writers. It remains a source
+census rather than compiler-enforced effect analysis. It is not complete for
+the broader non-SQL durability class—filesystem and secure-file publication,
+asset-store local/S3 effects, and external-provider effects remain outside the
+population—so 22 is the SQLite-side count, not an overall completeness claim.
 
 ## Severity
 
@@ -122,8 +160,9 @@ explicitly told to rely on.
 
 ## Next
 
-1. Assess each of the remaining 18 for actual reachability, hardest first — the watch
-   cluster is the largest and most autonomous.
+1. Assess each of the 21 currently unguarded SQLite-side families for actual
+   reachability, hardest first—the watch cluster is the largest and most
+   autonomous.
 2. Add the fence engine-side, following the pattern established for
    capability-link mint/revoke/consume/settle and the push sites. Do NOT add it
    at the transport: that caused three separate re-entrant-mutex deadlocks.

@@ -51,6 +51,15 @@ receiver-and-caller pass performed at this commit and treats every numeric
 census as a lower bound unless a compiler-enforced effect inventory replaces
 it.
 
+A subsequent sweep of non-`tx.commit()` durability extended the SQLite-side
+source census from 19 to 22 operation families (23 sinks, because one family
+writes both SQLite and a synced sidecar). The 19/18 arithmetic below remains
+the correct history of the first-pass lower bound: the nineteenth family was
+vector-query quarantine, which is now guarded, leaving the original 18
+unfixed. The later sweep found three additional unguarded families, so the
+current SQLite-side accounting is 22 found, one moved to Set 2, and 21 in Set
+3. The broader non-SQL durability population remains unknown.
+
 ## Set 1 — live guard, proven by the focused harness
 
 The commit observer runs at the eight enumerated kernel call sites immediately
@@ -87,7 +96,11 @@ commit acknowledgement cannot bypass the observation either.
 The proof identity is the exact `AdmissionController` allocation plus the
 admission epoch captured for the target operation. A guard from another
 controller on the same thread therefore records a mismatch rather than
-satisfying the proof. Commit observation is passive—commit sites run no caller
+satisfying the proof. The controller-binding regression installs the observer
+for a target controller/epoch, holds only a foreign controller's guard, and
+drives the real instrumented capability-link storage commit directly so the
+target operation cannot add its own guard. It requires zero matching and one
+mismatched commit. Commit observation is passive—commit sites run no caller
 callback—and its returned RAII scope removes a partially consumed observer.
 The two-commit acknowledgement regression commits its first transaction,
 returns before the second commit primitive, drops the scope, and proves a
@@ -199,7 +212,9 @@ This set is non-empty. The old guard-first method could not discover it. The
 attempt-5 receiver-and-caller pass established that the earlier 18 was a floor:
 it found a nineteenth admitted operation, vector-query failure quarantine. That
 operation is now fenced at both engine settlement callers and has moved to Set
-2; the 18 rows below remain unfixed.
+2; the original 18 rows below remain unfixed. The later non-`tx.commit()` sweep
+added three more unguarded families at the foot of the table, for 21 currently
+unfixed SQLite-side families in Set 3.
 
 ### Fence required
 
@@ -227,6 +242,9 @@ fixes and focused mutation tests before this ticket can close.
 | Invalidation-driven watch scheduling | Fence required: post-mutation fanout can durably enqueue a watch job after the originating mutation guard has dropped. |
 | Stream-attempt upsert | Fence required when called for an admitted action/stream attempt; `settlement::upsert_stream_attempts` is direct implicit autocommit. |
 | Stream-transcript settlement | Fence required when it publishes an admitted action's durable transcript; the direct connection write has no admission guard. |
+| Derived-fork egress-denial marker | Fence required: `LocalIbexActionHost` retains `PreparedAuthority`, but `deny_derived_fork_host_op` opens a registered writer and `record_derived_fork_egress_attempt_v1` autocommits the bounded marker before `validate_admission` runs. Registration as a system writer constrains SQL authority; it does not make this admitted action effect a non-app lane. |
+| Registered-writer coverage-gap persistence | Fence required when registered-writer opening is reached from admitted work: the failure path can durably break SQLite coverage continuity and, for a derived fork, sync a sidecar before returning its refusal. The admitted vector callers now guard writer opening; the derived-fork action-host caller does not. Operator-only lifecycle callers remain exempt. |
+| Post-reset cron-state persistence | Fence required: the admitted app-reset guard spans the primary reset commit, but `finish_committed_reset` later calls `persist_cron_state` and its implicit-autocommit `jobs::save_cron_state` after that guard has dropped. |
 
 ### Fence not required for this protocol
 
@@ -243,12 +261,12 @@ this assessment does not weaken those checks.
 | Auth rescue, logical import, restore, rehearsal, backup, and stream-incarnation bootstrap | No admission effect guard: operator/startup/recovery authority governs them while app admission is absent or closed. |
 | Schema/infra creation, retention backfill, sequence installation, and change-journal pruning | No admission effect guard: startup/maintenance writer authority governs these internal cuts. |
 | Migration apply/release/rollback/cancel/backfill/copy/validation/cleanup | No admission effect guard: migration admission/fence and host-operation identity govern the closed migration lane. |
-| Instance-fork scrub/mint, managed-branch create/drop/reap/custody repair, and derived-fork egress-denial receipt | No admission effect guard: these are operator or registered-system lanes, not app invocation authority. Branch mutation commits themselves remain guarded in Set 2. |
+| Instance-fork scrub/mint and managed-branch create/drop/reap/custody repair | No admission effect guard: these are operator or registered-system lifecycle lanes, not app invocation authority. The admitted derived-fork egress-denial marker is separately fence-required above; branch mutation commits remain guarded in Set 2. |
 | Promotion tickets, reservations, reexecution, foreclosure, captured-effect bookkeeping, and expiry reaping | No admission effect guard for operator/system promotion machinery; authenticated branch app commits remain guarded in Set 2. |
 | Checkpoint publication/cancellation/pruning and history maintenance | No admission effect guard for scheduled/operator checkpoint machinery. Protected-record erasure invoked from admitted authority remains guarded in Set 2. |
 | Push receipt polling, expired-batch recovery, maintenance claims, idle retirement, and manifest activation | No admission effect guard: these are system/activation continuations. Request token registration, send reservation, and batch action commits remain in Sets 1–2. |
 | Asset finalizer/publication/GC/condemnation/reclamation worker state | No admission effect guard after durable handoff: bounded worker/attempt ownership is the authority. User-request asset cuts are separately listed as fence-required above. |
-| Cron scheduler internal maintenance outside an admitted claim | No admission effect guard is required. The three admitted scheduler/claim commits and result ledger are in Set 2. |
+| Cron scheduler internal maintenance outside an admitted claim or reset | No admission effect guard is required. The three admitted scheduler/claim commits and result ledger are in Set 2; post-reset cron-state persistence is separately fence-required above. |
 | Vector rebuild begin/quarantine/resume/activate/rollback | No admission effect guard: operator rebuild generation authority governs these maintenance commits. This exemption does **not** include admitted vector-query failure settlement, which reaches the separate implicit-autocommit sink in `vector/sqlite.rs` and is now guarded in Set 2. |
 | Temporary benchmark/reference/backup-output database writes | No admission effect guard: they do not mutate the served canonical store. |
 | Read-only pinned, membership, asset-read, and connection transactions | Their `commit()` calls close read transactions and are not durable-write operations. |
@@ -317,6 +335,8 @@ The admitted-context resolutions are:
 | Admitted caller family | Bare-connection or implicit-autocommit sink | Resolution |
 | --- | --- | --- |
 | Vector query failure settlement, pooled-read and live write-lane paths | Opening the registered vector writer can call `operation_ledger::break_operation_coverage_continuity`; successful opening reaches `vector::sqlite::quarantine_generation_for_schema_on` → `quarantine_generation_on` | Missing from the earlier census. Both engine callers now hold the prepared query invocation's exact guard across writer opening and quarantine. Set 2. |
+| Derived-fork action-host egress denial | Opening the egress-marker writer can persist registered-writer coverage-gap evidence; successful opening reaches `connections::record_derived_fork_egress_attempt_v1` | `LocalIbexActionHost` holds `PreparedAuthority`, but records the marker before validating admission and has no exact guard across either possible durable sink. Set 3. |
+| Post-commit app-reset publication | `finish_committed_reset` → `persist_cron_state` → `jobs::save_cron_state` | The reset admission guard ended with the primary reset transaction; the secondary cron-state autocommit has no exact reset guard. Set 3. |
 | Cron scheduler publication, claim publication, and result publication | `jobs::save_cron_state` | The corresponding admission lease's guard is live. Set 2. |
 | Owner-requested watch transition | `watches::transition_watch`; activation can then enter the explicit `schedule_watch_evaluation` transaction | The request authority's guard spans both cuts. Set 2. |
 | Admitted watch evaluation and reaction jobs | `watches::begin_watch_evaluation`, `watches::record_watch_evaluation_retry`, and `webhooks::reserve_webhook_delivery`; the other watch decisions, firing updates, and webhook settlement use explicit transactions | No exact job guard spans these result cuts. Set 3. |
@@ -324,18 +344,21 @@ The admitted-context resolutions are:
 | Post-mutation watch fanout | explicit `watches::schedule_watch_evaluation`, whose `enqueue_on`, `finish_without_fire_on`, `insert_firing`, and `trim_firings` helpers accept `&Connection` but receive `&Transaction` | The originating mutation guard has already dropped. Set 3. The helpers do not create extra autocommit cuts. |
 | Protected-record erasure and ordinary/client mutation retention | proof-checkpoint save helpers plus `save_retention_floor_on`, `save_client_mutation_auth_retention_counters`, and `save_meta_u64` | Each bare-typed helper receives the already-open transaction; its one outer commit is classified in Set 2. |
 
-All remaining production non-transaction receiver candidates resolve to one of
-these non-admitted families: schema/infra and connection setup; auth-mode,
-pre-auth, migration, recovery, checkpoint, or retention maintenance;
-registered derived-fork lifecycle/egress and operator promotion; search/vector
-rebuild maintenance; or reference, copied, backup-output, and benchmark
-databases. The direct implicit-autocommit members include
+After separating the admitted and mixed-context resolutions above, the
+residual production non-transaction receiver candidates resolve to these
+non-admitted families: schema/infra and connection setup; auth-mode, pre-auth,
+migration, recovery, checkpoint, or retention maintenance; registered
+derived-fork lifecycle and operator promotion; search/vector rebuild
+maintenance; or reference, copied, backup-output, and benchmark databases. The
+direct implicit-autocommit members include
 `auth_invalidation::persist_derived_fork_app_row_coverage_receipt`,
 `migration_executor::migrate_request_cancel`, managed-branch custody
-transitions, and `connections::record_derived_fork_egress_attempt_v1`; their
-non-admission interlocks are recorded in Set 3's exemption table. Infra
-builders, expected-shape probes, PRAGMAs, and test-only writers do not add an
-admitted durable operation.
+transitions, and the operator-only registered-writer lanes; their non-admission
+interlocks are recorded in Set 3's exemption table. This closure does not
+include the admitted egress-marker, registered-writer coverage-gap, or
+post-reset cron-state families added by the 22-family sweep. Infra builders,
+expected-shape probes, PRAGMAs, and test-only writers do not add an admitted
+durable operation.
 
 ## Exit condition
 

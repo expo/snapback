@@ -816,24 +816,38 @@ fn capability_link_mint_observes_the_guard_when_an_error_follows_commit() {
 }
 
 #[test]
-fn capability_link_mint_proof_is_bound_to_its_controller_and_epoch() {
-    let (mut snapback, controller) = capability_link_fixture();
-    let authority = session_management_authority(&controller);
+fn durable_commit_observer_rejects_a_foreign_guard_when_the_target_guard_is_absent() {
+    let (mut snapback, target_controller) = capability_link_fixture();
+    let target_epoch = target_controller.snapshot().admission_epoch;
+    let expected_guard = target_controller.effect_guard_identity_for_test(target_epoch);
     let other_controller = AdmissionController::new(1, true).expect("different controller");
     let other_lease = other_controller
         .admit()
         .expect("different-controller admission");
     let _other_guard = other_lease
-        .effect_guard("different-controller nested proof regression")
+        .effect_guard("foreign-only durable-observer regression")
         .expect("different-controller guard");
-    let commit_observed =
-        observe_guard_through_next_commit(AdmissionEffectSite::CapabilityLinkMint, controller);
+    let commit_observed = crate::storage::observe_next_durable_commits_for_test(1, expected_guard);
 
+    // Drive the real instrumented capability-link COMMIT boundary directly.
+    // The engine operation cannot discriminate here because it acquires the
+    // target guard itself; this storage call deliberately leaves only the
+    // foreign guard live when the durable observer runs.
     snapback
-        .mint_capability_link(&authority, link_request(Some(1)))
-        .expect("the target operation still owns its exact nested guard");
+        .auth_database_mut()
+        .mint_capability_link(link_request(Some(1)))
+        .expect("the direct storage operation reaches its durable commit");
 
-    assert_guard_observed_at_commit(AdmissionEffectSite::CapabilityLinkMint, &commit_observed);
+    assert_eq!(
+        commit_observed.matching_commits(),
+        0,
+        "a foreign guard must not satisfy the target controller/epoch observation"
+    );
+    assert_eq!(
+        commit_observed.mismatched_commits(),
+        1,
+        "the real durable commit boundary must reject the foreign-only guard"
+    );
 }
 
 #[test]
