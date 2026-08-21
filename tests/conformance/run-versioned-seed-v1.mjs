@@ -118,6 +118,18 @@ const suite = spawnSync(
     maxBuffer: 64 * 1024 * 1024,
   },
 );
+function suiteFailureDiagnostic(result) {
+  const raw = result.error?.message
+    ?? result.stderr
+    ?? result.stdout
+    ?? result.signal
+    ?? result.status
+    ?? 'unknown failure';
+  const lines = String(raw).split(/\r?\n/u).map((line) => line.trim()).filter(Boolean);
+  const errorLine = lines.find((line) => /^[A-Za-z]*Error: /u.test(line));
+  return `suite failed: ${errorLine ?? lines[0] ?? 'unknown failure'}`;
+}
+const suiteDiagnostic = suite.status === 0 ? null : suiteFailureDiagnostic(suite);
 const outcomes = [];
 try {
   for (const entry of manifest.cases) {
@@ -165,13 +177,7 @@ try {
             // evidence fallback mask it twenty times.
             diagnostic: suite.status === 0
               ? (result?.diagnostic ?? 'runner failed or assertion count mismatched')
-              : `suite failed: ${
-                suite.error?.message
-                ?? suite.stderr
-                ?? suite.stdout
-                ?? suite.signal
-                ?? suite.status
-              }`,
+              : suiteDiagnostic,
           }
         : {}),
     });
@@ -231,10 +237,14 @@ if (quiet) {
   const passed = outcomes.filter(({ outcome }) => outcome === 'passed').length;
   const failed = outcomes.filter(({ outcome }) => outcome === 'failed').map(({ id }) => id);
   const gaps = outcomes.filter(({ outcome }) => outcome === 'gap').length;
+  const totalFailureCause = passed === 0 && failed.length > 0
+    ? outcomes.find(({ outcome, diagnostic }) => outcome === 'failed' && diagnostic)?.diagnostic
+    : null;
   process.stdout.write(
     `[versioned-seed-conformance] ${passed} passed, ${failed.length} failed, `
       + `${gaps} GAP; revision=${revisionBinding.matched ? 'matched' : 'mismatched'}`
-      + `${failed.length ? `; failed=${failed.join(',')}` : ''}\n`,
+      + `${failed.length ? `; failed=${failed.join(',')}` : ''}`
+      + `${totalFailureCause ? `; cause=${totalFailureCause}` : ''}\n`,
   );
 } else {
   process.stdout.write(encodedReceipt);
