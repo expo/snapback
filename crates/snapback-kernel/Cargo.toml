@@ -14,6 +14,12 @@ default = []
 # Remainder unit tests retain their existing kernel fixture seams after the
 # crate boundary. Production dependencies never enable this feature.
 test-support = []
+# Throwaway LLP 0293 compiler probes. The three negative features are invoked
+# one at a time to preserve the exact compiler diagnostic; ordinary workspace
+# checks leave them disabled.
+authority-prototype-negative-borrow = []
+authority-prototype-negative-http-extension = []
+authority-prototype-negative-sibling-visibility = []
 
 [dependencies]
 anyhow = "1.0"

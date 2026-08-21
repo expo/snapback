@@ -18,6 +18,8 @@ pub mod assets;
 pub mod assets_cut;
 pub mod assets_store;
 pub mod auth;
+#[doc(hidden)]
+pub mod authority_transition_prototype;
 pub mod authoring_suggestion;
 pub mod branches;
 pub mod conformance;
