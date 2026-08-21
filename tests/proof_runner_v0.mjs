@@ -4,6 +4,7 @@ import {
   closeSync,
   existsSync,
   linkSync,
+  mkdirSync,
   mkdtempSync,
   openSync,
   readFileSync,
@@ -17,9 +18,11 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 import { parseGateCalls } from '../scripts/check-local-proof-gates.mjs';
+import { runBatteryBackstop } from '../scripts/drift-prone-gates.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const runner = join(root, 'scripts', 'lib', 'proof-runner.sh');
+const verifyLocalProof = join(root, 'scripts', 'verify-local-proof');
 
 function selectedGateBytes(selected) {
   return selected.map((gateId) => `${gateId}\n`).join('');
@@ -201,6 +204,117 @@ function processExists(pid) {
     throw error;
   }
 }
+
+test('public proof invalidates stale battery evidence before first-pass selection', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-proof-stale-selection-'));
+  const resultsPath = join(scratch, 'results.jsonl');
+  const completionPath = join(scratch, 'completion.json');
+  const selectedPath = join(scratch, 'selected-gates.txt');
+  const canonicalGates = ['fixture-gate'];
+  const failureSignature = `sha256:${createHash('sha256').update('old failure').digest('hex')}`;
+  const oldRecord = {
+    applicabilityEvidence: null,
+    applicabilityPredicate: null,
+    blockedBy: [],
+    command: 'node old-fixture.mjs',
+    durationMs: 1,
+    endedAtMs: 2,
+    exitCode: 7,
+    failureSignature,
+    gateId: 'fixture-gate',
+    prerequisites: [],
+    proofId: 'local-proof',
+    schemaVersion: 'snapback.proof-gate-result.v3',
+    selectionReason: null,
+    startedAtMs: 1,
+    state: 'FAIL',
+    terminationReason: 'exit',
+  };
+  const oldResults = `${JSON.stringify(oldRecord)}\n`;
+  writeFileSync(resultsPath, oldResults);
+  writeFileSync(completionPath, `${JSON.stringify({
+    schemaVersion: 'snapback.proof-completion.v1',
+    runId: '12345678-1234-4123-8123-123456789abc',
+    proofId: 'local-proof',
+    selectedGateCount: canonicalGates.length,
+    selectedGateDigest: selectedGateDigest(canonicalGates),
+    resultsDigest: `sha256:${createHash('sha256').update(oldResults).digest('hex')}`,
+  })}\n`);
+  for (const args of [
+    ['init', '--quiet'],
+    ['config', 'user.name', 'Proof runner fixture'],
+    ['config', 'user.email', 'proof-runner@example.invalid'],
+  ]) {
+    const result = spawnSync('git', args, { cwd: scratch, encoding: 'utf8' });
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  }
+  writeFileSync(join(scratch, 'README.md'), 'fixture\n');
+  for (const args of [['add', 'README.md'], ['commit', '--quiet', '-m', 'fixture']]) {
+    const result = spawnSync('git', args, { cwd: scratch, encoding: 'utf8' });
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  }
+
+  try {
+    const selectionFailure = spawnSync(
+      '/bin/bash',
+      [verifyLocalProof, '--gate', 'not-a-canonical-gate'],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          SNAPBACK_PROOF_COMPLETION_RECEIPT: completionPath,
+          SNAPBACK_PROOF_RESULTS: resultsPath,
+          SNAPBACK_PROOF_SELECTED_GATES: selectedPath,
+        },
+      },
+    );
+    assert.notEqual(selectionFailure.status, 0, selectionFailure.stdout);
+    assert.match(selectionFailure.stderr, /unknown gate(?: id)? not-a-canonical-gate/u);
+    assert.equal(existsSync(completionPath), false, 'the old completion receipt must be gone');
+    assert.equal(existsSync(resultsPath), false, 'the old JSONL must be gone');
+
+    assert.throws(
+      () => runBatteryBackstop({
+        head: 'HEAD',
+        resultsPath,
+        completionPath,
+        runId: 'new-revision-run',
+        root: scratch,
+        context: { inventory: { canonicalGates }, inapplicabilityDeclarations: [] },
+        claims: [],
+      }),
+      /ENOENT|no such file/u,
+    );
+    assert.equal(existsSync(join(scratch, 'issues')), false, 'stale evidence must not mutate tickets');
+
+    mkdirSync(resultsPath);
+    writeFileSync(completionPath, '{"stale":true}\n');
+    const invalidationFailure = spawnSync(
+      '/bin/bash',
+      [verifyLocalProof, '--gate', 'proof-runner-fixtures'],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          SNAPBACK_PROOF_COMPLETION_RECEIPT: completionPath,
+          SNAPBACK_PROOF_RESULTS: resultsPath,
+          SNAPBACK_PROOF_SELECTED_GATES: selectedPath,
+        },
+      },
+    );
+    assert.equal(invalidationFailure.status, 2, invalidationFailure.stderr);
+    assert.match(invalidationFailure.stderr, /could not invalidate retained proof results/u);
+    assert.equal(
+      existsSync(completionPath),
+      false,
+      'invalidation must attempt the receipt even when the JSONL path cannot be removed',
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
 
 test('init rejects path aliasing without overwriting the selected inventory', () => {
   const selected = ['first-gate', 'second-gate'];
@@ -592,6 +706,30 @@ proof_inapplicable selected-gate exact-surface-enabled '{"verifyExact":"auto","e
   }
 });
 
+test('present but unusable Swift is consistently inapplicable', () => {
+  const run = fixture(`
+proof_runner_declare_inapplicable selected-gate swift-toolchain
+swift() { return 69; }
+command -v swift >/dev/null 2>&1
+if proof_swift_available; then
+  proof_gate selected-gate -- /usr/bin/false
+else
+  proof_inapplicable selected-gate swift-toolchain '{"swiftAvailable":false}'
+fi
+`, { selected: ['selected-gate'] });
+  try {
+    assert.equal(run.result.status, 0, `${run.result.stdout}\n${run.result.stderr}`);
+    assert.deepEqual(
+      run.records.map(({ gateId, state, applicabilityEvidence }) => (
+        [gateId, state, applicabilityEvidence]
+      )),
+      [['selected-gate', 'INAPPLICABLE', { swiftAvailable: false }]],
+    );
+  } finally {
+    rmSync(run.scratch, { recursive: true, force: true });
+  }
+});
+
 test('finish rejects a selected gate hidden behind a false guard and accepts it unguarded', () => {
   const selected = ['guarded-gate'];
   const guarded = fixture(`
@@ -648,7 +786,7 @@ trap "exit 0" TERM
 node -e "process.title = \\\"snapback_server-timeout-fixture\\\"; process.on(\\\"SIGTERM\\\", () => {}); require(\\\"fs\\\").writeFileSync(process.env.FIXTURE_CHILD_PID, String(process.pid)); setInterval(() => {}, 1000)" &
 wait
 '
-`, { captureSignatures: true, termGraceSeconds: 1 });
+`, { captureSignatures: true, termGraceSeconds: 1, supervised: true });
   let child;
   try {
     assert.notEqual(run.result.signal, 'SIGTERM', 'the outer fixture watchdog fired');
@@ -671,6 +809,23 @@ wait
     );
     assert.doesNotMatch(run.result.stderr, /SNAPBACK_PROOF_GATE_TIMEOUT_CLEANUP_FAILED/u);
     assert.match(run.records[0].failureSignature, /^sha256:[0-9a-f]{64}$/u);
+    assert.equal(
+      existsSync(run.retainedCompletion),
+      true,
+      'the parent join must retain completion evidence for a recorded timeout red',
+    );
+    const completion = JSON.parse(readFileSync(run.retainedCompletion, 'utf8'));
+    assert.equal(completion.selectedGateCount, 1);
+    assert.equal(completion.selectedGateDigest, selectedGateDigest(['hanging']));
+    assert.equal(
+      completion.resultsDigest,
+      `sha256:${createHash('sha256').update(readFileSync(run.receipt)).digest('hex')}`,
+    );
+    assert.doesNotMatch(
+      run.result.stderr,
+      /did not produce parent-derived completion evidence/u,
+      'a recorded timeout must not become a missing selected id in the parent join',
+    );
     const natural124 = fixture(`
 proof_gate natural-124 -- /bin/bash -c 'exit 124'
 `, { captureSignatures: true });

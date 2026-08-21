@@ -24,6 +24,12 @@ if [ "${PROOF_RUNNER_SUPERVISED:-0}" != "1" ] \
     source "$ROOT/scripts/lib/proof-runner.sh"
     mkdir -p "$ROOT/target/proof"
     parent_results="${SNAPBACK_PROOF_RESULTS:-$ROOT/target/proof/local-proof-results.jsonl}"
+    SNAPBACK_PROOF_COMPLETION_RECEIPT="${SNAPBACK_PROOF_COMPLETION_RECEIPT:-$ROOT/target/proof/local-proof-completion.json}"
+    # Invalidate the retained pair before selection. The scheduled consumer
+    # still runs after selector failures, so no prior invocation may remain
+    # available for it to mistake for this one.
+    proof_runner_invalidate_retained_evidence \
+        "$SNAPBACK_PROOF_COMPLETION_RECEIPT" "$parent_results" || exit $?
     parent_selected="${SNAPBACK_PROOF_SELECTED_GATES:-$ROOT/target/proof/local-proof-selected-gates.$$.txt}"
     parent_selection_metadata="$(mktemp "$ROOT/target/proof/.local-proof-supervision-selection.XXXXXX")" \
         || exit 2
@@ -55,7 +61,6 @@ process.stdout.write(value.selectedGateDigest);
         exit 2
     }
     rm -f -- "$parent_selection_metadata"
-    SNAPBACK_PROOF_COMPLETION_RECEIPT="${SNAPBACK_PROOF_COMPLETION_RECEIPT:-$ROOT/target/proof/local-proof-completion.json}"
     parent_selected_snapshot="$(proof_selected_snapshot_path "$parent_results")" || exit 2
     proof_supervisor_status=0
     proof_runner_supervise local-proof "$parent_results" "$parent_selected_snapshot" \
@@ -796,7 +801,7 @@ run snapback-codegen-package --requires package-test-inventory -- bun run --cwd 
 # LLP 0093 P-2: the clean-room Swift client's fixture-conformance tests run
 # wherever a Swift toolchain exists (macOS dev machines). Absent toolchain is
 # a skip, not a failure — hosts without Swift keep their existing surface.
-if command -v swift >/dev/null 2>&1 && swift --version >/dev/null 2>&1; then
+if proof_swift_available; then
     run swift-client -- swift test --package-path clients/swift/SnapbackClient
 else
     inapplicable swift-client swift-toolchain '{"swiftAvailable":false}'

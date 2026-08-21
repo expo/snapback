@@ -211,6 +211,29 @@ proof_selected_snapshot_path() {
     printf '%s.selected-gates\n' "$1"
 }
 
+proof_runner_invalidate_retained_evidence() {
+    if [ "$#" -ne 2 ]; then
+        printf '[snapback-proof] retained evidence invalidation expects completion and results paths\n' >&2
+        return 2
+    fi
+    local retained_completion="$1" results_path="$2" invalidation_failed=0
+    if [ -n "$retained_completion" ] && ! rm -f -- "$retained_completion"; then
+        printf '[snapback-proof] could not invalidate retained completion receipt: %s\n' \
+            "$retained_completion" >&2
+        invalidation_failed=1
+    fi
+    if ! rm -f -- "$results_path"; then
+        printf '[snapback-proof] could not invalidate retained proof results: %s\n' \
+            "$results_path" >&2
+        invalidation_failed=1
+    fi
+    [ "$invalidation_failed" -eq 0 ] || return 2
+}
+
+proof_swift_available() {
+    command -v swift >/dev/null 2>&1 && swift --version >/dev/null 2>&1
+}
+
 proof_runner_set_phase() {
     PROOF_RUNNER_PHASE="$1"
     if [ -n "${PROOF_RUNNER_PHASE_PATH:-}" ]; then
@@ -237,11 +260,8 @@ proof_runner_supervise() {
     local private_completion_fd=19
     shift 6
 
-    if [ -n "$retained_completion" ] && ! rm -f -- "$retained_completion"; then
-        printf '[snapback-proof] could not invalidate retained completion receipt: %s\n' \
-            "$retained_completion" >&2
-        return 2
-    fi
+    proof_runner_invalidate_retained_evidence "$retained_completion" "$results_path" \
+        || return $?
 
     case "$expected_selected_count" in
         ''|*[!0-9]*)
@@ -1147,7 +1167,7 @@ proof_observed_inapplicability_evidence() {
             printf '{"hostOs":%s}\n' "$(proof_json_quote "$host_os")"
             ;;
         swift-toolchain)
-            if command -v swift >/dev/null 2>&1; then swift_available="true"; fi
+            if proof_swift_available; then swift_available="true"; fi
             printf '{"swiftAvailable":%s}\n' "$swift_available"
             ;;
         exact-surface-enabled|exact-dependencies-sentinel-needed)
