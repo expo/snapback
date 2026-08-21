@@ -22,7 +22,7 @@ struct ManagedHandoffWaiterTestHook {
 }
 
 #[cfg(test)]
-static MANAGED_HANDOFF_WAITER_TEST_HOOK: OnceLock<StdMutex<Option<ManagedHandoffWaiterTestHook>>> =
+static MANAGED_HANDOFF_WAITER_TEST_HOOKS: OnceLock<StdMutex<Vec<ManagedHandoffWaiterTestHook>>> =
     OnceLock::new();
 
 #[cfg(test)]
@@ -30,15 +30,17 @@ pub(super) fn install_managed_handoff_waiter_test_hook(
     handoff: &Arc<crate::exec_guard::ManagedLocalHandoff>,
 ) -> Arc<tokio::sync::Notify> {
     let reached = Arc::new(tokio::sync::Notify::new());
-    let mut hook = MANAGED_HANDOFF_WAITER_TEST_HOOK
-        .get_or_init(|| StdMutex::new(None))
+    let mut hooks = MANAGED_HANDOFF_WAITER_TEST_HOOKS
+        .get_or_init(|| StdMutex::new(Vec::new()))
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     assert!(
-        hook.is_none(),
-        "managed handoff waiter test hook already installed"
+        !hooks
+            .iter()
+            .any(|hook| hook.handoff_identity == Arc::as_ptr(handoff) as usize),
+        "managed handoff waiter test hook already installed for this handoff"
     );
-    *hook = Some(ManagedHandoffWaiterTestHook {
+    hooks.push(ManagedHandoffWaiterTestHook {
         handoff_identity: Arc::as_ptr(handoff) as usize,
         reached: reached.clone(),
     });
@@ -47,15 +49,15 @@ pub(super) fn install_managed_handoff_waiter_test_hook(
 
 #[cfg(test)]
 fn notify_managed_handoff_waiter_for_test(handoff: &Arc<crate::exec_guard::ManagedLocalHandoff>) {
-    let mut hook = MANAGED_HANDOFF_WAITER_TEST_HOOK
-        .get_or_init(|| StdMutex::new(None))
+    let mut hooks = MANAGED_HANDOFF_WAITER_TEST_HOOKS
+        .get_or_init(|| StdMutex::new(Vec::new()))
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if hook
-        .as_ref()
-        .is_some_and(|hook| hook.handoff_identity == Arc::as_ptr(handoff) as usize)
+    if let Some(position) = hooks
+        .iter()
+        .position(|hook| hook.handoff_identity == Arc::as_ptr(handoff) as usize)
     {
-        let hook = hook.take().expect("matched managed handoff waiter hook");
+        let hook = hooks.swap_remove(position);
         hook.reached.notify_one();
     }
 }

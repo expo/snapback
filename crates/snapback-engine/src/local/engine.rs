@@ -3451,6 +3451,8 @@ pub struct LocalSnapback {
     /// authentication complete. Session-mode auth-scoped live admission is
     /// unavailable while this is absent.
     auth_invalidation: Option<LocalInvalidationState>,
+    #[cfg(any(test, feature = "test-support"))]
+    fail_next_installed_auth_invalidation_clear: bool,
 }
 
 pub(crate) use crate::assets::{
@@ -7994,6 +7996,14 @@ impl LocalSnapback {
         &mut self,
         binding: &EngineInvalidationBinding,
     ) -> SnapbackResult<()> {
+        #[cfg(any(test, feature = "test-support"))]
+        if std::mem::take(&mut self.fail_next_installed_auth_invalidation_clear) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "injected installed auth invalidation clear failure",
+            ));
+        }
         let matches = self.auth_invalidation.as_ref().is_some_and(|state| {
             state.issuer.authenticated().issuer_id == binding.issuer.authenticated().issuer_id
         });
@@ -8006,6 +8016,11 @@ impl LocalSnapback {
         }
         self.clear_auth_invalidation_projection();
         Ok(())
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn inject_installed_auth_invalidation_clear_failure(&mut self) {
+        self.fail_next_installed_auth_invalidation_clear = true;
     }
 
     /// Compatibility orchestration for synchronous embedders that own a
@@ -24747,6 +24762,8 @@ impl LocalSnapback {
             app_generation_fence: Arc::new(AtomicU64::new(app_generation)),
             secret_read_reset_generation: Arc::new(AtomicU64::new(1)),
             auth_invalidation: None,
+            #[cfg(any(test, feature = "test-support"))]
+            fail_next_installed_auth_invalidation_clear: false,
             read_manifests,
             read_epochs: Arc::new(RwLock::new(Arc::new(BTreeMap::new()))),
             auth_scoped_live_connections: Arc::new(RwLock::new(Arc::new(BTreeSet::new()))),

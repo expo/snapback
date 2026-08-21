@@ -23856,11 +23856,12 @@ async fn coordinated_app_reset_inner(
         }
         drop(maintenance);
         runtime.clear_reset_auth_invalidation();
-        committed_handoff
+        let _fail_closed_error = committed_handoff
             .with_snapback(&runtime.snapback, |snapback| {
                 snapback.fail_closed_auth_invalidation_after_commit();
             })
-            .await?;
+            .await
+            .err();
         let _coordinator_error = match coordinator.finish_stream_reset(
             carrier,
             AuthTransactionAttempt::<CoordinatedResetOutput>::CommitUncertain(error.clone()),
@@ -23924,11 +23925,28 @@ async fn coordinated_app_reset_inner(
                 snapback.publish_coordinated_versioned_seed_reset(*committed),
             ),
         })
-        .await?;
+        .await;
     runtime.secret_reads.clear_after_committed_reset();
     if let Some(coordinator) = runtime.auth_coordinator.as_ref() {
         coordinator.clear_rehearsal_authority();
     }
+    let output = match output {
+        Ok(output) => output,
+        Err(error) => {
+            let _fail_closed_error = committed_handoff
+                .with_snapback(&runtime.snapback, |snapback| {
+                    snapback.fail_closed_auth_invalidation_after_commit();
+                })
+                .await
+                .err();
+            let _coordinator_error = coordinator.finish_stream_reset(
+                carrier,
+                AuthTransactionAttempt::<CoordinatedResetOutput>::CommitUncertain(error.clone()),
+            );
+            committed_handoff.release_after_fail_closed();
+            return Err(error);
+        }
+    };
 
     // Active sessions owns an authenticated invalidation issuer. Active dev
     // deliberately does not, even when a ReadyV1 catalog is present (for
@@ -23943,17 +23961,15 @@ async fn coordinated_app_reset_inner(
         // scoped to the predecessor incarnation and must never be asked to
         // cross it.
         let successor_incarnation = successor.as_str().to_owned();
-        let rebuild: SnapbackResult<crate::local::EngineInvalidationBinding> = async {
-            committed_handoff
-                .with_snapback(&runtime.snapback, move |snapback| {
-                    snapback.install_authenticated_auth_invalidation(
-                        &provider,
-                        Some(&successor_incarnation),
-                    )
-                })
-                .await?
-        }
-        .await;
+        let rebuild = committed_handoff
+            .with_snapback(&runtime.snapback, move |snapback| {
+                snapback.install_authenticated_auth_invalidation(
+                    &provider,
+                    Some(&successor_incarnation),
+                )
+            })
+            .await
+            .and_then(|result| result);
         let successor_binding = match rebuild {
             Ok(binding) => binding,
             Err(error) => {
@@ -23985,17 +24001,31 @@ async fn coordinated_app_reset_inner(
             .is_err()
         {
             runtime.clear_reset_auth_invalidation();
-            committed_handoff
+            let clear_error = committed_handoff
                 .with_snapback(&runtime.snapback, move |snapback| {
                     snapback.clear_installed_auth_invalidation(&installed_successor_binding)
                 })
-                .await??;
+                .await
+                .and_then(|result| result)
+                .err();
+            if clear_error.is_some() {
+                let _fail_closed_error = committed_handoff
+                    .with_snapback(&runtime.snapback, |snapback| {
+                        snapback.fail_closed_auth_invalidation_after_commit();
+                    })
+                    .await
+                    .err();
+            }
             let _ = coordinator.fail_global_closed();
             committed_handoff.release_after_fail_closed();
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
                 "auth",
-                "committed reset successor projection could not be reconciled",
+                if clear_error.is_some() {
+                    "committed reset successor projection could not be reconciled and its installed issuer could not be cleared exactly"
+                } else {
+                    "committed reset successor projection could not be reconciled"
+                },
             ));
         }
         committed_handoff.reopen();
@@ -24027,9 +24057,8 @@ struct CommittedResetHandoffTestHook {
 }
 
 #[cfg(test)]
-static COMMITTED_RESET_HANDOFF_TEST_HOOK: OnceLock<
-    StdMutex<Option<CommittedResetHandoffTestHook>>,
-> = OnceLock::new();
+static COMMITTED_RESET_HANDOFF_TEST_HOOKS: OnceLock<StdMutex<Vec<CommittedResetHandoffTestHook>>> =
+    OnceLock::new();
 
 #[cfg(test)]
 fn install_committed_reset_handoff_test_hook(
@@ -24037,15 +24066,17 @@ fn install_committed_reset_handoff_test_hook(
 ) -> (Arc<tokio::sync::Notify>, Arc<tokio::sync::Notify>) {
     let reached = Arc::new(tokio::sync::Notify::new());
     let release = Arc::new(tokio::sync::Notify::new());
-    let mut hook = COMMITTED_RESET_HANDOFF_TEST_HOOK
-        .get_or_init(|| StdMutex::new(None))
+    let mut hooks = COMMITTED_RESET_HANDOFF_TEST_HOOKS
+        .get_or_init(|| StdMutex::new(Vec::new()))
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     assert!(
-        hook.is_none(),
-        "committed-reset handoff test hook already installed"
+        !hooks
+            .iter()
+            .any(|hook| hook.snapback_identity == Arc::as_ptr(snapback) as usize),
+        "committed-reset handoff test hook already installed for this instance"
     );
-    *hook = Some(CommittedResetHandoffTestHook {
+    hooks.push(CommittedResetHandoffTestHook {
         snapback_identity: Arc::as_ptr(snapback) as usize,
         reached: reached.clone(),
         release: release.clone(),
@@ -24056,19 +24087,15 @@ fn install_committed_reset_handoff_test_hook(
 #[cfg(test)]
 async fn pause_after_committed_reset_handoff_for_test(snapback: &SharedSnapback) {
     let hook = {
-        let mut slot = COMMITTED_RESET_HANDOFF_TEST_HOOK
-            .get_or_init(|| StdMutex::new(None))
+        let mut hooks = COMMITTED_RESET_HANDOFF_TEST_HOOKS
+            .get_or_init(|| StdMutex::new(Vec::new()))
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let identity = Arc::as_ptr(snapback) as usize;
-        if slot
-            .as_ref()
-            .is_some_and(|hook| hook.snapback_identity == identity)
-        {
-            slot.take()
-        } else {
-            None
-        }
+        hooks
+            .iter()
+            .position(|hook| hook.snapback_identity == identity)
+            .map(|position| hooks.swap_remove(position))
     };
     if let Some(hook) = hook {
         hook.reached.notify_one();

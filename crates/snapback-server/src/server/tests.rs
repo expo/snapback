@@ -31946,6 +31946,115 @@ async fn postcommit_reset_finalize_failure_clears_issuers_and_stays_globally_clo
     );
 }
 
+#[tokio::test]
+async fn postcommit_reset_clear_failure_releases_queued_writer_to_typed_refusal() {
+    let state = auth_invalidation_reset_fixture_with_context(ServerContext::detached());
+    with_snapback(&state.snapback, |snapback| {
+        snapback.inject_installed_auth_invalidation_clear_failure();
+    })
+    .await;
+    let managed_handoff =
+        with_snapback(&state.snapback, |snapback| snapback.managed_local_handoff()).await;
+    let writer_queued =
+        super::writer_gate::install_managed_handoff_waiter_test_hook(&managed_handoff);
+    let coordinator = state.auth_coordinator.clone().expect("reset coordinator");
+    coordinator.inject_finalize_failure();
+    let (reset_committed, release_reset) =
+        install_committed_reset_handoff_test_hook(&state.snapback);
+    let route_admission = test_route_admission(&state).0;
+    let reset_state = state.clone();
+    let reset =
+        tokio::spawn(
+            async move { coordinated_app_reset(&reset_state, &route_admission, None).await },
+        );
+    tokio::time::timeout(Duration::from_secs(2), reset_committed.notified())
+        .await
+        .expect("reset reaches its closed post-finalizer handoff");
+
+    let writer_state = state.snapback.clone();
+    let (writer_entered_tx, mut writer_entered_rx) = tokio::sync::oneshot::channel();
+    let writer = tokio::spawn(async move {
+        super::with_snapback_authorization_write(
+            &writer_state,
+            |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+            move |snapback| {
+                writer_entered_tx.send(()).unwrap();
+                snapback.seed(SeedData {
+                    tables: BTreeMap::from([(
+                        "resetPermissions".to_owned(),
+                        vec![serde_json::Map::from_iter([
+                            (
+                                "_id".to_owned(),
+                                json!("must-not-commit-after-clear-failure"),
+                            ),
+                            ("subject".to_owned(), json!("closed")),
+                        ])],
+                    )]),
+                })
+            },
+        )
+        .await
+        .and_then(|result| result)
+    });
+    tokio::time::timeout(Duration::from_secs(2), writer_queued.notified())
+        .await
+        .expect("writer registers as a waiter on the closed reset handoff");
+    assert!(managed_handoff.is_closed());
+    assert!(
+        tokio::time::timeout(Duration::from_millis(100), &mut writer_entered_rx)
+            .await
+            .is_err(),
+        "writer must be queued when installed-issuer cleanup fails"
+    );
+
+    release_reset.notify_one();
+    let reset_error = tokio::time::timeout(Duration::from_secs(2), reset)
+        .await
+        .expect("installed-issuer clear failure returns from reset")
+        .expect("reset task joins")
+        .expect_err("injected successor clear failure");
+    let refused = tokio::time::timeout(Duration::from_secs(2), writer)
+        .await
+        .expect("queued writer wakes after best-effort clear fails")
+        .expect("queued writer task joins")
+        .expect_err("queued writer observes the lasting typed refusal");
+    assert_eq!(
+        refused.diagnostic.code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+    );
+    assert!(
+        writer_entered_rx.await.is_err(),
+        "the refused writer never enters its committing Local closure"
+    );
+    assert_eq!(
+        reset_error.diagnostic.code,
+        "SNAPBACK_AUTH_REVOCATION_UNCERTAIN"
+    );
+    assert_eq!(
+        coordinator
+            .authorization_stream_incarnation()
+            .expect_err("coordinator stays globally closed")
+            .diagnostic
+            .code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+    );
+    assert!(
+        state
+            .ephemeral
+            .authorization_expectation_for_test()
+            .is_none(),
+        "room issuer stays suspended after exact successor cleanup fails",
+    );
+    assert!(
+        with_snapback(&state.snapback, |snapback| {
+            snapback.auth_invalidation_expectation_for_test()
+        })
+        .await
+        .is_none(),
+        "query issuer stays suspended after exact successor cleanup fails",
+    );
+}
+
 #[test]
 fn connection_registry_pressure_evicts_lru_instead_of_permanently_wedging() {
     let registry = ConnectionRegistry::default();
