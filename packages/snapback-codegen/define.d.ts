@@ -408,24 +408,19 @@ interface QueryRetentionOptions {
 
 /**
  * Query authority declarations preserve the codegen implication
- * `authorityIndependent: true` => `auth: 'public'`. `publicInline: true` is
- * the adjacent exact implication: it is valid only on that same branch.
+ * `authorityIndependent: true` => `auth: 'public'`.
  *
  * @ref LLP 0090#authorization-scope-v1 — authority-independent queries are
  * already public; the declaration never grants invocation authority.
- * @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact — inline
- * disclosure requires a valid authority-independent declaration.
  */
 export type QueryAuthOptions = QueryRetentionOptions & (
   | (FunctionAuthOptions & {
       authorityIndependent?: false;
-      publicInline?: false;
     })
   | (Omit<FunctionAuthOptions, 'auth' | 'requires'> & {
       auth: 'public';
       requires?: never;
       authorityIndependent: true;
-      publicInline?: boolean;
     })
 );
 
@@ -473,7 +468,20 @@ interface HostPlanQueryFields {
   membership?: MembershipPredicate[];
 }
 
-export type HostPlanQuerySpec = HostPlanQueryFields & QueryAuthOptions;
+/**
+ * Inline disclosure is HostPlan-only and requires the authority-independent
+ * branch. Opaque JavaScript query builders do not accept this field.
+ *
+ * @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact — inline
+ * disclosure requires a valid authority-independent HostPlan declaration.
+ */
+type HostPlanPublicInlineOptions =
+  | { authorityIndependent?: false; publicInline?: false }
+  | { authorityIndependent: true; publicInline?: boolean };
+
+export type HostPlanQuerySpec = HostPlanQueryFields
+  & QueryAuthOptions
+  & HostPlanPublicInlineOptions;
 
 interface JsQuerySpecFields {
   args?: Record<string, Validator>;

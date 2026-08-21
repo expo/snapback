@@ -46,16 +46,17 @@ normal editor catches it before generation.
 `QueryAuthOptions` is now a discriminated union. Its authority-independent
 branch requires the already-authored `auth: 'public'` fact, while the ordinary
 branch accepts public, optional-user, authenticated, or omitted auth with no
-authority-independence claim. `publicInline: true` joins the independent branch
-because LLP 0092 gives it the same exact stable implication; retention,
-membership, auth scopes, and expression-level authority dependencies remain
-under codegen's deeper semantic proof rather than widening this ticket into a
-type-system rewrite.
+authority-independence claim. On HostPlan queries only, `publicInline: true`
+joins the independent branch because LLP 0092 gives it the same exact stable
+implication; the opaque JavaScript builder continues to reject that field.
+Retention, membership, auth scopes, and expression-level authority
+dependencies remain under codegen's deeper semantic proof rather than widening
+this ticket into a type-system rewrite.
 
-A strict TypeScript fixture covers the invalid literal pair, both valid
-variants, spread and generic-helper composition, the `publicInline` coupling,
-and an explicit cast bypass. The existing runtime/codegen validator is
-unchanged and now has regressions for direct JavaScript and a post-builder
-mutation/package-skew shape, both pinned to
+A strict TypeScript fixture covers the full ordinary and authority-independent
+matrix, spread and generic-helper composition, the HostPlan-only `publicInline`
+coupling, JavaScript excess-field rejection, and an explicit cast bypass. The
+existing runtime/codegen validator is unchanged and now has regressions for
+direct JavaScript and a post-builder mutation/package-skew shape, both pinned to
 `FUNCTION_AUTHORITY_INDEPENDENT_INVALID`. Generated manifest and runtime
 semantics are unchanged.
