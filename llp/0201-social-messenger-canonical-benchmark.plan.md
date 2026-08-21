@@ -5,7 +5,12 @@
 **Systems:** Competitive evaluation, Benchmarks, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-21 (n — M3 typing-observation boundary versioned;
+**Revised:** 2026-08-21 (o — D0.6 instrument registration: per LLP 0295
+D0.6, the D2 record schema commissions per-milestone-boundary usage,
+semantic-action, episode, restart/reseed, browser-wait, host-load, and
+orientation fields, harness-native and without cross-harness normalization;
+adopted-by-default pending author revision; see the dated amendment);
+2026-08-21 (n — M3 typing-observation boundary versioned;
 the 0.1.21 Simplified red is recorded as a v1 measurement artifact, and the
 v2 choreography amendment plus rerun are routed through the P3 ruling queue);
 2026-08-12 (m — factual pin: scoring DAG M3 requires M1 only;
@@ -31,7 +36,15 @@ LLP 0189 (claim gating), LLP 0186 (efficiency program), LLP 0193
 `benchmarks/` (harness, protocol, records),
 `benchmarks/briefs/social-messenger.md` (the authoritative app spec),
 diaries 0058–0069 (the calibrated messaging series this extends),
-`guide/capabilities.md` (the coverage map the app was designed against)
+`guide/capabilities.md` (the coverage map the app was designed against),
+LLP 0295 (published-matrix improvement program — its D0.6 measurement
+fields are registered in the 2026-08-21 dated amendment), LLP 0281
+(benchmark instrument observability closure — the coordinated version
+bump these fields ride),
+`issues/20260809-per-milestone-token-metering.md` (D0.6 implementation
+ticket), `issues/20260820-matrix-lane-skill-routing-context-budget.md`
+(orientation carrier),
+`issues/20260821-clique-instrument-observability-version-bump.md`
 
 ## Summary
 
@@ -899,3 +912,46 @@ scored status (the inclusion rule's floor check), and its results
 inform OQ1's mid-tier choice at P3. The scored matrix is unchanged:
 scored waves remain Fable 5 + GPT-5.6/Codex at N≥3, and no sweep
 cell qualifies for claims at N=1.
+
+**2026-08-21 — D0.6 instrument registration (Adopted per LLP 0295
+default proposal; author may revise).** LLP 0295 §D0.6 requires that,
+before the next measured run, every **milestone boundary** in the D2
+record schema carries the following fields. This amendment registers
+them as commissioned schema work; it changes no completed record and no
+scoring rule. Implementation ticket:
+`issues/20260809-per-milestone-token-metering.md` (this resolves that
+ticket's open P3-freeze decision in favor of the **harness-native
+path**: per-phase usage read from each harness's own accounting fields,
+with a protocol-approved boundary-snapshot estimator permitted only
+where a pinned harness exposes no per-phase fields, and the estimator's
+use recorded as a field). The fields must be schema-compatible with the
+coordinated version bump in
+`issues/20260821-clique-instrument-observability-version-bump.md`.
+
+Registered per-milestone fields:
+
+1. **Usage, harness-native:** fresh input, cache read, cache write,
+   output, and reasoning tokens, using each harness's native vocabulary
+   and recorded per (harness, model) — **no cross-harness
+   normalization**; cross-family token comparison stays out of scope
+   exactly as the cap-family rules already provide.
+2. **Semantic actions**, using LLP 0186 W5's classes: read, edit,
+   generate, start/restart, suite run, choreography run, source
+   inspection, guide lookup, retry.
+3. **Failure-to-recovery episodes** with attribution and outcome,
+   per LLP 0186's failure-to-recovery trace amendment.
+4. **Server/process restart and reseed counts.**
+5. **Browser assertion attempts and wall time spent waiting** on
+   choreography assertions.
+6. **Host load and API interruption windows** (the 0.1.24 matrix's
+   contamination classes), as declared cell-eligibility facts.
+7. **Orientation bytes and the selected skill set before the first
+   product edit** (`issues/20260820-matrix-lane-skill-routing-context-budget.md`
+   is the carrier ticket), reported separately from authoring tokens.
+
+**Eligibility rule (registered, per LLP 0295):** a run lacking
+per-phase usage may still debug product behavior, but its cells are
+ineligible for LLP 0295's efficiency scorecard (whose thresholds are
+registered in LLP 0186's 2026-08-21 amendment); excessive host load or
+an API interruption inside a phase likewise makes that cell
+scorecard-ineligible while retaining its product findings.

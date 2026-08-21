@@ -24,6 +24,12 @@ Adopted from the LLP 0207 dissolution.)
 **Revised:** 2026-08-09 (n — reconciled W2 with LLP 0061's implemented
 tiered-projection disposition: bounded entry artifacts first, per-section
 flats next, and the roughly 2.5 MiB whole-corpus export last.)
+**Revised:** 2026-08-21 (o — LLP 0295 D0.6 target registration: the
+published-matrix efficiency scorecard thresholds (≥40% semantic correction
+actions, ≥20% output tokens, ≥30% M1 wall, plus the zero-count structural
+rows) are registered here as commissioned R2 targets, adopted-by-default
+pending author revision; includes the recommendation answering LLP 0295
+open question 4. See the dated amendment.)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
@@ -32,7 +38,12 @@ diagnostics), LLP 0179 (AppDescriptor and surfaces), LLP 0181
 0187 (agent discoverability — the companion RFC from the same evidence
 base), LLP 0193 (errors-as-docs completeness), LLP 0194 (generated API
 reference), LLP 0195 (public documentation and training surface), LLP 0196
-(template and recipe portfolio), LLP 0197 (benchmark publication standard)
+(template and recipe portfolio), LLP 0197 (benchmark publication standard),
+LLP 0201 (canonical benchmark — carries the D0.6 per-milestone field
+registration), LLP 0295 (published-matrix improvement program — its
+efficiency scorecard targets are registered in the 2026-08-21 amendment),
+`issues/20260809-per-milestone-token-metering.md`,
+`issues/20260820-matrix-lane-skill-routing-context-budget.md`
 
 ## Summary
 
@@ -891,3 +902,68 @@ rediscovery, stale-name episodes) actually cost sessions before any
 mechanism aimed at them is commissioned. Mechanism proposals that would
 have consumed these traces are recorded in LLP 0207's close-out and in
 `issues/20260809-*-proposal.md`; none is commissioned by this amendment.
+
+## Amendment (2026-08-21): D0.6 — matrix efficiency targets registered
+
+**Adopted per LLP 0295 default proposal; author may revise.** LLP 0295's
+efficiency scorecard requires exact thresholds registered *before*
+implementation so the program cannot fit the target to the result. This
+Plan is the efficiency-program owner, so the targets are registered here;
+the paired per-milestone measurement fields and cell-eligibility rule are
+registered in LLP 0201's 2026-08-21 dated amendment (implementation ticket
+`issues/20260809-per-milestone-token-metering.md`; orientation carrier
+`issues/20260820-matrix-lane-skill-routing-context-budget.md`).
+
+**Commissioned R2 targets** (matched cells, same harness/model, load-
+qualified, phase metering present — a cell missing any of those is
+scorecard-ineligible while keeping its product findings):
+
+1. **Semantic correction actions: ≥40% lower median** in matched cells,
+   counted in W5's semantic-action classes after D0.6 metering lands
+   (never raw tool calls, which reward command bundling).
+2. **Output tokens: ≥20% lower median** in matched cells.
+3. **M1 wall to first green: ≥30% lower median** — W1-of-0295's lifecycle
+   consolidation predicts the largest gain here, since M1 ran 3–6x either
+   later milestone on clean lanes.
+4. **Zero-count structural rows**, absolute rather than statistical:
+   zero Snapback/Exact source inspections for paved-path facts; zero
+   custom fixed-origin relay/binding implementations; zero destructive
+   restart/reseed for additive milestone schema; zero silent auth/query
+   waits requiring an app timeout; zero Guide/type/codegen/runtime/client
+   disagreements on paths closed by vertical fixtures.
+5. **Bounded orientation:** one ≤16 KiB deduplicated start packet plus
+   task-selected detail before the first product edit; orientation bytes
+   reported separately from authoring tokens.
+6. **Choreography retries:** at most one retry per failed assertion, with
+   unaffected checks isolated.
+7. **Grouped advisories:** one migration advisory per repair class with an
+   affected-table count (replacing the observed 17–19 identical repeats).
+8. **Debug artifact:** a like-for-like size/link-wall baseline with
+   attributed budget and visible drift; no size-only claim.
+
+These are internal program targets, not comparative claims; LLP 0197
+governs anything published. They complement, and do not replace, this
+Plan's standing Measurable outcomes (the 1.2x wall ratio, ≤2 Snapback
+correction loops, zero package-source reads): those remain the
+competitive-lane bars, while these scorecard targets measure the 0295
+program's own before/after inside the matrix instrument.
+
+**LLP 0295 open question 4 — recommendation.** *Are 40/20/30 ambitious
+enough to discriminate a real improvement without being dominated by
+variance?* **Recommendation: adopt them as registered, with a variance
+guard rather than larger numbers.** Rationale: (a) the zero-count rows,
+not the percentages, are the primary pass signal — they are variance-free
+and each maps to a mechanism (W1–W3) that either shipped or did not;
+(b) 30% on M1 wall is if anything conservative given M1's observed 3–6x
+share and that W1 deletes its dominant costs, but wall is the most
+load-contaminated axis, so a larger registered number would mostly buy
+false negatives; (c) 20% on output tokens is deliberately modest because
+the 0.1.24 matrix showed a strong app×profile interaction (±13–17%) in
+token totals — a bigger target would be adjudicating profile fit, not
+program effect. Variance guard: R2 remains N=1-per-cell calibration, so
+the percentage targets are read as medians across matched cells with
+direction-consistency across pairs (the same standard the matrix used for
+its profile-fit observation), and any claim-grade pass waits for the R3
+N≥3 wave under a preregistered paired sign test. If R2's matched-cell
+spread exceeds the target sizes, the correct move recorded here is to
+tighten load isolation and grow N — not to lower the thresholds.

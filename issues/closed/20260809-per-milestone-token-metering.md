@@ -64,3 +64,11 @@ is not double-counted.
 No live benchmark rerun was required for this implementation. Token caps must
 still seed only from fresh lanes run under the retained native meter; the P2
 pilot's lane-total figures remain unmetered at milestone grain.
+
+**Cross-reference 2026-08-21 (LLP 0295 D0.6).** The registered D0.6 fields and
+eligibility rules live in LLP 0201's 2026-08-21 dated amendment and the
+commissioned targets in LLP 0186's; this landing is their harness-native
+implementation. The boundary-snapshot estimator remains permitted only where a
+pinned harness exposes no per-phase fields, recorded as a field (LLP 0201
+field 8), schema-compatible with
+`issues/20260821-clique-instrument-observability-version-bump.md`.
