@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:0359f6929ba31ad21ecaac8c2281116cb7688efc61d1
 # @expo/snapback-client/argument-normalization
 
 Build-bound public API projection for `@expo/snapback-client/argument-normalization`. Canonical registry identity:
-`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
+`sha256:e9fb19e33b834f52ce3769fbf9636e31b25bbac9e5d1d4215899bbebfb099fcc`.
 Runtime parity condition:
 `import` → `packages/snapback-client/argument-normalization.mjs`.
 

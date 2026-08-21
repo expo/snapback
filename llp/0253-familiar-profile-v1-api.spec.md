@@ -14,11 +14,12 @@ parity including the ephemeral re-export amendment to S3.1/S3.2, feature
 parity by class, profile-switch suggestion rules, template-scoped profile
 choice — and the W3 vertical contract fixture catalogue. Adopted per
 LLP 0295; author may revise.)
-**Revised:** 2026-08-21 (qualification reconciliation: the Guide no longer
-claims direct object/nullable-document query values from lowering evidence
-alone; until a generation-and-execution fixture qualifies them, the paved
-Familiar point-read contract is a singleton relational array. This records a
-shipped-evidence ceiling, not a change to S4.3's target lowering.)
+**Revised:** 2026-08-21 (qualification reconciliation: the Guide stopped
+claiming direct object/nullable-document query values from lowering evidence
+alone and temporarily paved a singleton relational array. This records the
+shipped-evidence ceiling that the document-result parity implementation and
+packed vertical fixture in the next note subsequently lift; it was not a
+change to S4.3's target lowering.)
 **Revised:** 2026-08-21 (document-result parity implementation: the effective
 result-contract gate now admits LLP 0108 `document`/`value` carriers for Query
 and LiveQuery exactly as the runtime does; unsupported mutation/action

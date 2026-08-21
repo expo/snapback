@@ -2032,7 +2032,7 @@ order: 5
 audience: agent-first
 capabilities: [backend.familiar-profile-v1, authority.profile.v1]
 authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0237-bounded-handler-modules.rfc.md, llp/0240-application-authority-profiles.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, crates/snapback-engine/src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
-examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-contract/auth-custody-secure-store.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
+examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, tests/fixtures/familiar-vdoc-vertical, scripts/familiar-vdoc-vertical-contract.mjs, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-contract/auth-custody-secure-store.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -2144,15 +2144,18 @@ export const list = query({
 Every function requires `args`, `returns`, `auth`, and `handler`. Queries add
 `reads`; mutations add `reads` and `writes`; actions may add `secrets`.
 Queries are live by default; set `delivery: "read"` for a one-shot query.
-Row-shaped query returns remain arrays. Although the lowering layer recognizes
-some direct `v.object(...)` and nullable-document values, the current
-generation-and-execution path has not qualified those shapes end to end. For a
-point read, declare the **unbounded** relational contract
-`v.array(v.doc(table))`, bound the handler with `.take(1)`, and return `[]` or
-`[row]`; unwrap the first row in application code. Do not add
+Row-shaped query returns remain arrays. A point query can declare an exact
+single value such as `returns: v.union([v.doc("todos"), v.null()])` or a closed
+`v.object(...)` and return that value directly; the packed vertical fixture
+qualifies clean generation, native execution, and headless/live plus React
+projection, so `useQuery` receives the object or `null`, not a one-row array.
+
+The relational alternative remains available when an empty row set is the
+desired carrier, including membership-admission paths: declare the
+**unbounded** `v.array(v.doc(table))`, bound the handler with `.take(1)`, and
+return `[]` or `[row]`; unwrap the first row in application code. Do not add
 `{ maxItems: 1 }`: bounded document arrays lower to `results.value`, not
-`results.documents`, and cannot carry the empty row-set semantics required by
-membership admission.
+`results.documents`, and cannot carry relational empty-row-set semantics.
 
 ```ts source=packages/snapback-codegen/familiar-phase-b.test.mjs
 export const byId = query({
