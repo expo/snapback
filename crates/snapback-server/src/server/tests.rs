@@ -4566,8 +4566,9 @@ async fn capability_link_one_use_mint_without_function_approval_returns() {
     let state = capability_link_server_fixture().await;
     let router = app(state.clone());
     let owner = mint_test_credential(&state, "one-use-link-owner@example.test").await;
-    let minted = router
-        .oneshot(session_auth_http_request(
+    let minted = bounded_oneshot_for_deadlock_regression(
+        router,
+        session_auth_http_request(
             "/capability-links",
             serde_json::to_vec(&json!({
                 "function": "queuedWrite",
@@ -4576,9 +4577,10 @@ async fn capability_link_one_use_mint_without_function_approval_returns() {
             }))
             .unwrap(),
             owner["token"].as_str().unwrap(),
-        ))
-        .await
-        .unwrap();
+        ),
+        "capability-link mint must return within 2s without admission re-entry deadlock",
+    )
+    .await;
     let status = minted.status();
     let minted = response_json(minted).await;
     assert_eq!(status, StatusCode::OK, "{minted}");
@@ -4626,7 +4628,12 @@ async fn capability_link_revoke_returns_after_directly_seeded_link() {
         &bearer,
     );
     *revoke.method_mut() = axum::http::Method::DELETE;
-    let revoked = router.oneshot(revoke).await.unwrap();
+    let revoked = bounded_oneshot_for_deadlock_regression(
+        router,
+        revoke,
+        "capability-link revoke must return within 2s without admission re-entry deadlock",
+    )
+    .await;
     assert_eq!(revoked.status(), StatusCode::NO_CONTENT);
 }
 
@@ -8519,6 +8526,33 @@ fn session_auth_http_request(uri: &str, body: Vec<u8>, bearer: &str) -> Request<
         HeaderValue::from_str(&format!("Bearer {bearer}")).expect("bearer header"),
     );
     request
+}
+
+async fn bounded_oneshot_for_deadlock_regression(
+    router: SnapbackApp,
+    request: Request<Body>,
+    deadlock_message: &'static str,
+) -> axum::response::Response {
+    // A timeout around `Router::oneshot` itself cannot preempt a synchronous
+    // mutex block inside the future's poll. Isolate the request on a plain
+    // thread and bound only the result channel so re-entry fails cleanly.
+    let (result_tx, result_rx) = tokio::sync::oneshot::channel();
+    let worker = std::thread::spawn(move || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("deadlock regression request runtime");
+        let _ = result_tx.send(runtime.block_on(router.oneshot(request)));
+    });
+    let response = tokio::time::timeout(Duration::from_secs(2), result_rx)
+        .await
+        .expect(deadlock_message)
+        .expect("deadlock regression request worker must report its result")
+        .expect("deadlock regression router response");
+    worker
+        .join()
+        .expect("deadlock regression request worker exits");
+    response
 }
 
 fn password_auth_http_request(uri: &str, body: Value) -> Request<Body> {
@@ -25529,6 +25563,100 @@ fn held_action_host(
             &crate::local::manual_action_metadata("test", "heldAction"),
         ),
     }
+}
+
+#[tokio::test]
+async fn detached_ctx_push_send_durable_reservation_returns_without_admission_reentry() {
+    let mut snapback = LocalSnapback::memory().expect("push deadlock regression state");
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    activate_catalog(
+        snapback.remainder_auth_database_mut(),
+        keyring.as_ref(),
+        super::now_millis(),
+        &OsRandom,
+    )
+    .expect("activate push deadlock auth catalog");
+    let provider = Arc::new(
+        AuthProvider::new(AuthProviderProfile::Test, keyring)
+            .expect("construct push deadlock auth provider"),
+    );
+    let mut context = ServerContext::detached();
+    context.profile = ServerProfile::Test;
+    let state = activate_test_sessions(
+        test_app_state_from_snapback(snapback, context)
+            .with_policy_auth_mode(PolicyAuthMode::Sessions)
+            .try_with_auth_provider(provider)
+            .expect("install push deadlock auth provider"),
+    );
+    with_snapback(&state.snapback, |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .activate_push_registry_for_test(crate::push::PushSeamDeclarationV1 {
+                app_scope: crate::push::PushAppScopeV1 {
+                    eas_project_id: "eas-deadlock-regression".into(),
+                    application_id: "com.example.deadlock-regression".into(),
+                    environment: "test".into(),
+                },
+                registry: crate::push::PushRegistryDeclarationV1 {
+                    idle_retention_ms: 86_400_000,
+                },
+                audiences: BTreeMap::from([(
+                    "empty".into(),
+                    crate::push::PushAudienceDeclarationV1 {
+                        resolve: crate::push::PushAudienceResolverV1::ExplicitPrincipals {
+                            principals_arg: "principalIds".into(),
+                            max_items: 1,
+                        },
+                        authorize: crate::push::PushAudienceAuthorizeV1::System,
+                    },
+                )]),
+                uses: Vec::new(),
+                ledger: Some(crate::push::PushLedgerDeclarationV1 {
+                    retention_ms: 86_400_000,
+                }),
+            })?;
+        let diagnostics = snapback.load_functions(generation_test_manifest());
+        assert!(
+            diagnostics.iter().all(|diagnostic| {
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }),
+            "push deadlock regression functions load: {diagnostics:?}"
+        );
+        Ok::<_, SnapbackError>(())
+    })
+    .await
+    .expect("activate push seam and action");
+    let staged = stage_held_action(&state.snapback);
+    let mut host = held_action_host(state.snapback.clone(), &staged);
+    let unregistered_principal =
+        crate::ids::mint(crate::ids::Kind::User).expect("unregistered push principal");
+    let request = crate::push::PushSendRequestV1 {
+        to: crate::contract_types::PushAudienceReferenceV1 {
+            audience: "empty".into(),
+            args: Map::from_iter([("principalIds".into(), json!([unregistered_principal]))]),
+        },
+        title: "deadlock regression".into(),
+        body: "no targets".into(),
+        data: None,
+        dedupe_key: "deadlock-regression".into(),
+        redrive_ambiguous: false,
+    };
+
+    // Run the synchronous host call on a plain thread. Before the fix it
+    // blocks forever while re-entering the admission mutex; dropping the
+    // JoinHandle after the bounded assertion lets the failing test exit.
+    let (result_tx, result_rx) = tokio::sync::oneshot::channel();
+    let worker = std::thread::spawn(move || {
+        let _ = result_tx.send(host.push_send(request));
+    });
+    let response = tokio::time::timeout(Duration::from_secs(2), result_rx)
+        .await
+        .expect("ctx.push.send must return within 2s without admission re-entry deadlock")
+        .expect("ctx.push.send worker must report its result")
+        .expect("zero-target push reservation");
+    worker.join().expect("ctx.push.send worker exits");
+    assert_eq!(response.target_count, 0);
+    assert_eq!(response.batch_count, 0);
 }
 
 #[tokio::test]

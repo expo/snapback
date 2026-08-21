@@ -1982,9 +1982,6 @@ impl IbexActionHost for DetachedActionHost {
         let now_ms = now_millis();
         let (mut attempt, access_token) = {
             let mut snapback = self.lock_live("push.send.reserve")?;
-            let _effect = self
-                .authority
-                .effect_guard("push send durable reservation")?;
             let (attempt, declaration) = snapback.reserve_push_send(
                 &self.authority,
                 trigger_mode,

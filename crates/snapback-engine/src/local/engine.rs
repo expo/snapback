@@ -6648,6 +6648,9 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<crate::push::ReservedPushAttemptV1> {
         let push_authority = crate::push::admitted_push_storage_authority(&self.db, authority);
+        // @ref LLP 0058#gate-algorithm — the engine owns the sole admission
+        // epoch fence across the durable push-reservation commit.
+        let _effect = authority.effect_guard("push durable reservation")?;
         self.db.push_registry().reserve_send_admitted_storage(
             declaration,
             schema,
