@@ -52,9 +52,12 @@ rounds: LLP 0267 v0.8 (dual xhigh round — codex 5 MAJOR + grok MAJORs 1–5,
 MINORs 6–15), v0.9 (codex delta re-review items 1–4 + grok round-4
 pins 1–3), v0.10 (codex round-4 single MAJOR — registry owed-ness
 facts), v0.11 (codex round-5 — compare-and-clear delivery and defined
-absent-row semantics), and v0.12 (codex round-6 — orthogonal
+absent-row semantics), v0.12 (codex round-6 — orthogonal
 `evaluation`/`pendingWork` fields, complete LLP 0200 exit/lifecycle rows,
-exhaustive four-outcome derivation). Summary:
+exhaustive four-outcome derivation), and v0.13 (codex round-7 edge
+completions — active-stage owed obligation for writeless restorations,
+member-6 active-stage requirement, total residuals incl. inverse skew,
+exact retirement seam names). Summary:
 
 - **Posture settled first (LLP 0295 open question 5 — recommendation: yes).**
   Local developer diagnostics only in v1; hosted telemetry is an explicit
@@ -106,12 +109,16 @@ exhaustive four-outcome derivation). Summary:
   `currentWaveSeq`) and `pendingWork` (`none`/`queued`/`coalescing`), so
   the LLP 0200 post-cut race is the recorded composite
   `evaluating`+`queued`/`coalescing` — maintained by a total transition
-  table: matcher charge takes `max`, delivery is compare-and-clear with
-  the recorded `pendingWork` as successor, every LLP 0200 §2.4–2.5 exit
-  has a row (authority-gate discard, cancellation, timeout, refresh
-  degradation), T-SUB creates the row, and T-UNSUB/T-LOSS/T-GRANT-LOSS/
-  terminal teardown retire it (owed-ness does not survive retirement);
-  all versions are LLP 0095 §1.3 `LIVE(version)` storage commit versions.
+  table: matcher charge takes `max`, a writeless authority transition
+  charges `pendingWork` without a version (active stage = owed
+  obligation), delivery is compare-and-clear with the recorded
+  `pendingWork` as successor, every LLP 0200 §2.4–2.5 exit has a row
+  (authority-gate discard, cancellation, timeout, refresh degradation),
+  T-SUB creates the row, and T-UNSUB / T-LOSS / T-REAP-or-expiry (the
+  server-side event; T-GRANT-LOSS is the client's later observation) /
+  second-timeout and refresh-cannot-enter-transport teardown / terminal
+  quarantine retire it (owed-ness does not survive retirement); all
+  versions are LLP 0095 §1.3 `LIVE(version)` storage commit versions.
   `LiveCoalesceStats` already serialize on `InspectState`/`PublicInspect`
   (`liveCoalesce`); the wave record complements them and is the per-wave
   detail the 20260808 ticket deferred.
@@ -129,13 +136,18 @@ exhaustive four-outcome derivation). Summary:
   derive from client state alone, never gated on the owed comparison
   (`RECOVERING`/`GRANT_LOST`/`DROPPED`/`PENDING`-supersedes/
   `RESYNC_PENDING` map to transport-recovery, row present or absent);
-  member 6 needs a row and `owedThroughVersion` >
-  `authoritativeRevision`, staged by the `evaluation`/`pendingWork`
-  composite. Residuals: not-owed / initial `PENDING` / in-transit
-  (poll-drain or socket custody) are neutral; owed+idle+none is the
-  unrepresentable defect; row-absent + `ATTACHED_LIVE` is snapshot-skew
-  with defect only on persistence across a re-read; value-equal dedup is
-  a completed delivery, not a miss. Neutral-class detail spellings are
+  member 6 needs a row with an **active stage** (`evaluation != idle` or
+  `pendingWork != none` — itself an owed obligation, covering writeless
+  restorations with `owed = null`); the version comparison alone never
+  selects it. Residuals: initial `PENDING` is unconditionally neutral
+  (no held revision — the owed comparison is undefined, not attempted);
+  not-owed / in-transit (poll-drain or socket custody) are neutral;
+  version-owed+idle+none is the unrepresentable defect; row-absent
+  against any established client shape
+  (`ATTACHED_LIVE`/`ATTACHED_POLL`/`GRANTED`) and the inverse
+  (client `RELEASED`/`CLOSED` against a stale server row) are
+  snapshot-skew with defect only on persistence across a re-read;
+  value-equal dedup is a completed delivery, not a miss. Neutral-class detail spellings are
   delegated to LLP 0095/0114 owner acceptance; the four-outcome shape is
   normative.
 - **Repeated equivalent writes/effects:** only provable equivalences —
@@ -204,5 +216,7 @@ exhaustive four-outcome derivation). Summary:
 - [ ] Acceptance fixtures per §7.7 (attribution ×2, redaction incl.
       adversarial caller-supplied ids, join uniqueness incl.
       composite-state invalidation-during-evaluation, the authority-gate
-      discard exit, T-LOSS/T-RECONNECT absent-row derivation, and
-      snapshot-skew resolved by re-read, bounds, multiplicity, posture).
+      discard exit, commitless writeless restoration, T-LOSS/T-RECONNECT
+      absent-row derivation, and both snapshot-skew directions resolved
+      by re-read with persistent orphans reaching defect, bounds,
+      multiplicity, posture).
