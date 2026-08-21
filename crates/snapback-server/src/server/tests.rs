@@ -31180,6 +31180,125 @@ async fn grant_deadline_crossing_direct_bearer_expires_every_same_grant_socket()
         .assert_grant_indexes_consistent();
 }
 
+/// Regression for `issues/20260821-effect-guard-does-not-fence-logout.md`
+/// and `issues/20260821-authorized-effect-fence-design.md`: a real logout,
+/// without a mode-epoch retirement, must defeat authority prepared before the
+/// handler reserves its authorized work.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn logout_wins_after_preparation_before_authority_work_reservation() {
+    let state = sessions_activation_server_fixture_async().await;
+    let credential = mint_test_credential(&state, "logout-prepared-race@example.test").await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("ordinary session bearer")
+        .to_owned();
+    let session_id = credential["session"]["id"]
+        .as_str()
+        .expect("ordinary session id")
+        .to_owned();
+    let router = app(state.clone());
+    let item_count_before = finite_authority_matrix_item_count(&state).await;
+    let controller = state.auth_admission_controller();
+    let mode_before = controller.snapshot();
+
+    let pause = install_test_finite_authority_pause(TestFiniteAuthorityPausePoint::BeforeHandler);
+    let mut request = session_auth_http_request(
+        "/mutation/queuedWrite",
+        serde_json::to_vec(&json!({
+            "args": { "value": "must-not-commit-after-logout" },
+        }))
+        .expect("serialize logout-racing mutation"),
+        &bearer,
+    );
+    request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(pause.id()).expect("logout-race pause header"),
+    );
+    let request_router = router.clone();
+    let crossing = tokio::spawn(async move {
+        request_router
+            .oneshot(request)
+            .await
+            .expect("logout-racing mutation response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+        .await
+        .expect("mutation reaches the post-authority-resolution pause");
+
+    let logout = tokio::time::timeout(
+        Duration::from_secs(5),
+        router.oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &bearer,
+        )),
+    )
+    .await
+    .expect("logout does not hang")
+    .expect("logout response");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    let session_facts = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .auth_catalog()
+            .session_lifetime_facts_for_test(&session_id)
+    })
+    .await
+    .expect("read logged-out session facts");
+    assert_eq!(session_facts.2, 2, "logout advances the session generation");
+    assert!(session_facts.3, "logout makes the session terminal");
+    let mode_after_logout = controller.snapshot();
+    assert_eq!(
+        mode_after_logout.transition_generation, mode_before.transition_generation,
+        "ordinary logout must not retire the global mode generation"
+    );
+    assert_eq!(
+        mode_after_logout.admission_epoch, mode_before.admission_epoch,
+        "ordinary logout must not retire the global admission epoch"
+    );
+    let version_after_logout = super::inspect_snapback(&state.snapback)
+        .await
+        .expect("inspect durable state after logout")
+        .storage
+        .version;
+
+    tokio::time::timeout(Duration::from_secs(5), pause.release())
+        .await
+        .expect("release the logout-racing mutation pause");
+    let response = tokio::time::timeout(Duration::from_secs(5), crossing)
+        .await
+        .expect("logout-racing mutation does not hang")
+        .expect("logout-racing mutation task");
+    assert_eq!(
+        response.status(),
+        StatusCode::UNAUTHORIZED,
+        "authority prepared before logout must be refused before durable work"
+    );
+    let response = response_json(response).await;
+    assert_eq!(
+        response["diagnostic"]["code"],
+        "SNAPBACK_AUTH_SESSION_EXPIRED"
+    );
+    assert_eq!(
+        response["diagnostic"]["details"]["authorityDisposition"],
+        "durableDelete"
+    );
+    assert_eq!(
+        finite_authority_matrix_item_count(&state).await,
+        item_count_before,
+        "the logged-out authority must not add a durable row"
+    );
+    assert_eq!(
+        super::inspect_snapback(&state.snapback)
+            .await
+            .expect("inspect post-race durable state")
+            .storage
+            .version,
+        version_after_logout,
+        "no target-data commit observation may fire for the refused mutation"
+    );
+}
+
 #[tokio::test]
 async fn committed_reset_terminalizes_only_the_exact_bound_socket() {
     let state = auth_invalidation_reset_fixture();
