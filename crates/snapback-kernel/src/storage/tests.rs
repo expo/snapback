@@ -2,9 +2,8 @@ use super::*;
 
 #[test]
 fn buffered_document_result_uses_authoritative_committed_system_fields() {
-    let mut database = LocalDatabase::memory().expect("document projection database");
-    database
-        .schema_seed()
+    let mut db = LocalDatabase::memory().expect("document-result database");
+    db.schema_seed()
         .apply_schema(SchemaManifest {
             tables: vec![TableManifest {
                 name: "todos".to_owned(),
@@ -28,60 +27,87 @@ fn buffered_document_result_uses_authoritative_committed_system_fields() {
             }],
             ..SchemaManifest::default()
         })
-        .expect("apply document projection schema");
-    database
-        .schema_seed()
-        .seed(SeedData {
-            tables: BTreeMap::from([(
-                "todos".to_owned(),
-                vec![Map::from_iter([
-                    ("_id".to_owned(), json!("todo-one")),
-                    ("title".to_owned(), json!("stored value")),
-                ])],
-            )]),
-        })
-        .expect("seed document projection row");
-    let schema = database.schema().clone();
-    let version = database
-        .current_version()
-        .expect("document projection version");
-    let tx = database
-        .conn
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .expect("document projection transaction");
-    let mut result = json!({
+        .expect("document-result schema");
+    let writes = vec![BufferedWrite::Insert {
+        table: "todos".to_owned(),
+        id: "todo-one".to_owned(),
+        values: Map::from_iter([("title".to_owned(), json!("handler value"))]),
+    }];
+    let provisional = json!({
         "_id": "todo-one",
-        "_version": 2,
-        "_createdAt": 10,
-        "_updatedAt": 10,
+        "_version": 700,
+        "_createdAt": 701,
+        "_updatedAt": 702,
         "title": "handler value",
     });
-    assert!(
-        reproject_buffered_document_result_system_fields(
-            &tx,
-            &schema,
-            "todos",
-            version,
-            &mut result,
-        )
-        .expect("project final row image"),
-    );
+    let projection = BufferedDocumentResultProjection::new("todos", "todo-one");
+    let contract = BufferedDocumentResultContract {
+        function_id: "fn:buffered-document-result".to_owned(),
+        result_contract_hash: None,
+        contract: FunctionResultContract::Document {
+            table: "todos".to_owned(),
+            document: crate::manifest::table_document_value_contract(
+                db.schema().table("todos").expect("todos schema"),
+            ),
+        },
+        projection,
+    };
 
-    let stored = get_document_from_tx(
-        &tx,
-        schema_table(&schema, "todos").expect("todos table"),
-        "todo-one",
-        version,
-    )
-    .expect("read stored document")
-    .expect("stored document exists");
-    assert_eq!(result["_version"], stored["_version"]);
-    assert_eq!(result["_createdAt"], stored["_createdAt"]);
-    assert_eq!(result["_updatedAt"], stored["_updatedAt"]);
-    assert_eq!(
-        result["title"], "handler value",
-        "commit settlement replaces only storage-owned system fields",
-    );
+    let preview = db
+        .mutation_writes()
+        .dry_run_buffered_writes_with_jobs(
+            &HandlerInput::default(),
+            writes.clone(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            provisional.clone(),
+            None,
+            Some(contract.clone()),
+            CtxAnswerLedger::default(),
+            Vec::new(),
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+            None,
+        )
+        .expect("dry-run settles the witnessed document result");
+    assert_ne!(preview.output.result["_version"], provisional["_version"]);
+    assert!(db.get("todos", "todo-one").unwrap().is_none());
+
+    let committed = db
+        .mutation_writes()
+        .commit_buffered_writes_idempotent_guarded(
+            &HandlerInput::default(),
+            BufferedCommitPayload {
+                writes,
+                sequence_allocations: Vec::new(),
+                membership_plans: Vec::new(),
+                read_dependencies: Vec::new(),
+                result: provisional.clone(),
+                handler_observable_commit_version: None,
+                result_document_contract: Some(contract),
+                ctx_ledger: CtxAnswerLedger::default(),
+                job_enqueues: Vec::new(),
+                job_producer: None,
+                asset_admissions: Vec::new(),
+                asset_grant_ops: Vec::new(),
+                media_projection_proof: None,
+                expected_media_projection_binding: None,
+            },
+            None,
+            || Ok(()),
+            || Ok(()),
+        )
+        .expect("witnessed document commit");
+    let stored = db
+        .get("todos", "todo-one")
+        .expect("read committed row")
+        .expect("committed row exists");
+    assert_eq!(committed.output.result, stored);
+    assert_ne!(committed.output.result["_version"], provisional["_version"]);
+    assert_eq!(committed.output.result["title"], "handler value");
 }
 
 #[test]

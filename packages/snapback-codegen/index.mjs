@@ -12082,10 +12082,26 @@ function compileRoutesManifest(routesModule, functionsModule, appId, err) {
 }
 
 /** @internal Focused authoring seam for the closed register-mode predicate. */
+function routeQueryGroupResultEligible(fn) {
+  const resultKind = fn?.resultContract?.kind;
+  if (resultKind !== undefined) {
+    return resultKind === 'documents' || resultKind === 'records';
+  }
+  // The legacy v.object query result is row-shaped. HostPlan query builders
+  // derive an array contract later from their plan. An opaque JS handler with
+  // no result declaration is Unknown and cannot enter a typed group.
+  if (fn?.result !== undefined) return true;
+  return fn?.js === undefined;
+}
+
 export function routeRegisterGroupEligible(queries, functionsModule) {
   return queries.every((spec) => {
     const fn = functionsModule[spec.function];
     if (fn?.__kind !== 'LiveQuery') return false;
+    // @ref LLP 0108#generated-references-and-consumers — typed query groups
+    // admit only array contracts; document/value carriers are projected by
+    // single-query consumers and must not leak into row-group references.
+    if (!routeQueryGroupResultEligible(fn)) return false;
     // @ref LLP 0136#client-composition-llp-0112--llp-0114 — a literal AST
     // must not let live search enter register mode before that path owns
     // cursor and ceiling admission.
@@ -12106,6 +12122,7 @@ export function routeMixedGroupEligible(queries, functionsModule) {
     if (fn?.__kind === 'Query') query = true;
     else if (fn?.__kind === 'LiveQuery') live = true;
     else return false;
+    if (!routeQueryGroupResultEligible(fn)) return false;
     if (fn.searchPlan !== undefined) return false;
     if (!routeMappingParamTargets(spec.args ?? {}, fn.args).every(
       ({ validator }) => validator?.primitive === 'string',
@@ -14253,7 +14270,11 @@ function generatedQueryGroupRoutes(functions, routesManifest) {
     routeEntry.queries.length >= 1
     && routeEntry.queries.length <= 32
     && routeEntry.queries.every((query) => {
-      const kind = byName.get(query.function)?.kind;
+      const fn = byName.get(query.function);
+      const kind = fn?.kind;
+      if (!['documents', 'records', 'legacyQueryRowsV0'].includes(fn?.resultContract?.kind)) {
+        return false;
+      }
       return routeEntry.registerGroupEligible === true
         ? kind === 'LiveQuery'
         : kind === 'Query' || kind === 'LiveQuery';

@@ -343,15 +343,15 @@ before choosing a repair. All may run while Phase 0 is reviewed.
 - `issues/closed/20260820-expo-metro-default-storage-partition-cycle.md` —
   resolved through a cycle-free defaults leaf and packed external Metro
   bundle/first-render proof
-- `issues/20260820-familiar-vdoc-generation-runtime-parity.md`
+- `issues/closed/20260820-familiar-vdoc-generation-runtime-parity.md`
 - `issues/20260820-optional-user-live-query-auth-transition-stall.md`
 - `issues/20260820-authenticated-query-signed-out-settlement.md`
 
 Exit: all five reproduce before the fix and pass through packed external
 packages afterward; no source-checkout-only proof closes them.
 
-The Expo ticket satisfies that exit individually as of 2026-08-21. Phase 1A
-as a batch remains open on the other four tickets.
+The Expo and Familiar tickets satisfy that exit individually as of 2026-08-21.
+Phase 1A as a batch remains open on the other three tickets.
 
 ### 1B. Precise diagnostics and typed hook contracts
 
@@ -440,6 +440,15 @@ Implement D0.3 in two parallel lanes:
 - **Explicit economy:** apply LLP 0275 to derive exact result/dependency facts,
   scaffold recurring fixed lifecycle wiring, and preserve authored authority,
   visibility, retention, and asset policy.
+
+Lane C's first Familiar receipt is
+`scripts/familiar-vdoc-vertical-contract.mjs`, backed by
+`tests/fixtures/familiar-vdoc-vertical/`. It covers the Guide's nullable point
+spelling, exact generated types, clean one-pass generation, bare/nullable
+query/list and mutation/action runtime contracts, headless one-shot/live plus
+React projection, present/absent/delete live transitions, byte-preserving
+refused CLI regeneration, and stable pre-output document-composite refusals.
+LLP 0253 S4.3 remains the result partition owner.
 
 Do not compare line counts alone. The success measure is fewer semantic
 correction actions while retaining the same generated manifest and authority

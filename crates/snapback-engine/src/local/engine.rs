@@ -79,10 +79,10 @@ pub(crate) use crate::search::sqlite::{
 use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, NetworkSeedOutcome};
 use crate::storage::{
     AssetDeliveryOutcome, AssetPreparedVariant, AssetPublishOutcome, BufferedCommitPayload,
-    BufferedDocumentResultContract, CapturedReadDependency, CapturedReadKind,
-    CapturedWriteDependency, ChangedRow, ClientMutationIdentity, DbRead, LocalDatabase,
-    MutationCommit, ReaderPool, ServingDatabase, SettlementTimePolicy, ShutdownCheckpointReport,
-    StorageInfo, TableScan,
+    BufferedDocumentResultContract, BufferedDocumentResultProjection, CapturedReadDependency,
+    CapturedReadKind, CapturedWriteDependency, ChangedRow, ClientMutationIdentity, DbRead,
+    LocalDatabase, MutationCommit, ReaderPool, ServingDatabase, SettlementTimePolicy,
+    ShutdownCheckpointReport, StorageInfo, TableScan,
 };
 use crate::telemetry::{
     CallerAttributionLocalExt as _, ObservationSpanLocalExt as _, TelemetryLocalExt as _,
@@ -1507,7 +1507,9 @@ enum StagedMutationExecution {
 
 fn buffered_document_result_contract(
     function: &FunctionDefinition,
+    projection: Option<BufferedDocumentResultProjection>,
 ) -> Option<BufferedDocumentResultContract> {
+    let projection = projection?;
     matches!(
         &function.result_contract,
         crate::manifest::FunctionResultContract::Document { .. }
@@ -1516,6 +1518,7 @@ fn buffered_document_result_contract(
         function_id: function.id.clone(),
         result_contract_hash: function.result_contract_hash.clone(),
         contract: function.result_contract.clone(),
+        projection,
     })
 }
 
@@ -15650,6 +15653,7 @@ impl LocalSnapback {
                                         .handler_observable_commit_version,
                                     result_document_contract: buffered_document_result_contract(
                                         &function,
+                                        executed.result_document_projection,
                                     ),
                                     ctx_ledger: executed.ctx_ledger,
                                     job_enqueues,
@@ -16454,7 +16458,10 @@ impl LocalSnapback {
                         result: executed.result,
                         handler_observable_commit_version: executed
                             .handler_observable_commit_version,
-                        result_document_contract: buffered_document_result_contract(&function),
+                        result_document_contract: buffered_document_result_contract(
+                            &function,
+                            executed.result_document_projection,
+                        ),
                         ctx_ledger: executed.ctx_ledger,
                         job_enqueues,
                         job_producer,
@@ -16853,7 +16860,10 @@ impl LocalSnapback {
                     read_dependencies: executed.reads,
                     result: executed.result,
                     handler_observable_commit_version: executed.handler_observable_commit_version,
-                    result_document_contract: buffered_document_result_contract(&function),
+                    result_document_contract: buffered_document_result_contract(
+                        &function,
+                        executed.result_document_projection,
+                    ),
                     ctx_ledger: executed.ctx_ledger,
                     job_enqueues,
                     job_producer,
@@ -21489,7 +21499,10 @@ impl LocalSnapback {
                 executed.reads.clone(),
                 executed.result.clone(),
                 executed.handler_observable_commit_version,
-                buffered_document_result_contract(&function),
+                buffered_document_result_contract(
+                    &function,
+                    executed.result_document_projection.clone(),
+                ),
                 executed.ctx_ledger.clone(),
                 Vec::new(),
                 None,

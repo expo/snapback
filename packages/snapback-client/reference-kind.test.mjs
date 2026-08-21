@@ -232,3 +232,79 @@ test('shared operation-name grammar makes every generated spelling callable', as
     await client.closeAuth();
   }
 });
+
+test('typed headless live queries project the internal row carrier', async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  const updates = [];
+  const reference = {
+    artifactKind: 'functionReference',
+    schemaVersion: 'snapback.v0',
+    appId: 'live-query-projection-fixture',
+    id: 'live-query-projection-fixture:todos.get',
+    name: 'todos.get',
+    kind: 'LiveQuery',
+    implementationHash: `sha256:${'4'.repeat(64)}`,
+    argsContractHash: `sha256:${'5'.repeat(64)}`,
+    argsContract: { fields: [] },
+    resultContractHash: `sha256:${'6'.repeat(64)}`,
+    resultContract: { kind: 'value', value: { kind: 'unknown' } },
+  };
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    requests.push(path);
+    if (path === '/connection/open') {
+      return Response.json({
+        connectionId: 'live-query-projection-wire',
+        connectionToken: 'live-query-projection-token',
+        wireVersion: 'snapback.v1',
+        authorizationInvalidation: null,
+      });
+    }
+    if (path === '/live/todos.get/subscribe') {
+      return Response.json({
+        subscription_id: 'live-query-projection-subscription',
+        snapshot: {
+          version: 1,
+          rows: [{ _id: 'todo_1', title: 'live projected' }],
+        },
+        permission_epochs: {},
+      });
+    }
+    if (path === '/live/todos.get/unsubscribe') {
+      return Response.json({
+        subscription_id: JSON.parse(init.body).subscription_id,
+        disposed: true,
+      });
+    }
+    throw new Error(`unexpected live projection request: ${path}`);
+  };
+  let handle = null;
+  try {
+    const client = new SnapbackClient('http://live-query-projection.test', {
+      rqsStore: null,
+    });
+    handle = await client.liveQuery(reference, {
+      connectionId: 'live-query-projection-label',
+      persistResume: false,
+      onUpdate: (value) => updates.push(value),
+    });
+    assert.deepEqual(handle.rows, { _id: 'todo_1', title: 'live projected' });
+    assert.deepEqual(
+      handle.authoritativeRows,
+      { _id: 'todo_1', title: 'live projected' },
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(updates.at(-1), { _id: 'todo_1', title: 'live projected' });
+    await handle.dispose();
+    handle = null;
+    assert.deepEqual(requests, [
+      '/connection/open',
+      '/live/todos.get/subscribe',
+      '/live/todos.get/unsubscribe',
+    ]);
+  } finally {
+    await handle?.dispose();
+    globalThis.fetch = originalFetch;
+  }
+});

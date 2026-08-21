@@ -7,7 +7,7 @@ Handler runtime, React/headless clients, Authoring profiles, Diagnostics
 **Governing:** LLP 0295 vertical paved-path coherence invariant and D0.3/W3;
 LLP 0061; LLP 0252; LLP 0253; LLP 0275
 **Related:** `issues/20260820-guide-gap-familiar-handler-dialect.md`;
-`issues/20260820-familiar-vdoc-generation-runtime-parity.md`;
+`issues/closed/20260820-familiar-vdoc-generation-runtime-parity.md`;
 `issues/20260820-guide-gap-membership-roster-projection-recipe.md`
 
 ## Problem

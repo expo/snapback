@@ -1197,9 +1197,10 @@ pub struct BufferedCommitPayload {
     /// buffered insert. The writer may admit this payload only if its
     /// authoritative allocator selects the same version.
     pub handler_observable_commit_version: Option<u64>,
-    /// Frozen `results.document(table)` identity. Storage resolves the result
-    /// id against the transaction's final row image, replaces system fields,
-    /// and re-validates before settlement while rollback is still possible.
+    /// Frozen `results.document(table)` identity plus the host-owned proof
+    /// that the handler returned a matching post-insert `ctx.db.get` result.
+    /// Storage resolves only that witnessed row against the transaction's
+    /// final image, then re-validates while rollback is still possible.
     pub result_document_contract: Option<BufferedDocumentResultContract>,
     pub ctx_ledger: CtxAnswerLedger,
     /// Buffered `ctx.jobs.enqueue` intents, inserted inside the same SQLite
@@ -1225,6 +1226,22 @@ pub struct BufferedDocumentResultContract {
     pub function_id: String,
     pub result_contract_hash: Option<String>,
     pub contract: FunctionResultContract,
+    pub projection: BufferedDocumentResultProjection,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BufferedDocumentResultProjection {
+    table: String,
+    id: String,
+}
+
+impl BufferedDocumentResultProjection {
+    pub fn new(table: impl Into<String>, id: impl Into<String>) -> Self {
+        Self {
+            table: table.into(),
+            id: id.into(),
+        }
+    }
 }
 
 enum MediaProjectionProofAccess<'a> {
@@ -6257,9 +6274,9 @@ impl LocalDatabase {
         };
         // @ref LLP 0108#runtime-validation-and-atomicity — a buffered
         // `ctx.db.get` observes fenced system fields during handler execution;
-        // `results.document(table)` settles only the exact system fields from
-        // the matching row in this transaction's final image, then validates
-        // the settled value before the commit may publish.
+        // `results.document(table)` settles only when the host carried the
+        // exact post-insert read witness. The transaction resolves that row's
+        // final system fields, then validates before commit may publish.
         if let Some(document_contract) = result_document_contract.as_ref() {
             let FunctionResultContract::Document { table, .. } = &document_contract.contract else {
                 return Err(SnapbackError::error(
@@ -6272,6 +6289,7 @@ impl LocalDatabase {
                 &tx,
                 &schema,
                 table,
+                &document_contract.projection,
                 next_version,
                 &mut result,
             )?;
@@ -14187,17 +14205,21 @@ fn reproject_buffered_document_result_system_fields(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
     table: &str,
+    projection: &BufferedDocumentResultProjection,
     maximum_version: u64,
     result: &mut Value,
 ) -> SnapbackResult<bool> {
     let Some(result_object) = result.as_object_mut() else {
         return Ok(true);
     };
-    let Some(id) = result_object.get("_id").and_then(Value::as_str) else {
-        return Ok(true);
-    };
+    if projection.table != table
+        || result_object.get("_id").and_then(Value::as_str) != Some(projection.id.as_str())
+    {
+        return Ok(false);
+    }
     let table_manifest = schema_table(schema, table)?;
-    let Some(final_document) = get_document_from_tx(tx, table_manifest, id, maximum_version)?
+    let Some(final_document) =
+        get_document_from_tx(tx, table_manifest, &projection.id, maximum_version)?
     else {
         return Ok(false);
     };

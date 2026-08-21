@@ -495,10 +495,29 @@ async function main() {
       queue: false,
     });
     assert.equal(mutation.result.title, 'packed mutation');
+    const storedMutation = (await client.query(api.todos.get, {
+      args: { id: mutation.result._id },
+    })).rows;
+    assert.deepEqual(
+      mutation.result,
+      storedMutation,
+      'mutation settlement returns the exact committed document including system fields',
+    );
+    for (const field of ['_version', '_createdAt', '_updatedAt']) {
+      assert.equal(Number.isSafeInteger(mutation.result[field]), true, field);
+    }
     const action = await client.run(api.todos.createFromAction, {
       args: { title: 'packed action' },
     });
     assert.equal(action.title, 'packed action');
+    const storedAction = (await client.query(api.todos.get, {
+      args: { id: action._id },
+    })).rows;
+    assert.deepEqual(
+      action,
+      storedAction,
+      'nested action settlement preserves the committed mutation document',
+    );
 
     preparedBinding = await client.prepareReactBinding({ generatedManifest: descriptor });
     const React = await import(pathToFileURL(join(appRoot, 'node_modules', 'react', 'index.js')).href);

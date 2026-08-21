@@ -7,10 +7,10 @@
 **Date:** 2026-07-27
 **Revised:** 2026-08-21 (handler-visible buffered-insert versions use a
 commit-time allocator fence: a moved global head rejects the invocation before
-effects; admitted document results resolve `_id` against the transaction's
-final row image, replace authoritative system fields, and revalidate before
-settlement or publication); 2026-08-18 (LLP
-0276 crate-path relocation); 2026-08-15 (single-value query egress: query/live-query
+effects; buffered mutation document results carry a host-owned post-insert read
+witness into preview and commit, and storage never infers settlement-projection
+authority from table/id alone); 2026-08-18 (LLP 0276 crate-path relocation);
+2026-08-15 (single-value query egress: query/live-query
 declarations admit `results.document` and `results.value`; authored handlers
 return that value directly while the existing query/live transport carries it
 as exactly one internal row, and typed consumers project the value back out).
@@ -501,16 +501,18 @@ buffered effect is applied. This keeps handler execution outside the write lock
 and preserves complete read-your-writes documents without allowing a guessed
 version to commit or escape.
 
-For an exact `document(table)` contract, storage additionally resolves the
-returned `_id` in the transaction's final row image, including an unchanged
-row, and replaces `_version`, `_createdAt`, and `_updatedAt` from that
-authoritative document before the result is retained, settled, or published.
-A missing or deleted final row fails closed; storage revalidates the projected
-result while rollback is still possible. This is defense in depth for the
-exact document carrier, not the correctness mechanism for values copied
-elsewhere. A mutation dry-run uses the same allocator fence and identical
-final-image projection and revalidation before forming `DryRunReport.result`;
-rollback still discards its would-be changes.
+For an exact `document(table)` contract, the host authorizes settlement
+projection only when it witnessed a visible `ctx.db.get` of a row inserted
+earlier in that invocation, the returned document still carries that witness's
+system fields, and no later buffered write touched the same row. That witness
+travels through dry-run and commit; storage resolves the witnessed row in the
+transaction's final image, replaces `_version`, `_createdAt`, and `_updatedAt`,
+and revalidates while rollback is still possible before the result is retained,
+settled, or published. A matching table and `_id` alone is not proof: returning
+an earlier read and later patching that row preserves the earlier result
+unchanged. Dry-run uses the same allocator fence, witness, projection, and
+revalidation before forming `DryRunReport.result`; rollback still discards its
+would-be changes.
 
 Retained mutation output stores the complete original
 `ExpectedOperationV1`, `resultContractHash`, and a reference to the

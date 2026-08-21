@@ -20,10 +20,10 @@ use crate::manifest::{
     SequenceScopeAccess, TableVisibilityArmV1, TableVisibilityV1, ValueExpr, effective_query_limit,
 };
 use crate::storage::{
-    BufferedDocumentResultContract, BufferedMembershipCommand, BufferedWrite,
-    CapturedReadDependency, CapturedReadKind, DbRead, GenericTableWriteFormV1, LocalDatabase,
-    MembershipWriter, MutationCommit, SEQUENCE_MAX_SAFE_INTEGER, SequenceAllocationFact,
-    enforce_identity_binding_write_seal, generic_owner_write_field,
+    BufferedDocumentResultContract, BufferedDocumentResultProjection, BufferedMembershipCommand,
+    BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead, GenericTableWriteFormV1,
+    LocalDatabase, MembershipWriter, MutationCommit, SEQUENCE_MAX_SAFE_INTEGER,
+    SequenceAllocationFact, enforce_identity_binding_write_seal, generic_owner_write_field,
     validate_sequence_allocation_fact,
 };
 use crate::telemetry::TelemetryLocalExt as _;
@@ -412,9 +412,20 @@ pub struct ExecutedIbexMutation {
     /// Storage fences this candidate against its authoritative allocator
     /// before either commit or dry-run output can succeed.
     pub handler_observable_commit_version: Option<u64>,
+    pub result_document_projection: Option<BufferedDocumentResultProjection>,
     pub ctx_ledger: CtxAnswerLedger,
     pub media_projection_proof: Option<StagedMediaProjectionProofV1>,
     pub media_projection_scope: Option<MediaProjectionInvocationScopeV1>,
+}
+
+#[derive(Clone, Debug)]
+struct BufferedDocumentReadWitness {
+    table: String,
+    id: String,
+    write_count: usize,
+    version: Value,
+    created_at: Value,
+    updated_at: Value,
 }
 
 impl ExecutedIbexMutation {
@@ -708,6 +719,15 @@ pub(crate) fn dry_run_ibex_mutation_prepared(
     }
     let mut result = result?;
     let media_projection = invocation.normalize_media_result(&mut result, prepared)?;
+    let result_document_projection =
+        invocation.buffered_document_result_projection(&result, prepared.result_contract());
+    let result_document_contract =
+        result_document_projection.map(|projection| BufferedDocumentResultContract {
+            function_id: prepared.function_id().to_owned(),
+            result_contract_hash: prepared.result_contract_hash().map(str::to_owned),
+            contract: prepared.result_contract().clone(),
+            projection,
+        });
     let expected_media_projection_binding = media_projection
         .as_ref()
         .map(|staging| expected_media_projection_proof_binding(prepared, &input, &staging.scope))
@@ -734,14 +754,7 @@ pub(crate) fn dry_run_ibex_mutation_prepared(
         reads,
         result,
         handler_observable_commit_version.get(),
-        match prepared.result_contract() {
-            FunctionResultContract::Document { .. } => Some(BufferedDocumentResultContract {
-                function_id: prepared.function_id().to_owned(),
-                result_contract_hash: prepared.result_contract_hash().map(str::to_owned),
-                contract: prepared.result_contract().clone(),
-            }),
-            _ => None,
-        },
+        result_document_contract,
         ctx_ledger,
         job_enqueues,
         Some(crate::jobs::JobProducer {
@@ -821,6 +834,8 @@ pub fn execute_ibex_mutation_prepared(
     }
     let mut result = result?;
     let media_projection = invocation.normalize_media_result(&mut result, prepared)?;
+    let result_document_projection =
+        invocation.buffered_document_result_projection(&result, prepared.result_contract());
     // The recorded (or replayed) ctx-answer ledger rides the output (LLP 0051
     // D1) so the later commit is semantically identical to the in-lock path.
     let ctx_ledger = invocation.take_ctx_ledger()?;
@@ -868,6 +883,7 @@ pub fn execute_ibex_mutation_prepared(
         asset_grant_ops,
         result,
         handler_observable_commit_version: handler_observable_commit_version.get(),
+        result_document_projection,
         ctx_ledger,
         media_projection_proof,
         media_projection_scope,
@@ -1313,6 +1329,10 @@ pub(crate) struct IbexHostContext<'a> {
     /// `writes`, these are effects of the mutation transaction: they commit
     /// or roll back with it, never independently.
     job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
+    /// Host-owned evidence for document-result settlement. Only a visible
+    /// `ctx.db.get` of a row inserted earlier in this invocation records a
+    /// witness; later writes to that same row invalidate it at handoff.
+    buffered_document_reads: Vec<BufferedDocumentReadWitness>,
     /// Transaction-scoped `ctx.assets.attach` admissions (LLP 0044 §Typed
     /// references): recorded during handler execution, consumed by the
     /// commit hook, never serialized or persisted.
@@ -1454,6 +1474,7 @@ impl<'a> IbexHostContext<'a> {
             writes: Vec::new(),
             sequence_allocations: Vec::new(),
             job_enqueues: Vec::new(),
+            buffered_document_reads: Vec::new(),
             asset_admissions: Vec::new(),
             asset_grant_ops: Vec::new(),
             asset_mutation_id: None,
@@ -1530,6 +1551,7 @@ impl<'a> IbexHostContext<'a> {
             writes: Vec::new(),
             sequence_allocations: Vec::new(),
             job_enqueues: Vec::new(),
+            buffered_document_reads: Vec::new(),
             asset_admissions: Vec::new(),
             asset_grant_ops: Vec::new(),
             asset_mutation_id: None,
@@ -3133,6 +3155,7 @@ impl<'a> IbexHostContext<'a> {
                 if visible {
                     let mut effective = effective.unwrap_or(Value::Null);
                     self.tag_media_document(&table, &mut effective)?;
+                    self.capture_buffered_document_read(&table, &id, &effective);
                     Ok(effective)
                 } else {
                     Ok(Value::Null)
@@ -4697,6 +4720,69 @@ impl<'a> IbexHostContext<'a> {
             document.insert(key.clone(), value.clone());
         }
         Value::Object(document)
+    }
+
+    fn capture_buffered_document_read(&mut self, table: &str, id: &str, value: &Value) {
+        if !self.writes.iter().any(|write| {
+            matches!(
+                write,
+                BufferedWrite::Insert {
+                    table: write_table,
+                    id: write_id,
+                    ..
+                } if write_table == table && write_id == id
+            )
+        }) {
+            return;
+        }
+        let Some(object) = value.as_object() else {
+            return;
+        };
+        let (Some(version), Some(created_at), Some(updated_at)) = (
+            object.get("_version"),
+            object.get("_createdAt"),
+            object.get("_updatedAt"),
+        ) else {
+            return;
+        };
+        self.buffered_document_reads
+            .push(BufferedDocumentReadWitness {
+                table: table.to_owned(),
+                id: id.to_owned(),
+                write_count: self.writes.len(),
+                version: version.clone(),
+                created_at: created_at.clone(),
+                updated_at: updated_at.clone(),
+            });
+    }
+
+    fn buffered_document_result_projection(
+        &self,
+        result: &Value,
+        contract: &FunctionResultContract,
+    ) -> Option<BufferedDocumentResultProjection> {
+        let FunctionResultContract::Document { table, .. } = contract else {
+            return None;
+        };
+        let object = result.as_object()?;
+        let id = object.get("_id")?.as_str()?;
+        self.buffered_document_reads
+            .iter()
+            .rev()
+            .find_map(|witness| {
+                if witness.table != *table
+                    || witness.id != id
+                    || object.get("_version") != Some(&witness.version)
+                    || object.get("_createdAt") != Some(&witness.created_at)
+                    || object.get("_updatedAt") != Some(&witness.updated_at)
+                    || self.writes[witness.write_count..]
+                        .iter()
+                        .any(|write| write.table() == table && write.id() == id)
+                {
+                    return None;
+                }
+                Some(BufferedDocumentResultProjection::new(table, id))
+            })
     }
 
     /// Layer buffered writes over a storage query result: drop rows this

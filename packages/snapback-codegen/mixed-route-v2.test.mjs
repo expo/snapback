@@ -162,3 +162,53 @@ export default defineRoutes([
     'the public runtime predicate must retain its package declaration',
   );
 });
+
+test('single-value query contracts never emit typed query groups', async (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-single-value-route-'));
+  const app = join(root, 'snapback');
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(app, { recursive: true });
+  writeFileSync(join(app, 'schema.mjs'), `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
+});
+`);
+  writeFileSync(join(app, 'functions.mjs'), `
+import { defineJsLiveQuery, defineJsQuery, results, v } from '${defineUrl}';
+export const listTodos = defineJsLiveQuery({
+  args: {}, reads: ['todos'], result: results.documents('todos'),
+  handler: async (ctx) => ctx.db.query('todos').collect(),
+});
+export const pointTodo = defineJsLiveQuery({
+  args: {}, reads: ['todos'], result: results.document('todos'),
+  handler: async (ctx) => ctx.db.get('todos', 'todo_one'),
+});
+export const readCount = defineJsQuery({
+  args: {}, reads: ['todos'], result: results.value(v.integer()),
+  handler: async () => 1,
+});
+`);
+  writeFileSync(join(app, 'routes.mjs'), `
+import { defineRoutes } from '${defineUrl}';
+export default defineRoutes([
+  { route: '/array', queries: [{ function: 'listTodos', args: {} }] },
+  { route: '/single-live', queries: [{ function: 'pointTodo', args: {} }] },
+  { route: '/single-mixed', queries: [
+    { function: 'readCount', args: {} },
+    { function: 'listTodos', args: {} },
+  ] },
+]);
+`);
+  const generated = await generate(app);
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const routes = JSON.parse(readFileSync(join(app, 'generated', 'routes.manifest.json'), 'utf8'));
+  const byRoute = new Map(routes.routes.map((route) => [route.route, route]));
+  assert.equal(byRoute.get('/array').registerGroupEligible, true);
+  for (const route of ['/single-live', '/single-mixed']) {
+    assert.equal(Object.hasOwn(byRoute.get(route), 'registerGroupEligible'), false, route);
+    assert.equal(Object.hasOwn(byRoute.get(route), 'mixedGroupEligible'), false, route);
+  }
+  const api = await import(`${pathToFileURL(join(app, 'generated', 'api.mjs')).href}?single-value`);
+  assert.deepEqual(Object.keys(api.groups), ['/array']);
+});

@@ -43,20 +43,24 @@ composites continue to refuse before activation output with
 `SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` and the explicit-result rewrite.
 The typed headless one-shot query, live handle/callback, and React client
 surfaces project the internal one-row carrier to the authored single value.
+Typed query groups exclude every single-value query contract and remain an
+array-query-only surface.
 
 Buffered runtime documents now include a structurally valid, handler-visible
 `_version` under a commit-time allocator fence. If a disjoint mutation advances
 the global version after handler execution, the stale invocation conflicts
 before applying any effect; a successful invocation's observed, returned, or
 persisted value therefore equals its authoritative commit version. For an exact
-document result contract, settlement additionally replaces `_version`,
-`_createdAt`, and `_updatedAt` from the matching document in the transaction's
-final row image before retention or publication, then revalidates while
-rollback remains possible. This includes unchanged rows and refuses a deleted
-or missing final row rather than copying a delete preimage. Mutation dry-run
-carries the same version fence and frozen result-contract identity through its
-rollback path and applies the same projection and revalidation before forming
-`DryRunReport.result`.
+document result contract, the host records a projection witness only after a
+visible `ctx.db.get` of a
+row inserted earlier in the same handler, invalidates it after a later write to
+that row, and carries it through both dry-run and commit. Storage resolves only
+that witnessed row in the transaction's final image, replaces `_version`,
+`_createdAt`, and `_updatedAt`, and revalidates before retention or publication
+while rollback remains possible. It never infers eligibility from matching
+table/id alone, so a return-before-patch result is not rewritten. Mutation
+dry-run carries the same version fence, witness, and frozen result-contract
+identity through its rollback path before forming `DryRunReport.result`.
 
 An exact published-0.1.24 scratch install reproduced both defects. Clean first
 generation returned `SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID` with
@@ -72,6 +76,9 @@ tests.
 - `node --test packages/snapback-codegen/inline-result-contracts.test.mjs packages/snapback-codegen/familiar-phase-b.test.mjs` — 11/11 passed.
 - `node packages/snapback-client/package.test.mjs` — passed, including direct,
   nullable, and malformed single-value query carriers.
+- `node --test packages/snapback-client/reference-kind.test.mjs` — passed,
+  including the public headless live handle's direct single-value projection.
+- `cargo test --locked -p snapback-kernel buffered_document_result_uses_authoritative_committed_system_fields -- --nocapture` — passed; dry-run and durable commit replace deliberately impossible system fields only through the witnessed storage seam.
 - `cargo test -p snapback-engine structured_value_survives_the_handler_read_your_writes_overlay -- --nocapture` — passed; the dry-run result equals its predicted changed row, is discarded, and the committed result equals the stored row.
 - `cargo test -p snapback --test dry_run_v0 -- --nocapture` — 7/7 passed through the public `mutationDryRun` surface.
 - `cargo test -p snapback-engine batch_unique_many_overlays_buffered_insert_and_duplicate_keys -- --nocapture` — passed; buffered inserts expose their fenced commit successor.

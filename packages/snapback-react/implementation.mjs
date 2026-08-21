@@ -1491,6 +1491,10 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       ...(store.registeredSubscription === null
         ? {}
         : { registeredSubscription: store.registeredSubscription }),
+      // React's external store validates and projects the internal row carrier
+      // itself (including blank/retained lifecycle states). Public headless
+      // live handles project single-value contracts in snapback-client.
+      __internalRawResultCarrier: true,
       onUpdate(rows, detail) {
         // Fence before touching any store-owned projection state. publish()
         // also checks this generation, but predecessor callbacks mutate rows

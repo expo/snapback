@@ -19757,12 +19757,14 @@ globalThis.__snapbackHandlers = {
       payload: { label: 'read-your-writes' },
     });
     const row = await ctx.db.get('structuredRows', id);
-    return {
-      ...row,
-      _version: 9007199254740991,
-      _createdAt: 1,
-      _updatedAt: 1,
-    };
+    return row;
+  },
+  async returnBeforePatch(ctx) {
+    const row = await ctx.db.get('structuredRows', 'existing-row');
+    await ctx.db.patch('structuredRows', 'existing-row', {
+      payload: { label: 'after-patch' },
+    });
+    return row;
   },
 };
 "#;
@@ -19789,39 +19791,61 @@ globalThis.__snapbackHandlers = {
         }],
         ..SchemaManifest::default()
     };
-    let mut function = FunctionDefinition::new(
-        "writeThenRead",
-        FunctionKind::Mutation,
-        FunctionRuntime::IbexModule(IbexModule {
-            source: SOURCE.to_owned(),
-            export: "writeThenRead".to_owned(),
-        }),
-    );
-    function.required_capabilities = vec![
-        "ibex_ctx_db_host_bridge".to_owned(),
-        "mutation_read_set_validation".to_owned(),
-    ];
-    function.write_set_summary.primary_table = Some("structuredRows".to_owned());
-    function.write_set_summary.tables = vec!["structuredRows".to_owned()];
-    function.write_set_summary.mode = Some("handlerDeclared".to_owned());
-    install_schema_documents_contract(&mut function, &schema, "structuredRows");
-    let FunctionResultContract::Documents { table, document } = function.result_contract.clone()
-    else {
-        unreachable!("fixture helper installs a documents contract")
+    let document_function = |name: &str| {
+        let mut function = FunctionDefinition::new(
+            name,
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: SOURCE.to_owned(),
+                export: name.to_owned(),
+            }),
+        );
+        function.required_capabilities = vec![
+            "ibex_ctx_db_host_bridge".to_owned(),
+            "mutation_read_set_validation".to_owned(),
+        ];
+        function.write_set_summary.primary_table = Some("structuredRows".to_owned());
+        function.write_set_summary.tables = vec!["structuredRows".to_owned()];
+        function.write_set_summary.mode = Some("handlerDeclared".to_owned());
+        install_schema_documents_contract(&mut function, &schema, "structuredRows");
+        let FunctionResultContract::Documents { table, document } =
+            function.result_contract.clone()
+        else {
+            unreachable!("fixture helper installs a documents contract")
+        };
+        let result_contract = FunctionResultContract::Document { table, document };
+        function.result_contract_hash = Some(
+            crate::manifest::result_contract_hash(&result_contract)
+                .expect("fixture document contract hashes"),
+        );
+        function.result_contract = result_contract;
+        function
     };
-    let result_contract = FunctionResultContract::Document { table, document };
-    function.result_contract_hash = Some(
-        crate::manifest::result_contract_hash(&result_contract)
-            .expect("fixture document contract hashes"),
-    );
-    function.result_contract = result_contract;
 
-    let mut snapback = LocalSnapback::memory().expect("memory structured RYW fixture");
+    let directory = tempfile::tempdir().expect("structured RYW directory");
+    let mut snapback = LocalSnapback::open(directory.path().join("structured-ryw.sqlite3"))
+        .expect("file-backed structured RYW fixture");
     snapback
-        .apply_schema(schema)
+        .apply_schema(schema.clone())
         .expect("apply structured schema");
+    snapback
+        .db
+        .schema_seed()
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "structuredRows".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("existing-row")),
+                    ("payload".to_owned(), json!({ "label": "before-patch" })),
+                ])],
+            )]),
+        })
+        .expect("seed return-before-patch row");
     let diagnostics = snapback.load_functions(FunctionManifest {
-        functions: vec![function],
+        functions: vec![
+            document_function("writeThenRead"),
+            document_function("returnBeforePatch"),
+        ],
         acknowledged_experimental_capabilities: vec!["result_contract_v1".to_owned()],
         ..FunctionManifest::default()
     });
@@ -19895,18 +19919,44 @@ globalThis.__snapbackHandlers = {
         "a document contract returns the exact committed system fields, not the handler overlay's provisional values",
     );
     assert_eq!(result["payload"], json!({ "label": "read-your-writes" }));
+
+    let before_patch = snapback
+        .db
+        .query_reads_read()
+        .get("structuredRows", "existing-row")
+        .expect("read pre-patch row")
+        .expect("pre-patch row exists");
+    let returned_before_patch = snapback
+        .invoke_mutation("returnBeforePatch", HandlerInput::default())
+        .expect("return-before-patch mutation")
+        .result;
+    let after_patch = snapback
+        .db
+        .query_reads_read()
+        .get("structuredRows", "existing-row")
+        .expect("read post-patch row")
+        .expect("post-patch row exists");
+    assert_eq!(returned_before_patch, before_patch);
+    assert_eq!(
+        returned_before_patch["payload"],
+        json!({ "label": "before-patch" })
+    );
+    assert_eq!(after_patch["payload"], json!({ "label": "after-patch" }));
+    assert_ne!(
+        returned_before_patch["_version"], after_patch["_version"],
+        "a matching table/id is not proof that an earlier read should be rewritten"
+    );
 }
 
-/// A document result is structural, but its `_id` must still resolve in the
-/// transaction's final row image. This covers both sides that a changed-row
-/// lookup misses: an unchanged row remains eligible for system-field
-/// settlement, while a delete preimage cannot escape as a tombstone.
+/// A document result is structural, so a pre-existing row read is not a
+/// settlement-projection witness. Matching table/id must neither rewrite an
+/// unchanged row's returned system fields nor turn a later delete into a
+/// result-contract failure.
 ///
-/// @ref LLP 0108#runtime-validation-and-atomicity — document-result system
-///   fields come from the final transaction image and the settled value is
-///   revalidated before commit.
+/// @ref LLP 0108#runtime-validation-and-atomicity — only a matching
+///   post-insert read witness authorizes system-field projection.
 #[test]
-fn document_result_uses_the_final_row_image_and_refuses_a_deleted_preimage() {
+fn document_result_without_post_insert_witness_preserves_structural_preimages() {
     const SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {
   async projectExisting(ctx, args) {
@@ -20025,21 +20075,11 @@ globalThis.__snapbackHandlers = {
         )
         .expect("project unchanged row")
         .result;
-    let stored_unchanged = snapback
-        .db
-        .query_reads_read()
-        .get("projectionRows", "row_unchanged")
-        .expect("read unchanged row")
-        .expect("unchanged row exists");
-    for field in ["_version", "_createdAt", "_updatedAt"] {
-        assert_eq!(
-            unchanged[field], stored_unchanged[field],
-            "unchanged document result uses the final row image's {field}",
-        );
-    }
-    assert_ne!(unchanged["_version"], json!(9_007_199_254_740_991_u64));
+    assert_eq!(unchanged["_version"], json!(9_007_199_254_740_991_u64));
+    assert_eq!(unchanged["_createdAt"], json!(1));
+    assert_eq!(unchanged["_updatedAt"], json!(1));
 
-    let error = snapback
+    let deleted_preimage = snapback
         .invoke_mutation(
             "deleteThenReturn",
             HandlerInput {
@@ -20047,25 +20087,18 @@ globalThis.__snapbackHandlers = {
                 ..HandlerInput::default()
             },
         )
-        .expect_err("a deleted row preimage cannot satisfy a document result");
-    assert_eq!(
-        error.diagnostic.code,
-        "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
-    );
-    assert_eq!(
-        error.diagnostic.details["functionId"],
-        "fn:deleteThenReturn"
-    );
-    assert_eq!(error.diagnostic.details["path"], "$._id");
-    assert_eq!(error.diagnostic.details["constraint"], "type");
+        .expect("a structural delete preimage remains a valid result")
+        .result;
+    assert_eq!(deleted_preimage["_id"], "row_deleted");
+    assert_eq!(deleted_preimage["title"], "delete candidate");
     assert!(
         snapback
             .db
             .query_reads_read()
             .get("projectionRows", "row_deleted")
-            .expect("read row after refused delete")
-            .is_some(),
-        "document-result refusal rolls the delete back",
+            .expect("read row after committed delete")
+            .is_none(),
+        "absence of a projection witness does not roll back an otherwise valid delete",
     );
 }
 
@@ -29373,6 +29406,7 @@ fn executed_insert() -> ExecutedIbexMutation {
         media_projection_scope: None,
         result: json!("guarded_item"),
         handler_observable_commit_version: None,
+        result_document_projection: None,
         ctx_ledger: CtxAnswerLedger {
             version: ctx_ledger_version(),
             ids: Vec::new(),

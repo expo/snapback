@@ -13360,6 +13360,11 @@ export class SnapbackClient {
     // Provider-registry-only one-for-one predecessor handoff. Ordinary
     // callers leave this null.
     supersedesSubscriptionId = null,
+    // First-party React owns the row-oriented external-store projection and
+    // therefore consumes the transport carrier directly. This is deliberately
+    // absent from the public declarations: typed headless callers receive the
+    // authored single value promised by FunctionResult<Ref>.
+    __internalRawResultCarrier = false,
   } = {}) {
     assertClientReferenceKind({
       reference: ref,
@@ -13550,20 +13555,25 @@ export class SnapbackClient {
     let optimisticPresentationSnapshot = null;
     let authoritativeAnswerClass = 'unknown';
 
+    const projectRowsForConsumer = (rows) => (
+      __internalRawResultCarrier ? rows : projectTypedQueryRows(ref, rows)
+    );
     const handle = {
       get subscriptionId() {
         return currentSubscriptionId;
       },
       version: 0,
       get rows() {
-        return projectTypedQueryOutput(ref, { rows: presentedRows }).rows;
+        return projectRowsForConsumer(presentedRows);
       },
       set rows(rows) {
-        authoritativeRows = Array.isArray(rows) ? rows : [];
+        authoritativeRows = __internalRawResultCarrier
+          ? (Array.isArray(rows) ? rows : [])
+          : typedQueryCarrierRows(ref, rows);
         presentedRows = authoritativeRows;
       },
       get authoritativeRows() {
-        return projectTypedQueryOutput(ref, { rows: authoritativeRows }).rows;
+        return projectRowsForConsumer(authoritativeRows);
       },
       get optimisticPresentation() {
         if (optimisticPresentationSnapshot === null) {
@@ -13734,11 +13744,7 @@ export class SnapbackClient {
         authoritativeRows,
         optimisticPresentation: handle.optimisticPresentation,
       };
-      deliverIsolated(
-        applicationOnUpdate,
-        projectTypedQueryOutput(ref, { rows: presentedRows }).rows,
-        nextDetail,
-      );
+      deliverIsolated(applicationOnUpdate, projectRowsForConsumer(presentedRows), nextDetail);
     };
 
     const captureOptimisticPublicationFence = () => Object.freeze({
@@ -18667,16 +18673,28 @@ function withTimeout(promise, timeoutMs, message) {
 // @ref LLP 0108#query-single-value-egress--2026-08-15 — query transport and
 // live delivery keep their one-row carrier, while the typed headless consumer
 // exposes the authored document/value promised by FunctionResult<Ref>.
-function projectTypedQueryOutput(ref, output) {
+function hasSingleValueQueryContract(ref) {
   const kind = typeof ref === 'object' && ref !== null
     ? ref.resultContract?.kind
     : null;
-  if (kind !== 'document' && kind !== 'value') return output;
-  const rows = output?.rows;
+  return kind === 'document' || kind === 'value';
+}
+
+function projectTypedQueryRows(ref, rows) {
+  if (!hasSingleValueQueryContract(ref)) return rows;
   if (!Array.isArray(rows) || rows.length !== 1) {
     throw new TypeError(
       `single-value query delivery for ${ref.name ?? '<unknown>'} must carry exactly one internal row`,
     );
   }
-  return { ...output, rows: rows[0] };
+  return rows[0];
+}
+
+function typedQueryCarrierRows(ref, value) {
+  return hasSingleValueQueryContract(ref) ? [value] : (Array.isArray(value) ? value : []);
+}
+
+function projectTypedQueryOutput(ref, output) {
+  if (!hasSingleValueQueryContract(ref)) return output;
+  return { ...output, rows: projectTypedQueryRows(ref, output?.rows) };
 }
