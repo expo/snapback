@@ -216,12 +216,14 @@ This is a test shape, not a new mechanism owner. Subsystem suites continue to
 own their layers; the vertical fixture is the integration receipt that prevents
 a local fix from moving the mismatch one boundary downstream.
 
-Where an advertised path is advertised on the Expo/native client arm, its
-vertical fixture must cover that arm too — guide spelling, types, generation,
-runtime, native client projection, and negative diagnostic — not only the web
-projection. LLP 0294's 2026-08-21 tickets supply the current concrete cases;
-their closures are expected to name such fixtures per this invariant, through
-their own owners.
+Where an advertised path is advertised on the Expo/native client arm, a
+vertical fixture named under this invariant covers that arm too — guide
+spelling, types, generation, runtime, native client projection, and negative
+diagnostic — not only the web projection. LLP 0294's 2026-08-21 tickets supply
+the current concrete cases; this Plan's own qualification (the W3 fixture
+catalogue and the R1 probes) consumes whatever evidence those owners produce.
+A native-arm fixture missing at qualification time is 0295-side Phase 1/W1-W4
+work, never a retroactive expansion of a 0294 ticket's acceptance.
 
 ## Phase 0: decisions and measurement before mechanism work
 
@@ -474,9 +476,11 @@ authority mode.
 
 The lifecycle contract's liveness expectations include supervised AppBinding
 refresh before expiry: a long development session must be self-sustaining
-without a manual rotation event. The mechanism owner is the supervisor/binding
-LLP chain via LLP 0294 W6; W1 only consumes the fact in its ready-receipt and
-attach acceptance.
+without a manual rotation event. The ready receipt remains one-time launch
+settlement per LLP 0224; the refresh expectation is carried by the lifecycle's
+inspection and supervisor-event surfaces, which is where W1's attach
+acceptance consumes it. The mechanism owner is the supervisor/binding LLP
+chain via LLP 0294 W6.
 
 Efficiency hypothesis: removing restart/reseed and lifecycle source inspection
 will produce the largest M1 wall reduction, especially on clean lanes where M1
@@ -604,7 +608,10 @@ correct path unless the declared subscription budget and diagnostic say so.
 
 Once LLP 0294's W6 repairs land, the Expo/native arm probe also includes
 native auth entry through the provider-owned crypto adapter and a session
-outliving one binding term. Failures classify by owner as elsewhere in R1.
+outliving one binding term — including a cold native boot and reattach after
+the binding TTL while the original supervisor is still running, so refresh is
+actually exercised rather than waited past. Failures classify by owner as
+elsewhere in R1.
 
 ### R2. Load-isolated calibration rerun
 
