@@ -985,6 +985,18 @@ function usage() {
 `;
 }
 
+// import.meta.main exists from Node 24.2.0; below that it is undefined and a
+// direct CLI invocation would silently load as a plain module and exit 0 —
+// the exact false-success shape this guard exists to prevent. Fail closed.
+if (import.meta.main === undefined) {
+  const error = new Error(
+    'snapback-fastpath-release requires Node >= 24.2 (import.meta.main); '
+    + `running ${process.version}`,
+  );
+  error.code = 'SNAPBACK_FASTPATH_NODE_UNSUPPORTED';
+  throw error;
+}
+
 if (import.meta.main) {
   try {
     const options = parseArguments(process.argv.slice(2));

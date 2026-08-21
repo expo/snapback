@@ -63,4 +63,4 @@ and re-exec through a symlinked tmp directory with a cheap JSON-emitting child,
 and separately proves that an exit-0 child with empty stdout fails closed. No
 real stage, release, registry, or publication operation is exercised.
 
-**Landing SHA:** TBD
+**Landing SHA:** 434e01892 (with review-fix commits on the same push)
