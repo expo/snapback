@@ -104,3 +104,18 @@ source-checkout-only witness.
 An already-mounted optional-user query now re-resolves under the new authority
 or publishes an explicit classified error within the transition. It cannot
 settle in the silent stalled projection.
+
+## Reconciliation evidence (2026-08-21)
+
+The post-closure reconciliation keeps this ticket resolved and preserves its
+original landing SHA. Local reconciliation commit `897648679` adds a committed
+runner that freshly packs and externally extracts the Contract, client, and
+React tarballs before executing the auth-settlement proof. The isolated proof
+mounts the public Familiar `useQuery` hook on an `optional-user` reference and
+observes its anonymous result followed by the authenticated successor.
+
+The same commit adapts the parallel Contract assertion to main's established
+terminal spelling (`authorization_error` with `terminal: true`): a scoped
+multi-live terminal carrier synchronously blanks its private cell without
+blanking an unrelated query cell. It deliberately introduces no
+`authorization_terminal` carrier.

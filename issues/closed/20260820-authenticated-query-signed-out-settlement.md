@@ -79,3 +79,21 @@ test commands also expose inherited failures reproducible unchanged at clean
 `3f9e26af0`: the generated optimistic outbox fixture handles an outbox barrier
 request as a mutation and reads absent `settlementClaims.mints`, and the React
 optimistic replay-advisory fixture observes zero warnings instead of one.
+
+## Reconciliation evidence (2026-08-21)
+
+The post-closure reconciliation keeps this ticket resolved and preserves its
+original landing SHA. Local reconciliation commit `897648679` makes the claimed
+three-package proof reproducible from the repository: it freshly packs and
+externally extracts `@expo/snapback-contract`, `@expo/snapback-client`, and
+`@expo/snapback-react`, then runs this ticket's five-state one-shot/live matrix
+through only that isolated Snapback package graph. The packed live proof now
+also exercises the public Familiar `useQuery` projection across an
+`optional-user` successor.
+
+Local reconciliation commit `78bc23c3d` closes the adjacent zero-effect race:
+an authenticated generated mutation captures its authority before asynchronous
+preparation. The regression holds preparation, settles logout, then proves a
+classified stale refusal and zero mutation POSTs. Main's existing post-barrier
+admission classification remains authoritative for operations that join an
+already-active logout.
