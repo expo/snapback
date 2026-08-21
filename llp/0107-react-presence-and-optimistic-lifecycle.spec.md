@@ -48,7 +48,7 @@ suites, guide, and exact ten-check retained receipt are complete; hosted
 presence remains unsupported). 2026-07-27 (final author reconciliation pins
 result-contract and expiry negotiation carriers plus remaining lifecycle
 diagnostics/tests)
-**Related:** LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0094, LLP 0095, LLP 0101, LLP 0114, LLP 0105, LLP 0218, LLP 0295 (D0.2 — LLP 0059 owns the shared authority-transition matrix this surface projects)
+**Related:** LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0094, LLP 0095, LLP 0101, LLP 0114, LLP 0105, LLP 0218, LLP 0295 (D0.2 — LLP 0059 owns the shared authority-transition matrix this surface projects), `issues/20260821-client-authority-transition-state-matrix.md`
 
 ## Summary
 
@@ -434,7 +434,9 @@ drain and `useSnapbackOutbox().drainNow()` remain the recovery authority.
 
 LLP 0059's dated amendment "Total client authority-transition state and
 settlement matrix" is the single owner of the cross-surface state machine
-over anonymous → authenticating → authenticated → revoking → reconnecting.
+across the anonymous, authenticating, authenticated, revoking, and
+reconnecting states (a partition — the two barrier states and reconnecting
+are mutually exclusive, not points on one line).
 The React and Familiar surfaces specified here are presentation projections
 of that matrix's cells: they render the classified states (`blocked` with a
 transition-owner diagnostic, `resyncing`, the queued dispatch union,
@@ -449,9 +451,11 @@ collapse a fenced predecessor or a blocked authenticated query into
   successor subscription at resume, exactly like an authenticated one; a
   blanked hook with no successor projecting `ready`/empty/`disconnected` is
   a defect, never a settled state.
-- **Queued optimistic layers follow the matrix's revoking column:** the
-  item-5 custody transition table (strand/delete) plus this Spec's existing
-  synchronous blanking rule; the LLP 0218 §4.2 disposition map is unchanged.
+- **Queued optimistic layers follow the item-5 strand/delete disposition of
+  the active barrier's row** (strand for anonymous → authenticated and
+  same-user/new-session; delete for A → B, A → anonymous, and incarnation
+  change) plus this Spec's existing synchronous blanking rule; the LLP 0218
+  §4.2 disposition map is unchanged.
 - **Presence rooms follow the ephemeral row:** fenced during a barrier,
   rebuilt at resume, `resyncing` during reconnect, and never published under
   unsettled authority. Awaited sign-in settlement includes usable ephemeral

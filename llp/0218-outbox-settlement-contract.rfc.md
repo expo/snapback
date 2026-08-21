@@ -8,10 +8,14 @@
 **Revised:** 2026-08-21 (LLP 0295 D0.2 cross-reference amendment: LLP 0059's
 dated authority-transition matrix amendment owns the cross-surface state and
 settlement semantics this contract's dispatch/queue/drain behavior composes
-into; registers the matrix-ruled W2 extensions — the typed `auth-barrier`
-blocked reason, the declared-housekeeping lane split so foreground sends
-never head-of-line block behind housekeeping, and the drop-on-principal-
-class-change rule for housekeeping intent; see "Dated amendment" below)
+into; registers the matrix-ruled prospective W2 changes to this contract —
+the typed `auth-barrier` blocked reason beside the shipped
+`custody-unsettled` vocabulary, the declared-housekeeping lane split so
+foreground sends never head-of-line block behind housekeeping, item-5-
+aligned strand/delete dispositions for predecessor housekeeping with typed
+supersession, and the normative ruling-6 `timing` fields; §4.3's
+single-flight bullet now points at the amendment; see "Dated amendment"
+below)
 **Revised:** 2026-08-15 (P6 implemented — deprecation closure executed after
 the window elapsed; Status → Implemented.)
 **Revised:** 2026-08-15 (removed the LLP 0255 S3.2 amendment after the author
@@ -280,7 +284,10 @@ machinery) that:
   that never produced a fresh-subscribe snapshot. "Cannot produce a
   barrier" is a bounded, observable refusal state surfaced through
   `outboxStatus()`'s blocked reason, never an open-ended silent wait;
-- drains single-flight in sequence order; honors writer locks, captured
+- drains single-flight in sequence order (from the dated 2026-08-21 D0.2
+  amendment onward: within the foreground lane — declared housekeeping
+  drains in a second lane per that amendment; this bullet is not the whole
+  drain once W2 lands); honors writer locks, captured
   authority/custody, stranding, quarantine, and terminal failure; rechecks
   captured authority immediately before each transport; only the durable
   store's writer drains, and non-writer contexts converge by observing the
@@ -516,37 +523,53 @@ LLP 0059's dated amendment "Total client authority-transition state and
 settlement matrix" (adopted per LLP 0295; the author may revise) is the
 single cross-surface owner of the
 anonymous/authenticating/authenticated/revoking/reconnecting state machine.
-This contract's shipped semantics — the dispatch union, the relinquishment
-cut, the disposition map, and the pause-with-observable-reason drain — are
-unchanged and remain this RFC's; the matrix binds how they compose across an
-authorization barrier and commissions three W2 extensions implemented
-through `issues/20260821-client-authority-transition-state-matrix.md`:
+The shipped semantics this RFC implemented — the dispatch union, the
+relinquishment cut, the disposition map, and the pause-with-observable-reason
+drain — remain this RFC's and are not retroactively changed; the matrix
+binds how they compose across an authorization barrier and commissions three
+**prospective W2 changes to this contract**, implemented through
+`issues/20260821-client-authority-transition-state-matrix.md` (until W2
+lands, the shipped drain remains one global single-flight sequence with the
+shipped `blockedReason` vocabulary):
 
 1. **Typed `auth-barrier` blocked reason.** While a transition barrier is
-   active, the drain pauses with `blockedReason: auth-barrier` (joining the
-   existing typed reason vocabulary) and wakes level-triggered at barrier
-   settlement — the shipped custody/successor-bind wakeups already carry
-   this edge; the amendment pins the reason spelling so a barrier wait is
-   attributable, never an undifferentiated pending. No transport dispatch
-   occurs under unsettled authority.
+   active, the drain pauses with `blockedReason: auth-barrier` and wakes
+   level-triggered at barrier settlement — the shipped custody/
+   successor-bind wakeups already carry this edge. The vocabulary boundary
+   is pinned: barrier-active reports `auth-barrier`; other unsettled-custody
+   pauses keep the shipped `custody-unsettled` (and
+   `authority-unavailable:*`) spellings. A barrier wait is therefore
+   attributable, never an undifferentiated pending, and no transport
+   dispatch occurs under unsettled authority.
 2. **Foreground/housekeeping lane split.** Writes explicitly declared
    housekeeping (idempotent, coalescible latest-wins, valid under the
-   successor principal) drain in a separate housekeeping lane: coalesced,
-   skippable when superseded, and **dropped on principal-class change**
-   rather than replayed under a different principal. The foreground lane
-   keeps this RFC's ordered single-flight semantics unchanged within the
-   lane; a suspended or slow housekeeping write can never head-of-line
-   block a foreground send, and cross-lane ordering is explicitly not
-   promised. During a barrier, only declared-housekeeping writes targeting
-   the successor may durably queue (matrix ruling 3); other dispatches join
-   the bounded barrier settlement or refuse typed. The declaration spelling
-   (dispatch option or generated annotation) is W2 implementation-owned.
+   successor principal) drain in a separate housekeeping lane. Coalescing
+   is typed: a superseded housekeeping record settles `failed` carrying
+   `SNAPBACK_HOUSEKEEPING_SUPERSEDED`, never a silent no-op. Predecessor
+   housekeeping intent at a barrier follows the **item-5 disposition of its
+   row exactly like foreground intent** — strand for anonymous →
+   authenticated and same-user/new-session, delete for A → B,
+   A → anonymous, and incarnation change — and a stranded housekeeping
+   record is never auto-replayed under a different principal; there is no
+   separate "drop" outcome. The foreground lane keeps this RFC's ordered
+   single-flight semantics within the lane; a suspended or slow
+   housekeeping write can never head-of-line block a foreground send, and
+   cross-lane ordering is explicitly not promised. During a barrier, only
+   declared-housekeeping writes targeting the successor may durably queue
+   (matrix ruling 3) — these are successor intent and drain at settle —
+   while other dispatches join the bounded barrier settlement or refuse
+   typed. The declaration spelling (dispatch option or generated
+   annotation) is W2 implementation-owned.
 3. **Predecessor intent at the barrier** continues to follow LLP 0059's
    item-5 custody transition table (strand/delete); this RFC adds no
-   alternative.
+   alternative. Item-5 deletion is observable afterward as disposition
+   `unknown` (the dispatch promise already resolved `queued`), stranding as
+   `stranded`.
 
-Queue, authorization, execution, commit, and delivery time remain separately
-observable per matrix ruling 6: `outboxStatus()` owns queue wait and
-suspension, `mutationStatus`/`subscribeMutation` own per-mutation
-disposition, the live projection owns delivery, and the LLP 0219 channel
+Queue, authorization, execution, commit, and delivery time become separately
+observable per matrix ruling 6, whose named fields are normative: the
+disposition union gains a `timing` object (`enqueuedAtMs`, `dispatchedAtMs`,
+`authorizedAtMs`, `executedAtMs`, `committedAtMs`), `outboxStatus()` owns
+queue wait and suspension attribution, the live projection owns delivery
+(`lastDeliveryAtMs`, `authoritativeRevision`), and the LLP 0219 channel
 carries the events.

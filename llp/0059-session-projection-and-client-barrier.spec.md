@@ -13,10 +13,14 @@ ephemeral/presence, and provider adapters — universal live-query successor
 restart on principal-class change (including `optional-user`), prompt typed
 settlement for authenticated operations started signed out, the declared
 housekeeping queue policy during an authorization barrier, foreground versus
-housekeeping lane separation, the settle-then-subscribe safe point that
-includes ephemeral authority, and phase-separated queue/commit/delivery
-diagnostics, plus the W2 conformance-suite shape; adopted per LLP 0295, the
-author may revise; LLP 0107/0218 carry cross-references).
+housekeeping lane separation with item-5-aligned predecessor dispositions,
+the no-active-barrier subscribe-safety rule, and phase-separated
+queue/authorization/execution/commit/delivery diagnostics with named public
+`timing` fields, plus the W2 conformance-suite shape; the five states are a
+partition with the barrier taking precedence over reconnecting; adopted per
+LLP 0295, the author may revise; LLP 0107/0218 carry cross-references;
+same-day revision round closed the two independent review gates'
+MAJOR findings).
 2026-08-16 (committed-refresh publication amendment: ordinary
 publication still requires an empty pending-ticket set; the sole exception is
 one exact finalized rotation response bound to its current successor digest,
@@ -181,7 +185,7 @@ transition intent, phase-8 ownership release, close-code terminal latch,
 handshake app-identity/UUIDv7, final-fence handshake capture, readiness probes)
 as named defect obligations. Full triage in §Open decisions and status.)
 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0059-session-projection-and-client-barrier.codex.md` and applied its editorial correction to the public credential-classification prose; material findings remain for author triage). 2026-07-14 (ENG-24982 session-clock-floor audit: persist a durable non-decreasing `auth_session_clock_floor_ms`, seed the process clock from it at startup, and derive every wall-clock lifetime decision at `max(sample, floor)` so a backward wall move across restart cannot rebuild a slid or absolute-expired session as current). 2026-07-14 (leased-handoff reconciliation: share one bounded projection/outbox budget, preserve level-triggered projection suffixes, rank recovery markers through final HTTP/WebSocket transfer, and keep projection-only responses behind the exact outbox cut). 2026-07-14 (client poison-latch reconciliation: a connection-continuity loss permanently closes that ephemeral overlay generation, including against delayed snapshots; only a fresh subscribe may construct its successor, while room-scoped resync retains in-place snapshot recovery). 2026-07-14 (client-store version reconciliation: qualify format 3 as the historical item-5 predecessor and point the composed production format 5 and its v1–v4 migration rules to LLP 0043 without self-ratifying this Draft). 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
-**Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058, LLP 0060, LLP 0258 (application auth bootstrap — composition owner over this protocol; cross-reference only, no protocol change), LLP 0107 (React/Familiar surface projection of the D0.2 transition matrix), LLP 0218 (outbox settlement contract the matrix composes), LLP 0295 (D0.2 commissioning Plan), `issues/20260821-client-authority-transition-state-matrix.md`
+**Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058, LLP 0060, LLP 0258 (application auth bootstrap — composition owner over this protocol; cross-reference only, no protocol change), LLP 0107 (React/Familiar surface projection of the D0.2 transition matrix), LLP 0218 (outbox settlement contract the matrix composes), LLP 0219 (dev diagnostics channel carrying the D0.2 ruling-6 events), LLP 0295 (D0.2 commissioning Plan), `issues/20260821-client-authority-transition-state-matrix.md`
 
 ## Summary
 
@@ -3254,7 +3258,9 @@ disposition or operator repair rather than weakening the incarnation witness.
 ## Dated amendment: total client authority-transition state and settlement matrix (2026-08-21, LLP 0295 D0.2)
 
 **Adopted per LLP 0295; the author may revise.** Commissioned by LLP 0295
-D0.2/W2 through `issues/20260821-client-authority-transition-state-matrix.md`.
+D0.2/W2 through `issues/20260821-client-authority-transition-state-matrix.md`;
+this Spec is the accepting owner (the LLP 0295 Plan is the commissioning
+register, not the accepting authority).
 This amendment is the single cross-surface owner of the client
 authority-transition state machine: one total state and settlement matrix
 shared by one-shot queries, live queries, mutations/outbox, React hooks,
@@ -3277,11 +3283,29 @@ phases rather than invented beside them:
 
 | State | Definition |
 | --- | --- |
-| **anonymous** | Settled custody, anonymous principal, transport admitted. |
-| **authenticating** | A transition barrier whose successor is an authenticated principal is active for this context: between the phase-2 durable CAS to `clearing` and this context's phase-9 resume completion (readiness of its mandatory participants). |
-| **authenticated** | Settled custody, authenticated principal A, transport admitted. |
-| **revoking** | A transition barrier away from an authenticated predecessor is active: A → anonymous, A → different user B, incarnation change, or a server-witnessed terminal revocation/expiry driving the same barrier. |
-| **reconnecting** | Settled custody of any principal, but transport or stream readiness is pending: socket loss, resync, handshake retry, or a watch-reload `SNAPBACK_AUTH_MODE_PENDING` window. |
+| **anonymous** | Settled custody, anonymous principal, no active barrier for this context, transport admitted. |
+| **authenticating** | An active transition barrier whose predecessor is **anonymous** and whose successor is an authenticated principal: between the phase-2 durable CAS to `clearing` and this context's phase-9 resume completion (readiness of its mandatory participants). |
+| **authenticated** | Settled custody, authenticated principal A, no active barrier for this context, transport admitted. |
+| **revoking** | Every **other** active transition barrier — one whose predecessor is an authenticated principal (A → anonymous, A → different user B, same-user/new-session, terminal revocation/expiry) or any authorization-stream incarnation change. |
+| **reconnecting** | **No active barrier for this context**, settled custody of any principal, but transport or stream readiness is pending: socket loss, resync, handshake retry, or a transient watch-reload `SNAPBACK_AUTH_MODE_PENDING` window. |
+
+**The five states are a partition; the barrier decides.** An active barrier
+is exactly one of `authenticating`/`revoking`, chosen by its predecessor,
+and a barrier state holds end to end: even after phase 8 has durably
+settled custody, the context remains in its barrier state until its own
+phase-9 resume completes. Transport loss during phases 4–9 does **not**
+enter `reconnecting` — it is absorbed by the barrier, whose resume retries
+or fails as a classified transition failure ("reconnect during transition"
+stays in the barrier column). `reconnecting` exists only with no active
+barrier; consequently subscribe-safety has one rule (ruling 5): safe iff no
+barrier is active for the context.
+
+**Same-user/new-session mapping.** It runs the barrier machinery and
+therefore occupies the `revoking` column, but its cells resolve per the
+item-5 same-user row: no principal-data wipe; session-dependent surfaces
+blank → one successor under the **same** principal (authenticated surfaces
+are never `blocked(auth)` at settle); predecessor queued intent — foreground
+and housekeeping alike — **strands**, never deletes.
 
 Definitions the matrix depends on:
 
@@ -3324,6 +3348,25 @@ Every cell of the matrix resolves to one of these classified outcomes:
   resume under the settled successor authority.
 - **retain-stale** — keep same-authority state visible with degraded
   freshness (`stale`/`resyncing`) until resync; never presented as fresh.
+  Applies to an already-armed subscription; a subscription newly armed
+  during `reconnecting` admits and projects its connecting/pending state
+  until first authoritative delivery.
+- **drain-active** / **drain-suspended(reason)** — drain-machinery row
+  only: the LLP 0218 controller is draining, or paused with the typed
+  `blockedReason` and a level-triggered wakeup.
+
+Already-queued intent at a barrier resolves through **item-5 dispositions**,
+not new outcomes: the custody transition table's strand/delete applies at
+settle. Every path stays caller-observable through the LLP 0218 disposition
+union — the dispatch promise has already resolved `queued`, stranding
+surfaces as `stranded`, and item-5 deletion surfaces afterward as `unknown`
+(no durable record; licenses no settlement inference) — so no queued intent
+can disappear as a silent hang. Housekeeping coalescing (ruling 4) is
+likewise typed: a superseded housekeeping record settles `failed` carrying
+`SNAPBACK_HOUSEKEEPING_SUPERSEDED`, never a silent no-op. There is no
+`skip`/`drop` outcome anywhere: a write that may not queue refuses typed,
+and removal of queued intent is an item-5 disposition or the typed
+supersession above.
 
 Universally prohibited, on every surface: indefinite `pending` when no
 transport request is admissible; projecting `ready`/empty/`disconnected` as
@@ -3335,22 +3378,23 @@ cannot commit or expose — phase-4 semantics).
 
 | Surface \ state | anonymous | authenticating | authenticated | revoking | reconnecting |
 | --- | --- | --- | --- | --- | --- |
-| One-shot op, anonymous-admissible | admit | join | admit | join | admit with bounded transport retry; wait observable |
-| One-shot op, authenticated-required | refuse(`SNAPBACK_AUTH_REQUIRED`), zero transport | join → settle under successor or refuse typed | admit | join → refuse under anonymous successor; admit under B | bounded retry → settle or typed transport/mode refusal |
-| Live query, `optional-user` | admit under anonymous authority | blank → one successor | admit | blank → one successor (anonymous successor is still admissible) | retain-stale + resync |
-| Live query, authenticated-required | blocked(auth) with owner diagnostic | blocked(auth) → one successor at settle | admit | blank → blocked(auth) under anonymous; one successor under B | retain-stale + resync |
-| Foreground mutation dispatch (queueable) | per declaration: admit if anonymous-admissible, else refuse(`SNAPBACK_AUTH_REQUIRED`) | join; no transport under unsettled authority (see ruling 3) | admit; `queued` only at the LLP 0218 relinquishment cut | predecessor queued intent strands/deletes per the item-5 table; a new dispatch joins | queue(connectivity) at relinquishment |
-| Housekeeping write (declared) | admit or queue, coalesced | queue(`auth-barrier`) if idempotent successor-valid, else skip | admit via housekeeping lane | drop — never replayed under a different principal | queue(connectivity), coalesced |
-| Outbox drain | drains anonymous-lane work | paused, `blockedReason: auth-barrier`; level-triggered wakeup at settle | drains | paused; strand/delete resolved at settle per the item-5 table | paused/retrying, `blockedReason` connectivity |
+| One-shot op, anonymous-admissible | admit | join | admit | join | admit with bounded client-owned retry; wait observable |
+| One-shot op, authenticated-required | refuse(`SNAPBACK_AUTH_REQUIRED`), zero transport | join → settle under successor or refuse typed | admit | join → re-evaluate under settled successor: admit under B/same-user, refuse(`SNAPBACK_AUTH_REQUIRED`) under anonymous | admit with bounded client-owned retry; transient mode-pending absorbed (never caller-terminal); exhaustion settles a typed transport refusal |
+| Live query, `optional-user` | admit under anonymous authority | blank → one successor | admit | blank → one successor (always admissible) | retain-stale + resync |
+| Live query, authenticated-required | blocked(auth) with owner diagnostic | blank → one successor (the fence is a no-op on an already-blocked surface) | admit | blank → one successor; blocked(auth) when the settled successor is anonymous | retain-stale + resync |
+| Foreground mutation dispatch (queueable) | per declaration: admit if anonymous-admissible, else refuse(`SNAPBACK_AUTH_REQUIRED`) | join; no transport under unsettled authority (see ruling 3) | admit; `queued` only at the LLP 0218 relinquishment cut | predecessor queued intent resolves per the item-5 row (strand or delete); a new dispatch joins | admit; queue(connectivity) at the relinquishment cut |
+| Housekeeping write (declared) | admit; queue(connectivity) only at the relinquishment cut, coalesced | queue(`auth-barrier`) if declared housekeeping and successor-valid, else refuse typed | admit via housekeeping lane | predecessor housekeeping resolves per the item-5 row (strand or delete); never replayed under a different principal | queue(connectivity), coalesced |
+| Outbox drain | drain-active over anonymous-admissible work in both lanes | drain-suspended(`auth-barrier`); level-triggered wakeup at settle | drain-active | drain-suspended(`auth-barrier`); item-5 dispositions applied at settle | drain-suspended(connectivity)/retrying |
 | Ephemeral/presence | admit | fenced; rooms rebuild at resume; no publish under unsettled authority | admit | fenced/blanked; predecessor entries never survive | `resyncing` projection; republish active intent once |
-| React hooks / Familiar projections | project the underlying cell verbatim | idem | idem | idem | idem |
+| React hooks / Familiar projections | projects the underlying cell | projects the underlying cell | projects the underlying cell | projects the underlying cell | projects the underlying cell |
 | Provider adapters | consume the settled-authority signal; subscribe-after-settle only | wait on the signal, not on polling own clients | admit | tear down at the `clearing` broadcast; re-arm at settle | retain handles; rely on client resync |
 
 React and Familiar are **presentation projections of the same cells**, not
-separate policies: both profiles render the classified states (`blocked`,
-`resyncing`, queued dispatch union, transition diagnostics) with identical
-semantics, and a Familiar projection may not collapse `blocked(owner)` or a
-fenced predecessor into `ready`/empty.
+separate policies: each surface asserts the same terminal semantic through
+its own vocabulary — a convenience shape may narrow the carrier (Familiar's
+`Result | undefined` convenience included) but may not collapse
+`blocked(owner)`, `resyncing`, the queued dispatch union, a transition
+diagnostic, or a fenced predecessor into `ready`/empty.
 
 ### Rulings (the six D0.2 questions)
 
@@ -3383,38 +3427,60 @@ fenced predecessor into `ready`/empty.
    dispatches transport under unsettled authority. The
    `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` condition is this observable
    suspension state with a level-triggered wakeup at settle — an authoring
-   surface waits on it or skips; it never hot-retries against the barrier
+   surface waits on the observable suspension or declines to dispatch
+   (a typed refusal, never a silent skip); it never hot-retries against the
+   barrier
    (`issues/20260818-guide-gap-background-writes-during-auth-transitions.md`).
 4. **Foreground work never queues behind housekeeping.** The outbox splits
    into a foreground lane (ordered, LLP 0218 single-flight semantics
    unchanged within the lane) and a housekeeping lane (declared writes:
-   coalesced latest-wins, skippable when superseded, dropped on
-   principal-class change). A suspended or slow housekeeping write can never
+   coalesced latest-wins; a superseded record settles the typed
+   `SNAPBACK_HOUSEKEEPING_SUPERSEDED` disposition). Predecessor housekeeping
+   intent at a barrier follows the **item-5 disposition of its row** —
+   strand for anonymous → A and same-user/new-session, delete for A → B,
+   A → anonymous, and incarnation change — exactly like foreground intent,
+   and a stranded housekeeping record is never auto-replayed under a
+   different principal. Successor-targeted housekeeping queued during the
+   barrier (ruling 3) is successor intent: it drains at settle, it is not a
+   predecessor disposition. A suspended or slow housekeeping write can never
    head-of-line block a foreground send; cross-lane ordering is explicitly
    not promised. The declaration spelling (dispatch option or generated
    function annotation) is W2 implementation-owned; the lane semantics here
    are normative.
-5. **Subscribe-after-settle.** The one safe subscription point after a
-   transition is barrier settlement for the subscribing context — settled
-   custody, fresh handshake and grant, mandatory-participant readiness, and
-   usable ephemeral authority. Awaited `signIn`/`signOut` resolve only at
-   this point: the client absorbs the bounded ephemeral-authority successor
-   wait, so an operation started immediately after an awaited sign-in can
-   never observe `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`. The `reconnecting`
-   state is also safe to subscribe in (authority is settled; the
-   subscription arms and projects its connecting/resync state);
-   `authenticating`/`revoking` are not.
-6. **Diagnostics separate queue, authorization, commit, and delivery time.**
-   Each phase has one owning observable, so a silent wait is always
-   attributable: queue wait (enqueue → relinquishment/dispatch) and
-   suspension via LLP 0218 `outboxStatus()` (`drainPhase`,
-   `lastAttemptAtMs`, `nextRetryAtMs`, typed `blockedReason` including
-   `auth-barrier`); per-mutation authorization/execution/commit disposition
-   via `mutationStatus`/`subscribeMutation` keyed by `clientMutationId`;
-   live delivery via the subscription projection (connection, freshness,
-   snapshot/authoritative revision, auth-barrier/blocked owner); barrier
-   phase and custody state via the coordinator's readiness facts; and the
-   LLP 0219 channel carries the queued/suspended/wedged events. No surface
+5. **Subscribe-after-settle.** One rule: subscribing is safe iff **no
+   barrier is active for the subscribing context** — the settled states and
+   `reconnecting` (authority is settled; the subscription arms and projects
+   its connecting/resync state). `authenticating`/`revoking` are unsafe end
+   to end: the barrier state holds through the context's phase-9 resume
+   even after phase 8 durably settles custody. Barrier settlement for the
+   context means settled custody, fresh handshake and grant,
+   mandatory-participant readiness, and usable ephemeral authority.
+   Awaited `signIn`/`signOut` resolve only at this point: the client
+   absorbs the bounded ephemeral-authority successor wait, so an operation
+   started immediately after an awaited sign-in can never observe
+   `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`.
+6. **Diagnostics separate queue, authorization, execution, commit, and
+   delivery time, with named public fields.** Per-mutation timing rides the
+   LLP 0218 disposition union (`mutationStatus`/`subscribeMutation`, keyed
+   by `clientMutationId`) as a `timing` object of disjoint nullable
+   timestamps, each populated exactly when its phase completes:
+   `enqueuedAtMs` (durable enqueue), `dispatchedAtMs` (transport admission
+   — ends queue wait), `authorizedAtMs` (authorization passed),
+   `executedAtMs` (handler execution finished), `committedAtMs` (durable
+   commit). Queue wait is `dispatchedAtMs − enqueuedAtMs`, attributed while
+   pending by `outboxStatus()` (`drainPhase`, `lastAttemptAtMs`,
+   `nextRetryAtMs`, `oldestPendingAtMs`, typed `blockedReason`);
+   authorization wait is `authorizedAtMs − dispatchedAtMs`; execution is
+   `executedAtMs − authorizedAtMs`; commit is
+   `committedAtMs − executedAtMs`. Live delivery is owned by the
+   subscription projection: `lastDeliveryAtMs` and `authoritativeRevision`
+   alongside the existing connection/freshness/blocked-owner fields.
+   `blockedReason` vocabulary is pinned: an active transition barrier
+   reports `auth-barrier`; other unsettled-custody pauses keep the shipped
+   `custody-unsettled` (and `authority-unavailable:*`) spellings. Barrier
+   phase and custody state remain the coordinator readiness facts'; the
+   LLP 0219 channel carries the queued/suspended/wedged events. These field
+   names and meanings are normative; carrier plumbing is W2's. No surface
    reports a single undifferentiated "pending" that conflates these phases.
 
 ### W2 conformance suite shape
@@ -3431,6 +3497,12 @@ same-user/new-session, incarnation change, watch reload
 unmount/remount across a barrier, and late predecessor delivery. Operation
 timings: armed-before, dispatched-during (each barrier phase band:
 pre-clearing, clearing→commit, commit→resume), and dispatched-after-settle.
+Two event mappings are fixed so no row invents a combined state: "reconnect
+during transition" stays in the active barrier column (`reconnecting`
+requires no active barrier; the transport loss is absorbed by the barrier's
+resume-or-classified-failure), and "unmount/remount across a barrier" is
+this Spec's late-registration catch-up (the remounted participant joins
+paused/blank and receives completed phases as catch-up before resume).
 
 **Required projections.** Core/headless client (the reference execution),
 React hooks, Familiar projections, and provider adapters; Expo re-exports
@@ -3449,8 +3521,14 @@ surface vocabulary for the observable fields.
 - foreground send latency is unaffected by a suspended housekeeping write
   (head-of-line witness);
 - a late predecessor frame after the fence never repopulates any surface;
-- queue/commit/delivery phase fields are each populated and disjoint for one
-  instrumented mutation.
+- the ruling-6 `timing` fields (`enqueuedAtMs`, `dispatchedAtMs`,
+  `authorizedAtMs`, `executedAtMs`, `committedAtMs`) plus subscription
+  `lastDeliveryAtMs` are each populated, ordered, and disjoint for one
+  instrumented mutation;
+- same-user/new-session strands (never deletes) predecessor queued intent
+  and re-admits authenticated surfaces under the same principal;
+- a superseded housekeeping record settles the typed supersession
+  disposition, never a silent no-op.
 
 Suite placement, harness, and exact spellings are W2 implementation work
 tracked in `issues/20260821-client-authority-transition-state-matrix.md`,

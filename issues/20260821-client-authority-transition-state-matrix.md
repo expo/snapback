@@ -54,34 +54,45 @@ LLP 0059's dated amendment "Total client authority-transition state and
 settlement matrix (2026-08-21, LLP 0295 D0.2)" — LLP 0059 is the single
 cross-surface owner; LLP 0107 ("Authority-transition matrix participation")
 and LLP 0218 (dated amendment, same date) carry the surface-binding
-cross-references. Key rulings:
+cross-references. The five client states (anonymous / authenticating /
+authenticated / revoking / reconnecting) are a partition defined onto the
+LLP 0059 barrier phases: the barrier decides between
+authenticating/revoking by predecessor, holds through phase-9 resume even
+after phase-8 custody settle, and takes precedence over reconnecting; a
+**transient watch-reload** `SNAPBACK_AUTH_MODE_PENDING` window is
+reconnecting state — retryable, never custody-clearing, never live-stream
+terminal (a real staged mode transition per LLP 0058 remains a barrier and
+runs item-5). Ruling numbers below match LLP 0059's "Rulings (the six D0.2
+questions)":
 
-1. Five client states defined onto the LLP 0059 barrier phases:
-   anonymous / authenticating / authenticated / revoking / reconnecting.
-   Reconnecting is not a barrier: `SNAPBACK_AUTH_MODE_PENDING` is retryable,
-   never custody-clearing, never live-stream terminal.
-2. Every live query — including `optional-user` — is a barrier participant:
+1. Every live query — including `optional-user` — is a barrier participant:
    fence at blank, exactly one successor at resume, classified diagnostic on
    failure; never ready/empty/disconnected as settled success. (Consistent
    with the Phase 1A stall fix.)
-3. An authenticated one-shot op started signed out settles promptly with a
+2. An authenticated one-shot op started signed out settles promptly with a
    typed auth-required refusal, zero transport, no caller timeout; live ops
    project blocked with a transition owner. (Consistent with the Phase 1A
    settlement fix.)
-4. During a barrier only declared-housekeeping writes (idempotent,
+3. During a barrier only declared-housekeeping writes (idempotent,
    latest-wins, successor-valid) may queue, observable as
    `blockedReason: auth-barrier`; nothing dispatches transport under
    unsettled authority; predecessor intent strands/deletes per the item-5
    table.
-5. Foreground/housekeeping outbox lane split: housekeeping is coalesced,
-   skippable, dropped on principal-class change, and can never head-of-line
-   block a foreground send.
-6. Subscribe-after-settle = barrier settlement for the context, which
-   includes usable ephemeral authority; awaited sign-in absorbs the
-   ephemeral successor wait. Reconnecting is also subscribe-safe.
-7. Queue/authorization/commit/delivery time are separately observable:
-   `outboxStatus()`, `mutationStatus`/`subscribeMutation`, the live
-   projection, coordinator readiness facts, and the LLP 0219 channel.
+4. Foreground/housekeeping outbox lane split: housekeeping is coalesced with
+   typed supersession (`SNAPBACK_HOUSEKEEPING_SUPERSEDED`), follows the
+   item-5 strand/delete disposition of its barrier row exactly like
+   foreground intent (no separate "drop"), is never auto-replayed under a
+   different principal, and can never head-of-line block a foreground send.
+5. Subscribe-safe iff no barrier is active for the context; barrier
+   settlement includes usable ephemeral authority, and awaited sign-in
+   absorbs the ephemeral successor wait. Reconnecting is subscribe-safe.
+6. Queue/authorization/execution/commit/delivery time are separately
+   observable with named normative fields: the disposition-union `timing`
+   object (`enqueuedAtMs`, `dispatchedAtMs`, `authorizedAtMs`,
+   `executedAtMs`, `committedAtMs`), `outboxStatus()` suspension
+   attribution (`auth-barrier` beside the shipped `custody-unsettled`),
+   subscription `lastDeliveryAtMs`/`authoritativeRevision`, coordinator
+   readiness facts, and the LLP 0219 channel.
 
 ## W2 implementation checklist
 
@@ -104,12 +115,17 @@ cross-references. Key rulings:
       `SNAPBACK_AUTH_MODE_PENDING`; live-stream successor; tight-loop
       awaited-sign-in/ephemeral-authority witness (closes
       `20260820-agent-auth-transition-residuals.md`).
-- [ ] `auth-barrier` blocked reason + level-triggered settle wakeup in the
-      LLP 0218 drain; housekeeping lane split + declaration spelling +
-      drop-on-principal-class-change; head-of-line witness (foreground send
-      latency unaffected by suspended housekeeping).
-- [ ] Phase-separated diagnostics row: queue/authorization/commit/delivery
-      fields populated and disjoint for one instrumented mutation.
+- [ ] `auth-barrier` blocked reason (beside shipped `custody-unsettled`) +
+      level-triggered settle wakeup in the LLP 0218 drain; housekeeping lane
+      split + declaration spelling + item-5-aligned strand/delete
+      dispositions + typed supersession; head-of-line witness (foreground
+      send latency unaffected by suspended housekeeping).
+- [ ] Phase-separated diagnostics row: the ruling-6 `timing` fields
+      (queue/authorization/execution/commit) plus subscription
+      `lastDeliveryAtMs` populated, ordered, and disjoint for one
+      instrumented mutation.
+- [ ] Same-user/new-session rows: strand (never delete) predecessor intent;
+      authenticated surfaces re-admit under the same principal.
 - [ ] Guide recipe for background writes during auth transitions from the
       matrix (absorbs
       `20260818-guide-gap-background-writes-during-auth-transitions.md`),
