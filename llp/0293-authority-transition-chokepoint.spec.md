@@ -771,11 +771,11 @@ exactly the digest-at-open fallback ruling 7 forbids.
 profile, implementation must **stop and reopen §10.7** — it may not silently choose cheaper
 parameters.
 
-§13 below lists the consistency amendments this requires of the main spec, including replacing
+§A.13 below lists the consistency amendments this requires of the main spec, including replacing
 proof kinds `OperatorRestore`/`OperatorImport` with a single `AdministratorAnchor` and amending
 the proof-mechanism count from eight to seven.
 
-## 1. Outcome
+## A.1 Outcome
 
 **INFERRED — DESIGN.** Close LLP 0293 §10.7 with a required two-member administrator anchor:
 
@@ -792,7 +792,7 @@ This confirms the `_snapback_meta` path suggested in LLP 0293. It introduces no 
 
 No author ruling remains open. The author already selected mandatory explicit provisioning, no derivation, no grace, and no digest-at-open in ruling 7 (`llp/0285-kernel-authorization-closure.spec.md:153-161`). The proof-kind correction in §8 is a necessary consistency amendment to LLP 0293, not a new product-policy choice.
 
-## 2. Evidence labels and governing constraints
+## A.2 Evidence labels and governing constraints
 
 This document uses:
 
@@ -807,7 +807,7 @@ This document uses:
 
 **VERIFIED — CURRENT.** The compiled prototype resolves the structural questions while explicitly leaving only §10.7’s administrator-anchor protocol open (`llp/0293-authority-transition-chokepoint.spec.md:577-591`; `prototypes/authority-chokepoint/EVIDENCE.md:232-246`).
 
-## 3. Current-state findings
+## A.3 Current-state findings
 
 **VERIFIED — CURRENT.** The current local administrator token is `sbat_` plus a UUIDv4 value documented as 122 bits of CSPRNG randomness. Its conventional sibling appends `.admin-token` to the instance artifact name (`crates/snapback-auth/src/auth/admin_token.rs:5-18`). Serve-time credential resolution currently prefers a nonempty `SNAPBACK_ADMIN_TOKEN`, otherwise reads the sibling token file, otherwise mints and writes a token (`crates/snapback-server/src/admin.rs:2418-2422`, `crates/snapback-server/src/admin.rs:2462-2539`). The anchor ceremony must not mistake that resolution behavior for anchor derivation: the configured token is only a comparison reference, while the independently presented raw token is the KDF input.
 
@@ -823,9 +823,9 @@ This document uses:
 
 **VERIFIED — CURRENT.** Supported fork creation already classifies `_snapback_meta` for rotation, rotates the administrator-token sidecar, creates fresh authority sidecars in empty staging, and scrubs/mints the cloned database before publication (`crates/snapback-kernel/src/instance_fork.rs:156-198`, `crates/snapback-kernel/src/instance_fork.rs:697-729`, `crates/snapback-services/src/instance_fork/service.rs:1343-1404`). Its governing design says no parent sidecar is inherited except an explicit config opt-in, the child receives a fresh administrator token, and a hand-made `cp` is outside the managed fork protocol (`llp/0158-instance-forking.rfc.md:621-640`, `llp/0158-instance-forking.rfc.md:659-718`, `llp/0158-instance-forking.rfc.md:797-816`). The anchor becomes another mandatory `Rotate` member of that closed custody inventory.
 
-## 4. Threat model
+## A.4 Threat model
 
-### 4.1 Required resistance
+### A.4.1 Required resistance
 
 **INFERRED — DESIGN.** The mechanism must resist:
 
@@ -837,7 +837,7 @@ This document uses:
 6. A crash between filesystem publication and database activation.
 7. A supported backup, restore, or fork accidentally making independent instances share operator authority.
 
-### 4.2 Explicit limit
+### A.4.2 Explicit limit
 
 **LIMIT.** A byte-for-byte copy of the complete database, matching active sidecar, and store binding is cryptographically the same logical instance. Without an external registry, TPM, or other non-copyable root, local cryptography cannot distinguish “faithful relocation” from “copied every byte.”
 
@@ -845,9 +845,9 @@ This design assigns that operation one meaning: it is a faithful copy of the sam
 
 Copying only A’s sidecar, only A’s anchor metadata, or any mixed subset into B fails. Copying the complete authenticated identity set deliberately changes B into A’s logical identity; it is not silently accepted as a distinct B.
 
-## 5. Exact cryptographic construction
+## A.5 Exact cryptographic construction
 
-### 5.1 Identifiers and canonical encodings
+### A.5.1 Identifiers and canonical encodings
 
 **INFERRED — DESIGN.** Generate all random values with the kernel CSPRNG:
 
@@ -889,7 +889,7 @@ VM = "snapback.administrator-anchor.verifier.v1\0"
 
 All lengths after the domain literals are fixed, so concatenation is unambiguous. A future profile requires a new literal and format version; a reader never substitutes local defaults for a stored profile.
 
-### 5.2 KDF, commitment, and MAC
+### A.5.2 KDF, commitment, and MAC
 
 **INFERRED — DESIGN.** The active profile is exactly:
 
@@ -915,7 +915,7 @@ The parameters are not invented. RFC 9106’s second recommended Argon2id profil
 
 The operation is deliberately expensive but rare: provisioning, startup verification, and protected operator operations are not ordinary application request lanes. No implementation may lower the profile, truncate the MAC, omit the secret/associated-data inputs, or add a “fast” digest verifier without reopening §10.7.
 
-### 5.3 Attack analysis
+### A.5.3 Attack analysis
 
 **INFERRED — DESIGN.**
 
@@ -930,9 +930,9 @@ The operation is deliberately expensive but rare: provisioning, startup verifica
 
 A mixed row/sidecar, changed generation, profile substitution, or sidecar replacement therefore fails before evidence minting.
 
-## 6. Durable pair and custody
+## A.6 Durable pair and custody
 
-### 6.1 Database metadata
+### A.6.1 Database metadata
 
 **INFERRED — DESIGN.** Use only `_snapback_meta`:
 
@@ -975,7 +975,7 @@ Binary fields use unpadded canonical base64url. Commitment and verifier fields u
 
 The database state is authoritative. A sidecar not selected by the active descriptor grants nothing. Every operator transaction reads `authority_store_binding_v1` and the complete active descriptor in its own transaction. Comparison includes generation, filename, commitment, verifier, and profile. This is the mandatory in-transaction generation check.
 
-### 6.2 Sidecar
+### A.6.2 Sidecar
 
 **INFERRED — DESIGN.** For database path `D`, take its native-OS basename and append:
 
@@ -1013,7 +1013,7 @@ Publication is file `fsync`, strict descriptor revalidation, no-replace rename, 
 
 The sidecar is deployment authority, not application data. It is excluded from ordinary data export, dump, reset, and console inspection. A full authority-aware backup includes it only as an explicitly named strict member with an exact manifest hash. Raw `.admin-token` and derived `.console-credentials` files are not anchor members.
 
-### 6.3 Cross-resource crash rule
+### A.6.3 Cross-resource crash rule
 
 **INFERRED — DESIGN.** SQLite and a sibling file cannot commit atomically. The protocol therefore never claims they do:
 
@@ -1026,9 +1026,9 @@ Startup serves only an `active` state with an exact valid pair. Any pending stat
 
 A crash before database activation cannot make the candidate authoritative. A crash after activation cannot leave the active sidecar absent because sidecar publication and `fsync` preceded the database commit. Orphan candidates are removed only by an exact operation-ID recovery or abort path.
 
-## 7. Provisioning
+## A.7 Provisioning
 
-### 7.1 Interface and input custody
+### A.7.1 Interface and input custody
 
 **INFERRED — DESIGN.** The local operation is:
 
@@ -1053,7 +1053,7 @@ This is verification against configuration, not derivation from configuration. A
 
 Derived `sbcc_` console credentials, HTTP authorization results, digests, encoded roots, and previous receipts are categorically rejected.
 
-### 7.2 Provisioning state machine
+### A.7.2 Provisioning state machine
 
 **INFERRED — DESIGN.** Provisioning is the sole bootstrap exception to “operator evidence precedes an operator write,” because no anchor evidence can exist before the first anchor. Its authority is lexically limited to the three metadata key families and one candidate sidecar. It cannot mutate application data or any AuthorityFacts table.
 
@@ -1078,9 +1078,9 @@ For a valid exact provisioning candidate, recovery may complete step 6. `anchor 
 
 At startup, an active pair is verified with the raw active configured credential. This is verification of already-provisioned state, not creation or derivation of state. Missing state is never auto-filled.
 
-## 8. Expression as `KernelVerifiedEvidence`
+## A.8 Expression as `KernelVerifiedEvidence`
 
-### 8.1 Necessary LLP 0293 amendment
+### A.8.1 Necessary LLP 0293 amendment
 
 **INFERRED — DESIGN.** Amend LLP 0293 §3.2 before acceptance: replace `OperatorRestore` and `OperatorImport` in `proof_kind` with one `AdministratorAnchor` variant.
 
@@ -1102,7 +1102,7 @@ Amend the “eight legitimate proof lanes” wording in LLP 0293 §11.6 to “se
 
 Acceptance of this design ratifies those corrections. No separate author ruling is required because LLP 0293 remains in Review and the change removes a mechanism/purpose category error without changing ruling 7.
 
-### 8.2 Verification and minting
+### A.8.2 Verification and minting
 
 **INFERRED — DESIGN.** An operator route may enter the chokepoint only with the raw master administrator token. Protected erasure no longer calls the ordinary admin/console resolver. Restore, import, rotation, and recovery likewise do not convert `AdminWrite` into operator authority.
 
@@ -1137,9 +1137,9 @@ Evidence contains no raw token, salt, pepper, Argon2 root, verifier MAC, sidecar
 
 Consumption writes the immutable operator audit receipt in the same transaction as the authorized mutation. The transaction rechecks the active generation immediately before installing the permit. A value prepared under generation `g` cannot be consumed after generation `g+1` activates.
 
-## 9. Rotation
+## A.9 Rotation
 
-### 9.1 Interface and prerequisites
+### A.9.1 Interface and prerequisites
 
 **INFERRED — DESIGN.** Rotation is offline and explicit:
 
@@ -1158,7 +1158,7 @@ The administrator first installs the successor raw token as the active configure
 
 The values may be identical, allowing a pepper/salt rekey without changing the administrator token. The kernel never accepts an old or new digest.
 
-### 9.2 Generation transition
+### A.9.2 Generation transition
 
 **INFERRED — DESIGN.** Rotation retains `anchor_id`, increments `generation` exactly once, and creates a new salt, pepper, sidecar, verifier, operation ID, and audit ID under the same `store_binding`.
 
@@ -1186,9 +1186,9 @@ Changing configured-token state without matching anchor rotation makes startup f
 
 Generation `18446744073709551615` cannot rotate and returns a generation-exhausted diagnostic. No wrap, reset-to-one, or new anchor ID is allowed through rotation. New anchor IDs are reserved for new-store, fork, and disaster-restore incarnations.
 
-## 10. Backup, faithful copy, fork, and physical restore
+## A.10 Backup, faithful copy, fork, and physical restore
 
-### 10.1 Distinct meanings
+### A.10.1 Distinct meanings
 
 **INFERRED — DESIGN.**
 
@@ -1205,7 +1205,7 @@ A faithful relocation is the same logical instance at a new location. It preserv
 
 Fork adds `*.administrator-anchor.*.json` to `SIDECAR_CUSTODY` as `Rotate`, adds both anchor metadata keys to the `_snapback_meta` rotation transform, and cannot leave the quarantine sentinel until the fresh fork token provisions and activates a generation-1 pair. It never copies the parent sidecar and never uses the parent token as target input.
 
-### 10.2 Disaster-restore state machine
+### A.10.2 Disaster-restore state machine
 
 **INFERRED — DESIGN.** Disaster restore extends the existing target reservation, retained-descriptor staging, declaration, same-filesystem rename, and sentinel protocol.
 
@@ -1246,7 +1246,7 @@ Until R7, the following fail closed:
 
 Only exact local `restore status`, `restore recover`, and `restore abort` operations under the target reservation are available.
 
-### 10.3 Restore crash recovery
+### A.10.3 Restore crash recovery
 
 **INFERRED — DESIGN.** No raw token is written to a journal. Any recovery crossing R2–R7 therefore requires the administrator to re-present the target raw token through stdin/fd and requires it to match active target configuration.
 
@@ -1261,7 +1261,7 @@ Recovery resolves from exact local evidence:
 
 Abort is available only before R4. Once the active-anchor/restore transaction commits, recovery must finish forward; it cannot resurrect the predecessor anchor or catalog. Ambiguous rename is resolved from exact target/staging identities and the receipt, never from a registry guess.
 
-## 11. Stable diagnostics
+## A.11 Stable diagnostics
 
 **INFERRED — DESIGN.** Diagnostics never contain a token, token digest, pepper, root, verifier, or sidecar contents.
 
@@ -1337,7 +1337,7 @@ It never suggests serving, deleting files by hand, accepting a digest, or fallin
 
 These replace, for operator lanes, the current broad `SNAPBACK_ADMIN_TOKEN_REQUIRED`, whose message presently distinguishes only whether a token was presented and points to header/environment/token-file acquisition (`crates/snapback-server/src/admin.rs:4220-4235`). Ordinary admin routes may retain that code; anchor-gated operations may not.
 
-## 12. Verification and acceptance gates
+## A.12 Verification and acceptance gates
 
 **INFERRED — DESIGN.** Closing the semantic question does not waive LLP 0293’s compiled-prototype and implementation-review gates. Before implementation may publish:
 
@@ -1356,11 +1356,11 @@ These replace, for operator lanes, the current broad `SNAPBACK_ADMIN_TOKEN_REQUI
 
 The cryptographic design itself is **not OPEN**: it selects standardized primitives and an exact published Argon2 profile. Implementation review proves that code matches the closed design. If a target cannot support the 64 MiB offline profile, implementation must stop and reopen §10.7; it may not silently choose cheaper parameters.
 
-## 13. Required LLP 0293 acceptance edits
+## A.13 Required LLP 0293 acceptance edits
 
 **INFERRED — DESIGN.** Incorporate this design into LLP 0293 as follows:
 
-1. Replace §6.6’s OPEN paragraph with §§5–10 of this design.
+1. Replace §6.6’s OPEN paragraph with §§A.5–A.10 of this design.
 2. Mark §10.7 resolved by this design and the required compiled/fault-injection prototype.
 3. Replace proof kinds `OperatorRestore` and `OperatorImport` with `AdministratorAnchor`; amend the proof-mechanism count from eight to seven.
 4. Add exact operator purposes for protected erasure, restore, import, administrator-anchor rotation, and ceremony recovery, all using the single anchor proof mechanism.
