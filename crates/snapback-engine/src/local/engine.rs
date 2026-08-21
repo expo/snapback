@@ -184,6 +184,30 @@ thread_local! {
         const { std::cell::Cell::new(false) };
     static FAIL_NEXT_ADDITIONAL_JOB_ADMISSION: std::cell::Cell<bool> =
         const { std::cell::Cell::new(false) };
+    /// One-shot retirement injection shared by durable-write fence proofs.
+    /// Production builds contain neither this hook nor any call to it.
+    static BEFORE_ADMISSION_EFFECT_GUARD_HOOK:
+        std::cell::RefCell<Option<Box<dyn FnOnce(AdmissionEffectSite)>>> =
+        std::cell::RefCell::new(None);
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AdmissionEffectSite {
+    CapabilityLinkMint,
+    CapabilityLinkConsume,
+    CapabilityLinkSettle,
+    CapabilityLinkRevoke,
+    PushReservation,
+}
+
+#[cfg(test)]
+fn run_before_admission_effect_guard_hook(site: AdmissionEffectSite) {
+    BEFORE_ADMISSION_EFFECT_GUARD_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook(site);
+        }
+    });
 }
 
 fn reserve_unique_generation(counter: &AtomicU64) -> SnapbackResult<u64> {
@@ -5110,6 +5134,8 @@ impl LocalSnapback {
                 "capability-link minting facts do not match exact session authority",
             ));
         }
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkMint);
         // @ref LLP 0058#gate-algorithm — this is the sole admission guard and
         // must remain live across the durable capability-link commit.
         let _effect = authority.effect_guard("capability-link mint transaction")?;
@@ -5118,9 +5144,16 @@ impl LocalSnapback {
 
     pub fn consume_capability_link_use(
         &mut self,
+        authority: &PreparedAuthority,
         link: &ResolvedCapabilityLink,
         now_ms: u64,
     ) -> SnapbackResult<ConsumedCapabilityLinkUse> {
+        authority.validate_admission("capability-link use consumption transaction")?;
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkConsume);
+        // @ref LLP 0058#gate-algorithm — use reservation is a durable effect of
+        // the admitted link invocation and cannot cross epoch retirement.
+        let _effect = authority.effect_guard("capability-link use consumption transaction")?;
         self.db
             .consume_capability_link_use(link.id(), now_ms)
             .map(|use_| ConsumedCapabilityLinkUse {
@@ -5131,10 +5164,17 @@ impl LocalSnapback {
 
     pub fn settle_capability_link_use(
         &mut self,
+        authority: &PreparedAuthority,
         use_: ConsumedCapabilityLinkUse,
         outcome: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
+        authority.validate_admission("capability-link use settlement transaction")?;
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkSettle);
+        // @ref LLP 0058#gate-algorithm — outcome settlement remains a durable
+        // transaction sink of the admitted link invocation.
+        let _effect = authority.effect_guard("capability-link use settlement transaction")?;
         self.db
             .settle_capability_link_use(&use_.link_id, use_.ordinal, outcome, now_ms)
     }
@@ -5166,6 +5206,8 @@ impl LocalSnapback {
                 "capability-link revocation requires exact management authority",
             ));
         }
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkRevoke);
         // @ref LLP 0058#gate-algorithm — this is the sole admission guard and
         // must remain live across the durable capability-link commit.
         let _effect = authority.effect_guard("capability-link revoke transaction")?;
@@ -6648,6 +6690,8 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<crate::push::ReservedPushAttemptV1> {
         let push_authority = crate::push::admitted_push_storage_authority(&self.db, authority);
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::PushReservation);
         // @ref LLP 0058#gate-algorithm — the engine owns the sole admission
         // epoch fence across the durable push-reservation commit.
         let _effect = authority.effect_guard("push durable reservation")?;
@@ -36666,6 +36710,10 @@ mod authorization_acceptance;
 #[cfg(test)]
 #[path = "auth_room_kick_acceptance.rs"]
 mod auth_room_kick_acceptance;
+
+#[cfg(test)]
+#[path = "admission_fence_tests.rs"]
+mod admission_fence_tests;
 
 #[cfg(test)]
 #[path = "tests.rs"]
