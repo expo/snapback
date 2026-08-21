@@ -52,13 +52,18 @@ investigation (`issues/20260820-familiar-live-subscription-contention.md`,
 LLP 0295 1D) may tighten or confirm; they are not conformance-frozen yet.
 Summary against the seven D0.5 bullets:
 
-1. **Connections:** one managed connection per (canonical app id, storage
-   partition, origin, settled authority) tuple per execution context —
-   composing with LLP 0059's per-(app id, storage partition) coordinator and
-   LLP 0114's provider manager identity, so distinct custody partitions are
-   never coalesced; two connections only transiently during authority
-   replacement, and then as two distinct tuples (predecessor and successor),
-   never two for one tuple; N provider cells never imply N connections.
+1. **Connections:** the sharing key is (canonical app id, storage partition,
+   origin, settled authority); the guarantee is scoped **per
+   connection-manager owner** — one managed connection per tuple within a
+   manager, N cells/hooks/views under that manager never implying N
+   connections — matching LLP 0059's per-(app id, storage partition)
+   coordinator and LLP 0114's shipped provider-manager-specific identity
+   (per-provider connection id). Distinct custody partitions are never
+   coalesced. Two connections within a manager only transiently during
+   authority replacement, as two distinct tuples (predecessor and
+   successor), never two for one tuple. A tuple-keyed reference-counted
+   registry shared across provider/headless owners is the registered W4
+   candidate that would tighten the scope to per-execution-context.
 2. **Subscriptions:** hard ceilings stay 64/connection and 2,048/app
    (`crates/snapback-engine/src/local/engine.rs`). Correctness envelope = the
    full hard ceiling (any admitted count must be live-correct; six independent
@@ -68,11 +73,14 @@ Summary against the seven D0.5 bullets:
    subscribe/unsubscribe/dispatch from a delivery callback is unsupported —
    defer to a scheduler boundary; structured diagnostic on attempt; one-shot
    reads admitted but sampling delivered rows preferred.
-4. **Equal-snapshot dedup:** value-equal snapshots must not notify consumers
-   whether or not the version advances (reconnect routinely delivers equal
-   rows at an advanced version); version/resume-token bookkeeping still
-   advances internally; providers/hooks own the value-equality dedup atop the
-   LLP 0095 version guard.
+4. **Equal-snapshot dedup:** the comparison unit is the complete
+   consumer-visible snapshot — rows plus exposed lifecycle facts. Value-equal
+   rows are never republished as a data change whether or not the version
+   advances (version/resume-token bookkeeping still advances internally), but
+   dedup never swallows a consumer-visible lifecycle transition: LLP 0114's
+   `refreshing` to `ready`, connection-state changes, and the successor's
+   first authoritative delivery completing reconnect/custody-blank recovery
+   still notify with equal rows.
 5. **Fan-out:** per-entity streams supported to the per-view budget; past it
    the paved path is LLP 0278 D4 set-keyed aggregates, named by the budget
    diagnostic.

@@ -10,13 +10,11 @@ Live Queries, Assets, Code generation, Diagnostics, Guide, Testing
 composition to prototype first is platform-generated projection facts declared
 on the authority profile, read through the existing D3 bounded/redacted roster
 surface; app-authored synchronized mirrors stay declined as the destination —
-see the dated amendment. Same-day review revision: projection maintenance is
-pinned to writer-seam row-image capture with `provenance: "full"` as an
-activation prerequisite rather than resting on the provenance-gated ledger;
-the D3 read surface is preserved-and-extended, with history as new D1-envelope
-operations; the send helper gains a declared recipient ceiling with typed
-refusal; and the absent/idempotent branches get a closed three-class outcome
-matrix). 2026-08-17 (closes the Phase 3 review findings: membership-table
+see the dated amendment. Same-day review revisions: writer-seam row-image
+capture with `provenance: "full"` activation; a preserve-and-extend D3 read
+surface with history as new D1-envelope operations carrying an explicit
+history-horizon fact and coverage classes; a bounded send helper with typed
+refusal; and a closed three-class absent/idempotent outcome matrix). 2026-08-17 (closes the Phase 3 review findings: membership-table
 search projection is roster-bounded, named search handlers carry generation
 dependence, D6 evaluates the named index's lowered roles, and custom-evaluator
 policy reads join the static elevated-access inventory). 2026-08-16 (records the source-current Phase 3 implementation:
@@ -680,9 +678,12 @@ timestamps. The ledger is corroborating provenance and inspection evidence
 
 - **Activation.** Declaring a `projection` clause requires (and codegen
   enforces) `provenance: "full"` on the same membership declaration, so the
-  ledger corroborates every projection-relevant transition from activation
-  forward. A profile without full provenance refuses the clause at generation
-  with the missing prerequisite named.
+  ledger corroborates every **authorization-relevant** transition from
+  activation forward (the recorder deliberately skips updates touching no
+  authorization-affecting field; display-only changes are covered by the
+  writer-seam row-image capture, not the ledger). A profile without full
+  provenance refuses the clause at generation with the missing prerequisite
+  named.
 - **Source capture.** Projection maintenance runs at the writer seam in the
   same transaction as the transition, reading the transition's before/after
   row images (including non-authorization product fields such as a display
@@ -691,10 +692,19 @@ timestamps. The ledger is corroborating provenance and inspection evidence
   profile is an ordinary generation-rotating migration. Generated history
   begins at an explicit **history horizon** — the activation commit — and the
   read surface states the horizon rather than fabricating pre-activation
-  history. Where a full-provenance ledger predates activation,
-  `snapback authority plan` may offer role/status-fact backfill from it (never
-  display values the ledger does not hold), reported as a distinct
-  reviewed migration step.
+  history. The horizon has a defined carrier: the new generated history
+  operations' result envelope carries an explicit **horizon fact** beside the
+  LLP 0278 D1 pagination fields — D1's `boundary` states page exactness and
+  is never overloaded to mean historical completeness. The horizon fact
+  names the earliest covered commit and its **coverage class**: `full` for
+  the span from activation forward. Where a full-provenance ledger predates
+  activation, `snapback authority plan` may offer role/status-fact backfill
+  from it (never display values the ledger does not hold), reported as a
+  distinct reviewed migration step; an applied backfill **moves the horizon
+  back** for the span it covers and marks that span with the explicit
+  partial coverage class `authorization-facts-only`, so a reader can always
+  distinguish complete history, partial backfilled history, and the
+  pre-horizon absence of history.
 
 ### Authority facts versus product facts
 
@@ -773,15 +783,17 @@ never a second authority evaluator.
 
 The shipped D3 surface is preserved, not versioned or broken:
 
-- `list` and `myRole` keep their exact shipped contracts — input
-  `{ scopeId, page?: { after?, limit? } }`, result
-  `AuthorityRosterPageV1 { rows, cursor }` with the AEAD `sbpc2` cursor, and
-  `list` continues to project only `roster.visible` current-state rows. `list`
-  never starts returning history or incarnation rows.
+- `list` and `myRole` keep their exact shipped contracts: `list` takes
+  `{ scopeId, page?: { after?, limit? } }` and returns
+  `AuthorityRosterPageV1 { rows, cursor }` with the AEAD `sbpc2` cursor,
+  projecting only `roster.visible` current-state rows; `myRole` returns the
+  caller's `{ role, status }` projection row (it never carried the page
+  shape). `list` never starts returning history or incarnation rows.
 - History/incarnation reads are **new generated operations** that reuse D3's
   admission-before-cursor discipline and AEAD cursor custody while adopting
-  LLP 0278 D1's `{ rows, cursor, boundary }` envelope. They are new surface,
-  so no shipped consumer breaks and no bespoke roster page shape is invented.
+  LLP 0278 D1's `{ rows, cursor, boundary }` envelope, extended additively
+  with the history-horizon fact defined above. They are new surface, so no
+  shipped consumer breaks and no bespoke roster page shape is invented.
 - `boundary` may join `AuthorityRosterPageV1` only as an explicitly additive
   optional field through an ordinary generation rotation, never as a
   retroactive required field.

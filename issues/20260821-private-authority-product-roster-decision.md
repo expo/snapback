@@ -48,13 +48,19 @@ Landed as the LLP 0240 dated amendment (authority half) and the LLP 0278
   and holds authority axes rather than display values or join timestamps.
   Declaring a `projection` clause therefore requires `provenance: "full"`;
   activation on an existing profile is a generation-rotating migration whose
-  history begins at an explicit history horizon (ledger-backed role/status
-  backfill optional, display backfill impossible and never fabricated).
+  history begins at an explicit history horizon, carried as an envelope-level
+  fact (earliest covered commit plus coverage class) on the new history
+  operations — never overloaded onto D1 `boundary`, which stays pagination
+  exactness. Reviewed ledger-backed role/status backfill moves the horizon
+  back and marks its span `authorization-facts-only`; display backfill is
+  impossible and never fabricated.
 - **Option 3 is not a competitor** — LLP 0240 D3's `list`/`myRole` already is
   the authorized bounded/redacted roster query and is preserved unchanged
-  (`AuthorityRosterPageV1 { rows, cursor }`); history/incarnation reads are
+  (`list`: `AuthorityRosterPageV1 { rows, cursor }`; `myRole`: the caller's
+  `{ role, status }` row); history/incarnation reads are
   **new** generated operations reusing D3 admission and AEAD custody on the
-  LLP 0278 D1 envelope. Option 3 alone cannot answer leave/rejoin history,
+  LLP 0278 D1 envelope plus the additive horizon fact. Option 3 alone cannot
+  answer leave/rejoin history,
   past roles, or send-time recipient sets: the backing relation is
   current-state only.
 - **Option 1 is rejected as the destination** (consistent with LLP 0240's
@@ -105,13 +111,15 @@ Landed as the LLP 0240 dated amendment (authority half) and the LLP 0278
    (provisional upper bound 1,024), typed over-ceiling refusal, frozen
    snapshot on the sending mutation's product rows.
 4. New generated history/incarnation read operations on the LLP 0278 D1
-   envelope, reusing D3 admission and AEAD custody; shipped `list`/`myRole`
-   unchanged (`boundary` additive-optional only); receipt aggregates as LLP
-   0278 D4 set-keyed projections (bounded per-entity reads within budget
-   until D4 lands).
+   envelope plus the envelope-level history-horizon fact (earliest covered
+   commit, coverage class), reusing D3 admission and AEAD custody; shipped
+   `list`/`myRole` unchanged (`boundary` additive-optional only); receipt
+   aggregates as LLP 0278 D4 set-keyed projections (bounded per-entity reads
+   within budget until D4 lands).
 5. `snapback authority plan` migration comparison of an existing app-managed
    mirror table against the generated projection, plus the activation
-   history-horizon and optional ledger backfill report.
+   history-horizon report and the optional ledger backfill step that moves
+   the horizon back with `authorization-facts-only` coverage marking.
 6. Codegen manifest pinning of the closed absent/idempotent outcome class
    per operation-by-branch cell (one fixture cell from each class).
 7. Vertical packed-package contract fixture per LLP 0295's vertical

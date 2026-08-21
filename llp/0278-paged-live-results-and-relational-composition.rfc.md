@@ -6,14 +6,16 @@
 Client integration, React, Guide, Testing, Developer experience
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-17
-**Revised:** 2026-08-21 (records the LLP 0295 D0.4/D0.5 rulings' query-shape
-half: the generated authority product projection reads through D1/D4 shapes,
-and the provisional subscription budget contract with the independent-versus-
-aggregate consistency ruling lands as a dated amendment). 2026-08-17 (initial
+**Revised:** 2026-08-21 (LLP 0295 D0.4/D0.5 rulings, query-shape half, as a
+dated amendment: authority product projections read through D1/D4 shapes with
+a separate history-horizon fact, plus the provisional subscription budgets,
+the independent-versus-aggregate consistency ruling, and consumer-visible
+equal-snapshot dedup). 2026-08-17 (initial
 Draft from the LLP 0277 findings register:
 F1 window/whole-list reconciliation, F2 aggregate fan-out, F3 chunked
 semi-join)
-**Related:** LLP 0095, LLP 0236, LLP 0240, LLP 0264, LLP 0265, LLP 0266,
+**Related:** LLP 0095, LLP 0114, LLP 0236, LLP 0240, LLP 0264, LLP 0265,
+LLP 0266,
 LLP 0267, LLP 0270,
 LLP 0274, LLP 0277, LLP 0279, LLP 0280, LLP 0295, Diary 0078, Diary 0086,
 Diary 0105,
@@ -230,12 +232,16 @@ and `issues/20260821-private-authority-product-roster-decision.md` (D0.4).
 The LLP 0240 amendment selects platform-generated product-projection facts
 declared on the authority profile. Their read shapes are this RFC's, under
 LLP 0240's preserve-and-extend compatibility ruling: the shipped roster
-`list`/`myRole` contract (`AuthorityRosterPageV1 { rows, cursor }`) is
-unchanged, while the **new** generated history/incarnation operations adopt
-the D1 envelope (`rows`/`cursor`/`boundary`) and reuse D3-of-0240's admission
-and AEAD cursor custody, so no bespoke roster page shape is invented and no
-shipped consumer breaks (`boundary` may join the shipped roster page only as
-an explicitly additive optional field). Receipt/aggregate membership counts
+surface is unchanged — `list` keeps `AuthorityRosterPageV1 { rows, cursor }`
+and `myRole` keeps its caller `{ role, status }` row — while the **new**
+generated history/incarnation operations adopt the D1 envelope
+(`rows`/`cursor`/`boundary`) and reuse D3-of-0240's admission and AEAD cursor
+custody, so no bespoke roster page shape is invented and no shipped consumer
+breaks (`boundary` may join the shipped roster page only as an explicitly
+additive optional field). D1's `boundary` remains strictly a pagination
+exactness fact; historical completeness travels as the separate
+history-horizon fact LLP 0240 defines (earliest covered commit plus coverage
+class), carried additively on the history operations' envelope. Receipt/aggregate membership counts
 over a bounded entity set are ruled to ship as D4 set-keyed projections over
 the product receipt rows. Neither side may weaken the other: authority
 admission and non-enumerability come from LLP 0240; cost and cursor facts
@@ -285,14 +291,20 @@ conformance-frozen values.
 - **Equal-snapshot deduplication.** The version guard (LLP 0095 §1.3) already
   drops stale/equal-version durable frames. This ruling extends the contract
   one layer up: providers/hooks own value-equality dedup of consumer
-  notification, and the answer for advancing versions is explicit — a
-  snapshot whose rows are value-equal to held rows must not notify consumers
-  **whether or not its version advances** (reconnect's fresh
-  snapshot-with-subscribe routinely delivers equal rows at an advanced
-  version). Version and resume-token bookkeeping always advances internally
-  per the LLP 0095 transitions; only the consumer notification is suppressed.
-  A transport-only event — reconnect supersession, resubscribe, lane change —
-  is therefore never a render or a republished tree.
+  notification, and the comparison unit is the **complete consumer-visible
+  snapshot** — rows *plus* the lifecycle facts the surface exposes (LLP 0114's
+  `status`, `connection`, and freshness state). Row data value-equal to held
+  rows must not be republished as a data change whether or not the version
+  advances (reconnect's fresh snapshot-with-subscribe routinely delivers
+  equal rows at an advanced version), and version/resume-token bookkeeping
+  always advances internally per the LLP 0095 transitions. But dedup never
+  swallows a consumer-visible lifecycle transition: `refreshing` → `ready`,
+  connection-state changes, and the successor's first authoritative delivery
+  that completes a reconnect or custody-blank recovery (LLP 0114) notify
+  consumers even when the delivered rows equal the held rows — the
+  notification then carries the lifecycle change, not a row republication.
+  "A transport change is never a render" therefore means: never a *data*
+  rerender; the exposed lifecycle state still transitions honestly.
 - **Nested queries from update callbacks.** Snapshot-delivery callbacks are
   not a scheduling context: issuing subscribe/unsubscribe or mutation
   dispatch synchronously from within a delivery callback is unsupported

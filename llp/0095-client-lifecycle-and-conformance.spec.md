@@ -28,7 +28,7 @@ and exact duplicate re-ACK fixtures); 2026-07-26 (Swift adversarial review:
 terminal no-resurrection, pending high-water, exact scope/expectation binding,
 resolution floor/shape validation, and mandatory supersession witness)
 **Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093, LLP 0108,
-LLP 0278, LLP 0279, LLP 0280, LLP 0295,
+LLP 0114, LLP 0278, LLP 0279, LLP 0280, LLP 0295,
 `issues/20260821-provider-connection-subscription-budget-decision.md`,
 `issues/20260820-familiar-live-subscription-contention.md`,
 `issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`
@@ -680,32 +680,43 @@ tighten or confirm them before they are conformance-frozen as fixtures.
 
 ### Connection ownership per app authority/origin
 
-- The unit of connection ownership is the tuple **(canonical app id, storage
-  partition, server origin, settled authority)** within one JavaScript/native
-  execution context. This deliberately composes with the existing custody
-  owners rather than replacing them: LLP 0059 assigns exactly one
-  `AuthCoordinator` per (canonical app id, storage partition) per execution
-  context, and LLP 0114 keeps each prepared client's one `SnapbackProvider`
-  connection manager. The sharing key therefore includes the storage
-  partition — two clients on distinct custody partitions are distinct tuples
-  and are **never coalesced** onto one connection, even at the same app,
-  origin, and principal.
-- A conformant provider/headless composition holds **one** managed connection
-  per tuple, shared through the tuple's connection manager; N provider cells,
-  hooks, or views over the same tuple never imply N transport connections
-  (the regression fixture required by
+- The sharing key is the tuple **(canonical app id, storage partition, server
+  origin, settled authority)**, and the normative guarantee is **scoped per
+  connection-manager owner**: within one connection manager, exactly one
+  managed connection exists per tuple, and N provider cells, hooks, or views
+  under that manager never imply N transport connections (the regression
+  fixture required by
   `issues/20260820-guide-gap-provider-connection-lifecycle-budget.md` will
-  prove exactly this once written).
-- **Steady state is one connection per tuple.** The one sanctioned overlap is
-  an authority replacement in flight: the predecessor tuple (draining
-  teardown) and the successor tuple (differing only in settled authority)
-  briefly coexist — two connections belonging to two distinct tuples, never
-  two connections for one tuple. Steady-state parallel connections for one
-  tuple are unsupported composition and earn a structured diagnostic, not
-  silent admission.
+  prove exactly this once written). This matches the shipped contracts it
+  composes with rather than contradicting them: LLP 0059 assigns exactly one
+  `AuthCoordinator` per (canonical app id, storage partition) per execution
+  context, and LLP 0114 makes React identity provider-manager-specific — the
+  provider wraps the headless client's connection manager and mints a
+  per-provider connection id (`snapback_react_<providerInstanceId>`,
+  `packages/snapback-react/implementation.mjs`). Two distinct managers over
+  the same tuple in one execution context therefore each own a connection
+  today; that is admitted composition, and the guidance is one manager per
+  tuple. A **tuple-keyed, reference-counted connection registry shared across
+  provider and headless owners** is registered as the W4 implementation
+  candidate that would tighten the guarantee to per-execution-context; until
+  it lands through the owning LLPs (this spec plus LLP 0114), the
+  per-manager scope above is the contract, and nothing here silently changes
+  LLP 0114's shipped identity rules.
+- The sharing key includes the storage partition — two clients on distinct
+  custody partitions are distinct tuples and are **never coalesced** onto one
+  connection, even at the same app, origin, and principal.
+- **Steady state is one connection per tuple per manager.** The one
+  sanctioned overlap within a manager is an authority replacement in flight:
+  the predecessor tuple (draining teardown) and the successor tuple
+  (differing only in settled authority) briefly coexist — two connections
+  belonging to two distinct tuples, never two connections for one tuple.
+  Steady-state parallel connections for one tuple within one manager are
+  unsupported composition and earn a structured diagnostic, not silent
+  admission.
 - Distinct settled authorities (two principals in a two-client test harness,
   anonymous versus authenticated) are distinct tuples and rightly hold
-  distinct connections; the budget is per tuple, not per process.
+  distinct connections; the budget is per tuple within a manager, not per
+  process.
 
 ### Teardown and retry after auth transitions
 
