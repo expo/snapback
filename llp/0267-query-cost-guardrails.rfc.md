@@ -5,7 +5,12 @@
 **Systems:** Live queries, Relational queries, Performance, Diagnostics, Schema
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-21 (v0.13 — §7 round-7 edge completions: active stage
+**Revised:** 2026-08-21 (v0.14 — §7 round-8: the four-outcome derivation is
+a strict ordered decision list — step-0 client lifecycle classes
+(initial-`PENDING`, lifecycle-settled/inverse-skew) precede the member
+enumeration and row-present residuals, removing the two overlapping
+matches; no semantic change).
+2026-08-21 (v0.13 — §7 round-7 edge completions: active stage
 is itself an owed obligation (writeless restorations covered), member 6
 requires an active stage, residual classification total across
 `ATTACHED_POLL`/`GRANTED`/initial-`PENDING`/inverse-skew shapes, and the
@@ -1000,10 +1005,36 @@ state) pair yields exactly one of four outcomes:
 - **defect** — a pair the transition table makes unrepresentable, or a
   persistent skew.
 
-The closed reason enum and its precedence (first match wins). Members 1–5
-derive from the client row's ruled state **alone** — a recovery or hold
-state is a reason in its own right and is never gated on the owed
-comparison (delivery cannot proceed regardless of what the server owes):
+The derivation is a **strict ordered decision list — first match wins,
+and the client lifecycle classes of step 0 precede the owed/member
+evaluation of steps 1–2** — so every reachable pair matches exactly one
+rule and no later rule is consulted once an earlier one matches.
+
+**Step 0 — client lifecycle classification.** Two client classes are
+decided before any reason member or residual, whatever the registry row
+holds (an active-stage row included — member 6 is never consulted for
+these clients):
+
+- **Ordinary initial `PENDING`** (no `supersedes`): **neutral,
+  unconditionally — row present or absent.** A `PENDING` subscription
+  holds no `LIVE` revision, so the owed comparison has no
+  `authoritativeRevision` operand and is **undefined, not attempted**; a
+  present row already charged (or already staged) by concurrent commits
+  is establishment racing ordinary traffic, and the establishment
+  snapshot will subsume the charges.
+- **Client lifecycle-settled** (`RELEASED`, `TERMINAL_DELETED`,
+  connection `CLOSED`/`IDLE`): with the row **absent**, **neutral** —
+  already retired on both sides. With a row **present** (idle or
+  active-stage alike), **snapshot-skew** — the inverse skew: the server
+  snapshot may predate the T-UNSUB/teardown processing. Re-read both; a
+  skew that persists is the defect (an orphaned **server** subscription
+  leaking registry and evaluation work).
+
+**Step 1 — the closed reason enum**, in precedence (first match wins).
+Members 1–5 derive from the client row's ruled state **alone** — a
+recovery or hold state is a reason in its own right and is never gated on
+the owed comparison (delivery cannot proceed regardless of what the
+server owes):
 
 1. `terminal-quarantine` — §3.4 retired handle or `TERMINAL_AUTH`; detail
    carries the terminal code;
@@ -1033,15 +1064,10 @@ comparison (delivery cannot proceed regardless of what the server owes):
    records and the existing `liveCoalesce` counters add context but are
    not the per-subscription authority.
 
-When no member 1–6 matches, the residual classification is total:
+**Step 2 — residuals.** Pairs reaching this step have a client neither in
+a step-0 lifecycle class nor in a step-1 hold state; the classification
+is total:
 
-- **Ordinary initial `PENDING`** (no `supersedes`): **neutral,
-  unconditionally — row present or absent.** A `PENDING` subscription
-  holds no `LIVE` revision, so the owed comparison has no
-  `authoritativeRevision` operand and is **undefined, not attempted**;
-  a present row already charged by concurrent commits is establishment
-  racing ordinary traffic, and the establishment snapshot will subsume
-  the charges.
 - **Row present, no active stage, not version-owed**
   (`owedThroughVersion` null or `<= authoritativeRevision`): **neutral**.
   This includes ordinary settled rows and the in-transit case —
@@ -1051,16 +1077,8 @@ When no member 1–6 matches, the residual classification is total:
   in flight); detail names it `in-transit`.
 - **Row present, version-owed, `evaluation: "idle"` and
   `pendingWork: "none"`**: **defect** — the §7.3 table makes owed work
-  with no recorded stage unrepresentable (reachable now that member 6
+  with no recorded stage unrepresentable (reachable because member 6
   requires an active stage).
-- **Row present, client lifecycle-settled** (`RELEASED`,
-  `TERMINAL_DELETED`, connection `CLOSED`): **snapshot-skew** — the
-  inverse skew: the server snapshot may predate the T-UNSUB/teardown
-  processing. Re-read both; a skew that persists is the defect (an
-  orphaned **server** subscription leaking registry and evaluation work).
-- **Row absent, client in a lifecycle-settled state** (`RELEASED`,
-  `TERMINAL_DELETED`, connection `CLOSED`/`IDLE`): **neutral** — already
-  retired on both sides.
 - **Row absent, client claiming an established subscription** —
   `LIVE(v)` under **any** connection shape LLP 0095 admits for
   established subscriptions (`ATTACHED_LIVE`, `ATTACHED_POLL`, or
@@ -1237,6 +1255,16 @@ it adds a visibility surface and deliberately adds no bounds surface.
 
 ## Revision history
 
+- **v0.14 (2026-08-21).** §7 round-8 (codex ordering item, no new
+  semantics): §7.4's derivation restructured as a strict ordered decision
+  list — first match wins, and step-0 client lifecycle classification
+  (ordinary initial `PENDING` → neutral even against a present
+  active-stage row; lifecycle-settled `RELEASED`/`TERMINAL_DELETED`/
+  `CLOSED`/`IDLE` → neutral when the row is absent, inverse snapshot-skew
+  when a row is present, idle or active alike) precedes the step-1 member
+  enumeration and step-2 row-present residuals, so the two previously
+  overlapping matches (initial-`PENDING` vs member 6; lifecycle-settled
+  vs member 6/row-present neutral) each resolve to exactly one rule.
 - **v0.13 (2026-08-21).** §7 round-7 (codex final edge completions): (1) an
   active stage (`evaluation != idle` or `pendingWork != none`) is itself
   an owed obligation independent of `owedThroughVersion`, with a writeless

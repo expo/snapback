@@ -57,7 +57,9 @@ absent-row semantics), v0.12 (codex round-6 — orthogonal
 exhaustive four-outcome derivation), and v0.13 (codex round-7 edge
 completions — active-stage owed obligation for writeless restorations,
 member-6 active-stage requirement, total residuals incl. inverse skew,
-exact retirement seam names). Summary:
+exact retirement seam names), and v0.14 (codex round-8 — strict ordered
+decision list: step-0 client lifecycle classes precede member/residual
+evaluation, removing the two overlapping matches). Summary:
 
 - **Posture settled first (LLP 0295 open question 5 — recommendation: yes).**
   Local developer diagnostics only in v1; hosted telemetry is an explicit
@@ -139,14 +141,18 @@ exact retirement seam names). Summary:
   member 6 needs a row with an **active stage** (`evaluation != idle` or
   `pendingWork != none` — itself an owed obligation, covering writeless
   restorations with `owed = null`); the version comparison alone never
-  selects it. Residuals: initial `PENDING` is unconditionally neutral
-  (no held revision — the owed comparison is undefined, not attempted);
+  selects it. The derivation is a strict ordered decision list — first
+  match wins, and step-0 client lifecycle classes (initial `PENDING`
+  unconditionally neutral even against an active-stage row — no held
+  revision, so the owed comparison is undefined, not attempted;
+  lifecycle-settled `RELEASED`/`CLOSED` → neutral on absent row, inverse
+  snapshot-skew on present row) precede the member enumeration and
+  row-present residuals. Residuals:
   not-owed / in-transit (poll-drain or socket custody) are neutral;
   version-owed+idle+none is the unrepresentable defect; row-absent
   against any established client shape
-  (`ATTACHED_LIVE`/`ATTACHED_POLL`/`GRANTED`) and the inverse
-  (client `RELEASED`/`CLOSED` against a stale server row) are
-  snapshot-skew with defect only on persistence across a re-read;
+  (`ATTACHED_LIVE`/`ATTACHED_POLL`/`GRANTED`) is snapshot-skew — like
+  the step-0 inverse skew, defect only on persistence across a re-read;
   value-equal dedup is a completed delivery, not a miss. Neutral-class detail spellings are
   delegated to LLP 0095/0114 owner acceptance; the four-outcome shape is
   normative.
