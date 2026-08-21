@@ -3,7 +3,7 @@
 **Status:** Closed (2026-08-21)
 **Systems:** Benchmarks, Agent harnesses, Measurement
 **Related:** LLP 0201 D2; LLP 0295 D0.6; P2 pilot finding F3
-**Landing SHA:** TBD
+**Landing SHA:** 59894588b
 
 Found in the P2 pilot (record:
 `benchmarks/records/2026-08-09-social-messenger-p2-pilot.md`, F3).
