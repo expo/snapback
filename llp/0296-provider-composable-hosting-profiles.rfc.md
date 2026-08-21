@@ -1,4 +1,4 @@
-# LLP 0282: Provider-composable hosting profiles
+# LLP 0296: Provider-composable hosting profiles
 
 **Type:** RFC
 **Status:** Draft
