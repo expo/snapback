@@ -11,6 +11,7 @@
 #
 # Consumers (keep in sync when adding one):
 #   crates/snapback/build.rs            (compile-time fallback probe)
+#   crates/snapback-types/build.rs      (binary-identity owner fallback probe)
 #   crates/snapback-tools/build.rs      (proof-recorder fallback probe)
 #   scripts/verify-local-proof          (stamp_snapback_build_identity)
 #   scripts/bootstrap-ibex-runtime      (reuse_authoritative_runtime_receipt)
@@ -40,6 +41,7 @@ crates/snapback-server/Cargo.toml
 crates/snapback-server/build.rs
 crates/snapback-runtime/build.rs
 crates/snapback-types/Cargo.toml
+crates/snapback-types/build.rs
 crates/snapback-tools/Cargo.toml
 crates/snapback-tools/build.rs
 rust-toolchain.toml

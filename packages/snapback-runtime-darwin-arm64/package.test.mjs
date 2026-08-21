@@ -266,6 +266,50 @@ process.exit(ok ? 0 : 1);
   const originalReceipt = readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8');
   const originalBinary = readFileSync(join(packageRoot, 'bin', 'snapback'), 'utf8');
 
+  // The source-test seam bypasses only the public-package distribution class;
+  // it must still reject an executable whose owning crate emitted no commit or
+  // clean-tree stamp. This is the exact identity shape produced when
+  // `binary_identity()` is compiled in a crate without its build contract.
+  const unstampedBinary = join(sourceRoot, 'snapback-unstamped');
+  const unstampedIdentity = {
+    ...fixtureIdentity,
+    binary: {
+      ...fixtureIdentity.binary,
+      gitCommit: 'unknown',
+      gitDirty: true,
+    },
+    buildDistribution: 'contributor-source',
+  };
+  writeFixture(unstampedBinary, `#!/usr/bin/env node
+const command = process.argv[2];
+if (command === 'build-identity') {
+  console.log(${JSON.stringify(JSON.stringify(unstampedIdentity))});
+  process.exit(0);
+}
+if (command === 'runtime-qualify') {
+  console.log(JSON.stringify({
+    schemaVersion: 'snapback.runtime-qualify.v1',
+    probe: 'restricted-no-eval-handler-vm',
+    ok: true,
+    binary: ${JSON.stringify(unstampedIdentity.binary)},
+  }));
+  process.exit(0);
+}
+process.exit(2);
+`);
+  chmodSync(unstampedBinary, 0o755);
+  assert.throws(
+    () => prepareDarwinRuntimePackage({
+      ...preparation,
+      sourceBinary: unstampedBinary,
+      args: ['--source-test-staging', '--native-artifact-staging'],
+    }),
+    (error) => error.code === 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID',
+  );
+  assert.equal(verifyAssembly().ok, true);
+  assert.equal(readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8'), originalReceipt);
+  assert.equal(readFileSync(join(packageRoot, 'bin', 'snapback'), 'utf8'), originalBinary);
+
   assert.throws(
     () => prepareDarwinRuntimePackage({
       ...preparation,
@@ -318,4 +362,4 @@ if (existsSync(binary)) {
   assertPublicPackageBuildIdentity(JSON.parse(identity.stdout));
   assert.equal(resolveRuntimeBinary().binary, binary);
 }
-console.log('package.test.mjs: Darwin arm64 npm-shaped seal + custody repair + non-destructive staged assembly pass');
+console.log('package.test.mjs: stamped assembly accepted; unstamped executable rejected; Darwin arm64 seal + custody repair pass');
