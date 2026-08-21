@@ -1,4 +1,4 @@
-# The diagnostics registry pins call-site line numbers, so unrelated edits go stale
+# Generated projections go stale on unrelated edits, and only a clean checkout notices
 
 **Status:** Open
 **Filed:** 2026-08-21
@@ -48,3 +48,43 @@ If nothing does, this is pure churn with a recurring gate cost.
 
 Not a regression and not urgent — the registry is regenerated and green. Filed
 so the recurrence is understood rather than re-diagnosed a fourth time.
+
+
+## Widened — 2026-08-21
+
+Filed as a diagnostics-registry issue. It is not: it is a generated-projection
+issue across at least two registries, and it has now recurred FOUR times in one
+day.
+
+- diagnostics registry, three times (line-number churn from unrelated edits)
+- symbol registry plus 56 `guide/reference/*` pages, once (`43814f03d`)
+
+The recurrence is structural, not carelessness. Two properties combine:
+
+1. A landing that changes a generator's INPUTS invalidates its output, even when
+   the landing has nothing to do with the projection. The diagnostics registry
+   pins line and column, so any edit shifting lines in a file containing
+   diagnostics is enough.
+2. **The staleness is invisible in the worktree where the work happened**, because
+   the generator has already been run there. It only appears on a clean
+   checkout — which is what CI, a new contributor, and the complete battery all
+   get.
+
+Property 2 is why this keeps reaching `main`. The author cannot see it, and the
+gate that would catch it runs somewhere they are not looking.
+
+## What would actually fix it
+
+Options, roughly in increasing cost:
+
+1. **Regenerate in the pre-push hook** when a generator's tracked inputs are in
+   the pushed range. Cheap, and closes the invisibility gap at the exact moment
+   it matters.
+2. **Stop pinning volatile fields.** If nothing consumes `line`/`column` in the
+   diagnostics registry, dropping them removes an entire recurrence class. Worth
+   checking first — it may make option 1 unnecessary for that registry.
+3. **A single `regenerate-all-projections` entry point** that CI and humans both
+   run, so the set of projections cannot drift from the set anyone remembers.
+
+Whichever is chosen, the goal is that a landing cannot leave `main` red on a
+gate the author had no way to see.
