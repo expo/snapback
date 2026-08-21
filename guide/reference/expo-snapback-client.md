@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:1e941a7daecd9e15a2aa849542738725e080a0794966
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -1781,7 +1781,7 @@ export function consumePreparedReactQueryGroup<
 
 Stable identity: `npm:@expo/snapback-client#createAssetClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/assets.d.mts:278`
+Source: `packages/snapback-client/assets.d.mts:282`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function createAssetClient(

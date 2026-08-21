@@ -77,6 +77,7 @@ export interface AssetSignedUrlResult {
 }
 
 export type AssetIssuedUrlStatus =
+  | 'empty'
   | 'issuing'
   | 'ready'
   | 'refreshing'
@@ -247,7 +248,10 @@ export declare class SnapbackAssetClient {
     options?: { variant?: string; width?: number | null },
   ): string;
   signedUrl(assetId: string, options?: AssetSignedUrlOptions): Promise<AssetSignedUrlResult>;
-  issuedUrlStore(assetId: string, options?: AssetSignedUrlOptions): AssetIssuedUrlStore;
+  issuedUrlStore(
+    assetIdOrNull: string | null | undefined,
+    options?: AssetSignedUrlOptions,
+  ): AssetIssuedUrlStore;
   mediaStore<K extends MediaKind>(
     mediaRefOrNull: MediaRef<K> | null | undefined,
     options?: AssetSignedUrlOptions,

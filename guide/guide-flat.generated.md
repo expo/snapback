@@ -8626,12 +8626,16 @@ current client-owned custody headers and auth-client protocol offer, resolves a 
 server response against the client's base URL, and returns
 `{ url, expiresAt, variant }`. It deliberately does not cache.
 
-For a non-React renderer, call `assets.issuedUrlStore(assetId, options)` and
+For a non-React renderer, call `assets.issuedUrlStore(assetIdOrNull, options)` and
 subscribe to its external-store contract. Equal asset/option/authority keys
-share one issuance loop. Render its five states this way:
+share one issuance loop. Pass `null` or `undefined` when no asset is selected;
+the store returns the stable inert `empty` state. An empty string is invalid
+and the error points callers to the nullable spelling. Render its six states
+this way:
 
 | State | URL | Rendering meaning |
 | --- | --- | --- |
+| `empty` | `null` | No asset is selected; render nothing. Subscription and `refresh()` perform no issuance or refresh work. |
 | `issuing` | `null` | Initial or post-expiry issuance is in flight; render a loading placeholder. |
 | `ready` | valid | Render the URL. A transient refresh failure may leave this state and attach a diagnostic while the held URL is still valid. |
 | `refreshing` | valid | Keep rendering the held URL while replacement issuance is in flight. |
@@ -8643,7 +8647,9 @@ expects authority to have returned. Logout or authority replacement disposes
 the old entry synchronously, and a final unsubscribe fences in-flight work.
 
 React and Expo use `useSnapbackAssetUrl`, which projects that same controller;
-it does not add another cache or timer. The hook returns the five-state
+it does not add another cache or timer. Its first parameter is
+`string | null | undefined`, so optional components call the hook
+unconditionally and render nothing for `empty`. The hook returns the six-state
 snapshot plus a stable `refresh()`:
 
 ```ts source=packages/snapback-react/asset-upload-types.fixture.ts
@@ -26913,7 +26919,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-asset-grant-unknown"></a>`SNAPBACK_ASSET_GRANT_UNKNOWN` | assets | 404 | — | `crates/snapback-kernel/src/storage/asset_grants.rs:223` | 4 |
 | <a id="diagnostic-snapback-asset-host-op-input-invalid"></a>`SNAPBACK_ASSET_HOST_OP_INPUT_INVALID` | assets | — | — | `crates/snapback-engine/src/local/engine.rs:12250` | 4 |
 | <a id="diagnostic-snapback-asset-host-op-unknown"></a>`SNAPBACK_ASSET_HOST_OP_UNKNOWN` | assets | — | — | `crates/snapback-engine/src/local/engine.rs:11954` | 1 |
-| <a id="diagnostic-snapback-asset-http-error"></a>`SNAPBACK_ASSET_HTTP_ERROR` | assets | — | — | `packages/snapback-client/assets.mjs:525` | 2 |
+| <a id="diagnostic-snapback-asset-http-error"></a>`SNAPBACK_ASSET_HTTP_ERROR` | assets | — | — | `packages/snapback-client/assets.mjs:532` | 2 |
 | <a id="diagnostic-snapback-asset-image-bounds-exceeded"></a>`SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED` | assets | — | — | `crates/snapback-server/src/server/api_error.rs:997` | 7 |
 | <a id="diagnostic-snapback-asset-image-decode-failed"></a>`SNAPBACK_ASSET_IMAGE_DECODE_FAILED` | assets | — | — | `crates/snapback-server/src/server/api_error.rs:998` | 3 |
 | <a id="diagnostic-snapback-asset-image-time-budget-exceeded"></a>`SNAPBACK_ASSET_IMAGE_TIME_BUDGET_EXCEEDED` | assets | — | — | `crates/snapback-server/src/server/api_error.rs:993` | 3 |
@@ -26980,7 +26986,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-asset-store-unqualified"></a>`SNAPBACK_ASSET_STORE_UNQUALIFIED` | assets | — | — | `crates/snapback-engine/src/local/engine.rs:11184` | 1 |
 | <a id="diagnostic-snapback-asset-test-crash"></a>`SNAPBACK_ASSET_TEST_CRASH` | assets | — | — | `crates/snapback-engine/src/local/engine.rs:36407` | 1 |
 | <a id="diagnostic-snapback-asset-test-transient"></a>`SNAPBACK_ASSET_TEST_TRANSIENT` | assets | — | [guide](../backend/assets.md#upload-when-you-only-need-the-ready-asset-id) | `crates/snapback-engine/src/local/engine.rs:14083` | 1 |
-| <a id="diagnostic-snapback-asset-transfer-failed"></a>`SNAPBACK_ASSET_TRANSFER_FAILED` | assets | — | — | `packages/snapback-client/assets.mjs:244` | 2 |
+| <a id="diagnostic-snapback-asset-transfer-failed"></a>`SNAPBACK_ASSET_TRANSFER_FAILED` | assets | — | — | `packages/snapback-client/assets.mjs:251` | 2 |
 | <a id="diagnostic-snapback-asset-transfer-incomplete"></a>`SNAPBACK_ASSET_TRANSFER_INCOMPLETE` | assets | 409 | — | `crates/snapback-engine/src/local/engine.rs:12652` | 2 |
 | <a id="diagnostic-snapback-asset-transition-invalid"></a>`SNAPBACK_ASSET_TRANSITION_INVALID` | assets | — | — | `crates/snapback-kernel/src/assets.rs:1832` | 4 |
 | <a id="diagnostic-snapback-asset-ttl-invalid"></a>`SNAPBACK_ASSET_TTL_INVALID` | assets | 400 | — | `crates/snapback-engine/src/local/engine.rs:13555` | 2 |
@@ -30023,7 +30029,7 @@ reviewed-authorities-digest: sha256:c626ffca5cdf748da0fd61d9154d993bb3f9a766ac6f
 # Generated API reference
 
 One build-bound projection of 1309 public symbols (538 runtime values and 771 explicit type-only symbols).
-Registry source identity: `sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+Registry source identity: `sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -30163,7 +30169,7 @@ reviewed-authorities-digest: sha256:1e941a7daecd9e15a2aa849542738725e080a0794966
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -31926,7 +31932,7 @@ export function consumePreparedReactQueryGroup<
 
 Stable identity: `npm:@expo/snapback-client#createAssetClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/assets.d.mts:278`
+Source: `packages/snapback-client/assets.d.mts:282`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function createAssetClient(
@@ -41440,7 +41446,7 @@ reviewed-authorities-digest: sha256:fa5432ca397f76108deeb2c318c34b9f08240c027f14
 # @expo/snapback-client/agent-authority
 
 Build-bound public API projection for `@expo/snapback-client/agent-authority`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/agent-authority.mjs`.
 
@@ -41965,7 +41971,7 @@ reviewed-authorities-digest: sha256:bec2e5cc7f4b0199e0579e2af39211ffd4dd766424e9
 # @expo/snapback-client/app-client-internal
 
 Build-bound public API projection for `@expo/snapback-client/app-client-internal`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/app-client-internal.mjs`.
 
@@ -42093,7 +42099,7 @@ reviewed-authorities-digest: sha256:f5c720c577aea991283870e051b1fb03a38d9c25c24a
 # @expo/snapback-client/app-data
 
 Build-bound public API projection for `@expo/snapback-client/app-data`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/app-data.mjs`.
 
@@ -42345,7 +42351,7 @@ reviewed-authorities-digest: sha256:0bdf749178d4697adc3cad3c80e0b072cf635f89d4d3
 # @expo/snapback-client/argument-normalization
 
 Build-bound public API projection for `@expo/snapback-client/argument-normalization`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/argument-normalization.mjs`.
 
@@ -42450,7 +42456,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:6510381ddeaf0815c955d3e1c1ae993a31ea8b379df0667b3e7e0b5e0495242a
+reviewed-authorities-digest: sha256:f5d16ae959b55a534bcf6315e15f8169e8f98bbbd2a94298c19a868fdaedea58
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42458,7 +42464,7 @@ reviewed-authorities-digest: sha256:6510381ddeaf0815c955d3e1c1ae993a31ea8b379df0
 # @expo/snapback-client/assets
 
 Build-bound public API projection for `@expo/snapback-client/assets`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/assets.mjs`.
 
@@ -42508,7 +42514,7 @@ Symbols: 34 total; 7 runtime values; 27 type-only.
 
 Stable identity: `npm:@expo/snapback-client/assets#__testIncrementalSha256`
 Kind: `runtime-class`
-Source: `packages/snapback-client/assets.d.mts:285`
+Source: `packages/snapback-client/assets.d.mts:289`
 
 Test-only export: the browser digest fallback, cross-checked against
 node:crypto by the package test. Not part of the client surface.
@@ -42570,7 +42576,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/assets#AssetFetch`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:189`
+Source: `packages/snapback-client/assets.d.mts:190`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AssetFetch = (
@@ -42607,7 +42613,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/assets#AssetIssuedUrlSnapshot`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:86`
+Source: `packages/snapback-client/assets.d.mts:87`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetIssuedUrlSnapshot {
@@ -42636,6 +42642,7 @@ Source: `packages/snapback-client/assets.d.mts:79`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AssetIssuedUrlStatus =
+  | 'empty'
   | 'issuing'
   | 'ready'
   | 'refreshing'
@@ -42648,7 +42655,7 @@ export type AssetIssuedUrlStatus =
 
 Stable identity: `npm:@expo/snapback-client/assets#AssetIssuedUrlStore`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:94`
+Source: `packages/snapback-client/assets.d.mts:95`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetIssuedUrlStore {
@@ -42692,7 +42699,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/assets#AssetRecordWatchSnapshot`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:265`
+Source: `packages/snapback-client/assets.d.mts:269`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetRecordWatchSnapshot {
@@ -42715,7 +42722,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/assets#AssetRecordWatchStore`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:272`
+Source: `packages/snapback-client/assets.d.mts:276`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetRecordWatchStore {
@@ -42832,7 +42839,7 @@ export type AssetTaskStatus =
 
 Stable identity: `npm:@expo/snapback-client/assets#AssetTaskStore`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:182`
+Source: `packages/snapback-client/assets.d.mts:183`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetTaskStore {
@@ -42855,7 +42862,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/assets#AssetUploadReferenceLike`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:196`
+Source: `packages/snapback-client/assets.d.mts:197`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetUploadReferenceLike {
@@ -42889,7 +42896,7 @@ export type AssetUploadSource = AssetFileLike | Blob | File | AssetPickerSource;
 
 Stable identity: `npm:@expo/snapback-client/assets#AssetUploadTask`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:172`
+Source: `packages/snapback-client/assets.d.mts:173`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetUploadTask {
@@ -42918,7 +42925,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/assets#AssetUploadTerminalError`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:165`
+Source: `packages/snapback-client/assets.d.mts:166`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetUploadTerminalError extends Error {
@@ -42941,7 +42948,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/assets#createAssetClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/assets.d.mts:278`
+Source: `packages/snapback-client/assets.d.mts:282`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function createAssetClient(
@@ -42955,7 +42962,7 @@ export declare function createAssetClient(
 
 Stable identity: `npm:@expo/snapback-client/assets#createMemoryAssetTaskStore`
 Kind: `runtime-function`
-Source: `packages/snapback-client/assets.d.mts:194`
+Source: `packages/snapback-client/assets.d.mts:195`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function createMemoryAssetTaskStore(): AssetTaskStore;
@@ -42966,7 +42973,7 @@ export declare function createMemoryAssetTaskStore(): AssetTaskStore;
 
 Stable identity: `npm:@expo/snapback-client/assets#MediaCollectionItem`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:140`
+Source: `packages/snapback-client/assets.d.mts:141`
 
 One stable generated assetCollection child returned by its bounded read.
 
@@ -42989,7 +42996,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/assets#MediaCollectionItemState`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:148`
+Source: `packages/snapback-client/assets.d.mts:149`
 
 Render projection for one collection child. `itemId` remains the durable
 identity even when ordinal or delivery state changes.
@@ -43015,7 +43022,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/assets#MediaCollectionState`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:155`
+Source: `packages/snapback-client/assets.d.mts:156`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type MediaCollectionState<K extends MediaKind = MediaKind> =
@@ -43027,7 +43034,7 @@ export type MediaCollectionState<K extends MediaKind = MediaKind> =
 
 Stable identity: `npm:@expo/snapback-client/assets#MediaCollectionStore`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:158`
+Source: `packages/snapback-client/assets.d.mts:159`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface MediaCollectionStore<K extends MediaKind = MediaKind> {
@@ -43050,7 +43057,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/assets#MediaKind`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:101`
+Source: `packages/snapback-client/assets.d.mts:102`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type MediaKind = 'image' | 'video' | 'audio' | 'file';
@@ -43061,7 +43068,7 @@ export type MediaKind = 'image' | 'video' | 'audio' | 'file';
 
 Stable identity: `npm:@expo/snapback-client/assets#MediaRef`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:103`
+Source: `packages/snapback-client/assets.d.mts:104`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface MediaRef<K extends MediaKind = MediaKind> {
@@ -43080,7 +43087,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/assets#MediaState`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:108`
+Source: `packages/snapback-client/assets.d.mts:109`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type MediaState<K extends MediaKind = MediaKind> =
@@ -43113,7 +43120,7 @@ export type MediaState<K extends MediaKind = MediaKind> =
 
 Stable identity: `npm:@expo/snapback-client/assets#MediaStore`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:132`
+Source: `packages/snapback-client/assets.d.mts:133`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface MediaStore<K extends MediaKind = MediaKind> {
@@ -43187,7 +43194,7 @@ PERSISTED_RESUME_FACT_MEMBERS: readonly [
 
 Stable identity: `npm:@expo/snapback-client/assets#SnapbackAssetClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/assets.d.mts:203`
+Source: `packages/snapback-client/assets.d.mts:204`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare class SnapbackAssetClient {
@@ -43237,7 +43244,10 @@ export declare class SnapbackAssetClient {
     options?: { variant?: string; width?: number | null },
   ): string;
   signedUrl(assetId: string, options?: AssetSignedUrlOptions): Promise<AssetSignedUrlResult>;
-  issuedUrlStore(assetId: string, options?: AssetSignedUrlOptions): AssetIssuedUrlStore;
+  issuedUrlStore(
+    assetIdOrNull: string | null | undefined,
+    options?: AssetSignedUrlOptions,
+  ): AssetIssuedUrlStore;
   mediaStore<K extends MediaKind>(
     mediaRefOrNull: MediaRef<K> | null | undefined,
     options?: AssetSignedUrlOptions,
@@ -43293,7 +43303,7 @@ reviewed-authorities-digest: sha256:52a7a77289794647b3880793a20c794f166d3463fc13
 # @expo/snapback-client/canonical-client-value
 
 Build-bound public API projection for `@expo/snapback-client/canonical-client-value`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/canonical-client-value.mjs`.
 
@@ -43400,7 +43410,7 @@ reviewed-authorities-digest: sha256:50a821849a2e27d1b29d22e065e1dc994689fc9552ff
 # @expo/snapback-client/client-diagnostics
 
 Build-bound public API projection for `@expo/snapback-client/client-diagnostics`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/client-diagnostics.mjs`.
 
@@ -43788,7 +43798,7 @@ reviewed-authorities-digest: sha256:70b06ec51d758ee3c34e66e3788d111cd0fab9de3680
 # @expo/snapback-client/commands
 
 Build-bound public API projection for `@expo/snapback-client/commands`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/commands.mjs`.
 
@@ -43937,7 +43947,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/commands#AssetUploadTask`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:172`
+Source: `packages/snapback-client/assets.d.mts:173`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetUploadTask {
@@ -44485,7 +44495,7 @@ reviewed-authorities-digest: sha256:8f4a6d4c158879e2e4ad7c26a585993146803ac210eb
 # @expo/snapback-client/diagnostic-error
 
 Build-bound public API projection for `@expo/snapback-client/diagnostic-error`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/diagnostic-error.mjs`.
 
@@ -44683,7 +44693,7 @@ reviewed-authorities-digest: sha256:79120fd044cedd9728a00f147299b9bff714b895b5f8
 # @expo/snapback-client/evaluation-floor
 
 Build-bound public API projection for `@expo/snapback-client/evaluation-floor`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/evaluation-floor.mjs`.
 
@@ -44822,7 +44832,7 @@ reviewed-authorities-digest: sha256:857111c0c7a4891524c79c28203711f8d26c93e3f615
 # @expo/snapback-client/external-store
 
 Build-bound public API projection for `@expo/snapback-client/external-store`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/external-store.mjs`.
 
@@ -45184,7 +45194,7 @@ reviewed-authorities-digest: sha256:ff1540b1f5861fc2f72f8f428ba6de607cabc0e35a88
 # @expo/snapback-client/hosted-browser
 
 Build-bound public API projection for `@expo/snapback-client/hosted-browser`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/hosted-browser.mjs`.
 
@@ -45276,7 +45286,7 @@ reviewed-authorities-digest: sha256:78f417060f31cf4ca0f27ff6289b8281daf6532003de
 # @expo/snapback-client/ir-evaluator
 
 Build-bound public API projection for `@expo/snapback-client/ir-evaluator`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/ir-evaluator.mjs`.
 
@@ -45645,7 +45655,7 @@ reviewed-authorities-digest: sha256:c278b66819f1a9ff059b9532a0e519def87683119b37
 # @expo/snapback-client/lease-convergence
 
 Build-bound public API projection for `@expo/snapback-client/lease-convergence`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/lease-convergence.mjs`.
 
@@ -45795,7 +45805,7 @@ reviewed-authorities-digest: sha256:58b66ddcb05f630d940377560697fa55587189e68d87
 # @expo/snapback-client/local-read-admission
 
 Build-bound public API projection for `@expo/snapback-client/local-read-admission`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/local-read-admission.mjs`.
 
@@ -46298,7 +46308,7 @@ reviewed-authorities-digest: sha256:5c24a34dcf2284028e5e568198b108cf6ffae01e0ffe
 # @expo/snapback-client/materialization-store
 
 Build-bound public API projection for `@expo/snapback-client/materialization-store`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/materialization-store.mjs`.
 
@@ -46799,7 +46809,7 @@ reviewed-authorities-digest: sha256:9e7ed31c99b0584497273cb6034b02b6173f7ed3d4cc
 # @expo/snapback-client/micro
 
 Build-bound public API projection for `@expo/snapback-client/micro`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro.mjs`.
 
@@ -47033,7 +47043,7 @@ reviewed-authorities-digest: sha256:33b89d93d1f7edf2e4685b01fc73716a3f4c0f4f4077
 # @expo/snapback-client/micro/core
 
 Build-bound public API projection for `@expo/snapback-client/micro/core`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-core.mjs`.
 
@@ -47396,7 +47406,7 @@ reviewed-authorities-digest: sha256:afd2a170b4d4b4f3105ad3e7a3e3b693f1e9ec3bb74b
 # @expo/snapback-client/micro/live
 
 Build-bound public API projection for `@expo/snapback-client/micro/live`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-live.mjs`.
 
@@ -47510,7 +47520,7 @@ reviewed-authorities-digest: sha256:8c5dc05bee67d7233e8bb8bcf255c62b73bca6cc36f0
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -48253,7 +48263,7 @@ reviewed-authorities-digest: sha256:e958dd3654790784eddc5a2939f2665c846954f9a416
 # @expo/snapback-client/optimistic-rebase
 
 Build-bound public API projection for `@expo/snapback-client/optimistic-rebase`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/optimistic-rebase.mjs`.
 
@@ -48575,7 +48585,7 @@ reviewed-authorities-digest: sha256:40ce68108694266f9a19877ff550d197b21efd876c5f
 # @expo/snapback-client/outbox-shared
 
 Build-bound public API projection for `@expo/snapback-client/outbox-shared`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/outbox-shared.mjs`.
 
@@ -49058,7 +49068,7 @@ reviewed-authorities-digest: sha256:fa0272d48ec215dcd6b4dcb7c0b595393d7aa63060fb
 # @expo/snapback-client/push-installation-expo
 
 Build-bound public API projection for `@expo/snapback-client/push-installation-expo`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-installation-expo.mjs`.
 
@@ -49184,7 +49194,7 @@ reviewed-authorities-digest: sha256:fe04311a969e7753d796400675d18bca319778f4cfa4
 # @expo/snapback-client/push-registry
 
 Build-bound public API projection for `@expo/snapback-client/push-registry`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-registry.mjs`.
 
@@ -49356,7 +49366,7 @@ reviewed-authorities-digest: sha256:283fb7ba405bfed86928ae967c1fe2e5c936110dcfe6
 # @expo/snapback-client/react-binding
 
 Build-bound public API projection for `@expo/snapback-client/react-binding`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/react-binding.mjs`.
 
@@ -49816,7 +49826,7 @@ reviewed-authorities-digest: sha256:3112de84241accebf50b069bc0582689933433c67620
 # @expo/snapback-client/reference-kinds
 
 Build-bound public API projection for `@expo/snapback-client/reference-kinds`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/reference-kinds.mjs`.
 
@@ -49904,7 +49914,7 @@ reviewed-authorities-digest: sha256:5fa49016fd7e3805ebc83e402a130c85e7f70d8f897f
 # @expo/snapback-client/remediation
 
 Build-bound public API projection for `@expo/snapback-client/remediation`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/remediation.mjs`.
 
@@ -50091,7 +50101,7 @@ reviewed-authorities-digest: sha256:ec0d18657581c02dcee31dfca4c546a7179ef773a758
 # @expo/snapback-client/result-transform
 
 Build-bound public API projection for `@expo/snapback-client/result-transform`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/result-transform.mjs`.
 
@@ -50496,7 +50506,7 @@ reviewed-authorities-digest: sha256:cad539179efdf1ad7eb12e0eb31d2ee7b500df2c398d
 # @expo/snapback-client/rqs
 
 Build-bound public API projection for `@expo/snapback-client/rqs`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs.mjs`.
 
@@ -50963,7 +50973,7 @@ reviewed-authorities-digest: sha256:dc03ae67e07026b37a9d41ec405c036dbf6a38616f71
 # @expo/snapback-client/rqs-preload
 
 Build-bound public API projection for `@expo/snapback-client/rqs-preload`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload-core.mjs`.
 
@@ -51220,7 +51230,7 @@ reviewed-authorities-digest: sha256:4c8b8787b9c525932f82eb398d53aa993097b0303920
 # @expo/snapback-client/rqs-registered
 
 Build-bound public API projection for `@expo/snapback-client/rqs-registered`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload.mjs`.
 
@@ -51610,7 +51620,7 @@ reviewed-authorities-digest: sha256:5783d247dea614e78aaddb539a83a264408297a7de1c
 # @expo/snapback-client/rqs-store
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store.mjs`.
 
@@ -52329,7 +52339,7 @@ reviewed-authorities-digest: sha256:b0a1b0c46eae43ba8e0426563fad6d747cdcb6a3c337
 # @expo/snapback-client/rqs-store-default
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-default`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-default.mjs`.
 
@@ -52611,7 +52621,7 @@ reviewed-authorities-digest: sha256:e69a42ccfddce649dfe7d419d1637eb3251f1ccc79ea
 # @expo/snapback-client/rqs-store-expo
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-expo`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-expo.mjs`.
 
@@ -52819,7 +52829,7 @@ reviewed-authorities-digest: sha256:347aad2c6616fac5b861c55aa1b7bbefc69f82e04aa1
 # @expo/snapback-client/rqs-store-file
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-file`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-file.mjs`.
 
@@ -53101,7 +53111,7 @@ reviewed-authorities-digest: sha256:fd6d37f1c00feca5974901bd7de5f625abf3fa39ee87
 # @expo/snapback-client/rqs-store-sqlite
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-sqlite`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-sqlite.mjs`.
 
@@ -53348,7 +53358,7 @@ reviewed-authorities-digest: sha256:8f81f3ddcb0aacead657738ee919bb58e6af3b054c5a
 # @expo/snapback-client/search
 
 Build-bound public API projection for `@expo/snapback-client/search`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/search.mjs`.
 
@@ -53601,7 +53611,7 @@ reviewed-authorities-digest: sha256:513e84b0c8094bd221ed4c921fdda76ab3ddc43dc1c6
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -54293,7 +54303,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:254177b5012da3e57b047a2d19de68c83e49419988ef1cbf474fc95754d3f2ed
+reviewed-authorities-digest: sha256:eeb8e2c2d3a60fe6ce06d47170a73846e6580ed2b2652044ead2111cb6faedb6
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -54301,7 +54311,7 @@ reviewed-authorities-digest: sha256:254177b5012da3e57b047a2d19de68c83e49419988ef
 # @expo/snapback-react
 
 Build-bound public API projection for `@expo/snapback-react`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-react/index.mjs`.
 
@@ -54658,7 +54668,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-react#AssetIssuedUrlSnapshot`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:86`
+Source: `packages/snapback-client/assets.d.mts:87`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetIssuedUrlSnapshot {
@@ -54818,7 +54828,7 @@ export type AssetUploadHookStatus =
 
 Stable identity: `npm:@expo/snapback-react#AssetUploadTask`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:172`
+Source: `packages/snapback-client/assets.d.mts:173`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetUploadTask {
@@ -55272,7 +55282,7 @@ export function isSnapbackDiagnosticError(value: unknown): value is SnapbackDiag
 
 Stable identity: `npm:@expo/snapback-react#MediaCollectionItem`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:140`
+Source: `packages/snapback-client/assets.d.mts:141`
 
 One stable generated assetCollection child returned by its bounded read.
 
@@ -55295,7 +55305,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-react#MediaCollectionItemState`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:148`
+Source: `packages/snapback-client/assets.d.mts:149`
 
 Render projection for one collection child. `itemId` remains the durable
 identity even when ordinal or delivery state changes.
@@ -55321,7 +55331,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-react#MediaCollectionState`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:155`
+Source: `packages/snapback-client/assets.d.mts:156`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type MediaCollectionState<K extends MediaKind = MediaKind> =
@@ -55501,7 +55511,7 @@ export type MediaHookState<K extends MediaKind = MediaKind> = MediaState<K> & Re
 
 Stable identity: `npm:@expo/snapback-react#MediaKind`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:101`
+Source: `packages/snapback-client/assets.d.mts:102`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type MediaKind = 'image' | 'video' | 'audio' | 'file';
@@ -55512,7 +55522,7 @@ export type MediaKind = 'image' | 'video' | 'audio' | 'file';
 
 Stable identity: `npm:@expo/snapback-react#MediaRef`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:103`
+Source: `packages/snapback-client/assets.d.mts:104`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface MediaRef<K extends MediaKind = MediaKind> {
@@ -55531,7 +55541,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-react#MediaState`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:108`
+Source: `packages/snapback-client/assets.d.mts:109`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type MediaState<K extends MediaKind = MediaKind> =
@@ -56984,7 +56994,7 @@ Source: `packages/snapback-react/index.d.mts:1084`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function useSnapbackAssetUrl(
-  assetId: string,
+  assetIdOrNull: string | null | undefined,
   options?: AssetSignedUrlOptions,
 ): AssetUrlState;
 ```
@@ -57350,7 +57360,7 @@ reviewed-authorities-digest: sha256:cf3e7a4e9b2523d7713c58969c9cfe16a9c3a7c25382
 # @expo/snapback-react/core
 
 Build-bound public API projection for `@expo/snapback-react/core`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-react/core.mjs`.
 
@@ -58775,7 +58785,7 @@ reviewed-authorities-digest: sha256:58dff0182ca3118015cef7cb87c6fd86e4a8a6b3d855
 # @expo/snapback-react/familiar
 
 Build-bound public API projection for `@expo/snapback-react/familiar`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-react/familiar.mjs`.
 
@@ -59021,7 +59031,7 @@ reviewed-authorities-digest: sha256:831a82f25e8c551221334c526d272ccb5d85297c630c
 # @expo/snapback-react/thumbhash
 
 Build-bound public API projection for `@expo/snapback-react/thumbhash`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-react/thumbhash.mjs`.
 
@@ -59134,7 +59144,7 @@ reviewed-authorities-digest: sha256:2909bbfa6b48b1daa4eca790b39e310814a8faacf86d
 # @expo/snapback-expo
 
 Build-bound public API projection for `@expo/snapback-expo`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import, default` → `packages/snapback-expo/index.mjs`.
 
@@ -59733,7 +59743,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#AssetIssuedUrlSnapshot`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:86`
+Source: `packages/snapback-client/assets.d.mts:87`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetIssuedUrlSnapshot {
@@ -59893,7 +59903,7 @@ export type AssetUploadHookStatus =
 
 Stable identity: `npm:@expo/snapback-expo#AssetUploadTask`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:172`
+Source: `packages/snapback-client/assets.d.mts:173`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetUploadTask {
@@ -60641,7 +60651,7 @@ export type LegacyExpoBootState =
 
 Stable identity: `npm:@expo/snapback-expo#MediaCollectionItem`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:140`
+Source: `packages/snapback-client/assets.d.mts:141`
 
 One stable generated assetCollection child returned by its bounded read.
 
@@ -60664,7 +60674,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#MediaCollectionItemState`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:148`
+Source: `packages/snapback-client/assets.d.mts:149`
 
 Render projection for one collection child. `itemId` remains the durable
 identity even when ordinal or delivery state changes.
@@ -60690,7 +60700,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#MediaCollectionState`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:155`
+Source: `packages/snapback-client/assets.d.mts:156`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type MediaCollectionState<K extends MediaKind = MediaKind> =
@@ -60870,7 +60880,7 @@ export type MediaHookState<K extends MediaKind = MediaKind> = MediaState<K> & Re
 
 Stable identity: `npm:@expo/snapback-expo#MediaKind`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:101`
+Source: `packages/snapback-client/assets.d.mts:102`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type MediaKind = 'image' | 'video' | 'audio' | 'file';
@@ -60881,7 +60891,7 @@ export type MediaKind = 'image' | 'video' | 'audio' | 'file';
 
 Stable identity: `npm:@expo/snapback-expo#MediaRef`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:103`
+Source: `packages/snapback-client/assets.d.mts:104`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface MediaRef<K extends MediaKind = MediaKind> {
@@ -60900,7 +60910,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#MediaState`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:108`
+Source: `packages/snapback-client/assets.d.mts:109`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type MediaState<K extends MediaKind = MediaKind> =
@@ -62881,7 +62891,7 @@ Source: `packages/snapback-react/index.d.mts:1084`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function useSnapbackAssetUrl(
-  assetId: string,
+  assetIdOrNull: string | null | undefined,
   options?: AssetSignedUrlOptions,
 ): AssetUrlState;
 ```
@@ -63269,7 +63279,7 @@ reviewed-authorities-digest: sha256:2c94f7e5e53f83faeb38e78b7fa858f9a036c80dd39a
 # @expo/snapback-expo/app-binding
 
 Build-bound public API projection for `@expo/snapback-expo/app-binding`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/app-binding.mjs`.
 
@@ -63587,7 +63597,7 @@ reviewed-authorities-digest: sha256:bcfc22f5dedc65445b01c3b82a359362455cb4c83edb
 # @expo/snapback-expo/app.plugin
 
 Build-bound public API projection for `@expo/snapback-expo/app.plugin`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/app.plugin.js`.
 
@@ -63711,7 +63721,7 @@ reviewed-authorities-digest: sha256:a5eae2b3b1095d460ccb76459bbf0ca5234bec8643c9
 # @expo/snapback-expo/asset-source
 
 Build-bound public API projection for `@expo/snapback-expo/asset-source`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/asset-source.mjs`.
 
@@ -63866,7 +63876,7 @@ reviewed-authorities-digest: sha256:bcfc22f5dedc65445b01c3b82a359362455cb4c83edb
 # @expo/snapback-expo/config-plugin
 
 Build-bound public API projection for `@expo/snapback-expo/config-plugin`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/config-plugin.cjs`.
 
@@ -63990,7 +64000,7 @@ reviewed-authorities-digest: sha256:12849082cb23cf47557e82d3e8f83f911eea1eabb87a
 # @expo/snapback-expo/supervised-environment
 
 Build-bound public API projection for `@expo/snapback-expo/supervised-environment`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/supervised-environment.mjs`.
 
@@ -64255,7 +64265,7 @@ reviewed-authorities-digest: sha256:324cbd969cd9d38480596082e4a9cd39789a57b512aa
 # @expo/snapback-cli/verify
 
 Build-bound public API projection for `@expo/snapback-cli/verify`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `default` → `packages/snapback-cli/verify.mjs`.
 
@@ -64734,7 +64744,7 @@ reviewed-authorities-digest: sha256:64b07c2d835812b2edd214751a91582b4d046b0d8e57
 # @expo/snapback-codegen/ctx
 
 Build-bound public API projection for `@expo/snapback-codegen/ctx`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 This package subpath is type-only; runtime export parity is not applicable.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)

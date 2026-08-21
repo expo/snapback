@@ -7025,25 +7025,25 @@ function disposeAssetRegistryFor(provider) {
 
 /**
  * Project the framework-neutral issued-URL controller into React. The asset
- * client owns issuance, refresh/retry timers, authority fencing, and keyed
- * sharing; React owns only subscription and render identity.
+ * client owns empty-state selection, issuance, refresh/retry timers, authority
+ * fencing, and keyed sharing; React owns only subscription and render identity.
  *
  * @ref LLP 0210#d1--client-arm-signed-issuance-and-ttl-refresh-projection —
  * the hook is a content-keyed external-store projection, not a second URL
  * cache or refresh state machine.
  */
-export function useSnapbackAssetUrl(assetId, options = {}) {
+export function useSnapbackAssetUrl(assetIdOrNull, options = {}) {
   const provider = useProvider();
   const registry = assetRegistryFor(provider);
-  const optionsKey = canonicalHookInputKey(options);
+  const optionsKey = assetIdOrNull == null ? null : canonicalHookInputKey(options);
   const authorityGeneration = useSyncExternalStore(
     registry.subscribeIssuedUrlGeneration,
     registry.getIssuedUrlGeneration,
     registry.getIssuedUrlGeneration,
   );
   const store = useMemo(
-    () => registry.assets.issuedUrlStore(assetId, options),
-    [registry, assetId, optionsKey, authorityGeneration],
+    () => registry.assets.issuedUrlStore(assetIdOrNull, options),
+    [registry, assetIdOrNull, optionsKey, authorityGeneration],
   );
   const subscribe = useCallback(
     (listener) => store.subscribe(listener),

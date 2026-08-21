@@ -49,11 +49,27 @@ const issuedDiagnostic: AssetDiagnostic | null = issuedUrl.diagnostic;
 const refreshed: Promise<void> = issuedUrl.refresh();
 void issuedDiagnostic;
 void refreshed;
+const absentAssetId: string | null | undefined = null;
+const emptyIssuedUrl: AssetUrlState = useSnapbackAssetUrl(absentAssetId);
+if (emptyIssuedUrl.status === 'empty') {
+  const emptyStatus: 'empty' = emptyIssuedUrl.status;
+  void emptyStatus;
+}
+void useSnapbackAssetUrl(undefined).refresh();
 // @ts-expect-error issued URL status is a closed controller state union.
 const invalidIssuedStatus: AssetUrlState['status'] = 'pending';
 void invalidIssuedStatus;
 // @ts-expect-error signed URL width must be numeric.
 useSnapbackAssetUrl('asset-1', { widthPx: '640' });
+
+export function OptionalAsset({ assetId }: { assetId: string | null | undefined }) {
+  const state = useSnapbackAssetUrl(assetId);
+  if (state.status === 'empty' || state.status === 'issuing') return null;
+  if (state.status === 'ready' || state.status === 'refreshing') {
+    return { src: state.url, alt: 'Optional asset' };
+  }
+  return { retry: () => state.refresh() };
+}
 
 const profileImage: MediaRef<'image'> = { assetId: 'asset-1', kind: 'image' };
 const mediaState: MediaHookState<'image'> = useSnapbackMedia(profileImage, {

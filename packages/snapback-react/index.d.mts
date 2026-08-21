@@ -1082,7 +1082,7 @@ export interface AssetUrlState extends AssetIssuedUrlSnapshot {
 }
 
 export function useSnapbackAssetUrl(
-  assetId: string,
+  assetIdOrNull: string | null | undefined,
   options?: AssetSignedUrlOptions,
 ): AssetUrlState;
 

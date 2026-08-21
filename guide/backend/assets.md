@@ -617,12 +617,16 @@ current client-owned custody headers and auth-client protocol offer, resolves a 
 server response against the client's base URL, and returns
 `{ url, expiresAt, variant }`. It deliberately does not cache.
 
-For a non-React renderer, call `assets.issuedUrlStore(assetId, options)` and
+For a non-React renderer, call `assets.issuedUrlStore(assetIdOrNull, options)` and
 subscribe to its external-store contract. Equal asset/option/authority keys
-share one issuance loop. Render its five states this way:
+share one issuance loop. Pass `null` or `undefined` when no asset is selected;
+the store returns the stable inert `empty` state. An empty string is invalid
+and the error points callers to the nullable spelling. Render its six states
+this way:
 
 | State | URL | Rendering meaning |
 | --- | --- | --- |
+| `empty` | `null` | No asset is selected; render nothing. Subscription and `refresh()` perform no issuance or refresh work. |
 | `issuing` | `null` | Initial or post-expiry issuance is in flight; render a loading placeholder. |
 | `ready` | valid | Render the URL. A transient refresh failure may leave this state and attach a diagnostic while the held URL is still valid. |
 | `refreshing` | valid | Keep rendering the held URL while replacement issuance is in flight. |
@@ -634,7 +638,9 @@ expects authority to have returned. Logout or authority replacement disposes
 the old entry synchronously, and a final unsubscribe fences in-flight work.
 
 React and Expo use `useSnapbackAssetUrl`, which projects that same controller;
-it does not add another cache or timer. The hook returns the five-state
+it does not add another cache or timer. Its first parameter is
+`string | null | undefined`, so optional components call the hook
+unconditionally and render nothing for `empty`. The hook returns the six-state
 snapshot plus a stable `refresh()`:
 
 ```ts source=packages/snapback-react/asset-upload-types.fixture.ts

@@ -561,6 +561,36 @@ globalThis.fetch = server.fetch;
 
 // --- issuedUrlStore: equal keys share one in-flight issuance ---
 {
+  let calls = 0;
+  const assets = new SnapbackAssetClient({ baseUrl, subscribeLive: () => {} }, {
+    fetch: async () => {
+      calls += 1;
+      throw new Error('empty issued URL store must not fetch');
+    },
+  });
+  const empty = assets.issuedUrlStore(null, { variant: 'chat' });
+  assert.strictEqual(empty, assets.issuedUrlStore(undefined));
+  assert.deepEqual(empty.getSnapshot(), {
+    url: null,
+    status: 'empty',
+    diagnostic: null,
+    expiresAt: null,
+    rendition: null,
+  });
+  assert.strictEqual(empty.getSnapshot(), empty.getServerSnapshot());
+  const release = empty.subscribe(() => assert.fail('empty issued URL store never publishes'));
+  await empty.refresh();
+  await nextTurn();
+  assert.equal(calls, 0, 'absent asset performs no issuance or refresh work');
+  release();
+  assert.throws(
+    () => assets.issuedUrlStore(''),
+    /assetIdOrNull must be null or undefined for no asset; an empty string/,
+  );
+  console.log('issuedUrlStore absence is an inert singleton and empty string remains invalid: ok');
+}
+
+{
   const calls = [];
   let resolveIssuance;
   const assets = new SnapbackAssetClient({ baseUrl, subscribeLive: () => {} }, {

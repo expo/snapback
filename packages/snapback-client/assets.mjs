@@ -174,6 +174,13 @@ const ISSUED_URL_CONSTRUCTION_SNAPSHOT = Object.freeze({
   expiresAt: null,
   rendition: null,
 });
+const EMPTY_ISSUED_URL_SNAPSHOT = /* @__PURE__ */ Object.freeze({
+  url: null,
+  status: 'empty',
+  diagnostic: null,
+  expiresAt: null,
+  rendition: null,
+});
 
 const MEDIA_KINDS = /* @__PURE__ */ new Set(['image', 'video', 'audio', 'file']);
 const EMPTY_MEDIA_SNAPSHOT = /* @__PURE__ */ Object.freeze({
@@ -739,6 +746,26 @@ const EMPTY_MEDIA_STORE = /* @__PURE__ */ Object.freeze({
   refresh: () => Promise.resolve(),
 });
 
+/**
+ * Absence is a neutral-store state, not React-owned conditional behavior.
+ * This singleton never captures authority, enters the issued-URL registry,
+ * starts issuance, or schedules refresh work.
+ *
+ * @ref LLP 0210#d1--client-arm-signed-issuance-and-ttl-refresh-projection —
+ * null and undefined map synchronously to the inert `empty` entry condition.
+ */
+const EMPTY_ISSUED_URL_STORE = /* @__PURE__ */ Object.freeze({
+  getSnapshot: () => EMPTY_ISSUED_URL_SNAPSHOT,
+  getServerSnapshot: () => EMPTY_ISSUED_URL_SNAPSHOT,
+  subscribe(listener) {
+    if (typeof listener !== 'function') {
+      throw new TypeError('issued URL store listener must be a function');
+    }
+    return () => {};
+  },
+  refresh: () => Promise.resolve(),
+});
+
 function assertMediaCollectionItems(items) {
   if (!Array.isArray(items)) {
     throw new TypeError('mediaCollectionStore items must be an array of generated collection items');
@@ -1250,13 +1277,26 @@ export class SnapbackAssetClient {
 
   /**
    * Return the shared issued-URL entry for this app/authority/options key.
+   * Null or undefined returns the inert empty singleton before normalization
+   * or authority capture.
    * The entry starts work only while subscribed; final unsubscribe fences it
    * synchronously and lets it linger for one microtask before eviction.
    */
-  issuedUrlStore(assetId, options = {}) {
-    if (typeof assetId !== 'string' || assetId.length === 0) {
-      throw new TypeError('issuedUrlStore requires a non-empty asset id');
+  issuedUrlStore(assetIdOrNull, options = {}) {
+    if (assetIdOrNull === null || assetIdOrNull === undefined) {
+      return EMPTY_ISSUED_URL_STORE;
     }
+    if (assetIdOrNull === '') {
+      throw new TypeError(
+        'issuedUrlStore assetIdOrNull must be null or undefined for no asset; an empty string is not an asset id',
+      );
+    }
+    if (typeof assetIdOrNull !== 'string') {
+      throw new TypeError(
+        'issuedUrlStore assetIdOrNull must be null, undefined, or a non-empty string asset id',
+      );
+    }
+    const assetId = assetIdOrNull;
     const normalized = issuanceOptions(options);
     const authority = this.#captureIssuedUrlAuthority();
     const currentEntry = this.#issuedUrlEntries.values().next().value;

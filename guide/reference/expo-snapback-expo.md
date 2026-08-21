@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:2909bbfa6b48b1daa4eca790b39e310814a8faacf86d
 # @expo/snapback-expo
 
 Build-bound public API projection for `@expo/snapback-expo`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import, default` → `packages/snapback-expo/index.mjs`.
 
@@ -617,7 +617,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#AssetIssuedUrlSnapshot`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:86`
+Source: `packages/snapback-client/assets.d.mts:87`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetIssuedUrlSnapshot {
@@ -777,7 +777,7 @@ export type AssetUploadHookStatus =
 
 Stable identity: `npm:@expo/snapback-expo#AssetUploadTask`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:172`
+Source: `packages/snapback-client/assets.d.mts:173`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetUploadTask {
@@ -1525,7 +1525,7 @@ export type LegacyExpoBootState =
 
 Stable identity: `npm:@expo/snapback-expo#MediaCollectionItem`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:140`
+Source: `packages/snapback-client/assets.d.mts:141`
 
 One stable generated assetCollection child returned by its bounded read.
 
@@ -1548,7 +1548,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#MediaCollectionItemState`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:148`
+Source: `packages/snapback-client/assets.d.mts:149`
 
 Render projection for one collection child. `itemId` remains the durable
 identity even when ordinal or delivery state changes.
@@ -1574,7 +1574,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#MediaCollectionState`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:155`
+Source: `packages/snapback-client/assets.d.mts:156`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type MediaCollectionState<K extends MediaKind = MediaKind> =
@@ -1754,7 +1754,7 @@ export type MediaHookState<K extends MediaKind = MediaKind> = MediaState<K> & Re
 
 Stable identity: `npm:@expo/snapback-expo#MediaKind`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:101`
+Source: `packages/snapback-client/assets.d.mts:102`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type MediaKind = 'image' | 'video' | 'audio' | 'file';
@@ -1765,7 +1765,7 @@ export type MediaKind = 'image' | 'video' | 'audio' | 'file';
 
 Stable identity: `npm:@expo/snapback-expo#MediaRef`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:103`
+Source: `packages/snapback-client/assets.d.mts:104`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface MediaRef<K extends MediaKind = MediaKind> {
@@ -1784,7 +1784,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#MediaState`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/assets.d.mts:108`
+Source: `packages/snapback-client/assets.d.mts:109`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type MediaState<K extends MediaKind = MediaKind> =
@@ -3765,7 +3765,7 @@ Source: `packages/snapback-react/index.d.mts:1084`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function useSnapbackAssetUrl(
-  assetId: string,
+  assetIdOrNull: string | null | undefined,
   options?: AssetSignedUrlOptions,
 ): AssetUrlState;
 ```

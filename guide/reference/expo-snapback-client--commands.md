@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:70b06ec51d758ee3c34e66e3788d111cd0fab9de3680
 # @expo/snapback-client/commands
 
 Build-bound public API projection for `@expo/snapback-client/commands`. Canonical registry identity:
-`sha256:4004ab8d3eb5a5b877320d5998bb7597deb222d9bcceb6b473557afbaa3b6d07`.
+`sha256:40908846cd664b30608760127f800400bf8f82018f74f2ffee388f53edab71b3`.
 Runtime parity condition:
 `import` → `packages/snapback-client/commands.mjs`.
 
@@ -167,7 +167,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/commands#AssetUploadTask`
 Kind: `type-interface`
-Source: `packages/snapback-client/assets.d.mts:172`
+Source: `packages/snapback-client/assets.d.mts:173`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AssetUploadTask {

@@ -5,7 +5,10 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-10 (LLP 0219 subscription-churn diagnostic amendment);
+**Revised:** 2026-08-21 (`useSnapbackAssetUrl` ledger amendment: nullable
+absence resolves in the neutral client to one inert `empty` store; the React
+hook adds no absence state and `skip` remains outside asset projection
+semantics). 2026-08-10 (LLP 0219 subscription-churn diagnostic amendment);
 2026-08-10 (static React core composition: the package root
 remains the Full synchronous surface/command/asset composition, while
 `@expo/snapback-react/core` selects the same provider registry owner without
@@ -677,7 +680,9 @@ new React state rules.
   framework-neutral asset client's shared issued-URL store. The neutral
   store owns issuance, TTL refresh, retry, denial recovery, authority
   fencing, and final-unsubscribe cleanup; React adds no timer, fetch, cache,
-  or state machine.
+  or state machine. `null` or `undefined` selects the neutral store's inert
+  `empty` singleton; `skip` remains a query/presence demand semantic and is
+  not an asset-id spelling.
 
 ## External-store composition and cleanup
 

@@ -6,7 +6,9 @@
 Code generation, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-09
-**Revised:** 2026-08-16 (dated author amendment: omitted
+**Revised:** 2026-08-21 (`useSnapbackAssetUrl` and its neutral issued-URL
+store gain the nullable absence spelling and inert `empty` state; empty string
+remains a named argument-contract error). 2026-08-16 (dated author amendment: omitted
 `defineAssetUpload.delivery` now takes the `public-immutable` performance
 default with a source-attributed advisory; the three-tier choice is made
 explicit below). Prior: 2026-08-09, sixth same-day entry (D5(b) implemented on the
@@ -217,17 +219,23 @@ resolves proves zero residual work *and* asserts the entry's absence
 from the registry after eviction; resubscription after eviction gets a
 fresh generation.
 
-**React/Expo projection.** `useSnapbackAssetUrl(assetId, { variant?,
-widthPx? })` subscribes to that store — a named LLP 0114 projection
+**React/Expo projection.** `useSnapbackAssetUrl(assetIdOrNull, { variant?,
+widthPx? })`, where `assetIdOrNull` is `string | null | undefined`, subscribes
+to that store — a named LLP 0114 projection
 (ledger entry recorded on acceptance):
 
 ```ts
-const { url, status, diagnostic } = useSnapbackAssetUrl(assetId, opts)
-// status: 'issuing' | 'ready' | 'refreshing' | 'unavailable' | 'denied'
+const { url, status, diagnostic } = useSnapbackAssetUrl(assetIdOrNull, opts)
+// status: 'empty' | 'issuing' | 'ready' | 'refreshing' | 'unavailable' | 'denied'
 ```
 
 State algebra (normative; fixtures pin each transition):
 
+- `empty` — `assetIdOrNull` is `null` or `undefined`. The neutral client
+  returns one inert singleton synchronously: `url`, `diagnostic`, `expiresAt`,
+  and `rendition` are `null`; subscribe and `refresh()` perform no issuance,
+  authority capture, timer, retry, or registry work. Empty string is not this
+  state; it throws an argument-contract error naming the nullable spelling.
 - `issuing` — an issuance is in flight and no valid URL is held: the
   initial issuance and the expired-URL re-issuance case alike.
 - `ready` — `url` is issued and unexpired. A failed refresh attempt
@@ -243,7 +251,10 @@ State algebra (normative; fixtures pin each transition):
   `url` blanks immediately (authority loss does not wait for TTL) and
   timer-driven retry stops.
 
-Every reachable **entry** condition maps to exactly one state.
+Every reachable **entry** condition maps to exactly one state. The `empty`
+singleton is outside authority partitions, so authority replacement leaves its
+snapshot stable; changing absent → present creates ordinary demand, and changing
+present → absent detaches that demand and returns to the same inert state.
 Authority replacement and logout are not states: they **dispose** the
 old authority's entries (LLP 0114's handoff discipline — the blanked
 entry is removed, never republished), and the successor authority's

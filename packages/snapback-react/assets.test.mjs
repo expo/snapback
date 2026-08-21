@@ -157,6 +157,22 @@ const FAKE_ISSUED_URL_CONSTRUCTION_SNAPSHOT = Object.freeze({
   status: 'issuing',
   diagnostic: null,
 });
+const FAKE_EMPTY_ISSUED_URL_SNAPSHOT = Object.freeze({
+  url: null,
+  status: 'empty',
+  diagnostic: null,
+  expiresAt: null,
+  rendition: null,
+});
+const FAKE_EMPTY_ISSUED_URL_STORE = Object.freeze({
+  getSnapshot: () => FAKE_EMPTY_ISSUED_URL_SNAPSHOT,
+  getServerSnapshot: () => FAKE_EMPTY_ISSUED_URL_SNAPSHOT,
+  subscribe(listener) {
+    if (typeof listener !== 'function') throw new TypeError('listener must be a function');
+    return () => {};
+  },
+  refresh: async () => {},
+});
 
 class FakeIssuedUrlStore {
   listeners = new Set();
@@ -329,6 +345,14 @@ function createFakeAssets() {
       return `http://fixture/assets/public/${assetId}/${variant}`;
     },
     issuedUrlStore(assetId, options = {}) {
+      if (assetId === null || assetId === undefined) {
+        return FAKE_EMPTY_ISSUED_URL_STORE;
+      }
+      if (assetId === '') {
+        throw new TypeError(
+          'issuedUrlStore assetIdOrNull must be null or undefined for no asset; an empty string is not an asset id',
+        );
+      }
       assets.issuedUrlStoreCalls += 1;
       const key = issuedUrlKey(assetId, options);
       let store = issuedUrlStores.get(key);
@@ -450,6 +474,83 @@ function renderHook(provider, hook, { strict = false } = {}) {
 }
 
 // --- issued URL hook: thin shared external-store projection ---------------
+
+{
+  const { provider, assets, barriers } = await harness();
+  let latest = null;
+  function OptionalAssetProbe({ assetId }) {
+    latest = useSnapbackAssetUrl(assetId, { variant: 'chat' });
+    return null;
+  }
+  const renderProbe = (assetId) => React.createElement(
+    SnapbackProvider,
+    { provider },
+    React.createElement(OptionalAssetProbe, { assetId }),
+  );
+  let renderer;
+  act(() => { renderer = TestRenderer.create(renderProbe(null)); });
+  assert.deepEqual(
+    latest,
+    { ...FAKE_EMPTY_ISSUED_URL_SNAPSHOT, refresh: latest.refresh },
+    'typed absence is synchronously empty',
+  );
+  assert.equal(assets.issuedUrlStoreCalls, 0, 'absence creates no issued URL entry');
+  await act(async () => { await latest.refresh(); });
+  assert.equal(assets.issuedUrlStoreCalls, 0, 'empty refresh remains inert');
+
+  act(() => { renderer.update(renderProbe('asset-url-optional')); });
+  const predecessor = assets.issuedUrlStoreFor('asset-url-optional', { variant: 'chat' });
+  assert.equal(latest.status, 'issuing');
+  assert.equal(predecessor.issuanceLoops, 1);
+  act(() => {
+    predecessor.publish({
+      url: 'http://fixture/assets/signed/asset-url-optional',
+      status: 'ready',
+      diagnostic: null,
+    });
+  });
+  assert.equal(latest.status, 'ready');
+
+  await act(async () => {
+    assets.rotateIssuedUrlAuthority();
+    const assetBarrier = barriers.find(
+      (entry) => entry.name.startsWith('snapback-react-assets:'),
+    );
+    assetBarrier.blank();
+    await assetBarrier.resume();
+  });
+  const successor = assets.issuedUrlStoreFor('asset-url-optional', { variant: 'chat' });
+  assert.notEqual(successor, predecessor);
+  assert.equal(predecessor.listeners.size, 0);
+  assert.equal(successor.issuanceLoops, 1);
+
+  act(() => { renderer.update(renderProbe(undefined)); });
+  assert.equal(latest.status, 'empty');
+  assert.equal(successor.listeners.size, 0);
+  assert.equal(assets.issuedUrlStoreCalls, 2, 'returning to absence creates no entry');
+  const stableEmpty = latest;
+  await act(async () => {
+    assets.rotateIssuedUrlAuthority();
+    const assetBarrier = barriers.find(
+      (entry) => entry.name.startsWith('snapback-react-assets:'),
+    );
+    assetBarrier.blank();
+    await assetBarrier.resume();
+  });
+  assert.strictEqual(latest, stableEmpty, 'empty hook state stays referentially stable');
+  assert.equal(assets.issuedUrlStoreCalls, 2, 'empty authority handoff performs no issuance');
+  act(() => { renderer.unmount(); });
+  console.log('asset URL hook absent -> present -> absent stays empty-safe across authority changes: ok');
+}
+
+{
+  const { provider } = await harness();
+  assert.throws(
+    () => renderHook(provider, () => useSnapbackAssetUrl('')),
+    /assetIdOrNull must be null or undefined for no asset; an empty string/,
+  );
+  console.log('asset URL hook empty string names the nullable argument spelling: ok');
+}
 
 {
   const { provider, assets } = await harness();
