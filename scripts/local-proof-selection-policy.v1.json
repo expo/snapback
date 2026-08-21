@@ -1335,6 +1335,7 @@
         "snapback-contract-package",
         "snapback-vite-bun-relay",
         "snapback-vite-real-server",
+        "template-portfolio-qualification-fixtures",
         "template-portfolio-self-check",
         "typed-search-wrapper-qualification"
       ]
