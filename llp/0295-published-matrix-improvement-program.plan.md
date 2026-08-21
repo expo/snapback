@@ -8,7 +8,12 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-21 (D0.4 and D0.5 decision packets adopted — author may
+**Revised:** 2026-08-21 (Phase 0 recording pass: D0.1 is ruled in LLP 0223's
+2026-08-21 dated amendment (LLP 0261 carries the composition binding) and
+D0.6 is registered in LLP 0201 (fields) and LLP 0186 (targets), each
+"Adopted per LLP 0295 default proposal; author may revise", with
+recommendations answering open questions 1 and 4 recorded in the owning
+amendments); 2026-08-21 (D0.4 and D0.5 decision packets adopted — author may
 revise: rulings landed in LLP 0240/0278 and LLP 0095/0278/0280 respectively,
 with recommendations recorded under open questions 3 and 7);
 2026-08-21 (Phase 1A Expo package-parity progress: closes the
@@ -218,6 +223,13 @@ prove one M1->M2 additive change with the original accounts and sessions
 intact. Execution ticket:
 `issues/20260821-fixed-origin-external-client-dev-lifecycle.md`.
 
+**Ruled 2026-08-21:** the default proposal is adopted (author may revise).
+The full decision packet is LLP 0223's 2026-08-21 dated amendment, with
+LLP 0261 carrying the `snapback init` composition binding; the execution
+ticket records the decided contract and W1 checklist. Open question 1's
+recommendation (a mode of `snapback dev`; internal engine factoring, no
+second public lifecycle command) is recorded there.
+
 ### D0.2 — Client authority-transition state machine
 
 Decide the total state and settlement contract shared by one-shot queries,
@@ -317,6 +329,16 @@ The existing `issues/20260809-per-milestone-token-metering.md` remains the
 implementation ticket. The new skill-routing ticket covers the orientation
 carrier. A run that lacks phase usage may still debug product behavior but
 cannot adjudicate the efficiency target.
+
+**Registered 2026-08-21:** the measurement fields and eligibility rule are
+registered in LLP 0201's 2026-08-21 dated amendment (harness-native path
+chosen for the metering ticket's open decision), and the efficiency
+scorecard thresholds are registered as commissioned R2 targets in LLP
+0186's 2026-08-21 amendment, both adopted-by-default pending author
+revision. Open question 4's recommendation (keep 40/20/30 with a
+variance guard: zero-count rows as the primary signal, matched-cell
+medians with direction consistency at R2, preregistered paired sign test
+at R3) is recorded in the LLP 0186 amendment.
 
 ### Phase-order ruling
 

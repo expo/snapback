@@ -5,6 +5,12 @@
 **Systems:** CLI, Templates, React/Expo, Packaging, Code generation, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-15
+**Revised:** 2026-08-21 (e — D0.1 lifecycle cross-reference: LLP 0295 D0.1's
+canonical-lifecycle ruling is recorded in LLP 0223's 2026-08-21 dated
+amendment; design point 5 ("exit into the ordinary lifecycle") now binds to
+that ruled lifecycle, including its fixed-origin/external-client profile and
+single ready receipt. Adopted per LLP 0295 default proposal; author may
+revise. See the dated amendment.)
 **Revised:** 2026-08-16 (d — v1 implementation record: `snapback init` landed
 in `packages/snapback-cli` after a three-round dual-family adversarial review
 (grok-4.6 xhigh + gpt-5.6-sol xhigh; round 3 READY, zero open findings;
@@ -26,7 +32,10 @@ overload), LLP 0223 (zero-config connect DX), LLP 0041 (the thirteen-package
 publication closure and publication posture; optional
 `@expo/snapback-expo-custody` is deliberately not installed by `snapback init`),
 `issues/20260808-guide-gap-compose-snapback-into-existing-app.md`, Diary 0063
-G4
+G4, LLP 0295 (published-matrix improvement program — D0.1 names this RFC a
+lifecycle design co-owner),
+`issues/20260821-fixed-origin-external-client-dev-lifecycle.md` (D0.1/W1
+execution ticket)
 
 ## Summary
 
@@ -120,3 +129,31 @@ and the capability GAP row flip.
 - **OQ4 — implementation owner.** Resolved 2026-08-15: the author
   commissioned implementation in session (codex lane, dual-family review);
   this RFC is the design home.
+
+## Dated amendment — 2026-08-21: D0.1 canonical lifecycle binding
+
+LLP 0295 §D0.1 ruled one canonical development lifecycle (Adopted per
+LLP 0295 default proposal; author may revise). The full ruling lives in
+LLP 0223's 2026-08-21 dated amendment; this RFC is the co-owner for the
+composition half, and the binding here is deliberately small:
+
+- **Design point 5 sharpens.** "Exit into the ordinary lifecycle" now means
+  the *ruled* lifecycle: an `init`-adopted app participates in exactly the
+  same `snapback dev` verbs (fresh start / attach / regenerate / additive
+  successor / shutdown), the same sessions-identity preservation, the same
+  binding-admission postures — supervised rendezvous by default, the
+  fixed-origin/external-client profile when the host app's own dev server
+  (Vite, custom web stack) owns the client origin — and the same single
+  ready receipt. `init` still introduces no parallel lifecycle and no
+  lifecycle configuration files of its own.
+- **The fixed profile is the adoption story for non-Expo hosts.** An
+  existing app with its own dev server is precisely the external-client
+  case: `init` composes the backend, and the fixed profile attaches the
+  already-running client origin without handwritten binding environments.
+  Detection-scope widening under OQ1 should therefore prefer widening into
+  stacks the fixed profile can serve over inventing per-stack lifecycle
+  glue.
+- **Qualification bar unchanged**, and the D0.1 acceptance (one packed-
+  package M1 → M2 additive change with accounts and sessions intact) applies
+  to `init`-adopted fixtures the same as scaffolded ones. Execution ticket:
+  `issues/20260821-fixed-origin-external-client-dev-lifecycle.md`.

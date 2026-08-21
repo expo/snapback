@@ -19,17 +19,62 @@ Regeneration then risks tearing down sessions or requiring a destructive
 reseed. The Guide can document today's composition, but documentation alone
 cannot supply one lifecycle owner or an authoritative ready receipt.
 
-## Decision gate
+## Decision gate — RESOLVED 2026-08-21
 
-Record D0.1's semantic lifecycle in LLP 0223/0261 before expanding CLI syntax.
-The default proposal is a fixed-origin/external-client profile of `snapback
-dev`; if the owning design selects a lower-level shared primitive instead, this
-ticket follows that ruling rather than preserving the proposed command shape.
+The D0.1 ruling is recorded in **LLP 0223, dated amendment 2026-08-21**
+(with the composition binding in LLP 0261's same-day amendment), **adopted
+per LLP 0295's default proposal; the author may revise**. Decided contract,
+in brief:
 
-The ruling must cover selected and pinned ports, fresh start and attach,
-regeneration and additive schema succession, sessions deployment/store
-identity, binding admission, cleanup, and a ready receipt naming the runtime,
-app artifact, binding, authority mode, and client origin.
+- `snapback dev` is the single lifecycle owner for all client stacks and
+  gains a fixed-port/external-client profile; `start --startup-artifacts`
+  and hand-written environment objects are diagnostic primitives only.
+- Tool-selected ports by default; caller-pinned port plus declared external
+  client origin in the fixed profile. Port occupancy is never identity —
+  attach verifies receipt identity or refuses with a stable diagnostic.
+- One verb set: fresh start, attach (idempotent, intended-child vs stale
+  listener distinguished), regenerate with owner-performed carrier rewrite,
+  additive schema successor, shutdown of owned children only.
+- Sessions-mode deployment identity and custody/session/application stores
+  survive regenerate and additive succession; destructive reseed is never
+  implicit.
+- The fixed profile issues a real admitted binding (rendezvous or admission
+  handshake against the pinned origin); a caller override is never laundered
+  as a supervisor exchange. Declared-external clients are neither launched
+  nor torn down (retires the `SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE`
+  class for declared clients).
+- One machine-readable ready receipt (extends `connectCarrier` facts and the
+  `.snapback/` descriptor) names server (origin/pid/generation), app
+  artifact, binding, authority mode, and client origin(s); all consumers
+  read it, none parses logs; wrapper-vs-qualified-binary identity is a
+  receipt fact.
+- LLP 0295 OQ1 answered: mode of `snapback dev` at the product surface;
+  internal engine factoring allowed, no second public lifecycle command
+  (re-open trigger recorded in LLP 0223).
+
+## W1 implementation checklist (after the ruling)
+
+- [ ] Extend `snapback dev` with the fixed-port/external-client profile
+      (pinned port, declared client origin, derived relay/CORS allowlist).
+- [ ] Implement receipt-verified attach; typed refusals for stale listener
+      and wrong binding; never adopt or kill an unverified listener.
+- [ ] Emit the single ready receipt with all five identity facts plus
+      qualified-binary identity; keep descriptor transience/permissions.
+- [ ] Owner-performed startup-carrier rewrite on regenerate (hot-load
+      without restarting the pinned server or the external client).
+- [ ] Preserve sessions deployment identity and stores across regenerate
+      and one additive schema successor; make any destructive step explicit.
+- [ ] Packed-package acceptance fixtures: Expo, Vite/Exact, headless — each
+      attaches, reaches ready, performs M1 -> M2 additive change with
+      original accounts and sessions intact, shuts down owned children only.
+- [ ] Negative fixtures: stale listener on pinned port; caller-supplied
+      binding override (refuses, names the supported profile).
+- [ ] Delete benchmark/template startup-carrier wrappers and handwritten
+      binding environments from all four matrix templates.
+- [ ] Re-document `start --startup-artifacts` as diagnostic-only; update the
+      fixed-origin guide recipe ticket
+      (`issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`) to
+      teach the profile once it ships.
 
 ## Implementation scope after the ruling
 

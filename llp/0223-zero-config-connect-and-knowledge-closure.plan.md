@@ -5,6 +5,12 @@
 **Systems:** Developer experience, Expo client, Auth, Diagnostics, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-21 (D0.1 ruling amendment — records LLP 0295 D0.1's
+canonical development lifecycle: `snapback dev` stays the single lifecycle
+owner and gains a fixed-origin/external-client profile; `start
+--startup-artifacts` and hand-written environment objects are diagnostic
+primitives. Adopted per LLP 0295 default proposal; author may revise. See
+the dated amendment.)
 **Revised:** 2026-08-10 (Accepted → Implemented — all four tickets executed;
 see the dated implementation-record amendment, including the resolved
 conflict with the parallel-lane `.env.local` auto-write of `4a19761fe`)
@@ -39,7 +45,12 @@ scoreboard), LLP 0181 (zero-configuration Expo — the connect contract this
 Plan proves rather than replaces), LLP 0061 (guide/retrieval loop — owner of
 no-refusal behavioral gaps), LLP 0201 + `benchmarks/records/2026-08-09-social-messenger-p2-pilot.md`
 (the evidence source), `issues/20260809-scaffold-env-autowrite-and-mint-docs.md`
-(the evidence ticket this Plan executes)
+(the evidence ticket this Plan executes), LLP 0295 (published-matrix
+improvement program — its D0.1 lifecycle ruling is recorded here as the
+2026-08-21 dated amendment), LLP 0261 (`snapback init` — adopted apps exit
+into the same lifecycle),
+`issues/20260821-fixed-origin-external-client-dev-lifecycle.md` (the D0.1/W1
+execution ticket)
 
 ## Summary
 
@@ -313,3 +324,112 @@ but it must then re-open this Plan's Decision, not land silently beside it.
    `SNAPBACK_AUTH_REQUEST_INVALID` per-context grading is recorded there
    ahead of the Phase 1 ledger (`tests/acceptance/diagnostics/` has not
    landed), exactly as this Plan's ticket 4 provides.
+
+## Dated amendment — 2026-08-21: D0.1 ruling — the canonical development lifecycle
+
+**Status of this ruling: Adopted per LLP 0295 default proposal; author may
+revise.** LLP 0295 §D0.1 requires one semantic development lifecycle before
+its W1 workstream executes. This Plan and LLP 0261 are the named design
+owners; the ruling is recorded here because this Plan already owns the
+supervised connect contract the lifecycle extends. Execution ticket:
+`issues/20260821-fixed-origin-external-client-dev-lifecycle.md`; matrix
+evidence: LLP 0277, diaries 0092/0096/0100/0104/0105, and
+`issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`.
+
+### Ruling
+
+**`snapback dev` remains the single lifecycle owner for every supported
+client stack, and gains an explicit fixed-port/external-client profile.**
+`snapback start --startup-artifacts` and hand-written environment/binding
+objects remain available as *diagnostic primitives* — for bisecting the
+lifecycle itself — and are never documented or recommended as a competing
+golden path. The matrix's repeated failure shape was two half-lifecycles
+with no owner (supervised Expo on one side; fixed-port wrappers, handwritten
+binding environments, and manual Expo startup on the other); the repair is
+one owner with two admission postures, not a second lifecycle surface.
+
+### Semantic contract
+
+1. **Ports.** The default posture stays tool-selected. The fixed profile
+   lets the caller pin the server port and declare the external client
+   origin. **Port occupancy is never identity:** before attaching to a
+   pinned port, the lifecycle verifies the listener is the intended
+   app/deployment via the ready receipt below; an unrelated stale listener
+   refuses with a stable identity-bearing `SNAPBACK_*` diagnostic instead of
+   being adopted or killed.
+2. **Client stacks.** The supervised Expo/React rendezvous path (LLP 0181
+   injection; this Plan's ticket 1 acceptance) is unchanged and remains the
+   default. External Vite/Exact and headless clients consume the *same*
+   lifecycle through the fixed profile: `dev` derives the auth relay/CORS
+   allowlist from the declared client origin, and treats an externally owned
+   client process as **declared, not enumerated** — it neither launches nor
+   tears it down (retiring the diary-0104
+   `SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE` failure class for
+   declared-external clients).
+3. **Lifecycle verbs.** One semantic verb set across postures: **fresh
+   start**; **attach** to an already-running intended child (idempotent —
+   an intended child is recognized by receipt identity, an unrelated
+   listener refuses); **regenerate** with hot-load, where startup-carrier
+   rewrite is the lifecycle owner's job, never the author's; **additive
+   schema successor** preserving deployment identity; and **shutdown** of
+   owned children only.
+4. **Sessions-mode identity.** Sessions-mode deployment identity and the
+   custody/session/application stores are preserved across regenerate and
+   an additive schema successor. A destructive reseed is never an implied
+   step of the paved path; when data loss is genuinely required the
+   lifecycle says so explicitly and requires explicit consent.
+5. **Binding admission.** In the fixed profile the client provider still
+   receives a **real admitted binding issued by the lifecycle owner** —
+   delivered over the supervisor rendezvous or an equivalent admission
+   handshake against the pinned origin. A caller-supplied binding override
+   is never laundered as a supervisor exchange; the existing
+   `SNAPBACK_APP_BINDING_UNAVAILABLE` / override-unconfirmed refusals remain
+   correct, and the profile supplies the legitimate path those refusals
+   currently lack. This preserves the accepted Decision above: auto-inject,
+   do not auto-write; no ambient `.env*` configuration surface is created in
+   either posture.
+6. **One ready receipt.** The lifecycle emits a single machine-readable
+   ready receipt — extending this Plan's readiness facts
+   (`connectCarrier`) and the transient `.snapback/` descriptor rather than
+   minting a parallel artifact — naming at minimum: the **server** (origin,
+   pid, supervisor generation), the **app artifact** identity, the
+   **binding**, the **authority mode** (e.g. settled Sessions), and the
+   **client origin(s)**. Expo, Vite/Exact, headless, and acceptance
+   consumers all read the receipt; none parses logs. Qualified-binary
+   versus wrapper identity is a receipt fact, so LLP 0295's
+   wrong-executable negative evidence class is detectable at attach time.
+
+### Acceptance (binds W1 closure)
+
+From packed external packages: Expo, Vite/Exact, and headless fixtures
+attach through the ruled lifecycle, reach application-ready state, and
+perform **one M1 → M2 additive schema change with the original accounts and
+sessions intact** — using no custom relay/binding middleware, no destructive
+reseed, and no source-checkout-only helper — then shut down only their owned
+children. Negative cases: a stale listener on the pinned port and a wrong
+binding both refuse with stable identity-bearing diagnostics. W1's milestone
+is the deletion of the benchmark/template-owned startup-carrier wrappers and
+handwritten binding environments once this path carries their facts.
+
+### LLP 0295 open question 1 — recommendation
+
+*Should fixed-port/external-client support be a mode of `snapback dev`, or
+should one lower-level lifecycle primitive own both `dev` and external
+orchestrators?* **Recommendation: a mode of `snapback dev` at the product
+surface.** Internally the implementation may (and probably should) factor
+the lifecycle into a reusable engine that `dev`, the acceptance harness, and
+future orchestrators call, but no second *public* lifecycle command is
+created: the ready receipt is already the machine seam an external
+orchestrator needs, and a second public primitive would recreate exactly the
+two-owner split the matrix paid for. Re-open trigger, in the T1 style: if
+two independent external orchestrators demonstrably cannot express their
+lifecycle through the fixed profile plus the receipt, promote the internal
+engine to a supported primitive through this Plan — not by ad-hoc flag
+growth.
+
+Consistency note: this profile is **not** the rejected option 3
+("run-scoped connect export"). Option 3 proposed a durable exported
+connection artifact; the fixed profile is a supervised lifecycle posture
+whose binding remains admitted, expiring, and lifecycle-owned. The T1
+evidence threshold (two-plus independent builds needing a detached client)
+has now been met by the matrix lanes, and this amendment is its resolution.
