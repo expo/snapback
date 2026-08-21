@@ -4082,6 +4082,19 @@ impl LocalDatabase {
     }
 
     #[cfg(any(test, feature = "test-support"))]
+    pub(super) fn auth_invitation_count_for_test(&self, user_id: &str) -> SnapbackResult<u64> {
+        self.with_auth_read(|connection| {
+            connection
+                .query_row(
+                    "SELECT COUNT(*) FROM _auth_agent_invitations WHERE created_by = ?1",
+                    params![user_id],
+                    |row| row.get(0),
+                )
+                .map_err(crate::diagnostic::SnapbackError::from)
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) fn auth_insert_agent_token_route_fixtures_for_test(
         &mut self,
         now_ms: u64,
@@ -5011,6 +5024,11 @@ impl<'a> AuthCatalogKernel<'a> {
     ) -> SnapbackResult<(String, Option<String>)> {
         self.read_db()
             .auth_invitation_consumption_for_test(invitation_id)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn invitation_count_for_test(&self, user_id: &str) -> SnapbackResult<u64> {
+        self.read_db().auth_invitation_count_for_test(user_id)
     }
 
     #[cfg(any(test, feature = "test-support"))]

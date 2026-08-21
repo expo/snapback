@@ -731,11 +731,20 @@ impl AdmissionController {
     }
 
     /// Behavioral test seam for proving an effect guard owns the admission
-    /// state mutex. A false result is observable lock ownership, not a type- or
-    /// syntax-level assertion about a guard binding.
+    /// state mutex. A false result means another owner currently holds the
+    /// mutex; a free poisoned mutex is available because production admission
+    /// deliberately recovers poison through `lock`.
+    ///
+    /// This stays behind the explicit, non-default `test-support` feature so
+    /// cross-crate engine and server unit tests can observe the auth-owned
+    /// mutex when `snapback-auth` is compiled as their dependency.
     #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
     pub fn state_mutex_available_for_test(&self) -> bool {
-        self.inner.state.try_lock().is_ok()
+        match self.inner.state.try_lock() {
+            Ok(_) | Err(std::sync::TryLockError::Poisoned(_)) => true,
+            Err(std::sync::TryLockError::WouldBlock) => false,
+        }
     }
 
     fn retire_and_reopen(
@@ -1449,6 +1458,27 @@ mod tests {
         assert_eq!(controller.snapshot().in_flight, 1);
         drop(clone);
         assert_eq!(controller.snapshot().in_flight, 0);
+    }
+
+    #[test]
+    fn test_seam_treats_a_free_poisoned_state_mutex_as_available() {
+        let controller = AdmissionController::new(7, true).unwrap();
+        let poisoner = controller.clone();
+        assert!(
+            thread::spawn(move || {
+                let _state = poisoner.inner.state.lock().unwrap();
+                panic!("poison admission state for the test seam");
+            })
+            .join()
+            .is_err()
+        );
+
+        assert!(controller.state_mutex_available_for_test());
+        assert_eq!(
+            controller.snapshot().transition_generation,
+            7,
+            "production admission access must recover the same poisoned mutex"
+        );
     }
 
     #[test]

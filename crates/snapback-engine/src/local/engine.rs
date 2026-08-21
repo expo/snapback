@@ -203,15 +203,23 @@ thread_local! {
 
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+// Focused commit-point mutation harness, not the repository inventory. It
+// covers the eleven engine sites named in the lane/fenceproof review; the
+// server harness covers invitation minting. The complete durable-write
+// inventory and deferred proof scope live in the 20260821 admission-fence
+// coverage ticket.
 enum AdmissionEffectSite {
+    OAuthDynamicRegistration,
     CapabilityLinkMint,
     CapabilityLinkConsume,
     CapabilityLinkSettle,
     CapabilityLinkRevoke,
+    ClientMutationAcknowledgement,
     PushReservation,
     PushBatchClaim,
     PushBatchTransmitting,
     PushBatchSettlement,
+    WatchCreation,
 }
 
 #[cfg(test)]
@@ -4706,8 +4714,14 @@ impl LocalSnapback {
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_agent_credentials::IssuedAgentCredential> {
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::OAuthDynamicRegistration);
+        // @ref LLP 0058#gate-algorithm — the dynamic-registration row must
+        // commit inside the authority's still-live admission epoch.
         let _effect = authority.effect_guard("OAuth dynamic registration transaction")?;
-        self.db.register_agent_principal_with_class(
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::OAuthDynamicRegistration);
+        let result = self.db.register_agent_principal_with_class(
             mode,
             invitation,
             display_name,
@@ -4717,7 +4731,12 @@ impl LocalSnapback {
             profile,
             now_ms,
             random,
-        )
+        );
+        #[cfg(test)]
+        if result.is_ok() {
+            run_after_admission_effect_commit_hook(AdmissionEffectSite::OAuthDynamicRegistration);
+        }
+        result
     }
 
     pub fn integration_record_if_present(
@@ -10460,7 +10479,13 @@ impl LocalSnapback {
         let auth = authority.canonical_auth_input();
         let incarnation = self.db.ensure_authorization_stream_incarnation()?;
         let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::ClientMutationAcknowledgement);
+        // @ref LLP 0058#gate-algorithm — acknowledgement retention changes
+        // commit inside the client authority's still-live admission epoch.
         let _effect = authority.effect_guard("client mutation acknowledgement transaction")?;
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::ClientMutationAcknowledgement);
         let current = self
             .db
             .settlement()
@@ -10477,13 +10502,20 @@ impl LocalSnapback {
                 &descriptor.authority_instance_id,
                 ids,
             )?;
-        current.checked_add(legacy).ok_or_else(|| {
+        let result = current.checked_add(legacy).ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
                 "storage",
                 "acknowledged settlement count overflowed across auth aliases",
             )
-        })
+        });
+        #[cfg(test)]
+        if result.is_ok() {
+            run_after_admission_effect_commit_hook(
+                AdmissionEffectSite::ClientMutationAcknowledgement,
+            );
+        }
+        result
     }
 
     pub fn descriptor_for_prepared_authority(
@@ -22692,7 +22724,13 @@ impl LocalSnapback {
         // Acquire management's effect fence only for the durable catalog
         // commit; nesting it around the query would self-deadlock the same
         // admission lease and would not strengthen the serialized app cut.
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::WatchCreation);
+        // @ref LLP 0058#gate-algorithm — the watch catalog row and its initial
+        // schedule commit inside the management authority's admission epoch.
         let _effect = authority.effect_guard("watch creation transaction")?;
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::WatchCreation);
         let watch_id = crate::ids::mint_time_ordered(crate::ids::Kind::Watch);
         let anchor_grant_id = (owner_kind == crate::watches::WatchOwnerKind::Integration)
             .then(|| crate::ids::mint_time_ordered(crate::ids::Kind::Grant));
@@ -22775,10 +22813,13 @@ impl LocalSnapback {
                 return Err(error);
             }
         };
-        Ok(crate::watches::CreatedWatch {
+        let result = Ok(crate::watches::CreatedWatch {
             watch,
             webhook_secret: generated_webhook_secret,
-        })
+        });
+        #[cfg(test)]
+        run_after_admission_effect_commit_hook(AdmissionEffectSite::WatchCreation);
+        result
     }
 
     pub fn list_watches(

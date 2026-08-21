@@ -1,18 +1,20 @@
 use super::{
     ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
-    ACTION_WORKER_LIMIT_MAX, ADMITTED_BODY_INGEST_DEADLINE_MS, AdmissionLease,
-    CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant,
-    ConnectionOpenAttempt, DetachedActionHost, DetachedActionWorkerCounters, HostOperationParentV1,
-    OpenConnectionRequest, PolicyAuthMode, PreparedAuthority, RealtimeEnvelope, SharedSnapback,
-    SnapbackApp, TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
+    ACTION_WORKER_LIMIT_MAX, ADMITTED_BODY_INGEST_DEADLINE_MS,
+    AFTER_AGENT_INVITATION_EFFECT_COMMIT_HOOK, AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK,
+    AdmissionLease, BEFORE_AGENT_INVITATION_EFFECT_GUARD_HOOK, CRON_DISPATCH_CONCURRENCY_DEFAULT,
+    CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant, ConnectionOpenAttempt, DetachedActionHost,
+    DetachedActionWorkerCounters, HostOperationParentV1, OpenConnectionRequest, PolicyAuthMode,
+    PreparedAuthority, RealtimeEnvelope, SharedSnapback, SnapbackApp,
+    TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
     already_terminal_session_error, app, configured_action_worker_limit,
     configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
-    finish_registered_response, install_test_finite_authority_pause,
-    linearize_detached_action_abandonment, parse_action_watchdog_timeout, parse_optional_json,
-    reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
-    retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
-    spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
-    with_snapback_staged_authorization_write,
+    finish_registered_response, install_targeted_agent_invitation_hook,
+    install_test_finite_authority_pause, linearize_detached_action_abandonment,
+    parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
+    reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
+    run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
+    status_for_diagnostic_code, with_snapback, with_snapback_staged_authorization_write,
 };
 use crate::manifest::SchemaManifestValidationExt as _;
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
@@ -8623,7 +8625,11 @@ fn agent_policy(mode: AgentsMode, invited_by: InvitedBy) -> AgentsManifest {
     AgentsManifest::explicit(mode, invited_by)
 }
 
-async fn mint_user_agent_invitation(state: &AppState, router: &SnapbackApp, bearer: &str) -> Value {
+async fn request_user_agent_invitation(
+    state: &AppState,
+    router: &SnapbackApp,
+    bearer: &str,
+) -> axum::response::Response {
     let challenge = router
         .clone()
         .oneshot(session_auth_http_request(
@@ -8650,7 +8656,7 @@ async fn mint_user_agent_invitation(state: &AppState, router: &SnapbackApp, bear
     let code = mailbox["code"]
         .as_str()
         .expect("agent-invitation step-up code");
-    let minted = router
+    router
         .clone()
         .oneshot(session_auth_http_request(
             "/auth/agent-invitations",
@@ -8661,7 +8667,11 @@ async fn mint_user_agent_invitation(state: &AppState, router: &SnapbackApp, bear
             bearer,
         ))
         .await
-        .expect("mint user agent invitation");
+        .expect("mint user agent invitation")
+}
+
+async fn mint_user_agent_invitation(state: &AppState, router: &SnapbackApp, bearer: &str) -> Value {
+    let minted = request_user_agent_invitation(state, router, bearer).await;
     let status = minted.status();
     let minted = response_json(minted).await;
     assert_eq!(status, StatusCode::OK, "{minted}");
@@ -17580,6 +17590,111 @@ async fn user_minted_invitation_requires_step_up_and_is_single_use() {
     .await
     .unwrap();
     assert_eq!(invitation_row, (owner_id, Some(agent_id)));
+}
+
+#[tokio::test]
+async fn agent_invitation_mint_refuses_retired_epoch_and_holds_the_guard_through_commit() {
+    let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+        AgentsMode::Invited,
+        InvitedBy::Users,
+    ))
+    .await;
+    let owner = mint_test_credential(&state, "admission-fence-inviter@example.com").await;
+    let user_id = owner["session"]["userId"]
+        .as_str()
+        .expect("agent-invitation fence user id")
+        .to_owned();
+    let bearer = owner["token"]
+        .as_str()
+        .expect("agent-invitation fence bearer")
+        .to_owned();
+    let router = app(state.clone());
+    let invitation_count = |state: &AppState, user_id: String| {
+        let snapback = state.snapback.clone();
+        async move {
+            with_snapback(&snapback, move |snapback| {
+                snapback
+                    .remainder_auth_database_mut()
+                    .auth_catalog()
+                    .invitation_count_for_test(&user_id)
+            })
+            .await
+            .expect("count agent invitations")
+        }
+    };
+    let before = invitation_count(&state, user_id.clone()).await;
+
+    let controller = state.auth_admission_controller();
+    let fired = Arc::new(AtomicBool::new(false));
+    let fired_in_hook = fired.clone();
+    let retirement_controller = controller.clone();
+    install_targeted_agent_invitation_hook(
+        &BEFORE_AGENT_INVITATION_EFFECT_GUARD_HOOK,
+        &user_id,
+        move || {
+            let error = retirement_controller
+                .retire_current_epoch_for_test()
+                .expect_err("an in-flight invitation authority must force timeout retirement");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+            );
+            fired_in_hook.store(true, Ordering::SeqCst);
+        },
+    );
+    let refused = request_user_agent_invitation(&state, &router, &bearer).await;
+    let refused_status = refused.status();
+    assert_eq!(refused_status, StatusCode::SERVICE_UNAVAILABLE);
+    assert!(
+        fired.load(Ordering::SeqCst),
+        "the invitation epoch must retire immediately before guard acquisition"
+    );
+    assert_eq!(
+        invitation_count(&state, user_id.clone()).await,
+        before,
+        "refused invitation mint must not add a durable row"
+    );
+
+    let after_guard_controller = controller.clone();
+    install_targeted_agent_invitation_hook(
+        &AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK,
+        &user_id,
+        move || {
+            assert!(
+                !after_guard_controller.state_mutex_available_for_test(),
+                "AgentInvitationMint admission-state mutex was available after the \
+                 effect-guard statement; the guard was never acquired or was dropped \
+                 before the durable write"
+            );
+        },
+    );
+    let commit_observed = Arc::new(AtomicBool::new(false));
+    let commit_observed_in_hook = commit_observed.clone();
+    install_targeted_agent_invitation_hook(
+        &AFTER_AGENT_INVITATION_EFFECT_COMMIT_HOOK,
+        &user_id,
+        move || {
+            assert!(
+                !controller.state_mutex_available_for_test(),
+                "AgentInvitationMint admission-state mutex was available at the durable \
+                 commit; the effect guard was dropped after observation and before the write"
+            );
+            commit_observed_in_hook.store(true, Ordering::SeqCst);
+        },
+    );
+    let guarded = request_user_agent_invitation(&state, &router, &bearer).await;
+    let guarded_status = guarded.status();
+    let guarded = response_json(guarded).await;
+    assert_eq!(guarded_status, StatusCode::OK, "{guarded}");
+    assert_eq!(
+        invitation_count(&state, user_id).await,
+        before + 1,
+        "the guarded invitation mint must be durable"
+    );
+    assert!(
+        commit_observed.load(Ordering::SeqCst),
+        "AgentInvitationMint commit hook did not directly observe the live effect guard"
+    );
 }
 
 #[tokio::test]
