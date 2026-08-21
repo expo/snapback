@@ -25,7 +25,6 @@ import {
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIAGNOSTIC = 'SNAPBACK_PRIVILEGE_SURFACE';
 const ALLOWLIST_NAME = 'crates/privilege-surface-allowlist.v1.json';
-const GUIDE_API_MANIFEST = 'crates/snapback-server/generated/embedded-guide-api-shape.v1.json';
 const ALLOWLIST_KINDS = new Set([
   'sql-ingress',
   'sql-egress',
@@ -69,128 +68,6 @@ function calendarDateLosAngeles() {
 
 function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
-}
-
-function sameJson(left, right) {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
-// @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — generated API
-// assurance is grounded in committed bytes. This check parses the committed
-// artifact and never compiles or executes its custom-build producer.
-function validateGuideApiManifest(root, packages, violations) {
-  const pkg = packages.find(({ name }) => name === 'snapback-server');
-  if (!pkg) return [];
-  const manifestPath = resolve(root, GUIDE_API_MANIFEST);
-  const invalid = [];
-  let manifest;
-  if (!existsSync(manifestPath)) {
-    invalid.push('manifest missing');
-  } else {
-    try {
-      manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-    } catch (error) {
-      invalid.push(`invalid JSON: ${error.message}`);
-    }
-  }
-  if (manifest) {
-    const expectedKeys = [
-      'artifact',
-      'artifactSha256',
-      'crate',
-      'forbiddenIdentifiers',
-      'generatedDataExpressions',
-      'generatedDataIncludes',
-      'producer',
-      'producerSha256',
-      'publicApi',
-      'schemaVersion',
-      'source',
-      'sourceExpression',
-      'sourceInclude',
-    ];
-    if (!sameJson(Object.keys(manifest).sort(), expectedKeys)) invalid.push('manifest keys');
-    if (manifest.schemaVersion !== 'snapback.generated-api-shape.v1') {
-      invalid.push('schemaVersion');
-    }
-    if (manifest.crate !== 'snapback-server') invalid.push('crate');
-    const source = typeof manifest.source === 'string' ? resolve(root, manifest.source) : '';
-    const artifact = typeof manifest.artifact === 'string' ? resolve(root, manifest.artifact) : '';
-    if (!source || !existsSync(source)) invalid.push('source');
-    if (!artifact || !existsSync(artifact)) invalid.push('artifact');
-
-    if (source && existsSync(source) && artifact && existsSync(artifact)) {
-      const references = runAst(['units', '--file', source])
-        .filter(({ kind }) => kind.startsWith('include'));
-      const expectedReference = [{
-        kind: 'include',
-        value: manifest.sourceInclude,
-        outDir: false,
-        modulePath: [],
-        expression: manifest.sourceExpression,
-      }];
-      const comparable = references.map(({ kind, value, outDir, modulePath, expression }) => ({
-        kind, value, outDir, modulePath, expression,
-      }));
-      if (!sameJson(comparable, expectedReference)) invalid.push('source include expression changed');
-      if (typeof manifest.sourceInclude !== 'string'
-          || resolve(dirname(source), manifest.sourceInclude) !== artifact) {
-        invalid.push('source include does not resolve to artifact');
-      }
-      if (manifest.artifactSha256 !== sha256(artifact)) invalid.push('artifact bytes changed');
-
-      const shape = runAst(['api-shape', '--file', artifact]);
-      if (!sameJson(shape.items, manifest.publicApi)) invalid.push('parsed public API shape changed');
-      const generatedIncludes = runAst(['units', '--file', artifact])
-        .filter(({ kind, outDir }) => kind === 'include' && outDir);
-      if (!sameJson(
-        generatedIncludes.map(({ value }) => value),
-        manifest.generatedDataIncludes,
-      )) {
-        invalid.push('generated data include set changed');
-      }
-      if (!sameJson(
-        generatedIncludes.map(({ expression }) => expression),
-        manifest.generatedDataExpressions,
-      )) {
-        invalid.push('generated data include expression changed');
-      }
-      const catalog = runAst(['privilege-identifiers']);
-      if (!sameJson(manifest.forbiddenIdentifiers, catalog)) {
-        invalid.push('forbidden identifier catalog drifted');
-      } else {
-        const forbidden = new Set(Object.values(catalog).flat());
-        const named = shape.identifiers.filter((identifier) => forbidden.has(identifier));
-        if (named.length > 0) {
-          invalid.push(`artifact names forbidden privilege identifier(s): ${named.join(', ')}`);
-        }
-      }
-    }
-
-    const producer = pkg.targets.find((target) => target.kind.includes('custom-build'));
-    if (!producer) {
-      invalid.push('cargo metadata custom-build target missing');
-    } else {
-      const producerPath = repositoryPath(root, producer.src_path);
-      if (manifest.producer !== producerPath) invalid.push('producer is not Cargo custom-build target');
-      if (manifest.producerSha256 !== sha256(producer.src_path)) {
-        invalid.push('producer source changed');
-      }
-    }
-  }
-  if (invalid.length > 0) {
-    violations.push({
-      crate: 'snapback-server',
-      file: GUIDE_API_MANIFEST,
-      line: 1,
-      kind: 'generated-api-manifest-invalid',
-      item: 'snapback_server::guide',
-      detail: invalid.join(', '),
-      features: ['default'],
-    });
-    return [];
-  }
-  return [manifest];
 }
 
 // @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — generated Rust
@@ -378,23 +255,6 @@ export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
     || left.item.localeCompare(right.item));
 
   const violations = [];
-  const generatedApiManifests = validateGuideApiManifest(root, packages, violations);
-  for (const manifest of generatedApiManifests) {
-    findings.push({
-      crate: manifest.crate,
-      file: manifest.artifact,
-      line: 4,
-      kind: 'generated-api',
-      item: 'snapback_server::guide::generated_data_expressions',
-      detail: 'public constants include uninspected build-generated Rust expressions; exact expiring review is required',
-      generatedExpression: JSON.stringify(manifest.generatedDataExpressions),
-      features: ['default'],
-    });
-  }
-  findings.sort((left, right) => left.file.localeCompare(right.file)
-    || left.line - right.line
-    || left.kind.localeCompare(right.kind)
-    || left.item.localeCompare(right.item));
   const allowlisted = validateAllowlist(root, packages, findings, violations);
   const allowedKeys = new Set(allowlisted.map((entry) => [
     entry.crate,
@@ -420,7 +280,6 @@ export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
     findings,
     violations,
     allowlisted,
-    generatedApiManifests,
     cellCount,
     durationMs,
     packages: packages.map(({ name }) => name),

@@ -116,7 +116,7 @@ pub(crate) fn search_guide_sections_in(
 }
 
 fn search_guide_sections(query: &str) -> Vec<GuideSectionMatch> {
-    search_guide_sections_in(crate::guide::EMBEDDED_GUIDE_FILES, query)
+    search_guide_sections_in(*crate::guide::EMBEDDED_GUIDE_FILES, query)
 }
 
 pub(crate) const GUIDE_SEARCH_SCHEMA_VERSION: &str = "snapback.guide-search.v1";
