@@ -797,12 +797,16 @@ for (const [template, pathCount] of [
     assert.equal(scaffoldApp(projectRoot, { template: 'react' }).ok, true);
     const schemaPath = join(backend, 'schema.mjs');
     const devSchema = readFileSync(schemaPath, 'utf8');
-    const sessionsSchema = devSchema.replace(
-      /\n\}\);\s*$/u,
-      "\n}, { auth: { mode: 'sessions' } });\n",
-    );
-    assert.notEqual(sessionsSchema, devSchema, 'fixture schema must switch to sessions mode');
-    writeFileSync(schemaPath, sessionsSchema);
+    // The react template now scaffolds in sessions mode already
+    // (80ff4864f); rewrite only a template that still scaffolds without it.
+    if (!devSchema.includes("auth: { mode: 'sessions' }")) {
+      const sessionsSchema = devSchema.replace(
+        /\n\}\);\s*$/u,
+        "\n}, { auth: { mode: 'sessions' } });\n",
+      );
+      assert.notEqual(sessionsSchema, devSchema, 'fixture schema must switch to sessions mode');
+      writeFileSync(schemaPath, sessionsSchema);
+    }
 
     dev = await runDev({
       backendDirectory: backend,
