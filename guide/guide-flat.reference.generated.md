@@ -3402,7 +3402,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-verify-cloudflare-proof-url-invalid"></a>`SNAPBACK_VERIFY_CLOUDFLARE_PROOF_URL_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1090` | 1 |
 | <a id="diagnostic-snapback-verify-config-invalid"></a>`SNAPBACK_VERIFY_CONFIG_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:124` | 3 |
 | <a id="diagnostic-snapback-verify-config-unavailable"></a>`SNAPBACK_VERIFY_CONFIG_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/verify.mjs:1280` | 1 |
-| <a id="diagnostic-snapback-verify-conformance-invalid"></a>`SNAPBACK_VERIFY_CONFORMANCE_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:2116` | 1 |
+| <a id="diagnostic-snapback-verify-conformance-invalid"></a>`SNAPBACK_VERIFY_CONFORMANCE_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:2134` | 1 |
 | <a id="diagnostic-snapback-verify-coverage-evidence-incomplete"></a>`SNAPBACK_VERIFY_COVERAGE_EVIDENCE_INCOMPLETE` | cli | — | — | `packages/snapback-cli/verify.mjs:1791` | 1 |
 | <a id="diagnostic-snapback-verify-coverage-evidence-unsupported"></a>`SNAPBACK_VERIFY_COVERAGE_EVIDENCE_UNSUPPORTED` | cli | — | — | `packages/snapback-cli/verify.mjs:1790` | 1 |
 | <a id="diagnostic-snapback-verify-coverage-path-incomplete"></a>`SNAPBACK_VERIFY_COVERAGE_PATH_INCOMPLETE` | cli | — | — | `packages/snapback-cli/verify.mjs:1767` | 1 |
@@ -3410,20 +3410,20 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-verify-coverage-provenance-required"></a>`SNAPBACK_VERIFY_COVERAGE_PROVENANCE_REQUIRED` | cli | — | — | `packages/snapback-cli/verify.mjs:1821` | 1 |
 | <a id="diagnostic-snapback-verify-fix-acceptance"></a>`SNAPBACK_VERIFY_FIX_ACCEPTANCE` | cli | — | — | `packages/snapback-cli/verify.mjs:93` | 1 |
 | <a id="diagnostic-snapback-verify-fix-admission-or-coverage"></a>`SNAPBACK_VERIFY_FIX_ADMISSION_OR_COVERAGE` | cli | — | — | `packages/snapback-cli/verify.mjs:81` | 1 |
-| <a id="diagnostic-snapback-verify-probe-failed"></a>`SNAPBACK_VERIFY_PROBE_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:2016` | 1 |
+| <a id="diagnostic-snapback-verify-probe-failed"></a>`SNAPBACK_VERIFY_PROBE_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:2034` | 1 |
 | <a id="diagnostic-snapback-verify-profile"></a>`SNAPBACK_VERIFY_PROFILE` | cli | — | — | `packages/snapback-cli/verify.mjs:719` | 3 |
-| <a id="diagnostic-snapback-verify-profile-identity-incomplete"></a>`SNAPBACK_VERIFY_PROFILE_IDENTITY_INCOMPLETE` | cli | — | — | `packages/snapback-cli/verify.mjs:1974` | 1 |
-| <a id="diagnostic-snapback-verify-profile-identity-invalid"></a>`SNAPBACK_VERIFY_PROFILE_IDENTITY_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1954` | 1 |
-| <a id="diagnostic-snapback-verify-profile-threw"></a>`SNAPBACK_VERIFY_PROFILE_THREW` | cli | — | — | `packages/snapback-cli/verify.mjs:1935` | 1 |
+| <a id="diagnostic-snapback-verify-profile-identity-incomplete"></a>`SNAPBACK_VERIFY_PROFILE_IDENTITY_INCOMPLETE` | cli | — | — | `packages/snapback-cli/verify.mjs:1992` | 1 |
+| <a id="diagnostic-snapback-verify-profile-identity-invalid"></a>`SNAPBACK_VERIFY_PROFILE_IDENTITY_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1972` | 1 |
+| <a id="diagnostic-snapback-verify-profile-threw"></a>`SNAPBACK_VERIFY_PROFILE_THREW` | cli | — | — | `packages/snapback-cli/verify.mjs:1953` | 1 |
 | <a id="diagnostic-snapback-verify-profile-timeout"></a>`SNAPBACK_VERIFY_PROFILE_TIMEOUT` | cli | — | [guide](../testing/verify.md#author-snapbackverifyconfigmjs) | `packages/snapback-cli/index.mjs:6145` | 3 |
 | <a id="diagnostic-snapback-verify-qualify-runtime"></a>`SNAPBACK_VERIFY_QUALIFY_RUNTIME` | cli | — | — | `packages/snapback-cli/verify.mjs:75` | 1 |
-| <a id="diagnostic-snapback-verify-receipt-invalid"></a>`SNAPBACK_VERIFY_RECEIPT_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:2238` | 3 |
+| <a id="diagnostic-snapback-verify-receipt-invalid"></a>`SNAPBACK_VERIFY_RECEIPT_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:2256` | 3 |
 | <a id="diagnostic-snapback-verify-regenerate-artifacts"></a>`SNAPBACK_VERIFY_REGENERATE_ARTIFACTS` | cli | — | — | `packages/snapback-cli/verify.mjs:69` | 1 |
 | <a id="diagnostic-snapback-verify-repository-acceptance-failed"></a>`SNAPBACK_VERIFY_REPOSITORY_ACCEPTANCE_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:1024` | 1 |
 | <a id="diagnostic-snapback-verify-repository-acceptance-output-limit"></a>`SNAPBACK_VERIFY_REPOSITORY_ACCEPTANCE_OUTPUT_LIMIT` | cli | — | — | `packages/snapback-cli/verify.mjs:1021` | 1 |
 | <a id="diagnostic-snapback-verify-repository-acceptance-timeout"></a>`SNAPBACK_VERIFY_REPOSITORY_ACCEPTANCE_TIMEOUT` | cli | — | — | `packages/snapback-cli/verify.mjs:1023` | 1 |
 | <a id="diagnostic-snapback-verify-repository-catalog-invalid"></a>`SNAPBACK_VERIFY_REPOSITORY_CATALOG_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:963` | 1 |
-| <a id="diagnostic-snapback-verify-runtime-probe-missing"></a>`SNAPBACK_VERIFY_RUNTIME_PROBE_MISSING` | cli | — | — | `packages/snapback-cli/verify.mjs:2041` | 1 |
+| <a id="diagnostic-snapback-verify-runtime-probe-missing"></a>`SNAPBACK_VERIFY_RUNTIME_PROBE_MISSING` | cli | — | — | `packages/snapback-cli/verify.mjs:2059` | 1 |
 | <a id="diagnostic-snapback-verify-select-capable-target"></a>`SNAPBACK_VERIFY_SELECT_CAPABLE_TARGET` | cli | — | — | `packages/snapback-cli/verify.mjs:87` | 1 |
 | <a id="diagnostic-snapback-verify-served-target-authority-missing"></a>`SNAPBACK_VERIFY_SERVED_TARGET_AUTHORITY_MISSING` | cli | — | — | `packages/snapback-cli/verify.mjs:1457` | 1 |
 | <a id="diagnostic-snapback-verify-served-target-authority-profile-unsupported"></a>`SNAPBACK_VERIFY_SERVED_TARGET_AUTHORITY_PROFILE_UNSUPPORTED` | cli | — | — | `packages/snapback-cli/verify.mjs:1517` | 1 |
@@ -3499,7 +3499,7 @@ reviewed-authorities-digest: sha256:c626ffca5cdf748da0fd61d9154d993bb3f9a766ac6f
 # Generated API reference
 
 One build-bound projection of 1313 public symbols (539 runtime values and 774 explicit type-only symbols).
-Registry source identity: `sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+Registry source identity: `sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -3639,7 +3639,7 @@ reviewed-authorities-digest: sha256:e90dd7efad554e1885fbc2f117ebbf224bfe97501383
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -14948,7 +14948,7 @@ reviewed-authorities-digest: sha256:e4563120e6f14e47d01b5b20a4cb6cde6ae50b74ee2d
 # @expo/snapback-client/agent-authority
 
 Build-bound public API projection for `@expo/snapback-client/agent-authority`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/agent-authority.mjs`.
 
@@ -15473,7 +15473,7 @@ reviewed-authorities-digest: sha256:b475671bf36dd7af37cb5f0f4de44c586bbfaba80cdd
 # @expo/snapback-client/app-client-internal
 
 Build-bound public API projection for `@expo/snapback-client/app-client-internal`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/app-client-internal.mjs`.
 
@@ -15618,7 +15618,7 @@ reviewed-authorities-digest: sha256:56cf3b609e3c34a3e26ff67a5f215c71a946249373ad
 # @expo/snapback-client/app-data
 
 Build-bound public API projection for `@expo/snapback-client/app-data`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/app-data.mjs`.
 
@@ -15870,7 +15870,7 @@ reviewed-authorities-digest: sha256:0359f6929ba31ad21ecaac8c2281116cb7688efc61d1
 # @expo/snapback-client/argument-normalization
 
 Build-bound public API projection for `@expo/snapback-client/argument-normalization`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/argument-normalization.mjs`.
 
@@ -15983,7 +15983,7 @@ reviewed-authorities-digest: sha256:7f9c2eb64cf45801022c778d05183e07041d0198a78d
 # @expo/snapback-client/assets
 
 Build-bound public API projection for `@expo/snapback-client/assets`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/assets.mjs`.
 
@@ -16824,7 +16824,7 @@ reviewed-authorities-digest: sha256:e47dabbd130d29005e00fc2091ca88317a53e5a15b77
 # @expo/snapback-client/canonical-client-value
 
 Build-bound public API projection for `@expo/snapback-client/canonical-client-value`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/canonical-client-value.mjs`.
 
@@ -16931,7 +16931,7 @@ reviewed-authorities-digest: sha256:0ea788c0ab2a3970b34a088a84719c98edba42af1cf6
 # @expo/snapback-client/client-diagnostics
 
 Build-bound public API projection for `@expo/snapback-client/client-diagnostics`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/client-diagnostics.mjs`.
 
@@ -17319,7 +17319,7 @@ reviewed-authorities-digest: sha256:fc992fa19cb01dbd44d742f101bd1bd96279a051450f
 # @expo/snapback-client/commands
 
 Build-bound public API projection for `@expo/snapback-client/commands`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/commands.mjs`.
 
@@ -18016,7 +18016,7 @@ reviewed-authorities-digest: sha256:2317fcdfea9b54b0c3373cb9eba86aabae4f120ac1d7
 # @expo/snapback-client/diagnostic-error
 
 Build-bound public API projection for `@expo/snapback-client/diagnostic-error`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/diagnostic-error.mjs`.
 
@@ -18214,7 +18214,7 @@ reviewed-authorities-digest: sha256:fbdf05ead2707f4878a007639f6d6ad67752de4ffa03
 # @expo/snapback-client/evaluation-floor
 
 Build-bound public API projection for `@expo/snapback-client/evaluation-floor`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/evaluation-floor.mjs`.
 
@@ -18353,7 +18353,7 @@ reviewed-authorities-digest: sha256:67a870c169f18862af2d73178fd50a294e26355b9281
 # @expo/snapback-client/external-store
 
 Build-bound public API projection for `@expo/snapback-client/external-store`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/external-store.mjs`.
 
@@ -18715,7 +18715,7 @@ reviewed-authorities-digest: sha256:90526af0b40c7da3fe44d7e1ad03a882dee527e24ef2
 # @expo/snapback-client/hosted-browser
 
 Build-bound public API projection for `@expo/snapback-client/hosted-browser`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/hosted-browser.mjs`.
 
@@ -18807,7 +18807,7 @@ reviewed-authorities-digest: sha256:db2454dd14fa0ee88026f022e2deb29012c0f0ff5ee6
 # @expo/snapback-client/ir-evaluator
 
 Build-bound public API projection for `@expo/snapback-client/ir-evaluator`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/ir-evaluator.mjs`.
 
@@ -19176,7 +19176,7 @@ reviewed-authorities-digest: sha256:31fff118663c868c1231475633a86983dc8f86f42630
 # @expo/snapback-client/lease-convergence
 
 Build-bound public API projection for `@expo/snapback-client/lease-convergence`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/lease-convergence.mjs`.
 
@@ -19326,7 +19326,7 @@ reviewed-authorities-digest: sha256:c88ff76d12f7a52bf09d4628ad5480e55d3136034f02
 # @expo/snapback-client/local-read-admission
 
 Build-bound public API projection for `@expo/snapback-client/local-read-admission`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/local-read-admission.mjs`.
 
@@ -19829,7 +19829,7 @@ reviewed-authorities-digest: sha256:e311667d8de029198b572a05d404934a439db2f8cf2f
 # @expo/snapback-client/materialization-store
 
 Build-bound public API projection for `@expo/snapback-client/materialization-store`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/materialization-store.mjs`.
 
@@ -20330,7 +20330,7 @@ reviewed-authorities-digest: sha256:4eb357293f65062e1b5f21a0decab6e288cf553a0c75
 # @expo/snapback-client/micro
 
 Build-bound public API projection for `@expo/snapback-client/micro`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro.mjs`.
 
@@ -20564,7 +20564,7 @@ reviewed-authorities-digest: sha256:1e5fe156174e816d3d6d0f9b5303ca5c10945e4818c7
 # @expo/snapback-client/micro/core
 
 Build-bound public API projection for `@expo/snapback-client/micro/core`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-core.mjs`.
 
@@ -20927,7 +20927,7 @@ reviewed-authorities-digest: sha256:4d2dd88cff4dc59175e2fe4ecd7f210f21832e0b3b5d
 # @expo/snapback-client/micro/live
 
 Build-bound public API projection for `@expo/snapback-client/micro/live`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-live.mjs`.
 
@@ -21041,7 +21041,7 @@ reviewed-authorities-digest: sha256:dd8101e348c5ae1e0dfc02192db1ae0756d2e18f82a4
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -21787,7 +21787,7 @@ reviewed-authorities-digest: sha256:90f0e75d705f67ab42885686a36898fd9339e4102a0a
 # @expo/snapback-client/optimistic-rebase
 
 Build-bound public API projection for `@expo/snapback-client/optimistic-rebase`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/optimistic-rebase.mjs`.
 
@@ -22109,7 +22109,7 @@ reviewed-authorities-digest: sha256:fbf468413ce035642e932df1366b6d929f2fb2c62107
 # @expo/snapback-client/outbox-shared
 
 Build-bound public API projection for `@expo/snapback-client/outbox-shared`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/outbox-shared.mjs`.
 
@@ -22592,7 +22592,7 @@ reviewed-authorities-digest: sha256:af9d797607a61d89c98d811596be828e7cf6d1267ff5
 # @expo/snapback-client/push-installation-expo
 
 Build-bound public API projection for `@expo/snapback-client/push-installation-expo`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-installation-expo.mjs`.
 
@@ -22718,7 +22718,7 @@ reviewed-authorities-digest: sha256:20c8dd0246fa91c99e1cb15a7bd5ab93c7f7cabe8530
 # @expo/snapback-client/push-registry
 
 Build-bound public API projection for `@expo/snapback-client/push-registry`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-registry.mjs`.
 
@@ -22890,7 +22890,7 @@ reviewed-authorities-digest: sha256:0d557017489205f6e58a8de6359620b4638f8f7898c5
 # @expo/snapback-client/react-binding
 
 Build-bound public API projection for `@expo/snapback-client/react-binding`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/react-binding.mjs`.
 
@@ -23350,7 +23350,7 @@ reviewed-authorities-digest: sha256:b71103e986be93c6532c5eb26d4e1a1a745d610e0e78
 # @expo/snapback-client/reference-kinds
 
 Build-bound public API projection for `@expo/snapback-client/reference-kinds`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/reference-kinds.mjs`.
 
@@ -23438,7 +23438,7 @@ reviewed-authorities-digest: sha256:2903b80da262af7e8d9a4bd36f7c7a11796379b86b44
 # @expo/snapback-client/remediation
 
 Build-bound public API projection for `@expo/snapback-client/remediation`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/remediation.mjs`.
 
@@ -23625,7 +23625,7 @@ reviewed-authorities-digest: sha256:4352d1dea1b8185861bee176491fc51710fe3cf39d0a
 # @expo/snapback-client/result-transform
 
 Build-bound public API projection for `@expo/snapback-client/result-transform`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/result-transform.mjs`.
 
@@ -24030,7 +24030,7 @@ reviewed-authorities-digest: sha256:04eddc067218efb346e32ac881abf227e609e24e687a
 # @expo/snapback-client/rqs
 
 Build-bound public API projection for `@expo/snapback-client/rqs`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs.mjs`.
 
@@ -24497,7 +24497,7 @@ reviewed-authorities-digest: sha256:e6745360357167d74a9b73a4b19f9eb0fdde5382f93a
 # @expo/snapback-client/rqs-preload
 
 Build-bound public API projection for `@expo/snapback-client/rqs-preload`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload-core.mjs`.
 
@@ -24754,7 +24754,7 @@ reviewed-authorities-digest: sha256:12df0ac27a94826ef41f081e45c37605b59c8cac1710
 # @expo/snapback-client/rqs-registered
 
 Build-bound public API projection for `@expo/snapback-client/rqs-registered`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload.mjs`.
 
@@ -25144,7 +25144,7 @@ reviewed-authorities-digest: sha256:76a2365a7a45c9ebd54b6de450cbfcc028a242b0c102
 # @expo/snapback-client/rqs-store
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store.mjs`.
 
@@ -25863,7 +25863,7 @@ reviewed-authorities-digest: sha256:9baae0c179b7549b1acd47231ca323a65751daffa576
 # @expo/snapback-client/rqs-store-default
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-default`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-default.mjs`.
 
@@ -26145,7 +26145,7 @@ reviewed-authorities-digest: sha256:1fea042de97b254e4807e3dff60c4f3e303134fefcad
 # @expo/snapback-client/rqs-store-expo
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-expo`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-expo.mjs`.
 
@@ -26353,7 +26353,7 @@ reviewed-authorities-digest: sha256:92b737b2d345dec2a51cacbafbcef1f4795784451761
 # @expo/snapback-client/rqs-store-file
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-file`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-file.mjs`.
 
@@ -26635,7 +26635,7 @@ reviewed-authorities-digest: sha256:7eae70e4e451a784764f422ddf10138489084ead6187
 # @expo/snapback-client/rqs-store-sqlite
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-sqlite`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-sqlite.mjs`.
 
@@ -26882,7 +26882,7 @@ reviewed-authorities-digest: sha256:cdf152f923750752883f7787b7ca57728284e6342e8f
 # @expo/snapback-client/search
 
 Build-bound public API projection for `@expo/snapback-client/search`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/search.mjs`.
 
@@ -27135,7 +27135,7 @@ reviewed-authorities-digest: sha256:36204de542028c5735b92c5ddf791a3240e8585dc840
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -27838,7 +27838,7 @@ reviewed-authorities-digest: sha256:400e4825b733577c510fe2507208878b506f2a636416
 # @expo/snapback-react
 
 Build-bound public API projection for `@expo/snapback-react`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-react/index.mjs`.
 
@@ -30899,7 +30899,7 @@ reviewed-authorities-digest: sha256:83aba8d00d98f04fe1fc4b7f2fbe263fe4d72ad5e341
 # @expo/snapback-react/core
 
 Build-bound public API projection for `@expo/snapback-react/core`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-react/core.mjs`.
 
@@ -32324,7 +32324,7 @@ reviewed-authorities-digest: sha256:adc65c2b566d5ffcd7518907cd3cdbeaa21c1161260d
 # @expo/snapback-react/familiar
 
 Build-bound public API projection for `@expo/snapback-react/familiar`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-react/familiar.mjs`.
 
@@ -32570,7 +32570,7 @@ reviewed-authorities-digest: sha256:632def19397d9fdf611f9e897715273b8047bc81ac9b
 # @expo/snapback-react/thumbhash
 
 Build-bound public API projection for `@expo/snapback-react/thumbhash`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-react/thumbhash.mjs`.
 
@@ -32683,7 +32683,7 @@ reviewed-authorities-digest: sha256:73bc7e96b968c98649f791b9faa21fe6b6317603ef59
 # @expo/snapback-expo
 
 Build-bound public API projection for `@expo/snapback-expo`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import, default` → `packages/snapback-expo/index.mjs`.
 
@@ -36833,7 +36833,7 @@ reviewed-authorities-digest: sha256:3b4ad7f96c5994fdace341b205c386130c7257a4f785
 # @expo/snapback-expo/app-binding
 
 Build-bound public API projection for `@expo/snapback-expo/app-binding`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/app-binding.mjs`.
 
@@ -37151,7 +37151,7 @@ reviewed-authorities-digest: sha256:7bcc32020cec4783a426623ca783be2fa2111ab908ed
 # @expo/snapback-expo/app.plugin
 
 Build-bound public API projection for `@expo/snapback-expo/app.plugin`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/app.plugin.js`.
 
@@ -37275,7 +37275,7 @@ reviewed-authorities-digest: sha256:0622eb1c4e32db5292654bc5f31147dbf4b0772f3170
 # @expo/snapback-expo/asset-source
 
 Build-bound public API projection for `@expo/snapback-expo/asset-source`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/asset-source.mjs`.
 
@@ -37430,7 +37430,7 @@ reviewed-authorities-digest: sha256:7bcc32020cec4783a426623ca783be2fa2111ab908ed
 # @expo/snapback-expo/config-plugin
 
 Build-bound public API projection for `@expo/snapback-expo/config-plugin`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/config-plugin.cjs`.
 
@@ -37554,7 +37554,7 @@ reviewed-authorities-digest: sha256:7e38f65edfa27951c99571309413b0400a4dce17027f
 # @expo/snapback-expo/supervised-environment
 
 Build-bound public API projection for `@expo/snapback-expo/supervised-environment`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/supervised-environment.mjs`.
 
@@ -37819,7 +37819,7 @@ reviewed-authorities-digest: sha256:4fe9856041c78169d8ff5f55d462570975ee7a74261d
 # @expo/snapback-cli/verify
 
 Build-bound public API projection for `@expo/snapback-cli/verify`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 Runtime parity condition:
 `default` → `packages/snapback-cli/verify.mjs`.
 
@@ -38306,7 +38306,7 @@ reviewed-authorities-digest: sha256:af3a7326070fba781eec11313c523b829f5662def909
 # @expo/snapback-codegen/ctx
 
 Build-bound public API projection for `@expo/snapback-codegen/ctx`. Canonical registry identity:
-`sha256:bcfff31337345a422bad398954c79b0211582275d3287ab910dca0cd2601a382`.
+`sha256:4d381698a538d805b6823566bfdd053c389341e5a8ed79b81204159a65847060`.
 This package subpath is type-only; runtime export parity is not applicable.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)

@@ -1867,17 +1867,35 @@ export function aggregateConformance(profiles, results, {
   const ok = missingEvidence.length === 0
     && underDeclarations.length === 0
     && (!completeProvenanceRequired || complete);
-  const hasIdentityBoundProfile = profiles.some(({ coverageCapability }) => (
-    coverageCapability?.claim === 'identity-bound-path-observation'
-  ));
+  const partialProfileIds = new Set(partialPaths.map(({ profileId }) => profileId));
+  const identityBoundPartialProfileIds = profiles
+    .filter(({ id, coverageCapability }) => (
+      partialProfileIds.has(id)
+      && coverageCapability?.claim === 'identity-bound-path-observation'
+    ))
+    .map(({ id }) => id)
+    .sort();
+  const otherPartialProfileIds = profiles
+    .filter(({ id, coverageCapability }) => (
+      partialProfileIds.has(id)
+      && coverageCapability?.claim !== 'identity-bound-path-observation'
+    ))
+    .map(({ id }) => id)
+    .sort();
+  const limitationReason = [
+    ...(identityBoundPartialProfileIds.length === 0 ? [] : [
+      `identity-bound path-observation profiles ${JSON.stringify(identityBoundPartialProfileIds)} do not supply complete read/write operation provenance`,
+    ]),
+    ...(otherPartialProfileIds.length === 0 ? [] : [
+      `profiles ${JSON.stringify(otherPartialProfileIds)} remain partial until they emit complete D1 read/write operation provenance`,
+    ]),
+  ].join('; ') || 'all registered paths supply complete read/write operation provenance';
   return Object.freeze({
     status: ok ? (complete ? 'passed' : 'partial') : 'failed',
     disposition: 'registered-path-aggregate-v0',
     coverageRequirement,
     scope: 'registered-or-repository-adapted-paths',
-    limitationReason: hasIdentityBoundProfile
-      ? 'one or more profiles claim identity-bound path observation only; complete read/write operation provenance is not supplied'
-      : 'repository-adapted legacy suites remain partial until they emit D1 capture evidence',
+    limitationReason,
     complete,
     expectedPaths: evidence.length,
     observedPaths: observed.length,

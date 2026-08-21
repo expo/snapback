@@ -473,12 +473,18 @@ async function runStarterReceiptFixture({
     const expandedReceipt = await runVerify(config([expandedWithoutBaseline]), passOptions({
       artifactProbe: async () => starterArtifact(),
     }));
+    assert.equal(expandedReceipt.ok, true, JSON.stringify(expandedReceipt));
     assert.deepEqual(
-      expandedReceipt.stages[2].diagnostics.map(({ code, details }) => ({
-        code,
-        pathId: details.pathId,
-      })),
-      [{ code: 'SNAPBACK_VERIFY_COVERAGE_EVIDENCE_UNSUPPORTED', pathId: 'starter-mutation' }],
+      expandedReceipt.stages[2].diagnostics.map(({ code, details }) => ({ code, details })),
+      [{
+        code: 'SNAPBACK_VERIFY_COVERAGE_EVIDENCE_UNSUPPORTED',
+        details: {
+          profileId: 'starter-expanded-without-baseline',
+          pathId: 'starter-mutation',
+          readProvenance: 'unsupported',
+          writeProvenance: 'unsupported',
+        },
+      }],
     );
 
     const configOnlyPath = Object.freeze({
@@ -1044,12 +1050,50 @@ process.stdout.write('human output\\n' + JSON.stringify(receipt) + '\\n');
   }
 }
 
-for (const [template, pathCount] of [
-  ['todo-contract', 2],
-  ['react', 2],
-  ['expo-chat', 7],
-  ['crud-dashboard', 4],
-  ['media-feed', 4],
+for (const [template, expectedPathIds, expectedBaselinePathIds] of [
+  [
+    'todo-contract',
+    ['list-todos', 'create-todo'],
+    ['create-todo', 'list-todos'],
+  ],
+  [
+    'react',
+    ['list-todos', 'create-todo'],
+    ['create-todo', 'list-todos'],
+  ],
+  [
+    'expo-chat',
+    [
+      'zero-config-supervised-connect',
+      'membership-dm-group-shape',
+      'test-persona-membership-switch',
+      'conversation-surface-read',
+      'send-message',
+      'reply',
+      'reaction',
+    ],
+    ['conversation-surface-read', 'send-message'],
+  ],
+  [
+    'crud-dashboard',
+    [
+      'relational-project-directory',
+      'create-project',
+      'update-project-live-detail',
+      'delete-project',
+    ],
+    ['create-project', 'relational-project-directory'],
+  ],
+  [
+    'media-feed',
+    [
+      'retained-live-feed-pages',
+      'session-upload-and-typed-attach',
+      'thumbnail-rendition-delivery',
+      'display-rendition-delivery',
+    ],
+    ['retained-live-feed-pages', 'session-upload-and-typed-attach'],
+  ],
 ]) {
   const scratch = mkdtempSync(join(tmpdir(), `snapback-${template}-verify-config-`));
   const scaffold = join(scratch, template);
@@ -1074,7 +1118,14 @@ for (const [template, pathCount] of [
     );
     const templateConfig = await loadVerifyConfig(join(scaffold, 'snapback.verify.config.mjs'));
     assert.equal(templateConfig.profiles.length, 1);
-    assert.equal(templateConfig.profiles[0].paths.length, pathCount);
+    assert.deepEqual(
+      templateConfig.profiles[0].paths.map(({ id }) => id),
+      expectedPathIds,
+    );
+    assert.deepEqual(
+      templateConfig.profiles[0].coverageCapability.baselinePathIds,
+      expectedBaselinePathIds,
+    );
     assert.equal(templateConfig.profiles[0].testFiles.length, 3);
     assert.ok(templateConfig.profiles[0].testFiles.some((file) => /acceptance\.mjs$/u.test(file)));
     assert.ok(templateConfig.profiles[0].testFiles.some((file) => /carrier\.mjs$/u.test(file)));
@@ -1494,6 +1545,37 @@ process.exitCode = 1;
   assert.equal(receipt.stages[2].status, 'passed');
   assert.equal(receipt.stages[2].evidence.conformance.status, 'partial');
   assert.equal(receipt.stages[2].evidence.conformance.pathEvidence[0].status, 'unsupported');
+  cases += 1;
+}
+
+{
+  const identityBoundProfile = {
+    ...profile(),
+    id: 'starter-acceptance',
+    coverageCapability: {
+      claim: 'identity-bound-path-observation',
+      baselinePathIds: [path.id],
+      readProvenance: 'unsupported',
+      writeProvenance: 'unsupported',
+    },
+  };
+  const legacyProfile = { ...profile(), id: 'repository-demo:legacy-demo' };
+  const unsupported = emptyReport({
+    readProvenance: 'unsupported',
+    writeProvenance: 'unsupported',
+  });
+  const result = aggregateConformance(
+    [identityBoundProfile, legacyProfile],
+    [identityBoundProfile, legacyProfile].map(({ id }) => ({
+      profileId: id,
+      conformance: [{ pathId: path.id, status: 'observed', report: unsupported }],
+    })),
+  );
+  assert.equal(result.status, 'partial');
+  assert.equal(
+    result.limitationReason,
+    'identity-bound path-observation profiles ["starter-acceptance"] do not supply complete read/write operation provenance; profiles ["repository-demo:legacy-demo"] remain partial until they emit complete D1 read/write operation provenance',
+  );
   cases += 1;
 }
 

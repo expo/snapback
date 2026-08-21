@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:56da73fd1a6bc01a199c69476113cb3c77c1e838e8c54bd42383401e975c7dfd"
+    "sourceDigest": "sha256:f772346bcddd42676b58868c9e520443da4fed1f6cb8ff81c1f7efae3f2ba68b"
   },
   "limits": {
     "lookupBytes": 16384
@@ -93359,7 +93359,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/verify.mjs",
-          "line": 2116,
+          "line": 2134,
           "column": 12
         }
       ],
@@ -93479,7 +93479,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/verify.mjs",
-          "line": 2016,
+          "line": 2034,
           "column": 10
         }
       ],
@@ -93519,7 +93519,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/verify.mjs",
-          "line": 1974,
+          "line": 1992,
           "column": 14
         }
       ],
@@ -93534,7 +93534,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/verify.mjs",
-          "line": 1954,
+          "line": 1972,
           "column": 14
         }
       ],
@@ -93549,7 +93549,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/verify.mjs",
-          "line": 1935,
+          "line": 1953,
           "column": 12
         }
       ],
@@ -93574,7 +93574,7 @@
         },
         {
           "file": "packages/snapback-cli/verify.mjs",
-          "line": 1899,
+          "line": 1917,
           "column": 10
         }
       ],
@@ -93606,17 +93606,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/verify.mjs",
-          "line": 2238,
+          "line": 2256,
           "column": 24
         },
         {
           "file": "packages/snapback-cli/verify.mjs",
-          "line": 2242,
+          "line": 2260,
           "column": 24
         },
         {
           "file": "packages/snapback-cli/verify.mjs",
-          "line": 2245,
+          "line": 2263,
           "column": 24
         }
       ],
@@ -93706,7 +93706,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/verify.mjs",
-          "line": 2041,
+          "line": 2059,
           "column": 80
         }
       ],
