@@ -6,7 +6,8 @@
 #
 # The caller remains responsible for `set -e` and calls:
 #   proof_runner_init <proof-id> <jsonl-output> <keep-going:0|1> <selected-count>
-#   proof_gate <gate-id> [--requires <comma-separated-gate-ids>] -- <command...>
+#   proof_gate <gate-id> [--requires <comma-separated-gate-ids>]
+#       [--timeout-seconds <positive-integer>] -- <command...>
 #   proof_not_selected <gate-id> <reason>
 #   proof_runner_finish
 #
@@ -26,6 +27,102 @@ proof_now_ms() {
     else
         python3 -c 'import time; print(time.time_ns() // 1_000_000)'
     fi
+}
+
+proof_resolve_gate_timeout_seconds() {
+    local gate_id="$1" gate_override="$2"
+    local timeout_seconds="${SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS:-$gate_override}"
+    timeout_seconds="${timeout_seconds:-3600}"
+    case "$timeout_seconds" in
+        ''|*[!0-9]*|0)
+            printf '[snapback-proof] gate %s timeout must be a positive integer, got %s\n' \
+                "$gate_id" "$timeout_seconds" >&2
+            return 2
+            ;;
+    esac
+    printf '%s\n' "$timeout_seconds"
+}
+
+proof_gate_process_group_alive() {
+    kill -0 -- "-$1" 2>/dev/null
+}
+
+proof_signal_gate_process_group() {
+    local signal="$1" process_group="$2"
+    kill "-$signal" -- "-$process_group" 2>/dev/null || \
+        kill "-$signal" "$process_group" 2>/dev/null || true
+}
+
+# Put the asynchronous command in its own process group using Bash job control,
+# which is available in the stock macOS Bash 3.2. A deadline signals the whole
+# group so cargo's test binaries cannot survive their cargo parent.
+proof_run_gate_with_timeout() {
+    local gate_id="$1" timeout_seconds="$2" command_pid="" command_status=0
+    local poll_count=0 timeout_polls=$((timeout_seconds * 4)) timed_out=0
+    local term_grace_seconds="${SNAPBACK_PROOF_GATE_TERM_GRACE_SECONDS:-5}"
+    local term_grace_polls=0 monitor_was_enabled=0
+    shift 2
+
+    case "$term_grace_seconds" in
+        ''|*[!0-9]*)
+            printf '[snapback-proof] gate %s TERM grace must be a non-negative integer, got %s\n' \
+                "$gate_id" "$term_grace_seconds" >&2
+            return 2
+            ;;
+    esac
+    term_grace_polls=$((term_grace_seconds * 4))
+
+    case "$-" in *m*) monitor_was_enabled=1 ;; esac
+    if [ "$monitor_was_enabled" -eq 0 ]; then set -m; fi
+    "$@" &
+    command_pid=$!
+    if [ "$monitor_was_enabled" -eq 0 ]; then set +m; fi
+
+    while kill -0 "$command_pid" 2>/dev/null; do
+        if [ "$poll_count" -ge "$timeout_polls" ]; then
+            timed_out=1
+            break
+        fi
+        sleep 0.25
+        poll_count=$((poll_count + 1))
+    done
+
+    if [ "$timed_out" -eq 0 ]; then
+        if wait "$command_pid"; then
+            return 0
+        else
+            command_status=$?
+            return "$command_status"
+        fi
+    fi
+
+    printf 'SNAPBACK_PROOF_GATE_TIMEOUT: gate=%s timeout_seconds=%s signal=TERM\n' \
+        "$gate_id" "$timeout_seconds" >&2
+    proof_signal_gate_process_group TERM "$command_pid"
+
+    poll_count=0
+    while proof_gate_process_group_alive "$command_pid" && \
+        [ "$poll_count" -lt "$term_grace_polls" ]; do
+        sleep 0.25
+        poll_count=$((poll_count + 1))
+    done
+    if proof_gate_process_group_alive "$command_pid"; then
+        printf 'SNAPBACK_PROOF_GATE_TIMEOUT: gate=%s timeout_seconds=%s signal=KILL\n' \
+            "$gate_id" "$timeout_seconds" >&2
+        proof_signal_gate_process_group KILL "$command_pid"
+    fi
+
+    wait "$command_pid" 2>/dev/null || true
+    poll_count=0
+    while proof_gate_process_group_alive "$command_pid" && [ "$poll_count" -lt 20 ]; do
+        sleep 0.25
+        poll_count=$((poll_count + 1))
+    done
+    if proof_gate_process_group_alive "$command_pid"; then
+        printf 'SNAPBACK_PROOF_GATE_TIMEOUT_CLEANUP_FAILED: gate=%s process_group=%s\n' \
+            "$gate_id" "$command_pid" >&2
+    fi
+    return 124
 }
 
 proof_runner_init() {
@@ -126,13 +223,13 @@ proof_record() {
 # @ref LLP 0189#decision — D-1 ticket identity comes from retained,
 # normalized root-failure output; complete runs must keep output live too.
 proof_execute_gate() {
-    local gate_id="$1" capture_dir="" stdout_fifo="" stderr_fifo=""
+    local gate_id="$1" timeout_seconds="$2" capture_dir="" stdout_fifo="" stderr_fifo=""
     local stdout_file="" stderr_file="" stdout_tee_pid="" stderr_tee_pid=""
     local command_status=0 signature_status=0 stdout_tee_status=0 stderr_tee_status=0
-    shift
+    shift 2
     PROOF_GATE_LAST_FAILURE_SIGNATURE=""
     if [ "${SNAPBACK_PROOF_CAPTURE_FAILURE_SIGNATURES:-0}" != "1" ]; then
-        "$@"
+        proof_run_gate_with_timeout "$gate_id" "$timeout_seconds" "$@"
         return $?
     fi
 
@@ -155,7 +252,8 @@ proof_execute_gate() {
     stdout_tee_pid=$!
     tee "$stderr_file" < "$stderr_fifo" >&2 &
     stderr_tee_pid=$!
-    if "$@" > "$stdout_fifo" 2> "$stderr_fifo"; then
+    if proof_run_gate_with_timeout "$gate_id" "$timeout_seconds" "$@" \
+        > "$stdout_fifo" 2> "$stderr_fifo"; then
         command_status=0
     else
         command_status=$?
@@ -204,21 +302,48 @@ proof_gate() {
     fi
     local gate_id="$1" prerequisites="" prerequisite="" prerequisite_index=""
     local blocked_by="" state="" command="" started="" ended="" gate_status=0
-    local failure_signature=""
+    local failure_signature="" timeout_override="" timeout_seconds="" saw_separator=0
     shift
-    if [ "${1:-}" = "--requires" ]; then
-        prerequisites="${2:-}"
-        shift 2
-    fi
-    if [ "${1:-}" != "--" ]; then
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --requires)
+                if [ "$#" -lt 2 ] || [ -n "$prerequisites" ]; then
+                    printf '[snapback-proof] gate %s has an invalid --requires option\n' \
+                        "$gate_id" >&2
+                    return 2
+                fi
+                prerequisites="$2"
+                shift 2
+                ;;
+            --timeout-seconds)
+                if [ "$#" -lt 2 ] || [ -n "$timeout_override" ]; then
+                    printf '[snapback-proof] gate %s has an invalid --timeout-seconds option\n' \
+                        "$gate_id" >&2
+                    return 2
+                fi
+                timeout_override="$2"
+                shift 2
+                ;;
+            --)
+                saw_separator=1
+                shift
+                break
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    if [ "$saw_separator" -ne 1 ]; then
         printf '[snapback-proof] gate %s is missing the -- command separator\n' "$gate_id" >&2
         return 2
     fi
-    shift
     if [ "$#" -eq 0 ]; then
         printf '[snapback-proof] gate %s has no command\n' "$gate_id" >&2
         return 2
     fi
+    timeout_seconds="$(proof_resolve_gate_timeout_seconds "$gate_id" "$timeout_override")" || \
+        return $?
     proof_validate_gate_id "$gate_id" || return $?
     PROOF_SELECTED_INDEX=$((PROOF_SELECTED_INDEX + 1))
     if [ "$PROOF_SELECTED_INDEX" -gt "$PROOF_SELECTED_COUNT" ]; then
@@ -266,7 +391,7 @@ proof_gate() {
         "$PROOF_SELECTED_INDEX" "$PROOF_SELECTED_COUNT" "$gate_id"
     printf ' %q' "$@"
     printf '\n'
-    if proof_execute_gate "$gate_id" "$@"; then
+    if proof_execute_gate "$gate_id" "$timeout_seconds" "$@"; then
         ended="$(proof_now_ms)"
         proof_record "$gate_id" PASS "$started" "$ended" 0 \
             "$prerequisites" "" "$command"

@@ -19,6 +19,9 @@ Options:
 
 SNAPBACK_PROOF_KEEP_GOING=1 is the environment equivalent of --keep-going.
 SNAPBACK_PROOF_RESULTS sets the gate-result JSONL output path.
+SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS overrides every gate's wall-clock cap
+(positive integer seconds; default 3600). Gates may declare --timeout-seconds.
+SNAPBACK_PROOF_GATE_TERM_GRACE_SECONDS controls TERM-to-KILL grace (default 5).
 EOF
 }
 
@@ -436,7 +439,7 @@ run cargo-audit --requires toolchain-authority -- cargo audit --deny unmaintaine
 # suites create and measure their own explicit contention.
 # @ref LLP 0276#the-one-shot-migration-under-the-frozen-main-window — carved
 # owner-crate test siblings remain part of the canonical Rust proof.
-run rust-tests --requires native-runtime-bootstrap -- env SNAPBACK_EXPECT_WORKERD=1 cargo test --workspace -- --test-threads "${SNAPBACK_RUST_TEST_THREADS:-4}"
+run rust-tests --timeout-seconds 3600 --requires native-runtime-bootstrap -- env SNAPBACK_EXPECT_WORKERD=1 cargo test --workspace --no-fail-fast -- --test-threads "${SNAPBACK_RUST_TEST_THREADS:-4}"
 # @ref LLP 0053#acceptance — compose the Rust invalidation/room receipts with
 # production Contract-store measurements and reject drift in the committed
 # blast-radius/property-oracle report. This remains before CI test-profile

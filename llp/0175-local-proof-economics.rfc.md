@@ -5,6 +5,11 @@
 **Systems:** Testing, Developer experience, Build, Tooling, CI
 **Author:** Claude (Opus 5) / Codex (GPT-5) / Charlie Cheever
 **Date:** 2026-08-05
+**Revised:** 2026-08-21 (gate-execution honesty correction: every selected
+gate now has a finite wall-clock budget, timeout is a distinct exit-124 root
+failure, and TERM/KILL target the gate process group so Cargo descendants
+cannot outlive the gate; the Rust workspace gate also disables Cargo's
+target-level fail-fast behavior.)
 **Revised:** 2026-08-11 (LLP 0232 accepting change, author ruling in session:
 the 2026-08-07 D2.1 ruling gains four narrowings — baseline-corroborated
 infrastructure fail-open, receipt-validated reuse for trigger-matched gates,
@@ -322,6 +327,18 @@ transitive dependent from executing. The final summary names root failures and
 blocked dependents separately. `BLOCKED` is never a green result for a required
 selected proof, but it consumes no timeout budget and is not counted as a
 second product defect.
+
+Every executing gate has a finite wall-clock budget. The runner default is
+3,600 seconds, deliberately about fourteen times the observed 249-second
+partial Rust run; a gate may declare another positive integer with
+`--timeout-seconds`, and `SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS` is the
+operator-wide override. On expiry the runner emits the stable
+`SNAPBACK_PROOF_GATE_TIMEOUT` marker, records exit 124 as `FAIL`, sends TERM to
+the gate's process group, and escalates to group KILL after five seconds. The
+same helper sits beneath both live execution and failure-signature capture, so
+a hang cannot bypass retained output or leave Cargo-spawned test binaries
+running. The `rust-tests` command separately uses Cargo `--no-fail-fast`, so
+one failing target cannot hide unrun workspace targets.
 
 The dependency graph itself is test inventory. A newly added real-server test
 that omits the current-binary prerequisite fails the inventory check.
@@ -951,9 +968,11 @@ executable code:
   `PASS | FAIL | BLOCKED | NOT_SELECTED` as JSONL, and declares the generated,
   native-runtime, current-binary, readiness, surface, and browser producer
   edges used by their dependents;
-- `tests/proof_runner_v0.mjs` proves independent continuation and transitive
-  blocking, while `tests/local_proof_inventory_v0.mjs` proves unknown edges,
-  duplicate ids, missing producers, and a new direct real-server gate without
+- `tests/proof_runner_v0.mjs` proves independent continuation, transitive
+  blocking, ordinary-failure identity, timeout exit 124, and TERM-resistant
+  descendant cleanup, while `tests/local_proof_inventory_v0.mjs` proves
+  unknown edges, duplicate ids, missing producers, the bounded non-fail-fast
+  Rust workspace command, and a new direct real-server gate without
   current-binary readiness fail closed;
 - CI uploads the result artifact even when the proof is red;
 - the canonical proof builds/qualifies the ordinary binary before invoking

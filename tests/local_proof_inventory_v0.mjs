@@ -18,6 +18,9 @@ test('the canonical proof has named gates and its producer edges are closed', ()
   assert(result.uniqueGateCount > 80, 'the canonical stable-id inventory unexpectedly shrank');
 
   const source = readFileSync(resolve(root, 'scripts/verify-local-proof'), 'utf8');
+  const rustTests = parseGateCalls(source).find(({ gateId }) => gateId === 'rust-tests');
+  assert.equal(rustTests?.timeoutSeconds, 3600, 'the workspace Rust gate needs an explicit cap');
+  assert.match(rustTests?.command ?? '', /cargo test --workspace --no-fail-fast --/u);
   const decision = source.indexOf('cargo-target-headroom.mjs --cleanup-decision');
   const clean = source.indexOf('run cargo-test-profile-clean -- cargo clean --profile test');
   assert(decision >= 0 && clean > decision, 'CI must decide measured headroom before cleaning test artifacts');

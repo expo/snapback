@@ -21,14 +21,34 @@ function unquote(value = '') {
 
 export function parseGateCalls(source) {
   const normalized = source.replace(/\\\n[ \t]*/gu, ' ');
-  const callPattern = /^\s*run\s+([a-z0-9-]+)(?:\s+--requires\s+("[^"]+"|'[^']+'|[^\s]+))?\s+--\s+(.+)$/gmu;
+  const callPattern = /^\s*run\s+([a-z0-9-]+)((?:\s+--(?:requires|timeout-seconds)\s+(?:"[^"]+"|'[^']+'|[^\s]+))*)\s+--\s+(.+)$/gmu;
+  const optionPattern = /--(requires|timeout-seconds)\s+("[^"]+"|'[^']+'|[^\s]+)/gu;
   const calls = [];
   for (const match of normalized.matchAll(callPattern)) {
-    calls.push({
+    let prerequisites = [];
+    let timeoutSeconds;
+    const seenOptions = new Set();
+    for (const option of match[2].matchAll(optionPattern)) {
+      const name = option[1];
+      const value = unquote(option[2]);
+      if (seenOptions.has(name)) throw new Error(`duplicate ${name} option for gate ${match[1]}`);
+      seenOptions.add(name);
+      if (name === 'requires') {
+        prerequisites = value.split(',').filter(Boolean);
+      } else {
+        timeoutSeconds = Number(value);
+        if (!Number.isSafeInteger(timeoutSeconds) || timeoutSeconds <= 0) {
+          throw new Error(`gate ${match[1]} timeout must be a positive integer`);
+        }
+      }
+    }
+    const call = {
       gateId: match[1],
-      prerequisites: unquote(match[2] ?? '').split(',').filter(Boolean),
+      prerequisites,
       command: match[3],
-    });
+    };
+    if (timeoutSeconds !== undefined) call.timeoutSeconds = timeoutSeconds;
+    calls.push(call);
   }
   const sourceCallCount = [...normalized.matchAll(/^\s*run\s+/gmu)].length;
   if (calls.length !== sourceCallCount) {
