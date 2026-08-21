@@ -560,7 +560,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 320,
+  expectedTotal = 321,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1034,6 +1034,8 @@ export function checkPackageTestInventories(options = {}) {
 // structured Expo web carrier origin, exact-child binding, and lifecycle suite.
 // 319 -> 320 (2026-08-21, LLP 0295 Phase 1A reconciliation):
 // @expo/snapback-react gains the isolated fresh-tarball auth-transition liveness runner.
+// 320 -> 321 (2026-08-21, LLP 0295 Phase 1B diagnostics):
+// @expo/snapback-react gains the packed nullable asset-URL runtime/type fixture.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

@@ -7336,7 +7336,9 @@ export function useSnapbackAssetUrl(assetIdOrNull, options = {}) {
     registry.getIssuedUrlGeneration,
   );
   const store = useMemo(
-    () => registry.assets.issuedUrlStore(assetIdOrNull, options),
+    () => (assetIdOrNull == null
+      ? EMPTY_ASSET_URL_STORE
+      : registry.assets.issuedUrlStore(assetIdOrNull, options)),
     [registry, assetIdOrNull, optionsKey, authorityGeneration],
   );
   const subscribe = useCallback(

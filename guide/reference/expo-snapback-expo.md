@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:73bc7e96b968c98649f791b9faa21fe6b6317603ef59
 # @expo/snapback-expo
 
 Build-bound public API projection for `@expo/snapback-expo`. Canonical registry identity:
-`sha256:5580f043eda81e8c59eed1b02cce3eb700199363d37cd7db391db88339c5d740`.
+`sha256:3483cfee6e98fb1761a5331a13ad295b8965478b983312b6803f00c41354ee21`.
 Runtime parity condition:
 `import, default` → `packages/snapback-expo/index.mjs`.
 
@@ -3820,17 +3820,17 @@ Source: `packages/snapback-react/index.d.mts:1096`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function useSnapbackAssetUrl(
-  assetIdOrNull: string | null | undefined,
-  options?: AssetSignedUrlOptions,
-): AssetUrlState;
-export function useSnapbackAssetUrl(
-  assetId: null,
+  assetId: null | undefined,
   options?: AssetSignedUrlOptions,
 ): AssetUrlEmptyState;
 export function useSnapbackAssetUrl(
-  assetId: string | null,
+  assetId: string,
   options?: AssetSignedUrlOptions,
-): AssetUrlHookState;
+): AssetUrlState;
+export function useSnapbackAssetUrl(
+  assetIdOrNull: string | null | undefined,
+  options?: AssetSignedUrlOptions,
+): AssetUrlState;
 ```
 
 <a id="symbol-usesnapbackauth-f5afae4f91"></a>

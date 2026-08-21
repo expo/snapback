@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:e90dd7efad554e1885fbc2f117ebbf224bfe97501383
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:5580f043eda81e8c59eed1b02cce3eb700199363d37cd7db391db88339c5d740`.
+`sha256:3483cfee6e98fb1761a5331a13ad295b8965478b983312b6803f00c41354ee21`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -8595,6 +8595,10 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_EXPO_ASSET_SOURCE_INVALID'
   | 'SNAPBACK_EXPO_ASSET_URI_UNREADABLE'
   | 'SNAPBACK_EXPO_ASSET_URI_UNSUPPORTED'
+  | 'SNAPBACK_EXPO_BINDING_PUBLICATION_INVALID'
+  | 'SNAPBACK_EXPO_BINDING_PUBLICATION_STALE'
+  | 'SNAPBACK_EXPO_BINDING_REFRESH_FAILED'
+  | 'SNAPBACK_EXPO_BINDING_REFRESH_INVALID'
   | 'SNAPBACK_EXPO_BOOTSTRAP_INVALID'
   | 'SNAPBACK_EXPO_BOOTSTRAP_ORIGIN_INVALID'
   | 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND'

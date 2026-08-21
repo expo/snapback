@@ -1094,17 +1094,17 @@ export interface AssetUrlEmptyState {
 export type AssetUrlHookState = AssetUrlState | AssetUrlEmptyState;
 
 export function useSnapbackAssetUrl(
-  assetIdOrNull: string | null | undefined,
-  options?: AssetSignedUrlOptions,
-): AssetUrlState;
-export function useSnapbackAssetUrl(
-  assetId: null,
+  assetId: null | undefined,
   options?: AssetSignedUrlOptions,
 ): AssetUrlEmptyState;
 export function useSnapbackAssetUrl(
-  assetId: string | null,
+  assetId: string,
   options?: AssetSignedUrlOptions,
-): AssetUrlHookState;
+): AssetUrlState;
+export function useSnapbackAssetUrl(
+  assetIdOrNull: string | null | undefined,
+  options?: AssetSignedUrlOptions,
+): AssetUrlState;
 
 export type MediaHookState<K extends MediaKind = MediaKind> = MediaState<K> & Readonly<{
   refresh: () => Promise<void>;
