@@ -1821,9 +1821,11 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
 
 67. **Familiar mutation document arrays:** "Return mutation document arrays
     with `v.array(v.doc('todos'))`." The run fails if it promises that result
-    carrier instead of one document or a closed receipt/id array.
+    carrier for a mutation or action, or misses that queries may return bare,
+    nullable, and array document shapes after the landed parity fix.
     Expected pages: `backend/familiar-profile.md`.
     Route terms: "mutation document arrays", "v.array(v.doc".
+    Required guidance: "mutation/action document arrays refuse before generation publishes activation output".
 
 68. **Familiar sequence allocation:** "Allocate a dense scoped invoice number
     from a Familiar mutation." The run fails if it invents an app-level
@@ -7472,14 +7474,14 @@ rewrite table before authoring or when
 Diary search terms: dynamic computed access; imported helper; same-file function declaration.
 Further terms: captured constants; mutation document arrays; dense scoped number.
 
-| Intent | Familiar-looking form that refuses | Shipped rewrite | Choose Explicit when… |
+| Allowed form | Refused familiar-looking form | Standard rewrite | When Explicit is the better profile |
 | --- | --- | --- | --- |
-| Read a dynamic array position | `array[i]` | Iterate with `for...of`, or use a literal property/index when the position is statically fixed. | Dynamic indexed algorithms are central to the operation. |
-| Share logic | `import { helper } from './helper'` | Put a named function declaration in the same function module. | The backend requires a real multi-file handler graph. |
-| Capture configuration | a referenced top-level `const` | Put the literal/local value inside the handler or pass validated data through `args`; top-level values are not spliced into executable bytes. | Many operations need a shared authored configuration graph. |
-| Read trusted time | `Date.now()` or `new Date()` | Call `ctx.runtime.now()` and store integer epoch milliseconds. | The operation needs unsupported timers or ambient APIs. |
-| Return several written documents | mutation `returns: v.array(v.doc('todos'))` | Return one document, or a closed array of receipt records/ids. | The exact document-array carrier is part of the public contract. |
-| Allocate a dense number | `ctx.sequence.allocate(...)` in a Familiar mutation | Use the Explicit profile's declared `sequences` mutation surface. Do not replace it with an app read/increment/write counter. | Dense scoped sequence allocation is required. |
+| `for...of`, array methods, or a literal index such as `array[0]` | Dynamic `array[i]` | Iterate, search, or use a statically fixed literal index. | Dynamic indexed algorithms are central to the operation. |
+| A reachable same-file named function declaration | `import { helper } from './helper'` | Move the helper declaration into the function module. | The backend requires a real multi-file handler graph. |
+| A handler-local literal `const`, or validated `args` | A referenced top-level `const` | Move the value inside the handler or pass it through `args`; top-level values are not spliced into executable bytes. | Many operations need a shared authored configuration graph. |
+| `ctx.runtime.now()` returning integer epoch milliseconds | `Date.now()` or `new Date()` | Read trusted time from `ctx.runtime` and store the returned integer. | The operation needs unsupported timers or ambient APIs. |
+| Queries: bare/nullable `v.doc(...)` values or `v.array(v.doc(...))`; mutations/actions: one bare `v.doc(...)` or arrays of closed values | Mutation/action `returns: v.array(v.doc('todos'))` | Return one document, or a closed array of receipt records/ids. Mutation/action document arrays refuse before generation publishes activation output. | A mutation/action document-array carrier is part of the public contract. |
+| No Familiar sequence allocator | `ctx.sequence.allocate(...)` in a Familiar mutation | Use the Explicit profile's declared `sequences` mutation surface. Do not replace it with an app read/increment/write counter. | Dense scoped sequence allocation is required. |
 
 The complete source/runtime refusal matrix remains in
 [Handler runtime profile and generation preflight](./handler-runtime.md).

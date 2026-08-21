@@ -1,7 +1,8 @@
 # guide-gap: put the complete Familiar handler dialect on its first-read path
 
-**Status:** Open — reopened 2026-08-21 after independent review
+**Status:** Closed
 **Opened:** 2026-08-20
+**Resolved:** 2026-08-21
 **Systems:** Guide, Familiar authoring, Handler runtime, Code generation
 **Related:** LLP 0237; LLP 0252; LLP 0253; LLP 0259; LLP 0277 P19; LLP 0295;
 diaries 0093, 0097, 0099, 0101, 0103
@@ -76,3 +77,26 @@ arrays, and sequence-allocation vocabulary. The retained cold run at
 Partial evidence: all dialect terms and the point-read carrier route in the
 retrieval check; the Guide, first-read, codegen, and ref checks pass. The
 packed-external runtime/client/negative receipt remains open.
+
+## Resolution — 2026-08-21
+
+Closed after the packed document-result parity receipt landed. The Familiar
+first-read page now has one four-column projection of the handler dialect:
+allowed form, refused familiar-looking form, standard rewrite, and when the
+Explicit profile is better. Its result row records current source truth:
+bare/nullable document queries and query document arrays generate, while
+mutation/action document arrays refuse before activation output with
+`SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` and the Explicit-result route.
+
+Generated-refusal guidance routes that code to the table, and the `expo-chat`
+start packet links the table behind its Familiar stop sign without exceeding
+the LLP 0259 first-read budget. Retrieval-eval cases 63–68 preserve the exact
+diary vocabulary for `array[i]`, imported helpers, top-level constants,
+`Date.now()`, mutation document arrays, and sequence allocation. The retained
+cold run passed all six rewrites; the current static retrieval probe binds the
+post-landing document-result split.
+
+The complete source/runtime authority remains in LLP 0237/0252/0253 and the
+handler-runtime Guide. This table is only the bounded first-read projection.
+
+landing SHA: TBD

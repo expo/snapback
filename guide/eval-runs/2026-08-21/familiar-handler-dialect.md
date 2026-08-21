@@ -27,3 +27,12 @@ qualified.
 10. Literal lookup: `point read`.
 11. Read the routed Familiar, sequences, and query sections.
 12. Followed the documented dense-number vocabulary and completed the rubric.
+
+## Post-landing note
+
+The six dialect rewrites above remain the retrieval verdict. After this run,
+the packed Familiar document-result parity receipt landed: bare and nullable
+document queries now generate and execute as direct values, query document
+arrays remain row-shaped, and mutation/action document arrays refuse before
+activation output. The former singleton relational-array point-read wording in
+the run record is historical evidence, not current guidance.

@@ -701,9 +701,11 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
 
 67. **Familiar mutation document arrays:** "Return mutation document arrays
     with `v.array(v.doc('todos'))`." The run fails if it promises that result
-    carrier instead of one document or a closed receipt/id array.
+    carrier for a mutation or action, or misses that queries may return bare,
+    nullable, and array document shapes after the landed parity fix.
     Expected pages: `backend/familiar-profile.md`.
     Route terms: "mutation document arrays", "v.array(v.doc".
+    Required guidance: "mutation/action document arrays refuse before generation publishes activation output".
 
 68. **Familiar sequence allocation:** "Allocate a dense scoped invoice number
     from a Familiar mutation." The run fails if it invents an app-level
