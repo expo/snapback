@@ -67,4 +67,4 @@ instructions, true steering caps/dedup, cross-root and cross-layout
 determinism, warning retention, the hash-bound meter marker round trip,
 marker-bound classification, and positive/negative local-ref schema validation.
 
-landing SHA: TBD
+landing SHA: 6822cdb3a
