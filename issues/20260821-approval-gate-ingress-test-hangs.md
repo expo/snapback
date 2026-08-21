@@ -19,31 +19,49 @@ after 465 of its tests and hangs there.
 - Setting `SNAPBACK_EXPECT_WORKERD=1`, as the battery's `rust-tests` gate does,
   does not change it.
 
-## Why the battery did not catch it
+## Why the battery did not catch it — corrected
 
-The complete battery at `157118d4e` (2026-08-20 15:00) ran
-`env SNAPBACK_EXPECT_WORKERD=1 cargo test --workspace -- --test-threads 4`
-and it FAILED in 248 s with exit 101 — a panic, not a hang — so this test
-completed there. The test itself dates from `c5633d707` (2026-08-18), well
-before that run.
+An earlier revision of this ticket said the test "completed" in the
+2026-08-20 battery. That was wrong, and the real answer matters more than the
+hang.
 
-Three commits touching this area landed after that battery and before the hang
-was observed:
+The `rust-tests` gate runs `cargo test --workspace` with NO `--no-fail-fast`,
+so cargo stops at the first failing test target. At `157118d4e` the gate
+reported one `FAIL rust-tests (exit 101, 248810 ms)`, but the log shows it ran
+only FIVE test binaries — `snapback` lib, `snapback` main,
+`action_denial_witness_v0`, `action_stream_envelope_v0`, `action_watchdog_v0` —
+and stopped on the watchdog failures. The `snapback-server` lib suite never
+ran at all. So this test was never executed, and the hang could be
+considerably older than the commits below.
+
+That also means the battery's failure count understates the true state by an
+unknown amount while presenting as a complete inventory.
+
+Bisecting is therefore lower value than it first appeared, and partial results
+already point earlier than expected: the test hangs at `56982daef`, i.e.
+BEFORE step 8. Do not assume step 8 without finishing the bisect.
+
+Commits in the window originally suspected:
 
 - `56982daef` fix(server): make config.verify an exact powerless probe lane
 - `8de11f06e` feat(kernel): move room authority into the kernel (LLP 0285 step 8)
 - `8176b4348` fix(kernel): make registry retirement authoritative for issued authority
 
-Step 8 is already known to have broken live serving in a second way (see
-`issues/closed/20260820-step8-retirement-breaks-live-delta.md`), so it is the
-leading suspect, but this has NOT been bisected yet. Do not assume.
-
 ## Next step
 
-Bisect across those three commits, running only this test with a hard timeout.
-A hang is invisible to `--test-threads 4` aggregate timing, so add a per-test
-timeout to the `rust-tests` gate as well — otherwise the next hang also
-presents as "the battery is still running" rather than a failure.
+The harness defects are being fixed separately (`--no-fail-fast` plus a
+per-gate wall-clock timeout with descendant kill), because fixing fail-fast
+alone would make the battery hang here forever instead of finishing. Once the
+full suite actually runs, bisect this test with a hard timeout.
+
+Diagnosis so far: the test parks in the tokio driver waiting on IO/timer that
+never fires. Switching it to a multi-thread runtime does NOT help, so this is
+not current-thread starvation but a genuine never-completing await — a
+lock-ordering deadlock is the leading hypothesis. The request path is
+`require_effect_approval_if_configured` → `with_snapback` →
+`create_pending_effect`. Note the product implication: if a mutation requiring
+approval blocks instead of returning its 202 pending shape, that is a hung
+request, not merely a hung test.
 
 ## Related
 
