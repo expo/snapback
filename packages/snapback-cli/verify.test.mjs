@@ -168,11 +168,23 @@ const starterReceiptPaths = Object.freeze([
   }),
 ]);
 
+const starterArtifact = (functionIds = ['app:list', 'app:create']) => artifact({
+  manifests: {
+    ...artifact().manifests,
+    functions: {
+      ...artifact().manifests.functions,
+      functions: functionIds.map((id) => ({ id })),
+    },
+  },
+});
+
 async function runStarterReceiptFixture({
   receipt = null,
   source = null,
   paths = starterReceiptPaths,
+  artifactValue = starterArtifact(),
   timeoutMs = 10_000,
+  removeBeforeRun = false,
 } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-starter-receipt-fixture-'));
   const acceptanceFile = join(scratch, 'acceptance.mjs');
@@ -187,7 +199,8 @@ async function runStarterReceiptFixture({
       paths,
       timeoutMs,
     });
-    return await starter.run({ identityContext: config().context });
+    if (removeBeforeRun) rmSync(scratch, { recursive: true, force: true });
+    return await starter.run({ artifact: artifactValue, identityContext: config().context });
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
@@ -387,8 +400,8 @@ async function runStarterReceiptFixture({
 }) + '\\n');\n`);
   try {
     const paths = [
-      { id: 'starter-query', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
-      { id: 'starter-mutation', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
+      { id: 'starter-query', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex', functionId: 'app:list' },
+      { id: 'starter-mutation', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex', functionId: 'app:create' },
     ];
     const starter = defineStarterVerifyProfile({
       id: 'starter-acceptance',
@@ -398,7 +411,7 @@ async function runStarterReceiptFixture({
     });
     assert.deepEqual(starter.testFiles, [realpathSync(acceptanceFile), thisFile]);
     const identityContext = config().context;
-    const outcome = await starter.run({ identityContext });
+    const outcome = await starter.run({ artifact: starterArtifact(), identityContext });
     assert.equal(outcome.ok, true);
     assert.equal(outcome.context, identityContext);
     assert.deepEqual(outcome.conformance.map(({ pathId }) => pathId), paths.map(({ id }) => id));
@@ -443,15 +456,11 @@ async function runStarterReceiptFixture({
     ['$.checks[0].status', (receipt) => { delete receipt.checks[0].status; }],
     ['$.checks[1].status', (receipt) => { delete receipt.checks[1].status; }],
     ['$.identity.artifact.appId', (receipt) => { delete receipt.identity.artifact.appId; }],
-    ['$.identity.artifact.bundleHash', (receipt) => { delete receipt.identity.artifact.bundleHash; }],
     ['$.identity.loaded.appId', (receipt) => { delete receipt.identity.loaded.appId; }],
-    ['$.identity.loaded.bundleHash', (receipt) => { delete receipt.identity.loaded.bundleHash; }],
     ['$.lifecycle.owned', (receipt) => { delete receipt.lifecycle.owned; }],
     ['$.lifecycle.applicationReadyObserved', (receipt) => { delete receipt.lifecycle.applicationReadyObserved; }],
     ['$.lifecycle.waitLevel', (receipt) => { delete receipt.lifecycle.waitLevel; }],
     ['$.lifecycle.firstQueryRetries', (receipt) => { delete receipt.lifecycle.firstQueryRetries; }],
-    ['$.operations.queryFunctionId', (receipt) => { delete receipt.operations.queryFunctionId; }],
-    ['$.operations.mutationFunctionId', (receipt) => { delete receipt.operations.mutationFunctionId; }],
     ['$.cleanup.attempted', (receipt) => { delete receipt.cleanup.attempted; }],
     ['$.cleanup.clientResourcesReleased', (receipt) => { delete receipt.cleanup.clientResourcesReleased; }],
     ['$.cleanup.devExited', (receipt) => { delete receipt.cleanup.devExited; }],
@@ -483,41 +492,138 @@ async function runStarterReceiptFixture({
 }
 
 {
+  const missingRegisteredOperation = validStarterAcceptanceReceipt();
+  delete missingRegisteredOperation.operations.queryFunctionId;
+  const missingOperation = await runStarterReceiptFixture({ receipt: missingRegisteredOperation });
+  assert.equal(missingOperation.ok, false);
+  assert.ok(missingOperation.diagnostics[0].details.invalidPaths.some(({ path: invalidPath }) => (
+    invalidPath === '$.operations'
+  )));
+
+  const domainNamedOperations = validStarterAcceptanceReceipt();
+  domainNamedOperations.operations = {
+    listTodos: 'app:list',
+    createTodo: 'app:create',
+  };
+  const domainNamed = await runStarterReceiptFixture({ receipt: domainNamedOperations });
+  assert.equal(domainNamed.ok, true, JSON.stringify(domainNamed.diagnostics));
+  cases += 1;
+}
+
+{
+  const absentBundleHashes = validStarterAcceptanceReceipt();
+  delete absentBundleHashes.identity.artifact.bundleHash;
+  delete absentBundleHashes.identity.loaded.bundleHash;
+  const absentBoth = await runStarterReceiptFixture({ receipt: absentBundleHashes });
+  assert.equal(absentBoth.ok, true, JSON.stringify(absentBoth.diagnostics));
+
+  const missingLoadedBundleHash = validStarterAcceptanceReceipt();
+  delete missingLoadedBundleHash.identity.loaded.bundleHash;
+  const missingLoaded = await runStarterReceiptFixture({ receipt: missingLoadedBundleHash });
+  assert.equal(missingLoaded.ok, false);
+  assert.equal(
+    missingLoaded.diagnostics[0].details.invalidPaths[0].path,
+    '$.identity.loaded.bundleHash',
+  );
+  cases += 1;
+}
+
+{
   const receipt = validStarterAcceptanceReceipt();
   receipt.operations = {
-    expensesQuery: 'application-payload-must-not-appear-query',
-    addExpense: 'application-payload-must-not-appear-mutation',
+    queryFunctionId: 'app:list',
+    mutationFunctionId: 'app:create',
+    expensesQuery: 'app:expenses',
+    addExpense: 'app:addExpense',
+    applicationPayload: 'application-payload-must-not-appear',
   };
-  const outcome = await runStarterReceiptFixture({ receipt });
+  const outcome = await runStarterReceiptFixture({
+    receipt,
+    artifactValue: starterArtifact(['app:expenses', 'app:addExpense']),
+  });
   assert.equal(outcome.ok, false);
   const failure = outcome.diagnostics[0];
   assert.equal(failure.code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED');
   assert.equal(failure.details.outcome, 'incomplete-passing-receipt');
-  assert.equal(failure.details.invalidPathCount, 1);
-  assert.deepEqual(failure.details.invalidPaths, [{
-    path: '$.operations',
-    expected: { kind: 'generated-operation-registration', state: 'current' },
-    observed: { kind: 'object', state: 'stale-registration' },
-  }]);
+  assert.equal(failure.details.invalidPathCount, 4);
+  assert.ok(failure.details.invalidPaths.some(({ path: invalidPath, observed }) => (
+    invalidPath === '$.operations' && observed.state === 'stale-registration'
+  )));
   assert.deepEqual(failure.details.remediation, {
     kind: 'refresh-generated-operation-registration',
-    staleReceiptPaths: [
-      '$.operations.queryFunctionId',
-      '$.operations.mutationFunctionId',
+    staleRegistrationPaths: [
+      {
+        pathId: 'starter-query',
+        pathIdTruncated: false,
+        functionId: 'app:list',
+        functionIdTruncated: false,
+      },
+      {
+        pathId: 'starter-mutation',
+        pathIdTruncated: false,
+        functionId: 'app:create',
+        functionIdTruncated: false,
+      },
     ],
+    staleRegistrationPathsTruncated: false,
     registeredPaths: [
-      { pathId: 'starter-query', functionId: 'app:list' },
-      { pathId: 'starter-mutation', functionId: 'app:create' },
+      {
+        pathId: 'starter-query',
+        pathIdTruncated: false,
+        functionId: 'app:list',
+        functionIdTruncated: false,
+      },
+      {
+        pathId: 'starter-mutation',
+        pathIdTruncated: false,
+        functionId: 'app:create',
+        functionIdTruncated: false,
+      },
     ],
     registeredPathsTruncated: false,
     unclaimedOperationPaths: [
-      '$.operations.addExpense',
-      '$.operations.expensesQuery',
+      {
+        receiptPath: '$.operations.addExpense',
+        functionId: 'app:addExpense',
+        functionIdTruncated: false,
+      },
+      {
+        receiptPath: '$.operations.expensesQuery',
+        functionId: 'app:expenses',
+        functionIdTruncated: false,
+      },
     ],
     unclaimedOperationPathsTruncated: false,
     instruction: 'Refresh the starter acceptance registration from generated operation references and rerun snapback verify.',
   });
   assert.equal(JSON.stringify(failure).includes('application-payload-must-not-appear'), false);
+  assert.deepEqual(outcome.conformance, []);
+  cases += 1;
+}
+
+{
+  const stalePathId = `stale-path-${'p'.repeat(300)}`;
+  const staleFunctionId = `app:${'s'.repeat(300)}`;
+  const replacementFunctionId = `app:${'r'.repeat(300)}`;
+  const receipt = validStarterAcceptanceReceipt();
+  receipt.operations = { replacement: replacementFunctionId };
+  const outcome = await runStarterReceiptFixture({
+    receipt,
+    paths: [{
+      id: stalePathId,
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      functionId: staleFunctionId,
+    }],
+    artifactValue: starterArtifact([replacementFunctionId]),
+  });
+  const remediation = outcome.diagnostics[0].details.remediation;
+  assert.equal(remediation.staleRegistrationPaths[0].pathId.length, 256);
+  assert.equal(remediation.staleRegistrationPaths[0].pathIdTruncated, true);
+  assert.equal(remediation.staleRegistrationPaths[0].functionId.length, 256);
+  assert.equal(remediation.staleRegistrationPaths[0].functionIdTruncated, true);
+  assert.equal(remediation.unclaimedOperationPaths[0].functionId.length, 256);
+  assert.equal(remediation.unclaimedOperationPaths[0].functionIdTruncated, true);
   cases += 1;
 }
 
@@ -541,6 +647,27 @@ async function runStarterReceiptFixture({
   const failedReceipt = await runStarterReceiptFixture({
     source: `process.stdout.write(${JSON.stringify(`${JSON.stringify(failedReceiptValue)}\n`)}); process.exitCode = 1;\n`,
   });
+  const cleanupFailedReceiptValue = validStarterAcceptanceReceipt();
+  cleanupFailedReceiptValue.status = 'failed';
+  cleanupFailedReceiptValue.cleanup.ok = false;
+  cleanupFailedReceiptValue.diagnostic = {
+    code: 'SNAPBACK_STARTER_CLEANUP_FAILED',
+    message: 'application cleanup value must remain unsafe',
+  };
+  const cleanupFailedReceipt = await runStarterReceiptFixture({
+    source: `process.stdout.write(${JSON.stringify(`${JSON.stringify(cleanupFailedReceiptValue)}\n`)}); process.exitCode = 1;\n`,
+  });
+  const identityFailedReceiptValue = validStarterAcceptanceReceipt();
+  identityFailedReceiptValue.status = 'failed';
+  identityFailedReceiptValue.identity.loaded.bundleHash = 'different-bundle';
+  identityFailedReceiptValue.diagnostic = {
+    code: 'SNAPBACK_STARTER_ARTIFACT_IDENTITY_MISMATCH',
+    message: 'application identity value must remain unsafe',
+  };
+  const identityFailedReceipt = await runStarterReceiptFixture({
+    source: `process.stdout.write(${JSON.stringify(`${JSON.stringify(identityFailedReceiptValue)}\n`)}); process.exitCode = 1;\n`,
+  });
+  const childError = await runStarterReceiptFixture({ removeBeforeRun: true });
   const incompleteReceiptValue = validStarterAcceptanceReceipt();
   delete incompleteReceiptValue.lifecycle.owned;
   const incompleteReceipt = await runStarterReceiptFixture({ receipt: incompleteReceiptValue });
@@ -566,11 +693,38 @@ async function runStarterReceiptFixture({
     incompleteReceipt,
   ].every((outcome) => outcome.diagnostics[0].code === 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED'));
   assert.equal(processFailure.diagnostics[0].details.exitCode, 7);
-  assert.equal(processFailure.diagnostics[0].details.stderr.length, 16_384);
+  assert.equal(Object.hasOwn(processFailure.diagnostics[0].details, 'stderr'), false);
+  assert.equal(processFailure.unsafeDebug.stderr.length, 16_384);
+  assert.equal(processFailure.unsafeDebug.stderrTruncated, true);
   assert.equal(malformedNullReceipt.diagnostics[0].details.outcome, 'malformed-receipt');
   assert.equal(malformedNullReceipt.diagnostics[0].details.invalidPaths[0].path, '$');
   assert.equal(failedReceipt.diagnostics[0].details.causeCode, 'SNAPBACK_STARTER_CHECK_FAILED');
-  assert.equal(failedReceipt.diagnostics[0].message.length, 4_096);
+  assert.equal(failedReceipt.diagnostics[0].message, 'starter acceptance returned a failed receipt');
+  assert.equal(failedReceipt.unsafeDebug.receiptDiagnosticMessage.length, 4_096);
+  assert.equal(failedReceipt.unsafeDebug.receiptDiagnosticMessageTruncated, true);
+  assert.equal(cleanupFailedReceipt.diagnostics[0].details.outcome, 'failed-receipt');
+  assert.equal(cleanupFailedReceipt.diagnostics[0].details.causeCode, 'SNAPBACK_STARTER_CLEANUP_FAILED');
+  assert.equal(cleanupFailedReceipt.diagnostics[0].details.receiptStatus, 'failed');
+  assert.equal(identityFailedReceipt.diagnostics[0].details.outcome, 'failed-receipt');
+  assert.equal(
+    identityFailedReceipt.diagnostics[0].details.causeCode,
+    'SNAPBACK_STARTER_ARTIFACT_IDENTITY_MISMATCH',
+  );
+  assert.equal(identityFailedReceipt.diagnostics[0].details.receiptStatus, 'failed');
+  assert.equal(
+    JSON.stringify([cleanupFailedReceipt.diagnostics, identityFailedReceipt.diagnostics])
+      .includes('application cleanup value must remain unsafe'),
+    false,
+  );
+  assert.equal(
+    JSON.stringify([cleanupFailedReceipt.diagnostics, identityFailedReceipt.diagnostics])
+      .includes('application identity value must remain unsafe'),
+    false,
+  );
+  assert.equal(childError.diagnostics[0].details.outcome, 'process-failure');
+  assert.equal(childError.diagnostics[0].details.causeCode, 'ENOENT');
+  assert.equal(childError.diagnostics[0].message, 'starter acceptance process failed before returning a successful receipt');
+  assert.notEqual(childError.unsafeDebug.childErrorMessage, '');
   cases += 1;
 }
 
@@ -608,17 +762,28 @@ async function runStarterReceiptFixture({
 }
 
 {
+  const timeoutReceipt = validStarterAcceptanceReceipt();
   const timeout = await runStarterReceiptFixture({
-    source: 'setInterval(() => {}, 1_000);\n',
+    source: `
+const timer = setInterval(() => {}, 1_000);
+process.on('SIGTERM', () => {
+  clearInterval(timer);
+  process.stdout.write(${JSON.stringify(`${JSON.stringify(timeoutReceipt)}\n`)});
+});
+`,
     timeoutMs: 20,
   });
   const outputLimit = await runStarterReceiptFixture({
     source: `process.stdout.write('x'.repeat(${2 * 1024 * 1024 + 1024}));\n`,
   });
   assert.equal(timeout.diagnostics[0].code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_TIMEOUT');
+  assert.equal(timeout.diagnostics[0].details.outcome, 'process-failure');
   assert.equal(outputLimit.diagnostics[0].code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_OUTPUT_LIMIT');
-  assert.ok(timeout.diagnostics[0].details.stderr.length <= 16_384);
-  assert.ok(outputLimit.diagnostics[0].details.stderr.length <= 16_384);
+  assert.equal(outputLimit.diagnostics[0].details.outcome, 'process-failure');
+  assert.equal(Object.hasOwn(timeout.diagnostics[0].details, 'stderr'), false);
+  assert.equal(Object.hasOwn(outputLimit.diagnostics[0].details, 'stderr'), false);
+  assert.ok(timeout.unsafeDebug.stderr.length <= 16_384);
+  assert.ok(outputLimit.unsafeDebug.stderr.length <= 16_384);
   cases += 1;
 }
 
@@ -891,7 +1056,6 @@ for (const [template, pathCount] of [
   mkdirSync(dirname(backend), { recursive: true });
   cpSync(new URL('./fixtures/push-seam/app/snapback', import.meta.url), backend, {
     recursive: true,
-    filter(source) { return !source.split('/').includes('generated'); },
   });
   try {
     const generated = await generate(backend);
@@ -1171,19 +1335,36 @@ for (const [stageId, overrides, nextCode] of failureMatrix) {
   mkdirSync(dirname(backend), { recursive: true });
   cpSync(new URL('./fixtures/comparator/app/snapback', import.meta.url), backend, {
     recursive: true,
-    filter(source) { return !source.split('/').includes('generated'); },
   });
   try {
     const generated = await generate(backend);
     assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
     const fresh = await probeArtifactFreshness(defaultVerifyConfig({ backendDirectory: backend }));
-    assert.equal(fresh.ok, true);
-    assert.equal(fresh.identity.inputsHash, generated.inputsHash);
+    assert.equal(fresh.ok, true, JSON.stringify(fresh.diagnostics));
     appendFileSync(join(backend, 'functions.mjs'), '\n// verify freshness witness\n');
     const stale = await probeArtifactFreshness(defaultVerifyConfig({ backendDirectory: backend }));
     assert.equal(stale.ok, false);
     assert.equal(stale.diagnostics[0].code, 'SNAPBACK_VERIFY_ARTIFACT_STALE');
-    cases += 2;
+
+    const schemaPath = join(backend, 'schema.mjs');
+    const schema = readFileSync(schemaPath, 'utf8');
+    const mismatchedSchema = schema.replace(
+      '    rejectionRows: valueTable(),',
+      '    rejectionRows: valueTable(),\n    unapprovedRows: valueTable(),',
+    );
+    assert.notEqual(mismatchedSchema, schema, 'governance mismatch fixture must add one public table');
+    writeFileSync(schemaPath, mismatchedSchema);
+    const governanceMismatch = await probeArtifactFreshness(
+      defaultVerifyConfig({ backendDirectory: backend }),
+    );
+    assert.equal(governanceMismatch.ok, false);
+    assert.ok(
+      governanceMismatch.diagnostics.some(({ code }) => (
+        code === 'SNAPBACK_TABLE_VISIBILITY_POLICY_RATCHET_GROWTH'
+      )),
+      JSON.stringify(governanceMismatch.diagnostics),
+    );
+    cases += 3;
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

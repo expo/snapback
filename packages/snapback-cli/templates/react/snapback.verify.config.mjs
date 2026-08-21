@@ -26,8 +26,8 @@ export default defineVerifyConfig({
       new URL(import.meta.resolve('@expo/snapback-cli/carrier-kit')),
     ],
     paths: [
-      { id: 'list-todos', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
-      { id: 'create-todo', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
+      { id: 'list-todos', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex', functionId: 'react:listTodos' },
+      { id: 'create-todo', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex', functionId: 'react:createTodo' },
     ],
   })],
 });

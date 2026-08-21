@@ -26,8 +26,8 @@ export default defineVerifyConfig({
       new URL(import.meta.resolve('@expo/snapback-cli/carrier-kit')),
     ],
     paths: [
-      { id: 'list-bugs', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
-      { id: 'create-bug', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
+      { id: 'list-bugs', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex', functionId: 'bug-tracker:listBugs' },
+      { id: 'create-bug', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex', functionId: 'bug-tracker:createBug' },
       { id: 'update-bug-status', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
     ],
   })],

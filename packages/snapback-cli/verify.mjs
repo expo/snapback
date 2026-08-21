@@ -29,6 +29,7 @@ import {
   resolveGeneratedArtifact,
   verifyGeneratedGraph,
 } from '@expo/snapback-codegen/review-surface';
+import { GOVERNANCE_FILES } from '@expo/snapback-codegen/visibility-governance';
 
 export const VERIFY_CONFIG_SCHEMA_VERSION = 'snapback.verify-config.v1';
 export const VERIFY_RECEIPT_SCHEMA_VERSION = 'snapback.verify-receipt.v1';
@@ -265,6 +266,8 @@ const STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 const STARTER_ACCEPTANCE_MAX_INVALID_PATHS = 64;
 const STARTER_ACCEPTANCE_MAX_OPERATION_PATHS = 16;
 const STARTER_ACCEPTANCE_MAX_DIAGNOSTIC_MESSAGE_CHARS = 4_096;
+const STARTER_ACCEPTANCE_MAX_REMEDIATION_ID_CHARS = 256;
+const STARTER_ACCEPTANCE_MAX_DEBUG_OUTPUT_CHARS = 16_384;
 
 function resolveStarterAcceptanceFile(value) {
   if (value instanceof URL) return realpathSync(fileURLToPath(value));
@@ -375,9 +378,40 @@ function parseStarterAcceptanceReceipt(stdout) {
 }
 
 function operationReceiptPath(key) {
-  return /^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(key)
-    ? `$.operations.${key}`
-    : `$.operations[${JSON.stringify(key)}]`;
+  const boundedKey = key.slice(0, 128);
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(boundedKey)
+    ? `$.operations.${boundedKey}`
+    : `$.operations[${JSON.stringify(boundedKey)}]`;
+}
+
+function boundedRemediationId(key, value) {
+  const truncated = value.length > STARTER_ACCEPTANCE_MAX_REMEDIATION_ID_CHARS;
+  return {
+    [key]: value.slice(0, STARTER_ACCEPTANCE_MAX_REMEDIATION_ID_CHARS),
+    [`${key}Truncated`]: truncated,
+  };
+}
+
+function remediationRegisteredPath(path) {
+  return Object.freeze({
+    ...boundedRemediationId('pathId', path.id),
+    ...(path.functionId === null ? {} : boundedRemediationId('functionId', path.functionId)),
+  });
+}
+
+function remediationObservedPath({ path, functionId }) {
+  return Object.freeze({
+    receiptPath: path,
+    ...boundedRemediationId('functionId', functionId),
+  });
+}
+
+function generatedOperationIds(artifact) {
+  const functions = artifact?.manifests?.functions?.functions;
+  if (!Array.isArray(functions)) return null;
+  return new Set(functions.flatMap((entry) => (
+    typeof entry?.id === 'string' ? [entry.id] : []
+  )));
 }
 
 // @ref LLP 0275#d5-make-acceptance-profiles-single-source-and-staleness-aware
@@ -385,7 +419,7 @@ function operationReceiptPath(key) {
 // hidden requirement that every domain preserve generic receipt key names.
 // @ref LLP 0294#w1--make-proof-commands-trustworthy-and-legible — every other
 // incomplete passing receipt reports bounded expected-versus-observed paths.
-function validatePassingStarterReceipt(receipt, registeredPaths) {
+function validatePassingStarterReceipt(receipt, registeredPaths, artifact) {
   const invalidPaths = [];
   let invalidPathCount = 0;
   const add = (entry) => {
@@ -469,18 +503,14 @@ function validatePassingStarterReceipt(receipt, registeredPaths) {
     '$.identity.artifact.appId', artifactIdentity, 'appId', 'string', 'present',
     (value) => typeof value === 'string',
   );
-  const artifactBundleHash = requireLiteral(
-    '$.identity.artifact.bundleHash', artifactIdentity, 'bundleHash', 'string', 'present',
-    (value) => typeof value === 'string',
-  );
+  // LLP 0146 D2 binds the loaded and generated identities by equality; it
+  // does not require a bundle hash on receipt classes where both sides omit it.
+  const artifactBundleHash = receiptLeaf(artifactIdentity, 'bundleHash');
   const loadedAppId = requireLiteral(
     '$.identity.loaded.appId', loadedIdentity, 'appId', 'string', 'present',
     (value) => typeof value === 'string',
   );
-  const loadedBundleHash = requireLiteral(
-    '$.identity.loaded.bundleHash', loadedIdentity, 'bundleHash', 'string', 'present',
-    (value) => typeof value === 'string',
-  );
+  const loadedBundleHash = receiptLeaf(loadedIdentity, 'bundleHash');
   if (
     artifactAppId.present && typeof artifactAppId.value === 'string'
     && loadedAppId.present && typeof loadedAppId.value === 'string'
@@ -491,14 +521,11 @@ function validatePassingStarterReceipt(receipt, registeredPaths) {
       loadedAppId.value, true, 'identity-mismatch',
     ));
   }
-  if (
-    artifactBundleHash.present && typeof artifactBundleHash.value === 'string'
-    && loadedBundleHash.present && typeof loadedBundleHash.value === 'string'
-    && loadedBundleHash.value !== artifactBundleHash.value
-  ) {
+  if (loadedBundleHash.value !== artifactBundleHash.value) {
     add(invalidReceiptPath(
-      '$.identity.loaded.bundleHash', 'string', 'matches-$.identity.artifact.bundleHash',
-      loadedBundleHash.value, true, 'identity-mismatch',
+      '$.identity.loaded.bundleHash', receiptValueKind(artifactBundleHash.value, artifactBundleHash.present),
+      'matches-$.identity.artifact.bundleHash', loadedBundleHash.value,
+      loadedBundleHash.present, 'identity-mismatch',
     ));
   }
 
@@ -519,52 +546,96 @@ function validatePassingStarterReceipt(receipt, registeredPaths) {
 
   const operationsLeaf = receiptLeaf(receipt, 'operations');
   const operations = operationsLeaf.value;
-  const queryFunctionId = receiptLeaf(operations, 'queryFunctionId');
-  const mutationFunctionId = receiptLeaf(operations, 'mutationFunctionId');
-  const renamedOperationKeys = plainObject(operations)
-    ? Object.keys(operations).filter((key) => (
-      key !== 'queryFunctionId'
-      && key !== 'mutationFunctionId'
-      && key.length <= 128
-      && typeof operations[key] === 'string'
-    )).sort()
-    : [];
+  const currentOperationIds = generatedOperationIds(artifact);
+  const registeredOperationPaths = registeredPaths.filter(({ functionId }) => functionId !== null);
+  const registeredOperationIds = new Set(registeredOperationPaths.map(({ functionId }) => functionId));
+  const observations = [];
+  if (currentOperationIds === null) {
+    add(invalidReceiptPath(
+      '$.operations', 'generated-operation-manifest', 'available', operations,
+      operationsLeaf.present, 'unavailable',
+    ));
+  }
+  if (!operationsLeaf.present || !plainObject(operations)) {
+    add(invalidReceiptPath(
+      '$.operations', 'object', 'generated-operation-observations', operations,
+      operationsLeaf.present, operationsLeaf.present ? 'wrong-kind' : 'missing',
+    ));
+  } else {
+    for (const key of Object.keys(operations).sort()) {
+      const path = operationReceiptPath(key);
+      const functionId = operations[key];
+      if (typeof functionId !== 'string') {
+        add(invalidReceiptPath(
+          path, 'string', 'generated-operation-reference-id', functionId, true, 'wrong-kind',
+        ));
+        continue;
+      }
+      const current = currentOperationIds?.has(functionId) === true;
+      if (!current) {
+        add(invalidReceiptPath(
+          path, 'string', 'current-generated-operation-reference-id', functionId, true,
+          'stale-or-unknown-operation',
+        ));
+      }
+      observations.push(Object.freeze({ path, functionId, current }));
+    }
+  }
+  const observedCurrentIds = new Set(
+    observations.filter(({ current }) => current).map(({ functionId }) => functionId),
+  );
+  const observedPathIds = new Set(registeredOperationPaths.flatMap(({ id, functionId }) => (
+    observedCurrentIds.has(functionId) ? [id] : []
+  )));
+  const staleRegistrationPaths = registeredOperationPaths.filter(({ functionId }) => (
+    currentOperationIds !== null && !currentOperationIds.has(functionId)
+  ));
+  const unobservedRegistrationPaths = registeredOperationPaths.filter(({ functionId }) => (
+    currentOperationIds?.has(functionId) === true
+    && !observedCurrentIds.has(functionId)
+  ));
+  const unclaimedObservations = observations.filter(({ functionId, current }) => (
+    current && !registeredOperationIds.has(functionId)
+  ));
   let remediation = null;
-  if (!queryFunctionId.present && !mutationFunctionId.present && renamedOperationKeys.length >= 2) {
+  if (registeredOperationPaths.length === 0) {
     add(invalidReceiptPath(
       '$.operations',
       'generated-operation-registration',
-      'current',
+      'profile-paths-bound',
       operations,
       operationsLeaf.present,
-      'stale-registration',
+      'unbound-registration',
     ));
+  } else if (staleRegistrationPaths.length > 0 || unobservedRegistrationPaths.length > 0) {
+    add(invalidReceiptPath(
+      '$.operations',
+      'generated-operation-registration',
+      'registered-identities-observed',
+      operations,
+      operationsLeaf.present,
+      staleRegistrationPaths.length > 0 ? 'stale-registration' : 'registered-not-observed',
+    ));
+  }
+  if (staleRegistrationPaths.length > 0) {
     remediation = Object.freeze({
       kind: 'refresh-generated-operation-registration',
-      staleReceiptPaths: Object.freeze([
-        '$.operations.queryFunctionId',
-        '$.operations.mutationFunctionId',
-      ]),
-      registeredPaths: Object.freeze(registeredPaths.slice(0, STARTER_ACCEPTANCE_MAX_OPERATION_PATHS).map((path) => Object.freeze({
-        pathId: path.id,
-        ...(path.functionId === null ? {} : { functionId: path.functionId }),
-      }))),
-      registeredPathsTruncated: registeredPaths.length > STARTER_ACCEPTANCE_MAX_OPERATION_PATHS,
-      unclaimedOperationPaths: Object.freeze(renamedOperationKeys
+      staleRegistrationPaths: Object.freeze(staleRegistrationPaths
         .slice(0, STARTER_ACCEPTANCE_MAX_OPERATION_PATHS)
-        .map(operationReceiptPath)),
-      unclaimedOperationPathsTruncated: renamedOperationKeys.length > STARTER_ACCEPTANCE_MAX_OPERATION_PATHS,
+        .map(remediationRegisteredPath)),
+      staleRegistrationPathsTruncated:
+        staleRegistrationPaths.length > STARTER_ACCEPTANCE_MAX_OPERATION_PATHS,
+      registeredPaths: Object.freeze(registeredPaths
+        .slice(0, STARTER_ACCEPTANCE_MAX_OPERATION_PATHS)
+        .map(remediationRegisteredPath)),
+      registeredPathsTruncated: registeredPaths.length > STARTER_ACCEPTANCE_MAX_OPERATION_PATHS,
+      unclaimedOperationPaths: Object.freeze(unclaimedObservations
+        .slice(0, STARTER_ACCEPTANCE_MAX_OPERATION_PATHS)
+        .map(remediationObservedPath)),
+      unclaimedOperationPathsTruncated:
+        unclaimedObservations.length > STARTER_ACCEPTANCE_MAX_OPERATION_PATHS,
       instruction: 'Refresh the starter acceptance registration from generated operation references and rerun snapback verify.',
     });
-  } else {
-    requireLiteral(
-      '$.operations.queryFunctionId', operations, 'queryFunctionId', 'string', 'present',
-      (value) => typeof value === 'string',
-    );
-    requireLiteral(
-      '$.operations.mutationFunctionId', operations, 'mutationFunctionId', 'string', 'present',
-      (value) => typeof value === 'string',
-    );
   }
 
   const cleanup = receiptLeaf(receipt, 'cleanup').value;
@@ -587,10 +658,11 @@ function validatePassingStarterReceipt(receipt, registeredPaths) {
     invalidPaths: Object.freeze(invalidPaths),
     invalidPathsTruncated: invalidPathCount > invalidPaths.length,
     remediation,
+    observedPathIds: Object.freeze([...observedPathIds]),
   });
 }
 
-async function runStarterAcceptanceProfile({ acceptanceFile, identityContext, paths, timeoutMs }) {
+async function runStarterAcceptanceProfile({ acceptanceFile, artifact, identityContext, paths, timeoutMs }) {
   const child = spawn(process.execPath, [acceptanceFile], {
     cwd: dirname(acceptanceFile),
     env: { ...process.env, SNAPBACK_VERIFY_PROFILE: 'starter-acceptance' },
@@ -628,7 +700,7 @@ async function runStarterAcceptanceProfile({ acceptanceFile, identityContext, pa
   const receipt = parsed.receipt;
   const processFailed = exit.error !== null || exit.code !== 0;
   const passingValidation = receipt?.status === 'passed'
-    ? validatePassingStarterReceipt(receipt, paths)
+    ? validatePassingStarterReceipt(receipt, paths, artifact)
     : null;
   const ok = !overflow
     && !timedOut
@@ -640,9 +712,11 @@ async function runStarterAcceptanceProfile({ acceptanceFile, identityContext, pa
     && /^[A-Z][A-Z0-9_]{0,255}$/u.test(candidateCauseCode)
     ? candidateCauseCode
     : null;
-  const outcome = receipt?.status === 'failed'
-    ? 'failed-receipt'
-    : processFailed
+  const outcome = overflow || timedOut
+    ? 'process-failure'
+    : receipt?.status === 'failed'
+      ? 'failed-receipt'
+      : processFailed
       ? 'process-failure'
       : parsed.kind === 'missing-receipt'
         ? 'missing-receipt'
@@ -659,13 +733,9 @@ async function runStarterAcceptanceProfile({ acceptanceFile, identityContext, pa
     : timedOut
       ? `starter acceptance exceeded its ${timeoutMs}ms timeout`
       : outcome === 'failed-receipt'
-        ? (typeof receipt?.diagnostic?.message === 'string'
-          ? receipt.diagnostic.message.slice(0, STARTER_ACCEPTANCE_MAX_DIAGNOSTIC_MESSAGE_CHARS)
-          : 'starter acceptance returned a failed receipt')
+        ? 'starter acceptance returned a failed receipt'
         : outcome === 'process-failure'
-          ? (typeof exit.error?.message === 'string'
-            ? exit.error.message.slice(0, STARTER_ACCEPTANCE_MAX_DIAGNOSTIC_MESSAGE_CHARS)
-            : 'starter acceptance process failed before returning a successful receipt')
+          ? 'starter acceptance process failed before returning a successful receipt'
           : outcome === 'missing-receipt'
             ? 'starter acceptance did not return a receipt'
             : outcome === 'malformed-receipt'
@@ -701,14 +771,31 @@ async function runStarterAcceptanceProfile({ acceptanceFile, identityContext, pa
         ? {}
         : { remediation: passingValidation.remediation }),
       ...(typeof causeCode === 'string' ? { causeCode } : {}),
-      stderr: stderr.slice(-16_384),
     },
   )];
+  const receiptDiagnosticMessage = typeof receipt?.diagnostic?.message === 'string'
+    ? receipt.diagnostic.message
+    : '';
+  const childErrorMessage = typeof exit.error?.message === 'string' ? exit.error.message : '';
   return Object.freeze({
     ok,
     context: identityContext,
-    conformance: Object.freeze(unsupportedConformance(paths)),
+    conformance: Object.freeze(unsupportedConformance(paths.filter(({ id, functionId }) => (
+      functionId === null || passingValidation?.observedPathIds.includes(id)
+    )))),
     diagnostics: Object.freeze(diagnostics),
+    unsafeDebug: Object.freeze({
+      warning: 'May contain application-controlled values; do not publish as structured diagnostics.',
+      stderr: stderr.slice(-STARTER_ACCEPTANCE_MAX_DEBUG_OUTPUT_CHARS),
+      stderrTruncated: stderr.length > STARTER_ACCEPTANCE_MAX_DEBUG_OUTPUT_CHARS,
+      receiptDiagnosticMessage: receiptDiagnosticMessage
+        .slice(0, STARTER_ACCEPTANCE_MAX_DIAGNOSTIC_MESSAGE_CHARS),
+      receiptDiagnosticMessageTruncated:
+        receiptDiagnosticMessage.length > STARTER_ACCEPTANCE_MAX_DIAGNOSTIC_MESSAGE_CHARS,
+      childErrorMessage: childErrorMessage.slice(0, STARTER_ACCEPTANCE_MAX_DIAGNOSTIC_MESSAGE_CHARS),
+      childErrorMessageTruncated:
+        childErrorMessage.length > STARTER_ACCEPTANCE_MAX_DIAGNOSTIC_MESSAGE_CHARS,
+    }),
   });
 }
 
@@ -741,6 +828,7 @@ export function defineStarterVerifyProfile({
     run(context) {
       return runStarterAcceptanceProfile({
         acceptanceFile: resolvedAcceptanceFile,
+        artifact: context.artifact,
         identityContext: context.identityContext,
         paths: normalizedPaths,
         timeoutMs,
@@ -1181,13 +1269,25 @@ function readJson(path, code) {
   }
 }
 
+// @ref LLP 0234#d5--exact-ratchets-cover-overrides-and-ordinary-policy-widening
+// — governance baselines and ledgers are committed generation inputs. A
+// freshness regeneration discards ordinary outputs but must retain these
+// records so codegen can validate, rather than manufacture, authority.
+const FRESHNESS_GOVERNANCE_INPUTS = new Set(Object.values(GOVERNANCE_FILES).filter((path) => (
+  path.startsWith('generated/')
+)));
+
 function copyBackendSource(source, destination) {
   cpSync(source, destination, {
     recursive: true,
     filter(path) {
       if (path === source) return true;
-      const name = relative(source, path).split(sep)[0];
-      return !['generated', '.snapback', 'node_modules'].includes(name);
+      const relativePath = relative(source, path).split(sep).join('/');
+      const name = relativePath.split('/')[0];
+      if (name === 'generated') {
+        return relativePath === 'generated' || FRESHNESS_GOVERNANCE_INPUTS.has(relativePath);
+      }
+      return !['.snapback', 'node_modules'].includes(name);
     },
   });
 }

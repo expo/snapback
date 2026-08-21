@@ -19,8 +19,8 @@ export default defineVerifyConfig({
       new URL(import.meta.resolve('@expo/snapback-cli/carrier-kit')),
     ],
     paths: [
-      { id: 'relational-project-directory', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
-      { id: 'create-project', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
+      { id: 'relational-project-directory', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex', functionId: 'crud-dashboard:projectDirectory' },
+      { id: 'create-project', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex', functionId: 'crud-dashboard:createProject' },
       { id: 'update-project-live-detail', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
       { id: 'delete-project', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
     ],
