@@ -8,6 +8,12 @@
 **Related:** LLP 0000, LLP 0002, LLP 0010, LLP 0037, LLP 0041, LLP 0053,
 LLP 0059, LLP 0061, LLP 0141, LLP 0189, LLP 0199, LLP 0225, LLP 0232,
 LLP 0259, LLP 0285
+**Revised:** 2026-08-20 (committed generated-source amendment: declare
+`crates/snapback-server/generated/` as the server crate's generated Rust
+source home in the allowed-dependencies artifact and its checked projection.
+This assigns the manifest-pinned embedded Guide API artifact to its real owner
+without treating generated source as authored `src/` or temporary membership
+debt.)
 **Revised:** 2026-08-19 (F-1 test-confinement amendment: add the rank-7
 `snapback-harness` proof crate and permit `rusqlite` in `snapback` and
 `snapback-harness` strictly as dev-dependencies. This makes raw-SQL test
@@ -311,7 +317,8 @@ amendments recorded in §"Relationship to LLP 0225 and LLP 0199". The
 normative object is the **allowed-dependency matrix** below, carried as a
 **committed artifact** — `crates/allowed-dependencies.v1.json`: per-crate
 owner id, rank, allowed workspace dependencies (expanded, no shorthands),
-external-confinement rules, and bounded membership exceptions — which the
+external-confinement rules, exact member-local generated source homes, and
+bounded membership exceptions — which the
 workspace-graph gate reads and this table is drift-checked against
 (a recomputed-vs-committed record in the LLP 0189 D-4 sense). Widening the
 artifact is an amendment to this RFC. Rank is total and every edge lands on
@@ -327,7 +334,7 @@ a strictly lower rank; the matrix is therefore a DAG by construction.
 | `snapback-services` | 3 | `background-services` | auth, kernel, types | Assets + media pipeline, jobs, cron, push, webhooks, outbound policy, forks/branches, replication (`celld-ltx`'s sole consumer), telemetry (its sidecar store stays its own per 0225 §3.1), error tracking, ledger/proof-checkpoint custody, search/vector rebuild jobs. |
 | `snapback-runtime` | 3 | `js-execution` *(new owner — resolves 0225's `uncertainAssignments` note)* | types | JS execution: the Hermes/Ibex FFI (the **only** crate allowed `ibex-runtime`), warm-VM lifecycle + reset, exec guards, the workerd/V8 conformance twin, embedded harness JS. Host-call *implementations* live above, in the engine; runtime stays kernel-free. Emits its own Hermes rpath link args for its lib/test link units (Cargo does not propagate link args — ENG-22664). |
 | `snapback-engine` | 4 | `engine-coordinator` *(the declared higher-layer coordinator, 0225 §2)* | all rank ≤ 3 | The transport-independent engine — today's `LocalSnapback` (`local.rs`): provisioning state machine, cross-service orchestration, host-op implementations, `EphemeralApi`. The one place domain crates are composed; adapters call it, it calls down. The `manifest.rs` residues do **not** default here: identity → auth, vector → kernel, push/assets → services, auth residue → auth — the engine may not inherit leftovers. |
-| `snapback-server` | 5 | `transport-adapters` | engine + all lower | The axum app: routes (the 180-route contract), wire envelopes, admin console serving, hosted-edge *transport*, instance home, OAuth/MCP remotes. Owns `AppState`/`SnapbackApp`. |
+| `snapback-server` | 5 | `transport-adapters` | engine + all lower | The axum app: routes (the 180-route contract), wire envelopes, admin console serving, hosted-edge *transport*, instance home, OAuth/MCP remotes. Owns `AppState`/`SnapbackApp` and the manifest-pinned committed Guide API-shape artifact under its declared `generated/` source home. |
 | `snapback-cli` | 6 | `transport-adapters` | server + all lower | The clap surface (~40 command groups), guide command, MCP stdio, lifecycle commands; builds and starts the server app (hence rank above it). |
 | `snapback` | 7 | `embed-facade` / composition root | cli, server + all lower | The public crate: `snapback::embed` (LLP 0141 D1's sole supported Rust surface, source-compatible — its re-exports of engine/server types are exactly why this crate sits above the adapters) and the `snapback` binary. Its `build.rs` keeps the three binary-scoped jobs (guide-corpus embedding, build-identity stamping, Hermes rpaths for the final binary): the workspace's win here is rebuild-scope confinement, not job separation. `crates/snapback/examples/` holds the embed examples. |
 | `snapback-conformance` | 7 | `proof-harness` (non-product) | server, engine, kernel, auth, types | Wire fixtures, the conformance-twin bin, sbsb vectors, cf-manifest — proof bins exercising the contract from outside. |
@@ -341,6 +348,14 @@ Workspace-wide rules:
   compatibility posture applies to that façade alone. crates.io distribution
   remains unclaimed (LLP 0141 D6) — no name reservation is required by this
   program.
+- **Committed generated Rust source homes are explicit and member-local.**
+  `generatedSourceHomes` in `crates/allowed-dependencies.v1.json` names the
+  exact directories whose Rust artifacts inherit their member's owner. The
+  initial and only home is `crates/snapback-server/generated/`, for the
+  manifest-pinned embedded Guide API-shape artifact. These homes are neither
+  authored `src/` nor expiring membership exceptions; widening the list is an
+  amendment and the gate's duplicated checked projection fails closed on
+  drift.
 - **External-dependency confinement**, gate-enforced: `rusqlite` only in
   `snapback-kernel` and `snapback-services` for production storage ownership,
   plus `snapback` and `snapback-harness` strictly as dev-dependencies for

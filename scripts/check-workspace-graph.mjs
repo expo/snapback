@@ -38,6 +38,9 @@ const EXPECTED_CONFINEMENT = [
   ['ibex-runtime', ['snapback-runtime']],
   ['rusqlite', ['snapback', 'snapback-harness', 'snapback-kernel', 'snapback-services']],
 ].map(([dependency, allowedMembers]) => ({ dependency, allowedMembers }));
+const EXPECTED_GENERATED_SOURCE_HOMES = [
+  { member: 'snapback-server', path: 'crates/snapback-server/generated' },
+];
 const EXPECTED_MEMBERSHIP_ASSIGNMENTS = [];
 const EXPECTED_WORKSPACE_MEMBERS = ['crates/*'];
 const EXPECTED_WORKSPACE_DEFAULT_MEMBERS = ['crates/snapback'];
@@ -254,6 +257,9 @@ function workspaceMemberForPath(path) {
 // @ref LLP 0189#decision — analyzer retirement may not silently drop
 // module-home coverage. Every Rust file inherits its workspace member's
 // assigned owner; a named exception is the only other accepted home.
+// @ref LLP 0276#crates--the-rust-workspace — committed generated Rust uses
+// an exact, matrix-declared member source home rather than masquerading as
+// authored source or temporary membership debt.
 export function validateModuleMembership(
   artifact,
   rustPaths,
@@ -264,6 +270,21 @@ export function validateModuleMembership(
   const members = new Map((artifact.crates ?? []).map((entry) => [entry.name, entry]));
   const owners = new Set((artifact.crates ?? []).map((entry) => entry.owner));
   assert(rustPaths.length > 0, 'workspace Rust inventory must not be empty');
+
+  const generatedSourceHomes = artifact.generatedSourceHomes;
+  assert(Array.isArray(generatedSourceHomes), 'generatedSourceHomes must be an array');
+  assert(
+    JSON.stringify(generatedSourceHomes) === JSON.stringify(EXPECTED_GENERATED_SOURCE_HOMES),
+    'generated source homes drifted from the LLP 0276 ownership projection',
+  );
+  for (const home of generatedSourceHomes) {
+    validateCanonicalRepositoryPath(home.path, `${home.member} generated source home`);
+    assert(members.has(home.member), `generated source home names unknown member ${home.member}`);
+    assert(
+      home.path === `crates/${home.member}/generated`,
+      `${home.member} generated source home must be its canonical member-local generated directory`,
+    );
+  }
 
   const exceptions = artifact.membershipExceptions;
   assert(Array.isArray(exceptions), 'membershipExceptions must be an array');
@@ -299,12 +320,22 @@ export function validateModuleMembership(
     validateCanonicalRepositoryPath(rustPath, 'workspace Rust path');
     const isModule = /^crates\/[a-z0-9-]+\/(?:src|tests|examples|benches)\/.+\.rs$/u.test(rustPath);
     const isBuildScript = /^crates\/[a-z0-9-]+\/build\.rs$/u.test(rustPath);
-    assert(isModule || isBuildScript, `unmatched Rust file outside a member source home: ${rustPath}`);
+    const generatedHome = generatedSourceHomes.find(
+      ({ path }) => rustPath.startsWith(`${path}/`) && rustPath.endsWith('.rs'),
+    );
+    assert(
+      isModule || isBuildScript || generatedHome,
+      `unmatched Rust file outside a member source home: ${rustPath}`,
+    );
     assert(pathExists(rustPath), `assigned Rust file does not exist: ${rustPath}`);
     const actualMember = workspaceMemberForPath(rustPath);
     const member = members.get(actualMember);
     assert(member, `Rust file ${rustPath} is not inside an assigned workspace member`);
-    if (!isModule) continue;
+    assert(
+      !generatedHome || actualMember === generatedHome.member,
+      `generated Rust file ${rustPath} escapes its assigned member ${generatedHome?.member}`,
+    );
+    if (!isModule && !generatedHome) continue;
     moduleCount += 1;
     const exception = exceptionAssignments.get(rustPath);
     if (!exception) continue;
@@ -325,7 +356,11 @@ export function validateModuleMembership(
     JSON.stringify(exceptionProjection) === JSON.stringify(EXPECTED_MEMBERSHIP_ASSIGNMENTS),
     'membership exception assignments drifted from the reviewed Phase 2 flip inventory',
   );
-  return { moduleCount, exceptionCount: exceptionAssignments.size };
+  return {
+    moduleCount,
+    exceptionCount: exceptionAssignments.size,
+    generatedSourceHomeCount: generatedSourceHomes.length,
+  };
 }
 
 export function rustSourceFiles(directory) {
@@ -872,6 +907,10 @@ export function validateArtifactAndMetadata(artifact, metadata, workspaceManifes
   assert(artifact?.schemaVersion === 'snapback.allowed-dependencies.v1', 'matrix schemaVersion is invalid');
   assert(JSON.stringify(artifact.crates) === JSON.stringify(EXPECTED_CRATES), 'matrix crate rows drifted from LLP 0276');
   assert(JSON.stringify(artifact.externalConfinement) === JSON.stringify(EXPECTED_CONFINEMENT), 'external confinement drifted from LLP 0276');
+  assert(
+    JSON.stringify(artifact.generatedSourceHomes) === JSON.stringify(EXPECTED_GENERATED_SOURCE_HOMES),
+    'generated source homes drifted from LLP 0276',
+  );
   const matrix = new Map(artifact.crates.map((entry) => [entry.name, entry]));
   assert(matrix.size === artifact.crates.length, 'matrix contains duplicate crate names');
   for (const entry of artifact.crates) {
@@ -967,6 +1006,7 @@ function main() {
     process.stdout.write(
       `[workspace-graph] PASS: ${result.members.length} members (${result.members.join(', ')}); `
         + `${result.plannedCrates} planned matrix rows; ${membership.moduleCount} Rust modules `
+        + `across ${membership.generatedSourceHomeCount} committed generated source home(s) `
         + `(${membership.exceptionCount} named membership exceptions)\n`,
     );
   } catch (error) {

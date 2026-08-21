@@ -31,8 +31,11 @@ const workspaceRustFiles = rustSourceFiles(cratesRoot);
 const rustPaths = workspaceRustFiles
   .map(({ path }) => relative(repositoryRoot, path).split(sep).join('/'))
   .sort();
+const generatedSourceHomePrefixes = artifact.generatedSourceHomes
+  .map(({ path }) => `${path}/`);
 const moduleCount = rustPaths.filter(
-  (path) => /^crates\/[a-z0-9-]+\/(?:src|tests|examples|benches)\/.+\.rs$/u.test(path),
+  (path) => /^crates\/[a-z0-9-]+\/(?:src|tests|examples|benches)\/.+\.rs$/u.test(path)
+    || generatedSourceHomePrefixes.some((prefix) => path.startsWith(prefix)),
 ).length;
 
 function metadata(name = 'snapback', dependencies = []) {
@@ -92,6 +95,7 @@ test('the Phase 2 facade is assigned with no confined externals', () => {
   assert.deepEqual(validateModuleMembership(artifact, rustPaths), {
     moduleCount,
     exceptionCount: 0,
+    generatedSourceHomeCount: 1,
   });
   assert.doesNotThrow(() => validateWorkspacePathModules(workspaceRustFiles));
 });
@@ -187,6 +191,29 @@ test('a loose Rust file outside the source and build-script homes fails closed',
       (path) => path === 'crates/snapback/loose.rs'
         || path.startsWith('issues/')
         || rustPaths.includes(path),
+      '2026-08-18',
+    ),
+    /unmatched Rust file outside a member source home/u,
+  );
+});
+
+test('generated Rust source homes are exact, member-local ownership assignments', () => {
+  const widened = structuredClone(artifact);
+  widened.generatedSourceHomes.push({
+    member: 'snapback-engine',
+    path: 'crates/snapback-engine/generated',
+  });
+  assert.throws(
+    () => validateModuleMembership(widened, rustPaths),
+    /generated source homes drifted/u,
+  );
+
+  const undeclaredGeneratedFile = 'crates/snapback-engine/generated/undeclared.rs';
+  assert.throws(
+    () => validateModuleMembership(
+      artifact,
+      [...rustPaths, undeclaredGeneratedFile].sort(),
+      (path) => path === undeclaredGeneratedFile || rustPaths.includes(path),
       '2026-08-18',
     ),
     /unmatched Rust file outside a member source home/u,
@@ -469,6 +496,20 @@ test('the committed matrix cannot widen without amending its checked projection'
   assert.throws(
     () => validateArtifactAndMetadata(widened, metadata(), workspaceManifestSource),
     /matrix crate rows drifted/u,
+  );
+
+  const generatedHomeWidening = structuredClone(artifact);
+  generatedHomeWidening.generatedSourceHomes.push({
+    member: 'snapback-engine',
+    path: 'crates/snapback-engine/generated',
+  });
+  assert.throws(
+    () => validateArtifactAndMetadata(
+      generatedHomeWidening,
+      metadata(),
+      workspaceManifestSource,
+    ),
+    /generated source homes drifted/u,
   );
 });
 
