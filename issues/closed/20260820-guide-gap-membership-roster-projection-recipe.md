@@ -1,6 +1,7 @@
 # guide-gap: show authority roster plus product-visible roster projection
 
-**Status:** Open — reopened 2026-08-21 after independent review
+**Status:** Closed — 2026-08-21
+**Landing SHA:** TBD
 **Opened:** 2026-08-20
 **Systems:** Guide, Memberships, Authorization, Projections, Messaging
 **Related:** LLP 0056; LLP 0240; LLP 0277 P21; LLP 0295; diaries 0100, 0101
@@ -62,3 +63,20 @@ in 4/15 tool uses.
 
 Partial evidence: retrieval and Guide checks pass; transition acceptance and
 the packed vertical receipt remain open.
+
+## Resolution — 2026-08-21
+
+The recipe now carries the complete current interim: private authority,
+ordinary app-visible current projection, explicit fact ownership, atomic
+bootstrap/add/self-leave writes, the governed non-atomic profile-operation and
+authority-checked reconciliation seam required today for promote/remove,
+explicit absent/idempotent outcomes, frozen send-time recipients, and later
+join/leave receipt semantics. A dedicated demo acceptance compares the
+profile's admitted bounded authority roster with the product projection after
+every transition and exercises the receipt history branches.
+
+Retrieval case 69 now requires the interim/no-precommit guidance, and cases
+73–77 use the exact diary vocabulary: “list chat members,” “show roster,” “who
+is in the room,” “membership table public,” and “enumerate members.” The
+corrected retrieval evidence is recorded under
+`guide/eval-runs/2026-08-21/membership-roster-projection.md`.

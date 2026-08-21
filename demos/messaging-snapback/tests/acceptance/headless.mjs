@@ -33,10 +33,17 @@ cpSync(backendDir, fixtureBackendDir, { recursive: true });
 // interactive demo's deliberately dev-mode persona surface.
 const fixtureSchemaPath = join(fixtureBackendDir, 'schema.mjs');
 const fixtureSchemaSource = readFileSync(fixtureSchemaPath, 'utf8');
-const sessionsSchemaSource = fixtureSchemaSource.replace(
-  /\n  \}\),\n\}\);\s*$/u,
-  "\n  }),\n  auth: { mode: 'sessions' },\n});\n",
-);
+const sessionsSchemaSource = fixtureSchemaSource
+  // The checked demo is intentionally dev-mode. Its fixture-seat principals
+  // are not catalog identities, so the independent sessions/media acceptance
+  // keeps the pre-profile membership declaration; roster-profile behavior has
+  // its own dev-mode acceptance in roster-projection.mjs.
+  .replace("\n    lastHolder: { protect: 'owner' },", '')
+  .replace(/\n  \/\/ Today's principal-addressed[\s\S]*?\n  \.authorityProfile\(\{[\s\S]*?\n    roster: \{ visible: \['userHandle', 'role'\] \},\n  \}\);/u, ';')
+  .replace(
+    /\n  \}\),\n\}\);\s*$/u,
+    "\n  }),\n  auth: { mode: 'sessions' },\n});\n",
+  );
 if (sessionsSchemaSource === fixtureSchemaSource) {
   throw new Error('messaging sessions fixture could not select auth.mode=sessions');
 }
@@ -64,7 +71,6 @@ const operatorServer = await startServer({
   governanceBackendRoot: fixtureBackendDir,
   captureImpersonationCapability: true,
 });
-
 async function seedFixture(server) {
   const response = await fetch(`${server.baseUrl}/_snapback/api/host-ops`, {
     method: 'POST',
@@ -331,8 +337,15 @@ try {
 
   let dmId;
   await suite.check('sendMessage stamps trusted time and updates the conversation preview', async () => {
-    const before = await app.client.query(api.conversationById, { args: { conversationId: 'conv_dm_lin_ada' } });
-    dmId = before.rows[0]._id;
+    const direct = await app.client.mutate(api.startDirectMessage, {
+      args: {
+        selfHandle: 'caller-asserted-acceptance-owner',
+        selfName: 'Lin Chen',
+        otherHandle: app.sessions.recipientA.session.userId,
+        otherName: 'Ada Lovelace',
+      },
+    });
+    dmId = direct.result;
     const sent = await app.client.mutate(api.sendMessage, {
       args: { conversationId: dmId, authorHandle: 'lin', authorName: 'Lin Chen', body: 'Acceptance ping' },
     });
@@ -346,8 +359,13 @@ try {
   });
 
   await suite.check('a reply carries a quoted pointer, not a nested thread', async () => {
-    const parent = await app.client.mutate(api.sendMessage, {
-      args: { conversationId: dmId, authorHandle: 'ada', authorName: 'Ada Lovelace', body: 'Original question' },
+    const parent = await app.clients.recipientA.mutate(api.sendMessage, {
+      args: {
+        conversationId: dmId,
+        authorHandle: app.sessions.recipientA.session.userId,
+        authorName: 'Ada Lovelace',
+        body: 'Original question',
+      },
     });
     const reply = await app.client.mutate(api.sendMessage, {
       args: { conversationId: dmId, authorHandle: 'lin', authorName: 'Lin Chen', body: 'Reply text', replyToId: parent.result },

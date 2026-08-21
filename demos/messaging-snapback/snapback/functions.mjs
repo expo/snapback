@@ -127,6 +127,62 @@ export const conversationById = defineJsLiveQuery({
   },
 });
 
+const rosterRow = v.object({
+  userHandle: v.string(),
+  role: v.string(),
+  joinedAt: v.integer(),
+});
+
+// Product-visible current roster. This demo retains its public product-read
+// posture; private products should narrow this projection's ordinary table
+// visibility without making the authority rows enumerable.
+export const conversationRoster = defineJsLiveQuery({
+  args: { conversationId: v.id('conversations') },
+  auth: 'authenticated',
+  result: results.records(rosterRow),
+  reads: ['conversationMembers'],
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_conversation')
+      .eq('conversationId', args.conversationId)
+      .take(500)
+      .collect();
+    return rows.map((row) => ({
+      userHandle: row.userHandle,
+      role: row.role,
+      joinedAt: row.joinedAt,
+    }));
+  },
+});
+
+const recipientSnapshotRow = v.object({
+  messageId: v.id('messages'),
+  recipients: v.array(v.object({
+    userHandle: v.string(),
+    roleAtSend: v.string(),
+  })),
+  deliveredBy: v.array(v.string()),
+  readBy: v.array(v.string()),
+});
+
+export const messageRecipientSnapshot = defineJsLiveQuery({
+  args: { messageId: v.id('messages') },
+  auth: 'authenticated',
+  result: results.records(recipientSnapshotRow),
+  reads: ['messages'],
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get('messages', args.messageId);
+    if (!message) return [];
+    return [{
+      messageId: message._id,
+      recipients: message.recipientSnapshot ?? [],
+      deliveredBy: message.deliveredBy ?? [],
+      readBy: message.readBy ?? [],
+    }];
+  },
+});
+
 const messageRow = v.object({
   _id: v.id('messages'),
   conversationId: v.id('conversations'),
@@ -283,14 +339,34 @@ export const sendMessage = defineJsMutation({
     replyToId: v.optional(v.id('messages')),
     assetId: v.optional(v.string()),
   },
+  auth: 'authenticated',
+  refusals: ['MESSAGE_RECIPIENT_LIMIT'],
   result: results.value(v.id('messages')),
-  reads: ['conversations'],
+  reads: ['conversations', 'conversationMembers', 'conversationMemberships'],
   writes: ['messages', 'conversations'],
   handler: async (ctx, args) => {
+    await ctx.permissions.conversationMemberships.requireRole(
+      args.conversationId,
+      'owner',
+      'moderator',
+      'member',
+    );
     const body = String(args.body ?? '').trim();
     if (!body && !args.assetId) throw new Error('a message needs text or an image');
     const conversation = await ctx.db.get('conversations', args.conversationId);
     if (!conversation) throw new Error('conversation not found');
+    const currentRoster = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_conversation')
+      .eq('conversationId', args.conversationId)
+      .take(501)
+      .collect();
+    if (currentRoster.length > 500) {
+      ctx.refuse('MESSAGE_RECIPIENT_LIMIT', { limit: 500 });
+    }
+    const recipientSnapshot = currentRoster
+      .filter((member) => member.userHandle !== ctx.auth.userId)
+      .map((member) => ({ userHandle: member.userHandle, roleAtSend: member.role }));
     const now = ctx.runtime.now();
     const messageId = await ctx.db.insert('messages', {
       conversationId: args.conversationId,
@@ -301,14 +377,64 @@ export const sendMessage = defineJsMutation({
       ...(args.assetId
         ? { image: await ctx.assets.attach(args.assetId, { upload: 'messageImageUpload' }) }
         : {}),
+      recipientSnapshot,
+      deliveredBy: [],
+      readBy: [],
       createdAt: now,
     });
+    // @ref LLP 0240#authority-facts-versus-product-facts — freeze receipt
+    // membership from the synchronized product roster in the send transaction.
+    // Later joins, leaves, kicks, and promotions never rewrite this snapshot.
     await ctx.db.patch('conversations', args.conversationId, {
       lastMessageText: body || '📷 Photo',
       lastMessageAuthorName: args.authorName,
       lastMessageAt: now,
     });
     return messageId;
+  },
+});
+
+export const acknowledgeMessage = defineJsMutation({
+  args: {
+    messageId: v.id('messages'),
+    kind: v.string(),
+  },
+  auth: 'authenticated',
+  refusals: ['MESSAGE_ACK_KIND_INVALID', 'MESSAGE_ACK_NOT_RECIPIENT'],
+  result: results.value(v.object({ outcome: v.string() })),
+  reads: ['messages', 'conversationMemberships'],
+  writes: ['messages'],
+  handler: async (ctx, args) => {
+    if (args.kind !== 'delivered' && args.kind !== 'read') {
+      ctx.refuse('MESSAGE_ACK_KIND_INVALID');
+    }
+    const message = await ctx.db.get('messages', args.messageId);
+    if (!message) ctx.refuse('MESSAGE_ACK_NOT_RECIPIENT');
+    await ctx.permissions.conversationMemberships.requireRole(
+      message.conversationId,
+      'owner',
+      'moderator',
+      'member',
+    );
+    const recipients = message.recipientSnapshot ?? [];
+    if (!recipients.some((recipient) => recipient.userHandle === ctx.auth.userId)) {
+      ctx.refuse('MESSAGE_ACK_NOT_RECIPIENT');
+    }
+    const deliveredBy = message.deliveredBy ?? [];
+    const readBy = message.readBy ?? [];
+    const nextDeliveredBy = deliveredBy.includes(ctx.auth.userId)
+      ? deliveredBy
+      : [...deliveredBy, ctx.auth.userId];
+    const nextReadBy = args.kind === 'read' && !readBy.includes(ctx.auth.userId)
+      ? [...readBy, ctx.auth.userId]
+      : readBy;
+    const changed = nextDeliveredBy !== deliveredBy || nextReadBy !== readBy;
+    if (!changed) return { outcome: 'unchanged' };
+    await ctx.db.patch('messages', args.messageId, {
+      deliveredBy: nextDeliveredBy,
+      readBy: nextReadBy,
+    });
+    return { outcome: 'changed' };
   },
 });
 
@@ -538,8 +664,12 @@ export const startDirectMessage = defineJsMutation({
       lastMessageAt: now,
       createdAt: now,
     }, [{ userHandle: args.otherHandle, role: 'member', joinedAt: now }]);
-    await ctx.db.insert('conversationMembers', { conversationId, userHandle: selfHandle, joinedAt: now });
-    await ctx.db.insert('conversationMembers', { conversationId, userHandle: args.otherHandle, joinedAt: now });
+    await ctx.db.insert('conversationMembers', {
+      conversationId, userHandle: selfHandle, role: 'owner', joinedAt: now,
+    });
+    await ctx.db.insert('conversationMembers', {
+      conversationId, userHandle: args.otherHandle, role: 'member', joinedAt: now,
+    });
     return conversationId;
   },
 });
@@ -576,7 +706,12 @@ export const createGroup = defineJsMutation({
       createdAt: now,
     }, uniqueOthers.map((userHandle) => ({ userHandle, role: 'member', joinedAt: now })));
     for (const handle of allHandles) {
-      await ctx.db.insert('conversationMembers', { conversationId, userHandle: handle, joinedAt: now });
+      await ctx.db.insert('conversationMembers', {
+        conversationId,
+        userHandle: handle,
+        role: handle === creatorHandle ? 'owner' : 'member',
+        joinedAt: now,
+      });
     }
     return conversationId;
   },
@@ -587,7 +722,7 @@ export const createGroup = defineJsMutation({
 export const leaveConversation = defineJsMutation({
   auth: 'authenticated',
   args: { conversationId: v.id('conversations') },
-  result: results.value(v.boolean()),
+  result: results.value(v.object({ outcome: v.string() })),
   reads: ['conversationMembers', 'conversations'],
   writes: ['conversationMemberships', 'conversationMembers', 'conversations'],
   handler: async (ctx, args) => {
@@ -600,16 +735,15 @@ export const leaveConversation = defineJsMutation({
       .eq('conversationId', args.conversationId)
       .eq('userHandle', memberHandle)
       .first();
+    if (!projectedMembership) return { outcome: 'unchanged' };
     const conversation = await ctx.db.get('conversations', args.conversationId);
     if (!conversation) throw new Error('conversation not found');
     await ctx.membership.conversationMemberships.removeSelf(args.conversationId);
-    if (projectedMembership) {
-      await ctx.db.delete('conversationMembers', projectedMembership._id);
-    }
+    await ctx.db.delete('conversationMembers', projectedMembership._id);
     await ctx.db.patch('conversations', args.conversationId, {
       memberHandles: conversation.memberHandles.filter((handle) => handle !== memberHandle),
     });
-    return true;
+    return { outcome: 'changed' };
   },
 });
 
@@ -620,12 +754,13 @@ export const addConversationMember = defineJsMutation({
     conversationId: v.id('conversations'),
     userHandle: v.principal(),
   },
-  result: results.value(v.boolean()),
-  reads: ['conversationMembers', 'conversations'],
+  result: results.value(v.object({ outcome: v.string() })),
+  reads: ['conversationMemberships', 'conversationMembers', 'conversations'],
   writes: ['conversationMemberships', 'conversationMembers', 'conversations'],
   handler: async (ctx, args) => {
     // @ref LLP 0176#one-owner-many-projections — seating a principal updates the
     // authority roster, inbox edge, and member-count projection atomically.
+    await ctx.permissions.conversationMemberships.requireRole(args.conversationId, 'owner');
     const conversation = await ctx.db.get('conversations', args.conversationId);
     if (!conversation) throw new Error('conversation not found');
     const projectedMembership = await ctx.db
@@ -634,6 +769,7 @@ export const addConversationMember = defineJsMutation({
       .eq('conversationId', args.conversationId)
       .eq('userHandle', args.userHandle)
       .first();
+    if (projectedMembership) return { outcome: 'unchanged' };
     const now = ctx.runtime.now();
     await ctx.membership.conversationMemberships.insert({
       conversationId: args.conversationId,
@@ -641,18 +777,86 @@ export const addConversationMember = defineJsMutation({
       role: 'member',
       joinedAt: now,
     });
-    if (!projectedMembership) {
-      await ctx.db.insert('conversationMembers', {
-        conversationId: args.conversationId,
-        userHandle: args.userHandle,
-        joinedAt: now,
-      });
-    }
+    await ctx.db.insert('conversationMembers', {
+      conversationId: args.conversationId,
+      userHandle: args.userHandle,
+      role: 'member',
+      joinedAt: now,
+    });
     if (!conversation.memberHandles.includes(args.userHandle)) {
       await ctx.db.patch('conversations', args.conversationId, {
         memberHandles: [...conversation.memberHandles, args.userHandle],
       });
     }
-    return true;
+    return { outcome: 'changed' };
+  },
+});
+
+export const promoteConversationMember = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    conversationId: v.id('conversations'),
+    userHandle: v.principal(),
+  },
+  result: results.value(v.object({ outcome: v.string() })),
+  reads: ['conversationMemberships', 'conversationMembers'],
+  writes: ['conversationMembers'],
+  handler: async (ctx, args) => {
+    await ctx.permissions.conversationMemberships.requireRole(args.conversationId, 'owner');
+    const projectedMembership = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_conversation_user')
+      .eq('conversationId', args.conversationId)
+      .eq('userHandle', args.userHandle)
+      .first();
+    if (!projectedMembership) return { outcome: 'absent' };
+    const authority = await ctx.authority.conversationMemberships.list(
+      args.conversationId,
+      { limit: 500 },
+    );
+    const authoritativeMember = authority.rows.find(
+      (member) => member.userHandle === args.userHandle,
+    );
+    if (authoritativeMember?.role !== 'moderator') {
+      throw new Error('run conversationMemberships.changeRole before reconciling the projection');
+    }
+    if (projectedMembership.role === 'moderator') return { outcome: 'unchanged' };
+    await ctx.db.patch('conversationMembers', projectedMembership._id, { role: 'moderator' });
+    return { outcome: 'changed' };
+  },
+});
+
+export const removeConversationMember = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    conversationId: v.id('conversations'),
+    userHandle: v.principal(),
+  },
+  result: results.value(v.object({ outcome: v.string() })),
+  reads: ['conversationMemberships', 'conversationMembers', 'conversations'],
+  writes: ['conversationMembers', 'conversations'],
+  handler: async (ctx, args) => {
+    await ctx.permissions.conversationMemberships.requireRole(args.conversationId, 'owner');
+    const projectedMembership = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_conversation_user')
+      .eq('conversationId', args.conversationId)
+      .eq('userHandle', args.userHandle)
+      .first();
+    const authority = await ctx.authority.conversationMemberships.list(
+      args.conversationId,
+      { limit: 500 },
+    );
+    if (authority.rows.some((member) => member.userHandle === args.userHandle)) {
+      throw new Error('run conversationMemberships.remove before reconciling the projection');
+    }
+    if (!projectedMembership) return { outcome: 'unchanged' };
+    const conversation = await ctx.db.get('conversations', args.conversationId);
+    if (!conversation) throw new Error('conversation not found');
+    await ctx.db.delete('conversationMembers', projectedMembership._id);
+    await ctx.db.patch('conversations', args.conversationId, {
+      memberHandles: conversation.memberHandles.filter((handle) => handle !== args.userHandle),
+    });
+    return { outcome: 'changed' };
   },
 });

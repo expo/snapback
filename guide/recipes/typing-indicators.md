@@ -11,7 +11,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.24
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:67cf0c31b9ed7947afdf9c708c7291d5c2a3d6a9d061db862f9e4bbd8a4341b0
+reviewed-authorities-digest: sha256:bccb8b492efb984a1a392eb58342737f20866d3f709e0edfe2559a82250d6ec5
 ---
 
 # Recipe: membership-scoped typing indicators
@@ -54,13 +54,31 @@ export const conversationMemberships = defineTable({
     principal: 'userHandle',
     resource: 'conversationId',
     role: 'role',
-    roles: ['owner', 'member'],
+    roles: ['owner', 'moderator', 'member'],
     bootstrapRole: 'owner',
+    lastHolder: { protect: 'owner' },
     provenance: 'full',
     transitions: [
       { op: 'insert', by: ['owner'], target: 'other', to: ['member'], fields: ['joinedAt'] },
-      { op: 'remove', by: ['self'], target: 'self', from: ['member'] },
+      { op: 'setRole', by: ['owner'], target: 'other', from: ['member'], to: ['moderator'] },
+      { op: 'remove', by: ['owner'], target: 'other', from: ['moderator', 'member'] },
+      { op: 'remove', by: ['self'], target: 'self', from: ['moderator', 'member'] },
     ],
+  })
+  // Today's principal-addressed changeRole/remove commands require a local
+  // authority profile. Its generated writers are not projection-aware, so
+  // application clients must use the synchronized mutations in functions.mjs;
+  // the acceptance drift check makes that interim obligation reviewable.
+  // @ref LLP 0240#authority-facts-versus-product-facts
+  // — option 1 remains the sanctioned interim, not the final generated design.
+  .authorityProfile({
+    name: 'conversationMemberships',
+    hierarchy: {
+      owner: ['moderator', 'member'],
+      moderator: ['member'],
+      member: [],
+    },
+    roster: { visible: ['userHandle', 'role'] },
   });
 ```
 

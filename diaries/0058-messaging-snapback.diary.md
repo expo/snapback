@@ -393,3 +393,59 @@ falls through to `not_ephemeral` because it has no `Error` arm. Consequently
 the React presence and LLP 0257 activity-presence surfaces retain their prior
 ready/empty state instead of surfacing terminal `status`/`diagnostic` or
 `onError`. This slice records that finding without changing the client.
+
+## 2026-08-21 — Private chat authority with a product roster projection
+
+The messaging demo now carries the complete interim roster composition that
+the Guide needs to teach today. `conversationMemberships` remains the private,
+non-enumerable source of current authorization, while `conversationMembers`
+now projects the display role and current join time. Bootstrap, owner add,
+owner promotion, owner removal, and member/moderator self-leave update those
+stores through one governed application path. Bootstrap, add, and self-leave
+are atomic mutation-plus-projection writes; promotion and other-member removal
+use the profile's generated principal-addressed operation followed by a
+reconciliation mutation that verifies the new authority roster before writing
+the projection. Their existing, missing, and already-current branches return
+explicit `changed`, `unchanged`, or `absent` outcomes. This corrects the
+previous entry's statement that `conversationMembers` stayed byte-identical:
+the projection now deliberately includes `role` so the settings roster is
+useful without reading authority backing.
+
+The principal-addressed `changeRole` and `remove` operations require an
+`authorityProfile` and can be invoked only through codegen-synthesized profile
+operations; attempting to marshal them from an authored handler fails with
+`SNAPBACK_MEMBERSHIP_OPERATION_INVALID`. That refusal materially changed the
+recipe. The demo now protects the real owner with `lastHolder`, routes those
+two generated operations through one application coordinator, and makes the
+companion mutations re-read `ctx.authority.conversationMemberships.list`
+before applying a product change. The two calls are not atomic, which is the
+known cost of the sanctioned interim rather than a property the Guide hides.
+Bootstrap/add/self-leave still use the better one-command-plus-ordinary-writes
+transactional form.
+
+The dedicated dev-mode acceptance compares the profile's admitted bounded
+authority roster with the ordinary projection after bootstrap and every
+transition. This avoids an operator-only private scan and never exposes a
+membership row id. It also makes a missed reconciliation a failing invariant
+instead of a silent authorization fork. The existing Sessions/media acceptance
+keeps its fixture declaration profile-free because reset removes the sessions
+catalog and captured fixture principals cannot establish a protected owner;
+that independent 25-check lane remains green.
+
+Message recipients are frozen from the synchronized product roster in the send
+transaction. Their roles at send time and later delivered/read facts are
+product history, not current authority. The acceptance adds a principal after
+send and proves it cannot acknowledge that older message, then removes or lets
+the original recipients leave and proves their snapshot entries and recorded
+read receipt remain. The creator authority row still cannot accept incidental
+bootstrap fields, so its authoritative `joinedAt` stays optional while the
+ordinary projection owns the required current-incarnation timestamp.
+
+Compared with querying a join table in Convex or a Supabase policy-backed SQL
+view, Snapback's non-enumerable authority gives a stronger boundary and
+generated transition enforcement, but today's application must pay for the
+visible projection and its drift witness. LLP 0295 D0.4 expressly permits
+teaching this sanctioned composition now; the recipe labels it interim and
+does not claim a future generated projection API or commit to an implementation
+option ahead of that surface landing. This entry closes the recorded Guide gap,
+so it does not open another guide-gap ticket.

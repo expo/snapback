@@ -45,6 +45,9 @@ export const conversations = defineTable({
 export const conversationMembers = defineTable({
   conversationId: v.id('conversations'),
   userHandle: v.string(),
+  // This copy is presentation state only. Authorization always consults the
+  // private conversationMemberships declaration below.
+  role: v.string(),
   joinedAt: v.integer(),
 })
   .visibility({ kind: 'public-read' })
@@ -71,13 +74,31 @@ export const conversationMemberships = defineTable({
     principal: 'userHandle',
     resource: 'conversationId',
     role: 'role',
-    roles: ['owner', 'member'],
+    roles: ['owner', 'moderator', 'member'],
     bootstrapRole: 'owner',
+    lastHolder: { protect: 'owner' },
     provenance: 'full',
     transitions: [
       { op: 'insert', by: ['owner'], target: 'other', to: ['member'], fields: ['joinedAt'] },
-      { op: 'remove', by: ['self'], target: 'self', from: ['member'] },
+      { op: 'setRole', by: ['owner'], target: 'other', from: ['member'], to: ['moderator'] },
+      { op: 'remove', by: ['owner'], target: 'other', from: ['moderator', 'member'] },
+      { op: 'remove', by: ['self'], target: 'self', from: ['moderator', 'member'] },
     ],
+  })
+  // Today's principal-addressed changeRole/remove commands require a local
+  // authority profile. Its generated writers are not projection-aware, so
+  // application clients must use the synchronized mutations in functions.mjs;
+  // the acceptance drift check makes that interim obligation reviewable.
+  // @ref LLP 0240#authority-facts-versus-product-facts
+  // — option 1 remains the sanctioned interim, not the final generated design.
+  .authorityProfile({
+    name: 'conversationMemberships',
+    hierarchy: {
+      owner: ['moderator', 'member'],
+      moderator: ['member'],
+      member: [],
+    },
+    roster: { visible: ['userHandle', 'role'] },
   });
 
 export const messages = defineTable({
@@ -87,6 +108,11 @@ export const messages = defineTable({
   body: v.string(),
   image: v.optional(v.assetRef({ upload: 'messageImageUpload' })),
   replyToId: v.optional(v.id('messages')),
+  // Frozen product history. The roster projection determines this set only
+  // inside sendMessage; later membership transitions never rewrite it.
+  recipientSnapshot: v.optional(v.json()),
+  deliveredBy: v.optional(v.json()),
+  readBy: v.optional(v.json()),
   createdAt: v.integer(),
 })
   .visibility({ kind: 'public-read' })

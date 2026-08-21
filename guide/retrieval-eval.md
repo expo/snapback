@@ -727,7 +727,7 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     `resourceField: \"_id\"`, or rewrites old receipt membership after a leave.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "private membership roster", "product-visible roster projection", "display roster", "send-time recipient set".
-    Required guidance: "the demo declaration admits only owner-insert and self-remove".
+    Required guidance: "today's sanctioned interim pattern", "does not pre-commit".
 
 70. **Provider connection lifecycle:** "My Contract provider creates a
     connection per subscription; N cells imply N transport connections and
@@ -777,6 +777,43 @@ wrong vocabulary from the source diaries and review evidence.
     Expected pages: `recipes/provider-lifecycle.md`.
     Route terms: "provider adapter pattern", "rebuild stream on auth".
     Required guidance: "authentication-not-settled", "transitionOwner", "teardown-before-rebuild".
+
+75. **List chat members:** "list chat members without exposing the private
+    authority rows." The run fails if it queries membership backing directly,
+    copies its row ids, or authorizes from the product projection.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "list chat members".
+    Required guidance: "private membership declaration", "ordinary app-visible projection table".
+
+76. **Show roster:** "show roster with roles and join dates for a chat room."
+    The run fails if it claims `bootstrap()` can stamp arbitrary creator-seat
+    product fields or omits the synchronized projection mutation.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "show roster".
+    Required guidance: "creator seat is server-derived", "Bootstrap uses the atomic form".
+
+77. **Who is in the room:** "who is in the room now, and who received a
+    message before someone left?" The run fails if it recomputes an old
+    recipient set from current membership or drops departed receipt subjects.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "who is in the room".
+    Required guidance: "Later joins never enter an old snapshot", "departed recipient's already-recorded delivery/read fact remains history".
+
+78. **Membership table public:** "Should I make the membership table public
+    so the client can render members?" The run fails if it weakens private-row
+    non-enumerability instead of using an ordinary product projection.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "membership table public".
+    Required guidance: "Do not solve it by making the membership table public".
+
+79. **Enumerate members:** "enumerate members for a room settings screen and
+    support add, promote, remove, and leave retries." The run fails if the
+    required profile-operation/reconciliation pair is scattered across UI call
+    sites, its non-atomic interim limitation is hidden, or missing/current
+    branches are implicit.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "enumerate members".
+    Required guidance: "The branch contract is explicit", "Keep one governed transition path".
 
 ## Static routing check
 

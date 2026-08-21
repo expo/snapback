@@ -50,17 +50,17 @@
       }
     ],
     "conversationMembers": [
-      { "_id": "cm_dm1_lin", "conversationId": "conv_dm_lin_ada", "userHandle": "lin", "joinedAt": 1785700000000 },
-      { "_id": "cm_dm1_ada", "conversationId": "conv_dm_lin_ada", "userHandle": "ada", "joinedAt": 1785700000000 },
-      { "_id": "cm_dm2_lin", "conversationId": "conv_dm_lin_grace", "userHandle": "lin", "joinedAt": 1785690000000 },
-      { "_id": "cm_dm2_grace", "conversationId": "conv_dm_lin_grace", "userHandle": "grace", "joinedAt": 1785690000000 },
-      { "_id": "cm_gf_lin", "conversationId": "conv_group_founders", "userHandle": "lin", "joinedAt": 1785600000000 },
-      { "_id": "cm_gf_ada", "conversationId": "conv_group_founders", "userHandle": "ada", "joinedAt": 1785600000000 },
-      { "_id": "cm_gf_grace", "conversationId": "conv_group_founders", "userHandle": "grace", "joinedAt": 1785600000000 },
-      { "_id": "cm_gf_mo", "conversationId": "conv_group_founders", "userHandle": "mo", "joinedAt": 1785600000000 },
-      { "_id": "cm_gt_lin", "conversationId": "conv_group_trip", "userHandle": "lin", "joinedAt": 1785650000000 },
-      { "_id": "cm_gt_mo", "conversationId": "conv_group_trip", "userHandle": "mo", "joinedAt": 1785650000000 },
-      { "_id": "cm_gt_priya", "conversationId": "conv_group_trip", "userHandle": "priya", "joinedAt": 1785650000000 }
+      { "_id": "cm_dm1_lin", "conversationId": "conv_dm_lin_ada", "userHandle": "lin", "role": "owner", "joinedAt": 1785700000000 },
+      { "_id": "cm_dm1_ada", "conversationId": "conv_dm_lin_ada", "userHandle": "ada", "role": "member", "joinedAt": 1785700000000 },
+      { "_id": "cm_dm2_lin", "conversationId": "conv_dm_lin_grace", "userHandle": "lin", "role": "owner", "joinedAt": 1785690000000 },
+      { "_id": "cm_dm2_grace", "conversationId": "conv_dm_lin_grace", "userHandle": "grace", "role": "member", "joinedAt": 1785690000000 },
+      { "_id": "cm_gf_lin", "conversationId": "conv_group_founders", "userHandle": "lin", "role": "owner", "joinedAt": 1785600000000 },
+      { "_id": "cm_gf_ada", "conversationId": "conv_group_founders", "userHandle": "ada", "role": "member", "joinedAt": 1785600000000 },
+      { "_id": "cm_gf_grace", "conversationId": "conv_group_founders", "userHandle": "grace", "role": "member", "joinedAt": 1785600000000 },
+      { "_id": "cm_gf_mo", "conversationId": "conv_group_founders", "userHandle": "mo", "role": "member", "joinedAt": 1785600000000 },
+      { "_id": "cm_gt_lin", "conversationId": "conv_group_trip", "userHandle": "lin", "role": "owner", "joinedAt": 1785650000000 },
+      { "_id": "cm_gt_mo", "conversationId": "conv_group_trip", "userHandle": "mo", "role": "member", "joinedAt": 1785650000000 },
+      { "_id": "cm_gt_priya", "conversationId": "conv_group_trip", "userHandle": "priya", "role": "member", "joinedAt": 1785650000000 }
     ],
     "conversationMemberships": [
       { "_id": "cms_dm1_lin", "conversationId": "conv_dm_lin_ada", "userHandle": "lin", "role": "owner", "joinedAt": 1785700000000 },
