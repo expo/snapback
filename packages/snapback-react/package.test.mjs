@@ -102,6 +102,7 @@ function createFakeClient({
   managerSocketDemand = 0,
 } = {}) {
   const handles = new Set();
+  const managers = new Map();
   const byFunction = new Map();
   const durableConsumers = new Set();
   const startOptions = [];
@@ -158,20 +159,80 @@ function createFakeClient({
       });
     },
     async disconnect() { disconnects += 1; },
-    liveStreamManager() {
-      return {
-        close() { managerCloses += 1; },
+    liveStreamManager(connectionId) {
+      let manager = managers.get(connectionId);
+      if (manager) return manager;
+      let closed = false;
+      manager = {
+        close() {
+          if (closed) return;
+          closed = true;
+          managerCloses += 1;
+          managers.delete(connectionId);
+        },
         inspection() {
-          return { socketDemand: managerSocketDemand + handles.size };
+          const socketDemand = managerSocketDemand + [...handles]
+            .filter((handle) => handle.connectionId === connectionId)
+            .length;
+          return {
+            connectionId,
+            open: socketDemand > 0,
+            closed,
+            socketDemand,
+            durableListeners: 0,
+            ephemeralListeners: 0,
+            stateListeners: 0,
+            readinessListeners: 0,
+            pendingRequests: 0,
+            reconnectTimer: 0,
+            heartbeatTimer: 0,
+          };
         },
       };
+      managers.set(connectionId, manager);
+      return manager;
     },
-    async releaseConnection(_connectionId, { ifIdle = false } = {}) {
+    async releaseConnection(connectionId, { ifIdle = false } = {}) {
       if (ifIdle && managerSocketDemand > 0) {
         return { released: false, reason: 'shared-demand' };
       }
       releases += 1;
+      managers.delete(connectionId);
       return { released: true, attached: true };
+    },
+    localResourceInspection(connectionIds = null) {
+      const selected = connectionIds === null
+        ? null
+        : new Set(Array.from(connectionIds, (value) => String(value)));
+      const inspectedManagers = [...managers.entries()]
+        .filter(([connectionId]) => selected === null || selected.has(connectionId))
+        .map(([, manager]) => manager.inspection());
+      return Object.freeze({
+        managers: Object.freeze(inspectedManagers),
+        managerCount: inspectedManagers.length,
+        grants: Object.freeze(inspectedManagers.map(({ connectionId }) => connectionId)),
+        grantCount: inspectedManagers.length,
+        laneConsumers: Object.freeze(inspectedManagers.map(({ connectionId }) => Object.freeze({
+          connectionId,
+          durable: [...handles].filter(
+            (handle) => handle.connectionId === connectionId,
+          ).length,
+          ephemeral: 0,
+        }))),
+        socketDemand: inspectedManagers.reduce((sum, manager) => sum + manager.socketDemand, 0),
+        timers: inspectedManagers.reduce(
+          (sum, manager) => sum + manager.reconnectTimer + manager.heartbeatTimer,
+          0,
+        ),
+        listeners: inspectedManagers.reduce(
+          (sum, manager) => sum
+            + manager.durableListeners
+            + manager.ephemeralListeners
+            + manager.stateListeners
+            + manager.readinessListeners,
+          0,
+        ),
+      });
     },
     async unsubscribeLive(_ref, { subscriptionId } = {}) {
       if (serverRegistrations.delete(subscriptionId)) registeredRetirements += 1;
@@ -189,6 +250,7 @@ function createFakeClient({
       starts += 1;
       startOptions.push(Object.freeze({
         function: ref.name,
+        connectionId: options.connectionId,
         supersedesSubscriptionId: options.supersedesSubscriptionId ?? null,
         registered: options.registeredSubscription !== undefined,
         userId: options.userId ?? null,
@@ -209,6 +271,7 @@ function createFakeClient({
         ? new Promise((resolve) => { resolveStarted = resolve; })
         : Promise.resolve();
       const handle = {
+        connectionId: options.connectionId,
         current,
         started: () => started,
         dispose() {
@@ -361,6 +424,25 @@ function createFakeClient({
     },
   };
   return client;
+}
+
+function inspectProviderOwners(client, providers) {
+  return Object.freeze(providers.map((provider) => {
+    const providerResources = provider.inspection();
+    const connectionId = provider.registry.connectionId;
+    const clientResources = client.localResourceInspection([connectionId]);
+    return Object.freeze({
+      owner: providerResources.providerInstanceId,
+      connectionId,
+      activeConnections: clientResources.managers.filter(
+        (manager) => !manager.closed && (manager.open || manager.socketDemand > 0),
+      ).length,
+      activeSubscriptions: providerResources.serverSubscriptions,
+      socketDemand: clientResources.socketDemand,
+      timers: clientResources.timers,
+      listeners: clientResources.listeners,
+    });
+  }));
 }
 
 const fake = createFakeClient();
@@ -1325,6 +1407,7 @@ assert.deepEqual(
   lazyRaceFake.inspection().startOptions.find((entry) => entry.function === 'details'),
   {
     function: 'details',
+    connectionId: 'registered-react-group',
     supersedesSubscriptionId: 'registered-details',
     registered: false,
     userId: null,
@@ -1666,6 +1749,55 @@ assert.equal(
   1,
   'the final shared provider releases the idle grant after sibling demand ends',
 );
+
+// @ref LLP 0095#connection-ownership-per-app-authorityorigin — provider cells
+// sharing one manager tuple multiplex subscriptions over one connection label.
+const providerLifecycleFake = createFakeClient();
+const providerLifecycleBinding = await prepareReactBindingForClient(
+  providerLifecycleFake,
+  { generatedManifest },
+);
+const providerLifecycle = createSnapbackReactProvider(providerLifecycleBinding, {
+  connectionId: 'provider-lifecycle-shared-authority-origin',
+});
+const providerCellCount = 6;
+const providerCells = observeSnapbackQueries(
+  providerLifecycle,
+  Object.fromEntries(Array.from({ length: providerCellCount }, (_, index) => [
+    `cell${index}`,
+    { ref: capacityFeeds[index], args: {} },
+  ])),
+  () => {},
+);
+await flush();
+assert.deepEqual(inspectProviderOwners(providerLifecycleFake, [providerLifecycle]), [{
+  owner: providerLifecycle.providerInstanceId,
+  connectionId: 'provider-lifecycle-shared-authority-origin',
+  activeConnections: 1,
+  activeSubscriptions: providerCellCount,
+  socketDemand: providerCellCount,
+  timers: 0,
+  listeners: 0,
+}]);
+assert.equal(
+  new Set(
+    providerLifecycleFake.inspection().startOptions.map((entry) => entry.connectionId),
+  ).size,
+  1,
+  'N provider cells sharing authority/origin use one transport connection label',
+);
+providerCells.dispose();
+await flush();
+await providerLifecycle.dispose();
+assert.deepEqual(inspectProviderOwners(providerLifecycleFake, [providerLifecycle]), [{
+  owner: providerLifecycle.providerInstanceId,
+  connectionId: 'provider-lifecycle-shared-authority-origin',
+  activeConnections: 0,
+  activeSubscriptions: 0,
+  socketDemand: 0,
+  timers: 0,
+  listeners: 0,
+}]);
 
 const capacityProvider = createSnapbackReactProvider(binding, {
   connectionId: 'react-package-capacity-test',

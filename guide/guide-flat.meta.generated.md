@@ -1732,8 +1732,7 @@ sessions-evolution, and familiar-profile discovery misses.
     "SecureStore custody".
 
 Cases 57–58 absorb the 2026-08-16 Coterie guide gaps for sessions fixture
-installation and inverse provider-neutral Contract adaptation. Case 59 absorbs
-the 2026-08-18 custody-store repair miss.
+installation and inverse provider-neutral Contract adaptation.
 
 57. **Sessions fixture install:** "Install deterministic password accounts,
     principal-owned profile rows, and typed avatar media in a sessions-mode
@@ -1784,11 +1783,9 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     receipt or feed write fails with
     `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` while login changes." The run
     fails if it creates an unbounded effect/retry loop, treats suspension as a
-    content refusal, or declares a queued mutation settled. It also fails if it
-    invents a pending housekeeping flag/API from the D0.2 ruling.
+    content refusal, or declares a queued mutation settled.
     Expected pages: `recipes/auth-transition-writes.md`.
-    Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground", "write after login", "mutation during sign-in", "outbox suspended", "background write auth".
-    Required guidance: "blocked:authentication-required", "blocked:authentication-not-settled", "transitionOwner", "auth-coordinator", "Every dispatched promise must be awaited or have a rejection handler attached immediately".
+    Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
 
 62. **Presence heartbeat versus bound value:** "I passed
     `useSurface({ typing: value })`; why is the surface presence value a
@@ -1848,11 +1845,11 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     connection per subscription; N cells imply N transport connections and
     teardown leaks timers." The run fails if it mints connection ids per
     mount, subscribes before authority settles, nests reads in callbacks,
-    omits `localResourceInspection`, or invents a numeric platform budget that
-    Phase 0 has not selected.
+    omits owner-scoped inspection, or invents a numeric platform budget that
+    D0.5 has not selected.
     Expected pages: `recipes/provider-lifecycle.md`.
-    Route terms: "connection per subscription", "N cells imply N transport connections", "provider lifecycle budget", "active connections and subscriptions by owner".
-    Required guidance: "does not yet select one provider-wide connection ownership policy", "That fixture does not exist yet".
+    Route terms: "connection per subscription", "N cells imply N transport connections", "provider lifecycle budget", "active connections and subscriptions by owner", "one connection per query", "too many websockets".
+    Required guidance: "The provider adapter pattern is one manager above the cells it serves", "never add a timeout or poll a client object to guess when authority settled", "LLP 0295 D0.5 owns the later numeric connection/subscription budgets".
 
 71. **Familiar point-read carrier:** "Return zero or one document from a
     Familiar point read that may also carry membership admission." The run
@@ -1874,19 +1871,24 @@ packed-package author to a nonexistent raw-client namespace.
     Route terms: "client.assets.start", "createAssetClient(client)",
     "raw SnapbackClient assets".
 
-Case 73 absorbs diary 0105 M2's foreground variant of the auth-transition
-failure, including the development-overlay consequence and its separate
-six-subscription trigger.
+Cases 73–74 extend the provider-lifecycle repair with the remaining exact
+wrong vocabulary from the source diaries and review evidence.
 
-73. **Foreground auth-transition rejection:** "A repeated interactive feed
-    mutation hit `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`; its unhandled
-    rejection left the Expo error overlay intercepting later gestures while
-    the route had six live subscriptions." The run fails if it retries
-    without a bound, leaves the final promise unobserved, or treats query
-    consolidation as proof that authorization suspension is ordinary tuning.
-    Expected pages: `recipes/auth-transition-writes.md`.
-    Route terms: "interactive feed mutation", "unhandled rejection", "Expo error overlay", "six live subscriptions", "authorization-suspended foreground gesture".
-    Required guidance: "one bounded retry only if the resulting principal is still the intended actor", "separate open contention investigation".
+73. **Provider WebSocket fan-out:** "My adapter opens one connection per query
+    and now has too many websockets. Should I add a connection pool?" The run
+    fails if it pools across authority/storage partitions, mints per-cell
+    connection ids, or omits the N-cells/one-connection regression route.
+    Expected pages: `recipes/provider-lifecycle.md`.
+    Route terms: "one connection per query", "too many websockets", "connection pool".
+    Required guidance: "one manager above the cells it serves", "Every query cell under that tuple reuses the id".
+
+74. **Provider auth rebuild:** "I need a provider adapter pattern that can
+    rebuild stream on auth without a timeout." The run fails if it polls for
+    authority, retries a stable blocked state, rebinds the predecessor
+    sessions connection, or starts the successor before teardown settles.
+    Expected pages: `recipes/provider-lifecycle.md`.
+    Route terms: "provider adapter pattern", "rebuild stream on auth".
+    Required guidance: "authentication-not-settled", "transitionOwner", "teardown-before-rebuild".
 
 ## Static routing check
 

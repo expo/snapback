@@ -1,6 +1,6 @@
 # guide-gap: provider adapters need a connection lifecycle and budget recipe
 
-**Status:** Open — reopened 2026-08-21 after independent review
+**Status:** Closed — 2026-08-21
 **Opened:** 2026-08-20
 **Systems:** Guide, Headless client, Contract adapter, Live queries, Auth
 **Related:** LLP 0095; LLP 0277 P24; LLP 0278; LLP 0280; LLP 0295;
@@ -58,3 +58,34 @@ budget" vocabulary. The retained cold run at
 
 Partial evidence: retrieval, Guide, and inventory checks pass; the N-cells
 regression and packed vertical receipt remain open.
+
+## Final resolution — 2026-08-21
+
+The provider-lifecycle recipe now states the manager-owned
+app/storage-partition/origin/settled-authority tuple, stable connection-label
+reuse, the landed auth-blocked settlement vocabulary with
+`transitionOwner: "auth-coordinator"`, teardown-before-successor rebuild,
+non-reentrant callback rules, complete-snapshot deduplication, manager-owned
+retry, two-client teardown, qualitative budgets pending LLP 0295 D0.5, and an
+owner-scoped inspection helper combining provider and headless resource facts.
+
+`packages/snapback-react/package.test.mjs` is the missing regression fixture:
+six distinct provider cells under one shared manager/authority/origin carry one
+connection label, inspection reports one active connection and six logical
+subscriptions, and disposal reports zero owned resources. Retrieval cases 70,
+73, and 74 cover the original vocabulary plus "one connection per query",
+"too many websockets", "connection pool", "provider adapter pattern", and
+"rebuild stream on auth". The fresh read-only probe reached the recipe in 6/15
+tool calls and produced the bounded two-client adapter without source or LLP
+inspection.
+
+Verification:
+
+- `volta run --node 24.18.0 node scripts/check-guide.mjs` — 20 passed, 0
+  failed, 0 skipped, 0 preconditions.
+- `volta run --node 24.18.0 node scripts/check-retrieval-eval.mjs --check` —
+  74 cases, 0 errors; cold cases 70/73/74 passed in 6/15 tool calls.
+- `volta run --node 24.18.0 bun --cwd packages/snapback-react test` — passed.
+- `./ref-check --verbose` — 297 LLP docs, 6,659 refs, 0 errors, 0 unchecked.
+
+Landing SHA: TBD

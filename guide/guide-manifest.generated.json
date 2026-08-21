@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:fd5384866d9ece16866f7550d874f364d77110c1092dbad963cb8ee0fe636699"
+    "sourceDigest": "sha256:873461068a448b30805f07aa19360dbc0cb728f80af53eb0af82b603a70f26ba"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -5392,18 +5392,39 @@
         "llp/0034-contract-source-seam-provider-side.rfc.md",
         "llp/0063-partitime-platform-roadmap.plan.md",
         "llp/0095-client-lifecycle-and-conformance.spec.md",
+        "llp/0278-paged-live-results-and-relational-composition.rfc.md",
+        "llp/0280-cross-system-write-seams.rfc.md",
         "llp/0295-published-matrix-improvement-program.plan.md",
-        "demos/coterie/src/data/snapback-provider.ts",
         "packages/snapback-client/index.mjs",
-        "packages/snapback-client/external-store.mjs"
+        "packages/snapback-client/external-store.mjs",
+        "packages/snapback-react/implementation.mjs",
+        "packages/snapback-react/auth-blocked-resource.test.mjs",
+        "packages/snapback-react/package.test.mjs"
       ],
       "examples": [
-        "packages/snapback-contract/keyed-provider.mjs"
+        "packages/snapback-contract/keyed-provider.mjs",
+        "packages/snapback-react/package.test.mjs"
       ],
       "reviewed": "2026-08-21",
-      "reviewedAuthoritiesDigest": "sha256:36b99758a988b2e5ddd7c19d12c8e5c88f4cce7ddef6f6d4ac8565d44235e3e1",
-      "sha256": "0954dcd300205a53e54122abb04b8bf346ecc2584df44935a656828137561e21",
-      "snippets": []
+      "reviewedAuthoritiesDigest": "sha256:3dc9dd24bb2c2b9ffe8ae954b884959f0f0318070872b97881a1ee764a6666e1",
+      "sha256": "aa27cbed7e4a34bc4406d123409b6fda0bf306ca0a54b9fda7acab523486076f",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/package.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/auth-blocked-resource.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/package.test.mjs"
+        }
+      ]
     },
     "recipes.sessions-fixture-install": {
       "path": "guide/recipes/sessions-fixture-install.md",
@@ -12094,7 +12115,7 @@
       "examples": [],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:10af46608872447c531a418afe66fcbdafccb07872e6f8a0a20c6b3257b73c57",
-      "sha256": "3a0b106ea115bd616de0e2f22981630b4bbbeec4f1342a968ca48eadb5a1a212",
+      "sha256": "c5576ca5a7616413aab553bae9e4bef1efe17030d570341e143617db32de4601",
       "snippets": []
     },
     "start.crud-dashboard": {
@@ -12613,7 +12634,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2610094,
-      "sha256": "838cd9fbf8efd0a9cb0f3d467d61323365d34354ec97edc261ef759c198302d5",
+      "sha256": "5b2e05380d8fd3aacc7dc405635f4276aabc449f285e53532bd4dc1e7fd0e739",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12622,7 +12643,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:5a0bf7f670964027248970b1151ac8e3d461cab3490edfa4e0e9118ba19d9285",
+      "sourceDigest": "sha256:c3d084af57e0b5cd8ce60b9e5bf2aa6c1e2ff1d24ce3d4fe353b16608f75e769",
       "codes": 3465,
       "emittingSites": 11959
     }
@@ -12761,16 +12782,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3638993,
-      "sha256": "82ea959b3f977e80659af6c8c7f7019965058f82550349a867dadf587e5d9bc0"
+      "bytes": 3645109,
+      "sha256": "b71bf4f0a0741efe97a72256c7ff83bd2eee5c56d7514c0b7d04fd88950191f8"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 160709,
-        "sha256": "9d746940a838c0f1b5e0506715267a1c1c5c0b02c1e8b35dea88916ca73ee848"
+        "bytes": 160644,
+        "sha256": "572eb627941a8f69d63776f4df744127115b90062e08da80218174fbdd08153b"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -12832,8 +12853,8 @@
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 163586,
-        "sha256": "1586f71586c3d06354912778a6fcbbda047d813de075e0a556641be1bc55d600"
+        "bytes": 169767,
+        "sha256": "3ec56987db740c117f648239d7e83825fb295ed3c8302844a708981203d336ea"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
@@ -12865,5 +12886,5 @@
       }
     }
   },
-  "contentHash": "fd5384866d9ece16866f7550d874f364d77110c1092dbad963cb8ee0fe636699"
+  "contentHash": "873461068a448b30805f07aa19360dbc0cb728f80af53eb0af82b603a70f26ba"
 }
