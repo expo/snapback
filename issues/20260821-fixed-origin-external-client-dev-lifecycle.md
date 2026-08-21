@@ -47,10 +47,9 @@ in brief:
   class for declared clients).
 - The authoritative ready receipt is **`snapback.application-ready.v1`**
   (LLP 0224), extended with binding, client origin(s), and
-  qualified-binary-vs-wrapper identity (that last fact's placement —
-  receipt vs `HostReadyDescriptor` — is deferred to W1; it must be
-  receipt-discoverable at attach time, and the extension amends LLP 0224
-  and its closed schema as W1 follow-through); the `HostReadyDescriptor`
+  qualified-binary-vs-wrapper identity — all three on the receipt itself
+  (the extension amends LLP 0224 and its closed schema as W1
+  follow-through); the `HostReadyDescriptor`
   (`--ready-file`) stays host-only and locates it; the supervisor stream
   stays events; `expo-supervisor.json`/`connectCarrier` become projections.
   All consumers read the receipt, none parses logs.

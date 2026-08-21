@@ -431,11 +431,13 @@ one owner with two admission postures, not a second lifecycle surface.
      no-bearer-bytes discipline is unchanged. No fifth file is minted.
      Extending the receipt's closed bind-set
      (`application-ready.schema.json` is `additionalProperties: false`)
-     amends LLP 0224 and its schema as W1 follow-through. Qualified-binary
-     identity is host/launcher-shaped, so whether it lands on the
-     application receipt or on `HostReadyDescriptor` is deferred to W1
-     implementation; the ruling requires only that the fact be
-     receipt-discoverable at attach time.
+     amends LLP 0224 and its schema as W1 follow-through. All three new
+     facts — including qualified-binary identity, which is
+     host/launcher-shaped but attach-relevant — land on the application
+     receipt itself: it is the single attach-time authority this ruling
+     establishes, and splitting one of its five identity facts into a
+     different file would reintroduce the multi-artifact ambiguity the
+     ruling exists to end.
    - The **`HostReadyDescriptor`** (`--ready-file`) stays the unchanged
      host-only layer; attach verifies it first and uses it to locate the
      receipt at its deterministic sibling, exactly as `snapback wait
