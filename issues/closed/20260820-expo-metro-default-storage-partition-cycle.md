@@ -4,7 +4,7 @@
 **Opened:** 2026-08-20
 **Systems:** Expo client, Packaging, Metro, Auth custody
 **Related:** LLP 0277 P17; LLP 0295; Diary 0101
-**Landing SHA:** TBD
+**Landing SHA:** 019039edc
 
 ## Problem
 
