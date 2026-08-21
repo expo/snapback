@@ -2,17 +2,17 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:c5c8e5ba28ea1f96effc62edb3ce218aca349a913689929360321d5fda6455cf"
+    "sourceDigest": "sha256:8a429aaa922950852f2f1ed63e1d4c3e30199db0f8b23388fc4eb48cc5612555"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 3459,
+    "codes": 3461,
     "sourceFiles": 587,
-    "emittingSites": 11947,
+    "emittingSites": 11952,
     "httpClassified": 1030,
-    "guideAnchored": 424
+    "guideAnchored": 427
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -1945,12 +1945,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6550,
+          "line": 6553,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6555,
+          "line": 6558,
           "column": 10
         }
       ],
@@ -1985,7 +1985,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6748,
+          "line": 6751,
           "column": 18
         }
       ],
@@ -2000,7 +2000,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6736,
+          "line": 6739,
           "column": 10
         }
       ],
@@ -2015,7 +2015,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6314,
+          "line": 6317,
           "column": 10
         }
       ],
@@ -2115,12 +2115,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6092,
+          "line": 6095,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6099,
+          "line": 6102,
           "column": 10
         }
       ],
@@ -2155,12 +2155,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6015,
+          "line": 6018,
           "column": 30
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6331,
+          "line": 6334,
           "column": 14
         }
       ],
@@ -2205,22 +2205,22 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6397,
+          "line": 6400,
           "column": 10
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6401,
+          "line": 6404,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6407,
+          "line": 6410,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6416,
+          "line": 6419,
           "column": 10
         }
       ],
@@ -2380,27 +2380,27 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6086,
+          "line": 6089,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6127,
+          "line": 6130,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6325,
+          "line": 6328,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6449,
+          "line": 6452,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6544,
+          "line": 6547,
           "column": 18
         }
       ],
@@ -2415,12 +2415,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6455,
+          "line": 6458,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6461,
+          "line": 6464,
           "column": 10
         }
       ],
@@ -2675,7 +2675,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6715,
+          "line": 6718,
           "column": 21
         }
       ],
@@ -2705,7 +2705,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 5840,
+          "line": 5843,
           "column": 22
         }
       ],
@@ -2790,7 +2790,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 5955,
+          "line": 5958,
           "column": 36
         },
         {
@@ -2855,7 +2855,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 5792,
+          "line": 5795,
           "column": 10
         }
       ],
@@ -2870,7 +2870,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 5802,
+          "line": 5805,
           "column": 10
         }
       ],
@@ -2885,7 +2885,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 5788,
+          "line": 5791,
           "column": 10
         }
       ],
@@ -2900,7 +2900,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 5806,
+          "line": 5809,
           "column": 10
         }
       ],
@@ -2930,7 +2930,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 5927,
+          "line": 5930,
           "column": 18
         }
       ],
@@ -3020,12 +3020,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6623,
+          "line": 6626,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6629,
+          "line": 6632,
           "column": 14
         }
       ],
@@ -3040,7 +3040,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6604,
+          "line": 6607,
           "column": 10
         }
       ],
@@ -3055,12 +3055,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6608,
+          "line": 6611,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6617,
+          "line": 6620,
           "column": 18
         }
       ],
@@ -3270,12 +3270,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6133,
+          "line": 6136,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6152,
+          "line": 6155,
           "column": 10
         }
       ],
@@ -3879,7 +3879,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6873,
+          "line": 6876,
           "column": 10
         }
       ],
@@ -3929,7 +3929,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6200,
+          "line": 6203,
           "column": 26
         },
         {
@@ -4154,7 +4154,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 5852,
+          "line": 5855,
           "column": 30
         },
         {
@@ -4209,77 +4209,77 @@
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 191,
+          "line": 194,
           "column": 87
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 819,
+          "line": 822,
           "column": 13
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 2308,
+          "line": 2311,
           "column": 51
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4925,
+          "line": 4928,
           "column": 36
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4997,
+          "line": 5000,
           "column": 36
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 5204,
+          "line": 5207,
           "column": 36
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 5389,
+          "line": 5392,
           "column": 36
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 5420,
+          "line": 5423,
           "column": 36
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6592,
+          "line": 6595,
           "column": 36
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6596,
+          "line": 6599,
           "column": 74
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6837,
+          "line": 6840,
           "column": 36
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9044,
+          "line": 9047,
           "column": 62
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9050,
+          "line": 9053,
           "column": 71
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9053,
+          "line": 9056,
           "column": 41
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9442,
+          "line": 9445,
           "column": 49
         },
         {
@@ -4364,7 +4364,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3955,
+          "line": 4076,
           "column": 17
         },
         {
@@ -4491,12 +4491,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6596,
+          "line": 6599,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6640,
+          "line": 6643,
           "column": 14
         }
       ],
@@ -11087,7 +11087,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 2244,
+          "line": 2247,
           "column": 9
         },
         {
@@ -12107,17 +12107,17 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16182,
+          "line": 16187,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16234,
+          "line": 16239,
           "column": 34
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16250,
+          "line": 16255,
           "column": 30
         },
         {
@@ -12189,12 +12189,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 779,
+          "line": 782,
           "column": 519
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9106,
+          "line": 9109,
           "column": 40
         },
         {
@@ -13602,7 +13602,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5370,
+          "line": 5508,
           "column": 17
         },
         {
@@ -15276,7 +15276,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 2449,
+          "line": 2452,
           "column": 66
         },
         {
@@ -16353,37 +16353,37 @@
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3181,
+          "line": 3184,
           "column": 26
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3216,
+          "line": 3219,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3453,
+          "line": 3456,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8086,
+          "line": 8089,
           "column": 10
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8413,
+          "line": 8416,
           "column": 22
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8445,
+          "line": 8448,
           "column": 22
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 10891,
+          "line": 10894,
           "column": 14
         },
         {
@@ -17301,7 +17301,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4465,
+          "line": 4468,
           "column": 29
         }
       ],
@@ -17316,12 +17316,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4482,
+          "line": 4485,
           "column": 10
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4513,
+          "line": 4516,
           "column": 14
         }
       ],
@@ -17336,27 +17336,27 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4508,
+          "line": 4511,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4523,
+          "line": 4526,
           "column": 14
-        },
-        {
-          "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4532,
-          "column": 19
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
           "line": 4535,
+          "column": 19
+        },
+        {
+          "file": "crates/snapback-cli/src/cli.rs",
+          "line": 4538,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4539,
+          "line": 4542,
           "column": 18
         }
       ],
@@ -21353,7 +21353,7 @@
         },
         {
           "file": "crates/snapback-server/src/server.rs",
-          "line": 30896,
+          "line": 30897,
           "column": 18
         },
         {
@@ -21433,7 +21433,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3092,
+          "line": 3095,
           "column": 10
         },
         {
@@ -21518,7 +21518,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3126,
+          "line": 3129,
           "column": 10
         },
         {
@@ -21718,7 +21718,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 552,
+          "line": 555,
           "column": 18
         },
         {
@@ -22058,7 +22058,7 @@
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 314,
+          "line": 317,
           "column": 18
         },
         {
@@ -22158,7 +22158,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14338,
+          "line": 14343,
           "column": 14
         },
         {
@@ -22693,32 +22693,32 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4310,
+          "line": 4313,
           "column": 10
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4337,
+          "line": 4340,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4350,
+          "line": 4353,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4356,
+          "line": 4359,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4360,
+          "line": 4363,
           "column": 10
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4408,
+          "line": 4411,
           "column": 14
         }
       ],
@@ -23634,7 +23634,7 @@
         },
         {
           "file": "crates/snapback-server/src/server.rs",
-          "line": 30866,
+          "line": 30867,
           "column": 18
         },
         {
@@ -24012,7 +24012,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9144,
+          "line": 9147,
           "column": 22
         },
         {
@@ -27338,32 +27338,32 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4371,
+          "line": 4374,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4376,
+          "line": 4379,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4380,
+          "line": 4383,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4386,
+          "line": 4389,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4393,
+          "line": 4396,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4414,
+          "line": 4417,
           "column": 18
         }
       ],
@@ -27515,22 +27515,22 @@
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 220,
+          "line": 223,
           "column": 10
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 251,
+          "line": 254,
           "column": 10
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 371,
+          "line": 374,
           "column": 26
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 485,
+          "line": 488,
           "column": 22
         },
         {
@@ -27560,37 +27560,37 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3570,
+          "line": 3691,
           "column": 178
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3627,
+          "line": 3748,
           "column": 27
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3634,
+          "line": 3755,
           "column": 34
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3636,
+          "line": 3757,
           "column": 18
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3674,
+          "line": 3795,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4541,
+          "line": 4662,
           "column": 14
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5086,
+          "line": 5207,
           "column": 12
         }
       ],
@@ -27600,9 +27600,9 @@
       "guideAnchors": [
         "/_snapback/guide/backend/schema-evolution.md#recover-from-snapbackauthstartupartifactmismatch",
         "/_snapback/guide/backend/schema-evolution.md#diagnose-the-four-boundary-codes",
-        "/_snapback/guide/backend/schema-evolution.md#recover-after-a-partial-load-materialized-data",
         "/_snapback/guide/backend/schema-evolution.md#what-the-sessions-pin-means",
         "/_snapback/guide/getting-started/the-authoring-loop.md#evolve-a-table-that-already-has-data",
+        "/_snapback/guide/operating/backup-and-copy.md#back-up-copy-and-move-a-store",
         "/_snapback/guide/recipes/fixed-origin-development.md#preserve-the-sessions-startup-carrier"
       ]
     },
@@ -27622,7 +27622,7 @@
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 220,
+          "line": 223,
           "column": 54
         },
         {
@@ -27896,7 +27896,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9323,
+          "line": 9326,
           "column": 10
         },
         {
@@ -28554,7 +28554,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6599,
+          "line": 6739,
           "column": 30
         }
       ],
@@ -32556,22 +32556,22 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13418,
+          "line": 13423,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13469,
+          "line": 13474,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13550,
+          "line": 13555,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13560,
+          "line": 13565,
           "column": 14
         },
         {
@@ -34375,7 +34375,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20719,
+          "line": 20786,
           "column": 14
         },
         {
@@ -34535,7 +34535,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20915,
+          "line": 20982,
           "column": 10
         }
       ],
@@ -34550,17 +34550,17 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20503,
+          "line": 20570,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21218,
+          "line": 21285,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21234,
+          "line": 21301,
           "column": 18
         },
         {
@@ -34580,7 +34580,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21275,
+          "line": 21342,
           "column": 14
         },
         {
@@ -34600,7 +34600,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21329,
+          "line": 21396,
           "column": 14
         },
         {
@@ -34640,12 +34640,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20731,
+          "line": 20798,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20890,
+          "line": 20957,
           "column": 10
         }
       ],
@@ -34952,7 +34952,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4020,
+          "line": 4141,
           "column": 10
         },
         {
@@ -35418,17 +35418,17 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 2447,
+          "line": 2450,
           "column": 17
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 2566,
+          "line": 2569,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3494,
+          "line": 3497,
           "column": 14
         },
         {
@@ -35478,267 +35478,267 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5331,
+          "line": 5469,
           "column": 64
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5847,
+          "line": 5986,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5866,
+          "line": 6005,
           "column": 30
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5870,
+          "line": 6009,
           "column": 30
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6080,
+          "line": 6220,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6089,
+          "line": 6229,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6096,
+          "line": 6236,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6123,
+          "line": 6263,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6130,
+          "line": 6270,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6156,
+          "line": 6296,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6163,
+          "line": 6303,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6201,
+          "line": 6341,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6223,
+          "line": 6363,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6250,
+          "line": 6390,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6281,
+          "line": 6421,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6306,
+          "line": 6446,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6334,
+          "line": 6474,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6364,
+          "line": 6504,
           "column": 32
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6373,
+          "line": 6513,
           "column": 30
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6394,
+          "line": 6534,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6417,
+          "line": 6557,
           "column": 30
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6437,
-          "column": 12
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6457,
-          "column": 12
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6471,
-          "column": 12
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6492,
-          "column": 14
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6517,
-          "column": 14
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6532,
-          "column": 32
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6549,
-          "column": 30
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6560,
-          "column": 14
         },
         {
           "file": "packages/snapback-cli/index.mjs",
           "line": 6577,
+          "column": 12
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6597,
+          "column": 12
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6611,
+          "column": 12
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6632,
           "column": 14
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6588,
-          "column": 32
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6595,
-          "column": 32
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6620,
+          "line": 6657,
           "column": 14
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6640,
-          "column": 14
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6655,
+          "line": 6672,
           "column": 32
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6664,
-          "column": 32
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6680,
-          "column": 32
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6704,
-          "column": 32
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6736,
+          "line": 6689,
           "column": 30
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6778,
+          "line": 6700,
+          "column": 14
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6717,
+          "column": 14
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6728,
+          "column": 32
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6735,
+          "column": 32
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6760,
+          "column": 14
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6780,
+          "column": 14
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6795,
+          "column": 32
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6804,
+          "column": 32
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6820,
+          "column": 32
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6844,
+          "column": 32
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6876,
+          "column": 30
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6918,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6789,
+          "line": 6929,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6798,
+          "line": 6938,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6806,
+          "line": 6946,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6812,
+          "line": 6952,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6819,
+          "line": 6959,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6825,
+          "line": 6965,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6831,
+          "line": 6971,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6837,
+          "line": 6977,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6845,
+          "line": 6985,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6851,
+          "line": 6991,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 7088,
+          "line": 7228,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 7095,
+          "line": 7235,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 7100,
+          "line": 7240,
           "column": 30
         },
         {
@@ -35758,7 +35758,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 2502,
+          "line": 2505,
           "column": 25
         },
         {
@@ -35853,7 +35853,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3962,
+          "line": 4083,
           "column": 28
         },
         {
@@ -36521,7 +36521,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3943,
+          "line": 4064,
           "column": 8
         },
         {
@@ -36544,7 +36544,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3934,
+          "line": 4055,
           "column": 10
         },
         {
@@ -38827,7 +38827,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 2550,
+          "line": 2553,
           "column": 18
         },
         {
@@ -39311,7 +39311,7 @@
         },
         {
           "file": "crates/snapback-server/src/server.rs",
-          "line": 31844,
+          "line": 31845,
           "column": 18
         }
       ],
@@ -40384,7 +40384,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 5455,
+          "line": 5458,
           "column": 22
         }
       ],
@@ -40521,22 +40521,22 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 708,
+          "line": 711,
           "column": 29
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 779,
+          "line": 782,
           "column": 463
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9078,
+          "line": 9081,
           "column": 58
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9083,
+          "line": 9086,
           "column": 52
         },
         {
@@ -41174,7 +41174,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20680,
+          "line": 20747,
           "column": 22
         }
       ],
@@ -41199,12 +41199,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20634,
+          "line": 20701,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20673,
+          "line": 20740,
           "column": 22
         },
         {
@@ -41289,12 +41289,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20623,
+          "line": 20690,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20665,
+          "line": 20732,
           "column": 18
         },
         {
@@ -41344,7 +41344,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20703,
+          "line": 20770,
           "column": 18
         },
         {
@@ -42567,7 +42567,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6722,
+          "line": 6862,
           "column": 10
         }
       ],
@@ -42597,17 +42597,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3739,
+          "line": 3860,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3757,
+          "line": 3878,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3770,
+          "line": 3891,
           "column": 28
         }
       ],
@@ -42622,7 +42622,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4249,
+          "line": 4370,
           "column": 34
         }
       ],
@@ -42637,12 +42637,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4226,
+          "line": 4347,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4238,
+          "line": 4359,
           "column": 8
         }
       ],
@@ -42657,7 +42657,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4268,
+          "line": 4389,
           "column": 8
         }
       ],
@@ -42687,7 +42687,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3974,
+          "line": 4095,
           "column": 8
         }
       ],
@@ -42734,7 +42734,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4336,
+          "line": 4457,
           "column": 8
         }
       ],
@@ -42749,7 +42749,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4902,
+          "line": 5023,
           "column": 18
         }
       ],
@@ -42764,7 +42764,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5248,
+          "line": 5386,
           "column": 35
         }
       ],
@@ -42779,12 +42779,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5288,
+          "line": 5426,
           "column": 21
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5293,
+          "line": 5431,
           "column": 10
         }
       ],
@@ -42799,7 +42799,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5306,
+          "line": 5444,
           "column": 18
         }
       ],
@@ -42814,7 +42814,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4353,
+          "line": 4474,
           "column": 12
         }
       ],
@@ -42857,7 +42857,12 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5195,
+          "line": 5264,
+          "column": 32
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 5333,
           "column": 34
         }
       ],
@@ -42872,7 +42877,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5126,
+          "line": 5246,
           "column": 18
         }
       ],
@@ -42887,7 +42892,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4688,
+          "line": 4809,
           "column": 34
         }
       ],
@@ -42922,7 +42927,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3830,
+          "line": 3951,
           "column": 6
         }
       ],
@@ -42992,7 +42997,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3840,
+          "line": 3961,
           "column": 11
         },
         {
@@ -43168,7 +43173,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4178,
+          "line": 4299,
           "column": 8
         }
       ],
@@ -43228,7 +43233,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4487,
+          "line": 4608,
           "column": 30
         },
         {
@@ -43248,7 +43253,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5103,
+          "line": 5224,
           "column": 34
         }
       ],
@@ -43263,7 +43268,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4986,
+          "line": 5107,
           "column": 18
         }
       ],
@@ -43313,7 +43318,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 7056,
+          "line": 7196,
           "column": 14
         }
       ],
@@ -43328,22 +43333,22 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3621,
+          "line": 3742,
           "column": 18
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3648,
+          "line": 3769,
           "column": 30
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4035,
+          "line": 4156,
           "column": 58
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4747,
+          "line": 4868,
           "column": 32
         }
       ],
@@ -43378,7 +43383,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3858,
+          "line": 3979,
           "column": 26
         }
       ],
@@ -43393,7 +43398,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4157,
+          "line": 4278,
           "column": 8
         }
       ],
@@ -43468,27 +43473,27 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3620,
+          "line": 3741,
           "column": 15
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3649,
+          "line": 3770,
           "column": 33
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3850,
+          "line": 3971,
           "column": 30
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4547,
+          "line": 4668,
           "column": 50
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5080,
+          "line": 5201,
           "column": 34
         },
         {
@@ -43528,12 +43533,12 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3729,
+          "line": 3850,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5999,
+          "line": 6139,
           "column": 30
         },
         {
@@ -43620,7 +43625,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4810,
+          "line": 4931,
           "column": 16
         }
       ],
@@ -45052,17 +45057,17 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4054,
+          "line": 4057,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4058,
+          "line": 4061,
           "column": 10
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4078,
+          "line": 4081,
           "column": 10
         }
       ],
@@ -45077,7 +45082,7 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/server.rs",
-          "line": 31905,
+          "line": 31906,
           "column": 14
         },
         {
@@ -45097,7 +45102,7 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/server.rs",
-          "line": 31944,
+          "line": 31945,
           "column": 14
         }
       ],
@@ -45112,7 +45117,7 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/server.rs",
-          "line": 31913,
+          "line": 31914,
           "column": 14
         },
         {
@@ -45132,7 +45137,7 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/server.rs",
-          "line": 31871,
+          "line": 31872,
           "column": 14
         },
         {
@@ -45152,7 +45157,7 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/server.rs",
-          "line": 31879,
+          "line": 31880,
           "column": 14
         },
         {
@@ -46037,7 +46042,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20573,
+          "line": 20640,
           "column": 14
         },
         {
@@ -46876,7 +46881,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6923,
+          "line": 7063,
           "column": 14
         }
       ],
@@ -47299,27 +47304,17 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6857,
+          "line": 6997,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6863,
+          "line": 7003,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6869,
-          "column": 12
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6841,
-          "column": 12
-        },
-        {
-          "file": "packages/snapback-cli/index.mjs",
-          "line": 6847,
+          "line": 7009,
           "column": 12
         }
       ],
@@ -48434,7 +48429,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20021,
+          "line": 20098,
           "column": 22
         },
         {
@@ -48468,7 +48463,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16996,
+          "line": 17001,
           "column": 22
         },
         {
@@ -48498,7 +48493,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20279,
+          "line": 20346,
           "column": 10
         },
         {
@@ -49426,7 +49421,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8614,
+          "line": 8617,
           "column": 45
         },
         {
@@ -52231,7 +52226,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3907,
+          "line": 4028,
           "column": 5
         },
         {
@@ -54013,7 +54008,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6353,
+          "line": 6493,
           "column": 8
         }
       ],
@@ -54168,7 +54163,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3071,
+          "line": 3074,
           "column": 24
         }
       ],
@@ -55823,12 +55818,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7539,
+          "line": 7542,
           "column": 22
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7572,
+          "line": 7575,
           "column": 22
         }
       ],
@@ -55843,22 +55838,22 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7763,
+          "line": 7766,
           "column": 41
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7808,
+          "line": 7811,
           "column": 26
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7818,
+          "line": 7821,
           "column": 26
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7856,
+          "line": 7859,
           "column": 14
         }
       ],
@@ -55873,27 +55868,27 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7769,
+          "line": 7772,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7795,
+          "line": 7798,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7827,
+          "line": 7830,
           "column": 22
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7833,
+          "line": 7836,
           "column": 22
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7866,
+          "line": 7869,
           "column": 18
         }
       ],
@@ -55908,7 +55903,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7842,
+          "line": 7845,
           "column": 18
         }
       ],
@@ -55923,7 +55918,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7614,
+          "line": 7617,
           "column": 18
         }
       ],
@@ -55938,12 +55933,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7987,
+          "line": 7990,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8005,
+          "line": 8008,
           "column": 14
         }
       ],
@@ -55958,12 +55953,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7977,
+          "line": 7980,
           "column": 14
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8013,
+          "line": 8016,
           "column": 14
         }
       ],
@@ -56961,12 +56956,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20492,
+          "line": 20559,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20551,
+          "line": 20618,
           "column": 14
         },
         {
@@ -57766,17 +57761,17 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 779,
+          "line": 782,
           "column": 491
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9091,
+          "line": 9094,
           "column": 9
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9095,
+          "line": 9098,
           "column": 58
         },
         {
@@ -58221,7 +58216,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20085,
+          "line": 20162,
           "column": 26
         }
       ],
@@ -58351,12 +58346,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 779,
+          "line": 782,
           "column": 555
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8794,
+          "line": 8797,
           "column": 28
         },
         {
@@ -58551,7 +58546,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8806,
+          "line": 8809,
           "column": 32
         }
       ],
@@ -58731,7 +58726,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8799,
+          "line": 8802,
           "column": 28
         },
         {
@@ -60552,12 +60547,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16279,
+          "line": 16284,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18140,
+          "line": 18145,
           "column": 14
         }
       ],
@@ -60587,22 +60582,22 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18730,
+          "line": 18735,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18739,
+          "line": 18744,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18773,
+          "line": 18778,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18782,
+          "line": 18787,
           "column": 22
         },
         {
@@ -60622,7 +60617,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18475,
+          "line": 18480,
           "column": 18
         },
         {
@@ -60642,7 +60637,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 19011,
+          "line": 19016,
           "column": 22
         },
         {
@@ -60687,12 +60682,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18797,
+          "line": 18802,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18827,
+          "line": 18832,
           "column": 22
         },
         {
@@ -60712,7 +60707,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18800,
+          "line": 18805,
           "column": 18
         },
         {
@@ -60792,7 +60787,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18972,
+          "line": 18977,
           "column": 22
         },
         {
@@ -60832,12 +60827,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18790,
+          "line": 18795,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18814,
+          "line": 18819,
           "column": 22
         },
         {
@@ -60877,12 +60872,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17956,
+          "line": 17961,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18003,
+          "line": 18008,
           "column": 14
         },
         {
@@ -60922,7 +60917,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18718,
+          "line": 18723,
           "column": 14
         },
         {
@@ -60987,12 +60982,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18724,
+          "line": 18729,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18753,
+          "line": 18758,
           "column": 14
         },
         {
@@ -61012,7 +61007,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18747,
+          "line": 18752,
           "column": 18
         },
         {
@@ -61082,7 +61077,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14448,
+          "line": 14453,
           "column": 14
         },
         {
@@ -61117,7 +61112,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 19025,
+          "line": 19030,
           "column": 22
         },
         {
@@ -61157,22 +61152,22 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18421,
+          "line": 18426,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18447,
+          "line": 18452,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18460,
+          "line": 18465,
           "column": 34
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18488,
+          "line": 18493,
           "column": 18
         },
         {
@@ -61212,7 +61207,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18544,
+          "line": 18549,
           "column": 18
         },
         {
@@ -61287,57 +61282,57 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18335,
+          "line": 18340,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18344,
+          "line": 18349,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18356,
+          "line": 18361,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18362,
+          "line": 18367,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18371,
+          "line": 18376,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18377,
+          "line": 18382,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18392,
+          "line": 18397,
           "column": 34
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18415,
+          "line": 18420,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18490,
+          "line": 18495,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18520,
+          "line": 18525,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18531,
+          "line": 18536,
           "column": 22
         },
         {
@@ -61357,37 +61352,37 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16084,
+          "line": 16089,
           "column": 30
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18066,
+          "line": 18071,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18076,
+          "line": 18081,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18087,
+          "line": 18092,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18110,
+          "line": 18115,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18248,
+          "line": 18253,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18762,
+          "line": 18767,
           "column": 14
         }
       ],
@@ -61487,12 +61482,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 19105,
+          "line": 19110,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 19133,
+          "line": 19138,
           "column": 18
         },
         {
@@ -61907,7 +61902,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 19093,
+          "line": 19098,
           "column": 18
         }
       ],
@@ -61987,12 +61982,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16308,
+          "line": 16313,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 18169,
+          "line": 18174,
           "column": 14
         }
       ],
@@ -62087,17 +62082,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 19230,
+          "line": 19235,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 19241,
+          "line": 19246,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 19253,
+          "line": 19258,
           "column": 10
         }
       ],
@@ -62112,7 +62107,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 19997,
+          "line": 20074,
           "column": 18
         }
       ],
@@ -62485,7 +62480,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16618,
+          "line": 16623,
           "column": 14
         },
         {
@@ -62752,12 +62747,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16703,
+          "line": 16708,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20340,
+          "line": 20407,
           "column": 8
         },
         {
@@ -62877,7 +62872,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 15991,
+          "line": 15996,
           "column": 14
         },
         {
@@ -62902,7 +62897,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 15808,
+          "line": 15813,
           "column": 18
         },
         {
@@ -63057,7 +63052,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 15404,
+          "line": 15409,
           "column": 14
         },
         {
@@ -63137,7 +63132,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 15773,
+          "line": 15778,
           "column": 14
         },
         {
@@ -63397,12 +63392,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16789,
+          "line": 16794,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16858,
+          "line": 16863,
           "column": 18
         }
       ],
@@ -63417,7 +63412,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16743,
+          "line": 16748,
           "column": 18
         }
       ],
@@ -63437,12 +63432,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16690,
+          "line": 16695,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20339,
+          "line": 20406,
           "column": 14
         },
         {
@@ -63554,7 +63549,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16674,
+          "line": 16679,
           "column": 18
         },
         {
@@ -63579,12 +63574,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 15531,
+          "line": 15536,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 15950,
+          "line": 15955,
           "column": 18
         },
         {
@@ -64023,12 +64018,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 15822,
+          "line": 15827,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 15845,
+          "line": 15850,
           "column": 10
         },
         {
@@ -64215,7 +64210,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13139,
+          "line": 13144,
           "column": 14
         },
         {
@@ -64260,12 +64255,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 15784,
+          "line": 15789,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16838,
+          "line": 16843,
           "column": 14
         },
         {
@@ -65322,7 +65317,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 1718,
+          "line": 1721,
           "column": 32
         },
         {
@@ -65403,7 +65398,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13362,
+          "line": 13367,
           "column": 18
         },
         {
@@ -65453,7 +65448,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 1755,
+          "line": 1758,
           "column": 9
         },
         {
@@ -65705,32 +65700,32 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13371,
+          "line": 13376,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13392,
+          "line": 13397,
           "column": 48
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13582,
+          "line": 13587,
           "column": 27
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14221,
+          "line": 14226,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17690,
+          "line": 17695,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17731,
+          "line": 17736,
           "column": 26
         },
         {
@@ -65828,17 +65823,17 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 779,
+          "line": 782,
           "column": 425
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8717,
+          "line": 8720,
           "column": 60
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8724,
+          "line": 8727,
           "column": 18
         },
         {
@@ -65956,7 +65951,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6211,
+          "line": 6351,
           "column": 41
         }
       ],
@@ -66837,7 +66832,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21554,
+          "line": 21621,
           "column": 18
         },
         {
@@ -67102,7 +67097,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21458,
+          "line": 21525,
           "column": 14
         },
         {
@@ -67297,22 +67292,22 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21572,
+          "line": 21639,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21579,
+          "line": 21646,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21586,
+          "line": 21653,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21626,
+          "line": 21693,
           "column": 14
         },
         {
@@ -67987,7 +67982,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21505,
+          "line": 21572,
           "column": 18
         },
         {
@@ -68077,12 +68072,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21470,
+          "line": 21537,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 21565,
+          "line": 21632,
           "column": 14
         },
         {
@@ -69040,7 +69035,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17049,
+          "line": 17054,
           "column": 10
         },
         {
@@ -70120,7 +70115,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3552,
+          "line": 3555,
           "column": 33
         }
       ],
@@ -70135,7 +70130,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3550,
+          "line": 3553,
           "column": 34
         }
       ],
@@ -70220,7 +70215,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3551,
+          "line": 3554,
           "column": 31
         }
       ],
@@ -70315,32 +70310,32 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 1836,
+          "line": 1839,
           "column": 55
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4174,
+          "line": 4177,
           "column": 27
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4298,
+          "line": 4301,
           "column": 39
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4304,
+          "line": 4307,
           "column": 10
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4356,
+          "line": 4359,
           "column": 54
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4360,
+          "line": 4363,
           "column": 96
         }
       ],
@@ -71012,12 +71007,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4302,
+          "line": 4305,
           "column": 24
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4343,
+          "line": 4346,
           "column": 28
         },
         {
@@ -71104,7 +71099,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 4323,
+          "line": 4326,
           "column": 10
         },
         {
@@ -74466,7 +74461,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13232,
+          "line": 13237,
           "column": 14
         },
         {
@@ -74508,7 +74503,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13255,
+          "line": 13260,
           "column": 18
         },
         {
@@ -74548,17 +74543,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 12847,
+          "line": 12852,
           "column": 30
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13289,
+          "line": 13294,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13312,
+          "line": 13317,
           "column": 10
         },
         {
@@ -74647,7 +74642,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 12861,
+          "line": 12866,
           "column": 30
         },
         {
@@ -74786,7 +74781,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20446,
+          "line": 20513,
           "column": 14
         },
         {
@@ -75241,7 +75236,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 12740,
+          "line": 12745,
           "column": 10
         },
         {
@@ -75341,7 +75336,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 7530,
+          "line": 7544,
           "column": 8
         }
       ],
@@ -76953,7 +76948,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3874,
+          "line": 3877,
           "column": 10
         },
         {
@@ -76975,7 +76970,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9674,
+          "line": 9677,
           "column": 22
         }
       ],
@@ -77374,27 +77369,27 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17381,
+          "line": 17386,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17439,
+          "line": 17444,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17471,
+          "line": 17476,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17497,
+          "line": 17502,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17524,
+          "line": 17529,
           "column": 18
         },
         {
@@ -77414,7 +77409,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17126,
+          "line": 17131,
           "column": 22
         },
         {
@@ -77439,7 +77434,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17089,
+          "line": 17094,
           "column": 10
         },
         {
@@ -77479,22 +77474,22 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 15386,
+          "line": 15391,
           "column": 17
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17158,
+          "line": 17163,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17273,
+          "line": 17278,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17659,
+          "line": 17664,
           "column": 18
         },
         {
@@ -78558,7 +78553,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8091,
+          "line": 8094,
           "column": 10
         },
         {
@@ -78598,7 +78593,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3280,
+          "line": 3283,
           "column": 18
         },
         {
@@ -78643,12 +78638,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3275,
+          "line": 3278,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3289,
+          "line": 3292,
           "column": 18
         }
       ],
@@ -78827,17 +78822,17 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 779,
+          "line": 782,
           "column": 751
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3275,
+          "line": 3278,
           "column": 101
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3289,
+          "line": 3292,
           "column": 98
         },
         {
@@ -79317,12 +79312,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9202,
+          "line": 9205,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9206,
+          "line": 9209,
           "column": 18
         }
       ],
@@ -79487,17 +79482,17 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 779,
+          "line": 782,
           "column": 685
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3275,
+          "line": 3278,
           "column": 69
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3289,
+          "line": 3292,
           "column": 66
         },
         {
@@ -79693,7 +79688,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3645,
+          "line": 3766,
           "column": 26
         },
         {
@@ -79712,19 +79707,64 @@
       "guideAnchor": null,
       "guideAnchors": []
     },
+    "SNAPBACK_RESET_DATABASE_PATH_INVALID": {
+      "code": "SNAPBACK_RESET_DATABASE_PATH_INVALID",
+      "subsystem": "cli",
+      "sites": [
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 3454,
+          "column": 10
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 3469,
+          "column": 8
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
     "SNAPBACK_RESET_DEV_LOOP_ACTIVE": {
       "code": "SNAPBACK_RESET_DEV_LOOP_ACTIVE",
       "subsystem": "cli",
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5983,
+          "line": 6123,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5995,
+          "line": 6135,
           "column": 30
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_RESET_STORE_OWNERSHIP_AMBIGUOUS": {
+      "code": "SNAPBACK_RESET_STORE_OWNERSHIP_AMBIGUOUS",
+      "subsystem": "cli",
+      "sites": [
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 3485,
+          "column": 8
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 3514,
+          "column": 10
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 3530,
+          "column": 10
         }
       ],
       "httpStatus": null,
@@ -79738,7 +79778,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5964,
+          "line": 6104,
           "column": 12
         }
       ],
@@ -79753,7 +79793,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 5880,
+          "line": 6020,
           "column": 10
         }
       ],
@@ -80077,7 +80117,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6536,
+          "line": 6676,
           "column": 10
         }
       ],
@@ -81615,7 +81655,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3701,
+          "line": 3822,
           "column": 6
         }
       ],
@@ -81662,7 +81702,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3714,
+          "line": 3835,
           "column": 30
         }
       ],
@@ -81782,7 +81822,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4391,
+          "line": 4512,
           "column": 12
         }
       ],
@@ -81807,7 +81847,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4390,
+          "line": 4511,
           "column": 12
         }
       ],
@@ -82259,7 +82299,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 11936,
+          "line": 11941,
           "column": 22
         },
         {
@@ -82301,12 +82341,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 11863,
+          "line": 11868,
           "column": 43
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 12166,
+          "line": 12171,
           "column": 26
         },
         {
@@ -82450,17 +82490,17 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 12438,
+          "line": 12443,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 12449,
+          "line": 12454,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 12464,
+          "line": 12469,
           "column": 18
         }
       ],
@@ -82475,27 +82515,27 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 11997,
+          "line": 12002,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 12029,
+          "line": 12034,
           "column": 30
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 12050,
+          "line": 12055,
           "column": 30
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 12130,
+          "line": 12135,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 12371,
+          "line": 12376,
           "column": 18
         },
         {
@@ -82580,42 +82620,42 @@
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 2515,
+          "line": 2518,
           "column": 26
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 6924,
+          "line": 6927,
           "column": 25
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7455,
+          "line": 7458,
           "column": 29
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7679,
+          "line": 7682,
           "column": 25
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7707,
+          "line": 7710,
           "column": 25
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7880,
+          "line": 7883,
           "column": 25
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 8977,
+          "line": 8980,
           "column": 29
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9370,
+          "line": 9373,
           "column": 29
         },
         {
@@ -83855,7 +83895,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14464,
+          "line": 14469,
           "column": 26
         },
         {
@@ -84188,7 +84228,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14529,
+          "line": 14534,
           "column": 26
         },
         {
@@ -84446,7 +84486,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17582,
+          "line": 17587,
           "column": 18
         },
         {
@@ -84496,17 +84536,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17191,
+          "line": 17196,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17294,
+          "line": 17299,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20532,
+          "line": 20599,
           "column": 10
         },
         {
@@ -84606,17 +84646,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17301,
+          "line": 17306,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17631,
+          "line": 17636,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17683,
+          "line": 17688,
           "column": 18
         },
         {
@@ -84858,17 +84898,17 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 779,
+          "line": 782,
           "column": 592
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9177,
+          "line": 9180,
           "column": 22
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9179,
+          "line": 9182,
           "column": 43
         },
         {
@@ -84888,22 +84928,22 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9191,
+          "line": 9194,
           "column": 32
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9195,
+          "line": 9198,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9219,
+          "line": 9222,
           "column": 26
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 9225,
+          "line": 9228,
           "column": 18
         },
         {
@@ -85583,7 +85623,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 3570,
+          "line": 3691,
           "column": 218
         }
       ],
@@ -86273,12 +86313,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 19868,
+          "line": 19873,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 19893,
+          "line": 19898,
           "column": 10
         },
         {
@@ -86298,7 +86338,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14726,
+          "line": 14731,
           "column": 10
         },
         {
@@ -86343,68 +86383,63 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13689,
+          "line": 13694,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13783,
+          "line": 13788,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13869,
+          "line": 13874,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13886,
+          "line": 13891,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13896,
+          "line": 13901,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13909,
+          "line": 13914,
           "column": 34
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13918,
+          "line": 13923,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13932,
+          "line": 13937,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13945,
+          "line": 13950,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13955,
+          "line": 13960,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14020,
+          "line": 14025,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14618,
+          "line": 14623,
           "column": 18
-        },
-        {
-          "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14629,
-          "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
@@ -86413,32 +86448,37 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14645,
+          "line": 14639,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14658,
+          "line": 14650,
+          "column": 14
+        },
+        {
+          "file": "crates/snapback-kernel/src/storage.rs",
+          "line": 14663,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14686,
+          "line": 14691,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14697,
+          "line": 14702,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14741,
+          "line": 14746,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 19661,
+          "line": 19666,
           "column": 22
         },
         {
@@ -86518,7 +86558,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14778,
+          "line": 14783,
           "column": 18
         },
         {
@@ -86625,12 +86665,12 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3374,
+          "line": 3377,
           "column": 26
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 3409,
+          "line": 3412,
           "column": 14
         },
         {
@@ -87394,13 +87434,8 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17011,
-          "column": 14
-        },
-        {
-          "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20258,
-          "column": 14
+          "line": 19970,
+          "column": 10
         },
         {
           "file": "crates/snapback-server/src/server/api_error.rs",
@@ -87421,8 +87456,8 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20182,
-          "column": 14
+          "line": 19925,
+          "column": 10
         },
         {
           "file": "crates/snapback-server/src/server/api_error.rs",
@@ -87443,12 +87478,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20171,
+          "line": 20248,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20197,
+          "line": 20269,
           "column": 14
         },
         {
@@ -87480,7 +87515,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20066,
+          "line": 20143,
           "column": 22
         },
         {
@@ -89148,17 +89183,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 16951,
+          "line": 16956,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17785,
+          "line": 17790,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17870,
+          "line": 17875,
           "column": 18
         },
         {
@@ -90294,7 +90329,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13071,
+          "line": 13076,
           "column": 14
         },
         {
@@ -90640,7 +90675,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20342,
+          "line": 20409,
           "column": 31
         },
         {
@@ -90920,7 +90955,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20403,
+          "line": 20470,
           "column": 14
         },
         {
@@ -90985,7 +91020,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20360,
+          "line": 20427,
           "column": 14
         },
         {
@@ -92422,7 +92457,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14427,
+          "line": 14432,
           "column": 14
         },
         {
@@ -92512,7 +92547,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 17760,
+          "line": 17765,
           "column": 18
         },
         {
@@ -92559,7 +92594,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20422,
+          "line": 20489,
           "column": 14
         },
         {
@@ -92668,7 +92703,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 20296,
+          "line": 20363,
           "column": 14
         },
         {
@@ -93323,7 +93358,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 13990,
+          "line": 13995,
           "column": 14
         },
         {
@@ -93966,12 +94001,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6151,
+          "line": 6291,
           "column": 39
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 6165,
+          "line": 6305,
           "column": 25
         },
         {
@@ -94288,7 +94323,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage.rs",
-          "line": 14605,
+          "line": 14610,
           "column": 18
         }
       ],
@@ -94318,7 +94353,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 4424,
+          "line": 4545,
           "column": 30
         },
         {
@@ -94410,7 +94445,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7027,
+          "line": 7030,
           "column": 14
         }
       ],
@@ -94425,7 +94460,7 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7418,
+          "line": 7421,
           "column": 10
         }
       ],
@@ -94440,17 +94475,17 @@
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7079,
+          "line": 7082,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7096,
+          "line": 7099,
           "column": 18
         },
         {
           "file": "crates/snapback-cli/src/cli.rs",
-          "line": 7282,
+          "line": 7285,
           "column": 22
         }
       ],
@@ -95100,12 +95135,12 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/server.rs",
-          "line": 30779,
+          "line": 30780,
           "column": 22
         },
         {
           "file": "crates/snapback-server/src/server.rs",
-          "line": 30816,
+          "line": 30817,
           "column": 22
         },
         {
@@ -95145,7 +95180,7 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/server.rs",
-          "line": 30939,
+          "line": 30940,
           "column": 18
         },
         {
