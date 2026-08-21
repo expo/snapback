@@ -65,14 +65,17 @@ The provider-lifecycle recipe now states the manager-owned
 app/storage-partition/origin/settled-authority tuple, stable connection-label
 reuse, the landed auth-blocked settlement vocabulary with
 `transitionOwner: "auth-coordinator"`, teardown-before-successor rebuild,
-non-reentrant callback rules, complete-snapshot deduplication, manager-owned
-retry, two-client teardown, qualitative budgets pending LLP 0295 D0.5, and an
+non-reentrant callback rules, today's React equal-snapshot republication plus
+adapter-side deduplication guidance, manager-owned retry, two-client teardown,
+qualitative budgets pending LLP 0295 D0.5, and an
 owner-scoped inspection helper combining provider and headless resource facts.
 
 `packages/snapback-react/package.test.mjs` is the missing regression fixture:
-six distinct provider cells under one shared manager/authority/origin carry one
-connection label, inspection reports one active connection and six logical
-subscriptions, and disposal reports zero owned resources. Retrieval cases 70,
+six distinct provider cells exercise the real headless stream manager under one
+shared authority/origin, its injected WebSocket records exactly one transport
+open, inspection reports one active connection and six logical subscriptions,
+and disposal closes that transport and reports zero owned resources. Retrieval
+cases 70,
 73, and 74 cover the original vocabulary plus "one connection per query",
 "too many websockets", "connection pool", "provider adapter pattern", and
 "rebuild stream on auth". The fresh read-only probe reached the recipe in 6/15

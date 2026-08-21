@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:873461068a448b30805f07aa19360dbc0cb728f80af53eb0af82b603a70f26ba"
+    "sourceDigest": "sha256:94e1dc1013d2e95327d455737e6d7b71aad51e543259a0176bdd408a30cb2ed3"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -5406,8 +5406,8 @@
         "packages/snapback-react/package.test.mjs"
       ],
       "reviewed": "2026-08-21",
-      "reviewedAuthoritiesDigest": "sha256:3dc9dd24bb2c2b9ffe8ae954b884959f0f0318070872b97881a1ee764a6666e1",
-      "sha256": "aa27cbed7e4a34bc4406d123409b6fda0bf306ca0a54b9fda7acab523486076f",
+      "reviewedAuthoritiesDigest": "sha256:5e0894bd44d45cf4b8f904e7b4ab5e29c5f2665bd4ed71973697acdea9a355e9",
+      "sha256": "b2369bc60f166108ceda6124e88bf2fcc759cfea6867c7675e0f35a3c643e169",
       "snippets": [
         {
           "lang": "js",
@@ -12634,7 +12634,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2610094,
-      "sha256": "5b2e05380d8fd3aacc7dc405635f4276aabc449f285e53532bd4dc1e7fd0e739",
+      "sha256": "23ceb2c459e16f3c84d7c27b4288b4c66e284b30a9cb4a5ff19ee12aa6b755a6",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12643,7 +12643,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:c3d084af57e0b5cd8ce60b9e5bf2aa6c1e2ff1d24ce3d4fe353b16608f75e769",
+      "sourceDigest": "sha256:f309a48db6d99a6161220a6e9e3ce83417f049ce6b6b7a33bcdbddcbe50f01f9",
       "codes": 3465,
       "emittingSites": 11959
     }
@@ -12782,8 +12782,8 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3645109,
-      "sha256": "b71bf4f0a0741efe97a72256c7ff83bd2eee5c56d7514c0b7d04fd88950191f8"
+      "bytes": 3645881,
+      "sha256": "78be16efe31ffca7f9fe1034e078cc43176b69e8e428141287ade136a4ad3f49"
     },
     "sections": {
       "meta": {
@@ -12853,8 +12853,8 @@
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 169767,
-        "sha256": "3ec56987db740c117f648239d7e83825fb295ed3c8302844a708981203d336ea"
+        "bytes": 170539,
+        "sha256": "f5d9bde6478ced8c7a22671d359c4753a70fb002168c2bcc8eb9dc1381e87ed6"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
@@ -12886,5 +12886,5 @@
       }
     }
   },
-  "contentHash": "873461068a448b30805f07aa19360dbc0cb728f80af53eb0af82b603a70f26ba"
+  "contentHash": "94e1dc1013d2e95327d455737e6d7b71aad51e543259a0176bdd408a30cb2ed3"
 }

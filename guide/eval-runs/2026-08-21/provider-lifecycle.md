@@ -1,30 +1,18 @@
-# Retrieval eval run — 2026-08-21 — provider lifecycle (cases 70, 73–74)
+# Retrieval eval summary — 2026-08-21 — provider lifecycle
 
-**Fixture:** fresh `gpt-5.6-sol` Codex context, read-only in the LLP 0295
-lane worktree, with `AGENTS.md` as the repository steer and the exact
-"one connection per query", "too many websockets", "connection pool",
-"provider adapter pattern", and "rebuild stream on auth" vocabulary. The
-probe could use Guide indexes/routes and routed pages only; source, LLPs, and
-the issue ticket were excluded.
+Cases 70, 73, and 74 were rerun as three independent cold
+`gpt-5.6-sol` Codex contexts after the review fix. Each run was read-only,
+limited to 15 tool calls, and barred from implementation source, LLPs, issues,
+and prior eval evidence.
 
-**Verdict: PASS.** `guide/recipes/provider-lifecycle.md` was loaded and used
-in 6 of 15 tool calls. The plan gave each of two clients one tuple-owned
-manager and stable connection label, multiplexed/refcounted logical
-subscriptions, blocked-state branching on `transitionOwner:
-"auth-coordinator"` with no timeout, predecessor teardown before fresh
-successor subscribe, complete-snapshot deduplication, manager-owned transport
-retry, and explicit provider/client teardown. It combined provider inspection
-with `localResourceInspection()` into owner rows, required zero resources after
-teardown, and left numeric connection/subscription thresholds to LLP 0295
-D0.5.
+**Verdict: PASS (3/3).** Each intent independently routed to
+`guide/recipes/provider-lifecycle.md` and produced the required lifecycle plan
+without the prohibited connection-pool, timeout/polling, or auth-rebind
+patterns.
 
-## Agent tool transcript
+- [Case 70 — provider connection lifecycle](./provider-lifecycle-case-70.md)
+- [Case 73 — provider WebSocket fan-out](./provider-lifecycle-case-73.md)
+- [Case 74 — provider auth rebuild](./provider-lifecycle-case-74.md)
 
-1. Read the Snapback authoring skill selected by `AGENTS.md`.
-2. Loaded `guide/index.md`.
-3. Tried the documented `snapback guide <query>` route; the executable was not
-   on that probe's path.
-4. Searched `guide/capabilities.md` with the exact lifecycle vocabulary.
-5. Used a bounded search across `guide/index.md` and
-   `guide/capabilities.md`, which routed to the provider-lifecycle recipe.
-6. Loaded `guide/recipes/provider-lifecycle.md` and completed both rubrics.
+Each linked record retains the exact submitted prompt, the actual tool-command
+trace, and the verbatim final response from that fresh context.

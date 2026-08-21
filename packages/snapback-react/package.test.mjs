@@ -4,6 +4,7 @@ import React, { StrictMode, useMemo } from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 
 import {
+  SnapbackClient,
   canonicalizeClientValueV1,
 } from '@expo/snapback-client';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
@@ -102,7 +103,6 @@ function createFakeClient({
   managerSocketDemand = 0,
 } = {}) {
   const handles = new Set();
-  const managers = new Map();
   const byFunction = new Map();
   const durableConsumers = new Set();
   const startOptions = [];
@@ -159,80 +159,20 @@ function createFakeClient({
       });
     },
     async disconnect() { disconnects += 1; },
-    liveStreamManager(connectionId) {
-      let manager = managers.get(connectionId);
-      if (manager) return manager;
-      let closed = false;
-      manager = {
-        close() {
-          if (closed) return;
-          closed = true;
-          managerCloses += 1;
-          managers.delete(connectionId);
-        },
+    liveStreamManager() {
+      return {
+        close() { managerCloses += 1; },
         inspection() {
-          const socketDemand = managerSocketDemand + [...handles]
-            .filter((handle) => handle.connectionId === connectionId)
-            .length;
-          return {
-            connectionId,
-            open: socketDemand > 0,
-            closed,
-            socketDemand,
-            durableListeners: 0,
-            ephemeralListeners: 0,
-            stateListeners: 0,
-            readinessListeners: 0,
-            pendingRequests: 0,
-            reconnectTimer: 0,
-            heartbeatTimer: 0,
-          };
+          return { socketDemand: managerSocketDemand + handles.size };
         },
       };
-      managers.set(connectionId, manager);
-      return manager;
     },
-    async releaseConnection(connectionId, { ifIdle = false } = {}) {
+    async releaseConnection(_connectionId, { ifIdle = false } = {}) {
       if (ifIdle && managerSocketDemand > 0) {
         return { released: false, reason: 'shared-demand' };
       }
       releases += 1;
-      managers.delete(connectionId);
       return { released: true, attached: true };
-    },
-    localResourceInspection(connectionIds = null) {
-      const selected = connectionIds === null
-        ? null
-        : new Set(Array.from(connectionIds, (value) => String(value)));
-      const inspectedManagers = [...managers.entries()]
-        .filter(([connectionId]) => selected === null || selected.has(connectionId))
-        .map(([, manager]) => manager.inspection());
-      return Object.freeze({
-        managers: Object.freeze(inspectedManagers),
-        managerCount: inspectedManagers.length,
-        grants: Object.freeze(inspectedManagers.map(({ connectionId }) => connectionId)),
-        grantCount: inspectedManagers.length,
-        laneConsumers: Object.freeze(inspectedManagers.map(({ connectionId }) => Object.freeze({
-          connectionId,
-          durable: [...handles].filter(
-            (handle) => handle.connectionId === connectionId,
-          ).length,
-          ephemeral: 0,
-        }))),
-        socketDemand: inspectedManagers.reduce((sum, manager) => sum + manager.socketDemand, 0),
-        timers: inspectedManagers.reduce(
-          (sum, manager) => sum + manager.reconnectTimer + manager.heartbeatTimer,
-          0,
-        ),
-        listeners: inspectedManagers.reduce(
-          (sum, manager) => sum
-            + manager.durableListeners
-            + manager.ephemeralListeners
-            + manager.stateListeners
-            + manager.readinessListeners,
-          0,
-        ),
-      });
     },
     async unsubscribeLive(_ref, { subscriptionId } = {}) {
       if (serverRegistrations.delete(subscriptionId)) registeredRetirements += 1;
@@ -250,7 +190,6 @@ function createFakeClient({
       starts += 1;
       startOptions.push(Object.freeze({
         function: ref.name,
-        connectionId: options.connectionId,
         supersedesSubscriptionId: options.supersedesSubscriptionId ?? null,
         registered: options.registeredSubscription !== undefined,
         userId: options.userId ?? null,
@@ -271,7 +210,6 @@ function createFakeClient({
         ? new Promise((resolve) => { resolveStarted = resolve; })
         : Promise.resolve();
       const handle = {
-        connectionId: options.connectionId,
         current,
         started: () => started,
         dispose() {
@@ -1407,7 +1345,6 @@ assert.deepEqual(
   lazyRaceFake.inspection().startOptions.find((entry) => entry.function === 'details'),
   {
     function: 'details',
-    connectionId: 'registered-react-group',
     supersedesSubscriptionId: 'registered-details',
     registered: false,
     userId: null,
@@ -1751,53 +1688,167 @@ assert.equal(
 );
 
 // @ref LLP 0095#connection-ownership-per-app-authorityorigin — provider cells
-// sharing one manager tuple multiplex subscriptions over one connection label.
-const providerLifecycleFake = createFakeClient();
-const providerLifecycleBinding = await prepareReactBindingForClient(
-  providerLifecycleFake,
-  { generatedManifest },
-);
-const providerLifecycle = createSnapbackReactProvider(providerLifecycleBinding, {
-  connectionId: 'provider-lifecycle-shared-authority-origin',
-});
-const providerCellCount = 6;
-const providerCells = observeSnapbackQueries(
-  providerLifecycle,
-  Object.fromEntries(Array.from({ length: providerCellCount }, (_, index) => [
-    `cell${index}`,
-    { ref: capacityFeeds[index], args: {} },
-  ])),
-  () => {},
-);
-await flush();
-assert.deepEqual(inspectProviderOwners(providerLifecycleFake, [providerLifecycle]), [{
-  owner: providerLifecycle.providerInstanceId,
-  connectionId: 'provider-lifecycle-shared-authority-origin',
-  activeConnections: 1,
-  activeSubscriptions: providerCellCount,
-  socketDemand: providerCellCount,
-  timers: 0,
-  listeners: 0,
-}]);
-assert.equal(
-  new Set(
-    providerLifecycleFake.inspection().startOptions.map((entry) => entry.connectionId),
-  ).size,
-  1,
-  'N provider cells sharing authority/origin use one transport connection label',
-);
-providerCells.dispose();
-await flush();
-await providerLifecycle.dispose();
-assert.deepEqual(inspectProviderOwners(providerLifecycleFake, [providerLifecycle]), [{
-  owner: providerLifecycle.providerInstanceId,
-  connectionId: 'provider-lifecycle-shared-authority-origin',
-  activeConnections: 0,
-  activeSubscriptions: 0,
-  socketDemand: 0,
-  timers: 0,
-  listeners: 0,
-}]);
+// sharing one real headless manager tuple multiplex subscriptions over one
+// WebSocket, and teardown closes that exact transport.
+{
+  const savedFetch = globalThis.fetch;
+  const savedWebSocket = globalThis.WebSocket;
+  let transportOpens = 0;
+  let transportCloses = 0;
+  let subscriptionSequence = 0;
+  const activeSubscriptions = new Set();
+
+  class ProviderLifecycleWebSocket {
+    constructor(url, protocols) {
+      this.url = url;
+      this.protocols = protocols;
+      this.listeners = new Map();
+      this.closed = false;
+      queueMicrotask(() => {
+        if (this.closed) return;
+        transportOpens += 1;
+        this.emit('open', {});
+      });
+    }
+
+    addEventListener(type, listener, options = {}) {
+      if (!this.listeners.has(type)) this.listeners.set(type, new Set());
+      this.listeners.get(type).add({ listener, once: options.once === true });
+    }
+
+    emit(type, event) {
+      for (const entry of [...(this.listeners.get(type) ?? [])]) {
+        if (entry.once) this.listeners.get(type).delete(entry);
+        entry.listener(event);
+      }
+    }
+
+    send(encoded) {
+      const frame = JSON.parse(encoded);
+      if (frame.type !== 'ping') return;
+      queueMicrotask(() => this.emit('message', {
+        data: JSON.stringify({ kind: 'pong', requestId: frame.requestId }),
+      }));
+    }
+
+    close(code = 1000, reason = '') {
+      if (this.closed) return;
+      this.closed = true;
+      transportCloses += 1;
+      queueMicrotask(() => this.emit('close', { code, reason }));
+    }
+  }
+
+  globalThis.WebSocket = ProviderLifecycleWebSocket;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (/^\/live\/capacityFeed\d+\/subscribe$/u.test(path)) {
+      const subscriptionId = `provider-lifecycle-${++subscriptionSequence}`;
+      activeSubscriptions.add(subscriptionId);
+      return Response.json({
+        subscription_id: subscriptionId,
+        snapshot: { rows: [], version: 1 },
+        permission_epochs: {},
+      });
+    }
+    if (/^\/live\/capacityFeed\d+\/unsubscribe$/u.test(path)) {
+      const { subscription_id: subscriptionId } = JSON.parse(init.body);
+      activeSubscriptions.delete(subscriptionId);
+      return Response.json({ subscription_id: subscriptionId, disposed: true });
+    }
+    throw new Error(`unexpected provider-lifecycle transport request: ${path}`);
+  };
+
+  const providerLifecycleClient = new SnapbackClient('http://provider-lifecycle.test', {
+    authInvalidationProtocol: null,
+    offlineQueue: false,
+    rqsStore: null,
+  });
+  providerLifecycleClient.inspect = async () => ({
+    targetProfileId: 'local-dev-sqlite-ibex',
+    target: 'local-dev-sqlite-ibex',
+    schema: { schemaHash: 'sha256:schema' },
+    functions: generatedManifest,
+    capabilityManifest: {
+      artifactKind: 'capabilityManifest',
+      schemaVersion: 'snapback.v0',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      supportedCapabilities: ['live_subscriptions'],
+    },
+  });
+  providerLifecycleClient.authSession = async () => ({
+    activeMode: 'dev',
+    availability: { onlineRequestResponse: { available: true, reason: null } },
+  });
+  providerLifecycleClient.connectionGrant = async () => ({
+    id: 'provider-lifecycle-wire',
+    token: 'provider-lifecycle-token',
+    authorizationInvalidation: null,
+  });
+  providerLifecycleClient.refreshConnectionGrant = providerLifecycleClient.connectionGrant;
+
+  let providerLifecycle = null;
+  let providerCells = null;
+  try {
+    const providerLifecycleBinding = await prepareReactBindingForClient(
+      providerLifecycleClient,
+      { generatedManifest },
+    );
+    providerLifecycle = createSnapbackReactProvider(providerLifecycleBinding, {
+      connectionId: 'provider-lifecycle-shared-authority-origin',
+    });
+    const providerCellCount = 6;
+    providerCells = observeSnapbackQueries(
+      providerLifecycle,
+      Object.fromEntries(Array.from({ length: providerCellCount }, (_, index) => [
+        `cell${index}`,
+        { ref: capacityFeeds[index], args: {} },
+      ])),
+      () => {},
+    );
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if (
+        providerLifecycle.inspection().serverSubscriptions === providerCellCount
+        && transportOpens === 1
+      ) break;
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    assert.equal(transportOpens, 1, 'six provider cells open exactly one real transport');
+    assert.deepEqual(inspectProviderOwners(providerLifecycleClient, [providerLifecycle]), [{
+      owner: providerLifecycle.providerInstanceId,
+      connectionId: 'provider-lifecycle-shared-authority-origin',
+      activeConnections: 1,
+      activeSubscriptions: providerCellCount,
+      socketDemand: providerCellCount,
+      timers: 1,
+      listeners: providerCellCount,
+    }]);
+    assert.equal(activeSubscriptions.size, providerCellCount);
+
+    providerCells.dispose();
+    providerCells = null;
+    await flush();
+    await providerLifecycle.dispose();
+    assert.equal(transportCloses, 1, 'provider teardown closes the shared real transport');
+    assert.equal(activeSubscriptions.size, 0);
+    assert.deepEqual(inspectProviderOwners(providerLifecycleClient, [providerLifecycle]), [{
+      owner: providerLifecycle.providerInstanceId,
+      connectionId: 'provider-lifecycle-shared-authority-origin',
+      activeConnections: 0,
+      activeSubscriptions: 0,
+      socketDemand: 0,
+      timers: 0,
+      listeners: 0,
+    }]);
+    providerLifecycle = null;
+  } finally {
+    providerCells?.dispose();
+    await providerLifecycle?.dispose();
+    await providerLifecycleClient.close();
+    globalThis.fetch = savedFetch;
+    globalThis.WebSocket = savedWebSocket;
+  }
+}
 
 const capacityProvider = createSnapbackReactProvider(binding, {
   connectionId: 'react-package-capacity-test',

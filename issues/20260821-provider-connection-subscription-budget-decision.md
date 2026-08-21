@@ -127,4 +127,8 @@ rather than empirical adapter folklore.
 **Exit progress (2026-08-21):** the budget contract has landed in the owning
 LLPs; the follow-on enforcement/inspection/provider/guide/conformance tickets
 have **not** yet been filed (the checklist above is their source), so this
-ticket deliberately stays open until they exist.
+ticket deliberately stays open until they exist. React's current
+`publishAuthoritative()` still republishes value-equal authoritative deliveries;
+the Guide describes adapter-side complete-visible-snapshot deduplication as the
+available behavior and points here rather than claiming the platform obligation
+has landed.

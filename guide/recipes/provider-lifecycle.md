@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:3dc9dd24bb2c2b9ffe8ae954b884959f0f0318070872b97881a1ee764a6666e1
+reviewed-authorities-digest: sha256:5e0894bd44d45cf4b8f904e7b4ab5e29c5f2665bd4ed71973697acdea9a355e9
 ---
 
 # Recipe: provider connection and subscription lifecycle
@@ -57,46 +57,54 @@ and client B may therefore report one connection each while each serves many
 cells. Never reuse A's manager for B merely because their server origin is the
 same: settled authority and storage partition are part of ownership.
 
-The React package fixture mounts several distinct cells under one provider and
-proves their starts all carry one connection label:
+The React package fixture mounts several distinct cells under one provider
+against the real headless manager. Its injected WebSocket counts actual opens
+and closes, so the regression fails if the headless client creates a transport
+per cell even while reusing the same readable connection label:
 
 ```js source=packages/snapback-react/package.test.mjs
-// @ref LLP 0095#connection-ownership-per-app-authorityorigin — provider cells
-// sharing one manager tuple multiplex subscriptions over one connection label.
-const providerLifecycleFake = createFakeClient();
-const providerLifecycleBinding = await prepareReactBindingForClient(
-  providerLifecycleFake,
-  { generatedManifest },
-);
-const providerLifecycle = createSnapbackReactProvider(providerLifecycleBinding, {
-  connectionId: 'provider-lifecycle-shared-authority-origin',
-});
-const providerCellCount = 6;
-const providerCells = observeSnapbackQueries(
-  providerLifecycle,
-  Object.fromEntries(Array.from({ length: providerCellCount }, (_, index) => [
-    `cell${index}`,
-    { ref: capacityFeeds[index], args: {} },
-  ])),
-  () => {},
-);
-await flush();
-assert.deepEqual(inspectProviderOwners(providerLifecycleFake, [providerLifecycle]), [{
-  owner: providerLifecycle.providerInstanceId,
-  connectionId: 'provider-lifecycle-shared-authority-origin',
-  activeConnections: 1,
-  activeSubscriptions: providerCellCount,
-  socketDemand: providerCellCount,
-  timers: 0,
-  listeners: 0,
-}]);
-assert.equal(
-  new Set(
-    providerLifecycleFake.inspection().startOptions.map((entry) => entry.connectionId),
-  ).size,
-  1,
-  'N provider cells sharing authority/origin use one transport connection label',
-);
+  try {
+    const providerLifecycleBinding = await prepareReactBindingForClient(
+      providerLifecycleClient,
+      { generatedManifest },
+    );
+    providerLifecycle = createSnapbackReactProvider(providerLifecycleBinding, {
+      connectionId: 'provider-lifecycle-shared-authority-origin',
+    });
+    const providerCellCount = 6;
+    providerCells = observeSnapbackQueries(
+      providerLifecycle,
+      Object.fromEntries(Array.from({ length: providerCellCount }, (_, index) => [
+        `cell${index}`,
+        { ref: capacityFeeds[index], args: {} },
+      ])),
+      () => {},
+    );
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if (
+        providerLifecycle.inspection().serverSubscriptions === providerCellCount
+        && transportOpens === 1
+      ) break;
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    assert.equal(transportOpens, 1, 'six provider cells open exactly one real transport');
+    assert.deepEqual(inspectProviderOwners(providerLifecycleClient, [providerLifecycle]), [{
+      owner: providerLifecycle.providerInstanceId,
+      connectionId: 'provider-lifecycle-shared-authority-origin',
+      activeConnections: 1,
+      activeSubscriptions: providerCellCount,
+      socketDemand: providerCellCount,
+      timers: 1,
+      listeners: providerCellCount,
+    }]);
+    assert.equal(activeSubscriptions.size, providerCellCount);
+
+    providerCells.dispose();
+    providerCells = null;
+    await flush();
+    await providerLifecycle.dispose();
+    assert.equal(transportCloses, 1, 'provider teardown closes the shared real transport');
+    assert.equal(activeSubscriptions.size, 0);
 ```
 
 ## Subscribe after authority settlement, without a timeout
@@ -135,7 +143,7 @@ then starts a fresh snapshot-with-subscribe. This teardown-before-rebuild order
 is the persona-replacement seam; “rebuild stream on auth” must not mean rebind
 an old sessions connection to a new bearer.
 
-## Keep update callbacks non-reentrant and deduplicate snapshots
+## Keep update callbacks non-reentrant and deduplicate adapter projections
 
 An update callback copies the delivered rows and lifecycle facts into its
 store, then returns. Do not synchronously subscribe, unsubscribe, or dispatch a
@@ -143,12 +151,16 @@ mutation from inside it. A one-shot read is admitted but usually means the
 adapter ignored rows it already has. If delivery must trigger more lifecycle
 work, schedule it at a microtask/framework-effect boundary.
 
-Deduplicate at the consumer-store boundary. The comparison unit is the whole
-consumer-visible snapshot: rows plus exposed status, connection, and freshness
-facts. Value-equal rows at a newer internal version advance the provider's
-version/resume bookkeeping without republishing a data change. A real lifecycle
-change still publishes even when rows are equal—for example `refreshing` to
-`ready`, or the first authoritative successor delivery after reconnect.
+React currently republishes every authoritative delivery, including value-equal
+rows at a newer internal version; that delivery advances bookkeeping **and**
+notifies provider listeners today. If an adapter needs render deduplication,
+apply it in the adapter-owned consumer store by comparing the complete visible
+snapshot—rows plus exposed status, connection, and freshness facts. Never let
+row equality hide a real lifecycle transition such as `refreshing` to `ready`
+or the first authoritative successor delivery after reconnect. Platform-level
+complete-snapshot deduplication remains an open LLP 0278/0095 implementation
+obligation tracked in
+`issues/20260821-provider-connection-subscription-budget-decision.md`.
 
 ## Let the manager retry; explicitly tear down owners
 
@@ -223,7 +235,7 @@ created them, and keep the lifecycle invariants above.
   state is visible, or deriving settlement from a timeout.
 - Synchronously subscribing, unsubscribing, or mutating inside an update
   callback.
-- Republishing value-equal row data while hiding a real lifecycle transition.
+- Deduplicating equal rows while hiding a real lifecycle transition.
 - Rebuilding every query owner after transport-only reconnect.
 - Treating `settled()` as disposal, or leaving the owned client open after the
   provider is terminal.
