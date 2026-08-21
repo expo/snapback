@@ -113,7 +113,7 @@ import {
   runHostedRead,
   submitHostedOperatorRequest,
 } from './hosted-control.mjs';
-import { stopProcessGroup } from './process-teardown.mjs';
+import { spawnLeasedProcess, stopProcessGroup } from './process-teardown.mjs';
 import { validateAdminConsoleSnapshot } from './admin-snapshot.mjs';
 export {
   addTarget,
@@ -4840,12 +4840,10 @@ export async function runDev(options = {}) {
         diagnostics: [advisory],
       });
     }
-    const spawned = spawn(clientArm.command, {
-      shell: true,
+    const spawned = spawnLeasedProcess(['/bin/sh', '-c', clientArm.command], {
       cwd: clientArm.directory,
       // Own process group: the shell-spawned tree (runner, Vite, esbuild)
       // tears down as one unit on close.
-      detached: true,
       env: devIdentityClientEnvironment(
         options.env ?? process.env,
         descriptor,

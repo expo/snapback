@@ -27414,7 +27414,7 @@ reviewed-authorities-digest: sha256:49a42e042125ba58eead254f7626797bae3525bdff72
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,448 stable codes** from 587 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**3,458 stable codes** from 587 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |
@@ -27879,7 +27879,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-authoring-runtime-evidence-invalid"></a>`SNAPBACK_AUTHORING_RUNTIME_EVIDENCE_INVALID` | codegen | — | — | `packages/snapback-codegen/declaration-suggestion.mjs:1886` | 3 |
 | <a id="diagnostic-snapback-authoring-runtime-evidence-skipped"></a>`SNAPBACK_AUTHORING_RUNTIME_EVIDENCE_SKIPPED` | codegen | — | — | `packages/snapback-codegen/declaration-suggestion.mjs:527` | 1 |
 | <a id="diagnostic-snapback-authoring-string-bound-unresolved"></a>`SNAPBACK_AUTHORING_STRING_BOUND_UNRESOLVED` | codegen | — | — | `packages/snapback-codegen/declaration-suggestion.mjs:1239` | 1 |
-| <a id="diagnostic-snapback-authoring-suggestion-input-invalid"></a>`SNAPBACK_AUTHORING_SUGGESTION_INPUT_INVALID` | codegen | — | — | `packages/snapback-cli/index.mjs:5372` | 3 |
+| <a id="diagnostic-snapback-authoring-suggestion-input-invalid"></a>`SNAPBACK_AUTHORING_SUGGESTION_INPUT_INVALID` | codegen | — | — | `packages/snapback-cli/index.mjs:5370` | 3 |
 | <a id="diagnostic-snapback-authoring-union-unsupported"></a>`SNAPBACK_AUTHORING_UNION_UNSUPPORTED` | codegen | — | — | `packages/snapback-codegen/declaration-suggestion.mjs:1265` | 1 |
 | <a id="diagnostic-snapback-authority-descriptor-invalid"></a>`SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID` | client | — | — | `packages/snapback-client/index.mjs:5810` | 6 |
 | <a id="diagnostic-snapback-authority-descriptor-required"></a>`SNAPBACK_AUTHORITY_DESCRIPTOR_REQUIRED` | contract | — | — | `packages/snapback-contract/client-store.mjs:2967` | 1 |
@@ -27913,7 +27913,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-authority-profile-ungoverned-write-path"></a>`SNAPBACK_AUTHORITY_PROFILE_UNGOVERNED_WRITE_PATH` | codegen | — | — | `packages/snapback-codegen/index.mjs:3468` | 1 |
 | <a id="diagnostic-snapback-authority-profile-unsupported-composition-class"></a>`SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS` | codegen | — | [guide](../auth/scoped-roles.md#reuse-one-role-hierarchy-in-queries-and-table-visibility) | `crates/snapback-kernel/src/membership_rules.rs:1224` | 2 |
 | <a id="diagnostic-snapback-authority-profile-unsupported-target"></a>`SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET` | codegen | — | [guide](../auth/scoped-roles.md#reuse-one-role-hierarchy-in-queries-and-table-visibility) | `packages/snapback-codegen/index.mjs:3332` | 1 |
-| <a id="diagnostic-snapback-authority-required"></a>`SNAPBACK_AUTHORITY_REQUIRED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:442` | 10 |
+| <a id="diagnostic-snapback-authority-required"></a>`SNAPBACK_AUTHORITY_REQUIRED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:464` | 10 |
 | <a id="diagnostic-snapback-authority-roster-cursor-invalid"></a>`SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID` | server | 400 | — | `crates/snapback-server/src/server/api_error.rs:1316` | 1 |
 | <a id="diagnostic-snapback-authority-roster-page-invalid"></a>`SNAPBACK_AUTHORITY_ROSTER_PAGE_INVALID` | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:2747` | 3 |
 | <a id="diagnostic-snapback-authority-transfer-owner-denied"></a>`SNAPBACK_AUTHORITY_TRANSFER_OWNER_DENIED` | server | 403 | — | `crates/snapback-kernel/src/storage/membership_plans.rs:118` | 2 |
@@ -28282,7 +28282,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-backup-plan-invalid"></a>`SNAPBACK_BACKUP_PLAN_INVALID` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2668` | 4 |
 | <a id="diagnostic-snapback-backup-stale-plan"></a>`SNAPBACK_BACKUP_STALE_PLAN` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2751` | 1 |
 | <a id="diagnostic-snapback-backup-state-changed"></a>`SNAPBACK_BACKUP_STATE_CHANGED` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2799` | 1 |
-| <a id="diagnostic-snapback-backup-subcommand-unimplemented"></a>`SNAPBACK_BACKUP_SUBCOMMAND_UNIMPLEMENTED` | cli | — | — | `packages/snapback-cli/index.mjs:6601` | 1 |
+| <a id="diagnostic-snapback-backup-subcommand-unimplemented"></a>`SNAPBACK_BACKUP_SUBCOMMAND_UNIMPLEMENTED` | cli | — | — | `packages/snapback-cli/index.mjs:6599` | 1 |
 | <a id="diagnostic-snapback-batch-read-index-invalid"></a>`SNAPBACK_BATCH_READ_INDEX_INVALID` | codegen | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6554` | 8 |
 | <a id="diagnostic-snapback-batch-read-input-bytes-exceeded"></a>`SNAPBACK_BATCH_READ_INPUT_BYTES_EXCEEDED` | harness | 413 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6388` | 5 |
 | <a id="diagnostic-snapback-batch-read-input-invalid"></a>`SNAPBACK_BATCH_READ_INPUT_INVALID` | harness | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6288` | 13 |
@@ -28373,7 +28373,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-broker-partition-blocked"></a>`SNAPBACK_BROKER_PARTITION_BLOCKED` | client | — | — | `packages/snapback-client/demand-broker.mjs:472` | 1 |
 | <a id="diagnostic-snapback-broker-partition-mismatch"></a>`SNAPBACK_BROKER_PARTITION_MISMATCH` | client | — | — | `packages/snapback-client/demand-broker.mjs:111` | 3 |
 | <a id="diagnostic-snapback-broker-stale-writer-generation"></a>`SNAPBACK_BROKER_STALE_WRITER_GENERATION` | client | — | — | `packages/snapback-client/demand-broker.mjs:430` | 1 |
-| <a id="diagnostic-snapback-browser-executable"></a>`SNAPBACK_BROWSER_EXECUTABLE` | cli | — | — | `packages/snapback-cli/carrier-kit.mjs:729` | 2 |
+| <a id="diagnostic-snapback-browser-executable"></a>`SNAPBACK_BROWSER_EXECUTABLE` | cli | — | — | `packages/snapback-cli/carrier-kit.mjs:984` | 2 |
 | <a id="diagnostic-snapback-browser-ir-untyped-error"></a>`SNAPBACK_BROWSER_IR_UNTYPED_ERROR` | client | — | — | `packages/snapback-client/ir-evaluator.mjs:324` | 1 |
 | <a id="diagnostic-snapback-buffered-write-limit-exceeded"></a>`SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED` | server | 400 | [guide](../backend/mutations.md#bound-and-resume-bulk-work) | `crates/snapback-engine/src/runtime/host_glue.rs:4777` | 4 |
 | <a id="diagnostic-snapback-build-distribution"></a>`SNAPBACK_BUILD_DISTRIBUTION` | cli | — | — | `crates/snapback-types/src/identity.rs:29` | 2 |
@@ -28428,6 +28428,8 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-capability-workerd-missing"></a>`SNAPBACK_CAPABILITY_WORKERD_MISSING` | capabilities | — | — | `crates/snapback-conformance/src/bin/snapback-conformance-twin.rs:790` | 4 |
 | <a id="diagnostic-snapback-captured-read-invalid"></a>`SNAPBACK_CAPTURED_READ_INVALID` | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6435` | 6 |
 | <a id="diagnostic-snapback-captured-read-serialize-failed"></a>`SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED` | server | — | — | `crates/snapback-kernel/src/live_matcher.rs:76` | 3 |
+| <a id="diagnostic-snapback-carrier-cleanup-lease-directory"></a>`SNAPBACK_CARRIER_CLEANUP_LEASE_DIRECTORY` | cli | — | — | `packages/snapback-cli/process-teardown.mjs:18` | 1 |
+| <a id="diagnostic-snapback-carrier-process-lease-marker"></a>`SNAPBACK_CARRIER_PROCESS_LEASE_MARKER` | cli | — | — | `packages/snapback-cli/process-teardown.mjs:24` | 1 |
 | <a id="diagnostic-snapback-checkpoint-copy-budget-exceeded"></a>`SNAPBACK_CHECKPOINT_COPY_BUDGET_EXCEEDED` | server | 413 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:2058` | 3 |
 | <a id="diagnostic-snapback-checkpoint-copy-failed"></a>`SNAPBACK_CHECKPOINT_COPY_FAILED` | server | — | — | `crates/snapback-kernel/src/proof_checkpoint.rs:2470` | 2 |
 | <a id="diagnostic-snapback-checkpoint-copy-fidelity-failed"></a>`SNAPBACK_CHECKPOINT_COPY_FIDELITY_FAILED` | server | — | — | `crates/snapback-kernel/src/proof_checkpoint.rs:2498` | 2 |
@@ -28497,7 +28499,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-client-reference-profile-mismatch"></a>`SNAPBACK_CLIENT_REFERENCE_PROFILE_MISMATCH` | client | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-client/reference-kinds.mjs:2` | 1 |
 | <a id="diagnostic-snapback-client-refused"></a>`SNAPBACK_CLIENT_REFUSED` | client | — | — | `packages/snapback-client/diagnostic-error.mjs:10` | 2 |
 | <a id="diagnostic-snapback-client-resubscribe-generation-exhausted"></a>`SNAPBACK_CLIENT_RESUBSCRIBE_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:15847` | 3 |
-| <a id="diagnostic-snapback-client-rqs-dir"></a>`SNAPBACK_CLIENT_RQS_DIR` | client | — | — | `packages/snapback-cli/expo-dev.mjs:44` | 3 |
+| <a id="diagnostic-snapback-client-rqs-dir"></a>`SNAPBACK_CLIENT_RQS_DIR` | client | — | — | `packages/snapback-cli/expo-dev.mjs:61` | 3 |
 | <a id="diagnostic-snapback-client-rqs-gc"></a>`SNAPBACK_CLIENT_RQS_GC` | client | — | — | `packages/snapback-client/rqs-store-default.mjs:315` | 2 |
 | <a id="diagnostic-snapback-client-rqs-gc-max-age-ms"></a>`SNAPBACK_CLIENT_RQS_GC_MAX_AGE_MS` | client | — | — | `packages/snapback-client/rqs-store-default.mjs:316` | 2 |
 | <a id="diagnostic-snapback-client-rqs-store"></a>`SNAPBACK_CLIENT_RQS_STORE` | client | — | [guide](../sync/offline-and-retention.md#the-jsreact-arm-default-persistence-and-the-offline-queue) | `packages/snapback-client/index.mjs:2781` | 4 |
@@ -28821,7 +28823,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-deploy-rollback-failed"></a>`SNAPBACK_DEPLOY_ROLLBACK_FAILED` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:3680` | 1 |
 | <a id="diagnostic-snapback-deploy-source-status-failed"></a>`SNAPBACK_DEPLOY_SOURCE_STATUS_FAILED` | cli | — | — | `packages/snapback-cli/index.mjs:970` | 1 |
 | <a id="diagnostic-snapback-deploy-source-unversioned"></a>`SNAPBACK_DEPLOY_SOURCE_UNVERSIONED` | cli | — | [guide](../deploying/releases.md#repair-a-refused-build) | `packages/snapback-cli/index.mjs:954` | 4 |
-| <a id="diagnostic-snapback-deploy-subcommand-unimplemented"></a>`SNAPBACK_DEPLOY_SUBCOMMAND_UNIMPLEMENTED` | cli | — | — | `packages/snapback-cli/index.mjs:6724` | 1 |
+| <a id="diagnostic-snapback-deploy-subcommand-unimplemented"></a>`SNAPBACK_DEPLOY_SUBCOMMAND_UNIMPLEMENTED` | cli | — | — | `packages/snapback-cli/index.mjs:6722` | 1 |
 | <a id="diagnostic-snapback-deploy-target-profile-mismatch"></a>`SNAPBACK_DEPLOY_TARGET_PROFILE_MISMATCH` | cli | — | — | `packages/snapback-cli/index.mjs:1477` | 1 |
 | <a id="diagnostic-snapback-dev-admin-token-file-invalid"></a>`SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID` | cli | — | — | `packages/snapback-cli/index.mjs:3739` | 3 |
 | <a id="diagnostic-snapback-dev-application-not-ready"></a>`SNAPBACK_DEV_APPLICATION_NOT_READY` | cli | — | — | `packages/snapback-cli/index.mjs:4249` | 1 |
@@ -28831,14 +28833,14 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-dev-auth-mode-invalid"></a>`SNAPBACK_DEV_AUTH_MODE_INVALID` | cli | — | — | `packages/snapback-cli/index.mjs:3974` | 1 |
 | <a id="diagnostic-snapback-dev-auth-origins"></a>`SNAPBACK_DEV_AUTH_ORIGINS` | cli | — | [guide](../auth/sessions-and-principals.md#a-browser-app-under-sessions-today) | `crates/snapback-server/src/admin.rs:356` | 4 |
 | <a id="diagnostic-snapback-dev-client-command-missing"></a>`SNAPBACK_DEV_CLIENT_COMMAND_MISSING` | cli | — | — | `packages/snapback-cli/index.mjs:4336` | 1 |
-| <a id="diagnostic-snapback-dev-client-spawn-failed"></a>`SNAPBACK_DEV_CLIENT_SPAWN_FAILED` | cli | — | — | `packages/snapback-cli/index.mjs:4904` | 1 |
-| <a id="diagnostic-snapback-dev-command-failed"></a>`SNAPBACK_DEV_COMMAND_FAILED` | cli | — | — | `packages/snapback-cli/index.mjs:5250` | 1 |
-| <a id="diagnostic-snapback-dev-command-invalid"></a>`SNAPBACK_DEV_COMMAND_INVALID` | cli | — | — | `packages/snapback-cli/index.mjs:5290` | 2 |
-| <a id="diagnostic-snapback-dev-command-unknown-verb"></a>`SNAPBACK_DEV_COMMAND_UNKNOWN_VERB` | cli | — | — | `packages/snapback-cli/index.mjs:5308` | 1 |
+| <a id="diagnostic-snapback-dev-client-spawn-failed"></a>`SNAPBACK_DEV_CLIENT_SPAWN_FAILED` | cli | — | — | `packages/snapback-cli/index.mjs:4902` | 1 |
+| <a id="diagnostic-snapback-dev-command-failed"></a>`SNAPBACK_DEV_COMMAND_FAILED` | cli | — | — | `packages/snapback-cli/index.mjs:5248` | 1 |
+| <a id="diagnostic-snapback-dev-command-invalid"></a>`SNAPBACK_DEV_COMMAND_INVALID` | cli | — | — | `packages/snapback-cli/index.mjs:5288` | 2 |
+| <a id="diagnostic-snapback-dev-command-unknown-verb"></a>`SNAPBACK_DEV_COMMAND_UNKNOWN_VERB` | cli | — | — | `packages/snapback-cli/index.mjs:5306` | 1 |
 | <a id="diagnostic-snapback-dev-expo-supervisor-bypassed"></a>`SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED` | cli | — | [guide](../clients/react-expo.md#know-what-the-supervisor-owns) | `packages/snapback-cli/index.mjs:4353` | 1 |
 | <a id="diagnostic-snapback-dev-external-url-required"></a>`SNAPBACK_DEV_EXTERNAL_URL_REQUIRED` | vite | — | — | `packages/snapback-vite/index.mjs:335` | 2 |
-| <a id="diagnostic-snapback-dev-fresh-failed"></a>`SNAPBACK_DEV_FRESH_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1775` | 2 |
-| <a id="diagnostic-snapback-dev-fresh-unmanaged"></a>`SNAPBACK_DEV_FRESH_UNMANAGED` | cli | — | — | `packages/snapback-cli/index.mjs:5128` | 1 |
+| <a id="diagnostic-snapback-dev-fresh-failed"></a>`SNAPBACK_DEV_FRESH_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:2136` | 2 |
+| <a id="diagnostic-snapback-dev-fresh-unmanaged"></a>`SNAPBACK_DEV_FRESH_UNMANAGED` | cli | — | — | `packages/snapback-cli/index.mjs:5126` | 1 |
 | <a id="diagnostic-snapback-dev-generation-failed"></a>`SNAPBACK_DEV_GENERATION_FAILED` | cli | — | — | `packages/snapback-cli/index.mjs:4688` | 1 |
 | <a id="diagnostic-snapback-dev-host-exposed"></a>`SNAPBACK_DEV_HOST_EXPOSED` | vite | — | — | `packages/snapback-vite/index.mjs:309` | 2 |
 | <a id="diagnostic-snapback-dev-identity-absent"></a>`SNAPBACK_DEV_IDENTITY_ABSENT` | cli | — | — | `packages/snapback-cli/index.mjs:3830` | 1 |
@@ -28855,11 +28857,11 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-dev-readiness-target-invalid"></a>`SNAPBACK_DEV_READINESS_TARGET_INVALID` | cli | — | — | `packages/snapback-cli/index.mjs:4178` | 1 |
 | <a id="diagnostic-snapback-dev-ready-file-invalid"></a>`SNAPBACK_DEV_READY_FILE_INVALID` | cli | — | — | `packages/snapback-cli/index.mjs:3376` | 7 |
 | <a id="diagnostic-snapback-dev-ready-file-required"></a>`SNAPBACK_DEV_READY_FILE_REQUIRED` | cli | — | — | `packages/snapback-cli/index.mjs:4487` | 2 |
-| <a id="diagnostic-snapback-dev-restart-failed"></a>`SNAPBACK_DEV_RESTART_FAILED` | cli | — | — | `packages/snapback-cli/index.mjs:5105` | 1 |
-| <a id="diagnostic-snapback-dev-restart-unmanaged"></a>`SNAPBACK_DEV_RESTART_UNMANAGED` | cli | — | — | `packages/snapback-cli/index.mjs:4988` | 1 |
+| <a id="diagnostic-snapback-dev-restart-failed"></a>`SNAPBACK_DEV_RESTART_FAILED` | cli | — | — | `packages/snapback-cli/index.mjs:5103` | 1 |
+| <a id="diagnostic-snapback-dev-restart-unmanaged"></a>`SNAPBACK_DEV_RESTART_UNMANAGED` | cli | — | — | `packages/snapback-cli/index.mjs:4986` | 1 |
 | <a id="diagnostic-snapback-dev-server-attach-failed"></a>`SNAPBACK_DEV_SERVER_ATTACH_FAILED` | cli | — | — | `packages/snapback-cli/index.mjs:3423` | 1 |
 | <a id="diagnostic-snapback-dev-server-db-owned"></a>`SNAPBACK_DEV_SERVER_DB_OWNED` | vite | — | — | `packages/snapback-vite/lifecycle.mjs:417` | 1 |
-| <a id="diagnostic-snapback-dev-server-exited"></a>`SNAPBACK_DEV_SERVER_EXITED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1675` | 2 |
+| <a id="diagnostic-snapback-dev-server-exited"></a>`SNAPBACK_DEV_SERVER_EXITED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:2034` | 2 |
 | <a id="diagnostic-snapback-dev-server-load-failed"></a>`SNAPBACK_DEV_SERVER_LOAD_FAILED` | cli | — | — | `packages/snapback-cli/index.mjs:3621` | 4 |
 | <a id="diagnostic-snapback-dev-server-mode-invalid"></a>`SNAPBACK_DEV_SERVER_MODE_INVALID` | vite | — | — | `packages/snapback-vite/index.mjs:329` | 2 |
 | <a id="diagnostic-snapback-dev-server-ready-timeout"></a>`SNAPBACK_DEV_SERVER_READY_TIMEOUT` | cli | — | — | `packages/snapback-cli/index.mjs:3858` | 1 |
@@ -28979,62 +28981,66 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-export--"></a>`SNAPBACK_EXPORT__` | server | — | — | `crates/snapback-engine/src/runtime/host_glue.rs:6958` | 1 |
 | <a id="diagnostic-snapback-exposure"></a>`SNAPBACK_EXPOSURE` | codegen | — | [guide](../auth/targets.md#a-public-tunnel-does-not-make-the-loopback-server-production-ready) | `crates/snapback-server/src/admin.rs:291` | 6 |
 | <a id="diagnostic-snapback-expo-activity-lifecycle-unavailable"></a>`SNAPBACK_EXPO_ACTIVITY_LIFECYCLE_UNAVAILABLE` | expo | — | — | `packages/snapback-expo/activity-presence.mjs:24` | 1 |
-| <a id="diagnostic-snapback-expo-adb-inventory-failed"></a>`SNAPBACK_EXPO_ADB_INVENTORY_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:511` | 1 |
-| <a id="diagnostic-snapback-expo-adb-reverse-failed"></a>`SNAPBACK_EXPO_ADB_REVERSE_FAILED` | cli | — | [guide](../clients/react-expo.md#choose-simulator-emulator-or-usb-routing) | `packages/snapback-cli/expo-dev.mjs:862` | 3 |
-| <a id="diagnostic-snapback-expo-adb-reverse-remove-failed"></a>`SNAPBACK_EXPO_ADB_REVERSE_REMOVE_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:919` | 2 |
-| <a id="diagnostic-snapback-expo-adb-tcpip-device-refused"></a>`SNAPBACK_EXPO_ADB_TCPIP_DEVICE_REFUSED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:529` | 1 |
-| <a id="diagnostic-snapback-expo-android-device-ambiguous"></a>`SNAPBACK_EXPO_ANDROID_DEVICE_AMBIGUOUS` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:558` | 1 |
-| <a id="diagnostic-snapback-expo-android-device-not-found"></a>`SNAPBACK_EXPO_ANDROID_DEVICE_NOT_FOUND` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:547` | 2 |
-| <a id="diagnostic-snapback-expo-android-device-required"></a>`SNAPBACK_EXPO_ANDROID_DEVICE_REQUIRED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:798` | 3 |
-| <a id="diagnostic-snapback-expo-android-device-unavailable"></a>`SNAPBACK_EXPO_ANDROID_DEVICE_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:577` | 1 |
-| <a id="diagnostic-snapback-expo-android-host-alias-device-invalid"></a>`SNAPBACK_EXPO_ANDROID_HOST_ALIAS_DEVICE_INVALID` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1594` | 1 |
+| <a id="diagnostic-snapback-expo-adb-inventory-failed"></a>`SNAPBACK_EXPO_ADB_INVENTORY_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:533` | 1 |
+| <a id="diagnostic-snapback-expo-adb-reverse-failed"></a>`SNAPBACK_EXPO_ADB_REVERSE_FAILED` | cli | — | [guide](../clients/react-expo.md#choose-simulator-emulator-or-usb-routing) | `packages/snapback-cli/expo-dev.mjs:884` | 3 |
+| <a id="diagnostic-snapback-expo-adb-reverse-remove-failed"></a>`SNAPBACK_EXPO_ADB_REVERSE_REMOVE_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:941` | 2 |
+| <a id="diagnostic-snapback-expo-adb-tcpip-device-refused"></a>`SNAPBACK_EXPO_ADB_TCPIP_DEVICE_REFUSED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:551` | 1 |
+| <a id="diagnostic-snapback-expo-android-device-ambiguous"></a>`SNAPBACK_EXPO_ANDROID_DEVICE_AMBIGUOUS` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:580` | 1 |
+| <a id="diagnostic-snapback-expo-android-device-not-found"></a>`SNAPBACK_EXPO_ANDROID_DEVICE_NOT_FOUND` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:569` | 2 |
+| <a id="diagnostic-snapback-expo-android-device-required"></a>`SNAPBACK_EXPO_ANDROID_DEVICE_REQUIRED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:820` | 3 |
+| <a id="diagnostic-snapback-expo-android-device-unavailable"></a>`SNAPBACK_EXPO_ANDROID_DEVICE_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:599` | 1 |
+| <a id="diagnostic-snapback-expo-android-host-alias-device-invalid"></a>`SNAPBACK_EXPO_ANDROID_HOST_ALIAS_DEVICE_INVALID` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1853` | 1 |
 | <a id="diagnostic-snapback-expo-asset-blob-invalid"></a>`SNAPBACK_EXPO_ASSET_BLOB_INVALID` | expo | — | — | `packages/snapback-expo/asset-source.mjs:278` | 1 |
 | <a id="diagnostic-snapback-expo-asset-source-invalid"></a>`SNAPBACK_EXPO_ASSET_SOURCE_INVALID` | expo | — | — | `packages/snapback-expo/asset-source.mjs:33` | 3 |
 | <a id="diagnostic-snapback-expo-asset-uri-unreadable"></a>`SNAPBACK_EXPO_ASSET_URI_UNREADABLE` | expo | — | — | `packages/snapback-expo/asset-source.mjs:175` | 9 |
 | <a id="diagnostic-snapback-expo-asset-uri-unsupported"></a>`SNAPBACK_EXPO_ASSET_URI_UNSUPPORTED` | expo | — | — | `packages/snapback-expo/asset-source.mjs:63` | 1 |
 | <a id="diagnostic-snapback-expo-bootstrap-invalid"></a>`SNAPBACK_EXPO_BOOTSTRAP_INVALID` | expo | — | — | `packages/snapback-expo/supervised-environment.mjs:210` | 3 |
 | <a id="diagnostic-snapback-expo-bootstrap-origin-invalid"></a>`SNAPBACK_EXPO_BOOTSTRAP_ORIGIN_INVALID` | expo | — | — | `packages/snapback-expo/supervised-environment.mjs:151` | 2 |
-| <a id="diagnostic-snapback-expo-bootstrap-route-not-found"></a>`SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1358` | 2 |
-| <a id="diagnostic-snapback-expo-bootstrap-unavailable"></a>`SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE` | cli | — | [guide](../clients/react-expo.md#reproduce-a-supervised-cold-boot-with-bare-metro) | `packages/snapback-cli/expo-dev.mjs:1411` | 5 |
+| <a id="diagnostic-snapback-expo-bootstrap-route-not-found"></a>`SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1461` | 2 |
+| <a id="diagnostic-snapback-expo-bootstrap-unavailable"></a>`SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE` | cli | — | [guide](../clients/react-expo.md#reproduce-a-supervised-cold-boot-with-bare-metro) | `packages/snapback-cli/expo-dev.mjs:1514` | 5 |
 | <a id="diagnostic-snapback-expo-boot-failed"></a>`SNAPBACK_EXPO_BOOT_FAILED` | expo | — | — | `packages/snapback-expo/diagnostic-sanitization.mjs:89` | 3 |
+| <a id="diagnostic-snapback-expo-child-exited-during-startup"></a>`SNAPBACK_EXPO_CHILD_EXITED_DURING_STARTUP` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:2409` | 2 |
+| <a id="diagnostic-snapback-expo-child-ownership-changed"></a>`SNAPBACK_EXPO_CHILD_OWNERSHIP_CHANGED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:2429` | 2 |
 | <a id="diagnostic-snapback-expo-compatibility-unsupported"></a>`SNAPBACK_EXPO_COMPATIBILITY_UNSUPPORTED` | expo | — | [guide](../clients/react-expo.md#run-the-supervised-loop-on-expo-web) | `packages/snapback-expo/activity-presence.mjs:19` | 5 |
-| <a id="diagnostic-snapback-expo-control-body-invalid"></a>`SNAPBACK_EXPO_CONTROL_BODY_INVALID` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1383` | 1 |
-| <a id="diagnostic-snapback-expo-control-failed"></a>`SNAPBACK_EXPO_CONTROL_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1395` | 3 |
-| <a id="diagnostic-snapback-expo-control-unauthorized"></a>`SNAPBACK_EXPO_CONTROL_UNAUTHORIZED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1749` | 1 |
-| <a id="diagnostic-snapback-expo-control-verb-unknown"></a>`SNAPBACK_EXPO_CONTROL_VERB_UNKNOWN` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1760` | 1 |
+| <a id="diagnostic-snapback-expo-control-body-invalid"></a>`SNAPBACK_EXPO_CONTROL_BODY_INVALID` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1486` | 1 |
+| <a id="diagnostic-snapback-expo-control-failed"></a>`SNAPBACK_EXPO_CONTROL_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1498` | 3 |
+| <a id="diagnostic-snapback-expo-control-unauthorized"></a>`SNAPBACK_EXPO_CONTROL_UNAUTHORIZED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:2110` | 1 |
+| <a id="diagnostic-snapback-expo-control-verb-unknown"></a>`SNAPBACK_EXPO_CONTROL_VERB_UNKNOWN` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:2121` | 1 |
 | <a id="diagnostic-snapback-expo-crypto-digest-invalid"></a>`SNAPBACK_EXPO_CRYPTO_DIGEST_INVALID` | expo | — | — | `packages/snapback-expo/expo-crypto-digest.mjs:94` | 1 |
 | <a id="diagnostic-snapback-expo-crypto-module-invalid"></a>`SNAPBACK_EXPO_CRYPTO_MODULE_INVALID` | expo | — | — | `packages/snapback-expo/expo-crypto-digest.mjs:66` | 1 |
-| <a id="diagnostic-snapback-expo-device-unsupported"></a>`SNAPBACK_EXPO_DEVICE_UNSUPPORTED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:769` | 2 |
-| <a id="diagnostic-snapback-expo-dev-failed"></a>`SNAPBACK_EXPO_DEV_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:2165` | 1 |
+| <a id="diagnostic-snapback-expo-device-unsupported"></a>`SNAPBACK_EXPO_DEVICE_UNSUPPORTED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:791` | 2 |
+| <a id="diagnostic-snapback-expo-dev-failed"></a>`SNAPBACK_EXPO_DEV_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:2608` | 1 |
 | <a id="diagnostic-snapback-expo-dev-identity-checkout-hook"></a>`SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_HOOK` | expo-dev-identity | — | — | `packages/snapback-expo-dev-identity/index.mjs:2` | 4 |
-| <a id="diagnostic-snapback-expo-dev-identity-checkout-nonce"></a>`SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:33` | 2 |
+| <a id="diagnostic-snapback-expo-dev-identity-checkout-nonce"></a>`SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:48` | 2 |
 | <a id="diagnostic-snapback-expo-dev-identity-checkout-nonce--"></a>`SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__` | expo-dev-identity | — | — | `packages/snapback-expo-dev-identity/install-core.mjs:2` | 2 |
+| <a id="diagnostic-snapback-expo-dev-interrupted"></a>`SNAPBACK_EXPO_DEV_INTERRUPTED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1981` | 2 |
+| <a id="diagnostic-snapback-expo-dev-startup-cancelled"></a>`SNAPBACK_EXPO_DEV_STARTUP_CANCELLED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1971` | 1 |
 | <a id="diagnostic-snapback-expo-environment-invalid"></a>`SNAPBACK_EXPO_ENVIRONMENT_INVALID` | expo | — | — | `packages/snapback-expo/provider.mjs:435` | 5 |
 | <a id="diagnostic-snapback-expo-fetch-unavailable"></a>`SNAPBACK_EXPO_FETCH_UNAVAILABLE` | expo | — | — | `packages/snapback-expo/asset-source.mjs:76` | 1 |
 | <a id="diagnostic-snapback-expo-file-system-unavailable"></a>`SNAPBACK_EXPO_FILE_SYSTEM_UNAVAILABLE` | expo | — | — | `packages/snapback-expo/asset-source.mjs:91` | 1 |
 | <a id="diagnostic-snapback-expo-integration-receipt-format"></a>`SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT` | expo | — | — | `packages/snapback-expo/index.mjs:43` | 1 |
-| <a id="diagnostic-snapback-expo-ios-device-inventory-failed"></a>`SNAPBACK_EXPO_IOS_DEVICE_INVENTORY_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:641` | 1 |
-| <a id="diagnostic-snapback-expo-ios-device-inventory-invalid"></a>`SNAPBACK_EXPO_IOS_DEVICE_INVENTORY_INVALID` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:590` | 2 |
-| <a id="diagnostic-snapback-expo-ios-device-not-found"></a>`SNAPBACK_EXPO_IOS_DEVICE_NOT_FOUND` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:659` | 1 |
-| <a id="diagnostic-snapback-expo-ios-device-unavailable"></a>`SNAPBACK_EXPO_IOS_DEVICE_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:678` | 1 |
-| <a id="diagnostic-snapback-expo-ios-network-device-refused"></a>`SNAPBACK_EXPO_IOS_NETWORK_DEVICE_REFUSED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:666` | 1 |
-| <a id="diagnostic-snapback-expo-ios-usb-reverse-forward-unavailable"></a>`SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE` | cli | — | [guide](../clients/react-expo.md#choose-simulator-emulator-or-usb-routing) | `packages/snapback-cli/expo-dev.mjs:720` | 1 |
+| <a id="diagnostic-snapback-expo-ios-device-inventory-failed"></a>`SNAPBACK_EXPO_IOS_DEVICE_INVENTORY_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:663` | 1 |
+| <a id="diagnostic-snapback-expo-ios-device-inventory-invalid"></a>`SNAPBACK_EXPO_IOS_DEVICE_INVENTORY_INVALID` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:612` | 2 |
+| <a id="diagnostic-snapback-expo-ios-device-not-found"></a>`SNAPBACK_EXPO_IOS_DEVICE_NOT_FOUND` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:681` | 1 |
+| <a id="diagnostic-snapback-expo-ios-device-unavailable"></a>`SNAPBACK_EXPO_IOS_DEVICE_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:700` | 1 |
+| <a id="diagnostic-snapback-expo-ios-network-device-refused"></a>`SNAPBACK_EXPO_IOS_NETWORK_DEVICE_REFUSED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:688` | 1 |
+| <a id="diagnostic-snapback-expo-ios-usb-reverse-forward-unavailable"></a>`SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE` | cli | — | [guide](../clients/react-expo.md#choose-simulator-emulator-or-usb-routing) | `packages/snapback-cli/expo-dev.mjs:742` | 1 |
 | <a id="diagnostic-snapback-expo-legacy-file-delete-unconfirmed"></a>`SNAPBACK_EXPO_LEGACY_FILE_DELETE_UNCONFIRMED` | client | — | — | `packages/snapback-client/rqs-store-file.mjs:327` | 1 |
 | <a id="diagnostic-snapback-expo-legacy-migration-fence-lost"></a>`SNAPBACK_EXPO_LEGACY_MIGRATION_FENCE_LOST` | client | — | — | `packages/snapback-client/rqs-store-file.mjs:411` | 1 |
-| <a id="diagnostic-snapback-expo-listener-enumeration-incomplete"></a>`SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE` | cli | — | [guide](../recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly) | `packages/snapback-cli/expo-dev.mjs:1294` | 1 |
-| <a id="diagnostic-snapback-expo-listener-enumeration-unavailable"></a>`SNAPBACK_EXPO_LISTENER_ENUMERATION_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1158` | 3 |
-| <a id="diagnostic-snapback-expo-listener-exposed"></a>`SNAPBACK_EXPO_LISTENER_EXPOSED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1284` | 3 |
-| <a id="diagnostic-snapback-expo-metro-exited"></a>`SNAPBACK_EXPO_METRO_EXITED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1271` | 2 |
-| <a id="diagnostic-snapback-expo-metro-port"></a>`SNAPBACK_EXPO_METRO_PORT` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:77` | 1 |
-| <a id="diagnostic-snapback-expo-metro-watch-inert"></a>`SNAPBACK_EXPO_METRO_WATCH_INERT` | cli | — | [guide](../clients/react-expo.md#know-what-the-supervisor-owns) | `packages/snapback-cli/expo-dev.mjs:107` | 3 |
+| <a id="diagnostic-snapback-expo-listener-enumeration-incomplete"></a>`SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE` | cli | — | [guide](../recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly) | `packages/snapback-cli/expo-dev.mjs:1397` | 2 |
+| <a id="diagnostic-snapback-expo-listener-enumeration-unavailable"></a>`SNAPBACK_EXPO_LISTENER_ENUMERATION_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1183` | 3 |
+| <a id="diagnostic-snapback-expo-listener-exposed"></a>`SNAPBACK_EXPO_LISTENER_EXPOSED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1387` | 3 |
+| <a id="diagnostic-snapback-expo-metro-exited"></a>`SNAPBACK_EXPO_METRO_EXITED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1374` | 2 |
+| <a id="diagnostic-snapback-expo-metro-port"></a>`SNAPBACK_EXPO_METRO_PORT` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:99` | 1 |
+| <a id="diagnostic-snapback-expo-metro-watch-inert"></a>`SNAPBACK_EXPO_METRO_WATCH_INERT` | cli | — | [guide](../clients/react-expo.md#know-what-the-supervisor-owns) | `packages/snapback-cli/expo-dev.mjs:129` | 3 |
 | <a id="diagnostic-snapback-expo-native-checkout-hook-conflict"></a>`SNAPBACK_EXPO_NATIVE_CHECKOUT_HOOK_CONFLICT` | expo-dev-identity | — | — | `packages/snapback-expo-dev-identity/install-core.mjs:29` | 2 |
-| <a id="diagnostic-snapback-expo-native-checkout-own-bundle-required"></a>`SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:974` | 9 |
+| <a id="diagnostic-snapback-expo-native-checkout-own-bundle-required"></a>`SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:996` | 9 |
 | <a id="diagnostic-snapback-expo-native-checkout-unavailable"></a>`SNAPBACK_EXPO_NATIVE_CHECKOUT_UNAVAILABLE` | expo | — | — | `packages/snapback-expo/supervised-environment.mjs:421` | 1 |
-| <a id="diagnostic-snapback-expo-native-launch-failed"></a>`SNAPBACK_EXPO_NATIVE_LAUNCH_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1054` | 2 |
+| <a id="diagnostic-snapback-expo-native-launch-failed"></a>`SNAPBACK_EXPO_NATIVE_LAUNCH_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1076` | 2 |
 | <a id="diagnostic-snapback-expo-provider-required"></a>`SNAPBACK_EXPO_PROVIDER_REQUIRED` | expo | — | — | `packages/snapback-expo/provider.mjs:941` | 1 |
 | <a id="diagnostic-snapback-expo-push-base-url"></a>`SNAPBACK_EXPO_PUSH_BASE_URL` | server | — | [guide](../backend/expo-push.md#test-without-exfiltrating-tokens) | `crates/snapback-server/src/server.rs:722` | 2 |
-| <a id="diagnostic-snapback-expo-route-invalid"></a>`SNAPBACK_EXPO_ROUTE_INVALID` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:338` | 5 |
-| <a id="diagnostic-snapback-expo-session-mint-failed"></a>`SNAPBACK_EXPO_SESSION_MINT_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:404` | 3 |
+| <a id="diagnostic-snapback-expo-route-invalid"></a>`SNAPBACK_EXPO_ROUTE_INVALID` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:360` | 5 |
+| <a id="diagnostic-snapback-expo-session-mint-failed"></a>`SNAPBACK_EXPO_SESSION_MINT_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:426` | 3 |
 | <a id="diagnostic-snapback-expo-sqlite-capacity-exceeded"></a>`SNAPBACK_EXPO_SQLITE_CAPACITY_EXCEEDED` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:243` | 2 |
 | <a id="diagnostic-snapback-expo-sqlite-durability-pragmas-unavailable"></a>`SNAPBACK_EXPO_SQLITE_DURABILITY_PRAGMAS_UNAVAILABLE` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:421` | 2 |
 | <a id="diagnostic-snapback-expo-sqlite-multi-process-host-unsupported"></a>`SNAPBACK_EXPO_SQLITE_MULTI_PROCESS_HOST_UNSUPPORTED` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:139` | 2 |
@@ -29044,8 +29050,12 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-expo-sqlite-store-corrupt"></a>`SNAPBACK_EXPO_SQLITE_STORE_CORRUPT` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:82` | 2 |
 | <a id="diagnostic-snapback-expo-sqlite-store-owner-unavailable"></a>`SNAPBACK_EXPO_SQLITE_STORE_OWNER_UNAVAILABLE` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:164` | 4 |
 | <a id="diagnostic-snapback-expo-sqlite-transaction-reentrant"></a>`SNAPBACK_EXPO_SQLITE_TRANSACTION_REENTRANT` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:203` | 1 |
-| <a id="diagnostic-snapback-expo-supervisor-closed"></a>`SNAPBACK_EXPO_SUPERVISOR_CLOSED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:2119` | 1 |
+| <a id="diagnostic-snapback-expo-supervisor-closed"></a>`SNAPBACK_EXPO_SUPERVISOR_CLOSED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:2575` | 1 |
 | <a id="diagnostic-snapback-expo-supervisor-origin--"></a>`SNAPBACK_EXPO_SUPERVISOR_ORIGIN__` | expo | — | — | `packages/snapback-expo/supervised-environment.mjs:113` | 1 |
+| <a id="diagnostic-snapback-expo-supervisor-parent-lease-invalid"></a>`SNAPBACK_EXPO_SUPERVISOR_PARENT_LEASE_INVALID` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1215` | 2 |
+| <a id="diagnostic-snapback-expo-supervisor-parent-lost"></a>`SNAPBACK_EXPO_SUPERVISOR_PARENT_LOST` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1247` | 1 |
+| <a id="diagnostic-snapback-expo-supervisor-parent-pid"></a>`SNAPBACK_EXPO_SUPERVISOR_PARENT_PID` | cli | — | — | `packages/snapback-cli/carrier-kit.mjs:36` | 2 |
+| <a id="diagnostic-snapback-expo-supervisor-parent-start-time"></a>`SNAPBACK_EXPO_SUPERVISOR_PARENT_START_TIME` | cli | — | — | `packages/snapback-cli/carrier-kit.mjs:37` | 2 |
 | <a id="diagnostic-snapback-expr-type"></a>`SNAPBACK_EXPR_TYPE` | contract | 400 | — | `crates/snapback-server/src/server/api_error.rs:1145` | 30 |
 | <a id="diagnostic-snapback-expr-unanalyzable"></a>`SNAPBACK_EXPR_UNANALYZABLE` | contract | 400 | — | `crates/snapback-server/src/server/api_error.rs:1146` | 4 |
 | <a id="diagnostic-snapback-expr-unsupported-function"></a>`SNAPBACK_EXPR_UNSUPPORTED_FUNCTION` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:1147` | 6 |
@@ -30285,9 +30295,9 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-repo-root"></a>`SNAPBACK_REPO_ROOT` | swift-client | — | [guide](../clients/swift.md#dependency-declaration-not-supported) | `clients/swift/SnapbackClient/Sources/snapback-prove/main.swift:19` | 2 |
 | <a id="diagnostic-snapback-request-body-timeout"></a>`SNAPBACK_REQUEST_BODY_TIMEOUT` | server | 408 | — | `crates/snapback-server/src/server.rs:10256` | 4 |
 | <a id="diagnostic-snapback-request-json-invalid"></a>`SNAPBACK_REQUEST_JSON_INVALID` | swift-client | 400 | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:277` | 12 |
-| <a id="diagnostic-snapback-reset-dev-loop-active"></a>`SNAPBACK_RESET_DEV_LOOP_ACTIVE` | cli | — | — | `packages/snapback-cli/index.mjs:5985` | 2 |
-| <a id="diagnostic-snapback-reset-supervisor-response-invalid"></a>`SNAPBACK_RESET_SUPERVISOR_RESPONSE_INVALID` | cli | — | — | `packages/snapback-cli/index.mjs:5966` | 1 |
-| <a id="diagnostic-snapback-reset-supervisor-stale"></a>`SNAPBACK_RESET_SUPERVISOR_STALE` | cli | — | — | `packages/snapback-cli/index.mjs:5882` | 1 |
+| <a id="diagnostic-snapback-reset-dev-loop-active"></a>`SNAPBACK_RESET_DEV_LOOP_ACTIVE` | cli | — | — | `packages/snapback-cli/index.mjs:5983` | 2 |
+| <a id="diagnostic-snapback-reset-supervisor-response-invalid"></a>`SNAPBACK_RESET_SUPERVISOR_RESPONSE_INVALID` | cli | — | — | `packages/snapback-cli/index.mjs:5964` | 1 |
+| <a id="diagnostic-snapback-reset-supervisor-stale"></a>`SNAPBACK_RESET_SUPERVISOR_STALE` | cli | — | — | `packages/snapback-cli/index.mjs:5880` | 1 |
 | <a id="diagnostic-snapback-response-invalid"></a>`SNAPBACK_RESPONSE_INVALID` | admin-client | — | — | `packages/snapback-admin-client/index.mjs:1011` | 2 |
 | <a id="diagnostic-snapback-response-not-json"></a>`SNAPBACK_RESPONSE_NOT_JSON` | admin-client | — | — | `packages/snapback-admin-client/index.mjs:283` | 2 |
 | <a id="diagnostic-snapback-response-token"></a>`SNAPBACK_RESPONSE_TOKEN` | harness | — | — | `crates/snapback-runtime/src/workerd_exec.rs:339` | 3 |
@@ -30305,7 +30315,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-restore-receipt-not-paused"></a>`SNAPBACK_RESTORE_RECEIPT_NOT_PAUSED` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:3320` | 1 |
 | <a id="diagnostic-snapback-restore-result-invalid"></a>`SNAPBACK_RESTORE_RESULT_INVALID` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2319` | 1 |
 | <a id="diagnostic-snapback-restore-stale-plan"></a>`SNAPBACK_RESTORE_STALE_PLAN` | cli | — | [guide](../deploying/releases.md#repair-a-refused-build) | `packages/snapback-cli/deployment-control.mjs:3170` | 1 |
-| <a id="diagnostic-snapback-restore-subcommand-unimplemented"></a>`SNAPBACK_RESTORE_SUBCOMMAND_UNIMPLEMENTED` | cli | — | — | `packages/snapback-cli/index.mjs:6538` | 1 |
+| <a id="diagnostic-snapback-restore-subcommand-unimplemented"></a>`SNAPBACK_RESTORE_SUBCOMMAND_UNIMPLEMENTED` | cli | — | — | `packages/snapback-cli/index.mjs:6536` | 1 |
 | <a id="diagnostic-snapback-result-contract-kind-mismatch"></a>`SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH` | server | 400 | — | `crates/snapback-server/src/server/api_error.rs:1354` | 2 |
 | <a id="diagnostic-snapback-result-transform-base-invalid"></a>`SNAPBACK_RESULT_TRANSFORM_BASE_INVALID` | client | 400 | — | `crates/snapback-server/src/server/api_error.rs:1192` | 3 |
 | <a id="diagnostic-snapback-result-transform-comparator-unknown"></a>`SNAPBACK_RESULT_TRANSFORM_COMPARATOR_UNKNOWN` | client | 400 | — | `crates/snapback-server/src/server/api_error.rs:1193` | 3 |
@@ -30582,7 +30592,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-supervisor-operation-unknown"></a>`SNAPBACK_SUPERVISOR_OPERATION_UNKNOWN` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/cli.mjs:15` | 1 |
 | <a id="diagnostic-snapback-supervisor-operator-client-ca"></a>`SNAPBACK_SUPERVISOR_OPERATOR_CLIENT_CA` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/service.mjs:54` | 1 |
 | <a id="diagnostic-snapback-supervisor-operator-port"></a>`SNAPBACK_SUPERVISOR_OPERATOR_PORT` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/service.mjs:957` | 1 |
-| <a id="diagnostic-snapback-supervisor-origin"></a>`SNAPBACK_SUPERVISOR_ORIGIN` | cli | — | [guide](../clients/react-expo.md#know-what-the-supervisor-owns) | `packages/snapback-cli/expo-dev.mjs:76` | 3 |
+| <a id="diagnostic-snapback-supervisor-origin"></a>`SNAPBACK_SUPERVISOR_ORIGIN` | cli | — | [guide](../clients/react-expo.md#know-what-the-supervisor-owns) | `packages/snapback-cli/expo-dev.mjs:98` | 3 |
 | <a id="diagnostic-snapback-supervisor-provider-response-too-large"></a>`SNAPBACK_SUPERVISOR_PROVIDER_RESPONSE_TOO_LARGE` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/service.mjs:289` | 1 |
 | <a id="diagnostic-snapback-supervisor-reconstruction-required"></a>`SNAPBACK_SUPERVISOR_RECONSTRUCTION_REQUIRED` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/index.mjs:281` | 2 |
 | <a id="diagnostic-snapback-supervisor-request-invalid"></a>`SNAPBACK_SUPERVISOR_REQUEST_INVALID` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/cli.mjs:11` | 1 |
@@ -30806,7 +30816,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-verify-profile-identity-incomplete"></a>`SNAPBACK_VERIFY_PROFILE_IDENTITY_INCOMPLETE` | cli | — | — | `packages/snapback-cli/verify.mjs:1992` | 1 |
 | <a id="diagnostic-snapback-verify-profile-identity-invalid"></a>`SNAPBACK_VERIFY_PROFILE_IDENTITY_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1972` | 1 |
 | <a id="diagnostic-snapback-verify-profile-threw"></a>`SNAPBACK_VERIFY_PROFILE_THREW` | cli | — | — | `packages/snapback-cli/verify.mjs:1953` | 1 |
-| <a id="diagnostic-snapback-verify-profile-timeout"></a>`SNAPBACK_VERIFY_PROFILE_TIMEOUT` | cli | — | [guide](../testing/verify.md#author-snapbackverifyconfigmjs) | `packages/snapback-cli/index.mjs:6153` | 3 |
+| <a id="diagnostic-snapback-verify-profile-timeout"></a>`SNAPBACK_VERIFY_PROFILE_TIMEOUT` | cli | — | [guide](../testing/verify.md#author-snapbackverifyconfigmjs) | `packages/snapback-cli/index.mjs:6151` | 3 |
 | <a id="diagnostic-snapback-verify-qualify-runtime"></a>`SNAPBACK_VERIFY_QUALIFY_RUNTIME` | cli | — | — | `packages/snapback-cli/verify.mjs:75` | 1 |
 | <a id="diagnostic-snapback-verify-receipt-invalid"></a>`SNAPBACK_VERIFY_RECEIPT_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:2256` | 3 |
 | <a id="diagnostic-snapback-verify-regenerate-artifacts"></a>`SNAPBACK_VERIFY_REGENERATE_ARTIFACTS` | cli | — | — | `packages/snapback-cli/verify.mjs:69` | 1 |
@@ -39040,6 +39050,8 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_CAPABILITY_WORKERD_MISSING'
   | 'SNAPBACK_CAPTURED_READ_INVALID'
   | 'SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED'
+  | 'SNAPBACK_CARRIER_CLEANUP_LEASE_DIRECTORY'
+  | 'SNAPBACK_CARRIER_PROCESS_LEASE_MARKER'
   | 'SNAPBACK_CHECKPOINT_COPY_BUDGET_EXCEEDED'
   | 'SNAPBACK_CHECKPOINT_COPY_FAILED'
   | 'SNAPBACK_CHECKPOINT_COPY_FIDELITY_FAILED'
@@ -39609,6 +39621,8 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND'
   | 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE'
   | 'SNAPBACK_EXPO_BOOT_FAILED'
+  | 'SNAPBACK_EXPO_CHILD_EXITED_DURING_STARTUP'
+  | 'SNAPBACK_EXPO_CHILD_OWNERSHIP_CHANGED'
   | 'SNAPBACK_EXPO_COMPATIBILITY_UNSUPPORTED'
   | 'SNAPBACK_EXPO_CONTROL_BODY_INVALID'
   | 'SNAPBACK_EXPO_CONTROL_FAILED'
@@ -39621,6 +39635,8 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_HOOK'
   | 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE'
   | 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__'
+  | 'SNAPBACK_EXPO_DEV_INTERRUPTED'
+  | 'SNAPBACK_EXPO_DEV_STARTUP_CANCELLED'
   | 'SNAPBACK_EXPO_ENVIRONMENT_INVALID'
   | 'SNAPBACK_EXPO_FETCH_UNAVAILABLE'
   | 'SNAPBACK_EXPO_FILE_SYSTEM_UNAVAILABLE'
@@ -39658,6 +39674,10 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_EXPO_SQLITE_TRANSACTION_REENTRANT'
   | 'SNAPBACK_EXPO_SUPERVISOR_CLOSED'
   | 'SNAPBACK_EXPO_SUPERVISOR_ORIGIN__'
+  | 'SNAPBACK_EXPO_SUPERVISOR_PARENT_LEASE_INVALID'
+  | 'SNAPBACK_EXPO_SUPERVISOR_PARENT_LOST'
+  | 'SNAPBACK_EXPO_SUPERVISOR_PARENT_PID'
+  | 'SNAPBACK_EXPO_SUPERVISOR_PARENT_START_TIME'
   | 'SNAPBACK_EXPR_TYPE'
   | 'SNAPBACK_EXPR_UNANALYZABLE'
   | 'SNAPBACK_EXPR_UNSUPPORTED_FUNCTION'

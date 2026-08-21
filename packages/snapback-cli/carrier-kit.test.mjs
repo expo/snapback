@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -17,6 +18,13 @@ import {
   defineTemplateCarrierConfig,
   runTemplateCarrierCli,
 } from './carrier-kit.mjs';
+import {
+  __test as teardownTest,
+  activateCleanupPath,
+  closeCarrierCleanupLease,
+  createCarrierCleanupLease,
+  reserveCleanupPath,
+} from './process-teardown.mjs';
 
 const root = mkdtempSync(join(tmpdir(), 'snapback-carrier-kit-'));
 const carrierKitUrl = pathToFileURL(join(import.meta.dirname, 'carrier-kit.mjs')).href;
@@ -443,6 +451,52 @@ if (cdp) {
 `);
 
 try {
+  const simulatedLeader = {
+    pid: 4242,
+    startTime: 'Fri Aug 21 10:00:00 2026',
+    command: 'node old-carrier.mjs',
+    leaseMarker: 'old-run-marker',
+  };
+  const simulatedSignals = [];
+  let simulatedGroup = 'owned';
+  await teardownTest.stopGuardedProcessGroup(4242, simulatedLeader, 250, 250, {
+    inspect: () => simulatedGroup,
+    sendSignal(_pgid, name) {
+      simulatedSignals.push(name);
+      if (name === 'SIGTERM') simulatedGroup = 'changed';
+    },
+    wait: async () => {},
+  });
+  assert.deepEqual(
+    simulatedSignals,
+    ['SIGTERM'],
+    'a reused PGID observed during the wait must permanently discharge before SIGKILL',
+  );
+
+  const staleReaperArtifacts = join(root, 'stale-reaper-artifacts');
+  mkdirSync(staleReaperArtifacts, { recursive: true });
+  const staleDescriptor = join(staleReaperArtifacts, 'expo-supervisor.json');
+  const staleLease = await createCarrierCleanupLease();
+  const staleResource = reserveCleanupPath(staleLease, staleDescriptor, {
+    type: 'file',
+    label: 'stale reaper descriptor regression',
+  });
+  writeFileSync(staleDescriptor, JSON.stringify({ supervisorGeneration: 'run-a' }), { mode: 0o600 });
+  activateCleanupPath(staleResource, {
+    runIdField: 'supervisorGeneration',
+    runId: 'run-a',
+  });
+  const successorDescriptor = `${staleDescriptor}.run-b.tmp`;
+  writeFileSync(successorDescriptor, JSON.stringify({ supervisorGeneration: 'run-b' }), { mode: 0o600 });
+  renameSync(successorDescriptor, staleDescriptor);
+  await closeCarrierCleanupLease(staleLease);
+  assert.equal(
+    JSON.parse(readFileSync(staleDescriptor, 'utf8')).supervisorGeneration,
+    'run-b',
+    'run A reaper must not delete run B descriptor at the same path',
+  );
+  rmSync(staleDescriptor, { force: true });
+
   const successArtifacts = join(root, 'success-artifacts');
   const successConfig = config('success');
   assert.equal(successConfig.carriers['web-browser'].origin, undefined);
@@ -630,7 +684,7 @@ await runTemplateCarrierCli(config, ['web-browser', '--browser', ${JSON.stringif
   await eventually(() => !existsSync(carrierDeathProfile), 'carrier-death browser profile lease');
   assert.equal(existsSync(join(carrierDeathArtifacts, 'expo-supervisor.json')), false);
 
-  console.log('carrier-kit.test.mjs: live owner/start-time binding, same-origin attestation, real takeover, leader/stubborn/SIGKILL reclamation, and double-signal cleanup pass');
+  console.log('carrier-kit.test.mjs: identity-discharge simulation, run-bound descriptor lease, live ownership, attestation, takeover, stubborn/SIGKILL reclamation, and double-signal cleanup pass');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

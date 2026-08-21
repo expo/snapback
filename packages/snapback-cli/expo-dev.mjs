@@ -19,6 +19,7 @@ import {
 import { createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { pipeline } from 'node:stream/promises';
 
 import {
   diagnosticError,
@@ -29,6 +30,8 @@ import {
 } from './index.mjs';
 import {
   CLEANUP_LEASE_DIRECTORY_ENV,
+  activateCleanupPath,
+  cleanupLeasedPath,
   openCarrierCleanupLease,
   releaseCleanupResource,
   reserveCleanupPath,
@@ -1617,6 +1620,19 @@ function proxyUpgrade(request, socket, head, upstream) {
     headers: { ...request.headers, host: upstream.host },
   });
   proxy.once('upgrade', (response, upstreamSocket, upstreamHead) => {
+    const destroyUpstream = () => {
+      if (!upstreamSocket.destroyed) upstreamSocket.destroy();
+    };
+    const destroyClient = () => {
+      if (!socket.destroyed) socket.destroy();
+    };
+    // Once ClientRequest hands off the upgraded socket, it no longer owns
+    // errors from that socket. Both halves must absorb reset/error and close
+    // the peer so a Metro/HMR restart cannot crash or strand the supervisor.
+    socket.once('error', destroyUpstream);
+    upstreamSocket.once('error', destroyClient);
+    socket.once('close', destroyUpstream);
+    upstreamSocket.once('close', destroyClient);
     const headers = Object.entries(response.headers)
       .flatMap(([name, value]) => (Array.isArray(value)
         ? value.map((entry) => `${name}: ${entry}`)
@@ -1644,6 +1660,22 @@ async function startMetroWebFront({ port, upstreamOrigin, attestation }) {
   const sockets = new Set();
   const server = createHttpServer((request, response) => {
     if (attestation.serve(request, response)) return;
+    const controller = new AbortController();
+    const abort = () => {
+      if (!controller.signal.aborted) controller.abort();
+    };
+    request.once('aborted', abort);
+    response.once('close', () => {
+      if (!response.writableFinished) abort();
+    });
+    const fail = () => {
+      if (controller.signal.aborted || response.destroyed || response.writableEnded) return;
+      if (response.headersSent) response.destroy();
+      else {
+        response.statusCode = 502;
+        response.end('supervised Metro unavailable\n');
+      }
+    };
     const proxy = createHttpRequest({
       hostname: upstream.hostname,
       port: upstream.port,
@@ -1651,17 +1683,23 @@ async function startMetroWebFront({ port, upstreamOrigin, attestation }) {
       path: request.url,
       headers: { ...request.headers, host: upstream.host },
     }, (upstreamResponse) => {
-      response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
-      upstreamResponse.pipe(response);
-    });
-    proxy.once('error', () => {
-      if (response.headersSent) response.destroy();
-      else {
-        response.statusCode = 502;
-        response.end('supervised Metro unavailable\n');
+      if (controller.signal.aborted) {
+        upstreamResponse.destroy();
+        return;
       }
+      response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
+      void pipeline(
+        upstreamResponse,
+        response,
+        { signal: controller.signal },
+      ).catch((error) => {
+        if (error && !controller.signal.aborted && !response.destroyed) response.destroy(error);
+      });
     });
-    request.pipe(proxy);
+    proxy.once('error', fail);
+    void pipeline(request, proxy, { signal: controller.signal }).catch((error) => {
+      if (error && !controller.signal.aborted) fail();
+    });
   });
   server.on('connection', (socket) => {
     sockets.add(socket);
@@ -1672,9 +1710,11 @@ async function startMetroWebFront({ port, upstreamOrigin, attestation }) {
     server.once('error', rejectListen);
     server.listen(port, LOOPBACK_HOST, resolveListen);
   });
+  const address = server.address();
+  const resolvedPort = typeof address === 'object' && address !== null ? address.port : port;
   return Object.freeze({
-    origin: `http://${LOOPBACK_HOST}:${port}`,
-    port,
+    origin: `http://${LOOPBACK_HOST}:${resolvedPort}`,
+    port: resolvedPort,
     upstreamOrigin,
     async close() {
       server.closeAllConnections?.();
@@ -1865,7 +1905,8 @@ export async function runExpoDev(options = {}) {
   let startupPublished = false;
   let supervisorDescriptorFile = null;
   let supervisorDescriptorTemporaryFile = null;
-  const descriptorCleanupResources = [];
+  let supervisorDescriptorCleanupResource = null;
+  let supervisorDescriptorTemporaryCleanupResource = null;
   const abortSignal = options.signal ?? null;
   let abortListener = null;
   const appDescriptorPath = join(backendRoot, 'generated', 'app.descriptor.json');
@@ -1877,13 +1918,18 @@ export async function runExpoDev(options = {}) {
       parentLease?.close?.();
       parentLease = null;
       const failures = [];
-      for (const path of [supervisorDescriptorFile, supervisorDescriptorTemporaryFile]) {
+      for (const [path, resource] of [
+        [supervisorDescriptorFile, supervisorDescriptorCleanupResource],
+        [supervisorDescriptorTemporaryFile, supervisorDescriptorTemporaryCleanupResource],
+      ]) {
         if (path === null) continue;
-        try { rmSync(path, { force: true }); } catch (error) { failures.push(error); }
+        try {
+          if (resource === null) rmSync(path, { force: true });
+          else cleanupLeasedPath(resource);
+        } catch (error) { failures.push(error); }
       }
-      for (const resource of descriptorCleanupResources.splice(0)) {
-        try { releaseCleanupResource(resource); } catch (error) { failures.push(error); }
-      }
+      supervisorDescriptorCleanupResource = null;
+      supervisorDescriptorTemporaryCleanupResource = null;
       try { forwarding?.remove?.(); } catch (error) { failures.push(error); }
       try { await metroFront?.close?.(); } catch (error) { failures.push(error); }
       metroFront = null;
@@ -2453,13 +2499,20 @@ export async function runExpoDev(options = {}) {
     };
     supervisorDescriptorFile = join(dirname(dev.readyFile), 'expo-supervisor.json');
     supervisorDescriptorTemporaryFile = `${supervisorDescriptorFile}.${process.pid}.${correlationId}.tmp`;
-    for (const [path, label] of [
-      [supervisorDescriptorFile, 'Expo supervisor readiness'],
-      [supervisorDescriptorTemporaryFile, 'Expo supervisor readiness temporary'],
-    ]) {
-      const resource = reserveCleanupPath(cleanupLease, path, { type: 'file', label });
-      if (resource !== null) descriptorCleanupResources.push(resource);
-    }
+    supervisorDescriptorCleanupResource = reserveCleanupPath(
+      cleanupLease,
+      supervisorDescriptorFile,
+      { type: 'file', label: 'Expo supervisor readiness' },
+    );
+    supervisorDescriptorTemporaryCleanupResource = reserveCleanupPath(
+      cleanupLease,
+      supervisorDescriptorTemporaryFile,
+      {
+        type: 'file',
+        label: 'Expo supervisor readiness temporary',
+        leaseUnique: true,
+      },
+    );
     writeFileSync(supervisorDescriptorTemporaryFile, `${JSON.stringify({
       schemaVersion: EXPO_SUPERVISOR_DESCRIPTOR_FORMAT,
       formatVersion: 1,
@@ -2487,7 +2540,13 @@ export async function runExpoDev(options = {}) {
     }, null, 2)}\n`, { mode: 0o600 });
     chmodSync(supervisorDescriptorTemporaryFile, 0o600);
     renameSync(supervisorDescriptorTemporaryFile, supervisorDescriptorFile);
+    releaseCleanupResource(supervisorDescriptorTemporaryCleanupResource);
+    supervisorDescriptorTemporaryCleanupResource = null;
     supervisorDescriptorTemporaryFile = null;
+    activateCleanupPath(supervisorDescriptorCleanupResource, {
+      runIdField: 'supervisorGeneration',
+      runId: generation,
+    });
     emit(finalReadiness);
     // Give already-queued child exit/error notifications one turn to latch.
     // A child that died before the descriptor publish/return boundary must
@@ -2553,3 +2612,7 @@ export async function runExpoDev(options = {}) {
     throw error;
   }
 }
+
+export const __test = Object.freeze({
+  startMetroWebFront,
+});

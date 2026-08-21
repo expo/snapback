@@ -14,6 +14,11 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
+import {
+  createServer as createHttpServer,
+  request as createHttpRequest,
+} from 'node:http';
+import { createConnection } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { IDBFactory } from 'fake-indexeddb';
@@ -30,6 +35,7 @@ import {
 } from '@expo/snapback-react';
 
 import {
+  __test as expoDevTest,
   EXPO_SUPERVISOR_DESCRIPTOR_FORMAT,
   SUPERVISED_EXCHANGE_PATH,
   createExpoRoutingPlan,
@@ -375,6 +381,109 @@ function assertGrepAbsent(label, files, bearers) {
 }
 
 try {
+  let largeUpstreamCancelled = false;
+  let largeUpstreamBytes = 0;
+  const largeUpstreamTotal = 16 * 1024 * 1024;
+  const proxyUpstream = createHttpServer((request, response) => {
+    if (request.url === '/large') {
+      response.writeHead(200, {
+        'content-type': 'application/octet-stream',
+        'content-length': String(largeUpstreamTotal),
+      });
+      const chunk = Buffer.alloc(64 * 1024, 0x61);
+      const pump = () => {
+        while (largeUpstreamBytes < largeUpstreamTotal) {
+          largeUpstreamBytes += chunk.length;
+          if (!response.write(chunk)) return;
+        }
+        response.end();
+      };
+      response.on('drain', pump);
+      response.on('close', () => {
+        if (!response.writableEnded) largeUpstreamCancelled = true;
+      });
+      pump();
+      return;
+    }
+    response.end('proxy survived\n');
+  });
+  proxyUpstream.on('upgrade', (request, socket) => {
+    assert.equal(request.url, '/hot');
+    socket.write([
+      'HTTP/1.1 101 Switching Protocols',
+      'Connection: Upgrade',
+      'Upgrade: websocket',
+      '',
+      '',
+    ].join('\r\n'));
+    setTimeout(() => {
+      if (typeof socket.resetAndDestroy === 'function') socket.resetAndDestroy();
+      else socket.destroy();
+    }, 10);
+  });
+  await new Promise((resolveListen, rejectListen) => {
+    proxyUpstream.once('error', rejectListen);
+    proxyUpstream.listen(0, '127.0.0.1', resolveListen);
+  });
+  const proxyUpstreamPort = proxyUpstream.address().port;
+  const metroFront = await expoDevTest.startMetroWebFront({
+    port: 0,
+    upstreamOrigin: `http://127.0.0.1:${proxyUpstreamPort}`,
+    attestation: { serve: () => false },
+  });
+  try {
+    let upgradeBytes = '';
+    await new Promise((resolveClose, rejectClose) => {
+      const socket = createConnection(Number(new URL(metroFront.origin).port), '127.0.0.1');
+      socket.setEncoding('utf8');
+      socket.on('data', (chunk) => { upgradeBytes += chunk; });
+      socket.once('connect', () => socket.write([
+        'GET /hot HTTP/1.1',
+        `Host: 127.0.0.1:${new URL(metroFront.origin).port}`,
+        'Connection: Upgrade',
+        'Upgrade: websocket',
+        'Sec-WebSocket-Key: c25hcGJhY2staG90LXJlc2V0',
+        'Sec-WebSocket-Version: 13',
+        '',
+        '',
+      ].join('\r\n')));
+      socket.once('error', (error) => {
+        if (error?.code === 'ECONNRESET') resolveClose();
+        else rejectClose(error);
+      });
+      socket.once('close', resolveClose);
+    });
+    assert.match(upgradeBytes, /^HTTP\/1\.1 101/u);
+    assert.equal(await (await fetch(`${metroFront.origin}/after-hot-reset`)).text(), 'proxy survived\n');
+
+    await new Promise((resolveCancelled, rejectCancelled) => {
+      const client = createHttpRequest(`${metroFront.origin}/large`, (response) => {
+        response.once('data', () => {
+          response.destroy();
+          client.destroy();
+          resolveCancelled();
+        });
+        response.once('error', (error) => {
+          if (error?.code === 'ECONNRESET' || error?.code === 'ABORT_ERR') resolveCancelled();
+          else rejectCancelled(error);
+        });
+      });
+      client.once('error', (error) => {
+        if (error?.code === 'ECONNRESET' || error?.code === 'ABORT_ERR') resolveCancelled();
+        else rejectCancelled(error);
+      });
+      client.end();
+    });
+    await eventually(() => largeUpstreamCancelled, {
+      label: 'cancelled large response aborts Metro upstream',
+    });
+    assert(largeUpstreamBytes < largeUpstreamTotal);
+    assert.equal(await (await fetch(`${metroFront.origin}/after-large-cancel`)).text(), 'proxy survived\n');
+  } finally {
+    await metroFront.close();
+    await new Promise((resolveClose) => proxyUpstream.close(resolveClose));
+  }
+
   const web = createExpoRoutingPlan({
     platform: 'web',
     backendPort: 4001,
@@ -1087,7 +1196,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     'shutdown reports every owned arm reclaimed',
   );
 
-  console.log('expo-dev-loop.test.mjs: zero-write rendezvous carrier, transient descriptor, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement, leak matrix, and strict cleanup pass');
+  console.log('expo-dev-loop.test.mjs: WS reset/cancelled-response handoff, zero-write rendezvous carrier, transient descriptor, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement, leak matrix, and strict cleanup pass');
 } finally {
   await Promise.allSettled(supervisors.flatMap((supervisor) => (
     typeof supervisor?.close === 'function' ? [supervisor.close()] : []

@@ -6,6 +6,16 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-21 (w) — Narrows cleanup authority to generation-bound
+leases. Process-group signals require the recorded PID, OS start time, exact
+OS command, plus an unguessable inherited lease marker where the OS exposes
+it, to match immediately before each signal and throughout waits; an empty
+group, changed leader, marker mismatch, or ambiguous inspection permanently
+discharges the numeric PGID. The readiness-file lease
+activates only after publication and binds the file's device/inode plus
+`supervisorGeneration`, so an older reaper cannot delete a successor run's
+descriptor. The Metro front now joins upgraded sockets on errors/closes and
+aborts both HTTP pipeline halves when a client cancels.
 **Revised:** 2026-08-21 (v) — Replaces the reusable `public/` attestation
 asset with a supervisor-owned loopback front: browsers navigate through that
 front to Metro and consume one in-memory, run-bound attestation exactly once.
@@ -16,7 +26,6 @@ gate Metro and Chrome exec, exact-path leases cover readiness and the browser
 profile, and carrier/supervisor death triggers independent reclamation. The
 real CLI owns signals before `runExpoDev` begins and retains them until cleanup
 settles.
-**Revised:** 2026-08-21 (t) — Hardens the supervised browser carrier at its;
 **Revised:** 2026-08-21 (u) — Hardens the supervised browser carrier at its
 last-use boundary: the readiness descriptor binds supervisor, Metro child,
 and admitted listener to PID/start-time identities; the carrier re-enumerates
@@ -25,7 +34,7 @@ nonce through the exact Metro origin after navigation. The supervisor installs
 its carrier parent lease before starting any child, latches startup-critical
 child exits through atomic readiness publication, and reclaims process groups
 even after their leaders exit. Repeated termination signals remain owned until
-cleanup completes.;
+cleanup completes.
 **Revised:** 2026-08-21 (t) — Native auth storage-partition identity now uses a
 provider-owned, SHA-256-only `expo-crypto` adapter over the common application
 client's canonical UTF-8 bytes. The adapter exposes no randomness capability;
@@ -766,18 +775,33 @@ port after the pre-launch check can serve the same application bytes but
 cannot survive the post-navigation ownership validation.
 
 Before the CLI starts, the carrier publishes an owner-only durable cleanup
-lease and launches an independent detached reaper bound to the carrier's
-PID/start-time identity. Each detached workload reserves a resource record;
-its launcher atomically records the future PGID and validates its still-live
-reservation owner before `exec`, so Metro and Chrome cannot begin in an
-unrecorded group. Exact-path records cover the transient readiness descriptor
-and browser profile. The reaper reclaims all records on carrier death and
-reclaims supervisor-owned groups and paths on supervisor death, independently
-of either process's `finally` blocks. The supervisor's parent lease remains the
-cooperative fast path. Shutdown owns recorded process groups even after a
-leader exits, escalates stubborn descendants, treats failed SIGKILL
-reclamation as failure, and the real CLI consumes repeated termination signals
-from before `runExpoDev` starts until cleanup has completed.
+lease and launches an independent detached reaper bound to the carrier's PID,
+OS start time, and exact OS command. Each detached workload reserves a resource
+record; its launcher atomically records the future PGID and validates its
+still-live reservation owner before `exec`, so Metro and Chrome cannot begin in
+an unrecorded group. Every group signal is authorized only while the original
+leader still matches its PID, OS start time, and exact OS command. The launcher
+also supplies an unguessable inherited lease marker and requires it when the OS
+exposes process environments; on macOS platform processes that hide their
+environment, PID plus start time plus exact command is the conservative
+fallback identity. The reaper revalidates the available identity during waits
+and immediately before `SIGTERM` and `SIGKILL`. Once the group is observed
+empty, the leader changes or exits, a visible marker mismatches, or identity
+inspection is ambiguous, that numeric PGID lease is permanently discharged and
+cannot reacquire a reused group. Thus stubborn descendants are escalated while
+the leader identity remains live, but safe non-reclamation after leader loss is
+preferred to signaling a possible successor group.
+
+The transient readiness descriptor is deletion-authorized only after
+publication binds its device/inode and `supervisorGeneration`; a replacement
+file or generation permanently discharges the stale path lease. The browser
+profile and descriptor temporary file use run-unique paths. Subject to those
+identity bounds, the reaper reclaims records on carrier death and
+supervisor-owned resources on supervisor death independently of either
+process's `finally` blocks. The supervisor's parent lease remains the
+cooperative fast path. A still-owned group that survives `SIGKILL` remains a
+cleanup failure, and the real CLI consumes repeated termination signals from
+before `runExpoDev` starts until cleanup has completed.
 
 ### Real devices in the baseline
 

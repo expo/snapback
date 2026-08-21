@@ -16,6 +16,8 @@ import { isAbsolute, join, resolve } from 'node:path';
 
 import {
   CLEANUP_LEASE_DIRECTORY_ENV,
+  activateCleanupPath,
+  cleanupLeasedPath,
   closeCarrierCleanupLease,
   createCarrierCleanupLease,
   releaseCleanupResource,
@@ -1087,6 +1089,12 @@ async function runWebCarrier({
         carrier.startupTimeoutMs,
         child,
       ));
+    if (structuredReadinessPath !== null) {
+      activateCleanupPath(readinessLease, {
+        runIdField: 'supervisorGeneration',
+        runId: readiness.supervisorGeneration,
+      });
+    }
     const elapsed = Date.now() - startupStartedAt;
     await signals.race(waitForHttp(
       readiness.origin,
@@ -1291,9 +1299,9 @@ async function runWebCarrier({
     if (structuredReadinessPath !== null) {
       supervisorRemovedReadiness = !existsSync(structuredReadinessPath);
       try {
-        rmSync(structuredReadinessPath, { force: true });
+        if (readinessLease === null) rmSync(structuredReadinessPath, { force: true });
+        else cleanupLeasedPath(readinessLease);
         readinessFileRemoved = !existsSync(structuredReadinessPath);
-        releaseCleanupResource(readinessLease);
       } catch (error) { cleanupFailures.push(error); }
     }
     try { await closeCarrierCleanupLease(cleanupLease); } catch (error) {
