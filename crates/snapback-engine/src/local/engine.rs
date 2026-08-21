@@ -203,12 +203,14 @@ thread_local! {
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 // Focused commit-point mutation harness, not the repository inventory. It
-// covers the eleven engine sites named in the lane/fenceproof review; the
+// covers the thirteen engine sites named in the lane/fenceproof review; the
 // server harness covers invitation minting. The complete durable-write
 // inventory and deferred proof scope live in the 20260821 admission-fence
 // coverage ticket.
 enum AdmissionEffectSite {
     OAuthDynamicRegistration,
+    AskSpendReservation,
+    AskSpendSettlement,
     CapabilityLinkMint,
     CapabilityLinkConsume,
     CapabilityLinkSettle,
@@ -5799,6 +5801,7 @@ impl LocalSnapback {
 
     pub fn reserve_ask_spend(
         &mut self,
+        authority: &PreparedAuthority,
         now_ms: u64,
         subject: crate::storage::ask_spend::AskSpendSubject,
         budgets: &crate::manifest::ApiAskBudgets,
@@ -5806,15 +5809,30 @@ impl LocalSnapback {
         crate::storage::ask_spend::AskSpendReservation,
         crate::storage::ask_spend::AskSpendFacts,
     )> {
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::AskSpendReservation);
+        // @ref LLP 0058#gate-algorithm — the ask budget reservation is a
+        // durable effect of the admitted request and cannot cross retirement.
+        let _effect = authority.effect_guard("ask spend reservation transaction")?;
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::AskSpendReservation);
         self.db.reserve_ask_spend(now_ms, subject, budgets)
     }
 
     pub fn settle_ask_spend(
         &mut self,
+        authority: &PreparedAuthority,
         reservation: &crate::storage::ask_spend::AskSpendReservation,
         actual_tokens: u64,
         actual_result_bytes: u64,
     ) -> SnapbackResult<crate::storage::ask_spend::AskSpendFacts> {
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::AskSpendSettlement);
+        // @ref LLP 0058#gate-algorithm — provider completion remains the same
+        // admitted API effect, so settlement commits inside its original epoch.
+        let _effect = authority.effect_guard("ask spend settlement transaction")?;
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::AskSpendSettlement);
         self.db
             .settle_ask_spend(reservation, actual_tokens, actual_result_bytes)
     }

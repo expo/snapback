@@ -7,7 +7,11 @@ use crate::auth::mode::{
     AuthModeStateRecord, AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX,
     INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
 };
-use crate::contract_types::{AgentsManifest, AgentsMode, ApiManifest, InvitedBy};
+use crate::contract_types::{
+    AgentsManifest, AgentsMode, ApiAskBilling, ApiAskBudgets, ApiAskManifest, ApiAskModelManifest,
+    ApiAskPerPrincipalDayBudget, ApiAskPerRequestBudget, ApiAskResultVolumeBudget,
+    ApiAskTokenBudget, ApiBudgetsManifest, ApiManifest, InvitedBy,
+};
 use crate::ids::{self, Kind};
 use crate::manifest::{
     AuthManifest, AuthMode, SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, TargetCapabilityId,
@@ -321,6 +325,104 @@ fn link_request(remaining_uses: Option<u64>) -> MintCapabilityLink {
     }
 }
 
+fn ask_spend_budgets() -> ApiAskBudgets {
+    ApiAskBudgets {
+        per_request: ApiAskPerRequestBudget {
+            max_tokens: 10,
+            max_steps: 3,
+            max_wall_ms: 1_000,
+        },
+        per_principal_day: ApiAskPerPrincipalDayBudget { max_tokens: 100 },
+        per_integration_day: None,
+        app_monthly: ApiAskTokenBudget { max_tokens: 1_000 },
+        result_volume: ApiAskResultVolumeBudget {
+            max_bytes: 100,
+            max_rows: 5,
+            per_principal_day_bytes: 1_000,
+        },
+    }
+}
+
+fn ask_spend_fixture() -> (
+    LocalSnapback,
+    AdmissionController,
+    PreparedAuthority,
+    crate::storage::ask_spend::AskSpendSubject,
+    ApiAskBudgets,
+) {
+    let mut snapback = LocalSnapback::memory().expect("ask spend fence database");
+    let deployment = sessions_deployment();
+    let budgets = ask_spend_budgets();
+    let schema = SchemaManifest {
+        schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+        app_id: deployment.app_id.clone(),
+        schema_hash: Some(deployment.schema_hash.clone()),
+        inputs_hash: Some(deployment.inputs_hash.clone()),
+        auth: Some(AuthManifest {
+            mode: AuthMode::Sessions,
+            agents: Some(AgentsManifest::explicit(
+                AgentsMode::Disabled,
+                InvitedBy::Operators,
+            )),
+            password_identifier_mode: None,
+            password_minimum_length: None,
+        }),
+        api: Some(ApiManifest {
+            enabled: true,
+            ask: Some(ApiAskManifest {
+                enabled: true,
+                billing: ApiAskBilling::CallerKey,
+                model: Some(ApiAskModelManifest {
+                    provider: "openai-compatible".to_owned(),
+                    model: "admission-fence".to_owned(),
+                    secret: None,
+                }),
+            }),
+            budgets: Some(ApiBudgetsManifest {
+                ask: Some(budgets.clone()),
+            }),
+            ..ApiManifest::default()
+        }),
+        required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
+        ..SchemaManifest::default()
+    };
+    let functions = crate::manifest::FunctionManifest {
+        schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+        app_id: deployment.app_id.clone(),
+        bundle_hash: Some(deployment.bundle_hash.clone()),
+        inputs_hash: Some(deployment.inputs_hash.clone()),
+        ..crate::manifest::FunctionManifest::default()
+    };
+    let prepared = snapback
+        .prepare_auth_provision(
+            EnsureAppMode::Sessions,
+            Some(schema),
+            Some(functions.clone()),
+            None,
+        )
+        .expect("preflight ask spend sessions deployment");
+    snapback
+        .commit_auth_provision(prepared, "test")
+        .expect("stage ask spend sessions deployment");
+    let settled = snapback
+        .auth_database_mut()
+        .consume_sessions_auth_mode_with_functions(
+            &AuthProgramReadiness::new(true, true, true, true, true, true, true),
+            &functions,
+        )
+        .expect("activate ask spend sessions deployment");
+    snapback
+        .synchronize_auth_mode_admission(&settled)
+        .expect("publish ask spend sessions admission");
+    let controller = snapback.admission_controller();
+    let authority = session_authority_for_source(&controller, InvocationSource::HttpAsk);
+    let subject = crate::storage::ask_spend::AskSpendSubject {
+        principal_key: format!("user:{USER_ID}"),
+        integration_key: None,
+    };
+    (snapback, controller, authority, subject, budgets)
+}
+
 fn seed_link(snapback: &mut LocalSnapback, remaining_uses: u64) -> MintedCapabilityLink {
     snapback
         .auth_database_mut()
@@ -615,6 +717,85 @@ fn oauth_dynamic_registration_refuses_retired_epoch_and_holds_the_guard_through_
         AdmissionEffectSite::OAuthDynamicRegistration,
         &commit_observed,
     );
+}
+
+#[test]
+fn ask_spend_reservation_refuses_retired_epoch_and_holds_the_guard_through_commit() {
+    let (mut snapback, controller, authority, subject, budgets) = ask_spend_fixture();
+    let before = durable_database_image(&snapback);
+    let fired = retire_at_next_effect(AdmissionEffectSite::AskSpendReservation, controller.clone());
+
+    let error = snapback
+        .reserve_ask_spend(&authority, NOW_MS, subject.clone(), &budgets)
+        .expect_err("retired admission must refuse ask spend reservation");
+
+    assert_retired_refusal(&error, &fired);
+    assert_eq!(
+        durable_database_image(&snapback),
+        before,
+        "refused ask reservation must not consume durable budget"
+    );
+
+    let authority = session_authority_for_source(&controller, InvocationSource::HttpAsk);
+    let commit_observed =
+        observe_guard_through_next_commit(AdmissionEffectSite::AskSpendReservation, controller);
+    let (_, facts) = snapback
+        .reserve_ask_spend(&authority, NOW_MS + 1, subject, &budgets)
+        .expect("live admission guard permits ask spend reservation");
+    assert_eq!(facts.principal_day_tokens, budgets.per_request.max_tokens);
+    assert_eq!(
+        facts.principal_day_result_bytes,
+        budgets.result_volume.max_bytes
+    );
+    assert_guard_observed_at_commit(AdmissionEffectSite::AskSpendReservation, &commit_observed);
+}
+
+#[test]
+fn ask_spend_settlement_refuses_retired_epoch_and_holds_the_guard_through_commit() {
+    let (mut snapback, controller, authority, subject, budgets) = ask_spend_fixture();
+    let (reservation, _) = snapback
+        .reserve_ask_spend(&authority, NOW_MS, subject.clone(), &budgets)
+        .expect("seed ask spend reservation before settlement fence proof");
+    let before = durable_database_image(&snapback);
+    let fired = retire_at_next_effect(AdmissionEffectSite::AskSpendSettlement, controller.clone());
+
+    let error = snapback
+        .settle_ask_spend(&authority, &reservation, 4, 25)
+        .expect_err("retired admission must refuse ask spend settlement");
+
+    assert_retired_refusal(&error, &fired);
+    assert_eq!(
+        durable_database_image(&snapback),
+        before,
+        "refused ask settlement must retain the outstanding reservation"
+    );
+
+    let authority = session_authority_for_source(&controller, InvocationSource::HttpAsk);
+    let (reservation, _) = snapback
+        .reserve_ask_spend(&authority, NOW_MS + 1, subject, &budgets)
+        .expect("reserve ask spend under the fresh admission epoch");
+    let before_commit = durable_database_image(&snapback);
+    let commit_observed =
+        observe_guard_through_next_commit(AdmissionEffectSite::AskSpendSettlement, controller);
+    let facts = snapback
+        .settle_ask_spend(&authority, &reservation, 4, 25)
+        .expect("live admission guard permits ask spend settlement");
+    assert_eq!(
+        facts.principal_day_tokens,
+        budgets.per_request.max_tokens + 4,
+        "the retired reservation remains conservative while fresh actual spend settles"
+    );
+    assert_eq!(
+        facts.principal_day_result_bytes,
+        budgets.result_volume.max_bytes + 25,
+        "the retired result-byte reservation remains conservative"
+    );
+    assert_ne!(
+        durable_database_image(&snapback),
+        before_commit,
+        "the successful guarded settlement must be durable"
+    );
+    assert_guard_observed_at_commit(AdmissionEffectSite::AskSpendSettlement, &commit_observed);
 }
 
 #[test]
