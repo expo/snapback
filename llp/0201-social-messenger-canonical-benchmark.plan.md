@@ -5,7 +5,10 @@
 **Systems:** Competitive evaluation, Benchmarks, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-12 (m — factual pin: scoring DAG M3 requires M1 only;
+**Revised:** 2026-08-21 (n — M3 typing-observation boundary versioned;
+the 0.1.21 Simplified red is recorded as a v1 measurement artifact, and the
+v2 choreography amendment plus rerun are routed through the P3 ruling queue);
+2026-08-12 (m — factual pin: scoring DAG M3 requires M1 only;
 reduced-run protocol still sequences M1→M2→M3); 2026-08-11 (l — additive milestone M8: insights/aggregation,
 scheduled digest, celebrity fan-out envelope extension, multi-device and
 durable-offline obligations; author direction, recorded in the dated
@@ -345,6 +348,30 @@ experience; a separate grader scores outcome.**
 1. The acceptance checklist is frozen with the brief, per milestone,
    phrased as observable behaviors ("with two clients open, typing in
    one shows the indicator in the other within 2 s, and it expires").
+
+   The M3 typing check's **observation boundary is versioned**:
+
+   - **v1 — clock before synthetic typing.** The clock starts before the
+     roughly 45-character `pressSequentially(..., { delay: 25 })` action, and
+     the observer wait starts only after that action completes. Clique 0.1.21
+     and earlier sweeps used v1, so their reported `visibleMs` includes at
+     least 1.1 s of synthetic typing plus browser input/render overhead.
+   - **v2 — clock at the measured transition.** Observation is armed and the
+     clock starts at the final keystroke, or immediately before the publish
+     call that creates that final typing-state transition, and remains armed
+     until the other client applies the state. This is the boundary required
+     by [LLP 0013's observation-honesty rule](./0013-ephemeral-realtime-state.rfc.md#first-delivery-latency-budget).
+
+   A v1 run and a v2 run are **not comparable like-for-like**. Publications
+   and receipts must name the boundary version, compare only within a version,
+   and present a correction rerun separately from the historical v1 record.
+   In particular, the only red boundary in the 0.1.21 sweep — Simplified M3
+   typing at 2,045–2,126 ms against the 2,000 ms ceiling — is a **v1
+   measurement artifact**, not observed product delivery latency. The
+   instrumented local pipeline measured every segment at no more than 1 ms
+   and caller-publish-start → overlay-apply at no more than 1.68 ms; see the
+   [closed source ticket](../issues/closed/20260815-ephemeral-typing-first-visibility-misses-2s.md#resolution)
+   and its landing commit `3ec6b1782`.
 2. The builder ships a scripted acceptance suite plus the M6
    custom-client demo script.
 3. The **grader** is a fresh-session agent from the *other* scored
@@ -614,6 +641,24 @@ disclosure).
 - **P6 — Exploratory legs:** tier-2 backends and Kimi/Grok at N=1;
   promotion decisions recorded.
 
+### P3 ruling queue
+
+- [ ] **P3-Q1 — Adopt M3 typing observation boundary v2 and rerun
+  Simplified M3.** On the sweep kit's recorded host, amend the frozen M3
+  choreography so observation is armed and the clock starts **at the final
+  keystroke, or immediately before the publish call that creates the final
+  typing-state transition**. Do not start the clock before the roughly
+  45-character `pressSequentially(..., { delay: 25 })` action and begin
+  waiting for the observer only after that action completes. Stamp the
+  choreography and resulting receipt as boundary v2; preserve all 0.1.21 and
+  earlier receipts as v1; do not compare v1 and v2 like-for-like. Then rerun
+  the 0.1.21 Simplified-lane M3 typing boundary and retain the corrected v2
+  receipt. The sweep kit is out of this repository at
+  `~/clique-0121-20260814` on LA Durand, so this in-repo landing queues but
+  does not perform the amendment or rerun. Treat the boundary change as a
+  material choreography correction and rerun the affected milestone before
+  P3 freezes the instrument.
+
 Rough cost, so scope stays conscious: the small brief runs 200–330k
 tokens per Snapback lane; this app is plausibly 5–10× **per builder
 lane** — and builder lanes are roughly half the program. All-in, P4
@@ -669,6 +714,12 @@ probes are non-scored continuity diagnostics, with the holdout claim
 scoped to the wave's secret rotated probes.
 
 ## Revision history
+
+**Revised:** 2026-08-21 (n — versioned the M3 typing observation boundary as
+v1 clock-before-synthetic-typing versus v2 clock-at-final-keystroke/publish;
+marked cross-version runs non-comparable like-for-like; annotated the 0.1.21
+Simplified M3 red with the instrumented 1.68 ms delivery evidence; queued the
+out-of-repo v2 choreography amendment and Simplified rerun at P3-Q1.)
 
 **Revised:** 2026-08-12 (m — factual pin only: scoring DAG M3 requires M1
 only; reduced-run protocol still executes M1 then M2 then M3.)

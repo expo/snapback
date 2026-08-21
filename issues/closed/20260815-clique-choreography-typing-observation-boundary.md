@@ -3,7 +3,7 @@
 **Filed:** 2026-08-15 · **Source:** resolution of
 `issues/closed/20260815-ephemeral-typing-first-visibility-misses-2s.md`
 (landed in 3ec6b1782) · **Systems:** Clique benchmark harness (LLP 0201),
-Ephemeral state (LLP 0013)
+Ephemeral state (LLP 0013) · **Closed:** 2026-08-21 · **Landing SHA:** fc1355cec
 
 ## Problem
 
@@ -49,3 +49,23 @@ benchmark harness, with LLP 0201's record noting the boundary version.
 
 Graduate to Linear (Exact project, Snapback label) if the LLP 0201 P3 ruling
 queue absorbs this instead; record the pointer here and close.
+
+## Resolution
+
+Closed 2026-08-21 through the ticket's graduation clause. In-repo,
+[LLP 0201](../../llp/0201-social-messenger-canonical-benchmark.plan.md#d3--independent-quality-gate)
+now versions the check as v1 (clock before the synthetic typing action, used
+by 0.1.21 and earlier sweeps) and v2 (clock at the final keystroke or publish
+call), marks cross-version runs non-comparable like-for-like, and annotates the
+0.1.21 Simplified M3 red as a v1 measurement artifact against the instrumented
+1.68 ms caller-publish-start → overlay-apply maximum from `3ec6b1782`.
+
+The remaining work is intentionally out of repo: amend the frozen choreography
+and rerun the Simplified-lane M3 typing boundary in `~/clique-0121-20260814` on
+LA Durand, where the sweep kit lives. That work is now owned by
+[LLP 0201 P3-Q1](../../llp/0201-social-messenger-canonical-benchmark.plan.md#p3-ruling-queue),
+which carries the exact v2 amendment and receipt requirements. The kit is not
+present in this worktree, so this landing does not claim to have changed or
+rerun it.
+
+**Landing SHA:** fc1355cec
