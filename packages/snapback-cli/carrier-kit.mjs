@@ -20,7 +20,9 @@ export const TEMPLATE_CARRIER_CONFIG_SCHEMA_VERSION = 'snapback.template-carrier
 export const TEMPLATE_CARRIER_LOG_SCHEMA_VERSION = 'snapback.template-carrier-director.v1';
 
 const CARRIERS = new Set(['headless', 'web-browser', 'native-simulator']);
-const OWNED_PROCESS_CLOSE = new WeakMap();
+const OWNED_PROCESS_STATE = new WeakMap();
+const SUPERVISOR_PARENT_PID_ENV = 'SNAPBACK_EXPO_SUPERVISOR_PARENT_PID';
+const SUPERVISOR_PARENT_START_TIME_ENV = 'SNAPBACK_EXPO_SUPERVISOR_PARENT_START_TIME';
 const PLIST_UPDATE_SOURCE = String.raw`
 import json
 import plistlib
@@ -382,7 +384,11 @@ function startOwned(command, {
     child.stderr.pipe(log);
     child.once('close', () => log.end());
   }
-  OWNED_PROCESS_CLOSE.set(child, new Promise((resolveClose) => child.once('close', resolveClose)));
+  OWNED_PROCESS_STATE.set(child, Object.freeze({
+    pid: child.pid,
+    processGroup: process.platform !== 'win32',
+    exited: new Promise((resolveExit) => child.once('exit', resolveExit)),
+  }));
   return child;
 }
 
@@ -394,21 +400,64 @@ function signalOwned(child, signal) {
 }
 
 async function stopOwned(child) {
-  const closed = OWNED_PROCESS_CLOSE.get(child)
-    ?? new Promise((resolveClose) => child.once('close', resolveClose));
-  if (child.exitCode !== null || child.signalCode !== null) {
-    await closed;
+  const state = OWNED_PROCESS_STATE.get(child) ?? Object.freeze({
+    pid: child.pid,
+    processGroup: process.platform !== 'win32',
+    exited: new Promise((resolveExit) => child.once('exit', resolveExit)),
+  });
+  const releasePipes = () => {
+    for (const stream of child.stdio ?? []) stream?.destroy?.();
+  };
+  if (!state.processGroup || !Number.isSafeInteger(state.pid)) {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+    const graceful = await Promise.race([
+      state.exited.then(() => true),
+      new Promise((resolveWait) => setTimeout(() => resolveWait(false), 10_000)),
+    ]);
+    if (!graceful && child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    await state.exited;
+    releasePipes();
     return;
   }
-  signalOwned(child, 'SIGTERM');
-  const graceful = await Promise.race([
-    closed.then(() => true),
-    new Promise((resolveWait) => setTimeout(() => resolveWait(false), 10_000)),
-  ]);
-  if (!graceful && child.exitCode === null) {
-    signalOwned(child, 'SIGKILL');
-    await closed;
+
+  // A detached leader can exit while grandchildren remain in its recorded
+  // process group. The group, not the leader's exit event, is the ownership
+  // boundary, so always signal and wait on that group.
+  const groupAlive = () => {
+    try {
+      process.kill(-state.pid, 0);
+      return true;
+    } catch (error) {
+      if (error?.code === 'ESRCH') return false;
+      if (error?.code === 'EPERM') return true;
+      throw error;
+    }
+  };
+  const waitForGroup = async (timeoutMs) => {
+    const deadline = Date.now() + timeoutMs;
+    while (groupAlive() && Date.now() < deadline) {
+      await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+    }
+    return !groupAlive();
+  };
+  if (groupAlive()) {
+    try { process.kill(-state.pid, 'SIGTERM'); } catch (error) {
+      if (error?.code !== 'ESRCH') throw error;
+    }
   }
+  if (!(await waitForGroup(10_000))) {
+    try { process.kill(-state.pid, 'SIGKILL'); } catch (error) {
+      if (error?.code !== 'ESRCH') throw error;
+    }
+    if (!(await waitForGroup(2_000))) {
+      throw new Error(`owned process group ${state.pid} survived SIGKILL`);
+    }
+  }
+  await state.exited;
+  // ChildProcess `close` also waits for every inherited stdio descriptor.
+  // A detached grandchild outside the recorded group must not hold carrier
+  // cleanup open after the owned group and its leader are both gone.
+  releasePipes();
 }
 
 function createSignalInterruption() {
@@ -428,7 +477,7 @@ function createSignalInterruption() {
       resolveInterruption(error);
     };
     handlers.set(signal, handler);
-    process.once(signal, handler);
+    process.on(signal, handler);
   }
   return Object.freeze({
     race(operation) {
@@ -463,6 +512,83 @@ async function waitForHttp(origin, timeoutMs, child, fetchImpl = fetch) {
   throw new Error(`web carrier did not reach ${origin}: ${lastError?.message ?? 'timeout'}`);
 }
 
+function processInventory() {
+  const result = spawnSync('/bin/ps', ['-axo', 'pid=,ppid=,pgid=,lstart='], {
+    encoding: 'utf8',
+    timeout: 10_000,
+  });
+  if (result.error || result.status !== 0) {
+    throw new Error('web carrier could not enumerate supervised process identities');
+  }
+  return result.stdout.split('\n').flatMap((line) => {
+    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.+?)\s*$/u.exec(line);
+    if (match === null) return [];
+    return [{
+      pid: Number(match[1]),
+      ppid: Number(match[2]),
+      processGroup: Number(match[3]),
+      startTime: match[4],
+    }];
+  });
+}
+
+function processDescendants(rootPid, inventory) {
+  const found = new Set([rootPid]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const { pid, ppid } of inventory) {
+      if (found.has(ppid) && !found.has(pid)) {
+        found.add(pid);
+        changed = true;
+      }
+    }
+  }
+  return found;
+}
+
+function lsofBinary() {
+  for (const path of ['/usr/sbin/lsof', '/usr/bin/lsof']) {
+    if (existsSync(path)) return path;
+  }
+  return null;
+}
+
+function lsofListenerAddress(name) {
+  const trimmed = name.replace(/\s+\(LISTEN\)$/u, '');
+  if (trimmed.startsWith('[')) {
+    const closing = trimmed.lastIndexOf(']:');
+    if (closing === -1) return null;
+    return { host: trimmed.slice(1, closing), port: Number(trimmed.slice(closing + 2)) };
+  }
+  const colon = trimmed.lastIndexOf(':');
+  if (colon === -1) return null;
+  return { host: trimmed.slice(0, colon), port: Number(trimmed.slice(colon + 1)) };
+}
+
+function liveTcpListeners(port) {
+  const binary = lsofBinary();
+  if (binary === null) throw new Error('lsof is required to revalidate the supervised Metro listener');
+  const result = spawnSync(binary, [
+    '-nP', '-a', `-iTCP:${port}`, '-sTCP:LISTEN', '-Fpcn',
+  ], { encoding: 'utf8', timeout: 10_000 });
+  if (result.error || ![0, 1].includes(result.status)) {
+    throw new Error('web carrier could not re-enumerate the supervised Metro listener');
+  }
+  const listeners = [];
+  let pid = null;
+  let command = null;
+  for (const line of result.stdout.split('\n')) {
+    if (line.startsWith('p')) pid = Number(line.slice(1));
+    else if (line.startsWith('c')) command = line.slice(1);
+    else if (line.startsWith('n') && Number.isSafeInteger(pid)) {
+      const address = lsofListenerAddress(line.slice(1));
+      if (address !== null) listeners.push({ pid, command, ...address });
+    }
+  }
+  return listeners;
+}
+
 // @ref LLP 0181#web-browser — an Expo browser may navigate only after the
 // exact spawned supervisor atomically publishes its verified Metro listener.
 function readExpoSupervisorWebReadiness(path, child) {
@@ -477,12 +603,22 @@ function readExpoSupervisorWebReadiness(path, child) {
       || descriptor.platform !== 'web'
       || descriptor.connectCarrier !== 'supervisor-rendezvous'
       || descriptor.pid !== child.pid
+      || descriptor.supervisor?.pid !== descriptor.pid
+      || typeof descriptor.supervisor?.startTime !== 'string'
+      || descriptor.supervisor.startTime.length === 0
       || typeof descriptor.correlationId !== 'string'
       || descriptor.correlationId.length === 0
       || typeof descriptor.supervisorGeneration !== 'string'
       || descriptor.supervisorGeneration.length === 0
       || !Number.isSafeInteger(descriptor.metro?.pid)
       || descriptor.metro.pid < 1
+      || typeof descriptor.metro.startTime !== 'string'
+      || descriptor.metro.startTime.length === 0
+      || typeof descriptor.attestation?.path !== 'string'
+      || !/^\/[A-Za-z0-9._/-]+$/u.test(descriptor.attestation.path)
+      || descriptor.attestation.path.includes('..')
+      || typeof descriptor.attestation?.nonce !== 'string'
+      || descriptor.attestation.nonce.length < 32
       || !Array.isArray(descriptor.listeners)
       || descriptor.listeners.length === 0) {
     throw new Error('Expo supervisor readiness does not belong to the exact web carrier child');
@@ -501,6 +637,8 @@ function readExpoSupervisorWebReadiness(path, child) {
       && candidate.port === metroPort
       && Number.isSafeInteger(candidate.pid)
       && candidate.pid > 0
+      && typeof candidate.startTime === 'string'
+      && candidate.startTime.length > 0
   ));
   if (!listener || descriptor.listeners.some((candidate) => candidate?.loopback !== true)) {
     throw new Error('Expo supervisor readiness lacks its verified loopback Metro listener');
@@ -510,13 +648,56 @@ function readExpoSupervisorWebReadiness(path, child) {
     correlationId: descriptor.correlationId,
     supervisorGeneration: descriptor.supervisorGeneration,
     supervisorPid: descriptor.pid,
+    supervisorStartTime: descriptor.supervisor.startTime,
     metroPid: descriptor.metro.pid,
+    metroStartTime: descriptor.metro.startTime,
+    attestation: Object.freeze({
+      path: descriptor.attestation.path,
+      nonce: descriptor.attestation.nonce,
+    }),
     listener: Object.freeze({
       pid: listener.pid,
+      startTime: listener.startTime,
       host: listener.host,
       port: listener.port,
     }),
   });
+}
+
+function assertExpoSupervisorWebOwnership(readiness, child) {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    throw new Error('Expo supervisor exited before browser launch');
+  }
+  try {
+    process.kill(child.pid, 0);
+  } catch {
+    throw new Error('Expo supervisor is not live before browser launch');
+  }
+  const inventory = processInventory();
+  const supervisor = inventory.find(({ pid }) => pid === readiness.supervisorPid);
+  if (supervisor?.startTime !== readiness.supervisorStartTime || supervisor.ppid !== process.pid) {
+    throw new Error('Expo supervisor process identity changed before browser launch');
+  }
+  const supervisorTree = processDescendants(readiness.supervisorPid, inventory);
+  const metro = inventory.find(({ pid }) => pid === readiness.metroPid);
+  if (metro?.startTime !== readiness.metroStartTime || !supervisorTree.has(readiness.metroPid)) {
+    throw new Error('Expo Metro process identity changed before browser launch');
+  }
+  const metroTree = processDescendants(readiness.metroPid, inventory);
+  const listenerProcess = inventory.find(({ pid }) => pid === readiness.listener.pid);
+  if (listenerProcess?.startTime !== readiness.listener.startTime
+      || !metroTree.has(readiness.listener.pid)) {
+    throw new Error('Expo Metro listener ownership changed before browser launch');
+  }
+  const expectedHost = readiness.listener.host.toLowerCase().replace(/^\[|\]$/gu, '');
+  const listeners = liveTcpListeners(readiness.listener.port).filter((candidate) => (
+    candidate.host.toLowerCase().replace(/^\[|\]$/gu, '') === expectedHost
+      && candidate.port === readiness.listener.port
+  ));
+  if (listeners.length === 0
+      || listeners.some(({ pid }) => pid !== readiness.listener.pid)) {
+    throw new Error('Expo Metro listener was replaced before browser launch');
+  }
 }
 
 async function waitForExpoSupervisorWebReadiness(path, timeoutMs, child) {
@@ -652,6 +833,8 @@ function startCdpBrowser(command, { cwd, env, logPath }) {
       closed = true;
       output.off('data', onData);
       rejectPending(new Error('browser DevTools client closed'));
+      input.destroy();
+      output.destroy();
     },
   });
 }
@@ -711,6 +894,31 @@ async function attachCdpPage(browser, origin, timeoutMs = 30_000) {
   });
 }
 
+async function verifyBrowserSupervisorAttestation(page, readiness) {
+  const result = await page.evaluate(`(async () => {
+    const response = await fetch(new URL(
+      ${JSON.stringify(readiness.attestation.path)},
+      globalThis.location.href,
+    ).href, {
+      cache: 'no-store',
+      credentials: 'omit',
+      redirect: 'error',
+    });
+    return {
+      ok: response.ok,
+      url: response.url,
+      body: await response.text(),
+    };
+  })()`);
+  let responseOrigin = null;
+  try { responseOrigin = new URL(result?.url).origin; } catch { /* fail below */ }
+  if (result?.ok !== true
+      || responseOrigin !== readiness.origin
+      || result.body !== `${readiness.attestation.nonce}\n`) {
+    throw new Error('browser did not receive the exact supervised Metro run attestation');
+  }
+}
+
 async function waitForBrowserExpression(page, expression, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   let lastError = null;
@@ -751,9 +959,22 @@ async function runWebCarrier({ config, options, root, artifacts, verifyReceipt, 
     : resolve(root, expandedValue(carrier.structuredReadiness.file, replacements));
   if (structuredReadinessPath !== null) rmSync(structuredReadinessPath, { force: true });
   const signals = createSignalInterruption();
+  const carrierProcess = structuredReadinessPath === null
+    ? null
+    : processInventory().find(({ pid }) => pid === process.pid);
+  if (structuredReadinessPath !== null && carrierProcess === undefined) {
+    throw new Error('web carrier could not establish its supervisor parent lease');
+  }
   const child = startOwned(command, {
     cwd: root,
-    env: { ...process.env, CI: '1' },
+    env: {
+      ...process.env,
+      CI: '1',
+      ...(carrierProcess === null ? {} : {
+        [SUPERVISOR_PARENT_PID_ENV]: String(process.pid),
+        [SUPERVISOR_PARENT_START_TIME_ENV]: carrierProcess.startTime,
+      }),
+    },
     logPath,
   });
   let browserProcess = null;
@@ -786,7 +1007,17 @@ async function runWebCarrier({ config, options, root, artifacts, verifyReceipt, 
       const confirmed = readExpoSupervisorWebReadiness(structuredReadinessPath, child);
       if (confirmed.origin !== readiness.origin
           || confirmed.correlationId !== readiness.correlationId
-          || confirmed.supervisorGeneration !== readiness.supervisorGeneration) {
+          || confirmed.supervisorGeneration !== readiness.supervisorGeneration
+          || confirmed.supervisorPid !== readiness.supervisorPid
+          || confirmed.supervisorStartTime !== readiness.supervisorStartTime
+          || confirmed.metroPid !== readiness.metroPid
+          || confirmed.metroStartTime !== readiness.metroStartTime
+          || confirmed.listener.pid !== readiness.listener.pid
+          || confirmed.listener.startTime !== readiness.listener.startTime
+          || confirmed.listener.host !== readiness.listener.host
+          || confirmed.listener.port !== readiness.listener.port
+          || confirmed.attestation.path !== readiness.attestation.path
+          || confirmed.attestation.nonce !== readiness.attestation.nonce) {
         throw new Error('Expo supervisor readiness changed during HTTP admission');
       }
     }
@@ -796,7 +1027,13 @@ async function runWebCarrier({ config, options, root, artifacts, verifyReceipt, 
     const screenshot = join(artifacts, 'web-browser.png');
     const html = join(artifacts, 'web-browser.html');
     let journey = null;
-    if (carrier.browserJourney) {
+    if (structuredReadinessPath !== null) {
+      // This is deliberately adjacent to Chrome spawn: it re-enumerates the
+      // child, Metro leader, exact listener owner, start times, and live port
+      // after the HTTP probe and the final descriptor read.
+      assertExpoSupervisorWebOwnership(readiness, child);
+    }
+    if (carrier.browserJourney || structuredReadinessPath !== null) {
       const browserLog = join(artifacts, 'web-browser-process.log');
       browserProcess = startCdpBrowser([
         browser,
@@ -812,23 +1049,29 @@ async function runWebCarrier({ config, options, root, artifacts, verifyReceipt, 
       browserExited = false;
       browserCdp = browserProcess;
       const page = await signals.race(attachCdpPage(browserCdp, readiness.origin));
-      const marker = `snapback-carrier-${randomUUID()}`;
-      await signals.race(page.evaluate(
-        `globalThis.__snapbackCarrierJourneyId = ${JSON.stringify(marker)}`,
-      ));
-      await signals.race(waitForBrowserExpression(
-        page,
-        carrier.browserJourney.readyExpression,
-        45_000,
-      ));
-      const result = await signals.race(page.evaluate(
-        carrier.browserJourney.runExpression,
-        45_000,
-      ));
-      if (result?.marker !== marker
-          || result.readObserved !== true
-          || result.writeObserved !== true) {
-        throw new Error('browser journey did not return its exact read/write witness');
+      if (structuredReadinessPath !== null) {
+        await signals.race(verifyBrowserSupervisorAttestation(page, readiness));
+      }
+      const marker = carrier.browserJourney ? `snapback-carrier-${randomUUID()}` : null;
+      let result = null;
+      if (carrier.browserJourney) {
+        await signals.race(page.evaluate(
+          `globalThis.__snapbackCarrierJourneyId = ${JSON.stringify(marker)}`,
+        ));
+        await signals.race(waitForBrowserExpression(
+          page,
+          carrier.browserJourney.readyExpression,
+          45_000,
+        ));
+        result = await signals.race(page.evaluate(
+          carrier.browserJourney.runExpression,
+          45_000,
+        ));
+        if (result?.marker !== marker
+            || result.readObserved !== true
+            || result.writeObserved !== true) {
+          throw new Error('browser journey did not return its exact read/write witness');
+        }
       }
       const retainedDom = await signals.race(page.evaluate(
         'document.documentElement.outerHTML',
@@ -836,19 +1079,19 @@ async function runWebCarrier({ config, options, root, artifacts, verifyReceipt, 
       if (typeof retainedDom !== 'string' || retainedDom.length === 0) {
         throw new Error('browser journey did not return retained DOM');
       }
-      const missing = carrier.browserJourney.requiredDomText.filter(
+      const missing = (carrier.browserJourney?.requiredDomText ?? []).filter(
         (candidate) => !retainedDom.includes(candidate),
       );
-      if (!retainedDom.includes(marker) || missing.length > 0) {
+      if ((marker !== null && !retainedDom.includes(marker)) || missing.length > 0) {
         const absent = [
-          ...(retainedDom.includes(marker) ? [] : ['<journey write marker>']),
+          ...(marker === null || retainedDom.includes(marker) ? [] : ['<journey write marker>']),
           ...missing,
         ];
         throw new Error(
           `browser retained DOM lacks its write marker or ready UI: ${absent.join(', ')}`,
         );
       }
-      const forbidden = carrier.browserJourney.forbiddenDomText.filter(
+      const forbidden = (carrier.browserJourney?.forbiddenDomText ?? []).filter(
         (candidate) => retainedDom.includes(candidate),
       );
       if (forbidden.length > 0) {
@@ -857,12 +1100,14 @@ async function runWebCarrier({ config, options, root, artifacts, verifyReceipt, 
       const screenshotBytes = await signals.race(page.screenshot());
       writeFileSync(screenshot, screenshotBytes);
       writeFileSync(html, retainedDom);
-      journey = {
-        marker,
-        readObserved: true,
-        writeObserved: true,
-        result,
-      };
+      if (carrier.browserJourney) {
+        journey = {
+          marker,
+          readObserved: true,
+          writeObserved: true,
+          result,
+        };
+      }
       observations = { browserProcessLog: browserLog };
     } else {
       browserProcess = startCaptured([
@@ -893,8 +1138,11 @@ async function runWebCarrier({ config, options, root, artifacts, verifyReceipt, 
           correlationId: readiness.correlationId,
           supervisorGeneration: readiness.supervisorGeneration,
           supervisorPid: readiness.supervisorPid,
+          supervisorStartTime: readiness.supervisorStartTime,
           metroPid: readiness.metroPid,
+          metroStartTime: readiness.metroStartTime,
           listener: readiness.listener,
+          attestation: { path: readiness.attestation.path, verified: true },
         },
       }),
       screenshot,

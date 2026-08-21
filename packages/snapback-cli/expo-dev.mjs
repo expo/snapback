@@ -3,11 +3,14 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import {
   chmodSync,
   existsSync,
+  lstatSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
   renameSync,
   rmSync,
+  rmdirSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
@@ -32,6 +35,8 @@ export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH = '/_snapback/expo/v1/dev-ide
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER = 'x-snapback-dev-identity-checkout';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV = 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE';
 export const METRO_WATCH_BLIND_ROOTS = Object.freeze(['/private/tmp', '/tmp']);
+export const SUPERVISOR_PARENT_PID_ENV = 'SNAPBACK_EXPO_SUPERVISOR_PARENT_PID';
+export const SUPERVISOR_PARENT_START_TIME_ENV = 'SNAPBACK_EXPO_SUPERVISOR_PARENT_START_TIME';
 const EXPO_GO_IOS_BUNDLE_IDENTIFIER = 'host.exp.Exponent';
 const EXPO_GO_ANDROID_COMPONENT_PREFIX = 'host.exp.exponent/';
 const EXPO_APP_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*$/u;
@@ -46,6 +51,10 @@ export function expoSupervisorChildEnvironment(env = process.env) {
   // checkout nonce into Metro input. The supervisor issues its own nonce only
   // after selecting a native target.
   delete childEnv[SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV];
+  // The lease belongs to this supervisor process. Backend and Metro children
+  // must not mistake their own parentage for the carrier's lease.
+  delete childEnv[SUPERVISOR_PARENT_PID_ENV];
+  delete childEnv[SUPERVISOR_PARENT_START_TIME_ENV];
   return childEnv;
 }
 
@@ -1152,17 +1161,91 @@ export function shouldLaunchExpoNativeCheckout(plan, {
 }
 
 function processTable() {
-  const result = spawnSync('/bin/ps', ['-axo', 'pid=,ppid='], { encoding: 'utf8' });
+  const result = spawnSync('/bin/ps', ['-axo', 'pid=,ppid=,pgid=,lstart='], {
+    encoding: 'utf8',
+    timeout: 10_000,
+  });
   if (result.error || result.status !== 0) {
     throw diagnosticError(
       'SNAPBACK_EXPO_LISTENER_ENUMERATION_UNAVAILABLE',
       'the supervisor could not enumerate its process tree',
     );
   }
-  return result.stdout.trim().split('\n').map((line) => {
-    const [pid, ppid] = line.trim().split(/\s+/u).map(Number);
-    return { pid, ppid };
-  }).filter(({ pid, ppid }) => Number.isInteger(pid) && Number.isInteger(ppid));
+  return result.stdout.split('\n').flatMap((line) => {
+    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.+?)\s*$/u.exec(line);
+    if (match === null) return [];
+    return [{
+      pid: Number(match[1]),
+      ppid: Number(match[2]),
+      processGroup: Number(match[3]),
+      startTime: match[4],
+    }];
+  });
+}
+
+function processIdentity(pid, table = processTable()) {
+  return table.find((candidate) => candidate.pid === pid) ?? null;
+}
+
+export function startExpoSupervisorParentLease({
+  env = process.env,
+  onLost,
+  intervalMs = 200,
+} = {}) {
+  const rawPid = env?.[SUPERVISOR_PARENT_PID_ENV];
+  const startTime = env?.[SUPERVISOR_PARENT_START_TIME_ENV];
+  if (rawPid === undefined && startTime === undefined) return null;
+  const pid = Number(rawPid);
+  if (!Number.isSafeInteger(pid) || pid < 1
+      || typeof startTime !== 'string' || startTime.length === 0) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_SUPERVISOR_PARENT_LEASE_INVALID',
+      'the Expo supervisor parent lease is incomplete or malformed',
+    );
+  }
+  const initial = processTable();
+  const parent = processIdentity(pid, initial);
+  const self = processIdentity(process.pid, initial);
+  if (parent?.startTime !== startTime || self?.ppid !== pid) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_SUPERVISOR_PARENT_LEASE_INVALID',
+      'the Expo supervisor parent lease does not identify its live parent process',
+      { pid },
+    );
+  }
+  let closed = false;
+  let reported = false;
+  const timer = setInterval(() => {
+    if (closed || reported) return;
+    let live = null;
+    let currentSelf = null;
+    try {
+      const inventory = processTable();
+      live = processIdentity(pid, inventory);
+      currentSelf = processIdentity(process.pid, inventory);
+    } catch {
+      // A transient inventory failure cannot prove parent death. The next
+      // bounded poll retries without widening ownership.
+      return;
+    }
+    if (live?.startTime === startTime && currentSelf?.ppid === pid) return;
+    reported = true;
+    onLost?.(diagnosticError(
+      'SNAPBACK_EXPO_SUPERVISOR_PARENT_LOST',
+      'the Expo supervisor carrier parent exited; reclaiming supervised resources',
+      { pid },
+    ));
+  }, intervalMs);
+  timer.unref?.();
+  return Object.freeze({
+    pid,
+    startTime,
+    close() {
+      if (closed) return;
+      closed = true;
+      clearInterval(timer);
+    },
+  });
 }
 
 function descendants(rootPid, table) {
@@ -1252,6 +1335,7 @@ export function enumerateExpoOwnedListeners({ backendPid, metroPid, supervisorPi
       host: listener.host,
       port: listener.port,
       loopback: isLoopbackHost(listener.host),
+      startTime: processIdentity(listener.pid, table)?.startTime ?? null,
     });
   }));
 }
@@ -1480,6 +1564,53 @@ function metroNodeOptions(nodeOptions) {
     .join(' ');
 }
 
+function createMetroRunAttestation(directory, platform) {
+  if (platform !== 'web') return null;
+  const publicDirectory = join(directory, 'public');
+  let createdPublicDirectory = false;
+  if (existsSync(publicDirectory)) {
+    const metadata = lstatSync(publicDirectory);
+    if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_METRO_ATTESTATION_UNAVAILABLE',
+        'Expo web attestation requires public/ to be a real directory',
+        { path: publicDirectory },
+      );
+    }
+  } else {
+    mkdirSync(publicDirectory, { recursive: false, mode: 0o700 });
+    createdPublicDirectory = true;
+  }
+  const nonce = randomBytes(32).toString('base64url');
+  const name = `snapback-supervisor-attestation-${randomUUID()}.txt`;
+  const file = join(publicDirectory, name);
+  try {
+    writeFileSync(file, `${nonce}\n`, { flag: 'wx', mode: 0o600 });
+  } catch (error) {
+    if (createdPublicDirectory) {
+      try { rmdirSync(publicDirectory); } catch { /* original refusal wins */ }
+    }
+    throw error;
+  }
+  let removed = false;
+  return Object.freeze({
+    path: `/${name}`,
+    nonce,
+    file,
+    remove() {
+      if (removed) return;
+      removed = true;
+      rmSync(file, { force: true });
+      if (createdPublicDirectory) {
+        try { rmdirSync(publicDirectory); } catch {
+          // Never recursively remove an app directory: if something else
+          // appeared while Metro ran, it no longer belongs to this lease.
+        }
+      }
+    },
+  });
+}
+
 function startMetro({ command, directory, port, platform, bootstrapOrigin, env, emit, onExit }) {
   const resolved = resolveExpoMetroCommand(command, port, platform);
   const child = spawn(resolved.executable, resolved.args, {
@@ -1638,11 +1769,74 @@ export async function runExpoDev(options = {}) {
   let closed = false;
   let closePromise = null;
   let closeSupervisor = null;
+  let parentLease = null;
+  let metroAttestation = null;
+  let startupCriticalExit = null;
+  let startupPublished = false;
   let supervisorDescriptorFile = null;
   let supervisorDescriptorTemporaryFile = null;
   const appDescriptorPath = join(backendRoot, 'generated', 'app.descriptor.json');
   let rotateBindingAfterLoad = () => null;
+  const close = () => {
+    if (closePromise !== null) return closePromise;
+    closePromise = (async () => {
+      closed = true;
+      parentLease?.close?.();
+      parentLease = null;
+      const failures = [];
+      for (const path of [supervisorDescriptorFile, supervisorDescriptorTemporaryFile]) {
+        if (path === null) continue;
+        try { rmSync(path, { force: true }); } catch (error) { failures.push(error); }
+      }
+      try { forwarding?.remove?.(); } catch (error) { failures.push(error); }
+      try { await stopProcessGroup(metro?.child, { processGroup: true }); } catch (error) { failures.push(error); }
+      try { metroAttestation?.remove?.(); } catch (error) { failures.push(error); }
+      metroAttestation = null;
+      try { await bootstrap?.close?.(); } catch (error) { failures.push(error); }
+      try { await dev?.close?.(); } catch (error) { failures.push(error); }
+      checkoutRegistry?.invalidate();
+      checkoutRegistry = null;
+      checkoutNonce = null;
+      authority = null;
+      binding = null;
+      emit({ ok: failures.length === 0, state: 'closed', reclaimed: {
+        backend: dev?.managed === true,
+        metro: metro !== null,
+        bootstrap: bootstrap !== null,
+        portForwards: forwarding?.installed?.length ?? 0,
+      } });
+      if (failures.length > 0) {
+        throw new AggregateError(failures, 'Expo supervisor cleanup failed');
+      }
+    })();
+    return closePromise;
+  };
+  closeSupervisor = close;
+  const reportCriticalExit = (error) => {
+    if (closed) return;
+    if (!startupPublished && startupCriticalExit === null) startupCriticalExit = error;
+    try { options.onCriticalExit?.(error); } finally {
+      void closeSupervisor().catch(() => {});
+    }
+  };
+  const assertStartupActive = () => {
+    if (startupCriticalExit !== null) throw startupCriticalExit;
+    if (closed) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_DEV_STARTUP_CANCELLED',
+        'the Expo supervisor closed before publishing readiness',
+      );
+    }
+  };
   try {
+    // Install the carrier lease before starting any owned process. If the
+    // carrier is SIGKILLed during backend startup, the supervisor must still
+    // reclaim that partially constructed process tree.
+    parentLease = startExpoSupervisorParentLease({
+      env: options.env ?? process.env,
+      onLost: reportCriticalExit,
+    });
+    assertStartupActive();
     const selectedDevice = resolveExpoDeviceSelection({ ...options, env: childEnv });
     const metroPort = options.metroPort ?? await freeLoopbackPort();
     const backendEnv = expoBackendDevAuthEnvironment(childEnv, metroPort);
@@ -1676,12 +1870,14 @@ export async function runExpoDev(options = {}) {
           'the supervised Snapback backend exited',
           { code, signal },
         );
-        try { options.onCriticalExit?.(error); } finally {
-          void closeSupervisor?.().catch(() => {});
-        }
+        reportCriticalExit(error);
       },
     });
     if (dev.ok === false) return dev;
+    if (closed) {
+      try { await dev.close?.(); } catch { /* latched critical exit wins */ }
+    }
+    assertStartupActive();
     let backendRoute = portFromOrigin(dev.serverUrl, 'Snapback backend');
     if (!isLoopbackHost(backendRoute.host)) {
       throw diagnosticError(
@@ -1895,6 +2091,10 @@ export async function runExpoDev(options = {}) {
         }
       },
     });
+    if (closed) {
+      try { await bootstrap.close?.(); } catch { /* latched critical exit wins */ }
+    }
+    assertStartupActive();
     route = createExpoRoutingPlan({
       platform: options.platform ?? 'ios',
       backendPort: backendRoute.port,
@@ -1947,6 +2147,11 @@ export async function runExpoDev(options = {}) {
         binding: publicBinding(binding),
       };
     };
+    metroAttestation = createMetroRunAttestation(
+      expoDirectory,
+      options.platform ?? 'ios',
+    );
+    assertStartupActive();
     metro = startMetro({
       command: options.metroCommand,
       directory: expoDirectory,
@@ -1964,9 +2169,7 @@ export async function runExpoDev(options = {}) {
               : 'Expo/Metro exited while supervised development was active',
             { code, signal, ...(cause ? { cause: cause.code ?? cause.message } : {}) },
           );
-          try { options.onCriticalExit?.(error); } finally {
-            void closeSupervisor?.().catch(() => {});
-          }
+          reportCriticalExit(error);
         }
       },
     });
@@ -1982,6 +2185,7 @@ export async function runExpoDev(options = {}) {
       ],
       timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
     });
+    assertStartupActive();
     emit({ ok: true, state: 'listeners-verified', listeners });
     // Advisory only — never fails the loop. Metro silently disables file
     // watching under an explicit CI environment and cannot see edits under
@@ -2024,8 +2228,68 @@ export async function runExpoDev(options = {}) {
       });
     }
     const finalState = authority.status === 'ready' ? 'ready' : 'authority-required';
+    assertStartupActive();
+    if ((dev.child && (dev.child.exitCode !== null || dev.child.signalCode !== null))
+        || metro.child.exitCode !== null || metro.child.signalCode !== null) {
+      throw startupCriticalExit ?? diagnosticError(
+        'SNAPBACK_EXPO_CHILD_EXITED_DURING_STARTUP',
+        'a supervised child exited before Expo readiness could be published',
+      );
+    }
+    const finalProcessInventory = processTable();
+    const supervisorProcessIdentity = processIdentity(process.pid, finalProcessInventory);
+    const metroProcessIdentity = processIdentity(metro.child.pid, finalProcessInventory);
+    const backendProcessIdentity = processIdentity(backendPid, finalProcessInventory);
+    if (supervisorProcessIdentity === null
+        || metroProcessIdentity === null
+        || backendProcessIdentity === null) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_CHILD_EXITED_DURING_STARTUP',
+        'a supervised process identity disappeared before Expo readiness could be published',
+      );
+    }
+    const finalSupervisorTree = descendants(process.pid, finalProcessInventory);
+    if (!finalSupervisorTree.has(metro.child.pid)
+        || (dev.managed === true && !finalSupervisorTree.has(backendPid))) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_CHILD_OWNERSHIP_CHANGED',
+        'a supervised child left the supervisor process tree before readiness',
+      );
+    }
+    listeners = enumerateExpoOwnedListeners({ backendPid, metroPid: metro.child.pid });
+    const expectedListeners = [
+      { owner: 'backend', port: backendRoute.port },
+      { owner: 'metro', port: metroPort },
+      { owner: 'bootstrap', port: bootstrap.port },
+    ];
+    if (!expectedListeners.every(({ owner, port }) => (
+      listeners.some((listener) => (
+        listener.owner === owner
+          && listener.port === port
+          && listener.loopback === true
+          && typeof listener.startTime === 'string'
+          && listener.startTime.length > 0
+      ))
+    ))) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE',
+        'a supervised listener changed ownership before readiness publication',
+        { expected: expectedListeners, observed: listeners },
+      );
+    }
+    const metroListener = listeners.find((listener) => (
+      listener.owner === 'metro' && listener.port === metroPort
+    ));
+    const metroTree = descendants(metro.child.pid, finalProcessInventory);
+    if (!metroListener || !metroTree.has(metroListener.pid)) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_CHILD_OWNERSHIP_CHANGED',
+        'the admitted Metro listener no longer belongs to the Metro child tree',
+      );
+    }
     const metroReadiness = Object.freeze({
       pid: metro.child.pid,
+      startTime: metroProcessIdentity.startTime,
       origin: appOrigin(route.appHost, metroPort),
     });
     const bootstrapReadiness = Object.freeze({
@@ -2054,11 +2318,21 @@ export async function runExpoDev(options = {}) {
       correlationId,
       supervisorGeneration: generation,
       pid: process.pid,
+      supervisor: {
+        pid: process.pid,
+        startTime: supervisorProcessIdentity.startTime,
+      },
       platform: route.platform,
       connectCarrier: SUPERVISED_CONNECT_CARRIER,
       exchangeOrigin: bootstrap.origin,
       controlPath: SUPERVISED_CONTROL_PATH,
       metro: metroReadiness,
+      ...(metroAttestation === null ? {} : {
+        attestation: {
+          path: metroAttestation.path,
+          nonce: metroAttestation.nonce,
+        },
+      }),
       listeners,
       startedAt,
     }, null, 2)}\n`, { mode: 0o600 });
@@ -2066,38 +2340,12 @@ export async function runExpoDev(options = {}) {
     renameSync(supervisorDescriptorTemporaryFile, supervisorDescriptorFile);
     supervisorDescriptorTemporaryFile = null;
     emit(finalReadiness);
-
-    const close = () => {
-      if (closePromise !== null) return closePromise;
-      closePromise = (async () => {
-        closed = true;
-        const failures = [];
-        for (const path of [supervisorDescriptorFile, supervisorDescriptorTemporaryFile]) {
-          if (path === null) continue;
-          try { rmSync(path, { force: true }); } catch (error) { failures.push(error); }
-        }
-        try { forwarding?.remove?.(); } catch (error) { failures.push(error); }
-        try { await stopProcessGroup(metro?.child, { processGroup: true }); } catch (error) { failures.push(error); }
-        try { await bootstrap?.close?.(); } catch (error) { failures.push(error); }
-        try { await dev?.close?.(); } catch (error) { failures.push(error); }
-        checkoutRegistry?.invalidate();
-        checkoutRegistry = null;
-        checkoutNonce = null;
-        authority = null;
-        binding = null;
-        emit({ ok: failures.length === 0, state: 'closed', reclaimed: {
-          backend: dev?.managed === true,
-          metro: metro !== null,
-          bootstrap: bootstrap !== null,
-          portForwards: forwarding?.installed?.length ?? 0,
-        } });
-        if (failures.length > 0) {
-          throw new AggregateError(failures, 'Expo supervisor cleanup failed');
-        }
-      })();
-      return closePromise;
-    };
-    closeSupervisor = close;
+    // Give already-queued child exit/error notifications one turn to latch.
+    // A child that died before the descriptor publish/return boundary must
+    // turn startup into a refusal and remove that descriptor.
+    await new Promise((resolveTurn) => setImmediate(resolveTurn));
+    assertStartupActive();
+    startupPublished = true;
 
     return Object.freeze({
       schemaVersion: EXPO_DEV_EVENT_FORMAT,
@@ -2143,20 +2391,7 @@ export async function runExpoDev(options = {}) {
       close,
     });
   } catch (error) {
-    closed = true;
-    for (const path of [supervisorDescriptorFile, supervisorDescriptorTemporaryFile]) {
-      if (path === null) continue;
-      try { rmSync(path, { force: true }); } catch { /* original startup refusal wins */ }
-    }
-    try { forwarding?.remove?.(); } catch { /* original startup refusal wins */ }
-    try { await stopProcessGroup(metro?.child, { processGroup: true }); } catch { /* original startup refusal wins */ }
-    try { await bootstrap?.close?.(); } catch { /* original startup refusal wins */ }
-    try { await dev?.close?.(); } catch { /* original startup refusal wins */ }
-    checkoutRegistry?.invalidate();
-    checkoutRegistry = null;
-    checkoutNonce = null;
-    authority = null;
-    binding = null;
+    try { await closeSupervisor(); } catch { /* original startup refusal wins */ }
     emit({
       ok: false,
       state: 'startup-failed',

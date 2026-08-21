@@ -47,7 +47,7 @@ const metroScript = join(scratchRoot, 'headless-metro.mjs');
 const supervisors = [];
 
 writeFileSync(metroScript, `
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { getDefaultResultOrder } from 'node:dns';
 
@@ -69,6 +69,14 @@ writeFileSync(process.env.SNAPBACK_EXPO_TEST_SOURCE_MAP, JSON.stringify({
   mappings: '',
 }));
 const server = createServer((request, response) => {
+  if (request.url?.startsWith('/snapback-supervisor-attestation-')) {
+    const asset = new URL('.' + request.url, 'file://' + process.cwd() + '/public/');
+    if (existsSync(asset)) {
+      response.setHeader('content-type', 'text/plain');
+      response.end(readFileSync(asset));
+      return;
+    }
+  }
   response.setHeader('content-type', 'application/json');
   response.end(JSON.stringify({ ok: true, hmr: request.url === '/hmr' }));
 });
@@ -137,7 +145,6 @@ function fixture(name, { sessions }) {
   const backendRoot = join(projectRoot, 'snapback');
   const expoRoot = join(projectRoot, 'app');
   cpSync(sourceFixture, backendRoot, { recursive: true });
-  rmSync(join(backendRoot, 'generated'), { recursive: true, force: true });
   mkdirSync(expoRoot, { recursive: true });
   if (sessions) {
     const schemaPath = join(backendRoot, 'schema.mjs');
@@ -198,8 +205,12 @@ async function startFixture(target, options = {}) {
       NODE_OPTIONS: '--trace-warnings',
     },
     serverStdio: ['ignore', 'ignore', 'ignore'],
-    onEvent(event) { events.push(event); },
+    onEvent(event) {
+      events.push(event);
+      options.onEvent?.(event);
+    },
   });
+  assert.equal(supervisor.ok, true, JSON.stringify(supervisor));
   supervisors.push(supervisor);
   assert.deepEqual(
     snapshotEnvFiles(target.expoRoot),
@@ -421,6 +432,44 @@ try {
   )));
   await eventually(() => !existsSync(unsettled.readyFile), { label: 'unsettled ready-file cleanup' });
 
+  // A real Metro exit in the former post-inventory/pre-publish race must be
+  // latched as startup-fatal. Killing the admitted listener synchronously
+  // from the inventory event exercises the exact window without a mocked
+  // child or listener seam.
+  const startupExit = fixture('startup-exit', { sessions: true });
+  let killedStartupMetro = false;
+  await assert.rejects(
+    startFixture(startupExit, {
+      platform: 'web',
+      onEvent(event) {
+        if (killedStartupMetro || event.state !== 'listeners-verified') return;
+        const listener = event.listeners.find(({ owner }) => owner === 'metro');
+        assert.ok(listener?.pid);
+        killedStartupMetro = true;
+        process.kill(listener.pid, 'SIGKILL');
+      },
+    }),
+    (error) => {
+      assert([
+        'SNAPBACK_EXPO_METRO_EXITED',
+        'SNAPBACK_EXPO_CHILD_EXITED_DURING_STARTUP',
+        'SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE',
+      ].includes(error?.diagnostic?.code), error?.stack ?? String(error));
+      return true;
+    },
+  );
+  assert.equal(killedStartupMetro, true);
+  assert.equal(existsSync(join(dirname(startupExit.readyFile), 'expo-supervisor.json')), false);
+  await eventually(() => !existsSync(startupExit.readyFile), {
+    label: 'startup-critical backend cleanup',
+  });
+  assert.equal(existsSync(join(startupExit.expoRoot, 'public')), false);
+  if (process.argv.includes('--startup-exit-only')) {
+    console.log('expo-dev-loop.test.mjs: real post-inventory Metro exit is startup-fatal and fully reclaimed');
+    rmSync(scratchRoot, { recursive: true, force: true });
+    process.exit(0);
+  }
+
   // Settled Sessions mode: real mint, provider boot, canonical live/mutation/
   // presence owners, HMR-shaped reattachment, reconnect, and authority barrier.
   const settled = fixture('settled', { sessions: true });
@@ -440,12 +489,22 @@ try {
   assert.equal(supervisorDiscovery.state, 'ready');
   assert.equal(supervisorDiscovery.platform, 'web');
   assert.equal(supervisorDiscovery.pid, process.pid);
+  assert.equal(supervisorDiscovery.supervisor.pid, process.pid);
+  assert.equal(typeof supervisorDiscovery.supervisor.startTime, 'string');
+  assert.equal(typeof supervisorDiscovery.metro.startTime, 'string');
   assert.equal(supervisorDiscovery.metro.origin, supervisor.metroOrigin);
   assert(supervisorDiscovery.listeners.some((listener) => (
     listener.owner === 'metro'
       && listener.port === Number(new URL(supervisor.metroOrigin).port)
       && listener.loopback === true
+      && typeof listener.startTime === 'string'
   )));
+  assert.match(supervisorDiscovery.attestation.path, /^\/snapback-supervisor-attestation-/u);
+  assert.equal(supervisorDiscovery.attestation.nonce.length >= 32, true);
+  assert.equal(
+    await (await fetch(`${supervisor.metroOrigin}${supervisorDiscovery.attestation.path}`)).text(),
+    `${supervisorDiscovery.attestation.nonce}\n`,
+  );
   assertListenerInventory(supervisor);
   assert.equal(supervisor.binding.source, 'supervised-dev');
   assert.equal(supervisor.binding.integrity.channel, 'local-supervised-ipc');
@@ -753,6 +812,7 @@ try {
     () => !existsSync(supervisorDescriptor),
     { label: 'settled supervisor descriptor cleanup' },
   );
+  assert.equal(existsSync(join(settled.expoRoot, 'public')), false);
   await eventually(() => !existsSync(settled.readyFile), { label: 'settled ready-file cleanup' });
 
   // Exercise the packaged command wiring and signal path, not only the
@@ -827,6 +887,8 @@ try {
 
   console.log('expo-dev-loop.test.mjs: zero-write rendezvous carrier, transient descriptor, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement, leak matrix, and strict cleanup pass');
 } finally {
-  await Promise.allSettled(supervisors.map((supervisor) => supervisor.close()));
+  await Promise.allSettled(supervisors.flatMap((supervisor) => (
+    typeof supervisor?.close === 'function' ? [supervisor.close()] : []
+  )));
   rmSync(scratchRoot, { recursive: true, force: true });
 }

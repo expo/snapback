@@ -6,6 +6,15 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-21 (u) — Hardens the supervised browser carrier at its
+last-use boundary: the readiness descriptor binds supervisor, Metro child,
+and admitted listener to PID/start-time identities; the carrier re-enumerates
+that ownership immediately before Chrome starts and verifies a run-specific
+nonce through the exact Metro origin after navigation. The supervisor installs
+its carrier parent lease before starting any child, latches startup-critical
+child exits through atomic readiness publication, and reclaims process groups
+even after their leaders exit. Repeated termination signals remain owned until
+cleanup completes.;
 **Revised:** 2026-08-21 (t) — Native auth storage-partition identity now uses a
 provider-owned, SHA-256-only `expo-crypto` adapter over the common application
 client's canonical UTF-8 bytes. The adapter exposes no randomness capability;
@@ -729,6 +738,24 @@ supervised exchange, and the CLI emits a coded advisory for that recognizable
 mistake. The browser CORS, AppState, asset-source, and binding-admission
 boundaries remain the package contract; this selection adds no LAN/public
 listener or alternate binding format.
+
+The browser director treats readiness as a last-use capability, not a durable
+claim about a port. The supervisor descriptor records PID/start-time identities
+for the supervisor, Metro child, and exact listener. Immediately before Chrome
+launch, the director re-enumerates the live process tree and listener owner and
+requires those identities to remain unchanged. The supervisor also places an
+unguessable, run-specific attestation asset on the Metro-served origin; after
+navigation the director fetches it from the launched page's exact origin over
+the DevTools channel and compares the supervisor-known nonce. A listener that
+takes over the port after descriptor publication therefore cannot silently
+satisfy browser acceptance.
+
+The supervisor installs a PID/start-time parent lease before it starts any
+owned child. Loss of the carrier latches a critical exit and reclaims the
+backend, Metro, bootstrap exchange, descriptor, and attestation. Shutdown owns
+recorded process groups even when a group leader has already exited, escalates
+stubborn descendants, and consumes repeated termination signals until cleanup
+has completed.
 
 ### Real devices in the baseline
 

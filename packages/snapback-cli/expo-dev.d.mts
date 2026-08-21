@@ -6,6 +6,8 @@ export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH: '/_snapback/expo/v1/dev-iden
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER: 'x-snapback-dev-identity-checkout';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV: 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE';
 export const METRO_WATCH_BLIND_ROOTS: readonly string[];
+export const SUPERVISOR_PARENT_PID_ENV: 'SNAPBACK_EXPO_SUPERVISOR_PARENT_PID';
+export const SUPERVISOR_PARENT_START_TIME_ENV: 'SNAPBACK_EXPO_SUPERVISOR_PARENT_START_TIME';
 
 export function expoSupervisorChildEnvironment(
   env?: Readonly<Record<string, string | undefined>>,
@@ -108,10 +110,10 @@ export function startBootstrapExchange(
   }>,
 ): Promise<BootstrapExchangeHandle>;
 
-export type ExpoDevicePlatform = 'ios' | 'android';
+export type ExpoDevicePlatform = 'ios' | 'android' | 'web';
 export type AndroidExpoTransport = 'adb-reverse' | 'emulator-host-alias';
 export type AndroidAdbDeviceClass = 'emulator' | 'usb' | 'tcpip';
-export type ExpoDeviceClass = 'simulator' | 'emulator' | 'usb';
+export type ExpoDeviceClass = 'simulator' | 'emulator' | 'usb' | 'browser';
 
 export interface ExpoDeviceIdentity {
   readonly serial: string | null;
@@ -163,7 +165,14 @@ export interface ExpoOwnedListener {
   readonly host: string;
   readonly port: number;
   readonly loopback: boolean;
+  readonly startTime: string | null;
 }
+
+export function startExpoSupervisorParentLease(options?: Readonly<{
+  env?: Readonly<Record<string, string | undefined>>;
+  onLost?: (error: Error) => void;
+  intervalMs?: number;
+}>): Readonly<{ pid: number; startTime: string; close(): void }> | null;
 
 export function createExpoRoutingPlan(options: Readonly<{
   platform?: ExpoDevicePlatform;

@@ -76,19 +76,23 @@ point at the authoritative LLP 0146 D2 receipt and explicitly remains a
 non-claim.
 
 The focused carrier suite covers selected-origin propagation without logs,
-stale supervisor refusal before HTTP, fixed-origin Vite preservation, retained
-read/write DOM, and complete supervisor/browser/profile/readiness cleanup on
-success, startup timeout, refusal, and an active-browser signal. The supervised
-Expo descriptor assertions are also part of the existing Expo dev-loop suite.
+stale supervisor refusal before HTTP, a real post-publication port takeover,
+fixed-origin Vite preservation, retained read/write DOM, and complete
+supervisor/browser/profile/readiness cleanup on success, startup timeout,
+refusal, and repeated signals. Real descendants cover a supervisor leader
+SIGKILL before descriptor publication, a stubborn grandchild that requires
+group escalation, and carrier SIGKILL followed by supervisor parent-lease
+reclamation. The Expo dev-loop suite also kills Metro after listener inventory
+but before publication and proves that startup refuses and removes readiness.
 
 Fresh `expo-chat` and `media-feed` scaffolds were materialized outside the
-monorepo from locally packed Snapback tarballs and passed their static suites.
-The exact `npm run carry:web-browser` commands were attempted for both, but this
-sandbox cannot complete the packed dependency install from the network and
-forbids loopback `listen(2)` with `EPERM`; consequently the full Metro/Chrome
-journeys were not observable in this environment. The package-local lifecycle
-suite uses injected HTTP plus real child processes and the structured
-DevTools-pipe protocol seam to cover those branches without weakening the
-production path.
+monorepo from the final 12-package closure and passed their static suites under
+Node 24. Both exact `npm run carry:web-browser` commands then passed with real
+Snapback, Expo/Metro, and Chrome processes. Expo Chat retained its seeded
+conversation plus a newly sent message; Media Feed retained seeded notes plus
+a newly uploaded and published entry. Each director log records a verified
+same-origin run attestation, read/write observation, and complete child,
+readiness, and browser-profile cleanup. Neither run emitted
+`SNAPBACK_APP_BINDING_UNAVAILABLE` nor the supervisor-bypassed advisory.
 
-landing SHA: 
+initial landing SHA: f9dc679e004f58c101de9d965439117222b4aa5e
