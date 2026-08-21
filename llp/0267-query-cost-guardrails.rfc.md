@@ -5,7 +5,14 @@
 **Systems:** Live queries, Relational queries, Performance, Diagnostics, Schema
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-21 (v0.8 — §7 revision round from the dual xhigh
+**Revised:** 2026-08-21 (v0.9 — §7 round-3 delta review: retention becomes a
+distinct `QueryCostObservationInspectV1` projection so §1.1's closed
+invariants are untouched; caller-influencable identifiers pseudonymized on
+every snapshot; collision-free subscription-id → registry → `waveSeq` join
+with the `LIVE(version)` domain pinned; `pendingDeliveryReason` made a
+derived inspect-time join result; delivery-lag scalar pinned to the most
+recent covered commit; hash availability claim corrected).
+2026-08-21 (v0.8 — §7 revision round from the dual xhigh
 review: budget wording consumes D0.5 verbatim, byte-accounted rings and
 capped counter maps, gated-only surfaces with D0.5 tuple projection, §5
 canonical-args hash reuse with honest fingerprint framing, server/client
@@ -635,46 +642,62 @@ implementation tickets may not do it.
 `planIdentity`, table/index/node ids, typed diagnostic codes, counts,
 durations, and monotonic/wall timestamps. They must never carry arguments,
 literal endpoints, row contents, row ids, principals, tokens, or application
-values. The retained `QueryCostObservationV1` (§7.3) is the §1.1 record with
-`fixtureIdentity` projected to `null` — that field is qualification storage
-only and never enters the recorder. Where a record family joins the D0.5
-inspection carrier, the D0.5 **ownership tuple is projected, not copied**:
-settled authority appears as its authority class, never a principal
-identity, and the server-origin component appears as the instance's own
-identity, never a literal URL; D0.5's sharing key itself is unchanged.
-Two gated-surface-only extensions beyond §1.1's public-diagnostic rule,
-each admitted because the identity is framework-minted rather than an
-application value, and each confined to the gated/in-process surfaces
+values. Query-cost retention keeps not the closed §1.1 record but its
+bounded inspection projection (§7.3, `QueryCostObservationInspectV1`),
+which drops `fixtureIdentity` entirely — that field is qualification
+storage only and never enters the recorder. Where a record family joins
+the D0.5 inspection carrier, the D0.5 **ownership tuple is projected, not
+copied**: settled authority appears as its authority class, never a
+principal identity, and the server-origin component appears as the
+instance's own identity, never a literal URL; D0.5's sharing key itself is
+unchanged. Two gated-surface-only extensions beyond §1.1's
+public-diagnostic rule, each confined to the gated/in-process surfaces
 above (never `PublicInspect`, and reverting to §1.1's stricter public rule
 at any future export boundary):
 
-- (a) framework-minted correlation identities the inspected client already
-  holds — `clientMutationId` (client-minted), subscription id, connection
-  id, the framework's opaque asset id, and the D0.5 owner label (provider
-  cell, hook, view, or headless caller; LLP 0095 inspection floor). Owner
-  labels are framework-assigned surface labels — component, hook, or cell
-  identifiers — and implementations must not embed argument or row values
-  in them.
-- (b) an args **hash** for equivalence counting (§§7.5–7.6): the same
-  host-computed canonical-args hash the §5 window ledger already binds
-  cursors to — no second algorithm. This hash is non-invertible only for
-  high-entropy arguments; for low-entropy arguments (row ids, principals
-  appearing in args) it is a stable **fingerprint**, which is exactly why
-  it is admitted only on the gated/local surface and forbidden on any
-  public or exported surface. Raw args remain forbidden everywhere.
+- (a) correlation identities, split by **who can influence the string**.
+  Framework-minted identities — subscription id, server-minted connection
+  id (`sct_`-granted lineage, LLP 0031), the framework's opaque asset id —
+  appear verbatim. **Caller-influencable** identities cannot be trusted to
+  be value-free: `clientMutationId` is caller-suppliable on the client
+  surface, and trusted-local profiles may adopt caller-suggested
+  connection ids verbatim (LLP 0031 D3), so either may embed application
+  values. Every snapshot therefore projects caller-influencable
+  identifiers to **stable inspection-only pseudonyms** — the (b) hash of
+  the identifier string — never the raw string; the pseudonym is stable
+  across both sides' snapshots, so joins by `clientMutationId` still work
+  (both sides project identically), while an id like
+  `save-<user-email>-draft` never appears in a snapshot. In-memory
+  records may hold the raw id; the projection applies at every snapshot
+  boundary. The D0.5 owner label is framework-assigned (component, hook,
+  or cell identifiers; LLP 0095 inspection floor) and appears verbatim;
+  implementations must not embed argument or row values in labels, and a
+  label sourced from caller-provided text is caller-influencable and
+  projects like one.
+- (b) a canonicalization **hash** for equivalence counting (§§7.5–7.6) and
+  the pseudonym projection in (a): the same canonical-JSON hash
+  **algorithm** the §5 window ledger binds cursors to — no second
+  algorithm. This hash is non-invertible only for high-entropy inputs; for
+  low-entropy inputs (row ids, principals appearing in args) it is a
+  stable **fingerprint**, which is exactly why it is admitted only on the
+  gated/local surface and forbidden on any public or exported surface.
+  Raw args remain forbidden everywhere.
 
 **Bounded storage.** No unbounded accumulation anywhere, in records or
 keys:
 
 - Exactly **three ring families** exist (client `MutationPhaseCostV1`,
-  server retained `QueryCostObservationV1`, server `LiveDeliveryWaveV1`;
+  server `QueryCostObservationInspectV1`, server `LiveDeliveryWaveV1`;
   §§7.4–7.6 are joins and counters, not rings). Each ring is bounded by
   **both** a record count (default 512) and a per-family byte budget whose
   sum is the recorder total (default at most 4 MiB); admission is
-  byte-accounted against the family budget. Variable-size components
-  (`accessPathConsultations`, owner-label lists) are truncated at a fixed
-  per-record cap with a visible `truncated` marker; a record still larger
-  than its family budget is dropped, never admitted. Overflow evicts
+  byte-accounted against the family budget. Ring records are **inspection
+  projections, never the closed §1–§5 records themselves**: a projection
+  type bounds its own variable-size components (a fixed retained-sample
+  cap plus total-count fields and a truncation flag, §7.3), so §1.1's
+  closed-record invariants are never violated by truncation — the closed
+  record is complete or it is not retained. A projection still larger than
+  its family budget is dropped whole, never admitted. Overflow evicts
   oldest, never blocks, and increments a per-family `droppedRecords`
   counter (oversize drops included) so absence of a record is itself
   diagnosable. These caps are recorder storage bounds for this diagnostics
@@ -694,12 +717,15 @@ keys:
   invariant is counters-exact, details-sampled — a count is never wrong,
   a detail record may be missing.
 - Overhead: recording is constant-bounded field capture per event — field
-  copies plus, where an equivalence key is needed, the §5 canonical-args
-  hash the host computes anyway for cursor binding (bounded by the
-  already-enforced args size) — with no snapshot serialization on the hot
-  path. A disabled recorder (hosted default) is a branch, not a buffer.
-  The recorder defaults on under `snapback dev` and off under serving;
-  enabling it in serving is an explicit instance flag.
+  copies plus, where an equivalence key or pseudonym is needed, one
+  canonicalization hash. The **algorithm** is §5's; the value is reused
+  where a keyset path computed it already, and computed fresh on paths
+  that never had one (mutation enqueues, non-pageable subscriptions) —
+  there its cost is bounded by the already-enforced args/identifier size.
+  No snapshot serialization happens on the hot path. A disabled recorder
+  (hosted default) is a branch, not a buffer. The recorder defaults on
+  under `snapback dev` and off under serving; enabling it in serving is an
+  explicit instance flag.
 
 ### 7.2 Mutation phase visibility (consumes LLP 0059 ruling 6 — decided)
 
@@ -727,12 +753,13 @@ pre-transport refusal, stranded/deleted custody, or a still-pending phase):
 
 Delivery lag is deliberately **not** a field of the per-mutation record: it
 is subscription-scoped and lives only on the §7.4 subscription inspection
-row, defined there as client-clock time from the client's observation of the
-committed disposition to its observation of the **first** delivery whose
-`authoritativeRevision` covers that commit — both endpoints are
-client-observed events on one clock, so no cross-clock subtraction against
-server timestamps is implied, and later waves never inflate earlier
-mutations.
+row. Per covered commit it is client-clock time from the client's
+observation of that commit's settled disposition to its observation of the
+**first** delivery whose `authoritativeRevision` covers it — both endpoints
+are client-observed events on one clock, so no cross-clock subtraction
+against server timestamps is implied, and later waves never inflate earlier
+mutations. The row stores one scalar: the lag of the **most recent covered
+commit** (recomputed at each delivery); per-commit history is not retained.
 
 The client recorder retains one ring record per settled mutation:
 
@@ -754,6 +781,9 @@ type MutationPhaseCostV1 = Readonly<{
 }>
 ```
 
+(`clientMutationId` is caller-influencable and appears in any snapshot only
+as its §7.1 pseudonym, never raw)
+
 plus per-function monotone counters (count, max/total per phase). The
 per-mutation detail is client-retained only: ruling 6 already carries the
 server-settled timestamps to the client on the disposition union, so a
@@ -769,20 +799,52 @@ undifferentiated "pending" (ruling 6's closing invariant).
 §1's `QueryCostObservationV1` already measures examined rows
 (`scannedRows`, per-consultation `examinedEntries`), result rows/bytes, and
 per-kind timing. W5 adds **bounded local retention** of recent observations
-(one ring, §7.1, with `fixtureIdentity` projected to `null`) so a developer
-can read the last N observations per function without qualification tooling
-— and one **new sibling record** for the facts §1 does not carry, the
-delivery/rerun side. This record is **server-owned**: it is emitted in the
-serving process at the §1.5 boundaries and appears only on the server
+so a developer can read the last N per function without qualification
+tooling. The ring does **not** retain the closed §1.1 record — §1.1's
+invariants (every consultation present, `indexRangeCount ==
+accessPathConsultations.length`, `scannedRows` the checked sum) admit no
+truncation — but a distinct bounded inspection projection:
+
+```ts
+type QueryCostObservationInspectV1 = Readonly<{
+  format: "snapback.query-cost-observation-inspect.v1"
+  // every §1.1 scalar field verbatim (functionId … targetWork), except:
+  // - no fixtureIdentity field at all (qualification storage only)
+  // - accessPathConsultations is replaced by the bounded view below
+  consultationSample: readonly AccessPathConsultationV1[] // first K, K=16
+  totalConsultations: number         // == the observation's indexRangeCount
+  consultationsTruncated: boolean    // totalConsultations > sample length
+}>
+```
+
+The scalar totals (`scannedRows`, `indexRangeCount`, timing) remain exact
+even when the sample is truncated; §1.1's invariants are statements about
+the complete underlying observation, which qualification keeps owning —
+this projection never feeds qualification or policy.
+
+W5 also adds one **new sibling record** for the facts §1 does not carry,
+the delivery/rerun side. This record is **server-owned**: it is emitted in
+the serving process at the §1.5 boundaries and appears only on the server
 snapshot. Client-observed facts (consumer dedup, delivery lag) live on the
-§7.4 client inspection row; the developer-side join key between the two
-snapshots is (`functionId`, delivered version ↔ the client row's
-`authoritativeRevision`), and no wire carrier moves either record to the
-other side.
+§7.4 client inspection row, and no wire carrier moves either record to the
+other side. The **join** is collision-free by construction: each wave gets
+a process-monotone `waveSeq`; the server snapshot's per-subscription
+registry rows (the server half of the D0.5 enumeration) carry
+(subscription id, `lastDeliveredWaveSeq`, `lastDeliveredVersion`); the
+client row and the server registry row share the **subscription id** —
+already a shared identity on both sides of the shipped protocol — so
+tooling joins client row → server registry row → `waveSeq` → wave record,
+never by the ambiguous (`functionId`, version) pair. Every version in this
+system (`deliveredVersion`, `coveredVersions`, the client row's
+`authoritativeRevision`, D0.5's held snapshot version) is the LLP 0095
+§1.3 `LIVE(version)` **storage commit version** — not the same-named
+client-local optimistic counter in
+`packages/snapback-client/external-store.mjs`.
 
 ```ts
 type LiveDeliveryWaveV1 = Readonly<{
   format: "snapback.live-delivery-wave.v1"
+  waveSeq: number                    // process-monotone; the join anchor
   functionId: string
   planIdentity: string | null
   rerunCause:                        // primary trigger class, precedence =
@@ -793,7 +855,7 @@ type LiveDeliveryWaveV1 = Readonly<{
   coalesced: boolean                 // this wave flushed a merged frame
   coveredVersions:                   // commit versions this wave covers
     Readonly<{ first: number; last: number }> | null
-  deliveredVersion: number | null    // version delivered; the join key
+  deliveredVersion: number | null    // LIVE storage commit version delivered
   subscriberCount: number            // observers registered at the wave
   distinctEvaluationGroups: number   // observed groups (G1 memo key)
   realEvaluations: number            // real §1.5 turns in this wave
@@ -839,20 +901,25 @@ pre-refusal warning (LLP 0278/0095). None of that is re-decided.
 W5 adds the **client-owned cost fields** on that row — each one an event the
 client itself observes, so no server→client cost carrier is implied:
 `lastDeliveryAtMs` and `authoritativeRevision` (ruled, LLP 0059 ruling 6),
-`deliveryLagMs` (defined in §7.2: first covering delivery, client clock),
-the `suppressedEqualSnapshots` counter (LLP 0278 consumer-notification
-dedup — the suppression happened in this process), and the
-`pendingDeliveryReason` field below. Server wave facts are **not** copied
-onto the row; the developer joins them from the server snapshot by
-(`functionId`, `deliveredVersion` ↔ `authoritativeRevision`) (§7.3).
+`deliveryLagMs` (defined in §7.2: first covering delivery, client clock,
+scalar = most recent covered commit), and the `suppressedEqualSnapshots`
+counter (LLP 0278 consumer-notification dedup — the suppression happened in
+this process). Server wave facts are **not** copied onto the row; tooling
+joins them from the server snapshot by subscription id → registry row →
+`waveSeq` (§7.3).
 
-The D0.5 answerability requirement becomes checkable as a closed rule. A
-subscription is **owed a delivery** when the joined snapshots show a
-committed version, invalidating that subscription, newer than the row's
-`authoritativeRevision`. For every owed delivery, the row's
-`pendingDeliveryReason` (nullable; `null` iff nothing is owed) names exactly
-one member of this closed enum, assigned by first match in this precedence
-order:
+The D0.5 answerability requirement becomes checkable as a closed rule over
+that join. `pendingDeliveryReason` is **not a stored field on either side**
+— the client cannot know owed-ness or server execution state, and the
+server cannot know client hold states, without the carrier this amendment
+disclaims. It is a **derived result of the inspect-time join**: the
+CLI/tooling that reads both gated snapshots computes it, normatively, as
+follows. A subscription is **owed a delivery** when the server snapshot
+shows a committed `LIVE(version)` invalidating that subscription newer
+than the client row's `authoritativeRevision`. For every owed delivery the
+joined view derives exactly one member of this closed enum — candidates
+1–5 read from the client row's ruled state, member 6 and owed-ness from
+the server snapshot — assigned by first match in this precedence order:
 
 1. `terminal-quarantine` — §3.4 retired handle; detail carries the
    terminal code;
@@ -952,11 +1019,13 @@ emit only on the gated/local surfaces; no new error/refusal codes.
    (`queueWaitMs` vs `authWaitMs` vs `executionMs` vs `commitMs`). No source
    inspection, no empirical timeout.
 2. *Stalled live projection.* The D0.5 inspection row names owner, state,
-   held snapshot version, auth-barrier/readiness, and — when a delivery is
-   owed — exactly one `pendingDeliveryReason` per §7.4's precedence rule;
-   a dedup-suppressed value-equal delivery shows as an advanced revision
+   held snapshot version, and auth-barrier/readiness; the inspect-time join
+   over both gated snapshots derives — when a delivery is owed — exactly
+   one `pendingDeliveryReason` per §7.4's precedence rule; a
+   dedup-suppressed value-equal delivery shows as an advanced revision
    plus the suppression counter, not a miss; the joined §7.3 wave record
-   shows the wave's cause, coverage, and fan-out.
+   (subscription id → registry row → `waveSeq`) shows the wave's cause,
+   coverage, and fan-out.
 
 **Guide.** The §4.2 page (`guide/backend/query-costs.md`) gains a
 cost-snapshot section teaching how to read the gated snapshot and both
@@ -969,13 +1038,20 @@ page.
   vocabulary output, not log text;
 - redaction: a captured gated snapshot under adversarial values contains no
   argument, row content, row id, principal, token, literal endpoint, or
-  `fixtureIdentity`; owner labels contain no application values; the D0.5
-  tuple appears only in its §7.1 projection; `PublicInspect` gains no cost
-  field at all;
+  `fixtureIdentity`; **caller-supplied identifiers** (a `clientMutationId`
+  and a trusted-local suggested connection id, each seeded with an
+  application value) appear only as their §7.1 pseudonyms, never raw;
+  owner labels contain no application values; the D0.5 tuple appears only
+  in its §7.1 projection; `PublicInspect` gains no cost field at all;
 - bounds: ring record/byte caps honored with per-family `droppedRecords`
-  and `truncated` visible; counter-map key caps honored with `otherKeys`/
-  `evictedKeys` visible and totals exact; counters monotone and exact under
-  detail sampling; recorder-off is a no-op branch;
+  and `consultationsTruncated` visible with exact scalar totals;
+  counter-map key caps honored with `otherKeys`/`evictedKeys` visible and
+  totals exact; counters monotone and exact under detail sampling;
+  recorder-off is a no-op branch;
+- join: the subscription-id → registry-row → `waveSeq` join resolves
+  uniquely with two subscriptions on one function at the same delivered
+  version (distinct args/owners), and the derived `pendingDeliveryReason`
+  is reproducible from the two snapshots alone;
 - §7.5/§7.6: no-op-commit, equivalent-enqueue, duplicate-subscription, and
   asset-multiplicity counters each triggered and attributed to owner labels;
 - posture: hosted-default-off proven; no export path exists to test;
@@ -1000,6 +1076,24 @@ it adds a visibility surface and deliberately adds no bounds surface.
 
 ## Revision history
 
+- **v0.9 (2026-08-21).** §7 round-3 delta review (codex remaining items 1–4;
+  grok round-4 pins 1–3): (1) bounded retention no longer truncates the
+  closed §1.1 record — a distinct `QueryCostObservationInspectV1` projection
+  carries a consultation sample plus exact totals and a truncation flag,
+  and `fixtureIdentity` has no field at all; (2) correlation identities
+  split by influencability — caller-suppliable `clientMutationId` and
+  trusted-local suggested connection ids are projected to stable
+  inspection-only pseudonyms at every snapshot boundary, with an
+  adversarial caller-supplied-ID fixture; (3) the cross-snapshot join is
+  subscription id → server registry row (`lastDeliveredWaveSeq`,
+  `lastDeliveredVersion`) → process-monotone `waveSeq`, replacing the
+  ambiguous (`functionId`, version) pair; all versions pinned to LLP 0095
+  §1.3 `LIVE(version)` storage commit versions (not the client-local
+  counter of the same name); `pendingDeliveryReason` is a derived result of
+  the inspect-time join over both gated snapshots, stored on neither side;
+  `deliveryLagMs` scalar pinned to the most recent covered commit; (4) the
+  §5 hash claim reduced to algorithm reuse — the value is computed fresh on
+  paths that never had a cursor.
 - **v0.8 (2026-08-21).** §7 revision round resolving the codex/grok xhigh
   reviews (5 MAJOR, 10 MINOR/NIT): 16-per-view budget warns only (D0.5
   consumed, not re-decided); storage bound made real (byte-accounted ring
