@@ -1,4 +1,5 @@
 export const EXPO_DEV_EVENT_FORMAT: 'snapback.expo-dev.v1';
+export const EXPO_SUPERVISOR_DESCRIPTOR_FORMAT: 'snapback.expo-supervisor.v1';
 export const SUPERVISED_EXCHANGE_FORMAT: 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH: '/_snapback/expo/v1/bootstrap';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH: '/_snapback/expo/v1/dev-identity-checkout';

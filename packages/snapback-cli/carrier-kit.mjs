@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import {
   createWriteStream,
   existsSync,
@@ -19,6 +20,7 @@ export const TEMPLATE_CARRIER_CONFIG_SCHEMA_VERSION = 'snapback.template-carrier
 export const TEMPLATE_CARRIER_LOG_SCHEMA_VERSION = 'snapback.template-carrier-director.v1';
 
 const CARRIERS = new Set(['headless', 'web-browser', 'native-simulator']);
+const OWNED_PROCESS_CLOSE = new WeakMap();
 const PLIST_UPDATE_SOURCE = String.raw`
 import json
 import plistlib
@@ -66,6 +68,54 @@ function validateRelativePath(value, label) {
   return value;
 }
 
+function validateArtifactPathTemplate(value, label) {
+  if (typeof value !== 'string' || !value.startsWith('{artifacts}/')) {
+    throw new TypeError(`${label} must be a path below {artifacts}`);
+  }
+  const segments = value.slice('{artifacts}/'.length).split('/');
+  if (segments.some((segment) => segment.length === 0 || segment === '.' || segment === '..')) {
+    throw new TypeError(`${label} must stay below {artifacts}`);
+  }
+  return value;
+}
+
+function loopbackHttpOrigin(value, label) {
+  let origin;
+  try {
+    origin = new URL(value);
+  } catch {
+    throw new TypeError(`${label} must be an absolute URL`);
+  }
+  const hostname = origin.hostname.toLowerCase().replace(/^\[|\]$/gu, '');
+  if (origin.protocol !== 'http:'
+      || !['127.0.0.1', 'localhost', '::1'].includes(hostname)
+      || origin.username
+      || origin.password
+      || origin.pathname !== '/'
+      || origin.search
+      || origin.hash) {
+    throw new TypeError(`${label} must be a credential-free loopback HTTP origin`);
+  }
+  return origin;
+}
+
+function validateBrowserExpression(value, label) {
+  if (typeof value !== 'string' || value.trim().length === 0 || value.length > 64 * 1024) {
+    throw new TypeError(`${label} must be a non-empty JavaScript expression of at most 65536 characters`);
+  }
+  return value;
+}
+
+function validateDomText(value, label) {
+  if (!Array.isArray(value)
+      || value.length === 0
+      || value.length > 16
+      || value.some((marker) => typeof marker !== 'string' || marker.length === 0 || marker.length > 256)) {
+    throw new TypeError(`${label} must contain 1 through 16 bounded strings`);
+  }
+  return Object.freeze([...value]);
+}
+
 export function defineTemplateCarrierConfig(value) {
   if (!plainObject(value)
       || value.schemaVersion !== TEMPLATE_CARRIER_CONFIG_SCHEMA_VERSION) {
@@ -90,18 +140,56 @@ export function defineTemplateCarrierConfig(value) {
       continue;
     }
     if (name === 'web-browser') {
-      let origin;
-      try {
-        origin = new URL(options.origin);
-      } catch {
-        throw new TypeError('web-browser origin must be an absolute URL');
+      const hasStaticOrigin = options.origin !== undefined;
+      const hasStructuredReadiness = options.structuredReadiness !== undefined;
+      if (hasStaticOrigin === hasStructuredReadiness) {
+        throw new TypeError('web-browser must declare exactly one of origin or structuredReadiness');
       }
-      if (origin.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(origin.hostname)) {
-        throw new TypeError('web-browser origin must be loopback HTTP');
+      const origin = hasStaticOrigin
+        ? loopbackHttpOrigin(options.origin, 'web-browser origin').href
+        : null;
+      let structuredReadiness = null;
+      if (hasStructuredReadiness) {
+        if (!plainObject(options.structuredReadiness)
+            || options.structuredReadiness.kind !== 'expo-supervisor') {
+          throw new TypeError('web-browser structuredReadiness kind must be expo-supervisor');
+        }
+        structuredReadiness = Object.freeze({
+          kind: 'expo-supervisor',
+          file: validateArtifactPathTemplate(
+            options.structuredReadiness.file,
+            'web-browser structuredReadiness file',
+          ),
+        });
+      }
+      let browserJourney = null;
+      if (options.browserJourney !== undefined) {
+        if (!plainObject(options.browserJourney)) {
+          throw new TypeError('web-browser browserJourney must be an object');
+        }
+        browserJourney = Object.freeze({
+          readyExpression: validateBrowserExpression(
+            options.browserJourney.readyExpression,
+            'web-browser browserJourney readyExpression',
+          ),
+          runExpression: validateBrowserExpression(
+            options.browserJourney.runExpression,
+            'web-browser browserJourney runExpression',
+          ),
+          requiredDomText: validateDomText(
+            options.browserJourney.requiredDomText,
+            'web-browser browserJourney requiredDomText',
+          ),
+          forbiddenDomText: validateDomText(
+            options.browserJourney.forbiddenDomText,
+            'web-browser browserJourney forbiddenDomText',
+          ),
+        });
       }
       carriers[name] = Object.freeze({
         command: validateCommand(options.command, 'web-browser command'),
-        origin: origin.href,
+        ...(origin === null ? { structuredReadiness } : { origin }),
+        ...(browserJourney === null ? {} : { browserJourney }),
         startupTimeoutMs: positiveBoundedInteger(
           options.startupTimeoutMs ?? 60_000,
           'web-browser startupTimeoutMs',
@@ -247,6 +335,10 @@ function expandedCommand(command, replacements) {
   }));
 }
 
+function expandedValue(value, replacements) {
+  return expandedCommand([value], replacements)[0];
+}
+
 function writeDirectorLog(artifacts, record) {
   mkdirSync(artifacts, { recursive: true });
   const path = join(artifacts, 'director-log.json');
@@ -271,46 +363,96 @@ function verifyScaffold(config, root) {
   return receiptPath;
 }
 
-function startOwned(command, { cwd, env, logPath }) {
-  const log = createWriteStream(logPath, { flags: 'a', mode: 0o600 });
+function startOwned(command, {
+  cwd,
+  env,
+  logPath = null,
+  stdio = ['ignore', 'pipe', 'pipe'],
+} = {}) {
+  const log = logPath === null ? null : createWriteStream(logPath, { flags: 'a', mode: 0o600 });
   const [executable, ...args] = command;
   const child = spawn(executable, args, {
     cwd,
     env,
     detached: process.platform !== 'win32',
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio,
   });
-  child.stdout.pipe(log);
-  child.stderr.pipe(log);
-  child.once('close', () => log.end());
+  if (log !== null) {
+    child.stdout.pipe(log);
+    child.stderr.pipe(log);
+    child.once('close', () => log.end());
+  }
+  OWNED_PROCESS_CLOSE.set(child, new Promise((resolveClose) => child.once('close', resolveClose)));
   return child;
 }
 
-async function stopOwned(child) {
-  if (child.exitCode !== null) return;
+function signalOwned(child, signal) {
+  if (child.pid === undefined) return;
   if (process.platform !== 'win32') {
-    try { process.kill(-child.pid, 'SIGTERM'); } catch { child.kill('SIGTERM'); }
-  } else child.kill('SIGTERM');
-  const closed = new Promise((resolveClose) => child.once('close', resolveClose));
+    try { process.kill(-child.pid, signal); } catch { child.kill(signal); }
+  } else child.kill(signal);
+}
+
+async function stopOwned(child) {
+  const closed = OWNED_PROCESS_CLOSE.get(child)
+    ?? new Promise((resolveClose) => child.once('close', resolveClose));
+  if (child.exitCode !== null || child.signalCode !== null) {
+    await closed;
+    return;
+  }
+  signalOwned(child, 'SIGTERM');
   const graceful = await Promise.race([
     closed.then(() => true),
     new Promise((resolveWait) => setTimeout(() => resolveWait(false), 10_000)),
   ]);
   if (!graceful && child.exitCode === null) {
-    if (process.platform !== 'win32') {
-      try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); }
-    } else child.kill('SIGKILL');
+    signalOwned(child, 'SIGKILL');
     await closed;
   }
 }
 
-async function waitForHttp(origin, timeoutMs, child) {
+function createSignalInterruption() {
+  let interrupted = null;
+  let resolveInterruption;
+  const interruption = new Promise((resolveInterrupt) => {
+    resolveInterruption = resolveInterrupt;
+  });
+  const handlers = new Map();
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+    const handler = () => {
+      if (interrupted !== null) return;
+      const error = new Error(`web carrier interrupted by ${signal}`);
+      error.carrierStatus = 'interrupted';
+      error.signal = signal;
+      interrupted = error;
+      resolveInterruption(error);
+    };
+    handlers.set(signal, handler);
+    process.once(signal, handler);
+  }
+  return Object.freeze({
+    race(operation) {
+      if (interrupted !== null) return Promise.reject(interrupted);
+      return Promise.race([
+        operation,
+        interruption.then((error) => Promise.reject(error)),
+      ]);
+    },
+    close() {
+      for (const [signal, handler] of handlers) process.off(signal, handler);
+    },
+  });
+}
+
+async function waitForHttp(origin, timeoutMs, child, fetchImpl = fetch) {
   const deadline = Date.now() + timeoutMs;
   let lastError = null;
   while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`web carrier exited ${child.exitCode} before readiness`);
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`web carrier exited ${child.exitCode ?? child.signalCode} before readiness`);
+    }
     try {
-      const response = await fetch(origin, { redirect: 'manual', signal: AbortSignal.timeout(2_000) });
+      const response = await fetchImpl(origin, { redirect: 'manual', signal: AbortSignal.timeout(2_000) });
       if (response.status < 500) return;
       lastError = new Error(`HTTP ${response.status}`);
     } catch (error) {
@@ -319,6 +461,266 @@ async function waitForHttp(origin, timeoutMs, child) {
     await new Promise((resolveWait) => setTimeout(resolveWait, 200));
   }
   throw new Error(`web carrier did not reach ${origin}: ${lastError?.message ?? 'timeout'}`);
+}
+
+// @ref LLP 0181#web-browser — an Expo browser may navigate only after the
+// exact spawned supervisor atomically publishes its verified Metro listener.
+function readExpoSupervisorWebReadiness(path, child) {
+  const metadata = lstatSync(path);
+  if (!metadata.isFile() || metadata.isSymbolicLink() || (metadata.mode & 0o077) !== 0) {
+    throw new Error('Expo supervisor readiness must be an owner-only regular file');
+  }
+  const descriptor = JSON.parse(readFileSync(path, 'utf8'));
+  if (descriptor?.schemaVersion !== 'snapback.expo-supervisor.v1'
+      || descriptor.formatVersion !== 1
+      || descriptor.state !== 'ready'
+      || descriptor.platform !== 'web'
+      || descriptor.connectCarrier !== 'supervisor-rendezvous'
+      || descriptor.pid !== child.pid
+      || typeof descriptor.correlationId !== 'string'
+      || descriptor.correlationId.length === 0
+      || typeof descriptor.supervisorGeneration !== 'string'
+      || descriptor.supervisorGeneration.length === 0
+      || !Number.isSafeInteger(descriptor.metro?.pid)
+      || descriptor.metro.pid < 1
+      || !Array.isArray(descriptor.listeners)
+      || descriptor.listeners.length === 0) {
+    throw new Error('Expo supervisor readiness does not belong to the exact web carrier child');
+  }
+  const origin = loopbackHttpOrigin(
+    descriptor.metro.origin,
+    'Expo supervisor Metro origin',
+  );
+  const metroHost = origin.hostname.toLowerCase().replace(/^\[|\]$/gu, '');
+  const metroPort = Number(origin.port || 80);
+  const listener = descriptor.listeners.find((candidate) => (
+    candidate?.owner === 'metro'
+      && candidate.loopback === true
+      && typeof candidate.host === 'string'
+      && candidate.host.toLowerCase().replace(/^\[|\]$/gu, '') === metroHost
+      && candidate.port === metroPort
+      && Number.isSafeInteger(candidate.pid)
+      && candidate.pid > 0
+  ));
+  if (!listener || descriptor.listeners.some((candidate) => candidate?.loopback !== true)) {
+    throw new Error('Expo supervisor readiness lacks its verified loopback Metro listener');
+  }
+  return Object.freeze({
+    origin: origin.origin,
+    correlationId: descriptor.correlationId,
+    supervisorGeneration: descriptor.supervisorGeneration,
+    supervisorPid: descriptor.pid,
+    metroPid: descriptor.metro.pid,
+    listener: Object.freeze({
+      pid: listener.pid,
+      host: listener.host,
+      port: listener.port,
+    }),
+  });
+}
+
+async function waitForExpoSupervisorWebReadiness(path, timeoutMs, child) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`Expo web carrier exited ${child.exitCode ?? child.signalCode} before readiness`);
+    }
+    if (existsSync(path)) return readExpoSupervisorWebReadiness(path, child);
+    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+  }
+  throw new Error(`Expo web carrier did not write structured readiness ${path}`);
+}
+
+function startCaptured(command, { cwd, env, maximumBytes = 8 * 1024 * 1024 } = {}) {
+  const child = startOwned(command, { cwd, env });
+  const stdout = [];
+  const stderr = [];
+  let capturedBytes = 0;
+  let captureError = null;
+  const append = (chunks, chunk) => {
+    if (captureError !== null) return;
+    capturedBytes += chunk.length;
+    if (capturedBytes > maximumBytes) {
+      captureError = new Error(`browser output exceeded ${maximumBytes} bytes`);
+      signalOwned(child, 'SIGTERM');
+      return;
+    }
+    chunks.push(chunk);
+  };
+  child.stdout.on('data', (chunk) => append(stdout, chunk));
+  child.stderr.on('data', (chunk) => append(stderr, chunk));
+  const completion = new Promise((resolveCompletion, rejectCompletion) => {
+    child.once('error', rejectCompletion);
+    child.once('close', (code, signal) => {
+      if (captureError !== null) rejectCompletion(captureError);
+      else if (code !== 0) {
+        rejectCompletion(new Error(
+          `${command.join(' ')} failed (${code ?? signal}): ${Buffer.concat(stderr).toString('utf8').trim()}`,
+        ));
+      } else resolveCompletion(Buffer.concat(stdout).toString('utf8'));
+    });
+  });
+  return Object.freeze({ child, completion });
+}
+
+async function waitForCaptured(capture, timeoutMs) {
+  let timer;
+  try {
+    return await Promise.race([
+      capture.completion,
+      new Promise((_, rejectTimeout) => {
+        timer = setTimeout(
+          () => rejectTimeout(new Error(`browser capture timed out after ${timeoutMs}ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function startCdpBrowser(command, { cwd, env, logPath }) {
+  const child = startOwned(command, {
+    cwd,
+    env,
+    logPath,
+    stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe'],
+  });
+  const input = child.stdio[3];
+  const output = child.stdio[4];
+  if (!input || !output) throw new Error('browser did not expose its DevTools pipe');
+  let nextId = 1;
+  let buffer = Buffer.alloc(0);
+  let closed = false;
+  const pending = new Map();
+  const rejectPending = (error) => {
+    for (const [id, operation] of pending) {
+      clearTimeout(operation.timer);
+      operation.reject(error);
+      pending.delete(id);
+    }
+  };
+  const onData = (chunk) => {
+    buffer = Buffer.concat([buffer, chunk]);
+    for (;;) {
+      const boundary = buffer.indexOf(0);
+      if (boundary === -1) break;
+      const frame = buffer.subarray(0, boundary).toString('utf8');
+      buffer = buffer.subarray(boundary + 1);
+      if (!frame) continue;
+      let message;
+      try { message = JSON.parse(frame); } catch { continue; }
+      const operation = pending.get(message.id);
+      if (!operation) continue;
+      pending.delete(message.id);
+      clearTimeout(operation.timer);
+      if (message.error) operation.reject(new Error(message.error.message));
+      else operation.resolve(message.result ?? {});
+    }
+  };
+  output.on('data', onData);
+  const onPipeError = (error) => {
+    closed = true;
+    rejectPending(error);
+  };
+  input.on('error', onPipeError);
+  output.on('error', onPipeError);
+  child.once('close', () => {
+    closed = true;
+    rejectPending(new Error('browser DevTools pipe closed'));
+  });
+  return Object.freeze({
+    child,
+    send(method, params = {}, sessionId = null, timeoutMs = 30_000) {
+      if (closed) return Promise.reject(new Error('browser DevTools pipe is closed'));
+      const id = nextId++;
+      const message = sessionId === null
+        ? { id, method, params }
+        : { id, method, params, sessionId };
+      return new Promise((resolveCommand, rejectCommand) => {
+        const timer = setTimeout(() => {
+          pending.delete(id);
+          rejectCommand(new Error(`browser DevTools command timed out: ${method}`));
+        }, timeoutMs);
+        pending.set(id, { resolve: resolveCommand, reject: rejectCommand, timer });
+        input.write(`${JSON.stringify(message)}\0`);
+      });
+    },
+    close() {
+      if (closed) return;
+      closed = true;
+      output.off('data', onData);
+      rejectPending(new Error('browser DevTools client closed'));
+    },
+  });
+}
+
+async function attachCdpPage(browser, origin, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs;
+  let target = null;
+  while (Date.now() < deadline && target === null) {
+    const inventory = await browser.send('Target.getTargets');
+    target = inventory.targetInfos?.find((candidate) => (
+      candidate.type === 'page'
+        && typeof candidate.url === 'string'
+        && (() => {
+          try { return new URL(candidate.url).origin === origin; } catch { return false; }
+        })()
+    )) ?? null;
+    if (target === null) await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+  }
+  if (target === null) throw new Error(`browser did not open the supervised page ${origin}`);
+  const attached = await browser.send('Target.attachToTarget', {
+    targetId: target.targetId,
+    flatten: true,
+  });
+  const { sessionId } = attached;
+  if (typeof sessionId !== 'string' || sessionId.length === 0) {
+    throw new Error('browser did not return a DevTools page session');
+  }
+  await browser.send('Runtime.enable', {}, sessionId);
+  await browser.send('Page.enable', {}, sessionId);
+  return Object.freeze({
+    async evaluate(expression, timeout = 30_000) {
+      const response = await browser.send('Runtime.evaluate', {
+        expression,
+        awaitPromise: true,
+        returnByValue: true,
+        userGesture: true,
+      }, sessionId, timeout);
+      if (response.exceptionDetails) {
+        throw new Error(
+          response.exceptionDetails.exception?.description
+            ?? response.exceptionDetails.text
+            ?? 'browser evaluation failed',
+        );
+      }
+      return response.result?.value;
+    },
+    async screenshot() {
+      const response = await browser.send('Page.captureScreenshot', {
+        format: 'png',
+        captureBeyondViewport: true,
+      }, sessionId);
+      if (typeof response.data !== 'string' || response.data.length === 0) {
+        throw new Error('browser screenshot command returned no bytes');
+      }
+      return Buffer.from(response.data, 'base64');
+    },
+  });
+}
+
+async function waitForBrowserExpression(page, expression, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError = null;
+  while (Date.now() < deadline) {
+    try {
+      if (await page.evaluate(expression, Math.min(5_000, timeoutMs))) return;
+    } catch (error) { lastError = error; }
+    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+  }
+  throw new Error(`browser application readiness timed out${lastError ? `: ${lastError.message}` : ''}`);
 }
 
 function findBrowser(explicit) {
@@ -339,23 +741,131 @@ function findBrowser(explicit) {
   throw new Error('web-browser kit requires --browser or SNAPBACK_BROWSER_EXECUTABLE');
 }
 
-async function runWebCarrier({ config, options, root, artifacts, verifyReceipt }) {
+async function runWebCarrier({ config, options, root, artifacts, verifyReceipt, fetchImpl }) {
   const carrier = config.carriers['web-browser'];
   const logPath = join(artifacts, 'web-dev.log');
-  const command = expandedCommand(carrier.command, { artifacts });
+  const replacements = { artifacts };
+  const command = expandedCommand(carrier.command, replacements);
+  const structuredReadinessPath = carrier.structuredReadiness === undefined
+    ? null
+    : resolve(root, expandedValue(carrier.structuredReadiness.file, replacements));
+  if (structuredReadinessPath !== null) rmSync(structuredReadinessPath, { force: true });
+  const signals = createSignalInterruption();
   const child = startOwned(command, {
     cwd: root,
     env: { ...process.env, CI: '1' },
     logPath,
   });
+  let browserProcess = null;
+  let browserCdp = null;
+  let browserProfile = null;
+  let readiness = null;
+  let observations = null;
+  let readinessFileRemoved = structuredReadinessPath === null;
+  let supervisorRemovedReadiness = structuredReadinessPath === null;
+  let browserProfileRemoved = true;
+  let browserExited = true;
+  let childExited = false;
   try {
-    await waitForHttp(carrier.origin, carrier.startupTimeoutMs, child);
+    const startupStartedAt = Date.now();
+    readiness = structuredReadinessPath === null
+      ? Object.freeze({ origin: new URL(carrier.origin).origin })
+      : await signals.race(waitForExpoSupervisorWebReadiness(
+        structuredReadinessPath,
+        carrier.startupTimeoutMs,
+        child,
+      ));
+    const elapsed = Date.now() - startupStartedAt;
+    await signals.race(waitForHttp(
+      readiness.origin,
+      Math.max(1, carrier.startupTimeoutMs - elapsed),
+      child,
+      fetchImpl,
+    ));
+    if (structuredReadinessPath !== null) {
+      const confirmed = readExpoSupervisorWebReadiness(structuredReadinessPath, child);
+      if (confirmed.origin !== readiness.origin
+          || confirmed.correlationId !== readiness.correlationId
+          || confirmed.supervisorGeneration !== readiness.supervisorGeneration) {
+        throw new Error('Expo supervisor readiness changed during HTTP admission');
+      }
+    }
     const browser = findBrowser(options.browser);
-    const browserProfile = mkdtempSync(join(tmpdir(), 'snapback-carrier-browser-'));
+    browserProfile = mkdtempSync(join(tmpdir(), 'snapback-carrier-browser-'));
+    browserProfileRemoved = false;
     const screenshot = join(artifacts, 'web-browser.png');
     const html = join(artifacts, 'web-browser.html');
-    try {
-      const stdout = run([
+    let journey = null;
+    if (carrier.browserJourney) {
+      const browserLog = join(artifacts, 'web-browser-process.log');
+      browserProcess = startCdpBrowser([
+        browser,
+        '--headless=new',
+        '--disable-gpu',
+        '--no-default-browser-check',
+        '--no-first-run',
+        '--remote-debugging-pipe',
+        `--user-data-dir=${browserProfile}`,
+        '--window-size=1280,900',
+        readiness.origin,
+      ], { cwd: root, env: process.env, logPath: browserLog });
+      browserExited = false;
+      browserCdp = browserProcess;
+      const page = await signals.race(attachCdpPage(browserCdp, readiness.origin));
+      const marker = `snapback-carrier-${randomUUID()}`;
+      await signals.race(page.evaluate(
+        `globalThis.__snapbackCarrierJourneyId = ${JSON.stringify(marker)}`,
+      ));
+      await signals.race(waitForBrowserExpression(
+        page,
+        carrier.browserJourney.readyExpression,
+        45_000,
+      ));
+      const result = await signals.race(page.evaluate(
+        carrier.browserJourney.runExpression,
+        45_000,
+      ));
+      if (result?.marker !== marker
+          || result.readObserved !== true
+          || result.writeObserved !== true) {
+        throw new Error('browser journey did not return its exact read/write witness');
+      }
+      const retainedDom = await signals.race(page.evaluate(
+        'document.documentElement.outerHTML',
+      ));
+      if (typeof retainedDom !== 'string' || retainedDom.length === 0) {
+        throw new Error('browser journey did not return retained DOM');
+      }
+      const missing = carrier.browserJourney.requiredDomText.filter(
+        (candidate) => !retainedDom.includes(candidate),
+      );
+      if (!retainedDom.includes(marker) || missing.length > 0) {
+        const absent = [
+          ...(retainedDom.includes(marker) ? [] : ['<journey write marker>']),
+          ...missing,
+        ];
+        throw new Error(
+          `browser retained DOM lacks its write marker or ready UI: ${absent.join(', ')}`,
+        );
+      }
+      const forbidden = carrier.browserJourney.forbiddenDomText.filter(
+        (candidate) => retainedDom.includes(candidate),
+      );
+      if (forbidden.length > 0) {
+        throw new Error(`browser retained DOM contains forbidden diagnostics: ${forbidden.join(', ')}`);
+      }
+      const screenshotBytes = await signals.race(page.screenshot());
+      writeFileSync(screenshot, screenshotBytes);
+      writeFileSync(html, retainedDom);
+      journey = {
+        marker,
+        readObserved: true,
+        writeObserved: true,
+        result,
+      };
+      observations = { browserProcessLog: browserLog };
+    } else {
+      browserProcess = startCaptured([
         browser,
         '--headless=new',
         '--disable-gpu',
@@ -365,26 +875,82 @@ async function runWebCarrier({ config, options, root, artifacts, verifyReceipt }
         '--window-size=1280,900',
         `--screenshot=${screenshot}`,
         '--dump-dom',
-        carrier.origin,
-      ], { cwd: root, capture: true, timeout: 60_000 });
+        readiness.origin,
+      ], { cwd: root, env: process.env });
+      browserExited = false;
+      const stdout = await signals.race(waitForCaptured(browserProcess, 60_000));
       writeFileSync(html, stdout);
-    } finally {
-      rmSync(browserProfile, { recursive: true, force: true });
     }
     if (!existsSync(screenshot) || statSync(screenshot).size === 0) {
       throw new Error('headless browser did not write a screenshot');
     }
-    return writeDirectorLog(artifacts, {
-      schemaVersion: TEMPLATE_CARRIER_LOG_SCHEMA_VERSION,
-      status: 'completed',
-      carrier: 'web-browser',
-      proofAuthority: { kind: 'llp-0146-d2', receipt: verifyReceipt },
-      observations: { origin: carrier.origin, screenshot, html, processLog: logPath },
-      nonClaim: 'carrier director output is not an acceptance receipt or product-completeness claim',
-    });
+    observations = {
+      ...(observations ?? {}),
+      origin: readiness.origin,
+      ...(structuredReadinessPath === null ? {} : {
+        structuredReadiness: {
+          schemaVersion: 'snapback.expo-supervisor.v1',
+          correlationId: readiness.correlationId,
+          supervisorGeneration: readiness.supervisorGeneration,
+          supervisorPid: readiness.supervisorPid,
+          metroPid: readiness.metroPid,
+          listener: readiness.listener,
+        },
+      }),
+      screenshot,
+      html,
+      ...(journey === null ? {} : { journey }),
+      processLog: logPath,
+    };
   } finally {
-    await stopOwned(child);
+    const cleanupFailures = [];
+    browserCdp?.close();
+    if (browserProcess !== null) {
+      try {
+        await stopOwned(browserProcess.child);
+        browserExited = browserProcess.child.exitCode !== null
+          || browserProcess.child.signalCode !== null;
+      } catch (error) { cleanupFailures.push(error); }
+    }
+    if (browserProfile !== null) {
+      try {
+        rmSync(browserProfile, { recursive: true, force: true });
+        browserProfileRemoved = !existsSync(browserProfile);
+      } catch (error) { cleanupFailures.push(error); }
+    }
+    try {
+      await stopOwned(child);
+      childExited = child.exitCode !== null || child.signalCode !== null;
+    } catch (error) { cleanupFailures.push(error); }
+    if (structuredReadinessPath !== null) {
+      supervisorRemovedReadiness = !existsSync(structuredReadinessPath);
+      try {
+        rmSync(structuredReadinessPath, { force: true });
+        readinessFileRemoved = !existsSync(structuredReadinessPath);
+      } catch (error) { cleanupFailures.push(error); }
+    }
+    signals.close();
+    if (cleanupFailures.length > 0) {
+      throw new AggregateError(cleanupFailures, 'web carrier cleanup failed');
+    }
   }
+  return writeDirectorLog(artifacts, {
+    schemaVersion: TEMPLATE_CARRIER_LOG_SCHEMA_VERSION,
+    status: 'completed',
+    carrier: 'web-browser',
+    proofAuthority: { kind: 'llp-0146-d2', receipt: verifyReceipt },
+    observations: {
+      ...observations,
+      cleanup: {
+        readinessFileRemoved,
+        supervisorRemovedReadiness,
+        browserProfileRemoved,
+        browserExited,
+        childExited,
+      },
+    },
+    nonClaim: 'carrier director output is not an acceptance receipt or product-completeness claim',
+  });
 }
 
 function simctl(args, options = {}) {
@@ -622,6 +1188,7 @@ export async function runTemplateCarrierCli(configValue, argv, options = {}) {
       root,
       artifacts,
       verifyReceipt,
+      fetchImpl: options.fetch ?? fetch,
     });
   } else {
     directorLog = await runNativeCarrier({

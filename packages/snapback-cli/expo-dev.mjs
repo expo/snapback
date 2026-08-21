@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -24,6 +25,7 @@ import {
 import { stopProcessGroup } from './process-teardown.mjs';
 
 export const EXPO_DEV_EVENT_FORMAT = 'snapback.expo-dev.v1';
+export const EXPO_SUPERVISOR_DESCRIPTOR_FORMAT = 'snapback.expo-supervisor.v1';
 export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH = '/_snapback/expo/v1/bootstrap';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH = '/_snapback/expo/v1/dev-identity-checkout';
@@ -1637,6 +1639,7 @@ export async function runExpoDev(options = {}) {
   let closePromise = null;
   let closeSupervisor = null;
   let supervisorDescriptorFile = null;
+  let supervisorDescriptorTemporaryFile = null;
   const appDescriptorPath = join(backendRoot, 'generated', 'app.descriptor.json');
   let rotateBindingAfterLoad = () => null;
   try {
@@ -2021,7 +2024,14 @@ export async function runExpoDev(options = {}) {
       });
     }
     const finalState = authority.status === 'ready' ? 'ready' : 'authority-required';
-    emit({
+    const metroReadiness = Object.freeze({
+      pid: metro.child.pid,
+      origin: appOrigin(route.appHost, metroPort),
+    });
+    const bootstrapReadiness = Object.freeze({
+      origin: appOrigin(route.appHost, bootstrap.port),
+    });
+    const finalReadiness = {
       ok: authority.status === 'ready',
       state: finalState,
       connectCarrier: SUPERVISED_CONNECT_CARRIER,
@@ -2031,32 +2041,41 @@ export async function runExpoDev(options = {}) {
         ? { status: 'ready', kind: 'session', authMode: 'sessions' }
         : authority,
       backend: { pid: dev.child?.pid ?? null, origin: backendRoute.origin },
-      metro: { pid: metro.child.pid, origin: appOrigin(route.appHost, metroPort) },
-      bootstrap: { origin: appOrigin(route.appHost, bootstrap.port) },
+      metro: metroReadiness,
+      bootstrap: bootstrapReadiness,
       adminConsoleCommand: `snapback admin --ready-file ${JSON.stringify(dev.readyFile)}`,
-    });
+    };
     supervisorDescriptorFile = join(dirname(dev.readyFile), 'expo-supervisor.json');
-    writeFileSync(supervisorDescriptorFile, `${JSON.stringify({
+    supervisorDescriptorTemporaryFile = `${supervisorDescriptorFile}.${process.pid}.${correlationId}.tmp`;
+    writeFileSync(supervisorDescriptorTemporaryFile, `${JSON.stringify({
+      schemaVersion: EXPO_SUPERVISOR_DESCRIPTOR_FORMAT,
       formatVersion: 1,
+      state: finalState,
       correlationId,
       supervisorGeneration: generation,
       pid: process.pid,
+      platform: route.platform,
+      connectCarrier: SUPERVISED_CONNECT_CARRIER,
       exchangeOrigin: bootstrap.origin,
       controlPath: SUPERVISED_CONTROL_PATH,
+      metro: metroReadiness,
+      listeners,
       startedAt,
     }, null, 2)}\n`, { mode: 0o600 });
-    chmodSync(supervisorDescriptorFile, 0o600);
+    chmodSync(supervisorDescriptorTemporaryFile, 0o600);
+    renameSync(supervisorDescriptorTemporaryFile, supervisorDescriptorFile);
+    supervisorDescriptorTemporaryFile = null;
+    emit(finalReadiness);
 
     const close = () => {
       if (closePromise !== null) return closePromise;
       closePromise = (async () => {
         closed = true;
         const failures = [];
-        try {
-          if (supervisorDescriptorFile !== null) {
-            rmSync(supervisorDescriptorFile, { force: true });
-          }
-        } catch (error) { failures.push(error); }
+        for (const path of [supervisorDescriptorFile, supervisorDescriptorTemporaryFile]) {
+          if (path === null) continue;
+          try { rmSync(path, { force: true }); } catch (error) { failures.push(error); }
+        }
         try { forwarding?.remove?.(); } catch (error) { failures.push(error); }
         try { await stopProcessGroup(metro?.child, { processGroup: true }); } catch (error) { failures.push(error); }
         try { await bootstrap?.close?.(); } catch (error) { failures.push(error); }
@@ -2125,11 +2144,10 @@ export async function runExpoDev(options = {}) {
     });
   } catch (error) {
     closed = true;
-    try {
-      if (supervisorDescriptorFile !== null) {
-        rmSync(supervisorDescriptorFile, { force: true });
-      }
-    } catch { /* original startup refusal wins */ }
+    for (const path of [supervisorDescriptorFile, supervisorDescriptorTemporaryFile]) {
+      if (path === null) continue;
+      try { rmSync(path, { force: true }); } catch { /* original startup refusal wins */ }
+    }
     try { forwarding?.remove?.(); } catch { /* original startup refusal wins */ }
     try { await stopProcessGroup(metro?.child, { processGroup: true }); } catch { /* original startup refusal wins */ }
     try { await bootstrap?.close?.(); } catch { /* original startup refusal wins */ }

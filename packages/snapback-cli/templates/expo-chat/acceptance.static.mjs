@@ -89,6 +89,13 @@ assert.equal(packageManifest.scripts['carry:native-simulator'], 'node carrier.mj
 assert.match(agentInstructions, /carry:native-simulator/);
 assert.match(carrierSource, /bundleId:\s*'host\.exp\.Exponent'/);
 assert.match(carrierSource, /driveUrl:\s*'exp:/);
+assert.match(carrierSource, /'--expo-platform',\s*'web'/);
+assert.match(carrierSource, /kind:\s*'expo-supervisor'/);
+assert.match(carrierSource, /I checked the numbers twice/);
+assert.match(carrierSource, /live message echo/);
+assert.match(carrierSource, /SNAPBACK_APP_BINDING_UNAVAILABLE/);
+assert.match(carrierSource, /SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED/);
+assert.doesNotMatch(carrierSource, /--client-command|expo start --web --port 5173/);
 for (const dependency of ['@expo/metro-runtime', 'react-dom', 'react-native-web']) {
   assert.equal(typeof packageManifest.dependencies[dependency], 'string', `${dependency} must ship in the web-ready template`);
 }

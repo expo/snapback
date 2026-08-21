@@ -28,6 +28,7 @@ import {
 } from '@expo/snapback-react';
 
 import {
+  EXPO_SUPERVISOR_DESCRIPTOR_FORMAT,
   SUPERVISED_EXCHANGE_PATH,
   createExpoRoutingPlan,
   installAndroidPortForwarding,
@@ -434,6 +435,17 @@ try {
   const supervisorDescriptor = join(dirname(settled.readyFile), 'expo-supervisor.json');
   assert.equal(existsSync(supervisorDescriptor), true);
   assert.equal(statSync(supervisorDescriptor).mode & 0o777, 0o600);
+  const supervisorDiscovery = JSON.parse(readFileSync(supervisorDescriptor, 'utf8'));
+  assert.equal(supervisorDiscovery.schemaVersion, EXPO_SUPERVISOR_DESCRIPTOR_FORMAT);
+  assert.equal(supervisorDiscovery.state, 'ready');
+  assert.equal(supervisorDiscovery.platform, 'web');
+  assert.equal(supervisorDiscovery.pid, process.pid);
+  assert.equal(supervisorDiscovery.metro.origin, supervisor.metroOrigin);
+  assert(supervisorDiscovery.listeners.some((listener) => (
+    listener.owner === 'metro'
+      && listener.port === Number(new URL(supervisor.metroOrigin).port)
+      && listener.loopback === true
+  )));
   assertListenerInventory(supervisor);
   assert.equal(supervisor.binding.source, 'supervised-dev');
   assert.equal(supervisor.binding.integrity.channel, 'local-supervised-ipc');
@@ -758,6 +770,10 @@ try {
   await Promise.all(Object.entries(cliOrigins).map(([label, origin]) => (
     assertOriginClosed(origin, `CLI ${label}`)
   )));
+  await eventually(
+    () => !existsSync(supervisorDescriptor),
+    { label: 'CLI supervisor descriptor cleanup' },
+  );
   await eventually(() => !existsSync(settled.readyFile), { label: 'CLI ready-file cleanup' });
 
   // Bearer-leak matrix: use /usr/bin/grep exactly as the E1 acceptance asks.

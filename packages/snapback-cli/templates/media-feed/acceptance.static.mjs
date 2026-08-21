@@ -55,6 +55,13 @@ assert.equal(packageManifest.scripts['carry:native-simulator'], 'node carrier.mj
 assert.match(instructions, /carry:native-simulator/);
 assert.match(carrierSource, /bundleId:\s*'host\.exp\.Exponent'/);
 assert.match(carrierSource, /driveUrl:\s*'exp:/);
+assert.match(carrierSource, /'--expo-platform',\s*'web'/);
+assert.match(carrierSource, /kind:\s*'expo-supervisor'/);
+assert.match(carrierSource, /Notes from the paper model/);
+assert.match(carrierSource, /live published field note/);
+assert.match(carrierSource, /SNAPBACK_APP_BINDING_UNAVAILABLE/);
+assert.match(carrierSource, /SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED/);
+assert.doesNotMatch(carrierSource, /--client-command|expo start --web --port 5173/);
 assert.match(runtimeAcceptance, /'wait', '--ready-file', readyFile/);
 assert.match(runtimeAcceptance, /'--level', 'application', '--timeout-ms', '60000'/);
 assert.match(runtimeAcceptance, /applicationReadyObserved: true/);
