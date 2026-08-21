@@ -7,6 +7,7 @@ import {
 } from '@expo/snapback-contract/auth-coordinator';
 
 import { SnapbackClient } from './index.mjs';
+import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 
 const APP_ID = '018f0d90-7d10-7a22-8c33-445566778899';
 const INCARNATION = '018f0d90-7d11-7a22-8c33-445566778899';
@@ -14,6 +15,7 @@ const SESSION_ID = '018f0d90-7d12-7a22-8c33-445566778899';
 const USER_ID = '018f0d90-7d13-7a22-8c33-445566778899';
 const AUTHORITY_ID = '018f0d90-7d14-7a22-8c33-445566778899';
 const BEARER = 'sbs_anonymous_read_recovery';
+const ROTATED_BEARER = 'sbs_anonymous_read_recovery_rotated';
 
 const availability = Object.freeze({
   onlineRequestResponse: { available: true, reason: null },
@@ -180,7 +182,7 @@ class BroadcastHub {
   };
 }
 
-function makeFixture() {
+function makeFixture(clientOptions = {}) {
   const originalFetch = globalThis.fetch;
   const requests = [];
   let exchanged = false;
@@ -191,7 +193,10 @@ function makeFixture() {
     const authorization = new Headers(init.headers).get('authorization');
     requests.push({ path, authorization });
     if (path === '/auth/session') {
-      return Response.json(handshake(authorization === `Bearer ${BEARER}`));
+      return Response.json(handshake(
+        authorization === `Bearer ${BEARER}`
+        || authorization === `Bearer ${ROTATED_BEARER}`,
+      ));
     }
     if (path === '/auth/exchange') {
       exchanged = true;
@@ -234,6 +239,7 @@ function makeFixture() {
     authorityDescriptorProtocol: 1,
     rqsStore: null,
     offlineQueue: false,
+    ...clientOptions,
   });
   return {
     client,
@@ -1004,6 +1010,139 @@ test('anonymous protected one-shots recover on the same client', async (t) => {
         0,
         'the mutation is refused before successor-authority transport dispatch',
       );
+    } finally {
+      await fixture.close();
+    }
+  });
+
+  await t.test('rejecting mutation preparation is superseded by stale authority', async () => {
+    const fixture = makeFixture();
+    try {
+      await fixture.client.authSession();
+      const anonymousCapture = fixture.coordinator.capture();
+      const anonymousAuthority = fixture.coordinator.credentialFor(anonymousCapture).authority;
+      await fixture.client.authExchange({
+        challengeId: 'challenge-rejecting-mutation-preparation-fence',
+        code: '864209',
+      });
+
+      const originalStoreRuntimeInvoke = fixture.client.__storeRuntimeInvoke.bind(fixture.client);
+      let reportPreparationStarted;
+      let releasePreparation;
+      const preparationStarted = new Promise((resolve) => {
+        reportPreparationStarted = resolve;
+      });
+      const preparationHeld = new Promise((resolve) => {
+        releasePreparation = resolve;
+      });
+      const predecessorError = new Error('preparation predecessor failed');
+      predecessorError.code = 'SNAPBACK_TEST_PREPARATION_REJECTED';
+      fixture.client.__storeRuntimeInvoke = async (name, payload) => {
+        if (name !== 'prepareGeneratedMutation') {
+          return originalStoreRuntimeInvoke(name, payload);
+        }
+        reportPreparationStarted();
+        await preparationHeld;
+        throw predecessorError;
+      };
+
+      const mutation = fixture.client.mutate(generatedProtectedMutation, {
+        args: {},
+        queue: false,
+        __generatedOptimistic: false,
+      });
+      await preparationStarted;
+      await fixture.coordinator.transition(
+        fixture.coordinator.capture(),
+        { authority: anonymousAuthority, bearer: null, refreshAfterMs: null },
+        'logout-during-rejecting-generated-mutation-preparation',
+      );
+      releasePreparation();
+
+      await assert.rejects(
+        mutation,
+        (error) => error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+      );
+      assert.equal(
+        fixture.requests.filter(({ path }) => path === '/mutation/preparedPrivateMutation').length,
+        0,
+        'the predecessor preparation rejection cannot escape after authority changes',
+      );
+    } finally {
+      await fixture.close();
+    }
+  });
+
+  await t.test('same-authority bearer rotation during preparation preserves queueable mutation', async () => {
+    const fixture = makeFixture({
+      rqsStore: createMemoryRqsResumeStore(),
+      offlineQueue: true,
+      __offlineMutationReplayCapability: true,
+      __outboxDrainLifecycle: false,
+    });
+    try {
+      await fixture.client.authSession();
+      await fixture.client.authExchange({
+        challengeId: 'challenge-mutation-preparation-bearer-rotation',
+        code: '753108',
+      });
+      const preparationCapture = fixture.coordinator.capture();
+
+      const originalStoreRuntimeInvoke = fixture.client.__storeRuntimeInvoke.bind(fixture.client);
+      let reportPreparationStarted;
+      let releasePreparation;
+      const preparationStarted = new Promise((resolve) => {
+        reportPreparationStarted = resolve;
+      });
+      const preparationHeld = new Promise((resolve) => {
+        releasePreparation = resolve;
+      });
+      fixture.client.__storeRuntimeInvoke = async (name, payload) => {
+        if (name !== 'prepareGeneratedMutation') {
+          return originalStoreRuntimeInvoke(name, payload);
+        }
+        reportPreparationStarted();
+        await preparationHeld;
+        return {
+          generatedMutation: { operationHash: generatedProtectedMutation.mutationIr.operationHash },
+          clientMutationId: payload.clientMutationId,
+          optimisticOperation: null,
+          ctxLedger: null,
+          settlementLane: null,
+          settlementIdentity: null,
+          settlementClaims: null,
+          boundedSkew: null,
+        };
+      };
+
+      const mutation = fixture.client.mutate(generatedProtectedMutation, {
+        args: {},
+        queue: 'auto',
+        clientMutationId: 'cm-preparation-bearer-rotation',
+        __generatedOptimistic: false,
+      });
+      await preparationStarted;
+      const rotated = await fixture.coordinator.compareAndRotateBearer(preparationCapture, {
+        bearer: ROTATED_BEARER,
+        refreshAfterMs: Date.now() + 120_000,
+      });
+      assert.equal(rotated.rotated, true);
+      assert.equal(rotated.capture.authorityEpoch, preparationCapture.authorityEpoch);
+      assert.equal(rotated.capture.authorityKey, preparationCapture.authorityKey);
+      assert.equal(
+        rotated.capture.custodyRevision,
+        preparationCapture.custodyRevision + 1,
+      );
+      assert.equal(fixture.coordinator.isCurrent(preparationCapture), true);
+      releasePreparation();
+
+      const settled = await mutation;
+      assert.deepEqual(settled.result, { admitted: true });
+      const mutationRequests = fixture.requests.filter(
+        ({ path }) => path === '/mutation/preparedPrivateMutation',
+      );
+      assert.equal(mutationRequests.length, 1);
+      assert.equal(mutationRequests[0].authorization, `Bearer ${ROTATED_BEARER}`);
     } finally {
       await fixture.close();
     }

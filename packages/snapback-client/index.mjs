@@ -8406,13 +8406,13 @@ export class SnapbackClient {
     const capture = this.authorityFence.capture();
     if (
       expectedCapture !== null
-      && !sameAuthorityCapture(capture, expectedCapture)
+      && !sameAuthorityLineage(capture, expectedCapture)
     ) throw staleAuthorityError();
     const session = await this.authSession();
     if (!this.authorityFence.isCurrent?.(capture)) throw staleAuthorityError();
     if (
       expectedCapture !== null
-      && !sameAuthorityCapture(capture, expectedCapture)
+      && !sameAuthorityLineage(capture, expectedCapture)
     ) throw staleAuthorityError();
     return this.#queueAuthorityFromSession(capture, session);
   }
@@ -11206,11 +11206,24 @@ export class SnapbackClient {
       generatedComposedStore = queue === true
         ? this.#offlineQueueStore(true)
         : queue === 'auto' ? this.#offlineQueueStore(false) : null;
-      const prepared = await this.__storeRuntimeInvoke('prepareGeneratedMutation', {
-        ref, args, userId, clientMutationId, optimisticOperation, ctxLedger,
-        settlementLane, settlementIdentity, settlementClaims, boundedSkew,
-        composeLocalExecution: generatedPresentationEnabled,
-      });
+      let prepared;
+      try {
+        prepared = await this.__storeRuntimeInvoke('prepareGeneratedMutation', {
+          ref, args, userId, clientMutationId, optimisticOperation, ctxLedger,
+          settlementLane, settlementIdentity, settlementClaims, boundedSkew,
+          composeLocalExecution: generatedPresentationEnabled,
+        });
+      } catch (error) {
+        if (
+          preparationAuthorityCapture !== null
+          && !this.isAuthorityCaptureCurrent(preparationAuthorityCapture)
+        ) throw staleAuthorityError();
+        throw error;
+      }
+      if (
+        preparationAuthorityCapture !== null
+        && !this.isAuthorityCaptureCurrent(preparationAuthorityCapture)
+      ) throw staleAuthorityError();
       ({
         generatedMutation,
         clientMutationId,
@@ -11221,10 +11234,6 @@ export class SnapbackClient {
         settlementClaims,
         boundedSkew,
       } = prepared);
-      if (
-        preparationAuthorityCapture !== null
-        && !this.isAuthorityCaptureCurrent(preparationAuthorityCapture)
-      ) throw staleAuthorityError();
     }
     if (
       settlementLane !== null
