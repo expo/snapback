@@ -507,6 +507,43 @@ async function runStarterReceiptFixture({
   };
   const domainNamed = await runStarterReceiptFixture({ receipt: domainNamedOperations });
   assert.equal(domainNamed.ok, true, JSON.stringify(domainNamed.diagnostics));
+
+  const expoChatReceipt = validStarterAcceptanceReceipt();
+  expoChatReceipt.operations = {
+    surface: 'conversation',
+    queryFunctionId: 'expo-chat:messagesForConversation',
+    mutationFunctionId: 'expo-chat:sendMessage',
+    replyFunctionId: 'expo-chat:sendReply',
+    reactionFunctionId: 'expo-chat:addReaction',
+  };
+  const expoChat = await runStarterReceiptFixture({
+    receipt: expoChatReceipt,
+    paths: [
+      {
+        id: 'conversation-surface-read',
+        kind: 'success',
+        targetProfileId: 'local-dev-sqlite-ibex',
+        functionId: 'expo-chat:messagesForConversation',
+      },
+      {
+        id: 'send-message',
+        kind: 'success',
+        targetProfileId: 'local-dev-sqlite-ibex',
+        functionId: 'expo-chat:sendMessage',
+      },
+    ],
+    artifactValue: starterArtifact([
+      'expo-chat:messagesForConversation',
+      'expo-chat:sendMessage',
+      'expo-chat:sendReply',
+      'expo-chat:addReaction',
+    ]),
+  });
+  assert.equal(expoChat.ok, true, JSON.stringify(expoChat.diagnostics));
+  assert.deepEqual(
+    expoChat.conformance.map(({ pathId }) => pathId),
+    ['conversation-surface-read', 'send-message'],
+  );
   cases += 1;
 }
 
@@ -583,7 +620,7 @@ async function runStarterReceiptFixture({
   const failure = outcome.diagnostics[0];
   assert.equal(failure.code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED');
   assert.equal(failure.details.outcome, 'incomplete-passing-receipt');
-  assert.equal(failure.details.invalidPathCount, 4);
+  assert.equal(failure.details.invalidPathCount, 3);
   assert.ok(failure.details.invalidPaths.some(({ path: invalidPath, observed }) => (
     invalidPath === '$.operations' && observed.state === 'stale-registration'
   )));
@@ -685,6 +722,10 @@ async function runStarterReceiptFixture({
   const failedReceipt = await runStarterReceiptFixture({
     source: `process.stdout.write(${JSON.stringify(`${JSON.stringify(failedReceiptValue)}\n`)}); process.exitCode = 1;\n`,
   });
+  const passingReceiptProcessFailureValue = validStarterAcceptanceReceipt();
+  const passingReceiptProcessFailure = await runStarterReceiptFixture({
+    source: `process.stdout.write(${JSON.stringify(`${JSON.stringify(passingReceiptProcessFailureValue)}\n`)}); process.exitCode = 9;\n`,
+  });
   const cleanupFailedReceiptValue = validStarterAcceptanceReceipt();
   cleanupFailedReceiptValue.status = 'failed';
   cleanupFailedReceiptValue.cleanup.ok = false;
@@ -740,6 +781,10 @@ async function runStarterReceiptFixture({
   assert.equal(failedReceipt.diagnostics[0].message, 'starter acceptance returned a failed receipt');
   assert.equal(failedReceipt.unsafeDebug.receiptDiagnosticMessage.length, 4_096);
   assert.equal(failedReceipt.unsafeDebug.receiptDiagnosticMessageTruncated, true);
+  assert.equal(
+    passingReceiptProcessFailure.diagnostics[0].message,
+    'starter acceptance process failed despite returning a passing receipt',
+  );
   assert.equal(cleanupFailedReceipt.diagnostics[0].details.outcome, 'failed-receipt');
   assert.equal(cleanupFailedReceipt.diagnostics[0].details.causeCode, 'SNAPBACK_STARTER_CLEANUP_FAILED');
   assert.equal(cleanupFailedReceipt.diagnostics[0].details.receiptStatus, 'failed');
@@ -761,7 +806,7 @@ async function runStarterReceiptFixture({
   );
   assert.equal(childError.diagnostics[0].details.outcome, 'process-failure');
   assert.equal(childError.diagnostics[0].details.causeCode, 'ENOENT');
-  assert.equal(childError.diagnostics[0].message, 'starter acceptance process failed before returning a successful receipt');
+  assert.equal(childError.diagnostics[0].message, 'starter acceptance process failed before returning a receipt');
   assert.notEqual(childError.unsafeDebug.childErrorMessage, '');
   cases += 1;
 }
@@ -1150,6 +1195,55 @@ for (const [stageId, overrides, nextCode] of failureMatrix) {
     assert.match(receipt.recommendedNext.command, /^snapback /u, stageId);
   }
   cases += 1;
+}
+
+{
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-verify-failed-starter-profile-'));
+  const acceptanceFile = join(scratch, 'acceptance.mjs');
+  const failedReceiptValue = validStarterAcceptanceReceipt();
+  failedReceiptValue.status = 'failed';
+  failedReceiptValue.checks[1].status = 'failed';
+  failedReceiptValue.diagnostic = {
+    code: 'SNAPBACK_STARTER_CHECK_FAILED',
+    message: 'm'.repeat(10_000),
+  };
+  writeFileSync(acceptanceFile, `
+process.stderr.write('x'.repeat(20_000));
+process.stdout.write(${JSON.stringify(`${JSON.stringify(failedReceiptValue)}\n`)});
+process.exitCode = 1;
+`);
+  try {
+    const starter = defineStarterVerifyProfile({
+      id: 'failed-starter-profile',
+      acceptanceFile,
+      paths: starterReceiptPaths,
+    });
+    const receipt = await runVerify(config([starter]), passOptions({
+      artifactProbe: async () => starterArtifact(),
+    }));
+    const profileResult = receipt.acceptanceProfiles[0];
+    const conformanceStage = receipt.stages.find(({ id }) => id === 'admission-and-conformance');
+    assert.equal(profileResult.status, 'failed');
+    assert.equal(Object.isFrozen(profileResult), true);
+    assert.equal(profileResult.unsafeDebug.stderr.length, 16_384);
+    assert.equal(profileResult.unsafeDebug.stderrTruncated, true);
+    assert.equal(profileResult.unsafeDebug.receiptDiagnosticMessage.length, 4_096);
+    assert.equal(profileResult.unsafeDebug.receiptDiagnosticMessageTruncated, true);
+    assert.equal(Object.hasOwn(profileResult.diagnostics[0].details, 'unsafeDebug'), false);
+    assert.equal(Object.hasOwn(profileResult.diagnostics[0].details, 'stderr'), false);
+    assert.equal(Object.hasOwn(profileResult.diagnostics[0].details, 'receiptDiagnosticMessage'), false);
+    assert.equal(conformanceStage.status, 'passed');
+    assert.equal(conformanceStage.evidence.conformance.status, 'partial');
+    assert.ok(conformanceStage.evidence.conformance.pathEvidence.every(({ status, report }) => (
+      status === 'unsupported' && report !== null
+    )));
+    assert.equal(receipt.next.length, 1);
+    assert.equal(receipt.recommendedNext.code, 'SNAPBACK_VERIFY_FIX_ACCEPTANCE');
+    assert.equal(validateReceiptSchema(receipt), true, JSON.stringify(validateReceiptSchema.errors));
+    cases += 1;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 }
 
 {

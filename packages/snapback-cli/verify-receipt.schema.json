@@ -308,7 +308,24 @@
         "testBytes": { "$ref": "#/$defs/testBytes" },
         "context": { "$ref": "#/$defs/context" },
         "conformance": { "type": "array" },
-        "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+        "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } },
+        "unsafeDebug": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "warning", "stderr", "stderrTruncated", "receiptDiagnosticMessage",
+            "receiptDiagnosticMessageTruncated", "childErrorMessage", "childErrorMessageTruncated"
+          ],
+          "properties": {
+            "warning": { "const": "May contain application-controlled values; do not publish as structured diagnostics." },
+            "stderr": { "type": "string", "maxLength": 16384 },
+            "stderrTruncated": { "type": "boolean" },
+            "receiptDiagnosticMessage": { "type": "string", "maxLength": 4096 },
+            "receiptDiagnosticMessageTruncated": { "type": "boolean" },
+            "childErrorMessage": { "type": "string", "maxLength": 4096 },
+            "childErrorMessageTruncated": { "type": "boolean" }
+          }
+        }
       }
     },
     "next": {

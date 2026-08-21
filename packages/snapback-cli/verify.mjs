@@ -585,6 +585,8 @@ function validatePassingStarterReceipt(receipt, registeredPaths, artifact) {
         continue;
       }
       const current = currentOperationIds?.has(functionId) === true;
+      const registered = registeredOperationIds.has(functionId);
+      if (!current && !registered) continue;
       if (!current) {
         add(invalidReceiptPath(
           path, 'string', 'current-generated-operation-reference-id', functionId, true,
@@ -712,9 +714,10 @@ async function runStarterAcceptanceProfile({ acceptanceFile, artifact, identityC
   const parsed = parseStarterAcceptanceReceipt(stdout);
   const receipt = parsed.receipt;
   const processFailed = exit.error !== null || exit.code !== 0;
-  const passingValidation = receipt?.status === 'passed'
+  const receiptValidation = parsed.kind === 'receipt'
     ? validatePassingStarterReceipt(receipt, paths, artifact)
     : null;
+  const passingValidation = receipt?.status === 'passed' ? receiptValidation : null;
   const ok = !overflow
     && !timedOut
     && !processFailed
@@ -748,7 +751,9 @@ async function runStarterAcceptanceProfile({ acceptanceFile, artifact, identityC
       : outcome === 'failed-receipt'
         ? 'starter acceptance returned a failed receipt'
         : outcome === 'process-failure'
-          ? 'starter acceptance process failed before returning a successful receipt'
+          ? receipt?.status === 'passed'
+            ? 'starter acceptance process failed despite returning a passing receipt'
+            : 'starter acceptance process failed before returning a receipt'
           : outcome === 'missing-receipt'
             ? 'starter acceptance did not return a receipt'
             : outcome === 'malformed-receipt'
@@ -794,7 +799,9 @@ async function runStarterAcceptanceProfile({ acceptanceFile, artifact, identityC
     ok,
     context: identityContext,
     conformance: Object.freeze(unsupportedConformance(paths.filter(({ id, functionId }) => (
-      functionId === null || passingValidation?.observedPathIds.includes(id)
+      functionId === null
+      || passingValidation === null
+      || passingValidation.observedPathIds.includes(id)
     )))),
     diagnostics: Object.freeze(diagnostics),
     unsafeDebug: Object.freeze({
@@ -1889,6 +1896,7 @@ async function runProfiles(config, context, options) {
       context: identityContext,
       conformance: Array.isArray(returned.conformance) ? returned.conformance : [],
       diagnostics: Object.freeze(returned.diagnostics ?? []),
+      ...(returned.unsafeDebug === undefined ? {} : { unsafeDebug: returned.unsafeDebug }),
     }));
   }
   return Object.freeze(output);
