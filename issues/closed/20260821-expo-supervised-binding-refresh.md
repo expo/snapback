@@ -8,7 +8,7 @@
 **Systems:** Expo, CLI, AppBinding, Dev loop, Diagnostics
 **Date:** 2026-08-21
 **Closed:** 2026-08-21
-**Landing SHA:** TBD
+**Landing SHA:** 3147dcea60c4e5b52708c33a20479262cdf2fb2a
 **Governing:** LLP 0181 AppBinding v1 and supervised development baseline;
 LLP 0294 W6.3 and resolved OQ7
 **Evidence:** Messtimate published-0.1.24 diary; current
@@ -71,3 +71,13 @@ one-minute clock skew, descriptor/refresh races, refresh and invariant failure,
 expired-predecessor rejection, and cleanup during an in-flight refresh. The
 real dev-loop witness crosses three TTLs with cold boots on both sides, while
 the packaged CLI path uses `SIGINT` and verifies complete reclamation.
+
+## Landing note
+
+The Metro-front/lease carrier series is landing on `main` concurrently and
+overlaps `packages/snapback-cli/expo-dev.mjs` semantically. Landing this change
+requires a semantic rebase over that carrier series: preserve its front/lease
+ownership and cleanup ordering while installing the binding publisher at the
+carrier's ownership transition, retaining atomic descriptor publication, and
+combining both dev-loop fixtures. Do not resolve that overlap mechanically in
+this review-fix worktree; the landing orchestrator owns the reconciliation.

@@ -7,6 +7,7 @@ import {
   startBootstrapExchange,
 } from './expo-dev.mjs';
 import { createSupervisedBindingPublisher } from './expo-binding-refresh.mjs';
+import { admitAppBindingV1 } from '../snapback-expo/app-binding.mjs';
 
 const BASE_NOW = Date.parse('2026-08-21T12:00:00.000Z');
 const TEST_TTL_MS = 1_000;
@@ -15,6 +16,8 @@ const TEST_GENERATION = 'supervisor-fake-clock';
 
 function descriptor(suffix = 'a') {
   return Object.freeze({
+    format: 'snapback.app.v1',
+    authoringProfile: 'snapback-explicit-v1',
     identity: Object.freeze({
       app: 'app:binding-refresh',
       schema: `sha256:schema-${suffix}`,
@@ -24,6 +27,15 @@ function descriptor(suffix = 'a') {
     capabilities: Object.freeze({
       required: Object.freeze(['auth.application-bootstrap.v1']),
     }),
+    api: Object.freeze({
+      queries: Object.freeze({}),
+      mutations: Object.freeze({}),
+      assets: Object.freeze({}),
+      ephemeral: Object.freeze({}),
+      queryGroups: Object.freeze({}),
+    }),
+    commands: Object.freeze({}),
+    surfaces: Object.freeze({}),
     authBootstrap: Object.freeze({ entryMechanisms: Object.freeze(['password-v1']) }),
   });
 }
@@ -53,6 +65,56 @@ function issueTestBinding(publisher, suffix = 'a') {
     routing: 'loopback',
   });
 }
+
+function assertDeeplyFrozen(value) {
+  if (value === null || typeof value !== 'object') return;
+  assert.equal(Object.isFrozen(value), true);
+  for (const child of Object.values(value)) assertDeeplyFrozen(child);
+}
+
+// Unconfigured production timing is one hour with a five-minute refresh
+// window. A short configured TTL caps that default window at one quarter.
+let defaultSupervisorNow = BASE_NOW;
+const defaultPublisher = createSupervisedBindingPublisher({
+  generation: 'supervisor-default-arithmetic',
+  now: () => defaultSupervisorNow,
+});
+const defaultPredecessor = issueTestBinding(defaultPublisher, 'default');
+assert.equal(
+  Date.parse(defaultPredecessor.provenance.expiresAt)
+    - Date.parse(defaultPredecessor.provenance.issuedAt),
+  60 * 60 * 1_000,
+);
+assert.equal(defaultPublisher.refreshWindowMs, 5 * 60 * 1_000);
+defaultSupervisorNow = Date.parse(defaultPredecessor.provenance.expiresAt)
+  - defaultPublisher.refreshWindowMs - 1;
+assert.strictEqual(await defaultPublisher.bindingForExchange(), defaultPredecessor);
+defaultSupervisorNow += 1;
+const defaultSuccessor = await defaultPublisher.bindingForExchange();
+assert.notStrictEqual(defaultSuccessor, defaultPredecessor);
+
+const distinctAppNow = defaultSupervisorNow - 60_000;
+assert.deepEqual(
+  await admitAppBindingV1(defaultSuccessor, descriptor('default'), {
+    now: distinctAppNow,
+    delivery: { channel: 'local-supervised-ipc' },
+  }),
+  defaultSuccessor,
+  'the app clock independently admits a supervisor-issued binding at the skew boundary',
+);
+
+let quarterCapNow = BASE_NOW;
+const quarterCapPublisher = createSupervisedBindingPublisher({
+  generation: 'supervisor-quarter-cap',
+  now: () => quarterCapNow,
+  ttlMs: TEST_TTL_MS,
+});
+const quarterCapPredecessor = issueTestBinding(quarterCapPublisher, 'quarter-cap');
+assert.equal(quarterCapPublisher.refreshWindowMs, TEST_TTL_MS / 4);
+quarterCapNow = BASE_NOW + TEST_TTL_MS - quarterCapPublisher.refreshWindowMs - 1;
+assert.strictEqual(await quarterCapPublisher.bindingForExchange(), quarterCapPredecessor);
+quarterCapNow += 1;
+assert.notStrictEqual(await quarterCapPublisher.bindingForExchange(), quarterCapPredecessor);
 
 // Fake-clock concurrency: every exchange crossing the window joins one mint
 // and receives the exact same complete successor publication.
@@ -158,19 +220,42 @@ assert.throws(
   (error) => error.code === 'SNAPBACK_EXPO_BINDING_PUBLICATION_STALE',
 );
 
+// Reverse ordering: refresh A publishes first, then its synchronous event
+// observer publishes descriptor successor B. The exchange must converge on B.
+let eventNow = BASE_NOW;
+let eventPublisher;
+let eventDescriptorSuccessor;
+eventPublisher = createSupervisedBindingPublisher({
+  generation: 'supervisor-event-reentrancy',
+  now: () => eventNow,
+  ttlMs: TEST_TTL_MS,
+  refreshWindowMs: TEST_REFRESH_WINDOW_MS,
+  onEvent(event) {
+    if (event.state === 'binding-refreshed') {
+      eventNow += 1;
+      eventDescriptorSuccessor = issueTestBinding(eventPublisher, 'event-b');
+    }
+  },
+});
+issueTestBinding(eventPublisher, 'event-a');
+eventNow = BASE_NOW + TEST_TTL_MS - TEST_REFRESH_WINDOW_MS;
+const eventExchangeSuccessor = await eventPublisher.bindingForExchange();
+assert.strictEqual(eventExchangeSuccessor, eventDescriptorSuccessor);
+assert.strictEqual(eventPublisher.current, eventDescriptorSuccessor);
+
 // Failed minting is visible, keeps the predecessor published, and retries on
 // the next exchange instead of installing a partial or invalid successor.
 let failureNow = BASE_NOW;
-let failRefresh = true;
+let failureMintCalls = 0;
 const failureEvents = [];
 const failurePublisher = createSupervisedBindingPublisher({
   generation: 'supervisor-refresh-failure',
   now: () => failureNow,
   ttlMs: TEST_TTL_MS,
   refreshWindowMs: TEST_REFRESH_WINDOW_MS,
-  mintRefresh(binding, timing) {
-    if (failRefresh) throw Object.assign(new Error('injected refresh failure'), { code: 'INJECTED' });
-    return refreshIssuance(binding, timing);
+  mintRefresh() {
+    failureMintCalls += 1;
+    throw Object.assign(new Error('injected refresh failure'), { code: 'INJECTED' });
   },
   onEvent: (event) => failureEvents.push(event),
 });
@@ -184,8 +269,39 @@ assert.equal(
   'SNAPBACK_EXPO_BINDING_REFRESH_FAILED',
 );
 assert.equal(JSON.stringify(failureEvents).includes('injected refresh failure'), false);
-failRefresh = false;
-assert.notStrictEqual(await failurePublisher.bindingForExchange(), failurePredecessor);
+failureNow = Date.parse(failurePredecessor.provenance.expiresAt) - 1;
+await assert.rejects(failurePublisher.bindingForExchange(), /injected refresh failure/u);
+assert.strictEqual(failurePublisher.current, failurePredecessor);
+failureNow += 1;
+await assert.rejects(failurePublisher.bindingForExchange(), /injected refresh failure/u);
+assert.strictEqual(failurePublisher.current, failurePredecessor);
+assert.equal(failureMintCalls, 3, 'persistent failures are retried before and through expiry');
+await assert.rejects(
+  admitAppBindingV1(failurePublisher.current, descriptor(), {
+    now: failureNow,
+    delivery: { channel: 'local-supervised-ipc' },
+  }),
+  (error) => error.code === 'SNAPBACK_APP_BINDING_EXPIRED',
+  'expiry equality is a clear refusal and never stale-serves the predecessor',
+);
+
+let mutableNow = BASE_NOW;
+let rawMutableSuccessor;
+const canonicalPublisher = createSupervisedBindingPublisher({
+  generation: 'supervisor-canonical-refresh',
+  now: () => mutableNow,
+  ttlMs: TEST_TTL_MS,
+  refreshWindowMs: TEST_REFRESH_WINDOW_MS,
+  mintRefresh(binding, timing) {
+    rawMutableSuccessor = structuredClone(refreshIssuance(binding, timing));
+    return rawMutableSuccessor;
+  },
+});
+issueTestBinding(canonicalPublisher);
+mutableNow = BASE_NOW + TEST_TTL_MS - TEST_REFRESH_WINDOW_MS;
+const canonicalSuccessor = await canonicalPublisher.bindingForExchange();
+assert.notStrictEqual(canonicalSuccessor, rawMutableSuccessor);
+assertDeeplyFrozen(canonicalSuccessor);
 
 let invalidNow = BASE_NOW;
 const invalidPublisher = createSupervisedBindingPublisher({
@@ -208,6 +324,27 @@ await assert.rejects(
   (error) => error.code === 'SNAPBACK_EXPO_BINDING_REFRESH_INVALID',
 );
 assert.strictEqual(invalidPublisher.current, invalidPredecessor);
+
+let extraFactNow = BASE_NOW;
+const extraFactPublisher = createSupervisedBindingPublisher({
+  generation: 'supervisor-extra-fact-refresh',
+  now: () => extraFactNow,
+  ttlMs: TEST_TTL_MS,
+  refreshWindowMs: TEST_REFRESH_WINDOW_MS,
+  mintRefresh(binding, timing) {
+    return Object.freeze({
+      ...refreshIssuance(binding, timing),
+      sessionBearer: 'must-not-fit',
+    });
+  },
+});
+const extraFactPredecessor = issueTestBinding(extraFactPublisher);
+extraFactNow = BASE_NOW + TEST_TTL_MS - TEST_REFRESH_WINDOW_MS;
+await assert.rejects(
+  extraFactPublisher.bindingForExchange(),
+  (error) => error.code === 'SNAPBACK_EXPO_BINDING_REFRESH_INVALID',
+);
+assert.strictEqual(extraFactPublisher.current, extraFactPredecessor);
 
 // Cleanup invalidates a pending refresh. This is the publisher half of the
 // existing real SIGINT supervisor test in the dev-loop suite.

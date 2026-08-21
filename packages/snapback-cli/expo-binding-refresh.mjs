@@ -1,5 +1,14 @@
 const DEFAULT_BINDING_TTL_MS = 60 * 60 * 1_000;
 const DEFAULT_BINDING_REFRESH_WINDOW_MS = 5 * 60 * 1_000;
+const APP_BINDING_ROOT_KEYS = Object.freeze([
+  'capabilities',
+  'descriptorIdentity',
+  'format',
+  'integrity',
+  'provenance',
+  'source',
+  'target',
+]);
 
 function diagnosticError(code, message, details = {}) {
   const diagnostic = Object.freeze({
@@ -96,14 +105,21 @@ function stableBindingFacts(binding) {
   });
 }
 
-function assertRefreshSuccessor(predecessor, successor, ttlMs) {
+function exactKeys(value, expected) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const actual = Object.keys(value).sort();
+  return actual.length === expected.length
+    && actual.every((key, index) => key === expected[index]);
+}
+
+function canonicalRefreshSuccessor(predecessor, successor, ttlMs) {
   const issuedAt = Date.parse(successor?.provenance?.issuedAt);
   const expiresAt = Date.parse(successor?.provenance?.expiresAt);
   if (
     successor?.source !== 'supervised-dev'
+    || !exactKeys(successor, APP_BINDING_ROOT_KEYS)
     || stableBindingFacts(successor) !== stableBindingFacts(predecessor)
-    || JSON.stringify(Object.keys(successor?.provenance ?? {}).sort())
-      !== JSON.stringify(['expiresAt', 'issuedAt', 'supervisorGeneration'])
+    || !exactKeys(successor?.provenance, ['expiresAt', 'issuedAt', 'supervisorGeneration'])
     || !Number.isFinite(issuedAt)
     || !Number.isFinite(expiresAt)
     || issuedAt <= Date.parse(predecessor.provenance.issuedAt)
@@ -118,6 +134,27 @@ function assertRefreshSuccessor(predecessor, successor, ttlMs) {
       },
     );
   }
+  return Object.freeze({
+    format: predecessor.format,
+    source: predecessor.source,
+    descriptorIdentity: predecessor.descriptorIdentity,
+    target: Object.freeze({
+      app: predecessor.target.app,
+      schema: predecessor.target.schema,
+      functions: predecessor.target.functions,
+      origin: predecessor.target.origin,
+      routing: predecessor.target.routing,
+    }),
+    capabilities: Object.freeze({
+      offered: Object.freeze([...predecessor.capabilities.offered]),
+    }),
+    provenance: Object.freeze({
+      supervisorGeneration: predecessor.provenance.supervisorGeneration,
+      issuedAt: successor.provenance.issuedAt,
+      expiresAt: successor.provenance.expiresAt,
+    }),
+    integrity: Object.freeze({ channel: predecessor.integrity.channel }),
+  });
 }
 
 // @ref LLP 0181#appbinding-v1 — the supervisor is the sole binding issuer;
@@ -231,24 +268,28 @@ export function createSupervisedBindingPublisher({
     const promise = Promise.resolve()
       .then(() => mintRefresh(predecessor, { now: nextIssuedAt(), ttlMs }))
       .then((successor) => {
-        assertRefreshSuccessor(predecessor, successor, ttlMs);
+        const canonicalSuccessor = canonicalRefreshSuccessor(predecessor, successor, ttlMs);
         if (closed) return null;
         if (revision !== predecessorRevision || binding !== predecessor) {
           return bindingForExchange();
         }
-        publish(successor);
+        publish(canonicalSuccessor);
+        const publishedRevision = revision;
         onEvent(Object.freeze({
           ok: true,
           state: 'binding-refreshed',
           reason: 'expiry-window',
-          descriptorIdentity: successor.descriptorIdentity,
+          descriptorIdentity: canonicalSuccessor.descriptorIdentity,
           supervisorGeneration: generation,
           previousIssuedAt: predecessor.provenance.issuedAt,
-          issuedAt: successor.provenance.issuedAt,
-          expiresAt: successor.provenance.expiresAt,
+          issuedAt: canonicalSuccessor.provenance.issuedAt,
+          expiresAt: canonicalSuccessor.provenance.expiresAt,
           refreshWindowMs: boundedRefreshWindowMs,
         }));
-        return successor;
+        if (revision !== publishedRevision || binding !== canonicalSuccessor) {
+          return bindingForExchange();
+        }
+        return canonicalSuccessor;
       })
       .catch((error) => {
         if (closed) return null;
