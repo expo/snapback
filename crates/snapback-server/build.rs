@@ -3,6 +3,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{fs, io};
 
+#[path = "src/guide_artifact.rs"]
+mod guide_artifact;
+
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../../guide");
@@ -137,23 +140,14 @@ fn emit_embedded_guide(stamped_build_commit: Option<&str>) {
         "served guide is missing generated section flat projections"
     );
 
-    for required in [
-        "index.md",
-        "capabilities.md",
-        "guide-manifest.generated.json",
-        "guide-flat.generated.md",
-        "reference/index.md",
-        "reference/registry.json",
-        "reference/diagnostics.md",
-        "reference/diagnostics-registry.json",
-    ] {
+    for required in guide_artifact::REQUIRED_GUIDE_PATHS {
         assert!(
             files.iter().any(|path| path == required),
             "served guide is missing required generated/input file {required}"
         );
     }
 
-    let manifest = fs::read_to_string(guide_dir.join("guide-manifest.generated.json"))
+    let manifest = fs::read_to_string(guide_dir.join(guide_artifact::MANIFEST_PATH))
         .expect("read generated guide manifest");
     let content_hash = generated_json_string(&manifest, "contentHash")
         .expect("generated guide manifest carries contentHash");
@@ -200,7 +194,7 @@ fn emit_embedded_guide(stamped_build_commit: Option<&str>) {
         .expect("write embedded Guide content hash");
     write_u32(&mut output, files.len(), "embedded Guide file count");
     for path in files {
-        let bytes = if path == "guide-manifest.generated.json" {
+        let bytes = if path == guide_artifact::MANIFEST_PATH {
             embedded_manifest.as_bytes().to_vec()
         } else {
             fs::read(guide_dir.join(&path))
@@ -219,7 +213,7 @@ fn emit_embedded_guide(stamped_build_commit: Option<&str>) {
 }
 
 fn is_section_flat_path(path: &str) -> bool {
-    path != "guide-flat.generated.md"
+    path != guide_artifact::FLAT_PATH
         && path.starts_with("guide-flat.")
         && path.ends_with(".generated.md")
 }

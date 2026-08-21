@@ -321,12 +321,39 @@ test('the Guide inert-data boundary needs no generated-API review row', () => {
     'the audited identity-only DatabaseBinding must not be classified as a privilege seed',
   );
   assert.equal(result.findings.some(({ kind }) => kind === 'generated-api'), false);
+  assert.deepEqual(
+    result.findings.filter(({ file }) => file === 'crates/snapback-server/src/guide.rs'),
+    [],
+    'the public committed Guide decoder must remain a zero-finding privilege surface',
+  );
   assert.deepEqual(result.allowlisted, []);
   assert.equal(
     result.violations.some(({ kind }) => kind === 'allowlist-invalid' || kind === 'allowlist-stale'),
     false,
     'an empty allowlist must be valid and have no expected-row debt',
   );
+});
+
+test('the Guide-scoped privilege assertion detects a planted seed leak', () => {
+  const { scratch, crate } = inertGuideFixture();
+  try {
+    const source = join(crate, 'src/guide.rs');
+    writeFileSync(source, [
+      readFileSync(source, 'utf8').trimEnd(),
+      'pub fn hostile() -> KernelCommitAuthority { todo!() }',
+      '',
+    ].join('\n'));
+    const result = auditPrivilegeSurface(scratch);
+    assert(
+      result.findings.some(({ file, kind, seedType }) =>
+        file === 'crates/snapback-server/src/guide.rs'
+          && kind === 'seed-obtain'
+          && seedType === 'KernelCommitAuthority'),
+      'a committed Guide seed leak must be a scoped scanner finding',
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 test('an OUT_DIR Rust include beside inert Guide bytes still fails closed', () => {
