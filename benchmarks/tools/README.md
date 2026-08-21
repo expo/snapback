@@ -32,6 +32,57 @@ selects the manifest's comparison set. The generated Markdown starts with a
 do-not-edit marker. `--check` is the CI form: it recomputes the complete output
 and fails if the checked-in rendering differs.
 
+### Lane setup and routing preflight
+
+Create every private lane directory before its agent starts, then generate its
+bounded first-read files against the already-provisioned read-only instrument:
+
+```sh
+node benchmarks/tools/lane-setup.mjs setup \
+  --lane-dir /path/to/run/lanes/sol-high-clique-explicit-r01 \
+  --lane-id sol-high-clique-explicit-r01 \
+  --instrument-root /path/to/run/instrument \
+  --profile snapback-explicit-v1 \
+  --backend-pin '@expo/snapback-*@0.1.24' \
+  --instrument-pin social-messenger@0.3.2-m8 \
+  --skill snapback-authoring
+```
+
+The command writes `AGENTS.md`, one `BENCHMARK-ORIENTATION.md`, and
+`lane-report.json` at the lane's initial directory. Rerunning the same input is
+deterministic; it refuses to overwrite a non-matching generated file. The two
+steering documents are measured as delivered UTF-8 bytes and refused above
+LLP 0259's 16 KiB ceiling. `lane-report.json` records that byte accounting and
+the selected skill set before its `firstProductEdit` snapshot is joined.
+
+Immediately before the driver's first product edit, stamp the metering marker
+from that report (the driver supplies its own event timestamp):
+
+```sh
+node benchmarks/tools/lane-setup.mjs mark-first-edit \
+  --lane-report /path/to/lane/lane-report.json \
+  --at 2026-08-21T12:34:56.000Z
+```
+
+This writes `first-product-edit.json` in the lane with the metering joiner's
+exact input shape: `{at, orientationBytes, selectedSkills}`. Pass it to the
+meter's `--first-product-edit` option; its output replaces the report's seeded
+top-level `firstProductEdit` object with the cumulative native token snapshot.
+
+At the M1 preflight boundary, inspect the retained harness JSONL:
+
+```sh
+node benchmarks/tools/lane-setup.mjs preflight \
+  --lane-dir /path/to/run/lanes/sol-high-clique-explicit-r01 \
+  --events /path/to/run/logs/sol-high-clique-explicit-r01.jsonl
+```
+
+The detector recognizes normalized `skill.loaded` events and skill-file reads
+in Codex-style command events. It warns, without relabeling the application
+result, when a physical-device/EAS-delivery or generic Expo/Tuft scaffold skill
+was loaded before the first product edit. Reporting-file edits do not close the
+orientation boundary.
+
 ## Additive P0.0 seam
 
 The loader reads `benchmarks/schema/run-record.schema.json` at runtime and

@@ -32,6 +32,15 @@ unavailable metric as unmeasured with a reason; never reconstruct it. P0 runs
 must supply every phase split under `../protocol.md`; ordinary records may use
 unavailable phase values. Diary 0058 is the no-reconstruction precedent.
 
+For social-messenger lanes, retain the lane setup's `orientation` block
+(selected skill set plus unique/delivered bytes for the bounded steering
+artifacts) and the harness-native `firstProductEdit` usage snapshot. The latter
+uses `{at, orientationBytes, orientationTokens, selectedSkills}` and is the
+orientation/authoring boundary: its cumulative tokens are reported as
+orientation and are never added again to M1 authoring tokens. Preserve explicit
+nulls when a harness does not expose input, output, cache read/write, or
+reasoning.
+
 For every lane, record `firstGreenProofAt` as the timestamp of its first
 passing acceptance proof. Use null when the lane never produced green proof;
 do not substitute the finish time.

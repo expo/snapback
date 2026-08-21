@@ -1,7 +1,8 @@
 # Matrix lanes load irrelevant app-building skills before the Snapback packet
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-20
+**Closed:** 2026-08-21
 **Systems:** Benchmarks, Agent context, Templates, Skills, Token efficiency
 **Related:** LLP 0186; LLP 0201; LLP 0259; LLP 0277; LLP 0295
 
@@ -37,3 +38,24 @@ token snapshots, so no exact token share is claimed.
 Matched probe lanes reach the first product edit after one bounded Snapback
 start packet, with no device/EAS skill context and with orientation bytes
 reported separately from authoring tokens.
+
+## Resolution
+
+`benchmarks/tools/lane-setup.mjs` now installs a deterministic lane-root
+`AGENTS.md`, the sole generated `BENCHMARK-ORIENTATION.md`, and an initial
+`lane-report.json`. The two steering artifacts share LLP 0259's 16 KiB
+delivered-byte ceiling, route only the selected Snapback skill, and classify
+the lane as web-only with device/EAS delivery and generic scaffold substitution
+out of scope.
+
+The lane report carries the selected skills and exact steering byte accounting.
+Its first-product-edit seed and marker use the metering joiner's additive
+`{at, orientationBytes, orientationTokens, selectedSkills}` schema, preserving
+orientation tokens separately from milestone authoring. The preflight command
+warns when retained harness events show a known device/EAS or generic scaffold
+skill loaded before the first product edit.
+
+Unit coverage verifies deterministic bounded generation, schema compatibility,
+the marker shape, and pre-M1 warning behavior.
+
+landing SHA: TBD

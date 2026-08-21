@@ -116,9 +116,13 @@ keeps them so is not settled.
 2. Preflight the environment: confirm that npm `latest` resolves to the
    published closure the run claims to measure; survey occupied ports and
    write the `{{PORT_EXCLUSIONS}}` sentence; then create one fresh workdir per
-   lane. Do not put workdirs under `/private/tmp` because Metro's watcher is
-   blind there, and do not set `CI=1`, which silently disables watching — the
-   instrumented series hit these conditions three times.
+   lane. Before starting its agent, run `tools/lane-setup.mjs setup` against
+   that initial directory and the read-only instrument snapshot. It writes the
+   bounded lane `AGENTS.md`, the one generated `BENCHMARK-ORIENTATION.md`, and
+   the initial `lane-report.json`. Do not put workdirs under `/private/tmp`
+   because Metro's watcher is blind there, and do not set `CI=1`, which
+   silently disables watching — the instrumented series hit these conditions
+   three times.
 3. For skill-equipped and native lanes, extract `{{SKILL_PAYLOAD}}` from the
    published consumer scaffold using the recipe below.
 4. Instantiate the appropriate templates from `lanes/`. When the expanded
@@ -126,9 +130,12 @@ keeps them so is not settled.
    deliver the proven one-line instruction documented in `lanes/skill.md`.
 5. Run the lanes serially and cold. Collect start/end epochs,
    `firstGreenProofAt`, per-lane token and tool-use counts from the orchestration
-   harness, the four wall-clock and token phase splits, and each lane's final
-   report. P0 runs must provide all phase values; ordinary records may mark a
-   phase unavailable with a reason.
+   harness, the first-product-edit snapshot, the four wall-clock and token phase
+   splits, and each lane's final report. Join the snapshot into
+   `lane-report.json` without charging its orientation tokens to M1 authoring.
+   At M1 preflight, run `tools/lane-setup.mjs preflight` over the harness JSONL;
+   retain any out-of-scope skill-family warning. P0 runs must provide all phase
+   values; ordinary records may mark a phase unavailable with a reason.
 6. Attribute correction loops under `protocol.md`, then independently check
    each claimed proof result against the selected brief's acceptance bar and
    score every lane with the required messaging or non-messaging rubric.
@@ -188,7 +195,8 @@ remains **OPEN (LLP 0186 OQ5)**; this instrument does not decide it.
 - `records/` — the record format, standing run records, and the series table.
 - `schema/` — the optional per-lane JSON run-record schema.
 - `tools/` — the LLP 0197 checked record loader/publisher and publication-safe
-  action-trace sanitizer. Its fixtures are synthetic and are never benchmark
-  results; see `tools/README.md`.
+  action-trace sanitizer, plus the lane setup/orientation/preflight generator.
+  Its fixtures are synthetic and are never benchmark results; see
+  `tools/README.md`.
 - `protocol.md` — run rules, metering, repetition floors, attribution, and
   publication posture.

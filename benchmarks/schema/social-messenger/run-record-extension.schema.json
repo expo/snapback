@@ -55,6 +55,101 @@
       "const": 2,
       "description": "Version 2 requires an execution-ordered terminal boundary for every attempted milestone."
     },
+    "orientation": {
+      "type": "object",
+      "description": "Bounded lane steering generated before the agent starts. This block is additive to the milestone authoring clocks: deliveredBytes is context delivery, while the sibling firstProductEdit field is the cumulative harness-native orientation-token snapshot and MUST NOT be added to milestones.M1.authoring.tokens.",
+      "required": [
+        "schemaVersion",
+        "selectedSkills",
+        "artifacts",
+        "uniqueBytes",
+        "deliveredBytes",
+        "preflightWarnings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "benchmark-orientation.v1"
+        },
+        "selectedSkills": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Stable skill IDs selected for the lane before M1; the lane-local packet is the bounded projection of this set."
+        },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["path", "bytes", "sha256"],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          }
+        },
+        "uniqueBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Unique UTF-8 steering bytes loaded before the first product edit."
+        },
+        "deliveredBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384,
+          "description": "Delivered UTF-8 steering bytes after the packet/AGENTS dedup rule; separately reported from authoring tokens and bounded by LLP 0259."
+        },
+        "preflightWarnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["family", "code", "skill", "milestone", "severity", "message"],
+            "additionalProperties": false,
+            "properties": {
+              "family": {
+                "enum": ["device-eas-delivery", "generic-app-scaffold"]
+              },
+              "code": {
+                "enum": [
+                  "BENCHMARK_PREFLIGHT_OUT_OF_SCOPE_DEVICE_EAS_SKILL",
+                  "BENCHMARK_PREFLIGHT_OUT_OF_SCOPE_GENERIC_APP_SCAFFOLD_SKILL"
+                ]
+              },
+              "skill": {
+                "type": "string",
+                "minLength": 1
+              },
+              "milestone": {
+                "const": "M1"
+              },
+              "severity": {
+                "const": "warning"
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
     "runScope": {
       "enum": [
         "reduced",
@@ -1031,6 +1126,7 @@
             "null"
           ],
           "minimum": 0,
+          "maximum": 16384,
           "description": "Exact bytes loaded before the first product edit, measured by the lane driver; null when unmeasured."
         },
         "orientationTokens": {
