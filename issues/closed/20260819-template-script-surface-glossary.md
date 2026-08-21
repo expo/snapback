@@ -57,4 +57,4 @@ the template-portfolio qualification self-check fails on missing scripts,
 changed command classes, or documentation drift. The first-read packet and
 create/help surfaces use the same command taxonomy.
 
-**Landing SHA:** TBD
+**Landing SHA:** a87c9e001
