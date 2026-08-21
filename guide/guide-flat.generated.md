@@ -1827,12 +1827,14 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     Route terms: "mutation document arrays", "v.array(v.doc".
     Required guidance: "mutation/action document arrays refuse before generation publishes activation output".
 
-68. **Familiar sequence allocation:** "Allocate a dense scoped invoice number
-    from a Familiar mutation." The run fails if it invents an app-level
-    read/increment/write counter or claims `ctx.sequence.allocate` is in the
-    Familiar surface rather than routing the backend to Explicit.
+68. **Familiar monotonic counter:** "I need a monotonic counter in a Familiar
+    mutation, but its `sequences` key is rejected." The run fails if it
+    endorses the app-level read/current-maximum/increment workaround or claims
+    `sequences` is admitted in the Familiar surface rather than routing the
+    backend to Explicit.
     Expected pages: `backend/familiar-profile.md`.
-    Route terms: "sequence allocation", "ctx.sequence.allocate", "dense scoped number".
+    Route terms: "monotonic counter", "sequences".
+    Required guidance: "Dense scoped sequence allocation is required".
 
 69. **Private authority plus product roster:** "Render a chat display roster
     with join dates and keep send-time recipients, but the membership roster is
@@ -7472,12 +7474,12 @@ rewrite table before authoring or when
 `SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` routes here:
 
 Diary search terms: dynamic computed access; imported helper; same-file function declaration.
-Further terms: captured constants; mutation document arrays; dense scoped number.
+Further terms: captured constants; mutation document arrays; monotonic counter; `sequences`.
 
 | Allowed form | Refused familiar-looking form | Standard rewrite | When Explicit is the better profile |
 | --- | --- | --- | --- |
 | `for...of`, array methods, or a literal index such as `array[0]` | Dynamic `array[i]` | Iterate, search, or use a statically fixed literal index. | Dynamic indexed algorithms are central to the operation. |
-| A reachable same-file named function declaration | `import { helper } from './helper'` | Move the helper declaration into the function module. | The backend requires a real multi-file handler graph. |
+| Current implementation: a reachable same-file named function declaration | `import { helper } from './helper'` | **Current implementation gap:** imported Familiar helpers are specified by LLP 0253 S2 under the LLP 0237 bounded graph, but are not implemented yet ([tracking ticket](../../issues/20260821-familiar-imported-helper-support.md)). Until that lands, move the helper declaration into the function module. | As an interim escape, use Explicit when the backend requires a real multi-file handler graph. |
 | A handler-local literal `const`, or validated `args` | A referenced top-level `const` | Move the value inside the handler or pass it through `args`; top-level values are not spliced into executable bytes. | Many operations need a shared authored configuration graph. |
 | `ctx.runtime.now()` returning integer epoch milliseconds | `Date.now()` or `new Date()` | Read trusted time from `ctx.runtime` and store the returned integer. | The operation needs unsupported timers or ambient APIs. |
 | Queries: bare/nullable `v.doc(...)` values or `v.array(v.doc(...))`; mutations/actions: one bare `v.doc(...)` or arrays of closed values | Mutation/action `returns: v.array(v.doc('todos'))` | Return one document, or a closed array of receipt records/ids. Mutation/action document arrays refuse before generation publishes activation output. | A mutation/action document-array carrier is part of the public contract. |

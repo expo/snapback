@@ -7,13 +7,14 @@ export const HANDLER_ADMISSION_VERSION = 'snapback.handler-admission.legacy.v1';
 export const HANDLER_GRAPH_RECORD_VERSION = 'snapback.handler-graph-record.v1';
 export const HANDLER_GRAPH_EXTRACTOR_VERSION = 'snapback.inline-handler-extractor.v1';
 export const HANDLER_RUNTIME_GUIDE = '/_snapback/guide/backend/handler-runtime.md';
+export const FAMILIAR_HANDLER_DIALECT_GUIDE = '/_snapback/guide/backend/familiar-profile.md';
 
-const rule = (id, code, phase, alternative, anchor) => Object.freeze({
+const rule = (id, code, phase, alternative, anchor, guide = HANDLER_RUNTIME_GUIDE) => Object.freeze({
   id,
   code,
   phase,
   alternative,
-  guideAnchor: `${HANDLER_RUNTIME_GUIDE}#${anchor}`,
+  guideAnchor: `${guide}#${anchor}`,
 });
 
 export const INLINE_HANDLER_RULES = Object.freeze({
@@ -119,6 +120,10 @@ export const HANDLER_PROFILE_DIAGNOSTICS = Object.freeze([
   rule('inline.marker.unbound', 'SNAPBACK_INLINE_HANDLER_NOT_BOUND', 'static-admission', 'Export the direct inline definition so codegen can bind its authored handler.', 'inline-handlers-and-same-file-helpers'),
   rule('definition.strict-json', 'SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE', 'definition-evaluation', 'Replace the named value with strict JSON data.', 'diagnostic-attribution'),
   rule('definition.export.required', 'SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED', 'definition-discovery', 'Add export to the named top-level builder binding.', 'diagnostic-attribution'),
+  // @ref LLP 0253#s43-returns-lowering-kind-partitioned-refusing — Familiar
+  // mutation/action document composites refuse with the first-read dialect
+  // rewrite at the point of generation, before activation output exists.
+  rule('familiar.result.unlowerable', 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE', 'definition-evaluation', 'Use the Explicit profile result: grammar for mutation/action document composites.', 'translate-the-familiar-handler-dialect', FAMILIAR_HANDLER_DIALECT_GUIDE),
   rule('runtime.ambient-capability', 'SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED', 'runtime-check', 'Use the operation kind and ctx capability named by the diagnostic.', 'static-and-runtime-refusals'),
   rule('runtime.export.required', 'SNAPBACK_HANDLER_EXPORT_MISSING', 'runtime-check', 'Register the closed-script export on globalThis.__snapbackHandlers.', 'closed-script-handler-files'),
 ]);

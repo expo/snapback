@@ -41,6 +41,7 @@ const packageRoots = Object.freeze([
 ]);
 const guideSpelling = 'returns: v.union([v.doc("todos"), v.null()])';
 const negativeCode = 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE';
+const negativeGuideAnchor = '/_snapback/guide/backend/familiar-profile.md#translate-the-familiar-handler-dialect';
 
 function usage() {
   return `Usage: node scripts/familiar-vdoc-vertical-contract.mjs [options]
@@ -183,6 +184,11 @@ async function proveDocumentArrayRefusal(codegen, negativeRoot, fixtureName) {
   assert.equal(refused.ok, false);
   const diagnostic = refused.diagnostics.find(({ code }) => code === negativeCode);
   assert(diagnostic, JSON.stringify(refused.diagnostics));
+  assert.equal(
+    diagnostic.guideAnchor,
+    negativeGuideAnchor,
+    `${fixtureName} refusal must route to the Familiar handler-dialect table`,
+  );
   assert.match(
     diagnostic.message,
     /document-containing composite values require the explicit result: grammar/u,

@@ -3,6 +3,7 @@ export const HANDLER_ADMISSION_VERSION: 'snapback.handler-admission.legacy.v1';
 export const HANDLER_GRAPH_RECORD_VERSION: 'snapback.handler-graph-record.v1';
 export const HANDLER_GRAPH_EXTRACTOR_VERSION: 'snapback.inline-handler-extractor.v1';
 export const HANDLER_RUNTIME_GUIDE: '/_snapback/guide/backend/handler-runtime.md';
+export const FAMILIAR_HANDLER_DIALECT_GUIDE: '/_snapback/guide/backend/familiar-profile.md';
 
 export interface HandlerRuntimeDiagnosticRule {
   readonly id: string;

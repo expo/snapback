@@ -108,6 +108,10 @@ export const listTodos = defineJsQuery({
     handlerRuleForCode('BUNDLE_UNSUPPORTED_IMPORT').guideAnchor,
     /^\/_snapback\/guide\/backend\/handler-runtime\.md#/u,
   );
+  assert.equal(
+    handlerRuleForCode('SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE').guideAnchor,
+    '/_snapback/guide/backend/familiar-profile.md#translate-the-familiar-handler-dialect',
+  );
   const profileRecord = generated.artifactIndex.files.find(({ path }) => path === 'handler-runtime-profile.v1.json');
   assert.equal(profileRecord.logicalKind, 'handler-runtime-profile');
   assert.equal(profileRecord.consumer, 'developer-tooling');

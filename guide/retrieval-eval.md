@@ -707,12 +707,14 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     Route terms: "mutation document arrays", "v.array(v.doc".
     Required guidance: "mutation/action document arrays refuse before generation publishes activation output".
 
-68. **Familiar sequence allocation:** "Allocate a dense scoped invoice number
-    from a Familiar mutation." The run fails if it invents an app-level
-    read/increment/write counter or claims `ctx.sequence.allocate` is in the
-    Familiar surface rather than routing the backend to Explicit.
+68. **Familiar monotonic counter:** "I need a monotonic counter in a Familiar
+    mutation, but its `sequences` key is rejected." The run fails if it
+    endorses the app-level read/current-maximum/increment workaround or claims
+    `sequences` is admitted in the Familiar surface rather than routing the
+    backend to Explicit.
     Expected pages: `backend/familiar-profile.md`.
-    Route terms: "sequence allocation", "ctx.sequence.allocate", "dense scoped number".
+    Route terms: "monotonic counter", "sequences".
+    Required guidance: "Dense scoped sequence allocation is required".
 
 69. **Private authority plus product roster:** "Render a chat display roster
     with join dates and keep send-time recipients, but the membership roster is
