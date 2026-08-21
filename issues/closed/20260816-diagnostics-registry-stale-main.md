@@ -26,3 +26,16 @@ landed in between; likeliest suspect is the `snapback init` composition landing
 both projections (new codes may also need `NON_DIAGNOSTIC_SNAPBACK_LITERALS`
 classification in crates/snapback/src/server/tests.rs per the s5_d10 gate). Close this ticket
 with the landing SHA.
+
+**Resolved 2026-08-21:** regenerated both projections on a full checkout
+(gitignored guide inputs present, rebuilt via `./scripts/check-generated-artifacts`)
+and landed them as `f6eb89353`. No `NON_DIAGNOSTIC_SNAPBACK_LITERALS`
+classification edits were needed — `check-inventories` passes clean:
+312 package tests; 27 scripts tests; 30 demos; 468 publication leaves;
+142 guide pages / 1684 snippets. Two operational notes: (1) the
+symbol-registry parity stage of the reference-registry inventory is
+Node-version-sensitive — under ambient Node 22 it misreports
+`@expo/snapback-expo/app.plugin` / `config-plugin` `module.exports` parity
+errors; run it under the pinned Node 24.18.0. (2) `generate-guide-manifest`
+refuses until demo generated artifacts exist; `./scripts/check-generated-artifacts`
+is the documented repair and worked.
