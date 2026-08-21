@@ -188,6 +188,19 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   });
   const stream = new EventStream(dev);
   const send = (command) => dev.stdin.write(`${JSON.stringify(command)}\n`);
+  const writeAndForceReload = async (contents, { requestId, label }) => {
+    const from = stream.mark();
+    writeFileSync(functionsPath, contents);
+    send({ schemaVersion: 'snapback.dev-command.v1', verb: 'reload', requestId });
+    const result = await stream.waitFor(
+      (event) => event.requestId === requestId
+        && ['generated-and-loaded', 'generated-but-not-loaded', 'generation-failed'].includes(event.state),
+      { from, label },
+    );
+    assert.equal(result.state, 'generated-and-loaded', `${label}: ${JSON.stringify(result)}`);
+    assert.equal(result.changed, '(reload)');
+    return result;
+  };
 
   // Order: managed server + first generate/load complete before the client
   // arm spawns, and stdin-not-a-TTY selects the machine-readable channel.
@@ -251,12 +264,13 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   assert.deepEqual(await listTitles(), ['first todo', 'second todo']);
 
   // --- managed-dev handler failures carry bounded underlying detail ---------
-  mark = stream.mark();
-  writeFileSync(functionsPath, functionsRuntimeTypo);
-  await stream.waitFor(
-    (event) => event.state === 'generated-and-loaded' && /functions\.mjs$/.test(event.changed ?? ''),
-    { from: mark, label: 'runtime typo handler load' },
-  );
+  // Use the request-correlated reload acknowledgment here instead of relying
+  // on the watcher's debounced callback under machine load. The automatic
+  // watcher remains covered by the live-edit and failure/recovery waves below.
+  await writeAndForceReload(functionsRuntimeTypo, {
+    requestId: 'runtime-typo-load',
+    label: 'runtime typo handler load',
+  });
   const runtimeTypoResponse = await fetch(`${relay}/mutation/runtimeTypo`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -270,12 +284,10 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   assert.equal(runtimeTypo.diagnostic.details.callee, 'ctx.runtime.newId');
   assert(Number.isInteger(runtimeTypo.diagnostic.details.sourcePosition?.line));
   assert(Number.isInteger(runtimeTypo.diagnostic.details.sourcePosition?.column));
-  mark = stream.mark();
-  writeFileSync(functionsPath, functionsAsc);
-  await stream.waitFor(
-    (event) => event.state === 'generated-and-loaded' && /functions\.mjs$/.test(event.changed ?? ''),
-    { from: mark, label: 'runtime typo handler removal' },
-  );
+  await writeAndForceReload(functionsAsc, {
+    requestId: 'runtime-typo-remove',
+    label: 'runtime typo handler removal',
+  });
   console.log('managed dev surfaces missing ctx member, TypeError detail, and handler position');
 
   // --- live edit observable through the client surface -----------------------
