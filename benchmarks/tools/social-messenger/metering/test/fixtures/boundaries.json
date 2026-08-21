@@ -1,0 +1,18 @@
+{
+  "milestones": {
+    "M1": {
+      "authoring": {
+        "suitePassAt": "2026-08-21T10:01:20.000Z",
+        "choreoPassAt": "2026-08-21T10:01:30.000Z",
+        "firstGreenAt": "2026-08-21T10:01:30.000Z"
+      }
+    },
+    "M2": {
+      "authoring": {
+        "suitePassAt": "2026-08-21T10:02:10.000Z",
+        "choreoPassAt": "2026-08-21T10:02:30.000Z",
+        "firstGreenAt": "2026-08-21T10:02:30.000Z"
+      }
+    }
+  }
+}

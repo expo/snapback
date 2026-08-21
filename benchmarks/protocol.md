@@ -74,6 +74,50 @@ proxy), and whether cross-model token comparison is ever fair or the
 ratchet pins one model per benchmark epoch. Until resolved, token
 figures are recorded but make no cross-model claims.
 
+### Social-messenger harness-native amendment (2026-08-21)
+
+For the social-messenger instrument, harness-native per-turn accounting is
+the only cap-bearing token channel. Provider usage-window snapshots,
+transcript keyword buckets, prose reconstruction, and other estimators are
+not approved for cap enforcement or charging. The approved `tokens.source`
+values are:
+
+| Cap family / harness | Approved source | Token-cap posture |
+| --- | --- | --- |
+| Claude frontier, and a Claude-based mid-tier lane | `claude-code-session-usage` (de-duplicated per-message usage from the retained session JSONL) | Cap-bearing when the per-turn stream is retained |
+| GPT frontier under Codex | `codex-rollout-token-count` (deltas of the retained rollout log's cumulative `token_count` records) | Cap-bearing when the per-turn stream is retained |
+| Kimi advisory and Grok advisory | `null` | Per-milestone token fields are honest nulls; token caps are inapplicable and never enforced |
+
+A scored-family lane that fails to retain its approved per-turn stream also
+records null rather than substituting an estimator; it cannot adjudicate a
+token-cap or efficiency result. Lane-total final JSON may remain narrative
+diagnostic evidence, but it is not a milestone meter.
+
+Milestone boundary snapshots are prefix sums of native usage records ordered
+by the time each turn completed. A turn completed at or before milestone
+`m`'s first-green receipt belongs to `m`; a turn after that receipt belongs to
+the next attempted milestone. Consequently, each milestone phase is the
+difference between its prefix snapshot and the preceding green boundary's
+snapshot, in actual execution order. Green is the later of the separately
+stamped `suitePassAt` and `choreoPassAt`; when the choreography's
+`segment-summary` is already green, its `recordedAt` is the exact combined
+`firstGreenAt`. Equality is inclusive.
+
+Every native record preserves fresh input, output, cache-read, cache-write,
+and reasoning/thinking counters where the harness exposes them. **The token
+cap sums fresh input plus native output.** Cache reads and writes are recorded
+but excluded. Reasoning is recorded as a subset of native output and is not
+added again. A live watchdog trips when that sum reaches or exceeds the
+registered `(cap family, milestone)` token cap; the milestone becomes a
+`capability-failure` and charges the token cap plus actual wall with
+`capped-tokens`, per LLP 0201 D2.
+
+The social-messenger extension also records an explicit first-product-edit
+receipt: driver-stamped timestamp, exact orientation bytes, selected skills,
+and the native token prefix at that instant. The driver measures the bytes and
+skill selection directly; the metering tool does not infer them from prose or
+shell-command heuristics.
+
 ## Repetitions and variance
 
 Agent runs are nondeterministic. A preregistered series with **N>=3 per

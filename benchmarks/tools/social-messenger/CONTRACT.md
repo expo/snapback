@@ -10,6 +10,8 @@ this file is silent.
 - `benchmarks/tools/social-messenger/ui/` — presentational UI kit
 - `benchmarks/tools/social-messenger/choreography/` — two-client +
   simulator choreography harness
+- `benchmarks/tools/social-messenger/metering/` — harness-native per-turn
+  token adapters, milestone joiner, and cap watchdog
 - `benchmarks/tools/social-messenger/grader/` — grader prompt, report
   schema, calibration plan, probe machinery
 - `benchmarks/fixtures/social-messenger/` — personas, media, action

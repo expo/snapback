@@ -11,6 +11,7 @@ P3 after the pilot). Cross-lane pins live in `CONTRACT.md`.
 | Coordination contract | `CONTRACT.md` | Layout, determinism, personas, named O5 fixtures, action verbs, test-ID set, versioning |
 | UI kit | `ui/` | Purely presentational RN components (dumb props, contract test IDs, tokens incl. the 8 chat accent colors), screens/wireframes, neutrality notes, Clique logo |
 | Choreography harness | `choreography/` | Two-client Playwright harness with fail-closed structured receipts; separately recorded simulator artifact contract |
+| Token metering | `metering/` | Harness-native Claude/Codex per-turn adapters, milestone receipt joiner, first-product-edit snapshot, advisory nulls, and live cap watchdog |
 | Grader harness | `grader/` | Frozen grader prompt, grader-report schema, calibration plan + planted-defect template, probe-category registry, probe hash-commit tool + rotation log |
 | Fixture pack | `../../fixtures/social-messenger/` | Action schema + deterministic generator, committed starter segments and 50-action sample log, hash-pinned scale log, invariant manifests, personas, window configs, generated media |
 | Scoring manifests | `../../schema/social-messenger/` | Assertion-ID manifest (executor classes), dimension applicability manifest, run-record extension schema |

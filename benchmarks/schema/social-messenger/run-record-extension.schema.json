@@ -12,6 +12,7 @@
     "milestones",
     "termination",
     "compaction",
+    "firstProductEdit",
     "coverageManifest",
     "assertionManifest",
     "clocks",
@@ -181,6 +182,9 @@
           }
         }
       }
+    },
+    "firstProductEdit": {
+      "$ref": "#/$defs/firstProductEditSnapshot"
     },
     "coverageManifest": {
       "type": "object",
@@ -708,10 +712,13 @@
   "$defs": {
     "tokenCounts": {
       "type": "object",
-      "description": "Token usage (input/output/cache) from the orchestration harness; nulls record an un-metered phase honestly, per benchmarks/protocol.md.",
+      "description": "Harness-native per-turn token usage. input is fresh uncached input; output is the native output total; cacheRead/cacheWrite and the reasoning subset are recorded separately. The cap sum is input + output only, so cache counters are excluded and reasoning is not double-counted. Nulls record an un-metered phase honestly, per benchmarks/protocol.md.",
       "required": [
         "input",
-        "output"
+        "output",
+        "cacheRead",
+        "cacheWrite",
+        "reasoning"
       ],
       "additionalProperties": false,
       "properties": {
@@ -742,6 +749,55 @@
             "null"
           ],
           "minimum": 0
+        },
+        "reasoning": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Native reasoning/thinking-token subset where surfaced; null otherwise. This is included in output by the native harness and is never added to the cap sum a second time."
+        }
+      }
+    },
+    "firstProductEditSnapshot": {
+      "type": "object",
+      "description": "The explicit first-product-edit boundary receipt required by LLP 0295 D0.6: exact orientation bytes and selected skills from the driver, plus the harness-native usage prefix at that timestamp. No transcript heuristic or provider estimator may fill this field.",
+      "required": [
+        "at",
+        "orientationBytes",
+        "orientationTokens",
+        "selectedSkills"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "Driver-stamped instant immediately before the first product edit; null when no marker was retained."
+        },
+        "orientationBytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Exact bytes loaded before the first product edit, measured by the lane driver; null when unmeasured."
+        },
+        "orientationTokens": {
+          "$ref": "#/$defs/tokenCounts"
+        },
+        "selectedSkills": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "description": "Skills selected before the first product edit, in driver-observed selection order."
         }
       }
     },
