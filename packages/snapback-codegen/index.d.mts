@@ -12,7 +12,10 @@ import type { ReviewManifest } from './review-surface.mjs';
 import type { CodegenSummary } from './codegen-summary.mjs';
 import type { ResultValueContract } from './result-contracts.mjs';
 
-export { formatCodegenSummary } from './codegen-summary.mjs';
+export {
+  formatCodegenSummary,
+  groupedCodegenSummaryDiagnosticCodes,
+} from './codegen-summary.mjs';
 export {
   DECLARATION_SUGGESTION_REASON_CODES,
   applyDeclarationSuggestion,

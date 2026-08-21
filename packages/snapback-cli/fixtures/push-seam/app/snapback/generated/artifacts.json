@@ -532,13 +532,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:4f71d790c6acb1dae2f19f855876a681d2797c6215a94f468231d77632cae947",
+    "bundleId": "sha256:d942b5165a6f8d0d3dd2d9575cdc869fa6c426dd626908046f0dfe04d3e49a7c",
     "evidenceId": "sha256:8075250a3026310a0df2da327271b781861b9972fb5c37e0313b1fd910e6c14a",
     "executableId": "sha256:628d1cabdeec99ca4281e759779859ddb73173a43bf864aa32ca7a8427388881",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:628d1cabdeec99ca4281e759779859ddb73173a43bf864aa32ca7a8427388881"
     },
-    "generationId": "sha256:722e8e060efa268bbfd391788261ec2030fa625d267dff6a641ac5889683512d",
+    "generationId": "sha256:c0cd9d641bd876fdeb569591920362bd7e629bc85b665efa70cb4840ec4e7a3a",
     "normalizedContractId": "sha256:553c70fbf7e631cab048bbb29ddebdeb4af361fbacc4a419b2fc40dd1cf7aac3",
     "normalizedSchemaId": "sha256:2afb642cff9f5bd79a55f48e5a7c1b78bc24fbb74804cec2ced532ddbc516bc7",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -566,6 +566,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 0,
       "operations": {
         "action": 1,
         "live": 0,
@@ -581,6 +582,7 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "snapback.v1:sessions:inputs:sha256:3a4a94b5ea6ec540fea1df40e8641ae4b067c1ee3ac6b4d91cc07fe2dc0ea24e",
+    "migrationAdvisories": [],
     "schemaVersion": "snapback.codegen-summary.v1",
     "tableVisibility": {
       "counts": {

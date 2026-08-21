@@ -8,31 +8,10 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-21 (Phase 1A Lane C parity completion: the packed Familiar
-receipt covers typed headless live present/absent/delete delivery and
-last-complete-graph preservation on refused CLI regeneration); 2026-08-21
-(1D review reconciliation: the six-subscription
-observation is classified as LLP 0200 overload with a mechanism-sensitive
-fixture; the investigation remains open until a client-visible diagnostic
-precedes inconsistent UI);
-2026-08-21 (LLP 0294 stratum registration: records the early-Expo
-current-main contradictions as a third evidence stratum for the vertical
-paved-path coherence invariant, extends the invariant/W1/R1 language to the
-Expo/native client arm, and adds externally-owned demand-evidence routing rows
-— LLP 0294 and its tickets remain the owners/executors);
-2026-08-21 (Phase 0 recording pass: D0.1 is ruled in LLP 0223's
-2026-08-21 dated amendment (LLP 0261 carries the composition binding) and
-D0.6 is registered in LLP 0201 (fields) and LLP 0186 (targets), each
-"Adopted per LLP 0295 default proposal; author may revise", with
-recommendations answering open questions 1 and 4 recorded in the owning
-amendments); 2026-08-21 (D0.4 and D0.5 decision packets adopted — author may
-revise: rulings landed in LLP 0240/0278 and LLP 0095/0278/0280 respectively,
-with recommendations recorded under open questions 3 and 7);
+**Revised:** 2026-08-21 (Phase 1D records the bounded debug-artifact
+attribution while keeping its drift/reduced-debug follow-up ticket open);
 2026-08-21 (Phase 1A Expo package-parity progress: closes the
 cycle-free Expo Metro initialization ticket with a packed external proof);
-2026-08-21 (Phase 1A Lane C implementation: registered the packed
-Familiar `v.doc` vertical receipt and aligned the generated effective-contract
-gate with LLP 0108's runtime/client single-value query carrier);
 2026-08-21 (current-source corroboration amendment: incorporates
 the paired GPT-5.6 Sol high Clique Explicit/Familiar run at `708e2e5c`, adds a
 vertical paved-path coherence invariant, sequences liveness and contract parity
@@ -45,15 +24,13 @@ efficiency as a first-class outcome)
 **Related:** LLP 0059, LLP 0061, LLP 0095, LLP 0107, LLP 0186, LLP 0189,
 LLP 0198, LLP 0201, LLP 0223, LLP 0236, LLP 0237, LLP 0240, LLP 0252,
 LLP 0253, LLP 0259, LLP 0261, LLP 0264, LLP 0275, LLP 0277, LLP 0278, LLP 0279,
-LLP 0280, LLP 0281, LLP 0294,
+LLP 0280, LLP 0281,
 Diary 0092, Diary 0093, Diary 0094, Diary 0095, Diary 0096, Diary 0097,
 Diary 0098, Diary 0099, Diary 0100, Diary 0101, Diary 0102, Diary 0103,
 Diary 0104, Diary 0105,
 `benchmarks/runs/2026-08-20-clique-local-main-sol-high/record.md`,
 `issues/20260820-familiar-live-subscription-contention.md`,
-`issues/20260820-debug-binary-symbol-bloat.md`,
-`issues/20260821-fixed-origin-external-client-dev-lifecycle.md`,
-`issues/20260809-per-milestone-token-metering.md`
+`issues/20260820-debug-binary-symbol-bloat.md`
 
 ## Summary
 
@@ -73,11 +50,9 @@ lost its M1 advantage in M2/M3 while the builder reconciled live projections,
 membership authority, and capability exports. It confirmed that the Familiar
 Guide's nullable-document/value result forms and membership `resourceField:
 "_id"` spelling disagree with current generated/runtime contracts. The run
-also found one six-subscription composition-sensitive live delay and a 489 MB
-debug binary. The delay is now classified as LLP 0200 overload rather than a
-client defect, but its pre-inconsistency client diagnostic remains open. The
-binary remains a routed investigation, not an established cause or release
-regression. Their value here is that they sharpen the program's order: make
+also found one probable six-subscription client/live defect and a 489 MB debug
+binary. Those are routed investigations, not established causes or release
+regressions. Their value here is that they sharpen the program's order: make
 the declared path coherent and live under ordinary composition before adding
 more surface vocabulary.
 
@@ -133,19 +108,6 @@ wrapper instead of the qualified executable; a locally assembled package set
 initially omitted prepack artifacts; and the wrong Node major produced a false
 inventory result. These remain setup/instrument findings and must not inflate
 the Snapback defect count.
-
-A third evidence stratum arrived 2026-08-21 through LLP 0294's reconciled
-Messtimate summary: four present-tense contradictions on current main — the
-assets Guide's minimal example uses an accessor the same page says does not
-exist; `guestPolicy` is declarable while the generated client lifecycle
-excludes guest as an entry mechanism; the Expo native auth-custody path passes
-`globalThis.crypto` into a digest path that requires `crypto.subtle`; and a
-supervised AppBinding is served past its one-hour term unless another rotation
-event fires. Each is exactly the vertical paved-path failure shape — a semantic
-fact changing across layers — and together they extend that shape to the
-Expo/native client arm, which the Clique/Coterie matrix underrepresents. This
-stratum corroborates the program invariant; it adds no execution obligation
-here. LLP 0294 and its 2026-08-21 tickets own and are executing the repairs.
 
 The raw accounting still gives a strong program signal. Across all twelve
 lanes Explicit and Familiar were nearly equal in total output tokens, but
@@ -228,15 +190,6 @@ This is a test shape, not a new mechanism owner. Subsystem suites continue to
 own their layers; the vertical fixture is the integration receipt that prevents
 a local fix from moving the mismatch one boundary downstream.
 
-Where an advertised path is advertised on the Expo/native client arm, a
-vertical fixture named under this invariant covers that arm too — guide
-spelling, types, generation, runtime, native client projection, and negative
-diagnostic — not only the web projection. LLP 0294's 2026-08-21 tickets supply
-the current concrete cases; this Plan's own qualification (the W3 fixture
-catalogue and the R1 probes) consumes whatever evidence those owners produce.
-A native-arm fixture missing at qualification time is 0295-side Phase 1/W1-W4
-work, never a retroactive expansion of a 0294 ticket's acceptance.
-
 ## Phase 0: decisions and measurement before mechanism work
 
 The following rulings are required before cross-cutting implementation begins.
@@ -250,10 +203,7 @@ Choose one semantic lifecycle that covers:
 - Expo/React and external Vite/Exact clients;
 - fresh start, attach to an already-running server, regenerate, additive
   schema successor, and shutdown;
-- sessions-mode continuity — accounts, custody, sessions, and stores
-  preserved while the deployment identity advances per LLP 0058, old/new
-  reported (wording updated 2026-08-21 with the ruling; the draft said
-  "identity preservation");
+- sessions-mode deployment identity and store preservation;
 - binding delivery/admission without pretending a caller override is a
   supervisor exchange; and
 - a single ready receipt naming server, app artifact, binding, authority mode,
@@ -264,16 +214,8 @@ explicit fixed-port/external-client profile, and treats `start --startup-
 artifacts` plus hand-written environment objects as diagnostic primitives,
 not an alternative golden path. LLP 0223/0261 own the design. Acceptance must
 prove one M1->M2 additive change with the original accounts and sessions
-intact (the deployment identity itself advances per LLP 0058). Execution
-ticket:
+intact. Execution ticket:
 `issues/20260821-fixed-origin-external-client-dev-lifecycle.md`.
-
-**Ruled 2026-08-21:** the default proposal is adopted (author may revise).
-The full decision packet is LLP 0223's 2026-08-21 dated amendment, with
-LLP 0261 carrying the `snapback init` composition binding; the execution
-ticket records the decided contract and W1 checklist. Open question 1's
-recommendation (a mode of `snapback dev`; internal engine factoring, no
-second public lifecycle command) is recorded there.
 
 ### D0.2 — Client authority-transition state machine
 
@@ -316,11 +258,6 @@ until a later claim-eligible wave shows both outcome and cost evidence.
 Cross-layer fixture ticket:
 `issues/20260821-authoring-profile-vertical-contract-fixtures.md`.
 
-Ruled 2026-08-21 (adopted; author may revise): LLP 0253 S9 (Familiar
-contract R1–R7 and the W3 fixture catalogue), LLP 0275 D8 (Explicit
-classification), LLP 0252 cross-reference (RFC-level summary); the ticket
-carries the W3 lane checklists and the open-question-2 recommendation.
-
 ### D0.4 — Authority relation versus product projection
 
 Choose the supported composition for a private membership relation plus a
@@ -362,13 +299,8 @@ milestone boundary records:
 
 - fresh input, cache read/write, output, and reasoning tokens using the native
   harness fields without cross-harness normalization;
-- semantic actions under the closed taxonomy registered in LLP 0186's
-  2026-08-21 amendment (`guide-lookup`, `source-inspection` with flagged
-  `binary-excavation`, `edit`, `generate`, `process`, `reseed`, `suite`,
-  `choreography`, `retry`, each tagged `progress`/`correction`; generic
-  reads classify by target per that amendment's mapping rules — this list
-  was amended in place 2026-08-21 from the original draft's `read`-bearing
-  parenthetical);
+- semantic actions (read, edit, generate, start/restart, suite, choreography,
+  source inspection, guide lookup, retry);
 - failure-to-recovery episodes with attribution and outcome;
 - server/process restart and reseed counts;
 - browser assertion attempts and time spent waiting;
@@ -379,16 +311,6 @@ The existing `issues/20260809-per-milestone-token-metering.md` remains the
 implementation ticket. The new skill-routing ticket covers the orientation
 carrier. A run that lacks phase usage may still debug product behavior but
 cannot adjudicate the efficiency target.
-
-**Registered 2026-08-21:** the measurement fields and eligibility rule are
-registered in LLP 0201's 2026-08-21 dated amendment (harness-native path
-chosen for the metering ticket's open decision), and the efficiency
-scorecard thresholds are registered as commissioned R2 targets in LLP
-0186's 2026-08-21 amendment, both adopted-by-default pending author
-revision. Open question 4's recommendation (keep 40/20/30 with a
-variance guard: zero-count rows as the primary signal, matched-cell
-medians with direction consistency at R2, preregistered paired sign test
-at R3) is recorded in the LLP 0186 amendment.
 
 ### Phase-order ruling
 
@@ -417,21 +339,19 @@ before choosing a repair. All may run while Phase 0 is reviewed.
 
 ### 1A. Published package and compiler/runtime parity
 
-- `issues/closed/20260820-vite-password-auth-relay-allowlist.md`
+- `issues/20260820-vite-password-auth-relay-allowlist.md`
 - `issues/closed/20260820-expo-metro-default-storage-partition-cycle.md` —
   resolved through a cycle-free defaults leaf and packed external Metro
   bundle/first-render proof
-- `issues/closed/20260820-familiar-vdoc-generation-runtime-parity.md` —
-  resolved through clean bare-`v.doc` generation and packed generated/runtime
-  parity across query, mutation, and action document shapes
+- `issues/20260820-familiar-vdoc-generation-runtime-parity.md`
 - `issues/20260820-optional-user-live-query-auth-transition-stall.md`
 - `issues/20260820-authenticated-query-signed-out-settlement.md`
 
 Exit: all five reproduce before the fix and pass through packed external
 packages afterward; no source-checkout-only proof closes them.
 
-The Expo and Familiar `v.doc` tickets satisfy that exit individually as of
-2026-08-21. Phase 1A as a batch remains open on the other three tickets.
+The Expo ticket satisfies that exit individually as of 2026-08-21. Phase 1A
+as a batch remains open on the other four tickets.
 
 ### 1B. Precise diagnostics and typed hook contracts
 
@@ -465,18 +385,17 @@ requires a cold retrieval probe, not only prose presence.
 - existing `issues/20260816-write-posture-migration-closure.md`
 
 These are deliberately not all called straight repairs. The subscription case
-now has a minimized two-principal, six-reference reproduction that records and
-asserts auth, outbox availability, snapshot, connection, subscription, and
-scheduler state against one equivalent relational reference. It classifies the
-delay as LLP 0200 overload without treating a load-sensitive exact miss count as
-the invariant. The ticket remains open for D0.5/W4's client-visible diagnostic
-before inconsistent UI. The binary case still needs like-for-like builds around
+first needs a minimized two-principal, six-reference reproduction that records
+auth, outbox, snapshot, and subscription state and compares one equivalent
+relational reference. The binary case first needs like-for-like builds around
 the suspected refactor, linker/crate attribution, and a recorded link-time and
-size baseline before choosing a mechanism.
+size baseline. Only then may either investigation choose a mechanism.
 
-Exit: the subscription observation is classified as a documented composition
-bound with mechanism-sensitive evidence, while its ticket separately stays open
-for the promised pre-inconsistency diagnostic; the
+The bounded binary attribution is recorded as of 2026-08-21; its ticket stays
+open for a drift metric and separately qualified reduced-debug experiment.
+
+Exit: the subscription observation is classified as product defect, documented
+composition bound, or benchmark-app defect with deterministic evidence; the
 debug artifact has causal attribution and an explicit developer profile rather
 than blind stripping; repeated migration advisories are grouped by semantic
 repair so 17-19 instances do not bury the useful generation summary.
@@ -491,15 +410,6 @@ prebuilt startup-carrier scripts, and destructive reseeds from all four matrix
 templates. The same ready receipt should let the Expo, Vite/Exact, headless,
 and acceptance consumers prove they are attached to the intended app and
 authority mode.
-
-The lifecycle contract's liveness expectations include supervised AppBinding
-refresh before expiry: a long development session must be self-sustaining
-without a manual rotation event. The ready receipt remains one-time launch
-settlement per LLP 0224; the refresh expectation is carried by the lifecycle's
-inspection and supervisor-event surfaces, which is where W1's attach
-acceptance consumes it — the gated R1 probe, not any new W1 closure item,
-is what exercises refresh, so W1 completion never couples to LLP 0294 W6.
-The mechanism owner is the supervisor/binding LLP chain via LLP 0294 W6.
 
 Efficiency hypothesis: removing restart/reseed and lifecycle source inspection
 will produce the largest M1 wall reduction, especially on clean lanes where M1
@@ -530,15 +440,6 @@ Implement D0.3 in two parallel lanes:
 - **Explicit economy:** apply LLP 0275 to derive exact result/dependency facts,
   scaffold recurring fixed lifecycle wiring, and preserve authored authority,
   visibility, retention, and asset policy.
-
-Lane C's first Familiar receipt is
-`scripts/familiar-vdoc-vertical-contract.mjs`, backed by
-`tests/fixtures/familiar-vdoc-vertical/`. It covers the Guide's nullable point
-spelling, exact generated types, clean one-pass generation, query/list and
-mutation/action runtime contracts, headless one-shot/live plus React
-projection, the live point delete transition, and stable pre-output
-document-composite refusal on both clean generation and last-complete CLI
-regeneration. LLP 0253 S4.3 remains the result partition owner.
 
 Do not compare line counts alone. The success measure is fewer semantic
 correction actions while retaining the same generated manifest and authority
@@ -634,15 +535,6 @@ subscription fixture from 1D. Consolidating six reads into one relational read
 may remain a recommended optimization, but it is not accepted as the only
 correct path unless the declared subscription budget and diagnostic say so.
 
-Once LLP 0294's W6 crypto and binding-refresh repairs land (the guest route
-waits for its owner review and does not gate this), the Expo/native arm probe
-also includes
-native auth entry through the provider-owned crypto adapter and a session
-outliving one binding term — including a cold native boot and reattach after
-the binding TTL while the original supervisor is still running, so refresh is
-actually exercised rather than waited past. Failures classify by owner as
-elsewhere in R1.
-
 ### R2. Load-isolated calibration rerun
 
 Repeat the 12 cells with reserved machines or enforced load ceilings. Preserve
@@ -660,11 +552,8 @@ scoped by app/client stack if the 0.1.24 interaction persists.
 ## Efficiency scorecard
 
 Phase 0 registers exact thresholds before implementation to avoid fitting the
-target to the result. The following commissioning targets for R2 were
-**registered 2026-08-21** in LLP 0186's dated amendment (with the closed
-action taxonomy and comparator designation) and LLP 0201's field
-registration, adopted-by-default; the author may still revise them with
-rationale:
+target to the result. The following are proposed commissioning targets for R2;
+the author may revise them at D0.6 with rationale:
 
 | Measure | 0.1.24 observation | R2 target |
 | --- | --- | --- |
@@ -700,11 +589,6 @@ for the efficiency scorecard while retaining its product findings.
 | Benchmark observability | LLP 0281 | sequences before R2 |
 | Exact-side defects | LLP 0279 / Exact repository | coordinates release and rerun only |
 | Debug artifact attribution | `issues/20260820-debug-binary-symbol-bloat.md` | records developer-loop impact; does not prescribe stripping |
-| Early-Expo repairs and routes | LLP 0294 and its 20260821 tickets | registers the evidence stratum; does not sequence or own |
-| Capability links | LLP 0204, LLP 0150 | registers demand evidence, does not sequence or own |
-| Field masking | LLP 0235 | registers demand evidence, does not sequence or own |
-| Scheduled work | LLP 0028, LLP 0070 | registers demand evidence, does not sequence or own |
-| Acceptance-harness extraction | LLP 0275 D5 | registers demand evidence, does not sequence or own |
 
 ## Risks
 
@@ -738,30 +622,13 @@ for the efficiency scorecard while retaining its product findings.
 
 1. Should D0.1 make fixed-port/external-client support a mode of `snapback dev`
    (default proposal), or should one lower-level lifecycle primitive own both
-   `dev` and external orchestrators? **Provisionally answered 2026-08-21**
-   (mode of `snapback dev`; internal engine factoring, no second public
-   lifecycle command) — recommendation recorded in LLP 0223's dated
-   amendment; author may revise.
+   `dev` and external orchestrators?
 2. Is Familiar intended to reach feature parity with Explicit, or may templates
    choose profiles by workload while preserving one normalized definition?
 3. For private memberships, which D0.4 option should be prototyped first?
-   **Answered 2026-08-21 (adopted; author may revise):** option 2 —
-   platform-generated projection facts declared on the authority profile,
-   maintained from in-transaction row images inside the same writer-seam
-   transaction as the transition, read through LLP 0240 D3's bounded/redacted
-   surface under a preserve-and-extend ruling (shipped `list`/`myRole`
-   unchanged; history as new D1-envelope operations — option 3's shape stays
-   the read path). Option 1 remains rejected as
-   the destination and sanctioned only as the interim guide pattern. Rationale
-   and invariants in the LLP 0240 dated amendment; checklist in
-   `issues/20260821-private-authority-product-roster-decision.md`.
 4. Are the proposed 40% correction-action, 20% output-token, and 30% M1-wall
    targets ambitious enough to discriminate a real improvement without being
-   dominated by variance? **Provisionally answered 2026-08-21** (keep
-   40/20/30 with a variance guard: zero-count rows primary, matched-cell
-   medians with direction consistency at R2, preregistered paired sign test
-   at R3) — recommendation recorded in LLP 0186's dated amendment; author
-   may revise.
+   dominated by variance?
 5. Should W5 cost visibility ship first as local developer diagnostics only,
    with hosted telemetry explicitly deferred?
 6. Does the next R2 rerun include both Coterie and Clique immediately, or should
@@ -770,18 +637,6 @@ for the efficiency scorecard while retaining its product findings.
 7. What ordinary independent-subscription envelope should the client promise,
    and does the six-reference reproduction need to gate R2 or only the Familiar
    React cell?
-   **Recommendation 2026-08-21 (with the adopted D0.5 packet):** promise
-   correctness — liveness, per-subscription version-guard consistency, no
-   starvation — for any independent-subscription count up to the 64-per-
-   connection hard ceiling, with a provisional ordinary per-view/provider
-   budget of 16 that draws a diagnostic, not a refusal (LLP 0278/0095
-   amendments; the 1D classification may tighten these provisional bounds).
-   The minimized six-reference reproduction should gate only the Familiar
-   React cell of R2, not the whole rerun: the observation is currently
-   confined to that composition, and holding eleven unaffected cells hostage
-   to it contradicts the phase-order ruling's scoping. If 1D classifies it as
-   a product defect in shared client/runtime layers rather than the React
-   hook surface, promote it to an R2-wide gate at that point.
 8. Which debug posture should be the ordinary local binary after attribution:
    full inline debug, split debug information, or a reduced-debug developer
    profile with an explicit opt-in full-symbol build?

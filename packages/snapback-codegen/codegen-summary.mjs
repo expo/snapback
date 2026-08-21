@@ -6,6 +6,9 @@ const WRITE_POSTURE_MIGRATION_WARNING =
 // @ref LLP 0264#d9-authorization-review-projection — structured diagnostics
 // and writePolicyChecks retain site/table facts; only the human summary groups
 // repeated migration findings by their semantic repair.
+// @ref LLP 0295#1d-current-source-qualification-and-developer-loop-cost — one
+// grouped advisory per semantic repair keeps repeated migration findings from
+// burying the useful generation summary.
 function migrationAdvisoryGroups(diagnostics) {
   const groups = new Map();
   for (const diagnostic of diagnostics) {
@@ -46,6 +49,10 @@ function migrationAdvisoryGroups(diagnostics) {
     .sort((left, right) => (
       left.repairClass < right.repairClass ? -1 : left.repairClass > right.repairClass ? 1 : 0
     ));
+}
+
+export function groupedCodegenSummaryDiagnosticCodes(summary) {
+  return new Set((summary?.migrationAdvisories ?? []).map(({ code }) => code));
 }
 
 export function createCodegenSummary({

@@ -9,8 +9,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const cli = join(packageRoot, 'cli.mjs');
+const codegenCli = join(packageRoot, '..', 'snapback-codegen', 'index.mjs');
 const defineUrl = pathToFileURL(join(packageRoot, '..', 'snapback-codegen', 'define.mjs')).href;
+const campfireRoot = join(packageRoot, '..', '..', 'demos', 'campfire', 'snapback');
 const root = mkdtempSync(join(tmpdir(), 'snapback-cli-generate-check-'));
+const migrationCode = 'SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING';
+
+function occurrences(text, value) {
+  return text.split(value).length - 1;
+}
 
 function digest(directory) {
   const hash = createHash('sha256');
@@ -30,7 +37,9 @@ test('packaged generate --check runs the full preflight without replacing artifa
   try {
     writeFileSync(join(root, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
+export default defineSchema({
+  todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
+});
 `);
     writeFileSync(join(root, 'functions.mjs'), `
 import { defineQuery } from '${defineUrl}';
@@ -63,7 +72,9 @@ test('packaged generate --check preserves the same-file helper-cycle refusal', (
   try {
     writeFileSync(join(refusalRoot, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
+export default defineSchema({
+  todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
+});
 `);
     writeFileSync(join(refusalRoot, 'functions.mjs'), `
 import { defineJsQuery } from '${defineUrl}';
@@ -89,4 +100,47 @@ export const listTodos = defineJsQuery({
   } finally {
     rmSync(refusalRoot, { recursive: true, force: true });
   }
+});
+
+test('human generate CLIs group migration advisories while JSON retains each finding', () => {
+  const codegenHuman = spawnSync(
+    process.execPath,
+    [codegenCli, campfireRoot, '--check'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(codegenHuman.status, 0, codegenHuman.stderr || codegenHuman.stdout);
+  assert.equal(occurrences(codegenHuman.stderr, migrationCode), 0);
+  assert.equal(
+    occurrences(codegenHuman.stdout, 'migration declare-explicit-write-authority:'),
+    1,
+  );
+
+  const codegenJson = spawnSync(
+    process.execPath,
+    [codegenCli, campfireRoot, '--check', '--json'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(codegenJson.status, codegenHuman.status, codegenJson.stderr || codegenJson.stdout);
+  assert.equal(occurrences(codegenJson.stderr, migrationCode), 0);
+  const result = JSON.parse(codegenJson.stdout);
+  assert.equal(result.diagnostics.filter(({ code }) => code === migrationCode).length, 3);
+  assert.equal(result.summary.migrationAdvisories.length, 1);
+  assert.equal(
+    result.authorizationReview.writePolicyChecks.filter(
+      ({ genericWriteDisposition }) => genericWriteDisposition === 'migration-pending',
+    ).length,
+    3,
+  );
+
+  const snapbackHuman = spawnSync(
+    process.execPath,
+    [cli, 'generate', campfireRoot, '--check'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(snapbackHuman.status, codegenHuman.status, snapbackHuman.stderr || snapbackHuman.stdout);
+  assert.equal(occurrences(snapbackHuman.stderr, migrationCode), 0);
+  assert.equal(
+    occurrences(snapbackHuman.stdout, 'migration declare-explicit-write-authority:'),
+    1,
+  );
 });

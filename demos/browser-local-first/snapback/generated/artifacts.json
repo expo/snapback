@@ -601,13 +601,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:1515980fc7f35bc57dd2444a8f4cc042fd1b34bbcc32f6cd100872634a416f56",
+    "bundleId": "sha256:47ea14d7b21c4c842a8d5d3c656956568c7916729f081c8f56456243178d2d23",
     "evidenceId": "sha256:9aa63a26c677027a0eeb2810d6a7659ca6147eefdec16a0dc03ffab8b5dac170",
     "executableId": "sha256:54dfcd8b0310bc2053b05028cb70e33a09d8f24d775e7dfcbbaa310cf451ad29",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:54dfcd8b0310bc2053b05028cb70e33a09d8f24d775e7dfcbbaa310cf451ad29"
     },
-    "generationId": "sha256:82b2776e31daa6abb4b9ce57076871309c537411aa3b9139e6f173d327f7d8ad",
+    "generationId": "sha256:88e7986e722d396777ad19738ea94a74ea067c3632c6c68a320e0c9f0ee09695",
     "normalizedContractId": "sha256:4e2ae657aa33263829560d5b32d2dd704c28722d28c5c1b6b51152659a37ef0c",
     "normalizedSchemaId": "sha256:eb1f7a8dbf57b090c901d903ac39cf5ca2ddd4b16ef5fd78e9e7560294071372",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -635,6 +635,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 0,
         "live": 4,
@@ -650,6 +651,26 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "71322b0dd683188a576c7f148966021223bd02146873c0df50a2928c5c10090f",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 2,
+        "affectedOperations": [
+          "addTodo",
+          "toggleTodo"
+        ],
+        "affectedTableCount": 1,
+        "affectedTables": [
+          "todos"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 2,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "tableVisibility": {
       "counts": {

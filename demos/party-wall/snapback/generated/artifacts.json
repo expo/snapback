@@ -689,13 +689,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:5438aa5804e0c35664a65a91657b41301aec44fc293654ad617195f8e1704f14",
+    "bundleId": "sha256:ab918154b453e4e834b85ff2848790becca66dcbd92c33efb5128548a85e348f",
     "evidenceId": "sha256:6ff4dedc06e5722553dfb5387f9f2cf248ba1f3248a1954bedd8220ddc819f19",
     "executableId": "sha256:12105cbf6f7694242dd1accc24882ec6b14b3fd758bb8cb708ec509b893f7d01",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:12105cbf6f7694242dd1accc24882ec6b14b3fd758bb8cb708ec509b893f7d01"
     },
-    "generationId": "sha256:306610c655116414dbdca2b1c77d61a6fbc9696b080c7521e243aa7fbef7e7fd",
+    "generationId": "sha256:2776af8b7d8083b81382f083b234ceb6ee9313cd28e9a4d352d98baf6e2d8d19",
     "normalizedContractId": "sha256:f6cfdb3cd4647af8c47aa3b125d46b637bb87059181446275679b596083d1353",
     "normalizedSchemaId": "sha256:4c4654ee4f471db1f8a4e4e53ba039f904a52802505ccaeb3069145128d1ad68",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -728,6 +728,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 1,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 0,
         "live": 1,
@@ -867,6 +868,28 @@
       }
     ],
     "inputsHash": "snapback.v1:sessions:inputs:sha256:bbb7f0a3165eeec246480acbcd5fb4d3285cb43206496b06a9406c0246ff4479",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 3,
+        "affectedOperations": [
+          "createPost",
+          "deletePost",
+          "setCover"
+        ],
+        "affectedTableCount": 2,
+        "affectedTables": [
+          "events",
+          "posts"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 3,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "seed": {
       "digest": "sha256:77322b1d205fb042c8fd63f0a20ed916776d04843206b9e71707b04c2e02126c",

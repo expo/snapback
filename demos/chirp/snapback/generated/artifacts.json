@@ -583,13 +583,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:7eb366db5756cecaab8ed3986adf8c9beaf9b2009b47dca97423a101f55fd197",
+    "bundleId": "sha256:1862ec3e03597b9469a722f0e42ca2285fddb46afa2a3c0cbe0fa78f538fa354",
     "evidenceId": "sha256:2d76fbd036bf61f7daceb6ed53392476a67ca38667dc8a991b40912da3149781",
     "executableId": "sha256:0e5850b238608b7894aa39e73b8877f064cf78607d99c412784b82a944f01e62",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:0e5850b238608b7894aa39e73b8877f064cf78607d99c412784b82a944f01e62"
     },
-    "generationId": "sha256:d9798dfd0473c2ab06eb35d9c96efd16ee4ab39b7efb165e497e71ab94e2c2fb",
+    "generationId": "sha256:378a26dec674361ff94962df8958cde897024948321b0031b3e8fd585718061e",
     "normalizedContractId": "sha256:1c2d586d975ff6a6a5fdc98f4b30f397886ce88a1c4db87f81c276b920217ffa",
     "normalizedSchemaId": "sha256:b42df98008d8f475759055432f2ce42df388e0a4376714a0dccd8c85057abf19",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -622,6 +622,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 0,
         "live": 3,
@@ -638,6 +639,27 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "b6bfaf636f8aad35c0598eb5992fec743da444df584b7b37f93b1ab22f2a24cb",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 2,
+        "affectedOperations": [
+          "createPost",
+          "toggleLike"
+        ],
+        "affectedTableCount": 2,
+        "affectedTables": [
+          "likes",
+          "posts"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 6,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "seed": {
       "digest": "sha256:ad7717c17478e731db80bb360764d2099bc10f1d3b63b9beebbddd393494a9fc",

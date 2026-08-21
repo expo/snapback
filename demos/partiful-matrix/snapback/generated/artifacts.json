@@ -632,13 +632,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:f6ae678f9041f49fc5d304a85ff177ee01f0794646f27536e768933822d40afd",
+    "bundleId": "sha256:43c92adfa9252f630abe20dc58dbf8947f8d669c748c0a80a725c3a0a57a27e5",
     "evidenceId": "sha256:0fd8bf24835a71bbd4a66315f8caf08376f4b2af616209bf0d6c6dfadbe0c978",
     "executableId": "sha256:b3d468ace2676e19ec089c552ec7b1c03984ce4fa2cd5ea0918c697345ca1b3d",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:b3d468ace2676e19ec089c552ec7b1c03984ce4fa2cd5ea0918c697345ca1b3d"
     },
-    "generationId": "sha256:9dd8e5d0ab1356820069e4f4e50fbc1545344448da32831702b97040323ce1b9",
+    "generationId": "sha256:f481eca4d42650d66e63c6a0d0fa2eb4f29e87f13b11cbb1c6baa19aa61f6562",
     "normalizedContractId": "sha256:925c84a88356d5727c06c84cf0380f502b001f966a20598e2a85c5ab070d8f7e",
     "normalizedSchemaId": "sha256:8782a830998e73ae40af8dcf2e17295161afb616038a88da93e804bb3ee2ea67",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -666,6 +666,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 0,
         "live": 4,
@@ -727,6 +728,29 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "e8140304bf171762e77c889ed0fe292991f7d5d2d08e8c6b47ff077846e21d32",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 3,
+        "affectedOperations": [
+          "createEvent",
+          "postMessage",
+          "rsvp"
+        ],
+        "affectedTableCount": 3,
+        "affectedTables": [
+          "events",
+          "posts",
+          "rsvps"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 5,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "tableVisibility": {
       "counts": {

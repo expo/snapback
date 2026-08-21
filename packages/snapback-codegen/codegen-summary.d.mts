@@ -105,7 +105,7 @@ export interface CodegenSummary {
       total: number;
     }>;
     warnings: number;
-    migrationAdvisories: number;
+    migrationAdvisories?: number;
     implicitAuthRequirements: number;
     degradedResults: number;
     fieldBoundaries: number;
@@ -114,7 +114,7 @@ export interface CodegenSummary {
   readonly tableVisibility: TableVisibilitySummary;
   /** Human-output groups only; per-site facts remain in diagnostics and the
    * authorization-review writePolicyChecks projection. */
-  readonly migrationAdvisories: readonly MigrationAdvisoryGroup[];
+  readonly migrationAdvisories?: readonly MigrationAdvisoryGroup[];
   /** Opaque JavaScript handler claims: handler-enforced review declarations,
    * not mechanically proven field-level policies. */
   readonly fieldBoundaries: readonly FieldBoundarySummaryEntry[];
@@ -142,3 +142,7 @@ export function createCodegenSummary(options: Readonly<{
 }>): CodegenSummary;
 
 export function formatCodegenSummary(summary: CodegenSummary): string;
+
+export function groupedCodegenSummaryDiagnosticCodes(
+  summary: CodegenSummary | null | undefined,
+): ReadonlySet<string>;

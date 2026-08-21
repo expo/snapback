@@ -614,13 +614,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:12093a82497d4ee99c3b975e83944d702508fe4f4a9369461b10ed31d401c75b",
+    "bundleId": "sha256:cbfb9a8a7c46a57759e7aaffcc2eefdfea191b24e34a9720df7fbe161839b813",
     "evidenceId": "sha256:5478544494d359dc8da3e64d22f16946e39f6d74bc72f0054fe20431dcd2c628",
     "executableId": "sha256:1d43cb4c0dfad99a22eb3875815581a32959b4208ac6c2c3f32783eb6b29669d",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:1d43cb4c0dfad99a22eb3875815581a32959b4208ac6c2c3f32783eb6b29669d"
     },
-    "generationId": "sha256:8fa75197c510adfc55eb4fd9f3d78ad0e9c58cd86a0705eb3b031a6fca2dea56",
+    "generationId": "sha256:95b92cf03e44690451f028fa26ed642f02361dadceb593a6b487e5c3f175196c",
     "normalizedContractId": "sha256:bbf57f5add1128a77ec28fba9490dbe4aeedd72746a98e9103006269b3db47be",
     "normalizedSchemaId": "sha256:d7c32d17c9671e290037ca3cea3cd3a7a976e9eb5a09ef4da9420cbe36a3ff08",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -648,6 +648,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 0,
         "live": 4,
@@ -694,6 +695,26 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "0d012c4b507c740e3e0fb96eb214eed34a85e238455f40f504035616f79e49f6",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 2,
+        "affectedOperations": [
+          "recordMetric",
+          "setMetricValue"
+        ],
+        "affectedTableCount": 1,
+        "affectedTables": [
+          "metrics"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 2,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "tableVisibility": {
       "counts": {

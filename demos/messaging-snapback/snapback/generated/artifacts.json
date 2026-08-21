@@ -908,13 +908,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:b57c753c36292cfd1cf1ac1888afce245680f7b3a15717e8f19c8d2dde511dfa",
+    "bundleId": "sha256:b4da0bc6174f67d9bdb2d5a42e31c577ef41731ae912e99c8886980b983a385f",
     "evidenceId": "sha256:aa5e3d1c23ddc442f56e25597aa61d9226cf009bec76aa1afc909d93b14d0839",
     "executableId": "sha256:29d802302f323611afc8e9df1a59370f3e5ccdefab17f9d61cd80fdba3b06f00",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:29d802302f323611afc8e9df1a59370f3e5ccdefab17f9d61cd80fdba3b06f00"
     },
-    "generationId": "sha256:35810c9a9d49739abec5b8f792db7892083cb1bbf1896ce40983e81043520396",
+    "generationId": "sha256:e7d94ef0835d2f937adde1530d9436fef5129a240637f0bdc84a0bd17ab6a437",
     "normalizedContractId": "sha256:5663c3983845173f5714a1042e072655e78d71877eeab41556d11265f4083e9d",
     "normalizedSchemaId": "sha256:8ca32c4e3ed634f5f90c410f76b5b79db843b31b6ecba46629ebaa1d30c79d2a",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -942,6 +942,7 @@
       "ephemeralCollections": 1,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 0,
         "live": 5,
@@ -973,6 +974,39 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "93ef1c9417714cae7fe35e0ab95a993d33811280a1becb783c68d854e1bae9c6",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 10,
+        "affectedOperations": [
+          "addConversationMember",
+          "closeViewOnce",
+          "createGroup",
+          "deleteViewOnceForEveryone",
+          "leaveConversation",
+          "openViewOnce",
+          "sendMessage",
+          "sendViewOnce",
+          "startDirectMessage",
+          "toggleReaction"
+        ],
+        "affectedTableCount": 6,
+        "affectedTables": [
+          "conversationMembers",
+          "conversations",
+          "messages",
+          "reactions",
+          "viewOnceConsumptions",
+          "viewOnceMessages"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 17,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "tableVisibility": {
       "counts": {

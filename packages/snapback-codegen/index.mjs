@@ -192,6 +192,7 @@ import {
 import {
   createCodegenSummary,
   formatCodegenSummary,
+  groupedCodegenSummaryDiagnosticCodes,
 } from './codegen-summary.mjs';
 import {
   APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS,
@@ -207,6 +208,7 @@ import {
 } from './app-descriptor.mjs';
 export {
   formatCodegenSummary,
+  groupedCodegenSummaryDiagnosticCodes,
   SURFACE_MAX_MEMBER_BINDINGS,
   SURFACE_MAX_MEMBERS,
   SURFACE_MAX_PARAMS,
@@ -20114,8 +20116,8 @@ export async function runCodegenCli(argv = process.argv) {
   // @ref LLP 0264#d9-authorization-review-projection — the summary owns the
   // grouped human rendering while --json and authorization-review keep every
   // independently actionable table/site fact.
-  const summaryGroupedCodes = new Set(
-    (result.ok ? result.summary?.migrationAdvisories ?? [] : []).map(({ code }) => code),
+  const summaryGroupedCodes = groupedCodegenSummaryDiagnosticCodes(
+    result.ok ? result.summary : null,
   );
   for (const d of result.diagnostics) {
     if (d.severity === 'warning' && summaryGroupedCodes.has(d.code)) continue;

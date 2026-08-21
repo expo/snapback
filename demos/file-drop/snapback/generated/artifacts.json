@@ -490,13 +490,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:05b7fed62c259d50c35ad43b4b268b066f66921bfff123fb89244fe4293c14ad",
+    "bundleId": "sha256:8d056d2b3467956a7a777858fb97ac3ad7340c6e08fd8d3a0850aa5dda3a7b13",
     "evidenceId": "sha256:44919211f001acb0587d03483d5399698ca7c1c1e222e238ae521a6621f1f31c",
     "executableId": "sha256:c2a86149a6058764011b88059b90fb49339f76fa4f38b70067f729c1a6d94836",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:c2a86149a6058764011b88059b90fb49339f76fa4f38b70067f729c1a6d94836"
     },
-    "generationId": "sha256:b59438e3ae7940946dc39b93bf04c613ab3e65cd09742ccfdb4e3d9dd4dd7bae",
+    "generationId": "sha256:ebdc72527795772444171adf477c455a8eb5ebc4dd39b4352548830bed4122bc",
     "normalizedContractId": "sha256:7ba7e5a57608a5b765b7909bbfbac90b3d7230459185998453194879303cd625",
     "normalizedSchemaId": "sha256:a07511fcf21a28ac633e533c2c4d4ecf9ed6144b116471879cc9f09f6ee2494f",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -529,6 +529,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 1,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 0,
         "live": 1,
@@ -562,6 +563,25 @@
       }
     ],
     "inputsHash": "snapback.v1:sessions:inputs:sha256:ecf42fcda344f266e843584816c36abee6c6418e1a02760e190564da3962ade6",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 1,
+        "affectedOperations": [
+          "createPhoto"
+        ],
+        "affectedTableCount": 1,
+        "affectedTables": [
+          "photos"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 1,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "seed": {
       "digest": "sha256:f63d24b956f78f14e58f03549ffccba1d6d9ae78f1690f840cc26d9a67ec7da0",

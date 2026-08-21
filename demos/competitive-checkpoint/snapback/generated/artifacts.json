@@ -960,13 +960,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:91a53df5f8e0bbdf1024242c29d057785e481ebc67b87b344a8b3ed99e25209c",
+    "bundleId": "sha256:930f0edd562404f36b35fe9632437d0b55c5821d8ccc10f27fff6bd78c3a7c74",
     "evidenceId": "sha256:7351b244d73faf19ea3b130c2f5731556ae56fb236b06e1c37c744240936f24b",
     "executableId": "sha256:470361b19e765f8ebc7a0f810a3c141116ee94f908e9dadf2fc7fe02f13216e8",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:470361b19e765f8ebc7a0f810a3c141116ee94f908e9dadf2fc7fe02f13216e8"
     },
-    "generationId": "sha256:35452e9af251b2e615879903c3bea2a521fcc4881830d27372adf3b39916c256",
+    "generationId": "sha256:29e5322973de2501912130a16cb84cb65e2340ab8874a95185b04a23811f5454",
     "normalizedContractId": "sha256:64d81f638fcfb725ec9b0351c9af50230602ea1325db0839d4bb589afc7a0bf1",
     "normalizedSchemaId": "sha256:8b620f63fef3f605f0ebd5820e4120613ec559083f1b5b02c297f4d7b1634298",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -994,6 +994,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 1,
         "live": 8,
@@ -1130,6 +1131,25 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "4d8cbf142755aad9de283b5457b04e4bcc57309d5d7c5d1e0f42cc3c07be2d3c",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 1,
+        "affectedOperations": [
+          "registerModel"
+        ],
+        "affectedTableCount": 1,
+        "affectedTables": [
+          "models"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 1,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "tableVisibility": {
       "counts": {

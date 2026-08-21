@@ -120,9 +120,10 @@ the blocking design question into scheduled work.
 ## 2026-08-21 Phase 1D advisory-output resolution
 
 The repeated-advisory presentation problem is resolved without weakening the
-migration evidence. Successful human codegen output now groups
+migration evidence. Both successful human codegen output and the packaged
+`snapback generate` command now group
 `SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING` findings by semantic repair
-class and reports one `declare-explicit-write-authority` advisory with the
+class and report one `declare-explicit-write-authority` advisory with the
 affected-table and finding counts. For example, Campfire's three findings over
 two tables render as one migration block rather than three identical warnings.
 
@@ -137,6 +138,8 @@ Focused qualification passed:
 - `node packages/snapback-codegen/write-policy.test.mjs` (27/27);
 - `node packages/snapback-codegen/review-surface.test.mjs`;
 - `node packages/snapback-codegen/auth-artifacts.test.mjs`; and
+- `node packages/snapback-cli/generate-check.test.mjs`, covering both human
+  CLI printers plus retained per-finding JSON/review evidence; and
 - `node packages/snapback-codegen/index.mjs demos/campfire/snapback --check`,
   including a manual `--json` check that retained all three detailed findings.
 

@@ -787,13 +787,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:8af37ee523076e8df31c7748eb3fb19c31d4bd9b515142c41802838115c0cbb3",
+    "bundleId": "sha256:8e6044f3a0ef6be08db6e1245a02bcedf92218c6967632a7a294c9163fee043d",
     "evidenceId": "sha256:88f634e7538d710d55f2a5cb3ae4c4716cc244cf35812d7eace9672414bf1dfe",
     "executableId": "sha256:3e239bcbc01c781333b9e710888691f2435aa881c3c1a568fd0cf4aacc86c0d7",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:3e239bcbc01c781333b9e710888691f2435aa881c3c1a568fd0cf4aacc86c0d7"
     },
-    "generationId": "sha256:bc7ab3df5702f6ea0db13071238e96563ff5970d4da381ef6ad528f57580dd2b",
+    "generationId": "sha256:3041cfcdaff6f2feb5370bd62cb08953474cf05a4d79b3a5313211a09234a9ad",
     "normalizedContractId": "sha256:395c5d02b39f95843c2a1b896e60ee3960080184e23a75e7f929cc6558834140",
     "normalizedSchemaId": "sha256:29512a68339e4f3042122220a367f93b236310c6a2db007da6af727f23accf67",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -821,6 +821,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 0,
         "live": 3,
@@ -836,6 +837,25 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "snapback.v1:sessions:inputs:sha256:4b418587465cc26d4ce3de75773c14b9624a2c0189bfa94fbc0c6c10f06e73b8",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 1,
+        "affectedOperations": [
+          "postAnnouncement"
+        ],
+        "affectedTableCount": 1,
+        "affectedTables": [
+          "announcements"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 1,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "tableVisibility": {
       "counts": {

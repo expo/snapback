@@ -35,6 +35,7 @@ import {
   formatCodegenSummary,
   formatDeclarationSuggestionPatch,
   generate,
+  groupedCodegenSummaryDiagnosticCodes,
   readDeclarationSuggestionFile,
   resolveDeclarationSuggestionTarget,
   suggestDeclarations,
@@ -5350,7 +5351,14 @@ function printResult(result, json) {
     for (const command of result.next) console.log(`Next: ${command}`);
   }
   else if (result.ok !== false && result.schemaVersion === 'snapback.generate.v1' && result.summary) {
+    // @ref LLP 0295#1d-current-source-qualification-and-developer-loop-cost —
+    // print the grouped repair-class projection once instead of repeating each
+    // migration site before the useful generation summary.
+    const summaryGroupedCodes = groupedCodegenSummaryDiagnosticCodes(
+      result.ok ? result.summary : null,
+    );
     for (const diagnostic of result.diagnostics ?? []) {
+      if (diagnostic.severity === 'warning' && summaryGroupedCodes.has(diagnostic.code)) continue;
       console.error(`[${diagnostic.severity}] ${diagnostic.code} (${diagnostic.subsystem}) ${diagnostic.message}`);
     }
     console.log(formatCodegenSummary(result.summary));

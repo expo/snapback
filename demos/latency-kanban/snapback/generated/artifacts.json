@@ -693,13 +693,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:f31364dc6269e7e2bc5940385daf1b5dafea50843e39fb571df6a5fe1fdf24ad",
+    "bundleId": "sha256:fa221984d70161286df2e148a6d4e4810fbaee28b5d368ddeb5b47d666cd72a9",
     "evidenceId": "sha256:ffd00c3c51dd520d6e28ef3ab833a6c0128b24a13f1d436c64ccd8e7f35cc447",
     "executableId": "sha256:c51c62b99070acb66c8ec1df52f8d00b575da22e10bd363ed1b77cf0732d6279",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:c51c62b99070acb66c8ec1df52f8d00b575da22e10bd363ed1b77cf0732d6279"
     },
-    "generationId": "sha256:196b536bc62075baa57fc08530e93cf57c6b09dd18682a63f45bf977bfaff9b7",
+    "generationId": "sha256:f8f55e6e2bf93d741f849d128fe7f95b2b94906be75383524298642f366e157a",
     "normalizedContractId": "sha256:9a538091eaeef127301fd50043cb4859b5d54d90597e5a80e8d7006edf6725dd",
     "normalizedSchemaId": "sha256:d42beb7430459953b0b083baf67ae683983427647a5d31898cba44f64bc401ea",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -727,6 +727,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 0,
         "live": 2,
@@ -742,6 +743,31 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "3833fed4f25cf6686c75362c481e8a5dd73d29960525ad41ac6562431a4f4ae3",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 6,
+        "affectedOperations": [
+          "archiveCard",
+          "assignCard",
+          "createBoard",
+          "createCard",
+          "editCard",
+          "reorderCard"
+        ],
+        "affectedTableCount": 2,
+        "affectedTables": [
+          "boards",
+          "cards"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 6,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "tableVisibility": {
       "counts": {

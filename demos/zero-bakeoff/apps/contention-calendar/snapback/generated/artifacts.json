@@ -583,13 +583,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:b8055932b2336928aa65d08eeca91c299c7370f08578885e26e9e996d5628db2",
+    "bundleId": "sha256:a8975e3cce4d4fa7f0320f87b9b73ce29af07948c5d4d2819904db69d4c95c75",
     "evidenceId": "sha256:e68886d83226c48ff3952804fcbeff707d13515f7c792fcd2f5614f8e4556feb",
     "executableId": "sha256:cb7748cf059f837e507c952bd39e78cd3979f6066a42624dd7bf6adb7e88a66f",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:cb7748cf059f837e507c952bd39e78cd3979f6066a42624dd7bf6adb7e88a66f"
     },
-    "generationId": "sha256:85d5c954b4f74efe6677aca10460ead54aa3c72082f1b0ae7e070545bf30fe19",
+    "generationId": "sha256:42cf16cc7741e91065ba7b28f012e0af42a7835b911849b899ebdf32a3b6f5ac",
     "normalizedContractId": "sha256:99e7ff23dc22121e15a8fa07292f380543f70731bbb1d38560b08f3ae1dd89a7",
     "normalizedSchemaId": "sha256:a97f9378798206e6494ab9122b60ee7d8a2835f88ed0b08af58f6776b9cfafdf",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -622,6 +622,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 0,
         "live": 3,
@@ -638,6 +639,26 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "8709ada105058ee40531c03482fc46522df824a0037ef3b89d9525bf07632914",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 2,
+        "affectedOperations": [
+          "clearReservations",
+          "reserve"
+        ],
+        "affectedTableCount": 1,
+        "affectedTables": [
+          "reservations"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 2,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "seed": {
       "digest": "sha256:528e0662a51ae951561bf0eff0fa449acd8b49e8a40d3d1bde580737facecb09",

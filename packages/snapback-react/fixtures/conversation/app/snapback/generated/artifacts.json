@@ -784,13 +784,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:ecbbb71b12c4d972c4eb1cf383e87092f678f8813686c4c7d533a6e879704d42",
+    "bundleId": "sha256:78ce1c3a2f344db8755133855f24352f3c474ada8d064e8ecba1d2e9419b87ad",
     "evidenceId": "sha256:4f5be473abf5fa08e884e128fa6e15b07874ffcbad62ea7454153419ddd53d00",
     "executableId": "sha256:0a89d95bee4b187254e39dd2b6b612ebd42d9db607170290e907298239ae7d2d",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:0a89d95bee4b187254e39dd2b6b612ebd42d9db607170290e907298239ae7d2d"
     },
-    "generationId": "sha256:fe1bd172a71fed77c42cc2275345b61f1b9331d28ab177366d328af8ee1c1ae2",
+    "generationId": "sha256:98e9b55297d19f3c705448d7cffc155b87a1f9da83185d37e10ea1053563553b",
     "normalizedContractId": "sha256:8520f1047e30c5884c3f7ced5d5e3ce7dc4eb331231f5e0a7a8d7505420210a0",
     "normalizedSchemaId": "sha256:15decd1220e7fa07205660af4945c402bb2d18132637fd30f020c8ae1936bf96",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -818,6 +818,7 @@
       "ephemeralCollections": 1,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 0,
         "live": 5,
@@ -833,6 +834,32 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "snapback.v1:sessions:inputs:sha256:1d8fd80c415280cb8c33613d0332561d520457bf83311afcaed85d36c3a68146",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 6,
+        "affectedOperations": [
+          "addReaction",
+          "annotateMessage",
+          "removeReaction",
+          "sendMessage",
+          "sendReply",
+          "sendText"
+        ],
+        "affectedTableCount": 3,
+        "affectedTables": [
+          "conversations",
+          "messages",
+          "reactions"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 8,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "tableVisibility": {
       "counts": {
