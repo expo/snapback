@@ -28,4 +28,4 @@ admin-token, dev-identity, and managed readiness files it removes; it explicitly
 leaves keyrings and other databases alone. Rust and JavaScript fixtures reject
 the former whole-directory wording.
 
-landing SHA: TBD
+landing SHA: 96ad7dcd8

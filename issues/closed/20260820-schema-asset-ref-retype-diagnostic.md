@@ -42,4 +42,4 @@ the keyrings, asset blobs, and unrelated databases it leaves intact. Rust
 fixtures pin the equal-display-type/unequal-intent case, all nine participants,
 digest stability, and the serialized bound.
 
-landing SHA: TBD
+landing SHA: 96ad7dcd8
