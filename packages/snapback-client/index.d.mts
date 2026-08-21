@@ -17,10 +17,8 @@ export type {
   SnapbackDiagnosticLike,
   SnapbackDiagnosticOperation,
 } from './diagnostic-error.mjs';
-export {
-  DEFAULT_AUTH_STORAGE_PARTITION,
-  createSnapbackAppClient,
-} from './app-client.mjs';
+export { DEFAULT_AUTH_STORAGE_PARTITION } from './app-client-defaults.mjs';
+export { createSnapbackAppClient } from './app-client.mjs';
 export type {
   ApplicationAuthBootstrapV1,
   AuthBootstrapAdvisory,

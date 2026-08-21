@@ -7,6 +7,7 @@ import {
   createIndexedDbAuthCustodyStorage,
 } from '@expo/snapback-contract/auth-custody-indexeddb';
 
+import { DEFAULT_AUTH_STORAGE_PARTITION } from './app-client-defaults.mjs';
 import { snapbackDiagnosticError } from './diagnostic-error.mjs';
 import {
   installDevIdentityCapability,
@@ -15,7 +16,7 @@ import {
 import { SnapbackClient } from './index.mjs';
 import { isDefaultRqsStoreResolution } from './rqs-store-default.mjs';
 
-export const DEFAULT_AUTH_STORAGE_PARTITION = 'default';
+export { DEFAULT_AUTH_STORAGE_PARTITION } from './app-client-defaults.mjs';
 
 const OWNER_REGISTRY = new Map();
 const PROJECTION_OWNERS = new WeakMap();

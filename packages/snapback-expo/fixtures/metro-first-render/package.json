@@ -1,0 +1,17 @@
+{
+  "name": "snapback-expo-packed-metro-first-render",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "expo/AppEntry",
+  "packageManager": "bun@1.3.12",
+  "dependencies": {
+    "@expo/metro-runtime": "~57.0.8",
+    "@expo/snapback-expo": "0.1.0",
+    "expo": "~57.0.7",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-web": "^0.21.2"
+  }
+}

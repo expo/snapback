@@ -49,10 +49,8 @@ import {
   snapbackDiagnosticError,
 } from './diagnostic-error.mjs';
 
-export {
-  DEFAULT_AUTH_STORAGE_PARTITION,
-  createSnapbackAppClient,
-} from './app-client.mjs';
+export { DEFAULT_AUTH_STORAGE_PARTITION } from './app-client-defaults.mjs';
+export { createSnapbackAppClient } from './app-client.mjs';
 import {
   SEARCH_REQUEST_ARGS_CONTRACT_GENERATION,
   SEARCH_REQUEST_ARGS_CONTRACT_HASH,

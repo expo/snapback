@@ -6,7 +6,7 @@ import type {
 } from './index.mjs';
 import type { SnapbackAuthCustodyStorage } from '@expo/snapback-contract/auth-coordinator';
 
-export const DEFAULT_AUTH_STORAGE_PARTITION: 'default';
+export { DEFAULT_AUTH_STORAGE_PARTITION } from './app-client-defaults.mjs';
 
 export type ApplicationAuthBootstrapV1 = Readonly<{
   format: 'snapback.application-auth-bootstrap.v1';

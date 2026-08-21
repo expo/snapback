@@ -1,0 +1,8 @@
+{
+  "expo": {
+    "name": "Snapback packed Metro first render",
+    "slug": "snapback-packed-metro-first-render",
+    "version": "1.0.0",
+    "platforms": ["web"]
+  }
+}

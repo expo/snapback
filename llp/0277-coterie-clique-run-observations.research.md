@@ -8,7 +8,8 @@ Memberships, Code generation, Runtime, Client integration, Exact/Contract
 integration, Diagnostics, Guide, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-17
-**Revised:** 2026-08-20 (0.1.24 matrix amendment: adds the completed
+**Revised:** 2026-08-21 (P17 follow-through: records the packed external Expo
+Metro cycle repair); 2026-08-20 (0.1.24 matrix amendment: adds the completed
 three-model-family x two-profile x two-app published-package run, preserves
 its calibration-only claim posture, enumerates the positive and negative
 findings, and analyzes where wall clock, output tokens, and correction loops
@@ -493,8 +494,10 @@ The Familiar Opus lane died before first render because
 `@expo/snapback-expo` -> app-client -> index re-exported
 `DEFAULT_AUTH_STORAGE_PARTITION` through a temporal-dead-zone cycle under
 Metro CJS interop. Importing the client package first was a load-order
-workaround. Straight repair:
-`issues/20260820-expo-metro-default-storage-partition-cycle.md`.
+workaround. Resolved 2026-08-21: the default moved to a no-import leaf and a
+packed external Expo/Metro fixture now reaches first render without that
+workaround
+(`issues/closed/20260820-expo-metro-default-storage-partition-cycle.md`).
 
 #### P18. Familiar's first-generation and result-contract phases disagree — repeated within one lane
 

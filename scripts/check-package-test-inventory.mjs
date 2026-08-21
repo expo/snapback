@@ -108,6 +108,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     suffix: '.test.mjs',
     scriptNames: ['pretest', 'test'],
     expectedFiles: [
+      'app-client-module-graph.test.mjs',
       'app-client.test.mjs',
       'app-data.test.mjs',
       'argument-normalization.test.mjs',
@@ -268,6 +269,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'asset-source.test.mjs',
       'config-plugin.test.mjs',
       'expo-sqlite-carrier.test.mjs',
+      'metro-first-render.test.mjs',
       'package-closure.test.mjs',
       'package.test.mjs',
       'provider.test.mjs',
@@ -551,7 +553,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 312,
+  expectedTotal = 314,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1009,6 +1011,9 @@ export function checkPackageTestInventories(options = {}) {
 // (landed 205ba0bb9 without inventory registration) is registered: 311 -> 312.
 // 310 -> 311 (2026-08-16, LLP 0240 Slice C): @expo/snapback-codegen gains the
 // coarse-global custom-authorization declaration, refusal, and review suite.
+// 312 -> 314 (2026-08-21, LLP 0295 Phase 1A): @expo/snapback-client gains the
+// app-client defaults module-graph guard, and @expo/snapback-expo gains the
+// clean external Metro bundle/first-render proof.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

@@ -8,7 +8,9 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-21 (current-source corroboration amendment: incorporates
+**Revised:** 2026-08-21 (Phase 1A Expo package-parity progress: closes the
+cycle-free Expo Metro initialization ticket with a packed external proof);
+2026-08-21 (current-source corroboration amendment: incorporates
 the paired GPT-5.6 Sol high Clique Explicit/Familiar run at `708e2e5c`, adds a
 vertical paved-path coherence invariant, sequences liveness and contract parity
 ahead of ergonomic expansion, and registers the live-subscription and debug-
@@ -336,13 +338,18 @@ before choosing a repair. All may run while Phase 0 is reviewed.
 ### 1A. Published package and compiler/runtime parity
 
 - `issues/20260820-vite-password-auth-relay-allowlist.md`
-- `issues/20260820-expo-metro-default-storage-partition-cycle.md`
+- `issues/closed/20260820-expo-metro-default-storage-partition-cycle.md` —
+  resolved through a cycle-free defaults leaf and packed external Metro
+  bundle/first-render proof
 - `issues/20260820-familiar-vdoc-generation-runtime-parity.md`
 - `issues/20260820-optional-user-live-query-auth-transition-stall.md`
 - `issues/20260820-authenticated-query-signed-out-settlement.md`
 
 Exit: all five reproduce before the fix and pass through packed external
 packages afterward; no source-checkout-only proof closes them.
+
+The Expo ticket satisfies that exit individually as of 2026-08-21. Phase 1A
+as a batch remains open on the other four tickets.
 
 ### 1B. Precise diagnostics and typed hook contracts
 
