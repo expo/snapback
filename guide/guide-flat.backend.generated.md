@@ -3634,13 +3634,13 @@ const issuedDiagnostic: AssetDiagnostic | null = issuedUrl.diagnostic;
 const refreshed: Promise<void> = issuedUrl.refresh();
 void issuedDiagnostic;
 void refreshed;
-const emptyIssuedUrl: AssetUrlEmptyState = useSnapbackAssetUrl(null);
-if (emptyIssuedUrl.status === 'empty') emptyIssuedUrl.url satisfies null;
-export function OptionalAssetUrl(
-  { assetId }: { assetId: string | null },
-): AssetUrlHookState {
-  return useSnapbackAssetUrl(assetId);
+const absentAssetId: string | null | undefined = null;
+const emptyIssuedUrl: AssetUrlState = useSnapbackAssetUrl(absentAssetId);
+if (emptyIssuedUrl.status === 'empty') {
+  const emptyStatus: 'empty' = emptyIssuedUrl.status;
+  void emptyStatus;
 }
+void useSnapbackAssetUrl(undefined).refresh();
 ```
 
 TTL refresh is platform-owned. Applications should not hand-roll issuance
@@ -6345,24 +6345,26 @@ stored JSON manually. The data already materialized under the predecessor is
 the reason the applier refuses; preserving it is the recovery objective.
 
 For `AssetRef`, the display name alone is not the type identity. The retype
-diagnostic's `existingAssetRef`, `requestedAssetRef`, and `changedFacts`
-identify changes to upload/media intent, policy generation, media kinds,
-delivery, variants, classification, retention, and target capability. Preserve
-data by adding a nullable successor AssetRef field and repopulating it through
-ordinary authorized application mutations. That route invokes the AssetRef
-attachment hook, which rechecks the successor intent/media policy and maintains
-the successor field's reverse edges. Do **not** use generic migration copy or
-backfill for AssetRef values: that path does not run the attachment hook. Keep
-the predecessor field until an AssetRef-aware retirement migration exists; do
-not interpret `AssetRef` → `AssetRef` as stale codegen or an in-place compatible
-policy edit.
+diagnostic's bounded `semanticDelta` identifies changes to upload/media intent,
+policy generation, media kinds, delivery, variants, classification, retention,
+and target capability. Preserve data by adding a nullable successor AssetRef
+field and repopulating it through ordinary authorized application mutations.
+That route invokes the AssetRef attachment hook, which rechecks the successor
+intent/media policy and maintains the successor field's reverse edges. Do
+**not** use generic migration copy or backfill for AssetRef values: that path
+does not run the attachment hook. Keep the predecessor field until an
+AssetRef-aware retirement migration exists; do not interpret `AssetRef` →
+`AssetRef` as stale codegen or an in-place compatible policy edit.
 
-If this is a disposable local target and you intentionally do **not** need the
-data, use `snapback reset --dev-fresh --db <db>`. The store is not one file:
-deleting only the SQLite database leaves custody keyrings, config, and assets
-behind and can reproduce `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`. Preserve a
-copy first with `snapback store export` when needed; the complete inventory and
-procedure are in [Back up, copy, and move a store](../operating/backup-and-copy.md).
+If this is the disposable canonical managed target and you intentionally do
+**not** need the data, use `snapback reset --dev-fresh --db <db>`. The command
+validates that `<db>` is the CLI-owned `.snapback/dev.sqlite3`, refuses custom,
+shared, or symlink-ambiguous paths before deletion, and removes the managed
+whole store. The deployment pin itself is database-resident; the whole-store
+scope is the reset/custody contract, not a claim that keyrings participate in
+the retype or pin comparison. Preserve a copy first with `snapback store
+export` when needed; the complete inventory and procedure are in [Back up,
+copy, and move a store](../operating/backup-and-copy.md).
 
 ## Diagnose the four boundary codes
 
@@ -6370,7 +6372,7 @@ procedure are in [Back up, copy, and move a store](../operating/backup-and-copy.
 | --- | --- |
 | `SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | A settled sessions start has no readable trusted complete-pair carrier. Restore the exact generated carrier and retry. |
 | `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | The carrier differs from the pin or is not a coherent closed pair. Read `expectedDeployment`/`observedDeployment`; use the exact-carrier then managed-successor recipe above. |
-| `SNAPBACK_SCHEMA_FIELD_RETYPED` | Existing storage makes a direct field retype non-additive. Preserve the predecessor and route ordinary fields through a new-field backfill or reviewed migration. For AssetRef → AssetRef, read `changedFacts`, add a nullable successor, and populate it only through ordinary authorized application mutations; generic migration copy/backfill is not AssetRef-safe. |
+| `SNAPBACK_SCHEMA_FIELD_RETYPED` | Existing storage makes a direct field retype non-additive. Preserve the predecessor and route ordinary fields through a new-field backfill or reviewed migration. For AssetRef → AssetRef, read `semanticDelta`, add a nullable successor, and populate it only through ordinary authorized application mutations; generic migration copy/backfill is not AssetRef-safe. |
 | `SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED` | Populated rows lack the proposed required value. Add it as optional and backfill, or declare the reviewed migration. |
 
 For seed identity changes, use [versioned seeds](./versioned-seeds.md). For

@@ -95,20 +95,18 @@ try {
       },
     }, { database });
     const freshReseed = refined.diagnostic.details.recovery.freshReseed;
-    assert.match(freshReseed, /snapback auth backup --db/u);
-    assert.ok(freshReseed.includes(`snapback auth backup --db '${database}'`));
+    assert.match(freshReseed, /snapback store export --db/u);
+    assert.ok(freshReseed.includes(`snapback store export --db '${database}'`));
     assert.ok(freshReseed.includes(`snapback reset --dev-fresh --db '${database}'`));
-    assert.match(freshReseed, /captures only the database\/auth backup unit/u);
-    assert.match(freshReseed, /not the config store, asset blobs, or operation-detail keyring/u);
-    assert.match(freshReseed, /removes only the selected database/u);
-    assert.match(freshReseed, /does not remove the auth keyring/u);
+    assert.match(freshReseed, /managed whole store/u);
+    assert.match(freshReseed, /complete durable-state set/u);
+    assert.match(freshReseed, /custody keyrings\/configuration and asset blobs/u);
+    assert.match(freshReseed, /refusing custom, shared, or symlink-ambiguous paths/u);
     assert.match(freshReseed, /For disposable local dev data only/u);
-    assert.doesNotMatch(freshReseed, /entire `\.snapback` store/u);
-    assert.doesNotMatch(freshReseed, /database and keyrings/u);
     assert.doesNotMatch(freshReseed, /move or delete the database file/u);
     const safety = refined.diagnostic.details.recovery.safety;
     assert.match(safety, /deployment identity stored in the selected database/u);
-    assert.match(safety, /not a keyring/u);
+    assert.match(safety, /not from keyrings participating in this comparison/u);
   }
 
   {

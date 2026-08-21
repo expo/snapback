@@ -11,21 +11,26 @@ The old "move or delete the database file" text was still incomplete because
 it omitted SQLite sidecars and target selection, while directory-wide deletion
 would be unsafe for unrelated databases sharing the directory.
 
-Align the refusal repair text with the supported database-targeted reset:
-include the diagnostic database via `--db`, enumerate the exact artifacts
-removed by `snapback reset --dev-fresh`, and do not recommend directory-wide
-deletion.
+Align the refusal repair text with the supported reset: retain the diagnostic
+database via `--db` as the target identity, preserve the complete store with
+`snapback store export` when needed, and make `snapback reset --dev-fresh`
+perform a path-validated whole-store reset only for the canonical CLI-owned
+`.snapback/dev.sqlite3`. Custom/shared and symlink-ambiguous paths must refuse
+before deletion.
 
 ## Resolution
 
 Resolved 2026-08-21. Both native and packaged-CLI projections of
 `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` now say that the unequal deployment
-identity pin is stored in the selected database, not a keyring. The backup step
-states that `snapback auth backup` captures only its database/auth unit, not
-config, asset blobs, or operation-detail keys. The reset command carries the
-diagnostic's exact `--db` path and names only the database, WAL/SHM,
-admin-token, dev-identity, and managed readiness files it removes; it explicitly
-leaves keyrings and other databases alone. Rust and JavaScript fixtures reject
-the former whole-directory wording.
+identity pin is stored in the selected database, not a keyring. Main's initial
+repair (`96ad7dcd8`, refined by `aeefdb936`) therefore made `dev-fresh`
+database-only. Reconciliation preserves that database-resident-pin vocabulary
+but restores the ticket's custody-store exit criterion: preservation uses
+`snapback store export`, and `dev-fresh` removes the database, custody
+keyrings/configuration, asset blobs, and managed readiness state as one managed
+whole store. It does so only for canonical `.snapback/dev.sqlite3`, after
+regular-file/non-symlink ownership validation; custom/shared paths refuse before
+deletion, and unregistered `.snapback` files survive. Rust and JavaScript
+fixtures pin both the whole-store result and the refusal-before-delete cuts.
 
-landing SHA: 96ad7dcd8
+initial database-only landing SHA: 96ad7dcd8

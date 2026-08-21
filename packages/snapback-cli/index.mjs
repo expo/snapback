@@ -3571,7 +3571,7 @@ function removeManagedDatabaseState(
   rmSync(join(target.storeRoot, 'assets', 'blobs'), { force: true, recursive: true });
 }
 
-const DEV_FRESH_RESET_ARTIFACTS = 'this removes only the selected database, its `-wal`, `-shm`, `.admin-token`, and `.dev-identity` siblings, and the managed ready/application-ready files; it does not remove the auth keyring, config store, operation-detail keyring, asset blobs, or any other database in the containing directory';
+const DEV_FRESH_RESET_ARTIFACTS = 'this is supported only for the canonical CLI-owned `<project>/.snapback/dev.sqlite3`; after validating ownership and refusing custom, shared, or symlink-ambiguous paths before deletion, it removes the managed whole store, including custody keyrings/configuration and asset blobs: the selected database and its `-wal`, `-shm`, `-journal`, `.auth-keyring.json`, `.config.json`, `.operation-detail-keyring.json`, `.admin-token`, `.console-credentials`, and `.dev-identity` siblings; the store\'s `completeness-proof-keyring.json`, `resume-keyring.json`, and `assets/blobs`; plus managed ready/application-ready files. Unregistered files in `.snapback` are preserved';
 
 function shellSingleQuotePath(path) {
   return `'${String(path).replaceAll("'", `'"'"'`)}'`;
@@ -3804,12 +3804,12 @@ function refineGeneratedArtifactFailure(error, {
           coldStartRepair: 'to cold-start first, restore the generated artifacts matching the pinned deployment (regenerate from the previous sources if needed), boot, then apply the evolved sources through the running server',
           // issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
           // the discard path is a supported procedure, not author intuition —
-          // name the exact, deliberately narrower backup and reset units.
-          freshReseed: 'to discard the selected database and reseed from scratch: first run '
-            + `\`snapback auth backup --db ${quotedDatabase} --output <ignored-backup-dir>\`; `
-            + 'that command captures only the database/auth backup unit (`database.sqlite3`, `auth-keyring.json`, and `backup.json`), not the config store, asset blobs, or operation-detail keyring. '
+          // name the exact whole-store preservation/reset commands and the
+          // ownership boundary that makes recursive asset cleanup safe.
+          freshReseed: 'to discard the managed whole store and reseed from scratch: first preserve the complete durable-state set if needed with '
+            + `\`snapback store export --db ${quotedDatabase} --output <ignored-store-export-dir>\`. `
             + `Then use the supported one-shot path: ${devFresh}`,
-          safety: 'the refusal compares the startup carrier\'s deployment identity with the active deployment identity stored in the selected database; it is not a keyring, runtime, or codegen mismatch (LLP 0058); do not hand-edit generated artifacts or hashes to match the pin',
+          safety: 'the refusal compares the startup carrier\'s deployment identity with the active deployment identity stored in the selected database; it is not a keyring, runtime, or codegen mismatch (LLP 0058). The whole-store scope comes from the managed reset and custody contract (LLP 0192), not from keyrings participating in this comparison; do not hand-edit generated artifacts or hashes to match the pin',
         },
       },
     );
@@ -5406,7 +5406,7 @@ export function attachDevControlChannel({ verbs, stop, onEvent, stdin = process.
         s: 'status',
         r: 'regenerate and reload',
         R: 'restart backend',
-        f: 'fresh database, restart, seed, and remint',
+        f: 'reset the canonical managed whole store, restart, seed, and remint',
         q: 'quit',
       },
     });
@@ -5573,7 +5573,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
   },
   {
     name: 'reset', usage: 'snapback reset [<backend-dir>] --dev-fresh [--db <path>] [--ready-file <path>] [--email <address>] [--json]',
-    description: 'One-shot dev-fresh reset of a managed dev target: fresh database, seed re-apply, supervisor-coordinated session re-mint, one readiness report. All other reset forms delegate to the native app.reset.',
+    description: 'One-shot dev-fresh reset of the canonical managed dev target: validate ownership, remove the whole store, re-apply seed, coordinate session re-mint, and report readiness. All other reset forms delegate to the native app.reset.',
     lifecycle: 'one-shot',
     output: 'snapback.dev.v1 JSON-line events followed by one snapback.reset-dev-fresh.v1 report',
     exits: '0 fresh+seeded(+authority) readiness; 1 structured refusal (individual lifecycle refusals are preserved, not bypassed)',
@@ -5581,6 +5581,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     details: Object.freeze([
       'Without --dev-fresh, snapback reset and all of its arguments delegate unchanged to the native app.reset command.',
       '--email is used only by the standalone Sessions verification mint; a running supervisor keeps its configured email.',
+      '--db must resolve to the canonical <project>/.snapback/dev.sqlite3; custom/shared and symlink-ambiguous targets refuse before deletion.',
     ]),
   },
   {

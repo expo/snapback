@@ -35,11 +35,12 @@ classification, retention, and target capability). Every scalar and array uses
 a capped preview with original byte/count metadata and stable SHA-256 digests
 for omitted content, so a multi-megabyte valid manifest cannot become a
 multi-megabyte diagnostic. The message and structured repair distinguish the
-reviewed preserve-data migration from the explicitly database-targeted local
-dev `snapback reset --dev-fresh --db <path-to-this-database>` path, naming the
-database/WAL/SHM/admin-token/dev-identity/readiness artifacts it removes and
-the keyrings, asset blobs, and unrelated databases it leaves intact. Rust
-fixtures pin the equal-display-type/unequal-intent case, all nine participants,
-digest stability, and the serialized bound.
+AssetRef-safe preserve-data path (nullable successor field populated through
+ordinary authorized mutations, not generic migration copy/backfill) from the
+ownership-validated whole-store local-dev `snapback reset --dev-fresh --db
+<path-to-this-database>` path. The reset is available only for canonical
+`.snapback/dev.sqlite3`; custom/shared or symlink-ambiguous paths refuse before
+deletion. Rust fixtures pin the equal-display-type/unequal-intent case, all nine
+participants, digest stability, the serialized bound, and both repair scopes.
 
 landing SHA: 96ad7dcd8

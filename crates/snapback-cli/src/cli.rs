@@ -29,7 +29,7 @@ use uuid::Uuid;
 
 const DEFAULT_PORT_RANGE_START: u16 = 4287;
 const DEFAULT_PORT_RANGE_END: u16 = 4387;
-const DEV_FRESH_RESET_ARTIFACTS: &str = "this removes only the selected database, its `-wal`, `-shm`, `.admin-token`, and `.dev-identity` siblings, and the managed ready/application-ready files; it does not remove the auth keyring, config store, operation-detail keyring, asset blobs, or any other database in the containing directory";
+const DEV_FRESH_RESET_ARTIFACTS: &str = "this is supported only for the canonical CLI-owned `<project>/.snapback/dev.sqlite3`; after validating ownership and refusing custom, shared, or symlink-ambiguous paths before deletion, it removes the managed whole store, including custody keyrings/configuration and asset blobs: the selected database and its `-wal`, `-shm`, `-journal`, `.auth-keyring.json`, `.config.json`, `.operation-detail-keyring.json`, `.admin-token`, `.console-credentials`, and `.dev-identity` siblings; the store's `completeness-proof-keyring.json`, `resume-keyring.json`, and `assets/blobs`; plus managed ready/application-ready files. Unregistered files in `.snapback` are preserved";
 
 fn shell_single_quote_path(path: &Path) -> String {
     format!("'{}'", path.to_string_lossy().replace('\'', "'\"'\"'"))
@@ -123,8 +123,8 @@ fn auth_policy_unavailable(message: &'static str) -> crate::diagnostic::Snapback
 /// without named repair paths authors reverse-engineer an ad-hoc local-store
 /// rollover. Name both supported ways forward on the refusal itself: the
 /// data-preserving live evolution through the running server, and the
-/// data-discarding, database-targeted backup-then-reseed procedure with the
-/// real commands and their deliberately narrower artifact boundaries.
+/// data-discarding, canonical whole-store export-then-reseed procedure with
+/// its exact ownership boundary.
 // @ref LLP 0058#cold-startup-artifact-carrier — "this is not a wedge": the
 // refusal must carry its own repair, not just the expected identity
 // (issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md).
@@ -135,17 +135,17 @@ fn with_settled_pin_repair(
     mut error: crate::diagnostic::SnapbackError,
     database: &Path,
 ) -> crate::diagnostic::SnapbackError {
-    let quoted_database = shell_single_quote_path(database);
     let dev_fresh = dev_fresh_destructive_repair(database);
+    let quoted_database = shell_single_quote_path(database);
     if let Value::Object(details) = &mut error.diagnostic.details {
         details.insert(
             "repair".to_owned(),
             json!({
                 "keepData": "restart on the startup carrier matching expectedDeployment (regenerate it from the previous sources if needed), then apply the changed sources through the running server's live reload (`snapback dev` watch reload): the running-server provision moves the pinned deployment forward without touching local data",
                 "reseedFresh": format!(
-                    "to discard the selected database and reseed from scratch: first run `snapback auth backup --db {quoted_database} --output <ignored-backup-dir>`; that command captures only the database/auth backup unit (`database.sqlite3`, `auth-keyring.json`, and `backup.json`), not the config store, asset blobs, or operation-detail keyring. Then use the supported one-shot path: {dev_fresh}",
+                    "to discard the managed whole store and reseed from scratch: first preserve the complete durable-state set if needed with `snapback store export --db {quoted_database} --output <ignored-store-export-dir>`. Then use the supported one-shot path: {dev_fresh}",
                 ),
-                "safety": "the refusal compares the startup carrier's deployment identity with the active deployment identity stored in the selected database; it is not a keyring, runtime, or codegen mismatch (LLP 0058); do not hand-edit generated artifacts or hashes to match the pin",
+                "safety": "the refusal compares the startup carrier's deployment identity with the active deployment identity stored in the selected database; it is not a keyring, runtime, or codegen mismatch (LLP 0058). The whole-store scope comes from the managed reset and custody contract (LLP 0192), not from keyrings participating in this comparison; do not hand-edit generated artifacts or hashes to match the pin",
             }),
         );
     }

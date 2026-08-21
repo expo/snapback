@@ -1055,16 +1055,16 @@ field's semantic type identity: upload/media intent, policy generation,
 accepted media kinds, delivery policy, variants, classification profile,
 retention class, and target capability. An installed field may therefore
 refuse a changed declaration as `SNAPBACK_SCHEMA_FIELD_RETYPED` even when both
-display names are `AssetRef`. That refusal carries bounded
-`existingAssetRef`, `requestedAssetRef`, and `changedFacts` details. It offers
-two distinct repairs: preserve data by adding a nullable successor field and
+display names are `AssetRef`. That refusal carries a bounded `semanticDelta`
+whose entries name the changed fact and bounded old/new values. It offers two
+distinct repairs: preserve data by adding a nullable successor field and
 repopulating it through ordinary authorized application mutations (the path
 that re-runs successor policy admission and reverse-edge maintenance), or
-discard a development store with `snapback reset --dev-fresh`. Generic
-migration copy/backfill is explicitly not AssetRef-safe and is not recommended;
-the predecessor remains until an AssetRef-aware retirement migration exists.
-Stale generated artifacts are not diagnosed as a policy-compatible in-place
-retype.
+discard the canonical managed development store with the ownership-validated
+whole-store `snapback reset --dev-fresh`. Generic migration copy/backfill is
+explicitly not AssetRef-safe and is not recommended; the predecessor remains
+until an AssetRef-aware retirement migration exists. Stale generated artifacts
+are not diagnosed as a policy-compatible in-place retype.
 
 The generated field type, attach helper, reverse-edge record, and codegen
 projection must be single-sourced under LLP 0007/0037. The client cannot

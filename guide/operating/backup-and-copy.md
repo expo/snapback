@@ -39,10 +39,12 @@ file, whole store.
 
 If an artifact-mismatch refusal offers a destructive fresh-development repair,
 follow its `snapback reset --dev-fresh --db <db>` command. That verb removes
-and reseeds the managed whole store. Do not delete only `<db>` or `<db>-wal`:
-the path-bound custody siblings survive, so the target is neither the old
-store nor a fresh one. Use `snapback store export` first when the existing
-state might matter.
+and reseeds the managed whole store only when `<db>` is the canonical
+CLI-owned `.snapback/dev.sqlite3`; custom, shared, and symlink-ambiguous paths
+refuse before deletion. The deployment pin compared by the startup refusal is
+stored in the database, but the reset remains whole-store so it cannot produce
+a partial custody set. Use `snapback store export` first when the existing state
+might matter.
 
 These CLI verbs are **contributor-source** today: they exist in the source
 `snapback` binary and are not yet part of a published `@expo/snapback-*`

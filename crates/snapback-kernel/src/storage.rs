@@ -11609,7 +11609,8 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
     Ok(())
 }
 
-const DEV_FRESH_DESTRUCTIVE_REPAIR: &str = "For disposable local dev data only, run `snapback reset --dev-fresh --db <path-to-this-database>`; this removes only the selected database, its `-wal`, `-shm`, `.admin-token`, and `.dev-identity` siblings, and the managed ready/application-ready files; it does not remove the auth keyring, config store, operation-detail keyring, asset blobs, or any other database in the containing directory";
+const DEV_FRESH_DESTRUCTIVE_REPAIR: &str = "For disposable local dev data only, if this is the canonical CLI-owned `<project>/.snapback/dev.sqlite3`, run `snapback reset --dev-fresh --db <path-to-this-database>`; after validating ownership and refusing custom, shared, or symlink-ambiguous paths before deletion, this removes and reseeds the managed whole store, including custody keyrings/configuration and asset blobs while preserving unregistered `.snapback` files";
+const ASSET_REF_PRESERVE_DATA_REPAIR: &str = "Keep the predecessor field, add a nullable successor AssetRef field with the new intent/policy, and repopulate it through ordinary authorized application mutations so the AssetRef attachment hook rechecks successor policy and writes reverse edges; generic migration copy/backfill is not AssetRef-safe and must not be used. Keep the predecessor field until an AssetRef-aware retirement migration exists";
 const ASSET_REF_SEMANTIC_STRING_PREVIEW_MAX_BYTES: usize = 128;
 const ASSET_REF_SEMANTIC_ARRAY_PREVIEW_MAX_COUNT: usize = 4;
 
@@ -11844,14 +11845,6 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
                          reviewed successor generation — declare ConvertJsonToStructured",
                         table.name, field.name
                     )
-                } else if let Some((existing, requested)) = &asset_ref_delta {
-                    let changed = changed_asset_ref_facts(existing, requested);
-                    format!(
-                        "field {}.{} keeps the AssetRef display type but changes its stored semantic identity in [{}]; an in-place policy/intent retype is not supported",
-                        table.name,
-                        field.name,
-                        changed.join(", "),
-                    )
                 } else {
                     format!(
                         "field {}.{} cannot change type from {} to {}; \
@@ -11862,7 +11855,11 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
                         field_type_name(&field.field_type)
                     )
                 };
-                let mut message = reviewed_migration_next_step(reason);
+                let mut message = if asset_ref_delta.is_some() {
+                    format!("{reason}. {ASSET_REF_PRESERVE_DATA_REPAIR}")
+                } else {
+                    reviewed_migration_next_step(reason)
+                };
                 if asset_ref_delta.is_some() {
                     message.push_str(". ");
                     message.push_str(DEV_FRESH_DESTRUCTIVE_REPAIR);
@@ -11879,7 +11876,7 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
                         .with_detail(
                             "repair",
                             json!({
-                                "preserveData": "Run `snapback migrate preview --help` to start the reviewed preserve-data migration workflow",
+                                "preserveData": ASSET_REF_PRESERVE_DATA_REPAIR,
                                 "devFresh": DEV_FRESH_DESTRUCTIVE_REPAIR,
                             }),
                         );

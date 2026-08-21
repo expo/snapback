@@ -34,7 +34,7 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 
 #[test]
-fn settled_pin_repair_names_the_exact_backup_and_dev_fresh_artifacts() {
+fn settled_pin_repair_names_whole_store_preservation_and_guarded_reset() {
     let database = PathBuf::from("/tmp/example/.snapback/dev.sqlite3");
     let error = crate::diagnostic::SnapbackError::error(
         "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
@@ -50,21 +50,21 @@ fn settled_pin_repair_names_the_exact_backup_and_dev_fresh_artifacts() {
     let reseed = repaired.diagnostic.details["repair"]["reseedFresh"]
         .as_str()
         .unwrap();
-    assert!(reseed.contains("snapback auth backup --db '/tmp/example/.snapback/dev.sqlite3'"));
+    assert!(reseed.contains("snapback store export --db '/tmp/example/.snapback/dev.sqlite3'"));
     assert!(
         reseed.contains("snapback reset --dev-fresh --db '/tmp/example/.snapback/dev.sqlite3'")
     );
-    assert!(reseed.contains("captures only the database/auth backup unit"));
-    assert!(reseed.contains("not the config store, asset blobs, or operation-detail keyring"));
+    assert!(reseed.contains("discard the managed whole store"));
+    assert!(reseed.contains("preserve the complete durable-state set"));
     assert!(reseed.contains(super::DEV_FRESH_RESET_ARTIFACTS));
-    assert!(!reseed.contains("entire `.snapback` store"));
-    assert!(!reseed.contains("database and keyrings"));
+    assert!(reseed.contains("custody keyrings/configuration and asset blobs"));
+    assert!(reseed.contains("refusing custom, shared, or symlink-ambiguous paths"));
     assert!(!reseed.contains("move or delete the database file"));
     let safety = repaired.diagnostic.details["repair"]["safety"]
         .as_str()
         .unwrap();
     assert!(safety.contains("deployment identity stored in the selected database"));
-    assert!(safety.contains("not a keyring"));
+    assert!(safety.contains("not from keyrings participating in this comparison"));
 }
 
 #[test]
@@ -1789,15 +1789,17 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
     );
     let reseed = repair["reseedFresh"].as_str().unwrap();
     assert!(
-        reseed.contains("snapback auth backup --db")
+        reseed.contains("snapback store export --db")
             && reseed.contains(&database.display().to_string())
             && reseed.contains("snapback reset --dev-fresh --db")
-            && reseed.contains("captures only the database/auth backup unit")
+            && reseed.contains("managed whole store")
             && reseed.contains(super::DEV_FRESH_RESET_ARTIFACTS),
-        "reseedFresh names the exact database-targeted backup and reset boundaries: {reseed}"
+        "reseedFresh names the exact whole-store preservation and reset boundaries: {reseed}"
     );
-    assert!(!reseed.contains("entire `.snapback` store"), "{reseed}");
-    assert!(!reseed.contains("database and keyrings"), "{reseed}");
+    assert!(
+        reseed.contains("custody keyrings/configuration and asset blobs"),
+        "{reseed}"
+    );
     assert!(
         repair["safety"]
             .as_str()
@@ -1805,7 +1807,12 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
             .contains("deployment identity stored in the selected database"),
         "safety attributes the pin to database deployment state"
     );
-    assert!(repair["safety"].as_str().unwrap().contains("not a keyring"));
+    assert!(
+        repair["safety"]
+            .as_str()
+            .unwrap()
+            .contains("not from keyrings participating in this comparison")
+    );
 
     let activation_args = Args {
         activate_startup_successor: true,

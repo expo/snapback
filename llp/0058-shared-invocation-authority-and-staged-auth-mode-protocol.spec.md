@@ -879,7 +879,9 @@ branch may first preserve the complete durable-state set with
 It must say that the managed store is not one file and that deleting only the
 SQLite database leaves custody keyrings/config/assets behind; remediation may
 not instruct an author to move or delete the database file in isolation (LLP
-0192 D-1/D-2).
+0192 D-1/D-2). The unequal deployment identities themselves are stored in the
+database; the reset is whole-store because LLP 0192 governs the destructive
+managed-reset boundary, not because keyrings participate in this comparison.
 
 The explicit pre-bind `--activate-startup-successor` flag is the sole cold
 same-mode exception to exact identity equality. It requires the startup carrier,

@@ -956,12 +956,13 @@ mod asset_ref_retype_diagnostic_tests {
         assert!(error.diagnostic.message.contains("avatarUpload"));
         assert!(error.diagnostic.message.contains("profileImageUpload"));
         assert!(!error.diagnostic.message.contains("AssetRef to AssetRef"));
-        assert!(
-            error.diagnostic.details["repair"]["preserveData"]
-                .as_str()
-                .unwrap()
-                .contains("snapback migrate preview --help")
-        );
+        let preserve_data = error.diagnostic.details["repair"]["preserveData"]
+            .as_str()
+            .unwrap();
+        assert!(preserve_data.contains("ordinary authorized application mutations"));
+        assert!(preserve_data.contains("rechecks successor policy and writes reverse edges"));
+        assert!(preserve_data.contains("generic migration copy/backfill is not AssetRef-safe"));
+        assert!(!preserve_data.contains("snapback migrate preview --help"));
         assert_eq!(
             error.diagnostic.details["repair"]["devFresh"],
             DEV_FRESH_DESTRUCTIVE_REPAIR
@@ -971,6 +972,11 @@ mod asset_ref_retype_diagnostic_tests {
                 .diagnostic
                 .message
                 .contains(DEV_FRESH_DESTRUCTIVE_REPAIR)
+        );
+        assert!(DEV_FRESH_DESTRUCTIVE_REPAIR.contains("managed whole store"));
+        assert!(
+            DEV_FRESH_DESTRUCTIVE_REPAIR
+                .contains("refusing custom, shared, or symlink-ambiguous paths")
         );
     }
 
@@ -1716,92 +1722,6 @@ mod stored_enum_tests {
             )
             .expect("integer column declaration");
         assert_eq!(declared, "INTEGER");
-    }
-
-    #[test]
-    fn asset_ref_retype_names_the_underlying_policy_identity_delta() {
-        use crate::contract_types::{MediaFieldDescriptorV1, MediaKindV1};
-
-        let media = |intent: &str, policy: &str, kind, delivery: &str| FieldType::AssetRef {
-            upload: Some(intent.to_owned()),
-            media: Some(MediaFieldDescriptorV1 {
-                intent: intent.to_owned(),
-                policy: policy.to_owned(),
-                kinds: vec![kind],
-                delivery: Some(delivery.to_owned()),
-                variants: vec!["display".to_owned()],
-                classification_profile: "detected-content-type.v1".to_owned(),
-                retention_class: "media-reference.v1".to_owned(),
-                target_capability: "assets.media-ref-projection.v1".to_owned(),
-            }),
-        };
-        let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed()
-            .apply_schema(schema(vec![field(
-                "media",
-                media(
-                    "avatarUpload",
-                    "sha256:avatar-policy-v1",
-                    MediaKindV1::Image,
-                    "private-signed",
-                ),
-                false,
-            )]))
-            .expect("apply predecessor asset reference");
-
-        let error = db
-            .schema_seed()
-            .apply_schema(schema(vec![field(
-                "media",
-                media(
-                    "clipUpload",
-                    "sha256:clip-policy-v2",
-                    MediaKindV1::Video,
-                    "private-strict",
-                ),
-                false,
-            )]))
-            .expect_err("equal display types with unequal asset intent must refuse");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
-        assert_eq!(error.diagnostic.details["existingType"], "AssetRef");
-        assert_eq!(error.diagnostic.details["requestedType"], "AssetRef");
-        assert_eq!(
-            error.diagnostic.details["existingAssetRef"]["uploadIntent"],
-            "avatarUpload"
-        );
-        assert_eq!(
-            error.diagnostic.details["requestedAssetRef"]["uploadIntent"],
-            "clipUpload"
-        );
-        assert_eq!(
-            error.diagnostic.details["existingAssetRef"]["mediaKinds"],
-            json!(["image"])
-        );
-        assert_eq!(
-            error.diagnostic.details["requestedAssetRef"]["deliveryPolicy"],
-            "private-strict"
-        );
-        assert!(
-            error.diagnostic.details["changedFacts"]
-                .as_array()
-                .is_some_and(|facts| facts.iter().any(|fact| fact == "uploadIntent"))
-        );
-        let preserve_data = error.diagnostic.details["repair"]["preserveData"]
-            .as_str()
-            .unwrap();
-        assert!(preserve_data.contains("ordinary authorized application mutations"));
-        assert!(preserve_data.contains("rechecks successor policy and writes reverse edges"));
-        assert!(preserve_data.contains("generic migration copy/backfill is not AssetRef-safe"));
-        assert!(
-            !preserve_data.contains("snapback migrate preview --help"),
-            "the generic migration loop bypasses AssetRef admission and edge maintenance"
-        );
-        assert!(
-            error.diagnostic.details["repair"]["devFresh"]
-                .as_str()
-                .unwrap()
-                .contains("snapback reset --dev-fresh")
-        );
     }
 }
 
