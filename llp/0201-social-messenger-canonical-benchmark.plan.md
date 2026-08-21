@@ -935,23 +935,44 @@ Registered per-milestone fields:
    and recorded per (harness, model) — **no cross-harness
    normalization**; cross-family token comparison stays out of scope
    exactly as the cap-family rules already provide.
-2. **Semantic actions**, using LLP 0186 W5's classes: read, edit,
-   generate, start/restart, suite run, choreography run, source
-   inspection, guide lookup, retry.
+2. **Semantic actions**, using the **closed D0.6 taxonomy registered in
+   LLP 0186's 2026-08-21 amendment** (which reconciles and refines W5's
+   prose list in place — one list, not two): `guide-lookup`,
+   `source-inspection` (with `binary-excavation` as a flagged subclass),
+   `edit`, `generate`, `process` (start/restart/attach/shutdown),
+   `reseed`, `suite`, `choreography`, `retry`. Every recorded action
+   carries a `progress`/`correction` disposition tag; `correction` means
+   the action belongs to a field-3 failure-to-recovery episode.
 3. **Failure-to-recovery episodes** with attribution and outcome,
    per LLP 0186's failure-to-recovery trace amendment.
 4. **Server/process restart and reseed counts.**
 5. **Browser assertion attempts and wall time spent waiting** on
-   choreography assertions.
+   assertion settlement — choreography and suite assertion waits both
+   recorded, per D0.6's wording.
 6. **Host load and API interruption windows** (the 0.1.24 matrix's
    contamination classes), as declared cell-eligibility facts.
 7. **Orientation bytes and the selected skill set before the first
    product edit** (`issues/20260820-matrix-lane-skill-routing-context-budget.md`
    is the carrier ticket), reported separately from authoring tokens.
+8. **Estimator provenance:** whether any phase-usage figure came from the
+   boundary-snapshot estimator rather than harness-native fields, recorded
+   per (milestone, field).
+
+**Schema compatibility:** all eight are **optional additive fields at the
+existing extension version**, delivered through the coordinated version
+bump; the shipped `tokenCounts` object (`additionalProperties: false`, no
+`reasoning` member) is extended there, and completed records are never
+rewritten. **Null policy for field 1:** fresh input and output tokens are
+required per (harness, model); cache read, cache write, and reasoning may
+be explicit nulls where the pinned harness does not expose them, and a
+scorecard measure whose numerator reads a null subfield is inapplicable
+for that cell (the output-token target reads the required output field).
 
 **Eligibility rule (registered, per LLP 0295):** a run lacking
 per-phase usage may still debug product behavior, but its cells are
 ineligible for LLP 0295's efficiency scorecard (whose thresholds are
-registered in LLP 0186's 2026-08-21 amendment); excessive host load or
-an API interruption inside a phase likewise makes that cell
-scorecard-ineligible while retaining its product findings.
+registered in LLP 0186's 2026-08-21 amendment). Cell eligibility reuses
+the **same contamination flags the 0.1.24 record already carries** —
+host-load contamination and API interruption windows — rather than a new
+numeric threshold invented here; a flagged cell is scorecard-ineligible
+while retaining its product findings.

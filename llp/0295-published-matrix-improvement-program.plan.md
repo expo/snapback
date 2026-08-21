@@ -36,7 +36,9 @@ Diary 0098, Diary 0099, Diary 0100, Diary 0101, Diary 0102, Diary 0103,
 Diary 0104, Diary 0105,
 `benchmarks/runs/2026-08-20-clique-local-main-sol-high/record.md`,
 `issues/20260820-familiar-live-subscription-contention.md`,
-`issues/20260820-debug-binary-symbol-bloat.md`
+`issues/20260820-debug-binary-symbol-bloat.md`,
+`issues/20260821-fixed-origin-external-client-dev-lifecycle.md`,
+`issues/20260809-per-milestone-token-metering.md`
 
 ## Summary
 
@@ -577,8 +579,11 @@ scoped by app/client stack if the 0.1.24 interaction persists.
 ## Efficiency scorecard
 
 Phase 0 registers exact thresholds before implementation to avoid fitting the
-target to the result. The following are proposed commissioning targets for R2;
-the author may revise them at D0.6 with rationale:
+target to the result. The following commissioning targets for R2 were
+**registered 2026-08-21** in LLP 0186's dated amendment (with the closed
+action taxonomy and comparator designation) and LLP 0201's field
+registration, adopted-by-default; the author may still revise them with
+rationale:
 
 | Measure | 0.1.24 observation | R2 target |
 | --- | --- | --- |
@@ -647,7 +652,10 @@ for the efficiency scorecard while retaining its product findings.
 
 1. Should D0.1 make fixed-port/external-client support a mode of `snapback dev`
    (default proposal), or should one lower-level lifecycle primitive own both
-   `dev` and external orchestrators?
+   `dev` and external orchestrators? **Provisionally answered 2026-08-21**
+   (mode of `snapback dev`; internal engine factoring, no second public
+   lifecycle command) — recommendation recorded in LLP 0223's dated
+   amendment; author may revise.
 2. Is Familiar intended to reach feature parity with Explicit, or may templates
    choose profiles by workload while preserving one normalized definition?
 3. For private memberships, which D0.4 option should be prototyped first?
@@ -663,7 +671,11 @@ for the efficiency scorecard while retaining its product findings.
    `issues/20260821-private-authority-product-roster-decision.md`.
 4. Are the proposed 40% correction-action, 20% output-token, and 30% M1-wall
    targets ambitious enough to discriminate a real improvement without being
-   dominated by variance?
+   dominated by variance? **Provisionally answered 2026-08-21** (keep
+   40/20/30 with a variance guard: zero-count rows primary, matched-cell
+   medians with direction consistency at R2, preregistered paired sign test
+   at R3) — recommendation recorded in LLP 0186's dated amendment; author
+   may revise.
 5. Should W5 cost visibility ship first as local developer diagnostics only,
    with hosted telemetry explicitly deferred?
 6. Does the next R2 rerun include both Coterie and Clique immediately, or should

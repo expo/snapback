@@ -2,15 +2,20 @@
 
 **Type:** Plan
 **Status:** Implemented
-**Systems:** Developer experience, Expo client, Auth, Diagnostics, Guide
+**Systems:** Developer experience, CLI, Local server lifecycle, Expo client,
+Vite/Exact clients, Headless client, Auth, Diagnostics, Verification, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
-**Revised:** 2026-08-21 (D0.1 ruling amendment — records LLP 0295 D0.1's
+**Revised:** 2026-08-21 (e — D0.1 ruling amendment — records LLP 0295 D0.1's
 canonical development lifecycle: `snapback dev` stays the single lifecycle
 owner and gains a fixed-origin/external-client profile; `start
 --startup-artifacts` and hand-written environment objects are diagnostic
-primitives. Adopted per LLP 0295 default proposal; author may revise. See
-the dated amendment.)
+primitives; supersedes re-open trigger T1; rules the
+`snapback.application-ready.v1` receipt authoritative. Adopted per LLP 0295
+default proposal; author may revise. Status stays Implemented for the four
+landed tickets; the amendment's lifecycle work is commissioned,
+unimplemented, and tracked as LLP 0295 W1 on the execution ticket. See the
+dated amendment.)
 **Revised:** 2026-08-10 (Accepted → Implemented — all four tickets executed;
 see the dated implementation-record amendment, including the resolved
 conflict with the parallel-lane `.env.local` auto-write of `4a19761fe`)
@@ -48,7 +53,12 @@ no-refusal behavioral gaps), LLP 0201 + `benchmarks/records/2026-08-09-social-me
 (the evidence ticket this Plan executes), LLP 0295 (published-matrix
 improvement program — its D0.1 lifecycle ruling is recorded here as the
 2026-08-21 dated amendment), LLP 0261 (`snapback init` — adopted apps exit
-into the same lifecycle),
+into the same lifecycle), LLP 0224 (layered readiness — the
+`snapback.application-ready.v1` receipt the D0.1 amendment rules
+authoritative), LLP 0058 (sessions successor protocol — the
+identity-advance semantics the amendment reconciles with), LLP 0030
+(host-ready descriptor and the Vite plugin whose disposition the amendment
+names),
 `issues/20260821-fixed-origin-external-client-dev-lifecycle.md` (the D0.1/W1
 execution ticket)
 
@@ -257,12 +267,18 @@ sufficient for this tranche.
 These are conditional triggers with pre-agreed outcomes, not undecided
 questions.
 
-- **T1 — Re-open trigger for option 3.** If two more independent builds
-  need detached Metro or a custom client process and cannot consume the
+- **T1 — Re-open trigger for option 3. (Superseded 2026-08-21 by the D0.1
+  dated amendment.)** Original text: if two more independent builds need
+  detached Metro or a custom client process and cannot consume the
   supervisor descriptor, a run-scoped `snapback connect` export becomes
-  justified. Until then it stays rejected, and the injection-fallback
-  constraint from the Decision (generation/expiry-bound file under
-  `.snapback/`, never an ambient `.env.local`) binds any reconsideration.
+  justified. The matrix lanes met the detached-client demand, but the
+  D0.1 ruling replaces T1's pre-agreed outcome: the answer is the
+  fixed-origin profile of `snapback dev` plus the authoritative ready
+  receipt, not a connect export, and option 3 stays rejected. The
+  injection-fallback constraint from the Decision (generation/expiry-bound
+  file under `.snapback/`, never an ambient `.env.local`) continues to
+  bind. The amendment carries its own re-open trigger for a lower-level
+  public primitive.
 - **T2 — Post-fix residual.** If measurements after ticket 2 still show
   search after an A-grade refusal, that is evidence to accelerate LLP 0146's
   structured remediation carrier — not evidence for universal absolute URLs.
@@ -365,19 +381,31 @@ one owner with two admission postures, not a second lifecycle surface.
    client process as **declared, not enumerated** — it neither launches nor
    tears it down (retiring the diary-0104
    `SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE` failure class for
-   declared-external clients).
+   declared-external clients). Port pinning and client posture are
+   **orthogonal**: `snapback dev --expo` with a pinned backend port is a
+   legal composition (the diary-0096/0104 case) — the supervised Metro
+   client stays supervisor-launched on a tool-selected port while the
+   backend listener is pinned; declaring the client external is required
+   only when the client process is externally owned.
 3. **Lifecycle verbs.** One semantic verb set across postures: **fresh
    start**; **attach** to an already-running intended child (idempotent —
    an intended child is recognized by receipt identity, an unrelated
    listener refuses); **regenerate** with hot-load, where startup-carrier
    rewrite is the lifecycle owner's job, never the author's; **additive
-   schema successor** preserving deployment identity; and **shutdown** of
-   owned children only.
-4. **Sessions-mode identity.** Sessions-mode deployment identity and the
-   custody/session/application stores are preserved across regenerate and
-   an additive schema successor. A destructive reseed is never an implied
-   step of the paved path; when data loss is genuinely required the
-   lifecycle says so explicitly and requires explicit consent.
+   schema successor** activated per LLP 0058's successor protocol; and
+   **shutdown** of owned children only.
+4. **Sessions-mode identity.** Reconciled with LLP 0058: successor
+   activation **advances** the complete active deployment identity — even
+   for a comment-only artifact change — and reports both the old and new
+   identities (the structured
+   `snapback.startup-successor-activation.v1` line /
+   `startup-successor-activated` event). What the lifecycle preserves
+   across regenerate and an additive successor is **continuity, not
+   identity equality**: the same database and stores, the original
+   accounts, custody, and sessions, and an explicit old→new identity
+   lineage. A destructive reseed is never an implied step of the paved
+   path; when data loss is genuinely required the lifecycle says so
+   explicitly and requires explicit consent.
 5. **Binding admission.** In the fixed profile the client provider still
    receives a **real admitted binding issued by the lifecycle owner** —
    delivered over the supervisor rendezvous or an equivalent admission
@@ -388,24 +416,44 @@ one owner with two admission postures, not a second lifecycle surface.
    currently lack. This preserves the accepted Decision above: auto-inject,
    do not auto-write; no ambient `.env*` configuration surface is created in
    either posture.
-6. **One ready receipt.** The lifecycle emits a single machine-readable
-   ready receipt — extending this Plan's readiness facts
-   (`connectCarrier`) and the transient `.snapback/` descriptor rather than
-   minting a parallel artifact — naming at minimum: the **server** (origin,
-   pid, supervisor generation), the **app artifact** identity, the
-   **binding**, the **authority mode** (e.g. settled Sessions), and the
-   **client origin(s)**. Expo, Vite/Exact, headless, and acceptance
-   consumers all read the receipt; none parses logs. Qualified-binary
-   versus wrapper identity is a receipt fact, so LLP 0295's
-   wrong-executable negative evidence class is detectable at attach time.
+6. **One ready receipt — the `snapback.application-ready.v1` receipt is
+   authoritative.** Ruled among the shipped artifacts, per LLP 0224's
+   layered-readiness design, so W1 does not choose among incompatible
+   schemas and lifetimes:
+   - The **receipt is `snapback.application-ready.v1`** — the projection
+     of the server-owned `OperationalReadinessV1` fact — **extended** with
+     the D0.1 facts it does not already bind: the **binding**, the
+     **client origin(s)**, and **qualified-binary versus wrapper
+     identity**. It already binds the server (`startupNonce`,
+     host-descriptor digest), the app artifact (mode-discriminated
+     application identity, artifact hashes), and the authority mode (auth
+     state); LLP 0224's atomic-publish, remove-before-work, and
+     no-bearer-bytes discipline is unchanged. No fifth file is minted.
+   - The **`HostReadyDescriptor`** (`--ready-file`) stays the unchanged
+     host-only layer; attach verifies it first and uses it to locate the
+     receipt at its deterministic sibling, exactly as `snapback wait
+     --level application` already does.
+   - The **supervisor event stream** remains events — per LLP 0224,
+     never the receipt.
+   - **`.snapback/expo-supervisor.json`** and the `connectCarrier`
+     readiness fact become **projections** of the same facts for the
+     supervised Expo rendezvous, keeping their transience and 0o600
+     posture; they are inspection surfaces, not a second authority.
+
+   Expo, Vite/Exact, headless, and acceptance consumers all read the
+   receipt; none parses logs. Wrong-executable identity (LLP 0295's
+   negative-evidence class) is therefore detectable at attach time.
 
 ### Acceptance (binds W1 closure)
 
 From packed external packages: Expo, Vite/Exact, and headless fixtures
 attach through the ruled lifecycle, reach application-ready state, and
-perform **one M1 → M2 additive schema change with the original accounts and
-sessions intact** — using no custom relay/binding middleware, no destructive
-reseed, and no source-checkout-only helper — then shut down only their owned
+perform **one M1 → M2 additive schema change with the original accounts,
+custody, sessions, and application data intact while the deployment
+identity advances per LLP 0058** — the fixture asserts both the surviving
+data and the reported old→new identity pair, never identity equality —
+using no custom relay/binding middleware, no destructive reseed, and no
+source-checkout-only helper — then shutting down only their owned
 children. Negative cases: a stale listener on the pinned port and a wrong
 binding both refuse with stable identity-bearing diagnostics. W1's milestone
 is the deletion of the benchmark/template-owned startup-carrier wrappers and
@@ -425,11 +473,19 @@ two-owner split the matrix paid for. Re-open trigger, in the T1 style: if
 two independent external orchestrators demonstrably cannot express their
 lifecycle through the fixed profile plus the receipt, promote the internal
 engine to a supported primitive through this Plan — not by ad-hoc flag
-growth.
+growth. Disposition for the one shipped orchestrator: the
+`@expo/snapback-vite` plugin (LLP 0030) becomes a fixed-profile/receipt
+consumer under W1; its existing spawn-`snapback start --ready-file` path is
+the diagnostic primitive, not the paved path. (LLP 0030 itself is not
+amended by this packet.)
 
 Consistency note: this profile is **not** the rejected option 3
 ("run-scoped connect export"). Option 3 proposed a durable exported
 connection artifact; the fixed profile is a supervised lifecycle posture
-whose binding remains admitted, expiring, and lifecycle-owned. The T1
-evidence threshold (two-plus independent builds needing a detached client)
-has now been met by the matrix lanes, and this amendment is its resolution.
+whose binding remains admitted, expiring, and lifecycle-owned. **T1 is
+superseded by this ruling** (the Re-open section is annotated in place):
+the matrix lanes supplied the detached-client demand T1 anticipated, but
+its pre-agreed outcome — a run-scoped `snapback connect` export — is
+replaced by the fixed profile plus the authoritative receipt; option 3
+stays rejected, and the Decision's injection-fallback constraint continues
+to bind.

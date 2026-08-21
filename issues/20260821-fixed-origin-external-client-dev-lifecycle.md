@@ -35,19 +35,22 @@ in brief:
 - One verb set: fresh start, attach (idempotent, intended-child vs stale
   listener distinguished), regenerate with owner-performed carrier rewrite,
   additive schema successor, shutdown of owned children only.
-- Sessions-mode deployment identity and custody/session/application stores
-  survive regenerate and additive succession; destructive reseed is never
-  implicit.
+- Accounts, custody, sessions, and application data survive regenerate and
+  additive succession; per LLP 0058 the complete active deployment identity
+  **advances** on successor activation, with the old and new identities
+  reported — continuity and lineage are preserved, never identity equality.
+  Destructive reseed is never implicit.
 - The fixed profile issues a real admitted binding (rendezvous or admission
   handshake against the pinned origin); a caller override is never laundered
   as a supervisor exchange. Declared-external clients are neither launched
   nor torn down (retires the `SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE`
   class for declared clients).
-- One machine-readable ready receipt (extends `connectCarrier` facts and the
-  `.snapback/` descriptor) names server (origin/pid/generation), app
-  artifact, binding, authority mode, and client origin(s); all consumers
-  read it, none parses logs; wrapper-vs-qualified-binary identity is a
-  receipt fact.
+- The authoritative ready receipt is **`snapback.application-ready.v1`**
+  (LLP 0224), extended with binding, client origin(s), and
+  qualified-binary-vs-wrapper identity; the `HostReadyDescriptor`
+  (`--ready-file`) stays host-only and locates it; the supervisor stream
+  stays events; `expo-supervisor.json`/`connectCarrier` become projections.
+  All consumers read the receipt, none parses logs.
 - LLP 0295 OQ1 answered: mode of `snapback dev` at the product surface;
   internal engine factoring allowed, no second public lifecycle command
   (re-open trigger recorded in LLP 0223).
@@ -58,19 +61,25 @@ in brief:
       (pinned port, declared client origin, derived relay/CORS allowlist).
 - [ ] Implement receipt-verified attach; typed refusals for stale listener
       and wrong binding; never adopt or kill an unverified listener.
-- [ ] Emit the single ready receipt with all five identity facts plus
-      qualified-binary identity; keep descriptor transience/permissions.
+- [ ] Extend `snapback.application-ready.v1` with binding, client
+      origin(s), and qualified-binary identity; make `expo-supervisor.json`
+      and `connectCarrier` projections of it, keeping their
+      transience/permissions.
 - [ ] Owner-performed startup-carrier rewrite on regenerate (hot-load
       without restarting the pinned server or the external client).
-- [ ] Preserve sessions deployment identity and stores across regenerate
-      and one additive schema successor; make any destructive step explicit.
+- [ ] Preserve accounts, sessions, and stores across regenerate and one
+      additive schema successor with the LLP 0058 identity advance reported
+      (old/new pair asserted); make any destructive step explicit.
 - [ ] Packed-package acceptance fixtures: Expo, Vite/Exact, headless — each
       attaches, reaches ready, performs M1 -> M2 additive change with
-      original accounts and sessions intact, shuts down owned children only.
+      original accounts and sessions intact and the identity advance
+      reported, shuts down owned children only.
 - [ ] Negative fixtures: stale listener on pinned port; caller-supplied
       binding override (refuses, names the supported profile).
-- [ ] Delete benchmark/template startup-carrier wrappers and handwritten
-      binding environments from all four matrix templates.
+- [ ] Delete startup-carrier wrappers and handwritten binding environments
+      from the four matrix lane templates (Clique/Coterie x
+      Explicit/Familiar benchmark prompt/template fixtures); this is not a
+      CLI `carrier.mjs` template sweep.
 - [ ] Re-document `start --startup-artifacts` as diagnostic-only; update the
       fixed-origin guide recipe ticket
       (`issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`) to
@@ -82,8 +91,9 @@ in brief:
   readiness and attachment facts without parsing logs.
 - Treat an already-running intended child differently from an unrelated stale
   listener; never accept port occupancy as identity.
-- Preserve accounts, custody, deployment identity, and application data across
-  one additive M1 -> M2 schema change.
+- Preserve accounts, custody, application data, and deployment lineage across
+  one additive M1 -> M2 schema change (the deployment identity itself
+  advances per LLP 0058, old/new reported).
 - Delete benchmark/template-owned startup-carrier wrappers and handwritten
   binding environments once the product path carries their facts.
 - Keep `start --startup-artifacts` available as a diagnostic primitive rather

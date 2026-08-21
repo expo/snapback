@@ -28,8 +28,12 @@ flats next, and the roughly 2.5 MiB whole-corpus export last.)
 published-matrix efficiency scorecard thresholds (≥40% semantic correction
 actions, ≥20% output tokens, ≥30% M1 wall, plus the zero-count structural
 rows) are registered here as commissioned R2 targets, adopted-by-default
-pending author revision; includes the recommendation answering LLP 0295
-open question 4. See the dated amendment.)
+pending author revision; registers the closed semantic-action taxonomy
+(refining W5's list in place) with a progress/correction disposition tag,
+and designates the comparator (retrospective annotation of the retained
+0.1.24 streams, with a D0.6-only pre-wave fallback); includes the
+recommendation answering LLP 0295 open question 4. See the dated
+amendment.)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
@@ -43,7 +47,8 @@ LLP 0201 (canonical benchmark — carries the D0.6 per-milestone field
 registration), LLP 0295 (published-matrix improvement program — its
 efficiency scorecard targets are registered in the 2026-08-21 amendment),
 `issues/20260809-per-milestone-token-metering.md`,
-`issues/20260820-matrix-lane-skill-routing-context-budget.md`
+`issues/20260820-matrix-lane-skill-routing-context-budget.md`,
+`issues/20260821-clique-instrument-observability-version-bump.md`
 
 ## Summary
 
@@ -914,19 +919,45 @@ registered in LLP 0201's 2026-08-21 dated amendment (implementation ticket
 `issues/20260809-per-milestone-token-metering.md`; orientation carrier
 `issues/20260820-matrix-lane-skill-routing-context-budget.md`).
 
-**Commissioned R2 targets** (matched cells, same harness/model, load-
-qualified, phase metering present — a cell missing any of those is
-scorecard-ineligible while keeping its product findings):
+**Closed semantic-action taxonomy (this amendment refines W5's prose list
+in place — there is one list, and this is it):** `guide-lookup`
+(guide/reference lookups), `source-inspection` (Snapback/Exact package or
+checkout source reads, with `binary-excavation` as a flagged subclass so
+Measurable outcome 6 stays metered), `edit` (authored file edits),
+`generate` (codegen runs), `process` (start/restart/attach/shutdown
+launches), `reseed`, `suite` (acceptance/test suite runs), `choreography`
+(browser choreography runs), and `retry` (re-execution of a previously
+failed action, tagged with the class retried). W5's earlier prose classes
+map one-to-one into this list (proof commands split into `suite` and
+`choreography`; process launches become `process`). Every recorded action
+carries a **`progress`/`correction` disposition tag**: `correction` means
+the action belongs to a failure-to-recovery episode (this Plan's
+2026-08-09 trace amendment — the first failed action through recovery,
+inclusive); everything else is `progress`. **"Semantic correction
+actions" is defined as the count of `correction`-tagged actions** —
+productive first-pass edits and generations never count against the
+target. This is a within-one-pinned-harness recording contract; OQ7's
+cross-harness normalization question remains open and is not resolved
+here.
+
+**Commissioned R2 targets.** Matched cells means same app x profile x
+client stack x model/harness/effort; cells must be load-qualified and
+carry phase metering, with eligibility read from the same contamination
+flags the 0.1.24 record already carries (host load, API interruption
+windows — no new numeric threshold is invented here); a cell missing any
+of those is scorecard-ineligible while keeping its product findings.
 
 1. **Semantic correction actions: ≥40% lower median** in matched cells,
-   counted in W5's semantic-action classes after D0.6 metering lands
+   counted as `correction`-tagged actions under the closed taxonomy above
    (never raw tool calls, which reward command bundling).
 2. **Output tokens: ≥20% lower median** in matched cells.
 3. **M1 wall to first green: ≥30% lower median** — W1-of-0295's lifecycle
    consolidation predicts the largest gain here, since M1 ran 3–6x either
    later milestone on clean lanes.
 4. **Zero-count structural rows**, absolute rather than statistical:
-   zero Snapback/Exact source inspections for paved-path facts; zero
+   zero Snapback/Exact source inspections for facts covered by LLP 0295
+   Phase 1/W1–W3 closures (0295's qualifier — a W4-path inspection does
+   not fail the row); zero
    custom fixed-origin relay/binding implementations; zero destructive
    restart/reseed for additive milestone schema; zero silent auth/query
    waits requiring an app timeout; zero Guide/type/codegen/runtime/client
@@ -940,6 +971,20 @@ scorecard-ineligible while keeping its product findings):
    affected-table count (replacing the observed 17–19 identical repeats).
 8. **Debug artifact:** a like-for-like size/link-wall baseline with
    attributed budget and visible drift; no size-only claim.
+
+**Comparator (designated):** the baseline for the three percentage
+targets is the retained 0.1.24 matrix event streams (and the 2026-08-20/21
+paired-run streams for current-source context), **retrospectively
+annotated** under the closed taxonomy and episode threshold above — the
+0.1.24 record's own correction labels are expressly not normalized and
+are never summed as the baseline. Where a retained stream cannot support
+a class or episode boundary, that (cell, measure) pair is recorded
+**inapplicable, not estimated**; if retrospective annotation leaves a
+measure with fewer than half its matched cells applicable, R2 opens with
+a **D0.6-only pre-wave** (instrument-only lanes under the new metering,
+no product changes under test) that sets the baseline for that measure
+instead. Output tokens read the harness-native output field directly and
+need no annotation.
 
 These are internal program targets, not comparative claims; LLP 0197
 governs anything published. They complement, and do not replace, this

@@ -146,14 +146,18 @@ composition half, and the binding here is deliberately small:
   (Vite, custom web stack) owns the client origin — and the same single
   ready receipt. `init` still introduces no parallel lifecycle and no
   lifecycle configuration files of its own.
-- **The fixed profile is the adoption story for non-Expo hosts.** An
-  existing app with its own dev server is precisely the external-client
-  case: `init` composes the backend, and the fixed profile attaches the
-  already-running client origin without handwritten binding environments.
-  Detection-scope widening under OQ1 should therefore prefer widening into
-  stacks the fixed profile can serve over inventing per-stack lifecycle
-  glue.
+- **Current scope: the two detected shapes only.** This binding applies to
+  `init`-adopted Expo/React roots — OQ1's v1 detection matrix — until OQ1
+  widens on evidence; W1 of LLP 0295 does not wait on `init`, and its
+  fixture set carries no `init` fixture. "The fixed profile is the
+  adoption story for non-Expo hosts" is **future widening guidance, not a
+  current detect**: when OQ1 does widen, it should widen into stacks the
+  fixed profile can serve (an existing app whose own dev server owns the
+  client origin is exactly the declared-external case) rather than
+  inventing per-stack lifecycle glue.
 - **Qualification bar unchanged**, and the D0.1 acceptance (one packed-
-  package M1 → M2 additive change with accounts and sessions intact) applies
-  to `init`-adopted fixtures the same as scaffolded ones. Execution ticket:
+  package M1 → M2 additive change with accounts and sessions intact while
+  the deployment identity advances per LLP 0058) applies to `init`-adopted
+  Expo/React fixtures the same as scaffolded ones once the `init` path is
+  qualified. Execution ticket:
   `issues/20260821-fixed-origin-external-client-dev-lifecycle.md`.
