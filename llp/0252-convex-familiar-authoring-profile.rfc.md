@@ -7,6 +7,11 @@ TypeScript, Code generation, React, Client integration, Competitive evaluation,
 Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-08-12
+**Revised:** 2026-08-21 (LLP 0295 D0.3 cross-reference appended: the
+authoring-profile product contract — Familiar's vertical-coherence promise,
+Explicit's decision-density promise, reachability parity, and
+template-scoped profile choice without a semantic fork. Adopted per
+LLP 0295; author may revise. No experiment rule, gate, or default changes.)
 **Revised:** 2026-08-15 (implementation correction: LLP 0253 r4 unifies
 Familiar and explicit generated artifacts under `snapback/generated/`; the
 Convex `_generated` spelling is deliberately not retained because a second
@@ -1106,3 +1111,42 @@ The custody-grade field disposition required by LLP 0258 is recorded in LLP
 both profiles consume the same normalized auth-program record. This note
 records that disposition only; it changes no LLP 0252 protocol or experiment
 rule.
+
+## Cross-reference — 2026-08-21 (LLP 0295 D0.3: the authoring-profile product contract)
+
+LLP 0295's D0.3 ruling fixes what each profile promises as a product
+contract, beyond what this RFC's experiment machinery already binds. The
+Familiar-side rulings and the W3 vertical contract fixture catalogue are
+recorded in LLP 0253 S9; the Explicit-side policy-versus-derivable
+classification is recorded in LLP 0275's 2026-08-21 amendment. All are
+marked **Adopted per LLP 0295; the author may revise.** Summary of the
+contract at this RFC's level:
+
+- **Familiar promises vertical coherence, not just vocabulary.** For every
+  capability the profile claims, the first-read Guide spelling, the
+  advertised entrypoint imports and types, one-pass clean generation, the
+  runtime result/authority contract, and the client projection describe one
+  contract; unsupported familiar-looking forms refuse at the earliest
+  capable layer with one supported rewrite. A capability that is buildable
+  below an entrypoint that does not export it is a contract violation, not
+  a paved capability (LLP 0295 Objective 7).
+- **Explicit promises decision density, not maximal declaration.** Every
+  authored Explicit fact is a policy decision or an evidence/claim under
+  LLP 0275's four-class taxonomy; mechanically derivable facts (closed-plan
+  results and dependencies, derived ceilings and defaults) are derived once
+  and projected, and environment-integrity checks run automatically with
+  receipts. Declaration count is not the profile's value; authored
+  authority, visibility, retention, and asset policy are.
+- **Parity between profiles is reachability parity** (nameable, sanctioned
+  escape, or stable refusal with a route — D5's extension rule made
+  testable), not constructor-level surface parity.
+- **Profile choice may vary by client stack/template without a semantic
+  fork**, because one-profile-per-app (D1), the profile-excluded normalized
+  witness, the no-branch gate, and name-preserving migration already hold.
+  This is the recorded recommendation for LLP 0295 open question 2:
+  templates may choose profiles by workload while preserving one normalized
+  definition; Familiar is not obligated to reach constructor parity.
+
+This cross-reference changes no experiment rule: the evaluation lanes, stop
+rule, disposition gates, and the no-default-change-before-N≥3 constraint
+all stand unchanged.

@@ -6,6 +6,14 @@
 Code generation, React, Client integration, Packaging, Documentation, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-13
+**Revised:** 2026-08-21 (LLP 0295 D0.3 decision packet: new S9 records the
+authoring-profile product contract for the Familiar side — one-pass clean
+generation and phase parity as normative contract, the S4.3 partition pinned
+against the current lowering's divergences, entrypoint/export reachability
+parity including the ephemeral re-export amendment to S3.1/S6.1, feature
+parity by class, profile-switch suggestion rules, template-scoped profile
+choice — and the W3 vertical contract fixture catalogue. Adopted per
+LLP 0295; author may revise.)
 **Revised:** 2026-08-16 (publication-closure clarification: the Experimental
 native custody package is an optional config-plugin add-on, not an umbrella
 dependency or re-export; LLP 0041 owns its thirteen-package publication row)
@@ -60,7 +68,8 @@ r1 2026-08-13. Reviews: r1 + r2-delta artifacts under
 r1 and r2; every r2-delta MATERIAL is addressed in r3.)
 **Related:** LLP 0252, LLP 0237, LLP 0238, LLP 0241, LLP 0242, LLP 0245,
 LLP 0246, LLP 0247, LLP 0248, LLP 0249, LLP 0218, LLP 0225, LLP 0108,
-LLP 0127, LLP 0130, LLP 0037, LLP 0203, LLP 0258
+LLP 0127, LLP 0130, LLP 0037, LLP 0203, LLP 0258, LLP 0275, LLP 0295,
+`issues/20260821-authoring-profile-vertical-contract-fixtures.md`
 
 ## Summary
 
@@ -832,6 +841,195 @@ for bundled-facade runtime, client family for admission):
 - Phase 3 (templates, migration command, stop-date backstop, dual
   qualification) follows under LLP 0252 D7/D8 and is out of this Spec's
   v1 build scope except where S5 artifacts already serve it.
+
+## S9. Authoring-profile product contract and vertical fixture catalogue (LLP 0295 D0.3, 2026-08-21)
+
+This section is the Familiar half of the LLP 0295 D0.3 decision packet:
+what the Familiar profile promises **beyond surface vocabulary**. The
+Explicit half — which authored facts are policy versus derivable
+repetition — is recorded in LLP 0275's 2026-08-21 amendment; the RFC-level
+product contract for both profiles is cross-referenced in LLP 0252.
+Status of every ruling below: **Adopted per LLP 0295; the author may
+revise.** No default-profile change is made or implied; that decision
+remains gated on the N≥3 wave (LLP 0252 D7, LLP 0295 R3).
+
+### S9.1 Contract rulings
+
+**R1 — One-pass clean generation and phase parity are contract, not
+quality-of-implementation.** A valid Familiar application on a clean
+checkout reaches a complete generation in **one** `snapback generate`
+invocation: S2 rule 5's bootstrap obligation includes resolving
+schema-derived document types (`v.doc`) in the same invocation, never via
+a schema-only pre-pass the author must discover. Phase parity: any
+authoring shape the adapter/codegen admits is admitted by runtime result
+validation with the same effective contract; otherwise codegen refuses
+before emitting artifacts. A result that generates and then fails only at
+the runtime result-contract layer is a defect against this Spec. The
+confirmed divergences (clean-checkout `v.doc` bootstrap; mutation document
+result passing codegen then failing the runtime contract) are
+implementation defects tracked in
+`issues/20260820-familiar-vdoc-generation-runtime-parity.md`, gated by
+fixtures VCF-F-G1 and VCF-F-M1.
+
+**R2 — The supported handler dialect and module path are S2/S4, completely
+and first-read-projectably.** The v1 dialect is the bounded LLP 0237/0246
+graph with the S4 constructors, the S4.4 contexts, and the S4.5 builder
+facade; top-level function/intent modules with subdirectory helper modules
+per S2. The contract adds two obligations: (a) the complete dialect
+boundary is projectable on the first-read path as one table — allowed
+form, refused familiar-looking form, supported rewrite, and when Explicit
+is the better profile
+(`issues/20260820-guide-gap-familiar-handler-dialect.md`); and (b) every
+familiar-looking-but-unsupported form refuses at the **earliest capable
+layer** with exactly one supported rewrite, and never emits an artifact a
+later layer rejects. Dynamic computed access, captured top-level
+constants, out-of-graph imports, and clock-dependent visibility are the
+replicated violations the negative fixtures (VCF-F-D1..D4) bind.
+
+**R3 — The S4.3 result-kind partition is normative at every layer.** The
+r5 table — five row-shaped translations plus the `results.value` catch-all
+— is the one partition the Guide, generated types, adapter lowering,
+runtime admission, and client projection all describe. In particular,
+`v.union([v.doc(t), v.null()])` and closed `v.object({...})` point/value
+results are **supported** through `results.value`, exactly as
+`guide/backend/familiar-profile.md` promises. The current lowering's
+refusal of the nullable point shape and the runtime's
+`SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID` on a value-object live query
+(Diary 0105; LLP 0295's current-source run) are implementation defects
+against this Spec, not contract. The guide keeps the S4.3 promise; until
+the closure lands, the singleton-relational-array form may be documented
+as an interim workaround, never promoted to the contract. Fixtures
+VCF-F-Q6 and VCF-F-Q7 gate the closure; generated-runtime equivalence for
+every partition row is gated by the full VCF-F-Q*/M* set.
+
+**R4 — Entrypoint/export parity: a claimed capability is importable or
+its refusal names the import.** Any capability the profile claims —
+Appendix A disposition 1 or 2, or a D5 extension the Familiar docs name —
+must be importable from an **advertised Familiar entrypoint** (`@expo/
+snapback/server`, `/values`, `/react`, or the generated local modules), or
+every path that reaches it must refuse with a stable diagnostic naming the
+exact supported import. Buildable-but-unexported (capability reachable
+only by discovering lower-level public type declarations) is a contract
+violation (LLP 0295 Objective 7). Concrete amendment: because schema-level
+`ephemeral` declarations are disposition 1 (Appendix A), the canonical
+ephemeral declaration constructor joins the closed re-export lists of
+S3.1 `@expo/snapback/server` and S3.2 `generated/server` — same canonical
+object, no second owner, no new runtime surface. Fixture VCF-F-E1 gates
+it. A Phase-scoped export-parity check asserts the advertised-entrypoint
+closure covers every disposition-1/2 constructor the docs name.
+
+**R5 — Feature parity is reachability parity, not constructor parity.**
+For ephemeral, assets, membership, and sequences the promise is: every
+capability reachable in the Explicit profile is (a) nameable from
+Familiar, (b) reachable through a sanctioned, documented escape to the
+canonical vocabulary, or (c) refused with a stable route to the Explicit
+spelling — never silently absent and never reachable only by source
+inspection. Per capability today: **ephemeral** — (a) after R4's
+re-export; **assets** — (a) via `defineAssetUpload` (explicit-asset
+amendment); **membership/authority** — (a): the schema authority
+vocabulary is shared verbatim across profiles (Appendix A), so there is
+exactly one spelling of membership resource identity; the guide's
+`resourceField: "_id"` / child-id rows must corroborate against the
+canonical generated/runtime grammar and the disagreement recorded in
+`issues/20260821-authoring-profile-vertical-contract-fixtures.md` is
+resolved by fixing whichever layer diverged from the canonical grammar,
+with fixture VCF-F-MB1 as the receipt; **sequences** — (c): disposition 4
+stands, and parity means the refusal and its route are stable and
+first-read-discoverable (VCF-F-SQ1), not that Familiar gains the
+constructor.
+
+**R6 — When the generator suggests switching profiles.** The generator
+suggests a profile switch only at stable refusal sites: a disposition-4
+refusal names the Explicit spelling (or the owning-RFC route) as it does
+today, and that is the entire v1 suggestion surface. The generator never
+suggests Explicit→Familiar in v1 (no evidence base before the D7/N≥3
+wave), never suggests a switch on success, and never suggests a
+whole-application profile migration — that remains the authored D8
+command. Repeated same-class refusals in one generation may be grouped
+into one advisory naming the shared route (LLP 0295 scorecard), which
+changes presentation, not the suggestion rule.
+
+**R7 — Profile choice may vary by client stack/template without a
+semantic fork.** Templates and client stacks may pin different profiles
+(for example Familiar for a React/Vite template, Explicit for a headless
+or acceptance-heavy template). This is template selection, not a semantic
+fork, because four existing mechanisms hold: one profile per application
+(LLP 0252 D1), one `NormalizedApplicationDefinitionV1` with the profile
+fact excluded (S1.2/S5.2), the S5.4 no-branch gate below normalization,
+and name-preserving bidirectional migration (S5.2/D8). A template's
+profile pin is recorded template metadata, never an implied capability or
+semantics difference. This is also the recommendation for LLP 0295 open
+question 2: Familiar is **not** required to reach constructor-level
+feature parity; templates may choose profiles by workload while R5's
+reachability parity and the one normalized definition are preserved.
+
+### S9.2 W3 vertical contract fixture catalogue
+
+Every fixture follows LLP 0295's six-step vertical shape: (1) first-read
+Guide retrieval with the diary's plausible wrong vocabulary; (2) import +
+typecheck from the advertised profile entrypoint; (3) clean one-pass
+generation, or pre-output refusal with one supported rewrite; (4) runtime
+acceptance of exactly the generated result/authority contract; (5)
+headless and framework client projection preserving nullability, identity,
+and lifecycle meaning; (6) one negative case reaching a stable diagnostic
+naming the semantic fact and repair. Fixtures run from packed external
+packages, are cheap enough for affected-scope use, and bind semantic facts
+and advertised entrypoints — never internal lowering syntax (LLP 0295
+Risk 8). Where a Familiar/Explicit pair below marks a shared semantic
+fact, the pair must witness the same normalized contract for the
+intended-equal facts.
+
+**Familiar coherence lane — one fixture per supported result kind plus
+the parity/dialect cases:**
+
+| Fixture | Path under test (S4.3 row / capability) | Step-6 negative |
+| --- | --- | --- |
+| VCF-F-G1 | clean-checkout one-pass generation of an app whose functions use `v.doc` results (R1) | `v.doc("missingTable")` refuses naming the unknown table pre-output |
+| VCF-F-Q1 | query `v.array(v.doc(t))` → `results.documents` | doc array of undeclared table refuses |
+| VCF-F-Q2 | query `v.array(v.object({...}))` → `results.records` | non-closed record shape refuses |
+| VCF-F-Q3 | query bounded `v.array(v.object, {maxItems})` → bounded `results.records` | over-bound runtime result rejects with the contract diagnostic |
+| VCF-F-Q4 | query `v.array(v.union(record arms))` → record-union `results.records` | union with a non-record arm refuses |
+| VCF-F-Q5 | query 1-tuple `v.tuple([v.object({...})])` → `{minItems:1, maxItems:1}` | empty runtime result rejects |
+| VCF-F-Q6 | point query `v.union([v.doc(t), v.null()])` → `results.value` (R3 confirmed divergence) | handler returning a wrong-table doc rejects at the contract |
+| VCF-F-Q7 | live query closed `v.object({...})` → `results.value` (R3 confirmed divergence) | extra undeclared field rejects |
+| VCF-F-Q8 | scalar value query (e.g. `v.number()` count) → `results.value` | wrong-type return rejects |
+| VCF-F-M1 | mutation `returns: v.doc(t)` → `results.document` executes end to end (R1 runtime parity) | handler returning a partial object rejects |
+| VCF-F-M2 | mutation value result `v.id(t)` → `results.value` | foreign-table id rejects |
+| VCF-F-N1 | mutation doc-containing non-bare `returns` refuses `SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` with the explicit route (steps 1–3 + 6 only) | the fixture is the negative |
+| VCF-F-A1 | action value result composing `ctx.runMutation(api.x.y, args)` | raw-string ref refuses `SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED` |
+| VCF-F-D1 | dialect negative: dynamic computed access (`array[i]` shapes) | refusal names the supported rewrite |
+| VCF-F-D2 | dialect negative: out-of-graph imported helper vs bounded-graph helper module | refusal routes to the S2 helper-module path |
+| VCF-F-D3 | dialect negative: captured top-level constant | refusal names the inline/args rewrite |
+| VCF-F-D4 | dialect negative: clock-dependent visibility (`Date.now`) | refusal routes to the supported temporal vocabulary or Explicit |
+| VCF-F-E1 | ephemeral declaration imported from the advertised entrypoint, membership-backed typing, presence roundtrip (R4) | import from the retired/lower-level path gets the routing diagnostic |
+| VCF-F-AS1 | `defineAssetUpload` MP4 intent upload/readback via `api.media.videoUpload` (recasts the existing acceptance with steps 1 and 6) | oversized/wrong-media upload refuses per policy |
+| VCF-F-MB1 | membership visibility with `resourceField: "_id"` (resource table) and child resource-id field, enforced through `ctx.db` (R5) | non-member read hides the row; misspelled resource field refuses at generation |
+| VCF-F-SQ1 | sequence allocation attempt refuses with the stable disposition-4 route to Explicit (steps 1–3 + 6) | the fixture is the negative |
+
+**Explicit economy lane — one fixture per advertised Explicit path; the
+plan-derived rows are the LLP 0275 D3 receipts:**
+
+| Fixture | Path under test | Step-6 negative |
+| --- | --- | --- |
+| VCF-E-Q1 | live query `results.documents` | wrong-table rows reject |
+| VCF-E-Q2 | query `results.records` | non-conforming record rejects |
+| VCF-E-Q3 | point query `results.document` | wrong-table doc rejects |
+| VCF-E-Q4 | scalar query `results.value` | wrong-type value rejects |
+| VCF-E-M1 | mutation `results.document` | partial document rejects |
+| VCF-E-M2 | mutation `results.value` | wrong-type value rejects |
+| VCF-E-P1 | plan `returnBinding` of a typed insert with **no authored `result:`** — plan-derived `v.id(t)` contract (LLP 0275 D3) | conflicting authored `result:` fails generation |
+| VCF-E-P2 | plan `returnChangedCount`, plan-derived integer contract | conflicting authored contract fails generation |
+| VCF-E-P3 | plan `returnDocument(table, id)`, plan-derived document contract | underivable `returnExpr` stays `unknown`/authored, never widened |
+| VCF-E-MB1 | membership/authority visibility declaration — same semantic fact as VCF-F-MB1; the pair proves one shared spelling across profiles | non-member read hides the row |
+| VCF-E-E1 | ephemeral collection declaration and presence roundtrip | undeclared-collection use refuses |
+| VCF-E-AS1 | asset upload intent policy and authorized readback | policy-violating upload refuses |
+| VCF-E-SQ1 | sequence allocation (the positive twin of VCF-F-SQ1's route) | exhausted/invalid allocation gets the stable diagnostic |
+
+VCF-E-P1..P3 gate the LLP 0275 D3 closure when it lands; until then the
+authored-contract spellings of those paths are the advertised path and the
+fixtures run in authored form with the plan-derived form added at closure.
+`issues/20260821-authoring-profile-vertical-contract-fixtures.md` is the
+execution ticket and carries the lane checklists.
 
 ## Acceptance for this Spec
 

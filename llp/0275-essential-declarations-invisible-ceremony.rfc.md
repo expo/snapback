@@ -7,10 +7,14 @@ Authorization, Runtime readiness, Packaging, Templates, Verification,
 Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-17
-**Revised:** 2026-08-17
+**Revised:** 2026-08-21 (LLP 0295 D0.3 amendment: D1's four-class taxonomy
+applied fact-by-fact to the Explicit profile's authored surface, and the W3
+Explicit economy lane registered with its fixture receipts. Adopted per
+LLP 0295; author may revise.); 2026-08-17
 **Related:** LLP 0010, LLP 0041, LLP 0108, LLP 0117, LLP 0123, LLP 0146,
 LLP 0172, LLP 0186, LLP 0189, LLP 0196, LLP 0198, LLP 0231, LLP 0241,
-LLP 0245, LLP 0253, LLP 0259, LLP 0264, LLP 0274
+LLP 0245, LLP 0252, LLP 0253, LLP 0259, LLP 0264, LLP 0274, LLP 0295,
+`issues/20260821-authoring-profile-vertical-contract-fixtures.md`
 
 ## Summary
 
@@ -334,6 +338,38 @@ runtime validation, generated type, and evidence claim remain. Moving a step
 into undocumented generated code or silently downgrading a receipt does not
 reduce ceremony; it hides it.
 
+### D8. Explicit-profile classification under LLP 0295 D0.3 (2026-08-21)
+
+LLP 0295 D0.3 asks which Explicit facts are policy decisions versus
+derivable repetition. Applying D1's taxonomy fact-by-fact to the Explicit
+authored surface, the classification is (**Adopted per LLP 0295; the
+author may revise**):
+
+| Class | Explicit facts | Treatment |
+| --- | --- | --- |
+| Policy decision (stays authored) | table visibility and field-disclosure boundaries; `auth`; write posture; authority/membership profiles and `authScopeField`; `effects`; `secrets`/`uses`; `capabilities`; `runtime` profile; retention/`retainable`; asset delivery/access/location policy; delivery choice (live vs one-shot); portability/target posture; public exposure | explicit, greppable source; never inferred (P1) |
+| Derivable semantic fact (derive once) | result contracts determined by a closed declarative plan (D3's `returnBinding`, `returnChangedCount`, `returnDocument`, `returnLiteral`, provable `returnExpr`); a closed plan's table dependency set; the effect ceiling derived from declared reach; `defaultLive` from the delivery fact; generated references, manifests, and normalized ids | derived, hashed, projected with provenance; a duplicate authored copy is ceremony, and a conflicting one fails generation (D3) |
+| Environment integrity | runtime qualification/readiness receipts; artifact freshness; capability resolution; schema/function admission | automatic check with receipt (D4); no manual prerequisite command on the golden path |
+| Evidence/claim | acceptance path registration; journey-proven and published-capability claims; publication scope | optional until claimed; mandatory, single-source, and staleness-aware once claimed (D5, P4/P6) |
+
+Two boundary notes. Result contracts for opaque JS/TS handlers stay under
+LLP 0245 (suggest, review, freeze) — the derivable lane covers only closed
+plans, exactly as D3 admits. `reads`/`writes` sit on the boundary: the
+declared reach is authority-bearing where it narrows what a handler may
+touch (policy), while its projections (effect ceilings, dependency
+manifests) are class 2 and never re-authored.
+
+This classification is the contract behind LLP 0295 W3's **Explicit
+economy lane**: apply the derivable lane (D3), the automatic
+environment-integrity lane (D4), and single-source proof identity (D5) so
+Explicit authoring converges on decision density — every authored line a
+policy or a claim — with no weaker visibility, type, runtime, or evidence
+verdict (D7). The existing implementation tickets above remain the
+mechanism owners; the vertical fixtures VCF-E-P1..P3 and the rest of the
+Explicit-lane catalogue in LLP 0253 S9.2 are the lane's acceptance
+receipts, executed through
+`issues/20260821-authoring-profile-vertical-contract-fixtures.md`.
+
 ## Compatibility and migration
 
 This RFC synthesizes existing safety and evidence boundaries into an authoring
@@ -464,6 +500,9 @@ be implemented before improving its own golden path.
 ## Revision history
 
 - 2026-08-17 r1: initial draft (Charlie Cheever / Codex).
+- 2026-08-21 r3: LLP 0295 D0.3 amendment (Claude) — added D8, the
+  fact-by-fact Explicit-profile classification and the W3 Explicit economy
+  lane registration with its fixture receipts.
 - 2026-08-17 r2: revision pass (Claude) — corrected citation authority (the
   visibility migration is LLP 0172's trajectory adopted by LLP 0231; LLP 0123
   is Research; LLP 0146 is Draft), named `prove` as the templates'
