@@ -55,12 +55,13 @@ export default defineSchema(
       photo: v.optional(v.assetRef({ upload: 'photoUpload' })),
     })
       .index('by_workspace', ['workspaceId'])
-      .visibility({
-        kind: 'membership',
-        declaration: workspaceMembers,
-        resourceField: 'workspaceId',
-        roles: ['owner', 'member'],
-      })
+      // Deliberately NOT the membership axis this table shares assets on.
+      // Vector 6 revokes workspace membership and requires delivery to stop.
+      // If table visibility keyed on the same membership, revoking would deny
+      // the row read too, and the vector would pass even for an implementation
+      // that consults table visibility instead of `.assetSharing`. Public read
+      // holds the table axis constant so the revoke proves the asset axis.
+      .visibility({ kind: 'public-read' })
       .assetSharing({ kind: 'membership', membership: 'workspaceMembers' })
       .sync(),
     photos: defineTable({
@@ -76,7 +77,14 @@ export default defineSchema(
       title: v.string(),
       attachment: v.optional(v.assetRef({ upload: 'photoUpload' })),
     })
-      .visibility({ kind: 'owner', field: 'ownerId' })
+      // Vector 7's premise is that this row is READABLE by a non-owner while
+      // the asset stays denied, proving absence of `.assetSharing` confers
+      // nothing. Owner visibility made that stated premise false. It did not
+      // actually mask the proof -- mutation testing showed owner visibility
+      // still caught an asset layer that wrongly authorized undeclared tables,
+      // because `assets.record()` is an asset-metadata read that never
+      // traverses row visibility. This is an accuracy fix, not a hole.
+      .visibility({ kind: 'public-read' })
       .sync(),
     openDocs: defineTable({
       ownerId: v.principal(),
