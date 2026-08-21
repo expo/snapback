@@ -15,6 +15,10 @@ reviewed-authorities-digest: sha256:33436c3acb6ab29a45b16c1b9d986e0037996934e374
 
 # External API exposure
 
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
 > **Local target only**, and deliberately partial: the exposure core,
 > `/api/v1` family, generated projections, integration records, and the OAuth
 > facade, remote MCP, the read-only `ask` v1 budget ledger, capability links,

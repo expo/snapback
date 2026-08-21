@@ -287,6 +287,21 @@ export function validateFrontmatter(fm, path, errors) {
   }
 }
 
+function validateTargetBanner(fm, body, path, errors) {
+  if (!Array.isArray(fm?.targets) || fm.targets.length !== 1 || fm.targets[0] !== 'local') return;
+  const lines = body.split('\n');
+  const firstH2 = lines.findIndex((line) => line.startsWith('## '));
+  const preamble = lines.slice(0, firstH2 === -1 ? lines.length : firstH2).join('\n');
+  // @ref LLP 0061#1-the-corpus-guide — local-only guarantees must render an
+  // explicit target-honesty fence, not rely on frontmatter that readers may
+  // never see.
+  if (!preamble.includes('> **Local target only.**')) {
+    errors.push(
+      `${path}: targets: [local] requires a rendered '> **Local target only.**' banner before the first ## heading`,
+    );
+  }
+}
+
 const THREE_COMPONENT_VERSION = /^\d+\.\d+\.\d+$/;
 const SECTION_SINCE_MARKER = /^<!--\s*since:\s*(\d+\.\d+\.\d+)(\s+unreleased)?\s*-->$/;
 
@@ -1069,7 +1084,10 @@ export function loadCorpus(root) {
   for (const path of pagePaths) {
     const raw = readFileSync(join(root, path), 'utf8');
     const { frontmatter, body } = parseFrontmatter(raw, path, errors);
-    if (frontmatter) validateFrontmatter(frontmatter, path, errors);
+    if (frontmatter) {
+      validateFrontmatter(frontmatter, path, errors);
+      validateTargetBanner(frontmatter, body, path, errors);
+    }
     for (const field of ['authorities', 'examples']) {
       for (const ref of frontmatter?.[field] ?? []) {
         if (!existsSync(join(root, ref))) {

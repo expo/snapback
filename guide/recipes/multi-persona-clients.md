@@ -15,6 +15,10 @@ reviewed-authorities-digest: sha256:0aac45468f10f0b49fd624a7612f1e65a0809af8162a
 
 # Recipe: multiple Node personas and storage partitions
 
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
 In one Node process, `createSnapbackAppClient` deliberately shares durable
 auth custody for the same application and storage partition. The default
 partition is literally `"default"`. That is useful for two handles belonging

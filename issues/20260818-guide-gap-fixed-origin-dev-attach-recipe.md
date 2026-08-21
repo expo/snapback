@@ -1,6 +1,6 @@
 # guide-gap: pinned-port / fixed-origin dev loop needs a first-class recipe
 
-**Status:** Resolved 2026-08-21
+**Status:** Open — reopened 2026-08-21 after independent review
 **Systems:** Guide, CLI dev loop, Expo client
 **Date:** 2026-08-18
 **Evidence:** diaries 0092 (hand-built fixed-origin Expo binding), 0096
@@ -12,12 +12,13 @@ AUTH_MODE_PENDING, STARTUP_ARTIFACT_MISMATCH — before discovering the
 
 All three independent matrix lanes fought the same seam: run a Snapback
 backend on a FIXED port with an Expo/web client bound to it, and hot-load
-regenerated artifacts without restarting the pinned server. The working
-recipe exists (attach + ready-file + startup-carrier rewrite) but is
-assembled from refusal texts, not documented as a path. Wanted: one guide
-page (or `snapback dev` flag) covering pinned-port serve, attach semantics
-vs `snapback start`, carrier rewrite on regenerate, and the supported way to
-bind the Expo provider to an already-running fixed origin.
+regenerated artifacts without restarting the pinned server. The attach +
+ready-file route was assembled from refusal texts rather than documented as a
+path, and the original report incorrectly inferred that attach regeneration
+rewrote the startup carrier. Wanted: one guide page (or `snapback dev` flag)
+covering pinned-port serve, attach semantics versus `snapback start`, the
+managed-only carrier refresh boundary, and the supported way to bind the Expo
+provider to an already-running fixed origin.
 
 **Additional evidence, 2026-08-20/21:** diaries 0104 and 0105 reproduced the
 same seam on current local main. The Explicit lane supplied a fixed Expo
@@ -27,7 +28,15 @@ pair with `SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE`. The Familiar lane
 again needed a managed-runtime port wrapper plus a separately owned Expo
 server. This is now repeated across both profiles and two benchmark rounds.
 
-## Resolution
+## Reopening note — 2026-08-21
+
+The original page falsely claimed attached regeneration rewrote
+`startup-artifacts.json`; the CLI only refreshes that carrier on managed
+start/restart/reset paths. The page and retrieval regression now state that
+boundary. The ticket also lacked LLP 0295's packed-external vertical contract
+fixture, so its original exit and closure claim remain unmet.
+
+## Partial implementation
 
 Added `guide/recipes/fixed-origin-development.md` and linked it from the
 authoring and React/Expo paths. It names the one-server ownership model,
@@ -38,6 +47,5 @@ diagnostic vocabulary. The retained cold run at
 `guide/eval-runs/2026-08-21/fixed-origin-development.md` passed in 9/15 tool
 uses.
 
-Closure evidence: `node scripts/check-retrieval-eval.mjs --check` (70 cases,
-0 errors), `node scripts/check-guide.mjs` under Node 24 (19 passed, 0 failed),
-and `node scripts/check-first-read.mjs --check` (5 profiles) all pass.
+Partial evidence: retrieval, Guide, and first-read checks pass. They prove the
+route and generated corpus, not the missing packed vertical contract.

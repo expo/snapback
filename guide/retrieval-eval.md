@@ -648,7 +648,9 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     carrier, passes a raw origin to `SnapbackExpoProvider`, or lets two
     supervisors own the same listener.
     Expected pages: `recipes/fixed-origin-development.md`.
-    Route terms: "attach Expo web to already-running --port server", "fixed origin", "pinned port", "startup-carrier rewrite", "SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE".
+    Route terms: "attach Expo web to already-running --port server", "fixed origin", "pinned port", "SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE".
+    Required guidance: "Attached regeneration generates and loads the running server; it does not rewrite the startup carrier", "Only managed start/restart/reset paths refresh startup-artifacts.json".
+    Rejected guidance: "Each successful regeneration rewrites that startup carrier".
 
 60. **Node multi-persona custody:** "Several app clients run as different
     people in one Node acceptance process, but every persona wrote as Henry."
@@ -717,6 +719,7 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     `resourceField: \"_id\"`, or rewrites old receipt membership after a leave.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "private membership roster", "product-visible roster projection", "display roster", "send-time recipient set".
+    Required guidance: "the demo declaration admits only owner-insert and self-remove".
 
 70. **Provider connection lifecycle:** "My Contract provider creates a
     connection per subscription; N cells imply N transport connections and
@@ -726,6 +729,15 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     Phase 0 has not selected.
     Expected pages: `recipes/provider-lifecycle.md`.
     Route terms: "connection per subscription", "N cells imply N transport connections", "provider lifecycle budget", "active connections and subscriptions by owner".
+    Required guidance: "does not yet select one provider-wide connection ownership policy", "That fixture does not exist yet".
+
+71. **Familiar point-read carrier:** "Return zero or one document from a
+    Familiar point read that may also carry membership admission." The run
+    fails if it adds `{ maxItems: 1 }` to the document array or presents a
+    value carrier as an empty-capable relational row-set.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "point read", "bounded document arrays", "results.value".
+    Required guidance: "bounded document arrays lower to results.value", "returns: v.array(v.doc".
 
 ## Static routing check
 
@@ -735,15 +747,18 @@ The deterministic half of this corpus is executable:
 verifies, on every guide check, that (1) each case's expected pages exist,
 (2) each case has at least one lexical route — a route term found in the
 capability index's Aliases column on a row pointing at an expected page,
-or in an expected page's title, a heading, or its body — and (3) every
+or in an expected page's title, a heading, or its body — (3) optional required
+guidance is present and rejected guidance absent from those pages, and (4) every
 Rosetta record alias (`guide/rosetta/records/*.json`) is mirrored as a
 seed-case route term, per the LLP 0186 W2 amendment.
 
 What it does **not** prove: that a cold agent actually navigates to the
 page within the ~15-tool-use budget, plans with the paved technique, or
-avoids the anti-patterns. The checker only guarantees the lexical path
-exists; whether an agent takes it remains the manual/W1-instrument
-protocol below, with transcripts under `guide/eval-runs/`.
+avoids the anti-patterns. The checker guarantees the lexical path and any
+case-specific static guidance fence; it does not execute the documented
+runtime behavior. Whether an agent takes the route and applies the guidance
+remains the manual/W1-instrument protocol below, with transcripts under
+`guide/eval-runs/`.
 
 ## Budget
 

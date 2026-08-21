@@ -15,6 +15,10 @@ reviewed-authorities-digest: sha256:21e047f9a0382245b33c96da4b91b541f81b8de4c5b9
 
 # Snapshot batches
 
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
 > **Experimental local target.** `snapshot_batch_v1` (all-bounded-children
 > tuples, one `sbsb1` continuation) and `snapshot_batch_v2` (tuples that
 > include relational join nodes, one `sbsb2` continuation; registered

@@ -16,6 +16,10 @@ reviewed-authorities-digest: sha256:2d6275363dfe790730aed135fec80e708549fbcebe29
 
 # Familiar TypeScript profile (Experimental, non-default)
 
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
 > **Experimental / non-default in 0.1.23.** The familiar profile is a source
 > adapter over Snapback's canonical schema, function, runtime, and client
 > owners. It is not a second backend and does not make Convex compatibility a
@@ -116,10 +120,31 @@ Queries are live by default; set `delivery: "read"` for a one-shot query.
 Row-shaped query returns remain arrays. Although the lowering layer recognizes
 some direct `v.object(...)` and nullable-document values, the current
 generation-and-execution path has not qualified those shapes end to end. For a
-point read, declare a relational array with `{ maxItems: 1 }` and return `[]`
-or `[row]`; unwrap the first row in application code. A mutation may return one
-`v.doc(table)`, but a mutation document array is refused; return an array of
-closed receipt records or ids instead. Familiar actions can read
+point read, declare the **unbounded** relational contract
+`v.array(v.doc(table))`, bound the handler with `.take(1)`, and return `[]` or
+`[row]`; unwrap the first row in application code. Do not add
+`{ maxItems: 1 }`: bounded document arrays lower to `results.value`, not
+`results.documents`, and cannot carry the empty row-set semantics required by
+membership admission.
+
+```ts source=packages/snapback-codegen/familiar-phase-b.test.mjs
+export const byId = query({
+  args: { id: v.id("todos") },
+  returns: v.array(v.doc("todos")),
+  auth: "public",
+  reads: ["todos"],
+  handler: async (ctx, args) => ctx.db
+    .query("todos")
+    .withIndex("_id")
+    .eq("_id", args.id)
+    .take(1)
+    .collect(),
+});
+```
+
+A mutation may return one `v.doc(table)`, but a mutation document array is
+refused; return an array of closed receipt records or ids instead. Familiar
+actions can read
 auth/runtime/secrets, refuse, and call a generated mutation reference; they do
 not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
 
@@ -127,7 +152,8 @@ not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
 
 Familiar is TypeScript-shaped source lowered into the bounded Snapback handler
 runtime. It is not unrestricted Node or browser TypeScript. Use this compact
-rewrite table before authoring:
+rewrite table before authoring or when
+`SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` routes here:
 
 Diary search terms: dynamic computed access; imported helper; same-file function declaration.
 Further terms: captured constants; mutation document arrays; dense scoped number.
@@ -206,16 +232,13 @@ not an authored field in the table's generated field union, so admit the root
 resource through the authority profile/handler declaration rather than copying
 an untypeable `resourceField: "_id"` binding:
 
-```ts fragment reason="membership declaration is application-specific; this shows the authored child-resource binding"
-messages: defineTable({
-  conversationId: v.id("conversations"),
-  body: v.string(),
-}).visibility({
-  kind: "membership",
-  declaration: conversationMembers,
-  resourceField: "conversationId",
-  roles: ["member", "admin"],
-}),
+```ts source=packages/snapback-codegen/rbac-authoring.test.mjs
+export default defineSchema({
+  rooms: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  roomMembers,
+  messages: defineTable({ roomId: v.id('rooms'), body: v.string() })
+    .visibility({ kind: 'membership', declaration: 'roomAccess', resourceField: 'roomId', roles: ['member'] }),
+}, { auth: { mode: 'sessions' } });
 ```
 
 Ordinary `ctx.db` reads enforce those policies, including inside familiar
@@ -233,7 +256,7 @@ the same authority-profile declaration as Explicit:
 ```ts fragment reason="Familiar authority-profile admission uses the canonical membership predicate"
 export const messages = query({
   args: { conversationId: v.id('conversations') },
-  returns: v.array(v.doc('messages'), { maxItems: 50 }),
+  returns: v.array(v.doc('messages')),
   auth: 'authenticated',
   reads: ['messages'],
   membership: [conversationMembers.hasRole(

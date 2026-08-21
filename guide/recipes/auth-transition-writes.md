@@ -15,6 +15,10 @@ reviewed-authorities-digest: sha256:d8cac17f99ba2c4dcf845310194e20d29b6542948551
 
 # Recipe: writes during authentication transitions
 
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
 Login, logout, refresh, and bearer replacement create a real authority
 barrier. Protected subscriptions blank and foreground sends may pause while
 the predecessor is retired and the successor is proven. A background effect
@@ -24,6 +28,11 @@ content refusal and not evidence that the mutation reached the server.
 This includes the reproduced “eager route-entry receipt” and broader
 “background writes during auth transitions” cases, as well as an
 authorization-suspended foreground gesture.
+
+The multi-subscription trigger observed in the same run remains an open
+[contention investigation](../../issues/20260820-familiar-live-subscription-contention.md).
+This recipe describes how callers settle writes safely; it does not classify
+or close that separate liveness question.
 
 ## Prefer queueable generated mutations
 

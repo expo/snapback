@@ -1,6 +1,6 @@
 # guide-gap: pattern for background writes during authorization transitions
 
-**Status:** Resolved 2026-08-21
+**Status:** Open — reopened 2026-08-21 after independent review
 **Systems:** Guide, client outbox, auth invalidation
 **Date:** 2026-08-18
 **Evidence:** diary 0092 M3 — eager route-entry receipt writes hit
@@ -26,7 +26,16 @@ effects and link to
 `issues/20260820-familiar-live-subscription-contention.md` for the underlying
 multi-subscription investigation.
 
-## Resolution
+## Reopening note — 2026-08-21
+
+The recipe and retrieval route landed, and the missing link to the still-open
+multi-subscription contention investigation is now present. The ticket was
+nevertheless closed without the packed-external vertical contract fixture LLP
+0295 requires for every Phase 1 advertised-path closure. Retrieval and Guide
+checks do not prove runtime/client/negative-diagnostic coherence. The original
+exit is not met; keep this ticket open until it names that receipt.
+
+## Partial implementation
 
 Added `guide/recipes/auth-transition-writes.md` and linked it from the
 headless-client authority transition. It distinguishes queueable background
@@ -37,6 +46,7 @@ route-entry receipt, and foreground vocabulary. The retained cold run at
 `guide/eval-runs/2026-08-21/auth-transition-writes.md` passed in 12/15 tool
 uses.
 
-Closure evidence: the 70-case retrieval check and the full Guide check pass.
-The separate live-subscription contention investigation remains open and is
-not silently decided by this authoring recipe.
+Partial evidence: the retrieval and full Guide checks pass. They prove routing
+and corpus consistency only, not the missing vertical contract. The separate
+live-subscription contention investigation remains open and is not silently
+decided by this authoring recipe.

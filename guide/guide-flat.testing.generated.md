@@ -380,6 +380,10 @@ reviewed-authorities-digest: sha256:359ad5ef75925fd5932dec2dcd91eb5a9de3e7d399a3
 
 # Verify the declared app contract
 
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
 > **Local target, partial surface.** This page describes generated-artifact
 > admission and explicitly registered acceptance paths. Live-target admission
 > and automatic discovery of acceptance suites beyond the conventional config

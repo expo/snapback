@@ -1,6 +1,6 @@
 # guide-gap: durable auth custody is process-global in Node without storagePartition
 
-**Status:** Resolved 2026-08-21
+**Status:** Open — reopened 2026-08-21 after independent review
 **Systems:** Guide, snapback-client custody
 **Date:** 2026-08-18
 **Evidence:** diary 0096 M2 ("every persona wrote as Henry"); its essay calls
@@ -22,7 +22,15 @@ one persona until the lane assigned one `storagePartition` per actor. The
 correct API exists; the default remains surprising for the ordinary
 multi-persona test/agent case.
 
-## Resolution
+## Reopening note — 2026-08-21
+
+The recipe, links, and retrieval route landed, but closure named only static
+Guide checks. LLP 0295 requires a packed-external vertical contract receipt for
+this changed advertised client path. Until the ticket names retrieval through
+packed import/runtime/client behavior and a negative diagnostic, the exit is
+not met.
+
+## Partial implementation
 
 Added `guide/recipes/multi-persona-clients.md` and loud custody links from the
 sessions and headless-client pages. The recipe assigns one stable
@@ -32,5 +40,5 @@ the diary phrase “every persona wrote as Henry” plus the exact Node/default
 partition vocabulary. The retained cold run at
 `guide/eval-runs/2026-08-21/multi-persona-clients.md` passed in 11/15 tool uses.
 
-Closure evidence: the 70-case retrieval check, the 19-part Guide check, and
-the 5-profile first-read check pass with no failures.
+Partial evidence: retrieval, Guide, and first-read checks pass. They do not
+satisfy the missing packed vertical contract.

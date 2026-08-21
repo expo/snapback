@@ -8,12 +8,16 @@ authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0176-expo-messag
 examples: [demos/messaging-snapback]
 status: current
 targets: [local]
-maturity: shipped
+maturity: partial
 reviewed: 2026-08-21
 reviewed-authorities-digest: sha256:f8cdd66ec5f4c200d5e8b022f14e1d76730f26bca2df453a3b337acf8e44bdfa
 ---
 
 # Recipe: private membership and a product roster
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
 
 Generated membership rows are current authorization state. They are private,
 profile-owned backing data, not presentation records and not message history.
@@ -36,29 +40,28 @@ The Messaging demo uses this split:
 - child tables such as messages bind membership visibility through their
   authored `conversationId`, not through a private membership-row id.
 
-## Update authority and projection in one mutation
+## Use only the transitions the current witness proves
 
 Creation bootstraps the resource membership through the generated declaration
-command, then inserts the initial product roster rows in the same mutation.
-Join/invite adds the membership and inserts the projection if absent. Leave or
-removal changes membership and deletes or marks the current roster row. One
-mutation may issue one generated membership command and ordinary application
-writes; do not attempt a second membership transition in that mutation.
+command, then inserts the initial product roster rows in the same mutation. The
+Messaging demo currently proves two later transitions: a member removes self
+while deleting the projected roster row, and the owner adds that principal
+again while inserting the projection if absent. Each mutation issues one
+generated membership command plus ordinary application writes.
 
-Promotion or demotion changes the generated membership role in the same
-mutation that updates any role-dependent product fields. If the visible roster
-does not expose role, the ordinary projection need not change; the acceptance
-comparison must still confirm the new authority role. An already-present row
-on join and an already-absent row on leave/removal are successful idempotent
-branches once the generated membership result agrees with the requested end
-state.
+That witness does **not** implement or prove owner-removal of another member,
+promotion, or demotion: the demo declaration admits only owner-insert and
+self-remove. Do not copy this page as evidence those transitions synchronize.
+Add the needed transition rows, one atomic authority-plus-projection mutation
+per transition, and acceptance comparisons before claiming them. The reopened
+[guide-gap ticket](../../issues/20260820-guide-gap-membership-roster-projection-recipe.md)
+tracks the missing proof and LLP 0295 vertical fixture.
 
-The projection is deliberately redundant, so acceptance tests must compare it
-with the authority profile after create, join, leave, removal, and retry. Make
-the product row unique by `(conversationId, principal)` and make retries
-idempotent. Include promotion/demotion in the comparison when the product
-mirrors role. Authorization always consults the membership declaration even if
-a projection row is stale.
+The projection is deliberately redundant. For the currently proved path,
+acceptance compares it with authority after create, self-leave, owner re-add,
+and retry. Make the product row unique by `(conversationId, principal)` and
+make retries idempotent. Authorization always consults the membership
+declaration even if a projection row is stale.
 
 ## Keep history separate from the current roster
 

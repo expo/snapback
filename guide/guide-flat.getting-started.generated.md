@@ -1195,7 +1195,7 @@ explicit profile for other action host effects or declarative plans.
 | `SNAPBACK_CODEGEN_FAMILIAR_EXPORT_UNSUPPORTED` | Export only familiar function values from a function module; move exported helpers to a helper module. |
 | `SNAPBACK_CODEGEN_FAMILIAR_KEY_UNSUPPORTED` | Remove the named unsupported key or follow its diagnostic route to the explicit profile. |
 | `SNAPBACK_CODEGEN_FAMILIAR_AUTH_MISSING` | Add the exact canonical `auth` value: `"public"`, `"optional-user"`, or `"authenticated"`. |
-| `SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` | Use the diagnostic's shape-specific list/value route; for a missing declaration, review the generated LLP 0245 suggestion. |
+| `SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` | Use the [Familiar dialect table](../backend/familiar-profile.md#translate-the-familiar-handler-dialect) and the diagnostic's shape-specific list/value route; for a missing declaration, review the generated LLP 0245 suggestion. |
 | `SNAPBACK_CODEGEN_FAMILIAR_DELIVERY_INVALID` | Use `"live"` or `"read"`. |
 | `SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED` | Return one canonical chained range expression from the callback. |
 | `SNAPBACK_FAMILIAR_RUNQUERY_UNSUPPORTED` | Use an explicit-profile action when action-to-query composition is required. |

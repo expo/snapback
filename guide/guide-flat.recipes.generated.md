@@ -2926,7 +2926,7 @@ has two owners instead: `snapback start` owns the process and
 `snapback dev --attach` owns generate-and-load.
 
 This is the diary's exact “attach Expo web to already-running --port server”
-route: fixed origin, pinned port, and startup-carrier rewrite are separate
+route: fixed origin, pinned port, and startup-carrier refresh are separate
 ownership facts rather than one magic flag.
 
 ## Start the fixed server, then attach the loader
@@ -2974,13 +2974,17 @@ snapback start --port 42080 \
   --startup-artifacts "$PWD/.snapback/startup-artifacts.json"
 ```
 
-Now run the same attach command from the previous section. Each successful
-regeneration rewrites that startup carrier as well as loading the running
-server, so a later restart can establish the same generated deployment before
-bind. Keep the database, ready descriptor, and startup carrier together. An
-`AUTH_MODE_PENDING` or `STARTUP_ARTIFACT_MISMATCH` refusal means that ownership
-triangle is incomplete or mixed; do not delete the database or hand-edit a
-digest.
+Now run the same attach command from the previous section. Attached
+regeneration generates and loads the running server; it **does not rewrite**
+the startup carrier. Only managed start/restart/reset paths refresh
+`startup-artifacts.json`. Before a later sessions restart, run the current
+backend once through managed `snapback dev --no-watch` (or another managed
+refresh path), then restart the fixed server with that refreshed carrier.
+Otherwise the fixed server can reject the stale deployment at bind. Keep the
+database, ready descriptor, and startup carrier together. A
+`SNAPBACK_AUTH_MODE_PENDING` or
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` refusal means that ownership triangle
+is incomplete or mixed; do not delete the database or hand-edit a digest.
 
 ## Bind a separately owned client honestly
 
@@ -2993,7 +2997,7 @@ code.
 
 The default `SnapbackExpoProvider` is supervisor-owned. A raw `{ origin }` or
 raw binding override is not a supported substitute for its admitted
-environment and can refuse with `SNAPBACK_APP_BINDING_UNAVAILABLE` or
+environment and can refuse as binding unavailable or with
 `SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED`. For a separately owned native
 Expo process, the application shell must own a complete admitted
 `SnapbackExpoEnvironmentV1` (binding plus authority/custody lifecycle), or use
@@ -3035,6 +3039,10 @@ reviewed-authorities-digest: sha256:0aac45468f10f0b49fd624a7612f1e65a0809af8162a
 ---
 
 # Recipe: multiple Node personas and storage partitions
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
 
 In one Node process, `createSnapbackAppClient` deliberately shares durable
 auth custody for the same application and storage partition. The default
@@ -3114,6 +3122,10 @@ reviewed-authorities-digest: sha256:d8cac17f99ba2c4dcf845310194e20d29b6542948551
 
 # Recipe: writes during authentication transitions
 
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
 Login, logout, refresh, and bearer replacement create a real authority
 barrier. Protected subscriptions blank and foreground sends may pause while
 the predecessor is retired and the successor is proven. A background effect
@@ -3123,6 +3135,11 @@ content refusal and not evidence that the mutation reached the server.
 This includes the reproduced “eager route-entry receipt” and broader
 “background writes during auth transitions” cases, as well as an
 authorization-suspended foreground gesture.
+
+The multi-subscription trigger observed in the same run remains an open
+[contention investigation](../../issues/20260820-familiar-live-subscription-contention.md).
+This recipe describes how callers settle writes safely; it does not classify
+or close that separate liveness question.
 
 ## Prefer queueable generated mutations
 
@@ -3184,6 +3201,10 @@ reviewed-authorities-digest: sha256:f645f4b9705e5a52f2adb649c71a1e2c03d5a3bc13a1
 
 # Recipe: activity presence, heartbeats, and withdrawal
 
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
 Snapback presence is an ephemeral lease. A bound value is not a durable row,
 and publishing it once does not promise that it remains present. Conversely,
 a convenience surface can continuously republish a non-null bound value. This
@@ -3243,12 +3264,16 @@ authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0176-expo-messag
 examples: [demos/messaging-snapback]
 status: current
 targets: [local]
-maturity: shipped
+maturity: partial
 reviewed: 2026-08-21
 reviewed-authorities-digest: sha256:f8cdd66ec5f4c200d5e8b022f14e1d76730f26bca2df453a3b337acf8e44bdfa
 ---
 
 # Recipe: private membership and a product roster
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
 
 Generated membership rows are current authorization state. They are private,
 profile-owned backing data, not presentation records and not message history.
@@ -3271,29 +3296,28 @@ The Messaging demo uses this split:
 - child tables such as messages bind membership visibility through their
   authored `conversationId`, not through a private membership-row id.
 
-## Update authority and projection in one mutation
+## Use only the transitions the current witness proves
 
 Creation bootstraps the resource membership through the generated declaration
-command, then inserts the initial product roster rows in the same mutation.
-Join/invite adds the membership and inserts the projection if absent. Leave or
-removal changes membership and deletes or marks the current roster row. One
-mutation may issue one generated membership command and ordinary application
-writes; do not attempt a second membership transition in that mutation.
+command, then inserts the initial product roster rows in the same mutation. The
+Messaging demo currently proves two later transitions: a member removes self
+while deleting the projected roster row, and the owner adds that principal
+again while inserting the projection if absent. Each mutation issues one
+generated membership command plus ordinary application writes.
 
-Promotion or demotion changes the generated membership role in the same
-mutation that updates any role-dependent product fields. If the visible roster
-does not expose role, the ordinary projection need not change; the acceptance
-comparison must still confirm the new authority role. An already-present row
-on join and an already-absent row on leave/removal are successful idempotent
-branches once the generated membership result agrees with the requested end
-state.
+That witness does **not** implement or prove owner-removal of another member,
+promotion, or demotion: the demo declaration admits only owner-insert and
+self-remove. Do not copy this page as evidence those transitions synchronize.
+Add the needed transition rows, one atomic authority-plus-projection mutation
+per transition, and acceptance comparisons before claiming them. The reopened
+[guide-gap ticket](../../issues/20260820-guide-gap-membership-roster-projection-recipe.md)
+tracks the missing proof and LLP 0295 vertical fixture.
 
-The projection is deliberately redundant, so acceptance tests must compare it
-with the authority profile after create, join, leave, removal, and retry. Make
-the product row unique by `(conversationId, principal)` and make retries
-idempotent. Include promotion/demotion in the comparison when the product
-mirrors role. Authorization always consults the membership declaration even if
-a projection row is stale.
+The projection is deliberately redundant. For the currently proved path,
+acceptance compares it with authority after create, self-leave, owner re-add,
+and retry. Make the product row unique by `(conversationId, principal)` and
+make retries idempotent. Authorization always consults the membership
+declaration even if a projection row is stale.
 
 ## Keep history separate from the current roster
 
@@ -3329,7 +3353,7 @@ order: 15
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.contract-provider-generation]
 authorities: [llp/0034-contract-source-seam-provider-side.rfc.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0095-client-lifecycle-and-conformance.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs]
-examples: [demos/coterie, demos/signal-desk, packages/snapback-contract/keyed-provider.mjs]
+examples: [packages/snapback-contract/keyed-provider.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -3339,27 +3363,34 @@ reviewed-authorities-digest: sha256:36b99758a988b2e5ddd7c19d12c8e5c88f4cce7ddef6
 
 # Recipe: provider connection and subscription lifecycle
 
-A framework provider should own one stable connection label for one admitted
-app/authority/origin lifetime, then multiplex query consumers over that
-connection. Mounting N cells may create N logical subscriptions; it must not
-create N sockets merely because each cell mounted independently.
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
 
-This repairs the “connection per subscription” failure: N cells imply N
-transport connections only in a broken owner model. The recipe also supplies
-the current provider lifecycle budget boundary and an inspection of active
-connections and subscriptions by owner.
+Snapback exposes connection labels, live-stream managers, keyed provider
+scopes, and resource inspection, but it does **not yet select one provider-wide
+connection ownership policy**. LLP 0295 D0.5 owns that decision. In particular,
+the Coterie demo currently mints per-subscription connection ids; it is evidence
+for the open problem, not a positive example of one-transport multiplexing.
+
+Use this page to avoid accidental owner churn and to measure the adapter you
+actually built. Do not advertise “N cells imply one transport” until the
+requested N-cells regression fixture exists and D0.5 selects the supported
+budget.
 
 Search phrase: N cells imply N transport connections.
 Inspection phrase: active connections and subscriptions by owner.
 
-## Put one owner above the cells
+## Keep each chosen owner stable
 
-Construct the client and connection label at provider scope. Reuse the
-client's `liveStreamManager(connectionId)` and the shared external-store
-registry for every matching child subscription. The registry deduplicates
-equal provider/query/authority/args identities and refcounts listeners; the
-last listener disposes the upstream handle. Keyed scopes replace whole route
-generations without app-authored generation counters.
+Construct the client at provider scope. If the adapter chooses a shared
+connection label, keep it stable for that adapter's documented
+app/authority/origin lifetime and reuse `liveStreamManager(connectionId)`.
+If it chooses narrower labels, keep each label stable for its declared owner
+and report the resulting manager/socket counts. Keyed scopes and the shared
+external-store registry can deduplicate equal
+provider/query/authority/args identities and refcount listeners, but those
+primitives are not themselves proof of a one-transport provider contract.
 
 Wait for settled principal authority before starting protected subscriptions.
 On a transport-only reconnect, update the connection fact and let the manager
@@ -3377,25 +3408,28 @@ waits for its lifecycle boundary; it does not replace `dispose()`.
 
 Use `client.localResourceInspection()` only as an acceptance inspection. It
 reports managers, grants, lane consumers, socket demand, timers, and listeners.
-A useful regression mounts many equal cells, waits for data, and asserts one
-manager/connection with refcounted consumers; after unmount and provider close,
-it asserts the scoped manager, grants, demand, timers, and listeners retire.
-Provider-specific `inspection()` projections may add store/subscription counts,
-but neither inspection surface is product state or authorization evidence.
+A future D0.5 regression should mount many equal cells, wait for data, and
+assert the selected manager/connection budget with refcounted consumers. That
+fixture does not exist yet. Current acceptance can still assert its observed
+counts and, after unmount and provider close, that scoped managers, grants,
+demand, timers, and listeners retire. Provider-specific `inspection()`
+projections may add store/subscription counts, but neither inspection surface
+is product state or authorization evidence.
 
 ## Current budget boundary
 
 The sanctioned decision-independent floor is qualitative: stable connection
-identity, multiplexing, deduplication, explicit disposal, and zero owned
-resources after teardown. Snapback does **not yet publish a numeric per-provider
-connection/subscription/timer budget**. That Phase 0 decision remains tracked
+identity within the adapter's declared owner, deduplication where the chosen
+scope permits it, explicit disposal, and zero owned resources after teardown.
+Snapback does **not yet publish a provider-wide ownership rule or numeric
+per-provider connection/subscription/timer budget**. That Phase 0 decision remains tracked
 in `issues/20260821-provider-connection-subscription-budget-decision.md`.
 Do not invent a threshold in application docs or tests and call it platform
 policy; record measured counts and keep the qualitative invariants above.
 
 ## Anti-patterns
 
-- Minting a new `connectionId` for every query or component mount.
+- Minting a new `connectionId` on every render or retry with no declared owner.
 - Starting protected subscriptions before authority settles.
 - Running a second query from inside each subscription callback.
 - Treating reconnect as a reason to reconstruct every logical store.

@@ -25,7 +25,7 @@ has two owners instead: `snapback start` owns the process and
 `snapback dev --attach` owns generate-and-load.
 
 This is the diary's exact “attach Expo web to already-running --port server”
-route: fixed origin, pinned port, and startup-carrier rewrite are separate
+route: fixed origin, pinned port, and startup-carrier refresh are separate
 ownership facts rather than one magic flag.
 
 ## Start the fixed server, then attach the loader
@@ -73,13 +73,17 @@ snapback start --port 42080 \
   --startup-artifacts "$PWD/.snapback/startup-artifacts.json"
 ```
 
-Now run the same attach command from the previous section. Each successful
-regeneration rewrites that startup carrier as well as loading the running
-server, so a later restart can establish the same generated deployment before
-bind. Keep the database, ready descriptor, and startup carrier together. An
-`AUTH_MODE_PENDING` or `STARTUP_ARTIFACT_MISMATCH` refusal means that ownership
-triangle is incomplete or mixed; do not delete the database or hand-edit a
-digest.
+Now run the same attach command from the previous section. Attached
+regeneration generates and loads the running server; it **does not rewrite**
+the startup carrier. Only managed start/restart/reset paths refresh
+`startup-artifacts.json`. Before a later sessions restart, run the current
+backend once through managed `snapback dev --no-watch` (or another managed
+refresh path), then restart the fixed server with that refreshed carrier.
+Otherwise the fixed server can reject the stale deployment at bind. Keep the
+database, ready descriptor, and startup carrier together. A
+`SNAPBACK_AUTH_MODE_PENDING` or
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` refusal means that ownership triangle
+is incomplete or mixed; do not delete the database or hand-edit a digest.
 
 ## Bind a separately owned client honestly
 
@@ -92,7 +96,7 @@ code.
 
 The default `SnapbackExpoProvider` is supervisor-owned. A raw `{ origin }` or
 raw binding override is not a supported substitute for its admitted
-environment and can refuse with `SNAPBACK_APP_BINDING_UNAVAILABLE` or
+environment and can refuse as binding unavailable or with
 `SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED`. For a separately owned native
 Expo process, the application shell must own a complete admitted
 `SnapbackExpoEnvironmentV1` (binding plus authority/custody lifecycle), or use

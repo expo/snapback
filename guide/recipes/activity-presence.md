@@ -15,6 +15,10 @@ reviewed-authorities-digest: sha256:f645f4b9705e5a52f2adb649c71a1e2c03d5a3bc13a1
 
 # Recipe: activity presence, heartbeats, and withdrawal
 
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
 Snapback presence is an ephemeral lease. A bound value is not a durable row,
 and publishing it once does not promise that it remains present. Conversely,
 a convenience surface can continuously republish a non-null bound value. This

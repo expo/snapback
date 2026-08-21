@@ -26,7 +26,10 @@ const ROSETTA_DIR = 'guide/rosetta/records';
 // Parse the numbered cases out of the "## Seed intents" section. Each case
 // is a numbered `**Label:**` list item whose final lines are the two
 // machine-parsed markers: `Expected pages:` (backticked guide-relative
-// paths) followed by `Route terms:` (double-quoted grep vocabulary).
+// paths) followed by `Route terms:` (double-quoted grep vocabulary). Cases may
+// also carry `Required guidance:` and `Rejected guidance:` markers; those bind
+// a repaired page to semantic wording instead of letting any route-term
+// occurrence masquerade as the requested repair.
 function parseSeedCases(text, errors) {
   const lines = text.split('\n');
   const start = lines.findIndex((line) => line.startsWith('## Seed intents'));
@@ -69,9 +72,23 @@ function parseSeedCases(text, errors) {
       errors.push(`${who}: "Route terms:" must come after "Expected pages:"`);
       continue;
     }
+    const requiredAt = seed.text.indexOf('Required guidance:');
+    const rejectedAt = seed.text.indexOf('Rejected guidance:');
+    const markerEnd = (start, candidates) => Math.min(
+      ...candidates.filter((value) => value > start),
+      seed.text.length,
+    );
+    const termsEnd = markerEnd(termsAt, [requiredAt, rejectedAt]);
     seed.expectedPages = [...seed.text.slice(pagesAt, termsAt).matchAll(/`([^`]+)`/g)]
       .map((m) => m[1]);
-    seed.terms = [...seed.text.slice(termsAt).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    seed.terms = [...seed.text.slice(termsAt, termsEnd).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    seed.requiredGuidance = requiredAt === -1
+      ? []
+      : [...seed.text.slice(requiredAt, markerEnd(requiredAt, [rejectedAt])).matchAll(/"([^"]+)"/g)]
+        .map((m) => m[1]);
+    seed.rejectedGuidance = rejectedAt === -1
+      ? []
+      : [...seed.text.slice(rejectedAt).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
     if (seed.expectedPages.length === 0) errors.push(`${who}: "Expected pages:" lists no backticked pages`);
     if (seed.terms.length === 0) errors.push(`${who}: "Route terms:" lists no quoted terms`);
   }
@@ -102,6 +119,12 @@ function findRoutes(term, expectedPages, capIndex, pageTexts) {
   }
   return routes;
 }
+
+const normalizeGuidance = (value) => value
+  .replace(/[`*_]/gu, '')
+  .replace(/\s+/gu, ' ')
+  .trim()
+  .toLowerCase();
 
 function main() {
   const root = repoRoot();
@@ -166,6 +189,27 @@ function main() {
         `a row pointing at an expected page, nor in an expected page's title/heading/body — a grep-navigating ` +
         'agent cannot reach the paved road; add the missing alias or fix the terms',
       );
+    }
+
+    const expectedText = seed.expectedPages
+      .map((page) => pageTexts.get(page)?.body ?? '')
+      .join('\n');
+    const normalizedExpectedText = normalizeGuidance(expectedText);
+    for (const guidance of seed.requiredGuidance ?? []) {
+      if (!normalizedExpectedText.includes(normalizeGuidance(guidance))) {
+        errors.push(
+          `${EVAL_PAGE}: case ${seed.number} (${seed.label}) is missing required guidance `
+          + `"${guidance}" from its expected page(s)`,
+        );
+      }
+    }
+    for (const guidance of seed.rejectedGuidance ?? []) {
+      if (normalizedExpectedText.includes(normalizeGuidance(guidance))) {
+        errors.push(
+          `${EVAL_PAGE}: case ${seed.number} (${seed.label}) still contains rejected guidance `
+          + `"${guidance}" in its expected page(s)`,
+        );
+      }
     }
   }
 

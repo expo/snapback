@@ -17,8 +17,8 @@ reviewed-authorities-digest: sha256:c626ffca5cdf748da0fd61d9154d993bb3f9a766ac6f
 
 # Generated API reference
 
-One build-bound projection of 1311 public symbols (538 runtime values and 773 explicit type-only symbols).
-Registry source identity: `sha256:35c242083a62087f767ea64260d3489a9f0c2cbda6192a2e8787ecac4b9ca21f`.
+One build-bound projection of 1309 public symbols (538 runtime values and 771 explicit type-only symbols).
+Registry source identity: `sha256:654846de4013bd72ddaef81ce34f383f81a54bd308eea1445f45eb0dbc6b817b`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -67,11 +67,11 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 | [`@expo/snapback-client/rqs-store-sqlite`](./expo-snapback-client--rqs-store-sqlite.md) | 9 | 4 | 5 |
 | [`@expo/snapback-client/search`](./expo-snapback-client--search.md) | 11 | 2 | 9 |
 | [`@expo/snapback-client/vector-search`](./expo-snapback-client--vector-search.md) | 5 | 1 | 4 |
-| [`@expo/snapback-react`](./expo-snapback-react.md) | 135 | 47 | 88 |
+| [`@expo/snapback-react`](./expo-snapback-react.md) | 134 | 47 | 87 |
 | [`@expo/snapback-react/core`](./expo-snapback-react--core.md) | 66 | 27 | 39 |
 | [`@expo/snapback-react/familiar`](./expo-snapback-react--familiar.md) | 15 | 8 | 7 |
 | [`@expo/snapback-react/thumbhash`](./expo-snapback-react--thumbhash.md) | 5 | 5 | 0 |
-| [`@expo/snapback-expo`](./expo-snapback-expo.md) | 185 | 73 | 112 |
+| [`@expo/snapback-expo`](./expo-snapback-expo.md) | 184 | 73 | 111 |
 | [`@expo/snapback-expo/app-binding`](./expo-snapback-expo--app-binding.md) | 13 | 5 | 8 |
 | [`@expo/snapback-expo/app.plugin`](./expo-snapback-expo--app.plugin.md) | 6 | 4 | 2 |
 | [`@expo/snapback-expo/asset-source`](./expo-snapback-expo--asset-source.md) | 7 | 4 | 3 |

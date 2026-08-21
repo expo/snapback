@@ -78,6 +78,21 @@ function temporaryFamiliarFixture() {
   return root;
 }
 
+const GUIDE_POINT_READ_FUNCTION = `
+export const byId = query({
+  args: { id: v.id("todos") },
+  returns: v.array(v.doc("todos")),
+  auth: "public",
+  reads: ["todos"],
+  handler: async (ctx, args) => ctx.db
+    .query("todos")
+    .withIndex("_id")
+    .eq("_id", args.id)
+    .take(1)
+    .collect(),
+});
+`;
+
 function runtimeHandler(name, expressionSource, contextKind, apiDigest = 'sha256:test-api') {
   const canonical = {
     source: renderInlineHandlerModule(name, expressionSource),
@@ -170,6 +185,26 @@ test('familiar returns lowering preserves row shapes and admits exact scalar val
   assert.throws(
     () => lowerFamiliarReturns('mutation', v.array(v.doc('todos'))),
     ({ code }) => code === 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE',
+  );
+});
+
+test('Guide point-read spelling generates as an empty-capable relational document set', async () => {
+  const root = temporaryFamiliarFixture();
+  const sourcePath = join(root, 'todos.ts');
+  writeFileSync(
+    sourcePath,
+    `${readFileSync(sourcePath, 'utf8')}\n${GUIDE_POINT_READ_FUNCTION}`,
+  );
+  const generated = await generate(root);
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const pointRead = generated.functionManifest.functions.find(({ name }) => name === 'todos.byId');
+  assert.ok(pointRead, 'Guide point-read function was not generated');
+  assert.equal(pointRead.resultContract.kind, 'documents');
+  assert.equal(pointRead.resultContract.table, 'todos');
+  assert.equal(
+    lowerFamiliarReturns('query', v.array(v.doc('todos'), { maxItems: 1 })).kind,
+    'value',
+    'the bounded spelling must stay a value carrier, not silently become a relational row-set',
   );
 });
 
