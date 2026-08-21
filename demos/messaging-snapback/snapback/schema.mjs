@@ -50,7 +50,14 @@ export const conversationMembers = defineTable({
   role: v.string(),
   joinedAt: v.integer(),
 })
-  .visibility({ kind: 'public-read' })
+  // Product-visible does not mean public. Every ordinary read is scoped by
+  // current admission through the canonical private membership declaration.
+  .visibility({
+    kind: 'membership',
+    declaration: 'conversationMemberships',
+    resourceField: 'conversationId',
+    roles: ['member'],
+  })
   .index('by_conversation', ['conversationId'])
   .index('by_user', ['userHandle'])
   .index('by_conversation_user', ['conversationId', 'userHandle'], { unique: true });
@@ -85,10 +92,10 @@ export const conversationMemberships = defineTable({
       { op: 'remove', by: ['self'], target: 'self', from: ['moderator', 'member'] },
     ],
   })
-  // Today's principal-addressed changeRole/remove commands require a local
-  // authority profile. Its generated writers are not projection-aware, so
-  // application clients must use the synchronized mutations in functions.mjs;
-  // the acceptance drift check makes that interim obligation reviewable.
+  // Today's profile writers are not projection-aware. They remain directly
+  // reachable, so the application boundary is explicitly partial: guarded
+  // consumers refuse on drift and the owner-only reconciliation mutation
+  // repairs interrupted or bypassed writes.
   // @ref LLP 0240#authority-facts-versus-product-facts
   // — option 1 remains the sanctioned interim, not the final generated design.
   .authorityProfile({

@@ -727,7 +727,7 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     `resourceField: \"_id\"`, or rewrites old receipt membership after a leave.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "private membership roster", "product-visible roster projection", "display roster", "send-time recipient set".
-    Required guidance: "today's sanctioned interim pattern", "does not pre-commit".
+    Required guidance: "today's sanctioned interim pattern", "selected platform-generated projection facts".
 
 70. **Provider connection lifecycle:** "My Contract provider creates a
     connection per subscription; N cells imply N transport connections and
@@ -813,7 +813,7 @@ wrong vocabulary from the source diaries and review evidence.
     branches are implicit.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "enumerate members".
-    Required guidance: "The branch contract is explicit", "Keep one governed transition path".
+    Required guidance: "The branch contract is explicit", "Keep one retryable coordinator, but do not call it exclusive".
 
 ## Static routing check
 

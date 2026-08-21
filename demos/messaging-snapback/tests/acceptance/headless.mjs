@@ -34,12 +34,8 @@ cpSync(backendDir, fixtureBackendDir, { recursive: true });
 const fixtureSchemaPath = join(fixtureBackendDir, 'schema.mjs');
 const fixtureSchemaSource = readFileSync(fixtureSchemaPath, 'utf8');
 const sessionsSchemaSource = fixtureSchemaSource
-  // The checked demo is intentionally dev-mode. Its fixture-seat principals
-  // are not catalog identities, so the independent sessions/media acceptance
-  // keeps the pre-profile membership declaration; roster-profile behavior has
-  // its own dev-mode acceptance in roster-projection.mjs.
-  .replace("\n    lastHolder: { protect: 'owner' },", '')
-  .replace(/\n  \/\/ Today's principal-addressed[\s\S]*?\n  \.authorityProfile\(\{[\s\S]*?\n    roster: \{ visible: \['userHandle', 'role'\] \},\n  \}\);/u, ';')
+  // Keep the authority profile intact: the send path now verifies projection
+  // consistency through ctx.authority before it snapshots recipients.
   .replace(
     /\n  \}\),\n\}\);\s*$/u,
     "\n  }),\n  auth: { mode: 'sessions' },\n});\n",
@@ -72,6 +68,14 @@ const operatorServer = await startServer({
   captureImpersonationCapability: true,
 });
 async function seedFixture(server) {
+  const seed = readJson(join(fixtureBackendDir, 'seed.json'));
+  // Reset invalidates Sessions principals, so do not pretend the dev-mode
+  // fixture handles are authority. Retain only the display-user catalog; new
+  // conversations below establish paired authority/projection rows from
+  // freshly minted sessions through the generated membership surface.
+  for (const table of Object.keys(seed.tables)) {
+    if (table !== 'users') seed.tables[table] = [];
+  }
   const response = await fetch(`${server.baseUrl}/_snapback/api/host-ops`, {
     method: 'POST',
     headers: {
@@ -82,7 +86,7 @@ async function seedFixture(server) {
       schemaVersion: 'snapback.v0',
       requestId: 'messaging-sessions-seed-reset',
       operation: 'app.reset',
-      seed: readJson(join(fixtureBackendDir, 'seed.json')),
+      seed,
     }),
   });
   const envelope = await response.json();
@@ -264,6 +268,49 @@ try {
     },
   };
 
+  // Sessions-mode fixture data must be created after reset, because reset
+  // invalidates every prior principal. Build the backlog through the same
+  // paired authority/projection coordinator the application ships.
+  const foundersCreated = await app.clients.owner.mutate(api.createGroup, {
+    args: {
+      title: 'Founders',
+      creatorHandle: 'caller-asserted-owner',
+      creatorName: 'Lin Chen',
+      memberHandles: [
+        app.sessions.recipientA.session.userId,
+        app.sessions.recipientB.session.userId,
+        app.sessions.outsider.session.userId,
+      ],
+    },
+  });
+  const foundersConversationId = foundersCreated.result;
+  const fixtureAuthors = [
+    [app.clients.owner, app.sessions.owner.session.userId, 'Lin Chen'],
+    [app.clients.recipientA, app.sessions.recipientA.session.userId, 'Ada Lovelace'],
+    [app.clients.recipientB, app.sessions.recipientB.session.userId, 'Grace Hopper'],
+    [app.clients.outsider, app.sessions.outsider.session.userId, 'Mo Chen'],
+  ];
+  const foundersMessageIds = [];
+  for (let index = 0; index < 5; index += 1) {
+    const [client, authorHandle, authorName] = fixtureAuthors[index % fixtureAuthors.length];
+    const sent = await client.mutate(api.sendMessage, {
+      args: {
+        conversationId: foundersConversationId,
+        authorHandle,
+        authorName,
+        body: `Founders fixture message ${index + 1}`,
+        ...(index === 3 ? { replyToId: foundersMessageIds[2] } : {}),
+      },
+    });
+    foundersMessageIds.push(sent.result);
+  }
+  await app.clients.owner.mutate(api.toggleReaction, {
+    args: { messageId: foundersMessageIds[2], userHandle: app.sessions.owner.session.userId, emoji: '👍' },
+  });
+  await app.clients.recipientA.mutate(api.toggleReaction, {
+    args: { messageId: foundersMessageIds[2], userHandle: app.sessions.recipientA.session.userId, emoji: '👍' },
+  });
+
   const viewOnceAssets = createAssetClient(app.clients.owner);
   let viewOnceUploadSequence = 0;
   async function sendFreshViewOnce(recipients, caption) {
@@ -283,7 +330,7 @@ try {
     assertEqual(finished.status, 'ready', JSON.stringify(finished.diagnostic));
     const sent = await app.clients.owner.mutate(api.sendViewOnce, {
       args: {
-        conversationId: 'conv_group_founders',
+        conversationId: foundersConversationId,
         assetId: finished.assetId,
         recipients,
         caption,
@@ -315,23 +362,26 @@ try {
   }
 
   await runAcceptance(suite, async () => {
-  await suite.check('seed provisions users, conversations, and a message backlog', async () => {
+  await suite.check('seed provisions users and post-reset sessions build a message backlog', async () => {
     assertEqual(app.provisioned.seed, 'seeded', 'seed provisioned');
-    const conversations = await app.client.query(api.myConversations, { args: { viewerHandle: 'lin' } });
-    assertEqual(conversations.rows.length, 4, 'lin belongs to 4 seed conversations');
-    const founders = conversations.rows.find((c) => c._id === 'conv_group_founders');
-    assert(founders, 'founders group present');
+    const users = await app.client.query(api.listUsers, { args: {} });
+    assertEqual(users.rows.length, 5, 'seed users are present');
+    const foundersQuery = await app.client.query(api.conversationById, {
+      args: { conversationId: foundersConversationId },
+    });
+    const founders = foundersQuery.rows[0];
+    assert(founders, 'founders seed group present');
     assertEqual(founders.kind, 'group', 'founders is a group');
     assertEqual(founders.memberHandles.length, 4, 'founders has 4 members');
   });
 
   await suite.check('conversation feed carries replies and aggregated reactions', async () => {
-    const feed = await app.client.query(api.conversationMessages, { args: { conversationId: 'conv_group_founders' } });
-    assertEqual(feed.rows.length, 5, 'seed founders message count');
-    const withReply = feed.rows.find((m) => m._id === 'msg_gf_4');
+    const feed = await app.client.query(api.conversationMessages, { args: { conversationId: foundersConversationId } });
+    assertEqual(feed.rows.length, 5, 'founders message count');
+    const withReply = feed.rows.find((m) => m._id === foundersMessageIds[3]);
     assert(withReply?.replyPreview, 'reply preview attached');
-    assertEqual(withReply.replyPreview.messageId, 'msg_gf_3', 'reply points at the right message');
-    const withReactions = feed.rows.find((m) => m._id === 'msg_gf_3');
+    assertEqual(withReply.replyPreview.messageId, foundersMessageIds[2], 'reply points at the right message');
+    const withReactions = feed.rows.find((m) => m._id === foundersMessageIds[2]);
     assertEqual(withReactions.reactions.find((r) => r.emoji === '👍')?.count, 2, 'thumbs-up aggregated across 2 users');
   });
 
@@ -378,12 +428,12 @@ try {
   });
 
   await suite.check('toggleReaction is idempotent per (message, user, emoji)', async () => {
-    const first = await app.client.mutate(api.toggleReaction, { args: { messageId: 'msg_dm2_1', userHandle: 'mo', emoji: '👏' } });
+    const first = await app.client.mutate(api.toggleReaction, { args: { messageId: foundersMessageIds[0], userHandle: 'mo', emoji: '👏' } });
     assertEqual(first.result.reacted, true, 'first toggle reacts');
-    const feedAfterFirst = await app.client.query(api.conversationMessages, { args: { conversationId: 'conv_dm_lin_grace' } });
-    const reactedRow = feedAfterFirst.rows.find((m) => m._id === 'msg_dm2_1');
+    const feedAfterFirst = await app.client.query(api.conversationMessages, { args: { conversationId: foundersConversationId } });
+    const reactedRow = feedAfterFirst.rows.find((m) => m._id === foundersMessageIds[0]);
     assert(reactedRow.reactions.some((r) => r.emoji === '👏' && r.userHandles.includes('mo')), 'reaction visible in feed');
-    const second = await app.client.mutate(api.toggleReaction, { args: { messageId: 'msg_dm2_1', userHandle: 'mo', emoji: '👏' } });
+    const second = await app.client.mutate(api.toggleReaction, { args: { messageId: foundersMessageIds[0], userHandle: 'mo', emoji: '👏' } });
     assertEqual(second.result.reacted, false, 'second toggle un-reacts');
   });
 
@@ -414,14 +464,17 @@ try {
         title: 'Acceptance Squad',
         creatorHandle: 'lin',
         creatorName: 'Lin Chen',
-        memberHandles: ['grace', 'mo'],
+        memberHandles: [
+          app.sessions.recipientA.session.userId,
+          app.sessions.recipientB.session.userId,
+        ],
       },
     });
     groupId = created.result;
     const conversation = await app.client.query(api.conversationById, { args: { conversationId: groupId } });
     assertEqual(conversation.rows[0].memberHandles.length, 3, 'creator plus 2 named members');
-    const graceInbox = await app.client.query(api.myConversations, { args: { viewerHandle: 'grace' } });
-    assert(graceInbox.rows.some((c) => c._id === groupId), 'named member sees the new group in her inbox');
+    const memberInbox = await app.clients.recipientB.query(api.myConversations, { args: {} });
+    assert(memberInbox.rows.some((c) => c._id === groupId), 'named member sees the new group in their inbox');
   });
 
   await suite.check('ordinary-session lane: minted bearer uploads, attaches, and publicly delivers a real image', async () => {
@@ -469,7 +522,7 @@ try {
   await suite.check('view-once send refuses empty and duplicate recipient sets', async () => {
     const empty = await captureRejection(app.clients.owner.mutate(api.sendViewOnce, {
       args: {
-        conversationId: 'conv_group_founders',
+        conversationId: foundersConversationId,
         assetId: 'unused-empty-recipient-asset',
         recipients: [],
       },
@@ -478,7 +531,7 @@ try {
 
     const duplicate = await captureRejection(app.clients.owner.mutate(api.sendViewOnce, {
       args: {
-        conversationId: 'conv_group_founders',
+        conversationId: foundersConversationId,
         assetId: 'unused-duplicate-recipient-asset',
         recipients: [recipientAPrincipal, recipientAPrincipal],
       },
@@ -818,14 +871,21 @@ try {
       'caller-asserted creator handle is not stored',
     );
     const ownerInbox = await app.clients.owner.query(api.myConversations, {
-      args: { viewerHandle: ownerPrincipal },
+      args: {},
     });
-    const forgedInbox = await app.clients.owner.query(api.myConversations, {
-      args: { viewerHandle: forgedCreatorHandle },
-    });
+    const forgedInboxError = await captureRejection(
+      Promise.resolve().then(() => app.clients.owner.query(api.myConversations, {
+        args: { viewerHandle: forgedCreatorHandle },
+      })),
+      'caller-supplied inbox viewer',
+    );
     assert(ownerInbox.rows.some((row) => row._id === typingConversationId), 'creator principal owns the inbox edge');
-    assert(!forgedInbox.rows.some((row) => row._id === typingConversationId), 'forged creator has no inbox edge');
-    return { creatorHandle: conversation.rows[0].memberHandles[0], forgedCreatorStored: false };
+    assert(forgedInboxError.diagnostic, 'caller-supplied inbox viewer is rejected by the closed args contract');
+    return {
+      creatorHandle: conversation.rows[0].memberHandles[0],
+      forgedCreatorStored: false,
+      callerSuppliedInboxViewerRejected: true,
+    };
   });
 
   await suite.check('typing membership (d): member A sees member B typing', async () => {
@@ -951,7 +1011,7 @@ try {
 
   await suite.check('typing membership (f): leave removes B from inbox and member-count projections', async () => {
     const departedInbox = await app.clients.recipientA.query(api.myConversations, {
-      args: { viewerHandle: recipientAPrincipal },
+      args: {},
     });
     const conversation = await app.clients.owner.query(api.conversationById, {
       args: { conversationId: typingConversationId },
@@ -975,7 +1035,7 @@ try {
       },
     });
     const restoredInbox = await app.clients.recipientA.query(api.myConversations, {
-      args: { viewerHandle: recipientAPrincipal },
+      args: {},
     });
     const conversation = await app.clients.owner.query(api.conversationById, {
       args: { conversationId: typingConversationId },

@@ -1,8 +1,8 @@
 // Messaging roster-projection acceptance.
 //
 // @ref LLP 0240#authority-facts-versus-product-facts
-// — this proves today's sanctioned app-maintained projection discipline; it
-// does not pre-commit to the generated D0.4 projection design.
+// — this proves today's partial app-maintained projection boundary. D0.4 has
+// selected platform-generated facts, but that design has not shipped.
 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -17,12 +17,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
 const backendDir = join(here, '..', '..', 'snapback');
 const generated = (name) => JSON.parse(readFileSync(join(backendDir, 'generated', name), 'utf8'));
-const suite = createSuite('messaging-snapback / roster projection', { expectedChecks: 2 });
+const suite = createSuite('messaging-snapback / roster projection', { expectedChecks: 4 });
 
 const OWNER = 'roster_owner';
 const MEMBER_A = 'roster_member_a';
 const MEMBER_B = 'roster_member_b';
 const LATER_MEMBER = 'roster_later_member';
+const OUTSIDER = 'roster_outsider';
+const OUTSIDER_MEMBER = 'roster_outsider_member';
 
 let server;
 let client;
@@ -39,13 +41,13 @@ async function captureRejection(promise, label) {
   throw new Error(`${label} unexpectedly fulfilled`);
 }
 
-async function assertRosterSynchronized(conversationId, label) {
+async function assertRosterSynchronized(conversationId, label, viewer = OWNER) {
   // The profile's bounded list is the admitted authority view: it exposes no
   // private row id. Compare it with the ordinary product query after every
   // app-owned transition so a missed companion write fails this acceptance.
   const [authority, projection] = await Promise.all([
-    query(api.conversationMemberships.list, { scopeId: conversationId }, OWNER),
-    query(api.conversationRoster, { conversationId }, OWNER),
+    query(api.conversationMemberships.list, { scopeId: conversationId }, viewer),
+    query(api.conversationRoster, { conversationId }, viewer),
   ]);
   const normalize = (rows) => rows
     .map((row) => `${row.userHandle}:${row.role}`)
@@ -58,35 +60,21 @@ async function assertRosterSynchronized(conversationId, label) {
   return normalize(authority.rows);
 }
 
-async function promoteMember(conversationId, userHandle) {
-  const roster = await query(api.conversationRoster, { conversationId }, OWNER);
-  const current = roster.rows.find((member) => member.userHandle === userHandle);
-  if (!current) return { outcome: 'absent' };
-  if (current.role === 'moderator') return { outcome: 'unchanged' };
-  await mutate(api.conversationMemberships.changeRole, {
-    scopeId: conversationId,
-    principal: userHandle,
-    role: 'moderator',
-  }, OWNER);
-  return (await mutate(api.promoteConversationMember, {
-    conversationId,
-    userHandle,
-  }, OWNER)).result;
+async function reconcileRoster(conversationId, userId = OWNER) {
+  return (await mutate(api.reconcileConversationRoster, { conversationId }, userId)).result;
 }
 
-async function removeMember(conversationId, userHandle) {
-  const roster = await query(api.conversationRoster, { conversationId }, OWNER);
-  if (!roster.rows.some((member) => member.userHandle === userHandle)) {
-    return { outcome: 'unchanged' };
-  }
-  await mutate(api.conversationMemberships.remove, {
-    scopeId: conversationId,
-    principal: userHandle,
-  }, OWNER);
-  return (await mutate(api.removeConversationMember, {
-    conversationId,
-    userHandle,
-  }, OWNER)).result;
+function assertPermissionDenied(error, label) {
+  assertEqual(
+    error.diagnostic?.code,
+    'SNAPBACK_AUTH_PERMISSION_DENIED',
+    `${label}: permission denial`,
+  );
+}
+
+function assertAppRefusal(error, appCode, label) {
+  assertEqual(error.diagnostic?.code, 'SNAPBACK_APP_REFUSAL', `${label}: app refusal`);
+  assertEqual(error.diagnostic?.details?.appCode, appCode, `${label}: app code`);
 }
 
 await runAcceptance(suite, async () => {
@@ -119,14 +107,35 @@ await runAcceptance(suite, async () => {
       assert((await client.health()).ok, 'server health is not ok');
     });
 
-    await suite.check('bootstrap/add/promote/remove/leave stay synchronized and receipts stay frozen', async () => {
+    let conversationId;
+    let sentMessageId;
+
+    await suite.check('atomic paths and explicit reconciliation keep current and historical facts distinct', async () => {
+      const inboxBeforeFailedBootstrap = await query(api.myConversations, {}, OWNER);
+      const failedBootstrap = await captureRejection(mutate(api.createGroup, {
+        title: 'Must roll back',
+        creatorHandle: 'caller-asserted-owner',
+        creatorName: 'Owner',
+        memberHandles: [''],
+      }, OWNER), 'bootstrap with an invalid initial principal');
+      assertEqual(
+        failedBootstrap.diagnostic?.code,
+        'SNAPBACK_MEMBERSHIP_NULL_AXIS',
+        'invalid initial seat refuses the bootstrap transaction',
+      );
+      assertEqual(
+        (await query(api.myConversations, {}, OWNER)).rows.length,
+        inboxBeforeFailedBootstrap.rows.length,
+        'failed bootstrap leaves no partial owner inbox edge',
+      );
+
       const created = await mutate(api.createGroup, {
         title: 'Roster invariant room',
         creatorHandle: 'caller-asserted-owner',
         creatorName: 'Owner',
         memberHandles: [MEMBER_A],
       }, OWNER);
-      const conversationId = created.result;
+      conversationId = created.result;
       assertEqual(
         await assertRosterSynchronized(conversationId, 'bootstrap'),
         [`${MEMBER_A}:member`, `${OWNER}:owner`].sort(),
@@ -141,13 +150,16 @@ await runAcceptance(suite, async () => {
       }, OWNER)).result.outcome, 'unchanged', 'repeated add is idempotent');
       await assertRosterSynchronized(conversationId, 'add and retry');
 
-      assertEqual((await promoteMember(conversationId, MEMBER_B)).outcome,
-        'changed', 'promotion changes authority and display role');
-      assertEqual((await promoteMember(conversationId, MEMBER_B)).outcome,
-        'unchanged', 'repeated promotion is idempotent');
-      assertEqual((await promoteMember(conversationId, LATER_MEMBER)).outcome,
-        'absent', 'promotion has an explicit absent branch');
-      await assertRosterSynchronized(conversationId, 'promotion branches');
+      await mutate(api.conversationMemberships.changeRole, {
+        scopeId: conversationId,
+        principal: MEMBER_B,
+        role: 'moderator',
+      }, OWNER);
+      assertEqual((await reconcileRoster(conversationId)).outcome,
+        'changed', 'promotion reconciliation updates the display role');
+      assertEqual((await reconcileRoster(conversationId)).outcome,
+        'unchanged', 'reconciliation retry is idempotent');
+      await assertRosterSynchronized(conversationId, 'promotion reconciliation');
 
       const sent = await mutate(api.sendMessage, {
         conversationId,
@@ -155,6 +167,7 @@ await runAcceptance(suite, async () => {
         authorName: 'Owner',
         body: 'Frozen recipient check',
       }, OWNER);
+      sentMessageId = sent.result;
       assertEqual((await mutate(api.acknowledgeMessage, {
         messageId: sent.result, kind: 'read',
       }, MEMBER_B)).result.outcome, 'changed', 'first receipt acknowledgement changes state');
@@ -179,24 +192,6 @@ await runAcceptance(suite, async () => {
       }, LATER_MEMBER)).result.outcome, 'changed', 'later member leaves current roster');
       await assertRosterSynchronized(conversationId, 'later join then leave');
 
-      assertEqual((await removeMember(conversationId, MEMBER_B)).outcome,
-        'changed', 'first remove changes both rosters');
-      assertEqual((await removeMember(conversationId, MEMBER_B)).outcome,
-        'unchanged', 'absent remove is idempotent');
-      await assertRosterSynchronized(conversationId, 'remove and absent retry');
-
-      assertEqual((await mutate(api.leaveConversation, {
-        conversationId,
-      }, MEMBER_A)).result.outcome, 'changed', 'first self-leave changes both rosters');
-      assertEqual((await mutate(api.leaveConversation, {
-        conversationId,
-      }, MEMBER_A)).result.outcome, 'unchanged', 'absent self-leave is idempotent');
-      assertEqual(
-        await assertRosterSynchronized(conversationId, 'leave and absent retry'),
-        [`${OWNER}:owner`],
-        'only the protected owner remains current',
-      );
-
       const frozen = await query(api.messageRecipientSnapshot, { messageId: sent.result }, OWNER);
       assertEqual(
         [...frozen.rows[0].recipients].sort((a, b) => a.userHandle.localeCompare(b.userHandle)),
@@ -204,12 +199,170 @@ await runAcceptance(suite, async () => {
           { userHandle: MEMBER_A, roleAtSend: 'member' },
           { userHandle: MEMBER_B, roleAtSend: 'moderator' },
         ].sort((a, b) => a.userHandle.localeCompare(b.userHandle)),
-        'later join, leave, and remove do not rewrite send-time recipients',
+        'later join and leave do not rewrite send-time recipients',
       );
       assertEqual(
         frozen.rows[0].readBy,
         [MEMBER_B],
         'departed recipient remains in historical read receipts',
+      );
+    });
+
+    await suite.check('authenticated identity and current room admission fence every roster and receipt read', async () => {
+      const anonymousInbox = await captureRejection(
+        query(api.myConversations, {}, undefined),
+        'anonymous inbox',
+      );
+      assertEqual(anonymousInbox.diagnostic?.code, 'SNAPBACK_AUTH_REQUIRED', 'inbox requires auth');
+
+      const ownerInbox = await query(api.myConversations, {}, OWNER);
+      assert(ownerInbox.rows.some((row) => row._id === conversationId), 'auth-derived owner inbox');
+      const forgedViewer = await captureRejection(
+        Promise.resolve().then(() => query(
+          api.myConversations,
+          { viewerHandle: MEMBER_A },
+          OWNER,
+        )),
+        'caller-supplied viewer handle',
+      );
+      assertEqual(
+        forgedViewer.diagnostic?.code,
+        'SNAPBACK_ARGUMENT_NORMALIZATION_FAILED',
+        'caller-supplied viewer handle is not accepted by the generated contract',
+      );
+
+      const outsiderRoster = await captureRejection(
+        query(api.conversationRoster, { conversationId }, OUTSIDER),
+        'outsider roster read',
+      );
+      assertPermissionDenied(outsiderRoster, 'outsider roster read');
+      const outsiderSnapshot = await captureRejection(
+        query(api.messageRecipientSnapshot, { messageId: sentMessageId }, OUTSIDER),
+        'outsider snapshot read',
+      );
+      assertPermissionDenied(outsiderSnapshot, 'outsider snapshot read');
+
+      const otherRoom = await mutate(api.createGroup, {
+        title: 'Other private room',
+        creatorHandle: 'caller-asserted-outsider',
+        creatorName: 'Outsider',
+        memberHandles: [OUTSIDER_MEMBER],
+      }, OUTSIDER);
+      const otherSent = await mutate(api.sendMessage, {
+        conversationId: otherRoom.result,
+        authorHandle: OUTSIDER,
+        authorName: 'Outsider',
+        body: 'Other room secret',
+      }, OUTSIDER);
+      const otherRoomRoster = await captureRejection(
+        query(api.conversationRoster, { conversationId: otherRoom.result }, OWNER),
+        'other-room roster read',
+      );
+      assertPermissionDenied(otherRoomRoster, 'other-room roster read');
+      const otherRoomSnapshot = await captureRejection(
+        query(api.messageRecipientSnapshot, { messageId: otherSent.result }, OWNER),
+        'other-room snapshot read',
+      );
+      assertPermissionDenied(otherRoomSnapshot, 'other-room snapshot read');
+
+      assertEqual(
+        (await query(api.conversationRoster, { conversationId }, MEMBER_A)).rows.length,
+        3,
+        'current member reads the admitted roster',
+      );
+      assertEqual(
+        (await query(api.messageRecipientSnapshot, { messageId: sentMessageId }, MEMBER_A)).rows.length,
+        1,
+        'current member reads admitted historical receipts',
+      );
+    });
+
+    await suite.check('bypass/interruption drift fails sends closed and idempotent repair covers every generated writer', async () => {
+      const unauthorized = await captureRejection(mutate(
+        api.conversationMemberships.remove,
+        { scopeId: conversationId, principal: MEMBER_B },
+        MEMBER_A,
+      ), 'unauthorized generated remove');
+      assertEqual(
+        unauthorized.diagnostic?.code,
+        'SNAPBACK_MEMBERSHIP_TRANSITION_DENIED',
+        'unauthorized generated remove is denied by the membership transition policy',
+      );
+
+      // Failpoint: the authoritative removal commits, then the process loses
+      // the projection call. The stale row must never feed a new snapshot.
+      await mutate(api.conversationMemberships.remove, {
+        scopeId: conversationId,
+        principal: MEMBER_B,
+      }, OWNER);
+      const interruptedSend = await captureRejection(mutate(api.sendMessage, {
+        conversationId,
+        authorHandle: OWNER,
+        authorName: 'Owner',
+        body: 'Must not include a removed recipient',
+      }, OWNER), 'send after interrupted removal');
+      assertAppRefusal(interruptedSend, 'CONVERSATION_ROSTER_DRIFT', 'interrupted removal');
+      const removalRepair = await reconcileRoster(conversationId);
+      assertEqual(removalRepair.removed, 1, 'retry removes the stale product member');
+      assertEqual((await reconcileRoster(conversationId)).outcome,
+        'unchanged', 'repeated removal repair is idempotent');
+      const repairedSend = await mutate(api.sendMessage, {
+        conversationId,
+        authorHandle: OWNER,
+        authorName: 'Owner',
+        body: 'Recipient set after repair',
+      }, OWNER);
+      const repairedSnapshot = await query(
+        api.messageRecipientSnapshot,
+        { messageId: repairedSend.result },
+        OWNER,
+      );
+      assert(
+        !repairedSnapshot.rows[0].recipients.some((row) => row.userHandle === MEMBER_B),
+        'removed member never enters the post-repair snapshot',
+      );
+
+      await mutate(api.conversationMemberships.invite, {
+        scopeId: conversationId,
+        principal: LATER_MEMBER,
+        role: 'member',
+        joinedAt: 1,
+      }, OWNER);
+      const inviteDrift = await captureRejection(mutate(api.sendMessage, {
+        conversationId,
+        authorHandle: OWNER,
+        authorName: 'Owner',
+        body: 'Invite bypass drift',
+      }, OWNER), 'send after direct invite');
+      assertAppRefusal(inviteDrift, 'CONVERSATION_ROSTER_DRIFT', 'direct invite');
+      assertEqual((await reconcileRoster(conversationId)).inserted, 1, 'invite repair inserts projection');
+
+      await mutate(api.conversationMemberships.transferOwner, {
+        scopeId: conversationId,
+        principal: LATER_MEMBER,
+      }, OWNER);
+      const formerOwnerRepair = await captureRejection(
+        reconcileRoster(conversationId, OWNER),
+        'former owner reconciliation after transfer',
+      );
+      assertPermissionDenied(formerOwnerRepair, 'former owner reconciliation after transfer');
+      assertEqual((await reconcileRoster(conversationId, LATER_MEMBER)).updated,
+        2, 'new owner repairs both transfer role changes');
+
+      await mutate(api.conversationMemberships.leave, { scopeId: conversationId }, OWNER);
+      const leaveDrift = await captureRejection(mutate(api.sendMessage, {
+        conversationId,
+        authorHandle: LATER_MEMBER,
+        authorName: 'New owner',
+        body: 'Leave bypass drift',
+      }, LATER_MEMBER), 'send after direct leave');
+      assertAppRefusal(leaveDrift, 'CONVERSATION_ROSTER_DRIFT', 'direct leave');
+      assertEqual((await reconcileRoster(conversationId, LATER_MEMBER)).removed,
+        1, 'leave repair removes the stale projection');
+      assertEqual(
+        await assertRosterSynchronized(conversationId, 'all generated writer repairs', LATER_MEMBER),
+        [`${LATER_MEMBER}:owner`, `${MEMBER_A}:member`].sort(),
+        'authority and projection converge after transfer and leave',
       );
     });
   } finally {

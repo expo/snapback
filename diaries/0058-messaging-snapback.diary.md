@@ -401,7 +401,7 @@ the Guide needs to teach today. `conversationMemberships` remains the private,
 non-enumerable source of current authorization, while `conversationMembers`
 now projects the display role and current join time. Bootstrap, owner add,
 owner promotion, owner removal, and member/moderator self-leave update those
-stores through one governed application path. Bootstrap, add, and self-leave
+stores through an application coordinator. Bootstrap, add, and self-leave
 are atomic mutation-plus-projection writes; promotion and other-member removal
 use the profile's generated principal-addressed operation followed by a
 reconciliation mutation that verifies the new authority roster before writing
@@ -444,8 +444,37 @@ ordinary projection owns the required current-incarnation timestamp.
 Compared with querying a join table in Convex or a Supabase policy-backed SQL
 view, Snapback's non-enumerable authority gives a stronger boundary and
 generated transition enforcement, but today's application must pay for the
-visible projection and its drift witness. LLP 0295 D0.4 expressly permits
-teaching this sanctioned composition now; the recipe labels it interim and
-does not claim a future generated projection API or commit to an implementation
-option ahead of that surface landing. This entry closes the recorded Guide gap,
-so it does not open another guide-gap ticket.
+visible projection and its drift witness. LLP 0295 D0.4 selects
+platform-generated projection facts as the prototype direction; the recipe
+labels today's composition interim and does not invent the selected design's
+unshipped public API. This entry closes the recorded Guide gap, so it does not
+open another guide-gap ticket.
+
+## 2026-08-21 — Security review: admission fences and an honest repair boundary
+
+The security review exposed two mistakes that the happy-path acceptance had
+hidden. First, an authenticated handler is not an admitted room handler:
+`myConversations` accepted a caller-selected handle, while roster and recipient
+snapshot reads accepted arbitrary room/message ids. The repair derives the
+inbox principal from `ctx.auth`, narrows `conversationMembers` to membership
+visibility, and still performs explicit current-room checks before roster or
+historical-recipient egress. Outsider and authenticated-other-room denials now
+run in the demo acceptance.
+
+Second, the earlier diary called the application coordinator governed even
+though the authority profile also generates directly callable `invite`,
+`leave`, `changeRole`, `transferOwner`, and `remove` operations. Snapback made
+the bypass visible in `artifacts.json`; the mistake was the recipe's claim, not
+the generator. The interim boundary is now honest and executable: send compares
+the admitted authority roster with the product projection and refuses on drift;
+an owner-only idempotent reconciliation mutation repairs every generated-writer
+shape. The acceptance deliberately stops after an authority removal, proves the
+stale principal cannot enter a new recipient snapshot, retries repair, and then
+exercises direct invite, owner transfer, and leave.
+
+Compared with a SQL transaction or a Convex mutation that owns both rows, this
+interim remains more ceremony and is not synchronization-safe by construction.
+LLP 0240 has selected platform-generated projection facts as the prototype
+direction; only its public spelling remains unshipped. The fail-closed drift
+check is a useful safety net today, not a substitute for that atomic platform
+design.

@@ -11,7 +11,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.24
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:bccb8b492efb984a1a392eb58342737f20866d3f709e0edfe2559a82250d6ec5
+reviewed-authorities-digest: sha256:e6a5772fa7bb8b9f6cf9fa79123af2be4052cb0421e9436f2780aaf463303c25
 ---
 
 # Recipe: membership-scoped typing indicators
@@ -30,9 +30,10 @@ collection and recovery option.
 
 ## 1. Declare membership and the typing room together
 
-The messaging demo keeps its public conversation projection separate from this
-restricted canonical authority table. One row means current membership; removal
-deletes the row rather than preserving a historical incarnation:
+The messaging demo keeps its membership-scoped product projection separate
+from this restricted canonical authority table. One row means current
+membership; removal deletes the row rather than preserving a historical
+incarnation:
 
 ```js source=demos/messaging-snapback/snapback/schema.mjs
 export const conversationMemberships = defineTable({
@@ -65,10 +66,10 @@ export const conversationMemberships = defineTable({
       { op: 'remove', by: ['self'], target: 'self', from: ['moderator', 'member'] },
     ],
   })
-  // Today's principal-addressed changeRole/remove commands require a local
-  // authority profile. Its generated writers are not projection-aware, so
-  // application clients must use the synchronized mutations in functions.mjs;
-  // the acceptance drift check makes that interim obligation reviewable.
+  // Today's profile writers are not projection-aware. They remain directly
+  // reachable, so the application boundary is explicitly partial: guarded
+  // consumers refuse on drift and the owner-only reconciliation mutation
+  // repairs interrupted or bypassed writes.
   // @ref LLP 0240#authority-facts-versus-product-facts
   // — option 1 remains the sanctioned interim, not the final generated design.
   .authorityProfile({

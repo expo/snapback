@@ -2,10 +2,32 @@
   "entries": [
     {
       "normalizedPolicyBody": {
-        "audienceDeclarationClosure": [],
-        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "audienceDeclarationClosure": [
+          {
+            "id": "conversationMemberships",
+            "membershipTable": "conversationMemberships",
+            "policyResourceField": "conversationId",
+            "principalField": "userHandle",
+            "resourceField": "conversationId",
+            "resourceTable": "conversations",
+            "roleField": "role",
+            "roles": [
+              "member",
+              "moderator",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:5e4c158ccf1620959f54684702aaec3b9b94f575d03580c391ca630fd5aae70f",
         "policy": {
-          "kind": "public-read"
+          "declaration": "conversationMemberships",
+          "kind": "membership",
+          "resourceField": "conversationId",
+          "roles": [
+            "member",
+            "moderator",
+            "owner"
+          ]
         },
         "writePosture": {
           "authorityTableClass": "ordinary",
@@ -21,8 +43,8 @@
           "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:cc9fe68171764a808cd97f07bb8a192d266e993c26382a258b92ba3fe32f4489",
-      "provenanceHeadId": "conversationMembers-g1-20260816-v1",
+      "policyDigest": "sha256:c381a16a6a96fa069a20c5c4a23e4b61b76cc37e57a2ace7702f2865495965a8",
+      "provenanceHeadId": "conversationMembers-membership-20260821-v1",
       "tableId": "conversationMembers"
     },
     {
@@ -202,6 +224,6 @@
       "tableId": "viewOnceMessages"
     }
   ],
-  "exactSetDigest": "sha256:1192fb50a74b7a3ce0a955c5eb10768a91858b1f3c59c6f9a95502025e18c5c3",
+  "exactSetDigest": "sha256:f9b4473c9448d59f961df821310cb785fec151d7c8e18e9824de7aaf2f9af14e",
   "schemaVersion": "snapback.table-visibility-policy-baseline.v2"
 }

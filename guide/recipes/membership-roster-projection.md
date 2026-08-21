@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:575790352f75236bb3a66c825aaadac606058b63371e4e785d2870e0db94647d
+reviewed-authorities-digest: sha256:f4df293277f38a993f3e531e82cf4d7f0e83ced0d2148d0eda485b24646f5f00
 ---
 
 # Recipe: list chat members without exposing authority
@@ -26,13 +26,25 @@ it by making the membership table public. Declare two different stores:
 Search phrases: list chat members; show roster; who is in the room; membership
 table public; enumerate members.
 
+Packaged full-prompt probes (kept on literal lines because `snapback guide`
+performs substring search):
+
+- Render a chat display roster with join dates and keep send-time recipients, but the membership roster is private.
+- list chat members without exposing the private authority rows.
+- show roster with roles and join dates for a chat room.
+- who is in the room now, and who received a message before someone left?
+- Should I make the membership table public so the client can render members?
+- enumerate members for a room settings screen and support add, promote, remove, and leave retries.
+
 - a private membership declaration for current authorization; and
 - an ordinary app-visible projection table for the display roster.
 
-This is today's sanctioned interim pattern. It does not pre-commit this recipe
-to a future LLP 0295 D0.4 option, public spelling, flag, or API. The application
-owns the duplicate writes and drift check until a generated design actually
-lands; do not describe this as Snapback's final mirror protocol.
+This is today's sanctioned interim pattern. LLP 0240's D0.4 amendment has
+selected platform-generated projection facts as the prototype direction, but
+that design and its public spelling, flag, and API have not shipped. The
+application owns duplicate writes, fail-closed drift checks, and repair until
+the selected generated design lands; do not describe this interim as
+Snapback's final mirror protocol.
 
 ## Put each fact in one authoritative home
 
@@ -51,22 +63,22 @@ row with a new join time. If the product needs every past incarnation, append
 a separate history row rather than preserving departed principals in the
 current roster.
 
-The app-visible projection can itself use any ordinary visibility policy the
-product requires. This demo keeps its pre-existing `public-read` product
-posture; that does not make the owner-visible membership backing public. For a
-private chat product, narrow the projection with an admitted table visibility
-policy—the authority declaration still remains the only authorization source.
+Product-visible does not mean public. For a private room, the projection must
+use an admitted membership-scoped table visibility policy and every roster or
+historical-recipient handler must require current room admission before it
+returns facts. Authentication alone is not room admission. The private
+authority declaration remains the only authorization source.
 
 ## Declare the private authority and visible projection separately
 
-The transition matrix admits exactly owner add, owner promotion, owner remove,
-and member/moderator self-leave. Today's principal-addressed promotion and
-removal require a local `authorityProfile`; its bounded `list` reveals only
-the declared visible principal/role fields, never a private membership-row id.
-The profile also generates direct `changeRole` and `remove` writers. Those
-writers do **not** maintain the ordinary projection, so make one application
-coordinator the only client call site for the generated operation plus the
-checked reconciliation described below. The drift acceptance is mandatory.
+The transition matrix admits owner add, owner promotion, owner remove, and
+member/moderator self-leave. The local `authorityProfile` exposes a bounded
+`list` with only declared principal/role fields, never a private membership-row
+id. It also publicly generates `invite`, `leave`, `changeRole`, `transferOwner`,
+and `remove`. None maintains the ordinary projection. Those writers cannot be
+made exclusive by application convention, so this composition is partial:
+guarded consumers must detect drift and fail closed, an owner-only repair must
+be retryable, and acceptance must exercise direct/bypass writers.
 
 ```js source=demos/messaging-snapback/snapback/schema.mjs
 export const conversationMembers = defineTable({
@@ -77,7 +89,14 @@ export const conversationMembers = defineTable({
   role: v.string(),
   joinedAt: v.integer(),
 })
-  .visibility({ kind: 'public-read' })
+  // Product-visible does not mean public. Every ordinary read is scoped by
+  // current admission through the canonical private membership declaration.
+  .visibility({
+    kind: 'membership',
+    declaration: 'conversationMemberships',
+    resourceField: 'conversationId',
+    roles: ['member'],
+  })
   .index('by_conversation', ['conversationId'])
   .index('by_user', ['userHandle'])
   .index('by_conversation_user', ['conversationId', 'userHandle'], { unique: true });
@@ -112,10 +131,10 @@ export const conversationMemberships = defineTable({
       { op: 'remove', by: ['self'], target: 'self', from: ['moderator', 'member'] },
     ],
   })
-  // Today's principal-addressed changeRole/remove commands require a local
-  // authority profile. Its generated writers are not projection-aware, so
-  // application clients must use the synchronized mutations in functions.mjs;
-  // the acceptance drift check makes that interim obligation reviewable.
+  // Today's profile writers are not projection-aware. They remain directly
+  // reachable, so the application boundary is explicitly partial: guarded
+  // consumers refuse on drift and the owner-only reconciliation mutation
+  // repairs interrupted or bypassed writes.
   // @ref LLP 0240#authority-facts-versus-product-facts
   // — option 1 remains the sanctioned interim, not the final generated design.
   .authorityProfile({
@@ -133,8 +152,11 @@ Child product tables use an authored `conversationId` resource key. Do not use
 Familiar `resourceField: "_id"` when `_id` is outside the authored field union,
 and never copy a private membership-row id into the projection.
 
-Render the settings roster from the ordinary projection only. This query does
-not read the private declaration and returns no authority-row identity:
+Render the settings roster from the ordinary projection only, but require
+current membership before reading it. The table policy is a second fail-closed
+fence; the explicit handler check prevents an authenticated caller from using
+arbitrary room ids as a roster oracle. The result returns no authority-row
+identity:
 
 ```js source=demos/messaging-snapback/snapback/functions.mjs
 const rosterRow = v.object({
@@ -143,15 +165,21 @@ const rosterRow = v.object({
   joinedAt: v.integer(),
 });
 
-// Product-visible current roster. This demo retains its public product-read
-// posture; private products should narrow this projection's ordinary table
-// visibility without making the authority rows enumerable.
+// Product-visible current roster. Membership-scoped table visibility and the
+// explicit admission check below are both mandatory; authentication alone is
+// not permission to enumerate an arbitrary room.
 export const conversationRoster = defineJsLiveQuery({
   args: { conversationId: v.id('conversations') },
   auth: 'authenticated',
   result: results.records(rosterRow),
-  reads: ['conversationMembers'],
+  reads: ['conversationMemberships', 'conversationMembers'],
   handler: async (ctx, args) => {
+    await ctx.permissions.conversationMemberships.requireRole(
+      args.conversationId,
+      'owner',
+      'moderator',
+      'member',
+    );
     const rows = await ctx.db
       .query('conversationMembers')
       .withIndex('by_conversation')
@@ -167,59 +195,78 @@ export const conversationRoster = defineJsLiveQuery({
 });
 ```
 
-## Keep one governed transition path
+The inbox viewer is never an argument. Derive it from `ctx.auth`, and make the
+closed `{}` argument contract reject attempts to query another principal's
+rooms:
 
-Bootstrap, add, and self-leave issue one membership command plus their ordinary
-projection writes in one mutation. Promotion and other-member removal have a
-shipped limitation: the principal-addressed authority command is callable only
-through its codegen-synthesized profile operation. For those two operations,
-one application coordinator must:
+```js source=demos/messaging-snapback/snapback/functions.mjs
+export const myConversations = defineJsLiveQuery({
+  args: {},
+  auth: 'authenticated',
+  result: results.records(conversationSummary),
+  reads: ['conversationMembers', 'conversations'],
+  handler: async (ctx, args) => {
+    const memberships = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_user')
+      .eq('userHandle', ctx.auth.userId)
+      .take(500)
+      .collect();
+```
 
-1. decide `absent`/`unchanged` from the admitted product roster;
-2. call `api.conversationMemberships.changeRole` or `.remove`; then
-3. call the matching reconciliation mutation, which re-reads the admitted
-   authority roster through `ctx.authority` and refuses to project a state the
-   authority operation did not establish.
+Historical recipient/receipt facts are not public merely because they are
+immutable. Resolve the message, then require the caller's **current** admission
+to that message's room before returning its frozen snapshot:
 
-That pair is not a single transaction and the page makes no atomicity claim
-for it. This is the known cost of today's sanctioned interim. Do not scatter
-the pair across UI components or expose a generic projection patch endpoint.
-The future D0.4 work may replace this seam, but this recipe does not invent its
-option or public API in advance.
+```js source=demos/messaging-snapback/snapback/functions.mjs
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get('messages', args.messageId);
+    if (!message) return [];
+    await ctx.permissions.conversationMemberships.requireRole(
+      message.conversationId,
+      'owner',
+      'moderator',
+      'member',
+    );
+    return [{
+      messageId: message._id,
+      recipients: message.recipientSnapshot ?? [],
+      deliveredBy: message.deliveredBy ?? [],
+      readBy: message.readBy ?? [],
+    }];
+  },
+```
 
-Keep the two non-atomic operations behind one coordinator with explicit
-preflight branches:
+## Keep one retryable coordinator, but do not call it exclusive
+
+Bootstrap, app-authored add, and app-authored self-leave issue one membership
+command plus ordinary projection writes in one mutation. Every generated
+profile writer remains directly callable. A client coordinator should normally
+call the generated authority operation and then one idempotent reconciliation
+mutation, but that is ergonomics—not governance and not an exclusivity claim.
+
+The enforceable boundary is:
+
+1. sensitive consumers compare admitted authority facts with the projection
+   and refuse with `CONVERSATION_ROSTER_DRIFT` before using stale data;
+2. the owner-only reconciliation mutation reads the admitted authority roster
+   and converges display rows and `memberHandles`; and
+3. retrying reconciliation after an interruption is safe and returns
+   `unchanged` once converged.
+
+The authority write and reconciliation are not one transaction. A durable
+client job/outbox must retain the unfinished reconciliation until it succeeds;
+after a process loss, the fail-closed consumer is the backstop and the same
+repair is the recovery action. Direct `invite`, `leave`, `changeRole`,
+`transferOwner`, or `remove` bypasses may create drift, but cannot feed a new
+recipient snapshot because sends check the pair first. This is the cost of the
+interim until the selected platform-generated D0.4 design ships.
+
+Keep the recovery call small and idempotent:
 
 ```js source=demos/messaging-snapback/tests/acceptance/roster-projection.mjs
-async function promoteMember(conversationId, userHandle) {
-  const roster = await query(api.conversationRoster, { conversationId }, OWNER);
-  const current = roster.rows.find((member) => member.userHandle === userHandle);
-  if (!current) return { outcome: 'absent' };
-  if (current.role === 'moderator') return { outcome: 'unchanged' };
-  await mutate(api.conversationMemberships.changeRole, {
-    scopeId: conversationId,
-    principal: userHandle,
-    role: 'moderator',
-  }, OWNER);
-  return (await mutate(api.promoteConversationMember, {
-    conversationId,
-    userHandle,
-  }, OWNER)).result;
-}
-
-async function removeMember(conversationId, userHandle) {
-  const roster = await query(api.conversationRoster, { conversationId }, OWNER);
-  if (!roster.rows.some((member) => member.userHandle === userHandle)) {
-    return { outcome: 'unchanged' };
-  }
-  await mutate(api.conversationMemberships.remove, {
-    scopeId: conversationId,
-    principal: userHandle,
-  }, OWNER);
-  return (await mutate(api.removeConversationMember, {
-    conversationId,
-    userHandle,
-  }, OWNER)).result;
+async function reconcileRoster(conversationId, userId = OWNER) {
+  return (await mutate(api.reconcileConversationRoster, { conversationId }, userId)).result;
 }
 ```
 
@@ -347,72 +394,76 @@ export const addConversationMember = defineJsMutation({
   },
 });
 
-export const promoteConversationMember = defineJsMutation({
+export const reconcileConversationRoster = defineJsMutation({
   auth: 'authenticated',
-  args: {
-    conversationId: v.id('conversations'),
-    userHandle: v.principal(),
-  },
-  result: results.value(v.object({ outcome: v.string() })),
-  reads: ['conversationMemberships', 'conversationMembers'],
-  writes: ['conversationMembers'],
-  handler: async (ctx, args) => {
-    await ctx.permissions.conversationMemberships.requireRole(args.conversationId, 'owner');
-    const projectedMembership = await ctx.db
-      .query('conversationMembers')
-      .withIndex('by_conversation_user')
-      .eq('conversationId', args.conversationId)
-      .eq('userHandle', args.userHandle)
-      .first();
-    if (!projectedMembership) return { outcome: 'absent' };
-    const authority = await ctx.authority.conversationMemberships.list(
-      args.conversationId,
-      { limit: 500 },
-    );
-    const authoritativeMember = authority.rows.find(
-      (member) => member.userHandle === args.userHandle,
-    );
-    if (authoritativeMember?.role !== 'moderator') {
-      throw new Error('run conversationMemberships.changeRole before reconciling the projection');
-    }
-    if (projectedMembership.role === 'moderator') return { outcome: 'unchanged' };
-    await ctx.db.patch('conversationMembers', projectedMembership._id, { role: 'moderator' });
-    return { outcome: 'changed' };
-  },
-});
-
-export const removeConversationMember = defineJsMutation({
-  auth: 'authenticated',
-  args: {
-    conversationId: v.id('conversations'),
-    userHandle: v.principal(),
-  },
-  result: results.value(v.object({ outcome: v.string() })),
+  args: { conversationId: v.id('conversations') },
+  result: results.value(v.object({
+    outcome: v.string(),
+    inserted: v.integer(),
+    updated: v.integer(),
+    removed: v.integer(),
+  })),
   reads: ['conversationMemberships', 'conversationMembers', 'conversations'],
   writes: ['conversationMembers', 'conversations'],
   handler: async (ctx, args) => {
     await ctx.permissions.conversationMemberships.requireRole(args.conversationId, 'owner');
-    const projectedMembership = await ctx.db
-      .query('conversationMembers')
-      .withIndex('by_conversation_user')
-      .eq('conversationId', args.conversationId)
-      .eq('userHandle', args.userHandle)
-      .first();
     const authority = await ctx.authority.conversationMemberships.list(
       args.conversationId,
       { limit: 500 },
     );
-    if (authority.rows.some((member) => member.userHandle === args.userHandle)) {
-      throw new Error('run conversationMemberships.remove before reconciling the projection');
+    const projected = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_conversation')
+      .eq('conversationId', args.conversationId)
+      .take(500)
+      .collect();
+    const projectedByPrincipal = new Map(
+      projected.map((member) => [member.userHandle, member]),
+    );
+    const authorityByPrincipal = new Map(
+      authority.rows.map((member) => [member.userHandle, member]),
+    );
+    let inserted = 0;
+    let updated = 0;
+    let removed = 0;
+    for (const member of authority.rows) {
+      const current = projectedByPrincipal.get(member.userHandle);
+      if (!current) {
+        await ctx.db.insert('conversationMembers', {
+          conversationId: args.conversationId,
+          userHandle: member.userHandle,
+          role: member.role,
+          // A direct generated invite can commit before the app projection.
+          // Recovery owns the new visible incarnation time at repair.
+          joinedAt: ctx.runtime.now(),
+        });
+        inserted += 1;
+      } else if (current.role !== member.role) {
+        await ctx.db.patch('conversationMembers', current._id, { role: member.role });
+        updated += 1;
+      }
     }
-    if (!projectedMembership) return { outcome: 'unchanged' };
+    for (const member of projected) {
+      if (!authorityByPrincipal.has(member.userHandle)) {
+        await ctx.db.delete('conversationMembers', member._id);
+        removed += 1;
+      }
+    }
     const conversation = await ctx.db.get('conversations', args.conversationId);
     if (!conversation) throw new Error('conversation not found');
-    await ctx.db.delete('conversationMembers', projectedMembership._id);
-    await ctx.db.patch('conversations', args.conversationId, {
-      memberHandles: conversation.memberHandles.filter((handle) => handle !== args.userHandle),
-    });
-    return { outcome: 'changed' };
+    const memberHandles = authority.rows.map((member) => member.userHandle).sort();
+    const currentHandles = [...conversation.memberHandles].sort();
+    const handlesChanged = JSON.stringify(memberHandles) !== JSON.stringify(currentHandles);
+    if (handlesChanged) {
+      await ctx.db.patch('conversations', args.conversationId, { memberHandles });
+    }
+    const changed = inserted + updated + removed + (handlesChanged ? 1 : 0);
+    return {
+      outcome: changed === 0 ? 'unchanged' : 'changed',
+      inserted,
+      updated,
+      removed,
+    };
   },
 });
 ```
@@ -423,15 +474,12 @@ then insert the creator and initial members into `conversationMembers` before
 the mutation returns. A failed command or ordinary write rolls back the whole
 mutation.
 
-The branch contract is explicit:
-
-- add existing → `unchanged`;
-- promote missing → `absent`, promote an existing moderator → `unchanged`;
-- remove missing → `unchanged`; and
-- leave with no current projection row → `unchanged`.
-
-Those are app outcomes, not membership-existence oracles for an unauthorized
-caller. Owner mutations call `requireRole` first. Self-leave sees only the
+The branch contract is explicit: atomic app add/self-leave and the repair
+mutation return `unchanged` once their local state is already current. Generated
+operations retain their own closed receipt/refusal contract; do not preflight
+them from an unfenced product roster and do not relabel an application
+short-circuit as coverage of a generated operation's absent/idempotent branch.
+Owner mutations call `requireRole` first. Self-leave sees only the
 server-derived caller and never accepts a target principal.
 
 ## Freeze receipt membership when the message is sent
@@ -450,6 +498,22 @@ it does not grant send authority.
       .collect();
     if (currentRoster.length > 500) {
       ctx.refuse('MESSAGE_RECIPIENT_LIMIT', { limit: 500 });
+    }
+    const authority = await ctx.authority.conversationMemberships.list(
+      args.conversationId,
+      { limit: 500 },
+    );
+    const rosterFacts = currentRoster
+      .map((member) => `${member.userHandle}:${member.role}`)
+      .sort();
+    const authorityFacts = authority.rows
+      .map((member) => `${member.userHandle}:${member.role}`)
+      .sort();
+    // @ref LLP 0240#authority-facts-versus-product-facts — the interim mirror
+    // is not an authority source. A missed/bypass projection write fails closed
+    // before stale members can enter a new historical recipient snapshot.
+    if (JSON.stringify(rosterFacts) !== JSON.stringify(authorityFacts)) {
+      ctx.refuse('CONVERSATION_ROSTER_DRIFT');
     }
     const recipientSnapshot = currentRoster
       .filter((member) => member.userHandle !== ctx.auth.userId)
@@ -487,13 +551,13 @@ operator scan—and compares only declared principal/role facts with the product
 projection. No app result contains a private authority-row id.
 
 ```js source=demos/messaging-snapback/tests/acceptance/roster-projection.mjs
-async function assertRosterSynchronized(conversationId, label) {
+async function assertRosterSynchronized(conversationId, label, viewer = OWNER) {
   // The profile's bounded list is the admitted authority view: it exposes no
   // private row id. Compare it with the ordinary product query after every
   // app-owned transition so a missed companion write fails this acceptance.
   const [authority, projection] = await Promise.all([
-    query(api.conversationMemberships.list, { scopeId: conversationId }, OWNER),
-    query(api.conversationRoster, { conversationId }, OWNER),
+    query(api.conversationMemberships.list, { scopeId: conversationId }, viewer),
+    query(api.conversationRoster, { conversationId }, viewer),
   ]);
   const normalize = (rows) => rows
     .map((row) => `${row.userHandle}:${row.role}`)
@@ -507,14 +571,16 @@ async function assertRosterSynchronized(conversationId, label) {
 }
 ```
 
-The dedicated dev-mode acceptance calls that comparison after bootstrap, add and
-retry, promotion plus missing/current-role branches, a later join and leave,
-remove and absent retry, and leave and retry. The later join is refused when it
-tries to acknowledge the older message. The check then proves that the earlier
-message still names its departed principals and their receipt state. This check
-is mandatory for the interim app-maintained pattern: a projection mismatch is
-a failing invariant, never permission to authorize from whichever table looks
-convenient.
+The dedicated dev-mode acceptance proves anonymous inbox denial; rejects a
+caller-supplied viewer; denies outsiders and authenticated callers from other
+rooms at both roster and recipient-snapshot reads; and admits current members.
+It then commits direct generated `remove`, `invite`, `transferOwner`, and
+`leave` operations without their companion projection write. Each deliberate
+divergence makes send refuse before a snapshot write. Idempotent repair
+converges the stores, retry returns `unchanged`, and the removed principal is
+absent from the next snapshot. This check is mandatory for the interim
+app-maintained pattern: a mismatch is a failing invariant, never permission to
+authorize from whichever table looks convenient.
 
 For the ephemeral room bound to this same authority declaration, continue with
 [declare membership and the typing room together](./typing-indicators.md#1-declare-membership-and-the-typing-room-together).
@@ -527,9 +593,12 @@ roster projection is durable product state, not presence.
 - Making the membership table public to “show roster” or “enumerate members.”
 - Reading the projection as authority or accepting caller-supplied roles.
 - Copying a private membership-row id into an app-visible table.
-- Scattering the required generated-operation/reconciliation pair across UI
-  call sites instead of keeping it in one application coordinator.
+- Calling an application coordinator exclusive while generated `invite`,
+  `leave`, `changeRole`, `transferOwner`, and `remove` remain directly reachable.
+- Reading a roster or receipt snapshot after checking only `authenticated`
+  instead of current admission to that exact room.
 - Treating `bootstrap()` as able to stamp arbitrary creator-seat product data.
 - Recomputing an old recipient set from current membership.
 - Removing departed recipients from receipt aggregates.
-- Teaching this interim composition as the chosen future D0.4 API.
+- Describing D0.4's selected platform-generated direction as undecided, or
+  inventing its not-yet-shipped public API.

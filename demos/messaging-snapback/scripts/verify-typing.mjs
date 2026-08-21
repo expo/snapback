@@ -25,7 +25,7 @@ await page.waitForTimeout(2000);
 
 // Find conv_group_trip's id and simulate Priya typing from a second client.
 const client = new SnapbackClient(origin, { rqsStore: null });
-const conversations = await client.query(api.myConversations, { args: { viewerHandle: 'lin' } });
+const conversations = await client.query(api.myConversations, { args: {}, userId: 'lin' });
 const trip = conversations.rows.find((c) => c.title.includes('Weekend Trip'));
 const scope = { conversationId: trip._id };
 const overlay = await client.subscribeEphemeral(api.ephemeral.typing, {

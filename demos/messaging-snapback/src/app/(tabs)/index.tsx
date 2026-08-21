@@ -10,7 +10,7 @@ import { colors } from '@/theme/colors';
 
 export default function ChatsScreen() {
   const { self } = useIdentity();
-  const query = useSnapbackQuery(api.myConversations, { viewerHandle: self.handle });
+  const query = useSnapbackQuery(api.myConversations, {});
   const connection = useSnapbackConnection();
   const ready = query.status === 'ready' || query.status === 'refreshing';
   const data = ready ? query.data : [];
