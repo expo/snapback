@@ -164,7 +164,9 @@ test('familiar returns lowering preserves row shapes and admits exact scalar val
     { minItems: 1, maxItems: 1 },
   );
   assert.equal(lowerFamiliarReturns('query', record).kind, 'value');
+  assert.equal(lowerFamiliarReturns('query', v.doc('todos')).kind, 'value');
   assert.equal(lowerFamiliarReturns('mutation', v.doc('todos')).kind, 'document');
+  assert.equal(lowerFamiliarReturns('action', v.doc('todos')).kind, 'document');
   assert.equal(lowerFamiliarReturns('action', v.array(v.string())).kind, 'value');
 
   for (const validator of [
@@ -184,7 +186,13 @@ test('familiar returns lowering preserves row shapes and admits exact scalar val
   );
   assert.throws(
     () => lowerFamiliarReturns('mutation', v.array(v.doc('todos'))),
-    ({ code }) => code === 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE',
+    ({ code, message }) => code === 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE'
+      && /document-containing composite values require the explicit result: grammar/u.test(message),
+  );
+  assert.throws(
+    () => lowerFamiliarReturns('action', v.array(v.doc('todos'))),
+    ({ code, message }) => code === 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE'
+      && /document-containing composite values require the explicit result: grammar/u.test(message),
   );
 });
 

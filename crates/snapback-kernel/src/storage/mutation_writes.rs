@@ -460,6 +460,7 @@ impl LocalDatabase {
                 membership_plans: payload.membership_plans.clone(),
                 read_dependencies: payload.read_dependencies.clone(),
                 result: payload.result.clone(),
+                result_document_table: payload.result_document_table.clone(),
                 job_enqueues: payload.job_enqueues.clone(),
                 job_producer: payload.job_producer.clone(),
                 asset_admissions: payload.asset_admissions.clone(),
@@ -527,6 +528,7 @@ impl LocalDatabase {
             membership_plans,
             read_dependencies,
             result,
+            None,
             ctx_ledger,
             Vec::new(),
             None,
@@ -540,6 +542,9 @@ impl LocalDatabase {
     /// Dry-run variant carrying buffered job enqueues: identical validation
     /// and insertion (LLP 0051 D8 fidelity — the rollback discards the job
     /// rows exactly as it discards app writes).
+    ///
+    /// @ref LLP 0108#runtime-validation-and-atomicity — exact document
+    /// previews use the same authoritative would-be row fields as commit.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn dry_run_buffered_writes_with_jobs(
         &mut self,
@@ -549,6 +554,7 @@ impl LocalDatabase {
         membership_plans: Vec<AuthorizedMembershipPlan>,
         read_dependencies: Vec<CapturedReadDependency>,
         result: Value,
+        result_document_table: Option<String>,
         ctx_ledger: CtxAnswerLedger,
         job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
         job_producer: Option<crate::jobs::JobProducer>,
@@ -577,6 +583,7 @@ impl LocalDatabase {
                 membership_plans,
                 read_dependencies,
                 result,
+                result_document_table,
                 job_enqueues,
                 job_producer,
                 asset_admissions,
@@ -613,6 +620,7 @@ impl LocalDatabase {
                 membership_plans: Vec::new(),
                 read_dependencies,
                 result,
+                result_document_table: None,
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 asset_admissions: Vec::new(),
@@ -950,6 +958,7 @@ impl<'a> MutationWritesKernel<'a> {
         membership_plans: Vec<AuthorizedMembershipPlan>,
         read_dependencies: Vec<CapturedReadDependency>,
         result: Value,
+        result_document_table: Option<String>,
         ctx_ledger: CtxAnswerLedger,
         job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
         job_producer: Option<crate::jobs::JobProducer>,
@@ -965,6 +974,7 @@ impl<'a> MutationWritesKernel<'a> {
             membership_plans,
             read_dependencies,
             result,
+            result_document_table,
             ctx_ledger,
             job_enqueues,
             job_producer,

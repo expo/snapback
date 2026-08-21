@@ -796,6 +796,52 @@ assert.equal(appStateListeners.size, 0);
 
 {
   const originalFetch = globalThis.fetch;
+  const responses = [
+    { version: 1, rows: [{ _id: 'todo_1', title: 'projected' }] },
+    { version: 2, rows: [null] },
+    { version: 3, rows: [{ _id: 'todo_1' }, { _id: 'todo_2' }] },
+  ];
+  globalThis.fetch = async () => new Response(JSON.stringify(responses.shift()), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+  const projectionClient = new SnapbackClient('http://snapback.test');
+  const singleValueRef = (name) => ({
+    artifactKind: 'functionReference',
+    schemaVersion: 'snapback.v0',
+    appId: 'query-projection-fixture',
+    id: `query-projection-fixture:${name}`,
+    name,
+    kind: 'Query',
+    implementationHash: `sha256:${'1'.repeat(64)}`,
+    argsContractHash: `sha256:${'2'.repeat(64)}`,
+    argsContract: { fields: [] },
+    resultContractHash: `sha256:${'3'.repeat(64)}`,
+    resultContract: { kind: 'value', value: { kind: 'unknown' } },
+  });
+  try {
+    assert.deepEqual(
+      (await projectionClient.query(singleValueRef('todos.get'))).rows,
+      { _id: 'todo_1', title: 'projected' },
+      'typed single-value query consumers do not expose the internal row carrier',
+    );
+    assert.equal(
+      (await projectionClient.query(singleValueRef('todos.missing'))).rows,
+      null,
+      'nullable point queries preserve null rather than an empty row array',
+    );
+    await assert.rejects(
+      projectionClient.query(singleValueRef('todos.invalid')),
+      /single-value query delivery for todos\.invalid must carry exactly one internal row/u,
+      'malformed single-value carriers refuse rather than projecting an arbitrary row',
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+{
+  const originalFetch = globalThis.fetch;
   const requests = [];
   globalThis.fetch = async (url, init = {}) => {
     requests.push({ url, init });

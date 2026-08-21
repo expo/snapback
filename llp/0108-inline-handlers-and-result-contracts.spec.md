@@ -5,7 +5,10 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-15 (single-value query egress: query/live-query
+**Revised:** 2026-08-21 (buffered mutation document results validate against
+a structurally complete read-your-writes row, then replace its provisional
+system fields with the authoritative committed row before settlement or
+publication); 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-15 (single-value query egress: query/live-query
 declarations admit `results.document` and `results.value`; authored handlers
 return that value directly while the existing query/live transport carries it
 as exactly one internal row, and typed consumers project the value back out).
@@ -483,6 +486,17 @@ Validation failure rolls back the writes, creates no successful retained
 output, advances no durable version, and publishes no optimistic settlement.
 This requires the commit seam, not a post-commit transport check.
 
+When a buffered JavaScript mutation returns a document it inserted and read in
+the same handler, the read-your-writes overlay includes a structurally valid
+provisional `_version` so the document contract can be checked before commit.
+That provisional value is validation-only: for an exact `document(table)`
+contract, the storage commit replaces `_version`, `_createdAt`, and
+`_updatedAt` from the authoritative changed row with the same table and `_id`
+before the result is retained, settled, or published. A mutation dry-run uses
+the identical projection from its authoritative would-be changed row before
+forming `DryRunReport.result`; rollback still discards that row. No guessed
+commit version may escape to a client or preview.
+
 Retained mutation output stores the complete original
 `ExpectedOperationV1`, `resultContractHash`, and a reference to the
 content-addressed normalized validator. Validator artifacts are durably
@@ -524,9 +538,12 @@ operation/app/schema/implementation identity. Shared helpers
 `QueryInvocation<R>` is the existing `{version, rows:
 FunctionResult<R>}` envelope; `MutationInvocation<R>` is the existing mutation
 receipt/envelope whose logical `result` is `FunctionResult<R>`; and
-`ActionInvocation<R>` is the action envelope. Query/live documents and records
-infer arrays; mutation/action document/value contracts infer their direct
-payload. React/query groups admit only the array query forms.
+`ActionInvocation<R>` is the action envelope. Query/live `documents` and
+`records` infer arrays, while query/live `document` and `value` infer their
+direct payload despite the internal one-row transport carrier. Mutation/action
+document/value contracts also infer their direct payload. Typed query groups
+admit only the array query forms; headless query and React bindings project the
+single-value forms before exposing them to application code.
 
 Headless invocation, the first-party React binding, typed query groups,
 provider introspection, mutation settlement, and operation schemas consume

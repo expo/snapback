@@ -27,6 +27,9 @@ revise: rulings landed in LLP 0240/0278 and LLP 0095/0278/0280 respectively,
 with recommendations recorded under open questions 3 and 7);
 2026-08-21 (Phase 1A Expo package-parity progress: closes the
 cycle-free Expo Metro initialization ticket with a packed external proof);
+2026-08-21 (Phase 1A Lane C implementation: registered the packed
+Familiar `v.doc` vertical receipt and aligned the generated effective-contract
+gate with LLP 0108's runtime/client single-value query carrier);
 2026-08-21 (current-source corroboration amendment: incorporates
 the paired GPT-5.6 Sol high Clique Explicit/Familiar run at `708e2e5c`, adds a
 vertical paved-path coherence invariant, sequences liveness and contract parity
@@ -415,15 +418,17 @@ before choosing a repair. All may run while Phase 0 is reviewed.
 - `issues/closed/20260820-expo-metro-default-storage-partition-cycle.md` —
   resolved through a cycle-free defaults leaf and packed external Metro
   bundle/first-render proof
-- `issues/20260820-familiar-vdoc-generation-runtime-parity.md`
+- `issues/closed/20260820-familiar-vdoc-generation-runtime-parity.md` —
+  resolved through clean bare-`v.doc` generation and packed generated/runtime
+  parity across query, mutation, and action document shapes
 - `issues/20260820-optional-user-live-query-auth-transition-stall.md`
 - `issues/20260820-authenticated-query-signed-out-settlement.md`
 
 Exit: all five reproduce before the fix and pass through packed external
 packages afterward; no source-checkout-only proof closes them.
 
-The Expo ticket satisfies that exit individually as of 2026-08-21. Phase 1A
-as a batch remains open on the other four tickets.
+The Expo and Familiar `v.doc` tickets satisfy that exit individually as of
+2026-08-21. Phase 1A as a batch remains open on the other three tickets.
 
 ### 1B. Precise diagnostics and typed hook contracts
 
@@ -522,6 +527,14 @@ Implement D0.3 in two parallel lanes:
 - **Explicit economy:** apply LLP 0275 to derive exact result/dependency facts,
   scaffold recurring fixed lifecycle wiring, and preserve authored authority,
   visibility, retention, and asset policy.
+
+Lane C's first Familiar receipt is
+`scripts/familiar-vdoc-vertical-contract.mjs`, backed by
+`tests/fixtures/familiar-vdoc-vertical/`. It covers the Guide's nullable point
+spelling, exact generated types, clean one-pass generation, query/list and
+mutation/action runtime contracts, headless plus React projection, and the
+stable pre-output document-composite refusal. LLP 0253 S4.3 remains the result
+partition owner.
 
 Do not compare line counts alone. The success measure is fewer semantic
 correction actions while retaining the same generated manifest and authority

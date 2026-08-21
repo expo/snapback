@@ -429,20 +429,38 @@ try {
   );
 
   writeFileSync(join(dir, 'functions.mjs'), `
-    import { defineJsQuery, results, v } from ${JSON.stringify(defineUrl)};
-    export const wrongQueryShape = defineJsQuery({
+    import { defineJsLiveQuery, defineJsQuery, results, v } from ${JSON.stringify(defineUrl)};
+    export const pointQuery = defineJsQuery({
       args: {},
       reads: ['todos'],
       result: results.value(v.string()),
-      handler: async () => 'not-a-query-row-list',
+      handler: async () => 'one-value',
+    });
+    export const pointLiveQuery = defineJsLiveQuery({
+      args: {},
+      reads: ['todos'],
+      result: results.document('todos'),
+      handler: async (ctx) => ctx.db.query('todos').first(),
     });
   `);
   generated = await generate(dir);
-  assert.equal(generated.ok, false);
-  assert.match(
-    JSON.stringify(generated.diagnostics),
-    /Query cannot use value result contract/u,
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const singleValueQueries = JSON.parse(readFileSync(manifestPath, 'utf8')).functions;
+  assert.equal(
+    singleValueQueries.find(({ name }) => name === 'pointQuery').resultContract.kind,
+    'value',
   );
+  assert.equal(
+    singleValueQueries.find(({ name }) => name === 'pointLiveQuery').resultContract.kind,
+    'document',
+  );
+
+  // Keep the remainder of this regression test anchored to the original
+  // document-list fixture: later failed generations intentionally preserve
+  // the most recent successful output.
+  writeFileSync(join(dir, 'functions.mjs'), validFunctions());
+  generated = await generate(dir);
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
 
   writeFileSync(join(dir, 'functions.mjs'), `
     import { defineJsMutation, results, v } from ${JSON.stringify(defineUrl)};

@@ -912,8 +912,8 @@ export function effectiveResultContract({
 }) {
   if (def?.resultContract) {
     const query = functionKind === 'Query' || functionKind === 'LiveQuery';
-    const allowed = query
-      ? new Set(['documents', 'records'])
+    const allowed = query // @ref LLP 0108#query-single-value-egress--2026-08-15 — generated query kinds match the runtime's one-row carrier.
+      ? new Set(['documents', 'records', 'document', 'value'])
       : new Set(['document', 'value']);
     if (!allowed.has(def.resultContract.kind)) {
       throw new TypeError(

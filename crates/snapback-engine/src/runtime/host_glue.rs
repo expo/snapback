@@ -727,6 +727,10 @@ pub(crate) fn dry_run_ibex_mutation_prepared(
         membership_plans,
         reads,
         result,
+        match prepared.result_contract() {
+            FunctionResultContract::Document { table, .. } => Some(table.clone()),
+            _ => None,
+        },
         ctx_ledger,
         job_enqueues,
         Some(crate::jobs::JobProducer {
@@ -4613,8 +4617,9 @@ impl<'a> IbexHostContext<'a> {
     /// Fold this invocation's buffered writes for `(table, id)` over a stored
     /// row, producing the row the handler should observe. A buffered insert's
     /// system fields mirror `insert_document`'s shape with a provisional
-    /// `_createdAt`/`_updatedAt` (the frozen handler clock); the authoritative
-    /// version and timestamps are assigned at commit.
+    /// `_version` (the next version after the pinned snapshot) and frozen
+    /// handler timestamps. The commit seam replaces those system fields from
+    /// the exact changed row before settlement.
     ///
     /// @ref LLP 0032#phase-2--execution-semantics-honesty — E2 read-your-writes overlay.
     fn apply_buffered_to_point(
@@ -4661,6 +4666,14 @@ impl<'a> IbexHostContext<'a> {
     fn materialize_insert(&self, id: &str, values: &Map<String, Value>) -> Value {
         let mut document = Map::new();
         document.insert("_id".to_owned(), Value::String(id.to_owned()));
+        document.insert(
+            "_version".to_owned(),
+            json!(
+                self.pinned_snapshot
+                    .saturating_add(1)
+                    .min(SEQUENCE_MAX_SAFE_INTEGER)
+            ),
+        );
         document.insert("_createdAt".to_owned(), json!(self.now_ms));
         document.insert("_updatedAt".to_owned(), json!(self.now_ms));
         for (key, value) in values {
@@ -8687,6 +8700,15 @@ globalThis.__snapbackHandlers = {
             .expect("unique batch sees a buffered insert");
         assert_eq!(result["rows"].as_array().unwrap().len(), 2);
         assert_eq!(result["rows"][0]["_id"], result["id"]);
+        assert_eq!(
+            result["rows"][0]["_version"],
+            json!(
+                ctx.pinned_snapshot
+                    .saturating_add(1)
+                    .min(super::SEQUENCE_MAX_SAFE_INTEGER)
+            ),
+            "buffered inserts expose a structurally valid provisional document version",
+        );
         assert_eq!(result["rows"][0]["slug"], "buffered");
         assert_eq!(result["rows"][1], result["rows"][0]);
         assert!(ctx.reads.iter().any(|dependency| {
@@ -9874,6 +9896,7 @@ mod membership_bridge_tests {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    result_document_table: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),
                     result: json!(null),
@@ -9963,6 +9986,7 @@ mod membership_bridge_tests {
             asset_grant_ops,
             media_projection_proof: None,
             expected_media_projection_binding: None,
+            result_document_table: None,
         }
     }
 
@@ -10024,6 +10048,7 @@ mod membership_bridge_tests {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    result_document_table: None,
                 },
                 None,
                 || Ok(()),
@@ -10456,6 +10481,7 @@ globalThis.__snapbackHandlers = {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    result_document_table: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),
                     result: json!(null),
@@ -11036,6 +11062,7 @@ globalThis.__snapbackHandlers = {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    result_document_table: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),
                     result: result.clone(),

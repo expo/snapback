@@ -1,5 +1,39 @@
 use super::*;
 
+#[test]
+fn buffered_document_result_uses_authoritative_committed_system_fields() {
+    let mut result = json!({
+        "_id": "todo-one",
+        "_version": 2,
+        "_createdAt": 10,
+        "_updatedAt": 10,
+        "title": "handler value",
+    });
+    let changes = vec![ChangedRow {
+        table: "todos".to_owned(),
+        id: "todo-one".to_owned(),
+        op: ChangeOp::Insert,
+        row: Some(json!({
+            "_id": "todo-one",
+            "_version": 9,
+            "_createdAt": 12,
+            "_updatedAt": 13,
+            "title": "stored value",
+        })),
+        changed_fields: vec!["title".to_owned()],
+    }];
+
+    reproject_buffered_document_result_system_fields("todos", &changes, &mut result);
+
+    assert_eq!(result["_version"], 9);
+    assert_eq!(result["_createdAt"], 12);
+    assert_eq!(result["_updatedAt"], 13);
+    assert_eq!(
+        result["title"], "handler value",
+        "commit settlement replaces only storage-owned system fields",
+    );
+}
+
 #[cfg(test)]
 mod kernel_commit_authority_tests {
     use super::*;
@@ -2950,6 +2984,7 @@ mod guarded_commit_tests {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    result_document_table: None,
                 },
                 identity,
                 || Ok(()),
@@ -8408,6 +8443,7 @@ mod guarded_commit_tests {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    result_document_table: None,
                 },
                 Some(&buffered_identity),
                 || Ok(()),
@@ -8646,6 +8682,7 @@ mod guarded_commit_tests {
                         asset_grant_ops: Vec::new(),
                         media_projection_proof: None,
                         expected_media_projection_binding: None,
+                        result_document_table: None,
                     },
                     Some(identity),
                     || Ok(()),
@@ -8737,6 +8774,7 @@ mod guarded_commit_tests {
                         asset_grant_ops: Vec::new(),
                         media_projection_proof: None,
                         expected_media_projection_binding: None,
+                        result_document_table: None,
                     },
                     Some(identity),
                     || Ok(()),
@@ -9326,6 +9364,7 @@ mod guarded_commit_tests {
             asset_grant_ops: Vec::new(),
             media_projection_proof: None,
             expected_media_projection_binding: None,
+            result_document_table: None,
         };
         let first_buffered = both
             .mutation_writes()
@@ -10310,6 +10349,7 @@ mod guarded_commit_tests {
             asset_grant_ops: Vec::new(),
             media_projection_proof: None,
             expected_media_projection_binding: None,
+            result_document_table: None,
         }
     }
 
@@ -13986,6 +14026,7 @@ mod guarded_commit_tests {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    result_document_table: None,
                 },
                 None,
                 || Ok(()),
@@ -15081,6 +15122,7 @@ mod membership_write_tests {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
+                    result_document_table: None,
                 },
                 None,
                 || Ok(()),
@@ -20661,6 +20703,7 @@ mod media_ref_projection_acceptance_tests {
             membership_plans: Vec::new(),
             read_dependencies: Vec::new(),
             result: json!({ "proof": "fresh" }),
+            result_document_table: None,
             ctx_ledger: CtxAnswerLedger::default(),
             job_enqueues: Vec::new(),
             job_producer: None,
@@ -20687,6 +20730,7 @@ mod media_ref_projection_acceptance_tests {
                 Vec::new(),
                 Vec::new(),
                 json!({ "proof": "previewed" }),
+                None,
                 CtxAnswerLedger::default(),
                 Vec::new(),
                 None,
@@ -20712,6 +20756,7 @@ mod media_ref_projection_acceptance_tests {
                     membership_plans: Vec::new(),
                     read_dependencies: Vec::new(),
                     result: json!({ "proof": "committed" }),
+                    result_document_table: None,
                     ctx_ledger: CtxAnswerLedger::default(),
                     job_enqueues: Vec::new(),
                     job_producer: None,
@@ -21700,6 +21745,7 @@ mod media_collection_acceptance_tests {
             asset_grant_ops: Vec::new(),
             media_projection_proof: None,
             expected_media_projection_binding: None,
+            result_document_table: None,
         };
         let commit = db
             .mutation_writes()

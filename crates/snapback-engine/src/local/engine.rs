@@ -15613,6 +15613,13 @@ impl LocalSnapback {
                                     membership_plans,
                                     read_dependencies: executed.reads,
                                     result: executed.result,
+                                    result_document_table: match &function.result_contract {
+                                        crate::manifest::FunctionResultContract::Document {
+                                            table,
+                                            ..
+                                        } => Some(table.clone()),
+                                        _ => None,
+                                    },
                                     ctx_ledger: executed.ctx_ledger,
                                     job_enqueues,
                                     job_producer,
@@ -15646,6 +15653,7 @@ impl LocalSnapback {
                                             payload.membership_plans.clone(),
                                             payload.read_dependencies.clone(),
                                             payload.result.clone(),
+                                            payload.result_document_table.clone(),
                                             payload.ctx_ledger.clone(),
                                             payload.job_enqueues.clone(),
                                             payload.job_producer.clone(),
@@ -16412,6 +16420,12 @@ impl LocalSnapback {
                         membership_plans,
                         read_dependencies: executed.reads,
                         result: executed.result,
+                        result_document_table: match &function.result_contract {
+                            crate::manifest::FunctionResultContract::Document { table, .. } => {
+                                Some(table.clone())
+                            }
+                            _ => None,
+                        },
                         ctx_ledger: executed.ctx_ledger,
                         job_enqueues,
                         job_producer,
@@ -16809,6 +16823,12 @@ impl LocalSnapback {
                     membership_plans,
                     read_dependencies: executed.reads,
                     result: executed.result,
+                    result_document_table: match &function.result_contract {
+                        crate::manifest::FunctionResultContract::Document { table, .. } => {
+                            Some(table.clone())
+                        }
+                        _ => None,
+                    },
                     ctx_ledger: executed.ctx_ledger,
                     job_enqueues,
                     job_producer,
@@ -21443,6 +21463,12 @@ impl LocalSnapback {
                 membership_plans,
                 executed.reads.clone(),
                 executed.result.clone(),
+                match &function.result_contract {
+                    crate::manifest::FunctionResultContract::Document { table, .. } => {
+                        Some(table.clone())
+                    }
+                    _ => None,
+                },
                 executed.ctx_ledger.clone(),
                 Vec::new(),
                 None,

@@ -7668,7 +7668,7 @@ export class SnapbackClient {
         name,
         ref,
       });
-    });
+    }).then((output) => projectTypedQueryOutput(ref, output));
   }
 
   async search(ref, options = {}) {
@@ -18610,4 +18610,21 @@ function withTimeout(promise, timeoutMs, message) {
     timer = setTimeout(() => reject(new Error(message)), timeoutMs);
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+// @ref LLP 0108#query-single-value-egress--2026-08-15 — query transport and
+// live delivery keep their one-row carrier, while the typed headless consumer
+// exposes the authored document/value promised by FunctionResult<Ref>.
+function projectTypedQueryOutput(ref, output) {
+  const kind = typeof ref === 'object' && ref !== null
+    ? ref.resultContract?.kind
+    : null;
+  if (kind !== 'document' && kind !== 'value') return output;
+  const rows = output?.rows;
+  if (!Array.isArray(rows) || rows.length !== 1) {
+    throw new TypeError(
+      `single-value query delivery for ${ref.name ?? '<unknown>'} must carry exactly one internal row`,
+    );
+  }
+  return { ...output, rows: rows[0] };
 }

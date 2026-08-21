@@ -355,6 +355,7 @@ impl LocalDatabase {
                 membership_plans: Vec::new(),
                 read_dependencies: plan.read_dependencies,
                 result: plan.result,
+                result_document_table: None,
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 asset_admissions: Vec::new(),

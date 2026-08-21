@@ -5861,6 +5861,7 @@ fn asset_handler_commit(
                 asset_grant_ops: Vec::new(),
                 media_projection_proof: None,
                 expected_media_projection_binding: None,
+                result_document_table: None,
             },
             None,
             || Ok(()),
@@ -19755,7 +19756,12 @@ globalThis.__snapbackHandlers = {
       payload: { label: 'read-your-writes' },
     });
     const row = await ctx.db.get('structuredRows', id);
-    return row.payload;
+    return {
+      ...row,
+      _version: 9007199254740991,
+      _createdAt: 1,
+      _updatedAt: 1,
+    };
   },
 };
 "#;
@@ -19797,6 +19803,17 @@ globalThis.__snapbackHandlers = {
     function.write_set_summary.primary_table = Some("structuredRows".to_owned());
     function.write_set_summary.tables = vec!["structuredRows".to_owned()];
     function.write_set_summary.mode = Some("handlerDeclared".to_owned());
+    install_schema_documents_contract(&mut function, &schema, "structuredRows");
+    let FunctionResultContract::Documents { table, document } = function.result_contract.clone()
+    else {
+        unreachable!("fixture helper installs a documents contract")
+    };
+    let result_contract = FunctionResultContract::Document { table, document };
+    function.result_contract_hash = Some(
+        crate::manifest::result_contract_hash(&result_contract)
+            .expect("fixture document contract hashes"),
+    );
+    function.result_contract = result_contract;
 
     let mut snapback = LocalSnapback::memory().expect("memory structured RYW fixture");
     snapback
@@ -19804,6 +19821,7 @@ globalThis.__snapbackHandlers = {
         .expect("apply structured schema");
     let diagnostics = snapback.load_functions(FunctionManifest {
         functions: vec![function],
+        acknowledged_experimental_capabilities: vec!["result_contract_v1".to_owned()],
         ..FunctionManifest::default()
     });
     assert!(
@@ -19812,11 +19830,70 @@ globalThis.__snapbackHandlers = {
             .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
         "structured RYW function must activate: {diagnostics:?}"
     );
+    let dry_run_request = serde_json::from_value::<crate::host_ops::HostOpsRequest>(json!({
+        "operation": "function.explain",
+        "kind": "mutationDryRun",
+        "function": "writeThenRead",
+    }))
+    .expect("document dry-run request parses");
+    let preview = serde_json::to_value(crate::host_ops::execute_host_op(
+        &mut snapback,
+        dry_run_request,
+        Some("http://127.0.0.1:0".to_owned()),
+    ))
+    .expect("document dry-run response serializes");
+    assert_eq!(preview["ok"], json!(true), "document dry-run: {preview}");
+    let report = &preview["data"]["dryRun"];
+    assert_eq!(report["wouldCommit"], json!(true));
+    let preview_result_id = report["result"]["_id"]
+        .as_str()
+        .expect("dry-run document result carries its id");
+    let preview_row = report["writeSet"]
+        .as_array()
+        .and_then(|writes| {
+            writes.iter().find(|write| {
+                write["table"] == json!("structuredRows") && write["id"] == json!(preview_result_id)
+            })
+        })
+        .map(|write| &write["row"])
+        .expect("dry-run predicts the inserted structured row");
+    for field in ["_version", "_createdAt", "_updatedAt"] {
+        assert_eq!(
+            report["result"][field], preview_row[field],
+            "dry-run result uses the predicted row's authoritative {field}",
+        );
+    }
+    assert_ne!(
+        report["result"]["_version"],
+        json!(9_007_199_254_740_991_u64)
+    );
+    assert!(
+        snapback
+            .db
+            .query_reads_read()
+            .get("structuredRows", preview_result_id)
+            .expect("read after dry-run")
+            .is_none(),
+        "dry-run discards the predicted document",
+    );
     let result = snapback
         .invoke_mutation("writeThenRead", HandlerInput::default())
         .expect("structured RYW mutation")
         .result;
-    assert_eq!(result, json!({ "label": "read-your-writes" }));
+    let id = result["_id"]
+        .as_str()
+        .expect("document result carries its id");
+    let stored = snapback
+        .db
+        .query_reads_read()
+        .get("structuredRows", id)
+        .expect("read committed structured row")
+        .expect("structured row exists");
+    assert_eq!(
+        result, stored,
+        "a document contract returns the exact committed system fields, not the handler overlay's provisional values",
+    );
+    assert_eq!(result["payload"], json!({ "label": "read-your-writes" }));
 }
 
 // @ref LLP 0080#5-transactionally-maintained-projections — the

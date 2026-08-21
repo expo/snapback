@@ -1193,6 +1193,10 @@ pub struct BufferedCommitPayload {
     pub membership_plans: Vec<AuthorizedMembershipPlan>,
     pub read_dependencies: Vec<CapturedReadDependency>,
     pub result: Value,
+    /// Named table for a `results.document(table)` handler result. Storage
+    /// uses this contract-bound fact to replace provisional read-your-writes
+    /// system fields with the exact committed row before settlement.
+    pub result_document_table: Option<String>,
     pub ctx_ledger: CtxAnswerLedger,
     /// Buffered `ctx.jobs.enqueue` intents, inserted inside the same SQLite
     /// transaction as the writes above (LLP 0070 §Job identity and enqueue).
@@ -1245,6 +1249,7 @@ struct BufferedEffects<'a> {
     membership_plans: Vec<AuthorizedMembershipPlan>,
     read_dependencies: Vec<CapturedReadDependency>,
     result: Value,
+    result_document_table: Option<String>,
     job_enqueues: Vec<jobs::BufferedJobEnqueue>,
     job_producer: Option<jobs::JobProducer>,
     asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
@@ -5505,6 +5510,7 @@ impl LocalDatabase {
             membership_plans,
             read_dependencies,
             result,
+            result_document_table,
             ctx_ledger,
             job_enqueues,
             job_producer,
@@ -5536,6 +5542,7 @@ impl LocalDatabase {
                 membership_plans,
                 read_dependencies,
                 result,
+                result_document_table,
                 job_enqueues,
                 job_producer,
                 asset_admissions,
@@ -5612,6 +5619,7 @@ impl LocalDatabase {
             membership_plans,
             mut read_dependencies,
             mut result,
+            result_document_table,
             job_enqueues,
             job_producer,
             asset_admissions,
@@ -6223,6 +6231,13 @@ impl LocalDatabase {
             Some(_) => return Err(media_projection_unprovenanced()),
             None => None,
         };
+        // @ref LLP 0108#runtime-validation-and-atomicity — a buffered
+        // `ctx.db.get` observes provisional system fields during handler
+        // execution; `results.document(table)` settles only the exact system
+        // fields from the row written by this transaction.
+        if let Some(table) = result_document_table.as_deref() {
+            reproject_buffered_document_result_system_fields(table, &changes, &mut result);
+        }
         let mut output = MutationOutput {
             version,
             changed_count: changes.len(),
@@ -14101,6 +14116,33 @@ fn changed_field_names(values: &Map<String, Value>) -> Vec<String> {
     let mut fields = values.keys().cloned().collect::<Vec<_>>();
     fields.sort();
     fields
+}
+
+fn reproject_buffered_document_result_system_fields(
+    table: &str,
+    changes: &[ChangedRow],
+    result: &mut Value,
+) {
+    let Some(result_object) = result.as_object_mut() else {
+        return;
+    };
+    let Some(id) = result_object.get("_id").and_then(Value::as_str) else {
+        return;
+    };
+    let Some(committed) = changes
+        .iter()
+        .rev()
+        .find(|change| change.table == table && change.id == id)
+        .and_then(|change| change.row.as_ref())
+        .and_then(Value::as_object)
+    else {
+        return;
+    };
+    for field in ["_version", "_createdAt", "_updatedAt"] {
+        if let Some(value) = committed.get(field) {
+            result_object.insert(field.to_owned(), value.clone());
+        }
+    }
 }
 
 // Mutation value evaluation carries the settlement-time witness explicitly;

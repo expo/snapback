@@ -14,11 +14,18 @@ parity including the ephemeral re-export amendment to S3.1/S3.2, feature
 parity by class, profile-switch suggestion rules, template-scoped profile
 choice — and the W3 vertical contract fixture catalogue. Adopted per
 LLP 0295; author may revise.)
-2026-08-21 (qualification reconciliation: the Guide no longer
+**Revised:** 2026-08-21 (qualification reconciliation: the Guide no longer
 claims direct object/nullable-document query values from lowering evidence
 alone; until a generation-and-execution fixture qualifies them, the paved
 Familiar point-read contract is a singleton relational array. This records a
 shipped-evidence ceiling, not a change to S4.3's target lowering.)
+**Revised:** 2026-08-21 (document-result parity implementation: the effective
+result-contract gate now admits LLP 0108 `document`/`value` carriers for Query
+and LiveQuery exactly as the runtime does; unsupported mutation/action
+document composites retain the earliest stable refusal with its Explicit
+rewrite; the packed vertical fixture binds Guide retrieval,
+clean generation, typechecking, runtime validation, and headless/React
+projection)
 **Revised:** 2026-08-16 (publication-closure clarification: the Experimental
 native custody package is an optional config-plugin add-on, not an umbrella
 dependency or re-export; LLP 0041 owns its thirteen-package publication row)
@@ -408,6 +415,23 @@ The lowering is a committed pure function with golden vectors per row,
 including the refusal rows; it never approximates. The canonical
 plan-return key (`returns:` in the explicit mutation/action grammar) is
 unreachable from the familiar profile.
+
+**Vertical receipt (2026-08-21).**
+`scripts/familiar-vdoc-vertical-contract.mjs` packs the native runtime, CLI,
+Contract, codegen, client, React, and Familiar umbrella packages, installs
+them as materialized dependencies in a fresh external app, retrieves this
+spelling from the build-bound Guide with point-query vocabulary, and proves one
+clean generation of the fixture in
+`tests/fixtures/familiar-vdoc-vertical/`. The same receipt
+typechecks exact bare/nullable/document/list projections, runs the generated
+bare and nullable query plus mutation/action contracts in the native runtime,
+observes the nullable point result through both the headless client and
+Familiar React `useQuery`, and proves mutation and action document-array
+refusals emit
+`SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` before `artifacts.json` with
+the supported explicit-grammar rewrite. This is the LLP 0295 vertical
+integration receipt; the lowering and result-contract suites remain the
+mechanism owners.
 
 **LLP 0245 integration.** A missing familiar `returns` is the one
 suggestion-backed key (with addition-only `reads`/`writes` patches). The
