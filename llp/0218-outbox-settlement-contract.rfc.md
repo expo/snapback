@@ -284,10 +284,10 @@ machinery) that:
   that never produced a fresh-subscribe snapshot. "Cannot produce a
   barrier" is a bounded, observable refusal state surfaced through
   `outboxStatus()`'s blocked reason, never an open-ended silent wait;
-- drains single-flight in sequence order (from the dated 2026-08-21 D0.2
-  amendment onward: within the foreground lane — declared housekeeping
-  drains in a second lane per that amendment; this bullet is not the whole
-  drain once W2 lands); honors writer locks, captured
+- drains single-flight in sequence order (once the dated 2026-08-21 D0.2
+  amendment's W2 work lands: within the foreground lane — declared
+  housekeeping drains in a second lane per that amendment; until then this
+  bullet remains the whole shipped drain); honors writer locks, captured
   authority/custody, stranding, quarantine, and terminal failure; rechecks
   captured authority immediately before each transport; only the durable
   store's writer drains, and non-writer contexts converge by observing the

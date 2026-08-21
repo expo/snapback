@@ -19,8 +19,11 @@ queue/authorization/execution/commit/delivery diagnostics with named public
 `timing` fields, plus the W2 conformance-suite shape; the five states are a
 partition with the barrier taking precedence over reconnecting; adopted per
 LLP 0295, the author may revise; LLP 0107/0218 carry cross-references;
-same-day revision round closed the two independent review gates'
-MAJOR findings).
+same-day revision rounds closed both independent review gates' MAJOR
+findings — an ordered barrier classifier giving incarnation/mode
+transitions precedence, phase 1 mapped to the settled predecessor column,
+and the mode-pending terminal/transient discriminant amended in place into
+§Typed terminal auth error).
 2026-08-16 (committed-refresh publication amendment: ordinary
 publication still requires an empty pending-ticket set; the sole exception is
 one exact finalized rotation response bound to its current successor digest,
@@ -1635,6 +1638,32 @@ capture-guarded durable deletion. A delayed terminal frame for A cannot clear
 or close B because both the socket-generation guard and captured authority
 epoch must match. If the frame is lost, the next handshake/grant/request still
 converges through the projection and incarnation checks.
+
+**Mode-pending discriminant (dated 2026-08-21, LLP 0295 D0.2 amendment).**
+`SNAPBACK_AUTH_MODE_PENDING` has two normatively distinct occurrences,
+discriminated by carrier:
+
+- **Terminal occurrence** — this closed frame (or its `4401/auth_error`
+  close, or the finite-HTTP twin carrying the `authorityDisposition` axis)
+  with `reason: "mode_transition"` signals a real staged auth-mode
+  transition (dev ↔ sessions). It remains terminal exactly as specified
+  above: reconnect suppression, disposition-directed barrier, item-5 mode
+  rows. Nothing in the D0.2 matrix weakens it.
+- **Transient occurrence** — a finite HTTP or subscribe-admission refusal
+  carrying `SNAPBACK_AUTH_MODE_PENDING` **without** the closed
+  `authorityDisposition` axis and without a terminal frame/close for the
+  captured authority: the watch-reload settling window, ordinarily measured
+  in seconds. This is `reconnecting` state in the D0.2 matrix — the client
+  absorbs bounded retry; it never calls `clearAuthSession()`, never treats
+  the refusal as live-stream terminal, and never surfaces it as a
+  caller-terminal one-shot settlement; only retry exhaustion settles a
+  typed transport refusal
+  (`issues/20260820-agent-auth-transition-residuals.md` residuals 1–2).
+
+The absent-axis rule composes with the missing/malformed-frame rule above:
+evidence without the closed disposition axis never authorizes destructive
+custody work, and for mode-pending it does not even end the carrier — it
+is a retryable transition window.
 
 A missing frame, malformed frame, unrecognized disposition, or close-only
 terminal signal is never proof of a committed backing-authority deletion. The
@@ -3284,14 +3313,32 @@ phases rather than invented beside them:
 | State | Definition |
 | --- | --- |
 | **anonymous** | Settled custody, anonymous principal, no active barrier for this context, transport admitted. |
-| **authenticating** | An active transition barrier whose predecessor is **anonymous** and whose successor is an authenticated principal: between the phase-2 durable CAS to `clearing` and this context's phase-9 resume completion (readiness of its mandatory participants). |
+| **authenticating** | An active transition barrier classified `authenticating` by the ordered classifier below: between the phase-2 durable CAS to `clearing` and this context's phase-9 resume completion (readiness of its mandatory participants). |
 | **authenticated** | Settled custody, authenticated principal A, no active barrier for this context, transport admitted. |
-| **revoking** | Every **other** active transition barrier — one whose predecessor is an authenticated principal (A → anonymous, A → different user B, same-user/new-session, terminal revocation/expiry) or any authorization-stream incarnation change. |
-| **reconnecting** | **No active barrier for this context**, settled custody of any principal, but transport or stream readiness is pending: socket loss, resync, handshake retry, or a transient watch-reload `SNAPBACK_AUTH_MODE_PENDING` window. |
+| **revoking** | An active transition barrier classified `revoking` by the ordered classifier below. |
+| **reconnecting** | **No active barrier for this context**, settled custody of any principal, but transport or stream readiness is pending: socket loss, resync, handshake retry, or a transient watch-reload `SNAPBACK_AUTH_MODE_PENDING` refusal window (the transient occurrence per the terminal-frame discriminant amended in §Typed terminal auth error). |
 
-**The five states are a partition; the barrier decides.** An active barrier
-is exactly one of `authenticating`/`revoking`, chosen by its predecessor,
-and a barrier state holds end to end: even after phase 8 has durably
+**The five states are a partition; the barrier decides, by one ordered
+classifier.** An active barrier is exactly one of
+`authenticating`/`revoking`, chosen by the **first matching rule**:
+
+1. An authorization-stream **incarnation change** or a staged **auth-mode
+   transition** (dev ↔ sessions, the item-5 mode rows) classifies
+   `revoking`, whatever the principals — an anonymous → authenticated
+   transition that also crosses an incarnation is `revoking`, and its cells
+   resolve per the item-5 incarnation/mode row (delete).
+2. Otherwise, an **authenticated predecessor** classifies `revoking`
+   (A → anonymous, A → different user B, same-user/new-session, terminal
+   revocation/expiry).
+3. Otherwise — anonymous predecessor, authenticated successor, same
+   incarnation and mode — the barrier is `authenticating`.
+
+A barrier is **matrix-active from the phase-2 CAS**. Phase 1
+(reload/compare, before the CAS) is not barrier state: an operation
+dispatched in that window observes the settled predecessor state and its
+ordinary column — the phase-2 CAS is the classification linearization
+point, matching this Spec's authority-transition linearization. Once
+active, a barrier state holds end to end: even after phase 8 has durably
 settled custody, the context remains in its barrier state until its own
 phase-9 resume completes. Transport loss during phases 4–9 does **not**
 enter `reconnecting` — it is absorbed by the barrier, whose resume retries
@@ -3316,11 +3363,17 @@ Definitions the matrix depends on:
   session-dependent results without a principal-data wipe.
 - **Reconnecting is not a barrier.** Authority remains settled; only
   transport/stream readiness is pending. A transient
-  `SNAPBACK_AUTH_MODE_PENDING` refusal is retryable reconnecting state,
-  bounded and observable; it never justifies `clearAuthSession()` or any
-  other custody clearing, and it is never live-stream terminal — the stream
-  projects a bounded transition and arms a successor
+  `SNAPBACK_AUTH_MODE_PENDING` refusal — the without-disposition-axis
+  occurrence per the discriminant amended into §Typed terminal auth error —
+  is retryable reconnecting state, bounded and observable; it never
+  justifies `clearAuthSession()` or any other custody clearing, and it is
+  never live-stream terminal — the stream projects a bounded transition and
+  arms a successor
   (`issues/20260820-agent-auth-transition-residuals.md` residuals 1–2).
+  The terminal occurrence (the closed frame/close or finite-HTTP twin
+  carrying the `authorityDisposition` axis with
+  `reason: "mode_transition"`) is a real staged mode transition and remains
+  a `revoking`-classified barrier per classifier rule 1.
 - **Settlement of a barrier for a context** — the context's phase-9 resume
   completed: settled durable custody, fresh LLP 0058 handshake and connection
   grant, mandatory participants ready, **and ephemeral authority usable**
@@ -3353,7 +3406,16 @@ Every cell of the matrix resolves to one of these classified outcomes:
   until first authoritative delivery.
 - **drain-active** / **drain-suspended(reason)** — drain-machinery row
   only: the LLP 0218 controller is draining, or paused with the typed
-  `blockedReason` and a level-triggered wakeup.
+  `blockedReason` and a level-triggered wakeup. Retry scheduling while
+  suspended (capped, jittered backoff, `nextRetryAtMs`) is LLP 0218 §4.3's
+  and carries no matrix semantics.
+
+The outbox-drain and provider-adapter rows describe **machinery**, not
+per-operation settlement: an operation dispatched through a provider
+adapter resolves through the surface rows above; the machinery rows use the
+drain vocabulary plus their owning LLPs' lifecycle terms
+(teardown/re-arm/retain), and prescribe no additional caller-visible
+outcome.
 
 Already-queued intent at a barrier resolves through **item-5 dispositions**,
 not new outcomes: the custody transition table's strand/delete applies at
@@ -3383,9 +3445,9 @@ cannot commit or expose — phase-4 semantics).
 | Live query, `optional-user` | admit under anonymous authority | blank → one successor | admit | blank → one successor (always admissible) | retain-stale + resync |
 | Live query, authenticated-required | blocked(auth) with owner diagnostic | blank → one successor (the fence is a no-op on an already-blocked surface) | admit | blank → one successor; blocked(auth) when the settled successor is anonymous | retain-stale + resync |
 | Foreground mutation dispatch (queueable) | per declaration: admit if anonymous-admissible, else refuse(`SNAPBACK_AUTH_REQUIRED`) | join; no transport under unsettled authority (see ruling 3) | admit; `queued` only at the LLP 0218 relinquishment cut | predecessor queued intent resolves per the item-5 row (strand or delete); a new dispatch joins | admit; queue(connectivity) at the relinquishment cut |
-| Housekeeping write (declared) | admit; queue(connectivity) only at the relinquishment cut, coalesced | queue(`auth-barrier`) if declared housekeeping and successor-valid, else refuse typed | admit via housekeeping lane | predecessor housekeeping resolves per the item-5 row (strand or delete); never replayed under a different principal | queue(connectivity), coalesced |
-| Outbox drain | drain-active over anonymous-admissible work in both lanes | drain-suspended(`auth-barrier`); level-triggered wakeup at settle | drain-active | drain-suspended(`auth-barrier`); item-5 dispositions applied at settle | drain-suspended(connectivity)/retrying |
-| Ephemeral/presence | admit | fenced; rooms rebuild at resume; no publish under unsettled authority | admit | fenced/blanked; predecessor entries never survive | `resyncing` projection; republish active intent once |
+| Housekeeping write (declared) | admit; queue(connectivity) only at the relinquishment cut, coalesced | queue(`auth-barrier`) if declared housekeeping and successor-valid, else refuse typed | admit via housekeeping lane | new dispatch: queue(`auth-barrier`) if declared housekeeping and successor-valid, else refuse typed; predecessor housekeeping resolves per the item-5 row (strand or delete), never replayed under a different principal | queue(connectivity), coalesced |
+| Outbox drain | drain-active over anonymous-admissible work in both lanes | drain-suspended(`auth-barrier`); level-triggered wakeup at settle | drain-active | drain-suspended(`auth-barrier`); item-5 dispositions applied at settle | drain-suspended(connectivity) |
+| Ephemeral/presence | admit | blank → one successor (rooms rebuild at resume; no publish under unsettled authority) | admit | blank → one successor; predecessor entries never survive | retain-stale (`resyncing`); republish active intent once |
 | React hooks / Familiar projections | projects the underlying cell | projects the underlying cell | projects the underlying cell | projects the underlying cell | projects the underlying cell |
 | Provider adapters | consume the settled-authority signal; subscribe-after-settle only | wait on the signal, not on polling own clients | admit | tear down at the `clearing` broadcast; re-arm at settle | retain handles; rely on client resync |
 
@@ -3478,8 +3540,8 @@ diagnostic, or a fenced predecessor into `ready`/empty.
    `blockedReason` vocabulary is pinned: an active transition barrier
    reports `auth-barrier`; other unsettled-custody pauses keep the shipped
    `custody-unsettled` (and `authority-unavailable:*`) spellings. Barrier
-   phase and custody state remain the coordinator readiness facts'; the
-   LLP 0219 channel carries the queued/suspended/wedged events. These field
+   phase and custody state remain owned by the coordinator readiness facts;
+   the LLP 0219 channel carries the queued/suspended/wedged events. These field
    names and meanings are normative; carrier plumbing is W2's. No surface
    reports a single undifferentiated "pending" that conflates these phases.
 
@@ -3496,7 +3558,9 @@ same-user/new-session, incarnation change, watch reload
 (`SNAPBACK_AUTH_MODE_PENDING` window), reconnect during transition,
 unmount/remount across a barrier, and late predecessor delivery. Operation
 timings: armed-before, dispatched-during (each barrier phase band:
-pre-clearing, clearing→commit, commit→resume), and dispatched-after-settle.
+pre-clearing — phase 1, which expects the settled predecessor column per
+the classifier's matrix-active rule — clearing→commit, and commit→resume),
+and dispatched-after-settle.
 Two event mappings are fixed so no row invents a combined state: "reconnect
 during transition" stays in the active barrier column (`reconnecting`
 requires no active barrier; the transport loss is absorbed by the barrier's
