@@ -1766,11 +1766,14 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     artifacts." The run fails if it expects `snapback dev` to pin the port,
     parses logs instead of a ready descriptor, omits the sessions startup
     carrier, passes a raw origin to `SnapbackExpoProvider`, or lets two
-    supervisors own the same listener.
+    supervisors own the same listener. It also fails if it calls Diary 0104's
+    supervisor refusal mistaken, treats split ownership as a listener-safety
+    substitute, or refreshes the Sessions carrier while the fixed runtime
+    still has the same SQLite database open.
     Expected pages: `recipes/fixed-origin-development.md`.
-    Route terms: "attach Expo web to an already-running --port server", "fixed origin", "pin the port", "snapback dev will not pin 42080", "SNAPBACK_APP_BINDING_UNAVAILABLE", "OVERRIDE_UNCONFIRMED", "AUTH_MODE_PENDING", "STARTUP_ARTIFACT_MISMATCH", "SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE", "managed-runtime port wrapper".
-    Required guidance: "Attached regeneration generates and loads the running server; it does not rewrite the startup carrier", "Only managed snapback dev start/restart/reset paths refresh startup-artifacts.json", "it has no --port option today", "The workaround is the split ownership above".
-    Rejected guidance: "Each successful regeneration rewrites that startup carrier".
+    Route terms: "attach Expo web to an already-running --port server", "fixed origin", "pin the port", "snapback dev will not pin 42080", "SNAPBACK_APP_BINDING_UNAVAILABLE", "OVERRIDE_UNCONFIRMED", "AUTH_MODE_PENDING", "STARTUP_ARTIFACT_MISMATCH", "SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE", "managed-runtime port wrapper", "expected Metro listener was port 56515", "custom command's listener was port 48001", "*:48001", "loopback-only Metro listener", "second runtime against the same SQLite database".
+    Required guidance: "Attached regeneration generates and loads the running server; it does not rewrite the startup carrier", "Only managed snapback dev start/restart/reset paths refresh startup-artifacts.json", "it has no --port option today", "A split Expo/Metro workflow is supported only when Metro is launched in an explicit loopback posture", "Diary 0104's supervisor rejection was correct", "Stop the fixed snapback start server", "Verify that its listener and ready descriptor are gone".
+    Rejected guidance: "Each successful regeneration rewrites that startup carrier", "The workaround is the split ownership above".
 
 60. **Node multi-persona custody:** "Several app clients run as different
     people in one Node acceptance process, but every persona wrote as Henry."

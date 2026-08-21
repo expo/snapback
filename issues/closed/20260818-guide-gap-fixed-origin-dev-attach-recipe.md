@@ -77,4 +77,4 @@ rewrite, admitted provider binding, and packed external vertical fixtures.
 Those pending mechanisms are deliberately not claimed by this docs-only
 closure.
 
-Landing SHA: TBD
+Landing SHA: 2581f4e8f
