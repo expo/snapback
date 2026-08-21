@@ -10,7 +10,7 @@ Code generation, React, Client integration, Packaging, Documentation, Testing
 authoring-profile product contract for the Familiar side — one-pass clean
 generation and phase parity as normative contract, the S4.3 partition pinned
 against the current lowering's divergences, entrypoint/export reachability
-parity including the ephemeral re-export amendment to S3.1/S6.1, feature
+parity including the ephemeral re-export amendment to S3.1/S3.2, feature
 parity by class, profile-switch suggestion rules, template-scoped profile
 choice — and the W3 vertical contract fixture catalogue. Adopted per
 LLP 0295; author may revise.)
@@ -291,7 +291,7 @@ A new, thin, deletable package `@expo/snapback` (npm), marked
 
 | Entry | Re-exports |
 | --- | --- |
-| `@expo/snapback/server` | `defineSchema`, `defineTable`, and `defineAssetUpload` from the canonical define module; the familiar `query`, `mutation`, `action` constructors (S4) from `@expo/snapback-codegen/familiar` |
+| `@expo/snapback/server` | `defineSchema`, `defineTable`, `defineAssetUpload`, `defineEphemeral`, and the `ephemeral` collection-builder namespace from the canonical define module (the ephemeral pair added 2026-08-21 per S9.1 R4 — same canonical objects, no second owner); the familiar `query`, `mutation`, `action` constructors (S4) from `@expo/snapback-codegen/familiar` |
 | `@expo/snapback/values` | `v` (the existing canonical validator grammar, unchanged) |
 | `@expo/snapback/react` | the familiar React entrypoint `@expo/snapback-react/familiar` (S6) |
 
@@ -314,8 +314,10 @@ familiar-authoring import.
 
 ### S3.2 Generated local modules
 
-- `generated/server.{mjs,d.ts}` re-exports `query`, `mutation`, `action`, and
-  `defineAssetUpload`
+- `generated/server.{mjs,d.ts}` re-exports `query`, `mutation`, `action`,
+  `defineAssetUpload`, `defineEphemeral`, and the `ephemeral`
+  collection-builder namespace (the ephemeral pair added 2026-08-21 per
+  S9.1 R4)
   bound to the application's schema types (typed `ctx.db`, typed
   `v.doc`/`v.id` table names). It exists so the learned import
   `import { query, mutation, defineAssetUpload } from "./generated/server"`
@@ -892,11 +894,16 @@ r5 table — five row-shaped translations plus the `results.value` catch-all
 runtime admission, and client projection all describe. In particular,
 `v.union([v.doc(t), v.null()])` and closed `v.object({...})` point/value
 results are **supported** through `results.value`, exactly as
-`guide/backend/familiar-profile.md` promises. The current lowering's
-refusal of the nullable point shape and the runtime's
-`SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID` on a value-object live query
-(Diary 0105; LLP 0295's current-source run) are implementation defects
-against this Spec, not contract. The guide keeps the S4.3 promise; until
+`guide/backend/familiar-profile.md` promises. On current source the
+adapter lowering already emits `results.value` for the nullable point
+shape; the remaining divergence for that shape sits in the generated-type,
+runtime-admission, and client-projection layers, and a value-object live
+query still fails at runtime with
+`SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID` (Diary 0105; LLP 0295's
+current-source run). Those per-layer disagreements are implementation
+defects against this Spec, not contract — W3 must attribute each to the
+layer that still disagrees rather than reopening the green lowering
+function. The guide keeps the S4.3 promise; until
 the closure lands, the singleton-relational-array form may be documented
 as an interim workaround, never promoted to the contract. Fixtures
 VCF-F-Q6 and VCF-F-Q7 gate the closure; generated-runtime equivalence for
@@ -905,17 +912,22 @@ every partition row is gated by the full VCF-F-Q*/M* set.
 **R4 — Entrypoint/export parity: a claimed capability is importable or
 its refusal names the import.** Any capability the profile claims —
 Appendix A disposition 1 or 2, or a D5 extension the Familiar docs name —
-must be importable from an **advertised Familiar entrypoint** (`@expo/
-snapback/server`, `/values`, `/react`, or the generated local modules), or
+must be importable from an **advertised Familiar entrypoint**
+(`@expo/snapback/server`, `/values`, `/react`, or the generated local
+modules), or
 every path that reaches it must refuse with a stable diagnostic naming the
 exact supported import. Buildable-but-unexported (capability reachable
 only by discovering lower-level public type declarations) is a contract
 violation (LLP 0295 Objective 7). Concrete amendment: because schema-level
 `ephemeral` declarations are disposition 1 (Appendix A), the canonical
-ephemeral declaration constructor joins the closed re-export lists of
-S3.1 `@expo/snapback/server` and S3.2 `generated/server` — same canonical
-object, no second owner, no new runtime surface. Fixture VCF-F-E1 gates
-it. A Phase-scoped export-parity check asserts the advertised-entrypoint
+ephemeral declaration vocabulary — both `defineEphemeral` **and** the
+`ephemeral` collection-builder namespace, since a collection cannot be
+authored without both — joins the closed re-export lists of
+S3.1 `@expo/snapback/server` and S3.2 `generated/server` (amended in
+place, 2026-08-21) — same canonical
+objects, no second owner, no new runtime surface. Fixture VCF-F-E1 gates
+it. An export-parity check landing with Phase C (the package/entrypoint
+phase) asserts the advertised-entrypoint
 closure covers every disposition-1/2 constructor the docs name.
 
 **R5 — Feature parity is reachability parity, not constructor parity.**
@@ -928,12 +940,13 @@ inspection. Per capability today: **ephemeral** — (a) after R4's
 re-export; **assets** — (a) via `defineAssetUpload` (explicit-asset
 amendment); **membership/authority** — (a): the schema authority
 vocabulary is shared verbatim across profiles (Appendix A), so there is
-exactly one spelling of membership resource identity; the guide's
-`resourceField: "_id"` / child-id rows must corroborate against the
-canonical generated/runtime grammar and the disagreement recorded in
-`issues/20260821-authoring-profile-vertical-contract-fixtures.md` is
-resolved by fixing whichever layer diverged from the canonical grammar,
-with fixture VCF-F-MB1 as the receipt; **sequences** — (c): disposition 4
+exactly one spelling of membership resource identity. Pinned parallel to
+R3: `resourceField: "_id"` on the resource table (self-resource) and the
+required resource-id field on a child table are the contract — the engine
+already admits them — and a generated-type layer that rejects `"_id"` as
+outside the authored field union is a defect against this Spec, not
+contract; fixture VCF-F-MB1 is the receipt
+(`issues/20260821-authoring-profile-vertical-contract-fixtures.md`); **sequences** — (c): disposition 4
 stands, and parity means the refusal and its route are stable and
 first-read-discoverable (VCF-F-SQ1), not that Familiar gains the
 constructor.
@@ -972,12 +985,19 @@ generation, or pre-output refusal with one supported rewrite; (4) runtime
 acceptance of exactly the generated result/authority contract; (5)
 headless and framework client projection preserving nullability, identity,
 and lifecycle meaning; (6) one negative case reaching a stable diagnostic
-naming the semantic fact and repair. Fixtures run from packed external
+naming the semantic fact and repair. Rows marked "steps 1–3 + 6" are
+pure refusal-path fixtures whose semantic fact is the refusal itself;
+steps 4–5 lawfully do not apply to them. Fixtures run from packed external
 packages, are cheap enough for affected-scope use, and bind semantic facts
 and advertised entrypoints — never internal lowering syntax (LLP 0295
 Risk 8). Where a Familiar/Explicit pair below marks a shared semantic
 fact, the pair must witness the same normalized contract for the
-intended-equal facts.
+intended-equal facts. R6 (profile-switch suggestions) deliberately has no
+fixture of its own: it is a diagnostic-content rule, and every
+disposition-4 refusal fixture below (VCF-F-N1, VCF-F-D4, VCF-F-SQ1)
+asserts in its step 6 that the refusal names the Explicit route and that
+no switch suggestion appears on any fixture's success path — adding a
+separate fixture would duplicate those assertions.
 
 **Familiar coherence lane — one fixture per supported result kind plus
 the parity/dialect cases:**
@@ -986,22 +1006,22 @@ the parity/dialect cases:**
 | --- | --- | --- |
 | VCF-F-G1 | clean-checkout one-pass generation of an app whose functions use `v.doc` results (R1) | `v.doc("missingTable")` refuses naming the unknown table pre-output |
 | VCF-F-Q1 | query `v.array(v.doc(t))` → `results.documents` | doc array of undeclared table refuses |
-| VCF-F-Q2 | query `v.array(v.object({...}))` → `results.records` | non-closed record shape refuses |
+| VCF-F-Q2 | query `v.array(v.object({...}))` → `results.records` | runtime row with an extra undeclared field rejects at the contract |
 | VCF-F-Q3 | query bounded `v.array(v.object, {maxItems})` → bounded `results.records` | over-bound runtime result rejects with the contract diagnostic |
-| VCF-F-Q4 | query `v.array(v.union(record arms))` → record-union `results.records` | union with a non-record arm refuses |
+| VCF-F-Q4 | query `v.array(v.union(record arms))` → record-union `results.records` | runtime row matching no union arm rejects at the contract |
 | VCF-F-Q5 | query 1-tuple `v.tuple([v.object({...})])` → `{minItems:1, maxItems:1}` | empty runtime result rejects |
-| VCF-F-Q6 | point query `v.union([v.doc(t), v.null()])` → `results.value` (R3 confirmed divergence) | handler returning a wrong-table doc rejects at the contract |
+| VCF-F-Q6 | point query `v.union([v.doc(t), v.null()])` → `results.value` end to end (R3: lowering is already green on current source; this fixture gates the generated-type, runtime-admission, and client layers) | handler returning a wrong-table doc rejects at the contract |
 | VCF-F-Q7 | live query closed `v.object({...})` → `results.value` (R3 confirmed divergence) | extra undeclared field rejects |
 | VCF-F-Q8 | scalar value query (e.g. `v.number()` count) → `results.value` | wrong-type return rejects |
 | VCF-F-M1 | mutation `returns: v.doc(t)` → `results.document` executes end to end (R1 runtime parity) | handler returning a partial object rejects |
 | VCF-F-M2 | mutation value result `v.id(t)` → `results.value` | foreign-table id rejects |
 | VCF-F-N1 | mutation doc-containing non-bare `returns` refuses `SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` with the explicit route (steps 1–3 + 6 only) | the fixture is the negative |
 | VCF-F-A1 | action value result composing `ctx.runMutation(api.x.y, args)` | raw-string ref refuses `SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED` |
-| VCF-F-D1 | dialect negative: dynamic computed access (`array[i]` shapes) | refusal names the supported rewrite |
-| VCF-F-D2 | dialect negative: out-of-graph imported helper vs bounded-graph helper module | refusal routes to the S2 helper-module path |
-| VCF-F-D3 | dialect negative: captured top-level constant | refusal names the inline/args rewrite |
-| VCF-F-D4 | dialect negative: clock-dependent visibility (`Date.now`) | refusal routes to the supported temporal vocabulary or Explicit |
-| VCF-F-E1 | ephemeral declaration imported from the advertised entrypoint, membership-backed typing, presence roundtrip (R4) | import from the retired/lower-level path gets the routing diagnostic |
+| VCF-F-D1 | dialect boundary: the supported rewrite of dynamic computed access — static/destructured access or the value passed through `args` — authored end to end | the `array[i]` dynamic-access form refuses pre-output naming exactly that rewrite |
+| VCF-F-D2 | dialect boundary: the same helper authored as a bounded-graph helper module per S2 and imported into the handler graph, end to end | an out-of-graph helper import refuses naming the S2 helper-module path as the one rewrite |
+| VCF-F-D3 | dialect boundary: the constant's value inlined or passed through `args`, end to end | a captured top-level constant refuses (the free-identifier family) naming exactly that rewrite |
+| VCF-F-D4 | dialect boundary: clock-dependent visibility (`Date.now`) refuses pre-output with the single supported rewrite — the Explicit profile's temporal vocabulary (`boundedSkew`/`standardPattern` route, disposition 4) (steps 1–3 + 6) | the fixture is the negative |
+| VCF-F-E1 | ephemeral declaration authored via `defineEphemeral` + `ephemeral` collection builder imported from the advertised entrypoints (S3.1/S3.2), membership-backed typing, presence roundtrip (R4) | an import via the retired `_generated/` spelling gets the S2 rule 7 retired-spelling diagnostic naming the supported specifier |
 | VCF-F-AS1 | `defineAssetUpload` MP4 intent upload/readback via `api.media.videoUpload` (recasts the existing acceptance with steps 1 and 6) | oversized/wrong-media upload refuses per policy |
 | VCF-F-MB1 | membership visibility with `resourceField: "_id"` (resource table) and child resource-id field, enforced through `ctx.db` (R5) | non-member read hides the row; misspelled resource field refuses at generation |
 | VCF-F-SQ1 | sequence allocation attempt refuses with the stable disposition-4 route to Explicit (steps 1–3 + 6) | the fixture is the negative |
@@ -1020,14 +1040,20 @@ plan-derived rows are the LLP 0275 D3 receipts:**
 | VCF-E-P1 | plan `returnBinding` of a typed insert with **no authored `result:`** — plan-derived `v.id(t)` contract (LLP 0275 D3) | conflicting authored `result:` fails generation |
 | VCF-E-P2 | plan `returnChangedCount`, plan-derived integer contract | conflicting authored contract fails generation |
 | VCF-E-P3 | plan `returnDocument(table, id)`, plan-derived document contract | underivable `returnExpr` stays `unknown`/authored, never widened |
+| VCF-E-P4 | closed declarative plan's table dependency set derived from the plan with no duplicate authored transcription (LLP 0295 W3 dependency-fact derivation; LLP 0275 D8 class 2) | a conflicting authored dependency declaration fails generation |
+| VCF-E-L1 | recurring fixed lifecycle wiring supplied by template scaffolding (LLP 0295 W3; LLP 0275 P5/P7): scaffold → install → generate → dev → prove with zero hand-authored lifecycle ceremony | a template with a missing scaffolded lifecycle stage fails the cold-install gate with the stage named (LLP 0275 D6) |
 | VCF-E-MB1 | membership/authority visibility declaration — same semantic fact as VCF-F-MB1; the pair proves one shared spelling across profiles | non-member read hides the row |
 | VCF-E-E1 | ephemeral collection declaration and presence roundtrip | undeclared-collection use refuses |
 | VCF-E-AS1 | asset upload intent policy and authorized readback | policy-violating upload refuses |
 | VCF-E-SQ1 | sequence allocation (the positive twin of VCF-F-SQ1's route) | exhausted/invalid allocation gets the stable diagnostic |
 
-VCF-E-P1..P3 gate the LLP 0275 D3 closure when it lands; until then the
+VCF-E-P1..P4 gate the LLP 0275 D3 (and dependency-derivation) closure when
+it lands; until then the
 authored-contract spellings of those paths are the advertised path and the
 fixtures run in authored form with the plan-derived form added at closure.
+VCF-E-L1 is the recurring-lifecycle-scaffolding receipt LLP 0295 W3 names
+for the Explicit economy lane; it binds the LLP 0275 D6 cold-install
+closure, not a new lifecycle mechanism (D0.1/W1 own lifecycle design).
 `issues/20260821-authoring-profile-vertical-contract-fixtures.md` is the
 execution ticket and carries the lane checklists.
 
@@ -1108,10 +1134,15 @@ S4). `defineSearchQuery`, `defineVectorQuery`, `defineLiveSearchQuery`,
 `defineRelationalQuery`, `defineJobStatusQuery`, `definePushLedgerQuery`,
 `defineWriteWithActivity`, `defineCron`, `defineRoutes`, `defineCommand`,
 `defineSurface`, `defineMaintainedProjection`,
-`defineConfig`, `defineEphemeral`/`ephemeral`, `definePushSeam`,
+`defineConfig`, `definePushSeam`,
 `defineAuth` — disposition 4 in the familiar *function-module* grammar
 (stable refusals routing to the explicit profile or the D5 extension
-vocabulary). `defineAssetUpload` is disposition 1 as a top-level Familiar
+vocabulary). `defineEphemeral` and the `ephemeral` collection builder are
+disposition 1 as **schema-declaration vocabulary** (shared verbatim,
+consumed by the schema-level `ephemeral` option and re-exported from the
+advertised entrypoints per S9.1 R4, 2026-08-21); they remain disposition 4
+as function-module authored-value exports. `defineAssetUpload` is
+disposition 1 as a top-level Familiar
 module export under the explicit-asset amendment above;
 `defineSchema`/`defineTable`/`v`/`allow` are disposition 1 (shared,
 verbatim).

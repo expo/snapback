@@ -343,7 +343,28 @@ reduce ceremony; it hides it.
 LLP 0295 D0.3 asks which Explicit facts are policy decisions versus
 derivable repetition. Applying D1's taxonomy fact-by-fact to the Explicit
 authored surface, the classification is (**Adopted per LLP 0295; the
-author may revise**):
+author may revise.** This D8 classification is the D0.3 ruling and carries
+that ruling's status on its own; LLP 0275's other sections remain Draft
+pending author acceptance, and D3–D5's mechanisms remain governed by their
+existing owners — LLP 0108/0245 for result contracts among them — until
+accepted and implemented).
+
+First, two kinds of authored Explicit source sit outside the four ceremony
+classes and are named here so the classification is exhaustive:
+
+- **Product semantics — not ceremony at all:** schema, table, and field
+  definitions; operation names; argument contracts (`args` ingress
+  validators); and authored declarative-plan or handler behavior. These
+  are the application itself. No derivation question arises; the taxonomy
+  classifies obligations *around* them, never them.
+- **Authored-because-underivable semantic facts:** result contracts for
+  opaque JS/TS handlers and any fact D3's closed rules cannot prove. These
+  are authored not because they are policy but because no closed
+  derivation exists; they stay under LLP 0108/0245 (suggest, review,
+  freeze) and move to the derivable lane only when a closed plan or an
+  accepted derivation rule covers them.
+
+Everything else on the authored Explicit surface classifies as:
 
 | Class | Explicit facts | Treatment |
 | --- | --- | --- |
@@ -352,9 +373,7 @@ author may revise**):
 | Environment integrity | runtime qualification/readiness receipts; artifact freshness; capability resolution; schema/function admission | automatic check with receipt (D4); no manual prerequisite command on the golden path |
 | Evidence/claim | acceptance path registration; journey-proven and published-capability claims; publication scope | optional until claimed; mandatory, single-source, and staleness-aware once claimed (D5, P4/P6) |
 
-Two boundary notes. Result contracts for opaque JS/TS handlers stay under
-LLP 0245 (suggest, review, freeze) — the derivable lane covers only closed
-plans, exactly as D3 admits. `reads`/`writes` sit on the boundary: the
+One boundary note. `reads`/`writes` sit on the boundary: the
 declared reach is authority-bearing where it narrows what a handler may
 touch (policy), while its projections (effect ceilings, dependency
 manifests) are class 2 and never re-authored.
@@ -362,10 +381,13 @@ manifests) are class 2 and never re-authored.
 This classification is the contract behind LLP 0295 W3's **Explicit
 economy lane**: apply the derivable lane (D3), the automatic
 environment-integrity lane (D4), and single-source proof identity (D5) so
-Explicit authoring converges on decision density — every authored line a
-policy or a claim — with no weaker visibility, type, runtime, or evidence
+Explicit authoring converges on decision density — every authored line is
+product semantics, a policy decision, a claim, or an
+authored-because-underivable contract, never a transcription of a
+derivable fact — with no weaker visibility, type, runtime, or evidence
 verdict (D7). The existing implementation tickets above remain the
-mechanism owners; the vertical fixtures VCF-E-P1..P3 and the rest of the
+mechanism owners; the vertical fixtures VCF-E-P1..P4, VCF-E-L1, and the
+rest of the
 Explicit-lane catalogue in LLP 0253 S9.2 are the lane's acceptance
 receipts, executed through
 `issues/20260821-authoring-profile-vertical-contract-fixtures.md`.
@@ -375,7 +397,10 @@ receipts, executed through
 This RFC synthesizes existing safety and evidence boundaries into an authoring
 rule; it does not supersede LLP 0108, LLP 0123, LLP 0146, LLP 0189, LLP 0231,
 or LLP 0245, and author acceptance is required before its classification or
-rollout becomes normative. Until each owner adopts its rule it is additive:
+rollout becomes normative — with one carve-out: D8's classification is the
+LLP 0295 D0.3 ruling and carries that ruling's adopted-may-revise status on
+its own, while every other section keeps this paragraph's Draft posture.
+Until each owner adopts its rule it is additive:
 
 - Existing explicit result contracts remain valid and authoritative.
 - Existing runtime-readiness receipts and `runtime-qualify` commands remain
@@ -500,11 +525,14 @@ be implemented before improving its own golden path.
 ## Revision history
 
 - 2026-08-17 r1: initial draft (Charlie Cheever / Codex).
-- 2026-08-21 r3: LLP 0295 D0.3 amendment (Claude) — added D8, the
-  fact-by-fact Explicit-profile classification and the W3 Explicit economy
-  lane registration with its fixture receipts.
 - 2026-08-17 r2: revision pass (Claude) — corrected citation authority (the
   visibility migration is LLP 0172's trajectory adopted by LLP 0231; LLP 0123
   is Research; LLP 0146 is Draft), named `prove` as the templates'
   pre-configured `snapback verify`, marked the D3 provenance projection as new
   manifest surface, and recorded the LLP 0264/0274 write-posture boundary.
+- 2026-08-21 r3: LLP 0295 D0.3 amendment (Claude) — added D8, the
+  fact-by-fact Explicit-profile classification (with the outside-taxonomy
+  product-semantics and authored-because-underivable kinds named for
+  exhaustiveness) and the W3 Explicit economy lane registration with its
+  fixture receipts; recorded the Compatibility carve-out that D8 carries the
+  D0.3 ruling's status while the RFC's other sections remain Draft.

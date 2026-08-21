@@ -256,6 +256,11 @@ until a later claim-eligible wave shows both outcome and cost evidence.
 Cross-layer fixture ticket:
 `issues/20260821-authoring-profile-vertical-contract-fixtures.md`.
 
+Ruled 2026-08-21 (adopted; author may revise): LLP 0253 S9 (Familiar
+contract R1–R7 and the W3 fixture catalogue), LLP 0275 D8 (Explicit
+classification), LLP 0252 cross-reference (RFC-level summary); the ticket
+carries the W3 lane checklists and the open-question-2 recommendation.
+
 ### D0.4 — Authority relation versus product projection
 
 Choose the supported composition for a private membership relation plus a

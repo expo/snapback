@@ -48,8 +48,11 @@ The D0.3 decision packet landed in the owning LLPs:
   complete vertical contract fixture catalogue (S9.2, `VCF-F-*` /
   `VCF-E-*`).
 - **LLP 0275 D8** — the fact-by-fact Explicit classification (policy vs
-  derivable vs environment-integrity vs evidence) and the Explicit economy
-  lane registration.
+  derivable vs environment-integrity vs evidence, with product semantics
+  and authored-because-underivable contracts named outside the taxonomy
+  for exhaustiveness) and the Explicit economy lane registration. D8
+  carries the D0.3 ruling's status on its own; LLP 0275's other sections
+  remain Draft pending author acceptance.
 - **LLP 0252** cross-reference (2026-08-21) — the RFC-level summary: Familiar
   promises vertical coherence beyond vocabulary; Explicit promises decision
   density beyond maximal declaration; parity is reachability parity;
@@ -62,20 +65,27 @@ Key rulings, in brief:
    failures are implementation defects, tracked in
    `issues/20260820-familiar-vdoc-generation-runtime-parity.md`.
 2. The S4.3 r5 result partition is normative at every layer: nullable point
-   results and closed value objects are supported through `results.value`;
-   the current lowering/runtime refusals are defects, and the guide keeps
-   the spec's promise (R3). The singleton-array form is an interim
-   workaround only.
+   results and closed value objects are supported through `results.value`,
+   and the guide keeps the spec's promise (R3). The adapter lowering is
+   already green for the nullable point shape on current source; the
+   remaining divergences (generated types, runtime admission, client
+   projection; the value-object live-query runtime refusal) are per-layer
+   defects and W3 attributes each to the layer that still disagrees. The
+   singleton-array form is an interim workaround only.
 3. Entrypoint/export parity: buildable-but-unexported is a contract
-   violation; the ephemeral declaration constructor joins the
-   `@expo/snapback/server` and `generated/server` closed export lists (R4).
+   violation; `defineEphemeral` **and** the `ephemeral` collection-builder
+   namespace join the `@expo/snapback/server` and `generated/server` closed
+   export lists, amended in place in LLP 0253 S3.1/S3.2 and Appendix A (R4).
 4. Feature parity is reachability parity (nameable, sanctioned escape, or
    stable refusal+route), not constructor parity (R5). Sequences stay
    disposition 4 with a first-read-discoverable route. Membership resource
    identity has exactly one spelling shared across profiles; the guide's
    `resourceField` rows must corroborate against the canonical grammar.
 5. The generator suggests profile switches only at disposition-4 refusal
-   sites, Familiar→Explicit only, never on success (R6).
+   sites, Familiar→Explicit only, never on success (R6). R6 has no fixture
+   of its own by design: every disposition-4 refusal fixture (VCF-F-N1,
+   VCF-F-D4, VCF-F-SQ1) asserts the route in its step 6, and no fixture's
+   success path may emit a switch suggestion.
 6. **LLP 0295 open question 2 — recommendation:** templates may choose
    profiles by workload/client stack while preserving one normalized
    definition; Familiar is not required to reach constructor-level feature
@@ -90,20 +100,25 @@ Key rulings, in brief:
 - [ ] One-pass clean generation with schema-derived `v.doc` results
       (VCF-F-G1) and mutation-doc runtime parity (VCF-F-M1) — closes
       `issues/20260820-familiar-vdoc-generation-runtime-parity.md`.
-- [ ] Implement the S4.3 catch-all rows the lowering currently refuses:
-      nullable point result (VCF-F-Q6) and closed value-object live query
-      (VCF-F-Q7); align guide, types, codegen, runtime, and client on the
-      one partition.
+- [ ] Close the remaining per-layer S4.3 catch-all divergences: nullable
+      point result through generated types, runtime admission, and client
+      projection (VCF-F-Q6 — the lowering is already green) and the
+      value-object live-query runtime refusal (VCF-F-Q7); align guide,
+      types, codegen, runtime, and client on the one partition.
 - [ ] Row-shaped partition fixtures VCF-F-Q1..Q5, VCF-F-Q8, VCF-F-M2,
       VCF-F-N1, VCF-F-A1 green from packed packages.
-- [ ] Ephemeral constructor re-exported from `@expo/snapback/server` and
-      `generated/server`; export-parity check over every claimed
-      disposition-1/2 constructor; VCF-F-E1 green.
+- [ ] `defineEphemeral` and the `ephemeral` collection-builder namespace
+      re-exported from `@expo/snapback/server` and `generated/server`;
+      export-parity check over every claimed disposition-1/2 constructor;
+      VCF-F-E1 green.
 - [ ] Membership resource-identity spelling corroborated across guide,
       generated, and runtime contracts; VCF-F-MB1 (paired with VCF-E-MB1)
       green.
-- [ ] First-read handler-dialect table plus retrieval-eval cases and
-      pre-output refusals with supported rewrites (VCF-F-D1..D4) — closes
+- [ ] First-read handler-dialect table plus retrieval-eval cases; each
+      dialect boundary proves its single supported rewrite end to end with
+      the refused form as the step-6 negative (VCF-F-D1..D3), and
+      clock-dependent visibility refuses with the one Explicit route
+      (VCF-F-D4) — closes
       `issues/20260820-guide-gap-familiar-handler-dialect.md`.
 - [ ] Sequence refusal route stable and first-read-discoverable (VCF-F-SQ1);
       asset intent recast with retrieval + negative steps (VCF-F-AS1).
@@ -111,10 +126,14 @@ Key rulings, in brief:
 
 **Explicit economy lane:**
 
-- [ ] Plan-derived result contracts (LLP 0275 D3) with provenance markers;
-      duplicate `result:` blocks removed from first-party templates;
-      VCF-E-P1..P3 as receipts — via
+- [ ] Plan-derived result contracts (LLP 0275 D3) with provenance markers
+      and closed-plan dependency-set derivation; duplicate `result:` blocks
+      and transcribed dependency lists removed from first-party templates;
+      VCF-E-P1..P4 as receipts — via
       `issues/20260817-0275-derive-closed-plan-result-contracts.md`.
+- [ ] Recurring fixed lifecycle wiring supplied by template scaffolding
+      through the packed cold-install closure (LLP 0275 P5/P7, D6);
+      VCF-E-L1 as the receipt.
 - [ ] Auto-qualification in the ordinary proof (LLP 0275 D4) — via
       `issues/20260817-0275-auto-qualify-packaged-runtime-in-prove.md`.
 - [ ] Single-source, staleness-aware acceptance registration (LLP 0275 D5)

@@ -33,7 +33,8 @@ LLP 0115, LLP 0117, LLP 0119, LLP 0127, LLP 0130, LLP 0146, LLP 0186,
 LLP 0189, LLP 0194, LLP 0197, LLP 0198, LLP 0199, LLP 0203, LLP 0218,
 LLP 0225, LLP 0236,
 LLP 0237, LLP 0238, LLP 0241, LLP 0242, LLP 0245, LLP 0246, LLP 0247,
-LLP 0248, LLP 0249,
+LLP 0248, LLP 0249, LLP 0275, LLP 0295,
+`issues/20260821-authoring-profile-vertical-contract-fixtures.md`,
 https://docs.convex.dev/ai/overview,
 https://docs.convex.dev/functions/validation,
 https://docs.convex.dev/database/reading-data/,
@@ -1130,13 +1131,16 @@ contract at this RFC's level:
   capable layer with one supported rewrite. A capability that is buildable
   below an entrypoint that does not export it is a contract violation, not
   a paved capability (LLP 0295 Objective 7).
-- **Explicit promises decision density, not maximal declaration.** Every
-  authored Explicit fact is a policy decision or an evidence/claim under
-  LLP 0275's four-class taxonomy; mechanically derivable facts (closed-plan
-  results and dependencies, derived ceilings and defaults) are derived once
-  and projected, and environment-integrity checks run automatically with
-  receipts. Declaration count is not the profile's value; authored
-  authority, visibility, retention, and asset policy are.
+- **Explicit promises decision density, not maximal declaration.** Under
+  LLP 0275 D8's classification, every authored Explicit line is the
+  application's own semantics (schema, names, arguments, plan/handler
+  behavior), a policy decision, an evidence/claim, or an
+  authored-because-underivable contract under LLP 0108/0245; mechanically
+  derivable facts (closed-plan results and dependencies, derived ceilings
+  and defaults) are derived once and projected, and environment-integrity
+  checks run automatically with receipts. Declaration count is not the
+  profile's value; authored authority, visibility, retention, and asset
+  policy are.
 - **Parity between profiles is reachability parity** (nameable, sanctioned
   escape, or stable refusal with a route — D5's extension rule made
   testable), not constructor-level surface parity.
