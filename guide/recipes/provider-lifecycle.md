@@ -30,8 +30,9 @@ actually built. Do not advertise “N cells imply one transport” until the
 requested N-cells regression fixture exists and D0.5 selects the supported
 budget.
 
-Search phrase: N cells imply N transport connections.
+Search phrases: connection per subscription; N cells imply N transport connections.
 Inspection phrase: active connections and subscriptions by owner.
+Budget phrase: provider lifecycle budget.
 
 ## Keep each chosen owner stable
 

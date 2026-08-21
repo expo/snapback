@@ -9747,14 +9747,10 @@ reviewed-authorities-digest: sha256:33436c3acb6ab29a45b16c1b9d986e0037996934e374
 
 # External API exposure
 
-> **Local target only.** This page describes the local dev/test target.
-> Hosted targets make deliberately weaker or different claims — see
-> [auth/targets](../auth/targets.md).
-
-> **Local target only**, and deliberately partial: the exposure core,
-> `/api/v1` family, generated projections, integration records, and the OAuth
-> facade, remote MCP, the read-only `ask` v1 budget ledger, capability links,
-> durable user watches, and approval-gated effects are shipped.
+> **Local target only.** This deliberately partial page covers the shipped
+> exposure core, `/api/v1` family, generated projections, integration records,
+> OAuth facade, remote MCP, read-only `ask` v1 budget ledger, capability links,
+> durable user watches, and approval-gated effects.
 > General billing-grade metering remains incomplete. Loss-tolerant per-caller telemetry attribution and console visibility
 > are shipped, but are not a non-shedding usage ledger. Hosted targets refuse the facade and granted external lanes until the LLP 0039
 > deployment-security contract lands.
@@ -26848,12 +26844,16 @@ regeneration generates and loads the running server; it **does not rewrite**
 the startup carrier. Only managed start/restart/reset paths refresh
 `startup-artifacts.json`. Before a later sessions restart, run the current
 backend once through managed `snapback dev --no-watch` (or another managed
-refresh path), then restart the fixed server with that refreshed carrier.
+refresh path), then restart the fixed server with that refreshed carrier. The
+managed start must use a ready-file path with no live ready descriptor; if the
+command finds a live ready file, it attaches and does not refresh the carrier.
 Otherwise the fixed server can reject the stale deployment at bind. Keep the
-database, ready descriptor, and startup carrier together. A
-`SNAPBACK_AUTH_MODE_PENDING` or
-`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` refusal means that ownership triangle
-is incomplete or mixed; do not delete the database or hand-edit a digest.
+database, ready descriptor, and startup carrier together. An
+`AUTH_MODE_PENDING` refusal means the auth-mode transition is still pending or
+quarantined; inspect the operator diagnostics before changing state. A
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` refusal means the fixed server's
+database, ready descriptor, and startup carrier are incomplete or mixed. Do
+not delete the database or hand-edit a digest.
 
 ## Bind a separately owned client honestly
 
@@ -27247,8 +27247,9 @@ actually built. Do not advertise “N cells imply one transport” until the
 requested N-cells regression fixture exists and D0.5 selects the supported
 budget.
 
-Search phrase: N cells imply N transport connections.
+Search phrases: connection per subscription; N cells imply N transport connections.
 Inspection phrase: active connections and subscriptions by owner.
+Budget phrase: provider lifecycle budget.
 
 ## Keep each chosen owner stable
 
@@ -28042,7 +28043,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-mode-dev"></a>`SNAPBACK_AUTH_MODE_DEV` | auth | 404 | — | `crates/snapback-server/src/server.rs:12874` | 2 |
 | <a id="diagnostic-snapback-auth-mode-downgrade"></a>`SNAPBACK_AUTH_MODE_DOWNGRADE` | auth | 409 | — | `crates/snapback-kernel/src/storage/auth_mode.rs:1005` | 4 |
 | <a id="diagnostic-snapback-auth-mode-downgrade-committed"></a>`SNAPBACK_AUTH_MODE_DOWNGRADE_COMMITTED` | auth | — | — | `crates/snapback-cli/src/cli.rs:537` | 2 |
-| <a id="diagnostic-snapback-auth-mode-pending"></a>`SNAPBACK_AUTH_MODE_PENDING` | auth | — | [guide](../recipes/fixed-origin-development.md#preserve-the-sessions-startup-carrier) | `clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift:1257` | 40 |
+| <a id="diagnostic-snapback-auth-mode-pending"></a>`SNAPBACK_AUTH_MODE_PENDING` | auth | — | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift:1257` | 40 |
 | <a id="diagnostic-snapback-auth-mode-quiescence-timeout"></a>`SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT` | auth | — | — | `crates/snapback-auth/src/auth/admission.rs:625` | 9 |
 | <a id="diagnostic-snapback-auth-mode-state-corrupt"></a>`SNAPBACK_AUTH_MODE_STATE_CORRUPT` | auth | — | — | `crates/snapback-auth/src/auth/admission.rs:408` | 23 |
 | <a id="diagnostic-snapback-auth-mutable-input-denied"></a>`SNAPBACK_AUTH_MUTABLE_INPUT_DENIED` | auth | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:2920` | 11 |
@@ -68430,11 +68431,7 @@ reviewed-authorities-digest: sha256:359ad5ef75925fd5932dec2dcd91eb5a9de3e7d399a3
 
 # Verify the declared app contract
 
-> **Local target only.** This page describes the local dev/test target.
-> Hosted targets make deliberately weaker or different claims — see
-> [auth/targets](../auth/targets.md).
-
-> **Local target, partial surface.** This page describes generated-artifact
+> **Local target only.** This partial page describes generated-artifact
 > admission and explicitly registered acceptance paths. Live-target admission
 > and automatic discovery of acceptance suites beyond the conventional config
 > file remain GAPs.

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:aa702f0bacc7ed4046b9f81262523cc22d9ad8dcffa712ac74283d61a5ebe106"
+    "sourceDigest": "sha256:f83ed9c592fda1c9c48d79f1ca49eac9a88e5f9b0780e28706ac1b0f05d6bf1e"
   },
   "limits": {
     "lookupBytes": 16384
@@ -12,7 +12,7 @@
     "sourceFiles": 583,
     "emittingSites": 11860,
     "httpClassified": 1030,
-    "guideAnchored": 422
+    "guideAnchored": 421
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -21805,10 +21805,8 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/recipes/fixed-origin-development.md#preserve-the-sessions-startup-carrier",
-      "guideAnchors": [
-        "/_snapback/guide/recipes/fixed-origin-development.md#preserve-the-sessions-startup-carrier"
-      ]
+      "guideAnchor": null,
+      "guideAnchors": []
     },
     "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT": {
       "code": "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT",

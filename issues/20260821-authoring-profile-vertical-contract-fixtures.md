@@ -14,11 +14,12 @@ LLP 0061; LLP 0252; LLP 0253; LLP 0275
 
 Layer-local tests allow an advertised path to change meaning across the Guide,
 public entrypoint, generated types, codegen, runtime validation, client hooks,
-and diagnostics. The current Familiar page demonstrates the class directly:
-nullable document/direct object result spellings and membership
-`resourceField: "_id"` do not agree with current generated/runtime contracts,
-while membership-backed ephemeral behavior exists below an entrypoint that
-does not expose the needed constructor.
+and diagnostics. The current Familiar page now spells the qualified paths as
+an unbounded `v.array(v.doc(table))` plus `.take(1)` for an empty-capable point
+read, an authored child key such as `resourceField: "roomId"` for membership
+visibility, and the shared `@expo/snapback-codegen/define` import for a
+membership-backed ephemeral declaration. Those corrected spellings still need
+one packed fixture proving they agree with the generated/runtime contracts.
 
 Fixing only the page, generator, or runtime can move the mismatch one boundary
 downstream.
@@ -33,9 +34,10 @@ downstream.
   client.
 - Add one negative case whose earliest capable layer refuses with a stable
   diagnostic and one supported rewrite.
-- Start with the confirmed Familiar cases: nullable point results, closed
-  object/value results, document results, membership resource identity, and
-  the profile's ephemeral export path.
+- Start with the confirmed Familiar cases: empty-capable point-read document
+  arrays, closed object/value results, mutation document results, authored
+  membership resource identity, and the shared ephemeral declaration import
+  path.
 - Add the fixture as an acceptance obligation to future fixes that change an
   advertised authoring path; do not turn internal lowering syntax into public
   contract.

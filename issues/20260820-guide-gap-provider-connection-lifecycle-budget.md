@@ -50,10 +50,11 @@ connection policy. Per LLP 0295's decision-dependent rule, it states today's
 qualitative zero-owned-resource boundary and explicitly leaves ownership and
 numeric limits to
 `issues/20260821-provider-connection-subscription-budget-decision.md` rather
-than inventing policy. Retrieval case 70 preserves the exact N-cells,
-connection-per-subscription, owner-inspection, and budget vocabulary. The
-retained cold run at `guide/eval-runs/2026-08-21/provider-lifecycle.md` passed
-in 8/15 tool uses.
+than inventing policy. The recipe and retrieval case 70 preserve the exact
+"connection per subscription", "N cells imply N transport connections",
+"active connections and subscriptions by owner", and "provider lifecycle
+budget" vocabulary. The retained cold run at
+`guide/eval-runs/2026-08-21/provider-lifecycle.md` passed in 8/15 tool uses.
 
 Partial evidence: retrieval, Guide, and inventory checks pass; the N-cells
 regression and packed vertical receipt remain open.

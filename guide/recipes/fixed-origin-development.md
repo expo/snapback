@@ -78,12 +78,16 @@ regeneration generates and loads the running server; it **does not rewrite**
 the startup carrier. Only managed start/restart/reset paths refresh
 `startup-artifacts.json`. Before a later sessions restart, run the current
 backend once through managed `snapback dev --no-watch` (or another managed
-refresh path), then restart the fixed server with that refreshed carrier.
+refresh path), then restart the fixed server with that refreshed carrier. The
+managed start must use a ready-file path with no live ready descriptor; if the
+command finds a live ready file, it attaches and does not refresh the carrier.
 Otherwise the fixed server can reject the stale deployment at bind. Keep the
-database, ready descriptor, and startup carrier together. A
-`SNAPBACK_AUTH_MODE_PENDING` or
-`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` refusal means that ownership triangle
-is incomplete or mixed; do not delete the database or hand-edit a digest.
+database, ready descriptor, and startup carrier together. An
+`AUTH_MODE_PENDING` refusal means the auth-mode transition is still pending or
+quarantined; inspect the operator diagnostics before changing state. A
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` refusal means the fixed server's
+database, ready descriptor, and startup carrier are incomplete or mixed. Do
+not delete the database or hand-edit a digest.
 
 ## Bind a separately owned client honestly
 

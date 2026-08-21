@@ -4517,14 +4517,10 @@ reviewed-authorities-digest: sha256:33436c3acb6ab29a45b16c1b9d986e0037996934e374
 
 # External API exposure
 
-> **Local target only.** This page describes the local dev/test target.
-> Hosted targets make deliberately weaker or different claims — see
-> [auth/targets](../auth/targets.md).
-
-> **Local target only**, and deliberately partial: the exposure core,
-> `/api/v1` family, generated projections, integration records, and the OAuth
-> facade, remote MCP, the read-only `ask` v1 budget ledger, capability links,
-> durable user watches, and approval-gated effects are shipped.
+> **Local target only.** This deliberately partial page covers the shipped
+> exposure core, `/api/v1` family, generated projections, integration records,
+> OAuth facade, remote MCP, read-only `ask` v1 budget ledger, capability links,
+> durable user watches, and approval-gated effects.
 > General billing-grade metering remains incomplete. Loss-tolerant per-caller telemetry attribution and console visibility
 > are shipped, but are not a non-shedding usage ledger. Hosted targets refuse the facade and granted external lanes until the LLP 0039
 > deployment-security contract lands.
