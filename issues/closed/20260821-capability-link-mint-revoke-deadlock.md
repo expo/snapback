@@ -1,6 +1,6 @@
 # `POST /capability-links` deadlocks permanently (found via a hanging test)
 
-**Status:** Open
+**Status:** Resolved
 **Filed:** 2026-08-21
 **Severity:** Production endpoint wedges forever, holding the write mutex; also blocks `cargo test -p snapback-server --lib` from ever completing
 
@@ -127,3 +127,34 @@ across each durable commit — it is the atomic epoch-retirement fence
 and do not delete or time out the test as the behavioral fix.
 
 In progress on `lane/capfix`, including a revoke regression.
+
+
+## Resolution — 2026-08-21
+
+Fixed by `46d85496b`. The transport-level `effect_guard` calls in
+`capability_link_mint` and revoke are gone; the engine method is sole owner of
+validation and of the guard across the durable commit.
+
+Verified unsandboxed rather than taken on report: the formerly hanging test
+passes in 0.20 s, and the `snapback-server` lib suite COMPLETES for the first
+time. Against a clean-main baseline the failure set is identical — 6 failures,
+same names, before and after — so this regresses nothing. Those six are
+tracked in `issues/20260821-server-suite-six-pre-existing-failures.md`.
+
+Both reviewers independently verified the fence survives: mint and revoke each
+validate, drop, re-validate and RETAIN, then commit under the live guard, with
+no unfenced window. The removed transport guards were exact duplicates — same
+authority clone, same epoch, same mutex, same diagnostic — enforcing nothing
+extra.
+
+Two follow-ups came out of the reviews, both filed separately:
+
+- A third instance of the same defect class in `ctx.push.send`
+  (`server.rs:1984` → `engine.rs:6618`), which wedges the detached action
+  worker while it holds the global `SharedSnapback` guard. NOTE: its ownership
+  is INVERSE — the host guard is the fence and `reserve_push_send` has none —
+  so deleting the outer guard there would UNFENCE the reservation. It needs the
+  opposite fix: keep the host guard, stop the inner revalidation.
+- `consume_capability_link_use` and `settle_capability_link_use` hold no
+  admission guard at all:
+  `issues/20260821-capability-link-consume-settle-unfenced.md`.
