@@ -1769,6 +1769,14 @@ fn auth_runtime_fixture_with(
     mode: PolicyAuthMode,
     prepare: impl FnOnce(&mut LocalSnapback),
 ) -> (AppState, String) {
+    auth_runtime_fixture_with_context(mode, bound_loopback_context(), prepare)
+}
+
+fn auth_runtime_fixture_with_context(
+    mode: PolicyAuthMode,
+    mut context: ServerContext,
+    prepare: impl FnOnce(&mut LocalSnapback),
+) -> (AppState, String) {
     let mut snapback = LocalSnapback::memory().expect("memory auth HTTP fixture");
     prepare(&mut snapback);
     let keyring = Arc::new(AuthKeyringStore::in_memory());
@@ -1792,7 +1800,6 @@ fn auth_runtime_fixture_with(
             Ok(())
         })
         .expect("capture test impersonation capability");
-    let mut context = bound_loopback_context();
     context.profile = ServerProfile::Test;
     context.admin_token = Some("auth-http-admin".to_owned());
     let state = test_app_state_from_snapback(snapback, context)
@@ -2059,7 +2066,7 @@ fn auth_invalidation_reset_fixture_with_context(context: ServerContext) -> AppSt
         .expect("install reset sessions posture")
 }
 
-fn dormant_dev_reset_fixture() -> AppState {
+fn dormant_dev_reset_fixture_with_context(mut context: ServerContext) -> AppState {
     let mut snapback = LocalSnapback::memory().expect("memory dormant reset fixture");
     let runtime =
         crate::auth::runtime::AuthRuntime::inspect(&mut snapback, None, AuthProviderProfile::Dev)
@@ -2068,7 +2075,6 @@ fn dormant_dev_reset_fixture() -> AppState {
     let coordinator = runtime
         .build_coordinator(&mut snapback)
         .expect("build dormant stream coordinator");
-    let mut context = bound_loopback_context();
     context.profile = ServerProfile::Dev;
     test_app_state_from_snapback(snapback, context)
         .with_auth_runtime(&runtime, coordinator)
@@ -31555,7 +31561,7 @@ async fn committed_reset_rebuilds_every_invalidation_projection_before_reopening
 
 #[tokio::test]
 async fn committed_reset_keeps_a_queued_managed_writer_out_until_successor_install() {
-    let state = auth_invalidation_reset_fixture();
+    let state = auth_invalidation_reset_fixture_with_context(ServerContext::detached());
     let (reset_committed, release_reset) =
         install_committed_reset_handoff_test_hook(&state.snapback);
     let reset_state = state.clone();
@@ -31627,7 +31633,7 @@ async fn dormant_dev_reset_rotates_stream_without_installing_a_session_issuer() 
     // one inspected provider and one rebuilt stream coordinator. The old
     // provider/coordinator-absent compatibility fast path is intentionally
     // unreachable in this fixture.
-    let state = dormant_dev_reset_fixture();
+    let state = dormant_dev_reset_fixture_with_context(ServerContext::detached());
     assert!(!state.auth_catalog_ready);
     assert!(state.auth_provider.is_some());
     let coordinator = state
@@ -31698,7 +31704,8 @@ async fn active_dev_ready_catalog_reset_stays_session_issuer_free() {
     // Catalog readiness is not the issuer predicate. A ready catalog can
     // remain active Dev during staging or after downgrade; startup only
     // installs an invalidation issuer when the active mode is Sessions.
-    let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+    let (state, _) =
+        auth_runtime_fixture_with_context(PolicyAuthMode::Dev, ServerContext::detached(), |_| {});
     assert!(state.auth_catalog_ready);
     assert_eq!(state.auth_mode_state().active, AuthMode::Dev);
     let coordinator = state
