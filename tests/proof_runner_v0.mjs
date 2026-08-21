@@ -18,9 +18,16 @@ import { parseGateCalls } from '../scripts/check-local-proof-gates.mjs';
 const root = resolve(import.meta.dirname, '..');
 const runner = join(root, 'scripts', 'lib', 'proof-runner.sh');
 
+function selectedGateIds(body) {
+  return [...new Set(
+    [...body.matchAll(/^\s*proof_gate\s+([a-z0-9-]+)/gmu)]
+      .map((match) => match[1]),
+  )];
+}
+
 function fixture(body, {
   keepGoing = 1,
-  selectedCount = null,
+  selected = selectedGateIds(body),
   captureSignatures = false,
   timeoutSeconds = null,
   termGraceSeconds = null,
@@ -28,6 +35,7 @@ function fixture(body, {
 } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-proof-runner-'));
   const receipt = join(scratch, 'results.jsonl');
+  const selectedGates = join(scratch, 'selected-gates.txt');
   const marker = join(scratch, 'dependent-ran');
   const childPid = join(scratch, 'child.pid');
   const writerPid = join(scratch, 'writer.pid');
@@ -87,10 +95,11 @@ await runAcceptance(suite, async () => {
   await new Promise(() => {});
 }, { cleanups });
 `);
+  writeFileSync(selectedGates, selected.map((gateId) => `${gateId}\n`).join(''));
   const script = `
 set -euo pipefail
 source ${JSON.stringify(runner)}
-proof_runner_init fixture ${JSON.stringify(receipt)} ${keepGoing} ${selectedCount ?? body.match(/proof_gate /gu)?.length ?? 0}
+proof_runner_init fixture ${JSON.stringify(receipt)} ${keepGoing} ${JSON.stringify(selectedGates)}
 ${body}
 proof_runner_finish
 `;
@@ -160,6 +169,31 @@ function processExists(pid) {
     throw error;
   }
 }
+
+test('finish rejects a selected gate hidden behind a false guard and accepts it unguarded', () => {
+  const selected = ['guarded-gate'];
+  const guarded = fixture(`
+if false; then
+  proof_gate guarded-gate -- /usr/bin/true
+fi
+`, { selected });
+  const unguarded = fixture(`
+proof_gate guarded-gate -- /usr/bin/true
+`, { selected });
+  try {
+    assert.notEqual(guarded.result.status, 0, guarded.result.stdout);
+    assert.match(guarded.result.stderr, /missing selected gate id\(s\): guarded-gate/u);
+    assert.deepEqual(guarded.records, []);
+    assert.equal(unguarded.result.status, 0, unguarded.result.stderr);
+    assert.deepEqual(
+      unguarded.records.map(({ gateId, state }) => [gateId, state]),
+      [['guarded-gate', 'PASS']],
+    );
+  } finally {
+    rmSync(guarded.scratch, { recursive: true, force: true });
+    rmSync(unguarded.scratch, { recursive: true, force: true });
+  }
+});
 
 test('fail-fast preserves the root command exit and never reaches later gates', () => {
   const run = fixture(`

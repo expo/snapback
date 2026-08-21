@@ -1305,6 +1305,8 @@ test('backstop keys distinct reds by signature and updates an unchanged observat
 
 function captureDeclarationOrderBatteryFixture(scratch, context) {
   const resultsPath = join(scratch, 'declaration-order-results.jsonl');
+  const selectedGatesPath = join(scratch, 'declaration-order-selected-gates.txt');
+  writeFileSync(selectedGatesPath, '');
   const seen = new Set();
   const declarationOrder = context.calls.flatMap(({ gateId }) => {
     if (seen.has(gateId)) return [];
@@ -1314,7 +1316,7 @@ function captureDeclarationOrderBatteryFixture(scratch, context) {
   const script = [
     'set -euo pipefail',
     `source ${JSON.stringify(PROOF_RUNNER)}`,
-    `proof_runner_init local-proof ${JSON.stringify(resultsPath)} 1 0`,
+    `proof_runner_init local-proof ${JSON.stringify(resultsPath)} 1 ${JSON.stringify(selectedGatesPath)}`,
     ...declarationOrder.map((gateId) => (
       `proof_not_selected ${gateId} 'host-conditioned fixture capture'`
     )),

@@ -141,8 +141,7 @@ PROOF_RESULTS="${SNAPBACK_PROOF_RESULTS:-$ROOT/target/proof/local-proof-results.
 if [ "$PROOF_CADENCE" = "complete" ]; then
     export SNAPBACK_PROOF_CAPTURE_FAILURE_SIGNATURES=1
 fi
-PROOF_SELECTED_COUNT="$(awk 'NF { count += 1 } END { print count + 0 }' "$PROOF_SELECTED_GATES")"
-proof_runner_init local-proof "$PROOF_RESULTS" "$KEEP_GOING" "$PROOF_SELECTED_COUNT"
+proof_runner_init local-proof "$PROOF_RESULTS" "$KEEP_GOING" "$PROOF_SELECTED_GATES"
 
 run() {
     local gate_id="$1" selection_status=0
@@ -549,6 +548,8 @@ if [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "linux" ]; then
         --source-test-staging
     runtime_binary="$ROOT/packages/snapback-runtime-linux-x64/bin/snapback"
     runtime_prerequisite="runtime-package-stage"
+else
+    not_selected runtime-package-stage "Linux-only runtime package stage"
 fi
 # LLP 0079 SC-1b: the control-plane MCP acceptance loop (@expo/snapback-cli) drives
 # a real native server through `snapback mcp-control`; point the JS CLI at the
@@ -681,6 +682,27 @@ fi
 # through a rename or an unreferenced standalone script.
 run cloudflare-local-suite -- node targets/cloudflare/test/local-suite.mjs
 
+not_selected_exact_surface_gates() {
+    local reason="$1" gate_id=""
+    for gate_id in \
+        exact-todo-install \
+        exact-todo-v2-install \
+        exact-graffiti-install \
+        exact-all-aboard-install \
+        exact-todo-contract \
+        exact-todo-v2-contract \
+        exact-graffiti-contract \
+        exact-all-aboard-live \
+        regression-optimistic-clobber \
+        regression-ephemeral-wiring \
+        regression-multilive-scoped \
+        admin-install \
+        admin-acceptance
+    do
+        not_selected "$gate_id" "$reason"
+    done
+}
+
 if [ "$VERIFY_EXACT" != "0" ]; then
     if exact_available; then
         # Every acceptance caller resolves Exact only from its own lock-owned
@@ -702,14 +724,19 @@ if [ "$VERIFY_EXACT" != "0" ]; then
         # proof gate, not an optional local command that CI can forget to run.
         run admin-acceptance --requires admin-install,browser-availability -- \
             bash -lc 'cd admin-ui && ./build.sh && bun run test && bun run test:browser-security && bun run audit:production'
+        not_selected exact-dependencies-required "Exact dependencies available"
     elif [ "$VERIFY_EXACT" = "1" ]; then
+        not_selected_exact_surface_gates "Exact dependencies unavailable"
         run exact-dependencies-required -- bash -c \
             'printf "SNAPBACK_VERIFY_EXACT=1 but bun or installed Exact packages are unavailable\\n" >&2; exit 1'
     else
-        not_selected exact-contract-admin "Exact dependencies unavailable; set SNAPBACK_VERIFY_EXACT=1 to require them"
+        exact_unavailable_reason="Exact dependencies unavailable; set SNAPBACK_VERIFY_EXACT=1 to require them"
+        not_selected_exact_surface_gates "$exact_unavailable_reason"
+        not_selected exact-dependencies-required "$exact_unavailable_reason"
     fi
 else
-    not_selected exact-contract-admin "SNAPBACK_VERIFY_EXACT=0"
+    not_selected_exact_surface_gates "SNAPBACK_VERIFY_EXACT=0"
+    not_selected exact-dependencies-required "SNAPBACK_VERIFY_EXACT=0"
 fi
 
 finish

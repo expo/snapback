@@ -5,7 +5,7 @@
 # feedback while replacing failed-producer timeout cascades with BLOCKED.
 #
 # The caller remains responsible for `set -e` and calls:
-#   proof_runner_init <proof-id> <jsonl-output> <keep-going:0|1> <selected-count>
+#   proof_runner_init <proof-id> <jsonl-output> <keep-going:0|1> <selected-gates-file>
 #   proof_gate <gate-id> [--requires <comma-separated-gate-ids>]
 #       [--timeout-seconds <positive-integer>] -- <command...>
 #   proof_not_selected <gate-id> <reason>
@@ -20,6 +20,7 @@ PROOF_GATE_COMMANDS=()
 PROOF_GATE_PREREQUISITES=()
 PROOF_GATE_BLOCKED_BY=()
 PROOF_GATE_EXIT_CODES=()
+PROOF_SELECTED_GATE_IDS=()
 
 proof_now_ms() {
     if command -v perl >/dev/null 2>&1; then
@@ -139,14 +140,15 @@ proof_run_gate_with_timeout() {
 
 proof_runner_init() {
     if [ "$#" -ne 4 ]; then
-        printf '[snapback-proof] proof_runner_init expects proof id, result path, keep-going flag, and selected count\n' >&2
+        printf '[snapback-proof] proof_runner_init expects proof id, result path, keep-going flag, and selected-gates file\n' >&2
         return 2
     fi
     PROOF_ID="$1"
     PROOF_RESULTS_PATH="$2"
     PROOF_KEEP_GOING="$3"
-    PROOF_SELECTED_COUNT="$4"
+    PROOF_SELECTED_GATES_PATH="$4"
     PROOF_SELECTED_INDEX=0
+    PROOF_SELECTED_GATE_IDS=()
     case "$PROOF_KEEP_GOING" in
         0|1) ;;
         *)
@@ -154,15 +156,37 @@ proof_runner_init() {
             return 2
             ;;
     esac
-    case "$PROOF_SELECTED_COUNT" in
-        ''|*[!0-9]*)
-            printf '[snapback-proof] selected count must be a non-negative integer, got %s\n' "$PROOF_SELECTED_COUNT" >&2
-            return 2
-            ;;
-    esac
+    if [ ! -r "$PROOF_SELECTED_GATES_PATH" ]; then
+        printf '[snapback-proof] selected-gates file is missing or unreadable: %s\n' \
+            "$PROOF_SELECTED_GATES_PATH" >&2
+        return 2
+    fi
+    local gate_id="" selected_index=0
+    while IFS= read -r gate_id || [ -n "$gate_id" ]; do
+        [ -n "$gate_id" ] || continue
+        case "$gate_id" in
+            ''|*[!a-z0-9-]*)
+                printf '[snapback-proof] invalid selected gate id %q in %s\n' \
+                    "$gate_id" "$PROOF_SELECTED_GATES_PATH" >&2
+                return 2
+                ;;
+        esac
+        selected_index=0
+        while [ "$selected_index" -lt "${#PROOF_SELECTED_GATE_IDS[@]}" ]; do
+            if [ "${PROOF_SELECTED_GATE_IDS[$selected_index]}" = "$gate_id" ]; then
+                printf '[snapback-proof] duplicate selected gate id %s in %s\n' \
+                    "$gate_id" "$PROOF_SELECTED_GATES_PATH" >&2
+                return 2
+            fi
+            selected_index=$((selected_index + 1))
+        done
+        PROOF_SELECTED_GATE_IDS+=("$gate_id")
+    done < "$PROOF_SELECTED_GATES_PATH"
+    PROOF_SELECTED_COUNT="${#PROOF_SELECTED_GATE_IDS[@]}"
     mkdir -p "$(dirname "$PROOF_RESULTS_PATH")"
     : > "$PROOF_RESULTS_PATH"
-    export PROOF_ID PROOF_RESULTS_PATH PROOF_KEEP_GOING PROOF_SELECTED_COUNT PROOF_SELECTED_INDEX
+    export PROOF_ID PROOF_RESULTS_PATH PROOF_KEEP_GOING PROOF_SELECTED_GATES_PATH
+    export PROOF_SELECTED_COUNT PROOF_SELECTED_INDEX
     printf '[snapback-proof] structured gate results: %s\n' "$PROOF_RESULTS_PATH"
 }
 
@@ -538,6 +562,7 @@ proof_not_selected() {
 
 proof_runner_finish() {
     local index=0 failures=0 blocked=0 not_selected=0
+    local missing_count=0 missing_gate_ids="" selected_gate_id=""
     while [ "$index" -lt "${#PROOF_GATE_IDS[@]}" ]; do
         case "${PROOF_GATE_STATES[$index]}" in
             FAIL) failures=$((failures + 1)) ;;
@@ -546,6 +571,30 @@ proof_runner_finish() {
         esac
         index=$((index + 1))
     done
+
+    # @ref LLP 0175#d2--assign-every-test-to-an-explicit-cadence — the
+    # selected inventory must close over the runtime ledger; a syntactically
+    # inventoried gate cannot silently disappear behind shell control flow.
+    index=0
+    while [ "$index" -lt "${#PROOF_SELECTED_GATE_IDS[@]}" ]; do
+        selected_gate_id="${PROOF_SELECTED_GATE_IDS[$index]}"
+        if ! proof_gate_index "$selected_gate_id" >/dev/null 2>&1; then
+            missing_count=$((missing_count + 1))
+            if [ -n "$missing_gate_ids" ]; then
+                missing_gate_ids="$missing_gate_ids, $selected_gate_id"
+            else
+                missing_gate_ids="$selected_gate_id"
+            fi
+        fi
+        index=$((index + 1))
+    done
+
+    if [ "$missing_count" -gt 0 ]; then
+        printf '\n[snapback-verify] PROOF SUMMARY: selected gate reconciliation failed; %d selected gate(s) were never recorded or invoked\n' \
+            "$missing_count"
+        printf '[snapback-proof] missing selected gate id(s): %s\n' "$missing_gate_ids" >&2
+        return 2
+    fi
 
     if [ "$failures" -gt 0 ] || [ "$blocked" -gt 0 ]; then
         printf '\n[snapback-verify] PROOF SUMMARY: %d root failure(s), %d blocked gate(s), %d not selected\n' \

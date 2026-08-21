@@ -1,6 +1,6 @@
 # Static proof inventory accepts unreachable `run` declarations
 
-**Filed:** 2026-08-17 · **Status:** Open · **Systems:** Verification, Proof runner
+**Filed:** 2026-08-17 · **Status:** Closed · **Systems:** Verification, Proof runner
 
 ## Problem
 
@@ -48,3 +48,23 @@ battery red.
   recorded, rather than relying only on a count.
 - Keep static parsing fail-closed, but do not treat syntactic presence alone as
   runtime reachability evidence.
+
+## Resolution
+
+Resolved 2026-08-21. `proof_runner_init` now snapshots and validates the exact
+selected gate-id set from the selector's output file and derives its progress
+count from that set. `proof_runner_finish` reconciles every selected id against
+the runtime result ledger and exits nonzero with the missing ids when a shell
+guard or other control flow prevents a selected gate from being recorded.
+
+The proof-runner fixtures cover the original `if false; then ... fi` case and
+the same inventory with the gate unguarded. Static `run` parsing remains
+unchanged and fail-closed.
+
+A complete-inventory reachability traversal surfaced 15 existing
+host-conditioned omissions in the canonical shell: the Darwin side of the
+Linux runtime-package branch and the unavailable side of the Exact/admin
+branch. Each branch now records its non-applicable canonical gate ids as
+`NOT_SELECTED`; a repeat traversal reconciled all 172 selected ids.
+
+**Landing SHA:** TBD
