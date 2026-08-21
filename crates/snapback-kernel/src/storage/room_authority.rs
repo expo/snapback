@@ -28,12 +28,14 @@ const ACTIVATION_RETIRED: u8 = 3;
 
 pub(super) struct AuthorizationParticipantActivation {
     state: AtomicU8,
+    projection_available: AtomicBool,
 }
 
 impl AuthorizationParticipantActivation {
     pub(super) fn pending() -> Self {
         Self {
             state: AtomicU8::new(ACTIVATION_PENDING),
+            projection_available: AtomicBool::new(false),
         }
     }
 
@@ -49,6 +51,7 @@ impl AuthorizationParticipantActivation {
     }
 
     pub(super) fn retire(&self) {
+        self.projection_available.store(false, Ordering::Release);
         self.state.store(ACTIVATION_RETIRED, Ordering::Release);
     }
 
@@ -62,6 +65,24 @@ impl AuthorizationParticipantActivation {
 
     pub(super) fn is_ready(&self) -> bool {
         self.state() == ACTIVATION_READY
+    }
+
+    pub(super) fn enable_projection(&self) -> SnapbackResult<()> {
+        if !self.is_ready() {
+            return Err(participant_state_error(
+                "authorization projection cannot activate before the participant is ready",
+            ));
+        }
+        self.projection_available.store(true, Ordering::Release);
+        Ok(())
+    }
+
+    pub(super) fn projection_available(&self) -> bool {
+        self.projection_available.load(Ordering::Acquire)
+    }
+
+    pub(super) fn suspend_projection(&self) {
+        self.projection_available.store(false, Ordering::Release);
     }
 }
 
@@ -330,6 +351,16 @@ impl AuthorizationCommitParticipant {
         &self.activation
     }
 
+    /// Close authorization commits before the issuer projection is removed.
+    /// This is a denial-only transition: only the database-validated activation
+    /// path can make projection available again.
+    ///
+    /// @ref LLP 0290#44-auth-time-activation — a ready transaction participant
+    /// requires a live issuer projection, including across reset rebuilds.
+    pub fn suspend_authorization_projection(&self) {
+        self.activation.suspend_projection();
+    }
+
     fn require_live_locked(&self, allow_bound: bool) -> Result<(), EphemeralError> {
         let state = self.activation.state();
         if self.registry.is_retired()
@@ -498,6 +529,11 @@ impl AuthorizationCommitParticipant {
                 self.binding.clone(),
                 self.registry.clone(),
                 self.registry_generation,
+            ));
+        }
+        if !self.activation.projection_available() {
+            return Err(projection_unavailable(
+                "authorization commit issuer projection is unavailable",
             ));
         }
         let mut state = self.registry.lock();
@@ -765,6 +801,7 @@ impl Default for NonAuthorizingRoomAuthority {
         let registry = RoomAuthorityRegistry::new(binding.clone());
         let activation = Arc::new(AuthorizationParticipantActivation {
             state: AtomicU8::new(ACTIVATION_BOUND),
+            projection_available: AtomicBool::new(false),
         });
         Self {
             participant: AuthorizationCommitParticipant::new(binding, registry, 1, activation),
@@ -929,6 +966,11 @@ impl AuthorizationCommitReservation {
         if activation.state() != ACTIVATION_READY {
             return Err(projection_unavailable(
                 "authorization participant is not ready at transaction bind",
+            ));
+        }
+        if !activation.projection_available() {
+            return Err(projection_unavailable(
+                "authorization commit issuer projection became unavailable before transaction bind",
             ));
         }
         if !self.binding.matches(database_binding) {
@@ -2146,6 +2188,48 @@ mod tests {
             database
                 .authorization_commit_reservation_required()
                 .unwrap()
+        );
+    }
+
+    #[test]
+    fn projection_suspension_refuses_an_already_prepared_reservation_before_commit() {
+        let fixture = ready_fixture();
+        let reservation = fixture
+            .participant
+            .prepare_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::new()),
+            )
+            .expect("prepare while the issuer projection is available");
+
+        fixture.participant.suspend_authorization_projection();
+        let availability = fixture
+            .database
+            .authorization_commit_reservation_required()
+            .expect_err("suspended projection closes new authorization writes");
+        assert_eq!(
+            availability.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+
+        let authorization = successor(&fixture.authorization);
+        let error = match reservation.bind(
+            &fixture.database.binding(),
+            &fixture.database.db.authorization_interlock,
+            Some(&fixture.authorization),
+            &witness(authorization),
+            AuthorizationCommitImpact::AllProtectedRooms,
+        ) {
+            Ok(_) => panic!("bind must recheck projection availability"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+        assert!(
+            fixture.participant.registry.lock().dependencies.is_empty(),
+            "failed bind exact-rolls back the prepared ticket"
         );
     }
 

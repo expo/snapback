@@ -1172,7 +1172,7 @@ fn codegen_membership_auth(user_id: Option<&str>) -> AuthContext {
     }
 }
 
-fn codegen_membership_snapback() -> LocalSnapback {
+fn codegen_membership_snapback_with_binding() -> (LocalSnapback, EngineInvalidationBinding) {
     let schema = codegen_membership_schema();
     let schema_hash = schema.schema_hash.clone().expect("generated schema hash");
     let inputs_hash = schema.inputs_hash.clone().expect("generated inputs hash");
@@ -1235,8 +1235,12 @@ fn codegen_membership_snapback() -> LocalSnapback {
         .ephemeral
         .replace_collections(schema.ephemeral_collections)
         .expect("publish the codegen-emitted membership-backed collection");
-    install_invalidation(&mut snapback);
-    snapback
+    let (_, binding) = install_invalidation_with_binding(&mut snapback);
+    (snapback, binding)
+}
+
+fn codegen_membership_snapback() -> LocalSnapback {
+    codegen_membership_snapback_with_binding().0
 }
 
 #[test]
@@ -1270,6 +1274,43 @@ fn authorization_affecting_seed_projects_issuer_before_kernel_finalizer() {
         after.1.epoch,
         before.1.epoch + 1,
         "the deferred finalizer settles the projected authorization successor"
+    );
+}
+
+#[test]
+fn authorization_affecting_seed_refuses_after_installed_issuer_is_cleared() {
+    let (mut snapback, binding) = codegen_membership_snapback_with_binding();
+    let before = snapback
+        .authorization_reservation_snapshot()
+        .expect("capture authorization frontier before issuer clear");
+
+    snapback
+        .clear_installed_auth_invalidation(&binding)
+        .expect("clear the exact installed invalidation issuer");
+    let error = snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "conversationMembers".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("member-after-clear")),
+                    ("userId".to_owned(), json!(USER_C)),
+                    ("conversationId".to_owned(), json!(BOARD_ID)),
+                    ("role".to_owned(), json!("member")),
+                ])],
+            )]),
+        })
+        .expect_err("authorization-affecting seed must refuse before commit");
+
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+    );
+    assert_eq!(
+        snapback
+            .authorization_reservation_snapshot()
+            .expect("refused seed preserves both durable frontiers"),
+        before,
+        "typed refusal occurs before SQLite commits"
     );
 }
 
@@ -1523,6 +1564,15 @@ globalThis.__snapbackHandlers = {
 "#;
 
 fn install_invalidation(snapback: &mut LocalSnapback) -> [AuthorizationInvalidationConnection; 2] {
+    install_invalidation_with_binding(snapback).0
+}
+
+fn install_invalidation_with_binding(
+    snapback: &mut LocalSnapback,
+) -> (
+    [AuthorizationInvalidationConnection; 2],
+    EngineInvalidationBinding,
+) {
     let (authorization, version_stream, boot_sequence) = snapback
         .auth_database_mut()
         .reserve_invalidation_boot_issuer()
@@ -1552,10 +1602,11 @@ fn install_invalidation(snapback: &mut LocalSnapback) -> [AuthorizationInvalidat
             .reserve_connection_generation()
             .expect("B connection generation"),
     );
+    let binding = EngineInvalidationBinding::from_issuer_for_test(issuer.clone());
     snapback
         .install_auth_invalidation(issuer, authorization, version_stream)
         .expect("install acceptance invalidation");
-    [connection_a, connection_b]
+    ([connection_a, connection_b], binding)
 }
 
 fn session_authority(source: InvocationSource, user_id: &str) -> PreparedAuthority {

@@ -1341,7 +1341,23 @@ impl AuthorizationInterlockState {
                 "auth",
                 "authorization participant construction is still pending",
             )),
-            Self::ParticipantReady { .. } => Ok(true),
+            Self::ParticipantReady { activation, .. } => {
+                let activation = activation.upgrade().ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                        "auth",
+                        "ready authorization participant was dropped",
+                    )
+                })?;
+                if !activation.is_ready() || !activation.projection_available() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                        "auth",
+                        "authorization commit issuer projection is unavailable",
+                    ));
+                }
+                Ok(true)
+            }
         }
     }
 }
@@ -1883,7 +1899,7 @@ impl ServingDatabase {
                 &activation,
             )?;
             if participant.activation().is_ready() {
-                return Ok(());
+                return participant.activation().enable_projection();
             }
         }
         let AuthorizationInterlockState::ParticipantBound {
@@ -1912,7 +1928,7 @@ impl ServingDatabase {
             registry_generation,
             activation,
         };
-        Ok(())
+        participant.activation().enable_projection()
     }
 
     fn validate_authorization_participant(

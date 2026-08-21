@@ -7899,7 +7899,14 @@ impl LocalSnapback {
     /// whose successor cannot be reconstructed exactly. The coordinator stays
     /// globally closed; clearing both query and room leaves no lower-level
     /// embedding path holding a usable issuer for either incarnation.
-    fn clear_auth_invalidation_after_failed_reset(&mut self) {
+    fn clear_auth_invalidation_projection(&mut self) {
+        // Release-store the fail-closed latch before dropping either issuer
+        // projection. Reservations prepared before this cut recheck the same
+        // latch during transaction bind, so none can cross into SQLite.
+        //
+        // @ref LLP 0290#54-bind — transaction bind revalidates every fact that
+        // can change after off-Local reservation, including issuer availability.
+        self.ephemeral.suspend_authorization_commit_projection();
         self.auth_invalidation = None;
         let ephemeral = self.ephemeral.clone();
         crate::exec_guard::run_or_defer_after_local(move || {
@@ -7944,7 +7951,7 @@ impl LocalSnapback {
             Ok(EngineInvalidationBinding { issuer })
         })();
         if attempt.is_err() && reset_successor.is_some() {
-            self.clear_auth_invalidation_after_failed_reset();
+            self.clear_auth_invalidation_projection();
         }
         attempt
     }
@@ -7965,7 +7972,7 @@ impl LocalSnapback {
                 "auth invalidation issuer does not match the installed reset successor",
             ));
         }
-        self.clear_auth_invalidation_after_failed_reset();
+        self.clear_auth_invalidation_projection();
         Ok(())
     }
 
@@ -8697,7 +8704,7 @@ impl LocalSnapback {
         // The authenticated issuer names the pre-reset authorization
         // incarnation. Reset terminates those scopes; coordinated server reset
         // installs a freshly reserved successor before reopening authority.
-        self.auth_invalidation = None;
+        self.clear_auth_invalidation_projection();
         self.permission_epochs.clear();
         self.refresh_read_epochs();
         self.cron.reset_runtime_state(&self.functions);
@@ -27245,8 +27252,22 @@ impl LocalSnapback {
         commit: &crate::storage::SeedCommit,
         admission: &AdmissionLease,
     ) {
-        let authorization_event = commit.authorization.event && self.auth_invalidation.is_some();
-        if !authorization_event {
+        let projection_required = if commit.authorization.event {
+            match self.authorization_commit_reservation_required() {
+                Ok(required) => required,
+                Err(error) => {
+                    // A post-commit unavailable state must take the strict
+                    // projection path so the kernel finalizer cannot be
+                    // silently skipped. The precommit latch makes this branch
+                    // unreachable for public writes.
+                    self.record_attached_diagnostics(vec![error.diagnostic]);
+                    true
+                }
+            }
+        } else {
+            false
+        };
+        if !projection_required {
             self.notify_live_subscriptions(&[]);
             return;
         }

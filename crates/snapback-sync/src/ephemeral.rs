@@ -3660,6 +3660,16 @@ impl LocalEphemeralBackend {
                 "standalone ephemeral backend has no database-bound authorization participant",
             ));
         };
+        let issuer = lock(&self.shared.authorization_issuer)
+            .clone()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                    "auth",
+                    "authorization commit interlock cannot activate without an installed issuer",
+                )
+            })?;
+        issuer.authorization_expectation()?;
         database.activate_authorization_commit_participant(participant)
     }
 
@@ -3688,6 +3698,14 @@ impl LocalEphemeralBackend {
             "ephemeral authorization issuer clearing",
         );
         *lock(&self.shared.authorization_issuer) = None;
+    }
+
+    /// Fail closed at reservation and transaction bind before removing the
+    /// issuer that projects same-incarnation authorization commits.
+    pub fn suspend_authorization_commit_projection(&self) {
+        if let RoomAuthority::Bound(participant) = &self.shared.room_authority {
+            participant.suspend_authorization_projection();
+        }
     }
 
     #[cfg(any(test, feature = "test-support"))]
