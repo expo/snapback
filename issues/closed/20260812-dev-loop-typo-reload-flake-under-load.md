@@ -61,4 +61,4 @@ This was preferred over a larger timeout because it removes debounce timing
 from the typo assertion and retires the product-side causal residue rather
 than merely reducing the probability of the same failure.
 
-**Landing SHA:** TBD
+**Landing SHA:** 788e6bcb1 (with review-fix commits on the same push)
