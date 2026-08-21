@@ -11,7 +11,9 @@
 //! potentially shrinking auth-scoped results remain pending until resolution.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::storage::AuthorizationVersion;
+use crate::storage::{
+    AuthorizationCommitOutcome, AuthorizationExpectationView, AuthorizationVersion,
+};
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use hmac::{Hmac, Mac};
@@ -20,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
 pub use snapback_types::auth::invalidation::*;
 
@@ -152,7 +154,7 @@ pub struct IssuerRetirement {
 pub struct LiveInvalidationIssuer {
     authenticated: AuthenticatedBootIssuer,
     retirement_signer: Option<Arc<RetirementSigner>>,
-    authorization_expectation: Arc<RwLock<Option<AuthorizationVersion>>>,
+    authorization_expectation: Arc<OnceLock<AuthorizationExpectationView>>,
     version_stream: Arc<RwLock<Option<String>>>,
     next_connection_generation: Arc<AtomicU64>,
     next_scope_sequence: Arc<AtomicU64>,
@@ -189,7 +191,7 @@ impl LiveInvalidationIssuer {
         Ok(Self {
             authenticated,
             retirement_signer: None,
-            authorization_expectation: Arc::new(RwLock::new(None)),
+            authorization_expectation: Arc::new(OnceLock::new()),
             version_stream: Arc::new(RwLock::new(None)),
             next_connection_generation: Arc::new(AtomicU64::new(1)),
             next_scope_sequence: Arc::new(AtomicU64::new(1)),
@@ -222,38 +224,45 @@ impl LiveInvalidationIssuer {
         &self.authenticated
     }
 
-    pub fn install_authorization_expectation(
+    pub fn bind_authorization_expectation(
         &self,
-        authorization: AuthorizationVersion,
+        view: AuthorizationExpectationView,
     ) -> SnapbackResult<()> {
+        let authorization = view.current()?;
         validate_retirement_authorization(&authorization, &self.authenticated.issuer_id)?;
-        let mut current = self
-            .authorization_expectation
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if current.as_ref().is_some_and(|current| {
-            current.incarnation != authorization.incarnation || current.epoch > authorization.epoch
-        }) {
-            return Err(invalidation_error(
+        self.authorization_expectation.set(view).map_err(|_| {
+            invalidation_error(
                 "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
-                "issuer authorization expectation cannot move backward or cross incarnation",
-            ));
-        }
-        *current = Some(authorization);
-        Ok(())
+                "invalidation issuer authorization expectation was already bound",
+            )
+        })
+    }
+
+    pub fn project_authorization_expectation(
+        &self,
+        outcome: &AuthorizationCommitOutcome,
+    ) -> SnapbackResult<()> {
+        self.authorization_expectation
+            .get()
+            .ok_or_else(|| {
+                invalidation_error(
+                    "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
+                    "invalidation issuer has no bound authorization expectation",
+                )
+            })?
+            .project_committed(outcome)
     }
 
     pub fn authorization_expectation(&self) -> SnapbackResult<AuthorizationVersion> {
         self.authorization_expectation
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
+            .get()
             .ok_or_else(|| {
                 invalidation_error(
                     "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
-                    "invalidation issuer has no installed authorization expectation",
+                    "invalidation issuer has no bound authorization expectation",
                 )
-            })
+            })?
+            .current()
     }
 
     pub fn install_version_stream(&self, version_stream: impl Into<String>) -> SnapbackResult<()> {

@@ -19206,17 +19206,16 @@ async fn authorized_durable_http_body_holds_commit_through_final_poll() {
         .effective_for(PolicyAuthMode::Sessions);
     let response = finish_registered_response(policy, response, Some(&admission), None);
 
-    let successor = crate::storage::AuthorizationVersion {
-        incarnation: authorization.incarnation,
-        epoch: authorization.epoch + 1,
-    };
     let (prepared_tx, prepared_rx) = std::sync::mpsc::channel();
     let prepare_ephemeral = state.ephemeral.clone();
     let prepare = std::thread::spawn(move || {
-        let ticket = prepare_ephemeral
-            .prepare_room_authorization_event_for_test(successor)
+        let reservation = prepare_ephemeral
+            .reserve_authorization_commit(
+                crate::storage::AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(crate::storage::AuthorizationReservationCancellation::new()),
+            )
             .expect("prepare successor authorization event");
-        prepared_tx.send(ticket).unwrap();
+        prepared_tx.send(reservation).unwrap();
     });
     assert!(
         prepared_rx.recv_timeout(Duration::from_millis(20)).is_err(),
@@ -19226,14 +19225,10 @@ async fn authorized_durable_http_body_holds_commit_through_final_poll() {
     let _body = to_bytes(response.into_body(), usize::MAX)
         .await
         .expect("poll response body to its final sink");
-    let ticket = prepared_rx
+    let reservation = prepared_rx
         .recv_timeout(Duration::from_secs(1))
         .expect("authorization prepare resumes after the body completes");
-    assert!(
-        state
-            .ephemeral
-            .rollback_room_authorization_event_for_test(&ticket)
-    );
+    reservation.cancel();
     prepare.join().expect("prepare thread joins");
 }
 
@@ -28062,34 +28057,16 @@ fn connection_previous_token_reuse_compares_every_authority_field() {
 #[test]
 fn connection_registry_negotiates_exact_invalidation_v1_with_bound_authority() {
     let registry = ConnectionRegistry::default();
-    let issuer_id =
-        crate::auth::invalidation::IssuerId::fresh("018f0d90-7b11-7a22-8c33-445566778899", 7)
-            .expect("issuer id");
-    let authenticator =
-        crate::auth::invalidation::IssuerAuthenticator::new("test-protocol-key", [0x33; 32])
-            .expect("authenticator");
-    let authenticated = authenticator
-        .authenticate(issuer_id.clone(), "test-target", "test-app")
-        .expect("authenticated issuer");
-    let issuer = crate::auth::invalidation::LiveInvalidationIssuer::with_authenticator(
-        authenticated,
-        authenticator,
-        "test-target",
-        "test-app",
-    )
-    .expect("live issuer");
-    issuer
-        .install_authorization_expectation(crate::storage::AuthorizationVersion {
-            incarnation: issuer_id.authorization_incarnation.clone(),
-            epoch: 4,
-        })
-        .expect("authorization expectation");
-    issuer
-        .install_version_stream("018f0d90-7b11-7a22-8c33-4455667788aa")
-        .expect("version stream");
-    registry.install_invalidation_binding(
-        crate::local::EngineInvalidationBinding::from_issuer_for_test(issuer),
-    );
+    let state = auth_invalidation_reset_fixture();
+    let binding = state
+        .connections
+        .invalidation_issuer
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone()
+        .expect("fixture installs a database-bound invalidation issuer");
+    let expected_authorization = binding.authorization_expectation().unwrap();
+    registry.install_invalidation_binding(binding);
 
     let (incarnation, publication) = FencedPublication::anonymous_for_unmanaged_dev_connection();
     let prepared = || {
@@ -28127,20 +28104,16 @@ fn connection_registry_negotiates_exact_invalidation_v1_with_bound_authority() {
         .as_ref()
         .expect("v1 descriptor");
     assert_eq!(descriptor.protocol_version, 1);
-    assert_eq!(descriptor.issuer_id, issuer_id);
     assert_eq!(descriptor.connection_generation, 1);
-    assert_eq!(descriptor.authorization.epoch, 4);
-    assert_eq!(
-        descriptor.version_stream,
-        "018f0d90-7b11-7a22-8c33-4455667788aa"
-    );
+    assert_eq!(descriptor.authorization, expected_authorization);
+    assert!(crate::ids::is_minted_identifier(&descriptor.version_stream));
     assert_eq!(
         descriptor
             .issuer_retirement
             .as_ref()
             .expect("prior issuer retirement")
             .retire_through_boot_sequence,
-        6
+        descriptor.issuer_id.boot_sequence - 1
     );
     let reopened = registry
         .open_prepared(ConnectionOpenAttempt::new(

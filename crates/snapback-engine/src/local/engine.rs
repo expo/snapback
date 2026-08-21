@@ -2660,22 +2660,6 @@ impl EphemeralApi {
         self.store.begin_final_send(envelope)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn prepare_room_authorization_event_for_test(
-        &self,
-        authorization: crate::storage::AuthorizationVersion,
-    ) -> SnapbackResult<crate::ephemeral::RoomDependencyTicket> {
-        self.store.prepare_room_authorization_event(authorization)
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn rollback_room_authorization_event_for_test(
-        &self,
-        ticket: &crate::ephemeral::RoomDependencyTicket,
-    ) -> bool {
-        self.store.rollback_room_authorization_event(ticket)
-    }
-
     /// Embedded/test compatibility drain without socket-generation ownership.
     /// WebSocket app-data composition must use
     /// [`Self::drain_live_stream_for_send_if_current`].
@@ -7752,7 +7736,17 @@ impl LocalSnapback {
         authorization: crate::storage::AuthorizationVersion,
         version_stream: String,
     ) -> SnapbackResult<()> {
-        issuer.install_authorization_expectation(authorization.clone())?;
+        let view = self
+            .ephemeral
+            .authorization_expectation_view_for_install(&mut self.db)?;
+        if view.current()? != authorization {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                "auth",
+                "kernel authorization expectation does not match the reserved boot issuer",
+            ));
+        }
+        issuer.bind_authorization_expectation(view)?;
         issuer.install_version_stream(version_stream.clone())?;
         let obligations = ObligationRegistry::new(ObligationExpectation {
             authorization,
@@ -7769,7 +7763,8 @@ impl LocalSnapback {
         crate::exec_guard::run_or_defer_after_local(move || {
             ephemeral.install_authorization_issuer(issuer);
         });
-        self.db.enable_authorization_commit_interlock()?;
+        self.ephemeral
+            .activate_authorization_commit_interlock(&mut self.db)?;
         Ok(())
     }
 
@@ -7871,16 +7866,32 @@ impl LocalSnapback {
             return Ok(work(self));
         }
 
-        let cancellation =
-            Arc::new(crate::storage::AuthorizationReservationCancellation::default());
-        let reservation = self
-            .ephemeral
-            .reserve_authorization_commit(preflight, cancellation)?;
-        let reservation_scope = reservation.install();
+        // Construction leaves the database-bound participant dormant. Until
+        // the invalidation issuer has been installed and the participant has
+        // become ready, storage deliberately treats `ParticipantBound` like
+        // the former disabled interlock. Do not ask the participant to mint a
+        // reservation in that state: prepare is specified to require READY.
+        // Once an issuer is present, the database-side transaction bind is
+        // still the authoritative readiness and exact-registry check.
+        //
+        // @ref LLP 0290#step-8--switch-production-composition-and-transactions
+        // — native reservations begin only after auth-time activation.
+        let reservation_scope = if self.auth_invalidation.is_some() {
+            let cancellation =
+                Arc::new(crate::storage::AuthorizationReservationCancellation::new());
+            Some(
+                self.ephemeral
+                    .reserve_authorization_commit(preflight, cancellation)?
+                    .install(),
+            )
+        } else {
+            None
+        };
 
         let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
         let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(self)));
-        let unused = reservation_scope.take_unused();
+        let unused = reservation_scope
+            .and_then(crate::storage::ManagedAuthorizationReservationScope::take_unused);
         let after_local = local_scope.take_after_local_batch();
         drop(local_scope);
 
@@ -24410,8 +24421,10 @@ impl LocalSnapback {
         ));
         static STREAM_ATTEMPT_NAMESPACE: std::sync::atomic::AtomicUsize =
             std::sync::atomic::AtomicUsize::new(1);
-        let ephemeral = LocalEphemeralBackend::new();
-        ephemeral.install_authorization_commit_carriers(db.authorization_commit_carriers())?;
+        let ephemeral = LocalEphemeralBackend::for_serving_database(
+            crate::ephemeral::EphemeralStoreLimits::default(),
+            &mut db,
+        )?;
         Ok(Self {
             db,
             service_authority_fences,
@@ -27843,6 +27856,73 @@ impl LocalSnapback {
         )
     }
 
+    fn apply_live_authority_fences(
+        &mut self,
+        subscriptions: &[LiveSubscription],
+        authorization: &crate::storage::AuthorizationVersion,
+    ) -> SnapbackResult<bool> {
+        let Some(coalescer) = self.live_coalescer.clone() else {
+            return Ok(false);
+        };
+        // @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification —
+        // fence every affected subscription before any fallible obligation
+        // bookkeeping; projection failure may leave it quarantined but can
+        // never leave predecessor-authority delivery enabled.
+        let marking_started = Instant::now();
+        for subscription in subscriptions {
+            coalescer.fence_authority(&subscription.id, authorization.clone());
+            crate::spike_trace::fence(
+                &subscription.id,
+                "applied",
+                authorization,
+                Some(marking_started.elapsed().as_secs_f64() * 1_000.0),
+            );
+        }
+        // §2.4's fence bound covers the marking step (O(affected
+        // subscriptions), no evaluation): the whole transition's marking
+        // duration is the recorded latency sample.
+        let marking_ms = marking_started.elapsed().as_secs_f64() * 1_000.0;
+        self.live_authority_stats.fences_applied = self
+            .live_authority_stats
+            .fences_applied
+            .saturating_add(subscriptions.len() as u64);
+        self.live_authority_stats.last_fence_marking_latency_ms = marking_ms;
+        if marking_ms > self.live_authority_stats.max_fence_marking_latency_ms {
+            self.live_authority_stats.max_fence_marking_latency_ms = marking_ms;
+        }
+
+        if !self.pending_live_fanout.evaluation_memo.disabled {
+            let claims_now_ms = now_millis();
+            for subscription in subscriptions {
+                // @ref LLP 0209#6 — an authority fence retires the complete
+                // predecessor authority component, independent of current
+                // holder membership. That includes orphaned entries left by
+                // any earlier lifecycle defect; the delivery gate remains the
+                // safety boundary.
+                let resolved = subscription.authority.resolved();
+                // Memo-key reconstruction is not a new InvocationSource.
+                // Resolve the same catalog half, then use the sole projection
+                // constructor without minting a second PreparedAuthority.
+                let session_claims = self.session_claims_for_authority(
+                    resolved,
+                    subscription.authority.profile(),
+                    claims_now_ms,
+                )?;
+                let projection = HandlerAuthProjection::from_authority(resolved, session_claims)?;
+                if let Some(authority_component) = Self::live_evaluation_memo_authority_component(
+                    &subscription.input.auth,
+                    &projection,
+                    &resolved.invalidation_subject(),
+                ) {
+                    self.pending_live_fanout
+                        .evaluation_memo
+                        .retire_authority(&authority_component);
+                }
+            }
+        }
+        Ok(true)
+    }
+
     fn notify_authorization_event_in_frame_with_policy(
         &mut self,
         authorization: &crate::storage::AuthorizationCommitWitness,
@@ -27872,6 +27952,27 @@ impl LocalSnapback {
                     .obligations
                     .advance_authenticated_authorization(authorization.version.clone())
             })?;
+        if !authorization.incarnation_rotated {
+            let ephemeral = self.ephemeral.clone();
+            let issuer = self
+                .auth_invalidation
+                .as_ref()
+                .expect("authorization event requires installed invalidation state")
+                .issuer
+                .clone();
+            let witness = authorization.clone();
+            // @ref LLP 0290#56-issuer-expectation-and-committed-observation —
+            // issuer projection is ordinary after-Local work and therefore
+            // precedes the kernel settlement finalizer.
+            crate::exec_guard::run_or_defer_after_local(move || {
+                let outcome = ephemeral
+                    .committed_authorization_outcome(&witness, min_commit_version)
+                    .expect("known authorization commit exposes its exact kernel outcome");
+                issuer
+                    .project_authorization_expectation(&outcome)
+                    .expect("known authorization commit projects its bound issuer view");
+            });
+        }
         self.live_delivery.authorization_blast_radius.for_event(
             &authorization.membership_declarations,
             |counters| {
@@ -27887,68 +27988,8 @@ impl LocalSnapback {
         if subscriptions.is_empty() {
             return Ok(BTreeSet::new());
         }
-        let scheduled_coalescer = self.live_coalescer.clone();
-        if let Some(coalescer) = &scheduled_coalescer {
-            // @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification —
-            // fence every affected subscription before any fallible obligation
-            // bookkeeping; projection failure may leave it quarantined but can
-            // never leave predecessor-authority delivery enabled.
-            let marking_started = Instant::now();
-            for subscription in &subscriptions {
-                coalescer.fence_authority(&subscription.id, authorization.version.clone());
-                crate::spike_trace::fence(
-                    &subscription.id,
-                    "applied",
-                    &authorization.version,
-                    Some(marking_started.elapsed().as_secs_f64() * 1_000.0),
-                );
-            }
-            // §2.4's fence bound covers the marking step (O(affected
-            // subscriptions), no evaluation): the whole transition's marking
-            // duration is the recorded latency sample.
-            let marking_ms = marking_started.elapsed().as_secs_f64() * 1_000.0;
-            self.live_authority_stats.fences_applied = self
-                .live_authority_stats
-                .fences_applied
-                .saturating_add(subscriptions.len() as u64);
-            self.live_authority_stats.last_fence_marking_latency_ms = marking_ms;
-            if marking_ms > self.live_authority_stats.max_fence_marking_latency_ms {
-                self.live_authority_stats.max_fence_marking_latency_ms = marking_ms;
-            }
-
-            if !self.pending_live_fanout.evaluation_memo.disabled {
-                let claims_now_ms = now_millis();
-                for subscription in &subscriptions {
-                    // @ref LLP 0209#6 — an authority fence retires the complete
-                    // predecessor authority component, independent of current
-                    // holder membership. That includes orphaned entries left by
-                    // any earlier lifecycle defect; the delivery gate remains the
-                    // safety boundary.
-                    let resolved = subscription.authority.resolved();
-                    // Memo-key reconstruction is not a new InvocationSource.
-                    // Resolve the same catalog half, then use the sole projection
-                    // constructor without minting a second PreparedAuthority.
-                    let session_claims = self.session_claims_for_authority(
-                        resolved,
-                        subscription.authority.profile(),
-                        claims_now_ms,
-                    )?;
-                    let projection =
-                        HandlerAuthProjection::from_authority(resolved, session_claims)?;
-                    if let Some(authority_component) =
-                        Self::live_evaluation_memo_authority_component(
-                            &subscription.input.auth,
-                            &projection,
-                            &resolved.invalidation_subject(),
-                        )
-                    {
-                        self.pending_live_fanout
-                            .evaluation_memo
-                            .retire_authority(&authority_component);
-                    }
-                }
-            }
-        }
+        let scheduled_coalescer =
+            self.apply_live_authority_fences(&subscriptions, &authorization.version)?;
 
         let mut preprojected = Vec::with_capacity(subscriptions.len());
         for subscription in &subscriptions {
@@ -28041,7 +28082,7 @@ impl LocalSnapback {
             }
         }
 
-        if scheduled_coalescer.is_some() {
+        if scheduled_coalescer {
             // The commit turn performs only registry/obligation bookkeeping,
             // the inline fail-closed obligation publication above, and
             // authority-lane enqueue; re-resolution/VM work is off-turn.

@@ -1561,7 +1561,6 @@ fn live_evaluation_memo_writeless_authority_fence_retires_departed_holder_orphan
         .observation
         .finish(200, None, "test_departed_holder");
 
-    let admission = test_session_admission();
     let cut_version = snapback.durable_version().expect("unchanged data cut");
     let prior_authorization = snapback
         .auth_invalidation
@@ -1571,19 +1570,20 @@ fn live_evaluation_memo_writeless_authority_fence_retires_departed_holder_orphan
         .expectation()
         .authorization
         .clone();
-    let revocation = crate::storage::AuthorizationCommitWitness {
-        version: crate::storage::AuthorizationVersion {
-            incarnation: prior_authorization.incarnation,
-            epoch: prior_authorization.epoch + 1,
-        },
-        event: true,
-        incarnation_rotated: false,
-        membership_declarations: Vec::new(),
+    let successor_authorization = crate::storage::AuthorizationVersion {
+        incarnation: prior_authorization.incarnation,
+        epoch: prior_authorization.epoch + 1,
     };
+    let auth_scoped_subscriptions = snapback
+        .subscriptions
+        .values()
+        .filter(|subscription| subscription.authorization.is_some())
+        .cloned()
+        .collect::<Vec<_>>();
     let before = snapback.live_evaluation_stats.clone();
     snapback
-        .notify_authorization_event_in_frame(&revocation, cut_version, &admission)
-        .expect("publish writeless authority revocation");
+        .apply_live_authority_fences(&auth_scoped_subscriptions, &successor_authorization)
+        .expect("apply the writeless authority fence policy");
     assert_eq!(
         snapback
             .durable_version()

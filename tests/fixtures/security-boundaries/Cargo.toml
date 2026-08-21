@@ -153,6 +153,34 @@ name = "reserve-authorization-via-sync"
 path = "src/bin/reserve_authorization_via_sync.rs"
 
 [[bin]]
+name = "clone-authorization-participant"
+path = "src/bin/clone_authorization_participant.rs"
+
+[[bin]]
+name = "default-authorization-participant"
+path = "src/bin/default_authorization_participant.rs"
+
+[[bin]]
+name = "construct-authorization-participant"
+path = "src/bin/construct_authorization_participant.rs"
+
+[[bin]]
+name = "name-prepared-authorization-commit"
+path = "src/bin/name_prepared_authorization_commit.rs"
+
+[[bin]]
+name = "default-authorization-cancellation"
+path = "src/bin/default_authorization_cancellation.rs"
+
+[[bin]]
+name = "construct-authorization-outcome"
+path = "src/bin/construct_authorization_outcome.rs"
+
+[[bin]]
+name = "construct-authorization-view"
+path = "src/bin/construct_authorization_view.rs"
+
+[[bin]]
 name = "shared-serving-database-unmediated-insert"
 path = "src/bin/shared_serving_database_unmediated_insert.rs"
 

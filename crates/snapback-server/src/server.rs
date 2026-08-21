@@ -1153,8 +1153,7 @@ impl DetachedActionHost {
         // @ref LLP 0059#authorization-write-handoff — detached actions publish
         //   one cancellable room wait to the watchdog and never retain Local.
         self.validate_live("runMutation")?;
-        let cancellation =
-            Arc::new(crate::storage::AuthorizationReservationCancellation::default());
+        let cancellation = Arc::new(crate::storage::AuthorizationReservationCancellation::new());
         {
             let mut active = self
                 .active_reservation

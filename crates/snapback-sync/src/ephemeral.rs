@@ -1,9 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{
-    Arc, Condvar, MutexGuard, OnceLock, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard,
-};
+use std::sync::{Arc, MutexGuard, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -13,11 +11,13 @@ use tokio::sync::Notify;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::live_wire::{LiveAuthErrorCode, LiveAuthErrorReason, LiveAuthorityDisposition};
 use crate::storage::{
-    AuthorizationCommitCarrierFactory, AuthorizationCommitImpact, AuthorizationCommitPreflight,
-    AuthorizationCommitReservation, AuthorizationCommitWitness,
-    AuthorizationReservationCancellation, AuthorizationVersion, ChangeOp,
-    PreparedAuthorizationCommit,
+    AuthorizationCommitOutcome, AuthorizationCommitParticipant, AuthorizationCommitPreflight,
+    AuthorizationCommitReservation, AuthorizationCommitWitness, AuthorizationExpectationView,
+    AuthorizationOutboxAdmission, AuthorizationReservationCancellation, AuthorizationVersion,
+    NonAuthorizingRoomAuthority, OutboxFrameDisposition, RoomCreationAdmission,
+    RoomReauthorizationAdmission, RoomRetirementAdmission, ServingDatabase,
 };
+pub use crate::storage::{RealtimePublicationPermit, RoomAuthorityPermit, RoomAuthorityResync};
 pub use snapback_types::ephemeral::*;
 
 /// Recover from lock poisoning the way the rest of the codebase does: room and
@@ -3205,19 +3205,6 @@ impl EventCounters {
 type SharedRoom = Arc<StdMutex<RoomState>>;
 type SharedOutbox = Arc<StdMutex<OutboundQueue>>;
 
-/// Commit-ordered authority transition published for one protected room. This
-/// is deliberately separate from `scope_epoch`: permission churn does not
-/// claim the room lost its ordinary entry-sequencing continuity.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct RoomAuthorityResync {
-    pub authorization: AuthorizationVersion,
-    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
-    pub min_commit_version: u64,
-    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
-    pub room_authority_generation: u64,
-}
-
 #[derive(Clone, Debug)]
 pub struct RoomSubscriberReauthorization {
     pub connection_id: ConnectionId,
@@ -3246,721 +3233,6 @@ pub enum RoomSubscriberResolution {
     },
 }
 
-#[derive(Clone, Debug)]
-pub struct RoomDependencyTicket {
-    ticket_id: u64,
-    expected_authorization: Arc<OnceLock<AuthorizationVersion>>,
-}
-
-impl RoomDependencyTicket {
-    /// Bind the already-quiesced process-local ticket to the exact durable
-    /// successor. `OnceLock::set` is deliberately the only operation here:
-    /// SQLite callers can perform it while managed Local is held without
-    /// acquiring any ephemeral mutex.
-    fn bind(&self, authorization: AuthorizationVersion) -> SnapbackResult<()> {
-        self.expected_authorization.set(authorization).map_err(|_| {
-            SnapbackError::error(
-                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
-                "auth",
-                "room dependency ticket was already bound to an authorization successor",
-            )
-        })
-    }
-
-    fn expected_authorization(&self) -> SnapbackResult<&AuthorizationVersion> {
-        self.expected_authorization.get().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
-                "auth",
-                "room dependency ticket was not bound to an authorization successor",
-            )
-        })
-    }
-}
-
-#[derive(Clone, Debug)]
-struct RoomDependencyPending {
-    expected_authorization: Arc<OnceLock<AuthorizationVersion>>,
-    selector: RoomDependencySelector,
-    affected_rooms: BTreeSet<RoomId>,
-}
-
-/// Conservative selector installed under the same registry admission gate as
-/// the affected-room barriers. Exact room ids cover inserts, deletes, and
-/// subject-only updates whose permission-backing scope is known. A scope-
-/// changing or otherwise untargetable write widens only to the collections
-/// backed by that table; activation/destructive events widen to every room.
-///
-/// @ref LLP 0053#ephemeral-room-authority-invalidation — the selector and
-///   matching room barriers install atomically under registry admission.
-#[derive(Clone, Debug, Default)]
-struct RoomDependencySelector {
-    all_protected_rooms: bool,
-    collections: BTreeSet<String>,
-    rooms: BTreeSet<RoomId>,
-}
-
-impl RoomDependencySelector {
-    fn all() -> Self {
-        Self {
-            all_protected_rooms: true,
-            ..Self::default()
-        }
-    }
-
-    fn matches(&self, room: &RoomId) -> bool {
-        self.all_protected_rooms
-            || self.collections.contains(&room.collection)
-            || self.rooms.contains(room)
-    }
-
-    fn covers(&self, other: &Self) -> bool {
-        if self.all_protected_rooms {
-            return true;
-        }
-        if other.all_protected_rooms {
-            return false;
-        }
-        other
-            .collections
-            .iter()
-            .all(|collection| self.collections.contains(collection))
-            && other.rooms.iter().all(|room| {
-                self.collections.contains(&room.collection) || self.rooms.contains(room)
-            })
-    }
-}
-
-#[derive(Clone, Debug)]
-struct RoomAuthorityControl {
-    generation: u64,
-    active_permits: usize,
-    pending_tickets: BTreeSet<u64>,
-    resync: Option<RoomAuthorityResync>,
-    retired: bool,
-}
-
-impl Default for RoomAuthorityControl {
-    fn default() -> Self {
-        Self {
-            generation: 1,
-            active_permits: 0,
-            pending_tickets: BTreeSet::new(),
-            resync: None,
-            retired: false,
-        }
-    }
-}
-
-#[derive(Default)]
-struct RoomAuthorityRegistryState {
-    next_ticket: u64,
-    dependencies: BTreeMap<u64, RoomDependencyPending>,
-    rooms: BTreeMap<RoomId, RoomAuthorityControl>,
-    durable_authorization: Option<AuthorizationVersion>,
-    active_durable_publications: usize,
-}
-
-struct RoomAuthorityRegistry {
-    // One registry owns both publication fences so an authorization ticket and
-    // its SQLite commit establish a single cut across durable and room lanes.
-    state: StdMutex<RoomAuthorityRegistryState>,
-    quiescent: Condvar,
-}
-
-impl Default for RoomAuthorityRegistry {
-    fn default() -> Self {
-        Self {
-            state: StdMutex::new(RoomAuthorityRegistryState {
-                next_ticket: 1,
-                ..RoomAuthorityRegistryState::default()
-            }),
-            quiescent: Condvar::new(),
-        }
-    }
-}
-
-/// Opaque proof minted only by the room-authority registry.
-///
-/// Callers cannot assert that admission occurred:
-///
-/// ```compile_fail
-/// use snapback_sync::ephemeral::RoomAuthorityPermit;
-///
-/// let _forged = RoomAuthorityPermit {
-///     registry: todo!(),
-///     room: todo!(),
-///     generation: 1,
-/// };
-/// ```
-pub struct RoomAuthorityPermit {
-    registry: Arc<RoomAuthorityRegistry>,
-    room: RoomId,
-    generation: u64,
-}
-
-/// One auth-scoped durable frame admitted at the final transport boundary.
-/// An authorization-changing commit installs its dependency ticket under the
-/// same registry lock and waits for these permits to quiesce before SQLite may
-/// commit. A frame already destructively drained therefore either finishes
-/// before the commit or is rejected against the successor authorization.
-pub struct DurableAuthorizationPermit {
-    registry: Arc<RoomAuthorityRegistry>,
-}
-
-impl Drop for DurableAuthorizationPermit {
-    fn drop(&mut self) {
-        let mut state = lock(&self.registry.state);
-        state.active_durable_publications = state.active_durable_publications.saturating_sub(1);
-        self.registry.quiescent.notify_all();
-    }
-}
-
-/// The single final-publication permit carried by a realtime frame. Durable
-/// app rows use the authorization fence; protected ephemeral frames use their
-/// exact room generation. Control and authority-independent frames need none.
-pub enum RealtimePublicationPermit {
-    Durable { _permit: DurableAuthorizationPermit },
-    Room(RoomAuthorityPermit),
-}
-
-impl RoomAuthorityPermit {
-    fn generation(&self) -> u64 {
-        self.generation
-    }
-
-    /// Reuse the exact transport permit that admitted the durable lookup.
-    /// Pending tickets installed after this permit are allowed: prepare is
-    /// waiting for this permit to finish, so the act still linearizes before
-    /// commit. Retired or mismatched room identities fail closed.
-    fn admitted_generation(
-        &self,
-        registry: &Arc<RoomAuthorityRegistry>,
-        room: &RoomId,
-    ) -> Result<u64, EphemeralError> {
-        if !Arc::ptr_eq(&self.registry, registry) || &self.room != room {
-            return Err(authority_pending_error());
-        }
-        let state = lock(&registry.state);
-        let Some(control) = state.rooms.get(room) else {
-            return Err(authority_pending_error());
-        };
-        if control.retired || control.generation != self.generation {
-            return Err(authority_pending_error());
-        }
-        Ok(self.generation)
-    }
-}
-
-impl Drop for RoomAuthorityPermit {
-    fn drop(&mut self) {
-        let mut state = lock(&self.registry.state);
-        let remove = if let Some(room) = state.rooms.get_mut(&self.room) {
-            room.active_permits = room.active_permits.saturating_sub(1);
-            room.retired && room.active_permits == 0 && room.pending_tickets.is_empty()
-        } else {
-            false
-        };
-        if remove {
-            state.rooms.remove(&self.room);
-        }
-        self.registry.quiescent.notify_all();
-    }
-}
-
-impl RoomAuthorityRegistry {
-    fn install_durable_authorization(&self, authorization: AuthorizationVersion) {
-        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
-            "room-authority issuer installation",
-        );
-        let mut state = lock(&self.state);
-        state.durable_authorization = Some(authorization);
-        self.quiescent.notify_all();
-    }
-
-    fn begin_durable_final_send(
-        self: &Arc<Self>,
-        authorization: &AuthorizationVersion,
-    ) -> Result<DurableAuthorizationPermit, EphemeralError> {
-        let mut state = lock(&self.state);
-        if !state.dependencies.is_empty()
-            || state.durable_authorization.as_ref() != Some(authorization)
-        {
-            return Err(authority_pending_error());
-        }
-        state.active_durable_publications = state
-            .active_durable_publications
-            .checked_add(1)
-            .ok_or_else(|| {
-                EphemeralError::new(
-                    EphemeralErrorCode::AuthorityPending,
-                    "durable authorization publication permit count exhausted",
-                )
-            })?;
-        Ok(DurableAuthorizationPermit {
-            registry: self.clone(),
-        })
-    }
-
-    fn begin_protected_act(&self, room_id: &RoomId) -> Result<u64, EphemeralError> {
-        let mut state = lock(&self.state);
-        if state
-            .dependencies
-            .values()
-            .any(|pending| pending.selector.matches(room_id))
-        {
-            return Err(authority_pending_error());
-        }
-        let room = state.rooms.entry(room_id.clone()).or_default();
-        if room.retired || !room.pending_tickets.is_empty() || room.resync.is_some() {
-            return Err(authority_pending_error());
-        }
-        room.active_permits = room.active_permits.checked_add(1).ok_or_else(|| {
-            EphemeralError::new(
-                EphemeralErrorCode::AuthorityPending,
-                "protected room authority permit count exhausted",
-            )
-        })?;
-        Ok(room.generation)
-    }
-
-    fn begin_final_send(
-        self: &Arc<Self>,
-        message: &EphemeralMessage,
-    ) -> Result<Option<RoomAuthorityPermit>, EphemeralError> {
-        if message.is_authority_independent_epoch_boundary() {
-            return Ok(None);
-        }
-        let Some((room_id, generation)) = message.room_authority() else {
-            return Ok(None);
-        };
-        let mut state = lock(&self.state);
-        let Some(room) = state.rooms.get_mut(room_id) else {
-            return if generation == 0 {
-                Ok(None)
-            } else {
-                Err(authority_pending_error())
-            };
-        };
-        if room.retired || room.generation != generation || !room.pending_tickets.is_empty() {
-            return Err(authority_pending_error());
-        }
-        let auth_changed = matches!(
-            message,
-            EphemeralMessage::ResyncRequired {
-                reason: ResyncReason::AuthChanged,
-                ..
-            }
-        );
-        match (&room.resync, auth_changed) {
-            (None, false) => {}
-            (Some(resync), true) if resync.room_authority_generation == generation => {}
-            _ => return Err(authority_pending_error()),
-        }
-        room.active_permits = room.active_permits.checked_add(1).ok_or_else(|| {
-            EphemeralError::new(
-                EphemeralErrorCode::AuthorityPending,
-                "protected room authority permit count exhausted",
-            )
-        })?;
-        Ok(Some(RoomAuthorityPermit {
-            registry: self.clone(),
-            room: room_id.clone(),
-            generation,
-        }))
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
-    fn prepare(
-        &self,
-        expected_authorization: AuthorizationVersion,
-        selector: RoomDependencySelector,
-    ) -> SnapbackResult<RoomDependencyTicket> {
-        let expectation = Arc::new(OnceLock::new());
-        expectation
-            .set(expected_authorization)
-            .expect("fresh room dependency expectation binds exactly once");
-        self.prepare_with_expectation(expectation, selector, None)
-    }
-
-    fn prepare_unbound(
-        &self,
-        selector: RoomDependencySelector,
-        cancellation: &AuthorizationReservationCancellation,
-    ) -> SnapbackResult<RoomDependencyTicket> {
-        self.prepare_with_expectation(Arc::new(OnceLock::new()), selector, Some(cancellation))
-    }
-
-    fn prepare_with_expectation(
-        &self,
-        expected_authorization: Arc<OnceLock<AuthorizationVersion>>,
-        selector: RoomDependencySelector,
-        cancellation: Option<&AuthorizationReservationCancellation>,
-    ) -> SnapbackResult<RoomDependencyTicket> {
-        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
-            "room-authority dependency preparation",
-        );
-        let mut state = lock(&self.state);
-        let ticket_id = state.next_ticket;
-        state.next_ticket = ticket_id.checked_add(1).ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED",
-                "ephemeral",
-                "protected room dependency ticket sequence exhausted",
-            )
-        })?;
-        let affected_rooms = state
-            .rooms
-            .keys()
-            .filter(|room| selector.matches(room))
-            .cloned()
-            .collect::<BTreeSet<_>>();
-        if affected_rooms.iter().any(|room_id| {
-            state.rooms.get(room_id).is_some_and(|room| {
-                room.generation >= crate::manifest::PORTABLE_STORAGE_VERSION_MAX
-            })
-        }) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED",
-                "ephemeral",
-                "room authority generation exhausted",
-            ));
-        }
-        for room_id in &affected_rooms {
-            state
-                .rooms
-                .get_mut(room_id)
-                .expect("enumerated room remains present under registry gate")
-                .pending_tickets
-                .insert(ticket_id);
-        }
-        state.dependencies.insert(
-            ticket_id,
-            RoomDependencyPending {
-                expected_authorization: expected_authorization.clone(),
-                selector,
-                affected_rooms: affected_rooms.clone(),
-            },
-        );
-        loop {
-            if cancellation.is_some_and(AuthorizationReservationCancellation::is_cancelled) {
-                let pending = state
-                    .dependencies
-                    .remove(&ticket_id)
-                    .expect("cancelled room dependency remains installed");
-                for room_id in pending.affected_rooms {
-                    if let Some(room) = state.rooms.get_mut(&room_id) {
-                        room.pending_tickets.remove(&ticket_id);
-                    }
-                }
-                self.quiescent.notify_all();
-                return Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_RESERVATION_CANCELLED",
-                    "auth",
-                    "authorization room reservation was cancelled before quiescence",
-                ));
-            }
-            let waiting = state.active_durable_publications != 0
-                || affected_rooms.iter().any(|room_id| {
-                    state
-                        .rooms
-                        .get(room_id)
-                        .is_some_and(|room| room.active_permits != 0)
-                });
-            if !waiting {
-                break;
-            }
-            state = self
-                .quiescent
-                .wait_timeout(state, std::time::Duration::from_millis(10))
-                .unwrap_or_else(PoisonError::into_inner)
-                .0;
-        }
-        Ok(RoomDependencyTicket {
-            ticket_id,
-            expected_authorization,
-        })
-    }
-
-    fn finalize(
-        &self,
-        ticket: &RoomDependencyTicket,
-        authorization: AuthorizationVersion,
-        min_commit_version: u64,
-    ) -> SnapbackResult<Vec<(RoomId, RoomAuthorityResync)>> {
-        if &authorization != ticket.expected_authorization()? {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
-                "auth",
-                "room dependency finalization did not match its prepared authorization expectation",
-            ));
-        }
-        let mut state = lock(&self.state);
-        let pending = state.dependencies.get(&ticket.ticket_id).ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE",
-                "auth",
-                "room dependency ticket is absent or already finalized",
-            )
-        })?;
-        if pending.expected_authorization.get() != Some(&authorization) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
-                "auth",
-                "room dependency registry expectation changed before finalization",
-            ));
-        }
-        if pending.affected_rooms.iter().any(|room_id| {
-            state.rooms.get(room_id).is_some_and(|room| {
-                room.generation >= crate::manifest::PORTABLE_STORAGE_VERSION_MAX
-            })
-        }) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED",
-                "ephemeral",
-                "room authority generation exhausted",
-            ));
-        }
-        let pending = state
-            .dependencies
-            .remove(&ticket.ticket_id)
-            .expect("validated room dependency remains under registry gate");
-        state.durable_authorization = Some(authorization.clone());
-        let mut resyncs = Vec::with_capacity(pending.affected_rooms.len());
-        let mut retired = Vec::new();
-        for room_id in pending.affected_rooms {
-            let Some(room) = state.rooms.get_mut(&room_id) else {
-                continue;
-            };
-            room.pending_tickets.remove(&ticket.ticket_id);
-            if room.retired {
-                if room.pending_tickets.is_empty() && room.active_permits == 0 {
-                    retired.push(room_id);
-                }
-                continue;
-            }
-            room.generation = room
-                .generation
-                .checked_add(1)
-                .filter(|generation| *generation <= crate::manifest::PORTABLE_STORAGE_VERSION_MAX)
-                .expect("room authority generation is preflighted before authorization commit");
-            let resync = RoomAuthorityResync {
-                authorization: authorization.clone(),
-                min_commit_version,
-                room_authority_generation: room.generation,
-            };
-            room.resync = Some(resync.clone());
-            resyncs.push((room_id, resync));
-        }
-        for room_id in retired {
-            state.rooms.remove(&room_id);
-        }
-        self.quiescent.notify_all();
-        Ok(resyncs)
-    }
-
-    fn rollback(&self, ticket: &RoomDependencyTicket) -> bool {
-        let mut state = lock(&self.state);
-        let Some(pending) = state.dependencies.remove(&ticket.ticket_id) else {
-            return false;
-        };
-        let mut retired = Vec::new();
-        for room_id in pending.affected_rooms {
-            if let Some(room) = state.rooms.get_mut(&room_id) {
-                room.pending_tickets.remove(&ticket.ticket_id);
-                if room.retired && room.pending_tickets.is_empty() && room.active_permits == 0 {
-                    retired.push(room_id);
-                }
-            }
-        }
-        for room_id in retired {
-            state.rooms.remove(&room_id);
-        }
-        self.quiescent.notify_all();
-        true
-    }
-
-    fn current_generation(&self, room_id: &RoomId) -> u64 {
-        lock(&self.state)
-            .rooms
-            .get(room_id)
-            .map_or(0, |room| room.generation)
-    }
-
-    fn drain_outbox(
-        self: &Arc<Self>,
-        outbox: &SharedOutbox,
-        admit_fenced: bool,
-        expected_effect_fence: Option<&ConnectionEffectFence>,
-        max_batch: usize,
-        max_handoff_bytes: usize,
-        wake: Arc<OutboxLeaseWake>,
-    ) -> Vec<AdmittedRealtimeEnvelope> {
-        // Registry admission precedes the outbox lock. Prepare cannot install
-        // a dependency ticket until this destructive drain and its permit
-        // accounting complete. Enqueue takes only the outbox lock (protected
-        // room enqueue already owns its permit), so no inverse lock order is
-        // introduced by durable publication fencing.
-        let mut state = lock(&self.state);
-        // Before a durable authorization stream is installed this is the
-        // legacy/dev in-memory room API: there is no auth-changing commit for
-        // a permit to interlock with. Once installed, only the guarded drain
-        // may extract any frame whose publication depends on that stream.
-        let admit_fenced = admit_fenced || state.durable_authorization.is_none();
-        let messages = lock(outbox).drain_with_authority_bounded_and_handoff_limit(
-            expected_effect_fence,
-            max_batch,
-            max_handoff_bytes,
-            |message| {
-                let Some(authorization) = message.authorization() else {
-                    return FrameAuthorityDisposition::Send;
-                };
-                if !state.dependencies.is_empty() {
-                    return FrameAuthorityDisposition::Retain;
-                }
-                if state.durable_authorization.as_ref() == Some(authorization) {
-                    if admit_fenced {
-                        FrameAuthorityDisposition::Send
-                    } else {
-                        FrameAuthorityDisposition::Retain
-                    }
-                } else {
-                    FrameAuthorityDisposition::DropStale
-                }
-            },
-            |message| {
-                if message.is_authority_independent_epoch_boundary() {
-                    return FrameAuthorityDisposition::Send;
-                }
-                let Some((room_id, generation)) = message.room_authority() else {
-                    return FrameAuthorityDisposition::Send;
-                };
-                let Some(room) = state.rooms.get(room_id) else {
-                    return if generation == 0 {
-                        FrameAuthorityDisposition::Send
-                    } else {
-                        FrameAuthorityDisposition::DropStale
-                    };
-                };
-                if room.retired || generation != room.generation {
-                    return FrameAuthorityDisposition::DropStale;
-                }
-                if !room.pending_tickets.is_empty() {
-                    return FrameAuthorityDisposition::Retain;
-                }
-                if let Some(resync) = &room.resync {
-                    let is_current_auth_signal = resync.room_authority_generation == generation
-                        && matches!(
-                            message,
-                            EphemeralMessage::ResyncRequired {
-                                reason: ResyncReason::AuthChanged,
-                                ..
-                            }
-                        );
-                    return if is_current_auth_signal {
-                        if admit_fenced {
-                            FrameAuthorityDisposition::Send
-                        } else {
-                            FrameAuthorityDisposition::Retain
-                        }
-                    } else {
-                        FrameAuthorityDisposition::Retain
-                    };
-                }
-                if matches!(
-                    message,
-                    EphemeralMessage::ResyncRequired {
-                        reason: ResyncReason::AuthChanged,
-                        ..
-                    }
-                ) {
-                    return FrameAuthorityDisposition::DropStale;
-                }
-                if admit_fenced {
-                    FrameAuthorityDisposition::Send
-                } else {
-                    FrameAuthorityDisposition::Retain
-                }
-            },
-        );
-        messages
-            .into_iter()
-            .map(|selected| {
-                let SelectedOutboxLease {
-                    lease_id,
-                    envelope,
-                    recovery_marker_priority,
-                } = selected;
-                let publication_authority = match &envelope {
-                    RealtimeEnvelope::Durable(message) => message.authorization().map(|_| {
-                        state.active_durable_publications = state
-                            .active_durable_publications
-                            .checked_add(1)
-                            .expect("bounded outbox cannot exhaust durable publication permits");
-                        RealtimePublicationPermit::Durable {
-                            _permit: DurableAuthorizationPermit {
-                                registry: self.clone(),
-                            },
-                        }
-                    }),
-                    RealtimeEnvelope::Ephemeral(message) => {
-                        if message.is_authority_independent_epoch_boundary() {
-                            return AdmittedRealtimeEnvelope {
-                                envelope,
-                                publication_authority: None,
-                                lease: OutboxDrainLease::new(
-                                    outbox.clone(),
-                                    lease_id,
-                                    wake.clone(),
-                                    recovery_marker_priority,
-                                ),
-                                recovery_marker: recovery_marker_priority.is_some(),
-                            };
-                        }
-                        message.room_authority().and_then(|(room_id, generation)| {
-                            let room = state.rooms.get_mut(room_id)?;
-                            debug_assert_eq!(room.generation, generation);
-                            debug_assert!(room.pending_tickets.is_empty());
-                            room.active_permits = room
-                                .active_permits
-                                .checked_add(1)
-                                .expect("bounded outbox cannot exhaust room permits");
-                            Some(RealtimePublicationPermit::Room(RoomAuthorityPermit {
-                                registry: self.clone(),
-                                room: room_id.clone(),
-                                generation,
-                            }))
-                        })
-                    }
-                };
-                AdmittedRealtimeEnvelope {
-                    envelope,
-                    publication_authority,
-                    lease: OutboxDrainLease::new(
-                        outbox.clone(),
-                        lease_id,
-                        wake.clone(),
-                        recovery_marker_priority,
-                    ),
-                    recovery_marker: recovery_marker_priority.is_some(),
-                }
-            })
-            .collect()
-    }
-
-    fn retire_room(&self, room_id: &RoomId) {
-        let mut state = lock(&self.state);
-        let Some(room) = state.rooms.get_mut(room_id) else {
-            return;
-        };
-        room.retired = true;
-        room.resync = None;
-        if room.pending_tickets.is_empty() && room.active_permits == 0 {
-            state.rooms.remove(room_id);
-        }
-    }
-}
-
 fn authority_pending_error() -> EphemeralError {
     EphemeralError::new(
         EphemeralErrorCode::AuthorityPending,
@@ -3985,6 +3257,143 @@ struct DefinitionSwapTestHook {
 struct FrameBeforeFirstEnqueueTestHook {
     reached: std::sync::mpsc::SyncSender<EphemeralMessage>,
     release: std::sync::mpsc::Receiver<()>,
+}
+
+enum RoomAuthority {
+    Bound(AuthorizationCommitParticipant),
+    Unbound(NonAuthorizingRoomAuthority),
+}
+
+impl RoomAuthority {
+    fn replace_protected_room_catalog(
+        &self,
+        definitions: &[EphemeralCollection],
+    ) -> Result<u64, EphemeralError> {
+        match self {
+            Self::Bound(participant) => participant.replace_protected_room_catalog(definitions),
+            Self::Unbound(authority) => authority.replace_protected_room_catalog(definitions),
+        }
+    }
+
+    fn begin_protected_room_act(
+        &self,
+        room: &RoomId,
+    ) -> Result<RoomAuthorityPermit, EphemeralError> {
+        match self {
+            Self::Bound(participant) => participant.begin_protected_room_act(room),
+            Self::Unbound(authority) => authority.begin_protected_room_act(room),
+        }
+    }
+
+    fn validate_admitted_room_act(
+        &self,
+        permit: &RoomAuthorityPermit,
+        room: &RoomId,
+    ) -> Result<u64, EphemeralError> {
+        match self {
+            Self::Bound(participant) => participant.validate_admitted_room_act(permit, room),
+            Self::Unbound(authority) => authority.validate_admitted_room_act(permit, room),
+        }
+    }
+
+    fn room_generation(&self, room: &RoomId) -> u64 {
+        match self {
+            Self::Bound(participant) => participant.room_generation(room),
+            Self::Unbound(authority) => authority.room_generation(room),
+        }
+    }
+
+    fn retire_room(&self, room: &RoomId) {
+        match self {
+            Self::Bound(participant) => participant.retire_room(room),
+            Self::Unbound(authority) => authority.retire_room(room),
+        }
+    }
+
+    fn pending_reauthorizations(&self) -> Vec<crate::storage::PendingRoomReauthorization> {
+        match self {
+            Self::Bound(participant) => participant.pending_reauthorizations(),
+            Self::Unbound(authority) => authority.pending_reauthorizations(),
+        }
+    }
+
+    fn begin_outbox_admission(
+        &self,
+        admit_fenced: bool,
+    ) -> Result<AuthorizationOutboxAdmission<'_>, EphemeralError> {
+        match self {
+            Self::Bound(participant) => participant.begin_outbox_admission(admit_fenced),
+            Self::Unbound(authority) => authority.begin_outbox_admission(admit_fenced),
+        }
+    }
+
+    fn begin_room_creation_admission(
+        &self,
+        room: &RoomId,
+        generation: u64,
+    ) -> Result<RoomCreationAdmission<'_>, EphemeralError> {
+        match self {
+            Self::Bound(participant) => participant.begin_room_creation_admission(room, generation),
+            Self::Unbound(authority) => authority.begin_room_creation_admission(room, generation),
+        }
+    }
+
+    fn begin_room_retirement_admission(
+        &self,
+        room: &RoomId,
+    ) -> Result<RoomRetirementAdmission<'_>, EphemeralError> {
+        match self {
+            Self::Bound(participant) => participant.begin_room_retirement_admission(room),
+            Self::Unbound(authority) => authority.begin_room_retirement_admission(room),
+        }
+    }
+
+    fn begin_room_reauthorization_admission(
+        &self,
+        room: &RoomId,
+        generation: u64,
+    ) -> Result<RoomReauthorizationAdmission<'_>, EphemeralError> {
+        match self {
+            Self::Bound(participant) => {
+                participant.begin_room_reauthorization_admission(room, generation)
+            }
+            Self::Unbound(authority) => {
+                authority.begin_room_reauthorization_admission(room, generation)
+            }
+        }
+    }
+
+    fn prepare_authorization_commit(
+        &self,
+        preflight: AuthorizationCommitPreflight,
+        cancellation: Arc<AuthorizationReservationCancellation>,
+    ) -> SnapbackResult<AuthorizationCommitReservation> {
+        match self {
+            Self::Bound(participant) => {
+                participant.prepare_authorization_commit(preflight, cancellation)
+            }
+            Self::Unbound(_) => Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "standalone ephemeral backend has no database-bound authorization participant",
+            )),
+        }
+    }
+
+    fn committed_outcome(
+        &self,
+        witness: &AuthorizationCommitWitness,
+        min_commit_version: u64,
+    ) -> SnapbackResult<AuthorizationCommitOutcome> {
+        match self {
+            Self::Bound(participant) => participant.committed_outcome(witness, min_commit_version),
+            Self::Unbound(_) => Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "standalone ephemeral backend has no authorization commit outcome",
+            )),
+        }
+    }
 }
 
 /// The shared state behind the backend handle. All synchronization is
@@ -4049,7 +3458,7 @@ struct EphemeralShared {
     /// Independent commit-ordered authority gate for protected rooms. No
     /// registry mutex is held across SQLite commit; pending tickets are
     /// level-triggered barriers observed by every sink.
-    room_authority: Arc<RoomAuthorityRegistry>,
+    room_authority: RoomAuthority,
     /// The same authenticated issuer exposed by the handshake. Advancing its
     /// expectation before removing a committed dependency closes the new-room
     /// window: an affected room absent at prepare sees either its matching
@@ -4071,270 +3480,6 @@ struct EphemeralShared {
 #[derive(Clone)]
 pub struct LocalEphemeralBackend {
     shared: Arc<EphemeralShared>,
-    commit_carriers: Arc<RwLock<Option<AuthorizationCommitCarrierFactory>>>,
-}
-
-fn room_dependency_selector_for_collections(
-    collections: &[EphemeralCollection],
-    impact: AuthorizationCommitImpact<'_>,
-) -> RoomDependencySelector {
-    let AuthorizationCommitImpact::AppWrites { schema, changes } = impact else {
-        return RoomDependencySelector::all();
-    };
-    let mut selector = RoomDependencySelector::default();
-    for change in changes {
-        for collection in collections {
-            let Some(projection) = collection.permission_backing.as_ref() else {
-                continue;
-            };
-            if projection.table != change.table {
-                continue;
-            }
-            let Some(table) = schema.table(&change.table) else {
-                // Authorization event classification already treats an
-                // unknown table as affected. The room selector must not
-                // narrow that conservative decision with less metadata.
-                selector.collections.insert(collection.name.clone());
-                continue;
-            };
-            if matches!(change.op, ChangeOp::Update) {
-                if change.changed_fields.is_empty()
-                    || change
-                        .changed_fields
-                        .iter()
-                        .any(|field| table.field(field).is_none())
-                {
-                    selector.collections.insert(collection.name.clone());
-                    continue;
-                }
-                // @ref LLP 0056#invalidation-the-llp-0053-mapping -- role,
-                //   expiry, and other membership-policy changes invalidate
-                //   the room; only declared incidental fields may be ignored.
-                if change
-                    .changed_fields
-                    .iter()
-                    .all(|field| !table.field_affects_authorization(field))
-                {
-                    continue;
-                }
-                // The post-image cannot identify the predecessor room when a
-                // scope field moves. Widen only to this collection.
-                if change.changed_fields.iter().any(|field| {
-                    projection
-                        .scope_fields
-                        .values()
-                        .any(|scope_field| scope_field == field)
-                }) {
-                    selector.collections.insert(collection.name.clone());
-                    continue;
-                }
-            }
-            let Some(Value::Object(row)) = change.row.as_ref() else {
-                selector.collections.insert(collection.name.clone());
-                continue;
-            };
-            let scope = projection
-                .scope_fields
-                .iter()
-                .map(|(scope_field, table_field)| {
-                    row.get(table_field)
-                        .and_then(Value::as_str)
-                        .map(|value| (scope_field.clone(), value.to_owned()))
-                })
-                .collect::<Option<Vec<_>>>();
-            let Some(scope) = scope else {
-                selector.collections.insert(collection.name.clone());
-                continue;
-            };
-            match room_id_for(collection, &Scope::from_pairs(scope)) {
-                Ok(room) => {
-                    selector.rooms.insert(room);
-                }
-                Err(_) => {
-                    selector.collections.insert(collection.name.clone());
-                }
-            }
-        }
-    }
-    selector
-}
-
-struct PreparedRoomAuthorizationCommit {
-    backend: LocalEphemeralBackend,
-    ticket: RoomDependencyTicket,
-    authorization: AuthorizationVersion,
-    incarnation_rotated: bool,
-    rollback_on_drop: bool,
-}
-
-struct RoomAuthorizationCommitReservation {
-    backend: LocalEphemeralBackend,
-    ticket: RoomDependencyTicket,
-    reserved_selector: RoomDependencySelector,
-    collections: Vec<EphemeralCollection>,
-    issuer_expectation: Option<AuthorizationVersion>,
-    collection_generation: u64,
-    rollback_on_drop: bool,
-}
-
-/// Reservation drift happens before the durable application/auth transaction
-/// begins, so every producer exposes the same closed retry contract.
-///
-/// @ref LLP 0059#plan-begin-commit-finalize — a stale reservation abandons the
-/// complete attempt without committing an effect.
-fn authorization_reservation_stale(message: &'static str) -> SnapbackError {
-    SnapbackError::error("SNAPBACK_AUTH_RESERVATION_STALE", "auth", message).with_details(
-        serde_json::json!({
-            "retryable": true,
-            "retryStrategy": "short-jitter",
-            "effectCommitted": false,
-        }),
-    )
-}
-
-impl Drop for RoomAuthorizationCommitReservation {
-    fn drop(&mut self) {
-        if self.rollback_on_drop {
-            let backend = self.backend.clone();
-            let ticket = self.ticket.clone();
-            crate::exec_guard::run_or_defer_after_local_finalizer(move || {
-                backend.rollback_room_authorization_event(&ticket);
-            });
-        }
-    }
-}
-
-impl RoomAuthorizationCommitReservation {
-    fn bind(
-        mut self,
-        witness: &AuthorizationCommitWitness,
-        impact: AuthorizationCommitImpact<'_>,
-    ) -> SnapbackResult<PreparedRoomAuthorizationCommit> {
-        debug_assert!(witness.event);
-        if self
-            .backend
-            .shared
-            .collection_generation
-            .load(Ordering::Acquire)
-            != self.collection_generation
-        {
-            return Err(authorization_reservation_stale(
-                "protected-room definitions changed after authorization reservation",
-            ));
-        }
-        let actual_selector = room_dependency_selector_for_collections(&self.collections, impact);
-        if !self.reserved_selector.covers(&actual_selector) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-                "auth",
-                "authorization write exceeded its off-Local protected-room reservation",
-            ));
-        }
-        if !witness.incarnation_rotated
-            && self.issuer_expectation.as_ref().is_some_and(|expected| {
-                expected.incarnation != witness.version.incarnation
-                    || expected.epoch.checked_add(1) != Some(witness.version.epoch)
-            })
-        {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
-                "auth",
-                "authorization successor is stale for the reserved invalidation issuer",
-            ));
-        }
-        self.ticket.bind(witness.version.clone())?;
-        self.rollback_on_drop = false;
-        Ok(PreparedRoomAuthorizationCommit {
-            backend: self.backend.clone(),
-            ticket: self.ticket.clone(),
-            authorization: witness.version.clone(),
-            incarnation_rotated: witness.incarnation_rotated,
-            rollback_on_drop: true,
-        })
-    }
-
-    fn cancel(self) {
-        drop(self);
-    }
-}
-
-impl Drop for PreparedRoomAuthorizationCommit {
-    fn drop(&mut self) {
-        if self.rollback_on_drop {
-            let backend = self.backend.clone();
-            let ticket = self.ticket.clone();
-            crate::exec_guard::run_or_defer_after_local_finalizer(move || {
-                backend.rollback_room_authorization_event(&ticket);
-            });
-        }
-    }
-}
-
-impl PreparedRoomAuthorizationCommit {
-    fn committed(mut self, min_commit_version: u64) -> SnapbackResult<()> {
-        // From this point on rollback is never safe: the durable transaction
-        // is known committed. A failed finalization therefore leaves the
-        // exact dependency ticket pending and every protected sink closed.
-        self.rollback_on_drop = false;
-        // A boot issuer authenticates exactly one authorization incarnation.
-        // Destructive reset keeps this ticket closed while the server builds
-        // and installs a successor issuer; asking the predecessor issuer to
-        // publish across incarnations would turn a known committed reset into
-        // a false commit-uncertain result.
-        if crate::exec_guard::local_write_scope_active() {
-            let backend = self.backend.clone();
-            let ticket = self.ticket.clone();
-            let authorization = self.authorization.clone();
-            let incarnation_rotated = self.incarnation_rotated;
-            crate::exec_guard::run_or_defer_after_local_finalizer(move || {
-                backend
-                    .finish_room_authorization_commit(
-                        &ticket,
-                        authorization,
-                        incarnation_rotated,
-                        min_commit_version,
-                    )
-                    .expect("prevalidated room authorization commit finalizes after Local");
-            });
-            return Ok(());
-        }
-        self.backend.finish_room_authorization_commit(
-            &self.ticket,
-            self.authorization.clone(),
-            self.incarnation_rotated,
-            min_commit_version,
-        )
-    }
-
-    fn ambiguous(mut self) {
-        self.rollback_on_drop = false;
-    }
-}
-
-fn opaque_prepared_authorization_commit(
-    factory: &AuthorizationCommitCarrierFactory,
-    prepared: PreparedRoomAuthorizationCommit,
-) -> PreparedAuthorizationCommit {
-    let state = Arc::new(StdMutex::new(Some(prepared)));
-    let committed = state.clone();
-    let ambiguous = state.clone();
-    let rolled_back = state;
-    factory.prepared(
-        move |min_commit_version| {
-            lock(&committed)
-                .take()
-                .expect("prepared room commit settles once")
-                .committed(min_commit_version)
-        },
-        move || {
-            if let Some(prepared) = lock(&ambiguous).take() {
-                prepared.ambiguous();
-            }
-        },
-        move || {
-            drop(lock(&rolled_back).take());
-        },
-    )
 }
 
 impl Default for LocalEphemeralBackend {
@@ -4385,12 +3530,34 @@ impl LocalEphemeralBackend {
 
     /// A store with explicit hard limits (tests, future capability overrides).
     pub fn with_limits(limits: EphemeralStoreLimits) -> Self {
-        #[cfg(test)]
-        let commit_carriers = Some(AuthorizationCommitCarrierFactory::for_test());
-        #[cfg(not(test))]
-        let commit_carriers = None;
+        Self::with_limits_and_authority(
+            limits,
+            RoomAuthority::Unbound(NonAuthorizingRoomAuthority::default()),
+        )
+    }
+
+    pub fn for_serving_database(
+        limits: EphemeralStoreLimits,
+        database: &mut ServingDatabase,
+    ) -> SnapbackResult<Self> {
+        // Every `usize` value, including zero, is a valid hard cap, and the
+        // sync-owned graph uses only infallible standard-library lock/Arc
+        // construction. There is therefore no fallible sync work to perform
+        // before taking the database's one participant.
+        let participant = database.take_authorization_commit_participant()?;
+        let backend = Self::with_limits_and_authority(limits, RoomAuthority::Bound(participant));
+        let RoomAuthority::Bound(participant) = &backend.shared.room_authority else {
+            unreachable!("bound constructor installs a bound participant")
+        };
+        database.bind_authorization_commit_participant(participant)?;
+        Ok(backend)
+    }
+
+    fn with_limits_and_authority(
+        limits: EphemeralStoreLimits,
+        room_authority: RoomAuthority,
+    ) -> Self {
         Self {
-            commit_carriers: Arc::new(RwLock::new(commit_carriers)),
             shared: Arc::new(EphemeralShared {
                 lifecycle: RwLock::new(()),
                 #[cfg(test)]
@@ -4408,29 +3575,48 @@ impl LocalEphemeralBackend {
                 next_scope_epoch: AtomicU64::new(1),
                 limits,
                 delivery: Arc::new(DeliveryNotifier::default()),
-                room_authority: Arc::new(RoomAuthorityRegistry::default()),
+                room_authority,
                 authorization_issuer: StdMutex::new(None),
             }),
         }
     }
 
-    pub fn install_authorization_commit_carriers(
+    pub fn authorization_expectation_view_for_install(
         &self,
-        factory: AuthorizationCommitCarrierFactory,
-    ) -> SnapbackResult<()> {
-        let mut installed = self
-            .commit_carriers
-            .write()
-            .unwrap_or_else(PoisonError::into_inner);
-        if installed.is_some() {
+        database: &mut ServingDatabase,
+    ) -> SnapbackResult<AuthorizationExpectationView> {
+        let RoomAuthority::Bound(participant) = &self.shared.room_authority else {
             return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_INTERLOCK_ALREADY_INSTALLED",
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
                 "auth",
-                "authorization commit carriers were already installed",
+                "standalone ephemeral backend has no database-bound authorization participant",
             ));
-        }
-        *installed = Some(factory);
-        Ok(())
+        };
+        database.authorization_expectation_view_for_participant_install(participant)
+    }
+
+    pub fn activate_authorization_commit_interlock(
+        &self,
+        database: &mut ServingDatabase,
+    ) -> SnapbackResult<()> {
+        let RoomAuthority::Bound(participant) = &self.shared.room_authority else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "standalone ephemeral backend has no database-bound authorization participant",
+            ));
+        };
+        database.activate_authorization_commit_participant(participant)
+    }
+
+    pub fn committed_authorization_outcome(
+        &self,
+        witness: &AuthorizationCommitWitness,
+        min_commit_version: u64,
+    ) -> SnapbackResult<AuthorizationCommitOutcome> {
+        self.shared
+            .room_authority
+            .committed_outcome(witness, min_commit_version)
     }
 
     pub fn install_authorization_issuer(
@@ -4440,11 +3626,6 @@ impl LocalEphemeralBackend {
         crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
             "ephemeral authorization issuer installation",
         );
-        if let Ok(authorization) = issuer.authorization_expectation() {
-            self.shared
-                .room_authority
-                .install_durable_authorization(authorization);
-        }
         *lock(&self.shared.authorization_issuer) = Some(issuer);
     }
 
@@ -4477,23 +3658,6 @@ impl LocalEphemeralBackend {
         assert!(previous.is_none(), "frame-before-enqueue hook is one-shot");
     }
 
-    fn publish_committed_authorization(
-        &self,
-        authorization: AuthorizationVersion,
-    ) -> SnapbackResult<()> {
-        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
-            "ephemeral authorization expectation publication",
-        );
-        let issuer = lock(&self.shared.authorization_issuer).clone();
-        match issuer {
-            Some(issuer) => issuer.install_authorization_expectation(authorization),
-            // Standalone room-backend tests and dev embeddings intentionally
-            // omit the persistent issuer; their interlock still exercises the
-            // exact ticket protocol but exposes no session transport.
-            None => Ok(()),
-        }
-    }
-
     fn begin_room_authority_act(
         &self,
         collection: &EphemeralCollection,
@@ -4502,12 +3666,10 @@ impl LocalEphemeralBackend {
         if !collection_requires_room_permission(collection) {
             return Ok(None);
         }
-        let generation = self.shared.room_authority.begin_protected_act(room_id)?;
-        Ok(Some(RoomAuthorityPermit {
-            registry: self.shared.room_authority.clone(),
-            room: room_id.clone(),
-            generation,
-        }))
+        self.shared
+            .room_authority
+            .begin_protected_room_act(room_id)
+            .map(Some)
     }
 
     fn room_authority_for_act(
@@ -4520,7 +3682,10 @@ impl LocalEphemeralBackend {
             return Ok((0, None));
         }
         if let Some(admitted) = admitted {
-            let generation = admitted.admitted_generation(&self.shared.room_authority, room_id)?;
+            let generation = self
+                .shared
+                .room_authority
+                .validate_admitted_room_act(admitted, room_id)?;
             return Ok((generation, None));
         }
         let permit = self
@@ -4544,29 +3709,6 @@ impl LocalEphemeralBackend {
         self.begin_room_authority_act(&collection, &room_id)
     }
 
-    /// Install one conservative all-protected-room dependency ticket. This is
-    /// retained as the explicit broad-event/test seam; production app writes
-    /// use [`Self::reserve_authorization_commit`] so unrelated rooms remain
-    /// live when their permission-backing scope is provably disjoint.
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn prepare_room_authorization_event(
-        &self,
-        expected_authorization: AuthorizationVersion,
-    ) -> SnapbackResult<RoomDependencyTicket> {
-        self.shared
-            .room_authority
-            .prepare(expected_authorization, RoomDependencySelector::all())
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
-    fn room_dependency_selector(
-        &self,
-        impact: AuthorizationCommitImpact<'_>,
-    ) -> RoomDependencySelector {
-        let (collections, _) = self.protected_room_collections_snapshot();
-        room_dependency_selector_for_collections(&collections, impact)
-    }
-
     fn advance_collection_generation(&self) -> Result<(), EphemeralError> {
         self.shared
             .collection_generation
@@ -4582,24 +3724,6 @@ impl LocalEphemeralBackend {
             })
     }
 
-    fn protected_room_collections_snapshot(&self) -> (Vec<EphemeralCollection>, u64) {
-        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
-            "protected-room collection projection snapshot",
-        );
-        let collections = self
-            .shared
-            .collections
-            .read()
-            .unwrap_or_else(PoisonError::into_inner);
-        let generation = self.shared.collection_generation.load(Ordering::Acquire);
-        let collections = collections
-            .values()
-            .filter(|collection| collection_requires_room_permission(collection))
-            .cloned()
-            .collect();
-        (collections, generation)
-    }
-
     pub fn reserve_authorization_commit(
         &self,
         preflight: AuthorizationCommitPreflight,
@@ -4608,150 +3732,22 @@ impl LocalEphemeralBackend {
         crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
             "off-Local room-authority commit reservation",
         );
-        let commit_carriers = self
-            .commit_carriers
-            .read()
-            .unwrap_or_else(PoisonError::into_inner);
-        let factory = commit_carriers.as_ref().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-                "auth",
-                "kernel authorization commit carriers are not installed",
-            )
-        })?;
-        if matches!(
-            preflight,
-            AuthorizationCommitPreflight::NoAuthorizationEvent
-        ) {
-            return Ok(factory.reservation(
-                |_factory, _witness, _impact| {
-                    Err(authorization_reservation_stale(
-                        "a mutation previewed as authorization-neutral produced an authorization event",
-                    ))
-                },
-                || {},
-            ));
-        }
-        let (collections, collection_generation) = self.protected_room_collections_snapshot();
-        let reserved_selector = match preflight {
-            AuthorizationCommitPreflight::NoAuthorizationEvent => unreachable!("returned above"),
-            AuthorizationCommitPreflight::AllProtectedRooms => RoomDependencySelector::all(),
-            AuthorizationCommitPreflight::AppWrites { schema, changes } => {
-                room_dependency_selector_for_collections(
-                    &collections,
-                    AuthorizationCommitImpact::AppWrites {
-                        schema: schema.as_ref(),
-                        changes: &changes,
-                    },
-                )
-            }
-        };
-        let issuer_expectation = lock(&self.shared.authorization_issuer)
-            .as_ref()
-            .map(|issuer| issuer.authorization_expectation())
-            .transpose()?;
-        let ticket = self
-            .shared
+        self.shared
             .room_authority
-            .prepare_unbound(reserved_selector.clone(), &cancellation)?;
-        let reservation = RoomAuthorizationCommitReservation {
-            backend: self.clone(),
-            ticket,
-            reserved_selector,
-            collections,
-            issuer_expectation,
-            collection_generation,
-            rollback_on_drop: true,
-        };
-        let state = Arc::new(StdMutex::new(Some(reservation)));
-        let bind_state = state.clone();
-        let cancel_state = state;
-        Ok(factory.reservation(
-            move |prepared_factory, witness, impact| {
-                let prepared = lock(&bind_state)
-                    .take()
-                    .expect("room reservation settles once")
-                    .bind(witness, impact)?;
-                Ok(opaque_prepared_authorization_commit(
-                    &prepared_factory,
-                    prepared,
-                ))
-            },
-            move || {
-                if let Some(reservation) = lock(&cancel_state).take() {
-                    reservation.cancel();
-                }
-            },
-        ))
-    }
-
-    fn finish_room_authorization_commit(
-        &self,
-        ticket: &RoomDependencyTicket,
-        authorization: AuthorizationVersion,
-        incarnation_rotated: bool,
-        min_commit_version: u64,
-    ) -> SnapbackResult<()> {
-        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
-            "room-authority commit finalization",
-        );
-        if !incarnation_rotated {
-            self.publish_committed_authorization(authorization.clone())?;
-        }
-        self.finalize_room_authorization_event(ticket, authorization, min_commit_version)?;
-        Ok(())
-    }
-
-    pub(crate) fn finalize_room_authorization_event(
-        &self,
-        ticket: &RoomDependencyTicket,
-        authorization: AuthorizationVersion,
-        min_commit_version: u64,
-    ) -> SnapbackResult<Vec<(RoomId, RoomAuthorityResync)>> {
-        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
-            "room-authority dependency finalization",
-        );
-        let resyncs =
-            self.shared
-                .room_authority
-                .finalize(ticket, authorization, min_commit_version)?;
-        self.enqueue_room_authority_resyncs(None);
-        Ok(resyncs)
-    }
-
-    pub fn rollback_room_authorization_event(&self, ticket: &RoomDependencyTicket) -> bool {
-        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
-            "room-authority dependency rollback",
-        );
-        self.shared.room_authority.rollback(ticket)
+            .prepare_authorization_commit(preflight, cancellation)
     }
 
     pub fn pending_room_reauthorizations(&self) -> Vec<PendingRoomReauthorization> {
-        let pending = {
-            let authority = lock(&self.shared.room_authority.state);
-            authority
-                .rooms
-                .iter()
-                .filter_map(|(room, control)| {
-                    if !control.pending_tickets.is_empty() {
-                        return None;
-                    }
-                    control
-                        .resync
-                        .as_ref()
-                        .map(|obligation| (room.clone(), obligation.clone()))
-                })
-                .collect::<Vec<_>>()
-        };
+        let pending = self.shared.room_authority.pending_reauthorizations();
         let rooms = lock(&self.shared.rooms);
         pending
             .into_iter()
-            .filter_map(|(room_id, obligation)| {
-                let room = rooms.get(&room_id)?;
+            .filter_map(|pending| {
+                let room = rooms.get(&pending.room)?;
                 let room = lock(room);
                 Some(PendingRoomReauthorization {
-                    room: room_id,
-                    obligation,
+                    room: pending.room,
+                    obligation: pending.obligation,
                     subscribers: room
                         .subscribers
                         .iter()
@@ -4780,22 +3776,17 @@ impl LocalEphemeralBackend {
         // producer with definition/reset wipes so neither can clear the
         // other's terminal marker after missing the already-removed room.
         let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
-        let mut authority = lock(&self.shared.room_authority.state);
-        let Some(control) = authority.rooms.get(room_id) else {
-            return Ok(false);
-        };
-        if !control.pending_tickets.is_empty()
-            || control.generation != room_authority_generation
-            || control
-                .resync
-                .as_ref()
-                .is_none_or(|resync| resync.room_authority_generation != room_authority_generation)
+        let admission = match self
+            .shared
+            .room_authority
+            .begin_room_reauthorization_admission(room_id, room_authority_generation)
         {
-            return Ok(false);
-        }
+            Ok(admission) => admission,
+            Err(_) => return Ok(false),
+        };
         let rooms = lock(&self.shared.rooms);
         let Some(room_arc) = rooms.get(room_id).cloned() else {
-            authority.rooms.remove(room_id);
+            admission.remove_missing_room();
             return Ok(true);
         };
         let mut room = lock(&room_arc);
@@ -4857,7 +3848,7 @@ impl LocalEphemeralBackend {
             room.retired = true;
             drop(room);
             drop(rooms);
-            drop(authority);
+            drop(admission);
             self.retire_generation_exhausted_room(room_id);
             return Err(SnapbackError::error(
                 error.code.diagnostic_code(),
@@ -5017,14 +4008,9 @@ impl LocalEphemeralBackend {
             wakees.insert(connection_id);
         }
 
-        authority
-            .rooms
-            .get_mut(room_id)
-            .expect("validated room authority remains under registry gate")
-            .resync = None;
+        admission.complete_exact();
         drop(room);
         drop(rooms);
-        drop(authority);
         for connection_id in &denied_connections {
             self.unindex_connection_room_if_unused(connection_id, room_id);
         }
@@ -5068,22 +4054,8 @@ impl LocalEphemeralBackend {
         &self,
         envelope: &RealtimeEnvelope,
     ) -> Result<Option<RealtimePublicationPermit>, EphemeralError> {
-        match envelope {
-            RealtimeEnvelope::Durable(message) => message
-                .authorization()
-                .map(|authorization| {
-                    self.shared
-                        .room_authority
-                        .begin_durable_final_send(authorization)
-                        .map(|permit| RealtimePublicationPermit::Durable { _permit: permit })
-                })
-                .transpose(),
-            RealtimeEnvelope::Ephemeral(message) => self
-                .shared
-                .room_authority
-                .begin_final_send(message)
-                .map(|permit| permit.map(RealtimePublicationPermit::Room)),
-        }
+        let mut admission = self.shared.room_authority.begin_outbox_admission(true)?;
+        admission.admit_selected(envelope)
     }
 
     pub fn register_collection(
@@ -5092,26 +4064,39 @@ impl LocalEphemeralBackend {
     ) -> Result<(), EphemeralError> {
         validate_collection_definitions(std::slice::from_ref(&collection))?;
         let _generation = self.lifecycle_write("ephemeral collection registration");
-        let replaced = {
-            let mut collections = self
+        let (replaced, definitions) = {
+            let collections = self
                 .shared
                 .collections
-                .write()
+                .read()
                 .unwrap_or_else(PoisonError::into_inner);
             match collections.get(&collection.name) {
                 Some(current) if current == &collection => return Ok(()),
                 Some(_) => {
-                    self.advance_collection_generation()?;
-                    collections.insert(collection.name.clone(), collection);
-                    true
+                    let mut definitions = collections.values().cloned().collect::<Vec<_>>();
+                    let index = definitions
+                        .iter()
+                        .position(|definition| definition.name == collection.name)
+                        .expect("loaded collection is present in its snapshot");
+                    definitions[index] = collection.clone();
+                    (true, definitions)
                 }
                 None => {
-                    self.advance_collection_generation()?;
-                    collections.insert(collection.name.clone(), collection);
-                    false
+                    let mut definitions = collections.values().cloned().collect::<Vec<_>>();
+                    definitions.push(collection.clone());
+                    (false, definitions)
                 }
             }
         };
+        self.shared
+            .room_authority
+            .replace_protected_room_catalog(&definitions)?;
+        self.advance_collection_generation()?;
+        self.shared
+            .collections
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(collection.name.clone(), collection);
         if replaced {
             #[cfg(test)]
             self.pause_after_definition_swap_for_test();
@@ -5139,21 +4124,30 @@ impl LocalEphemeralBackend {
             .collect::<BTreeMap<_, _>>();
 
         let _generation = self.lifecycle_write("ephemeral collection replacement");
+        // @ref LLP 0025#store-feature-idempotent-collection-ensure — repeated
+        // app-definition loads with identical ephemeral definitions must not
+        // erase active cursor rooms or queued latest-state messages.
+        if *self
+            .shared
+            .collections
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            == next
         {
-            let mut current = self
-                .shared
-                .collections
-                .write()
-                .unwrap_or_else(PoisonError::into_inner);
-            // @ref LLP 0025#store-feature-idempotent-collection-ensure — repeated
-            // app-definition loads with identical ephemeral definitions must not
-            // erase active cursor rooms or queued latest-state messages.
-            if *current == next {
-                return Ok(());
-            }
-            self.advance_collection_generation()?;
-            *current = next;
+            return Ok(());
         }
+        let definitions = next.values().cloned().collect::<Vec<_>>();
+        // Kernel catalog publication precedes sync visibility, with neither
+        // lock nested inside the other. The lifecycle guard serializes the cut.
+        self.shared
+            .room_authority
+            .replace_protected_room_catalog(&definitions)?;
+        self.advance_collection_generation()?;
+        *self
+            .shared
+            .collections
+            .write()
+            .unwrap_or_else(PoisonError::into_inner) = next;
 
         #[cfg(test)]
         self.pause_after_definition_swap_for_test();
@@ -6328,7 +5322,7 @@ impl LocalEphemeralBackend {
             let subscribed_rooms = subscribed_rooms
                 .into_iter()
                 .map(|(room, scope_epoch, effect_fence)| {
-                    let generation = self.shared.room_authority.current_generation(&room);
+                    let generation = self.shared.room_authority.room_generation(&room);
                     (room, scope_epoch, generation, effect_fence)
                 })
                 .collect::<Vec<_>>();
@@ -7026,6 +6020,80 @@ impl LocalEphemeralBackend {
         self.lease_compatibility_outbox_after_resync(connection_id)
     }
 
+    fn drain_outbox_with_authorization(
+        &self,
+        outbox: &SharedOutbox,
+        admit_fenced: bool,
+        expected_effect_fence: Option<&ConnectionEffectFence>,
+        max_batch: usize,
+        max_handoff_bytes: usize,
+        wake: Arc<OutboxLeaseWake>,
+    ) -> Vec<AdmittedRealtimeEnvelope> {
+        // @ref LLP 0059#durable-and-ephemeral-outboxes — registry admission
+        // precedes the sync-owned queue lock and the physical lease remains
+        // owned until the final transport handoff.
+        let mut admission = match self
+            .shared
+            .room_authority
+            .begin_outbox_admission(admit_fenced)
+        {
+            Ok(admission) => admission,
+            Err(_) => return Vec::new(),
+        };
+        let selected = lock(outbox).drain_with_authority_bounded_and_handoff_limit(
+            expected_effect_fence,
+            max_batch,
+            max_handoff_bytes,
+            |message| match admission.classify_durable(message) {
+                OutboxFrameDisposition::Send => FrameAuthorityDisposition::Send,
+                OutboxFrameDisposition::Retain => FrameAuthorityDisposition::Retain,
+                OutboxFrameDisposition::DropStale => FrameAuthorityDisposition::DropStale,
+            },
+            |message| match admission.classify_ephemeral(message) {
+                OutboxFrameDisposition::Send => FrameAuthorityDisposition::Send,
+                OutboxFrameDisposition::Retain => FrameAuthorityDisposition::Retain,
+                OutboxFrameDisposition::DropStale => FrameAuthorityDisposition::DropStale,
+            },
+        );
+        selected
+            .into_iter()
+            .filter_map(|selected| {
+                let SelectedOutboxLease {
+                    lease_id,
+                    envelope,
+                    recovery_marker_priority,
+                } = selected;
+                let publication_authority = match admission.admit_selected(&envelope) {
+                    Ok(permit) => permit,
+                    Err(_) => {
+                        drop(
+                            OutboxDrainLease::new(
+                                outbox.clone(),
+                                lease_id,
+                                wake.clone(),
+                                recovery_marker_priority,
+                            )
+                            .release_on_drop(),
+                        );
+                        return None;
+                    }
+                };
+                let lease = OutboxDrainLease::new(
+                    outbox.clone(),
+                    lease_id,
+                    wake.clone(),
+                    recovery_marker_priority,
+                );
+                Some(AdmittedRealtimeEnvelope {
+                    envelope,
+                    lease,
+                    publication_authority,
+                    recovery_marker: recovery_marker_priority.is_some(),
+                })
+            })
+            .collect()
+    }
+
     fn lease_compatibility_outbox_after_resync(
         &self,
         connection_id: &str,
@@ -7037,7 +6105,7 @@ impl LocalEphemeralBackend {
                     delivery: self.shared.delivery.clone(),
                     connection_id: Arc::from(connection_id),
                 });
-                self.shared.room_authority.drain_outbox(
+                self.drain_outbox_with_authorization(
                     &outbox,
                     false,
                     None,
@@ -7089,7 +6157,7 @@ impl LocalEphemeralBackend {
                     delivery: self.shared.delivery.clone(),
                     connection_id: Arc::from(connection_id),
                 });
-                self.shared.room_authority.drain_outbox(
+                self.drain_outbox_with_authorization(
                     &outbox,
                     true,
                     None,
@@ -7297,7 +6365,7 @@ impl LocalEphemeralBackend {
                     delivery: self.shared.delivery.clone(),
                     connection_id: Arc::from(connection_id),
                 });
-                self.shared.room_authority.drain_outbox(
+                self.drain_outbox_with_authorization(
                     &outbox,
                     true,
                     Some(effect_fence),
@@ -7310,25 +6378,12 @@ impl LocalEphemeralBackend {
     }
 
     fn enqueue_room_authority_resyncs(&self, only_connection: Option<&str>) {
-        let pending = {
-            let authority = lock(&self.shared.room_authority.state);
-            authority
-                .rooms
-                .iter()
-                .filter_map(|(room_id, control)| {
-                    if !control.pending_tickets.is_empty() {
-                        return None;
-                    }
-                    control
-                        .resync
-                        .as_ref()
-                        .map(|resync| (room_id.clone(), resync.clone()))
-                })
-                .collect::<Vec<_>>()
-        };
+        let pending = self.shared.room_authority.pending_reauthorizations();
         let rooms = lock(&self.shared.rooms);
         let mut wakees = BTreeSet::new();
-        for (room_id, resync) in pending {
+        for pending in pending {
+            let room_id = pending.room;
+            let resync = pending.obligation;
             let Some(room_arc) = rooms.get(&room_id) else {
                 continue;
             };
@@ -7551,7 +6606,14 @@ impl LocalEphemeralBackend {
     fn retire_generation_exhausted_room(&self, room_id: &RoomId) {
         self.record_generation_exhaustion();
 
-        let mut authority = lock(&self.shared.room_authority.state);
+        let authority = match self
+            .shared
+            .room_authority
+            .begin_room_retirement_admission(room_id)
+        {
+            Ok(authority) => authority,
+            Err(_) => return,
+        };
         let mut rooms = lock(&self.shared.rooms);
         let room_arc = rooms.get(room_id).cloned();
         if room_arc.as_ref().is_some_and(|room| !lock(room).retired) {
@@ -7559,16 +6621,6 @@ impl LocalEphemeralBackend {
             // Never let a delayed duplicate retire the fresh incarnation.
             return;
         }
-
-        let _retired_room_authority_generation = authority
-            .rooms
-            .get_mut(room_id)
-            .map(|control| {
-                control.retired = true;
-                control.resync = None;
-                control.generation
-            })
-            .unwrap_or(0);
 
         let mut retired = false;
         let mut scope_epoch = 0;
@@ -7616,14 +6668,8 @@ impl LocalEphemeralBackend {
             wakees.push(connection_id);
         }
 
-        let remove_authority = authority.rooms.get(room_id).is_some_and(|control| {
-            control.retired && control.pending_tickets.is_empty() && control.active_permits == 0
-        });
-        if remove_authority {
-            authority.rooms.remove(room_id);
-        }
+        authority.retire_generation_exhausted();
         drop(rooms);
-        drop(authority);
 
         if retired {
             self.reconcile_connection_room_index(room_id);
@@ -7651,14 +6697,11 @@ impl LocalEphemeralBackend {
                 // cannot recreate the room after the control is retired.
                 // @ref LLP 0013#stored-entry-shape — stale protected permits cannot recreate a terminally retired room.
                 let _authority = if let Some(generation) = protected_generation {
-                    let authority = lock(&self.shared.room_authority.state);
-                    let current = authority.rooms.get(room_id);
-                    if current
-                        .is_none_or(|control| control.retired || control.generation != generation)
-                    {
-                        return Err(authority_pending_error());
-                    }
-                    Some(authority)
+                    Some(
+                        self.shared
+                            .room_authority
+                            .begin_room_creation_admission(room_id, generation)?,
+                    )
                 } else {
                     None
                 };
@@ -7836,7 +6879,7 @@ impl LocalEphemeralBackend {
             // Prepare/final-send uses authority-registry before room state.
             // Read the generation only after releasing the room lock to keep
             // that global order during a destructive epoch wipe too.
-            let room_authority_generation = self.shared.room_authority.current_generation(&room_id);
+            let room_authority_generation = self.shared.room_authority.room_generation(&room_id);
             for (connection_id, effect_fence) in subscribers {
                 resyncs.push((
                     connection_id,
@@ -9363,12 +8406,9 @@ mod tests {
         use std::sync::mpsc;
         use std::time::Duration;
 
-        let backend = Arc::new(LocalEphemeralBackend::new());
-        let predecessor = authorization(0);
-        backend
-            .shared
-            .room_authority
-            .install_durable_authorization(predecessor.clone());
+        let fixture = bound_backend_fixture();
+        let predecessor = fixture.authorization.clone();
+        let backend = Arc::new(fixture.backend.clone());
         let notifier = backend.delivery_notifier();
         let (old_generation, _old_waker) = notifier.register("conn").unwrap();
         backend.enqueue_authorized_durable("conn", b"replacement-private".to_vec(), predecessor);
@@ -9389,20 +8429,23 @@ mod tests {
         let (prepared_tx, prepared_rx) = mpsc::channel();
         let commit_backend = backend.clone();
         let prepare = std::thread::spawn(move || {
-            let ticket = commit_backend
-                .prepare_room_authorization_event(authorization(1))
+            let reservation = commit_backend
+                .reserve_authorization_commit(
+                    AuthorizationCommitPreflight::AllProtectedRooms,
+                    Arc::new(AuthorizationReservationCancellation::new()),
+                )
                 .unwrap();
-            prepared_tx.send(ticket).unwrap();
+            prepared_tx.send(reservation).unwrap();
         });
         assert!(
             prepared_rx.recv_timeout(Duration::from_millis(20)).is_err(),
             "replacement ownership must not shorten the final-publication permit"
         );
         drop(admitted);
-        let ticket = prepared_rx
+        let reservation = prepared_rx
             .recv_timeout(Duration::from_secs(1))
             .expect("the commit resumes after the replacement send completes");
-        assert!(backend.rollback_room_authorization_event(&ticket));
+        reservation.cancel();
         prepare.join().unwrap();
     }
 
@@ -9411,7 +8454,8 @@ mod tests {
         use std::sync::mpsc;
         use std::time::Duration;
 
-        let backend = Arc::new(LocalEphemeralBackend::new());
+        let fixture = bound_backend_fixture();
+        let backend = Arc::new(fixture.backend.clone());
         let notifier = backend.delivery_notifier();
         let (generation, _waker) = notifier.register("conn").unwrap();
         backend.enqueue_durable("conn", b"queued".to_vec());
@@ -9449,45 +8493,6 @@ mod tests {
             1
         );
         replacement.join().unwrap();
-    }
-
-    #[test]
-    fn guarded_resync_synthesis_never_inverts_room_and_notifier_locks() {
-        use std::sync::mpsc;
-        use std::time::Duration;
-
-        let backend = Arc::new(LocalEphemeralBackend::new());
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("observer"), 1).unwrap();
-        drop(backend.drain_outbox("observer"));
-        let notifier = backend.delivery_notifier();
-        let (generation, _waker) = notifier.register("observer").unwrap();
-
-        let expected = authorization(1);
-        let ticket = backend
-            .prepare_room_authorization_event(expected.clone())
-            .unwrap();
-        backend
-            .finalize_room_authorization_event(&ticket, expected, 2)
-            .unwrap();
-
-        let drain_backend = backend.clone();
-        let (drain_done_tx, drain_done_rx) = mpsc::channel();
-        let drainer = std::thread::spawn(move || {
-            let drained = drain_backend
-                .drain_outbox_for_send_if_current("observer", generation)
-                .expect("registration remains current");
-            let count = drained.len();
-            drop(drained);
-            drain_done_tx.send(count).unwrap();
-        });
-        assert!(
-            drain_done_rx
-                .recv_timeout(Duration::from_secs(1))
-                .expect("resync synthesis cannot re-enter a notifier guard")
-                > 0
-        );
-        drainer.join().unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -9562,80 +8567,10 @@ mod tests {
     }
 
     #[test]
-    fn unknown_change_field_widens_permission_projection_to_collection() {
-        use crate::manifest::{FieldManifest, FieldType, SchemaManifest, TableManifest};
-        use crate::storage::ChangedRow;
-
-        let projection = RoomPermissionProjection {
-            table: "memberships".to_owned(),
-            subject_field: "userId".to_owned(),
-            scope_fields: BTreeMap::from([("boardId".to_owned(), "boardId".to_owned())]),
-        };
-        let backend = LocalEphemeralBackend::new();
-        backend
-            .register_collection(collection().permission_backed_by(projection))
-            .unwrap();
-        let schema = SchemaManifest {
-            tables: vec![TableManifest {
-                name: "memberships".to_owned(),
-                fields: vec![
-                    FieldManifest {
-                        name: "boardId".to_owned(),
-                        field_type: FieldType::String,
-                        optional: false,
-                    },
-                    FieldManifest {
-                        name: "userId".to_owned(),
-                        field_type: FieldType::String,
-                        optional: false,
-                    },
-                ],
-                indexes: Vec::new(),
-                syncable: true,
-                permission_backing: true,
-                permission_fields: Some(vec!["boardId".to_owned(), "userId".to_owned()]),
-                search_indexes: Vec::new(),
-                vector_indexes: Vec::new(),
-                search_live_limits: None,
-                membership: None,
-                authority_profile: None,
-                asset_sharing: None,
-                visibility: None,
-                history: None,
-            }],
-            ..SchemaManifest::default()
-        };
-        let changes = [ChangedRow {
-            table: "memberships".to_owned(),
-            id: "member-a".to_owned(),
-            op: ChangeOp::Update,
-            row: Some(serde_json::json!({"boardId": "board-1", "userId": "user-a"})),
-            changed_fields: vec!["futureField".to_owned()],
-        }];
-
-        let selector = backend.room_dependency_selector(AuthorizationCommitImpact::AppWrites {
-            schema: &schema,
-            changes: &changes,
-        });
-        let other_scope = Scope::from_pairs([("boardId", "board-2")]);
-        let other_room = room_id_for(&collection(), &other_scope).unwrap();
-        assert!(!selector.all_protected_rooms);
-        assert_eq!(
-            selector.collections,
-            BTreeSet::from(["boardCursors".to_owned()])
-        );
-        assert!(selector.matches(&room()));
-        assert!(selector.matches(&other_room));
-    }
-
-    #[test]
     fn membership_declaration_is_a_room_permission_backing_table() {
         use crate::manifest::{
-            FieldManifest, FieldType, MembershipManifest, MembershipScope, SchemaManifest,
-            TableManifest,
+            FieldManifest, FieldType, MembershipManifest, MembershipScope, TableManifest,
         };
-        use crate::storage::ChangedRow;
-        use serde_json::json;
 
         let projection = RoomPermissionProjection {
             table: "memberships".to_owned(),
@@ -9710,63 +8645,6 @@ mod tests {
             true,
         )
         .expect("membership declaration derives the durable room backing");
-
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(ephemeral_collection).unwrap();
-        let role_downgrade = [ChangedRow {
-            table: "memberships".to_owned(),
-            id: "member-a".to_owned(),
-            op: ChangeOp::Update,
-            row: Some(json!({
-                "boardId": "board-1",
-                "userId": "user-a",
-                "role": "guest"
-            })),
-            changed_fields: vec!["role".to_owned()],
-        }];
-        let schema = SchemaManifest {
-            tables: vec![table],
-            ..SchemaManifest::default()
-        };
-        let selector = backend.room_dependency_selector(AuthorizationCommitImpact::AppWrites {
-            schema: &schema,
-            changes: &role_downgrade,
-        });
-        let affected =
-            room_id_for(&collection(), &Scope::from_pairs([("boardId", "board-1")])).unwrap();
-        let unrelated =
-            room_id_for(&collection(), &Scope::from_pairs([("boardId", "board-2")])).unwrap();
-        assert!(selector.matches(&affected), "downgrade suspends its room");
-        assert!(
-            !selector.matches(&unrelated),
-            "scope attribution stays narrow"
-        );
-
-        let expiry = [ChangedRow {
-            changed_fields: vec!["expiresAt".to_owned()],
-            ..role_downgrade[0].clone()
-        }];
-        let expiry_selector =
-            backend.room_dependency_selector(AuthorizationCommitImpact::AppWrites {
-                schema: &schema,
-                changes: &expiry,
-            });
-        assert!(
-            expiry_selector.matches(&affected),
-            "expiry suspends its room"
-        );
-        assert!(!expiry_selector.matches(&unrelated));
-
-        let incidental = [ChangedRow {
-            changed_fields: vec!["nickname".to_owned()],
-            ..role_downgrade[0].clone()
-        }];
-        let incidental_selector =
-            backend.room_dependency_selector(AuthorizationCommitImpact::AppWrites {
-                schema: &schema,
-                changes: &incidental,
-            });
-        assert!(!incidental_selector.matches(&affected));
     }
 
     fn publish_request(connection_id: &str, value: &[u8]) -> PublishRequest {
@@ -9984,26 +8862,6 @@ mod tests {
         ));
     }
 
-    fn authorization(epoch: u64) -> AuthorizationVersion {
-        AuthorizationVersion {
-            incarnation: "0197f862-f196-7bb2-b3f0-2a67185dfd17".to_owned(),
-            epoch,
-        }
-    }
-
-    fn assert_retryable_reservation_stale(error: &SnapbackError) {
-        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_RESERVATION_STALE");
-        assert_eq!(
-            error.diagnostic.details,
-            serde_json::json!({
-                "retryable": true,
-                "retryStrategy": "short-jitter",
-                "effectCommitted": false,
-            }),
-            "reservation-stale diagnostics are a closed client retry contract"
-        );
-    }
-
     #[test]
     fn entry_version_allocates_portable_max_then_retires_on_the_next_publish() {
         let backend = LocalEphemeralBackend::new();
@@ -10113,44 +8971,6 @@ mod tests {
             .expect("dropping the predecessor permit opens a fresh control");
         assert_eq!(backend.diagnostics().room_count, 1);
         assert_only_epoch_changed_boundary(&backend, "observer");
-    }
-
-    #[test]
-    fn room_authority_generation_reaches_portable_max_then_refuses_precommit() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("observer"), 1).unwrap();
-        lock(&backend.shared.room_authority.state)
-            .rooms
-            .get_mut(&room())
-            .unwrap()
-            .generation = crate::manifest::PORTABLE_STORAGE_VERSION_MAX - 1;
-
-        let first = authorization(1);
-        let ticket = backend
-            .prepare_room_authorization_event(first.clone())
-            .expect("max-1 authority generation can prepare");
-        let resync = backend
-            .finalize_room_authorization_event(&ticket, first, 1)
-            .expect("the final portable authority generation commits");
-        assert_eq!(
-            resync[0].1.room_authority_generation,
-            crate::manifest::PORTABLE_STORAGE_VERSION_MAX
-        );
-
-        let error = backend
-            .prepare_room_authorization_event(authorization(2))
-            .expect_err("the next authorization boundary refuses before commit");
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
-        );
-        let authority = lock(&backend.shared.room_authority.state);
-        assert!(authority.dependencies.is_empty());
-        assert_eq!(
-            authority.rooms.get(&room()).unwrap().generation,
-            crate::manifest::PORTABLE_STORAGE_VERSION_MAX
-        );
     }
 
     #[test]
@@ -10377,6 +9197,8 @@ mod tests {
     fn authorization_issuer(
         authorization: &AuthorizationVersion,
         boot_sequence: u64,
+        version_stream: &str,
+        view: AuthorizationExpectationView,
     ) -> crate::auth::invalidation::LiveInvalidationIssuer {
         let issuer_id = crate::auth::invalidation::IssuerId::fresh(
             authorization.incarnation.clone(),
@@ -10396,35 +9218,76 @@ mod tests {
             "test-app",
         )
         .unwrap();
+        issuer.bind_authorization_expectation(view).unwrap();
         issuer
-            .install_authorization_expectation(authorization.clone())
+            .install_version_stream(version_stream.to_owned())
             .unwrap();
         issuer
     }
 
+    struct BoundBackendFixture {
+        backend: LocalEphemeralBackend,
+        _database: ServingDatabase,
+        authorization: AuthorizationVersion,
+    }
+
+    fn bound_backend_fixture() -> BoundBackendFixture {
+        let local = crate::storage::LocalDatabase::memory().expect("in-memory database");
+        let mut database = ServingDatabase::adopt(local).expect("serving database");
+        let (authorization, version_stream, boot_sequence) = database
+            .reserve_invalidation_boot_issuer()
+            .expect("durable authorization snapshot");
+        let backend = LocalEphemeralBackend::for_serving_database(
+            EphemeralStoreLimits::default(),
+            &mut database,
+        )
+        .expect("database-bound room authority");
+        let view = backend
+            .authorization_expectation_view_for_install(&mut database)
+            .expect("kernel authorization expectation view");
+        assert_eq!(view.current().unwrap(), authorization);
+        let issuer = authorization_issuer(&authorization, boot_sequence, &version_stream, view);
+        backend.install_authorization_issuer(issuer);
+        backend
+            .activate_authorization_commit_interlock(&mut database)
+            .expect("ready authorization participant");
+        BoundBackendFixture {
+            backend,
+            _database: database,
+            authorization,
+        }
+    }
+
     #[test]
     fn protected_registration_is_closed_by_the_exact_pending_ticket() {
-        let backend = LocalEphemeralBackend::new();
+        let fixture = bound_backend_fixture();
+        let backend = fixture.backend;
         backend.register_collection(collection()).unwrap();
         backend.subscribe(subscribe_request("first"), 1).unwrap();
 
         let first = backend
-            .prepare_room_authorization_event(authorization(1))
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::new()),
+            )
             .unwrap();
         let second = backend
-            .prepare_room_authorization_event(authorization(2))
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::new()),
+            )
             .unwrap();
         let error = backend
             .subscribe(subscribe_request("late"), 2)
             .expect_err("either pending ticket closes registration");
         assert_eq!(error.code, EphemeralErrorCode::AuthorityPending);
 
-        assert!(backend.rollback_room_authorization_event(&first));
+        first.cancel();
         let error = backend
             .subscribe(subscribe_request("late"), 3)
             .expect_err("rolling back one ticket must not clear another");
         assert_eq!(error.code, EphemeralErrorCode::AuthorityPending);
-        assert!(backend.rollback_room_authorization_event(&second));
+        second.cancel();
         backend
             .subscribe(subscribe_request("late"), 4)
             .expect("the exact final rollback reopens the old generation");
@@ -10432,56 +9295,21 @@ mod tests {
 
     #[test]
     fn authorization_neutral_preflight_never_touches_the_room_registry() {
-        let backend = LocalEphemeralBackend::new();
+        let fixture = bound_backend_fixture();
+        let backend = fixture.backend;
         backend.register_collection(collection()).unwrap();
         backend.subscribe(subscribe_request("observer"), 1).unwrap();
-        let next_ticket = lock(&backend.shared.room_authority.state).next_ticket;
 
         let reservation = backend
             .reserve_authorization_commit(
                 AuthorizationCommitPreflight::NoAuthorizationEvent,
-                Arc::new(AuthorizationReservationCancellation::default()),
+                Arc::new(AuthorizationReservationCancellation::new()),
             )
             .expect("authorization-neutral preview reserves no room state");
-        {
-            let state = lock(&backend.shared.room_authority.state);
-            assert_eq!(state.next_ticket, next_ticket);
-            assert!(state.dependencies.is_empty());
-            assert!(
-                state
-                    .rooms
-                    .values()
-                    .all(|room| room.pending_tickets.is_empty())
-            );
-        }
         backend
             .publish(publish_request("owner", b"still-live"), 2)
             .expect("neutral preflight leaves the protected room live");
         reservation.cancel();
-    }
-
-    #[test]
-    fn authorization_neutral_preview_drift_is_an_exact_retryable_conflict() {
-        let backend = LocalEphemeralBackend::new();
-        let reservation = backend
-            .reserve_authorization_commit(
-                AuthorizationCommitPreflight::NoAuthorizationEvent,
-                Arc::new(AuthorizationReservationCancellation::default()),
-            )
-            .expect("authorization-neutral preview creates a sentinel reservation");
-        let error = match reservation.bind_for_test(
-            &AuthorizationCommitWitness {
-                version: authorization(1),
-                event: true,
-                incarnation_rotated: false,
-                membership_declarations: Vec::new(),
-            },
-            AuthorizationCommitImpact::AllProtectedRooms,
-        ) {
-            Ok(_) => panic!("authorization-producing neutral preview unexpectedly bound"),
-            Err(error) => error,
-        };
-        assert_retryable_reservation_stale(&error);
     }
 
     #[test]
@@ -10537,17 +9365,18 @@ mod tests {
     }
 
     #[test]
-    fn cancelled_quiescence_removes_only_its_exact_unbound_ticket() {
+    fn cancelled_quiescence_removes_only_its_exact_pending_ticket() {
         use std::time::{Duration, Instant};
 
-        let backend = LocalEphemeralBackend::new();
+        let fixture = bound_backend_fixture();
+        let backend = fixture.backend;
         backend.register_collection(collection()).unwrap();
         backend.subscribe(subscribe_request("observer"), 1).unwrap();
         let held = backend
             .begin_server_authorized_room_act("boardCursors", &scope())
             .unwrap()
             .expect("protected room act holds the quiescence permit");
-        let cancellation = Arc::new(AuthorizationReservationCancellation::default());
+        let cancellation = Arc::new(AuthorizationReservationCancellation::new());
         let worker_backend = backend.clone();
         let worker_cancellation = cancellation.clone();
         let worker = std::thread::spawn(move || {
@@ -10559,11 +9388,10 @@ mod tests {
 
         let deadline = Instant::now() + Duration::from_secs(1);
         loop {
-            if !lock(&backend.shared.room_authority.state)
-                .dependencies
-                .is_empty()
-            {
-                break;
+            match backend.begin_server_authorized_room_act("boardCursors", &scope()) {
+                Err(error) if error.code == EphemeralErrorCode::AuthorityPending => break,
+                Ok(permit) => drop(permit),
+                Err(error) => panic!("unexpected room admission result: {error:?}"),
             }
             assert!(
                 Instant::now() < deadline,
@@ -10588,16 +9416,6 @@ mod tests {
             Err(error) => error,
         };
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_RESERVATION_CANCELLED");
-        {
-            let state = lock(&backend.shared.room_authority.state);
-            assert!(state.dependencies.is_empty());
-            assert!(
-                state
-                    .rooms
-                    .values()
-                    .all(|room| room.pending_tickets.is_empty())
-            );
-        }
         let concurrent = backend
             .begin_server_authorized_room_act("boardCursors", &scope())
             .unwrap()
@@ -10607,453 +9425,12 @@ mod tests {
     }
 
     #[test]
-    fn definition_generation_drift_rejects_bind_and_rolls_back_after_local() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("observer"), 1).unwrap();
-        let reservation = backend
-            .reserve_authorization_commit(
-                AuthorizationCommitPreflight::AllProtectedRooms,
-                Arc::new(AuthorizationReservationCancellation::default()),
-            )
-            .unwrap();
-
-        backend
-            .replace_collections(vec![
-                EphemeralCollection::local_cursor("boardCursors", "boardId")
-                    .require_room_permission("board2"),
-            ])
-            .expect("replace definitions between reservation and bind");
-
-        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let error = match reservation.bind_for_test(
-            &AuthorizationCommitWitness {
-                version: authorization(1),
-                event: true,
-                incarnation_rotated: false,
-                membership_declarations: Vec::new(),
-            },
-            AuthorizationCommitImpact::AllProtectedRooms,
-        ) {
-            Ok(prepared) => {
-                drop(prepared);
-                panic!("definition-stale reservation unexpectedly bound")
-            }
-            Err(error) => error,
-        };
-        assert_retryable_reservation_stale(&error);
-        let batch = scope.take_after_local_batch();
-        drop(scope);
-        assert_eq!(
-            lock(&backend.shared.room_authority.state)
-                .dependencies
-                .len(),
-            1,
-            "rollback remains deferred until Local ownership ends"
-        );
-        crate::exec_guard::run_after_local_batch(batch);
-        assert!(
-            lock(&backend.shared.room_authority.state)
-                .dependencies
-                .is_empty(),
-            "the exact stale reservation is removed after Local"
-        );
-    }
-
-    #[test]
-    fn bound_definite_rollback_is_deferred_but_ambiguous_commit_stays_pending() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("observer"), 1).unwrap();
-        let witness = AuthorizationCommitWitness {
-            version: authorization(1),
-            event: true,
-            incarnation_rotated: false,
-            membership_declarations: Vec::new(),
-        };
-
-        let rollback = backend
-            .reserve_authorization_commit(
-                AuthorizationCommitPreflight::AllProtectedRooms,
-                Arc::new(AuthorizationReservationCancellation::default()),
-            )
-            .unwrap();
-        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let prepared = rollback
-            .bind_for_test(&witness, AuthorizationCommitImpact::AllProtectedRooms)
-            .unwrap();
-        drop(prepared);
-        let rollback_probe = backend.clone();
-        crate::exec_guard::run_or_defer_after_local(move || {
-            assert_eq!(
-                rollback_probe
-                    .publish(
-                        publish_request("owner", b"still-blocked-before-rollback"),
-                        2
-                    )
-                    .expect_err("ordinary cleanup runs before rollback settlement")
-                    .code,
-                EphemeralErrorCode::AuthorityPending
-            );
-        });
-        let batch = scope.take_after_local_batch();
-        drop(scope);
-        assert_eq!(
-            lock(&backend.shared.room_authority.state)
-                .dependencies
-                .len(),
-            1
-        );
-        crate::exec_guard::run_after_local_batch(batch);
-        assert!(
-            lock(&backend.shared.room_authority.state)
-                .dependencies
-                .is_empty()
-        );
-
-        let ambiguous = backend
-            .reserve_authorization_commit(
-                AuthorizationCommitPreflight::AllProtectedRooms,
-                Arc::new(AuthorizationReservationCancellation::default()),
-            )
-            .unwrap();
-        let prepared = ambiguous
-            .bind_for_test(&witness, AuthorizationCommitImpact::AllProtectedRooms)
-            .unwrap();
-        prepared.ambiguous_for_test();
-        assert_eq!(
-            backend
-                .publish(publish_request("owner", b"blocked-ambiguous"), 3)
-                .expect_err("ambiguous ownership remains fail-closed")
-                .code,
-            EphemeralErrorCode::AuthorityPending
-        );
-    }
-
-    #[test]
-    fn reservation_binds_only_the_exact_issuer_successor_and_publishes_after_local() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("observer"), 1).unwrap();
-        let predecessor = authorization(4);
-        let issuer = authorization_issuer(&predecessor, 1);
-        backend.install_authorization_issuer(issuer);
-
-        let stale = backend
-            .reserve_authorization_commit(
-                AuthorizationCommitPreflight::AllProtectedRooms,
-                Arc::new(AuthorizationReservationCancellation::default()),
-            )
-            .unwrap();
-        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let error = match stale.bind_for_test(
-            &AuthorizationCommitWitness {
-                version: authorization(6),
-                event: true,
-                incarnation_rotated: false,
-                membership_declarations: Vec::new(),
-            },
-            AuthorizationCommitImpact::AllProtectedRooms,
-        ) {
-            Ok(prepared) => {
-                drop(prepared);
-                panic!("skipped issuer epoch unexpectedly bound")
-            }
-            Err(error) => error,
-        };
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE"
-        );
-        let batch = scope.take_after_local_batch();
-        drop(scope);
-        crate::exec_guard::run_after_local_batch(batch);
-        assert_eq!(
-            backend.authorization_expectation_for_test(),
-            Some(predecessor.clone())
-        );
-
-        let successor = authorization(5);
-        let reservation = backend
-            .reserve_authorization_commit(
-                AuthorizationCommitPreflight::AllProtectedRooms,
-                Arc::new(AuthorizationReservationCancellation::default()),
-            )
-            .unwrap();
-        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let prepared = reservation
-            .bind_for_test(
-                &AuthorizationCommitWitness {
-                    version: successor.clone(),
-                    event: true,
-                    incarnation_rotated: false,
-                    membership_declarations: Vec::new(),
-                },
-                AuthorizationCommitImpact::AllProtectedRooms,
-            )
-            .unwrap();
-        prepared.committed_for_test(9).unwrap();
-        let batch = scope.take_after_local_batch();
-        drop(scope);
-        assert_eq!(
-            backend.authorization_expectation_for_test(),
-            Some(predecessor),
-            "issuer publication cannot happen beneath Local"
-        );
-        assert_eq!(
-            lock(&backend.shared.room_authority.state)
-                .dependencies
-                .len(),
-            1
-        );
-        crate::exec_guard::run_after_local_batch(batch);
-        assert_eq!(
-            backend.authorization_expectation_for_test(),
-            Some(successor)
-        );
-        assert!(
-            lock(&backend.shared.room_authority.state)
-                .dependencies
-                .is_empty()
-        );
-    }
-
-    #[test]
-    fn collection_projection_precedes_commit_settlement_that_was_queued_first() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("observer"), 1).unwrap();
-        let reservation = backend
-            .reserve_authorization_commit(
-                AuthorizationCommitPreflight::AllProtectedRooms,
-                Arc::new(AuthorizationReservationCancellation::default()),
-            )
-            .unwrap();
-
-        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let prepared = reservation
-            .bind_for_test(
-                &AuthorizationCommitWitness {
-                    version: authorization(1),
-                    event: true,
-                    incarnation_rotated: false,
-                    membership_declarations: Vec::new(),
-                },
-                AuthorizationCommitImpact::AllProtectedRooms,
-            )
-            .unwrap();
-        // The SQLite hook settles first in source order. The separate final
-        // phase must nevertheless keep this ticket behind Local's later
-        // schema-definition projection.
-        prepared.committed_for_test(9).unwrap();
-        let projection_backend = backend.clone();
-        crate::exec_guard::run_or_defer_after_local(move || {
-            assert_eq!(
-                projection_backend
-                    .publish(publish_request("owner", b"blocked-before-definition"), 2)
-                    .expect_err("the room ticket remains closed through definition projection")
-                    .code,
-                EphemeralErrorCode::AuthorityPending
-            );
-            let mut replacement = collection();
-            replacement.default_ttl_ms += 1;
-            projection_backend
-                .replace_collections(vec![replacement])
-                .expect("prevalidated successor definitions publish before settlement");
-            assert_eq!(
-                projection_backend
-                    .subscribe(subscribe_request("during-projection"), 3)
-                    .expect_err("replacement cannot reopen the protected room early")
-                    .code,
-                EphemeralErrorCode::AuthorityPending
-            );
-        });
-        let batch = scope.take_after_local_batch();
-        drop(scope);
-        crate::exec_guard::run_after_local_batch(batch);
-
-        assert!(
-            lock(&backend.shared.room_authority.state)
-                .dependencies
-                .is_empty()
-        );
-        assert_eq!(
-            backend
-                .subscribe(subscribe_request("after-settlement"), 4)
-                .expect_err("settlement leaves the successor reauthorization obligation closed")
-                .code,
-            EphemeralErrorCode::AuthorityPending
-        );
-    }
-
-    #[test]
-    fn reset_projection_precedes_rotated_commit_settlement_for_direct_scopes() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("observer"), 1).unwrap();
-        let reservation = backend
-            .reserve_authorization_commit(
-                AuthorizationCommitPreflight::AllProtectedRooms,
-                Arc::new(AuthorizationReservationCancellation::default()),
-            )
-            .unwrap();
-
-        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let prepared = reservation
-            .bind_for_test(
-                &AuthorizationCommitWitness {
-                    version: AuthorizationVersion {
-                        incarnation: "0197f862-f196-7bb2-b3f0-2a67185dfd18".to_owned(),
-                        epoch: 0,
-                    },
-                    event: true,
-                    incarnation_rotated: true,
-                    membership_declarations: Vec::new(),
-                },
-                AuthorizationCommitImpact::AllProtectedRooms,
-            )
-            .unwrap();
-        prepared.committed_for_test(10).unwrap();
-        let reset_backend = backend.clone();
-        crate::exec_guard::run_or_defer_after_local(move || {
-            assert_eq!(
-                reset_backend
-                    .publish(publish_request("owner", b"blocked-before-reset"), 2)
-                    .expect_err("direct reset keeps its room dependency through projection")
-                    .code,
-                EphemeralErrorCode::AuthorityPending
-            );
-            reset_backend.reset_runtime_state();
-        });
-        let batch = scope.take_after_local_batch();
-        drop(scope);
-        crate::exec_guard::run_after_local_batch(batch);
-
-        assert!(
-            lock(&backend.shared.room_authority.state)
-                .dependencies
-                .is_empty()
-        );
-        assert_eq!(
-            backend
-                .subscribe(subscribe_request("successor"), 3)
-                .expect_err("the reset successor still requires exact room reauthorization")
-                .code,
-            EphemeralErrorCode::AuthorityPending
-        );
-    }
-
-    #[test]
-    fn issuer_projection_precedes_room_settlement_and_advances_the_projected_issuer() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("observer"), 1).unwrap();
-        let predecessor = authorization(4);
-        backend.install_authorization_issuer(authorization_issuer(&predecessor, 1));
-        let reservation = backend
-            .reserve_authorization_commit(
-                AuthorizationCommitPreflight::AllProtectedRooms,
-                Arc::new(AuthorizationReservationCancellation::default()),
-            )
-            .unwrap();
-
-        let successor = authorization(5);
-        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let prepared = reservation
-            .bind_for_test(
-                &AuthorizationCommitWitness {
-                    version: successor.clone(),
-                    event: true,
-                    incarnation_rotated: false,
-                    membership_declarations: Vec::new(),
-                },
-                AuthorizationCommitImpact::AllProtectedRooms,
-            )
-            .unwrap();
-        prepared.committed_for_test(11).unwrap();
-        let issuer_backend = backend.clone();
-        let replacement = authorization_issuer(&predecessor, 2);
-        crate::exec_guard::run_or_defer_after_local(move || {
-            assert_eq!(
-                issuer_backend
-                    .publish(publish_request("owner", b"blocked-before-issuer"), 2)
-                    .expect_err("issuer projection does not reopen the room ticket")
-                    .code,
-                EphemeralErrorCode::AuthorityPending
-            );
-            issuer_backend.install_authorization_issuer(replacement);
-        });
-        let batch = scope.take_after_local_batch();
-        drop(scope);
-        crate::exec_guard::run_after_local_batch(batch);
-
-        assert_eq!(
-            backend.authorization_expectation_for_test(),
-            Some(successor)
-        );
-        assert!(
-            lock(&backend.shared.room_authority.state)
-                .dependencies
-                .is_empty()
-        );
-    }
-
-    #[test]
-    fn projection_panic_drops_settlement_and_keeps_protected_rooms_closed() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("observer"), 1).unwrap();
-        let reservation = backend
-            .reserve_authorization_commit(
-                AuthorizationCommitPreflight::AllProtectedRooms,
-                Arc::new(AuthorizationReservationCancellation::default()),
-            )
-            .unwrap();
-
-        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let prepared = reservation
-            .bind_for_test(
-                &AuthorizationCommitWitness {
-                    version: authorization(1),
-                    event: true,
-                    incarnation_rotated: false,
-                    membership_declarations: Vec::new(),
-                },
-                AuthorizationCommitImpact::AllProtectedRooms,
-            )
-            .unwrap();
-        prepared.committed_for_test(12).unwrap();
-        crate::exec_guard::run_or_defer_after_local(|| {
-            panic!("forced successor projection failure");
-        });
-        let batch = scope.take_after_local_batch();
-        drop(scope);
-        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            crate::exec_guard::run_after_local_batch(batch);
-        }));
-        assert!(panic.is_err());
-
-        assert_eq!(
-            backend
-                .publish(publish_request("owner", b"fail-closed"), 2)
-                .expect_err("a skipped settlement permanently closes the affected room")
-                .code,
-            EphemeralErrorCode::AuthorityPending
-        );
-        assert_eq!(
-            lock(&backend.shared.room_authority.state)
-                .dependencies
-                .len(),
-            1
-        );
-    }
-
-    #[test]
     fn transport_drain_holds_commit_until_final_send_permit_drops() {
         use std::sync::mpsc;
         use std::time::Duration;
 
-        let backend = Arc::new(LocalEphemeralBackend::new());
+        let fixture = bound_backend_fixture();
+        let backend = Arc::new(fixture.backend.clone());
         backend.register_collection(collection()).unwrap();
         backend.subscribe(subscribe_request("observer"), 1).unwrap();
         backend
@@ -11065,20 +9442,23 @@ mod tests {
         let (prepared_tx, prepared_rx) = mpsc::channel();
         let commit_backend = backend.clone();
         let prepare = std::thread::spawn(move || {
-            let ticket = commit_backend
-                .prepare_room_authorization_event(authorization(1))
+            let reservation = commit_backend
+                .reserve_authorization_commit(
+                    AuthorizationCommitPreflight::AllProtectedRooms,
+                    Arc::new(AuthorizationReservationCancellation::new()),
+                )
                 .unwrap();
-            prepared_tx.send(ticket).unwrap();
+            prepared_tx.send(reservation).unwrap();
         });
         assert!(
             prepared_rx.recv_timeout(Duration::from_millis(20)).is_err(),
             "a destructively drained frame must retain its final-send permit"
         );
         drop(admitted);
-        let ticket = prepared_rx
+        let reservation = prepared_rx
             .recv_timeout(Duration::from_secs(1))
             .expect("dropping the transport frame releases commit preparation");
-        assert!(backend.rollback_room_authorization_event(&ticket));
+        reservation.cancel();
         prepare.join().unwrap();
     }
 
@@ -11087,7 +9467,8 @@ mod tests {
         use std::sync::mpsc;
         use std::time::{Duration, Instant};
 
-        let backend = LocalEphemeralBackend::new();
+        let fixture = bound_backend_fixture();
+        let backend = fixture.backend;
         backend.register_collection(collection()).unwrap();
         let room_scope = scope();
         let admitted = backend
@@ -11101,21 +9482,10 @@ mod tests {
             let reservation = commit_backend
                 .reserve_authorization_commit(
                     AuthorizationCommitPreflight::AllProtectedRooms,
-                    Arc::new(AuthorizationReservationCancellation::default()),
+                    Arc::new(AuthorizationReservationCancellation::new()),
                 )
                 .unwrap();
-            let prepared = reservation
-                .bind_for_test(
-                    &AuthorizationCommitWitness {
-                        version: authorization(1),
-                        event: true,
-                        incarnation_rotated: false,
-                        membership_declarations: Vec::new(),
-                    },
-                    AuthorizationCommitImpact::AllProtectedRooms,
-                )
-                .unwrap();
-            prepared_tx.send(prepared).unwrap();
+            prepared_tx.send(reservation).unwrap();
         });
         let deadline = Instant::now() + Duration::from_secs(1);
         loop {
@@ -11140,22 +9510,18 @@ mod tests {
             "prepare must still wait through final transport publication"
         );
         drop(admitted);
-        let prepared = prepared_rx
+        let reservation = prepared_rx
             .recv_timeout(Duration::from_secs(1))
             .expect("dropping the admitted permit releases prepare");
-        drop(prepared);
+        reservation.cancel();
         prepare.join().unwrap();
     }
 
     #[test]
     fn durable_authorization_ticket_retains_scoped_frames_but_not_independent_traffic() {
-        let backend = LocalEphemeralBackend::new();
-        let predecessor = authorization(0);
-        let successor = authorization(1);
-        backend
-            .shared
-            .room_authority
-            .install_durable_authorization(predecessor.clone());
+        let fixture = bound_backend_fixture();
+        let backend = fixture.backend;
+        let predecessor = fixture.authorization;
         backend.enqueue_authorized_durable(
             "observer",
             b"old-private-board".to_vec(),
@@ -11163,8 +9529,11 @@ mod tests {
         );
         backend.enqueue_durable("observer", b"authority-independent".to_vec());
 
-        let ticket = backend
-            .prepare_room_authorization_event(successor.clone())
+        let reservation = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::new()),
+            )
             .unwrap();
         let admitted = backend.drain_outbox_for_send("observer");
         assert_eq!(admitted.len(), 1);
@@ -11176,7 +9545,7 @@ mod tests {
                 if message.payload == b"authority-independent"
         ));
 
-        assert!(backend.rollback_room_authorization_event(&ticket));
+        reservation.cancel();
         let admitted = backend.drain_outbox_for_send("observer");
         assert_eq!(admitted.len(), 1);
         let (retained, permit) = admitted.into_iter().next().unwrap().into_parts();
@@ -11187,33 +9556,22 @@ mod tests {
         ));
         drop(permit);
 
-        backend.enqueue_authorized_durable(
-            "observer",
-            b"stale-private-board".to_vec(),
-            predecessor,
-        );
-        let ticket = backend
-            .prepare_room_authorization_event(successor.clone())
-            .unwrap();
-        assert!(backend.drain_outbox_for_send("observer").is_empty());
-
-        backend
-            .finalize_room_authorization_event(&ticket, successor, 7)
-            .unwrap();
+        let stale = AuthorizationVersion {
+            incarnation: predecessor.incarnation,
+            epoch: predecessor.epoch.checked_add(1).unwrap(),
+        };
+        backend.enqueue_authorized_durable("observer", b"stale-private-board".to_vec(), stale);
         assert!(
             backend.drain_outbox_for_send("observer").is_empty(),
-            "the predecessor-stamped board frame is discarded after commit"
+            "a non-current authorization frame is discarded"
         );
     }
 
     #[test]
     fn public_unfenced_drain_cannot_extract_authorized_durable_data() {
-        let backend = LocalEphemeralBackend::new();
-        let predecessor = authorization(0);
-        backend
-            .shared
-            .room_authority
-            .install_durable_authorization(predecessor.clone());
+        let fixture = bound_backend_fixture();
+        let backend = fixture.backend;
+        let predecessor = fixture.authorization;
         backend.enqueue_authorized_durable("observer", b"private-board".to_vec(), predecessor);
         backend.enqueue_durable("observer", b"authority-independent".to_vec());
 
@@ -11231,201 +9589,6 @@ mod tests {
             guarded[0].envelope(),
             RealtimeEnvelope::Durable(message) if message.payload == b"private-board"
         ));
-    }
-
-    #[test]
-    fn committed_authorization_event_drops_old_frames_and_refires_auth_changed() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("observer"), 1).unwrap();
-        backend
-            .publish(publish_request("owner", b"old"), 2)
-            .unwrap();
-
-        let expected = authorization(1);
-        let ticket = backend
-            .prepare_room_authorization_event(expected.clone())
-            .unwrap();
-        let resyncs = backend
-            .finalize_room_authorization_event(&ticket, expected, 7)
-            .unwrap();
-        assert_eq!(resyncs.len(), 1);
-        assert_eq!(resyncs[0].1.room_authority_generation, 2);
-
-        let first = drain_through_test_sink(&backend, "observer");
-        assert!(
-            first.iter().all(|frame| !matches!(
-                frame,
-                RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert { .. })
-            )),
-            "the generation-1 upsert is stale"
-        );
-        assert!(first.iter().any(|frame| matches!(
-            frame,
-            RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
-                room_authority_generation: 2,
-                reason: ResyncReason::AuthChanged,
-                ..
-            })
-        )));
-        let second = drain_through_test_sink(&backend, "observer");
-        assert!(second.iter().any(|frame| matches!(
-            frame,
-            RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
-                room_authority_generation: 2,
-                reason: ResyncReason::AuthChanged,
-                ..
-            })
-        )));
-    }
-
-    #[test]
-    fn ambiguous_authorization_commit_leaves_every_protected_act_pending() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("observer"), 1).unwrap();
-        let witness = AuthorizationCommitWitness {
-            version: authorization(1),
-            event: true,
-            incarnation_rotated: false,
-            membership_declarations: Vec::new(),
-        };
-        let reservation = backend
-            .reserve_authorization_commit(
-                AuthorizationCommitPreflight::AllProtectedRooms,
-                Arc::new(AuthorizationReservationCancellation::default()),
-            )
-            .unwrap();
-        let prepared = reservation
-            .bind_for_test(&witness, AuthorizationCommitImpact::AllProtectedRooms)
-            .unwrap();
-        prepared.ambiguous_for_test();
-
-        let error = backend
-            .publish(publish_request("owner", b"blocked"), 2)
-            .expect_err("an uncertain COMMIT may never exact-unmark its ticket");
-        assert_eq!(error.code, EphemeralErrorCode::AuthorityPending);
-    }
-
-    #[test]
-    fn fresh_room_reauthorization_revokes_owner_and_emits_trusted_boundaries() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("owner"), 1).unwrap();
-        backend.subscribe(subscribe_request("survivor"), 1).unwrap();
-        backend
-            .publish(publish_request("owner", b"secret"), 2)
-            .unwrap();
-        backend.drain_outbox("owner");
-        backend.drain_outbox("survivor");
-
-        let expected = authorization(1);
-        let ticket = backend
-            .prepare_room_authorization_event(expected.clone())
-            .unwrap();
-        let (_, obligation) = backend
-            .finalize_room_authorization_event(&ticket, expected, 11)
-            .unwrap()
-            .pop()
-            .unwrap();
-        let refreshed = auth_for(&scope());
-        assert!(
-            backend
-                .complete_room_reauthorization(
-                    &room(),
-                    obligation.room_authority_generation,
-                    vec![
-                        RoomSubscriberResolution::Denied {
-                            connection_id: "owner".to_owned(),
-                            expected_effect_fence: None,
-                        },
-                        RoomSubscriberResolution::Authorized {
-                            connection_id: "survivor".to_owned(),
-                            expected_effect_fence: None,
-                            auth: refreshed,
-                        },
-                    ],
-                )
-                .unwrap()
-        );
-
-        let survivor = drain_through_test_sink(&backend, "survivor");
-        assert!(survivor.iter().any(|frame| matches!(
-            frame,
-            RealtimeEnvelope::Ephemeral(EphemeralMessage::Remove {
-                reason: RemoveReason::AuthRevoked,
-                room_authority_generation: 2,
-                ..
-            })
-        )));
-        assert!(survivor.iter().any(|frame| matches!(
-            frame,
-            RealtimeEnvelope::Ephemeral(EphemeralMessage::Snapshot {
-                room_authority_generation: 2,
-                entries,
-                ..
-            }) if entries.is_empty()
-        )));
-        let denied = drain_through_test_sink(&backend, "owner");
-        assert!(denied.iter().any(|frame| matches!(
-            frame,
-            RealtimeEnvelope::Ephemeral(EphemeralMessage::Error {
-                error: EphemeralError {
-                    code: EphemeralErrorCode::PermissionDenied,
-                    ..
-                },
-                room_authority_generation: Some(2),
-                ..
-            })
-        )));
-    }
-
-    #[test]
-    fn reauthorization_removal_exhaustion_emits_only_terminal_epoch_boundary() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        backend.subscribe(subscribe_request("owner"), 1).unwrap();
-        backend.subscribe(subscribe_request("survivor"), 1).unwrap();
-        backend
-            .publish(publish_request("owner", b"must-not-leak"), 2)
-            .unwrap();
-        backend.drain_outbox("owner");
-        backend.drain_outbox("survivor");
-
-        let expected = authorization(1);
-        let ticket = backend
-            .prepare_room_authorization_event(expected.clone())
-            .unwrap();
-        let (_, obligation) = backend
-            .finalize_room_authorization_event(&ticket, expected, 11)
-            .unwrap()
-            .pop()
-            .unwrap();
-        set_next_entry_version(&backend, crate::manifest::PORTABLE_STORAGE_VERSION_MAX + 1);
-        let error = backend
-            .complete_room_reauthorization(
-                &room(),
-                obligation.room_authority_generation,
-                vec![
-                    RoomSubscriberResolution::Denied {
-                        connection_id: "owner".to_owned(),
-                        expected_effect_fence: None,
-                    },
-                    RoomSubscriberResolution::Authorized {
-                        connection_id: "survivor".to_owned(),
-                        expected_effect_fence: None,
-                        auth: auth_for(&scope()),
-                    },
-                ],
-            )
-            .expect_err("revocation removal cannot reuse an entry version");
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
-        );
-        assert_eq!(backend.diagnostics().room_count, 0);
-        assert_only_epoch_changed_boundary(&backend, "owner");
-        assert_only_epoch_changed_boundary(&backend, "survivor");
     }
 
     fn recompute_room_retained_bytes(room_id: &RoomId, room: &RoomState) -> usize {
@@ -15783,64 +13946,5 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(values, vec![b"successor".to_vec()]);
-    }
-
-    /// A permission result resolved for one grant must not be installed on a
-    /// same-id replacement. The level-triggered room obligation stays pending
-    /// and the replacement is resolved on the next maintenance pass.
-    #[test]
-    fn room_reauthorization_replacement_fence_keeps_obligation_pending() {
-        let backend = LocalEphemeralBackend::new();
-        backend.register_collection(collection()).unwrap();
-        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
-        let successor = ConnectionEffectFence::session("inc", "grant-new", "session", 2);
-        backend
-            .subscribe_with_room_authority_and_effect_fence(
-                subscribe_request("same-id"),
-                1,
-                None,
-                Some(predecessor.clone()),
-            )
-            .unwrap();
-        let expected = authorization(1);
-        let ticket = backend
-            .prepare_room_authorization_event(expected.clone())
-            .unwrap();
-        let (_, obligation) = backend
-            .finalize_room_authorization_event(&ticket, expected, 11)
-            .unwrap()
-            .pop()
-            .unwrap();
-        let pending = backend.pending_room_reauthorizations().pop().unwrap();
-
-        let room_arc = lock(&backend.shared.rooms).get(&room()).cloned().unwrap();
-        lock(&room_arc)
-            .subscribers
-            .get_mut("same-id")
-            .unwrap()
-            .effect_fence = Some(successor.clone());
-
-        assert!(
-            !backend
-                .complete_room_reauthorization(
-                    &room(),
-                    obligation.room_authority_generation,
-                    vec![RoomSubscriberResolution::Authorized {
-                        connection_id: "same-id".to_owned(),
-                        expected_effect_fence: pending.subscribers[0].effect_fence.clone(),
-                        auth: auth_for(&scope()),
-                    }],
-                )
-                .unwrap()
-        );
-        assert_eq!(backend.pending_room_reauthorizations().len(), 1);
-        assert_eq!(
-            lock(&room_arc)
-                .subscribers
-                .get("same-id")
-                .unwrap()
-                .effect_fence,
-            Some(successor)
-        );
     }
 }

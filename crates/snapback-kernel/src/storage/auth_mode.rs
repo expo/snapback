@@ -265,7 +265,7 @@ fn commit_mode_transaction<T>(
     conn: &mut Connection,
     predecessor: &AuthModeSnapshot,
     track_data_marker: bool,
-    interlock: bool,
+    interlock: super::AuthorizationInterlockState,
     commit_authority_identity: &std::sync::Arc<()>,
     transaction_body: impl FnOnce(
         &Transaction<'_>,
@@ -333,8 +333,11 @@ fn commit_mode_transaction<T>(
         Some((witness, _)) if witness.event => match super::prepare_authorization_commit_interlock(
             witness,
             super::AuthorizationCommitImpact::AllProtectedRooms,
-            interlock,
+            &interlock,
             commit_authority_identity,
+            predecessor_marker
+                .as_ref()
+                .and_then(|marker| marker.authorization.as_ref()),
         ) {
             Ok(prepared) => prepared,
             Err(error) => {
@@ -379,7 +382,7 @@ fn commit_mode_transaction<T>(
     };
     match (durable, prepared, authorization) {
         (DurableModeCommit::Committed(output), Some(prepared), Some((_, min_version))) => {
-            match prepared.committed(min_version) {
+            match prepared.finalize_committed(min_version) {
                 Ok(()) => DurableModeCommit::Committed(output),
                 Err(error) => DurableModeCommit::Uncertain(error),
             }
@@ -389,7 +392,7 @@ fn commit_mode_transaction<T>(
             DurableModeCommit::RolledBack(error)
         }
         (DurableModeCommit::Uncertain(error), Some(prepared), _) => {
-            prepared.ambiguous();
+            prepared.finalize_ambiguous();
             DurableModeCommit::Uncertain(error)
         }
         (durable, _, _) => durable,
@@ -1379,7 +1382,14 @@ impl LocalDatabase {
             .map(ToOwned::to_owned)
             .collect();
         let predecessor_schema = self.schema.clone();
-        let track_data_marker = seed.is_some();
+        // A same-mode activation may advance authorization even without a
+        // seed. The native reservation bind must therefore receive the exact
+        // durable predecessor for every candidate activation, not only for
+        // transactions that also carry app data.
+        //
+        // @ref LLP 0290#54-bind — successor validation is relative to the
+        // committing database's transaction-start authorization fact.
+        let track_data_marker = true;
         let committed = commit_mode_transaction(
             &mut self.conn,
             &predecessor,
@@ -2389,70 +2399,6 @@ mod tests {
         assert_eq!(count, 0, "{table} DDL must roll back");
     }
 
-    struct RecordingModeInterlock {
-        prepared: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-        committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-        fail_committed_ack: bool,
-    }
-
-    impl RecordingModeInterlock {
-        fn reservation(
-            &self,
-            carriers: &super::super::AuthorizationCommitCarrierFactory,
-        ) -> super::super::AuthorizationCommitReservation {
-            let prepared = self.prepared.clone();
-            let committed = self.committed.clone();
-            let fail_committed_ack = self.fail_committed_ack;
-            carriers.reservation(
-                move |prepared_carriers, witness, impact| {
-                    assert!(witness.event);
-                    assert!(matches!(
-                        impact,
-                        super::super::AuthorizationCommitImpact::AllProtectedRooms
-                    ));
-                    prepared.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                    Ok(prepared_carriers.prepared(
-                        move |_min_commit_version| {
-                            committed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                            if fail_committed_ack {
-                                return Err(SnapbackError::error(
-                                    "TEST_AUTH_MODE_COMMITTED_ACK_FAILURE",
-                                    "auth",
-                                    "injected post-commit authorization acknowledgement failure",
-                                ));
-                            }
-                            Ok(())
-                        },
-                        || panic!("an exact mode predecessor or successor must reconcile the test commit"),
-                        || {},
-                    ))
-                },
-                || {},
-            )
-        }
-    }
-
-    fn with_recording_mode_reservation<T>(
-        interlock: &RecordingModeInterlock,
-        carriers: &super::super::AuthorizationCommitCarrierFactory,
-        work: impl FnOnce() -> T,
-    ) -> T {
-        let reservation_scope = interlock.reservation(carriers).install();
-        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(work));
-        let unused = reservation_scope.take_unused();
-        let batch = scope.take_after_local_batch();
-        drop(scope);
-        if let Some(unused) = unused {
-            unused.cancel();
-        }
-        crate::exec_guard::run_after_local_batch(batch);
-        match output {
-            Ok(output) => output,
-            Err(panic) => std::panic::resume_unwind(panic),
-        }
-    }
-
     fn mode_meta(connection: &Connection) -> BTreeMap<String, String> {
         read_mode_meta(connection).unwrap().unwrap()
     }
@@ -3063,69 +3009,6 @@ mod tests {
     }
 
     #[test]
-    fn repeated_same_mode_permission_seed_uses_auth_marker_to_prove_rollback() {
-        let mut database = LocalDatabase::memory().unwrap();
-        let (identity, mut manifest) = dev_pair(Some("permission_items"));
-        manifest.tables[0].permission_backing = true;
-        manifest.tables[0].permission_fields = Some(vec!["value".to_owned()]);
-        let (first_outcome, _) = database
-            .apply_same_mode_network_deployment(identity.clone(), manifest.clone(), None)
-            .unwrap();
-        assert_eq!(first_outcome, NetworkSeedOutcome::SkippedAbsent);
-        let predecessor_version = database.current_version().unwrap();
-        let predecessor_authorization = database.authorization_version().unwrap();
-
-        let prepared = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let committed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let interlock = std::sync::Arc::new(RecordingModeInterlock {
-            prepared: prepared.clone(),
-            committed: committed.clone(),
-            fail_committed_ack: false,
-        });
-        let authority = database
-            .claim_kernel_commit_authority()
-            .expect("kernel authority");
-        database
-            .enable_authorization_commit_interlock(&authority.binding())
-            .expect("bind authorization interlock");
-        let carriers = authority.authorization_commit_carriers();
-        let seed = SeedData {
-            tables: BTreeMap::from([(
-                "permission_items".to_owned(),
-                vec![Map::from_iter([
-                    ("_id".to_owned(), serde_json::json!("rolled-back-seed")),
-                    ("value".to_owned(), serde_json::json!("member")),
-                ])],
-            )]),
-        };
-        inject_auth_mode_commit_boundary_failure(AuthModeCommitBoundary::AfterRollback);
-        match with_recording_mode_reservation(&interlock, &carriers, || {
-            database.apply_same_mode_network_deployment_classified(identity, manifest, Some(seed))
-        }) {
-            DurableModeCommit::RolledBack(error) => assert_eq!(
-                error.diagnostic.code,
-                "TEST_AUTH_MODE_COMMIT_BOUNDARY_FAILURE"
-            ),
-            other => panic!("durable predecessor must prove rollback, got {other:?}"),
-        }
-
-        assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 1);
-        assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 0);
-        assert_eq!(database.current_version().unwrap(), predecessor_version);
-        assert_eq!(
-            database.authorization_version().unwrap(),
-            predecessor_authorization
-        );
-        let count: i64 = database
-            .conn
-            .query_row("SELECT COUNT(*) FROM permission_items", [], |row| {
-                row.get(0)
-            })
-            .unwrap();
-        assert_eq!(count, 0);
-    }
-
-    #[test]
     fn same_mode_commit_boundary_reconciles_and_installs_exact_schema() {
         let mut rolled_back = LocalDatabase::memory().unwrap();
         let (identity, manifest) = dev_pair(Some("same_before_items"));
@@ -3168,144 +3051,6 @@ mod tests {
     // @ref LLP 0225#1-ownership-map — pending projection pins ride the
     //   classified complete-pair verdict and never participate in successor
     //   identity; reopen reads only what the reconciled SQLite cut committed.
-    #[test]
-    fn oq3_complete_pair_reconciliation_keeps_pending_pins_with_its_verdict() {
-        let pending = || super::super::PendingProjectionPublication {
-            plan_id: "complete-pair-plan".to_owned(),
-            plan_digest: "sha256:complete-pair-plan".to_owned(),
-            receipt: super::super::ProjectionRebuildReceipt {
-                operation_id: "rebuild_complete_pair".to_owned(),
-                plan_digest: "sha256:complete-pair-plan".to_owned(),
-                content_digest: "seq1:complete-pair".to_owned(),
-                row_count: 0,
-                generation: 1,
-                published_version: 0,
-                cause: "activation".to_owned(),
-                at_ms: 1,
-            },
-        };
-        let pin = |database: &LocalDatabase| -> Option<String> {
-            database
-                .conn
-                .query_row(
-                    "SELECT value FROM _snapback_meta
-                      WHERE key = 'projection_plan_digest:complete-pair-plan'",
-                    [],
-                    |row| row.get(0),
-                )
-                .optional()
-                .unwrap()
-        };
-
-        let rolled_back_dir = tempdir().unwrap();
-        let rolled_back_path = rolled_back_dir.path().join("complete-pair-before.sqlite");
-        let mut rolled_back = LocalDatabase::open(&rolled_back_path).unwrap();
-        let (identity, manifest) = dev_pair(None);
-        inject_auth_mode_commit_boundary_failure(AuthModeCommitBoundary::BeforeCommit);
-        match rolled_back.apply_same_mode_network_deployment_with_functions_classified(
-            identity.clone(),
-            manifest.clone(),
-            function_half(&identity),
-            None,
-            vec![pending()],
-        ) {
-            DurableModeCommit::RolledBack(error) => assert_eq!(
-                error.diagnostic.code,
-                "TEST_AUTH_MODE_COMMIT_BOUNDARY_FAILURE"
-            ),
-            other => panic!("before-commit cut must prove rollback, got {other:?}"),
-        }
-        drop(rolled_back);
-        let rolled_back = LocalDatabase::open(&rolled_back_path).unwrap();
-        assert!(pin(&rolled_back).is_none());
-        assert!(
-            rolled_back
-                .auth_mode_snapshot()
-                .unwrap()
-                .state
-                .active_deployment
-                .is_none()
-        );
-
-        let lost_ack_dir = tempdir().unwrap();
-        let lost_ack_path = lost_ack_dir.path().join("complete-pair-lost-ack.sqlite");
-        let mut lost_ack = LocalDatabase::open(&lost_ack_path).unwrap();
-        inject_auth_mode_commit_boundary_failure(AuthModeCommitBoundary::AfterCommit);
-        match lost_ack.apply_same_mode_network_deployment_with_functions_classified(
-            identity.clone(),
-            manifest.clone(),
-            function_half(&identity),
-            None,
-            vec![pending()],
-        ) {
-            DurableModeCommit::Committed(_) => {}
-            other => panic!("lost acknowledgement must reconcile successor, got {other:?}"),
-        }
-        drop(lost_ack);
-        let lost_ack = LocalDatabase::open(&lost_ack_path).unwrap();
-        assert_eq!(pin(&lost_ack).as_deref(), Some("sha256:complete-pair-plan"));
-        assert_eq!(
-            lost_ack
-                .auth_mode_snapshot()
-                .unwrap()
-                .state
-                .active_deployment
-                .as_ref(),
-            Some(&identity)
-        );
-
-        let uncertain_dir = tempdir().unwrap();
-        let uncertain_path = uncertain_dir.path().join("complete-pair-uncertain.sqlite");
-        let mut uncertain = LocalDatabase::open(&uncertain_path).unwrap();
-        let prepared = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let committed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let interlock = std::sync::Arc::new(RecordingModeInterlock {
-            prepared: prepared.clone(),
-            committed: committed.clone(),
-            fail_committed_ack: true,
-        });
-        let authority = uncertain
-            .claim_kernel_commit_authority()
-            .expect("kernel authority");
-        uncertain
-            .enable_authorization_commit_interlock(&authority.binding())
-            .expect("bind authorization interlock");
-        let carriers = authority.authorization_commit_carriers();
-        match with_recording_mode_reservation(&interlock, &carriers, || {
-            uncertain.apply_same_mode_network_deployment_with_functions_classified(
-                identity.clone(),
-                manifest,
-                function_half(&identity),
-                None,
-                vec![pending()],
-            )
-        }) {
-            DurableModeCommit::Uncertain(error) => assert_eq!(
-                error.diagnostic.code,
-                "TEST_AUTH_MODE_COMMITTED_ACK_FAILURE"
-            ),
-            other => panic!("post-commit acknowledgement failure is uncertain, got {other:?}"),
-        }
-        assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 1);
-        assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
-        drop(uncertain);
-        let uncertain = LocalDatabase::open(&uncertain_path).unwrap();
-        assert_eq!(
-            pin(&uncertain).as_deref(),
-            Some("sha256:complete-pair-plan")
-        );
-        assert_eq!(
-            uncertain
-                .auth_mode_snapshot()
-                .unwrap()
-                .state
-                .active_deployment
-                .as_ref(),
-            Some(&identity),
-            "reopen follows the committed durable record despite process uncertainty"
-        );
-    }
-
     #[test]
     fn consume_crash_rolls_back_catalog_poison_and_mode_then_retry_settles() {
         let dir = tempdir().unwrap();

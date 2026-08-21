@@ -71,6 +71,10 @@ and HTTP details remain behind their lower-owner observation ports)
 **Revised:** 2026-08-19 (z — LLP 0283 F-5 fork-promotion recorder move:
 rank-7 `snapback-tools` owns the benchmark and preserves the facade's exact
 compile-time source-identity contract)
+**Revised:** 2026-08-20 (aa — LLP 0285 step 8 / LLP 0290 room-authority
+ownership move: the kernel owns database-bound authorization settlement and
+finite permits; sync retains queues, subscriber policy, resync materialization,
+and transport handoff)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -82,7 +86,9 @@ selection), `issues/20260808-core-modularization-decision.md` (commission),
 `issues/closed/20260809-ownership-gate-prepush-tier.md` (enforcement-arm
 ruling), `issues/closed/20260809-0199-ownership-ratchet-worklist.md` (frozen-edge
 burn-down), `issues/closed/20260810-ownership-gate-analyzer-gaps.md`
-(analyzer/enforcement completion)
+(analyzer/enforcement completion), LLP 0285 (kernel authorization closure),
+LLP 0290 (accepted database-bound authorization commit participant and sync
+outbox split)
 
 ## Context and relationship to LLP 0199
 
@@ -157,8 +163,8 @@ canonical vocabulary; prose and `@ref`s should use them.
 | --- | --- | --- | --- | --- |
 | 0 | (implied by #1) | `shared-contract-types-leaf` | contract-leaf (0) | Language-neutral schema, wire, id/value, and generation types. Dependency-free; the single canonical source. Rust owners consume it as code; Cloudflare and other target-local implementations bind the generated artifacts (schemas, wire fixtures) produced from it, never the Rust modules. |
 | 1 | Manifest / generation-activation coordinator | `generation-activation-coordinator` | domain-service (2) | Composes a complete successor generation (manifest + projections + sequences + auth/capability side effects) and installs it as one atomic transition via kernel commits. Owns composition and the atomicity guarantee, not the commit primitive. |
-| 2 | Storage and migration kernel | `storage-migration-kernel` | kernel (1) | Owns SQLite transactions (the only commit primitive), schema lineage, rollback artifacts persisted at admission, cleanup, durability. Callers receive typed operations, not a wide `LocalDatabase` surface. |
-| 3 | Durable sync and realtime engine | `sync-realtime-engine` | domain-service (2) | Subscriptions, version streams, outbox settlement, invalidation, fan-out — independent of HTTP handlers. |
+| 2 | Storage and migration kernel | `storage-migration-kernel` | kernel (1) | Owns SQLite transactions (the only commit primitive), schema lineage, rollback artifacts persisted at admission, cleanup, durability, and the database-bound room-authority registry: authorization reservations, transaction binding, known-commit settlement, finite room/publication permits, and level-triggered reauthorization obligations. Callers receive typed operations, not a wide `LocalDatabase` surface. |
+| 3 | Durable sync and realtime engine | `sync-realtime-engine` | domain-service (2) | Subscriptions, version streams, sync-private outbox queues and leases, subscriber policy, reauthorization materialization, transport handoff, invalidation, and fan-out — independent of HTTP handlers. It does not own authorization-commit settlement. |
 | 4 | Background/application services | `background-services` | domain-service (2) | Assets, jobs, push, forks, telemetry, replication. CPU/network preparation happens **outside** the global writer; results enter the kernel through narrow typed commit operations. |
 | 5 | Transport adapters | `transport-adapters` | adapter (3) | Local Axum, CLI, admin, hosted edge, bin harnesses. Compose the domain owners; never re-implement serving gates or wire shapes. Cloudflare is a target-local implementation sharing the *contract*, not code. |
 | 6 | Supported embedding façade | `embed-facade` | adapter (3) | `snapback::embed` + `crates/snapback/src/lib.rs` (LLP 0141). Preserves the embed contract while internals become genuinely private, not merely `#[doc(hidden)]`, where the source-compatibility policy permits. |
@@ -178,6 +184,16 @@ Two manifest refinements are part of this map, not workarounds of it:
   transport but a dedicated execution owner could claim it). These are
   invitations to re-decide at the owning slice, not licenses to ignore the
   gate.
+
+**LLP 0285 step-8 split (2026-08-20).** `snapback-kernel` owns the
+database-bound `AuthorizationCommitParticipant`, exact pending/bound/ready
+database handshake, protected-room registry core, reservation bind, rollback
+and ambiguity custody, known-commit finalization, committed-outcome evidence,
+and room/durable publication permits. `snapback-sync` retains `SharedOutbox`,
+`OutboundQueue`, drain leases, connection-effect matching, subscriber
+resolution, resync frame construction, notifier wakeups, and final transport
+handoff. This is an ownership move within the existing rank-1/rank-2 edge; it
+adds no upward kernel dependency and does not change the workspace rank map.
 
 The declared `godFiles` are `crates/snapback/src/local.rs`, `crates/snapback/src/server.rs`, `crates/snapback/src/storage.rs`
 — the modules whose *drainage* is the program's purpose. The no-growth rule,
@@ -283,7 +299,8 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
    after a classified committed verdict; recovery on reopen reads only what
    the durable cut committed. Post-commit effects (process fence, ephemeral
    publication, successor composition, route validation, cache effects, the
-   complete-pair authorization acknowledgement) are the recorded
+   same-incarnation issuer expectation projection and direct kernel
+   room-authority finalization) are the recorded
    transaction-domain exceptions and occur only after commit; each future
    exception must be recorded per slice, with the digest-clearing kernel
    helper retained solely as the explicit escape hatch for a path that
@@ -292,9 +309,11 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
    persisted at admission (predecessor bytes), not reconstructed from live
    `self.schema`; lineage, journaling, and crash recovery follow LLP 0081.
 5. **The sync/realtime engine commits nothing generation-coupled on its
-   own.** Outbox settlement, invalidation cursors, and version-stream state
-   go through typed kernel operations; the engine owns ordering and fan-out,
-   not durability primitives.
+   own.** Authorization-commit settlement and its durable/projected authority
+   facts are kernel-owned. Sync owns queue leasing, subscriber resolution,
+   resync materialization, transport handoff, ordering, and fan-out; durable
+   invalidation cursors and version-stream state go through typed kernel
+   operations.
 6. **Background services never hold the global writer across CPU or network
    work.** Asset transcode/hashing, job execution, push fan-out, and fork
    preparation happen outside the writer; only their narrow commit operations
@@ -1376,3 +1395,12 @@ so slices can follow product priorities.
   `snapback-tools`, retaining its engine benchmark-support seam and complete
   report schema while consuming the shared tools build-identity stamp. The
   last reviewed membership assignment is removed without a matrix widening.
+- **2026-08-20 (aa).** LLP 0285 §6 step 8, governed by accepted LLP 0290,
+  moves the database-bound room-authority registry, authorization dependency
+  preparation/binding, kernel-derived commit settlement, rollback/ambiguity
+  custody, committed outcomes, and finite publication/room permits into
+  `snapback-kernel`. Sync retains its foreign queue/lease types, subscriber
+  policy, resync materialization, notifier work, and transport handoff. The
+  dependency remains the allowed rank-2 → rank-1 edge; no rank or allowed-edge
+  amendment was needed. This records only the mechanism move and makes no F-1
+  or LLP 0285 defect-closure claim.

@@ -178,7 +178,7 @@ where
 {
     let writer_turn_guard = writer_gate.map(|coalescer| Arc::new(coalescer.writer_turn_guard()));
     let mut guard = lock_managed_snapback(state).await;
-    let cancellation = Arc::new(crate::storage::AuthorizationReservationCancellation::default());
+    let cancellation = Arc::new(crate::storage::AuthorizationReservationCancellation::new());
     let mut cancel_on_drop = CancelAuthorizationReservationOnDrop::new(cancellation.clone());
     let stage_writer_turn_guard = writer_turn_guard.clone();
     let staged_result: SnapbackResult<StagedAuthorizationWrite<S, T, F>> =

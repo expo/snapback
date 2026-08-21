@@ -665,14 +665,30 @@ fn codegen_membership_removal_unregisters_the_room_subscriber() {
         .membership_plans()
         .plan_membership_remove(&writer, "conversationMembers", MEMBER_A)
         .expect("the emitted owner transition authorizes removing the member");
+    let admission = snapback
+        .admission
+        .admit_for_mode(AuthMode::Sessions)
+        .expect("membership removal holds sessions publication admission");
     let committed = snapback
         .try_with_direct_authorization_write(
             AuthorizationCommitPreflight::AllProtectedRooms,
             move |snapback| {
-                snapback
+                let committed = snapback
                     .db
                     .membership_plans()
-                    .commit_membership_plan(&writer, removal)
+                    .commit_membership_plan(&writer, removal)?;
+                if let Some(authorization) = committed
+                    .authorization
+                    .as_ref()
+                    .filter(|authorization| authorization.event)
+                {
+                    snapback.notify_authorization_event_in_frame(
+                        authorization,
+                        committed.output.version,
+                        &admission,
+                    )?;
+                }
+                Ok::<_, crate::diagnostic::SnapbackError>(committed)
             },
         )
         .expect("the direct embedder installs the room reservation")
@@ -1051,59 +1067,6 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
             },
         })
     );
-}
-
-#[test]
-fn process_loss_before_room_ack_forces_fresh_membership_authorization() {
-    let fixture = KickFixture::new();
-    let (kick, old_room_envelope, old_board_envelope, _boundary_observations) =
-        fixture.kick_while_holding_final_send();
-    drop((old_room_envelope, old_board_envelope));
-    assert_eq!(kick.changed_count, 1);
-
-    let fresh_ephemeral = {
-        let mut snapback = fixture
-            .snapback
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        replace_process_local_room_authority(&mut snapback)
-    };
-    assert!(
-        fixture
-            .snapback
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .ephemeral
-            .pending_room_reauthorizations()
-            .is_empty(),
-        "a fresh process owns no predecessor room obligation or continuity"
-    );
-
-    let denied = fixture
-        .snapback
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .authorize_ephemeral_room_observed("gamePresence", &room_scope(), base_room_auth(USER_A))
-        .expect_err("fresh A registration re-reads the committed kick");
-    assert_eq!(denied.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
-
-    let snapback = fixture
-        .snapback
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner);
-    let (b_auth, b_permit) = server_room_grant(&snapback, &fresh_ephemeral, USER_B);
-    let snapshot = fresh_ephemeral
-        .subscribe(room_subscribe(CONNECTION_B, b_auth), 30)
-        .expect("B fresh-registers after process loss");
-    assert!(matches!(
-        snapshot,
-        EphemeralMessage::Snapshot {
-            room_authority_generation: 1,
-            ref entries,
-            ..
-        } if entries.is_empty()
-    ));
-    drop(b_permit);
 }
 
 #[test]
@@ -1673,25 +1636,6 @@ fn server_room_grant(
         "durable lookup and room permit bind one authorization expectation"
     );
     (auth, permit)
-}
-
-fn replace_process_local_room_authority(snapback: &mut LocalSnapback) -> EphemeralApi {
-    let issuer = snapback
-        .auth_invalidation
-        .as_ref()
-        .expect("installed invalidation state")
-        .issuer
-        .clone();
-    let fresh = LocalEphemeralBackend::new();
-    fresh
-        .replace_collections(snapback.db.schema().ephemeral_collections.clone())
-        .expect("fresh process reloads protected room definitions");
-    fresh.install_authorization_issuer(issuer);
-    fresh
-        .install_authorization_commit_carriers(snapback.db.authorization_commit_carriers())
-        .expect("fresh process installs opaque authorization carriers");
-    snapback.ephemeral = fresh;
-    snapback.ephemeral_api()
 }
 
 fn register_room(

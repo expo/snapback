@@ -555,15 +555,16 @@ impl LocalDatabase {
         let prepared = match prepare_authorization_commit_interlock(
             &authorization,
             AuthorizationCommitImpact::AllProtectedRooms,
-            authorization_interlock,
+            &authorization_interlock,
             &commit_authority_identity,
+            authorization_predecessor.as_ref(),
         ) {
             Ok(prepared) => prepared,
             Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
         };
         match tx.commit() {
             Ok(()) => match prepared {
-                Some(prepared) => match prepared.committed(min_commit_version) {
+                Some(prepared) => match prepared.finalize_committed(min_commit_version) {
                     Ok(()) => auth::AuthTransactionAttempt::Committed(seeded),
                     Err(error) => auth::AuthTransactionAttempt::CommitUncertain(error),
                 },
@@ -574,7 +575,7 @@ impl LocalDatabase {
                 match auth_stream::read_authorization_version_snapshot(&self.conn) {
                     Ok(durable) if durable == Some(authorization.version.clone()) => match prepared
                     {
-                        Some(prepared) => match prepared.committed(min_commit_version) {
+                        Some(prepared) => match prepared.finalize_committed(min_commit_version) {
                             Ok(()) => auth::AuthTransactionAttempt::Committed(seeded),
                             Err(error) => auth::AuthTransactionAttempt::CommitUncertain(error),
                         },
@@ -586,7 +587,7 @@ impl LocalDatabase {
                     }
                     Ok(_) | Err(_) => {
                         if let Some(prepared) = prepared {
-                            prepared.ambiguous();
+                            prepared.finalize_ambiguous();
                         }
                         auth::AuthTransactionAttempt::CommitUncertain(error)
                     }
@@ -693,8 +694,9 @@ impl LocalDatabase {
         let prepared = match prepare_authorization_commit_interlock(
             &authorization,
             AuthorizationCommitImpact::AllProtectedRooms,
-            authorization_interlock,
+            &authorization_interlock,
             &commit_authority_identity,
+            authorization_predecessor.as_ref(),
         ) {
             Ok(prepared) => prepared,
             Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
@@ -711,7 +713,7 @@ impl LocalDatabase {
         }
         match tx.commit() {
             Ok(()) => match prepared {
-                Some(prepared) => match prepared.committed(min_commit_version) {
+                Some(prepared) => match prepared.finalize_committed(min_commit_version) {
                     Ok(()) => auth::AuthTransactionAttempt::Committed(committed),
                     Err(error) => auth::AuthTransactionAttempt::CommitUncertain(error),
                 },
@@ -722,7 +724,7 @@ impl LocalDatabase {
                 match auth_stream::read_authorization_version_snapshot(&self.conn) {
                     Ok(durable) if durable == Some(authorization.version.clone()) => match prepared
                     {
-                        Some(prepared) => match prepared.committed(min_commit_version) {
+                        Some(prepared) => match prepared.finalize_committed(min_commit_version) {
                             Ok(()) => auth::AuthTransactionAttempt::Committed(committed),
                             Err(error) => auth::AuthTransactionAttempt::CommitUncertain(error),
                         },
@@ -734,7 +736,7 @@ impl LocalDatabase {
                     }
                     Ok(_) | Err(_) => {
                         if let Some(prepared) = prepared {
-                            prepared.ambiguous();
+                            prepared.finalize_ambiguous();
                         }
                         auth::AuthTransactionAttempt::CommitUncertain(error)
                     }

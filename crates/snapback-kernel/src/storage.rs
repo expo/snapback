@@ -74,10 +74,22 @@ mod mutation_writes;
 mod projection_rebuild;
 mod push_registry;
 mod query_reads;
+mod room_authority;
 mod schema_seed;
 mod schema_transition;
 mod settlement;
 mod versions;
+
+pub use room_authority::{
+    AuthorizationCommitOutcome, AuthorizationCommitParticipant, AuthorizationCommitReservation,
+    AuthorizationExpectationView, AuthorizationOutboxAdmission,
+    AuthorizationReservationCancellation, DurableAuthorizationPermit,
+    ManagedAuthorizationReservationScope, NonAuthorizingRoomAuthority, OutboxFrameDisposition,
+    PendingRoomReauthorization, RealtimePublicationPermit, RoomAuthorityPermit,
+    RoomAuthorityResync, RoomCreationAdmission, RoomReauthorizationAdmission,
+    RoomRetirementAdmission,
+};
+use room_authority::{PreparedAuthorizationCommit, take_managed_authorization_reservation};
 
 pub use self::jobs::{JobsKernel, JobsReadKernel};
 pub use api_envelope_state::{
@@ -572,6 +584,10 @@ impl DatabaseBinding {
         Arc::ptr_eq(&self.0, &other.0)
     }
 
+    pub(super) fn isolated() -> Self {
+        Self(Arc::new(()))
+    }
+
     #[cfg(test)]
     pub(crate) fn isolated_for_test() -> Self {
         Self(Arc::new(()))
@@ -595,12 +611,6 @@ impl KernelCommitAuthority {
 
     pub(crate) fn binding(&self) -> DatabaseBinding {
         self.binding.clone()
-    }
-
-    pub(crate) fn authorization_commit_carriers(&self) -> AuthorizationCommitCarrierFactory {
-        AuthorizationCommitCarrierFactory {
-            identity: self.identity().clone(),
-        }
     }
 }
 
@@ -658,236 +668,6 @@ fn file_commit_authority_key(path: &Path) -> SnapbackResult<String> {
     }
 }
 
-type AuthorizationReservationBind = Box<
-    dyn for<'a> FnOnce(
-            &AuthorizationCommitCarrierFactory,
-            &AuthorizationCommitWitness,
-            AuthorizationCommitImpact<'a>,
-        ) -> SnapbackResult<PreparedAuthorizationCommit>
-        + Send,
->;
-
-/// Opaque room reservation minted by the kernel for one database identity.
-/// The callback plumbing is construction-only; callers cannot implement a
-/// substitute reservation or install a carrier minted for another database.
-pub struct AuthorizationCommitReservation {
-    identity: Arc<()>,
-    bind: Option<AuthorizationReservationBind>,
-    cancel: Option<Box<dyn FnOnce() + Send>>,
-}
-
-impl AuthorizationCommitReservation {
-    fn bind(
-        mut self,
-        database_identity: &Arc<()>,
-        witness: &AuthorizationCommitWitness,
-        impact: AuthorizationCommitImpact<'_>,
-    ) -> SnapbackResult<PreparedAuthorizationCommit> {
-        if !Arc::ptr_eq(&self.identity, database_identity) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-                "auth",
-                "authorization reservation belongs to a different database",
-            ));
-        }
-        let bind = self
-            .bind
-            .take()
-            .expect("authorization reservation binds once");
-        self.cancel = None;
-        let factory = AuthorizationCommitCarrierFactory {
-            identity: self.identity.clone(),
-        };
-        let prepared = bind(&factory, witness, impact)?;
-        if !Arc::ptr_eq(&prepared.identity, database_identity) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-                "auth",
-                "prepared authorization carrier belongs to a different database",
-            ));
-        }
-        Ok(prepared)
-    }
-
-    /// Bounded owner-test seam: exercise the real opaque reservation without
-    /// exposing its database identity or a production settlement primitive.
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn bind_for_test(
-        self,
-        witness: &AuthorizationCommitWitness,
-        impact: AuthorizationCommitImpact<'_>,
-    ) -> SnapbackResult<PreparedAuthorizationCommit> {
-        let identity = self.identity.clone();
-        self.bind(&identity, witness, impact)
-    }
-
-    pub fn cancel(mut self) {
-        if let Some(cancel) = self.cancel.take() {
-            cancel();
-        }
-    }
-
-    pub fn install(mut self) -> ManagedAuthorizationReservationScope {
-        MANAGED_AUTHORIZATION_RESERVATION.with(|slot| {
-            let previous = slot.borrow_mut().replace(self);
-            assert!(
-                previous.is_none(),
-                "managed authorization reservation already installed"
-            );
-        });
-        ManagedAuthorizationReservationScope { active: true }
-    }
-}
-
-impl Drop for AuthorizationCommitReservation {
-    fn drop(&mut self) {
-        if let Some(cancel) = self.cancel.take() {
-            cancel();
-        }
-    }
-}
-
-pub struct PreparedAuthorizationCommit {
-    identity: Arc<()>,
-    committed: Option<Box<dyn FnOnce(u64) -> SnapbackResult<()> + Send>>,
-    ambiguous: Option<Box<dyn FnOnce() + Send>>,
-    rolled_back: Option<Box<dyn FnOnce() + Send>>,
-}
-
-impl PreparedAuthorizationCommit {
-    fn committed(mut self, min_commit_version: u64) -> SnapbackResult<()> {
-        self.ambiguous = None;
-        self.rolled_back = None;
-        self.committed
-            .take()
-            .expect("prepared authorization commit settles once")(min_commit_version)
-    }
-
-    fn ambiguous(mut self) {
-        self.committed = None;
-        self.rolled_back = None;
-        if let Some(ambiguous) = self.ambiguous.take() {
-            ambiguous();
-        }
-    }
-
-    /// Bounded owner-test seam for settling the real opaque carrier after a
-    /// simulated durable commit. Production callers settle only through the
-    /// kernel transaction machinery below.
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn committed_for_test(self, min_commit_version: u64) -> SnapbackResult<()> {
-        self.committed(min_commit_version)
-    }
-
-    /// Bounded owner-test seam for exercising the commit-uncertain path
-    /// without making that transition part of the production API.
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn ambiguous_for_test(self) {
-        self.ambiguous();
-    }
-}
-
-impl Drop for PreparedAuthorizationCommit {
-    fn drop(&mut self) {
-        if let Some(rolled_back) = self.rolled_back.take() {
-            rolled_back();
-        }
-    }
-}
-
-pub struct AuthorizationCommitCarrierFactory {
-    identity: Arc<()>,
-}
-
-impl AuthorizationCommitCarrierFactory {
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn for_test() -> Self {
-        ServingDatabase::adopt(
-            LocalDatabase::memory().expect("isolated authorization test database"),
-        )
-        .expect("isolated authorization test authority")
-        .authorization_commit_carriers()
-    }
-
-    pub fn reservation(
-        &self,
-        bind: impl for<'a> FnOnce(
-            &AuthorizationCommitCarrierFactory,
-            &AuthorizationCommitWitness,
-            AuthorizationCommitImpact<'a>,
-        ) -> SnapbackResult<PreparedAuthorizationCommit>
-        + Send
-        + 'static,
-        cancel: impl FnOnce() + Send + 'static,
-    ) -> AuthorizationCommitReservation {
-        AuthorizationCommitReservation {
-            identity: self.identity.clone(),
-            bind: Some(Box::new(bind)),
-            cancel: Some(Box::new(cancel)),
-        }
-    }
-
-    pub fn prepared(
-        &self,
-        committed: impl FnOnce(u64) -> SnapbackResult<()> + Send + 'static,
-        ambiguous: impl FnOnce() + Send + 'static,
-        rolled_back: impl FnOnce() + Send + 'static,
-    ) -> PreparedAuthorizationCommit {
-        PreparedAuthorizationCommit {
-            identity: self.identity.clone(),
-            committed: Some(Box::new(committed)),
-            ambiguous: Some(Box::new(ambiguous)),
-            rolled_back: Some(Box::new(rolled_back)),
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct AuthorizationReservationCancellation {
-    cancelled: std::sync::atomic::AtomicBool,
-}
-
-impl AuthorizationReservationCancellation {
-    pub fn cancel(&self) {
-        self.cancelled
-            .store(true, std::sync::atomic::Ordering::Release);
-    }
-
-    pub fn is_cancelled(&self) -> bool {
-        self.cancelled.load(std::sync::atomic::Ordering::Acquire)
-    }
-}
-
-thread_local! {
-    static MANAGED_AUTHORIZATION_RESERVATION: std::cell::RefCell<Option<AuthorizationCommitReservation>> =
-        const { std::cell::RefCell::new(None) };
-}
-
-pub struct ManagedAuthorizationReservationScope {
-    active: bool,
-}
-
-impl ManagedAuthorizationReservationScope {
-    pub fn take_unused(mut self) -> Option<AuthorizationCommitReservation> {
-        self.active = false;
-        MANAGED_AUTHORIZATION_RESERVATION.with(|slot| slot.borrow_mut().take())
-    }
-}
-
-impl Drop for ManagedAuthorizationReservationScope {
-    fn drop(&mut self) {
-        if self.active {
-            MANAGED_AUTHORIZATION_RESERVATION.with(|slot| {
-                drop(slot.borrow_mut().take());
-            });
-        }
-    }
-}
-
-fn take_managed_authorization_reservation() -> Option<AuthorizationCommitReservation> {
-    MANAGED_AUTHORIZATION_RESERVATION.with(|slot| slot.borrow_mut().take())
-}
-
 /// Commit with the exact authorization pair observed before this transaction's
 /// hook. The predecessor is not derivable from the successor: first activation
 /// advances from absent metadata, while destructive boundaries rotate the
@@ -902,14 +682,15 @@ fn commit_with_authorization_interlock(
     impact: AuthorizationCommitImpact<'_>,
     predecessor: Option<AuthorizationVersion>,
     min_commit_version: u64,
-    interlock_enabled: bool,
+    authorization_interlock: AuthorizationInterlockState,
     database_identity: &Arc<()>,
 ) -> SnapbackResult<()> {
     let prepared = prepare_authorization_commit_interlock(
         witness,
         impact,
-        interlock_enabled,
+        &authorization_interlock,
         database_identity,
+        predecessor.as_ref(),
     )?;
     commit_with_prepared_authorization_interlock(
         tx,
@@ -927,17 +708,31 @@ fn commit_with_authorization_interlock(
 ///
 /// @ref LLP 0053#ephemeral-room-authority-invalidation — targeted dependency
 ///   preparation must not suspend unrelated protected rooms.
-pub(super) fn prepare_authorization_commit_interlock(
+/// @ref LLP 0290#54-bind — the committing LocalDatabase supplies its private
+///   pending/bound/ready state to the reservation bind.
+fn prepare_authorization_commit_interlock(
     witness: &AuthorizationCommitWitness,
     impact: AuthorizationCommitImpact<'_>,
-    interlock_enabled: bool,
+    authorization_interlock: &AuthorizationInterlockState,
     database_identity: &Arc<()>,
+    durable_predecessor: Option<&AuthorizationVersion>,
 ) -> SnapbackResult<Option<PreparedAuthorizationCommit>> {
     if !witness.event {
         return Ok(None);
     }
-    if !interlock_enabled {
-        return Ok(None);
+    match authorization_interlock {
+        AuthorizationInterlockState::Disabled
+        | AuthorizationInterlockState::ParticipantBound { .. } => {
+            return Ok(None);
+        }
+        AuthorizationInterlockState::ParticipantPending { .. } => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "authorization participant construction is still pending",
+            ));
+        }
+        AuthorizationInterlockState::ParticipantReady { .. } => {}
     }
     // Any interlocked transaction must arrive with a dependency that was
     // installed and quiesced before SQLite opened. There is intentionally no
@@ -951,7 +746,13 @@ pub(super) fn prepare_authorization_commit_interlock(
         )
     })?;
     reservation
-        .bind(database_identity, witness, impact)
+        .bind(
+            &DatabaseBinding(database_identity.clone()),
+            authorization_interlock,
+            durable_predecessor,
+            witness,
+            impact,
+        )
         .map(Some)
 }
 
@@ -975,7 +776,7 @@ fn commit_with_prepared_authorization_interlock(
     // the durable authorization pair. No room/registry lock is held here.
     let commit = commit_authorization_transaction(&tx);
     if commit.is_ok() {
-        return prepared.committed(min_commit_version);
+        return prepared.finalize_committed(min_commit_version);
     }
     let commit_error = commit.expect_err("checked error outcome");
 
@@ -989,7 +790,7 @@ fn commit_with_prepared_authorization_interlock(
     if tx.is_autocommit() {
         match auth_stream::read_authorization_version_snapshot(&tx) {
             Ok(actual) if actual == Some(witness.version.clone()) => {
-                return prepared.committed(min_commit_version);
+                return prepared.finalize_committed(min_commit_version);
             }
             Ok(actual) if actual == predecessor => {
                 drop(prepared);
@@ -1003,7 +804,7 @@ fn commit_with_prepared_authorization_interlock(
     // unreadable. Keep the exact process-local ticket closed; process rebuild
     // is the only safe recovery because owner-level durable-query/schema
     // publication did not complete. No timeout path may reopen it.
-    prepared.ambiguous();
+    prepared.finalize_ambiguous();
     Err(commit_error)
 }
 
@@ -1298,6 +1099,26 @@ impl BufferedWrite {
     }
 }
 
+#[derive(Clone)]
+enum AuthorizationInterlockState {
+    Disabled,
+    ParticipantPending {
+        registry: Arc<room_authority::RoomAuthorityRegistry>,
+        registry_generation: u64,
+        activation: std::sync::Weak<room_authority::AuthorizationParticipantActivation>,
+    },
+    ParticipantBound {
+        registry: Arc<room_authority::RoomAuthorityRegistry>,
+        registry_generation: u64,
+        activation: std::sync::Weak<room_authority::AuthorizationParticipantActivation>,
+    },
+    ParticipantReady {
+        registry: Arc<room_authority::RoomAuthorityRegistry>,
+        registry_generation: u64,
+        activation: std::sync::Weak<room_authority::AuthorizationParticipantActivation>,
+    },
+}
+
 pub struct LocalDatabase {
     conn: Connection,
     /// Process-unique identity for opaque commit carriers. A carrier minted
@@ -1334,7 +1155,7 @@ pub struct LocalDatabase {
     // @ref LLP 0188#2-integration-point-the-whole-instance-database — the
     // replicator owns every checkpoint while the lane is enabled.
     replication_checkpoint_owner: bool,
-    authorization_interlock: bool,
+    authorization_interlock: AuthorizationInterlockState,
     /// One process registry belongs to this database instance. Every AppState
     /// clone borrows this same registry, so constructing another router cannot
     /// replace the interlock beneath already-running service publications.
@@ -1655,13 +1476,255 @@ impl ServingDatabase {
         self.authority.service_authority_commit_interlock(prepare)
     }
 
-    pub fn authorization_commit_carriers(&self) -> AuthorizationCommitCarrierFactory {
-        self.authority.authorization_commit_carriers()
+    /// Take the sole concrete room-authority participant for this database.
+    /// The database retains the exact registry identity used again at bind.
+    pub fn take_authorization_commit_participant(
+        &mut self,
+    ) -> SnapbackResult<AuthorizationCommitParticipant> {
+        if !matches!(
+            self.db.authorization_interlock,
+            AuthorizationInterlockState::Disabled
+        ) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PARTICIPANT_ALREADY_TAKEN",
+                "auth",
+                "authorization commit participant was already taken",
+            ));
+        }
+        let binding = self.binding();
+        let registry = room_authority::RoomAuthorityRegistry::new(binding.clone());
+        let registry_generation = registry.generation();
+        let activation = Arc::new(room_authority::AuthorizationParticipantActivation::pending());
+        self.db.authorization_interlock = AuthorizationInterlockState::ParticipantPending {
+            registry: registry.clone(),
+            registry_generation,
+            activation: Arc::downgrade(&activation),
+        };
+        Ok(AuthorizationCommitParticipant::new(
+            binding,
+            registry,
+            registry_generation,
+            activation,
+        ))
     }
 
-    pub fn enable_authorization_commit_interlock(&mut self) -> SnapbackResult<()> {
+    pub fn replace_authorization_commit_participant(
+        &mut self,
+    ) -> SnapbackResult<AuthorizationCommitParticipant> {
+        let AuthorizationInterlockState::ParticipantReady {
+            registry: old_registry,
+            registry_generation,
+            activation,
+        } = self.db.authorization_interlock.clone()
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PARTICIPANT_NOT_PENDING",
+                "auth",
+                "only a ready authorization participant can be replaced",
+            ));
+        };
+        let old_activation = activation.upgrade().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PARTICIPANT_DROPPED",
+                "auth",
+                "ready authorization participant was dropped",
+            )
+        })?;
+        old_activation.retire();
+        old_registry.retire();
+        let next_generation = registry_generation.checked_add(1).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PARTICIPANT_GENERATION_MISMATCH",
+                "auth",
+                "authorization participant generation exhausted",
+            )
+        })?;
         let binding = self.binding();
-        self.db.enable_authorization_commit_interlock(&binding)
+        let registry = room_authority::RoomAuthorityRegistry::new_with_generation(
+            binding.clone(),
+            next_generation,
+        );
+        let activation = Arc::new(room_authority::AuthorizationParticipantActivation::pending());
+        self.db.authorization_interlock = AuthorizationInterlockState::ParticipantPending {
+            registry: registry.clone(),
+            registry_generation: next_generation,
+            activation: Arc::downgrade(&activation),
+        };
+        Ok(AuthorizationCommitParticipant::new(
+            binding,
+            registry,
+            next_generation,
+            activation,
+        ))
+    }
+
+    pub fn bind_authorization_commit_participant(
+        &mut self,
+        participant: &AuthorizationCommitParticipant,
+    ) -> SnapbackResult<()> {
+        let AuthorizationInterlockState::ParticipantPending {
+            registry,
+            registry_generation,
+            activation,
+        } = self.db.authorization_interlock.clone()
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PARTICIPANT_NOT_PENDING",
+                "auth",
+                "database has no pending authorization participant",
+            ));
+        };
+        self.validate_authorization_participant(
+            participant,
+            &registry,
+            registry_generation,
+            &activation,
+        )?;
+        participant.activation().bind()?;
+        self.db.authorization_interlock = AuthorizationInterlockState::ParticipantBound {
+            registry,
+            registry_generation,
+            activation,
+        };
+        Ok(())
+    }
+
+    pub fn authorization_expectation_view_for_participant_install(
+        &mut self,
+        participant: &AuthorizationCommitParticipant,
+    ) -> SnapbackResult<AuthorizationExpectationView> {
+        let (registry, registry_generation, activation, allow_ready) =
+            match self.db.authorization_interlock.clone() {
+                AuthorizationInterlockState::ParticipantBound {
+                    registry,
+                    registry_generation,
+                    activation,
+                } => (registry, registry_generation, activation, false),
+                AuthorizationInterlockState::ParticipantReady {
+                    registry,
+                    registry_generation,
+                    activation,
+                } => (registry, registry_generation, activation, true),
+                _ => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_PARTICIPANT_NOT_PENDING",
+                        "auth",
+                        "authorization participant is not bound for issuer installation",
+                    ));
+                }
+            };
+        self.validate_authorization_participant(
+            participant,
+            &registry,
+            registry_generation,
+            &activation,
+        )?;
+        let authorization = auth_stream::read_authorization_version_snapshot(&self.db.conn)?;
+        room_authority::initialize_authorization(participant, authorization, allow_ready)
+    }
+
+    pub fn activate_authorization_commit_participant(
+        &mut self,
+        participant: &AuthorizationCommitParticipant,
+    ) -> SnapbackResult<()> {
+        if let AuthorizationInterlockState::ParticipantReady {
+            registry,
+            registry_generation,
+            activation,
+        } = self.db.authorization_interlock.clone()
+        {
+            self.validate_authorization_participant(
+                participant,
+                &registry,
+                registry_generation,
+                &activation,
+            )?;
+            if participant.activation().is_ready() {
+                return Ok(());
+            }
+        }
+        let AuthorizationInterlockState::ParticipantBound {
+            registry,
+            registry_generation,
+            activation,
+        } = self.db.authorization_interlock.clone()
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PARTICIPANT_NOT_PENDING",
+                "auth",
+                "authorization participant is not bound for activation",
+            ));
+        };
+        self.validate_authorization_participant(
+            participant,
+            &registry,
+            registry_generation,
+            &activation,
+        )?;
+        let authorization = auth_stream::read_authorization_version_snapshot(&self.db.conn)?;
+        room_authority::require_initialized_authorization(participant, authorization.as_ref())?;
+        participant.activation().ready()?;
+        self.db.authorization_interlock = AuthorizationInterlockState::ParticipantReady {
+            registry,
+            registry_generation,
+            activation,
+        };
+        Ok(())
+    }
+
+    fn validate_authorization_participant(
+        &self,
+        participant: &AuthorizationCommitParticipant,
+        registry: &Arc<room_authority::RoomAuthorityRegistry>,
+        registry_generation: u64,
+        activation: &std::sync::Weak<room_authority::AuthorizationParticipantActivation>,
+    ) -> SnapbackResult<()> {
+        let binding = self.binding();
+        if !participant.binding().matches(&binding) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PARTICIPANT_DATABASE_MISMATCH",
+                "auth",
+                "authorization participant belongs to another database",
+            ));
+        }
+        if !registry.binding_matches(&binding) || !Arc::ptr_eq(participant.registry(), registry) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PARTICIPANT_REGISTRY_MISMATCH",
+                "auth",
+                "authorization participant registry does not match the database",
+            ));
+        }
+        if participant.registry_generation() != registry_generation
+            || registry.generation() != registry_generation
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PARTICIPANT_GENERATION_MISMATCH",
+                "auth",
+                "authorization participant registry generation is stale",
+            ));
+        }
+        let installed = activation.upgrade().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PARTICIPANT_DROPPED",
+                "auth",
+                "authorization participant was dropped",
+            )
+        })?;
+        if !Arc::ptr_eq(&installed, participant.activation()) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PARTICIPANT_REGISTRY_MISMATCH",
+                "auth",
+                "authorization participant activation identity does not match",
+            ));
+        }
+        if registry.is_retired() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_INTERLOCK_RETIRED",
+                "auth",
+                "authorization participant registry is retired",
+            ));
+        }
+        Ok(())
     }
 
     pub fn prepare_promotion_contention_reservation_for_bench(
@@ -2320,7 +2383,7 @@ impl LocalDatabase {
                 crate::vector::sqlite::PendingVectorQuarantineGate::new(&SchemaManifest::default()),
             ),
             replication_checkpoint_owner: false,
-            authorization_interlock: false,
+            authorization_interlock: AuthorizationInterlockState::Disabled,
             service_authority_fences: None,
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
@@ -2390,7 +2453,7 @@ impl LocalDatabase {
                 crate::vector::sqlite::PendingVectorQuarantineGate::new(&SchemaManifest::default()),
             ),
             replication_checkpoint_owner: crate::replication::configured_from_env(),
-            authorization_interlock: false,
+            authorization_interlock: AuthorizationInterlockState::Disabled,
             service_authority_fences: None,
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
@@ -2636,7 +2699,7 @@ impl LocalDatabase {
                 crate::vector::sqlite::PendingVectorQuarantineGate::new(&self.schema),
             ),
             replication_checkpoint_owner: false,
-            authorization_interlock: false,
+            authorization_interlock: AuthorizationInterlockState::Disabled,
             service_authority_fences: None,
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
@@ -2806,21 +2869,6 @@ impl LocalDatabase {
         crate::fork_promotion_bench::count_committed_contention_rows_in(&self.conn).map_err(
             |error| SnapbackError::error("SNAPBACK_BENCH_READ_FAILED", "bench", error.to_string()),
         )
-    }
-
-    pub fn enable_authorization_commit_interlock(
-        &mut self,
-        binding: &DatabaseBinding,
-    ) -> SnapbackResult<()> {
-        if !binding.matches(&self.binding()) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
-                "storage",
-                "authorization interlock authority belongs to another database",
-            ));
-        }
-        self.authorization_interlock = true;
-        Ok(())
     }
 
     pub fn install_service_authority_commit_interlock(
@@ -5043,8 +5091,9 @@ impl LocalDatabase {
                     schema: &schema,
                     changes: &changes,
                 },
-                authorization_interlock,
+                &authorization_interlock,
                 &commit_authority_identity,
+                authorization_predecessor.as_ref(),
             )?;
             // Targeted room quiescence happens before this process-global
             // fence. The returned guard still lives through tx.commit(), but
@@ -5910,8 +5959,9 @@ impl LocalDatabase {
                     schema: &schema,
                     changes: &changes,
                 },
-                authorization_interlock,
+                &authorization_interlock,
                 &commit_authority_identity,
+                authorization_predecessor.as_ref(),
             )?;
             // No handler/plan or targeted room wait runs under this guard; it
             // linearizes only identity recording plus the final SQLite COMMIT.
