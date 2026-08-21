@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   assertPublicPackageBuildIdentity,
+  assertRuntimePackageBuildIdentity,
   installPackagedStoreQualificationReceipt,
 } from '../../scripts/runtime-package-authority.mjs';
 import { installAdminConsoleSnapshot } from '../snapback-cli/admin-snapshot.mjs';
@@ -180,6 +181,7 @@ export function prepareDarwinRuntimePackage({
   let identity;
   try {
     identity = JSON.parse(identityResult.stdout);
+    assertRuntimePackageBuildIdentity(identity);
     if (!sourceTestStaging) assertPublicPackageBuildIdentity(identity);
   } catch (error) {
     throw diagnosticError(
@@ -191,7 +193,8 @@ export function prepareDarwinRuntimePackage({
 
   // Native-artifact staging transports only the binary/Hermes inputs to the
   // final publication assembler; that assembler adds and seals the console.
-  // Source-test staging bypasses only public build identity, never the console.
+  // Source-test staging bypasses only public-package distribution, never a
+  // clean release identity or the console.
   const allowMissingAdminConsole = nativeArtifactStaging;
   const stagingRoot = mkdtempSync(join(packageRoot, '.staging-'));
   const binDirectory = join(stagingRoot, 'bin');

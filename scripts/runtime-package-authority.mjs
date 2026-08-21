@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 export const PUBLIC_PACKAGE_BUILD_DISTRIBUTION = 'public-package';
+const CONTRIBUTOR_SOURCE_BUILD_DISTRIBUTION = 'contributor-source';
 export const PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE =
   'packaged-store-qualification.receipt.json';
 export const PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION =
@@ -77,19 +78,37 @@ export function installPackagedStoreQualificationReceipt({
   return { installed: true, source, destination };
 }
 
-export function assertPublicPackageBuildIdentity(identity) {
+function packageIdentityError(message) {
+  const error = new Error(message);
+  error.code = 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED';
+  return error;
+}
+
+export function assertRuntimePackageBuildIdentity(identity) {
   if (identity?.schemaVersion !== 'snapback.binary-identity.v1'
-      || identity?.buildDistribution !== PUBLIC_PACKAGE_BUILD_DISTRIBUTION
+      || ![
+        CONTRIBUTOR_SOURCE_BUILD_DISTRIBUTION,
+        PUBLIC_PACKAGE_BUILD_DISTRIBUTION,
+      ].includes(identity?.buildDistribution)
       || typeof identity?.binary?.gitCommit !== 'string'
       || identity.binary.gitCommit === 'unknown'
       || identity.binary.gitDirty !== false
       || identity.binary.buildProfile !== 'release') {
-    const error = new Error(
+    throw packageIdentityError(
+      'native runtime was not built with a sealable clean release identity; '
+      + 'runtime package assembly requires a known source revision and proven-clean inputs',
+    );
+  }
+  return identity;
+}
+
+export function assertPublicPackageBuildIdentity(identity) {
+  assertRuntimePackageBuildIdentity(identity);
+  if (identity.buildDistribution !== PUBLIC_PACKAGE_BUILD_DISTRIBUTION) {
+    throw packageIdentityError(
       'native runtime was not built as a clean release public-package artifact; '
       + 'without PackageCapabilityAttestationV1 the package must retain relation/activity GAPs',
     );
-    error.code = 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED';
-    throw error;
   }
   return identity;
 }

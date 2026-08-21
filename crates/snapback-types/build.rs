@@ -11,14 +11,21 @@ use std::process::Command;
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    // binary_identity() moved into this package, so its compile-time facts
+    // must move with it: Cargo build-script environment is package-local.
+    // @ref LLP 0283#f-5--named-exceptions-with-burn-down-tickets — preserve
+    // provenance contracts in the package that owns the moved consumer.
     emit_build_identity();
 }
 
-/// Emit the git commit + dirty state consumed by `identity::binary_identity`.
+/// Emit the git commit + dirty state consumed by `identity::binary_identity()`.
 /// This is the same best-effort, runtime-input-scoped contract as
 /// `crates/snapback/build.rs`: explicit deterministic CI stamps win; an
 /// unknown dirty state remains unset and is therefore treated conservatively
 /// by consumers.
+///
+/// @ref LLP 0031#server-binary-identity-on-health — the build/provenance facts
+/// answering "is this MY checkout's binary?" on the ungated public /health.
 fn emit_build_identity() {
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_COMMIT");
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_DIRTY");
@@ -80,6 +87,8 @@ fn emit_build_identity() {
         println!("cargo:rustc-env=SNAPBACK_BUILD_GIT_DIRTY={dirty}");
     }
 
+    // @ref LLP 0110#local-and-packaged-publication-authority — distribution
+    // is a compiled trust fact, with contributor source as the safe default.
     let distribution = env_nonempty("SNAPBACK_BUILD_DISTRIBUTION")
         .unwrap_or_else(|| "contributor-source".to_owned());
     assert!(

@@ -12,6 +12,7 @@ import test from 'node:test';
 import {
   PUBLIC_PACKAGE_BUILD_DISTRIBUTION,
   assertPublicPackageBuildIdentity,
+  assertRuntimePackageBuildIdentity,
   installPackagedStoreQualificationReceipt,
 } from './runtime-package-authority.mjs';
 
@@ -29,6 +30,12 @@ const valid = {
 
 test('admits only a clean release binary compiled for public packaging', () => {
   assert.equal(assertPublicPackageBuildIdentity(valid), valid);
+});
+
+test('source assembly admits a clean release contributor binary', () => {
+  const contributor = structuredClone(valid);
+  contributor.buildDistribution = 'contributor-source';
+  assert.equal(assertRuntimePackageBuildIdentity(contributor), contributor);
 });
 
 for (const [name, mutate] of [

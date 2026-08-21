@@ -1,6 +1,6 @@
 # Sealed runtime assembly rejects its own binary after the identity move
 
-**Status:** Open
+**Status:** Closed (2026-08-21)
 **Filed:** 2026-08-20
 **Severity:** High — blocks the canonical publication path
 **Systems:** Packaging, Build, Distribution
@@ -55,3 +55,39 @@ sealed binary, and created the restricted Hermes handler VM.
   computes `binary_identity()` — not left package-local by accident.
 - A regression proves the assembler rejects a genuinely unstamped binary while accepting a
   correctly stamped one, so the check keeps its teeth.
+
+## Resolution
+
+**Resolved:** 2026-08-21. **Landing SHA:** TBD.
+
+`binary_identity()` remains in `snapback-types`, and that package now owns a
+`build.rs` port of the complete build-identity contract: explicit
+`SNAPBACK_BUILD_GIT_COMMIT` / `SNAPBACK_BUILD_GIT_DIRTY` /
+`SNAPBACK_BUILD_DISTRIBUTION` stamps win; otherwise the commit and scoped dirty
+fact are probed from Git with the same worktree/common-directory invalidation,
+unknown cleanliness remains fail-closed, and distribution stays restricted to
+`contributor-source` or `public-package`. The shared runtime-input definition
+now names the new build script as both a consumer and an input.
+
+Both platform assemblers now require a sealable clean release identity even on
+`--source-test-staging`; that flag bypasses only the `public-package`
+distribution requirement. The Darwin staged-assembly regression proves a
+correctly stamped contributor binary is accepted and sealed, then substitutes
+a genuinely unstamped (`gitCommit: "unknown"`, `gitDirty: true`) binary and
+proves it is rejected without disturbing the previously valid assembly.
+
+Verified with no ambient `SNAPBACK_BUILD_*` overrides:
+
+- `node --test scripts/runtime-package-authority.test.mjs`
+- `node packages/snapback-runtime-darwin-arm64/package.test.mjs`
+- `node packages/snapback-runtime-linux-x64/package.test.mjs`
+- `cargo test -p snapback-types`
+- `./ref-check --verbose`
+
+The required clean-checkout `scripts/assemble-runtime-package` verification was
+attempted with no ambient `SNAPBACK_BUILD_*` overrides. Its built-in bootstrap
+step stopped before the release build with
+`SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT` after the exact current-checkout link
+probe exceeded 900000 ms under host-wide concurrent Cargo load. Per the ticket
+execution instruction, it was not retried or hand-repaired; end-to-end assembly
+success remains unverified by this landing.

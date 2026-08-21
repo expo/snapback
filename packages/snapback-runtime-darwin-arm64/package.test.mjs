@@ -205,12 +205,12 @@ try {
       buildProfile: 'release',
       startupNonce: 'build-identity-process',
     },
-    buildDistribution: 'public-package',
+    buildDistribution: 'contributor-source',
   };
-  const fixtureBinarySource = `#!/usr/bin/env node
+  const fixtureBinarySourceFor = (identity) => `#!/usr/bin/env node
 const command = process.argv[2];
 if (command === 'build-identity') {
-  console.log(${JSON.stringify(JSON.stringify(fixtureIdentity))});
+  console.log(${JSON.stringify(JSON.stringify(identity))});
   process.exit(0);
 }
 if (command !== 'runtime-qualify') process.exit(2);
@@ -219,14 +219,15 @@ console.log(JSON.stringify({
   schemaVersion: 'snapback.runtime-qualify.v1',
   probe: 'restricted-no-eval-handler-vm',
   ok,
-  binary: {
-    crateVersion: '0.1.0', gitCommit: '${sourceRevision}', gitDirty: false,
-    buildProfile: 'release', startupNonce: 'qualification-process'
-  },
+  binary: ${JSON.stringify({
+    ...identity.binary,
+    startupNonce: 'qualification-process',
+  })},
   ...(ok ? {} : { diagnostic: { code: 'SNAPBACK_RUNTIME_CREATE_FAILED', message: 'fixture refusal' } })
 }));
 process.exit(ok ? 0 : 1);
 `;
+  const fixtureBinarySource = fixtureBinarySourceFor(fixtureIdentity);
   mkdirSync(packageRoot, { recursive: true });
   writeFixture(sourceBinary, fixtureBinarySource);
   chmodSync(sourceBinary, 0o755);
@@ -254,7 +255,8 @@ process.exit(ok ? 0 : 1);
     platform: 'darwin',
     architecture: 'arm64',
   };
-  prepareDarwinRuntimePackage(preparation);
+  const prepared = prepareDarwinRuntimePackage(preparation);
+  assert.deepEqual(prepared.identity, fixtureIdentity);
   const verifyAssembly = () => verifyRuntimePackageSeal({
     root: packageRoot,
     binaryPath: join(packageRoot, 'bin', 'snapback'),
@@ -267,48 +269,22 @@ process.exit(ok ? 0 : 1);
   const originalBinary = readFileSync(join(packageRoot, 'bin', 'snapback'), 'utf8');
 
   // The source-test seam bypasses only the public-package distribution class;
-  // it must still reject an executable whose owning crate emitted no commit or
-  // clean-tree stamp. This is the exact identity shape produced when
-  // `binary_identity()` is compiled in a crate without its build contract.
-  const unstampedBinary = join(sourceRoot, 'snapback-unstamped');
-  const unstampedIdentity = {
-    ...fixtureIdentity,
-    binary: {
-      ...fixtureIdentity.binary,
-      gitCommit: 'unknown',
-      gitDirty: true,
-    },
-    buildDistribution: 'contributor-source',
-  };
-  writeFixture(unstampedBinary, `#!/usr/bin/env node
-const command = process.argv[2];
-if (command === 'build-identity') {
-  console.log(${JSON.stringify(JSON.stringify(unstampedIdentity))});
-  process.exit(0);
-}
-if (command === 'runtime-qualify') {
-  console.log(JSON.stringify({
-    schemaVersion: 'snapback.runtime-qualify.v1',
-    probe: 'restricted-no-eval-handler-vm',
-    ok: true,
-    binary: ${JSON.stringify(unstampedIdentity.binary)},
-  }));
-  process.exit(0);
-}
-process.exit(2);
-`);
-  chmodSync(unstampedBinary, 0o755);
+  // it must still reject the exact commitless identity produced when the
+  // owning crate has no package-local build stamp.
+  const unstampedIdentity = structuredClone(fixtureIdentity);
+  unstampedIdentity.binary.gitCommit = 'unknown';
+  unstampedIdentity.binary.gitDirty = true;
+  writeFileSync(sourceBinary, fixtureBinarySourceFor(unstampedIdentity));
+  chmodSync(sourceBinary, 0o755);
   assert.throws(
-    () => prepareDarwinRuntimePackage({
-      ...preparation,
-      sourceBinary: unstampedBinary,
-      args: ['--source-test-staging', '--native-artifact-staging'],
-    }),
-    (error) => error.code === 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID',
+    () => prepareDarwinRuntimePackage(preparation),
+    (error) => error.code === 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
   );
   assert.equal(verifyAssembly().ok, true);
   assert.equal(readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8'), originalReceipt);
   assert.equal(readFileSync(join(packageRoot, 'bin', 'snapback'), 'utf8'), originalBinary);
+  writeFileSync(sourceBinary, fixtureBinarySource);
+  chmodSync(sourceBinary, 0o755);
 
   assert.throws(
     () => prepareDarwinRuntimePackage({
