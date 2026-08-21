@@ -199,7 +199,9 @@ export function boundariesFromReceiptRecords(records, label = "receipt stream") 
         throw new TypeError(`${recordLabel}.recordedAt is required`);
       }
       mergeBoundary(boundaries, milestone, {
-        suitePassAt: optionalTimestamp(record.suitePassAt, `${recordLabel}.suitePassAt`),
+        suitePassAt: record.suite?.pass === true
+          ? recordedAt
+          : optionalTimestamp(record.suitePassAt, `${recordLabel}.suitePassAt`),
         choreoPassAt: record.choreography?.pass === true ? recordedAt : null,
         firstGreenAt: record.green === true ? recordedAt : null,
         status: record.green === true ? "green" : null,

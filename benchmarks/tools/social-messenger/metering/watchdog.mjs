@@ -47,6 +47,18 @@ export class TokenCapEnforcedError extends Error {
   }
 }
 
+export class TokenMeteringReconciliationError extends Error {
+  constructor(reconciliation, trip = null) {
+    super(
+      `${reconciliation.milestone} live watchdog actual ${reconciliation.liveActualTokens} does not equal retained-tree actual ${reconciliation.retainedActualTokens}`,
+    );
+    this.name = "TokenMeteringReconciliationError";
+    this.code = "SOCIAL_MESSENGER_TOKEN_METERING_DIVERGED";
+    this.reconciliation = reconciliation;
+    this.trip = trip;
+  }
+}
+
 // @ref LLP 0201#d2--quantitative-instrument — a token-cap exhaustion charges
 // the (cap family, milestone) token cap plus actual wall and is flagged
 // capped-tokens. The driver must acknowledge termination before this gate can
@@ -64,13 +76,16 @@ export class TokenCapWatchdog {
     this.#controller = enforcementController(controller);
   }
 
-  arm({ capFamily, milestone, tokenCap, startedAt }) {
+  arm({ capFamily, milestone, tokenCap, startedAt, maxClockSkewMs = 0 }) {
     assertCapFamily(capFamily);
     if (!/^M[1-8]$/u.test(milestone)) {
       throw new TypeError("milestone must name M1 through M8");
     }
-    if (this.#state?.tripped === true && this.#state.terminationAck === null) {
-      throw new Error("cannot arm the next milestone before termination is acknowledged");
+    if (this.#state !== null) {
+      throw new Error("disarm and reconcile the current milestone before arming the next one");
+    }
+    if (!Number.isInteger(maxClockSkewMs) || maxClockSkewMs < 0) {
+      throw new TypeError("maxClockSkewMs must be a non-negative integer");
     }
     if (ADVISORY_CAP_FAMILIES.has(capFamily)) {
       if (tokenCap !== null) {
@@ -106,11 +121,14 @@ export class TokenCapWatchdog {
       milestone,
       tokenCap,
       armedAt,
+      maxClockSkewMs,
       actualTokens: 0,
       tripped: false,
       trip: null,
       terminationAck: null,
       terminationError: null,
+      reconciled: false,
+      reconciliation: null,
       overshoot: {
         tokens: 0,
         turns: [],
@@ -124,6 +142,9 @@ export class TokenCapWatchdog {
     if (this.#state?.tripped === true && this.#state.terminationAck === null) {
       throw new Error("cannot disarm before termination is acknowledged");
     }
+    if (this.#state?.armed === true && this.#state.reconciled !== true) {
+      throw new Error("cannot disarm before retained-tree token reconciliation");
+    }
     const previous = this.state;
     this.#state = null;
     this.#terminationPromise = null;
@@ -134,7 +155,7 @@ export class TokenCapWatchdog {
     if (turn === null || typeof turn !== "object" || typeof turn.id !== "string") {
       throw new TypeError("usage turn must carry a stable string id");
     }
-    timestampMillis(turn.completedAt, "usage turn.completedAt");
+    const completedAtMs = timestampMillis(turn.completedAt, "usage turn.completedAt");
     const turnTokens = capTokenCount(turn.usage);
     if (turnTokens === null) {
       throw new TypeError("cap-bearing usage turns require input and output counts");
@@ -144,10 +165,34 @@ export class TokenCapWatchdog {
       if (!tokenCountsEqual(previous.usage, turn.usage)) {
         throw new RangeError(`usage turn ${turn.id} changed after its completed identity was seen`);
       }
-      return { fresh: false, turnTokens };
+      return { fresh: false, turnTokens, completedAtMs };
     }
-    this.#seenTurns.set(turn.id, { usage: { ...turn.usage }, turnTokens });
-    return { fresh: true, turnTokens };
+    return { fresh: true, turnTokens, completedAtMs };
+  }
+
+  #trip({ actualTokens, observedAt, source }) {
+    const observedAtMs = timestampMillis(observedAt, "usage turn.completedAt");
+    const chargedWallSeconds = Math.max(0, (observedAtMs - this.#state.armedAt) / 1000);
+    const trip = Object.freeze({
+      type: "token-cap-exhausted",
+      capFamily: this.#state.capFamily,
+      milestone: this.#state.milestone,
+      status: "capability-failure",
+      tokenCap: this.#state.tokenCap,
+      actualTokens,
+      observedAt,
+      source,
+      enforcementController: this.#controller.id,
+      charging: {
+        chargedWallSeconds,
+        chargedTokens: this.#state.tokenCap,
+        flags: ["capped-tokens"],
+      },
+    });
+    this.#state.tripped = true;
+    this.#state.trip = trip;
+    this.#requestTermination(trip);
+    return trip;
   }
 
   #requestTermination(trip) {
@@ -169,10 +214,24 @@ export class TokenCapWatchdog {
       });
   }
 
-  observe(turn) {
+  observe(turn, { inFlight = false } = {}) {
     if (this.#state === null || this.#state.armed !== true) return null;
-    const { fresh, turnTokens } = this.#registerTurn(turn);
+    if (typeof inFlight !== "boolean") {
+      throw new TypeError("observe inFlight must be boolean");
+    }
+    const { fresh, turnTokens, completedAtMs } = this.#registerTurn(turn);
     if (!fresh) return this.#state.tripped ? this.#state.trip : null;
+    if (completedAtMs < this.#state.armedAt - this.#state.maxClockSkewMs) {
+      throw new RangeError(
+        `new usage turn ${turn.id} predates ${this.#state.milestone}'s armed boundary beyond the recorded clock skew`,
+      );
+    }
+    if (this.#state.tripped && !inFlight) {
+      throw new Error(
+        `post-trip usage turn ${turn.id} was not attested in flight when the cap tripped`,
+      );
+    }
+    this.#seenTurns.set(turn.id, { usage: { ...turn.usage }, turnTokens });
 
     this.#state.actualTokens += turnTokens;
     if (this.#state.tripped) {
@@ -186,27 +245,44 @@ export class TokenCapWatchdog {
     }
     if (this.#state.actualTokens < this.#state.tokenCap) return null;
 
-    const completedAtMs = timestampMillis(turn.completedAt, "usage turn.completedAt");
-    const chargedWallSeconds = Math.max(0, (completedAtMs - this.#state.armedAt) / 1000);
-    const trip = Object.freeze({
-      type: "token-cap-exhausted",
-      capFamily: this.#state.capFamily,
-      milestone: this.#state.milestone,
-      status: "capability-failure",
-      tokenCap: this.#state.tokenCap,
+    return this.#trip({
       actualTokens: this.#state.actualTokens,
       observedAt: turn.completedAt,
-      enforcementController: this.#controller.id,
-      charging: {
-        chargedWallSeconds,
-        chargedTokens: this.#state.tokenCap,
-        flags: ["capped-tokens"],
-      },
+      source: "live-watchdog",
     });
-    this.#state.tripped = true;
-    this.#state.trip = trip;
-    this.#requestTermination(trip);
-    return trip;
+  }
+
+  reconcileMilestone({ retainedTokens, terminalAt }) {
+    if (this.#state === null || this.#state.armed !== true) {
+      throw new Error("a cap-bearing milestone must be armed before reconciliation");
+    }
+    if (!Number.isInteger(retainedTokens) || retainedTokens < 0) {
+      throw new TypeError("retainedTokens must be a non-negative integer");
+    }
+    timestampMillis(terminalAt, "retained-tree terminalAt");
+    const reconciliation = Object.freeze({
+      milestone: this.#state.milestone,
+      liveActualTokens: this.#state.actualTokens,
+      retainedActualTokens: retainedTokens,
+      deltaTokens: retainedTokens - this.#state.actualTokens,
+      terminalAt,
+      matched: retainedTokens === this.#state.actualTokens,
+    });
+    this.#state.reconciliation = reconciliation;
+    if (!reconciliation.matched) {
+      let trip = this.#state.trip;
+      if (!this.#state.tripped && retainedTokens >= this.#state.tokenCap) {
+        this.#state.actualTokens = retainedTokens;
+        trip = this.#trip({
+          actualTokens: retainedTokens,
+          observedAt: terminalAt,
+          source: "retained-tree-reconciliation",
+        });
+      }
+      throw new TokenMeteringReconciliationError(reconciliation, trip);
+    }
+    this.#state.reconciled = true;
+    return reconciliation;
   }
 
   async waitForTermination() {
@@ -226,12 +302,12 @@ export class TokenCapWatchdog {
     if (typeof modelTurn !== "function") throw new TypeError("modelTurn must be a function");
     await this.beforeTurn();
     const turn = await modelTurn();
-    return { turn, trip: this.observe(turn) };
+    return { turn, trip: this.observe(turn, { inFlight: true }) };
   }
 
   get state() {
     if (this.#state === null) return null;
-    const { armedAt: _armedAt, overshoot, ...state } = this.#state;
+    const { armedAt: _armedAt, maxClockSkewMs: _maxClockSkewMs, overshoot, ...state } = this.#state;
     if (overshoot === undefined) return state;
     return {
       ...state,

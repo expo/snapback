@@ -11,8 +11,8 @@ this file is silent.
 - `benchmarks/tools/social-messenger/choreography/` — two-client +
   simulator choreography harness
 - `benchmarks/tools/social-messenger/metering/` — harness-native per-turn
-  builder-session-tree adapters, every-attempt terminal joiner, and enforced
-  cap watchdog
+  builder-session-tree adapters, receipt-attested every-attempt terminal
+  joiner, tree-reconciled cap watchdog, and downstream charging validator
 - `benchmarks/tools/social-messenger/grader/` — grader prompt, report
   schema, calibration plan, probe machinery
 - `benchmarks/fixtures/social-messenger/` — personas, media, action

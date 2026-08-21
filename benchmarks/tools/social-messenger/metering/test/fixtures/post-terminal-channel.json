@@ -1,0 +1,28 @@
+{
+  "source": "claude-code-session-usage",
+  "unavailableReason": null,
+  "turns": [
+    {
+      "id": "inside-abort",
+      "completedAt": "2026-08-21T13:00:30.000Z",
+      "usage": {
+        "input": 80,
+        "output": 20,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "reasoning": 0
+      }
+    },
+    {
+      "id": "post-abort-orphan",
+      "completedAt": "2026-08-21T13:05:00.000Z",
+      "usage": {
+        "input": 999,
+        "output": 999,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "reasoning": 0
+      }
+    }
+  ]
+}

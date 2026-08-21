@@ -41,6 +41,13 @@ export function assertTokenCounts(counts, label = "token counts") {
       throw new TypeError(`${label}.input and ${label}.output must be metered together`);
     }
   }
+  if (
+    counts.reasoning !== null
+    && counts.output !== null
+    && counts.reasoning > counts.output
+  ) {
+    throw new RangeError(`${label}.reasoning must be a subset of ${label}.output`);
+  }
   return counts;
 }
 

@@ -225,6 +225,7 @@
         "laneRunId",
         "driver",
         "manifestSha256",
+        "unavailableReason",
         "clockCorrelation",
         "sessions",
         "receipts",
@@ -267,6 +268,18 @@
           "type": "string",
           "pattern": "^sha256:[a-f0-9]{64}$"
         },
+        "unavailableReason": {
+          "description": "Stable reason code when the native usage tree is unavailable; null for a native metered lane.",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            }
+          ]
+        },
         "clockCorrelation": {
           "type": "object",
           "required": [
@@ -281,7 +294,8 @@
             },
             "maxSkewMillis": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 0,
+              "description": "Measured maximum cross-clock skew. Drivers must use a nonzero bound when usage and boundary stamps come from different processes; zero is valid only with evidence that one process and clock stamps both channels."
             },
             "evidence": {
               "type": "string",
@@ -1056,6 +1070,115 @@
                   "terminalAt": { "type": "string", "format": "date-time" },
                   "terminalSequence": { "type": "integer", "minimum": 0 },
                   "terminalReason": { "const": "green" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "authoring": {
+                "properties": { "terminalReason": { "const": "token-cap" } },
+                "required": ["terminalReason"]
+              }
+            },
+            "required": ["authoring"]
+          },
+          "then": {
+            "required": ["caps"],
+            "properties": {
+              "caps": {
+                "required": ["tokenCap"],
+                "properties": {
+                  "tokenCap": { "type": "integer", "minimum": 0 }
+                }
+              },
+              "charging": {
+                "properties": {
+                  "chargedTokens": { "type": "integer", "minimum": 0 },
+                  "flags": {
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": { "const": "capped-tokens" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "authoring": {
+                "properties": { "terminalReason": { "const": "wall-cap" } },
+                "required": ["terminalReason"]
+              }
+            },
+            "required": ["authoring"]
+          },
+          "then": {
+            "required": ["caps"],
+            "properties": {
+              "caps": {
+                "required": ["wallCapSeconds"],
+                "properties": {
+                  "wallCapSeconds": { "type": "number", "minimum": 0 }
+                }
+              },
+              "charging": {
+                "properties": {
+                  "flags": {
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": { "const": "capped-wall" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "authoring": {
+                "properties": { "terminalReason": { "const": "abort" } },
+                "required": ["terminalReason"]
+              }
+            },
+            "required": ["authoring"]
+          },
+          "then": {
+            "required": ["caps"],
+            "properties": {
+              "caps": {
+                "required": ["wallCapSeconds"],
+                "properties": {
+                  "wallCapSeconds": { "type": "number", "minimum": 0 }
+                }
+              },
+              "charging": {
+                "properties": {
+                  "flags": {
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": { "const": "aborted" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "const": "green" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "charging": {
+                "properties": {
+                  "flags": { "maxItems": 0 }
                 }
               }
             }

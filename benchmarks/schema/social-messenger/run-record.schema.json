@@ -145,6 +145,7 @@
         ]
       },
       "then": {
+        "$ref": "#/$defs/nativeMeteringRecord",
         "properties": {
           "socialMessenger": {
             "properties": {
@@ -204,6 +205,85 @@
         },
         "reasoning": {
           "const": null
+        }
+      }
+    },
+    "nativeTokenCounts": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "nativeMilestoneMetering": {
+      "type": "object",
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "green",
+              "capability-failure",
+              "aborted"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "authoring": {
+            "properties": {
+              "tokens": {
+                "$ref": "#/$defs/nativeTokenCounts"
+              }
+            }
+          }
+        }
+      }
+    },
+    "nativeMilestones": {
+      "type": "object",
+      "properties": {
+        "M1": { "$ref": "#/$defs/nativeMilestoneMetering" },
+        "M2": { "$ref": "#/$defs/nativeMilestoneMetering" },
+        "M3": { "$ref": "#/$defs/nativeMilestoneMetering" },
+        "M4": { "$ref": "#/$defs/nativeMilestoneMetering" },
+        "M5": { "$ref": "#/$defs/nativeMilestoneMetering" },
+        "M6": { "$ref": "#/$defs/nativeMilestoneMetering" },
+        "M7": { "$ref": "#/$defs/nativeMilestoneMetering" },
+        "M8": { "$ref": "#/$defs/nativeMilestoneMetering" }
+      }
+    },
+    "nativeMeteringRecord": {
+      "type": "object",
+      "properties": {
+        "tokens": {
+          "$ref": "#/$defs/nativeTokenCounts"
+        },
+        "socialMessenger": {
+          "properties": {
+            "meteringProvenance": {
+              "properties": {
+                "unavailableReason": {
+                  "const": null
+                },
+                "sessions": {
+                  "minItems": 1
+                }
+              }
+            },
+            "milestones": {
+              "$ref": "#/$defs/nativeMilestones"
+            }
+          }
         }
       }
     },
@@ -312,6 +392,10 @@
           "properties": {
             "meteringProvenance": {
               "properties": {
+                "unavailableReason": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                },
                 "sessions": {
                   "maxItems": 0
                 }
@@ -319,6 +403,13 @@
             },
             "milestones": {
               "$ref": "#/$defs/nullMilestones"
+            },
+            "firstProductEdit": {
+              "properties": {
+                "orientationTokens": {
+                  "$ref": "#/$defs/nullTokenCounts"
+                }
+              }
             }
           }
         }

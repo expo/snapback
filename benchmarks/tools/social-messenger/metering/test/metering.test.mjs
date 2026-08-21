@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   copyFile,
   mkdtemp,
@@ -30,11 +31,15 @@ import {
 import { joinUsageToMilestones } from "../joiner.mjs";
 import { parseJsonLines } from "../jsonl.mjs";
 import { loadMeteringManifest } from "../manifest.mjs";
+import { assertTokenCounts, capTokenCount } from "../counts.mjs";
 import {
   TokenCapEnforcedError,
+  TokenMeteringReconciliationError,
   TokenCapWatchdog,
 } from "../watchdog.mjs";
 import { validateJsonSchema } from "../../../lib/json-schema.mjs";
+import { validateMachineRecord } from "../../../lib/record-loader.mjs";
+import { validateSocialMessengerRunRecord } from "../../record-validator.mjs";
 
 const execFileAsync = promisify(execFile);
 const FIXTURES = new URL("./fixtures/", import.meta.url);
@@ -81,6 +86,10 @@ function nullCounts() {
   return counts(null, null, null, null, null);
 }
 
+function sha256(text) {
+  return `sha256:${createHash("sha256").update(text).digest("hex")}`;
+}
+
 function immediateController(id = "fixture-enforcer") {
   return {
     id,
@@ -103,6 +112,11 @@ test("Claude native usage joins exact terminal prefixes into milestone phases", 
     new URL("receipts-m1.jsonl", FIXTURES),
     new URL("receipts-m2.jsonl", FIXTURES),
   ]);
+  assert.equal(
+    receiptBoundaries.M1.suitePassAt,
+    "2026-08-21T10:01:30.000Z",
+    "the real segment-summary suite.pass stamps suitePassAt",
+  );
   const boundaries = mergeBoundaryMaps(
     receiptBoundaries,
     normalizeBoundaryMap(await fixtureJson("boundaries.json")),
@@ -159,6 +173,24 @@ test("failed, green, and final aborted milestones each retain their own tokens",
   assert.deepEqual(result.totals, counts(140, 35));
 });
 
+test("usage after the final terminal boundary fails closed instead of disappearing", async () => {
+  await assert.rejects(async () => joinUsageToMilestones({
+    channel: await fixtureJson("post-terminal-channel.json"),
+    boundaries: {
+      M1: {
+        status: "aborted",
+        firstGreenAt: null,
+        suitePassAt: null,
+        choreoPassAt: null,
+        terminalAt: "2026-08-21T13:01:00.000Z",
+        terminalSequence: 1,
+        terminalReason: "abort",
+      },
+    },
+    maxClockSkewMs: 100,
+  }), /completes after the final M1 terminal boundary/u);
+});
+
 test("recorded clock-skew bounds reject ambiguous timestamp joins", async () => {
   assert.throws(() => joinUsageToMilestones({
     channel: {
@@ -200,6 +232,44 @@ test("Codex adapter differences every session's cumulative counters", async () =
   ]);
   assert.equal(tree.turns.length, 6, "builder and descendant counters are both charged");
   assert.equal(tree.turns.reduce((sum, turn) => sum + turn.usage.output, 0), 160);
+
+  const truncated = structuredClone(records);
+  truncated[2].payload.info.last_token_usage.output_tokens += 1;
+  truncated[2].payload.info.last_token_usage.total_tokens += 1;
+  assert.throws(
+    () => adaptCodexSession(truncated),
+    /cumulative delta does not equal last_token_usage/u,
+  );
+});
+
+test("retained real Codex parent and subagent deltas checksum and aggregate independently", async () => {
+  const parent = parseJsonLines(
+    await fixtureText("real-codex-tree-parent.jsonl"),
+    "retained Codex parent fixture",
+  );
+  const subagent = parseJsonLines(
+    await fixtureText("real-codex-tree-subagent.jsonl"),
+    "retained Codex subagent fixture",
+  );
+  const tree = adaptCodexSessionTree([
+    {
+      sourceId: "builder",
+      nativeSessionId: "01a0245d-2323-7890-a982-00ab78bad604",
+      records: parent,
+    },
+    {
+      sourceId: "builder-descendant-01a024a3",
+      nativeSessionId: "01a024a3-90b2-7503-bbc7-b034b0522e98",
+      records: subagent,
+    },
+  ]);
+  assert.equal(tree.turns.length, 6);
+  assert.equal(
+    tree.turns.filter((turn) => turn.sourceId === "builder-descendant-01a024a3").length,
+    3,
+  );
+  assert.equal(tree.turns.reduce((sum, turn) => sum + turn.usage.input, 0), 60_722);
+  assert.equal(tree.turns.reduce((sum, turn) => sum + turn.usage.output, 0), 2_099);
 });
 
 test("retained real Claude descendant tree is hash-bound and fully aggregated", async () => {
@@ -256,6 +326,18 @@ test("lane manifest rejects source-hash and receipt-identity mismatches", async 
   const badReceiptPath = join(directory, "bad-receipt.json");
   await writeFile(badReceiptPath, `${JSON.stringify(badReceipt)}\n`);
   await assert.rejects(loadMeteringManifest(badReceiptPath), /does not belong to runId/u);
+
+  const nonGreenReceiptText = await fixtureText("non-green-receipt.jsonl");
+  await writeFile(join(directory, "non-green-receipt.jsonl"), nonGreenReceiptText);
+  const nonGreenReceipt = structuredClone(manifest);
+  nonGreenReceipt.receipts[0].path = "non-green-receipt.jsonl";
+  nonGreenReceipt.receipts[0].sha256 = sha256(nonGreenReceiptText);
+  const nonGreenReceiptPath = join(directory, "non-green-receipt-manifest.json");
+  await writeFile(nonGreenReceiptPath, `${JSON.stringify(nonGreenReceipt)}\n`);
+  await assert.rejects(
+    loadMeteringManifest(nonGreenReceiptPath),
+    /conflicts with its non-green hash-bound receipt/u,
+  );
 });
 
 test("Claude message identity de-duplicates globally across declared sources", () => {
@@ -375,7 +457,7 @@ test("watchdog enforces termination before any next turn and retains overshoot",
     id: "already-in-flight-after-trip",
     completedAt: "2026-08-21T12:00:12.050Z",
     usage: counts(20, 5),
-  });
+  }, { inFlight: true });
   assert.equal(watchdog.state.actualTokens, 135);
   assert.equal(watchdog.state.overshoot.tokens, 25);
   assert.deepEqual(watchdog.state.overshoot.turns, [{
@@ -383,6 +465,16 @@ test("watchdog enforces termination before any next turn and retains overshoot",
     completedAt: "2026-08-21T12:00:12.050Z",
     tokens: 25,
   }]);
+  assert.throws(() => watchdog.observe({
+    id: "not-in-flight-after-trip",
+    completedAt: "2026-08-21T12:00:12.060Z",
+    usage: counts(1, 1),
+  }), /was not attested in flight/u);
+  const reconciliation = watchdog.reconcileMilestone({
+    retainedTokens: 135,
+    terminalAt: "2026-08-21T12:00:12.100Z",
+  });
+  assert.equal(reconciliation.matched, true);
 });
 
 test("watchdog turn identities remain cumulative across milestone arms", () => {
@@ -400,6 +492,10 @@ test("watchdog turn identities remain cumulative across milestone arms", () => {
   });
   watchdog.observe(first);
   assert.equal(watchdog.state.actualTokens, 50);
+  watchdog.reconcileMilestone({
+    retainedTokens: 50,
+    terminalAt: "2026-08-21T15:00:10.000Z",
+  });
   watchdog.disarm();
   watchdog.arm({
     capFamily: "gpt-frontier",
@@ -415,6 +511,49 @@ test("watchdog turn identities remain cumulative across milestone arms", () => {
     usage: counts(20, 5),
   });
   assert.equal(watchdog.state.actualTokens, 25);
+});
+
+test("watchdog rejects late prior-milestone IDs and fails closed on retained-tree divergence", async () => {
+  const watchdog = new TokenCapWatchdog({ enforcementController: immediateController() });
+  watchdog.arm({
+    capFamily: "gpt-frontier",
+    milestone: "M2",
+    tokenCap: 100,
+    startedAt: "2026-08-21T15:01:00.000Z",
+    maxClockSkewMs: 100,
+  });
+  assert.throws(() => watchdog.observe({
+    id: "late-m1-descendant",
+    sourceId: "builder-descendant",
+    completedAt: "2026-08-21T15:00:59.899Z",
+    usage: counts(40, 10),
+  }), /predates M2's armed boundary/u);
+
+  watchdog.observe({
+    id: "builder-m2",
+    sourceId: "builder",
+    completedAt: "2026-08-21T15:01:05.000Z",
+    usage: counts(40, 10),
+  });
+  assert.throws(() => watchdog.reconcileMilestone({
+    retainedTokens: 110,
+    terminalAt: "2026-08-21T15:01:10.000Z",
+  }), (error) => (
+    error instanceof TokenMeteringReconciliationError
+    && error.code === "SOCIAL_MESSENGER_TOKEN_METERING_DIVERGED"
+    && error.trip?.source === "retained-tree-reconciliation"
+  ));
+  assert.equal(watchdog.state.tripped, true);
+  assert.equal(watchdog.state.reconciliation.deltaTokens, 60);
+  await watchdog.waitForTermination();
+});
+
+test("reasoning tokens must remain an output subset while the cap stays input plus output", () => {
+  assert.throws(
+    () => assertTokenCounts(counts(10, 5, 0, 0, 50)),
+    /reasoning must be a subset/u,
+  );
+  assert.equal(capTokenCount(counts(10, 5, 1000, 500, 4)), 15);
 });
 
 function milestoneRecord({ metered, sequence }) {
@@ -448,6 +587,7 @@ function composedRecord({ capFamily, source, metered }) {
   return {
     schemaVersion: 1,
     lane: "snapback",
+    laneVariant: "skill",
     brief: "social-messenger",
     harness: { name: "fixture", model: "fixture", effort: null },
     timestamps: {
@@ -470,6 +610,7 @@ function composedRecord({ capFamily, source, metered }) {
         diagnosis: basePhase,
       },
     },
+    toolUses: null,
     correctionLoops: [],
     handAuthoredLoc: { lines: 1, files: 1 },
     diary: "benchmarks/records/fixture.md",
@@ -500,10 +641,11 @@ function composedRecord({ capFamily, source, metered }) {
           startedAt: "2026-08-21T16:00:00.000Z",
         },
         manifestSha256: `sha256:${"0".repeat(64)}`,
+        unavailableReason: metered ? null : "retained-session-stream-missing",
         clockCorrelation: {
           method: "rfc3339-with-bounded-skew",
-          maxSkewMillis: 0,
-          evidence: "fixture clock",
+          maxSkewMillis: 100,
+          evidence: "fixture driver measured a 100ms cross-process skew ceiling",
         },
         sessions: metered ? [{
           sourceId: "builder",
@@ -539,7 +681,7 @@ function composedRecord({ capFamily, source, metered }) {
 }
 
 function composedErrors(record) {
-  return validateJsonSchema(composedSchema, record, {
+  return validateSocialMessengerRunRecord(composedSchema, record, {
     schemas: [baseSchema, extensionSchema],
   });
 }
@@ -588,4 +730,80 @@ test("composed schema restricts approved sources and null cap posture", () => {
   unavailableCap.socialMessenger.milestones.M2.charging.chargedTokens = 100;
   unavailableCap.socialMessenger.milestones.M2.charging.flags = ["capped-tokens"];
   assert.notDeepEqual(composedErrors(unavailableCap), []);
+
+  const nativeNulls = structuredClone(gpt);
+  nativeNulls.tokens.input = null;
+  nativeNulls.tokens.output = null;
+  for (const milestone of Object.values(nativeNulls.socialMessenger.milestones)) {
+    milestone.authoring.tokens = nullCounts();
+    milestone.charging.chargedTokens = null;
+  }
+  assert.notDeepEqual(composedErrors(nativeNulls), []);
+
+  const advisoryOrientation = structuredClone(grok);
+  advisoryOrientation.socialMessenger.firstProductEdit.orientationTokens = counts(1, 1);
+  assert.notDeepEqual(composedErrors(advisoryOrientation), []);
+
+  const missingReason = structuredClone(unavailableGpt);
+  delete missingReason.socialMessenger.meteringProvenance.unavailableReason;
+  assert.notDeepEqual(composedErrors(missingReason), []);
+
+  const dishonestTokenCap = structuredClone(gpt);
+  dishonestTokenCap.socialMessenger.milestones.M1.status = "capability-failure";
+  dishonestTokenCap.socialMessenger.milestones.M1.authoring.firstGreenAt = null;
+  dishonestTokenCap.socialMessenger.milestones.M1.authoring.terminalReason = "token-cap";
+  dishonestTokenCap.socialMessenger.milestones.M1.charging.chargedTokens = 1;
+  dishonestTokenCap.socialMessenger.milestones.M1.charging.flags = [];
+  assert.notDeepEqual(composedErrors(dishonestTokenCap), []);
+
+  const wrongTokenCapEquality = structuredClone(dishonestTokenCap);
+  wrongTokenCapEquality.socialMessenger.milestones.M1.charging.flags = ["capped-tokens"];
+  assert.match(
+    composedErrors(wrongTokenCapEquality).join("\n"),
+    /token-cap charges the token cap/u,
+  );
+  const validTokenCap = structuredClone(wrongTokenCapEquality);
+  validTokenCap.socialMessenger.milestones.M1.charging.chargedTokens = 1000;
+  assert.deepEqual(composedErrors(validTokenCap), []);
+
+  const dishonestWallCap = structuredClone(gpt);
+  dishonestWallCap.socialMessenger.milestones.M1.status = "capability-failure";
+  dishonestWallCap.socialMessenger.milestones.M1.authoring.firstGreenAt = null;
+  dishonestWallCap.socialMessenger.milestones.M1.authoring.terminalReason = "wall-cap";
+  dishonestWallCap.socialMessenger.milestones.M1.charging.flags = [];
+  assert.notDeepEqual(composedErrors(dishonestWallCap), []);
+
+  const wrongWallCapEquality = structuredClone(dishonestWallCap);
+  wrongWallCapEquality.socialMessenger.milestones.M1.charging.flags = ["capped-wall"];
+  assert.match(
+    composedErrors(wrongWallCapEquality).join("\n"),
+    /wall-cap charges the wall cap/u,
+  );
+
+  const dishonestAbort = structuredClone(gpt);
+  dishonestAbort.socialMessenger.milestones.M1.status = "aborted";
+  dishonestAbort.socialMessenger.milestones.M1.authoring.firstGreenAt = null;
+  dishonestAbort.socialMessenger.milestones.M1.authoring.terminalReason = "abort";
+  dishonestAbort.socialMessenger.milestones.M1.charging.flags = [];
+  assert.notDeepEqual(composedErrors(dishonestAbort), []);
+
+  const wrongAbortEquality = structuredClone(dishonestAbort);
+  wrongAbortEquality.socialMessenger.milestones.M1.charging.flags = ["aborted"];
+  assert.match(
+    composedErrors(wrongAbortEquality).join("\n"),
+    /abort charges the wall cap/u,
+  );
+
+  assert.equal(validateMachineRecord({
+    root: fileURLToPath(ROOT),
+    schema: baseSchema,
+    file: "synthetic-social-messenger.json",
+    record: gpt,
+  }), gpt);
+  assert.throws(() => validateMachineRecord({
+    root: fileURLToPath(ROOT),
+    schema: baseSchema,
+    file: "synthetic-social-messenger-dishonest.json",
+    record: dishonestTokenCap,
+  }), (error) => error?.reason === "SCHEMA_CONFORMANCE");
 });

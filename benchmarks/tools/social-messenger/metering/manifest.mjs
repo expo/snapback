@@ -167,6 +167,7 @@ async function loadReceipts(manifestDirectory, receipts) {
   const provenance = [];
   const milestones = new Set();
   const sourceIds = new Set();
+  const greenAttestations = new Map();
   for (const [index, receipt] of receipts.entries()) {
     const label = `manifest.receipts[${index}]`;
     const sourceId = requiredString(receipt?.sourceId, `${label}.sourceId`);
@@ -189,6 +190,21 @@ async function loadReceipts(manifestDirectory, receipts) {
       ) {
         throw new Error(`${label}:${recordIndex + 1} does not belong to ${receipt.milestone}`);
       }
+      if (
+        record?.type === "segment-summary"
+        && typeof record.segment === "string"
+        && record.segment.toUpperCase() === receipt.milestone
+      ) {
+        const attestations = greenAttestations.get(receipt.milestone) ?? [];
+        attestations.push({
+          green: record.green === true,
+          suitePass: record.suite?.pass === true,
+          choreoPass: record.choreography?.pass === true,
+          recordedAt: record.recordedAt ?? null,
+          sourceId,
+        });
+        greenAttestations.set(receipt.milestone, attestations);
+      }
     }
     maps.push(boundariesFromReceiptRecords(records, sourceId));
     milestones.add(receipt.milestone);
@@ -200,7 +216,7 @@ async function loadReceipts(manifestDirectory, receipts) {
       sha256: artifact.sha256,
     });
   }
-  return { maps, milestones, provenance };
+  return { maps, milestones, provenance, greenAttestations };
 }
 
 function validateClockCorrelation(clockCorrelation) {
@@ -285,8 +301,25 @@ export async function loadMeteringManifest(manifestPath) {
   const receiptResult = await loadReceipts(manifestDirectory, manifest.receipts);
   const boundaries = mergeBoundaryMaps(...receiptResult.maps, driverBoundaries);
   for (const [milestone, boundary] of Object.entries(boundaries)) {
-    if (boundary.status === "green" && !receiptResult.milestones.has(milestone)) {
+    if (boundary.status !== "green") continue;
+    if (!receiptResult.milestones.has(milestone)) {
       throw new Error(`green milestone ${milestone} has no hash-bound receipt stream`);
+    }
+    const attestations = receiptResult.greenAttestations.get(milestone) ?? [];
+    const attestation = attestations.find((candidate) => (
+      candidate.green === true
+      && candidate.suitePass === true
+      && candidate.choreoPass === true
+      && Date.parse(candidate.recordedAt) === Date.parse(boundary.firstGreenAt)
+      && Date.parse(candidate.recordedAt) === Date.parse(boundary.terminalAt)
+    ));
+    if (attestation === undefined) {
+      const nonGreen = attestations.some((candidate) => candidate.green === false);
+      throw new Error(
+        nonGreen
+          ? `green milestone ${milestone} conflicts with its non-green hash-bound receipt`
+          : `green milestone ${milestone} lacks a hash-bound green segment-summary at its terminal boundary`,
+      );
     }
   }
 
@@ -323,6 +356,7 @@ export async function loadMeteringManifest(manifestPath) {
         startedAt: manifest.driver.startedAt,
       },
       manifestSha256: digest(manifestText),
+      unavailableReason: channel.unavailableReason ?? null,
       clockCorrelation: {
         method: clockCorrelation.method,
         maxSkewMillis: clockCorrelation.maxSkewMillis,

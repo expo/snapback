@@ -28,7 +28,10 @@ tree.
 Artifacts must be relative to and remain inside the manifest directory. The
 loader verifies every digest, native Claude/Codex session identity, descendant
 reachability, receipt `runId`/milestone, and lane/driver identity before it
-parses usage. Green milestones additionally require a bound receipt stream.
+parses usage. Every Codex nonzero cumulative delta must equal normalized
+`last_token_usage`. Green milestones additionally require a bound
+`segment-summary` that attests `green: true` at exactly the driver-stamped
+terminal/first-green timestamp; a non-green receipt conflicts.
 The emitted `meteringProvenance` block retains all identities, hashes, and clock
 evidence.
 
@@ -66,6 +69,11 @@ inclusive.
 The sequence is the ordering authority. RFC 3339 timestamps correlate usage
 to driver boundaries under the manifest's skew evidence. When a turn lies
 inside a nonzero ambiguity window, the join fails closed instead of guessing.
+Drivers must record a measured nonzero skew bound for separately stamped
+process clocks; zero is reserved for evidence that one process and clock
+stamps both channels. The final terminal is stamped after in-flight/overshoot
+usage settles. A retained turn after it invalidates the join rather than
+disappearing from actuals.
 
 The first-product-edit marker is also a hash-bound driver receipt:
 
@@ -102,19 +110,25 @@ const watchdog = new TokenCapWatchdog({
 });
 ```
 
-Arming a numeric token cap requires `startedAt`; actual wall is derived from
-that origin. Drivers execute model turns through `runTurn()` (or call
-`beforeTurn()` before their equivalent turn primitive) and feed completed
-turns to `observe()`. At `input + output >= tokenCap`, termination is requested
-immediately. The next turn waits for acknowledgement and is then rejected with
-`SOCIAL_MESSENGER_TOKEN_CAP_ENFORCED`. The next milestone may be armed only
-after acknowledgement.
+Arming a numeric token cap requires `startedAt` and carries the manifest's
+`maxClockSkewMs`; actual wall is derived from that origin. Drivers tail every
+declared builder and descendant stream into the same watchdog as turns
+complete. They execute model turns through `runTurn()` (or call `beforeTurn()`
+before their equivalent turn primitive) and feed completed turns to
+`observe()`. At `input + output >= tokenCap`, termination of the complete tree
+is requested immediately. The next turn waits for acknowledgement and is then
+rejected with `SOCIAL_MESSENGER_TOKEN_CAP_ENFORCED`.
 
 Lane-global completed-turn identities persist across arm/disarm cycles, so a
-cumulative-log reread cannot recharge earlier usage. New observations after a
-trip are not discarded: they update `actualTokens` and the separate
-`overshoot.tokens`/`overshoot.turns` evidence. Cache counters stay observable
-but excluded from the cap; reasoning remains a subset of output.
+cumulative-log reread cannot recharge earlier usage. A new ID older than the
+armed boundary beyond skew is rejected. New observations after a trip require
+`{ inFlight: true }`; they update `actualTokens` and separate overshoot
+evidence, while un-attested post-trip consumption is rejected. Before
+`disarm()`, call `reconcileMilestone({ retainedTokens, terminalAt })` with the
+joined complete-tree `input + output`. A mismatch records the divergence and
+fails closed; a retained total already at cap also trips enforcement. Cache
+counters stay observable but excluded from the cap; reasoning is enforced as
+a subset of output.
 
 ## Record schema
 
@@ -122,4 +136,7 @@ Validate complete records with
 `benchmarks/schema/social-messenger/run-record.schema.json`. It composes the
 base record and extension, restricts sources by cap family, and enforces the
 honest-null/no-token-cap posture for both advisory and scored-family
-`unavailable` lanes.
+`unavailable` lanes, including a stable `meteringProvenance.unavailableReason`
+and null first-edit tokens. Publication tooling additionally runs
+`record-validator.mjs` for D2 charging equalities that JSON Schema cannot
+express.

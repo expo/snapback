@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { recordDigest } from './canonical-json.mjs';
 import { BenchmarkPublicationError, fail } from './failure.mjs';
 import { validateJsonSchema } from './json-schema.mjs';
+import { validateSocialMessengerRunRecord } from '../social-messenger/record-validator.mjs';
 
 // @ref LLP 0197#the-standard — rule 4: historical prose never becomes machine evidence by inference.
 export const HISTORICAL_MISSING_FIELDS = Object.freeze([
@@ -170,7 +171,23 @@ function insideRoot(root, path) {
 }
 
 export function validateMachineRecord({ root, schema, file, record }) {
-  const errors = validateJsonSchema(schema, record, { tolerateAdditiveFields: true });
+  let errors;
+  if (record.brief === 'social-messenger') {
+    const extensionSchema = parseJson(
+      resolve(root, 'benchmarks/schema/social-messenger/run-record-extension.schema.json'),
+      'social-messenger run-record extension schema',
+    );
+    const composedSchema = parseJson(
+      resolve(root, 'benchmarks/schema/social-messenger/run-record.schema.json'),
+      'social-messenger composed run-record schema',
+    );
+    errors = validateSocialMessengerRunRecord(composedSchema, record, {
+      schemas: [schema, extensionSchema],
+      tolerateAdditiveFields: true,
+    });
+  } else {
+    errors = validateJsonSchema(schema, record, { tolerateAdditiveFields: true });
+  }
   if (errors.length > 0) {
     fail('SCHEMA_CONFORMANCE', `${file}:\n  ${errors.join('\n  ')}`);
   }

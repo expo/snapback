@@ -169,6 +169,15 @@ export function joinUsageToMilestones({
       );
     }
   }
+  const lastBoundary = ordered.at(-1);
+  const trailingTurn = turns?.find((turn) => (
+    turn.completedAtMs > lastBoundary.atMs + maxClockSkewMs
+  ));
+  if (trailingTurn !== undefined) {
+    throw new Error(
+      `usage turn ${trailingTurn.id} completes after the final ${lastBoundary.milestone} terminal boundary; restamp terminalAt after retained overshoot settles`,
+    );
+  }
 
   let previousPrefix = turns === null ? nullTokenCounts() : zeroTokenCounts();
   const milestones = {};

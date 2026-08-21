@@ -73,6 +73,12 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
         info.total_token_usage,
         `Codex token_count record ${index + 1}.total_token_usage`,
       ),
+      last: info.last_token_usage === undefined
+        ? null
+        : normalizeCodexCumulative(
+          info.last_token_usage,
+          `Codex token_count record ${index + 1}.last_token_usage`,
+        ),
     });
   }
   cumulativeRecords.sort((left, right) => left.completedAtMs - right.completedAtMs);
@@ -82,6 +88,16 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
   for (const entry of cumulativeRecords) {
     if (tokenCountsEqual(entry.cumulative, previous)) continue;
     const usage = subtractTokenCounts(entry.cumulative, previous);
+    if (entry.last === null) {
+      throw new Error(
+        `Codex token_count record ${entry.recordIndex} changed cumulative usage without last_token_usage`,
+      );
+    }
+    if (!tokenCountsEqual(usage, entry.last)) {
+      throw new RangeError(
+        `Codex token_count record ${entry.recordIndex} cumulative delta does not equal last_token_usage`,
+      );
+    }
     const cumulativeIdentity = [
       entry.cumulative.input,
       entry.cumulative.output,

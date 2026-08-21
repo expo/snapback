@@ -104,8 +104,11 @@ hashes, terminal-boundary and first-edit artifact hashes, the lane wall-clock
 origin, and a recorded clock-skew bound. Claude message IDs are de-duplicated
 globally across the tree. Codex cumulative counters are differenced within
 each rollout before the descendant rollouts are aggregated, with identities
-de-duplicated globally. A missing/unbound descendant makes native metering
-invalid; it never silently becomes zero.
+de-duplicated globally. Every nonzero Codex cumulative delta must equal that
+record's normalized native `last_token_usage`; a missing or mismatched checksum
+fails closed rather than moving a truncated turn to a later milestone. A
+missing/unbound descendant makes native metering invalid; it never silently
+becomes zero.
 
 Milestone boundary snapshots are prefix sums of native usage records ordered
 by the time each turn completed. The driver records **every attempted
@@ -117,11 +120,17 @@ terminal-prefix snapshots in driver execution order, including failed and
 final failed milestones. No failed milestone's tokens roll into its successor.
 `firstGreenAt` is populated only for `green`; it is null for caps and aborts.
 Green remains the later of separately stamped `suitePassAt` and
-`choreoPassAt`; a green choreography `segment-summary.recordedAt` is the exact
-combined terminal/`firstGreenAt`. Timestamp equality is inclusive. The driver
-sequence determines ordering; the recorded skew bound audits timestamp
-correlation, and a usage turn within a nonzero skew ambiguity window makes the
-join fail closed.
+`choreoPassAt`; it requires a hash-bound `segment-summary` with `green: true`,
+and that summary's `recordedAt` is the exact combined terminal/`firstGreenAt`.
+A non-green or non-attesting receipt cannot be upgraded by a driver boundary.
+Timestamp equality is inclusive. The final terminal must be stamped only after
+all retained in-flight/overshoot completions settle; any later retained turn
+makes the join fail closed instead of disappearing. The driver sequence
+determines ordering; the recorded skew bound audits timestamp correlation, and
+a usage turn within a nonzero skew ambiguity window makes the join fail closed.
+Drivers stamp a measured nonzero bound whenever usage and boundary clocks come
+from different processes. Zero is valid only when one process and clock stamps
+both channels and the manifest evidence says so.
 
 Every native record preserves fresh input, output, cache-read, cache-write,
 and reasoning/thinking counters where the harness exposes them. **The token
@@ -131,13 +140,19 @@ added again. A live watchdog requires a non-optional enforcement controller
 and a wall-clock origin. It trips when that sum reaches or exceeds the
 registered `(cap family, milestone)` token cap; the milestone becomes a
 `capability-failure` and charges the token cap plus actual wall with
-`capped-tokens`, per LLP 0201 D2. The controller must request termination and
-return a timestamped evidence acknowledgement. The watchdog gates the next
-model turn until that acknowledgement arrives and then refuses that turn; the
-driver may proceed only by arming the next milestone after acknowledgement.
-Any already-in-flight post-trip usage remains retained as overshoot evidence.
-Turn identity is lane-global and cumulative across `arm()` calls, so rereading
-a cumulative session log cannot recharge an earlier milestone.
+`capped-tokens`, per LLP 0201 D2. Every declared builder and descendant stream
+must be tailed into that same watchdog as turns complete, and the enforcement
+controller must terminate the complete declared tree before returning a
+timestamped evidence acknowledgement. The watchdog rejects newly discovered
+turns that predate the armed boundary beyond the recorded skew. It gates the
+next model turn until acknowledgement and then refuses it. A post-trip turn is
+accepted as overshoot only when the driver explicitly attests it was already in
+flight; later consumption is a contract error. Before disarming, the driver
+must reconcile the watchdog actual against the joined retained-tree actual.
+Any divergence is recorded and fails closed; if the retained tree crossed the
+cap first, reconciliation trips termination. Turn identity remains lane-global
+across milestones, so rereading a cumulative session log cannot recharge an
+earlier milestone.
 
 The social-messenger extension also records an explicit first-product-edit
 receipt: driver-stamped timestamp, exact orientation bytes, selected skills,
@@ -149,7 +164,12 @@ Complete social-messenger records validate against
 `schema/social-messenger/run-record.schema.json`, which composes the base and
 extension schemas. It restricts `tokens.source` to the approved values and
 mechanically requires advisory and unavailable records to carry null token
-totals, phases, caps, and charges with no `capped-tokens` flag.
+totals, phases, caps, first-edit tokens, and charges with a stable provenance
+reason and no `capped-tokens` flag. Native records require measured lane totals
+and attempted-milestone phases. The adjacent checked record validator enforces
+the D2 cross-field equalities JSON Schema cannot express: token cap to charged
+tokens, wall/abort cap charging, actual input-plus-output charging, and exact
+flags.
 
 ## Repetitions and variance
 

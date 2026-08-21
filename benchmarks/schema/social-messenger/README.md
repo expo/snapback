@@ -23,9 +23,12 @@ LLP 0201's 2026-08-11 dated amendment).
   orientation snapshot, separate clocks, compaction, replay and probe results
   with O5 band inputs, grading pointers).
 - `run-record.schema.json` — the complete composed record schema. It restricts
-  `tokens.source` by `capFamily` and requires advisory or explicitly
-  unavailable metering to use null totals, phases, milestone token caps/counts,
-  and charges without `capped-tokens`.
+  `tokens.source` by `capFamily`; requires native lane totals and attempted
+  milestone phases; and requires advisory or explicitly unavailable metering
+  to use a stable reason plus null totals, phases, first-edit tokens, milestone
+  token caps/counts, and charges without `capped-tokens`. The publication
+  loader composes it with `benchmarks/tools/social-messenger/record-validator.mjs`
+  to enforce D2 charging equalities that JSON Schema cannot express.
 
 The grader-side half of the instrument (frozen prompt, report schema,
 calibration plan, probe machinery) lives in

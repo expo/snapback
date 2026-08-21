@@ -11,8 +11,8 @@
   },
   "clockCorrelation": {
     "method": "rfc3339-with-bounded-skew",
-    "maxSkewMillis": 0,
-    "evidence": "driver and receipt artifacts share the fixture clock"
+    "maxSkewMillis": 100,
+    "evidence": "fixture driver measured a conservative 100ms bound between receipt and boundary stamps"
   },
   "sessions": [],
   "receipts": [
