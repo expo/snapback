@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:dd8101e348c5ae1e0dfc02192db1ae0756d2e18f82a4
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:3483cfee6e98fb1761a5331a13ad295b8965478b983312b6803f00c41354ee21`.
+`sha256:01f4a0f0a0ac8c39c8715d59fd5ffffab2995e7f4cbb4b94bbce8cc25be5c9be`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -38,7 +38,7 @@ Symbols: 4 total; 3 runtime values; 1 type-only.
 
 Stable identity: `npm:@expo/snapback-client/online#bindSnapbackAppLifecycle`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2082`
+Source: `packages/snapback-client/index.d.mts:2090`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function bindSnapbackAppLifecycle(
@@ -59,7 +59,7 @@ export function bindSnapbackAppLifecycle(
 
 Stable identity: `npm:@expo/snapback-client/online#createExternalSessionClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2078`
+Source: `packages/snapback-client/index.d.mts:2086`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createExternalSessionClient(
@@ -73,7 +73,7 @@ export function createExternalSessionClient(
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1596`
+Source: `packages/snapback-client/index.d.mts:1604`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -434,13 +434,13 @@ export class SnapbackClient {
       readonly userId?: string;
       readonly pollCadenceMs?: number;
       readonly fallbackToPoll?: boolean;
-      readonly onUpdate?: (rows: FunctionResult<Ref>) => void;
+      readonly onUpdate?: (rows: LiveQueryConsumerResult<Ref>) => void;
       readonly onConnectionChange?: (
-        connection: LiveQueryHandle<FunctionResult<Ref>>['connection'],
+        connection: LiveQueryHandle<LiveQueryConsumerResult<Ref>>['connection'],
         detail?: { readonly error?: unknown },
       ) => void;
     } & LiveQueryRegistrationOptions,
-  ): Promise<LiveQueryHandle<FunctionResult<Ref>>>;
+  ): Promise<LiveQueryHandle<LiveQueryConsumerResult<Ref>>>;
   liveQuery<Row = unknown>(
     ref: NamedReference,
     options: {
@@ -464,14 +464,14 @@ export class SnapbackClient {
       readonly userId?: string;
       readonly pollCadenceMs?: number;
       readonly fallbackToPoll?: boolean;
-      readonly supersedes?: StartedLiveQueryHandle<FunctionResult<Ref>> | null;
-      readonly onUpdate?: (rows: FunctionResult<Ref>) => void;
+      readonly supersedes?: StartedLiveQueryHandle<LiveQueryConsumerResult<Ref>> | null;
+      readonly onUpdate?: (rows: LiveQueryConsumerResult<Ref>) => void;
       readonly onConnectionChange?: (
-        connection: LiveQueryHandle<FunctionResult<Ref>>['connection'],
+        connection: LiveQueryHandle<LiveQueryConsumerResult<Ref>>['connection'],
         detail?: { readonly error?: unknown },
       ) => void;
     } & LiveQueryRegistrationOptions,
-  ): StartedLiveQueryHandle<FunctionResult<Ref>>;
+  ): StartedLiveQueryHandle<LiveQueryConsumerResult<Ref>>;
   subscribeLive<Ref extends FunctionRef<'LiveQuery'>>(
     ref: Ref,
     options?: {
@@ -648,7 +648,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClientOptions`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:1154`
+Source: `packages/snapback-client/index.d.mts:1162`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SnapbackClientOptions {

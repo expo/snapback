@@ -1059,7 +1059,7 @@ client.liveQuery(listTodos, {
   connectionId: 'fixture',
   args: { owner: 'ada' },
   onUpdate(rows) {
-    rows[0]?.title.toUpperCase();
+    rows?.[0]?.title.toUpperCase();
   },
 });
 ```

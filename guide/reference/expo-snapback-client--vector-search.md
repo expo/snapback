@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:36204de542028c5735b92c5ddf791a3240e8585dc840
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:3483cfee6e98fb1761a5331a13ad295b8965478b983312b6803f00c41354ee21`.
+`sha256:01f4a0f0a0ac8c39c8715d59fd5ffffab2995e7f4cbb4b94bbce8cc25be5c9be`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -39,7 +39,7 @@ Symbols: 5 total; 1 runtime values; 4 type-only.
 
 Stable identity: `npm:@expo/snapback-client/vector-search#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1596`
+Source: `packages/snapback-client/index.d.mts:1604`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -400,13 +400,13 @@ export class SnapbackClient {
       readonly userId?: string;
       readonly pollCadenceMs?: number;
       readonly fallbackToPoll?: boolean;
-      readonly onUpdate?: (rows: FunctionResult<Ref>) => void;
+      readonly onUpdate?: (rows: LiveQueryConsumerResult<Ref>) => void;
       readonly onConnectionChange?: (
-        connection: LiveQueryHandle<FunctionResult<Ref>>['connection'],
+        connection: LiveQueryHandle<LiveQueryConsumerResult<Ref>>['connection'],
         detail?: { readonly error?: unknown },
       ) => void;
     } & LiveQueryRegistrationOptions,
-  ): Promise<LiveQueryHandle<FunctionResult<Ref>>>;
+  ): Promise<LiveQueryHandle<LiveQueryConsumerResult<Ref>>>;
   liveQuery<Row = unknown>(
     ref: NamedReference,
     options: {
@@ -430,14 +430,14 @@ export class SnapbackClient {
       readonly userId?: string;
       readonly pollCadenceMs?: number;
       readonly fallbackToPoll?: boolean;
-      readonly supersedes?: StartedLiveQueryHandle<FunctionResult<Ref>> | null;
-      readonly onUpdate?: (rows: FunctionResult<Ref>) => void;
+      readonly supersedes?: StartedLiveQueryHandle<LiveQueryConsumerResult<Ref>> | null;
+      readonly onUpdate?: (rows: LiveQueryConsumerResult<Ref>) => void;
       readonly onConnectionChange?: (
-        connection: LiveQueryHandle<FunctionResult<Ref>>['connection'],
+        connection: LiveQueryHandle<LiveQueryConsumerResult<Ref>>['connection'],
         detail?: { readonly error?: unknown },
       ) => void;
     } & LiveQueryRegistrationOptions,
-  ): StartedLiveQueryHandle<FunctionResult<Ref>>;
+  ): StartedLiveQueryHandle<LiveQueryConsumerResult<Ref>>;
   subscribeLive<Ref extends FunctionRef<'LiveQuery'>>(
     ref: Ref,
     options?: {
@@ -614,7 +614,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/vector-search#VectorFilterV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:749`
+Source: `packages/snapback-client/index.d.mts:755`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface VectorFilterV1 {
@@ -635,7 +635,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/vector-search#VectorItemV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:759`
+Source: `packages/snapback-client/index.d.mts:765`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface VectorItemV1<
@@ -659,7 +659,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/vector-search#VectorPageV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:768`
+Source: `packages/snapback-client/index.d.mts:774`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface VectorPageV1<
@@ -682,7 +682,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/vector-search#VectorRequestV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:754`
+Source: `packages/snapback-client/index.d.mts:760`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface VectorRequestV1 {

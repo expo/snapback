@@ -309,6 +309,65 @@ test('typed headless live queries project the internal row carrier', async () =>
   }
 });
 
+test('typed single-value live handles reject zero-row server snapshots', async () => {
+  const originalFetch = globalThis.fetch;
+  const reference = {
+    artifactKind: 'functionReference',
+    schemaVersion: 'snapback.v0',
+    appId: 'live-query-zero-row-fixture',
+    id: 'live-query-zero-row-fixture:todos.get',
+    name: 'todos.get',
+    kind: 'LiveQuery',
+    implementationHash: `sha256:${'a'.repeat(64)}`,
+    argsContractHash: `sha256:${'b'.repeat(64)}`,
+    argsContract: { fields: [] },
+    resultContractHash: `sha256:${'c'.repeat(64)}`,
+    resultContract: { kind: 'document', table: 'todos' },
+  };
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') {
+      return Response.json({
+        connectionId: 'live-query-zero-row-wire',
+        connectionToken: 'live-query-zero-row-token',
+        wireVersion: 'snapback.v1',
+        authorizationInvalidation: null,
+      });
+    }
+    if (path === '/live/todos.get/subscribe') {
+      return Response.json({
+        subscription_id: 'live-query-zero-row-subscription',
+        snapshot: { version: 1, rows: [] },
+        permission_epochs: {},
+      });
+    }
+    if (path === '/live/todos.get/unsubscribe') {
+      return Response.json({
+        subscription_id: JSON.parse(init.body).subscription_id,
+        disposed: true,
+      });
+    }
+    throw new Error(`unexpected zero-row live snapshot request: ${path}`);
+  };
+  let handle = null;
+  try {
+    const client = new SnapbackClient('http://live-query-zero-row.test', { rqsStore: null });
+    handle = await client.liveQuery(reference, {
+      connectionId: 'live-query-zero-row-label',
+      persistResume: false,
+    });
+    const expected = {
+      name: 'TypeError',
+      message: 'single-value query delivery for todos.get must carry exactly one internal row',
+    };
+    assert.throws(() => handle.rows, expected);
+    assert.throws(() => handle.authoritativeRows, expected);
+  } finally {
+    await handle?.dispose();
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('typed single-value live handles expose a blank as null through pause and resume', async () => {
   const originalFetch = globalThis.fetch;
   const updates = [];

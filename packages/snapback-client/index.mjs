@@ -13550,13 +13550,26 @@ export class SnapbackClient {
     let knownRetiredSubscriptionId = null;
     let disposalTask = null;
     let unregisterOutboxBarrierProvider = () => {};
-    let authoritativeRows = [];
-    let presentedRows = [];
+    // Cardinality alone cannot distinguish a lifecycle blank from a malformed
+    // server snapshot. Keep provenance on the exact client-created carriers so
+    // wrapped callbacks preserve it without tagging server-owned row arrays.
+    const clientOwnedLifecycleBlankCarriers = new WeakSet();
+    const createClientOwnedLifecycleBlankCarrier = () => {
+      const rows = [];
+      clientOwnedLifecycleBlankCarriers.add(rows);
+      return rows;
+    };
+    let authoritativeRows = createClientOwnedLifecycleBlankCarrier();
+    let presentedRows = authoritativeRows;
     let optimisticPresentationSnapshot = null;
     let authoritativeAnswerClass = 'unknown';
 
     const projectRowsForConsumer = (rows) => (
-      __internalRawResultCarrier ? rows : projectTypedLiveQueryRows(ref, rows)
+      __internalRawResultCarrier
+        ? rows
+        : projectTypedLiveQueryRows(ref, rows, {
+            clientOwnedLifecycleBlank: clientOwnedLifecycleBlankCarriers.has(rows),
+          })
     );
     const handle = {
       get subscriptionId() {
@@ -14371,7 +14384,7 @@ export class SnapbackClient {
           handle.answerClass = 'authoritative';
           handle.freshness = 'current';
         } else if (event.kind === 'quarantine' || event.kind === 'delete') {
-          authoritativeRows = [];
+          authoritativeRows = createClientOwnedLifecycleBlankCarrier();
           presentedRows = authoritativeRows;
           handle.authorizationDisposition = event.kind;
           handle.answerClass = 'unknown';
@@ -14404,7 +14417,7 @@ export class SnapbackClient {
 
     const reportAuthorizationError = (error) => {
       authorizationFaulted = true;
-      authoritativeRows = [];
+      authoritativeRows = createClientOwnedLifecycleBlankCarrier();
       presentedRows = authoritativeRows;
       handle.authorizationDisposition = 'quarantine';
       if (preparedMaterialization) {
@@ -16300,7 +16313,7 @@ export class SnapbackClient {
         clearResubscribeRetry();
         detachStream?.();
         detachStream = null;
-        authoritativeRows = [];
+        authoritativeRows = createClientOwnedLifecycleBlankCarrier();
         presentedRows = authoritativeRows;
         handle.freshness = null;
         handle.answerClass = 'unknown';
@@ -18693,11 +18706,11 @@ function projectTypedQueryRows(ref, rows) {
 // @ref LLP 0059#exposure-invariant — a client-owned custody/invalidation blank
 // uses an empty carrier to make predecessor data synchronously unreadable. It
 // is not a server result-contract delivery: typed headless single-value handles
-// expose that transient lifecycle state as null, while non-empty server
-// carriers retain LLP 0108's strict exactly-one-row projection above.
-function projectTypedLiveQueryRows(ref, rows) {
+// expose that transient lifecycle state as null, while every server carrier
+// retains LLP 0108's strict exactly-one-row projection above.
+function projectTypedLiveQueryRows(ref, rows, { clientOwnedLifecycleBlank = false } = {}) {
   if (
-    hasSingleValueQueryContract(ref)
+    clientOwnedLifecycleBlank && hasSingleValueQueryContract(ref)
     && Array.isArray(rows)
     && rows.length === 0
   ) return null;
