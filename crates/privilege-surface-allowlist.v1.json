@@ -1,21 +1,4 @@
 {
   "schemaVersion": "snapback.privilege-surface-allowlist.v1",
-  "entries": [
-    {
-      "id": "embedded-guide-generated-table",
-      "crate": "snapback-server",
-      "item": "snapback_server::guide::generated_data_expressions",
-      "kind": "generated-api",
-      "features": [
-        "default"
-      ],
-      "reason": "The three exact expression includes and Cargo-selected producer are reviewed debt; generated expression bytes are not inspected.",
-      "ticket": "issues/20260819-build-generated-guide-api-audit.md",
-      "expiresAt": "2026-09-19",
-      "source": "crates/snapback-server/generated/embedded_guide_api.rs",
-      "expression": "[\"include!(concat ! (env ! (\\\"OUT_DIR\\\") , \\\"/guide_content_sha256.expr.rs\\\"))\",\"include!(concat ! (env ! (\\\"OUT_DIR\\\") , \\\"/embedded_guide_files.expr.rs\\\"))\",\"include!(concat ! (env ! (\\\"OUT_DIR\\\") , \\\"/section_flat_paths.expr.rs\\\"))\"]",
-      "producer": "crates/snapback-server/build.rs",
-      "producerSha256": "c9a10f448f05fb61f4981054683eed9dacd45a8513325e3928bd66a31832984d"
-    }
-  ]
+  "entries": []
 }

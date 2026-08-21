@@ -38,9 +38,7 @@ const EXPECTED_CONFINEMENT = [
   ['ibex-runtime', ['snapback-runtime']],
   ['rusqlite', ['snapback', 'snapback-harness', 'snapback-kernel', 'snapback-services']],
 ].map(([dependency, allowedMembers]) => ({ dependency, allowedMembers }));
-const EXPECTED_GENERATED_SOURCE_HOMES = [
-  { member: 'snapback-server', path: 'crates/snapback-server/generated' },
-];
+const EXPECTED_GENERATED_SOURCE_HOMES = [];
 const EXPECTED_MEMBERSHIP_ASSIGNMENTS = [];
 const EXPECTED_WORKSPACE_MEMBERS = ['crates/*'];
 const EXPECTED_WORKSPACE_DEFAULT_MEMBERS = ['crates/snapback'];

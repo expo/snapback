@@ -12,20 +12,14 @@
 // tree. snapback owns the final binary, so the rpath has to be emitted here,
 // where `rustc-link-arg` actually applies to its bins, tests, and benches.
 
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::{fs, io::Write};
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=HERMES_LIB_DIR");
-    println!("cargo:rerun-if-changed=../../guide");
     println!("cargo:rerun-if-changed=../../schemas/http.routes.v1.json");
-
-    // @ref LLP 0061#4-distribution-and-discovery — served-guide §4a:
-    // every binary carries the checked guide snapshot; eval evidence is not
-    // part of the served authoring corpus.
-    emit_embedded_guide();
 
     // Stamp the server-binary provenance the ungated `/health` reports so an
     // externally started server is verifiable before any app bundle loads
@@ -103,163 +97,6 @@ fn main() {
             lib_root.display()
         );
     }
-}
-
-fn emit_embedded_guide() {
-    let manifest_dir = PathBuf::from(
-        std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"),
-    );
-    let guide_dir = manifest_dir.join("../../guide");
-    let mut files = Vec::new();
-    collect_guide_files(&guide_dir, &guide_dir, &mut files).expect("walk the checked guide corpus");
-    files.sort();
-    let section_flat_paths = files
-        .iter()
-        .filter(|path| {
-            path.as_str() != "guide-flat.generated.md"
-                && path.starts_with("guide-flat.")
-                && path.ends_with(".generated.md")
-        })
-        .cloned()
-        .collect::<Vec<_>>();
-    assert!(
-        !section_flat_paths.is_empty(),
-        "served guide is missing generated section flat projections"
-    );
-
-    for required in [
-        "index.md",
-        "capabilities.md",
-        "guide-manifest.generated.json",
-        "guide-flat.generated.md",
-        // @ref LLP 0194#design — the native binary is the build-bound carrier
-        // for the compact reference index and canonical registry, not only pages.
-        "reference/index.md",
-        "reference/registry.json",
-        // @ref LLP 0193#program — exact diagnostic lookup uses the same
-        // embedded, manifest-bound Guide artifact as the human projection.
-        "reference/diagnostics.md",
-        "reference/diagnostics-registry.json",
-    ] {
-        assert!(
-            files.iter().any(|path| path == required),
-            "served guide is missing required generated/input file {required}"
-        );
-    }
-
-    let manifest = fs::read_to_string(guide_dir.join("guide-manifest.generated.json"))
-        .expect("read generated guide manifest");
-    let content_hash = generated_json_string(&manifest, "contentHash")
-        .expect("generated guide manifest carries contentHash");
-    assert!(
-        content_hash.len() == 64 && content_hash.chars().all(|c| c.is_ascii_hexdigit()),
-        "generated guide contentHash must be a SHA-256 hex digest"
-    );
-
-    let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is set by cargo"));
-    let build_commit = env_nonempty("SNAPBACK_BUILD_GIT_COMMIT")
-        .or_else(|| git(&manifest_dir, &["rev-parse", "HEAD"]))
-        .unwrap_or_else(|| "unknown".to_owned());
-    let build_commit = if build_commit
-        .chars()
-        .all(|character| character.is_ascii_alphanumeric() || "-._".contains(character))
-    {
-        build_commit
-    } else {
-        "unknown".to_owned()
-    };
-    // @ref LLP 0232#d-2-prepared-execution-and-rebase-stable-records — the checked source record is content-bound. The
-    // binary carrier adds its exact commit only while embedding the manifest.
-    let identity_prefix = "\"buildIdentity\": {";
-    let embedded_manifest = manifest.replacen(
-        identity_prefix,
-        &format!("{identity_prefix}\n    \"commit\": \"{build_commit}\","),
-        1,
-    );
-    assert_ne!(
-        embedded_manifest, manifest,
-        "generated guide manifest carries buildIdentity"
-    );
-    fs::write(
-        out_dir.join("embedded-guide-manifest.json"),
-        embedded_manifest,
-    )
-    .expect("write build-bound embedded guide manifest");
-
-    let mut output = fs::File::create(out_dir.join("embedded_guide.rs"))
-        .expect("create generated embedded guide module");
-    writeln!(
-        output,
-        "pub const GUIDE_CONTENT_SHA256: &str = {content_hash:?};"
-    )
-    .expect("write guide hash");
-    writeln!(
-        output,
-        "pub static EMBEDDED_GUIDE_FILES: &[EmbeddedGuideFile] = &["
-    )
-    .expect("start embedded guide table");
-    for path in files {
-        let content_type = guide_content_type(&path);
-        if path == "guide-manifest.generated.json" {
-            writeln!(
-                output,
-                "    EmbeddedGuideFile {{ path: {path:?}, bytes: include_bytes!(concat!(env!(\"OUT_DIR\"), \"/embedded-guide-manifest.json\")), content_type: {content_type:?} }},"
-            )
-            .expect("write build-bound embedded guide manifest entry");
-        } else {
-            let include_suffix = format!("/../../guide/{path}");
-            writeln!(
-                output,
-                "    EmbeddedGuideFile {{ path: {path:?}, bytes: include_bytes!(concat!(env!(\"CARGO_MANIFEST_DIR\"), {include_suffix:?})), content_type: {content_type:?} }},"
-            )
-            .expect("write embedded guide entry");
-        }
-    }
-    writeln!(output, "];").expect("finish embedded guide table");
-    writeln!(output, "pub static SECTION_FLAT_PATHS: &[&str] = &[")
-        .expect("start embedded guide section path table");
-    for path in section_flat_paths {
-        writeln!(output, "    {path:?},").expect("write embedded guide section path");
-    }
-    writeln!(output, "];").expect("finish embedded guide section path table");
-}
-
-fn collect_guide_files(root: &Path, dir: &Path, files: &mut Vec<String>) -> std::io::Result<()> {
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_dir() {
-            if entry.file_name() != "eval-runs" {
-                collect_guide_files(root, &path, files)?;
-            }
-            continue;
-        }
-        if path.is_file() {
-            let relative = path
-                .strip_prefix(root)
-                .expect("guide entry stays beneath guide root")
-                .to_string_lossy()
-                .replace('\\', "/");
-            files.push(relative);
-        }
-    }
-    Ok(())
-}
-
-fn guide_content_type(path: &str) -> &'static str {
-    if path.ends_with(".md") {
-        "text/markdown; charset=utf-8"
-    } else if path.ends_with(".json") {
-        "application/json; charset=utf-8"
-    } else {
-        "application/octet-stream"
-    }
-}
-
-fn generated_json_string<'a>(json: &'a str, key: &str) -> Option<&'a str> {
-    let prefix = format!("\"{key}\": \"");
-    let rest = json.split_once(&prefix)?.1;
-    Some(rest.split_once('"')?.0)
 }
 
 fn emit_macos_rpath(dir: &Path) {

@@ -5,6 +5,11 @@
 **Systems:** Security/authorization, Build, Verification, Packaging, Rust core
 **Author:** Grok 4.6 (xAI) — independent of the LLP 0276 implementer lane; commissioned by LLP 0283 F-2
 **Date:** 2026-08-19
+**Revised:** 2026-08-21 (closes the embedded Guide generated-API exception:
+`build.rs` emits one versioned length-prefixed binary artifact, committed code
+consumes it only with `include_bytes!` and parses inert bytes into lazy public
+values, the obsolete shape manifest is retired, and the last allowlist row is
+deleted.)
 **Revised:** 2026-08-19 (implemented by the independent F-2 lane: a dedicated
 non-workspace syn helper, metadata-derived 47-cell scanner, rustc JSON span
 witnesses, canonical compilation-unit ownership, negative-corpus gate, and the
@@ -568,33 +573,18 @@ as security evidence. An unrelated error whose message matches a regex is a
 
 ### 3.7 What is not an invariant (honest limits)
 
-- **The Guide wrapper is committed, but its generated expressions are not an
-  API-shape proof.** The rejected proof compiled and executed the custom-build
-  source it purported to audit. A producer could distinguish that audit from
-  ordinary Cargo and emit harmless evidence only there. That executable path
-  remains forbidden: the gate neither compiles nor executes `build.rs`, and
-  producer output observed under audit is never evidence.
-
-  `snapback-server::guide` directly includes the checked-in
-  `generated/embedded_guide_api.rs`. The committed
-  `embedded-guide-api-shape.v1.json` pins that artifact's SHA-256, parsed syn
-  item shape, exact including source/path, Cargo-selected custom-build source
-  and digest, all three generated-expression include names and spellings, and
-  the scanner's complete raw-SQL/LLP-0284-seed/authority-discriminator
-  identifier catalog. The gate parses the committed artifact and refuses
-  wrapper shape, digest, include, producer, catalog, or forbidden-identifier
-  drift.
-
-  That evidence does **not** inspect the ordinary Cargo build's generated
-  expression bytes. Rust permits a block expression to contain an inherent
-  `impl`, and warns that such an impl is never scoped. Thus emitted tokens can
-  preserve the wrapper's `&str`, `&[EmbeddedGuideFile]`, or `&[&str]` result
-  type while adding public associated items, including methods returning an
-  LLP 0284 seed. Refreshing a changed producer digest would not detect those
-  emitted items. The exact three-expression finding therefore has the restored
-  `embedded-guide-generated-table` review row expiring 2026-09-19. It is
-  change detection and human review debt, not generated-output assurance.
-  Issue `issues/20260819-build-generated-guide-api-audit.md` is open again.
+- **The embedded Guide is no longer a generated-Rust exception.** The rejected
+  proof history remains instructive: compiling or executing a custom-build
+  source under audit cannot bind what an ordinary Cargo build receives, and a
+  typed block expression can contain non-local inherent impls. The landed
+  boundary eliminates that premise instead of trying to prove it. `build.rs`
+  emits one versioned, length-prefixed binary artifact; committed
+  `snapback-server::guide` consumes it only through `include_bytes!` and parses
+  its opaque file bytes into lazy values. Bytes spelling an `impl`, macro, or
+  any other Rust item remain byte-string content and cannot alter the public
+  API. The old wrapper/producer shape manifest and
+  `embedded-guide-generated-table` allowlist row are retired; the allowlist is
+  empty. The gate still never compiles or executes `build.rs` as audit evidence.
 - **syn cannot fully expand macros.** The scanner now token-scans ordinary
   `macro_rules!` definitions and invocations and rejects ones that can emit
   `pub` while naming a raw handle, seed, or resolved alias. `#[macro_export]`
@@ -612,10 +602,10 @@ as security evidence. An unrelated error whose message matches a regex is a
   also recognizes direct imported aliases, module-local `macro_rules!`
   wrappers whose token streams name include spellings, and parameterized macro
   invocations that receive a literal recognized include identifier plus a
-  literal evaluable `OUT_DIR` expression. The Guide no longer has an
-  item-position `OUT_DIR` include; its one exact review row is only for the
-  three expression includes named above, so a planted bare,
-  `std::include!`, imported alias, or wrapper form is a violation. An unevaluable
+  literal evaluable `OUT_DIR` expression. The Guide has no Rust-source
+  `OUT_DIR` include; its `include_bytes!` data artifact is not macro-expanded as
+  Rust, so a planted bare `include!`, `std::include!`, imported alias, or
+  wrapper form remains a violation. An unevaluable
   recognized include also fails. Residual limit: cross-module/re-exported
   wrappers whose invocation does not carry the include identifier, and a
   procedural or declarative macro that synthesizes the include spelling or
@@ -735,11 +725,10 @@ as security evidence. An unrelated error whose message matches a regex is a
 `#[macro_export]` in `snapback-kernel` or `snapback-services`, recognized
 ordinary macro token streams that name both public API and raw-handle/seed
 tokens, and the literal generated-Rust include shapes enumerated in §3.7 when
-they occur in the public contexts the scanner walks. The Guide's committed
-wrapper proof is paired with one exact, expiring `generated-api` row for its
-three uninspected generated expressions. Every other observed `generated-api`
-finding requires its own exact, expiring review row. This remains a syntactic
-ratchet, not general macro expansion.
+they occur in the public contexts the scanner walks. Every observed
+`generated-api` finding requires its own exact, expiring review row. The
+current allowlist is empty. This remains a syntactic ratchet, not general macro
+expansion.
 
 **I-15 (SC, conservative).** No `pub` function in `snapback-kernel`
 returns `impl Trait` unless allowlisted. This may have false positives;
@@ -853,7 +842,7 @@ text is not.
 | Rooted/parent local re-exports and reverse conversion impls | `pub use crate::hidden::leak`; `pub use super::leak`; `impl From<Wrapper> for rusqlite::Connection` |
 | Direct-signature caller discriminators (I-16) | caller-constructible `MembershipWriter` is named directly by fixed-name privileged-plan, sanctioned, bypass, and provenance sink signatures |
 | Dead privilege-sink registry entries (I-16) | every registered sink spelling resolves to a scanned Rust item or fails as `sink-registry-unresolved` |
-| Macro/build-generated API approximations (I-14) | ordinary `macro_rules!` tokens emitting a public seed API; recognized direct, qualified, imported-alias, hardcoded-wrapper, and literal parameter-forwarded `OUT_DIR` Rust includes in module/impl/trait/foreign item positions without an exact review row; Guide committed-wrapper shape/digest/include/catalog/producer drift plus an observed, exact review finding for its uninspected expression bytes |
+| Macro/build-generated API approximations (I-14) | ordinary `macro_rules!` tokens emitting a public seed API; recognized direct, qualified, imported-alias, hardcoded-wrapper, and literal parameter-forwarded `OUT_DIR` Rust includes in module/impl/trait/foreign item positions without an exact review row; the Guide's `include_bytes!` artifact is inert data and creates no generated-API finding |
 
 On `ede899a20` this gate **must print violations and exit 1**, including
 at least:
@@ -1446,6 +1435,20 @@ associated items while preserving the expected result type. The row was
 restored over the exact three expression includes, and the ticket reopened.
 The committed wrapper checks remain valuable drift evidence but are no longer
 described as generated-output assurance.
+
+On 2026-08-21 the Guide took the elimination path. The three generated Rust
+expression files and their committed wrapper were replaced by one binary
+artifact containing a fixed magic/version, a 64-byte content hash, and sorted
+length-prefixed path/content records. Committed code includes it with
+`include_bytes!`, validates and parses it once through `LazyLock`, and derives
+the section table and content types. Malformed input panics with a stable
+`malformed embedded Guide artifact` prefix; an item-bearing payload test keeps
+an `impl` block inert. The façade's obsolete, unconsumed duplicate Guide Rust
+generator was deleted too; it re-exports the server module. Because no producer
+byte is parsed as Rust, the wrapper shape manifest no longer proves a live
+boundary and was deleted rather than repurposed. The final
+`embedded-guide-generated-table` row was deleted, leaving zero
+privilege-surface allowlist entries.
 
 ## 8. Acceptance
 

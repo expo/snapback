@@ -95,7 +95,7 @@ test('the Phase 2 facade is assigned with no confined externals', () => {
   assert.deepEqual(validateModuleMembership(artifact, rustPaths), {
     moduleCount,
     exceptionCount: 0,
-    generatedSourceHomeCount: 1,
+    generatedSourceHomeCount: 0,
   });
   assert.doesNotThrow(() => validateWorkspacePathModules(workspaceRustFiles));
 });

@@ -24,9 +24,7 @@
     { "dependency": "ibex-runtime", "allowedMembers": ["snapback-runtime"] },
     { "dependency": "rusqlite", "allowedMembers": ["snapback", "snapback-harness", "snapback-kernel", "snapback-services"] }
   ],
-  "generatedSourceHomes": [
-    { "member": "snapback-server", "path": "crates/snapback-server/generated" }
-  ],
+  "generatedSourceHomes": [],
   "engineDefinitionDenylist": [
     { "kind": "symbol", "symbol": "activation" },
     { "kind": "symbol", "symbol": "auth" },

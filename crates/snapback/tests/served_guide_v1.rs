@@ -122,7 +122,7 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
     let _ = child.wait().await;
 
     assert_eq!(served.0, 200);
-    assert_eq!(served.1, GUIDE_CONTENT_SHA256);
+    assert_eq!(served.1, *GUIDE_CONTENT_SHA256);
     assert_eq!(
         served.2,
         option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
@@ -145,7 +145,7 @@ async fn memory_server_serves_flat_projection_with_manifest_identity() {
     );
     assert_eq!(
         header(&response, GUIDE_CONTENT_HASH_HEADER),
-        GUIDE_CONTENT_SHA256
+        *GUIDE_CONTENT_SHA256
     );
     assert_eq!(
         header(&response, GUIDE_BUILD_COMMIT_HEADER),
@@ -164,18 +164,18 @@ async fn memory_server_serves_flat_projection_with_manifest_identity() {
             .expect("generated guide manifest JSON");
     // @ref LLP 0194#design — contentHash now binds both the flat Markdown and
     // non-Markdown registry bytes, so it intentionally is not the flat SHA.
-    assert_eq!(manifest["contentHash"], GUIDE_CONTENT_SHA256);
+    assert_eq!(manifest["contentHash"], *GUIDE_CONTENT_SHA256);
 }
 
 #[tokio::test]
 async fn memory_server_serves_every_section_projection_with_manifest_identity() {
     assert!(!SECTION_FLAT_PATHS.is_empty());
-    for path in SECTION_FLAT_PATHS {
+    for path in SECTION_FLAT_PATHS.iter() {
         let response = get(&format!("/_snapback/guide/{path}")).await;
         assert_eq!(response.status(), StatusCode::OK, "section flat {path}");
         assert_eq!(
             header(&response, GUIDE_CONTENT_HASH_HEADER),
-            GUIDE_CONTENT_SHA256
+            *GUIDE_CONTENT_SHA256
         );
         assert_eq!(
             header(&response, GUIDE_BUILD_COMMIT_HEADER),
@@ -198,7 +198,7 @@ async fn memory_server_serves_root_llms_txt_with_guide_identity() {
     );
     assert_eq!(
         header(&response, GUIDE_CONTENT_HASH_HEADER),
-        GUIDE_CONTENT_SHA256
+        *GUIDE_CONTENT_SHA256
     );
     assert_eq!(
         header(&response, GUIDE_BUILD_COMMIT_HEADER),
@@ -284,7 +284,7 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
     assert_eq!(index.status(), StatusCode::OK);
     assert_eq!(
         header(&index, GUIDE_CONTENT_HASH_HEADER),
-        GUIDE_CONTENT_SHA256
+        *GUIDE_CONTENT_SHA256
     );
     assert_eq!(
         to_bytes(index.into_body(), usize::MAX)
@@ -302,7 +302,7 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
     );
     assert_eq!(
         header(&page, GUIDE_CONTENT_HASH_HEADER),
-        GUIDE_CONTENT_SHA256
+        *GUIDE_CONTENT_SHA256
     );
 
     // The recursive wildcard must serve nested authored pages, not only the
@@ -428,7 +428,7 @@ fn served_guide_routes_are_registered_system_static_public_projections() {
         snapback::guide::file(FLAT_PATH).unwrap().bytes,
         include_bytes!("../../../guide/guide-flat.generated.md")
     );
-    for path in SECTION_FLAT_PATHS {
+    for path in SECTION_FLAT_PATHS.iter() {
         assert!(snapback::guide::file(path).is_some());
     }
     assert!(snapback::guide::file("capabilities.md").is_some());

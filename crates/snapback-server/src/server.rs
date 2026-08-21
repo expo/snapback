@@ -8445,7 +8445,7 @@ fn guide_bound_response(body: &'static [u8], content_type: &'static str) -> Resp
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
     headers.insert(
         HeaderName::from_static(GUIDE_CONTENT_HASH_HEADER),
-        HeaderValue::from_static(crate::guide::GUIDE_CONTENT_SHA256),
+        HeaderValue::from_static(*crate::guide::GUIDE_CONTENT_SHA256),
     );
     headers.insert(
         HeaderName::from_static(GUIDE_BUILD_COMMIT_HEADER),
