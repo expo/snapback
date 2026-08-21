@@ -161,6 +161,12 @@ const deferred = () => {
   return Object.freeze({ promise, resolve, reject });
 };
 
+const createDurableTestStore = () => {
+  const store = createMemoryRqsResumeStore();
+  store.durability = () => ({ implementation: 'memory-test-double', durable: true });
+  return store;
+};
+
 class BroadcastHub {
   channels = new Map();
   onPostMessage = null;
@@ -182,7 +188,10 @@ class BroadcastHub {
   };
 }
 
-function makeFixture(clientOptions = {}) {
+function makeFixture(
+  clientOptions = {},
+  { authStorage = createMemoryAuthCustodyStorage() } = {},
+) {
   const originalFetch = globalThis.fetch;
   const requests = [];
   let exchanged = false;
@@ -228,7 +237,7 @@ function makeFixture(clientOptions = {}) {
 
   const coordinator = new AuthCoordinator({
     appId: APP_ID,
-    storage: createMemoryAuthCustodyStorage(),
+    storage: authStorage,
     broadcastChannelFactory: null,
     hintStorage: null,
   });
@@ -1015,16 +1024,61 @@ test('anonymous protected one-shots recover on the same client', async (t) => {
     }
   });
 
-  await t.test('rejecting mutation preparation is superseded by stale authority', async () => {
+  await t.test('current authority preserves the exact mutation preparation rejection', async () => {
     const fixture = makeFixture();
+    try {
+      await fixture.client.authSession();
+      await fixture.client.authExchange({
+        challengeId: 'challenge-current-rejecting-mutation-preparation',
+        code: '307946',
+      });
+
+      const originalStoreRuntimeInvoke = fixture.client.__storeRuntimeInvoke.bind(fixture.client);
+      const preparationError = new Error('current preparation failed');
+      preparationError.code = 'SNAPBACK_TEST_PREPARATION_REJECTED';
+      fixture.client.__storeRuntimeInvoke = async (name, payload) => {
+        if (name !== 'prepareGeneratedMutation') {
+          return originalStoreRuntimeInvoke(name, payload);
+        }
+        throw preparationError;
+      };
+
+      await assert.rejects(
+        fixture.client.mutate(generatedProtectedMutation, {
+          args: {},
+          queue: false,
+          __generatedOptimistic: false,
+        }),
+        (error) => error === preparationError,
+      );
+      assert.equal(
+        fixture.requests.filter(({ path }) => path === '/mutation/preparedPrivateMutation').length,
+        0,
+      );
+    } finally {
+      await fixture.close();
+    }
+  });
+
+  await t.test('peer logout during rejecting preparation supersedes the raw error', async () => {
+    const authStorage = createMemoryAuthCustodyStorage();
+    const fixture = makeFixture({}, { authStorage });
+    const peer = new AuthCoordinator({
+      appId: APP_ID,
+      storage: authStorage,
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    });
     try {
       await fixture.client.authSession();
       const anonymousCapture = fixture.coordinator.capture();
       const anonymousAuthority = fixture.coordinator.credentialFor(anonymousCapture).authority;
       await fixture.client.authExchange({
-        challengeId: 'challenge-rejecting-mutation-preparation-fence',
+        challengeId: 'challenge-peer-rejecting-mutation-preparation-fence',
         code: '864209',
       });
+      await peer.synchronize();
+      const preparationCapture = fixture.coordinator.capture();
 
       const originalStoreRuntimeInvoke = fixture.client.__storeRuntimeInvoke.bind(fixture.client);
       let reportPreparationStarted;
@@ -1052,10 +1106,15 @@ test('anonymous protected one-shots recover on the same client', async (t) => {
         __generatedOptimistic: false,
       });
       await preparationStarted;
-      await fixture.coordinator.transition(
-        fixture.coordinator.capture(),
+      await peer.transition(
+        peer.capture(),
         { authority: anonymousAuthority, bearer: null, refreshAfterMs: null },
-        'logout-during-rejecting-generated-mutation-preparation',
+        'peer-logout-during-rejecting-generated-mutation-preparation',
+      );
+      assert.equal(
+        fixture.coordinator.isCurrent(preparationCapture),
+        true,
+        'the local in-memory hint intentionally misses the peer transition',
       );
       releasePreparation();
 
@@ -1069,13 +1128,15 @@ test('anonymous protected one-shots recover on the same client', async (t) => {
         'the predecessor preparation rejection cannot escape after authority changes',
       );
     } finally {
+      await peer.close();
       await fixture.close();
     }
   });
 
   await t.test('same-authority bearer rotation during preparation preserves queueable mutation', async () => {
+    const durableStore = createDurableTestStore();
     const fixture = makeFixture({
-      rqsStore: createMemoryRqsResumeStore(),
+      rqsStore: durableStore,
       offlineQueue: true,
       __offlineMutationReplayCapability: true,
       __outboxDrainLifecycle: false,
@@ -1138,6 +1199,19 @@ test('anonymous protected one-shots recover on the same client', async (t) => {
 
       const settled = await mutation;
       assert.deepEqual(settled.result, { admitted: true });
+      const records = await durableStore.outboxRecords();
+      assert.equal(records.length, 1, 'queue:auto durably enqueues before transport');
+      assert.equal(records[0].id, 'cm-preparation-bearer-rotation');
+      assert.equal(records[0].status, 'settled');
+      assert.deepEqual(records[0].custody, {
+        authorityEpoch: preparationCapture.authorityEpoch,
+        authorityKey: preparationCapture.authorityKey,
+      });
+      assert.equal(
+        Object.hasOwn(records[0].custody, 'custodyRevision'),
+        false,
+        'bearer-only custody revision is not durable queue lineage',
+      );
       const mutationRequests = fixture.requests.filter(
         ({ path }) => path === '/mutation/preparedPrivateMutation',
       );

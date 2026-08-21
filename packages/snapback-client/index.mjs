@@ -11214,10 +11214,17 @@ export class SnapbackClient {
           composeLocalExecution: generatedPresentationEnabled,
         });
       } catch (error) {
-        if (
-          preparationAuthorityCapture !== null
-          && !this.isAuthorityCaptureCurrent(preparationAuthorityCapture)
-        ) throw staleAuthorityError();
+        if (preparationAuthorityCapture !== null) {
+          // @ref LLP 0059#cross-context-ownership — a rejected preparation is
+          // still an app-visible foreground completion. Reload durable custody
+          // before exposing its original error; isCurrent() may have missed a
+          // peer transition because broadcasts are only wakeups.
+          const rejectionFence = await this.commitAuthorityPublication(
+            preparationAuthorityCapture,
+            () => undefined,
+          );
+          if (!rejectionFence.committed) throw staleAuthorityError();
+        }
         throw error;
       }
       if (
