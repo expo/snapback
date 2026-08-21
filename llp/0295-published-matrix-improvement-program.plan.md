@@ -355,7 +355,7 @@ as a batch remains open on the other four tickets.
 
 - `issues/20260820-structured-value-ceiling-diagnostic.md`
 - `issues/20260820-schema-asset-ref-retype-diagnostic.md`
-- `issues/20260820-asset-url-hook-nullability.md`
+- `issues/closed/20260820-asset-url-hook-nullability.md` (resolved: `null` absence spelling landed)
 - existing `issues/20260818-guide-gap-custody-store-repair-text-not-one-file.md`
 
 Exit: each matrix failure reaches a stable, bounded diagnostic or type error

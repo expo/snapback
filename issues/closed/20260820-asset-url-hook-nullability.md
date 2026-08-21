@@ -36,3 +36,9 @@ for either absent state, and keeps empty-string input as a contract error that
 names the nullable spelling. LLP 0210's state algebra, LLP 0114's named-
 projection ledger, the assets guide, generated API references, and focused type
 and runtime fixtures were updated with the implementation.
+
+**Review note (2026-08-21):** adding `empty` to `AssetIssuedUrlStatus` widens
+the public status union — a consumer exhaustively switching the previous
+five states would need a new arm. Ruled intentional under the repository's
+publication posture (no stability dependents; the state is semantically
+real); no input-dependent overloads were added.

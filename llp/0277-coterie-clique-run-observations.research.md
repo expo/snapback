@@ -557,7 +557,7 @@ links.
 null; mixed image/video intents require both location policies although examples
 usually show one; several lanes discovered hook or generated-reference paths by
 source inspection. Straight hook contract ticket:
-`issues/20260820-asset-url-hook-nullability.md`; broader asset ergonomics remain
+`issues/closed/20260820-asset-url-hook-nullability.md` (resolved: `null` absence spelling landed); broader asset ergonomics remain
 with LLP 0210 and the media program.
 
 #### P24. Provider connection lifecycle and budgets are under-taught — repeated
