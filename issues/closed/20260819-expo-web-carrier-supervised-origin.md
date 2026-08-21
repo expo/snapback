@@ -62,9 +62,13 @@ is atomically extended with the final ready state, platform, selected Metro
 origin, supervisor generation/correlation, Metro PID, and the supervisor's
 OS-verified listener inventory. The carrier removes any predecessor file,
 requires the descriptor PID to equal the exact spawned CLI child, admits only
-the verified loopback Metro listener, probes that selected origin, and
-revalidates the same descriptor before navigating Chrome. The generic Vite
-carriers retain their fixed `127.0.0.1:5173` configuration.
+the verified loopback Metro process plus its supervisor-owned loopback front,
+probes that selected front origin, and revalidates the same descriptor before
+navigating Chrome. The front, not the app's `public/` tree, serves one
+in-memory run attestation exactly once. After consuming it through DevTools,
+the carrier repeats descriptor, process-tree, and front/upstream-listener
+ownership validation. The generic Vite carriers retain their fixed
+`127.0.0.1:5173` configuration.
 
 Chrome is driven over its structured DevTools pipe. Expo Chat opens the seeded
 Engine Room conversation and sends a unique message; Media Feed selects a
@@ -80,10 +84,16 @@ stale supervisor refusal before HTTP, a real post-publication port takeover,
 fixed-origin Vite preservation, retained read/write DOM, and complete
 supervisor/browser/profile/readiness cleanup on success, startup timeout,
 refusal, and repeated signals. Real descendants cover a supervisor leader
-SIGKILL before descriptor publication, a stubborn grandchild that requires
-group escalation, and carrier SIGKILL followed by supervisor parent-lease
-reclamation. The Expo dev-loop suite also kills Metro after listener inventory
-but before publication and proves that startup refuses and removes readiness.
+SIGKILL with a detached Metro group before descriptor publication, a stubborn
+grandchild that requires group escalation, and carrier SIGKILL after browser
+start followed by independent reaper reclamation of supervisor, Metro, Chrome,
+readiness, and profile. A real second loopback socket covers the unrelated
+listener refusal, and a deterministic post-admission takeover serves the same
+application through the still-live front before post-navigation ownership
+validation refuses it. The Expo dev-loop suite drives the production
+`index.mjs` → `runExpoDev` path through repeated SIGTERM and a carrier startup
+timeout at a deterministic pre-publication barrier, and separately kills Metro
+after listener inventory to prove startup refusal and complete reclamation.
 
 Fresh `expo-chat` and `media-feed` scaffolds were materialized outside the
 monorepo from the final 12-package closure and passed their static suites under

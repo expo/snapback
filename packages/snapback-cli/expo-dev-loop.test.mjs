@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
+import { webcrypto } from 'node:crypto';
 import {
   cpSync,
   existsSync,
@@ -15,6 +16,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
+import { IDBFactory } from 'fake-indexeddb';
 
 import {
   createSnapbackExpoBoot,
@@ -34,6 +36,10 @@ import {
   installAndroidPortForwarding,
   runExpoDev,
 } from './expo-dev.mjs';
+import {
+  defineTemplateCarrierConfig,
+  runTemplateCarrierCli,
+} from './carrier-kit.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageRoot, '..', '..');
@@ -44,10 +50,11 @@ assert.ok(existsSync(runtimeBinary), `real Snapback runtime is missing: ${runtim
 const sourceFixture = join(packageRoot, 'fixtures', 'comparator', 'app', 'snapback');
 const scratchRoot = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-expo-dev-loop-')));
 const metroScript = join(scratchRoot, 'headless-metro.mjs');
+const cliLifecycleRunner = join(scratchRoot, 'cli-lifecycle-runner.mjs');
 const supervisors = [];
 
 writeFileSync(metroScript, `
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { getDefaultResultOrder } from 'node:dns';
 
@@ -69,14 +76,6 @@ writeFileSync(process.env.SNAPBACK_EXPO_TEST_SOURCE_MAP, JSON.stringify({
   mappings: '',
 }));
 const server = createServer((request, response) => {
-  if (request.url?.startsWith('/snapback-supervisor-attestation-')) {
-    const asset = new URL('.' + request.url, 'file://' + process.cwd() + '/public/');
-    if (existsSync(asset)) {
-      response.setHeader('content-type', 'text/plain');
-      response.end(readFileSync(asset));
-      return;
-    }
-  }
   response.setHeader('content-type', 'application/json');
   response.end(JSON.stringify({ ok: true, hmr: request.url === '/hmr' }));
 });
@@ -86,6 +85,33 @@ server.listen(port, '127.0.0.1', () => {
 const stop = () => server.close(() => process.exit(0));
 process.once('SIGTERM', stop);
 process.once('SIGINT', stop);
+`);
+
+writeFileSync(cliLifecycleRunner, `
+import { existsSync, writeFileSync } from 'node:fs';
+import { runCli } from ${JSON.stringify(pathToFileURL(join(packageRoot, 'index.mjs')).href)};
+
+const [barrier, cleanupStarted, bundle, sourceMap, metroEnvironment, ...args] = process.argv.slice(2);
+const code = await runCli(args, {
+  env: {
+    ...process.env,
+    SNAPBACK_EXPO_TEST_BUNDLE: bundle,
+    SNAPBACK_EXPO_TEST_SOURCE_MAP: sourceMap,
+    SNAPBACK_EXPO_TEST_ENV: metroEnvironment,
+  },
+  async beforeReadinessPublish({ listeners, metroPid, metroProcessPort, metroOrigin, signal }) {
+    writeFileSync(barrier, JSON.stringify({ listeners, metroPid, metroProcessPort, metroOrigin }));
+    await new Promise((resolveBarrier, rejectBarrier) => {
+      const onAbort = () => {
+        writeFileSync(cleanupStarted, 'started');
+        rejectBarrier(signal.reason ?? new Error('startup interrupted'));
+      };
+      if (signal?.aborted) onAbort();
+      else signal?.addEventListener('abort', onAbort, { once: true });
+    });
+  },
+});
+process.exitCode = code;
 `);
 
 function appStateHarness() {
@@ -118,6 +144,16 @@ async function eventually(check, { timeoutMs = 30_000, label = 'condition' } = {
     await new Promise((resolveWait) => setTimeout(resolveWait, 50));
   }
   throw new Error(`timed out waiting for ${label}${lastError ? `: ${lastError.message}` : ''}`);
+}
+
+function processGroupAlive(pid) {
+  try {
+    process.kill(-pid, 0);
+    return true;
+  } catch (error) {
+    if (error?.code === 'ESRCH') return false;
+    throw error;
+  }
 }
 
 function snapshotEnvFiles(directory) {
@@ -221,11 +257,11 @@ async function startFixture(target, options = {}) {
 }
 
 function assertListenerInventory(supervisor) {
-  assert.deepEqual(
-    [...new Set(supervisor.listeners.map(({ owner }) => owner))].sort(),
-    ['backend', 'bootstrap', 'metro'],
-    'the supervisor must enumerate backend, bootstrap, and Metro listeners',
-  );
+  const owners = [...new Set(supervisor.listeners.map(({ owner }) => owner))].sort();
+  assert(owners.includes('backend'));
+  assert(owners.includes('bootstrap'));
+  assert(owners.includes('metro'));
+  assert(owners.every((owner) => ['backend', 'bootstrap', 'metro', 'metro-front'].includes(owner)));
   assert(supervisor.listeners.every(({ loopback }) => loopback === true));
   assert(supervisor.listeners.every(({ host }) => host === '127.0.0.1' || host === '::1'));
 }
@@ -306,6 +342,23 @@ async function runCliSupervisor(target, platform = 'ios') {
   assert(events.some((event) => event.schemaVersion === 'snapback.expo-dev.v1'
     && event.state === 'closed'));
   return { events, readyEvent, listenerEvent, bearer: exchange.authority.token };
+}
+
+function expoCliArguments(target, {
+  readyFile = target.readyFile,
+  database = target.database,
+} = {}) {
+  return [
+    'dev',
+    target.backendRoot,
+    '--expo',
+    '--expo-platform', 'web',
+    '--expo-dir', target.expoRoot,
+    '--ready-file', readyFile,
+    '--db', database,
+    '--email', 'cli-lifecycle@expo-e1.test',
+    '--expo-command', `${JSON.stringify(process.execPath)} ${JSON.stringify(metroScript)}`,
+  ];
 }
 
 function assertGrepAbsent(label, files, bearers) {
@@ -470,6 +523,114 @@ try {
     process.exit(0);
   }
 
+  // The production index.mjs -> runExpoDev path owns signals before startup
+  // returns and keeps those handlers installed through cleanup. Pause at an
+  // explicit pre-publication barrier, signal twice only after cleanup starts,
+  // and require the real detached Metro group to be gone.
+  const cliSignal = fixture('cli-startup-signal', { sessions: true });
+  mkdirSync(cliSignal.stateRoot, { recursive: true });
+  const cliSignalBarrier = join(cliSignal.stateRoot, 'pre-publish-barrier.json');
+  const cliSignalCleanup = join(cliSignal.stateRoot, 'cleanup-started');
+  const cliSignalChild = spawn(process.execPath, [
+    cliLifecycleRunner,
+    cliSignalBarrier,
+    cliSignalCleanup,
+    cliSignal.bundle,
+    cliSignal.sourceMap,
+    cliSignal.metroEnv,
+    ...expoCliArguments(cliSignal),
+  ], {
+    cwd: cliSignal.projectRoot,
+    env: { ...process.env, SNAPBACK_RUNTIME_BINARY: runtimeBinary },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let cliSignalOutput = '';
+  cliSignalChild.stdout.on('data', (chunk) => { cliSignalOutput += chunk; });
+  cliSignalChild.stderr.on('data', (chunk) => { cliSignalOutput += chunk; });
+  await eventually(() => {
+    if (existsSync(cliSignalBarrier)) return true;
+    if (cliSignalChild.exitCode !== null || cliSignalChild.signalCode !== null) {
+      throw new Error(cliSignalOutput || `CLI exited ${cliSignalChild.exitCode ?? cliSignalChild.signalCode}`);
+    }
+    return false;
+  }, {
+    label: 'production CLI pre-publication signal barrier',
+  });
+  const cliSignalState = JSON.parse(readFileSync(cliSignalBarrier, 'utf8'));
+  cliSignalChild.kill('SIGTERM');
+  await eventually(() => existsSync(cliSignalCleanup), {
+    label: 'production CLI cleanup-start barrier',
+  });
+  cliSignalChild.kill('SIGTERM');
+  const cliSignalExit = await new Promise((resolveExit, rejectExit) => {
+    cliSignalChild.once('error', rejectExit);
+    cliSignalChild.once('close', (code, signal) => resolveExit({ code, signal }));
+  });
+  assert.deepEqual(cliSignalExit, { code: 0, signal: null }, cliSignalOutput);
+  await eventually(() => !processGroupAlive(cliSignalState.metroPid), {
+    label: 'production CLI SIGTERM Metro group cleanup',
+  });
+  assert.equal(existsSync(join(dirname(cliSignal.readyFile), 'expo-supervisor.json')), false);
+  assert.equal(existsSync(join(cliSignal.expoRoot, 'public')), false);
+
+  // Drive the same production runExpoDev barrier through the carrier's real
+  // startup timeout. The carrier SIGTERMs the CLI; the early CLI handlers and
+  // durable Metro lease must jointly leave no detached group or descriptor.
+  const cliTimeout = fixture('cli-startup-timeout', { sessions: true });
+  mkdirSync(cliTimeout.stateRoot, { recursive: true });
+  const cliTimeoutArtifacts = join(scratchRoot, 'cli-startup-timeout-artifacts');
+  const cliTimeoutBarrier = join(cliTimeout.stateRoot, 'pre-publish-barrier.json');
+  const cliTimeoutCleanup = join(cliTimeout.stateRoot, 'cleanup-started');
+  const timeoutVerifier = join(scratchRoot, 'cli-timeout-verifier.mjs');
+  writeFileSync(timeoutVerifier, `
+import { mkdirSync, writeFileSync } from 'node:fs';
+mkdirSync('.snapback', { recursive: true });
+writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
+  schemaVersion: 'snapback.verify-receipt.v1', ok: true, status: 'passed'
+}));
+`);
+  const timeoutConfig = defineTemplateCarrierConfig({
+    schemaVersion: 'snapback.template-carriers.v1',
+    verifyCommand: [process.execPath, timeoutVerifier],
+    verifyReceipt: '.snapback/cli-timeout-verify.json',
+    carriers: {
+      'web-browser': {
+        command: [
+          process.execPath,
+          cliLifecycleRunner,
+          cliTimeoutBarrier,
+          cliTimeoutCleanup,
+          cliTimeout.bundle,
+          cliTimeout.sourceMap,
+          cliTimeout.metroEnv,
+          ...expoCliArguments(cliTimeout, {
+            readyFile: '{artifacts}/dev.ready.json',
+            database: '{artifacts}/dev.sqlite3',
+          }),
+        ],
+        structuredReadiness: {
+          kind: 'expo-supervisor',
+          file: '{artifacts}/expo-supervisor.json',
+        },
+        startupTimeoutMs: 15_000,
+      },
+    },
+  });
+  await assert.rejects(
+    runTemplateCarrierCli(timeoutConfig, [
+      'web-browser', '--browser', metroScript, '--artifacts', cliTimeoutArtifacts,
+    ], { root: scratchRoot }),
+    /did not write structured readiness/u,
+  );
+  assert.equal(existsSync(cliTimeoutBarrier), true);
+  assert.equal(existsSync(cliTimeoutCleanup), true);
+  const cliTimeoutState = JSON.parse(readFileSync(cliTimeoutBarrier, 'utf8'));
+  await eventually(() => !processGroupAlive(cliTimeoutState.metroPid), {
+    label: 'production runExpoDev carrier-timeout Metro group cleanup',
+  });
+  assert.equal(existsSync(join(cliTimeoutArtifacts, 'expo-supervisor.json')), false);
+  assert.equal(existsSync(join(cliTimeout.expoRoot, 'public')), false);
+
   // Settled Sessions mode: real mint, provider boot, canonical live/mutation/
   // presence owners, HMR-shaped reattachment, reconnect, and authority barrier.
   const settled = fixture('settled', { sessions: true });
@@ -495,15 +656,29 @@ try {
   assert.equal(supervisorDiscovery.metro.origin, supervisor.metroOrigin);
   assert(supervisorDiscovery.listeners.some((listener) => (
     listener.owner === 'metro'
-      && listener.port === Number(new URL(supervisor.metroOrigin).port)
+      && listener.port === Number(new URL(supervisorDiscovery.metro.upstreamOrigin).port)
       && listener.loopback === true
       && typeof listener.startTime === 'string'
   )));
-  assert.match(supervisorDiscovery.attestation.path, /^\/snapback-supervisor-attestation-/u);
+  assert(supervisorDiscovery.listeners.some((listener) => (
+    listener.owner === 'metro-front'
+      && listener.port === Number(new URL(supervisor.metroOrigin).port)
+      && listener.pid === process.pid
+      && listener.loopback === true
+  )));
+  assert.match(
+    supervisorDiscovery.attestation.path,
+    /^\/_snapback\/expo\/v1\/web-attestation\//u,
+  );
   assert.equal(supervisorDiscovery.attestation.nonce.length >= 32, true);
   assert.equal(
     await (await fetch(`${supervisor.metroOrigin}${supervisorDiscovery.attestation.path}`)).text(),
     `${supervisorDiscovery.attestation.nonce}\n`,
+  );
+  assert.equal(
+    (await fetch(`${supervisor.metroOrigin}${supervisorDiscovery.attestation.path}`)).status,
+    410,
+    'the process-bound web attestation must be single-use',
   );
   assertListenerInventory(supervisor);
   assert.equal(supervisor.binding.source, 'supervised-dev');
@@ -520,25 +695,48 @@ try {
     join(settled.backendRoot, 'generated', 'app.descriptor.json'),
     'utf8',
   ));
+  // This E1 fixture exercises the legacy supervised authority projection and
+  // its live/query/presence lifecycle. First-party application-auth bootstrap
+  // has its own dedicated suite; keep that newer opt-in from changing this
+  // carrier witness's public ready-state shape.
+  delete app.authBootstrap;
+  app.capabilities.required = app.capabilities.required.filter(
+    (capability) => capability !== 'auth.application-bootstrap.v1',
+  );
   const generated = await import(
     `${pathToFileURL(join(settled.backendRoot, 'generated', 'api.mjs')).href}?e1=${Date.now()}`
   );
   const api = generated.default;
   const appState = appStateHarness();
-  const environment = createSupervisedExpoEnvironment({
+  const supervisedEnvironment = createSupervisedExpoEnvironment({
     exchangeOrigin: supervisor.exchangeOrigin,
     appState,
+    runtimePlatform: 'web',
     clientOptions: {
       rqsStore: null,
       offlineQueue: false,
       clientStoreId: 'expo-e1-provider',
     },
   });
+  const environment = Object.freeze({
+    ...supervisedEnvironment,
+    resolveAppClientPlatform() {
+      return Object.freeze({
+        kind: 'expo-web',
+        indexedDB: new IDBFactory(),
+        lockManager: Object.freeze({
+          request: (_name, _options, operation) => operation(),
+        }),
+        cryptoObject: webcrypto,
+        databaseName: 'snapback-expo-dev-loop',
+      });
+    },
+  });
   const bootStates = [];
   const boot = createSnapbackExpoBoot({ app, environment });
   const offBoot = boot.subscribe(() => bootStates.push(boot.getSnapshot()));
   const ready = await boot.start();
-  assert.equal(ready.status, 'ready');
+  assert.equal(ready.status, 'ready', JSON.stringify(ready));
   assert.equal(ready.binding.target.origin, supervisor.binding.target.origin);
   assert.equal(ready.authority.authMode, 'sessions');
   assert.equal(appState.count(), 1);
@@ -718,6 +916,10 @@ try {
     join(settled.backendRoot, 'generated', 'app.descriptor.json'),
     'utf8',
   ));
+  delete successorApp.authBootstrap;
+  successorApp.capabilities.required = successorApp.capabilities.required.filter(
+    (capability) => capability !== 'auth.application-bootstrap.v1',
+  );
   const successorGenerated = await import(
     `${pathToFileURL(join(settled.backendRoot, 'generated', 'api.mjs')).href}?hot=${Date.now()}`
   );

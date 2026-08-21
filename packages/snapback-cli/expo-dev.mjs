@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import {
   chmodSync,
@@ -10,10 +10,12 @@ import {
   realpathSync,
   renameSync,
   rmSync,
-  rmdirSync,
   writeFileSync,
 } from 'node:fs';
-import { createServer as createHttpServer } from 'node:http';
+import {
+  createServer as createHttpServer,
+  request as createHttpRequest,
+} from 'node:http';
 import { createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -25,7 +27,14 @@ import {
   runDev,
   scrubDynamicLoaderEnvironment,
 } from './index.mjs';
-import { stopProcessGroup } from './process-teardown.mjs';
+import {
+  CLEANUP_LEASE_DIRECTORY_ENV,
+  openCarrierCleanupLease,
+  releaseCleanupResource,
+  reserveCleanupPath,
+  spawnLeasedProcess,
+  stopProcessGroup,
+} from './process-teardown.mjs';
 
 export const EXPO_DEV_EVENT_FORMAT = 'snapback.expo-dev.v1';
 export const EXPO_SUPERVISOR_DESCRIPTOR_FORMAT = 'snapback.expo-supervisor.v1';
@@ -55,6 +64,7 @@ export function expoSupervisorChildEnvironment(env = process.env) {
   // must not mistake their own parentage for the carrier's lease.
   delete childEnv[SUPERVISOR_PARENT_PID_ENV];
   delete childEnv[SUPERVISOR_PARENT_START_TIME_ENV];
+  delete childEnv[CLEANUP_LEASE_DIRECTORY_ENV];
   return childEnv;
 }
 
@@ -1300,7 +1310,12 @@ function lsofBinary() {
 // OS listener table and every observed address must be loopback.
 // @ref LLP 0181#physical-device-lan-relay-separately-gated — a wildcard/LAN
 // Metro listener is the same forbidden front even when the backend is local.
-export function enumerateExpoOwnedListeners({ backendPid, metroPid, supervisorPid = process.pid }) {
+export function enumerateExpoOwnedListeners({
+  backendPid,
+  metroPid,
+  supervisorPid = process.pid,
+  webFrontPort = null,
+}) {
   const binary = lsofBinary();
   if (binary === null) {
     throw diagnosticError(
@@ -1324,7 +1339,7 @@ export function enumerateExpoOwnedListeners({ backendPid, metroPid, supervisorPi
   }
   return Object.freeze(parseLsofListeners(result.stdout).map((listener) => {
     const owner = listener.pid === supervisorPid
-      ? 'bootstrap'
+      ? listener.port === webFrontPort ? 'metro-front' : 'bootstrap'
       : backend.has(listener.pid)
         ? 'backend'
         : 'metro';
@@ -1345,6 +1360,7 @@ async function waitForListenerInventory({
   metroPid,
   expected,
   metroProcess,
+  webFrontPort = null,
   timeoutMs = 30_000,
 }) {
   const deadline = Date.now() + timeoutMs;
@@ -1357,7 +1373,7 @@ async function waitForListenerInventory({
         { status: metroProcess.exitCode, signal: metroProcess.signalCode },
       );
     }
-    last = enumerateExpoOwnedListeners({ backendPid, metroPid });
+    last = enumerateExpoOwnedListeners({ backendPid, metroPid, webFrontPort });
     const complete = expected.every(({ owner, port }) => (
       last.some((listener) => listener.owner === owner && listener.port === port)
     ));
@@ -1376,7 +1392,7 @@ async function waitForListenerInventory({
   }
   throw diagnosticError(
     'SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE',
-    'the supervisor could not enumerate every expected backend, Metro, and bootstrap listener',
+    'the supervisor could not enumerate every expected backend, Metro, front, and bootstrap listener',
     { expected, observed: last },
   );
 }
@@ -1564,58 +1580,130 @@ function metroNodeOptions(nodeOptions) {
     .join(' ');
 }
 
-function createMetroRunAttestation(directory, platform) {
+function createMetroRunAttestation(platform) {
   if (platform !== 'web') return null;
-  const publicDirectory = join(directory, 'public');
-  let createdPublicDirectory = false;
-  if (existsSync(publicDirectory)) {
-    const metadata = lstatSync(publicDirectory);
-    if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
-      throw diagnosticError(
-        'SNAPBACK_EXPO_METRO_ATTESTATION_UNAVAILABLE',
-        'Expo web attestation requires public/ to be a real directory',
-        { path: publicDirectory },
-      );
-    }
-  } else {
-    mkdirSync(publicDirectory, { recursive: false, mode: 0o700 });
-    createdPublicDirectory = true;
-  }
   const nonce = randomBytes(32).toString('base64url');
-  const name = `snapback-supervisor-attestation-${randomUUID()}.txt`;
-  const file = join(publicDirectory, name);
-  try {
-    writeFileSync(file, `${nonce}\n`, { flag: 'wx', mode: 0o600 });
-  } catch (error) {
-    if (createdPublicDirectory) {
-      try { rmdirSync(publicDirectory); } catch { /* original refusal wins */ }
-    }
-    throw error;
-  }
-  let removed = false;
+  const path = `/_snapback/expo/v1/web-attestation/${randomUUID()}`;
+  let consumed = false;
   return Object.freeze({
-    path: `/${name}`,
+    path,
     nonce,
-    file,
-    remove() {
-      if (removed) return;
-      removed = true;
-      rmSync(file, { force: true });
-      if (createdPublicDirectory) {
-        try { rmdirSync(publicDirectory); } catch {
-          // Never recursively remove an app directory: if something else
-          // appeared while Metro ran, it no longer belongs to this lease.
-        }
+    serve(request, response) {
+      if (request.method !== 'GET' || request.url !== path) return false;
+      response.setHeader('cache-control', 'no-store, max-age=0');
+      response.setHeader('pragma', 'no-cache');
+      response.setHeader('content-type', 'text/plain; charset=utf-8');
+      if (consumed) {
+        response.statusCode = 410;
+        response.end('attestation already consumed\n');
+        return true;
       }
+      // Latch before writing any bytes: concurrent requests cannot both
+      // consume the same run-bound capability.
+      consumed = true;
+      response.statusCode = 200;
+      response.end(`${nonce}\n`);
+      return true;
     },
   });
 }
 
-function startMetro({ command, directory, port, platform, bootstrapOrigin, env, emit, onExit }) {
+function proxyUpgrade(request, socket, head, upstream) {
+  const proxy = createHttpRequest({
+    hostname: upstream.hostname,
+    port: upstream.port,
+    method: request.method,
+    path: request.url,
+    headers: { ...request.headers, host: upstream.host },
+  });
+  proxy.once('upgrade', (response, upstreamSocket, upstreamHead) => {
+    const headers = Object.entries(response.headers)
+      .flatMap(([name, value]) => (Array.isArray(value)
+        ? value.map((entry) => `${name}: ${entry}`)
+        : value === undefined ? [] : [`${name}: ${value}`]));
+    socket.write([
+      `HTTP/1.1 ${response.statusCode} ${response.statusMessage ?? 'Switching Protocols'}`,
+      ...headers,
+      '',
+      '',
+    ].join('\r\n'));
+    if (head.length > 0) upstreamSocket.write(head);
+    if (upstreamHead.length > 0) socket.write(upstreamHead);
+    upstreamSocket.pipe(socket);
+    socket.pipe(upstreamSocket);
+  });
+  proxy.once('response', (response) => {
+    socket.end(`HTTP/1.1 ${response.statusCode ?? 502} Bad Gateway\r\nConnection: close\r\n\r\n`);
+  });
+  proxy.once('error', () => socket.destroy());
+  proxy.end();
+}
+
+async function startMetroWebFront({ port, upstreamOrigin, attestation }) {
+  const upstream = new URL(upstreamOrigin);
+  const sockets = new Set();
+  const server = createHttpServer((request, response) => {
+    if (attestation.serve(request, response)) return;
+    const proxy = createHttpRequest({
+      hostname: upstream.hostname,
+      port: upstream.port,
+      method: request.method,
+      path: request.url,
+      headers: { ...request.headers, host: upstream.host },
+    }, (upstreamResponse) => {
+      response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
+      upstreamResponse.pipe(response);
+    });
+    proxy.once('error', () => {
+      if (response.headersSent) response.destroy();
+      else {
+        response.statusCode = 502;
+        response.end('supervised Metro unavailable\n');
+      }
+    });
+    request.pipe(proxy);
+  });
+  server.on('connection', (socket) => {
+    sockets.add(socket);
+    socket.once('close', () => sockets.delete(socket));
+  });
+  server.on('upgrade', (request, socket, head) => proxyUpgrade(request, socket, head, upstream));
+  await new Promise((resolveListen, rejectListen) => {
+    server.once('error', rejectListen);
+    server.listen(port, LOOPBACK_HOST, resolveListen);
+  });
+  return Object.freeze({
+    origin: `http://${LOOPBACK_HOST}:${port}`,
+    port,
+    upstreamOrigin,
+    async close() {
+      server.closeAllConnections?.();
+      for (const socket of sockets) socket.destroy();
+      await new Promise((resolveClose, rejectClose) => {
+        server.close((error) => (error ? rejectClose(error) : resolveClose()));
+      });
+    },
+  });
+}
+
+function startMetro({
+  command,
+  directory,
+  port,
+  platform,
+  bootstrapOrigin,
+  env,
+  emit,
+  onExit,
+  cleanupLease = null,
+}) {
   const resolved = resolveExpoMetroCommand(command, port, platform);
-  const child = spawn(resolved.executable, resolved.args, {
-    shell: resolved.shell,
-    detached: process.platform !== 'win32',
+  const launch = resolved.shell
+    ? ['/bin/sh', '-c', resolved.executable]
+    : [resolved.executable, ...resolved.args];
+  const child = spawnLeasedProcess(launch, {
+    cleanupLease,
+    label: 'Expo Metro',
     cwd: directory,
     env: expoMetroChildEnvironment({ env, bootstrapOrigin, port }),
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -1759,6 +1847,7 @@ export async function runExpoDev(options = {}) {
   let dev = null;
   let bootstrap = null;
   let metro = null;
+  let metroFront = null;
   let forwarding = null;
   let binding = null;
   let authority = null;
@@ -1770,11 +1859,15 @@ export async function runExpoDev(options = {}) {
   let closePromise = null;
   let closeSupervisor = null;
   let parentLease = null;
+  let cleanupLease = null;
   let metroAttestation = null;
   let startupCriticalExit = null;
   let startupPublished = false;
   let supervisorDescriptorFile = null;
   let supervisorDescriptorTemporaryFile = null;
+  const descriptorCleanupResources = [];
+  const abortSignal = options.signal ?? null;
+  let abortListener = null;
   const appDescriptorPath = join(backendRoot, 'generated', 'app.descriptor.json');
   let rotateBindingAfterLoad = () => null;
   const close = () => {
@@ -1788,9 +1881,13 @@ export async function runExpoDev(options = {}) {
         if (path === null) continue;
         try { rmSync(path, { force: true }); } catch (error) { failures.push(error); }
       }
+      for (const resource of descriptorCleanupResources.splice(0)) {
+        try { releaseCleanupResource(resource); } catch (error) { failures.push(error); }
+      }
       try { forwarding?.remove?.(); } catch (error) { failures.push(error); }
+      try { await metroFront?.close?.(); } catch (error) { failures.push(error); }
+      metroFront = null;
       try { await stopProcessGroup(metro?.child, { processGroup: true }); } catch (error) { failures.push(error); }
-      try { metroAttestation?.remove?.(); } catch (error) { failures.push(error); }
       metroAttestation = null;
       try { await bootstrap?.close?.(); } catch (error) { failures.push(error); }
       try { await dev?.close?.(); } catch (error) { failures.push(error); }
@@ -1799,6 +1896,8 @@ export async function runExpoDev(options = {}) {
       checkoutNonce = null;
       authority = null;
       binding = null;
+      if (abortListener !== null) abortSignal?.removeEventListener('abort', abortListener);
+      abortListener = null;
       emit({ ok: failures.length === 0, state: 'closed', reclaimed: {
         backend: dev?.managed === true,
         metro: metro !== null,
@@ -1828,6 +1927,18 @@ export async function runExpoDev(options = {}) {
       );
     }
   };
+  if (abortSignal !== null) {
+    abortListener = () => reportCriticalExit(
+      abortSignal.reason instanceof Error
+        ? abortSignal.reason
+        : diagnosticError(
+          'SNAPBACK_EXPO_DEV_INTERRUPTED',
+          'the Expo supervisor was interrupted during startup',
+        ),
+    );
+    if (abortSignal.aborted) abortListener();
+    else abortSignal.addEventListener('abort', abortListener, { once: true });
+  }
   try {
     // Install the carrier lease before starting any owned process. If the
     // carrier is SIGKILLed during backend startup, the supervisor must still
@@ -1836,9 +1947,17 @@ export async function runExpoDev(options = {}) {
       env: options.env ?? process.env,
       onLost: reportCriticalExit,
     });
+    cleanupLease = openCarrierCleanupLease(options.env ?? process.env);
     assertStartupActive();
     const selectedDevice = resolveExpoDeviceSelection({ ...options, env: childEnv });
+    const platform = options.platform ?? 'ios';
     const metroPort = options.metroPort ?? await freeLoopbackPort();
+    let metroProcessPort = platform === 'web'
+      ? options.metroProcessPort ?? await freeLoopbackPort()
+      : metroPort;
+    while (platform === 'web' && metroProcessPort === metroPort) {
+      metroProcessPort = await freeLoopbackPort();
+    }
     const backendEnv = expoBackendDevAuthEnvironment(childEnv, metroPort);
     emit({
       ok: true,
@@ -2022,9 +2141,11 @@ export async function runExpoDev(options = {}) {
             backendPid: refreshedReady.pid,
             metroPid: metro.child.pid,
             metroProcess: metro.child,
+            webFrontPort: metroFront?.port ?? null,
             expected: [
               { owner: 'backend', port: backendRoute.port },
-              { owner: 'metro', port: metroPort },
+              { owner: 'metro', port: metroProcessPort },
+              ...(metroFront === null ? [] : [{ owner: 'metro-front', port: metroPort }]),
               { owner: 'bootstrap', port: bootstrap.port },
             ],
             timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
@@ -2147,19 +2268,17 @@ export async function runExpoDev(options = {}) {
         binding: publicBinding(binding),
       };
     };
-    metroAttestation = createMetroRunAttestation(
-      expoDirectory,
-      options.platform ?? 'ios',
-    );
+    metroAttestation = createMetroRunAttestation(platform);
     assertStartupActive();
     metro = startMetro({
       command: options.metroCommand,
       directory: expoDirectory,
-      port: metroPort,
-      platform: options.platform ?? 'ios',
+      port: metroProcessPort,
+      platform,
       bootstrapOrigin: appOrigin(route.appHost, bootstrap.port),
       env: childEnv,
       emit,
+      cleanupLease,
       onExit(code, signal, cause) {
         if (!closed) {
           const error = diagnosticError(
@@ -2173,14 +2292,23 @@ export async function runExpoDev(options = {}) {
         }
       },
     });
+    if (platform === 'web') {
+      metroFront = await startMetroWebFront({
+        port: metroPort,
+        upstreamOrigin: appOrigin(LOOPBACK_HOST, metroProcessPort),
+        attestation: metroAttestation,
+      });
+    }
     const backendPid = dev.child?.pid ?? readyDescriptor.pid;
     listeners = await waitForListenerInventory({
       backendPid,
       metroPid: metro.child.pid,
       metroProcess: metro.child,
+      webFrontPort: metroFront?.port ?? null,
       expected: [
         { owner: 'backend', port: backendRoute.port },
-        { owner: 'metro', port: metroPort },
+        { owner: 'metro', port: metroProcessPort },
+        ...(metroFront === null ? [] : [{ owner: 'metro-front', port: metroPort }]),
         { owner: 'bootstrap', port: bootstrap.port },
       ],
       timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
@@ -2256,10 +2384,15 @@ export async function runExpoDev(options = {}) {
         'a supervised child left the supervisor process tree before readiness',
       );
     }
-    listeners = enumerateExpoOwnedListeners({ backendPid, metroPid: metro.child.pid });
+    listeners = enumerateExpoOwnedListeners({
+      backendPid,
+      metroPid: metro.child.pid,
+      webFrontPort: metroFront?.port ?? null,
+    });
     const expectedListeners = [
       { owner: 'backend', port: backendRoute.port },
-      { owner: 'metro', port: metroPort },
+      { owner: 'metro', port: metroProcessPort },
+      ...(metroFront === null ? [] : [{ owner: 'metro-front', port: metroPort }]),
       { owner: 'bootstrap', port: bootstrap.port },
     ];
     if (!expectedListeners.every(({ owner, port }) => (
@@ -2278,7 +2411,7 @@ export async function runExpoDev(options = {}) {
       );
     }
     const metroListener = listeners.find((listener) => (
-      listener.owner === 'metro' && listener.port === metroPort
+      listener.owner === 'metro' && listener.port === metroProcessPort
     ));
     const metroTree = descendants(metro.child.pid, finalProcessInventory);
     if (!metroListener || !metroTree.has(metroListener.pid)) {
@@ -2287,10 +2420,19 @@ export async function runExpoDev(options = {}) {
         'the admitted Metro listener no longer belongs to the Metro child tree',
       );
     }
+    await options.beforeReadinessPublish?.({
+      listeners,
+      metroPid: metro.child.pid,
+      metroProcessPort,
+      metroOrigin: appOrigin(route.appHost, metroPort),
+      signal: options.signal ?? null,
+    });
+    assertStartupActive();
     const metroReadiness = Object.freeze({
       pid: metro.child.pid,
       startTime: metroProcessIdentity.startTime,
       origin: appOrigin(route.appHost, metroPort),
+      upstreamOrigin: appOrigin(LOOPBACK_HOST, metroProcessPort),
     });
     const bootstrapReadiness = Object.freeze({
       origin: appOrigin(route.appHost, bootstrap.port),
@@ -2311,6 +2453,13 @@ export async function runExpoDev(options = {}) {
     };
     supervisorDescriptorFile = join(dirname(dev.readyFile), 'expo-supervisor.json');
     supervisorDescriptorTemporaryFile = `${supervisorDescriptorFile}.${process.pid}.${correlationId}.tmp`;
+    for (const [path, label] of [
+      [supervisorDescriptorFile, 'Expo supervisor readiness'],
+      [supervisorDescriptorTemporaryFile, 'Expo supervisor readiness temporary'],
+    ]) {
+      const resource = reserveCleanupPath(cleanupLease, path, { type: 'file', label });
+      if (resource !== null) descriptorCleanupResources.push(resource);
+    }
     writeFileSync(supervisorDescriptorTemporaryFile, `${JSON.stringify({
       schemaVersion: EXPO_SUPERVISOR_DESCRIPTOR_FORMAT,
       formatVersion: 1,

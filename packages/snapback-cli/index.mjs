@@ -6886,66 +6886,114 @@ export async function runCli(argv, options = {}) {
         ? options.runExpoDev
         : expoDevModule.runExpoDev;
       let criticalExit = null;
-      let rejectCritical = null;
-      const result = await runExpoDev({
-        backendDirectory,
-        attach,
-        ...(readyFile ? { readyFile } : {}),
-        ...(applicationReadyFile ? { applicationReadyFile } : {}),
-        ...(database ? { database } : {}),
-        ...(expoDirectory ? { expoDirectory } : {}),
-        ...(expoEmail ? { email: expoEmail } : {}),
-        ...(expoCommand ? { metroCommand: expoCommand } : {}),
-        ...(androidSerial ? { androidSerial } : {}),
-        ...(iosUdid ? { iosUdid } : {}),
-        ...(nativeCheckout ? { nativeCheckout: true } : {}),
-        ...(iosBundleIdentifier ? { iosBundleIdentifier } : {}),
-        ...(androidComponent ? { androidComponent } : {}),
-        ...(expoAppScheme ? { expoAppScheme } : {}),
-        platform: expoSelectedPlatform,
-        onEvent(event) { console.log(JSON.stringify(event)); },
-        onCriticalExit(error) {
-          criticalExit = error;
-          rejectCritical?.(error);
-        },
-        ...options,
+      let result = null;
+      let detachInput = () => {};
+      let stopping = false;
+      let closePromise = null;
+      let resolveStop;
+      let rejectStop;
+      const stopped = new Promise((resolveStopped, rejectStopped) => {
+        resolveStop = resolveStopped;
+        rejectStop = rejectStopped;
       });
-      if (result.ok === false) {
-        printResult(result, json);
-        return 1;
-      }
-      await new Promise((resolveStop, rejectStop) => {
-        let stopping = false;
-        let detachInput = () => {};
-        const settle = async (failure = null) => {
-          if (stopping) return;
-          stopping = true;
-          process.off('SIGINT', stop);
-          process.off('SIGTERM', stop);
-          process.off('SIGHUP', stop);
-          detachInput();
+      const interrupt = new AbortController();
+      const settle = (failure = null) => {
+        if (stopping) return closePromise;
+        stopping = true;
+        detachInput();
+        closePromise = (async () => {
           try {
-            await result.close();
+            await result?.close?.();
             if (failure) rejectStop(failure);
             else resolveStop();
           } catch (error) {
             rejectStop(error);
           }
+        })();
+        return closePromise;
+      };
+      let receivedSignal = null;
+      const handlers = new Map();
+      for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+        const handler = () => {
+          // Keep every real handler installed through cleanup. Repeated
+          // signals latch onto the first interruption instead of restoring
+          // Node's default termination while detached groups are reclaimed.
+          if (receivedSignal !== null) return;
+          receivedSignal = signal;
+          const error = diagnosticError(
+            'SNAPBACK_EXPO_DEV_INTERRUPTED',
+            `the Expo supervisor was interrupted by ${signal}`,
+            { signal },
+          );
+          interrupt.abort(error);
+          void settle();
         };
-        function stop() { void settle(); }
-        rejectCritical = (error) => { void settle(error); };
-        process.once('SIGINT', stop);
-        process.once('SIGTERM', stop);
-        process.once('SIGHUP', stop);
+        handlers.set(signal, handler);
+        process.on(signal, handler);
+      }
+      const externalAbort = () => {
+        if (!interrupt.signal.aborted) interrupt.abort(options.signal?.reason);
+        void settle();
+      };
+      if (options.signal?.aborted) externalAbort();
+      else options.signal?.addEventListener('abort', externalAbort, { once: true });
+      try {
+        result = await runExpoDev({
+          ...options,
+          backendDirectory,
+          attach,
+          ...(readyFile ? { readyFile } : {}),
+          ...(applicationReadyFile ? { applicationReadyFile } : {}),
+          ...(database ? { database } : {}),
+          ...(expoDirectory ? { expoDirectory } : {}),
+          ...(expoEmail ? { email: expoEmail } : {}),
+          ...(expoCommand ? { metroCommand: expoCommand } : {}),
+          ...(androidSerial ? { androidSerial } : {}),
+          ...(iosUdid ? { iosUdid } : {}),
+          ...(nativeCheckout ? { nativeCheckout: true } : {}),
+          ...(iosBundleIdentifier ? { iosBundleIdentifier } : {}),
+          ...(androidComponent ? { androidComponent } : {}),
+          ...(expoAppScheme ? { expoAppScheme } : {}),
+          platform: expoSelectedPlatform,
+          signal: interrupt.signal,
+          onEvent(event) {
+            console.log(JSON.stringify(event));
+            options.onEvent?.(event);
+          },
+          onCriticalExit(error) {
+            criticalExit = error;
+            options.onCriticalExit?.(error);
+            if (result !== null) void settle(error);
+          },
+        });
+        if (result.ok === false) {
+          printResult(result, json);
+          return 1;
+        }
+        if (interrupt.signal.aborted) {
+          await settle();
+          return 0;
+        }
         detachInput = attachDevControlChannel({
           verbs: result.verbs,
-          stop,
+          stop() { void settle(); },
           onEvent(event) { result.reportControlEvent(event); },
           stdin: options.stdin ?? process.stdin,
         });
         if (criticalExit) void settle(criticalExit);
-      });
-      return 0;
+        await stopped;
+        return 0;
+      } catch (error) {
+        if (interrupt.signal.aborted) {
+          await closePromise;
+          return 0;
+        }
+        throw error;
+      } finally {
+        options.signal?.removeEventListener('abort', externalAbort);
+        for (const [signal, handler] of handlers) process.off(signal, handler);
+      }
     }
     // A restart replaces the managed child, so unexpected-exit detection goes
     // through runDev's onServerExit callback instead of a listener pinned to

@@ -219,10 +219,11 @@ async function seededRows(origin, bearer) {
 }
 
 function assertListenerInventory(supervisor) {
-  assert.deepEqual(
-    [...new Set(supervisor.listeners.map(({ owner }) => owner))].sort(),
-    ['backend', 'bootstrap', 'metro'],
-  );
+  const owners = [...new Set(supervisor.listeners.map(({ owner }) => owner))].sort();
+  assert(owners.includes('backend'));
+  assert(owners.includes('bootstrap'));
+  assert(owners.includes('metro'));
+  assert(owners.every((owner) => ['backend', 'bootstrap', 'metro', 'metro-front'].includes(owner)));
   assert(supervisor.listeners.every(({ loopback }) => loopback === true));
 }
 

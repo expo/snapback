@@ -6,6 +6,17 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-21 (v) — Replaces the reusable `public/` attestation
+asset with a supervisor-owned loopback front: browsers navigate through that
+front to Metro and consume one in-memory, run-bound attestation exactly once.
+The director then repeats descriptor, PID/start-time, process-tree, front
+listener, and upstream Metro-listener validation after navigation. A detached
+reaper is established before the CLI starts; atomically registered PGID leases
+gate Metro and Chrome exec, exact-path leases cover readiness and the browser
+profile, and carrier/supervisor death triggers independent reclamation. The
+real CLI owns signals before `runExpoDev` begins and retains them until cleanup
+settles.
+**Revised:** 2026-08-21 (t) — Hardens the supervised browser carrier at its;
 **Revised:** 2026-08-21 (u) — Hardens the supervised browser carrier at its
 last-use boundary: the readiness descriptor binds supervisor, Metro child,
 and admitted listener to PID/start-time identities; the carrier re-enumerates
@@ -741,21 +752,32 @@ listener or alternate binding format.
 
 The browser director treats readiness as a last-use capability, not a durable
 claim about a port. The supervisor descriptor records PID/start-time identities
-for the supervisor, Metro child, and exact listener. Immediately before Chrome
-launch, the director re-enumerates the live process tree and listener owner and
-requires those identities to remain unchanged. The supervisor also places an
-unguessable, run-specific attestation asset on the Metro-served origin; after
-navigation the director fetches it from the launched page's exact origin over
-the DevTools channel and compares the supervisor-known nonce. A listener that
-takes over the port after descriptor publication therefore cannot silently
-satisfy browser acceptance.
+for the supervisor, Metro child, supervisor front, and upstream Metro listener.
+Immediately before Chrome launch, the director re-enumerates the live process
+tree and both listener owners and requires those identities to remain
+unchanged. The browser-visible origin is the supervisor-owned loopback front
+over Metro. That front holds an unguessable run-specific attestation only in
+memory and serves it exactly once; no reusable asset or app `public/` mutation
+exists. After navigation the director fetches that capability from the
+launched page's exact origin over the DevTools channel, then repeats the
+descriptor, PID/start-time, process-tree, front-listener, and
+upstream-Metro-listener checks. A same-project Metro that takes the upstream
+port after the pre-launch check can serve the same application bytes but
+cannot survive the post-navigation ownership validation.
 
-The supervisor installs a PID/start-time parent lease before it starts any
-owned child. Loss of the carrier latches a critical exit and reclaims the
-backend, Metro, bootstrap exchange, descriptor, and attestation. Shutdown owns
-recorded process groups even when a group leader has already exited, escalates
-stubborn descendants, and consumes repeated termination signals until cleanup
-has completed.
+Before the CLI starts, the carrier publishes an owner-only durable cleanup
+lease and launches an independent detached reaper bound to the carrier's
+PID/start-time identity. Each detached workload reserves a resource record;
+its launcher atomically records the future PGID and validates its still-live
+reservation owner before `exec`, so Metro and Chrome cannot begin in an
+unrecorded group. Exact-path records cover the transient readiness descriptor
+and browser profile. The reaper reclaims all records on carrier death and
+reclaims supervisor-owned groups and paths on supervisor death, independently
+of either process's `finally` blocks. The supervisor's parent lease remains the
+cooperative fast path. Shutdown owns recorded process groups even after a
+leader exits, escalates stubborn descendants, treats failed SIGKILL
+reclamation as failure, and the real CLI consumes repeated termination signals
+from before `runExpoDev` starts until cleanup has completed.
 
 ### Real devices in the baseline
 

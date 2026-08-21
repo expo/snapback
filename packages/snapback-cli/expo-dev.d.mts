@@ -159,7 +159,7 @@ export interface ExpoRoutingPlan {
 }
 
 export interface ExpoOwnedListener {
-  readonly owner: 'backend' | 'metro' | 'bootstrap';
+  readonly owner: 'backend' | 'metro' | 'metro-front' | 'bootstrap';
   readonly pid: number;
   readonly command: string | null;
   readonly host: string;
@@ -281,6 +281,7 @@ export function enumerateExpoOwnedListeners(options: Readonly<{
   backendPid: number;
   metroPid: number;
   supervisorPid?: number;
+  webFrontPort?: number | null;
 }>): readonly ExpoOwnedListener[];
 
 export function mintSupervisedOrdinarySession(options: Readonly<{
