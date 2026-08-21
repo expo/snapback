@@ -97,6 +97,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'bun-relay.test.mjs',
       'channel-a.test.mjs',
       'dev-identity-relay.test.mjs',
+      'packed-password-relay.test.mjs',
       'package.test.mjs',
       'password-recovery-relay.test.mjs',
       'rqs-serializer.test.mjs',
@@ -556,7 +557,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 317,
+  expectedTotal = 318,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1024,6 +1025,8 @@ export function checkPackageTestInventories(options = {}) {
 // 316 -> 317 (2026-08-21, LLP 0181 native auth digest):
 // @expo/snapback-expo gains WebCrypto/iOS/Android partition parity and the
 // hashing-versus-secure-randomness capability-separation suite.
+// 317 -> 318 (2026-08-21, LLP 0295 1A round-2): @expo/snapback-vite retains
+// the packed browser/auth-barrier lifecycle proof alongside the native-server proof.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
