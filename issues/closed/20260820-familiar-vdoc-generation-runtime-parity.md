@@ -3,7 +3,7 @@
 **Status:** Closed
 **Opened:** 2026-08-20
 **Resolved:** 2026-08-21
-**Landing SHA:** TBD
+**Landing SHA:** c002a2932
 **Systems:** Familiar authoring, Code generation, Result contracts, Runtime
 **Related:** LLP 0253; LLP 0277 P18; LLP 0295; Diary 0093
 
