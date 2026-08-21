@@ -47,48 +47,71 @@ The W5 design packet is written as the dated amendment **LLP 0267 §7**
 ("Runtime cost visibility at the app boundary"), marked *Proposed per
 LLP 0295 W5; owners to accept* — LLP 0267 for server/query phases,
 LLP 0095/LLP 0114 for client inspection and provider multiplicity, LLP 0278
-for subscription-budget interactions. Summary:
+for subscription-budget interactions. Revised same day (LLP 0267 v0.8)
+resolving the dual xhigh review round (codex 5 MAJOR + grok MAJORs 1–5,
+MINORs 6–15). Summary:
 
 - **Posture settled first (LLP 0295 open question 5 — recommendation: yes).**
   Local developer diagnostics only in v1; hosted telemetry is an explicit
-  nonclaim (no export, no upload, no wire protocol; hosted recorder off by
+  nonclaim (no export, no upload, no new streaming/telemetry protocol; the
+  single egress is the gated pull snapshot; hosted recorder off by
   default; instance-local operator inspection is not telemetry). Lifting the
   nonclaim requires a new dated amendment with its own privacy review.
 - **Redaction:** LLP 0267 §1.1 / LLP 0108 value-free discipline, with two
-  local-only extensions: client-visible correlation ids (clientMutationId,
-  subscription/connection id, D0.5 owner label) and a non-reversible args
-  hash for equivalence counting. Raw args, row contents/ids, principals,
-  tokens, endpoints remain forbidden everywhere.
-- **Bounded storage:** fixed-capacity per-family rings (default 512 records,
-  ≤4 MiB total, overwrite-oldest with a visible `droppedRecords` counter),
-  monotone O(1) counters, no durable persistence, counters-exact /
-  details-sampled sampling rule, pull-only snapshot, recorder default on in
-  `snapback dev` and off in serving.
+  gated-surface-only extensions: framework-minted correlation ids
+  (clientMutationId, subscription/connection id, opaque asset id, D0.5
+  owner label — labels constrained to framework surface identifiers) and
+  the §5 window-ledger canonical-args hash for equivalence counting
+  (honestly framed: a fingerprint for low-entropy args, hence gated-only).
+  Raw args, row contents/ids, principals, tokens, endpoints remain
+  forbidden everywhere; retained observations project `fixtureIdentity` to
+  null and the D0.5 tuple projects to authority class + instance self, no
+  literal origin. `PublicInspect` gains no cost fields.
+- **Bounded storage:** three ring families, each bounded by record count
+  (512) and byte-accounted per-family budgets (≤4 MiB total) with
+  truncation markers and per-family `droppedRecords`; per-key counter maps
+  capped (1,024 keys) with `otherKeys` aggregate + `evictedKeys` so totals
+  stay exact; no durable persistence; counters-exact/details-sampled;
+  gated pull-only snapshot; recorder default on in `snapback dev` and off
+  in serving.
 - **Mutation phases:** consumes LLP 0059 ruling 6 (D0.2) fields unchanged;
-  adds only the derived vocabulary (`queueWaitMs`, `authWaitMs`,
-  `executionMs`, `commitMs`, `deliveryLagMs`) and a bounded
-  `MutationPhaseCostV1` retention.
+  adds the derived vocabulary (`queueWaitMs`, `authWaitMs`, `executionMs`,
+  `commitMs`, null when a phase is unreached) and a typed
+  `MutationPhaseCostV1` client ring; delivery lag is subscription-scoped
+  only (first covering delivery, client clock) and lives on the inspection
+  row, not the mutation record; server contributes per-function phase
+  counters.
 - **Query/live:** bounded retention of `QueryCostObservationV1` (examined
-  rows already there) plus new `LiveDeliveryWaveV1` — closed `rerunCause`
-  enum, observed subscriberCount/distinctEvaluationGroups, deliveredFrames,
-  dedup-suppression count, §1.5 timing reuse; absorbs the deferred
-  `LiveCoalesceStats` exposure from
-  `issues/20260808-live-query-reevaluation-cost-at-scale.md`.
-- **Subscriptions:** consumes the D0.5 inspection floor (owner label,
-  readiness, snapshot version, auth-barrier, suspension reason) and adds the
-  cost join plus a closed missed-delivery vocabulary (suspension/blocked
-  reasons, version-guard/dedup suppression with counter, terminal
-  quarantine, bounded transport recovery) so every missed fan-out delivery
-  names exactly one cause.
+  rows already there; `fixtureIdentity` nulled) plus new **server-owned**
+  `LiveDeliveryWaveV1` — closed trigger-class `rerunCause` with precedence,
+  `coalesced` flag, `coveredVersions` range, observed subscriber/group
+  counts, real/memo turn counts with max+checked-sum timing, and
+  `deliveredVersion` as the join key to client rows. `LiveCoalesceStats`
+  already serialize on `InspectState`/`PublicInspect` (`liveCoalesce`); the
+  wave record complements them and is the per-wave detail the 20260808
+  ticket deferred.
+- **Subscriptions:** consumes the D0.5 inspection floor and budget
+  semantics verbatim (>16 per view warns and remains supported; only the
+  64-per-connection ceiling refuses) and adds the client-owned cost fields
+  (delivery lag, dedup-suppression counter) plus a nullable
+  `pendingDeliveryReason` — a closed six-member enum with a pinned
+  precedence order (terminal-quarantine, auth-barrier, custody-unsettled,
+  authority-unavailable, transport-recovery, server-pending) over a defined
+  owed-delivery condition; value-equal dedup is a completed delivery, not a
+  miss.
 - **Repeated equivalent writes/effects:** only provable equivalences —
   no-op commits (empty row-image delta), identical (function, args-hash)
   enqueues in a window, housekeeping-supersession counts. Warnings/counters
-  only, never refusals; no semantic-intent guessing.
+  only, never refusals; no semantic-intent guessing and no same-function
+  rate detector (differing-args-per-keystroke is out of this counter's
+  scope by design).
 - **React/provider/asset multiplicity:** consumes the D0.5 budgets/
-  diagnostics unchanged; adds duplicate-subscription facts (same function +
-  args hash + tuple under one manager, owner labels named) and
+  diagnostics unchanged; adds duplicate-subscription facts (identity =
+  function + args hash + connection tuple, explicitly excluding the owner
+  label so cross-owner duplicates fire; owner labels are the output) and
   asset-issuance multiplicity per (asset id, owner) window. Warning-class
-  only.
+  only; multiplicity warnings define their own closed register details
+  under §4.1's value-free rule.
 - **Attribution obligations closed:** delayed foreground send via
   `outboxStatus()` + phase record; stalled live projection via inspection
   row + missed-delivery vocabulary + wave record. Acceptance fixtures
@@ -100,22 +123,32 @@ for subscription-budget interactions. Summary:
 - [ ] Owner acceptance: LLP 0267 (this §7), LLP 0095/0114 client half,
       LLP 0278 budget interactions — flip §7's marker from Proposed on
       acceptance.
-- [ ] Recorder core: per-family rings, monotone counters, sampling rule,
-      `droppedRecords`, dev-on/serve-off default, hosted-off proof.
-- [ ] Server phases: authorization/execution/commit spans in the ruled
-      vocabulary; bounded `QueryCostObservationV1` retention.
-- [ ] `LiveDeliveryWaveV1` emission at the §1.5 boundaries, including
-      coalesced-flush and memo-delivery causes; `LiveCoalesceStats` onto the
-      snapshot surface.
-- [ ] Client: `MutationPhaseCostV1` from the ruling-6 fields (after W2 lands
-      the carriers); derived-duration vocabulary in one place.
-- [ ] D0.5 inspection cost join + closed missed-delivery vocabulary
-      (client + provider surfaces).
+- [ ] Recorder core: three ring families with byte-accounted admission,
+      truncation markers, per-family `droppedRecords`; capped counter maps
+      with `otherKeys`/`evictedKeys`; sampling rule; dev-on/serve-off
+      default; hosted-off proof.
+- [ ] Server phases: per-function authorization/execution/commit phase
+      counters in the ruled vocabulary; bounded `QueryCostObservationV1`
+      retention with `fixtureIdentity` projected to null.
+- [ ] `LiveDeliveryWaveV1` emission at the §1.5 boundaries — primary-cause
+      precedence, `coalesced`/`coveredVersions`, per-group max+sum timing,
+      `deliveredVersion` join key (complements the existing `liveCoalesce`
+      inspect fields; no second coalesce surface).
+- [ ] Client: typed `MutationPhaseCostV1` from the ruling-6 fields (after
+      W2 lands the carriers); derived-duration vocabulary in one place;
+      subscription-row delivery lag (first covering delivery, client
+      clock).
+- [ ] D0.5 inspection row: client-owned cost fields + nullable
+      `pendingDeliveryReason` with the pinned precedence order and
+      owed-delivery condition (client + provider surfaces); D0.5 tuple
+      projection (authority class, instance self).
 - [ ] Repeated-equivalent-write counters (no-op commit, equivalent enqueue,
       housekeeping supersession).
 - [ ] React/provider duplicate-subscription and asset-issuance multiplicity
       facts with owner labels.
-- [ ] Inspection snapshot surface (CLI/dev-server spelling) — pull-only.
+- [ ] Inspection snapshot surface (gated LLP 0031 D3 path or in-process
+      CLI; exact spelling implementation-owned) — pull-only; `PublicInspect`
+      unchanged, proven by fixture.
 - [ ] Warning-code spellings through the generated diagnostics register.
 - [ ] Guide: extend `guide/backend/query-costs.md` (or a sibling page) with
       reading the cost snapshot and the two worked attributions.

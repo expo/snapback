@@ -1,13 +1,19 @@
 # LLP 0267: Query-cost guardrails before production admission
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Accepted (§7 only: Proposed per LLP 0295 W5; owners to accept)
 **Systems:** Live queries, Relational queries, Performance, Diagnostics, Schema
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-21 (v0.7 — §7 dated design-proposal amendment: runtime
-cost visibility at the app boundary, proposed per LLP 0295 W5; owners to
-accept). 2026-08-16 (v0.6 — author-authorized trim, no normative change)
+**Revised:** 2026-08-21 (v0.8 — §7 revision round from the dual xhigh
+review: budget wording consumes D0.5 verbatim, byte-accounted rings and
+capped counter maps, gated-only surfaces with D0.5 tuple projection, §5
+canonical-args hash reuse with honest fingerprint framing, server/client
+record split with a defined join key, closed `pendingDeliveryReason`
+precedence enum, `MutationPhaseCostV1` typed). 2026-08-21 (v0.7 — §7 dated
+design-proposal amendment: runtime cost visibility at the app boundary,
+proposed per LLP 0295 W5; owners to accept). 2026-08-16 (v0.6 —
+author-authorized trim, no normative change)
 **Related:** LLP 0209 (bounded live graph profile, especially §§1–2, 8–9),
 LLP 0183 §D2 (bounded relational graph charter), LLP 0198 (typed,
 evidence-heavy strategic frame), LLP 0200 (live evaluation scheduling and
@@ -19,6 +25,7 @@ LLP 0059 (D0.2 ruling 6 — mutation phase timing fields, consumed by §7),
 LLP 0218 (disposition union carrying those fields),
 LLP 0095 and LLP 0278 (D0.5 owner-inspection floor and subscription budgets,
 consumed by §7), LLP 0114 (React provider identity),
+LLP 0031 (D3 public/gated inspection split — §7's snapshot carrier),
 `issues/20260815-query-cost-guardrails-commission.md`,
 `issues/20260808-live-query-reevaluation-cost-at-scale.md`,
 `issues/20260821-app-boundary-runtime-cost-diagnostics-design.md`,
@@ -605,44 +612,80 @@ first and everything after is subordinate to it.
    governance, tenancy isolation, and a privacy review under LLP 0060's
    hosted posture. Coupling W5 to that program would delay the diagnostics
    that unblock the matrix rerun for a capability nobody has asked for.
-3. A local-only v1 makes the redaction contract enforceable by construction:
-   records that never leave the developer's process cannot leak by transport,
-   and the value-free discipline below still applies so a pasted record
-   (into an issue, a diary, a model context) is safe.
+3. A local-only v1 keeps the redaction contract enforceable: records stay
+   on the developer's own instance, the only egress is the gated pull
+   snapshot below, and the value-free discipline still applies so a pasted
+   record (into an issue, a diary, a model context) does not carry
+   application values.
 
 The **hosted nonclaim** is explicit: v1 ships no export, no upload, no
-hosted collection, and no wire protocol for cost records. On a hosted
-instance the recorder is off by default; an operator may enable the same
-in-process inspection for their own instance, which is still instance-local
-inspection, not telemetry. Lifting the nonclaim requires a new dated
-amendment with its own privacy review; implementation tickets may not do it.
+hosted collection, and no new streaming/telemetry protocol for cost
+records. The single egress is the **pull-only snapshot on the existing
+gated inspection surface** (LLP 0031 D3's authenticated
+`/_snapback/api/inspect`-class path, or an in-process CLI read); the
+unauthenticated `PublicInspect` allowlist gains **no** cost fields — no
+rings, no counters, and none of the correlation identities below. On a
+hosted instance the recorder is off by default; an operator may enable the
+same instance-local gated inspection, which is still not telemetry. Lifting
+the nonclaim requires a new dated amendment with its own privacy review;
+implementation tickets may not do it.
 
 **Redaction.** Cost-visibility records inherit §1.1's value-free discipline
 (LLP 0108) verbatim: they may carry `functionId`, host-recomputed
 `planIdentity`, table/index/node ids, typed diagnostic codes, counts,
 durations, and monotonic/wall timestamps. They must never carry arguments,
 literal endpoints, row contents, row ids, principals, tokens, or application
-values. Two locally-scoped extensions beyond §1.1's public-diagnostic rule,
-justified because v1 records never leave the process: (a) client-visible
-correlation identities the developer already holds — `clientMutationId`,
-subscription id, connection id, and the D0.5 owner label (provider cell,
-hook, view, or headless caller; LLP 0095 inspection floor) — are permitted,
-because attribution is the entire point and these identities originate on
-the client being inspected; (b) an args **hash** (host-computed, non-
-reversible, canonical-JSON input) is permitted for equivalence counting
-(§7.5), while raw args remain forbidden. If a future amendment exports any
-record, both extensions revert to §1.1's stricter public rule at the export
-boundary.
+values. The retained `QueryCostObservationV1` (§7.3) is the §1.1 record with
+`fixtureIdentity` projected to `null` — that field is qualification storage
+only and never enters the recorder. Where a record family joins the D0.5
+inspection carrier, the D0.5 **ownership tuple is projected, not copied**:
+settled authority appears as its authority class, never a principal
+identity, and the server-origin component appears as the instance's own
+identity, never a literal URL; D0.5's sharing key itself is unchanged.
+Two gated-surface-only extensions beyond §1.1's public-diagnostic rule,
+each admitted because the identity is framework-minted rather than an
+application value, and each confined to the gated/in-process surfaces
+above (never `PublicInspect`, and reverting to §1.1's stricter public rule
+at any future export boundary):
 
-**Bounded storage.** No unbounded accumulation anywhere:
+- (a) framework-minted correlation identities the inspected client already
+  holds — `clientMutationId` (client-minted), subscription id, connection
+  id, the framework's opaque asset id, and the D0.5 owner label (provider
+  cell, hook, view, or headless caller; LLP 0095 inspection floor). Owner
+  labels are framework-assigned surface labels — component, hook, or cell
+  identifiers — and implementations must not embed argument or row values
+  in them.
+- (b) an args **hash** for equivalence counting (§§7.5–7.6): the same
+  host-computed canonical-args hash the §5 window ledger already binds
+  cursors to — no second algorithm. This hash is non-invertible only for
+  high-entropy arguments; for low-entropy arguments (row ids, principals
+  appearing in args) it is a stable **fingerprint**, which is exactly why
+  it is admitted only on the gated/local surface and forbidden on any
+  public or exported surface. Raw args remain forbidden everywhere.
 
-- Per record family (§§7.2–7.6), one fixed-capacity in-memory ring buffer,
-  overwrite-oldest, with a default capacity of 512 records per family and a
-  total recorder budget of at most 4 MiB; overflow drops oldest, never
-  blocks, and increments a visible `droppedRecords` counter so absence of a
-  record is itself diagnosable.
-- Alongside the rings, monotone per-key counters (function id, owner label)
-  that never reset within a process and cost O(1) per event.
+**Bounded storage.** No unbounded accumulation anywhere, in records or
+keys:
+
+- Exactly **three ring families** exist (client `MutationPhaseCostV1`,
+  server retained `QueryCostObservationV1`, server `LiveDeliveryWaveV1`;
+  §§7.4–7.6 are joins and counters, not rings). Each ring is bounded by
+  **both** a record count (default 512) and a per-family byte budget whose
+  sum is the recorder total (default at most 4 MiB); admission is
+  byte-accounted against the family budget. Variable-size components
+  (`accessPathConsultations`, owner-label lists) are truncated at a fixed
+  per-record cap with a visible `truncated` marker; a record still larger
+  than its family budget is dropped, never admitted. Overflow evicts
+  oldest, never blocks, and increments a per-family `droppedRecords`
+  counter (oversize drops included) so absence of a record is itself
+  diagnosable. These caps are recorder storage bounds for this diagnostics
+  surface, **not** the §3.4 consultation/result-byte enforcement maxima.
+- Per-key counter maps (§7.2 per-function, §7.5 per-(function, args hash),
+  §7.6 per-(asset id, owner label)) hold at most a fixed key capacity
+  (default 1,024 keys per map). At capacity, the least-recently-updated
+  key's counts merge into one visible `otherKeys` aggregate bucket and a
+  monotone `evictedKeys` counter increments; retained-key values and the
+  aggregate bucket never reset within a process, so totals stay exact even
+  when per-key detail is evicted.
 - No durable persistence in v1. A snapshot is produced only on demand at the
   inspection surface (§7.7); nothing serializes on the hot path.
 - Sampling: below a per-family rate threshold every event gets a detail
@@ -650,10 +693,13 @@ boundary.
   sampled. The threshold and sampling rule are implementation-owned; the
   invariant is counters-exact, details-sampled — a count is never wrong,
   a detail record may be missing.
-- Overhead: recording is O(1) field capture per event with no serialization,
-  and a disabled recorder (hosted default) is a branch, not a buffer. The
-  recorder defaults on under `snapback dev` and off under serving; enabling
-  it in serving is an explicit instance flag.
+- Overhead: recording is constant-bounded field capture per event — field
+  copies plus, where an equivalence key is needed, the §5 canonical-args
+  hash the host computes anyway for cursor binding (bounded by the
+  already-enforced args size) — with no snapshot serialization on the hot
+  path. A disabled recorder (hosted default) is a branch, not a buffer.
+  The recorder defaults on under `snapback dev` and off under serving;
+  enabling it in serving is an explicit instance flag.
 
 ### 7.2 Mutation phase visibility (consumes LLP 0059 ruling 6 — decided)
 
@@ -670,23 +716,52 @@ W2's.
 
 What this amendment adds is only the **derived phase vocabulary and its
 bounded retention**. The names are normative so every surface reports the
-same subtraction:
+same subtraction, licensed by ruling 6's field definitions; each duration is
+`null` whenever either endpoint timestamp is `null` (a phase not reached —
+pre-transport refusal, stranded/deleted custody, or a still-pending phase):
 
 - `queueWaitMs = dispatchedAtMs − enqueuedAtMs`
 - `authWaitMs = authorizedAtMs − dispatchedAtMs`
 - `executionMs = executedAtMs − authorizedAtMs`
 - `commitMs = committedAtMs − executedAtMs`
-- `deliveryLagMs = lastDeliveryAtMs − committedAtMs`, defined only for a
-  subscription whose delivered `authoritativeRevision` covers the mutation's
-  committed version, and attributed per subscription, not per mutation.
 
-The client recorder retains one `MutationPhaseCostV1` ring record per
-settled mutation — `clientMutationId`, `functionId`, the five ruled
-timestamps, the derived durations, and the terminal disposition kind — plus
-per-function monotone counters (count, max/total per phase). The server may
-record its authorization/execution/commit spans in the same vocabulary for
-its own inspection surface; where both exist they are two observations of
-the same phases, never merged into one record. No surface reports an
+Delivery lag is deliberately **not** a field of the per-mutation record: it
+is subscription-scoped and lives only on the §7.4 subscription inspection
+row, defined there as client-clock time from the client's observation of the
+committed disposition to its observation of the **first** delivery whose
+`authoritativeRevision` covers that commit — both endpoints are
+client-observed events on one clock, so no cross-clock subtraction against
+server timestamps is implied, and later waves never inflate earlier
+mutations.
+
+The client recorder retains one ring record per settled mutation:
+
+```ts
+type MutationPhaseCostV1 = Readonly<{
+  format: "snapback.mutation-phase-cost.v1"
+  clientMutationId: string
+  functionId: string
+  enqueuedAtMs: number | null
+  dispatchedAtMs: number | null
+  authorizedAtMs: number | null
+  executedAtMs: number | null
+  committedAtMs: number | null
+  queueWaitMs: number | null
+  authWaitMs: number | null
+  executionMs: number | null
+  commitMs: number | null
+  disposition: string   // the LLP 0218 terminal disposition kind
+}>
+```
+
+plus per-function monotone counters (count, max/total per phase). The
+per-mutation detail is client-retained only: ruling 6 already carries the
+server-settled timestamps to the client on the disposition union, so a
+server-side detail ring would duplicate it. The server contributes
+per-function monotone **counters** for its authorization/execution/commit
+spans (count, max/total per phase, same duration vocabulary) on its own
+snapshot; the two sides are two observations of the same phases on two
+clocks and are never merged into one record. No surface reports an
 undifferentiated "pending" (ruling 6's closing invariant).
 
 ### 7.3 Query and live re-evaluation visibility (extends §1, adds delivery)
@@ -694,66 +769,112 @@ undifferentiated "pending" (ruling 6's closing invariant).
 §1's `QueryCostObservationV1` already measures examined rows
 (`scannedRows`, per-consultation `examinedEntries`), result rows/bytes, and
 per-kind timing. W5 adds **bounded local retention** of recent observations
-(one ring, §7.1) so a developer can read the last N observations per
-function without qualification tooling — and one **new sibling record** for
-the facts §1 does not carry, the delivery/rerun side:
+(one ring, §7.1, with `fixtureIdentity` projected to `null`) so a developer
+can read the last N observations per function without qualification tooling
+— and one **new sibling record** for the facts §1 does not carry, the
+delivery/rerun side. This record is **server-owned**: it is emitted in the
+serving process at the §1.5 boundaries and appears only on the server
+snapshot. Client-observed facts (consumer dedup, delivery lag) live on the
+§7.4 client inspection row; the developer-side join key between the two
+snapshots is (`functionId`, delivered version ↔ the client row's
+`authoritativeRevision`), and no wire carrier moves either record to the
+other side.
 
 ```ts
 type LiveDeliveryWaveV1 = Readonly<{
   format: "snapback.live-delivery-wave.v1"
   functionId: string
   planIdentity: string | null
-  rerunCause:
-    | "mutation-invalidation"        // data-driven re-evaluation
-    | "authorization-invalidation"   // auth-lane re-resolution
-    | "coalesced-flush"              // merged frame (rung-1 coalescer)
+  rerunCause:                        // primary trigger class, precedence =
+    | "authorization-invalidation"   //   this listed order when a merged
+    | "mutation-invalidation"        //   wave has several trigger classes
     | "refresh"                      // resync/refresh supersession
     | "reconnect-reestablish"        // fresh snapshot-with-subscribe
-    | "memo-delivery"                // G1 memo hit, no real evaluation
-  triggerVersion: number | null      // mutation version, when data-driven
+  coalesced: boolean                 // this wave flushed a merged frame
+  coveredVersions:                   // commit versions this wave covers
+    Readonly<{ first: number; last: number }> | null
+  deliveredVersion: number | null    // version delivered; the join key
   subscriberCount: number            // observers registered at the wave
   distinctEvaluationGroups: number   // observed groups (G1 memo key)
-  deliveredFrames: number            // fan-out count actually delivered
-  suppressedEqualSnapshots: number   // dedup'd per the LLP 0278 contract
-  evaluationTurnMs: number | null    // §1.5 boundary, real turns only
-  memoDeliveryTurnMs: number | null  // §1.5 boundary, memo turns only
+  realEvaluations: number            // real §1.5 turns in this wave
+  memoDeliveries: number             // G1 memo-only deliveries in this wave
+  deliveredFrames: number            // frames handed to fan-out
+  maxEvaluationTurnMs: number | null   // max over real turns (§1.5)
+  totalEvaluationTurnMs: number | null // checked sum over real turns
+  maxMemoDeliveryTurnMs: number | null // max over memo turns (§1.5)
+  totalMemoDeliveryTurnMs: number | null
 }>
 ```
 
-`rerunCause` is a closed enum; a new cause requires a dated amendment.
-`subscriberCount`/`distinctEvaluationGroups` are the **observed**
+`rerunCause` is a closed enum of trigger classes; memo delivery and
+coalescing are not causes — they are how the wave executed, carried by
+`memoDeliveries` and `coalesced` — so a wave that is simultaneously
+mutation-triggered, coalesced, and partly memo-delivered is one record with
+one primary cause. A merged wave covering several commits reports the range
+in `coveredVersions` (`first == last` for a single-commit wave). Per-group
+timing multiplicity is explicit: max and checked-sum per §1.5 kind, never
+one scalar pretending to cover N groups. A new cause requires a dated
+amendment. `subscriberCount`/`distinctEvaluationGroups` are the **observed**
 counterparts of §1.6's declared `maxObservers`/`maxDistinctEvaluationGroups`
 and never substitute for the declaration in policy. Timing reuses §1.5's
 boundaries exactly — this record adds no new clock. The coalescing counters
-(`LiveCoalesceStats`) that
-`issues/20260808-live-query-reevaluation-cost-at-scale.md` deliberately kept
-off the serialized inspect surface land here: this amendment is the
-observability section that ticket deferred to, and the counters join the
-§7.7 snapshot rather than rotating a drift-gated schema of their own.
+(`LiveCoalesceStats`) already serialize on `InspectState`/`PublicInspect` as
+`liveCoalesce` (schema rotation accepted with LLP 0200 §3); this amendment
+adds no second coalesce surface — the wave record's `coalesced` flag and
+`coveredVersions` complement those existing counters, and the per-wave
+detail the 20260808 re-evaluation ticket deferred to a future observability
+section is this record.
 
 ### 7.4 Subscription owner, readiness, and missed delivery (consumes D0.5 — decided)
 
 The per-subscription inspection floor is **already ruled** by LLP 0095's
 D0.5 amendment: owner label, function name, subscription state, held
 snapshot version, auth-barrier/readiness state, and — when delivery is
-suspended — the outbox suspension reason; budget diagnostics fire before the
-64-per-connection ceiling or the provisional 16-per-view budget refuses
-(LLP 0278). None of that is re-decided.
+suspended — the outbox suspension reason. The budget semantics are likewise
+ruled and only consumed here: counts above the provisional 16-per-view
+budget remain **supported** and draw only a structured warning; the sole
+hard refusal is the 64-per-connection transport ceiling, with its own
+pre-refusal warning (LLP 0278/0095). None of that is re-decided.
 
-W5 adds the **cost join**: each inspection row also carries that
-subscription's last `LiveDeliveryWaveV1` facts (last rerun cause, wave
-counters, `lastDeliveryAtMs`, `deliveryLagMs`) so ownership and cost read as
-one row. And it makes the D0.5 answerability requirement checkable as a
-closed rule: for any subscription whose next expected delivery did not
-arrive, the inspection row must name exactly one cause from a **closed
-missed-delivery vocabulary**, all of it already ruled elsewhere and only
-enumerated here — the LLP 0059 suspension/blocked reasons (`auth-barrier`,
-`custody-unsettled`, `authority-unavailable:*`), the LLP 0095/0278
-version-guard equal/stale drop and consumer-level equal-snapshot dedup
-(delivery happened, notification suppressed — reported with the suppression
-counter, never silence), §3.4's terminal quarantine (the retired handle's
-code/details), or transport loss in bounded T-LOSS/T-RECONNECT recovery. A
-missed delivery with none of these is a defect, not a diagnostics gap.
+W5 adds the **client-owned cost fields** on that row — each one an event the
+client itself observes, so no server→client cost carrier is implied:
+`lastDeliveryAtMs` and `authoritativeRevision` (ruled, LLP 0059 ruling 6),
+`deliveryLagMs` (defined in §7.2: first covering delivery, client clock),
+the `suppressedEqualSnapshots` counter (LLP 0278 consumer-notification
+dedup — the suppression happened in this process), and the
+`pendingDeliveryReason` field below. Server wave facts are **not** copied
+onto the row; the developer joins them from the server snapshot by
+(`functionId`, `deliveredVersion` ↔ `authoritativeRevision`) (§7.3).
+
+The D0.5 answerability requirement becomes checkable as a closed rule. A
+subscription is **owed a delivery** when the joined snapshots show a
+committed version, invalidating that subscription, newer than the row's
+`authoritativeRevision`. For every owed delivery, the row's
+`pendingDeliveryReason` (nullable; `null` iff nothing is owed) names exactly
+one member of this closed enum, assigned by first match in this precedence
+order:
+
+1. `terminal-quarantine` — §3.4 retired handle; detail carries the
+   terminal code;
+2. `auth-barrier` — the ruled LLP 0059 barrier suspension;
+3. `custody-unsettled` — the ruled non-barrier custody pause;
+4. `authority-unavailable` — detail carries the ruled
+   `authority-unavailable:*` spelling verbatim, so the enum member is
+   closed while the ruled open-suffix vocabulary stays where LLP 0059
+   owns it;
+5. `transport-recovery` — bounded T-LOSS/T-RECONNECT/T-GRANT-LOSS recovery,
+   including `resync_required`-driven resubscribe in flight;
+6. `server-pending` — delivery owed by the serving process: in-flight §1.5
+   evaluation or a coalescer hold; the server snapshot's wave records and
+   the existing `liveCoalesce` counters disambiguate which.
+
+Consumer-level equal-snapshot dedup is deliberately **not** in this enum:
+a value-equal delivery that advanced `authoritativeRevision` is a completed
+delivery with a suppressed notification (visible via the suppression
+counter and the advanced revision), not a miss. An owed delivery matching
+none of the six members is a product defect, not a diagnostics gap — the
+enum deliberately includes every already-ruled hold state so that sentence
+is decidable.
 
 ### 7.5 Repeated equivalent writes and effects (bounded to what the framework knows)
 
@@ -763,13 +884,15 @@ application intent; everything here is a counter or warning, never a refusal
 
 - **No-op commits.** A committed mutation whose in-transaction row-image
   delta is empty (no net row/index effect) increments a per-function
-  `noopCommits` counter. The matrix's unconditional receipt patches are this
-  shape.
+  `noopCommits` counter.
 - **Equivalent enqueues.** Mutations with identical (`functionId`,
-  args hash — §7.1's non-reversible hash) enqueued within a short
+  args hash — §7.1's canonical-args hash) enqueued within a short
   implementation-owned window increment an equivalence counter keyed by that
   pair; crossing a warn threshold emits one structured warning naming the
-  function and count. Per-keystroke durable writes are this shape.
+  function and count. This detects identical-args repetition only; writes
+  whose args differ each time (an evolving text field per keystroke) are
+  visible through per-function phase counters and the housekeeping lane,
+  not through this counter — same-function rate detection is out of scope.
 - **Housekeeping supersession.** The count of
   `SNAPBACK_HOUSEKEEPING_SUPERSEDED` dispositions per function (LLP 0059
   ruling 4) is surfaced as the measure of coalesced repeated housekeeping —
@@ -789,30 +912,37 @@ pre-refusal warning (LLP 0095). W5 adds two multiplicity facts the framework
 owns enough information to know:
 
 - **Duplicate subscriptions.** N concurrent subscriptions with identical
-  (`functionId`, canonical-args hash, ownership tuple) under one connection
-  manager produce a multiplicity fact listing the N owner labels — the
-  framework knows they are the same query; it does not guess whether the
-  duplication is intended, so this is a warning-class fact with the
-  shared-provider/aggregate alternatives as remediation.
+  (`functionId`, canonical-args hash, D0.5 connection ownership tuple)
+  under one connection manager produce a multiplicity fact listing the N
+  owner labels. The identity **excludes** the owner label — that is what
+  makes cross-owner duplicates fire; the labels are the attribution output,
+  not part of the key. The framework knows they are the same query; it does
+  not guess whether the duplication is intended, so this is a warning-class
+  fact with the shared-provider/aggregate alternatives as remediation.
 - **Asset-issuance multiplicity.** Per (asset identity, owner label), a
   counter of asset URL/hook issuances within an implementation-owned window;
   crossing a warn threshold names the owner labels and count (the "dozens
   of unnecessary asset hooks per card" shape). Asset identity here is the
-  framework's opaque asset id, never a URL with embedded secrets.
+  framework's opaque asset id (§7.1 extension (a)), never a URL with
+  embedded secrets.
 
-Both surface through the same D0.5 inspection carrier and §7.7 snapshot;
-neither adds a refusal.
+Both surface through the same D0.5 inspection carrier and §7.7 snapshot
+(gated surfaces only); neither adds a refusal.
 
 ### 7.7 Surfaces, worked attributions, and acceptance
 
 **Surfaces reuse what exists.** The client side rides the D0.5 inspection
 carrier, `outboxStatus()`, and the subscription projection — all ruled. The
-server/local side adds one on-demand snapshot of the §7.1 rings and counters
-on the existing local inspection path (exact CLI/dev-server spelling is
-implementation-owned; it is a pull surface, never a stream, and never a new
-wire protocol). New diagnostic codes are warning-class only — the §7.5/§7.6
-warn facts (final spellings via the generated register, LLP 0193 discipline)
-— and reuse §4.1's detail discipline; no new error/refusal codes.
+server side adds one on-demand snapshot of the §7.1 rings and counters on
+the **gated** inspection surface only (LLP 0031 D3's authenticated path or
+an in-process CLI read; exact spelling is implementation-owned). It is a
+pull surface, never a stream, and never a new protocol; `PublicInspect`
+carries none of it (§7.1). New diagnostic codes are warning-class only —
+the §7.5/§7.6 warn facts (final spellings via the generated register,
+LLP 0193 discipline) — and inherit §4.1's **value-free rule, not its
+query-cost field set**: each multiplicity warning defines its own closed
+details in the register, owner labels permitted there because the warnings
+emit only on the gated/local surfaces; no new error/refusal codes.
 
 **The two attribution obligations from the design ticket, closed:**
 
@@ -822,30 +952,42 @@ warn facts (final spellings via the generated register, LLP 0193 discipline)
    (`queueWaitMs` vs `authWaitMs` vs `executionMs` vs `commitMs`). No source
    inspection, no empirical timeout.
 2. *Stalled live projection.* The D0.5 inspection row names owner, state,
-   held snapshot version, auth-barrier/readiness, and — if suspended — the
-   suspension reason; the §7.4 closed missed-delivery vocabulary yields
-   exactly one cause (including "delivered but dedup-suppressed" with its
-   counter); the §7.3 wave record shows the last rerun cause and fan-out.
+   held snapshot version, auth-barrier/readiness, and — when a delivery is
+   owed — exactly one `pendingDeliveryReason` per §7.4's precedence rule;
+   a dedup-suppressed value-equal delivery shows as an advanced revision
+   plus the suppression counter, not a miss; the joined §7.3 wave record
+   shows the wave's cause, coverage, and fan-out.
+
+**Guide.** The §4.2 page (`guide/backend/query-costs.md`) gains a
+cost-snapshot section teaching how to read the gated snapshot and both
+worked attributions — an extension of the already-decided page, not a new
+page.
 
 **Acceptance fixtures** (land with implementation, per lane):
 
 - both worked attributions above as end-to-end fixtures asserting closed
   vocabulary output, not log text;
-- redaction: a captured snapshot under adversarial values contains no
-  argument, row content, row id, principal, token, or literal endpoint;
-- bounds: ring capacity honored with `droppedRecords` visible; counters
-  monotone and exact under detail sampling; recorder-off is a no-op branch;
+- redaction: a captured gated snapshot under adversarial values contains no
+  argument, row content, row id, principal, token, literal endpoint, or
+  `fixtureIdentity`; owner labels contain no application values; the D0.5
+  tuple appears only in its §7.1 projection; `PublicInspect` gains no cost
+  field at all;
+- bounds: ring record/byte caps honored with per-family `droppedRecords`
+  and `truncated` visible; counter-map key caps honored with `otherKeys`/
+  `evictedKeys` visible and totals exact; counters monotone and exact under
+  detail sampling; recorder-off is a no-op branch;
 - §7.5/§7.6: no-op-commit, equivalent-enqueue, duplicate-subscription, and
   asset-multiplicity counters each triggered and attributed to owner labels;
-- posture: hosted-default-off proven; no export path exists to test.
+- posture: hosted-default-off proven; no export path exists to test;
+- guide: the §4.2 extension lands with the surfaces it documents.
 
-**Ownership and acceptance.** This RFC accepts §§7.1, 7.3, and the server
-half of 7.2/7.5; LLP 0095/LLP 0114 accept the client inspection joins
-(§7.4, client 7.2) and provider multiplicity (§7.6); LLP 0278 accepts the
-subscription-budget interactions it already owns. Until each owner accepts,
-this section is a proposal and no implementation ticket may cite it as
-Accepted. Implementation slices and the graduation into independently
-closable tickets live in
+**Ownership and acceptance.** On acceptance, this RFC owns §§7.1, 7.3, and
+the server half of 7.2/7.5; LLP 0095/LLP 0114 own the client inspection
+joins (§7.4, client 7.2) and provider multiplicity (§7.6); LLP 0278 owns
+the subscription-budget interactions it already owns today. Until each
+owner accepts, this section is a proposal and no implementation ticket may
+cite it as Accepted. Implementation slices and the graduation into
+independently closable tickets live in
 `issues/20260821-app-boundary-runtime-cost-diagnostics-design.md`.
 
 ## Open questions
@@ -858,6 +1000,21 @@ it adds a visibility surface and deliberately adds no bounds surface.
 
 ## Revision history
 
+- **v0.8 (2026-08-21).** §7 revision round resolving the codex/grok xhigh
+  reviews (5 MAJOR, 10 MINOR/NIT): 16-per-view budget warns only (D0.5
+  consumed, not re-decided); storage bound made real (byte-accounted ring
+  admission/truncation, capped per-key maps with `otherKeys`/`evictedKeys`);
+  redaction honest (fingerprint framing, §5 canonical-args hash reuse,
+  gated-only correlation ids, `fixtureIdentity` and D0.5-tuple projections,
+  `PublicInspect` nonclaim); `LiveDeliveryWaveV1` made server-owned with
+  client dedup facts on the inspection row and a defined join key; causal
+  vocabularies closed (primary-cause precedence, `coalesced`/
+  `coveredVersions`, per-group timing, six-member `pendingDeliveryReason`
+  with owed-delivery definition); `MutationPhaseCostV1` typed with
+  nullability and delivery lag moved to the subscription row;
+  `LiveCoalesceStats` claim corrected (already on `InspectState`/
+  `PublicInspect`); ownership wording, ring enumeration, §3.4-maxima
+  disambiguation, and the §4.2 guide sentence.
 - **v0.7 (2026-08-21).** Adds §7, the LLP 0295 W5 design-proposal amendment
   (proposed; owners to accept): local-first posture with an explicit hosted
   nonclaim, value-free bounded recorder, derived mutation-phase vocabulary
