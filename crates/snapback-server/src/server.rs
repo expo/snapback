@@ -11643,7 +11643,7 @@ struct RetainedAdmissionBody {
 /// (or is dropped).
 #[derive(Clone)]
 struct RetainedRealtimeAuthority {
-    _permits: Arc<Vec<RealtimePublicationPermit>>,
+    permits: Arc<Vec<RealtimePublicationPermit>>,
     outbox_leases: Arc<Vec<crate::ephemeral::OutboxDrainLease>>,
     connection_handoff: Option<RetainedConnectionHandoff>,
 }
@@ -11658,6 +11658,14 @@ struct RetainedConnectionHandoff {
 
 impl RetainedRealtimeAuthority {
     fn acknowledge_outbox_leases(&self, admission: &AdmissionLease) -> bool {
+        let Ok(_publication_handoffs) = self
+            .permits
+            .iter()
+            .map(RealtimePublicationPermit::begin_handoff)
+            .collect::<Result<Vec<_>, _>>()
+        else {
+            return false;
+        };
         match self.connection_handoff.as_ref() {
             None => admission
                 .effect_guard("HTTP response body frame publication")
@@ -11714,7 +11722,7 @@ fn retain_realtime_handoff_in(
 ) {
     if !permits.is_empty() || !outbox_leases.is_empty() || connection_handoff.is_some() {
         response.extensions_mut().insert(RetainedRealtimeAuthority {
-            _permits: Arc::new(permits),
+            permits: Arc::new(permits),
             outbox_leases: Arc::new(outbox_leases),
             connection_handoff,
         });
@@ -28687,6 +28695,13 @@ async fn send_live_with_admission(
         connections,
         connection_act,
     } = cut;
+    let _publication_handoff = match publication_authority.as_ref() {
+        Some(authority) => match authority.begin_handoff() {
+            Ok(handoff) => Some(handoff),
+            Err(_) => return LiveHandoffOutcome::Failed,
+        },
+        None => None,
+    };
     let (completed, completion) = oneshot::channel();
     // The complete frame crosses into the bounded writer queue under the same
     // mutex that retires an epoch. Socket I/O may await afterward, but no frame

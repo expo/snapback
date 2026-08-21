@@ -170,6 +170,7 @@ struct RoomAuthorityRegistryState {
     durable_authorization: Option<AuthorizationVersion>,
     projected_authorization: Option<AuthorizationVersion>,
     projected_commits: BTreeMap<u64, AuthorizationVersion>,
+    active_operations: usize,
     active_durable_publications: usize,
     protected_collections: Arc<[EphemeralCollection]>,
     protected_collection_revision: u64,
@@ -204,6 +205,7 @@ impl RoomAuthorityRegistry {
                 durable_authorization: None,
                 projected_authorization: None,
                 projected_commits: BTreeMap::new(),
+                active_operations: 0,
                 active_durable_publications: 0,
                 protected_collections: Arc::from([]),
                 protected_collection_revision: 1,
@@ -231,9 +233,56 @@ impl RoomAuthorityRegistry {
     }
 
     pub(super) fn retire(&self) {
+        // Replacement participates in the registry mutex so every finite
+        // admission either linearizes before retirement or observes it. Wait
+        // only for operations that already crossed that cut; merely holding
+        // an issued permit does not wedge same-database replacement.
+        //
+        // @ref LLP 0290#46-same-database-replacement — old permits and guards
+        // fail closed once replacement returns.
+        let mut state = self.lock();
         self.retired.store(true, Ordering::Release);
         self.quiescent.notify_all();
+        while state.active_operations != 0 {
+            state = self
+                .quiescent
+                .wait(state)
+                .unwrap_or_else(PoisonError::into_inner);
+        }
     }
+}
+
+struct RegistryOperationGuard {
+    registry: Arc<RoomAuthorityRegistry>,
+}
+
+impl Drop for RegistryOperationGuard {
+    fn drop(&mut self) {
+        let mut state = self.registry.lock();
+        state.active_operations = state.active_operations.saturating_sub(1);
+        self.registry.quiescent.notify_all();
+    }
+}
+
+pub struct RoomAuthorityOperationGuard {
+    _operation: RegistryOperationGuard,
+    generation: u64,
+}
+
+impl RoomAuthorityOperationGuard {
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+}
+
+pub struct RealtimePublicationHandoff {
+    _operation: RegistryOperationGuard,
+}
+
+#[derive(Clone)]
+pub struct RealtimePublicationValidity {
+    registry: Arc<RoomAuthorityRegistry>,
+    room: Option<(RoomId, u64)>,
 }
 
 /// The database-bound room-authority participant.
@@ -281,7 +330,7 @@ impl AuthorizationCommitParticipant {
         &self.activation
     }
 
-    fn require_live(&self, allow_bound: bool) -> Result<(), EphemeralError> {
+    fn require_live_locked(&self, allow_bound: bool) -> Result<(), EphemeralError> {
         let state = self.activation.state();
         if self.registry.is_retired()
             || self.registry.generation() != self.registry_generation
@@ -293,11 +342,23 @@ impl AuthorizationCommitParticipant {
         Ok(())
     }
 
+    fn begin_operation_locked(
+        &self,
+        state: &mut RoomAuthorityRegistryState,
+    ) -> Result<RegistryOperationGuard, EphemeralError> {
+        state.active_operations = state
+            .active_operations
+            .checked_add(1)
+            .ok_or_else(authority_pending_error)?;
+        Ok(RegistryOperationGuard {
+            registry: self.registry.clone(),
+        })
+    }
+
     pub fn replace_protected_room_catalog(
         &self,
         definitions: &[EphemeralCollection],
     ) -> Result<u64, EphemeralError> {
-        self.require_live(true)?;
         validate_collection_definitions(definitions)?;
         let protected = definitions
             .iter()
@@ -305,6 +366,7 @@ impl AuthorizationCommitParticipant {
             .cloned()
             .collect::<Vec<_>>();
         let mut state = self.registry.lock();
+        self.require_live_locked(true)?;
         let revision = state
             .protected_collection_revision
             .checked_add(1)
@@ -321,8 +383,8 @@ impl AuthorizationCommitParticipant {
         &self,
         room: &RoomId,
     ) -> Result<RoomAuthorityPermit, EphemeralError> {
-        self.require_live(true)?;
         let mut state = self.registry.lock();
+        self.require_live_locked(true)?;
         validate_registered_room(&state.protected_collections, room)?;
         if state
             .dependencies
@@ -348,34 +410,74 @@ impl AuthorizationCommitParticipant {
         })
     }
 
+    pub fn begin_protected_room_operation(
+        &self,
+        room: &RoomId,
+    ) -> Result<RoomAuthorityOperationGuard, EphemeralError> {
+        let mut state = self.registry.lock();
+        self.require_live_locked(true)?;
+        validate_registered_room(&state.protected_collections, room)?;
+        if state
+            .dependencies
+            .values()
+            .any(|pending| pending.selector.matches(room))
+        {
+            return Err(authority_pending_error());
+        }
+        let generation = {
+            let control = state.rooms.entry(room.clone()).or_default();
+            if control.retired || !control.pending_tickets.is_empty() || control.resync.is_some() {
+                return Err(authority_pending_error());
+            }
+            control.generation
+        };
+        let operation = self.begin_operation_locked(&mut state)?;
+        Ok(RoomAuthorityOperationGuard {
+            _operation: operation,
+            generation,
+        })
+    }
+
     pub fn validate_admitted_room_act(
         &self,
         permit: &RoomAuthorityPermit,
         room: &RoomId,
-    ) -> Result<u64, EphemeralError> {
+    ) -> Result<RoomAuthorityOperationGuard, EphemeralError> {
         if !Arc::ptr_eq(&self.registry, &permit.registry) || &permit.room != room {
             return Err(authority_pending_error());
         }
-        let state = self.registry.lock();
+        let mut state = self.registry.lock();
+        self.require_live_locked(true)?;
         let Some(control) = state.rooms.get(room) else {
             return Err(authority_pending_error());
         };
         if control.retired || control.generation != permit.generation {
             return Err(authority_pending_error());
         }
-        Ok(permit.generation)
+        let operation = self.begin_operation_locked(&mut state)?;
+        Ok(RoomAuthorityOperationGuard {
+            _operation: operation,
+            generation: permit.generation,
+        })
     }
 
     pub fn room_generation(&self, room: &RoomId) -> u64 {
-        self.registry
-            .lock()
+        let state = self.registry.lock();
+        if self.require_live_locked(true).is_err() {
+            return 0;
+        }
+        state
             .rooms
             .get(room)
             .map_or(0, |control| control.generation)
     }
 
     pub fn retire_room(&self, room: &RoomId) {
-        retire_room_in_state(&self.registry, room);
+        let mut state = self.registry.lock();
+        if self.require_live_locked(true).is_err() {
+            return;
+        }
+        retire_room_in_state(&mut state, room);
     }
 
     /// @ref LLP 0059#locking-and-linearization — mark every affected room and
@@ -398,13 +500,8 @@ impl AuthorizationCommitParticipant {
                 self.registry_generation,
             ));
         }
-        if self.activation.state() != ACTIVATION_READY {
-            return Err(projection_unavailable(
-                "authorization participant is not ready",
-            ));
-        }
         let mut state = self.registry.lock();
-        if self.registry.is_retired() || self.registry.generation() != self.registry_generation {
+        if self.require_live_locked(false).is_err() {
             return Err(interlock_retired());
         }
         let protected_collections = state.protected_collections.clone();
@@ -536,6 +633,9 @@ impl AuthorizationCommitParticipant {
             "authorization commit outcome lookup",
         );
         let state = self.registry.lock();
+        if self.require_live_locked(false).is_err() {
+            return Err(interlock_retired());
+        }
         let mut matches = state
             .dependencies
             .iter()
@@ -558,12 +658,18 @@ impl AuthorizationCommitParticipant {
     }
 
     pub fn latest_committed_outcome(&self) -> Option<AuthorizationCommitOutcome> {
-        self.registry.lock().latest_committed_outcome.clone()
+        let state = self.registry.lock();
+        self.require_live_locked(false)
+            .ok()
+            .and_then(|()| state.latest_committed_outcome.clone())
     }
 
     pub fn pending_reauthorizations(&self) -> Vec<PendingRoomReauthorization> {
-        self.registry
-            .lock()
+        let state = self.registry.lock();
+        if self.require_live_locked(true).is_err() {
+            return Vec::new();
+        }
+        state
             .rooms
             .iter()
             .filter_map(|(room, control)| {
@@ -586,8 +692,8 @@ impl AuthorizationCommitParticipant {
         &self,
         admit_fenced: bool,
     ) -> Result<AuthorizationOutboxAdmission<'_>, EphemeralError> {
-        self.require_live(true)?;
         let state = self.registry.lock();
+        self.require_live_locked(true)?;
         let admit_fenced = admit_fenced || state.durable_authorization.is_none();
         Ok(AuthorizationOutboxAdmission {
             registry: &self.registry,
@@ -602,6 +708,7 @@ impl AuthorizationCommitParticipant {
         generation: u64,
     ) -> Result<RoomCreationAdmission<'_>, EphemeralError> {
         let state = self.registry.lock();
+        self.require_live_locked(true)?;
         let control = state.rooms.get(room).ok_or_else(authority_pending_error)?;
         if control.retired || control.generation != generation {
             return Err(authority_pending_error());
@@ -614,6 +721,7 @@ impl AuthorizationCommitParticipant {
         room: &RoomId,
     ) -> Result<RoomRetirementAdmission<'_>, EphemeralError> {
         let state = self.registry.lock();
+        self.require_live_locked(true)?;
         Ok(RoomRetirementAdmission {
             registry: &self.registry,
             state,
@@ -627,6 +735,7 @@ impl AuthorizationCommitParticipant {
         generation: u64,
     ) -> Result<RoomReauthorizationAdmission<'_>, EphemeralError> {
         let state = self.registry.lock();
+        self.require_live_locked(true)?;
         let control = state.rooms.get(room).ok_or_else(authority_pending_error)?;
         let obligation = control.resync.clone().ok_or_else(authority_pending_error)?;
         if control.retired
@@ -678,11 +787,18 @@ impl NonAuthorizingRoomAuthority {
         self.participant.begin_protected_room_act(room)
     }
 
+    pub fn begin_protected_room_operation(
+        &self,
+        room: &RoomId,
+    ) -> Result<RoomAuthorityOperationGuard, EphemeralError> {
+        self.participant.begin_protected_room_operation(room)
+    }
+
     pub fn validate_admitted_room_act(
         &self,
         permit: &RoomAuthorityPermit,
         room: &RoomId,
-    ) -> Result<u64, EphemeralError> {
+    ) -> Result<RoomAuthorityOperationGuard, EphemeralError> {
         self.participant.validate_admitted_room_act(permit, room)
     }
 
@@ -1062,6 +1178,7 @@ impl AuthorizationExpectationView {
     }
 
     pub fn current(&self) -> SnapbackResult<AuthorizationVersion> {
+        let state = self.registry.lock();
         if self.activation.state() == ACTIVATION_RETIRED
             || self.registry.is_retired()
             || self.registry.generation() != self.registry_generation
@@ -1070,9 +1187,7 @@ impl AuthorizationExpectationView {
                 "authorization expectation view is retired",
             ));
         }
-        let current = self
-            .registry
-            .lock()
+        let current = state
             .projected_authorization
             .clone()
             .ok_or_else(|| projection_unavailable("authorization expectation is uninitialized"))?;
@@ -1091,7 +1206,11 @@ impl AuthorizationExpectationView {
         if !self.registry.binding_matches(&outcome.binding)
             || !Arc::ptr_eq(&self.registry, &outcome.registry)
             || self.registry_generation != outcome.registry_generation
-            || self.registry.is_retired()
+        {
+            return Err(participant_registry_mismatch());
+        }
+        let mut state = self.registry.lock();
+        if self.registry.is_retired()
             || self.registry.generation() != self.registry_generation
             || self.activation.state() != ACTIVATION_READY
         {
@@ -1107,7 +1226,6 @@ impl AuthorizationExpectationView {
                 "authorization outcome belongs to a different issuer incarnation",
             ));
         }
-        let mut state = self.registry.lock();
         let known_commit = state
             .dependencies
             .get(&outcome.ticket_id)
@@ -1183,6 +1301,49 @@ impl Drop for DurableAuthorizationPermit {
 pub enum RealtimePublicationPermit {
     Durable(DurableAuthorizationPermit),
     Room(RoomAuthorityPermit),
+}
+
+impl RealtimePublicationPermit {
+    pub fn validity(&self) -> RealtimePublicationValidity {
+        match self {
+            Self::Durable(permit) => RealtimePublicationValidity {
+                registry: permit.registry.clone(),
+                room: None,
+            },
+            Self::Room(permit) => RealtimePublicationValidity {
+                registry: permit.registry.clone(),
+                room: Some((permit.room.clone(), permit.generation)),
+            },
+        }
+    }
+
+    pub fn begin_handoff(&self) -> Result<RealtimePublicationHandoff, EphemeralError> {
+        self.validity().begin_handoff()
+    }
+}
+
+impl RealtimePublicationValidity {
+    pub fn begin_handoff(&self) -> Result<RealtimePublicationHandoff, EphemeralError> {
+        let mut state = self.registry.lock();
+        if self.registry.is_retired() {
+            return Err(authority_pending_error());
+        }
+        if let Some((room, generation)) = &self.room {
+            let control = state.rooms.get(room).ok_or_else(authority_pending_error)?;
+            if control.retired || control.generation != *generation {
+                return Err(authority_pending_error());
+            }
+        }
+        state.active_operations = state
+            .active_operations
+            .checked_add(1)
+            .ok_or_else(authority_pending_error)?;
+        Ok(RealtimePublicationHandoff {
+            _operation: RegistryOperationGuard {
+                registry: self.registry.clone(),
+            },
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1332,6 +1493,9 @@ pub(super) fn initialize_authorization(
         expectation_stale("durable authorization is absent during issuer installation")
     })?;
     let mut state = participant.registry.lock();
+    if participant.require_live_locked(true).is_err() {
+        return Err(interlock_retired());
+    }
     let clean = state.dependencies.is_empty()
         && state.active_durable_publications == 0
         && state.projected_commits.is_empty()
@@ -1379,6 +1543,9 @@ pub(super) fn require_initialized_authorization(
         expectation_stale("durable authorization is absent during participant activation")
     })?;
     let state = participant.registry.lock();
+    if participant.require_live_locked(true).is_err() {
+        return Err(interlock_retired());
+    }
     if state.durable_authorization.as_ref() != Some(authorization)
         || state.projected_authorization.as_ref() != Some(authorization)
         || !state.dependencies.is_empty()
@@ -1605,8 +1772,7 @@ fn rollback_ticket(state: &mut RoomAuthorityRegistryState, ticket_id: u64) -> bo
     true
 }
 
-fn retire_room_in_state(registry: &Arc<RoomAuthorityRegistry>, room: &RoomId) {
-    let mut state = registry.lock();
+fn retire_room_in_state(state: &mut RoomAuthorityRegistryState, room: &RoomId) {
     let remove = state.rooms.get_mut(room).is_some_and(|control| {
         control.retired = true;
         control.resync = None;

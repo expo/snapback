@@ -85,7 +85,8 @@ pub use room_authority::{
     AuthorizationExpectationView, AuthorizationOutboxAdmission,
     AuthorizationReservationCancellation, DurableAuthorizationPermit,
     ManagedAuthorizationReservationScope, NonAuthorizingRoomAuthority, OutboxFrameDisposition,
-    PendingRoomReauthorization, RealtimePublicationPermit, RoomAuthorityPermit,
+    PendingRoomReauthorization, RealtimePublicationHandoff, RealtimePublicationPermit,
+    RealtimePublicationValidity, RoomAuthorityOperationGuard, RoomAuthorityPermit,
     RoomAuthorityResync, RoomCreationAdmission, RoomReauthorizationAdmission,
     RoomRetirementAdmission,
 };

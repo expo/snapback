@@ -14,8 +14,9 @@ use crate::storage::{
     AuthorizationCommitOutcome, AuthorizationCommitParticipant, AuthorizationCommitPreflight,
     AuthorizationCommitReservation, AuthorizationCommitWitness, AuthorizationExpectationView,
     AuthorizationOutboxAdmission, AuthorizationReservationCancellation, AuthorizationVersion,
-    NonAuthorizingRoomAuthority, OutboxFrameDisposition, RoomCreationAdmission,
-    RoomReauthorizationAdmission, RoomRetirementAdmission, ServingDatabase,
+    NonAuthorizingRoomAuthority, OutboxFrameDisposition, RealtimePublicationValidity,
+    RoomAuthorityOperationGuard, RoomCreationAdmission, RoomReauthorizationAdmission,
+    RoomRetirementAdmission, ServingDatabase,
 };
 pub use crate::storage::{RealtimePublicationPermit, RoomAuthorityPermit, RoomAuthorityResync};
 pub use snapback_types::ephemeral::*;
@@ -1252,6 +1253,7 @@ impl Drop for OutboxDrainLeaseInner {
 /// dropping the last token merely makes it eligible for a later drain.
 pub struct OutboxDrainLease {
     inner: Arc<OutboxDrainLeaseInner>,
+    publication_validity: Option<RealtimePublicationValidity>,
     ack_on_drop: bool,
 }
 
@@ -1267,6 +1269,7 @@ impl OutboxDrainLease {
         lease_id: u64,
         wake: Arc<OutboxLeaseWake>,
         recovery_marker_priority: Option<RecoveryMarkerPriority>,
+        publication_validity: Option<RealtimePublicationValidity>,
     ) -> Self {
         Self {
             inner: Arc::new(OutboxDrainLeaseInner {
@@ -1275,6 +1278,7 @@ impl OutboxDrainLease {
                 wake,
                 recovery_marker_priority,
             }),
+            publication_validity,
             ack_on_drop: true,
         }
     }
@@ -1293,6 +1297,22 @@ impl OutboxDrainLease {
         value: T,
         offer: impl FnOnce(T) -> Result<(), T>,
     ) -> OutboxLeaseCommit<T> {
+        let _publication_handoff = match self.publication_validity.as_ref() {
+            Some(validity) => match validity.begin_handoff() {
+                Ok(handoff) => Some(handoff),
+                Err(_) => {
+                    let released = lock(&self.inner.outbox).release_lease(self.inner.lease_id);
+                    if released {
+                        self.inner
+                            .wake
+                            .delivery
+                            .wake(&self.inner.wake.connection_id);
+                    }
+                    return OutboxLeaseCommit::Superseded(value);
+                }
+            },
+            None => None,
+        };
         let mut outbox = lock(&self.inner.outbox);
         if !outbox.lease_is_current(self.inner.lease_id) {
             return OutboxLeaseCommit::Superseded(value);
@@ -1328,6 +1348,22 @@ impl OutboxDrainLease {
     }
 
     fn acknowledge(&self) -> bool {
+        let _publication_handoff = match self.publication_validity.as_ref() {
+            Some(validity) => match validity.begin_handoff() {
+                Ok(handoff) => Some(handoff),
+                Err(_) => {
+                    let released = lock(&self.inner.outbox).release_lease(self.inner.lease_id);
+                    if released {
+                        self.inner
+                            .wake
+                            .delivery
+                            .wake(&self.inner.wake.connection_id);
+                    }
+                    return false;
+                }
+            },
+            None => None,
+        };
         let (removed, marker_preempted) = {
             let mut outbox = lock(&self.inner.outbox);
             if outbox.recovery_marker_preempts(
@@ -1361,6 +1397,14 @@ impl OutboxDrainLease {
         {
             return false;
         }
+        let Ok(_publication_handoffs) = leases
+            .iter()
+            .filter_map(|lease| lease.publication_validity.as_ref())
+            .map(RealtimePublicationValidity::begin_handoff)
+            .collect::<Result<Vec<_>, _>>()
+        else {
+            return false;
+        };
         let ids = leases
             .iter()
             .map(|lease| lease.inner.lease_id)
@@ -3285,11 +3329,21 @@ impl RoomAuthority {
         }
     }
 
+    fn begin_protected_room_operation(
+        &self,
+        room: &RoomId,
+    ) -> Result<RoomAuthorityOperationGuard, EphemeralError> {
+        match self {
+            Self::Bound(participant) => participant.begin_protected_room_operation(room),
+            Self::Unbound(authority) => authority.begin_protected_room_operation(room),
+        }
+    }
+
     fn validate_admitted_room_act(
         &self,
         permit: &RoomAuthorityPermit,
         room: &RoomId,
-    ) -> Result<u64, EphemeralError> {
+    ) -> Result<RoomAuthorityOperationGuard, EphemeralError> {
         match self {
             Self::Bound(participant) => participant.validate_admitted_room_act(permit, room),
             Self::Unbound(authority) => authority.validate_admitted_room_act(permit, room),
@@ -3662,13 +3716,13 @@ impl LocalEphemeralBackend {
         &self,
         collection: &EphemeralCollection,
         room_id: &RoomId,
-    ) -> Result<Option<RoomAuthorityPermit>, EphemeralError> {
+    ) -> Result<Option<RoomAuthorityOperationGuard>, EphemeralError> {
         if !collection_requires_room_permission(collection) {
             return Ok(None);
         }
         self.shared
             .room_authority
-            .begin_protected_room_act(room_id)
+            .begin_protected_room_operation(room_id)
             .map(Some)
     }
 
@@ -3677,22 +3731,22 @@ impl LocalEphemeralBackend {
         collection: &EphemeralCollection,
         room_id: &RoomId,
         admitted: Option<&RoomAuthorityPermit>,
-    ) -> Result<(u64, Option<RoomAuthorityPermit>), EphemeralError> {
+    ) -> Result<(u64, Option<RoomAuthorityOperationGuard>), EphemeralError> {
         if !collection_requires_room_permission(collection) {
             return Ok((0, None));
         }
         if let Some(admitted) = admitted {
-            let generation = self
+            let operation = self
                 .shared
                 .room_authority
                 .validate_admitted_room_act(admitted, room_id)?;
-            return Ok((generation, None));
+            return Ok((operation.generation(), Some(operation)));
         }
-        let permit = self
+        let operation = self
             .begin_room_authority_act(collection, room_id)?
-            .expect("protected room publishes an authority permit");
-        let generation = permit.generation();
-        Ok((generation, Some(permit)))
+            .expect("protected room begins an authority operation");
+        let generation = operation.generation();
+        Ok((generation, Some(operation)))
     }
 
     /// Acquire the outer transport permit used while a server-derived durable
@@ -3706,7 +3760,13 @@ impl LocalEphemeralBackend {
     ) -> Result<Option<RoomAuthorityPermit>, EphemeralError> {
         let collection = self.collection(collection_name)?;
         let room_id = room_id_for(&collection, scope)?;
-        self.begin_room_authority_act(&collection, &room_id)
+        if !collection_requires_room_permission(&collection) {
+            return Ok(None);
+        }
+        self.shared
+            .room_authority
+            .begin_protected_room_act(&room_id)
+            .map(Some)
     }
 
     fn advance_collection_generation(&self) -> Result<(), EphemeralError> {
@@ -5151,7 +5211,7 @@ impl LocalEphemeralBackend {
             };
             let room_authority_generation = room_authority
                 .as_ref()
-                .map(RoomAuthorityPermit::generation)
+                .map(RoomAuthorityOperationGuard::generation)
                 .unwrap_or(0);
             let mut room = lock(room_arc);
             // ENG-23426: check-under-the-room-lock. A reconnect registers
@@ -5416,7 +5476,7 @@ impl LocalEphemeralBackend {
             };
             let room_authority_generation = room_authority
                 .as_ref()
-                .map(RoomAuthorityPermit::generation)
+                .map(RoomAuthorityOperationGuard::generation)
                 .unwrap_or(0);
             let sweep: Option<Result<bool, EphemeralError>> =
                 self.with_existing_room(&room_id, |room| {
@@ -5534,7 +5594,7 @@ impl LocalEphemeralBackend {
             };
             let room_authority_generation = room_authority
                 .as_ref()
-                .map(RoomAuthorityPermit::generation)
+                .map(RoomAuthorityOperationGuard::generation)
                 .unwrap_or(0);
             let available_budget = remaining_budget;
             let outcome: Option<Result<(EphemeralCleanupCounts, bool), EphemeralError>> = self
@@ -6072,17 +6132,22 @@ impl LocalEphemeralBackend {
                                 lease_id,
                                 wake.clone(),
                                 recovery_marker_priority,
+                                None,
                             )
                             .release_on_drop(),
                         );
                         return None;
                     }
                 };
+                let publication_validity = publication_authority
+                    .as_ref()
+                    .map(RealtimePublicationPermit::validity);
                 let lease = OutboxDrainLease::new(
                     outbox.clone(),
                     lease_id,
                     wake.clone(),
                     recovery_marker_priority,
+                    publication_validity,
                 );
                 Some(AdmittedRealtimeEnvelope {
                     envelope,
@@ -9259,6 +9324,43 @@ mod tests {
     }
 
     #[test]
+    fn same_database_participant_replacement_rejects_held_room_permit() {
+        let mut fixture = bound_backend_fixture();
+        fixture.backend.register_collection(collection()).unwrap();
+        let held = fixture
+            .backend
+            .begin_server_authorized_room_act("boardCursors", &scope())
+            .unwrap()
+            .expect("protected room returns a P0 permit");
+        let transport_permit = fixture
+            .backend
+            .begin_server_authorized_room_act("boardCursors", &scope())
+            .unwrap()
+            .expect("protected room returns a second P0 transport permit");
+
+        let _replacement = fixture
+            ._database
+            .replace_authorization_commit_participant()
+            .expect("same-database replacement retires P0");
+
+        let error = fixture
+            .backend
+            .publish_with_room_authority(
+                publish_request("owner", b"retired-participant"),
+                2,
+                Some(&held),
+            )
+            .expect_err("a P0 permit held across replacement must fail closed");
+        assert_eq!(error.code, EphemeralErrorCode::AuthorityPending);
+        assert!(
+            RealtimePublicationPermit::Room(transport_permit)
+                .begin_handoff()
+                .is_err(),
+            "a P0 permit must also fail at the final transport boundary"
+        );
+    }
+
+    #[test]
     fn protected_registration_is_closed_by_the_exact_pending_ticket() {
         let fixture = bound_backend_fixture();
         let backend = fixture.backend;
@@ -9460,6 +9562,36 @@ mod tests {
             .expect("dropping the transport frame releases commit preparation");
         reservation.cancel();
         prepare.join().unwrap();
+    }
+
+    #[test]
+    fn same_database_replacement_rejects_previously_admitted_transport_handoff() {
+        let mut fixture = bound_backend_fixture();
+        fixture.backend.register_collection(collection()).unwrap();
+        fixture
+            .backend
+            .subscribe(subscribe_request("observer"), 1)
+            .unwrap();
+        fixture
+            .backend
+            .publish(publish_request("owner", b"queued-before-replacement"), 2)
+            .unwrap();
+        let admitted = fixture
+            .backend
+            .drain_outbox_for_send("observer")
+            .into_iter()
+            .find(|admitted| matches!(admitted.envelope(), RealtimeEnvelope::Ephemeral(_)))
+            .expect("protected frame is admitted under P0");
+
+        let _replacement = fixture
+            ._database
+            .replace_authorization_commit_participant()
+            .expect("same-database replacement retires P0");
+
+        assert!(
+            !admitted.commit_handoff(),
+            "a P0 frame admitted before replacement cannot cross the final sink afterward"
+        );
     }
 
     #[test]
