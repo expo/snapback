@@ -16,10 +16,11 @@ disables Cargo's target-level fail-fast behavior.)
 gate snapshot is count/digest-bound to the exact selector receipt and is the
 only runtime membership authority; selected gates cannot claim cadence-level
 `NOT_SELECTED`; statically declared host/policy predicates instead emit
-structured `INAPPLICABLE`; function gates retain errexit in their command
-subshell; and the outer entry layer requires a run-bound filesystem completion
-token written only after reconciliation, with the in-shell EXIT guard retained
-as defense in depth.)
+structured, runner-fact-bound `INAPPLICABLE`; function gates use
+`set -euo pipefail`; and the outer entry layer derives the retained completion
+receipt itself by hashing and joining the persisted selector snapshot and
+JSONL after a minimal run-id signal, with the in-shell EXIT guard retained as
+defense in depth.)
 **Revised:** 2026-08-11 (LLP 0232 accepting change, author ruling in session:
 the 2026-08-07 D2.1 ruling gains four narrowings — baseline-corroborated
 infrastructure fail-open, receipt-validated reuse for trigger-matched gates,
@@ -337,7 +338,9 @@ A gate has one of five terminal results:
 
 `NOT_SELECTED` is never legal for a selected gate. `INAPPLICABLE` is legal only
 for a literal gate/predicate pair checked by the static inventory and rechecked
-by the complete-battery consumer; a free-form skip reason has no authority.
+by the shared predicate validator, and its evidence must match runner-observed
+host/policy facts before recording and at the complete-battery consumer; a
+free-form or caller-only skip claim has no authority.
 
 In keep-going mode, `FAIL` does not stop unrelated gates. It does prevent every
 transitive dependent from executing. The final summary names root failures and

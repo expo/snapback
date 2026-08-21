@@ -2305,10 +2305,11 @@ export function runBatteryBackstop({
       continue;
     }
     if (record.state === 'INAPPLICABLE') {
-      for (const path of openForGate()) resetBatteryTicketStreak(path, { runId });
+      const openTickets = openForGate();
       console.log(
         `[snapback-battery-backstop] INAPPLICABLE ${record.gateId} `
-          + `(${record.applicabilityPredicate}); absence breaks the red streak and files no ticket`,
+          + `(${record.applicabilityPredicate}); files no ticket and preserves `
+          + `${openTickets.length} open red streak(s)`,
       );
       continue;
     }

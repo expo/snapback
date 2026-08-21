@@ -44,6 +44,8 @@ function fixture(body, {
   termGraceSeconds = null,
   captureDrainSeconds = null,
   supervised = false,
+  seedRetainedCompletion = false,
+  extraEnv = {},
 } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-proof-runner-'));
   const receipt = join(scratch, 'results.jsonl');
@@ -57,6 +59,8 @@ function fixture(body, {
   const stdoutPath = join(scratch, 'fixture.stdout');
   const stderrPath = join(scratch, 'fixture.stderr');
   const proofBodyPath = join(scratch, 'proof-body.sh');
+  const selectedSnapshot = `${receipt}.selected-gates`;
+  const retainedCompletion = join(scratch, 'retained-completion.json');
   writeFileSync(detachedWriter, `import os
 import pathlib
 import signal
@@ -109,6 +113,7 @@ await runAcceptance(suite, async () => {
 }, { cleanups });
 `);
   writeFileSync(selectedGates, selectedGateBytes(selected));
+  if (seedRetainedCompletion) writeFileSync(retainedCompletion, '{"stale":true}\n');
   const proofBody = `
 set -euo pipefail
 source ${JSON.stringify(runner)}
@@ -121,7 +126,7 @@ proof_runner_finish
     ? `
 set -euo pipefail
 source ${JSON.stringify(runner)}
-proof_runner_supervise fixture -- /bin/bash ${JSON.stringify(proofBodyPath)}
+proof_runner_supervise fixture ${JSON.stringify(receipt)} ${JSON.stringify(selectedSnapshot)} ${selected.length} ${JSON.stringify(selectedGateDigest(selected))} -- /bin/bash ${JSON.stringify(proofBodyPath)}
 `
     : proofBody;
   const env = {
@@ -133,7 +138,10 @@ proof_runner_supervise fixture -- /bin/bash ${JSON.stringify(proofBodyPath)}
     FIXTURE_DETACHED_WRITER: detachedWriter,
     FIXTURE_SETSID_CHILD: setsidChild,
     FIXTURE_SIGNAL_CLEANUP_GATE: signalCleanupGate,
+    FIXTURE_FORGED_COMPLETION: join(scratch, 'forged-completion.json'),
+    SNAPBACK_PROOF_COMPLETION_RECEIPT: retainedCompletion,
     SNAPBACK_PROOF_CAPTURE_FAILURE_SIGNATURES: captureSignatures ? '1' : '0',
+    ...extraEnv,
   };
   delete env.SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS;
   delete env.SNAPBACK_PROOF_GATE_TERM_GRACE_SECONDS;
@@ -178,6 +186,8 @@ proof_runner_supervise fixture -- /bin/bash ${JSON.stringify(proofBodyPath)}
     writerPid,
     result,
     records,
+    retainedCompletion,
+    selectedSnapshot,
     elapsedMs: Date.now() - startedAt,
   };
 }
@@ -213,7 +223,37 @@ proof_runner_init fixture ${JSON.stringify(results)} 1 ${JSON.stringify(selected
     });
     try {
       assert.equal(result.status, 2, `${result.stdout}\n${result.stderr}`);
-      assert.match(result.stderr, /selected-gates and results paths must not alias/u);
+      assert.match(result.stderr, /selected-gates, results, and persisted snapshot paths must not alias/u);
+      assert.equal(readFileSync(selectedGates, 'utf8'), original);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  }
+});
+
+test('init applies the same alias rules to the persisted selected snapshot', () => {
+  const selected = ['first-gate'];
+  for (const variant of ['symlink', 'hardlink']) {
+    const scratch = mkdtempSync(join(tmpdir(), `snapback-proof-runner-snapshot-${variant}-`));
+    const selectedGates = join(scratch, 'selected-gates.txt');
+    const results = join(scratch, 'results.jsonl');
+    const snapshot = `${results}.selected-gates`;
+    const original = selectedGateBytes(selected);
+    writeFileSync(selectedGates, original);
+    if (variant === 'symlink') symlinkSync(selectedGates, snapshot);
+    else linkSync(selectedGates, snapshot);
+    const script = `
+set -euo pipefail
+source ${JSON.stringify(runner)}
+proof_runner_init fixture ${JSON.stringify(results)} 1 ${JSON.stringify(selectedGates)} ${selected.length} ${JSON.stringify(selectedGateDigest(selected))}
+`;
+    const result = spawnSync('/bin/bash', ['-c', script], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    try {
+      assert.equal(result.status, 2, `${result.stdout}\n${result.stderr}`);
+      assert.match(result.stderr, /selected-gates, results, and persisted snapshot paths must not alias/u);
       assert.equal(readFileSync(selectedGates, 'utf8'), original);
     } finally {
       rmSync(scratch, { recursive: true, force: true });
@@ -223,14 +263,16 @@ proof_runner_init fixture ${JSON.stringify(results)} 1 ${JSON.stringify(selected
 
 test('init rejects descriptor pseudo-paths for selected and results artifacts', () => {
   const selected = ['first-gate'];
-  for (const pseudoArtifact of ['selected', 'results']) {
+  for (const pseudoArtifact of ['selected-fd', 'results-fd', 'selected-stdin', 'results-stdin']) {
     const scratch = mkdtempSync(join(tmpdir(), `snapback-proof-runner-fd-${pseudoArtifact}-`));
     const selectedGates = join(scratch, 'selected-gates.txt');
     const results = join(scratch, 'results.jsonl');
     const original = selectedGateBytes(selected);
     writeFileSync(selectedGates, original);
-    const selectedArgument = pseudoArtifact === 'selected' ? '/dev/fd/7' : selectedGates;
-    const resultsArgument = pseudoArtifact === 'results' ? '/dev/fd/7' : results;
+    const selectedArgument = pseudoArtifact === 'selected-fd' ? '/dev/fd/7'
+      : pseudoArtifact === 'selected-stdin' ? '/dev/stdin' : selectedGates;
+    const resultsArgument = pseudoArtifact === 'results-fd' ? '/dev/fd/7'
+      : pseudoArtifact === 'results-stdin' ? '/dev/stdin' : results;
     const script = `
 set -euo pipefail
 source ${JSON.stringify(runner)}
@@ -240,6 +282,7 @@ proof_runner_init fixture ${JSON.stringify(resultsArgument)} 1 ${JSON.stringify(
     const result = spawnSync('/bin/bash', ['-c', script], {
       cwd: root,
       encoding: 'utf8',
+      input: original,
     });
     try {
       assert.equal(result.status, 2, `${result.stdout}\n${result.stderr}`);
@@ -295,6 +338,7 @@ proof_gate selected-gate -- /usr/bin/true
       run.records.map(({ gateId, state }) => [gateId, state]),
       [['selected-gate', 'PASS']],
     );
+    assert.equal(readFileSync(run.selectedSnapshot, 'utf8'), 'selected-gate\n');
   } finally {
     rmSync(run.scratch, { recursive: true, force: true });
   }
@@ -333,9 +377,18 @@ builtin 'exec' /usr/bin/true
 e=exec
 builtin "$e" /usr/bin/true
 `, { selected: ['selected-gate'], supervised: true });
-  const topLevelMismatchedTokenExec = fixture(`
-printf '{}\n' > "$PROOF_RUNNER_COMPLETION_PATH"
+  const topLevelForgedTokenExec = fixture(`
+printf '{"schemaVersion":"snapback.proof-child-completion.v1","runId":"%s"}\n' \
+  "$PROOF_RUNNER_RUN_ID" >&"$PROOF_RUNNER_COMPLETION_FD"
 builtin 'exec' /usr/bin/true
+`, {
+    selected: ['selected-gate'],
+    supervised: true,
+    seedRetainedCompletion: true,
+  });
+  const reconciledFlagExit = fixture(`
+PROOF_RUNNER_RECONCILED=1
+exit 0
 `, { selected: ['selected-gate'], supervised: true });
   try {
     assert.equal(gateExit.result.status, 0, gateExit.result.stderr);
@@ -343,6 +396,12 @@ builtin 'exec' /usr/bin/true
       gateExit.records.map(({ gateId, state, exitCode }) => [gateId, state, exitCode]),
       [['selected-gate', 'PASS', 0]],
     );
+    const parentReceipt = JSON.parse(readFileSync(gateExit.retainedCompletion, 'utf8'));
+    assert.equal(
+      parentReceipt.resultsDigest,
+      `sha256:${createHash('sha256').update(readFileSync(gateExit.receipt)).digest('hex')}`,
+    );
+    assert.equal(parentReceipt.selectedGateDigest, selectedGateDigest(['selected-gate']));
     assert.equal(gateExec.result.status, 0, gateExec.result.stderr);
     assert.deepEqual(
       gateExec.records.map(({ gateId, state, exitCode }) => [gateId, state, exitCode]),
@@ -355,17 +414,21 @@ builtin 'exec' /usr/bin/true
     );
     assert.deepEqual(topLevelExit.records, []);
     assert.equal(topLevelExec.result.status, 2, topLevelExec.result.stderr);
-    assert.match(topLevelExec.result.stderr, /did not produce a matching completion token/u);
+    assert.match(topLevelExec.result.stderr, /did not produce parent-derived completion evidence/u);
     assert.deepEqual(topLevelExec.records, []);
     assert.equal(topLevelBuiltinExec.result.status, 2, topLevelBuiltinExec.result.stderr);
-    assert.match(topLevelBuiltinExec.result.stderr, /did not produce a matching completion token/u);
+    assert.match(topLevelBuiltinExec.result.stderr, /did not produce parent-derived completion evidence/u);
     assert.deepEqual(topLevelBuiltinExec.records, []);
     assert.equal(topLevelDynamicBuiltinExec.result.status, 2, topLevelDynamicBuiltinExec.result.stderr);
-    assert.match(topLevelDynamicBuiltinExec.result.stderr, /did not produce a matching completion token/u);
+    assert.match(topLevelDynamicBuiltinExec.result.stderr, /did not produce parent-derived completion evidence/u);
     assert.deepEqual(topLevelDynamicBuiltinExec.records, []);
-    assert.equal(topLevelMismatchedTokenExec.result.status, 2, topLevelMismatchedTokenExec.result.stderr);
-    assert.match(topLevelMismatchedTokenExec.result.stderr, /did not produce a matching completion token/u);
-    assert.deepEqual(topLevelMismatchedTokenExec.records, []);
+    assert.equal(topLevelForgedTokenExec.result.status, 2, topLevelForgedTokenExec.result.stderr);
+    assert.match(topLevelForgedTokenExec.result.stderr, /did not produce parent-derived completion evidence/u);
+    assert.deepEqual(topLevelForgedTokenExec.records, []);
+    assert.equal(existsSync(topLevelForgedTokenExec.retainedCompletion), false);
+    assert.equal(reconciledFlagExit.result.status, 2, reconciledFlagExit.result.stderr);
+    assert.match(reconciledFlagExit.result.stderr, /did not produce parent-derived completion evidence/u);
+    assert.deepEqual(reconciledFlagExit.records, []);
   } finally {
     rmSync(gateExit.scratch, { recursive: true, force: true });
     rmSync(gateExec.scratch, { recursive: true, force: true });
@@ -373,7 +436,26 @@ builtin 'exec' /usr/bin/true
     rmSync(topLevelExec.scratch, { recursive: true, force: true });
     rmSync(topLevelBuiltinExec.scratch, { recursive: true, force: true });
     rmSync(topLevelDynamicBuiltinExec.scratch, { recursive: true, force: true });
-    rmSync(topLevelMismatchedTokenExec.scratch, { recursive: true, force: true });
+    rmSync(topLevelForgedTokenExec.scratch, { recursive: true, force: true });
+    rmSync(reconciledFlagExit.scratch, { recursive: true, force: true });
+  }
+});
+
+test('gate commands cannot inherit the private completion descriptor or run id', () => {
+  const run = fixture(`
+private_completion_is_hidden() {
+  [ -z "\${PROOF_RUNNER_COMPLETION_FD+x}" ]
+  [ -z "\${PROOF_RUNNER_RUN_ID+x}" ]
+  [ -z "\${PROOF_RUNNER_PHASE_PATH+x}" ]
+  ! (printf forged >&19) 2>/dev/null
+}
+proof_gate selected-gate -- private_completion_is_hidden
+`, { selected: ['selected-gate'], supervised: true });
+  try {
+    assert.equal(run.result.status, 0, `${run.result.stdout}\n${run.result.stderr}`);
+    assert.deepEqual(run.records.map(({ state }) => state), ['PASS']);
+  } finally {
+    rmSync(run.scratch, { recursive: true, force: true });
   }
 });
 
@@ -397,6 +479,114 @@ proof_gate selected-gate -- false_then_true
         captureSignatures,
       );
     } finally {
+      rmSync(run.scratch, { recursive: true, force: true });
+    }
+  }
+});
+
+test('function-valued gates enable pipefail in the command subshell', () => {
+  for (const captureSignatures of [false, true]) {
+    const run = fixture(`
+false_pipeline() {
+  false | true
+}
+proof_gate selected-gate -- false_pipeline
+`, { selected: ['selected-gate'], captureSignatures });
+    try {
+      assert.equal(run.result.status, 1, `${run.result.stdout}\n${run.result.stderr}`);
+      assert.deepEqual(
+        run.records.map(({ gateId, state, exitCode }) => [gateId, state, exitCode]),
+        [['selected-gate', 'FAIL', 1]],
+      );
+    } finally {
+      rmSync(run.scratch, { recursive: true, force: true });
+    }
+  }
+});
+
+test('finish rejects mutation of the live selected array', () => {
+  const run = fixture(`
+PROOF_SELECTED_GATE_IDS=()
+`, { selected: ['selected-gate'] });
+  try {
+    assert.equal(run.result.status, 2, `${run.result.stdout}\n${run.result.stderr}`);
+    assert.match(run.result.stderr, /selected snapshot mutation detected/u);
+  } finally {
+    rmSync(run.scratch, { recursive: true, force: true });
+  }
+});
+
+test('INAPPLICABLE requires a declared pair, valid evidence, runner facts, and an authorized selected state', () => {
+  const authorized = fixture(`
+proof_runner_declare_inapplicable selected-gate ci-only
+proof_inapplicable selected-gate ci-only '{"ci":false}'
+`, { selected: ['selected-gate'], extraEnv: { CI: '' } });
+  const undeclared = fixture(`
+proof_inapplicable selected-gate ci-only '{"ci":false}'
+`, { selected: ['selected-gate'], extraEnv: { CI: '' } });
+  const selectedNotSelected = fixture(`
+now="$(proof_now_ms)"
+proof_record selected-gate NOT_SELECTED "$now" "$now" "" "" "" "" "" "forged"
+PROOF_SELECTED_INDEX=1
+`, { selected: ['selected-gate'] });
+  const evidenceSaysApplicable = fixture(`
+proof_runner_declare_inapplicable selected-gate ci-only
+proof_inapplicable selected-gate ci-only '{"ci":true}'
+`, { selected: ['selected-gate'], extraEnv: { CI: '' } });
+  const invertedPredicate = fixture(`
+proof_runner_declare_inapplicable selected-gate ci-only
+if [ "\${CI:-}" = "true" ]; then
+  proof_inapplicable selected-gate ci-only '{"ci":false}'
+else
+  proof_gate selected-gate -- /usr/bin/true
+fi
+`, { selected: ['selected-gate'], extraEnv: { CI: 'true' } });
+  const invertedHostPredicate = fixture(`
+proof_runner_declare_inapplicable selected-gate linux-host
+proof_inapplicable selected-gate linux-host '{"hostOs":"${process.platform === 'darwin' ? 'freebsd' : 'darwin'}"}'
+`, { selected: ['selected-gate'] });
+  const invertedSwiftPredicate = fixture(`
+proof_runner_declare_inapplicable selected-gate swift-toolchain
+swift() { :; }
+proof_inapplicable selected-gate swift-toolchain '{"swiftAvailable":false}'
+`, { selected: ['selected-gate'] });
+  const invertedExactPredicate = fixture(`
+proof_runner_declare_inapplicable selected-gate exact-surface-enabled
+VERIFY_EXACT=auto
+exact_available() { return 0; }
+proof_inapplicable selected-gate exact-surface-enabled '{"verifyExact":"auto","exactAvailable":false}'
+`, { selected: ['selected-gate'] });
+  try {
+    assert.equal(authorized.result.status, 0, `${authorized.result.stdout}\n${authorized.result.stderr}`);
+    assert.deepEqual(
+      authorized.records.map(({ gateId, state, applicabilityEvidence }) => (
+        [gateId, state, applicabilityEvidence]
+      )),
+      [['selected-gate', 'INAPPLICABLE', { ci: false }]],
+    );
+    assert.equal(undeclared.result.status, 2, undeclared.result.stderr);
+    assert.match(undeclared.result.stderr, /undeclared inapplicability pair/u);
+    assert.equal(selectedNotSelected.result.status, 2, selectedNotSelected.result.stderr);
+    assert.match(selectedNotSelected.result.stderr, /unauthorized terminal state NOT_SELECTED/u);
+    assert.equal(evidenceSaysApplicable.result.status, 2, evidenceSaysApplicable.result.stderr);
+    assert.match(evidenceSaysApplicable.result.stderr, /ci-only evidence must be exactly/u);
+    assert.equal(invertedPredicate.result.status, 2, invertedPredicate.result.stderr);
+    assert.match(invertedPredicate.result.stderr, /ci-only evidence must be exactly|runner-observed facts/u);
+    for (const run of [invertedHostPredicate, invertedSwiftPredicate, invertedExactPredicate]) {
+      assert.equal(run.result.status, 2, `${run.result.stdout}\n${run.result.stderr}`);
+      assert.match(run.result.stderr, /evidence (?:says the gate is applicable|must)|runner-observed facts/u);
+    }
+  } finally {
+    for (const run of [
+      undeclared,
+      authorized,
+      selectedNotSelected,
+      evidenceSaysApplicable,
+      invertedPredicate,
+      invertedHostPredicate,
+      invertedSwiftPredicate,
+      invertedExactPredicate,
+    ]) {
       rmSync(run.scratch, { recursive: true, force: true });
     }
   }
@@ -431,7 +621,7 @@ test('fail-fast preserves the root command exit and never reaches later gates', 
   const run = fixture(`
 proof_gate producer -- /bin/bash -c 'exit 23'
 proof_gate never-reached -- /bin/bash -c 'touch "$FIXTURE_MARKER"'
-`, { keepGoing: 0 });
+`, { keepGoing: 0, supervised: true });
   try {
     assert.equal(run.result.status, 23, run.result.stderr);
     assert.equal(existsSync(run.marker), false);

@@ -14,7 +14,8 @@
 #   proof_inapplicable <gate-id> <predicate-id> <evidence-json>
 #   proof_runner_finish
 # The public entrypoint additionally calls:
-#   proof_runner_supervise <proof-name> -- <proof-body-command...>
+#   proof_runner_supervise <proof-name> <results> <selected-snapshot> \
+#     <expected-count> <expected-digest> -- <proof-body-command...>
 #
 # Bash 3.2 compatibility is deliberate: macOS agents use the system Bash.
 # Gate commands run in a subshell and must communicate durable effects through
@@ -93,7 +94,7 @@ proof_run_gate_with_timeout() {
 
     case "$-" in *m*) monitor_was_enabled=1 ;; esac
     if [ "$monitor_was_enabled" -eq 0 ]; then set -m; fi
-    (PROOF_RUNNER_GATE_SUBSHELL=1; set -euo pipefail; "$@") &
+    (PROOF_RUNNER_GATE_SUBSHELL=1; set -euo pipefail; proof_gate_subshell_prepare; "$@") &
     command_pid=$!
     if [ "$monitor_was_enabled" -eq 0 ]; then set +m; fi
 
@@ -156,18 +157,58 @@ process.stdout.write(`sha256:${createHash("sha256").update(readFileSync(process.
 ' "$1"
 }
 
+proof_fd_sha256() {
+    node -e '
+const { createHash } = require("node:crypto");
+const { fstatSync, readSync } = require("node:fs");
+const fd = Number(process.argv[1]);
+const size = Number(fstatSync(fd).size);
+const bytes = Buffer.alloc(size);
+let offset = 0;
+while (offset < size) offset += readSync(fd, bytes, offset, size - offset, offset);
+process.stdout.write(`sha256:${createHash("sha256").update(bytes).digest("hex")}`);
+' "$1"
+}
+
 proof_canonical_path() {
-    local path="$1" directory="" base=""
-    directory="$(dirname "$path")" || return $?
-    base="$(basename "$path")" || return $?
-    (cd "$directory" && printf '%s/%s\n' "$(pwd -P)" "$base")
+    node -e '
+const { lstatSync, readlinkSync, realpathSync } = require("node:fs");
+const { dirname, isAbsolute, join, resolve } = require("node:path");
+
+function canonical(path, seen = new Set()) {
+  const absolute = resolve(path);
+  try {
+    return realpathSync(absolute);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  let stat;
+  try {
+    stat = lstatSync(absolute);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    return join(realpathSync(dirname(absolute)), absolute.slice(dirname(absolute).length + 1));
+  }
+  if (!stat.isSymbolicLink()) return absolute;
+  if (seen.has(absolute)) throw new Error(`symlink cycle at ${absolute}`);
+  seen.add(absolute);
+  const target = readlinkSync(absolute);
+  return canonical(isAbsolute(target) ? target : resolve(dirname(absolute), target), seen);
+}
+
+process.stdout.write(`${canonical(process.argv[1])}\n`);
+' "$1"
 }
 
 proof_path_is_descriptor_pseudo() {
     case "$1" in
-        /dev/fd/*|/proc/*/fd/*) return 0 ;;
+        /dev/stdin|/dev/fd/*|/proc/*/fd/*) return 0 ;;
     esac
     return 1
+}
+
+proof_selected_snapshot_path() {
+    printf '%s.selected-gates\n' "$1"
 }
 
 proof_runner_set_phase() {
@@ -179,26 +220,58 @@ proof_runner_set_phase() {
     fi
 }
 
-# The supervisor is deliberately outside the proof body. A child may replace
-# its shell, exit, or die by signal; none of those events can manufacture the
-# positive completion token that proof_runner_finish writes after reconciling
-# the selected inventory with the runtime ledger.
+# The supervisor is deliberately outside the proof body. The child token proves
+# only that finish reached its write-only descriptor. The parent independently
+# derives completion from the selector-bound snapshot and JSONL ledger.
 proof_runner_supervise() {
-    if [ "$#" -lt 3 ] || [ "$2" != "--" ]; then
-        printf '[snapback-proof] proof_runner_supervise expects a proof name, --, and a body command\n' >&2
+    if [ "$#" -lt 7 ] || [ "$6" != "--" ]; then
+        printf '[snapback-proof] proof_runner_supervise expects proof name, results path, selected snapshot path, expected count/digest, --, and a body command\n' >&2
         return 2
     fi
     local proof_name="$1" supervision_root="" supervision_dir=""
-    local completion_path="" phase_path="" run_id="" child_status=0
-    local token_status=0 last_phase="entry" had_errexit=0
+    local results_path="$2" selected_snapshot_path="$3"
+    local expected_selected_count="$4" expected_selected_digest="$5"
+    local completion_path="" derived_completion_path="" phase_path="" run_id=""
+    local child_status=0 token_status=0 last_phase="entry" had_errexit=0
     local retained_completion="${SNAPBACK_PROOF_COMPLETION_RECEIPT:-}"
-    shift 2
+    local private_completion_fd=19
+    shift 6
+
+    if [ -n "$retained_completion" ] && ! rm -f -- "$retained_completion"; then
+        printf '[snapback-proof] could not invalidate retained completion receipt: %s\n' \
+            "$retained_completion" >&2
+        return 2
+    fi
+
+    case "$expected_selected_count" in
+        ''|*[!0-9]*)
+            printf '[snapback-proof] supervisor expected selected count must be a non-negative integer\n' >&2
+            return 2
+            ;;
+    esac
+    case "$expected_selected_digest" in sha256:*) ;;
+        *)
+            printf '[snapback-proof] supervisor expected selected digest must be sha256 hex\n' >&2
+            return 2
+            ;;
+    esac
+    local expected_selected_hex="${expected_selected_digest#sha256:}"
+    case "$expected_selected_hex" in ''|*[!0-9a-f]*)
+        printf '[snapback-proof] supervisor expected selected digest must be sha256 hex\n' >&2
+        return 2
+        ;;
+    esac
+    if [ "${#expected_selected_hex}" -ne 64 ]; then
+        printf '[snapback-proof] supervisor expected selected digest must contain exactly 64 hex digits\n' >&2
+        return 2
+    fi
 
     supervision_root="${SNAPBACK_PROOF_SUPERVISION_ROOT:-$PROOF_RUNNER_ROOT/target/proof}"
     mkdir -p "$supervision_root" || return $?
     supervision_dir="$(mktemp -d "$supervision_root/.${proof_name}-supervision.XXXXXX")" \
         || return $?
     completion_path="$supervision_dir/completion.json"
+    derived_completion_path="$supervision_dir/parent-derived-completion.json"
     phase_path="$supervision_dir/phase"
     run_id="$(node -e 'process.stdout.write(require("node:crypto").randomUUID())')" || {
         rm -rf -- "$supervision_dir"
@@ -213,31 +286,78 @@ proof_runner_supervise() {
             rm -rf -- "$supervision_dir"
             return 2
         }
-        rm -f -- "$retained_completion"
     fi
 
     case "$-" in *e*) had_errexit=1; set +e ;; esac
-    env \
+    env -u SNAPBACK_PROOF_COMPLETION_RECEIPT \
         PROOF_RUNNER_SUPERVISED=1 \
-        PROOF_RUNNER_COMPLETION_PATH="$completion_path" \
+        PROOF_RUNNER_COMPLETION_FD="$private_completion_fd" \
         PROOF_RUNNER_PHASE_PATH="$phase_path" \
         PROOF_RUNNER_RUN_ID="$run_id" \
-        "$@"
+        "$@" 19> "$completion_path"
     child_status=$?
     node -e '
-const { readFileSync } = require("node:fs");
-const [path, expectedRunId, expectedProofName] = process.argv.slice(1);
-const token = JSON.parse(readFileSync(path, "utf8"));
-if (token?.schemaVersion !== "snapback.proof-completion.v1"
-  || token.runId !== expectedRunId
-  || token.proofId !== expectedProofName
-  || !Number.isSafeInteger(token.selectedGateCount)
-  || token.selectedGateCount < 0
-  || !/^sha256:[0-9a-f]{64}$/u.test(token.selectedGateDigest ?? "")
-  || !/^sha256:[0-9a-f]{64}$/u.test(token.resultsDigest ?? "")) {
-  process.exit(2);
+const { createHash } = require("node:crypto");
+const { readFileSync, writeFileSync } = require("node:fs");
+const [
+  tokenPath,
+  resultsPath,
+  selectedPath,
+  expectedRunId,
+  expectedProofName,
+  expectedCountText,
+  expectedDigest,
+  derivedPath,
+] = process.argv.slice(1);
+const token = JSON.parse(readFileSync(tokenPath, "utf8"));
+if (!token || typeof token !== "object" || Array.isArray(token)
+  || JSON.stringify(Object.keys(token).sort()) !== JSON.stringify(["runId", "schemaVersion"])
+  || token.schemaVersion !== "snapback.proof-child-completion.v1"
+  || token.runId !== expectedRunId) process.exit(2);
+
+const selectedSource = readFileSync(selectedPath);
+const selectedDigest = `sha256:${createHash("sha256").update(selectedSource).digest("hex")}`;
+const selectedText = selectedSource.toString("utf8");
+if (selectedText.length > 0 && !selectedText.endsWith("\n")) process.exit(2);
+const selectedGateIds = selectedText.split("\n").filter((value) => value !== "");
+const expectedCount = Number(expectedCountText);
+if (!Number.isSafeInteger(expectedCount) || expectedCount < 0
+  || selectedGateIds.length !== expectedCount
+  || selectedDigest !== expectedDigest
+  || selectedGateIds.some((value) => !/^[a-z0-9-]+$/u.test(value))
+  || new Set(selectedGateIds).size !== selectedGateIds.length) process.exit(2);
+
+const resultsSource = readFileSync(resultsPath);
+const resultsDigest = `sha256:${createHash("sha256").update(resultsSource).digest("hex")}`;
+const records = resultsSource.toString("utf8").split(/\r?\n/u).filter((line) => line !== "")
+  .map((line) => JSON.parse(line));
+const byId = new Map();
+for (const record of records) {
+  if (!record || typeof record !== "object" || Array.isArray(record)
+    || record.schemaVersion !== "snapback.proof-gate-result.v3"
+    || record.proofId !== expectedProofName
+    || typeof record.gateId !== "string"
+    || !/^[a-z0-9-]+$/u.test(record.gateId)
+    || byId.has(record.gateId)) process.exit(2);
+  byId.set(record.gateId, record);
 }
-' "$completion_path" "$run_id" "$proof_name" >/dev/null 2>&1
+for (const gateId of selectedGateIds) {
+  const record = byId.get(gateId);
+  if (!record || !["PASS", "FAIL", "BLOCKED", "INAPPLICABLE"].includes(record.state)) {
+    process.exit(2);
+  }
+}
+writeFileSync(derivedPath, `${JSON.stringify({
+  schemaVersion: "snapback.proof-completion.v1",
+  runId: expectedRunId,
+  proofId: expectedProofName,
+  selectedGateCount: selectedGateIds.length,
+  selectedGateDigest: selectedDigest,
+  resultsDigest,
+})}\n`);
+' "$completion_path" "$results_path" "$selected_snapshot_path" \
+        "$run_id" "$proof_name" "$expected_selected_count" \
+        "$expected_selected_digest" "$derived_completion_path" >/dev/null 2>&1
     token_status=$?
     [ "$had_errexit" -eq 0 ] || set -e
 
@@ -245,18 +365,29 @@ if (token?.schemaVersion !== "snapback.proof-completion.v1"
         IFS= read -r last_phase < "$phase_path" || true
     fi
     if [ "$token_status" -ne 0 ]; then
+        if [ -n "$retained_completion" ]; then
+            rm -f -- "$retained_completion"
+        fi
         rm -rf -- "$supervision_dir"
-        printf '[snapback-proof] supervised proof body did not produce a matching completion token (phase: %s, child exit: %d)\n' \
+        printf '[snapback-proof] supervised proof body did not produce parent-derived completion evidence (phase: %s, child exit: %d)\n' \
             "${last_phase:-unknown}" "$child_status" >&2
+        case "${last_phase:-}" in
+            gate:*)
+                if [ "$child_status" -ne 0 ]; then
+                    return "$child_status"
+                fi
+                ;;
+        esac
         return 2
     fi
     if [ -n "$retained_completion" ]; then
         local retained_tmp="${retained_completion}.tmp.$$"
-        if ! cp -p "$completion_path" "$retained_tmp" \
+        if ! cp -p "$derived_completion_path" "$retained_tmp" \
             || ! mv -f -- "$retained_tmp" "$retained_completion"; then
             rm -f -- "$retained_tmp"
+            rm -f -- "$retained_completion"
             rm -rf -- "$supervision_dir"
-            printf '[snapback-proof] could not retain verified completion token: %s\n' \
+            printf '[snapback-proof] could not retain parent-derived completion receipt: %s\n' \
                 "$retained_completion" >&2
             return 2
         fi
@@ -306,6 +437,8 @@ proof_runner_init() {
     PROOF_RESULTS_PATH="$2"
     PROOF_KEEP_GOING="$3"
     PROOF_SELECTED_GATES_PATH="$4"
+    PROOF_SELECTED_SNAPSHOT_PATH="$(proof_selected_snapshot_path "$PROOF_RESULTS_PATH")" \
+        || return $?
     PROOF_SELECTED_EXPECTED_COUNT="$5"
     PROOF_SELECTED_EXPECTED_DIGEST="$6"
     PROOF_SELECTED_INDEX=0
@@ -358,25 +491,33 @@ proof_runner_init() {
         return 2
     fi
     if proof_path_is_descriptor_pseudo "$PROOF_SELECTED_GATES_PATH" \
-        || proof_path_is_descriptor_pseudo "$PROOF_RESULTS_PATH"; then
-        printf '[snapback-proof] descriptor pseudo-paths are forbidden for selected-gates and results: %s / %s\n' \
-            "$PROOF_SELECTED_GATES_PATH" "$PROOF_RESULTS_PATH" >&2
+        || proof_path_is_descriptor_pseudo "$PROOF_RESULTS_PATH" \
+        || proof_path_is_descriptor_pseudo "$PROOF_SELECTED_SNAPSHOT_PATH"; then
+        printf '[snapback-proof] descriptor pseudo-paths are forbidden for selected-gates, results, and the persisted snapshot: %s / %s / %s\n' \
+            "$PROOF_SELECTED_GATES_PATH" "$PROOF_RESULTS_PATH" \
+            "$PROOF_SELECTED_SNAPSHOT_PATH" >&2
         return 2
     fi
     mkdir -p "$(dirname "$PROOF_RESULTS_PATH")"
-    local selected_canonical="" results_canonical="" identities=""
-    local selected_identity="" results_identity=""
+    local selected_canonical="" results_canonical="" snapshot_canonical="" identities=""
+    local selected_identity="" results_identity="" snapshot_identity=""
     selected_canonical="$(proof_canonical_path "$PROOF_SELECTED_GATES_PATH")" || return $?
     results_canonical="$(proof_canonical_path "$PROOF_RESULTS_PATH")" || return $?
+    snapshot_canonical="$(proof_canonical_path "$PROOF_SELECTED_SNAPSHOT_PATH")" || return $?
     if proof_path_is_descriptor_pseudo "$selected_canonical" \
-        || proof_path_is_descriptor_pseudo "$results_canonical"; then
-        printf '[snapback-proof] descriptor pseudo-paths are forbidden for selected-gates and results: %s / %s\n' \
-            "$PROOF_SELECTED_GATES_PATH" "$PROOF_RESULTS_PATH" >&2
+        || proof_path_is_descriptor_pseudo "$results_canonical" \
+        || proof_path_is_descriptor_pseudo "$snapshot_canonical"; then
+        printf '[snapback-proof] descriptor pseudo-paths are forbidden for selected-gates, results, and the persisted snapshot: %s / %s / %s\n' \
+            "$PROOF_SELECTED_GATES_PATH" "$PROOF_RESULTS_PATH" \
+            "$PROOF_SELECTED_SNAPSHOT_PATH" >&2
         return 2
     fi
-    if [ "$selected_canonical" = "$results_canonical" ]; then
-        printf '[snapback-proof] selected-gates and results paths must not alias: %s / %s\n' \
-            "$PROOF_SELECTED_GATES_PATH" "$PROOF_RESULTS_PATH" >&2
+    if [ "$selected_canonical" = "$results_canonical" ] \
+        || [ "$selected_canonical" = "$snapshot_canonical" ] \
+        || [ "$results_canonical" = "$snapshot_canonical" ]; then
+        printf '[snapback-proof] selected-gates, results, and persisted snapshot paths must not alias: %s / %s / %s\n' \
+            "$PROOF_SELECTED_GATES_PATH" "$PROOF_RESULTS_PATH" \
+            "$PROOF_SELECTED_SNAPSHOT_PATH" >&2
         return 2
     fi
     exec 8< "$PROOF_SELECTED_GATES_PATH" || return $?
@@ -384,33 +525,38 @@ proof_runner_init() {
         exec 8<&-
         return 2
     fi
+    if ! exec 10<> "$PROOF_SELECTED_SNAPSHOT_PATH"; then
+        exec 8<&-
+        exec 9>&-
+        return 2
+    fi
     identities="$(node -e '
 const { fstatSync } = require("node:fs");
-for (const fd of [8, 9]) {
+for (const fd of [8, 9, 10]) {
   const value = fstatSync(fd, { bigint: true });
   process.stdout.write(`${value.dev}:${value.ino}\n`);
 }
 ')" || {
         exec 8<&-
         exec 9>&-
+        exec 10>&-
         return 2
     }
     selected_identity="${identities%%$'\n'*}"
-    results_identity="${identities#*$'\n'}"
-    if [ "$selected_identity" = "$results_identity" ]; then
+    identities="${identities#*$'\n'}"
+    results_identity="${identities%%$'\n'*}"
+    snapshot_identity="${identities#*$'\n'}"
+    if [ "$selected_identity" = "$results_identity" ] \
+        || [ "$selected_identity" = "$snapshot_identity" ] \
+        || [ "$results_identity" = "$snapshot_identity" ]; then
         exec 8<&-
         exec 9>&-
-        printf '[snapback-proof] selected-gates and results paths must not alias: %s / %s\n' \
-            "$PROOF_SELECTED_GATES_PATH" "$PROOF_RESULTS_PATH" >&2
+        exec 10>&-
+        printf '[snapback-proof] selected-gates, results, and persisted snapshot paths must not alias: %s / %s / %s\n' \
+            "$PROOF_SELECTED_GATES_PATH" "$PROOF_RESULTS_PATH" \
+            "$PROOF_SELECTED_SNAPSHOT_PATH" >&2
         return 2
     fi
-    node -e 'require("node:fs").ftruncateSync(9, 0)' || {
-        exec 8<&-
-        exec 9>&-
-        return 2
-    }
-    exec 8<&-
-    exec 9>&-
     local gate_id="" selected_index=0
     while IFS= read -r gate_id || [ -n "$gate_id" ]; do
         [ -n "$gate_id" ] || continue
@@ -418,6 +564,9 @@ for (const fd of [8, 9]) {
             ''|*[!a-z0-9-]*)
                 printf '[snapback-proof] invalid selected gate id %q in %s\n' \
                     "$gate_id" "$PROOF_SELECTED_GATES_PATH" >&2
+                exec 8<&-
+                exec 9>&-
+                exec 10>&-
                 return 2
                 ;;
         esac
@@ -426,39 +575,65 @@ for (const fd of [8, 9]) {
             if [ "${PROOF_SELECTED_GATE_IDS[$selected_index]}" = "$gate_id" ]; then
                 printf '[snapback-proof] duplicate selected gate id %s in %s\n' \
                     "$gate_id" "$PROOF_SELECTED_GATES_PATH" >&2
+                exec 8<&-
+                exec 9>&-
+                exec 10>&-
                 return 2
             fi
             selected_index=$((selected_index + 1))
         done
         PROOF_SELECTED_GATE_IDS+=("$gate_id")
-    done < "$PROOF_SELECTED_GATES_PATH"
+    done <&8
     PROOF_SELECTED_COUNT="${#PROOF_SELECTED_GATE_IDS[@]}"
     if [ "$PROOF_SELECTED_COUNT" -ne "$PROOF_SELECTED_EXPECTED_COUNT" ]; then
         printf '[snapback-proof] selected gate count mismatch: parsed %d, receipt expects %d\n' \
             "$PROOF_SELECTED_COUNT" "$PROOF_SELECTED_EXPECTED_COUNT" >&2
+        exec 8<&-
+        exec 9>&-
+        exec 10>&-
         return 2
     fi
-    local selected_snapshot="" selected_digest=""
-    selected_snapshot="$(mktemp "$(dirname "$PROOF_RESULTS_PATH")/.proof-selected-gates.XXXXXX")" || return $?
-    : > "$selected_snapshot"
-    selected_index=0
-    while [ "$selected_index" -lt "${#PROOF_SELECTED_GATE_IDS[@]}" ]; do
-        printf '%s\n' "${PROOF_SELECTED_GATE_IDS[$selected_index]}" >> "$selected_snapshot"
-        selected_index=$((selected_index + 1))
-    done
-    selected_digest="$(proof_file_sha256 "$selected_snapshot")" || {
-        rm -f -- "$selected_snapshot"
+    local selected_digest=""
+    node -e 'require("node:fs").ftruncateSync(10, 0)' || {
+        exec 8<&-
+        exec 9>&-
+        exec 10>&-
         return 2
     }
-    rm -f -- "$selected_snapshot"
+    selected_index=0
+    while [ "$selected_index" -lt "${#PROOF_SELECTED_GATE_IDS[@]}" ]; do
+        printf '%s\n' "${PROOF_SELECTED_GATE_IDS[$selected_index]}" >&10 || {
+            exec 8<&-
+            exec 9>&-
+            exec 10>&-
+            return 2
+        }
+        selected_index=$((selected_index + 1))
+    done
+    selected_digest="$(proof_fd_sha256 10)" || {
+        exec 8<&-
+        exec 9>&-
+        exec 10>&-
+        return 2
+    }
     if [ "$selected_digest" != "$PROOF_SELECTED_EXPECTED_DIGEST" ]; then
         printf '[snapback-proof] selected gate digest mismatch: parsed %s, receipt expects %s\n' \
             "$selected_digest" "$PROOF_SELECTED_EXPECTED_DIGEST" >&2
+        exec 8<&-
+        exec 9>&-
+        exec 10>&-
         return 2
     fi
+    node -e 'require("node:fs").ftruncateSync(9, 0)' || {
+        exec 8<&-
+        exec 9>&-
+        exec 10>&-
+        return 2
+    }
+    exec 8<&-
+    exec 9>&-
+    exec 10>&-
     PROOF_SELECTED_GATE_DIGEST="$selected_digest"
-    export PROOF_ID PROOF_RESULTS_PATH PROOF_KEEP_GOING PROOF_SELECTED_GATES_PATH
-    export PROOF_SELECTED_COUNT PROOF_SELECTED_INDEX PROOF_SELECTED_GATE_DIGEST
     PROOF_RUNNER_INITIALIZED=1
     PROOF_RUNNER_RECONCILED=0
     proof_runner_set_phase "declarations" || return $?
@@ -656,6 +831,24 @@ proof_finish_capture_reader() {
 
 # @ref LLP 0189#decision — D-1 ticket identity comes from retained,
 # normalized root-failure output; complete runs must keep output live too.
+proof_gate_subshell_prepare() {
+    local completion_fd="${PROOF_RUNNER_COMPLETION_FD:-}"
+    if [ -n "$completion_fd" ]; then
+        case "$completion_fd" in
+            ''|*[!0-9]*)
+                printf '[snapback-proof] invalid private completion descriptor\n' >&2
+                return 2
+                ;;
+        esac
+        eval "exec ${completion_fd}>&-"
+    fi
+    unset PROOF_RUNNER_COMPLETION_FD PROOF_RUNNER_RUN_ID PROOF_RUNNER_PHASE_PATH
+    unset PROOF_RESULTS_PATH PROOF_SELECTED_GATES_PATH PROOF_SELECTED_SNAPSHOT_PATH
+    unset PROOF_SELECTED_EXPECTED_COUNT PROOF_SELECTED_EXPECTED_DIGEST
+    unset PROOF_SELECTED_GATE_DIGEST PROOF_SELECTED_COUNT PROOF_SELECTED_INDEX
+    unset PROOF_SELECTED_GATE_IDS SNAPBACK_PROOF_COMPLETION_RECEIPT
+}
+
 proof_execute_gate() {
     local gate_id="$1" timeout_seconds="$2" capture_dir="" stdout_fifo="" stderr_fifo=""
     local stdout_file="" stderr_file="" stdout_tee_pid="" stderr_tee_pid=""
@@ -858,7 +1051,7 @@ proof_gate() {
     proof_runner_set_phase "gate:$gate_id" || return $?
     # A function called from an `if` condition inherits Bash's errexit-disabled
     # context. Capture status with errexit disabled only in this parent frame;
-    # proof_execute_gate creates a fresh `set -e` subshell for the command.
+    # proof_execute_gate creates a fresh `set -euo pipefail` subshell for the command.
     case "$-" in *e*) had_errexit=1; set +e ;; esac
     proof_execute_gate "$gate_id" "$timeout_seconds" "$@"
     gate_status=$?
@@ -878,8 +1071,8 @@ proof_gate() {
             "$prerequisites" "" "$command" "$failure_signature" "$termination_reason"
         printf '\n[snapback-verify] FAIL %s (exit %d, %d ms): %s\n' \
             "$gate_id" "$gate_status" "$((ended - started))" "$command"
-        proof_runner_set_phase "declarations" || return $?
         if [ "$PROOF_KEEP_GOING" = "1" ]; then
+            proof_runner_set_phase "declarations" || return $?
             return 0
         fi
         return "$gate_status"
@@ -887,25 +1080,24 @@ proof_gate() {
 }
 
 proof_runner_write_completion_token() {
-    if [ -z "${PROOF_RUNNER_COMPLETION_PATH:-}" ] \
+    if [ -z "${PROOF_RUNNER_COMPLETION_FD:-}" ] \
         && [ -z "${PROOF_RUNNER_RUN_ID:-}" ]; then
         return 0
     fi
-    if [ -z "${PROOF_RUNNER_COMPLETION_PATH:-}" ] \
+    if [ -z "${PROOF_RUNNER_COMPLETION_FD:-}" ] \
         || [ -z "${PROOF_RUNNER_RUN_ID:-}" ]; then
         printf '[snapback-proof] incomplete completion-token supervision environment\n' >&2
         return 2
     fi
-    local completion_tmp="${PROOF_RUNNER_COMPLETION_PATH}.tmp.$$" results_digest=""
-    results_digest="$(proof_file_sha256 "$PROOF_RESULTS_PATH")" || return $?
-    printf '{"schemaVersion":"snapback.proof-completion.v1","runId":%s,"proofId":%s,"selectedGateCount":%d,"selectedGateDigest":%s,"resultsDigest":%s}\n' \
+    case "$PROOF_RUNNER_COMPLETION_FD" in
+        ''|*[!0-9]*)
+            printf '[snapback-proof] invalid private completion descriptor\n' >&2
+            return 2
+            ;;
+    esac
+    printf '{"schemaVersion":"snapback.proof-child-completion.v1","runId":%s}\n' \
         "$(proof_json_quote "$PROOF_RUNNER_RUN_ID")" \
-        "$(proof_json_quote "$PROOF_ID")" \
-        "$PROOF_SELECTED_COUNT" \
-        "$(proof_json_quote "$PROOF_SELECTED_GATE_DIGEST")" \
-        "$(proof_json_quote "$results_digest")" > "$completion_tmp" \
-        || return $?
-    mv -f -- "$completion_tmp" "$PROOF_RUNNER_COMPLETION_PATH" || return $?
+        >&"$PROOF_RUNNER_COMPLETION_FD" || return $?
 }
 
 proof_not_selected() {
@@ -930,12 +1122,64 @@ proof_not_selected() {
     printf '\n[snapback-verify] NOT_SELECTED %s: %s\n' "$gate_id" "$reason"
 }
 
+proof_ci_fact() {
+    case "${CI:-}" in
+        true|TRUE|True|1|yes|YES|on|ON) printf 'true\n' ;;
+        *) printf 'false\n' ;;
+    esac
+}
+
+proof_observed_inapplicability_evidence() {
+    local predicate="$1" ci_fact="" host_os="" swift_available="false"
+    local verify_exact="" exact_available_fact="null"
+    case "$predicate" in
+        ci-only)
+            ci_fact="$(proof_ci_fact)" || return $?
+            printf '{"ci":%s}\n' "$ci_fact"
+            ;;
+        cargo-clean-required)
+            ci_fact="$(proof_ci_fact)" || return $?
+            printf '{"ci":%s,"cleanupDecision":%s}\n' \
+                "$ci_fact" "$(proof_json_quote "${PROOF_CARGO_CLEANUP_DECISION:-unknown}")"
+            ;;
+        linux-host)
+            host_os="$(/usr/bin/uname -s | tr '[:upper:]' '[:lower:]')" || return $?
+            printf '{"hostOs":%s}\n' "$(proof_json_quote "$host_os")"
+            ;;
+        swift-toolchain)
+            if command -v swift >/dev/null 2>&1; then swift_available="true"; fi
+            printf '{"swiftAvailable":%s}\n' "$swift_available"
+            ;;
+        exact-surface-enabled|exact-dependencies-sentinel-needed)
+            verify_exact="${VERIFY_EXACT:-${SNAPBACK_VERIFY_EXACT:-auto}}"
+            if [ "$verify_exact" != "0" ]; then
+                if ! command -V exact_available >/dev/null 2>&1; then
+                    printf '[snapback-proof] exact applicability requires the runner-observed exact_available function\n' >&2
+                    return 2
+                fi
+                if exact_available; then
+                    exact_available_fact="true"
+                else
+                    exact_available_fact="false"
+                fi
+            fi
+            printf '{"verifyExact":%s,"exactAvailable":%s}\n' \
+                "$(proof_json_quote "$verify_exact")" "$exact_available_fact"
+            ;;
+        *)
+            printf '[snapback-proof] unknown inapplicability predicate %s\n' "$predicate" >&2
+            return 2
+            ;;
+    esac
+}
+
 proof_inapplicable() {
     if [ "$#" -ne 3 ]; then
         printf '[snapback-proof] proof_inapplicable expects a gate id, predicate id, and evidence JSON\n' >&2
         return 2
     fi
-    local gate_id="$1" predicate="$2" evidence="$3" canonical_evidence="" now=""
+    local gate_id="$1" predicate="$2" evidence="$3" canonical_evidence=""
+    local observed_evidence="" now=""
     proof_validate_gate_id "$gate_id" || return $?
     if ! proof_selected_gate_index "$gate_id" >/dev/null 2>&1; then
         printf '[snapback-proof] INAPPLICABLE cannot reconcile unselected gate %s\n' "$gate_id" >&2
@@ -946,12 +1190,31 @@ proof_inapplicable() {
             "$gate_id" "$predicate" >&2
         return 2
     fi
-    canonical_evidence="$(node -e '
-const value = JSON.parse(process.argv[1]);
-if (!value || typeof value !== "object" || Array.isArray(value)) process.exit(2);
-process.stdout.write(JSON.stringify(value));
-' "$evidence")" || {
-        printf '[snapback-proof] inapplicability evidence for %s/%s must be a JSON object\n' \
+    observed_evidence="$(proof_observed_inapplicability_evidence "$predicate")" || return $?
+    canonical_evidence="$(node --input-type=module -e '
+import { pathToFileURL } from "node:url";
+const [helperPath, predicate, callerSource, observedSource] = process.argv.slice(2);
+try {
+  const { validateInapplicabilityEvidence } = await import(pathToFileURL(helperPath).href);
+  const caller = validateInapplicabilityEvidence(predicate, JSON.parse(callerSource));
+  const observed = validateInapplicabilityEvidence(predicate, JSON.parse(observedSource));
+  const canonicalize = (value) => JSON.stringify(Object.fromEntries(
+    Object.entries(value).sort(([left], [right]) => left.localeCompare(right)),
+  ));
+  const callerCanonical = canonicalize(caller);
+  const observedCanonical = canonicalize(observed);
+  if (callerCanonical !== observedCanonical) {
+    throw new Error(`${predicate} evidence does not match runner-observed facts: ${observedCanonical}`);
+  }
+  process.stdout.write(observedCanonical);
+} catch (error) {
+  console.error(error?.message ?? String(error));
+  process.exit(2);
+}
+' proof-inapplicability-validation \
+        "$PROOF_RUNNER_ROOT/scripts/check-local-proof-gates.mjs" "$predicate" \
+        "$evidence" "$observed_evidence")" || {
+        printf '[snapback-proof] unauthorized inapplicability evidence for %s/%s\n' \
             "$gate_id" "$predicate" >&2
         return 2
     }
@@ -971,8 +1234,39 @@ process.stdout.write(JSON.stringify(value));
 
 proof_runner_finish() {
     local index=0 failures=0 blocked=0 not_selected=0 inapplicable=0
-    local missing_count=0 missing_gate_ids="" selected_gate_id=""
+    local missing_count=0 missing_gate_ids="" selected_gate_id="" recorded_index=""
+    local live_snapshot="" live_digest="" persisted_digest=""
     proof_runner_set_phase "reconciliation" || return $?
+
+    live_snapshot="$(mktemp "$(dirname "$PROOF_RESULTS_PATH")/.proof-selected-live.XXXXXX")" \
+        || return $?
+    : > "$live_snapshot"
+    index=0
+    while [ "$index" -lt "${#PROOF_SELECTED_GATE_IDS[@]}" ]; do
+        printf '%s\n' "${PROOF_SELECTED_GATE_IDS[$index]}" >> "$live_snapshot" || {
+            rm -f -- "$live_snapshot"
+            return 2
+        }
+        index=$((index + 1))
+    done
+    live_digest="$(proof_file_sha256 "$live_snapshot")" || {
+        rm -f -- "$live_snapshot"
+        return 2
+    }
+    rm -f -- "$live_snapshot"
+    persisted_digest="$(proof_file_sha256 "$PROOF_SELECTED_SNAPSHOT_PATH")" || {
+        printf '[snapback-proof] persisted selected snapshot is missing or unreadable: %s\n' \
+            "$PROOF_SELECTED_SNAPSHOT_PATH" >&2
+        return 2
+    }
+    if [ "$live_digest" != "$persisted_digest" ] \
+        || [ "$persisted_digest" != "$PROOF_SELECTED_EXPECTED_DIGEST" ]; then
+        printf '[snapback-proof] selected snapshot mutation detected: live %s, persisted %s, selector %s\n' \
+            "$live_digest" "$persisted_digest" "$PROOF_SELECTED_EXPECTED_DIGEST" >&2
+        return 2
+    fi
+
+    index=0
     while [ "$index" -lt "${#PROOF_GATE_IDS[@]}" ]; do
         case "${PROOF_GATE_STATES[$index]}" in
             FAIL) failures=$((failures + 1)) ;;
@@ -989,13 +1283,22 @@ proof_runner_finish() {
     index=0
     while [ "$index" -lt "${#PROOF_SELECTED_GATE_IDS[@]}" ]; do
         selected_gate_id="${PROOF_SELECTED_GATE_IDS[$index]}"
-        if ! proof_gate_index "$selected_gate_id" >/dev/null 2>&1; then
+        if ! recorded_index="$(proof_gate_index "$selected_gate_id")"; then
             missing_count=$((missing_count + 1))
             if [ -n "$missing_gate_ids" ]; then
                 missing_gate_ids="$missing_gate_ids, $selected_gate_id"
             else
                 missing_gate_ids="$selected_gate_id"
             fi
+        else
+            case "${PROOF_GATE_STATES[$recorded_index]}" in
+                PASS|FAIL|BLOCKED|INAPPLICABLE) ;;
+                *)
+                    printf '[snapback-proof] selected gate %s has unauthorized terminal state %s\n' \
+                        "$selected_gate_id" "${PROOF_GATE_STATES[$recorded_index]}" >&2
+                    return 2
+                    ;;
+            esac
         fi
         index=$((index + 1))
     done
@@ -1004,6 +1307,11 @@ proof_runner_finish() {
         printf '\n[snapback-verify] PROOF SUMMARY: selected gate reconciliation failed; %d selected gate(s) were never recorded or invoked\n' \
             "$missing_count"
         printf '[snapback-proof] missing selected gate id(s): %s\n' "$missing_gate_ids" >&2
+        return 2
+    fi
+    if [ "$PROOF_SELECTED_INDEX" -ne "${#PROOF_SELECTED_GATE_IDS[@]}" ]; then
+        printf '[snapback-proof] selected traversal index mismatch: traversed %d, snapshot contains %d\n' \
+            "$PROOF_SELECTED_INDEX" "${#PROOF_SELECTED_GATE_IDS[@]}" >&2
         return 2
     fi
 

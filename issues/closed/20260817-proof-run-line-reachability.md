@@ -54,23 +54,28 @@ battery red.
 Resolved 2026-08-21 and adversarially hardened in the follow-up review-fix.
 `proof_runner_init` snapshots and validates the exact selected gate-id set from
 the selector's atomically materialized output, binds the parsed set to the
-validated receipt's exact count and digest, rejects selected/results aliasing,
-and makes that in-memory snapshot the only runtime membership authority.
+validated receipt's exact count and digest, rejects selected/results/snapshot
+aliasing, and persists that snapshot beside the JSONL as the runtime membership
+authority.
 `proof_runner_finish` reconciles every selected id against the runtime result
 ledger and exits nonzero with the missing ids when a shell guard or other
 control flow prevents a selected gate from being recorded. The public proof
-entrypoint launches the proof body in a child shell and requires a private,
-run-bound completion token that `proof_runner_finish` writes atomically only
-after reconciliation; missing or mismatched evidence fails in the outer
-parent regardless of `exit`, dynamic `exec`, or signal behavior in the child.
-The verified retained token binds the selected-set and JSONL digests, and both
-GitHub's scheduled report and the launchd ticket publisher require it before
-consuming results.
-The EXIT trap remains defense in depth. Gate commands run under `set -e` in a
+entrypoint launches the proof body in a child shell, persists the selected
+snapshot beside the JSONL, and gives the child only a write-only descriptor for
+a minimal run-id signal. After exit, the parent independently rehashes both
+artifacts, checks the selector count/digest, and joins every selected id to an
+authorized result before it creates the retained completion receipt. Missing
+or mismatched evidence fails in the outer parent regardless of `exit`, dynamic
+`exec`, or signal behavior in the child. Both GitHub's scheduled report and the
+launchd ticket publisher require that parent-derived receipt before consuming
+results.
+The EXIT trap remains defense in depth. Gate commands run under
+`set -euo pipefail` in a
 subshell whose status is captured outside conditional context, so a
-function-valued gate cannot turn `false; true` into PASS. Selected/results
-descriptor pseudo-paths are rejected, and general alias identity is compared
-through opened descriptors before results are truncated.
+function-valued gate cannot turn `false; true` or `false | true` into PASS.
+Selected/results/snapshot descriptor pseudo-paths are rejected, the final
+symlink component is resolved, and general alias identity is compared through
+opened descriptors before outputs are truncated.
 
 The proof-runner fixtures cover the original `if false; then ... fi` case and
 the same inventory with the gate unguarded, dynamic `builtin`-`exec` spellings,

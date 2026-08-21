@@ -4,24 +4,72 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# The public entry layer owns completion supervision. The proof body runs in a
-# child Bash process and can report success only after proof_runner_finish has
-# atomically written the run-bound completion token that this parent verifies.
-if [ "${PROOF_RUNNER_SUPERVISED:-0}" != "1" ]; then
+# The public entry layer owns selection and completion supervision. It prepares
+# the selector artifacts before launching the proof body, then derives the
+# completion receipt itself from that exact selected set and the final JSONL.
+PROOF_RUNNER_SELECTION_ONLY="${PROOF_RUNNER_SELECTION_ONLY:-0}"
+if [ "$PROOF_RUNNER_SELECTION_ONLY" = "1" ] \
+    && [ "${PROOF_RUNNER_SUPERVISED:-0}" != "1" ]; then
+    printf '[snapback-proof] selection-only mode is parent-private\n' >&2
+    exit 2
+fi
+if [ "${PROOF_RUNNER_SUPERVISED:-0}" != "1" ] \
+    && [ "$PROOF_RUNNER_SELECTION_ONLY" != "1" ]; then
     if [ "$#" -eq 1 ] && { [ "$1" = "--help" ] || [ "$1" = "-h" ]; }; then
-        PROOF_RUNNER_SUPERVISED=1 /bin/bash "$ROOT/scripts/verify-local-proof" "$1"
+        PROOF_RUNNER_SUPERVISED=1 PROOF_RUNNER_SELECTION_ONLY=1 \
+            /bin/bash "$ROOT/scripts/verify-local-proof" "$1"
         exit $?
     fi
     # shellcheck source=scripts/lib/proof-runner.sh
     source "$ROOT/scripts/lib/proof-runner.sh"
-    export SNAPBACK_PROOF_COMPLETION_RECEIPT="${SNAPBACK_PROOF_COMPLETION_RECEIPT:-$ROOT/target/proof/local-proof-completion.json}"
+    mkdir -p "$ROOT/target/proof"
+    parent_results="${SNAPBACK_PROOF_RESULTS:-$ROOT/target/proof/local-proof-results.jsonl}"
+    parent_selected="${SNAPBACK_PROOF_SELECTED_GATES:-$ROOT/target/proof/local-proof-selected-gates.$$.txt}"
+    parent_selection_metadata="$(mktemp "$ROOT/target/proof/.local-proof-supervision-selection.XXXXXX")" \
+        || exit 2
     proof_supervisor_status=0
-    proof_runner_supervise local-proof -- /bin/bash "$ROOT/scripts/verify-local-proof" "$@" \
+    env \
+        PROOF_RUNNER_SUPERVISED=1 \
+        PROOF_RUNNER_SELECTION_ONLY=1 \
+        PROOF_RUNNER_SELECTION_METADATA_PATH="$parent_selection_metadata" \
+        SNAPBACK_PROOF_RESULTS="$parent_results" \
+        SNAPBACK_PROOF_SELECTED_GATES="$parent_selected" \
+        /bin/bash "$ROOT/scripts/verify-local-proof" "$@" \
+        || proof_supervisor_status=$?
+    if [ "$proof_supervisor_status" -ne 0 ]; then
+        rm -f -- "$parent_selection_metadata"
+        exit "$proof_supervisor_status"
+    fi
+    parent_selected_count="$(node -e '
+const value = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+process.stdout.write(String(value.selectedGateCount));
+' "$parent_selection_metadata")" || {
+        rm -f -- "$parent_selection_metadata"
+        exit 2
+    }
+    parent_selected_digest="$(node -e '
+const value = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+process.stdout.write(value.selectedGateDigest);
+' "$parent_selection_metadata")" || {
+        rm -f -- "$parent_selection_metadata"
+        exit 2
+    }
+    rm -f -- "$parent_selection_metadata"
+    SNAPBACK_PROOF_COMPLETION_RECEIPT="${SNAPBACK_PROOF_COMPLETION_RECEIPT:-$ROOT/target/proof/local-proof-completion.json}"
+    parent_selected_snapshot="$(proof_selected_snapshot_path "$parent_results")" || exit 2
+    proof_supervisor_status=0
+    proof_runner_supervise local-proof "$parent_results" "$parent_selected_snapshot" \
+        "$parent_selected_count" "$parent_selected_digest" -- \
+        env \
+            SNAPBACK_PROOF_RESULTS="$parent_results" \
+            SNAPBACK_PROOF_SELECTED_GATES="$parent_selected" \
+            /bin/bash "$ROOT/scripts/verify-local-proof" "$@" \
         || proof_supervisor_status=$?
     exit "$proof_supervisor_status"
 fi
-if ! { [ "$#" -eq 1 ] && { [ "$1" = "--help" ] || [ "$1" = "-h" ]; }; } \
-    && { [ -z "${PROOF_RUNNER_COMPLETION_PATH:-}" ] \
+if [ "$PROOF_RUNNER_SELECTION_ONLY" != "1" ] \
+    && ! { [ "$#" -eq 1 ] && { [ "$1" = "--help" ] || [ "$1" = "-h" ]; }; } \
+    && { [ -z "${PROOF_RUNNER_COMPLETION_FD:-}" ] \
         || [ -z "${PROOF_RUNNER_PHASE_PATH:-}" ] \
         || [ -z "${PROOF_RUNNER_RUN_ID:-}" ]; }; then
     printf '[snapback-proof] supervised proof body is missing its completion handshake\n' >&2
@@ -57,7 +105,7 @@ SNAPBACK_PROOF_GATE_TIMEOUT_SECONDS overrides every gate's wall-clock cap
 (canonical positive decimal seconds, maximum 536870911; default 3600). Gates
 may declare --timeout-seconds with the same syntax.
 SNAPBACK_PROOF_GATE_TERM_GRACE_SECONDS controls TERM-to-KILL grace (default 5).
-SNAPBACK_PROOF_COMPLETION_RECEIPT sets the retained, supervisor-verified completion token.
+SNAPBACK_PROOF_COMPLETION_RECEIPT sets the retained, parent-derived completion receipt.
 EOF
 }
 
@@ -172,6 +220,20 @@ PROOF_SELECTED_DIGEST="$(node -e \
     'process.stdout.write(JSON.parse(process.argv[1]).selectedGateDigest)' \
     "$selection_metadata")"
 
+if [ "$PROOF_RUNNER_SELECTION_ONLY" = "1" ]; then
+    if [ -z "${PROOF_RUNNER_SELECTION_METADATA_PATH:-}" ]; then
+        printf '[snapback-proof] selection-only mode requires a private metadata path\n' >&2
+        exit 2
+    fi
+    node -e '
+const { writeFileSync } = require("node:fs");
+const [path, count, digest] = process.argv.slice(1);
+writeFileSync(path, `${JSON.stringify({ selectedGateCount: Number(count), selectedGateDigest: digest })}\n`);
+' "$PROOF_RUNNER_SELECTION_METADATA_PATH" "$PROOF_SELECTED_COUNT" \
+        "$PROOF_SELECTED_DIGEST"
+    exit 0
+fi
+
 # @ref LLP 0175#d1--make-keep-going-dependency-aware — named gates retain
 # structured timings and distinguish root FAIL from transitive BLOCKED.
 # shellcheck source=scripts/lib/proof-runner.sh
@@ -186,8 +248,8 @@ proof_runner_init local-proof "$PROOF_RESULTS" "$KEEP_GOING" "$PROOF_SELECTED_GA
     "$PROOF_SELECTED_COUNT" "$PROOF_SELECTED_DIGEST"
 
 # Host/policy inapplicability is a closed inventory separate from cadence
-# NOT_SELECTED. scripts/check-local-proof-gates.mjs validates every literal
-# pair, and the complete-battery consumer validates its structured evidence.
+# NOT_SELECTED. The proof runner validates every evidence object with the same
+# helper as the battery and matches it to runner-observed host/policy facts.
 proof_runner_declare_inapplicable cargo-test-profile-clean ci-only
 proof_runner_declare_inapplicable cargo-test-profile-clean cargo-clean-required
 proof_runner_declare_inapplicable runtime-package-stage linux-host
@@ -527,6 +589,7 @@ true|TRUE|True|1|yes|YES|on|ON)
             run cargo-test-profile-clean -- cargo clean --profile test
             ;;
         preserve)
+            PROOF_CARGO_CLEANUP_DECISION="preserve"
             inapplicable cargo-test-profile-clean cargo-clean-required \
                 '{"ci":true,"cleanupDecision":"preserve"}'
             ;;

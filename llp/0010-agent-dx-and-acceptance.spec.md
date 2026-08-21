@@ -10,13 +10,13 @@ between runtime and inventory, v3 gate JSONL distinguishes natural exits from
 timeouts/cleanup failures, FIFO capture completion is bounded, and the shared
 acceptance harness runs registered cleanup during TERM/INT grace so exact-owned
 resources outside the gate process group are not abandoned.)
-**Revised:** 2026-08-21 (the proof runner binds its immutable selected-id
-snapshot to the selector receipt's exact count/digest, reserves
-`NOT_SELECTED` for cadence exclusion, records declared host/policy absence as
-structured `INAPPLICABLE`, runs function-valued gates through an
-errexit-preserving child boundary, and requires the outer proof entry layer to
-verify a run-bound filesystem completion token written only after final
-reconciliation.)
+**Revised:** 2026-08-21 (the parent proof entry layer owns completion authority:
+it binds a durable selected-id snapshot to the selector receipt, independently
+hashes that snapshot and the final JSONL, joins every selected id to an
+authorized recorded state, and only then writes the retained completion
+receipt. The child can signal only its run id over a write-only descriptor that
+gate commands do not inherit. Host/policy absence is validator-checked and
+bound to runner-observed facts; function gates use `set -euo pipefail`.)
 **Revised:** 2026-08-15 (a missing Cargo command now has the actionable
 `SNAPBACK_IBEX_CARGO_NOT_FOUND` host diagnostic; genuine exact-link probe
 driver faults retain `SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`).
@@ -894,8 +894,9 @@ root `FAIL`, but does not execute a transitive dependent; a selected `BLOCKED`
 result still makes the proof red. `NOT_SELECTED` is cadence-policy evidence and
 is rejected for an id in the immutable selected snapshot. Host/policy absence
 uses `INAPPLICABLE` only for a statically inventoried gate/predicate pair and
-carries predicate-specific structured evidence checked again by the battery
-consumer. The runner writes one JSONL result per gate with command,
+carries predicate-specific structured evidence validated against
+runner-observed host/policy facts before it is recorded and checked again by
+the battery consumer. The runner writes one JSONL result per gate with command,
 prerequisites, timestamps, duration, exit status, causal blockers, structural
 termination reason, and applicability evidence where relevant; CI retains that
 artifact even on failure. Executing v3 records use `exit`, `timeout`, or
@@ -912,19 +913,28 @@ deliberately leave the gate process group, such as local fork servers using
 `setsid()`. Unknown detached writers are not claimed dead; bounded proof-capture
 drain detects them, makes the gate `timeout-cleanup-failed`, and returns.
 
-The public proof entrypoint supervises the proof body in a child shell. After
-the child exits, the parent requires an atomically written completion token
-whose run id matches the invocation and whose selected-set/results digests
-bind the completed ledger; a missing or mismatched token is a proof failure
-even when the child exited zero. Scheduled battery consumers require the
-supervisor-retained token beside the JSONL before reporting or mutating ticket
-state. The in-shell `EXIT` trap remains defense in depth, but shell syntax
-interception is not proof authority. Function-valued gates execute under
-`set -e` in a gate
+The public proof entrypoint supervises the proof body in a child shell, but the
+parent is the completion authority. Before launch it owns the selector's exact
+count/digest. The runner persists the parsed selected-id snapshot beside the
+JSONL, and finish rejects any divergence between that artifact, the live array,
+and the traversal index. The child can send only the invocation run id over a
+write-only descriptor; gate commands inherit neither that descriptor nor its
+run id or path. After the child exits, the parent independently opens and
+hashes the selected snapshot and JSONL, checks their selector binding, and
+joins every selected id to exactly one authorized recorded state. Only after
+that derivation succeeds does the parent create the full retained completion
+receipt carrying the selected-set and results digests. A missing child signal,
+artifact mismatch, or failed join is a proof failure even when the child exits
+zero, and the retained receipt is removed on every such path. Scheduled battery
+consumers require that parent-derived receipt beside the JSONL before reporting
+or mutating ticket state. The in-shell `EXIT` trap remains defense in depth,
+but shell syntax interception and child-attested digest claims are not proof
+authority. Function-valued gates execute under `set -euo pipefail` in a gate
 subshell whose status is captured outside conditional context, so an early
-failed command cannot fall through to a later successful command. Selected and
-result artifacts reject descriptor pseudo-paths and are identity-compared via
-opened descriptors before the result is truncated.
+failed command or a failed pipeline component cannot fall through to a later
+success. Selected, persisted-snapshot, and result artifacts reject descriptor
+pseudo-paths (including `/dev/stdin`), resolve the final symlink component, and
+are identity-compared via opened descriptors before either output is truncated.
 
 Per-change execution is now selected by the checked
 `scripts/local-proof-selection-policy.v1.json` authority. Every canonical gate

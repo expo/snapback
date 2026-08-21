@@ -1323,6 +1323,7 @@ test('backstop keys distinct reds by signature and updates an unchanged observat
 function captureDeclarationOrderBatteryFixture(scratch, context) {
   const resultsPath = join(scratch, 'declaration-order-results.jsonl');
   const selectedGatesPath = join(scratch, 'declaration-order-selected-gates.txt');
+  const selectedSnapshotPath = `${resultsPath}.selected-gates`;
   const proofBodyPath = join(scratch, 'declaration-order-proof-body.sh');
   const completionPath = join(scratch, 'proof-completion.json');
   const seen = new Set();
@@ -1346,7 +1347,7 @@ function captureDeclarationOrderBatteryFixture(scratch, context) {
   const script = [
     'set -euo pipefail',
     `source ${JSON.stringify(PROOF_RUNNER)}`,
-    `SNAPBACK_PROOF_COMPLETION_RECEIPT=${JSON.stringify(completionPath)} proof_runner_supervise local-proof -- /bin/bash ${JSON.stringify(proofBodyPath)}`,
+    `SNAPBACK_PROOF_COMPLETION_RECEIPT=${JSON.stringify(completionPath)} proof_runner_supervise local-proof ${JSON.stringify(resultsPath)} ${JSON.stringify(selectedSnapshotPath)} ${selectedOrder.length} ${JSON.stringify(digestSelectedGateIds(selectedOrder))} -- /bin/bash ${JSON.stringify(proofBodyPath)}`,
   ].join('\n');
   const run = spawnSync('/bin/bash', ['-c', script], {
     cwd: ROOT,
@@ -1762,6 +1763,12 @@ test('complete battery tickets track signatures, claims, streaks, closure, and r
     assert.equal(openTickets().length, 1);
     assert.equal(closedTickets().length, 1);
     assert.match(openTickets()[0], new RegExp(signatureB.slice(-64, -48), 'u'));
+
+    writeResults('INAPPLICABLE');
+    assert.equal(runBattery('run-3a'), 0);
+    body = readFileSync(join(repo, issuesDir, openTickets()[0]), 'utf8');
+    assert.match(body, /\*\*Consecutive red runs:\*\* `1`/u);
+    assert.equal(openTickets().length, 1, 'INAPPLICABLE preserves an open FAIL streak');
 
     writeResults('BLOCKED');
     assert.equal(runBattery('run-4'), 1);
