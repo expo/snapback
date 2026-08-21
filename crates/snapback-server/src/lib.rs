@@ -96,6 +96,7 @@ pub mod admin_secret_read;
 pub mod auth;
 pub mod control_catalog;
 pub mod guide;
+mod guide_artifact;
 pub mod guide_reference;
 pub mod host_ops;
 pub mod manifest;

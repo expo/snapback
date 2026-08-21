@@ -10,6 +10,11 @@
 consumes it only with `include_bytes!` and parses inert bytes into lazy public
 values, the obsolete shape manifest is retired, and the last allowlist row is
 deleted.)
+**Revised:** 2026-08-21 (follow-up decoder hardening requires the committed
+Guide corpus closure and UTF-8 text, recomputes the established content digest
+from decoded records, anchors it to the directly included committed manifest,
+and reconciles the retired generated-API producer-drift requirements with the
+remaining producer-data trust.)
 **Revised:** 2026-08-19 (implemented by the independent F-2 lane: a dedicated
 non-workspace syn helper, metadata-derived 47-cell scanner, rustc JSON span
 witnesses, canonical compilation-unit ownership, negative-corpus gate, and the
@@ -585,6 +590,36 @@ as security evidence. An unrelated error whose message matches a regex is a
   API. The old wrapper/producer shape manifest and
   `embedded-guide-generated-table` allowlist row are retired; the allowlist is
   empty. The gate still never compiles or executes `build.rs` as audit evidence.
+
+  The served-content half of the old producer-drift requirement survives in a
+  different mechanism. `src/guide_artifact.rs` is the single committed source
+  for the minimum required path set used by both `build.rs` and the decoder.
+  Before exposing any record, the committed decoder requires that closure, at
+  least one section flat, canonical strictly sorted paths, UTF-8 for every
+  Markdown/JSON record, and a valid embedded manifest. It recomputes LLP
+  0194's established `contentHash` domain from the decoded whole flat, symbol
+  registry, and diagnostics registry; the computed digest, stored 64-byte
+  field, embedded manifest `contentHash`, and `contentHash` read directly by
+  committed Rust from `guide/guide-manifest.generated.json` must all agree.
+  Thus producer retargeting or corruption cannot silently change a hash-bound
+  served record while retaining the committed Guide identity.
+
+  This deliberately does **not** restore a custom-build source/target digest
+  check. That check justified an expiring generated-Rust API exception; after
+  elimination there is no producer-created Rust API and therefore no API shape
+  or forbidden-identifier evidence for a producer to forge. Retargeting the
+  custom build is not itself a privilege-surface violation. Residual
+  producer-data trust remains explicit: the decoder permits extra canonical
+  records, does not reconstruct the whole flat from individual page records,
+  does not bind section-flat or non-`contentHash` manifest bytes independently,
+  and does not validate Markdown meaning or registry semantics. A producer may
+  therefore alter an unbound per-page/section/manifest record while preserving
+  the anchored core digest; a source change that also legitimately changes the
+  committed manifest establishes a new expected identity. Corpus-generation
+  and Guide consistency checks, ordinary source review, and the build trust
+  boundary remain responsible for those relationships. The decoder provides
+  fail-closed minimum closure and anchored core-content integrity, not producer
+  authenticity or semantic documentation review.
 - **syn cannot fully expand macros.** The scanner now token-scans ordinary
   `macro_rules!` definitions and invocations and rejects ones that can emit
   `pub` while naming a raw handle, seed, or resolved alias. `#[macro_export]`
@@ -1247,7 +1282,7 @@ is a fourth live defect.
 | `qualified-custom-env-include` | `include!(concat!(evil::env!("OUT_DIR"), "/probe.rs"))` where the custom macro emits an external root | path-include corpus | forged synthetic `OUT_DIR` PASS | `evil::env!` is not a bare or `std`/`core` built-in path, so the include is unevaluable and RED |
 | `shadowed-std-include` | `mod std { ... }` or `use hostile_macros as std;`, followed by `std::include!(concat!(env!("OUT_DIR"), "/forged-safe-path.rs"))` where the local macro emits an external include | path-include corpus | forged synthetic `OUT_DIR` PASS | every qualified include is unevaluable and RED; the checker makes no syntax-only claim that `std` is the prelude crate |
 | `raw-pub-private-macro-item` | a macro emits private `const r#pub: Option<KernelCommitAuthority>` | privilege corpus | false-positive `macro-generated-api` RED | `r#pub` remains an identifier rather than the visibility keyword; fixture stays clean |
-| `generated-producer-drift` | the real server custom-build source changes, Cargo selects `actual-build.rs`, or the committed API artifact adds a raw SQL name, I-1 seed, authority discriminator, or any other public item | harness temp package using committed copies | forgeable PASS in the rejected proof | manifest invalid on producer/target digest, artifact digest, parsed item shape, or forbidden-identifier drift; the producer is never compiled or executed as audit evidence |
+| `guide-artifact-integrity` (reconciles former `generated-producer-drift`) | a structurally valid artifact omits required Guide records, carries invalid Markdown UTF-8, or stores a content hash that disagrees with its decoded hash-bound records | committed decoder unit tests; security harness for the public committed decoder | partial/unbound artifact PASS before the follow-up | decoder error before lazy public values are exposed; required paths come from the producer/decoder shared committed source, and the digest is also anchored to the directly included committed manifest. Generated-Rust item/identifier mutation and producer-target pinning are retired because producer bytes are inert data, not API; the remaining data-trust limits are §3.7's explicit residual |
 | `unobtainable-seed-container` | private-state scope returns a seed but is created only by consuming that same seed; unit-constructible control returns it too | corpus | false positive on both | scope clean; constructible control RED |
 | `named-but-not-depended-on` | fixture metadata lists `snapback-conformance` but `[dependencies]` omits it (reproduce today's `Cargo.toml`) | harness test over a temp copy of the fixture manifest | old gate PASS | I-12 RED |
 | `unrelated-error-satisfies-regex` | `@attack` is `let _ = 1u32;`; a second, unmarked statement is `let _: () = snapback_kernel::storage::AuthorizationCommitInterlock;` (or any expression whose error text contains a former expected regex). The attack expression must not be in any primary span | `src/bin/unrelated_error_satisfies_regex.rs` in the **harness** suite, not the product-attack suite | old gate PASS if regex is `AuthorizationCommitInterlock` | product-attack runner must report this bin as RED (no span on `@attack`). Harness asserts the runner returned non-zero for this id |
@@ -1325,12 +1360,18 @@ inventory LLP 0276 added) must contain at least:
     path-qualified, raw bare/qualified, imported-alias, module-local
     hardcoded-wrapper, and literal parameter-forwarded spellings at module,
     impl, trait, foreign,
-    nested-inline-module, `cfg`, and `cfg_attr` positions; the exact
-    snapback-server review finding; raw and ordinary forbidden-identifier
-    mutations for SQL, seed, discriminator, and gate-detection output; and
-    Cargo custom-build retargeting. Path-ownership probes shadow `std` with
-    both a local module and a renamed import and require the qualified include
-    to fail as unevaluable.
+    nested-inline-module, `cfg`, and `cfg_attr` positions. Path-ownership probes
+    shadow `std` with both a local module and a renamed import and require the
+    qualified include to fail as unevaluable. The Guide-specific replacement
+    is a zero-finding assertion over public committed `guide.rs`, a planted
+    `KernelCommitAuthority` return proving that scoped assertion detects a seed
+    leak, and decoder regressions for partial closure, invalid text UTF-8, and
+    stored/decoded digest disagreement. The former exact generated-API review,
+    generated artifact forbidden-identifier/gate-detection mutations, and
+    Cargo custom-build retargeting are no longer normative fixtures: the first
+    two cannot add Rust API through `include_bytes!`, while the data-integrity
+    consequence of the third is handled—and bounded—by §3.7's committed
+    decoder mechanism and residual trust statement.
 11. A fake nonzero Cargo result with no rustc `compiler-message`, asserted as
     `GateInfrastructureError`, plus an assertion that the unrelated-error
     control really emitted its intended diagnostic.
@@ -1440,15 +1481,24 @@ On 2026-08-21 the Guide took the elimination path. The three generated Rust
 expression files and their committed wrapper were replaced by one binary
 artifact containing a fixed magic/version, a 64-byte content hash, and sorted
 length-prefixed path/content records. Committed code includes it with
-`include_bytes!`, validates and parses it once through `LazyLock`, and derives
-the section table and content types. Malformed input panics with a stable
-`malformed embedded Guide artifact` prefix; an item-bearing payload test keeps
-an `impl` block inert. The façade's obsolete, unconsumed duplicate Guide Rust
-generator was deleted too; it re-exports the server module. Because no producer
-byte is parsed as Rust, the wrapper shape manifest no longer proves a live
-boundary and was deleted rather than repurposed. The final
-`embedded-guide-generated-table` row was deleted, leaving zero
-privilege-surface allowlist entries.
+`include_bytes!` and parses it once through `LazyLock`. The follow-up decoder
+rejects invalid magic/version, truncated or trailing framing, invalid hash/path
+encoding, non-canonical or unsorted paths, the absence of any committed
+minimum-corpus path or section flat, invalid Markdown/JSON UTF-8, invalid
+embedded-manifest JSON/identity, and disagreement among the decoded core
+records' digest, stored hash, embedded manifest, and directly included
+committed manifest. Those specified rejection paths return `Err`; access
+through the embedded lazy static converts the error to a panic with the stable
+`malformed embedded Guide artifact` prefix. This is not a claim that the
+decoder recognizes every semantically malformed Guide: extra canonical files,
+Markdown meaning, page-to-flat equality, section-flat equality, and manifest
+relationships other than `contentHash` remain outside its validation (§3.7).
+An item-bearing payload test keeps an `impl` block inert. The façade's obsolete,
+unconsumed duplicate Guide Rust generator was deleted too; it re-exports the
+server module. Because no producer byte is parsed as Rust, the wrapper shape
+manifest no longer proves a live boundary and was deleted rather than
+repurposed. The final `embedded-guide-generated-table` row was deleted, leaving
+zero privilege-surface allowlist entries.
 
 ## 8. Acceptance
 

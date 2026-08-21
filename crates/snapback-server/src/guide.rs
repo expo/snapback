@@ -8,12 +8,20 @@
 //! @ref LLP 0061#4-distribution-and-discovery — served-guide §4a: the
 //! server is the version authority for the embedded, read-only guide channel.
 
+use sha2::{Digest as _, Sha256};
 use std::sync::LazyLock;
+
+use crate::guide_artifact::{
+    CONTENT_HASH_DIAGNOSTICS_REGISTRY_LABEL, CONTENT_HASH_REGISTRY_LABEL,
+    CONTENT_HASH_RESOURCE_SEPARATOR, DIAGNOSTICS_REGISTRY_PATH, MANIFEST_PATH, REGISTRY_PATH,
+    REQUIRED_GUIDE_PATHS,
+};
 
 const ARTIFACT_MAGIC: &[u8] = b"SNAPBACK_EMBEDDED_GUIDE\0\x01";
 const CONTENT_HASH_LENGTH: usize = 64;
 const EMBEDDED_GUIDE_BYTES: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/embedded-guide.v1.bin"));
+const COMMITTED_GUIDE_MANIFEST: &str = include_str!("../../../guide/guide-manifest.generated.json");
 
 #[derive(Clone, Copy, Debug)]
 pub struct EmbeddedGuideFile {
@@ -43,8 +51,8 @@ pub static EMBEDDED_GUIDE_FILES: LazyLock<&'static [EmbeddedGuideFile]> =
 pub static SECTION_FLAT_PATHS: LazyLock<&'static [&'static str]> =
     LazyLock::new(|| EMBEDDED_GUIDE.section_flat_paths.as_slice());
 
-pub const INDEX_PATH: &str = "index.md";
-pub const FLAT_PATH: &str = "guide-flat.generated.md";
+pub const INDEX_PATH: &str = crate::guide_artifact::INDEX_PATH;
+pub const FLAT_PATH: &str = crate::guide_artifact::FLAT_PATH;
 
 pub fn file(path: &str) -> Option<&'static EmbeddedGuideFile> {
     EMBEDDED_GUIDE_FILES
@@ -57,12 +65,27 @@ pub fn file(path: &str) -> Option<&'static EmbeddedGuideFile> {
 /// The format is deliberately small and strict: magic/version bytes, the
 /// 64-byte lowercase hexadecimal content hash, a big-endian u32 file count,
 /// then sorted records of `u32 path length`, `u64 content length`, UTF-8 path,
-/// and opaque content bytes. Section-flat paths and content types are derived
-/// under committed code. `include_bytes!` makes every producer byte a byte
-/// string literal; even bytes spelling an `impl`, macro, or item are data.
+/// and content bytes. Committed code validates the required corpus closure,
+/// UTF-8 text, section-flat table, manifest identity, and the content digest
+/// recomputed from its hash-bound records. `include_bytes!` makes every
+/// producer byte a byte string literal; even bytes spelling an `impl`, macro,
+/// or item are data.
 // @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — the generated
 // boundary is inert data rather than expansion-visible Rust tokens.
 fn parse_embedded_guide(bytes: &'static [u8]) -> Result<EmbeddedGuideData, String> {
+    let committed_manifest: serde_json::Value = serde_json::from_str(COMMITTED_GUIDE_MANIFEST)
+        .map_err(|error| format!("committed Guide manifest is not valid JSON: {error}"))?;
+    let expected_content_hash = committed_manifest
+        .get("contentHash")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| "committed Guide manifest has no string contentHash".to_owned())?;
+    parse_embedded_guide_with_expected_content_hash(bytes, expected_content_hash)
+}
+
+fn parse_embedded_guide_with_expected_content_hash(
+    bytes: &'static [u8],
+    expected_content_hash: &str,
+) -> Result<EmbeddedGuideData, String> {
     let mut input = ArtifactReader::new(bytes);
     input.expect_bytes(ARTIFACT_MAGIC, "magic/version")?;
     let content_hash_bytes = input.read_exact(CONTENT_HASH_LENGTH, "content hash")?;
@@ -98,14 +121,21 @@ fn parse_embedded_guide(bytes: &'static [u8]) -> Result<EmbeddedGuideData, Strin
             return Err(format!("file {index} path is not strictly sorted: {path}"));
         }
         let file_bytes = input.read_exact(content_length, "file content")?;
+        let content_type = guide_content_type(path);
+        if content_type != "application/octet-stream" {
+            std::str::from_utf8(file_bytes)
+                .map_err(|_| format!("file {index} content for {path} is not UTF-8"))?;
+        }
         files.push(EmbeddedGuideFile {
             path,
             bytes: file_bytes,
-            content_type: guide_content_type(path),
+            content_type,
         });
         previous_path = Some(path);
     }
     input.finish()?;
+
+    validate_required_corpus(&files)?;
 
     let section_flat_paths = files
         .iter()
@@ -116,11 +146,78 @@ fn parse_embedded_guide(bytes: &'static [u8]) -> Result<EmbeddedGuideData, Strin
         return Err("section-flat path table is empty".to_owned());
     }
 
+    validate_content_hash(content_hash, expected_content_hash, &files)?;
+
     Ok(EmbeddedGuideData {
         content_hash,
         files,
         section_flat_paths,
     })
+}
+
+fn validate_required_corpus(files: &[EmbeddedGuideFile]) -> Result<(), String> {
+    for required in REQUIRED_GUIDE_PATHS {
+        if embedded_file(files, required).is_none() {
+            return Err(format!("required Guide file is missing: {required}"));
+        }
+    }
+    Ok(())
+}
+
+fn embedded_file<'a>(files: &'a [EmbeddedGuideFile], path: &str) -> Option<&'a EmbeddedGuideFile> {
+    files
+        .binary_search_by(|candidate| candidate.path.cmp(path))
+        .ok()
+        .map(|index| &files[index])
+}
+
+fn validate_content_hash(
+    stored_content_hash: &str,
+    expected_content_hash: &str,
+    files: &[EmbeddedGuideFile],
+) -> Result<(), String> {
+    // @ref LLP 0194#design — the served identity binds the whole flat and
+    // both non-Markdown registries under the Guide generator's stable domain.
+    let flat = embedded_file(files, FLAT_PATH).expect("required corpus includes whole flat");
+    let registry =
+        embedded_file(files, REGISTRY_PATH).expect("required corpus includes symbol registry");
+    let diagnostics = embedded_file(files, DIAGNOSTICS_REGISTRY_PATH)
+        .expect("required corpus includes diagnostics registry");
+    let mut digest = Sha256::new();
+    digest.update(flat.bytes);
+    digest.update(CONTENT_HASH_RESOURCE_SEPARATOR);
+    digest.update(CONTENT_HASH_REGISTRY_LABEL.as_bytes());
+    digest.update(b"\0");
+    digest.update(registry.bytes);
+    digest.update(CONTENT_HASH_RESOURCE_SEPARATOR);
+    digest.update(CONTENT_HASH_DIAGNOSTICS_REGISTRY_LABEL.as_bytes());
+    digest.update(b"\0");
+    digest.update(diagnostics.bytes);
+    let decoded_content_hash = format!("{:x}", digest.finalize());
+    if stored_content_hash != decoded_content_hash {
+        return Err(format!(
+            "content hash does not match decoded records: stored {stored_content_hash}, decoded {decoded_content_hash}"
+        ));
+    }
+    if stored_content_hash != expected_content_hash {
+        return Err(format!(
+            "stored content hash does not match committed Guide manifest: stored {stored_content_hash}, committed {expected_content_hash}"
+        ));
+    }
+
+    let manifest = embedded_file(files, MANIFEST_PATH).expect("required corpus includes manifest");
+    let manifest: serde_json::Value = serde_json::from_slice(manifest.bytes)
+        .map_err(|error| format!("Guide manifest is not valid JSON: {error}"))?;
+    let manifest_content_hash = manifest
+        .get("contentHash")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| "Guide manifest has no string contentHash".to_owned())?;
+    if manifest_content_hash != stored_content_hash {
+        return Err(format!(
+            "Guide manifest contentHash does not match stored content hash: manifest {manifest_content_hash}, stored {stored_content_hash}"
+        ));
+    }
+    Ok(())
 }
 
 fn validate_guide_path(path: &str, index: usize) -> Result<(), String> {
@@ -217,11 +314,19 @@ impl ArtifactReader {
 mod tests {
     use super::*;
 
+    const ZERO_CONTENT_HASH: &str =
+        "0000000000000000000000000000000000000000000000000000000000000000";
+    const TEST_CONTENT_HASH: &str =
+        "81a75c57131c0b9bc5501039bad2ea0dbaeab81a5d8c3a75700a39e309451d22";
+
     fn test_artifact(files: &[(&str, &[u8])]) -> &'static [u8] {
+        test_artifact_with_hash(files, ZERO_CONTENT_HASH)
+    }
+
+    fn test_artifact_with_hash(files: &[(&str, &[u8])], content_hash: &str) -> &'static [u8] {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(ARTIFACT_MAGIC);
-        bytes
-            .extend_from_slice(b"0000000000000000000000000000000000000000000000000000000000000000");
+        bytes.extend_from_slice(content_hash.as_bytes());
         bytes.extend_from_slice(&(files.len() as u32).to_be_bytes());
         for (path, content) in files {
             bytes.extend_from_slice(&(path.len() as u32).to_be_bytes());
@@ -232,18 +337,26 @@ mod tests {
         Box::leak(bytes.into_boxed_slice())
     }
 
+    fn complete_test_files(index: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
+        vec![
+            ("capabilities.md", b"# Capabilities"),
+            ("guide-flat.generated.md", b"# Whole Guide"),
+            ("guide-flat.test.generated.md", b"# Test Section"),
+            (
+                "guide-manifest.generated.json",
+                br#"{"contentHash":"81a75c57131c0b9bc5501039bad2ea0dbaeab81a5d8c3a75700a39e309451d22"}"#,
+            ),
+            ("index.md", index),
+            ("reference/diagnostics-registry.json", b"{}"),
+            ("reference/diagnostics.md", b"# Diagnostics"),
+            ("reference/index.md", b"# Reference"),
+            ("reference/registry.json", b"{}"),
+        ]
+    }
+
     #[test]
     fn required_projection_inputs_are_embedded_and_eval_runs_are_not() {
-        for path in [
-            INDEX_PATH,
-            "capabilities.md",
-            "guide-manifest.generated.json",
-            FLAT_PATH,
-            "reference/index.md",
-            crate::guide_reference::REGISTRY_PATH,
-            crate::guide_reference::DIAGNOSTICS_REGISTRY_PATH,
-            "reference/diagnostics.md",
-        ] {
+        for path in REQUIRED_GUIDE_PATHS {
             assert!(file(path).is_some(), "missing embedded guide file {path}");
         }
         assert!(
@@ -274,13 +387,81 @@ mod tests {
     }
 
     #[test]
-    fn rust_items_in_the_generated_artifact_are_inert_file_bytes() {
-        let item = b"impl Public { pub fn leaked() -> i32 { 7 } }";
+    fn structurally_valid_but_incomplete_artifacts_fail_closed() {
         let artifact = test_artifact(&[
             ("guide-flat.test.generated.md", b"# Flat"),
-            ("index.md", item),
+            ("index.md", b"# Index"),
         ]);
-        let parsed = parse_embedded_guide(artifact).expect("parse test artifact");
+        assert_eq!(
+            parse_embedded_guide(artifact).unwrap_err(),
+            "required Guide file is missing: capabilities.md"
+        );
+    }
+
+    #[test]
+    fn every_committed_required_path_is_part_of_the_decoder_closure() {
+        for &required in REQUIRED_GUIDE_PATHS {
+            let files = complete_test_files(b"# Index")
+                .into_iter()
+                .filter(|(path, _)| *path != required)
+                .collect::<Vec<_>>();
+            let artifact = test_artifact(&files);
+            assert_eq!(
+                parse_embedded_guide(artifact).unwrap_err(),
+                format!("required Guide file is missing: {required}")
+            );
+        }
+    }
+
+    #[test]
+    fn invalid_text_utf8_fails_closed() {
+        let files = complete_test_files(b"# Invalid \xff Markdown");
+        let artifact = test_artifact(&files);
+        assert_eq!(
+            parse_embedded_guide(artifact).unwrap_err(),
+            "file 4 content for index.md is not UTF-8"
+        );
+    }
+
+    #[test]
+    fn stored_content_hash_must_match_decoded_records() {
+        let files = complete_test_files(b"# Index");
+        let artifact = test_artifact(&files);
+        let error = parse_embedded_guide(artifact).unwrap_err();
+        assert!(
+            error.starts_with("content hash does not match decoded records:"),
+            "unexpected decoder error: {error}"
+        );
+    }
+
+    #[test]
+    fn content_hash_must_match_the_embedded_and_committed_manifests() {
+        let mut files = complete_test_files(b"# Index");
+        files[3].1 =
+            br#"{"contentHash":"0000000000000000000000000000000000000000000000000000000000000000"}"#;
+        let artifact = test_artifact_with_hash(&files, TEST_CONTENT_HASH);
+        assert!(
+            parse_embedded_guide_with_expected_content_hash(artifact, TEST_CONTENT_HASH)
+                .unwrap_err()
+                .starts_with("Guide manifest contentHash does not match stored content hash:"),
+        );
+
+        let files = complete_test_files(b"# Index");
+        let artifact = test_artifact_with_hash(&files, TEST_CONTENT_HASH);
+        assert!(
+            parse_embedded_guide_with_expected_content_hash(artifact, ZERO_CONTENT_HASH)
+                .unwrap_err()
+                .starts_with("stored content hash does not match committed Guide manifest:"),
+        );
+    }
+
+    #[test]
+    fn rust_items_in_the_generated_artifact_are_inert_file_bytes() {
+        let item = b"impl Public { pub fn leaked() -> i32 { 7 } }";
+        let files = complete_test_files(item);
+        let artifact = test_artifact_with_hash(&files, TEST_CONTENT_HASH);
+        let parsed = parse_embedded_guide_with_expected_content_hash(artifact, TEST_CONTENT_HASH)
+            .expect("parse test artifact");
         assert_eq!(
             parsed
                 .files
