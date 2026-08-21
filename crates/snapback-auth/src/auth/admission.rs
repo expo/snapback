@@ -221,6 +221,21 @@ impl AdmissionController {
             .is_some_and(|controller| Arc::ptr_eq(controller, &self.inner))
     }
 
+    /// Exact process-local identity for passive commit-boundary tests. The
+    /// pointer is compared only while this controller remains owned by the
+    /// test scope; it is never authorization evidence or a production token.
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn effect_guard_identity_for_test(
+        &self,
+        admission_epoch: u64,
+    ) -> snapback_kernel::storage::AdmissionEffectGuardIdentityForTest {
+        snapback_kernel::storage::admission_effect_guard_identity_for_test(
+            Arc::as_ptr(&self.inner) as usize,
+            admission_epoch,
+        )
+    }
+
     /// Construct a dev-mode controller. This compatibility constructor is
     /// intentionally narrow; production composition should prefer
     /// [`Self::from_mode_state`] so the epoch binds the exact durable mode.
@@ -937,6 +952,8 @@ impl AdmissionLease {
             let guard = AdmissionEffectGuard {
                 state: None,
                 _rank: None,
+                #[cfg(any(test, feature = "test-support"))]
+                proof_identity: None,
             };
             crate::exec_guard::retain_through_after_local(self.clone());
             return Ok(guard);
@@ -947,39 +964,39 @@ impl AdmissionLease {
         let guard = AdmissionEffectGuard {
             state: Some(state),
             _rank: Some(rank),
+            #[cfg(any(test, feature = "test-support"))]
+            proof_identity: Some(
+                snapback_kernel::storage::admission_effect_guard_identity_for_test(
+                    Arc::as_ptr(controller) as usize,
+                    self.token.admission_epoch,
+                ),
+            ),
         };
         #[cfg(any(test, feature = "test-support"))]
-        LIVE_MANAGED_ADMISSION_EFFECT_GUARDS.with(|depth| {
-            depth.set(
-                depth
-                    .get()
-                    .checked_add(1)
-                    .expect("managed admission-effect guard depth overflowed"),
-            );
-        });
+        snapback_kernel::storage::enter_admission_effect_guard_for_test(
+            guard
+                .proof_identity
+                .expect("managed admission guard has a proof identity"),
+        );
         crate::exec_guard::retain_through_after_local(self.clone());
         Ok(guard)
     }
 }
 
-#[cfg(any(test, feature = "test-support"))]
-thread_local! {
-    /// Read-only proof state for commit-boundary tests. This deliberately does
-    /// not inspect, acquire, or re-enter `AdmissionInner.state`: commit hooks
-    /// execute while the non-reentrant mutex is already held by the guard.
-    static LIVE_MANAGED_ADMISSION_EFFECT_GUARDS: std::cell::Cell<usize> =
-        const { std::cell::Cell::new(0) };
-}
-
-/// Whether this thread currently owns a managed admission-effect guard.
+/// Whether this thread owns the exact controller/epoch admission-effect guard.
 ///
 /// This is test instrumentation, not an authorization API. In particular it
 /// reads only guard-lifetime bookkeeping and never touches the admission-state
 /// mutex, so it is safe to call immediately beside `tx.commit()`.
 #[cfg(any(test, feature = "test-support"))]
 #[doc(hidden)]
-pub fn current_thread_holds_admission_effect_guard_for_test() -> bool {
-    LIVE_MANAGED_ADMISSION_EFFECT_GUARDS.with(|depth| depth.get() > 0)
+pub fn current_thread_holds_admission_effect_guard_for_test(
+    controller: &AdmissionController,
+    admission_epoch: u64,
+) -> bool {
+    snapback_kernel::storage::current_thread_holds_admission_effect_guard_for_test(
+        controller.effect_guard_identity_for_test(admission_epoch),
+    )
 }
 
 /// Guard proving the lease was current at one effect boundary.
@@ -987,20 +1004,15 @@ pub struct AdmissionEffectGuard<'a> {
     #[allow(dead_code)]
     state: Option<MutexGuard<'a, AdmissionState>>,
     _rank: Option<AuthLockRankGuard>,
+    #[cfg(any(test, feature = "test-support"))]
+    proof_identity: Option<snapback_kernel::storage::AdmissionEffectGuardIdentityForTest>,
 }
 
 impl Drop for AdmissionEffectGuard<'_> {
     fn drop(&mut self) {
         #[cfg(any(test, feature = "test-support"))]
-        if self.state.is_some() {
-            LIVE_MANAGED_ADMISSION_EFFECT_GUARDS.with(|depth| {
-                depth.set(
-                    depth
-                        .get()
-                        .checked_sub(1)
-                        .expect("managed admission-effect guard depth underflowed"),
-                );
-            });
+        if let Some(identity) = self.proof_identity.take() {
+            snapback_kernel::storage::exit_admission_effect_guard_for_test(identity);
         }
     }
 }
@@ -1530,14 +1542,56 @@ mod tests {
     fn effect_guard_lifetime_probe_does_not_reenter_the_admission_mutex() {
         let controller = AdmissionController::new(7, true).unwrap();
         let lease = controller.admit().unwrap();
-        assert!(!current_thread_holds_admission_effect_guard_for_test());
+        let epoch = lease.admission_epoch();
+        assert!(!current_thread_holds_admission_effect_guard_for_test(
+            &controller,
+            epoch
+        ));
         let guard = lease.effect_guard("commit-boundary probe").unwrap();
         assert!(
-            current_thread_holds_admission_effect_guard_for_test(),
+            current_thread_holds_admission_effect_guard_for_test(&controller, epoch),
             "the read-only lifetime probe must work while the non-reentrant mutex is held"
         );
         drop(guard);
-        assert!(!current_thread_holds_admission_effect_guard_for_test());
+        assert!(!current_thread_holds_admission_effect_guard_for_test(
+            &controller,
+            epoch
+        ));
+    }
+
+    #[test]
+    fn effect_guard_lifetime_probe_is_bound_to_controller_and_epoch() {
+        let target = AdmissionController::new(7, true).unwrap();
+        let target_lease = target.admit().unwrap();
+        let target_epoch = target_lease.admission_epoch();
+        let target_guard = target_lease.effect_guard("exact target epoch").unwrap();
+        assert!(current_thread_holds_admission_effect_guard_for_test(
+            &target,
+            target_epoch
+        ));
+        assert!(
+            !current_thread_holds_admission_effect_guard_for_test(
+                &target,
+                target_epoch.saturating_add(1),
+            ),
+            "another epoch on the same controller must not satisfy the proof"
+        );
+        drop(target_guard);
+
+        let other = AdmissionController::new(7, true).unwrap();
+        let other_lease = other.admit().unwrap();
+        let other_guard = other_lease.effect_guard("different controller").unwrap();
+
+        assert!(current_thread_holds_admission_effect_guard_for_test(
+            &other,
+            other_lease.admission_epoch()
+        ));
+        assert!(
+            !current_thread_holds_admission_effect_guard_for_test(&target, target_epoch),
+            "a guard from another controller must not prove the target controller/epoch"
+        );
+
+        drop(other_guard);
     }
 
     #[test]

@@ -13,14 +13,14 @@ starts at SQLite commit sinks in `crates/snapback-kernel/src`, then traces each
 durable operation outward to its engine/server caller and asks whether a
 managed `AdmissionEffectGuard` is live at that commit.
 
-The 2026-08-21 source census found:
+The first 2026-08-21 source census reported:
 
 - 144 production explicit commit-primitive occurrences (`Transaction::commit`
   or an explicit SQL `COMMIT`) in 115 enclosing functions;
-- 62 production SQL-write expressions whose receiver is a bare `Connection`
-  shape rather than a syntactic `Transaction`; manual review separates real
-  implicit-autocommit cuts from helpers called inside one of the explicit
-  transactions and from reference/backup/benchmark databases; and
+- 62 production SQL-write expressions whose receiver looked like a bare
+  `Connection` rather than a syntactic `Transaction`; that expression count
+  was a candidate list, not a closure result, and its first call-edge review
+  missed the admitted vector-query settlement described below; and
 - 181 production call sites into the shared commit helpers
   (`with_auth_transaction`, its attempt variants, the authorization/mode commit
   helpers, and the asset/read transaction helpers).
@@ -42,16 +42,24 @@ rg -n --glob '*.rs' '\.(execute|execute_batch)\(' crates/snapback-kernel/src
 
 Those searches are a source census, not a formal call-graph proof. Macro-
 generated or dynamically assembled SQL would require a compiler-level effect
-inventory. Accordingly, “sink-complete” below means complete for the reviewed
-kernel Rust sources and commit mechanisms just named; this document does not
-claim that the repository has complete removal-mutation proof.
+inventory. The earlier revision nevertheless called its result
+“sink-complete.” That was false: it sampled the bare-connection candidates by
+operator family and mistook `vector::sqlite::quarantine_generation_on` for the
+vector-rebuild lane, without following its separate admitted query-settlement
+caller. This revision makes no completeness claim. It records the systematic
+receiver-and-caller pass performed at this commit and treats every numeric
+census as a lower bound unless a compiler-enforced effect inventory replaces
+it.
 
 ## Set 1 — live guard, proven by the focused harness
 
-The commit observer now runs immediately before the kernel commit primitive,
-not after a successful engine/server call. It reads thread-local guard-lifetime
-bookkeeping and never acquires, `try_lock`s, or re-enters the non-reentrant
-admission mutex.
+The commit observer runs at the eight enumerated kernel call sites immediately
+before their `Transaction::commit` calls, not after a successful engine/server
+call. It is not installed in the ordinary-mutation commit helpers and this
+document does not describe it as observing every kernel commit primitive. The
+observer compares the exact controller identity and admission epoch expected
+by the operation with thread-local guard-lifetime bookkeeping. It never
+acquires, `try_lock`s, or re-enters the non-reentrant admission mutex.
 
 | Operation | Commit shape proved |
 | --- | --- |
@@ -69,12 +77,32 @@ admission mutex.
 | Agent-invitation mint | `attempt_auth_transaction`; one server-path commit attempt |
 
 The five removal/binding mutations (`V`, `E`, `_`, deletion, and late drop)
-still apply to every site. The sixth regression injects the real capability-
-link shape in which SQLite commits and the subsequent row read fails; the call
-returns `TEST_CAPABILITY_LINK_POST_COMMIT_READ_FAILURE`, the durable row count
-advances, and the commit observer has already proved the guard live. Because
-the observer runs before the commit call, a lost/ambiguous commit
-acknowledgement cannot bypass the observation either.
+still apply to every site. The error-after-commit regression injects an error
+immediately after SQLite commits and before `row_for_id_on`; the row read is
+not reached. The call returns `TEST_CAPABILITY_LINK_POST_COMMIT_READ_FAILURE`,
+the durable row count advances, and the commit observer has already proved the
+guard live. Because the observer runs before the commit call, a lost/ambiguous
+commit acknowledgement cannot bypass the observation either.
+
+The proof identity is the exact `AdmissionController` allocation plus the
+admission epoch captured for the target operation. A guard from another
+controller on the same thread therefore records a mismatch rather than
+satisfying the proof. Commit observation is passive—commit sites run no caller
+callback—and its returned RAII scope removes a partially consumed observer.
+The two-commit acknowledgement regression commits its first transaction,
+returns before the second commit primitive, drops the scope, and proves a
+later acknowledgement on the reused thread receives a fresh observer.
+
+The observer definition and all eight call sites are gated with
+`cfg(any(test, feature = "test-support"))`; default builds therefore contain
+neither calls nor an empty observer function. `snapback-services/remainder-tests`
+does still forward `snapback-kernel/test-support`: its service remainder seam
+calls the kernel's snapshot-pinned test hook, and removing the edge makes that
+declared feature fail to compile. This is an explicit, non-default test
+composition path. Directly enabling it or the kernel feature cannot restore the
+old risk: the commit site only compares an opaque expected identity and
+increments passive counters, so an observer caller cannot supply code to run or
+panic immediately before `COMMIT`.
 
 ## Set 2 — live guard, not yet removal-mutation proven
 
@@ -128,6 +156,7 @@ still drop the operation's outer guard before it reaches that helper.
 | Detached nested mutation | Needs detached-action staging and the nested settlement assertion. |
 | Branch idempotent mutation | Needs a branch client identity and exact replay-ledger assertion. |
 | Branch ordinary mutation | Needs the non-idempotent branch path and branch-head assertion. |
+| Vector-query failure quarantine | The pooled read and live write-lane settlement callers now acquire the query invocation's exact effect guard before opening the registered vector writer. Needs a deterministic corrupt-generation fixture, durable quarantine assertion, and removal mutation. |
 | Empty cron-scheduler-state persistence | Needs an empty schedule and exact persisted scheduler-state assertion. |
 | Cron claim persistence | Needs a due cron slot and claim/lease assertion. |
 | Manual cron claim persistence | Needs the forced-run path and manual-claim assertion. |
@@ -162,11 +191,15 @@ still drop the operation's outer guard before it reaches that helper.
 | Family-alarm revocation | Needs affected session/service lineage and terminal assertions. |
 | App reset | Needs the reset authorization fixture and complete reset-state assertion. |
 
-That is 77 guarded durable operations without focused removal-mutation proof.
+That is 78 guarded durable operations without focused removal-mutation proof.
 
 ## Set 3 — durable commits with no live admission guard
 
-This set is non-empty. The old guard-first method could not discover it.
+This set is non-empty. The old guard-first method could not discover it. The
+attempt-5 receiver-and-caller pass established that the earlier 18 was a floor:
+it found a nineteenth admitted operation, vector-query failure quarantine. That
+operation is now fenced at both engine settlement callers and has moved to Set
+2; the 18 rows below remain unfixed.
 
 ### Fence required
 
@@ -216,7 +249,7 @@ this assessment does not weaken those checks.
 | Push receipt polling, expired-batch recovery, maintenance claims, idle retirement, and manifest activation | No admission effect guard: these are system/activation continuations. Request token registration, send reservation, and batch action commits remain in Sets 1–2. |
 | Asset finalizer/publication/GC/condemnation/reclamation worker state | No admission effect guard after durable handoff: bounded worker/attempt ownership is the authority. User-request asset cuts are separately listed as fence-required above. |
 | Cron scheduler internal maintenance outside an admitted claim | No admission effect guard is required. The three admitted scheduler/claim commits and result ledger are in Set 2. |
-| Vector rebuild begin/quarantine/resume/activate/rollback | No admission effect guard: operator rebuild generation authority governs these maintenance commits. |
+| Vector rebuild begin/quarantine/resume/activate/rollback | No admission effect guard: operator rebuild generation authority governs these maintenance commits. This exemption does **not** include admitted vector-query failure settlement, which reaches the separate implicit-autocommit sink in `vector/sqlite.rs` and is now guarded in Set 2. |
 | Temporary benchmark/reference/backup-output database writes | No admission effect guard: they do not mutate the served canonical store. |
 | Read-only pinned, membership, asset-read, and connection transactions | Their `commit()` calls close read transactions and are not durable-write operations. |
 
@@ -234,7 +267,6 @@ occurrence. Shared/mixed sinks are resolved by caller in Sets 1–3.
 | `fork_promotion.rs` | `create_in_app_branch`, `execute_branch_operation`, `capture_effect_intent`, `finalize_captured_effect_operation`, `foreclose_branch_operation_admission`, `deny_egress_attempt`, `issue_promotion_ticket_with_prepared_infra`, `promote_by_reexecution`, `request_head_reservation_with_prepared_infra`, `reap_expired_in_app_branches` |
 | `fork_promotion_bench.rs` | `source`, `prepare_promotion_contention_reservation_in` |
 | `instance_fork.rs` | `scrub_and_mint_staged_database`, `scrub_copied_authority_for_in_app_branch` |
-| `operation_ledger.rs` | `create_infra`, `record_operation_in`, `record_pending_operation_in`, `prune_compact_envelope_in`, `expire_envelope_detail_in`, `compact_envelope_receipt_in` |
 | `proof_checkpoint.rs` | `ensure_checkpoint_erasure_infra`, `prune_record_history`, `acknowledge_cancelled_checkpoint_producer`, `admit_checkpoint_intent`, `finalize_checkpoint_publication`, `publish_receipt_only_checkpoint`, `create_named_checkpoint_inner`, `erase_protected_record_with`, `erase_protected_record_checkpoint_copies_with` |
 | `storage.rs` | `commit_with_prepared_authorization_interlock`, `commit_authorization_transaction`, `install_sequence_declarations`, `create_infra`, `ensure_client_mutation_retention_counters`, `with_pinned_read_snapshot`, `record_membership_transition` |
 | `storage/api_envelope_state.rs` | `record_api_envelope` |
@@ -262,18 +294,48 @@ occurrence. Shared/mixed sinks are resolved by caller in Sets 1–3.
 | `storage/webhooks.rs` | `settle_webhook_attempt` |
 | `vector/rebuild.rs` | `begin_rebuild`, `quarantine_and_commit`, `resume_rebuild`, `activate_rebuild`, `rollback_generation` |
 
-The reviewed direct implicit-autocommit store writes are
-`settlement::upsert_stream_attempts`,
+The six previously listed `operation_ledger.rs` functions are not explicit
+commit functions. `create_infra`, `record_operation_in`,
+`record_pending_operation_in`, `prune_compact_envelope_in`,
+`expire_envelope_detail_in`, and `compact_envelope_receipt_in` accept a
+surrounding `Transaction` and do not commit it. They therefore belong to the
+transaction-helper classification below, not the explicit-primitive appendix.
+
+## Bare-connection caller resolution
+
+The attempt-5 pass enumerated every production `.execute` / `.execute_batch`
+receiver that was not syntactically `tx` or `transaction`, including
+continuation-line receivers such as `self.conn`, `writer.conn`, `canonical`,
+and `reference`. It then followed callers of every function that accepts a
+`Connection`, because Rust deref coercion means the same helper can receive a
+`Transaction` and must not automatically be called an autocommit cut. Test and
+acceptance modules were classified separately rather than allowed to hide a
+production receiver with the same spelling.
+
+The admitted-context resolutions are:
+
+| Admitted caller family | Bare-connection or implicit-autocommit sink | Resolution |
+| --- | --- | --- |
+| Vector query failure settlement, pooled-read and live write-lane paths | Opening the registered vector writer can call `operation_ledger::break_operation_coverage_continuity`; successful opening reaches `vector::sqlite::quarantine_generation_for_schema_on` → `quarantine_generation_on` | Missing from the earlier census. Both engine callers now hold the prepared query invocation's exact guard across writer opening and quarantine. Set 2. |
+| Cron scheduler publication, claim publication, and result publication | `jobs::save_cron_state` | The corresponding admission lease's guard is live. Set 2. |
+| Owner-requested watch transition | `watches::transition_watch`; activation can then enter the explicit `schedule_watch_evaluation` transaction | The request authority's guard spans both cuts. Set 2. |
+| Admitted watch evaluation and reaction jobs | `watches::begin_watch_evaluation`, `watches::record_watch_evaluation_retry`, and `webhooks::reserve_webhook_delivery`; the other watch decisions, firing updates, and webhook settlement use explicit transactions | No exact job guard spans these result cuts. Set 3. |
+| Admitted action/stream publication | `settlement::upsert_stream_attempts` and `stream_transcripts::settle_stream_transcript` | No exact invocation guard spans these cuts. Set 3. |
+| Post-mutation watch fanout | explicit `watches::schedule_watch_evaluation`, whose `enqueue_on`, `finish_without_fire_on`, `insert_firing`, and `trim_firings` helpers accept `&Connection` but receive `&Transaction` | The originating mutation guard has already dropped. Set 3. The helpers do not create extra autocommit cuts. |
+| Protected-record erasure and ordinary/client mutation retention | proof-checkpoint save helpers plus `save_retention_floor_on`, `save_client_mutation_auth_retention_counters`, and `save_meta_u64` | Each bare-typed helper receives the already-open transaction; its one outer commit is classified in Set 2. |
+
+All remaining production non-transaction receiver candidates resolve to one of
+these non-admitted families: schema/infra and connection setup; auth-mode,
+pre-auth, migration, recovery, checkpoint, or retention maintenance;
+registered derived-fork lifecycle/egress and operator promotion; search/vector
+rebuild maintenance; or reference, copied, backup-output, and benchmark
+databases. The direct implicit-autocommit members include
 `auth_invalidation::persist_derived_fork_app_row_coverage_receipt`,
-`watches::{transition_watch, begin_watch_evaluation,
-record_watch_evaluation_retry}`, `stream_transcripts::settle_stream_transcript`,
-`webhooks::reserve_webhook_delivery`, `jobs::save_cron_state`,
-`migration_executor::migrate_request_cancel`, the managed-branch custody
-create/drop/reap/reconcile transitions, and
-`connections::record_derived_fork_egress_attempt_v1`. Bare-`Connection` helper
-writes used inside the explicit transactions—watch enqueue/firing helpers,
-retention counters, meta saves, operation-ledger helpers, and infra builders—do
-not add a second commit cut.
+`migration_executor::migrate_request_cancel`, managed-branch custody
+transitions, and `connections::record_derived_fork_egress_attempt_v1`; their
+non-admission interlocks are recorded in Set 3's exemption table. Infra
+builders, expected-shape probes, PRAGMAs, and test-only writers do not add an
+admitted durable operation.
 
 ## Exit condition
 

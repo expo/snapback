@@ -9,12 +9,13 @@ use super::{
     TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
     already_terminal_session_error, app, configured_action_worker_limit,
     configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
-    finish_registered_response, install_targeted_agent_invitation_hook,
-    install_test_finite_authority_pause, linearize_detached_action_abandonment,
-    parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
-    reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
-    run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
-    status_for_diagnostic_code, with_snapback, with_snapback_staged_authorization_write,
+    finish_registered_response, install_targeted_agent_invitation_commit_hook,
+    install_targeted_agent_invitation_hook, install_test_finite_authority_pause,
+    linearize_detached_action_abandonment, parse_action_watchdog_timeout, parse_optional_json,
+    reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
+    retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
+    spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
+    with_snapback_staged_authorization_write,
 };
 use crate::manifest::SchemaManifestValidationExt as _;
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
@@ -17655,26 +17656,31 @@ async fn agent_invitation_mint_refuses_retired_epoch_and_holds_the_guard_through
         "refused invitation mint must not add a durable row"
     );
 
-    let commit_observed = Arc::new(AtomicBool::new(false));
-    let commit_observed_in_hook = commit_observed.clone();
-    install_targeted_agent_invitation_hook(
+    let admission_epoch = controller.snapshot().admission_epoch;
+    let commit_receipt = Arc::new(StdMutex::new(None));
+    let commit_receipt_in_hook = commit_receipt.clone();
+    let commit_controller = controller.clone();
+    install_targeted_agent_invitation_commit_hook(
         &AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK,
         &user_id,
         move || {
             assert!(
-                crate::auth::admission::current_thread_holds_admission_effect_guard_for_test(),
+                crate::auth::admission::current_thread_holds_admission_effect_guard_for_test(
+                    &commit_controller,
+                    admission_epoch,
+                ),
                 "AgentInvitationMint admission effect guard was not live after the \
                  effect-guard statement; the guard was never acquired or was dropped \
                  before the durable write"
             );
-            snapback_kernel::storage::observe_next_durable_commits_for_test(1, move || {
-                assert!(
-                    crate::auth::admission::current_thread_holds_admission_effect_guard_for_test(),
-                    "AgentInvitationMint admission effect guard was not live at the durable \
-                     commit; the effect guard was dropped after observation and before the write"
-                );
-                commit_observed_in_hook.store(true, Ordering::SeqCst);
-            });
+            let observation = snapback_kernel::storage::observe_next_durable_commits_for_test(
+                1,
+                commit_controller.effect_guard_identity_for_test(admission_epoch),
+            );
+            *commit_receipt_in_hook
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(observation.receipt());
+            observation
         },
     );
     let guarded = request_user_agent_invitation(&state, &router, &bearer).await;
@@ -17686,9 +17692,20 @@ async fn agent_invitation_mint_refuses_retired_epoch_and_holds_the_guard_through
         before + 1,
         "the guarded invitation mint must be durable"
     );
-    assert!(
-        commit_observed.load(Ordering::SeqCst),
-        "AgentInvitationMint commit hook did not directly observe the live effect guard"
+    let commit_receipt = commit_receipt
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take()
+        .expect("AgentInvitationMint installed its commit observation");
+    assert_eq!(
+        commit_receipt.matching_commits(),
+        1,
+        "AgentInvitationMint commit hook did not observe its exact live effect guard"
+    );
+    assert_eq!(
+        commit_receipt.mismatched_commits(),
+        0,
+        "AgentInvitationMint commit hook observed a different controller or epoch"
     );
 }
 

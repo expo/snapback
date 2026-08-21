@@ -186,11 +186,18 @@ struct TargetedAgentInvitationHook {
 }
 
 #[cfg(test)]
+struct TargetedAgentInvitationCommitHook {
+    user_id: String,
+    hook: Box<dyn FnOnce() -> snapback_kernel::storage::DurableCommitObservationForTest + Send>,
+}
+
+#[cfg(test)]
 static BEFORE_AGENT_INVITATION_EFFECT_GUARD_HOOK: StdMutex<Option<TargetedAgentInvitationHook>> =
     StdMutex::new(None);
 #[cfg(test)]
-static AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK: StdMutex<Option<TargetedAgentInvitationHook>> =
-    StdMutex::new(None);
+static AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK: StdMutex<
+    Option<TargetedAgentInvitationCommitHook>,
+> = StdMutex::new(None);
 
 #[cfg(test)]
 fn install_targeted_agent_invitation_hook(
@@ -229,6 +236,43 @@ fn run_targeted_agent_invitation_hook(
     if let Some(hook) = hook {
         hook();
     }
+}
+
+#[cfg(test)]
+fn install_targeted_agent_invitation_commit_hook(
+    slot: &StdMutex<Option<TargetedAgentInvitationCommitHook>>,
+    user_id: &str,
+    hook: impl FnOnce() -> snapback_kernel::storage::DurableCommitObservationForTest + Send + 'static,
+) {
+    let mut slot = slot
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    assert!(
+        slot.is_none(),
+        "an agent-invitation commit hook is already installed"
+    );
+    *slot = Some(TargetedAgentInvitationCommitHook {
+        user_id: user_id.to_owned(),
+        hook: Box::new(hook),
+    });
+}
+
+#[cfg(test)]
+fn run_targeted_agent_invitation_commit_hook(
+    slot: &StdMutex<Option<TargetedAgentInvitationCommitHook>>,
+    user_id: &str,
+) -> Option<snapback_kernel::storage::DurableCommitObservationForTest> {
+    let hook = {
+        let mut slot = slot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if slot.as_ref().is_some_and(|hook| hook.user_id == user_id) {
+            slot.take().map(|hook| hook.hook)
+        } else {
+            None
+        }
+    };
+    hook.map(|hook| hook())
 }
 
 const ACTION_WORKER_LIMIT_DEFAULT: usize = 32;
@@ -14753,7 +14797,10 @@ async fn auth_agent_invitation(
         // insertion commit inside the inviter authority's admission epoch.
         let _effect = effect_authority.effect_guard("agent invitation mint transaction")?;
         #[cfg(test)]
-        run_targeted_agent_invitation_hook(&AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK, &user_id);
+        let _commit_observation = run_targeted_agent_invitation_commit_hook(
+            &AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK,
+            &user_id,
+        );
         snapback.mint_agent_invitation(
             &_effect,
             &user_id,
