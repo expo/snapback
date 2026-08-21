@@ -127,3 +127,48 @@ implicit-autocommit and bare-connection writes; that enumeration is in progress.
 The logout and revocation cases come first. They are ordinary-caller reachable,
 need no race beyond normal concurrency, and defeat a control users are
 explicitly told to rely on.
+
+
+## Census extended and bounded — 2026-08-21
+
+A systematic sweep of NON-`tx.commit()` durable writes extends the set from 19
+to **22 operation families** (23 sinks; coverage-gap persistence writes both
+SQLite and, when fork evidence exists, a synced sidecar).
+
+Three new families:
+
+1. **Derived-fork egress-denial marker** — `LocalIbexActionHost` holds a
+   `PreparedAuthority` and records the denial at `deny_derived_fork_host_op`,
+   opening its own registered writer and autocommitting
+   (`crates/snapback-kernel/src/storage/connections.rs:467`), **then validates
+   admission afterwards** (`engine.rs:4277`). The request is always refused, so
+   severity is bounded — it updates a capped attempt count and first/last
+   timestamps — but the write genuinely precedes validation.
+2. **Registered-writer coverage-gap persistence.**
+3. **Post-reset cron-state persistence.**
+
+### Completeness boundary — stated, not claimed
+
+This census is now **source-complete for**: production SQLite logical
+mutations, raw SQL commits, write-capable PRAGMAs, SQLite backup destinations,
+bare-`Connection` helpers, and internally opened SQLite writers visible in the
+reviewed source. It remains a source census, not compiler-enforced effect
+analysis; dynamically generated or macro-hidden SQL is an acknowledged
+INFERRED boundary.
+
+It is **NOT complete for the broader non-SQL durability class.** Systematically
+unexamined: filesystem and secure-file publication, removal and rename;
+asset-store local and S3 operations; and external-provider effects. Concrete
+examples already visible:
+
+- `AssetStore::wipe_all` at reset time, **outside** the reset transaction guard
+  (`crates/snapback-engine/src/local/engine.rs:8645`) — a destructive operation
+  worth assessing on its own merits
+- owner-only secure-file writes and fsyncs
+  (`crates/snapback-kernel/src/secure_file.rs:291`)
+- the asset store's durable mutation interface
+  (`crates/snapback-kernel/src/assets_store.rs:48,94,110`)
+
+That class needs its own sweep. Until then, 22 is the SQLite-side total and the
+overall total is unknown — which is the honest statement, and better than the
+two earlier versions of this census that claimed completeness they did not have.
