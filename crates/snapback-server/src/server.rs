@@ -179,6 +179,61 @@ static DETACHED_ACTION_WORKERS: AtomicUsize = AtomicUsize::new(0);
 static DETACHED_ACTION_REJECTIONS: AtomicU64 = AtomicU64::new(0);
 static DETACHED_ACTION_LIMITER: OnceLock<DetachedActionLimiter> = OnceLock::new();
 
+#[cfg(test)]
+struct TargetedAgentInvitationHook {
+    user_id: String,
+    hook: Box<dyn FnOnce() + Send + 'static>,
+}
+
+#[cfg(test)]
+static BEFORE_AGENT_INVITATION_EFFECT_GUARD_HOOK: StdMutex<Option<TargetedAgentInvitationHook>> =
+    StdMutex::new(None);
+#[cfg(test)]
+static AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK: StdMutex<Option<TargetedAgentInvitationHook>> =
+    StdMutex::new(None);
+#[cfg(test)]
+static AFTER_AGENT_INVITATION_EFFECT_COMMIT_HOOK: StdMutex<Option<TargetedAgentInvitationHook>> =
+    StdMutex::new(None);
+
+#[cfg(test)]
+fn install_targeted_agent_invitation_hook(
+    slot: &StdMutex<Option<TargetedAgentInvitationHook>>,
+    user_id: &str,
+    hook: impl FnOnce() + Send + 'static,
+) {
+    let mut slot = slot
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    assert!(
+        slot.is_none(),
+        "an agent-invitation fence hook is already installed"
+    );
+    *slot = Some(TargetedAgentInvitationHook {
+        user_id: user_id.to_owned(),
+        hook: Box::new(hook),
+    });
+}
+
+#[cfg(test)]
+fn run_targeted_agent_invitation_hook(
+    slot: &StdMutex<Option<TargetedAgentInvitationHook>>,
+    user_id: &str,
+) {
+    let hook = {
+        let mut slot = slot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if slot.as_ref().is_some_and(|hook| hook.user_id == user_id) {
+            slot.take().map(|hook| hook.hook)
+        } else {
+            None
+        }
+    };
+    if let Some(hook) = hook {
+        hook();
+    }
+}
+
 const ACTION_WORKER_LIMIT_DEFAULT: usize = 32;
 const ACTION_WORKER_LIMIT_MAX: usize = 1_024;
 const CRON_DISPATCH_CONCURRENCY_DEFAULT: usize = 8;
@@ -14695,15 +14750,29 @@ async fn auth_agent_invitation(
     let effect_provider = provider.clone();
     let profile = runtime.server.profile;
     let invitation = with_snapback(&runtime.snapback, move |snapback| {
+        #[cfg(test)]
+        run_targeted_agent_invitation_hook(&BEFORE_AGENT_INVITATION_EFFECT_GUARD_HOOK, &user_id);
+        // @ref LLP 0058#gate-algorithm — proof consumption and invitation
+        // insertion commit inside the inviter authority's admission epoch.
         let _effect = effect_authority.effect_guard("agent invitation mint transaction")?;
-        snapback.mint_agent_invitation(
+        #[cfg(test)]
+        run_targeted_agent_invitation_hook(&AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK, &user_id);
+        let result = snapback.mint_agent_invitation(
             &_effect,
             &user_id,
             profile,
             proof.proof(),
             effect_provider.now_ms(),
             effect_provider.agent_random_source(),
-        )
+        );
+        #[cfg(test)]
+        if result.is_ok() {
+            run_targeted_agent_invitation_hook(
+                &AFTER_AGENT_INVITATION_EFFECT_COMMIT_HOOK,
+                &user_id,
+            );
+        }
+        result
     })
     .await?;
     Ok(Json(AgentInvitationSecretResponse {
