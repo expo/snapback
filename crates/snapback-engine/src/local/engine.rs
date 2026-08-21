@@ -79,9 +79,10 @@ pub(crate) use crate::search::sqlite::{
 use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, NetworkSeedOutcome};
 use crate::storage::{
     AssetDeliveryOutcome, AssetPreparedVariant, AssetPublishOutcome, BufferedCommitPayload,
-    CapturedReadDependency, CapturedReadKind, CapturedWriteDependency, ChangedRow,
-    ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool, ServingDatabase,
-    SettlementTimePolicy, ShutdownCheckpointReport, StorageInfo, TableScan,
+    BufferedDocumentResultContract, CapturedReadDependency, CapturedReadKind,
+    CapturedWriteDependency, ChangedRow, ClientMutationIdentity, DbRead, LocalDatabase,
+    MutationCommit, ReaderPool, ServingDatabase, SettlementTimePolicy, ShutdownCheckpointReport,
+    StorageInfo, TableScan,
 };
 use crate::telemetry::{
     CallerAttributionLocalExt as _, ObservationSpanLocalExt as _, TelemetryLocalExt as _,
@@ -1500,6 +1501,20 @@ impl<'a> MutationReceiptPublication<'a> {
 enum StagedMutationExecution {
     HostPlan(crate::manifest::MutationPlan),
     Buffered(Box<BufferedCommitPayload>),
+}
+
+fn buffered_document_result_contract(
+    function: &FunctionDefinition,
+) -> Option<BufferedDocumentResultContract> {
+    matches!(
+        &function.result_contract,
+        crate::manifest::FunctionResultContract::Document { .. }
+    )
+    .then(|| BufferedDocumentResultContract {
+        function_id: function.id.clone(),
+        result_contract_hash: function.result_contract_hash.clone(),
+        contract: function.result_contract.clone(),
+    })
 }
 
 fn accepted_claim_ledger(ledger: Option<&CtxAnswerLedger>) -> Vec<SettlementClaim> {
@@ -15615,13 +15630,9 @@ impl LocalSnapback {
                                     result: executed.result,
                                     handler_observable_commit_version: executed
                                         .handler_observable_commit_version,
-                                    result_document_table: match &function.result_contract {
-                                        crate::manifest::FunctionResultContract::Document {
-                                            table,
-                                            ..
-                                        } => Some(table.clone()),
-                                        _ => None,
-                                    },
+                                    result_document_contract: buffered_document_result_contract(
+                                        &function,
+                                    ),
                                     ctx_ledger: executed.ctx_ledger,
                                     job_enqueues,
                                     job_producer,
@@ -15656,7 +15667,7 @@ impl LocalSnapback {
                                             payload.read_dependencies.clone(),
                                             payload.result.clone(),
                                             payload.handler_observable_commit_version,
-                                            payload.result_document_table.clone(),
+                                            payload.result_document_contract.clone(),
                                             payload.ctx_ledger.clone(),
                                             payload.job_enqueues.clone(),
                                             payload.job_producer.clone(),
@@ -16425,12 +16436,7 @@ impl LocalSnapback {
                         result: executed.result,
                         handler_observable_commit_version: executed
                             .handler_observable_commit_version,
-                        result_document_table: match &function.result_contract {
-                            crate::manifest::FunctionResultContract::Document { table, .. } => {
-                                Some(table.clone())
-                            }
-                            _ => None,
-                        },
+                        result_document_contract: buffered_document_result_contract(&function),
                         ctx_ledger: executed.ctx_ledger,
                         job_enqueues,
                         job_producer,
@@ -16829,12 +16835,7 @@ impl LocalSnapback {
                     read_dependencies: executed.reads,
                     result: executed.result,
                     handler_observable_commit_version: executed.handler_observable_commit_version,
-                    result_document_table: match &function.result_contract {
-                        crate::manifest::FunctionResultContract::Document { table, .. } => {
-                            Some(table.clone())
-                        }
-                        _ => None,
-                    },
+                    result_document_contract: buffered_document_result_contract(&function),
                     ctx_ledger: executed.ctx_ledger,
                     job_enqueues,
                     job_producer,
@@ -21470,12 +21471,7 @@ impl LocalSnapback {
                 executed.reads.clone(),
                 executed.result.clone(),
                 executed.handler_observable_commit_version,
-                match &function.result_contract {
-                    crate::manifest::FunctionResultContract::Document { table, .. } => {
-                        Some(table.clone())
-                    }
-                    _ => None,
-                },
+                buffered_document_result_contract(&function),
                 executed.ctx_ledger.clone(),
                 Vec::new(),
                 None,

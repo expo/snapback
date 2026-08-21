@@ -6,14 +6,14 @@ use crate::manifest::{
     AuthRequirement, AuthorityProfileHookV1, AuthorityProfileOperationNameV1,
     AuthorityProfileOperationV1, AuthorityProfileTransitionOpV1, CLIENT_MUTATION_ACK_MAX_IDS,
     CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest,
-    FieldType, FilterOp, FunctionKind, HandlerInput, MembershipManifest, MembershipOp,
-    MembershipProvenance, MembershipScope, MembershipTarget, MutationOutput, MutationPlan,
-    MutationSettlement, MutationStep, OrderDirection, OrderExpr, OwnerWriteAbsentDispositionV1,
-    OwnerWriteCheckV1, PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX,
-    QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency,
-    ResultValueContract, ReturnValue, SchemaManifest, SeedData, SettlementMintObservation,
-    SettlementTimeObservation, TableManifest, TableVisibilityV1, ValueExpr,
-    canonical_membership_transition_matrix, effective_query_limit, is_user_identifier,
+    FieldType, FilterOp, FunctionKind, FunctionResultContract, HandlerInput, MembershipManifest,
+    MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget, MutationOutput,
+    MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
+    OwnerWriteAbsentDispositionV1, OwnerWriteCheckV1, PORTABLE_STORAGE_VERSION_MAX,
+    QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput,
+    QueryPlan, ReadDependency, ResultValueContract, ReturnValue, SchemaManifest, SeedData,
+    SettlementMintObservation, SettlementTimeObservation, TableManifest, TableVisibilityV1,
+    ValueExpr, canonical_membership_transition_matrix, effective_query_limit, is_user_identifier,
     replay_opaque_id_is_valid, validate_ctx_answer_ledger, validate_portable_timestamp_millis,
     validate_query_plan_shape,
 };
@@ -1197,10 +1197,10 @@ pub struct BufferedCommitPayload {
     /// buffered insert. The writer may admit this payload only if its
     /// authoritative allocator selects the same version.
     pub handler_observable_commit_version: Option<u64>,
-    /// Named table for a `results.document(table)` handler result. Storage
-    /// uses this contract-bound fact to replace fenced read-your-writes system
-    /// fields with the exact committed row before settlement.
-    pub result_document_table: Option<String>,
+    /// Frozen `results.document(table)` identity. Storage resolves the result
+    /// id against the transaction's final row image, replaces system fields,
+    /// and re-validates before settlement while rollback is still possible.
+    pub result_document_contract: Option<BufferedDocumentResultContract>,
     pub ctx_ledger: CtxAnswerLedger,
     /// Buffered `ctx.jobs.enqueue` intents, inserted inside the same SQLite
     /// transaction as the writes above (LLP 0070 §Job identity and enqueue).
@@ -1218,6 +1218,13 @@ pub struct BufferedCommitPayload {
     /// Independently reconstructed from the prepared invocation/request
     /// carrier; the storage boundary compares it with the proof before OCC.
     pub expected_media_projection_binding: Option<crate::runtime::MediaProjectionProofBindingV1>,
+}
+
+#[derive(Clone, Debug)]
+pub struct BufferedDocumentResultContract {
+    pub function_id: String,
+    pub result_contract_hash: Option<String>,
+    pub contract: FunctionResultContract,
 }
 
 enum MediaProjectionProofAccess<'a> {
@@ -1254,7 +1261,7 @@ struct BufferedEffects<'a> {
     read_dependencies: Vec<CapturedReadDependency>,
     result: Value,
     handler_observable_commit_version: Option<u64>,
-    result_document_table: Option<String>,
+    result_document_contract: Option<BufferedDocumentResultContract>,
     job_enqueues: Vec<jobs::BufferedJobEnqueue>,
     job_producer: Option<jobs::JobProducer>,
     asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
@@ -5516,7 +5523,7 @@ impl LocalDatabase {
             read_dependencies,
             result,
             handler_observable_commit_version,
-            result_document_table,
+            result_document_contract,
             ctx_ledger,
             job_enqueues,
             job_producer,
@@ -5549,7 +5556,7 @@ impl LocalDatabase {
                 read_dependencies,
                 result,
                 handler_observable_commit_version,
-                result_document_table,
+                result_document_contract,
                 job_enqueues,
                 job_producer,
                 asset_admissions,
@@ -5627,7 +5634,7 @@ impl LocalDatabase {
             mut read_dependencies,
             mut result,
             handler_observable_commit_version,
-            result_document_table,
+            result_document_contract,
             job_enqueues,
             job_producer,
             asset_admissions,
@@ -6251,9 +6258,45 @@ impl LocalDatabase {
         // @ref LLP 0108#runtime-validation-and-atomicity — a buffered
         // `ctx.db.get` observes fenced system fields during handler execution;
         // `results.document(table)` settles only the exact system fields from
-        // the row written by this transaction.
-        if let Some(table) = result_document_table.as_deref() {
-            reproject_buffered_document_result_system_fields(table, &changes, &mut result);
+        // the matching row in this transaction's final image, then validates
+        // the settled value before the commit may publish.
+        if let Some(document_contract) = result_document_contract.as_ref() {
+            let FunctionResultContract::Document { table, .. } = &document_contract.contract else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION",
+                    "runtime",
+                    "buffered document-result settlement carried a non-document contract",
+                ));
+            };
+            let resolved = reproject_buffered_document_result_system_fields(
+                &tx,
+                &schema,
+                table,
+                next_version,
+                &mut result,
+            )?;
+            if !resolved {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION",
+                    "runtime",
+                    format!(
+                        "handler {:?} returned a document absent from the transaction's final row image",
+                        document_contract.function_id,
+                    ),
+                )
+                .with_details(json!({
+                    "functionId": &document_contract.function_id,
+                    "resultContractHash": &document_contract.result_contract_hash,
+                    "path": "$._id",
+                    "constraint": "type",
+                })));
+            }
+            crate::result_contract::validate_handler_result_contract(
+                &document_contract.function_id,
+                document_contract.result_contract_hash.as_deref(),
+                &document_contract.contract,
+                &result,
+            )?;
         }
         let mut output = MutationOutput {
             version,
@@ -14136,30 +14179,32 @@ fn changed_field_names(values: &Map<String, Value>) -> Vec<String> {
 }
 
 fn reproject_buffered_document_result_system_fields(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
     table: &str,
-    changes: &[ChangedRow],
+    maximum_version: u64,
     result: &mut Value,
-) {
+) -> SnapbackResult<bool> {
     let Some(result_object) = result.as_object_mut() else {
-        return;
+        return Ok(true);
     };
     let Some(id) = result_object.get("_id").and_then(Value::as_str) else {
-        return;
+        return Ok(true);
     };
-    let Some(committed) = changes
-        .iter()
-        .rev()
-        .find(|change| change.table == table && change.id == id)
-        .and_then(|change| change.row.as_ref())
-        .and_then(Value::as_object)
+    let table_manifest = schema_table(schema, table)?;
+    let Some(final_document) = get_document_from_tx(tx, table_manifest, id, maximum_version)?
     else {
-        return;
+        return Ok(false);
     };
+    let committed = final_document
+        .as_object()
+        .expect("schema-aware point reads return document objects");
     for field in ["_version", "_createdAt", "_updatedAt"] {
         if let Some(value) = committed.get(field) {
             result_object.insert(field.to_owned(), value.clone());
         }
     }
+    Ok(true)
 }
 
 fn validate_handler_observable_commit_version(

@@ -842,6 +842,89 @@ assert.equal(appStateListeners.size, 0);
 
 {
   const originalFetch = globalThis.fetch;
+  const liveUpdates = [];
+  const snapshots = new Map([
+    ['todo_present', [{ _id: 'todo_present', title: 'live projected' }]],
+    ['todo_absent', [null]],
+  ]);
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') {
+      return Response.json({
+        connectionId: 'typed-point-wire',
+        connectionToken: 'typed-point-token',
+        wireVersion: 'snapback.v1',
+        authorizationInvalidation: null,
+      });
+    }
+    const body = init.body ? JSON.parse(init.body) : {};
+    if (path === '/live/todos.get/subscribe') {
+      return Response.json({
+        subscription_id: `typed-point-${body.input.args.id}`,
+        snapshot: { version: 1, rows: snapshots.get(body.input.args.id) },
+        permission_epochs: {},
+      });
+    }
+    if (path === '/live/todos.get/unsubscribe') {
+      return Response.json({ subscription_id: body.subscription_id, disposed: true });
+    }
+    throw new Error(`unexpected typed point-query request: ${path}`);
+  };
+  const singleValueLiveRef = {
+    artifactKind: 'functionReference',
+    schemaVersion: 'snapback.v0',
+    appId: 'live-query-projection-fixture',
+    id: 'live-query-projection-fixture:todos.get',
+    name: 'todos.get',
+    kind: 'LiveQuery',
+    implementationHash: `sha256:${'1'.repeat(64)}`,
+    argsContractHash: `sha256:${'2'.repeat(64)}`,
+    argsContract: {
+      fields: [{ name: 'id', required: true, value: { kind: 'string', maxBytes: 256 } }],
+    },
+    resultContractHash: `sha256:${'3'.repeat(64)}`,
+    resultContract: { kind: 'value', value: { kind: 'unknown' } },
+  };
+  let presentHandle = null;
+  let absentHandle = null;
+  try {
+    const projectionClient = new SnapbackClient('http://snapback.test', { rqsStore: null });
+    presentHandle = await projectionClient.liveQuery(singleValueLiveRef, {
+      connectionId: 'typed-point-present',
+      args: { id: 'todo_present' },
+      onUpdate: (todo) => liveUpdates.push(todo),
+    });
+    absentHandle = await projectionClient.liveQuery(singleValueLiveRef, {
+      connectionId: 'typed-point-absent',
+      args: { id: 'todo_absent' },
+      onUpdate: (todo) => liveUpdates.push(todo),
+    });
+    assert.deepEqual(
+      presentHandle.rows,
+      { _id: 'todo_present', title: 'live projected' },
+      'typed live handles project a present point document',
+    );
+    assert.deepEqual(
+      presentHandle.authoritativeRows,
+      { _id: 'todo_present', title: 'live projected' },
+      'the public authoritative live view uses the same typed projection',
+    );
+    assert.equal(absentHandle.rows, null, 'typed live handles preserve nullable absence');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert(
+      liveUpdates.some((todo) => todo?.title === 'live projected'),
+      'onUpdate projects the present document rather than its carrier',
+    );
+    assert(liveUpdates.includes(null), 'onUpdate projects the absent document as null');
+  } finally {
+    await presentHandle?.dispose();
+    await absentHandle?.dispose();
+    globalThis.fetch = originalFetch;
+  }
+}
+
+{
+  const originalFetch = globalThis.fetch;
   const requests = [];
   globalThis.fetch = async (url, init = {}) => {
     requests.push({ url, init });

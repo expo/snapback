@@ -13508,14 +13508,14 @@ export class SnapbackClient {
       },
       version: 0,
       get rows() {
-        return presentedRows;
+        return projectTypedQueryOutput(ref, { rows: presentedRows }).rows;
       },
       set rows(rows) {
         authoritativeRows = Array.isArray(rows) ? rows : [];
         presentedRows = authoritativeRows;
       },
       get authoritativeRows() {
-        return authoritativeRows;
+        return projectTypedQueryOutput(ref, { rows: authoritativeRows }).rows;
       },
       get optimisticPresentation() {
         if (optimisticPresentationSnapshot === null) {
@@ -13686,7 +13686,11 @@ export class SnapbackClient {
         authoritativeRows,
         optimisticPresentation: handle.optimisticPresentation,
       };
-      deliverIsolated(applicationOnUpdate, presentedRows, nextDetail);
+      deliverIsolated(
+        applicationOnUpdate,
+        projectTypedQueryOutput(ref, { rows: presentedRows }).rows,
+        nextDetail,
+      );
     };
 
     const captureOptimisticPublicationFence = () => Object.freeze({

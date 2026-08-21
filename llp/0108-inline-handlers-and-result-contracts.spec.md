@@ -7,8 +7,9 @@
 **Date:** 2026-07-27
 **Revised:** 2026-08-21 (handler-visible buffered-insert versions use a
 commit-time allocator fence: a moved global head rejects the invocation before
-effects, while admitted document results still replace system fields from the
-authoritative changed row before settlement or publication); 2026-08-18 (LLP
+effects; admitted document results resolve `_id` against the transaction's
+final row image, replace authoritative system fields, and revalidate before
+settlement or publication); 2026-08-18 (LLP
 0276 crate-path relocation); 2026-08-15 (single-value query egress: query/live-query
 declarations admit `results.document` and `results.value`; authored handlers
 return that value directly while the existing query/live transport carries it
@@ -500,14 +501,16 @@ buffered effect is applied. This keeps handler execution outside the write lock
 and preserves complete read-your-writes documents without allowing a guessed
 version to commit or escape.
 
-For an exact `document(table)` contract, storage additionally replaces
-`_version`, `_createdAt`, and `_updatedAt` from the authoritative changed row
-with the same table and `_id` before the result is retained, settled, or
-published. This is defense in depth for the exact document carrier, not the
-correctness mechanism for values copied elsewhere. A mutation dry-run uses the
-same allocator fence and then the identical projection from its authoritative
-would-be changed row before forming `DryRunReport.result`; rollback still
-discards that row.
+For an exact `document(table)` contract, storage additionally resolves the
+returned `_id` in the transaction's final row image, including an unchanged
+row, and replaces `_version`, `_createdAt`, and `_updatedAt` from that
+authoritative document before the result is retained, settled, or published.
+A missing or deleted final row fails closed; storage revalidates the projected
+result while rollback is still possible. This is defense in depth for the
+exact document carrier, not the correctness mechanism for values copied
+elsewhere. A mutation dry-run uses the same allocator fence and identical
+final-image projection and revalidation before forming `DryRunReport.result`;
+rollback still discards its would-be changes.
 
 Retained mutation output stores the complete original
 `ExpectedOperationV1`, `resultContractHash`, and a reference to the
@@ -554,8 +557,9 @@ receipt/envelope whose logical `result` is `FunctionResult<R>`; and
 `records` infer arrays, while query/live `document` and `value` infer their
 direct payload despite the internal one-row transport carrier. Mutation/action
 document/value contracts also infer their direct payload. Typed query groups
-admit only the array query forms; headless query and React bindings project the
-single-value forms before exposing them to application code.
+admit only the array query forms; headless one-shot queries, headless live
+handles and callbacks, and React bindings project the single-value forms
+before exposing them to application code.
 
 Headless invocation, the first-party React binding, typed query groups,
 provider introspection, mutation settlement, and operation schemas consume

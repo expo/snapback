@@ -1,6 +1,7 @@
 import {
   type FunctionArgs,
   type FunctionResult,
+  type LiveQueryHandle,
   type QueryOutput,
   SnapbackClient,
 } from "@expo/snapback-client";
@@ -35,6 +36,17 @@ const headlessListContract: Promise<QueryOutput<readonly Todo[]>> = client.query
   api.todos.list,
   { args: {} },
 );
+const headlessLivePointContract: Promise<LiveQueryHandle<Todo | null>> = client.liveQuery(
+  api.todos.get,
+  {
+    connectionId: "typed-point-query",
+    args: { id: todoId },
+    onUpdate: (todo) => {
+      const updateContract: Todo | null = todo;
+      void updateContract;
+    },
+  },
+);
 
 // @ts-expect-error A nullable point result is one document, never a row array.
 const wrongPointProjection: readonly Todo[] | undefined = point;
@@ -47,4 +59,5 @@ void actionContract;
 void headlessPointContract;
 void headlessRequiredPointContract;
 void headlessListContract;
+void headlessLivePointContract;
 void wrongPointProjection;

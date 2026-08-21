@@ -20,10 +20,11 @@ use crate::manifest::{
     SequenceScopeAccess, TableVisibilityArmV1, TableVisibilityV1, ValueExpr, effective_query_limit,
 };
 use crate::storage::{
-    BufferedMembershipCommand, BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead,
-    GenericTableWriteFormV1, LocalDatabase, MembershipWriter, MutationCommit,
-    SEQUENCE_MAX_SAFE_INTEGER, SequenceAllocationFact, enforce_identity_binding_write_seal,
-    generic_owner_write_field, validate_sequence_allocation_fact,
+    BufferedDocumentResultContract, BufferedMembershipCommand, BufferedWrite,
+    CapturedReadDependency, CapturedReadKind, DbRead, GenericTableWriteFormV1, LocalDatabase,
+    MembershipWriter, MutationCommit, SEQUENCE_MAX_SAFE_INTEGER, SequenceAllocationFact,
+    enforce_identity_binding_write_seal, generic_owner_write_field,
+    validate_sequence_allocation_fact,
 };
 use crate::telemetry::TelemetryLocalExt as _;
 use crate::warm_vm::WarmVmPool;
@@ -734,7 +735,11 @@ pub(crate) fn dry_run_ibex_mutation_prepared(
         result,
         handler_observable_commit_version.get(),
         match prepared.result_contract() {
-            FunctionResultContract::Document { table, .. } => Some(table.clone()),
+            FunctionResultContract::Document { .. } => Some(BufferedDocumentResultContract {
+                function_id: prepared.function_id().to_owned(),
+                result_contract_hash: prepared.result_contract_hash().map(str::to_owned),
+                contract: prepared.result_contract().clone(),
+            }),
             _ => None,
         },
         ctx_ledger,
@@ -9909,7 +9914,7 @@ mod membership_bridge_tests {
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
                     handler_observable_commit_version: None,
-                    result_document_table: None,
+                    result_document_contract: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),
                     result: json!(null),
@@ -10001,7 +10006,7 @@ mod membership_bridge_tests {
             asset_grant_ops,
             media_projection_proof: None,
             expected_media_projection_binding: None,
-            result_document_table: None,
+            result_document_contract: None,
         }
     }
 
@@ -10064,7 +10069,7 @@ mod membership_bridge_tests {
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
-                    result_document_table: None,
+                    result_document_contract: None,
                 },
                 None,
                 || Ok(()),
@@ -10498,7 +10503,7 @@ globalThis.__snapbackHandlers = {
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
                     handler_observable_commit_version: None,
-                    result_document_table: None,
+                    result_document_contract: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),
                     result: json!(null),
@@ -11080,7 +11085,7 @@ globalThis.__snapbackHandlers = {
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
                     handler_observable_commit_version: None,
-                    result_document_table: None,
+                    result_document_contract: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),
                     result: result.clone(),

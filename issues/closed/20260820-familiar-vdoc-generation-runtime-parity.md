@@ -41,8 +41,8 @@ Familiar lowering now admits the same query/live-query `document` and `value`
 result kinds as LLP 0108's runtime carrier, while mutation/action document
 composites continue to refuse before activation output with
 `SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` and the explicit-result rewrite.
-The typed headless query client projects the internal one-row carrier to the
-authored single value, matching the existing React projection.
+The typed headless one-shot query, live handle/callback, and React client
+surfaces project the internal one-row carrier to the authored single value.
 
 Buffered runtime documents now include a structurally valid, handler-visible
 `_version` under a commit-time allocator fence. If a disjoint mutation advances
@@ -50,10 +50,13 @@ the global version after handler execution, the stale invocation conflicts
 before applying any effect; a successful invocation's observed, returned, or
 persisted value therefore equals its authoritative commit version. For an exact
 document result contract, settlement additionally replaces `_version`,
-`_createdAt`, and `_updatedAt` from the authoritative changed row before
-retention or publication. Mutation dry-run carries the same version fence and
-document-table binding through its rollback path and projects the same fields
-from the authoritative would-be changed row into `DryRunReport.result`.
+`_createdAt`, and `_updatedAt` from the matching document in the transaction's
+final row image before retention or publication, then revalidates while
+rollback remains possible. This includes unchanged rows and refuses a deleted
+or missing final row rather than copying a delete preimage. Mutation dry-run
+carries the same version fence and frozen result-contract identity through its
+rollback path and applies the same projection and revalidation before forming
+`DryRunReport.result`.
 
 An exact published-0.1.24 scratch install reproduced both defects. Clean first
 generation returned `SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID` with
@@ -86,5 +89,6 @@ tests.
   node scripts/familiar-vdoc-vertical-contract.mjs` — packed seven-package
   closure passed from a fresh external app: Guide spelling, clean one-pass
   bare-`v.doc` generation, typecheck, native query/mutation/action acceptance,
-  headless and React projection, and stable pre-output mutation/action array
-  refusals.
+  headless one-shot/live and React projection, present/absent/delete live
+  transitions, byte-preserving refused CLI regeneration, and stable clean
+  pre-output mutation/action array refusals.

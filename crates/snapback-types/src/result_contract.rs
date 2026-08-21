@@ -74,34 +74,56 @@ impl Violation {
 }
 
 pub fn validate_handler_result(function: &FunctionDefinition, value: &Value) -> SnapbackResult<()> {
-    let bytes = serde_json::to_vec(value)
-        .map_err(|_| violation(function, Violation::at("$", SERIALIZE)))?;
+    validate_handler_result_contract(
+        &function.id,
+        function.result_contract_hash.as_deref(),
+        &function.result_contract,
+        value,
+    )
+}
+
+/// Validate a result when the commit boundary carries only the frozen result
+/// contract identity rather than the complete executable function record.
+pub fn validate_handler_result_contract(
+    function_id: &str,
+    result_contract_hash: Option<&str>,
+    result_contract: &FunctionResultContract,
+    value: &Value,
+) -> SnapbackResult<()> {
+    let bytes = serde_json::to_vec(value).map_err(|_| {
+        violation(
+            function_id,
+            result_contract_hash,
+            Violation::at("$", SERIALIZE),
+        )
+    })?;
     if bytes.len() > MAX_HANDLER_RESULT_BYTES {
         return Err(violation(
-            function,
+            function_id,
+            result_contract_hash,
             Violation::bound("$", MAX_RESULT_BYTES, MAX_HANDLER_RESULT_BYTES, bytes.len()),
         ));
     }
     let mut budget = ValidationBudget { nodes: 0 };
-    match &function.result_contract {
+    match result_contract {
         FunctionResultContract::Unknown => validate_json_budget(value, 0, &mut budget),
         FunctionResultContract::Documents { document, .. } => {
-            validate_rows(function, value, document, None, &mut budget)
+            validate_rows(value, document, None, &mut budget)
         }
         FunctionResultContract::Records { record, rows } => {
-            validate_rows(function, value, record, rows.as_ref(), &mut budget)
+            validate_rows(value, record, rows.as_ref(), &mut budget)
         }
         FunctionResultContract::LegacyQueryRowsV0 { row } => {
-            validate_rows(function, value, row, None, &mut budget)
+            validate_rows(value, row, None, &mut budget)
         }
         FunctionResultContract::Document { document, .. } => {
-            validate_value(function, value, document, "$", 0, &mut budget)
+            validate_value(value, document, "$", 0, &mut budget)
         }
         FunctionResultContract::Value { value: contract } => {
-            validate_value(function, value, contract, "$", 0, &mut budget)
+            validate_value(value, contract, "$", 0, &mut budget)
         }
     }
-    .map_err(|failure| violation(function, failure))
+    .map_err(|failure| violation(function_id, result_contract_hash, failure))
 }
 
 /// Query transport and live-diff machinery remain row-oriented. A declared
@@ -120,7 +142,8 @@ pub fn validate_query_handler_result(
     ) {
         if rows.len() != 1 {
             return Err(violation(
-                function,
+                &function.id,
+                function.result_contract_hash.as_deref(),
                 Violation::bound("$", ARITY, 1, rows.len()),
             ));
         }
@@ -130,7 +153,6 @@ pub fn validate_query_handler_result(
 }
 
 fn validate_rows(
-    function: &FunctionDefinition,
     value: &Value,
     row: &ResultValueContract,
     bound: Option<&crate::manifest::ResultRowsBound>,
@@ -156,7 +178,7 @@ fn validate_rows(
         }
     }
     for (index, value) in rows.iter().enumerate() {
-        validate_value(function, value, row, &format!("$[{index}]"), 1, budget)?;
+        validate_value(value, row, &format!("$[{index}]"), 1, budget)?;
     }
     Ok(())
 }
@@ -182,14 +204,12 @@ fn consume(budget: &mut ValidationBudget, depth: usize, path: &str) -> Result<()
 }
 
 fn validate_value(
-    function: &FunctionDefinition,
     value: &Value,
     contract: &ResultValueContract,
     path: &str,
     depth: usize,
     budget: &mut ValidationBudget,
 ) -> Result<(), Violation> {
-    let _ = function;
     consume(budget, depth, path)?;
     match contract {
         ResultValueContract::Null if value.is_null() => Ok(()),
@@ -275,7 +295,6 @@ fn validate_value(
             }
             for (index, value) in values.iter().enumerate() {
                 validate_value(
-                    function,
                     value,
                     element,
                     &format!("{path}[{index}]"),
@@ -292,7 +311,6 @@ fn validate_value(
             }
             for (index, (value, element)) in values.iter().zip(elements).enumerate() {
                 validate_value(
-                    function,
                     value,
                     element,
                     &format!("{path}[{index}]"),
@@ -330,7 +348,7 @@ fn validate_value(
                 let mut trial = ValidationBudget {
                     nodes: budget.nodes,
                 };
-                if validate_value(function, value, variant, path, depth, &mut trial).is_ok() {
+                if validate_value(value, variant, path, depth, &mut trial).is_ok() {
                     budget.nodes = trial.nodes;
                     return Ok(());
                 }
@@ -340,13 +358,12 @@ fn validate_value(
         ResultValueContract::Object {
             fields,
             allow_extra,
-        } => validate_object(function, value, fields, *allow_extra, path, depth, budget),
+        } => validate_object(value, fields, *allow_extra, path, depth, budget),
         _ => Err(Violation::at(path, TYPE)),
     }
 }
 
 fn validate_object(
-    function: &FunctionDefinition,
     value: &Value,
     fields: &[ResultObjectFieldContract],
     allow_extra: bool,
@@ -368,7 +385,6 @@ fn validate_object(
     for field in fields {
         match object.get(&field.name) {
             Some(value) => validate_value(
-                function,
                 value,
                 &field.value,
                 &format!("{path}.{}", path_segment(&field.name)),
@@ -493,10 +509,14 @@ fn validate_json_children_with_limit(
     Ok(())
 }
 
-fn violation(function: &FunctionDefinition, failure: Violation) -> SnapbackError {
+fn violation(
+    function_id: &str,
+    result_contract_hash: Option<&str>,
+    failure: Violation,
+) -> SnapbackError {
     let mut details = json!({
-        "functionId": function.id,
-        "resultContractHash": function.result_contract_hash,
+        "functionId": function_id,
+        "resultContractHash": result_contract_hash,
         "path": failure.path,
         "constraint": failure.constraint,
     });
@@ -515,7 +535,7 @@ fn violation(function: &FunctionDefinition, failure: Violation) -> SnapbackError
         "runtime",
         format!(
             "handler {:?} returned a value outside its declared result contract",
-            function.id
+            function_id
         ),
     )
     .with_details(details)
@@ -1085,7 +1105,6 @@ mod tests {
             nodes: MAX_RESULT_NODES - 1,
         };
         validate_value(
-            &function,
             &Value::Null,
             match &function.result_contract {
                 FunctionResultContract::Value { value } => value,

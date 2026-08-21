@@ -8,7 +8,10 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-21 (1D review reconciliation: the six-subscription
+**Revised:** 2026-08-21 (Phase 1A Lane C parity completion: the packed Familiar
+receipt covers typed headless live present/absent/delete delivery and
+last-complete-graph preservation on refused CLI regeneration); 2026-08-21
+(1D review reconciliation: the six-subscription
 observation is classified as LLP 0200 overload with a mechanism-sensitive
 fixture; the investigation remains open until a client-visible diagnostic
 precedes inconsistent UI);
@@ -532,9 +535,10 @@ Lane C's first Familiar receipt is
 `scripts/familiar-vdoc-vertical-contract.mjs`, backed by
 `tests/fixtures/familiar-vdoc-vertical/`. It covers the Guide's nullable point
 spelling, exact generated types, clean one-pass generation, query/list and
-mutation/action runtime contracts, headless plus React projection, and the
-stable pre-output document-composite refusal. LLP 0253 S4.3 remains the result
-partition owner.
+mutation/action runtime contracts, headless one-shot/live plus React
+projection, the live point delete transition, and stable pre-output
+document-composite refusal on both clean generation and last-complete CLI
+regeneration. LLP 0253 S4.3 remains the result partition owner.
 
 Do not compare line counts alone. The success measure is fewer semantic
 correction actions while retaining the same generated manifest and authority

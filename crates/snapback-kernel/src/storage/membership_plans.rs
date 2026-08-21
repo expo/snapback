@@ -356,7 +356,7 @@ impl LocalDatabase {
                 read_dependencies: plan.read_dependencies,
                 result: plan.result,
                 handler_observable_commit_version: None,
-                result_document_table: None,
+                result_document_contract: None,
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 asset_admissions: Vec::new(),

@@ -2,6 +2,53 @@ use super::*;
 
 #[test]
 fn buffered_document_result_uses_authoritative_committed_system_fields() {
+    let mut database = LocalDatabase::memory().expect("document projection database");
+    database
+        .schema_seed()
+        .apply_schema(SchemaManifest {
+            tables: vec![TableManifest {
+                name: "todos".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                authority_profile: None,
+                asset_sharing: None,
+                visibility: Some(TableVisibilityV1::PublicRead),
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        })
+        .expect("apply document projection schema");
+    database
+        .schema_seed()
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "todos".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("todo-one")),
+                    ("title".to_owned(), json!("stored value")),
+                ])],
+            )]),
+        })
+        .expect("seed document projection row");
+    let schema = database.schema().clone();
+    let version = database
+        .current_version()
+        .expect("document projection version");
+    let tx = database
+        .conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .expect("document projection transaction");
     let mut result = json!({
         "_id": "todo-one",
         "_version": 2,
@@ -9,25 +56,28 @@ fn buffered_document_result_uses_authoritative_committed_system_fields() {
         "_updatedAt": 10,
         "title": "handler value",
     });
-    let changes = vec![ChangedRow {
-        table: "todos".to_owned(),
-        id: "todo-one".to_owned(),
-        op: ChangeOp::Insert,
-        row: Some(json!({
-            "_id": "todo-one",
-            "_version": 9,
-            "_createdAt": 12,
-            "_updatedAt": 13,
-            "title": "stored value",
-        })),
-        changed_fields: vec!["title".to_owned()],
-    }];
+    assert!(
+        reproject_buffered_document_result_system_fields(
+            &tx,
+            &schema,
+            "todos",
+            version,
+            &mut result,
+        )
+        .expect("project final row image"),
+    );
 
-    reproject_buffered_document_result_system_fields("todos", &changes, &mut result);
-
-    assert_eq!(result["_version"], 9);
-    assert_eq!(result["_createdAt"], 12);
-    assert_eq!(result["_updatedAt"], 13);
+    let stored = get_document_from_tx(
+        &tx,
+        schema_table(&schema, "todos").expect("todos table"),
+        "todo-one",
+        version,
+    )
+    .expect("read stored document")
+    .expect("stored document exists");
+    assert_eq!(result["_version"], stored["_version"]);
+    assert_eq!(result["_createdAt"], stored["_createdAt"]);
+    assert_eq!(result["_updatedAt"], stored["_updatedAt"]);
     assert_eq!(
         result["title"], "handler value",
         "commit settlement replaces only storage-owned system fields",
@@ -3006,7 +3056,7 @@ mod guarded_commit_tests {
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
                     handler_observable_commit_version: None,
-                    result_document_table: None,
+                    result_document_contract: None,
                 },
                 identity,
                 || Ok(()),
@@ -8466,7 +8516,7 @@ mod guarded_commit_tests {
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
                     handler_observable_commit_version: None,
-                    result_document_table: None,
+                    result_document_contract: None,
                 },
                 Some(&buffered_identity),
                 || Ok(()),
@@ -8706,7 +8756,7 @@ mod guarded_commit_tests {
                         media_projection_proof: None,
                         expected_media_projection_binding: None,
                         handler_observable_commit_version: None,
-                        result_document_table: None,
+                        result_document_contract: None,
                     },
                     Some(identity),
                     || Ok(()),
@@ -8799,7 +8849,7 @@ mod guarded_commit_tests {
                         media_projection_proof: None,
                         expected_media_projection_binding: None,
                         handler_observable_commit_version: None,
-                        result_document_table: None,
+                        result_document_contract: None,
                     },
                     Some(identity),
                     || Ok(()),
@@ -9390,7 +9440,7 @@ mod guarded_commit_tests {
             media_projection_proof: None,
             expected_media_projection_binding: None,
             handler_observable_commit_version: None,
-            result_document_table: None,
+            result_document_contract: None,
         };
         let first_buffered = both
             .mutation_writes()
@@ -10376,7 +10426,7 @@ mod guarded_commit_tests {
             media_projection_proof: None,
             expected_media_projection_binding: None,
             handler_observable_commit_version: None,
-            result_document_table: None,
+            result_document_contract: None,
         }
     }
 
@@ -14054,7 +14104,7 @@ mod guarded_commit_tests {
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
                     handler_observable_commit_version: None,
-                    result_document_table: None,
+                    result_document_contract: None,
                 },
                 None,
                 || Ok(()),
@@ -15151,7 +15201,7 @@ mod membership_write_tests {
                     media_projection_proof: None,
                     expected_media_projection_binding: None,
                     handler_observable_commit_version: None,
-                    result_document_table: None,
+                    result_document_contract: None,
                 },
                 None,
                 || Ok(()),
@@ -20733,7 +20783,7 @@ mod media_ref_projection_acceptance_tests {
             read_dependencies: Vec::new(),
             result: json!({ "proof": "fresh" }),
             handler_observable_commit_version: None,
-            result_document_table: None,
+            result_document_contract: None,
             ctx_ledger: CtxAnswerLedger::default(),
             job_enqueues: Vec::new(),
             job_producer: None,
@@ -20788,7 +20838,7 @@ mod media_ref_projection_acceptance_tests {
                     read_dependencies: Vec::new(),
                     result: json!({ "proof": "committed" }),
                     handler_observable_commit_version: None,
-                    result_document_table: None,
+                    result_document_contract: None,
                     ctx_ledger: CtxAnswerLedger::default(),
                     job_enqueues: Vec::new(),
                     job_producer: None,
@@ -21778,7 +21828,7 @@ mod media_collection_acceptance_tests {
             media_projection_proof: None,
             expected_media_projection_binding: None,
             handler_observable_commit_version: None,
-            result_document_table: None,
+            result_document_contract: None,
         };
         let commit = db
             .mutation_writes()

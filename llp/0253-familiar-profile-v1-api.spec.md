@@ -24,8 +24,8 @@ result-contract gate now admits LLP 0108 `document`/`value` carriers for Query
 and LiveQuery exactly as the runtime does; unsupported mutation/action
 document composites retain the earliest stable refusal with its Explicit
 rewrite; the packed vertical fixture binds Guide retrieval,
-clean generation, typechecking, runtime validation, and headless/React
-projection)
+clean and refused regeneration, typechecking, runtime validation, and
+headless one-shot/live plus React projection)
 **Revised:** 2026-08-16 (publication-closure clarification: the Experimental
 native custody package is an optional config-plugin add-on, not an umbrella
 dependency or re-export; LLP 0041 owns its thirteen-package publication row)
@@ -425,9 +425,13 @@ clean generation of the fixture in
 `tests/fixtures/familiar-vdoc-vertical/`. The same receipt
 typechecks exact bare/nullable/document/list projections, runs the generated
 bare and nullable query plus mutation/action contracts in the native runtime,
-observes the nullable point result through both the headless client and
-Familiar React `useQuery`, and proves mutation and action document-array
-refusals emit
+observes the nullable point result through the headless one-shot client,
+headless live handles/callbacks (present, absent, and delete transition), and
+Familiar React `useQuery`. After a successful generation it also introduces
+each unsupported mutation/action document array through the CLI regeneration
+path and proves the prior complete artifacts and function manifest remain
+byte-identical with no invalid function admitted. Independent clean refusals
+still prove
 `SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` before `artifacts.json` with
 the supported explicit-grammar rewrite. This is the LLP 0295 vertical
 integration receipt; the lowering and result-contract suites remain the

@@ -5862,7 +5862,7 @@ fn asset_handler_commit(
                 asset_grant_ops: Vec::new(),
                 media_projection_proof: None,
                 expected_media_projection_binding: None,
-                result_document_table: None,
+                result_document_contract: None,
             },
             None,
             || Ok(()),
@@ -19895,6 +19895,178 @@ globalThis.__snapbackHandlers = {
         "a document contract returns the exact committed system fields, not the handler overlay's provisional values",
     );
     assert_eq!(result["payload"], json!({ "label": "read-your-writes" }));
+}
+
+/// A document result is structural, but its `_id` must still resolve in the
+/// transaction's final row image. This covers both sides that a changed-row
+/// lookup misses: an unchanged row remains eligible for system-field
+/// settlement, while a delete preimage cannot escape as a tombstone.
+///
+/// @ref LLP 0108#runtime-validation-and-atomicity — document-result system
+///   fields come from the final transaction image and the settled value is
+///   revalidated before commit.
+#[test]
+fn document_result_uses_the_final_row_image_and_refuses_a_deleted_preimage() {
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async projectExisting(ctx, args) {
+    const row = await ctx.db.get('projectionRows', args.id);
+    return {
+      ...row,
+      _version: 9007199254740991,
+      _createdAt: 1,
+      _updatedAt: 1,
+    };
+  },
+  async deleteThenReturn(ctx, args) {
+    const row = await ctx.db.get('projectionRows', args.id);
+    await ctx.db.delete('projectionRows', args.id);
+    return row;
+  },
+};
+"#;
+    let schema = SchemaManifest {
+        tables: vec![TableManifest {
+            name: "projectionRows".to_owned(),
+            fields: vec![FieldManifest {
+                name: "title".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            }],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
+            history: None,
+        }],
+        ..SchemaManifest::default()
+    };
+    let document_function = |name: &str| {
+        let mut function = FunctionDefinition::new(
+            name,
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: SOURCE.to_owned(),
+                export: name.to_owned(),
+            }),
+        );
+        function.required_capabilities = vec![
+            "ibex_ctx_db_host_bridge".to_owned(),
+            "mutation_read_set_validation".to_owned(),
+            "result_contract_v1".to_owned(),
+        ];
+        function.write_set_summary.primary_table = Some("projectionRows".to_owned());
+        function.write_set_summary.tables = vec!["projectionRows".to_owned()];
+        function.write_set_summary.mode = Some("handlerDeclared".to_owned());
+        install_schema_documents_contract(&mut function, &schema, "projectionRows");
+        let FunctionResultContract::Documents { table, document } =
+            function.result_contract.clone()
+        else {
+            unreachable!("fixture helper installs a documents contract")
+        };
+        function.result_contract = FunctionResultContract::Document { table, document };
+        function.result_contract_hash = Some(
+            crate::manifest::result_contract_hash(&function.result_contract)
+                .expect("fixture document contract hashes"),
+        );
+        function
+    };
+
+    let mut snapback = LocalSnapback::memory().expect("final-row document fixture");
+    snapback
+        .apply_schema(schema.clone())
+        .expect("apply final-row document schema");
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "projectionRows".to_owned(),
+                vec![
+                    serde_json::Map::from_iter([
+                        ("_id".to_owned(), json!("row_unchanged")),
+                        ("title".to_owned(), json!("unchanged")),
+                    ]),
+                    serde_json::Map::from_iter([
+                        ("_id".to_owned(), json!("row_deleted")),
+                        ("title".to_owned(), json!("delete candidate")),
+                    ]),
+                ],
+            )]),
+        })
+        .expect("seed final-row document rows");
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        functions: vec![
+            document_function("projectExisting"),
+            document_function("deleteThenReturn"),
+        ],
+        acknowledged_experimental_capabilities: vec!["result_contract_v1".to_owned()],
+        ..FunctionManifest::default()
+    });
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "final-row document functions must activate: {diagnostics:?}",
+    );
+
+    let unchanged = snapback
+        .invoke_mutation(
+            "projectExisting",
+            HandlerInput {
+                args: json!({ "id": "row_unchanged" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("project unchanged row")
+        .result;
+    let stored_unchanged = snapback
+        .db
+        .query_reads_read()
+        .get("projectionRows", "row_unchanged")
+        .expect("read unchanged row")
+        .expect("unchanged row exists");
+    for field in ["_version", "_createdAt", "_updatedAt"] {
+        assert_eq!(
+            unchanged[field], stored_unchanged[field],
+            "unchanged document result uses the final row image's {field}",
+        );
+    }
+    assert_ne!(unchanged["_version"], json!(9_007_199_254_740_991_u64));
+
+    let error = snapback
+        .invoke_mutation(
+            "deleteThenReturn",
+            HandlerInput {
+                args: json!({ "id": "row_deleted" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect_err("a deleted row preimage cannot satisfy a document result");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
+    );
+    assert_eq!(
+        error.diagnostic.details["functionId"],
+        "fn:deleteThenReturn"
+    );
+    assert_eq!(error.diagnostic.details["path"], "$._id");
+    assert_eq!(error.diagnostic.details["constraint"], "type");
+    assert!(
+        snapback
+            .db
+            .query_reads_read()
+            .get("projectionRows", "row_deleted")
+            .expect("read row after refused delete")
+            .is_some(),
+        "document-result refusal rolls the delete back",
+    );
 }
 
 /// A disjoint commit does not invalidate the buffered row read itself, but it

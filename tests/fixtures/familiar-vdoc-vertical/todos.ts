@@ -50,6 +50,18 @@ export const create = mutation({
   },
 });
 
+export const remove = mutation({
+  args: { id: v.id("todos") },
+  returns: v.null(),
+  auth: "public",
+  reads: ["todos"],
+  writes: ["todos"],
+  handler: async (ctx, args) => {
+    await ctx.db.delete("todos", args.id);
+    return null;
+  },
+});
+
 export const createFromAction = action({
   args: { title: v.string() },
   returns: v.doc("todos"),

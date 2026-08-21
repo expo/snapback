@@ -199,6 +199,54 @@ async function proveDocumentArrayRefusal(codegen, negativeRoot, fixtureName) {
   );
 }
 
+function proveRegenerationRefusalPreservesLastCompleteGraph(
+  packedCli,
+  backendRoot,
+  generatedRoot,
+  fixtureName,
+) {
+  const authoredName = fixtureName === 'negative-action.ts'
+    ? 'watchNegativeAction.ts'
+    : 'watchNegative.ts';
+  const authoredPath = join(backendRoot, authoredName);
+  const artifactsPath = join(generatedRoot, 'artifacts.json');
+  const functionsPath = join(generatedRoot, 'functions.manifest.json');
+  const artifactsBefore = readFileSync(artifactsPath);
+  const functionsBefore = readFileSync(functionsPath);
+  cpSync(join(fixtureRoot, fixtureName), authoredPath);
+  try {
+    const refused = spawnSync(packedCli, ['generate', backendRoot, '--json'], {
+      cwd: root,
+      env: process.env,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+      timeout: 240_000,
+    });
+    assert.notEqual(
+      refused.status,
+      0,
+      `regeneration with ${fixtureName} must refuse instead of replacing the complete graph`,
+    );
+    assert.match(`${refused.stdout}\n${refused.stderr}`, new RegExp(negativeCode, 'u'));
+    assert(
+      readFileSync(artifactsPath).equals(artifactsBefore),
+      `${fixtureName} refusal must preserve artifacts.json byte-for-byte`,
+    );
+    assert(
+      readFileSync(functionsPath).equals(functionsBefore),
+      `${fixtureName} refusal must preserve the prior function manifest`,
+    );
+    const retainedFunctions = readJson(functionsPath).functions.map(({ name }) => name);
+    assert.equal(
+      retainedFunctions.some((name) => name.includes('unsupportedDocumentArray')),
+      false,
+      `${fixtureName} must not enter the retained activation manifest`,
+    );
+  } finally {
+    rmSync(authoredPath, { force: true });
+  }
+}
+
 async function main() {
   const args = parseArguments(process.argv.slice(2));
   if (args.help) {
@@ -222,6 +270,8 @@ async function main() {
   let client = null;
   let renderer = null;
   let preparedBinding = null;
+  let presentLiveHandle = null;
+  let absentLiveHandle = null;
   try {
     // This acceptance carrier is intentionally not a publication candidate:
     // bootstrap already qualified the exact dirty-worktree binary, while the
@@ -260,7 +310,11 @@ async function main() {
         '--quiet',
       ], {
         cwd: packageDirectory,
-        timeout: 300_000,
+        // The qualified debug binary is intentionally unstripped and can
+        // approach 500 MiB. Give only that tarball enough time to compress on
+        // a loaded developer machine; all semantic fixture timeouts stay
+        // narrow below.
+        timeout: packageRoot === 'snapback-runtime-darwin-arm64' ? 600_000 : 300_000,
       });
       assert.equal(lstatSync(tarball).isFile(), true, `${basename(tarball)} was not packed`);
     }
@@ -327,11 +381,25 @@ async function main() {
     assert.equal(functionByName.get('todos.getRequired').resultContract.kind, 'value');
     assert.equal(functionByName.get('todos.list').resultContract.kind, 'documents');
     assert.equal(functionByName.get('todos.create').resultContract.kind, 'document');
+    assert.equal(functionByName.get('todos.remove').resultContract.kind, 'value');
     assert.equal(functionByName.get('todos.createFromAction').resultContract.kind, 'document');
 
     run(join(appRoot, 'node_modules', '.bin', 'tsc'), ['--project', 'tsconfig.json'], {
       cwd: backendRoot,
     });
+
+    proveRegenerationRefusalPreservesLastCompleteGraph(
+      packedCli,
+      backendRoot,
+      generatedRoot,
+      'negative.ts',
+    );
+    proveRegenerationRefusalPreservesLastCompleteGraph(
+      packedCli,
+      backendRoot,
+      generatedRoot,
+      'negative-action.ts',
+    );
 
     await proveDocumentArrayRefusal(
       codegen,
@@ -395,6 +463,27 @@ async function main() {
     const listed = (await client.query(api.todos.list, { args: {} })).rows;
     assert.deepEqual(listed.map(({ title }) => title), ['packed seed']);
 
+    const presentLiveUpdates = [];
+    const absentLiveUpdates = [];
+    presentLiveHandle = await client.liveQuery(api.todos.get, {
+      connectionId: 'packed-point-present',
+      args: { id: 'todo_welcome' },
+      onUpdate: (todo) => presentLiveUpdates.push(todo),
+    });
+    absentLiveHandle = await client.liveQuery(api.todos.get, {
+      connectionId: 'packed-point-absent',
+      args: { id: 'todo_missing' },
+      onUpdate: (todo) => absentLiveUpdates.push(todo),
+    });
+    assert.equal(presentLiveHandle.rows.title, 'packed seed');
+    assert.equal(Array.isArray(presentLiveHandle.rows), false);
+    assert.equal(absentLiveHandle.rows, null);
+    await waitFor(
+      () => presentLiveUpdates.some((todo) => todo?.title === 'packed seed')
+        && absentLiveUpdates.includes(null),
+      'headless live point-document projection',
+    );
+
     const mutation = await client.mutate(api.todos.create, {
       args: { title: 'packed mutation' },
       queue: false,
@@ -439,6 +528,25 @@ async function main() {
     const projectedDocument = projected.find((value) => value?.title === 'packed seed');
     assert.equal(Array.isArray(projectedDocument), false, 'useQuery projects one document, not one row array');
 
+    await client.mutate(api.todos.remove, {
+      args: { id: 'todo_welcome' },
+      queue: false,
+    });
+    const deleteDeadline = Date.now() + 15_000;
+    while (presentLiveHandle.rows !== null && Date.now() < deleteDeadline) {
+      await presentLiveHandle.poll();
+      if (presentLiveHandle.rows !== null) await sleep(25);
+    }
+    assert.equal(
+      presentLiveHandle.rows,
+      null,
+      'deleting the point row transitions the typed headless live handle to null',
+    );
+    await waitFor(
+      () => presentLiveUpdates.at(-1) === null,
+      'headless live delete transition callback',
+    );
+
     process.stdout.write(`${JSON.stringify({
       schemaVersion: 'snapback.familiar-vdoc-vertical-contract.v1',
       ok: true,
@@ -458,16 +566,23 @@ async function main() {
         documentAction: true,
         documentArrayQuery: true,
       },
-      clients: { headless: true, react: true },
+      clients: {
+        headless: true,
+        headlessLive: { present: true, absent: true, deleteTransition: true },
+        react: true,
+      },
       negative: {
         code: negativeCode,
         functionKinds: ['mutation', 'action'],
         activationOutput: false,
         bootstrapImportsOnly: true,
+        regenerationPreservesCompleteGraph: true,
         rewrite: 'explicit result: grammar',
       },
     })}\n`);
   } finally {
+    try { await presentLiveHandle?.dispose?.(); } catch { /* retain the primary proof failure */ }
+    try { await absentLiveHandle?.dispose?.(); } catch { /* retain the primary proof failure */ }
     if (renderer !== null) {
       try {
         const TestRenderer = await import(pathToFileURL(join(
