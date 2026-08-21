@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import {
   cpSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -17,8 +20,10 @@ import { validateJsonSchema } from './lib/json-schema.mjs';
 import {
   AGENTS_FILE,
   FIRST_EDIT_MARKER_FILE,
+  INSTRUMENT_LINK,
   LANE_REPORT_FILE,
   MAX_LANE_STEERING_BYTES,
+  OFF_ALLOWLIST_SKILL_CODE,
   ORIENTATION_FILE,
   analyzePreM1Events,
   createFirstProductEditMarker,
@@ -58,6 +63,10 @@ function setupOptions(run, overrides = {}) {
 
 function generatedFiles(laneDir, files = [AGENTS_FILE, ORIENTATION_FILE, LANE_REPORT_FILE]) {
   return Object.fromEntries(files.map((file) => [file, readFileSync(join(laneDir, file), 'utf8')]));
+}
+
+function meteringDigest(value) {
+  return `sha256:${createHash('sha256').update(value).digest('hex')}`;
 }
 
 test('lane setup verifies the frozen manifest and never falls back to live source', () => {
@@ -128,7 +137,8 @@ test('lane setup emits deterministic bounded steering with the full skill body i
   assert.match(agents, /skill allowlist is: `snapback-authoring`/);
 
   const orientation = before[ORIENTATION_FILE];
-  assert.match(orientation, /relocation-stable paths/);
+  assert.match(orientation, /lane-local/);
+  assert.match(orientation, /\(instrument\/briefs\/social-messenger\.md\)/);
   assert.match(orientation, /\| M1 \| Accounts and profiles \| 7 \| 3 \| 3 \| 0 \|/);
   assert.match(orientation, /starter-m1\.log/);
   assert.match(orientation, /firstProductEdit/);
@@ -144,8 +154,13 @@ test('lane setup emits deterministic bounded steering with the full skill body i
     reasoning: null,
   });
   assert.deepEqual(
-    createFirstProductEditMarker(report.orientation, '2026-08-21T12:34:56.000Z'),
+    createFirstProductEditMarker(
+      report.orientation,
+      '2026-08-21T12:34:56.000Z',
+      'sol-high-clique-explicit-r01',
+    ),
     {
+      laneRunId: 'sol-high-clique-explicit-r01',
       at: '2026-08-21T12:34:56.000Z',
       orientationBytes: first.orientation.deliveredBytes,
       selectedSkills: ['snapback-authoring'],
@@ -235,6 +250,34 @@ test('generated artifacts are byte-identical after relocating an equivalent run 
   assert.doesNotMatch(readFileSync(join(rightOptions.laneDir, ORIENTATION_FILE), 'utf8'), new RegExp(right.runRoot));
 });
 
+test('orientation bytes and hashes are identical across shallow and nested lane layouts', () => {
+  const run = provisionRun('snapback-cross-layout-');
+  const shallow = setupOptions(run, {
+    laneDir: join(run.runRoot, 'lanes/layout-lane'),
+    laneId: 'layout-lane',
+  });
+  const nested = setupOptions(run, {
+    laneDir: join(run.runRoot, 'work/lanes/layout-lane'),
+    laneId: 'layout-lane',
+  });
+  generateLaneSetup(shallow);
+  generateLaneSetup(nested);
+
+  assert.deepEqual(generatedFiles(shallow.laneDir), generatedFiles(nested.laneDir));
+  const shallowReport = JSON.parse(readFileSync(join(shallow.laneDir, LANE_REPORT_FILE), 'utf8'));
+  const nestedReport = JSON.parse(readFileSync(join(nested.laneDir, LANE_REPORT_FILE), 'utf8'));
+  assert.equal(shallowReport.orientation.deliveredBytes, nestedReport.orientation.deliveredBytes);
+  assert.deepEqual(
+    shallowReport.orientation.artifacts.map(({ sha256 }) => sha256),
+    nestedReport.orientation.artifacts.map(({ sha256 }) => sha256),
+  );
+  for (const laneDir of [shallow.laneDir, nested.laneDir]) {
+    const linkPath = join(laneDir, INSTRUMENT_LINK);
+    assert.equal(lstatSync(linkPath).isSymbolicLink(), true);
+    assert.equal(realpathSync(linkPath), realpathSync(run.instrumentRoot));
+  }
+});
+
 test('preflight uses registered metadata, the allowlist, and the explicit marker timestamp', () => {
   assert.deepEqual(
     preflightSelectedSkills(['native-delivery'], { allowedSkillIds: ['native-delivery'] }),
@@ -248,6 +291,13 @@ test('preflight uses registered metadata, the allowlist, and the explicit marker
   assert.deepEqual(
     preflightSelectedSkills(['an-unregistered-native-delivery-name'], { allowedSkillIds: [] }),
     [],
+  );
+  assert.deepEqual(
+    preflightSelectedSkills(['snapback-authoring'], {
+      allowedSkillIds: [],
+      laneKind: 'competitor-web',
+    }).map(({ code, skill }) => ({ code, skill })),
+    [{ code: OFF_ALLOWLIST_SKILL_CODE, skill: 'snapback-authoring' }],
   );
 
   const events = [
@@ -288,6 +338,7 @@ test('deterministic preflight join retains detected warnings in lane-report.json
   const marker = createFirstProductEditMarker(
     JSON.parse(readFileSync(reportPath, 'utf8')).orientation,
     '2026-08-21T12:00:02.000Z',
+    options.laneId,
   );
   writeFileSync(join(options.laneDir, FIRST_EDIT_MARKER_FILE), `${JSON.stringify(marker, null, 2)}\n`);
   const eventsPath = join(run.runRoot, 'events.jsonl');
@@ -315,6 +366,99 @@ test('deterministic preflight join retains detected warnings in lane-report.json
   assert.deepEqual(
     JSON.parse(twice).orientation.preflightWarnings.map(({ skill }) => skill),
     ['expo-app-delivery'],
+  );
+});
+
+test('stamped first-edit marker round-trips through the meter manifest handshake', () => {
+  const run = provisionRun();
+  const options = setupOptions(run);
+  generateLaneSetup(options);
+  const reportPath = join(options.laneDir, LANE_REPORT_FILE);
+  const stamp = spawnSync(process.execPath, [
+    join(ROOT, 'benchmarks/tools/lane-setup.mjs'),
+    'mark-first-edit',
+    '--lane-report', reportPath,
+    '--lane-id', options.laneId,
+    '--at', '2026-08-21T12:00:02.000Z',
+  ], { encoding: 'utf8' });
+  assert.equal(stamp.status, 0, stamp.stderr);
+
+  const markerPath = join(options.laneDir, FIRST_EDIT_MARKER_FILE);
+  const markerText = readFileSync(markerPath, 'utf8');
+  const boundariesPath = join(options.laneDir, 'metering-boundaries.json');
+  const boundariesText = `${JSON.stringify({
+    laneRunId: options.laneId,
+    driverId: 'lane-setup-round-trip-driver',
+    milestones: {
+      M1: {
+        status: 'aborted',
+        authoring: {
+          suitePassAt: null,
+          choreoPassAt: null,
+          firstGreenAt: null,
+          terminalAt: '2026-08-21T12:00:03.000Z',
+          terminalSequence: 1,
+          terminalReason: 'abort',
+        },
+      },
+    },
+  }, null, 2)}\n`;
+  writeFileSync(boundariesPath, boundariesText);
+  const manifestPath = join(options.laneDir, 'metering-manifest.json');
+  writeFileSync(manifestPath, `${JSON.stringify({
+    manifestVersion: 'social-messenger-metering-manifest.v1',
+    laneRunId: options.laneId,
+    capFamily: 'gpt-frontier',
+    adapter: 'unavailable',
+    unavailableReason: 'round-trip-fixture-has-no-native-stream',
+    driver: {
+      id: 'lane-setup-round-trip-driver',
+      stampedAt: '2026-08-21T12:00:04.000Z',
+      startedAt: '2026-08-21T12:00:00.000Z',
+    },
+    clockCorrelation: {
+      method: 'rfc3339-with-bounded-skew',
+      maxSkewMillis: 0,
+      evidence: 'one fixture process and clock stamps marker and boundaries',
+    },
+    sessions: [],
+    receipts: [],
+    boundaries: {
+      path: 'metering-boundaries.json',
+      sha256: meteringDigest(boundariesText),
+    },
+    firstProductEdit: {
+      path: FIRST_EDIT_MARKER_FILE,
+      sha256: meteringDigest(markerText),
+    },
+  }, null, 2)}\n`);
+
+  const meter = spawnSync(process.execPath, [
+    join(ROOT, 'benchmarks/tools/social-messenger/metering/meter.mjs'),
+    '--manifest', manifestPath,
+  ], { encoding: 'utf8' });
+  assert.equal(meter.status, 0, meter.stderr);
+  const metering = JSON.parse(meter.stdout);
+  assert.deepEqual(metering.firstProductEdit, {
+    at: '2026-08-21T12:00:02.000Z',
+    orientationBytes: JSON.parse(readFileSync(reportPath, 'utf8')).orientation.deliveredBytes,
+    orientationTokens: {
+      input: null,
+      output: null,
+      cacheRead: null,
+      cacheWrite: null,
+      reasoning: null,
+    },
+    selectedSkills: ['snapback-authoring'],
+  });
+  assert.equal(metering.meteringProvenance.laneRunId, options.laneId);
+  assert.deepEqual(metering.meteringProvenance.firstProductEdit, {
+    path: FIRST_EDIT_MARKER_FILE,
+    sha256: meteringDigest(markerText),
+  });
+  assert.equal(
+    Object.hasOwn(metering.firstProductEdit, 'laneRunId'),
+    false,
   );
 });
 

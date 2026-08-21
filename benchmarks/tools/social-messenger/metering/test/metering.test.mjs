@@ -616,6 +616,30 @@ function composedRecord({ capFamily, source, metered }) {
     diary: "benchmarks/records/fixture.md",
     socialMessenger: {
       extensionVersion: 2,
+      orientation: {
+        schemaVersion: "benchmark-orientation.v1",
+        laneKind: "snapback-web-clique",
+        instrument: {
+          pin: "social-messenger@fixture",
+          manifest: {
+            path: "instrument.manifest.json",
+            sha256: "0".repeat(64),
+          },
+          versions: { choreography: "fixture" },
+        },
+        selectedSkills: ["snapback-authoring"],
+        artifacts: [{
+          id: "lane-agents",
+          kind: "lane-packet",
+          path: "AGENTS.md",
+          bytes: 1,
+          sha256: "1".repeat(64),
+          deduplicated: false,
+        }],
+        uniqueBytes: 1,
+        deliveredBytes: 1,
+        preflightWarnings: [],
+      },
       runScope: "reduced",
       capFamily,
       deploymentPosture: "local-dev-server",

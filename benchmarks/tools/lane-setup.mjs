@@ -10,6 +10,7 @@ import {
   realpathSync,
   renameSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -25,7 +26,9 @@ export const AGENTS_FILE = 'AGENTS.md';
 export const ORIENTATION_FILE = 'BENCHMARK-ORIENTATION.md';
 export const LANE_REPORT_FILE = 'lane-report.json';
 export const FIRST_EDIT_MARKER_FILE = 'first-product-edit.json';
+export const INSTRUMENT_LINK = 'instrument';
 export const INSTRUMENT_MANIFEST_FILE = 'instrument.manifest.json';
+export const OFF_ALLOWLIST_SKILL_CODE = 'BENCHMARK_PREFLIGHT_OFF_ALLOWLIST_SKILL';
 
 export const LANE_KINDS = Object.freeze({
   'snapback-web-clique': Object.freeze({
@@ -117,10 +120,6 @@ function markdownPath(path) {
   return path.replaceAll(' ', '%20');
 }
 
-function displayPath(from, path) {
-  return toLogicalPath(relative(from, path) || '.');
-}
-
 function isWithin(root, path) {
   const rel = relative(root, path);
   return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
@@ -174,8 +173,7 @@ function artifactDigest(path, kind, label) {
 export function resolveInstrumentArtifacts({ instrumentRoot, instrumentPin }) {
   if (!instrumentRoot) throw new Error('instrumentRoot is required');
   if (!instrumentPin) throw new Error('instrumentPin is required');
-  const displayRoot = resolve(instrumentRoot);
-  const root = realpathSync(displayRoot);
+  const root = realpathSync(resolve(instrumentRoot));
   const manifestPath = checkedSnapshotPath(root, INSTRUMENT_MANIFEST_FILE, 'instrument manifest');
   const manifestContents = readFileSync(manifestPath);
   const manifest = JSON.parse(manifestContents.toString('utf8'));
@@ -204,7 +202,6 @@ export function resolveInstrumentArtifacts({ instrumentRoot, instrumentPin }) {
     }
     artifacts[name] = Object.freeze({
       path,
-      linkPath: resolve(displayRoot, descriptor.path),
       logicalPath: toLogicalPath(descriptor.path),
       kind: descriptor.kind,
       sha256: actualDigest,
@@ -253,13 +250,12 @@ function childArtifact(parent, name) {
   }
   return {
     path,
-    linkPath: resolve(parent.linkPath, name),
     logicalPath: `${parent.logicalPath}/${toLogicalPath(name)}`,
   };
 }
 
-function artifactLink(laneDir, label, artifact) {
-  return `[${label}](${markdownPath(displayPath(laneDir, artifact.linkPath))}) (snapshot \`${artifact.logicalPath}\`)`;
+function artifactLink(label, artifact) {
+  return `[${label}](${markdownPath(`${INSTRUMENT_LINK}/${artifact.logicalPath}`)}) (snapshot \`${artifact.logicalPath}\`)`;
 }
 
 function laneDefinition(laneKind) {
@@ -310,9 +306,9 @@ authoring in \`${LANE_REPORT_FILE}\`.
 `;
 }
 
-function scopeAndProof(laneKind, { profile, backendPin, scope, artifacts, laneDir }) {
+function scopeAndProof(laneKind, { profile, backendPin, scope, artifacts }) {
   if (laneKind === 'snapback-native-simulator') {
-    return `- Build Clique for ${scope}, in order, as the native iOS Simulator lane.\n- Backend/profile: Snapback \`${profile}\`; package pin: \`${backendPin}\`.\n- Prove via headless \`xcrun simctl\` screenshots; contract: ${artifactLink(laneDir, 'simulator.md', childArtifact(artifacts.choreographyRoot, 'simulator.md'))}.\n- Web/headless checks may support acceptance but cannot replace simulator UI proof.`;
+    return `- Build Clique for ${scope}, in order, as the native iOS Simulator lane.\n- Backend/profile: Snapback \`${profile}\`; package pin: \`${backendPin}\`.\n- Prove via headless \`xcrun simctl\` screenshots; contract: ${artifactLink('simulator.md', childArtifact(artifacts.choreographyRoot, 'simulator.md'))}.\n- Web/headless checks may support acceptance but cannot replace simulator UI proof.`;
   }
   if (laneKind === 'competitor-web') {
     return `- Build the competitor-control app for ${scope}, in order, as a web-only Expo Router lane.\n- Backend/profile: Convex \`${profile}\`; package pin: \`${backendPin}\`.\n- Interaction proof uses two browser contexts and the frozen choreography.\n- Do not use Snapback packages, Snapback guides, or a Snapback scaffold.`;
@@ -321,7 +317,6 @@ function scopeAndProof(laneKind, { profile, backendPin, scope, artifacts, laneDi
 }
 
 export function renderOrientation({
-  laneDir,
   laneId,
   laneKind,
   profile,
@@ -345,22 +340,23 @@ export function renderOrientation({
 
   return `# Benchmark orientation — ${laneId}
 
-Generated for lane kind \`${laneKind}\`. All links are relocation-stable paths
-to the frozen snapshot; never resolve a missing item against a live checkout.
+Generated for lane kind \`${laneKind}\`. All links use the lane-local
+\`${INSTRUMENT_LINK}/\` snapshot link so their bytes stay stable across run
+layouts; never resolve a missing item against a live checkout.
 
 ## Scope and contract
 
-${scopeAndProof(laneKind, { profile, backendPin, scope, artifacts, laneDir })}
+${scopeAndProof(laneKind, { profile, backendPin, scope, artifacts })}
 - Instrument pin: \`${instrumentPin}\`; choreography: \`${artifacts.manifest.versions.choreography}\`; applicability: \`${applicabilityVersion}\`.
-- Product behavior: ${artifactLink(laneDir, 'social-messenger brief', artifacts.brief)}.
-- Shared names, IDs, determinism, and fixture grammar: ${artifactLink(laneDir, 'coordination contract', artifacts.contract)}.
+- Product behavior: ${artifactLink('social-messenger brief', artifacts.brief)}.
+- Shared names, IDs, determinism, and fixture grammar: ${artifactLink('coordination contract', artifacts.contract)}.
 
 ## Assertion applicability
 
 Map every in-scope \`suite-required\` assertion to a test. Choreography,
 simulator, and grader assertions retain their declared executors. Details:
-${artifactLink(laneDir, 'assertions.json', artifacts.assertions)} and
-${artifactLink(laneDir, 'applicability.json', artifacts.applicability)}.
+${artifactLink('assertions.json', artifacts.assertions)} and
+${artifactLink('applicability.json', artifacts.applicability)}.
 
 | Milestone | Scope | Suite | Choreo | Grader | Simulator |
 | --- | --- | ---: | ---: | ---: | ---: |
@@ -368,12 +364,12 @@ ${assertionRows}
 
 ## Fixture entrypoints
 
-- Personas: ${artifactLink(laneDir, 'personas.json', fixture('personas.json'))}.
-- Replay grammar: ${artifactLink(laneDir, 'action-schema.json', fixture('action-schema.json'))}; use the app's write path.
-- Inputs: ${milestones.map((milestone) => artifactLink(laneDir, `starter-${milestone.toLowerCase()}.log`, fixture(`starter-${milestone.toLowerCase()}.log`))).join(', ')}.
-- Media: ${artifactLink(laneDir, 'media/manifest.json', fixture('media/manifest.json'))}.
-- UI kit: ${artifactLink(laneDir, 'ui/', artifacts.uiRoot)}; preserve component contracts and \`sm-*\` vocabulary.
-- ${proofLabel}: ${artifactLink(laneDir, 'choreography/', artifacts.choreographyRoot)}.
+- Personas: ${artifactLink('personas.json', fixture('personas.json'))}.
+- Replay grammar: ${artifactLink('action-schema.json', fixture('action-schema.json'))}; use the app's write path.
+- Inputs: ${milestones.map((milestone) => artifactLink(`starter-${milestone.toLowerCase()}.log`, fixture(`starter-${milestone.toLowerCase()}.log`))).join(', ')}.
+- Media: ${artifactLink('media/manifest.json', fixture('media/manifest.json'))}.
+- UI kit: ${artifactLink('ui/', artifacts.uiRoot)}; preserve component contracts and \`sm-*\` vocabulary.
+- ${proofLabel}: ${artifactLink('choreography/', artifacts.choreographyRoot)}.
 
 ## Required lane outputs
 
@@ -396,8 +392,8 @@ structured refusal.
 export function classifyOutOfScopeSkill(skill, { allowedSkillIds = [] } = {}) {
   if (new Set(allowedSkillIds).has(skill)) return null;
   const metadata = SKILL_REGISTRY[skill];
-  if (!metadata?.code) return null;
-  return { family: metadata.family, code: metadata.code };
+  if (!metadata) return null;
+  return { family: metadata.family, code: metadata.code ?? OFF_ALLOWLIST_SKILL_CODE };
 }
 
 export function preflightSelectedSkills(loadedSkills, {
@@ -488,7 +484,10 @@ export function analyzePreM1Events(events, { firstEditAt, allowedSkillIds, laneK
   };
 }
 
-export function createFirstProductEditMarker(orientation, at) {
+export function createFirstProductEditMarker(orientation, at, laneRunId) {
+  if (typeof laneRunId !== 'string' || laneRunId.length === 0) {
+    throw new TypeError('first product edit marker laneRunId must be a non-empty string');
+  }
   if (typeof at !== 'string' || !Number.isFinite(Date.parse(at))) {
     throw new TypeError('first product edit marker at must be an RFC 3339 timestamp');
   }
@@ -499,10 +498,18 @@ export function createFirstProductEditMarker(orientation, at) {
     throw new TypeError('orientation.selectedSkills must be an array');
   }
   return {
+    laneRunId,
     at,
     orientationBytes: orientation.deliveredBytes,
     selectedSkills: [...orientation.selectedSkills],
   };
+}
+
+function sameArray(left, right) {
+  return Array.isArray(left)
+    && Array.isArray(right)
+    && left.length === right.length
+    && left.every((value, index) => value === right[index]);
 }
 
 function parseJsonLines(value) {
@@ -577,6 +584,26 @@ function steeringInventory(agents, orientation, skillCarriers) {
   return { artifacts, uniqueBytes, deliveredBytes: uniqueBytes };
 }
 
+function ensureInstrumentLink(laneDir, instrumentRoot, canonicalRoot) {
+  const linkPath = join(laneDir, INSTRUMENT_LINK);
+  let status = null;
+  try {
+    status = lstatSync(linkPath);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  if (status !== null) {
+    if (!status.isSymbolicLink()) {
+      throw new Error(`${INSTRUMENT_LINK} must be a symbolic link to the frozen instrument snapshot`);
+    }
+    if (realpathSync(linkPath) !== canonicalRoot) {
+      throw new Error(`${INSTRUMENT_LINK} symbolic link does not resolve to the frozen instrument snapshot`);
+    }
+    return;
+  }
+  symlinkSync(relative(laneDir, resolve(instrumentRoot)) || '.', linkPath, 'dir');
+}
+
 function initialFirstProductEdit() {
   return {
     at: null,
@@ -611,7 +638,6 @@ export function generateLaneSetup({
 
   const agents = renderLaneAgents({ laneId, laneKind, profile, milestones, selectedSkills: skills });
   const orientation = renderOrientation({
-    laneDir: target,
     laneId,
     laneKind,
     profile,
@@ -655,6 +681,7 @@ export function generateLaneSetup({
   }, null, 2)}\n`;
 
   mkdirSync(target, { recursive: true });
+  ensureInstrumentLink(target, instrumentRoot, artifacts.root);
   writeGenerated(join(target, AGENTS_FILE), agents);
   writeGenerated(join(target, ORIENTATION_FILE), orientation);
   writeGenerated(join(target, LANE_REPORT_FILE), report);
@@ -745,10 +772,14 @@ export function main(argv = process.argv.slice(2)) {
   }
   if (options.command === 'mark-first-edit') {
     if (!options.laneReport) throw new Error('--lane-report is required for mark-first-edit');
+    if (!options.laneId) throw new Error('--lane-id is required for mark-first-edit');
     if (!options.at) throw new Error('--at is required for mark-first-edit');
     const reportPath = resolve(options.laneReport);
     const report = JSON.parse(readFileSync(reportPath, 'utf8'));
-    const marker = createFirstProductEditMarker(report.orientation, options.at);
+    if (report.laneId !== options.laneId) {
+      throw new Error('--lane-id must match lane-report.json laneId');
+    }
+    const marker = createFirstProductEditMarker(report.orientation, options.at, options.laneId);
     const outputPath = resolve(options.out ?? join(dirname(reportPath), FIRST_EDIT_MARKER_FILE));
     writeGenerated(outputPath, `${JSON.stringify(marker, null, 2)}\n`);
     const result = { outputPath, marker };
@@ -765,8 +796,15 @@ export function main(argv = process.argv.slice(2)) {
   const markerPath = resolve(options.firstEditMarker ?? join(options.laneDir, FIRST_EDIT_MARKER_FILE));
   const marker = JSON.parse(readFileSync(markerPath, 'utf8'));
   const report = JSON.parse(readFileSync(reportPath, 'utf8'));
-  const expectedMarker = createFirstProductEditMarker(report.orientation, marker.at);
-  if (JSON.stringify(marker) !== JSON.stringify(expectedMarker)) {
+  const expectedMarker = createFirstProductEditMarker(report.orientation, marker.at, report.laneId);
+  if (marker.laneRunId !== report.laneId) {
+    throw new Error('first-edit marker laneRunId does not match the lane report');
+  }
+  if (
+    marker.at !== expectedMarker.at
+    || marker.orientationBytes !== expectedMarker.orientationBytes
+    || !sameArray(marker.selectedSkills, expectedMarker.selectedSkills)
+  ) {
     throw new Error('first-edit marker does not match the lane report orientation receipt');
   }
   const events = parseJsonLines(readFileSync(resolve(options.events), 'utf8'));

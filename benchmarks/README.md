@@ -131,9 +131,10 @@ keeps them so is not settled.
    hashed and charged to the same 16 KiB ceiling as the generated packet. Bare
    and competitor lanes use `--no-skills`. Setup refuses a missing, mismatched,
    or escaped manifest artifact and never reads a live checkout as fallback. It writes
-   `AGENTS.md`, `BENCHMARK-ORIENTATION.md`, and `lane-report.json`. Do not put
-   workdirs under `/private/tmp` because Metro's watcher is blind there, and do
-   not set `CI=1`, which silently disables watching.
+   `AGENTS.md`, `BENCHMARK-ORIENTATION.md`, `lane-report.json`, and the
+   lane-local `instrument` symlink used by every orientation link. Do not put
+   workdirs under `/private/tmp` because Metro's watcher is blind there, and
+   do not set `CI=1`, which silently disables watching.
 4. Instantiate the lane template matching that kind from `lanes/`. When the
    expanded prompt is too long for a harness field, write it to a lane-private
    file and deliver the proven one-line instruction documented in

@@ -51,16 +51,20 @@ version without any live-source fallback.
 The lane report inventories and hashes every generated or skill-body pre-edit
 carrier, records content-hash deduplication, and enforces LLP 0259's component
 and true 16 KiB aggregate ceilings. It also carries the selected skill allowlist.
-Its first-product-edit seed and marker use the metering joiner's additive
-`{at, orientationBytes, orientationTokens, selectedSkills}` schema, preserving
-orientation tokens separately from milestone authoring with all five native
-counters. The preflight command classifies registered skill metadata against
-that allowlist, closes on the explicit marker timestamp, and deterministically
-retains detected warnings in the report.
+Its meter-ingest marker uses
+`{laneRunId, at, orientationBytes, selectedSkills}` and is hash-bound by the
+driver manifest; the report seed/joined snapshot separately uses
+`{at, orientationBytes, orientationTokens, selectedSkills}`, preserving all
+five native counters without leaking the marker-only lane identity into the
+schema. Preflight compares the marker receipt field by field, classifies every
+registered off-allowlist skill while leaving unregistered IDs fail-open, and
+deterministically retains warnings in the report. A lane-local `instrument`
+symlink gives every artifact href the same relative prefix, keeping orientation
+bytes and hashes invariant across shallow and nested run layouts.
 
 Unit coverage verifies fail-closed snapshot provenance, matching lane-kind
-instructions, true steering caps/dedup, cross-root relocation determinism,
-warning retention, marker-bound classification, and positive/negative local-ref
-schema validation.
+instructions, true steering caps/dedup, cross-root and cross-layout
+determinism, warning retention, the hash-bound meter marker round trip,
+marker-bound classification, and positive/negative local-ref schema validation.
 
 landing SHA: TBD

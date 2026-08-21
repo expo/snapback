@@ -54,7 +54,10 @@ node benchmarks/tools/lane-setup.mjs setup \
 ```
 
 The command writes `AGENTS.md`, one `BENCHMARK-ORIENTATION.md`, and
-`lane-report.json` at the lane's initial directory. Rerunning the same input is
+`lane-report.json` at the lane's initial directory, plus a lane-local
+`instrument` symlink to the frozen snapshot. Every orientation link begins
+with that fixed relative prefix, so equivalent lanes retain identical
+orientation bytes and SHA-256 across run layouts. Rerunning the same input is
 deterministic; it refuses to overwrite a non-matching generated file. The
 instrument root must contain `instrument.manifest.json` from the frozen
 snapshot. Setup verifies its exact pin, every declared file/tree digest, and
@@ -82,13 +85,18 @@ from that report (the driver supplies its own event timestamp):
 ```sh
 node benchmarks/tools/lane-setup.mjs mark-first-edit \
   --lane-report /path/to/lane/lane-report.json \
+  --lane-id sol-high-clique-explicit-r01 \
   --at 2026-08-21T12:34:56.000Z
 ```
 
 This writes `first-product-edit.json` in the lane with the metering joiner's
-exact input shape: `{at, orientationBytes, selectedSkills}`. Pass it to the
-meter's `--first-product-edit` option; its output replaces the report's seeded
-top-level `firstProductEdit` object with the cumulative native token snapshot.
+driver-receipt shape:
+`{laneRunId, at, orientationBytes, selectedSkills}`. Hash that exact file in
+the driver-stamped metering manifest's `firstProductEdit` artifact descriptor,
+then run `meter.mjs --manifest /path/to/lane/metering-manifest.json`. The meter
+output replaces the report's seeded top-level `firstProductEdit` object with
+`{at, orientationBytes, orientationTokens, selectedSkills}`; that joined
+snapshot intentionally omits `laneRunId`.
 
 At the M1 preflight boundary, inspect the retained harness JSONL:
 
@@ -103,9 +111,11 @@ node benchmarks/tools/lane-setup.mjs preflight \
 The detector recognizes normalized `skill.loaded` events and skill-file reads
 in Codex-style command events. It compares registered skill metadata with the
 report's configured allowlist and uses the driver's explicit marker timestamp
-as the boundary; file-change/scaffold events never infer it. Registered
-physical-device/EAS-delivery or generic scaffold loads before that timestamp
-produce warnings. The command deterministically joins those warnings into
+as the boundary; file-change/scaffold events never infer it. Any registered
+skill loaded outside that allowlist before the timestamp produces a
+warning (family-specific where registered, otherwise the generic off-allowlist
+code); unregistered IDs remain fail-open. The command deterministically joins
+those warnings into
 `lane-report.json`; rerunning it is idempotent, and the final record consumes
 that retained array.
 
