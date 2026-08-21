@@ -5,7 +5,10 @@
 **Systems:** Live queries, Relational queries, Performance, Diagnostics, Schema
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-21 (v0.9 — §7 round-3 delta review: retention becomes a
+**Revised:** 2026-08-21 (v0.10 — §7 round-4: exact unsampled per-subscription
+registry facts `owedThroughVersion`/`pendingState`/`currentWaveSeq` make the
+derived `pendingDeliveryReason` computable from the two gated snapshots).
+2026-08-21 (v0.9 — §7 round-3 delta review: retention becomes a
 distinct `QueryCostObservationInspectV1` projection so §1.1's closed
 invariants are untouched; caller-influencable identifiers pseudonymized on
 every snapshot; collision-free subscription-id → registry → `waveSeq` join
@@ -829,12 +832,31 @@ snapshot. Client-observed facts (consumer dedup, delivery lag) live on the
 §7.4 client inspection row, and no wire carrier moves either record to the
 other side. The **join** is collision-free by construction: each wave gets
 a process-monotone `waveSeq`; the server snapshot's per-subscription
-registry rows (the server half of the D0.5 enumeration) carry
-(subscription id, `lastDeliveredWaveSeq`, `lastDeliveredVersion`); the
-client row and the server registry row share the **subscription id** —
-already a shared identity on both sides of the shipped protocol — so
-tooling joins client row → server registry row → `waveSeq` → wave record,
-never by the ambiguous (`functionId`, version) pair. Every version in this
+registry rows (the server half of the D0.5 enumeration) carry the delivery
+and pending facts below; the client row and the server registry row share
+the **subscription id** — already a shared identity on both sides of the
+shipped protocol — so tooling joins client row → server registry row →
+`waveSeq` → wave record, never by the ambiguous (`functionId`, version)
+pair. The registry-row facts are **exact and unsampled** — completed wave
+records and the aggregate `liveCoalesce` counters cannot answer whether
+*this* subscription is owed work, so these per-subscription scalars are
+maintained at the seams that already touch the subscription (invalidation
+match, coalescer merge, §1.5 evaluation start/finish) and are exempt from
+the §7.1 sampling rule (they are current-state fields, not event
+details):
+
+- `lastDeliveredWaveSeq: number | null` and
+  `lastDeliveredVersion: number | null` — the completed-wave join anchor;
+- `owedThroughVersion: number | null` — the newest committed
+  `LIVE(version)` whose commit invalidated this subscription; `null` when
+  no commit newer than `lastDeliveredVersion` has. This is the exact
+  owed-ness fact: it advances when the matcher charges the subscription
+  and resets on delivery;
+- `pendingState: "idle" | "queued" | "coalescing" | "evaluating"` — which
+  server stage holds the owed work (scheduler queue, rung-1 coalescer
+  pending frame, in-flight §1.5 turn), with
+  `currentWaveSeq: number | null` set while `evaluating` so the in-flight
+  wave is nameable before its record exists. Every version in this
 system (`deliveredVersion`, `coveredVersions`, the client row's
 `authoritativeRevision`, D0.5's held snapshot version) is the LLP 0095
 §1.3 `LIVE(version)` **storage commit version** — not the same-named
@@ -914,12 +936,13 @@ that join. `pendingDeliveryReason` is **not a stored field on either side**
 server cannot know client hold states, without the carrier this amendment
 disclaims. It is a **derived result of the inspect-time join**: the
 CLI/tooling that reads both gated snapshots computes it, normatively, as
-follows. A subscription is **owed a delivery** when the server snapshot
-shows a committed `LIVE(version)` invalidating that subscription newer
+follows. A subscription is **owed a delivery** when its registry row's
+`owedThroughVersion` (§7.3 — exact and unsampled) is non-null and greater
 than the client row's `authoritativeRevision`. For every owed delivery the
 joined view derives exactly one member of this closed enum — candidates
-1–5 read from the client row's ruled state, member 6 and owed-ness from
-the server snapshot — assigned by first match in this precedence order:
+1–5 read from the client row's ruled state, owed-ness and member 6 from
+the registry row's `owedThroughVersion`/`pendingState` — assigned by first
+match in this precedence order:
 
 1. `terminal-quarantine` — §3.4 retired handle; detail carries the
    terminal code;
@@ -931,9 +954,12 @@ the server snapshot — assigned by first match in this precedence order:
    owns it;
 5. `transport-recovery` — bounded T-LOSS/T-RECONNECT/T-GRANT-LOSS recovery,
    including `resync_required`-driven resubscribe in flight;
-6. `server-pending` — delivery owed by the serving process: in-flight §1.5
-   evaluation or a coalescer hold; the server snapshot's wave records and
-   the existing `liveCoalesce` counters disambiguate which.
+6. `server-pending` — delivery owed by the serving process: the registry
+   row's `pendingState` names the stage (`queued`, `coalescing`, or
+   `evaluating`, carried in the derived detail), and `currentWaveSeq`
+   names the in-flight wave while `evaluating`; the wave records and the
+   existing `liveCoalesce` counters add context but are not the
+   per-subscription authority.
 
 Consumer-level equal-snapshot dedup is deliberately **not** in this enum:
 a value-equal delivery that advanced `authoritativeRevision` is a completed
@@ -1050,8 +1076,11 @@ page.
   recorder-off is a no-op branch;
 - join: the subscription-id → registry-row → `waveSeq` join resolves
   uniquely with two subscriptions on one function at the same delivered
-  version (distinct args/owners), and the derived `pendingDeliveryReason`
-  is reproducible from the two snapshots alone;
+  version (distinct args/owners); the derived `pendingDeliveryReason` is
+  reproducible from the two snapshots alone, exercising
+  `owedThroughVersion` advance/reset and each `pendingState` stage
+  (`queued`, `coalescing`, `evaluating` with `currentWaveSeq`), including
+  a not-owed sibling subscription on the same function that stays `null`;
 - §7.5/§7.6: no-op-commit, equivalent-enqueue, duplicate-subscription, and
   asset-multiplicity counters each triggered and attributed to owner labels;
 - posture: hosted-default-off proven; no export path exists to test;
@@ -1076,6 +1105,18 @@ it adds a visibility surface and deliberately adds no bounds surface.
 
 ## Revision history
 
+- **v0.10 (2026-08-21).** §7 round-4 (codex single remaining MAJOR): the
+  registry row's completed-delivery anchors alone could not establish
+  owed-ness or the server stage, so the server snapshot's per-subscription
+  registry rows gain exact, unsampled current-state facts —
+  `owedThroughVersion` (newest committed `LIVE(version)` that invalidated
+  this subscription; advances at matcher charge, resets on delivery),
+  `pendingState` (`idle`/`queued`/`coalescing`/`evaluating`), and
+  `currentWaveSeq` while evaluating — maintained at the seams that already
+  touch the subscription and exempt from the sampling rule. §7.4's
+  owed-delivery condition and `server-pending` derivation now consume
+  them, and the reproducibility fixture exercises advance/reset, every
+  stage, and a not-owed sibling.
 - **v0.9 (2026-08-21).** §7 round-3 delta review (codex remaining items 1–4;
   grok round-4 pins 1–3): (1) bounded retention no longer truncates the
   closed §1.1 record — a distinct `QueryCostObservationInspectV1` projection

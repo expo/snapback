@@ -49,8 +49,9 @@ LLP 0295 W5; owners to accept* — LLP 0267 for server/query phases,
 LLP 0095/LLP 0114 for client inspection and provider multiplicity, LLP 0278
 for subscription-budget interactions. Revised same day through two review
 rounds: LLP 0267 v0.8 (dual xhigh round — codex 5 MAJOR + grok MAJORs 1–5,
-MINORs 6–15) and v0.9 (codex delta re-review items 1–4 + grok round-4
-pins 1–3). Summary:
+MINORs 6–15), v0.9 (codex delta re-review items 1–4 + grok round-4
+pins 1–3), and v0.10 (codex round-4 single MAJOR — registry owed-ness
+facts). Summary:
 
 - **Posture settled first (LLP 0295 open question 5 — recommendation: yes).**
   Local developer diagnostics only in v1; hosted telemetry is an explicit
@@ -95,9 +96,14 @@ pins 1–3). Summary:
   process-monotone `waveSeq`, closed trigger-class `rerunCause` with
   precedence, `coalesced` flag, `coveredVersions` range, observed
   subscriber/group counts, real/memo turn counts with max+checked-sum
-  timing. Join: subscription id → server registry row
-  (`lastDeliveredWaveSeq`, `lastDeliveredVersion`) → `waveSeq`; all
-  versions are LLP 0095 §1.3 `LIVE(version)` storage commit versions.
+  timing. Join: subscription id → server registry row → `waveSeq`; the
+  registry row carries exact, unsampled per-subscription facts —
+  `lastDeliveredWaveSeq`/`lastDeliveredVersion` plus `owedThroughVersion`
+  (newest invalidating committed version; advances at matcher charge,
+  resets on delivery), `pendingState`
+  (`idle`/`queued`/`coalescing`/`evaluating`), and `currentWaveSeq` while
+  evaluating; all versions are LLP 0095 §1.3 `LIVE(version)` storage
+  commit versions.
   `LiveCoalesceStats` already serialize on `InspectState`/`PublicInspect`
   (`liveCoalesce`); the wave record complements them and is the per-wave
   detail the 20260808 ticket deferred.
@@ -111,8 +117,10 @@ pins 1–3). Summary:
   a pinned precedence order (terminal-quarantine, auth-barrier,
   custody-unsettled, authority-unavailable, transport-recovery,
   server-pending; candidates 1–5 from the client row, owed-ness and member
-  6 from the server snapshot) over a defined owed-delivery condition;
-  value-equal dedup is a completed delivery, not a miss.
+  6 from the registry row's `owedThroughVersion`/`pendingState`) over a
+  defined owed-delivery condition (`owedThroughVersion` >
+  `authoritativeRevision`); value-equal dedup is a completed delivery, not
+  a miss.
 - **Repeated equivalent writes/effects:** only provable equivalences —
   no-op commits (empty row-image delta), identical (function, args-hash)
   enqueues in a window, housekeeping-supersession counts. Warnings/counters
@@ -147,9 +155,12 @@ pins 1–3). Summary:
       truncation flag; no `fixtureIdentity` field).
 - [ ] `LiveDeliveryWaveV1` emission at the §1.5 boundaries — `waveSeq`,
       primary-cause precedence, `coalesced`/`coveredVersions`, per-group
-      max+sum timing; registry rows carry `lastDeliveredWaveSeq`/
-      `lastDeliveredVersion` (complements the existing `liveCoalesce`
-      inspect fields; no second coalesce surface).
+      max+sum timing; registry rows maintain the exact unsampled
+      per-subscription facts (`lastDeliveredWaveSeq`/
+      `lastDeliveredVersion`, `owedThroughVersion` advance/reset,
+      `pendingState`, `currentWaveSeq`) at the matcher/coalescer/
+      evaluation seams (complements the existing `liveCoalesce` inspect
+      fields; no second coalesce surface).
 - [ ] Client: typed `MutationPhaseCostV1` from the ruling-6 fields (after
       W2 lands the carriers); derived-duration vocabulary in one place;
       subscription-row delivery lag (first covering delivery, client
