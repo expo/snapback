@@ -34,6 +34,29 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 
 #[test]
+fn settled_pin_repair_names_the_whole_store_and_supported_dev_fresh_reset() {
+    let database = PathBuf::from("/tmp/example/.snapback/dev.sqlite3");
+    let error = crate::diagnostic::SnapbackError::error(
+        "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+        "auth-mode",
+        "startup artifacts do not match the settled deployment",
+    )
+    .with_details(json!({
+        "expectedDeployment": { "bundleHash": "old" },
+        "observedDeployment": { "bundleHash": "new" },
+    }));
+
+    let repaired = super::with_settled_pin_repair(error, &database);
+    let reseed = repaired.diagnostic.details["repair"]["reseedFresh"]
+        .as_str()
+        .unwrap();
+    assert!(reseed.contains("snapback auth backup --db /tmp/example/.snapback/dev.sqlite3"));
+    assert!(reseed.contains("remove the entire `.snapback` store (database and keyrings)"));
+    assert!(reseed.contains(super::DEV_FRESH_DESTRUCTIVE_REPAIR));
+    assert!(!reseed.contains("move or delete the database file"));
+}
+
+#[test]
 fn fresh_admin_token_is_visible_only_on_interactive_stdout() {
     let minted = crate::admin::ResolvedAdminToken {
         token: "sbat_secret_that_must_not_reach_logs".to_owned(),
@@ -1756,8 +1779,10 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
     let reseed = repair["reseedFresh"].as_str().unwrap();
     assert!(
         reseed.contains("snapback auth backup --db")
-            && reseed.contains(&database.display().to_string()),
-        "reseedFresh names the exact backup command for this store: {reseed}"
+            && reseed.contains(&database.display().to_string())
+            && reseed.contains("remove the entire `.snapback` store (database and keyrings)")
+            && reseed.contains(super::DEV_FRESH_DESTRUCTIVE_REPAIR),
+        "reseedFresh names the exact whole-store backup and destructive repair paths: {reseed}"
     );
     assert!(
         repair["safety"].as_str().unwrap().contains("LLP 0058"),

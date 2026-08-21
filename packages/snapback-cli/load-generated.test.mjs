@@ -76,6 +76,33 @@ const root = mkdtempSync(join(tmpdir(), 'snapback-cli-load-generated-'));
 const originalFetch = globalThis.fetch;
 try {
   {
+    const database = join(root, '.snapback', 'dev.sqlite3');
+    const nativeDiagnostic = {
+      schemaVersion: 'snapback.startup-diagnostic.v1',
+      diagnostic: {
+        code: 'SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH',
+        message: 'startup artifact pair differs from the pinned deployment',
+        details: {
+          expectedDeployment: { schemaHash: 'old' },
+          observedDeployment: { schemaHash: 'new' },
+        },
+      },
+    };
+    const refined = __test.refineGeneratedArtifactFailure({
+      diagnostic: {
+        code: 'SNAPBACK_DEV_SERVER_START_FAILED',
+        details: { stderr: JSON.stringify(nativeDiagnostic) },
+      },
+    }, { database });
+    const freshReseed = refined.diagnostic.details.recovery.freshReseed;
+    assert.match(freshReseed, /snapback auth backup --db/u);
+    assert.match(freshReseed, /remove the entire `\.snapback` store \(database and keyrings\)/u);
+    assert.match(freshReseed, /snapback reset --dev-fresh/u);
+    assert.match(freshReseed, /For disposable local dev data only/u);
+    assert.doesNotMatch(freshReseed, /move or delete the database file/u);
+  }
+
+  {
     const deployment = {
       schemaVersion: 'snapback.v0',
       authMode: 'dev',

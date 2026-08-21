@@ -80,10 +80,11 @@ itself, on both surfaces:
   the carrier matching `expectedDeployment`, then apply the changed sources
   through the running server's `snapback dev` watch reload), `reseedFresh`
   (back up with the real `snapback auth backup --db <db> --output
-  <ignored-backup-dir>` command naming the exact store, move/delete the
-  database file, restart on the new carrier), and `safety` (the pin is
-  auth-mode state per LLP 0058, not a runtime/codegen defect). It rides the
-  existing `snapback.startup-diagnostic.v1` stderr line.
+  <ignored-backup-dir>` command naming the exact store, remove the entire
+  `.snapback` store (database and keyrings), then restart on the new carrier
+  or run `snapback reset --dev-fresh` for disposable local dev data only), and
+  `safety` (the pin is auth-mode state per LLP 0058, not a runtime/codegen
+  defect). It rides the existing `snapback.startup-diagnostic.v1` stderr line.
 - Managed (`packages/snapback-cli/index.mjs`): the refined pin diagnostic's
   `recovery` block gains `freshReseed` with the same backup-then-reseed
   procedure, printing the managed store's exact path.

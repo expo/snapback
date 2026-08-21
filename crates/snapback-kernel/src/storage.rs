@@ -11240,6 +11240,102 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
     Ok(())
 }
 
+const DEV_FRESH_DESTRUCTIVE_REPAIR: &str = "For disposable local dev data only, run `snapback reset --dev-fresh`; this destructive repair removes the entire `.snapback` store (database and keyrings), recreates it, and reseeds from generated artifacts";
+
+/// Return the complete, bounded identity delta for two AssetRef declarations.
+///
+/// Keep the destructuring exhaustive: a future stored identity participant
+/// must either become a named diagnostic fact here or fail compilation.
+///
+/// @ref LLP 0044#generated-upload-intents — intent policy, delivery, media,
+/// and capability facts are generated identity rather than a plain string
+/// field's presentation.
+/// @ref LLP 0210#dated-amendment-public-immutable-delivery-default-2026-08-16
+/// — delivery policy is security-significant even when authoring omits it.
+fn asset_ref_stored_identity_facts(field_type: &FieldType) -> Option<Vec<(&'static str, Value)>> {
+    let FieldType::AssetRef { upload, media } = field_type else {
+        return None;
+    };
+    let (
+        media_intent,
+        policy_identity,
+        accepted_media_classes,
+        delivery_policy,
+        variants,
+        classification_profile,
+        retention_class,
+        target_capability,
+    ) = match media.as_ref() {
+        Some(media) => {
+            let crate::contract_types::MediaFieldDescriptorV1 {
+                intent,
+                policy,
+                kinds,
+                delivery,
+                variants,
+                classification_profile,
+                retention_class,
+                target_capability,
+            } = media;
+            (
+                json!(intent),
+                json!(policy),
+                json!(kinds),
+                json!(delivery),
+                json!(variants),
+                json!(classification_profile),
+                json!(retention_class),
+                json!(target_capability),
+            )
+        }
+        None => (
+            Value::Null,
+            Value::Null,
+            Value::Null,
+            Value::Null,
+            Value::Null,
+            Value::Null,
+            Value::Null,
+            Value::Null,
+        ),
+    };
+    Some(vec![
+        ("uploadIntent", json!(upload)),
+        ("mediaIntent", media_intent),
+        ("policyIdentity", policy_identity),
+        ("acceptedMediaClasses", accepted_media_classes),
+        ("deliveryPolicy", delivery_policy),
+        ("variants", variants),
+        ("classificationProfile", classification_profile),
+        ("retentionClass", retention_class),
+        ("targetCapability", target_capability),
+    ])
+}
+
+fn asset_ref_stored_identity_delta(
+    existing: &FieldType,
+    requested: &FieldType,
+) -> Option<Vec<Value>> {
+    let existing = asset_ref_stored_identity_facts(existing)?;
+    let requested = asset_ref_stored_identity_facts(requested)?;
+    Some(
+        existing
+            .into_iter()
+            .zip(requested)
+            .filter_map(|((fact, existing), (requested_fact, requested))| {
+                debug_assert_eq!(fact, requested_fact);
+                (existing != requested).then(|| {
+                    json!({
+                        "fact": fact,
+                        "existing": existing,
+                        "requested": requested,
+                    })
+                })
+            })
+            .collect(),
+    )
+}
+
 /// Reject a manifest that redeclares an existing field with a different type.
 ///
 /// The migrator never rewrites stored data, so a retyped field would leave the
@@ -11267,11 +11363,30 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
                     | (FieldType::Enum { .. }, FieldType::String)
             );
             if current_field.field_type != field.field_type && !enum_transition {
+                let asset_ref_delta =
+                    asset_ref_stored_identity_delta(&current_field.field_type, &field.field_type);
                 let json_to_structured = matches!(
                     (&current_field.field_type, &field.field_type),
                     (FieldType::Json, FieldType::Structured { .. })
                 );
-                let reason = if json_to_structured {
+                let reason = if let Some(delta) = asset_ref_delta.as_ref() {
+                    let changed_facts = delta
+                        .iter()
+                        .map(|change| {
+                            format!(
+                                "{} changed from {} to {}",
+                                change["fact"].as_str().expect("fixed semantic fact"),
+                                change["existing"],
+                                change["requested"]
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("; ");
+                    format!(
+                        "field {}.{} cannot change AssetRef stored identity: {changed_facts}",
+                        table.name, field.name
+                    )
+                } else if json_to_structured {
                     format!(
                         "field {}.{} cannot activate directly from Json to Structured; \
                          every stored value must validate and be rewritten canonically in a \
@@ -11288,15 +11403,29 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
                         field_type_name(&field.field_type)
                     )
                 };
-                return Err(SnapbackError::error(
-                    "SNAPBACK_SCHEMA_FIELD_RETYPED",
-                    "schema",
-                    reviewed_migration_next_step(reason),
-                )
-                .with_detail("table", table.name.clone())
-                .with_detail("field", field.name.clone())
-                .with_detail("existingType", field_type_name(&current_field.field_type))
-                .with_detail("requestedType", field_type_name(&field.field_type)));
+                let mut message = reviewed_migration_next_step(reason);
+                if asset_ref_delta.is_some() {
+                    message.push_str(". ");
+                    message.push_str(DEV_FRESH_DESTRUCTIVE_REPAIR);
+                }
+                let mut error =
+                    SnapbackError::error("SNAPBACK_SCHEMA_FIELD_RETYPED", "schema", message)
+                        .with_detail("table", table.name.clone())
+                        .with_detail("field", field.name.clone())
+                        .with_detail("existingType", field_type_name(&current_field.field_type))
+                        .with_detail("requestedType", field_type_name(&field.field_type));
+                if let Some(delta) = asset_ref_delta {
+                    error = error
+                        .with_detail("semanticDelta", Value::Array(delta))
+                        .with_detail(
+                            "repair",
+                            json!({
+                                "preserveData": "Run `snapback migrate preview --help` to start the reviewed preserve-data migration workflow",
+                                "devFresh": DEV_FRESH_DESTRUCTIVE_REPAIR,
+                            }),
+                        );
+                }
+                return Err(error);
             }
         }
     }

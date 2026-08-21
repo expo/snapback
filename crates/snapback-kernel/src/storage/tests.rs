@@ -725,6 +725,183 @@ mod vector_storage_carrier_tests {
 }
 
 #[cfg(test)]
+mod asset_ref_retype_diagnostic_tests {
+    use super::*;
+    use crate::contract_types::{MediaFieldDescriptorV1, MediaKindV1};
+
+    fn media(
+        intent: &str,
+        policy: &str,
+        kinds: Vec<MediaKindV1>,
+        delivery: Option<&str>,
+        variants: Vec<&str>,
+        classification_profile: &str,
+        retention_class: &str,
+        target_capability: &str,
+    ) -> MediaFieldDescriptorV1 {
+        MediaFieldDescriptorV1 {
+            intent: intent.to_owned(),
+            policy: policy.to_owned(),
+            kinds,
+            delivery: delivery.map(str::to_owned),
+            variants: variants.into_iter().map(str::to_owned).collect(),
+            classification_profile: classification_profile.to_owned(),
+            retention_class: retention_class.to_owned(),
+            target_capability: target_capability.to_owned(),
+        }
+    }
+
+    fn schema(field_type: FieldType) -> SchemaManifest {
+        SchemaManifest {
+            tables: vec![TableManifest {
+                name: "profiles".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "avatar".to_owned(),
+                    field_type,
+                    optional: true,
+                }],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                authority_profile: None,
+                asset_sharing: None,
+                visibility: Some(TableVisibilityV1::PublicRead),
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        }
+    }
+
+    #[test]
+    fn equal_display_type_with_unequal_upload_intent_names_the_semantic_delta() {
+        let existing = FieldType::AssetRef {
+            upload: Some("avatarUpload".to_owned()),
+            media: Some(media(
+                "avatarUpload",
+                "sha256:policy-v1",
+                vec![MediaKindV1::Image],
+                Some("private-strict"),
+                vec!["thumb"],
+                "detected-content-type.v1",
+                "media-reference.v1",
+                "assets.media-ref-projection.v1",
+            )),
+        };
+        let requested = FieldType::AssetRef {
+            upload: Some("profileImageUpload".to_owned()),
+            media: Some(media(
+                "profileImageUpload",
+                "sha256:policy-v1",
+                vec![MediaKindV1::Image],
+                Some("private-strict"),
+                vec!["thumb"],
+                "detected-content-type.v1",
+                "media-reference.v1",
+                "assets.media-ref-projection.v1",
+            )),
+        };
+
+        let error = reject_field_retypes(&schema(existing), &schema(requested))
+            .expect_err("an AssetRef intent identity change requires migration or reset");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
+        assert_eq!(error.diagnostic.details["existingType"], "AssetRef");
+        assert_eq!(error.diagnostic.details["requestedType"], "AssetRef");
+        assert_eq!(
+            error.diagnostic.details["semanticDelta"],
+            json!([
+                {
+                    "fact": "uploadIntent",
+                    "existing": "avatarUpload",
+                    "requested": "profileImageUpload",
+                },
+                {
+                    "fact": "mediaIntent",
+                    "existing": "avatarUpload",
+                    "requested": "profileImageUpload",
+                },
+            ])
+        );
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains("uploadIntent changed from \"avatarUpload\" to \"profileImageUpload\"")
+        );
+        assert!(!error.diagnostic.message.contains("AssetRef to AssetRef"));
+        assert!(
+            error.diagnostic.details["repair"]["preserveData"]
+                .as_str()
+                .unwrap()
+                .contains("snapback migrate preview --help")
+        );
+        assert_eq!(
+            error.diagnostic.details["repair"]["devFresh"],
+            DEV_FRESH_DESTRUCTIVE_REPAIR
+        );
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains(DEV_FRESH_DESTRUCTIVE_REPAIR)
+        );
+    }
+
+    #[test]
+    fn asset_ref_delta_enumerates_every_stored_media_identity_participant() {
+        let existing = FieldType::AssetRef {
+            upload: Some("oldUpload".to_owned()),
+            media: Some(media(
+                "oldMediaIntent",
+                "oldPolicy",
+                vec![MediaKindV1::Image],
+                Some("private-strict"),
+                vec!["thumb"],
+                "oldClassification",
+                "oldRetention",
+                "oldCapability",
+            )),
+        };
+        let requested = FieldType::AssetRef {
+            upload: Some("newUpload".to_owned()),
+            media: Some(media(
+                "newMediaIntent",
+                "newPolicy",
+                vec![MediaKindV1::Video],
+                Some("public-immutable"),
+                vec!["poster"],
+                "newClassification",
+                "newRetention",
+                "newCapability",
+            )),
+        };
+        let delta = asset_ref_stored_identity_delta(&existing, &requested)
+            .expect("both declarations are AssetRef");
+        assert_eq!(
+            delta
+                .iter()
+                .map(|change| change["fact"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec![
+                "uploadIntent",
+                "mediaIntent",
+                "policyIdentity",
+                "acceptedMediaClasses",
+                "deliveryPolicy",
+                "variants",
+                "classificationProfile",
+                "retentionClass",
+                "targetCapability",
+            ]
+        );
+    }
+}
+
+#[cfg(test)]
 mod stored_enum_tests {
     use super::*;
 

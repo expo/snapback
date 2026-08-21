@@ -3564,6 +3564,7 @@ const ARTIFACT_DECODE_EVIDENCE = /(?:unknown|missing|duplicate) field|invalid (?
 // messages prove that; carrier shape/format failures with the same code stay
 // decode-shaped (a genuinely stale runtime emits those).
 const AUTH_STARTUP_PIN_EVIDENCE = /startup artifact (?:pair|identity) differs from the (?:pinned|pending) deployment/i;
+const DEV_FRESH_DESTRUCTIVE_REPAIR = 'For disposable local dev data only, run `snapback reset --dev-fresh`; this destructive repair removes the entire `.snapback` store (database and keyrings), recreates it, and reseeds from generated artifacts';
 
 function failureEvidenceStrings(error) {
   const diagnostic = error?.diagnostic ?? {};
@@ -3669,10 +3670,11 @@ function refineGeneratedArtifactFailure(error, {
           coldStartRepair: 'to cold-start first, restore the generated artifacts matching the pinned deployment (regenerate from the previous sources if needed), boot, then apply the evolved sources through the running server',
           // issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
           // the discard path is a supported procedure, not author intuition —
-          // name the real backup command and the exact store it targets.
+          // name the real backup command and the complete custody store it targets.
           freshReseed: 'to discard local data and reseed from scratch instead: back up the store with '
             + `\`snapback auth backup --db ${database ? resolve(database) : '<database>'} --output <ignored-backup-dir>\`, `
-            + 'move or delete the database file, then restart on the new artifacts',
+            + 'then either remove the entire `.snapback` store (database and keyrings) and restart on the new artifacts, '
+            + `or follow this supported one-shot path: ${DEV_FRESH_DESTRUCTIVE_REPAIR}`,
           safety: 'do not reinstall the runtime or set SNAPBACK_RUNTIME_BINARY; the startup pin is auth-mode state (LLP 0058), not a runtime/codegen mismatch',
         },
       },
@@ -7111,6 +7113,7 @@ export const __test = {
   expectedActivationTargetFromActivation,
   loadGenerated,
   readReadyDescriptor,
+  refineGeneratedArtifactFailure,
   removeManagedDatabaseState,
   resolveDevIdentityCapabilityForCli,
   runtimePackages: Object.fromEntries(RUNTIME_PACKAGES),

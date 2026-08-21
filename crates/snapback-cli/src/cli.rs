@@ -29,6 +29,7 @@ use uuid::Uuid;
 
 const DEFAULT_PORT_RANGE_START: u16 = 4287;
 const DEFAULT_PORT_RANGE_END: u16 = 4387;
+const DEV_FRESH_DESTRUCTIVE_REPAIR: &str = "For disposable local dev data only, run `snapback reset --dev-fresh`; this destructive repair removes the entire `.snapback` store (database and keyrings), recreates it, and reseeds from generated artifacts";
 /// The one-file cold-start carrier for a complete deployment pair. Keeping
 /// the outer DTO closed prevents a second, unvalidated authority channel from
 /// being smuggled beside the exact schema/functions/seed tuple.
@@ -110,7 +111,8 @@ fn auth_policy_unavailable(message: &'static str) -> crate::diagnostic::Snapback
 /// without named repair paths authors reverse-engineer an ad-hoc local-store
 /// rollover. Name both supported ways forward on the refusal itself: the
 /// data-preserving live evolution through the running server, and the
-/// data-discarding backup-then-reseed procedure with the real backup command.
+/// data-discarding whole-store backup-then-reseed procedure with the real
+/// backup command.
 // @ref LLP 0058#cold-startup-artifact-carrier — "this is not a wedge": the
 // refusal must carry its own repair, not just the expected identity
 // (issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md).
@@ -124,8 +126,8 @@ fn with_settled_pin_repair(
             json!({
                 "keepData": "restart on the startup carrier matching expectedDeployment (regenerate it from the previous sources if needed), then apply the changed sources through the running server's live reload (`snapback dev` watch reload): the running-server provision moves the pinned deployment forward without touching local data",
                 "reseedFresh": format!(
-                    "to discard local data instead: back up the store with `snapback auth backup --db {} --output <ignored-backup-dir>`, move or delete the database file, then restart on the new carrier to reseed from scratch",
-                    database.display()
+                    "to discard local data instead: back up the store with `snapback auth backup --db {} --output <ignored-backup-dir>`. After backup, either remove the entire `.snapback` store (database and keyrings) and restart on the new carrier to reseed from scratch, or follow this supported one-shot path: {DEV_FRESH_DESTRUCTIVE_REPAIR}",
+                    database.display(),
                 ),
                 "safety": "the refusal is auth-mode deployment state (LLP 0058), not a runtime or codegen defect; do not hand-edit generated artifacts or hashes to match the pin",
             }),

@@ -1,6 +1,6 @@
 # AssetRef retype diagnostic hides the changed upload intent
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-20
 **Systems:** Schema evolution, Assets, Diagnostics, Generated identity
 **Related:** LLP 0044; LLP 0210; LLP 0277 P20; LLP 0295; Diary 0103
@@ -25,3 +25,15 @@ migration, or is stale generated state.
 
 The first refusal identifies the exact policy fact that changed and offers the
 correct data-preserving or destructive repair path.
+
+## Resolution
+
+Resolved 2026-08-21. `SNAPBACK_SCHEMA_FIELD_RETYPED` now renders a bounded
+`semanticDelta` for every stored `AssetRef` identity participant (upload/media
+intent, policy identity, accepted media classes, delivery, variants,
+classification, retention, and target capability). The message and structured
+repair distinguish the reviewed preserve-data migration from the explicitly
+destructive local-dev `snapback reset --dev-fresh` path. Rust fixtures pin the
+equal-display-type/unequal-intent case and the complete participant list.
+
+landing SHA: TBD
