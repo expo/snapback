@@ -57,8 +57,9 @@ writes both SQLite and a synced sidecar). The 19/18 arithmetic below remains
 the correct history of the first-pass lower bound: the nineteenth family was
 vector-query quarantine, which is now guarded, leaving the original 18
 unfixed. The later sweep found three additional unguarded families, so the
-current SQLite-side accounting is 22 found, one moved to Set 2, and 21 in Set
-3. The broader non-SQL durability population remains unknown.
+current SQLite-side accounting is 22 found, two Ask operations moved to Set 1,
+one vector operation moved to Set 2, and 19 in Set 3. The broader non-SQL
+durability population remains unknown.
 
 ## Set 1 — live guard, proven by the focused harness
 
@@ -73,6 +74,8 @@ acquires, `try_lock`s, or re-enters the non-reentrant admission mutex.
 | Operation | Commit shape proved |
 | --- | --- |
 | OAuth dynamic registration | `with_auth_transaction`; one commit attempt |
+| Ask spend reservation | `with_auth_transaction`; one commit attempt |
+| Ask spend settlement | `with_auth_transaction`; one commit attempt after a separately guarded reservation |
 | Capability-link mint | `with_auth_transaction`; success and durable-commit-then-post-read-error |
 | Capability-link use consumption | `with_auth_transaction`; one commit attempt |
 | Capability-link use settlement | `with_auth_transaction`; one commit attempt |
@@ -212,9 +215,10 @@ This set is non-empty. The old guard-first method could not discover it. The
 attempt-5 receiver-and-caller pass established that the earlier 18 was a floor:
 it found a nineteenth admitted operation, vector-query failure quarantine. That
 operation is now fenced at both engine settlement callers and has moved to Set
-2; the original 18 rows below remain unfixed. The later non-`tx.commit()` sweep
-added three more unguarded families at the foot of the table, for 21 currently
-unfixed SQLite-side families in Set 3.
+2. Ask reservation and settlement have since moved to Set 1, leaving 16 of the
+original 18 rows below unfixed. The later non-`tx.commit()` sweep added three
+more unguarded families at the foot of the table, for 19 currently unfixed
+SQLite-side families in Set 3.
 
 ### Fence required
 
@@ -224,8 +228,6 @@ fixes and focused mutation tests before this ticket can close.
 
 | Unguarded durable operation | Assessment |
 | --- | --- |
-| Ask spend reservation | Fence required: the API request has `PreparedAuthority`, but the server drops it from the storage call before the budget reservation commits. |
-| Ask spend settlement | Fence required: it finalizes the same admitted API effect after provider work without reacquiring the request's admission fence. |
 | Asset upload-attempt creation | Fence required: `asset_attempt_create` accepts `PreparedAuthority` but commits the attempt after authorization with no effect guard. |
 | Asset upload-attempt cancellation | Fence required when invoked by the owner request; the durable terminal transition is an admitted effect. |
 | Asset TUS patch/ingest state | Fence required for owner-driven patch commits; a retired epoch must not accept late durable upload progress. |

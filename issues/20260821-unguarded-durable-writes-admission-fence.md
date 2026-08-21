@@ -1,6 +1,7 @@
 # Unguarded durable writes: ordinary-caller reachable on expected-retirement paths
 
-**Status:** Open — REACHABLE by ordinary callers; escalated 2026-08-21
+**Status:** Open — Ask reservation/settlement guarded and mutation-proven; 19
+SQLite-side families remain
 **Filed:** 2026-08-21
 **Found by:** sink-first audit in `lane/fenceproof` (`d291f4b89`)
 **Governing:** LLP 0058 gate algorithm
@@ -63,8 +64,9 @@ Grouped by subsystem; each is individually assessed in
 The vector-query operation is fixed on `lane/fenceproof`: both engine
 settlement callers now hold the prepared invocation's exact admission guard
 across registered-writer opening and quarantine. It has moved to Set 2 of the
-coverage document pending its own removal-mutation proof. The other **18 remain
-unfixed** in that first-pass lower bound.
+coverage document pending its own removal-mutation proof. The other 18 were
+unfixed in that first-pass lower bound; the two Ask families have since been
+guarded and mutation-proven, leaving **16** from that original set.
 
 ## SQLite-side census extended to 22
 
@@ -73,9 +75,10 @@ SQLite-side source census from 19 to **22 operation families** (23 sinks;
 coverage-gap persistence writes both SQLite and, when fork evidence exists, a
 synced sidecar). This does not invalidate the first-pass 19/18 arithmetic: 19
 was the then-known lower bound, vector-query quarantine moved to the guarded
-Set 2, and its other 18 families remain unfixed. The later sweep adds three
-more unfixed families, making the current SQLite-side accounting 22 found, one
-guarded, and **21 unguarded**.
+Set 2, and its other 18 families were then unfixed. The later sweep added three
+more unfixed families. With both Ask families now guarded and mutation-proven,
+the current SQLite-side accounting is 22 found, three guarded, and **19
+unguarded**.
 
 The three later families are:
 
@@ -103,6 +106,8 @@ census rather than compiler-enforced effect analysis. It is not complete for
 the broader non-SQL durability class—filesystem and secure-file publication,
 asset-store local/S3 effects, and external-provider effects remain outside the
 population—so 22 is the SQLite-side count, not an overall completeness claim.
+Ask reservation and settlement are now guarded and mutation-proven, so the
+current accounting is three guarded families and 19 unguarded families.
 
 ## Severity
 
@@ -160,7 +165,7 @@ explicitly told to rely on.
 
 ## Next
 
-1. Assess each of the 21 currently unguarded SQLite-side families for actual
+1. Assess each of the 19 currently unguarded SQLite-side families for actual
    reachability, hardest first—the watch cluster is the largest and most
    autonomous.
 2. Add the fence engine-side, following the pattern established for
@@ -168,6 +173,20 @@ explicitly told to rely on.
    at the transport: that caused three separate re-entrant-mutex deadlocks.
 3. Prove each with a removal mutation, per
    `issues/closed/20260821-admission-fences-unproven-by-mutation.md`.
+
+## Ask round completed — 2026-08-21
+
+Ask spend reservation and settlement now pass the caller's exact
+`PreparedAuthority` into `LocalSnapback`. Each engine method owns one
+`AdmissionEffectGuard` immediately around its `with_auth_transaction` commit;
+the server holds no outer guard, including across the provider round trip.
+
+Both sites are in the shared commit-point harness. Each proof fails under all
+five required mutations: bare validation (`V`), an unbound guard expression
+(`E`), `let _ =` immediate drop (`_`), guard deletion (`D`), and a drop after
+the observation hook but before the durable write. The unmutated tests prove
+retirement refusal leaves the ledger unchanged and that the exact
+controller/epoch guard is live at `Transaction::commit`.
 
 
 ## Reachability settled — 2026-08-21
