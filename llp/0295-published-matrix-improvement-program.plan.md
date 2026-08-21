@@ -5,19 +5,28 @@
 **Systems:** Agent experience, Developer experience, Authoring, Code
 generation, Packaging, CLI, Local server lifecycle, Auth, Live queries,
 Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
-integration, Guide, Benchmarks, Testing, Performance
+integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-20 (initial Draft: turns the published 0.1.24
+**Revised:** 2026-08-21 (current-source corroboration amendment: incorporates
+the paired GPT-5.6 Sol high Clique Explicit/Familiar run at `708e2e5c`, adds a
+vertical paved-path coherence invariant, sequences liveness and contract parity
+ahead of ergonomic expansion, and registers the live-subscription and debug-
+artifact investigations without promoting either observation beyond its
+evidence); 2026-08-20 (initial Draft: turns the published 0.1.24
 model-by-profile-by-app matrix findings in LLP 0277 into a routed improvement
 program, separates straight repairs from decisions, and registers token/wall
 efficiency as a first-class outcome)
 **Related:** LLP 0059, LLP 0061, LLP 0095, LLP 0107, LLP 0186, LLP 0189,
 LLP 0198, LLP 0201, LLP 0223, LLP 0236, LLP 0237, LLP 0240, LLP 0252,
-LLP 0253, LLP 0259, LLP 0261, LLP 0275, LLP 0277, LLP 0278, LLP 0279,
+LLP 0253, LLP 0259, LLP 0261, LLP 0264, LLP 0275, LLP 0277, LLP 0278, LLP 0279,
 LLP 0280, LLP 0281,
 Diary 0092, Diary 0093, Diary 0094, Diary 0095, Diary 0096, Diary 0097,
-Diary 0098, Diary 0099, Diary 0100, Diary 0101, Diary 0102, Diary 0103
+Diary 0098, Diary 0099, Diary 0100, Diary 0101, Diary 0102, Diary 0103,
+Diary 0104, Diary 0105,
+`benchmarks/runs/2026-08-20-clique-local-main-sol-high/record.md`,
+`issues/20260820-familiar-live-subscription-contention.md`,
+`issues/20260820-debug-binary-symbol-bloat.md`
 
 ## Summary
 
@@ -31,9 +40,22 @@ transition debugging, Familiar dialect discovery, app-visible projections
 over private authority, provider connection management, browser reruns, and
 source inspection when a guide or diagnostic stops one fact short.
 
-LLP 0277 is the evidence register. This Plan is the higher-level response. It
-does not replace the subsystem owners already carrying mechanisms. It answers
-three cross-cutting questions they cannot answer independently:
+A paired current-source Clique run on 2026-08-20/21 corroborated that diagnosis
+after the 0.1.24 matrix: both profiles again completed M1-M3 green, but Familiar
+lost its M1 advantage in M2/M3 while the builder reconciled live projections,
+membership authority, and capability exports. It confirmed that the Familiar
+Guide's nullable-document/value result forms and membership `resourceField:
+"_id"` spelling disagree with current generated/runtime contracts. The run
+also found one probable six-subscription client/live defect and a 489 MB debug
+binary. Those are routed investigations, not established causes or release
+regressions. Their value here is that they sharpen the program's order: make
+the declared path coherent and live under ordinary composition before adding
+more surface vocabulary.
+
+LLP 0277 is the published-matrix evidence register; the current-source run has
+its own retained record named in `Related`. This Plan is the higher-level
+response. It does not replace the subsystem owners already carrying mechanisms.
+It answers three cross-cutting questions they cannot answer independently:
 
 1. What end-to-end authoring journey should every supported client/profile
    share?
@@ -64,6 +86,24 @@ winner or comparative population claim. In particular:
   and
 - correction-loop labels were authored by independent agents and are not yet
   normalized enough to sum as a publication statistic.
+
+The 2026-08-20/21 paired Clique run is a second calibration stratum, not an
+extension of the published matrix. It pinned unpublished source commit
+`708e2e5c5348b5bb863cd7120afbafad9db99e9a`, one model family, one effort
+level, and one machine. Explicit completed in 4,055 seconds with 123,561
+output tokens; Familiar completed in 6,108 seconds with 151,212 output tokens.
+Familiar reached M1 sooner (1,112 versus 2,121 seconds), then spent much more
+time in M2/M3 (4,039 versus 1,627 seconds). This supports the workstream
+ordering below and the need for phase metering. It does **not** support a
+profile winner, a regression claim against 0.1.24, or causal attribution of
+the six-subscription behavior or binary growth.
+
+The paired run also preserves negative evidence. A bootstrap-qualified binary
+later failed verification only because the benchmark selected a fixed-port
+wrapper instead of the qualified executable; a locally assembled package set
+initially omitted prepack artifacts; and the wrong Node major produced a false
+inventory result. These remain setup/instrument findings and must not inflate
+the Snapback defect count.
 
 The raw accounting still gives a strong program signal. Across all twelve
 lanes Explicit and Familiar were nearly equal in total output tokens, but
@@ -96,6 +136,10 @@ global profile ranking.
 6. **Keep evidence honest.** Instrument defects and external Exact defects are
    classified separately from Snapback product failures; no green count hides
    structurally unobservable product behavior.
+7. **Prefer coherence to surface area.** For every advertised paved operation,
+   the first-read Guide, public imports and types, generator, runtime, client
+   projection, and refusal remediation describe one contract. A capability is
+   not paved merely because a lower-level escape can assemble it.
 
 ## Non-goals
 
@@ -110,6 +154,37 @@ global profile ranking.
 - Optimizing prose volume while leaving correction loops intact. The retained
   report artifacts are visible cost, but they are a small fraction of total
   model output.
+- Stripping the debug executable or suppressing warnings merely to improve a
+  size/count metric. Developer artifact posture must preserve qualified launch,
+  useful crash/debug evidence, and actionable migration information.
+
+## Program invariant: vertical paved-path coherence
+
+The dominant remaining failure shape is not absence. It is a semantic fact
+changing as the agent crosses layers: a Guide example is rejected by generated
+types, generation accepts a result the runtime rejects, a capability exists but
+is absent from the profile entrypoint, or a correct auth refusal names only one
+of several custody stores. Each layer can be locally defensible while the
+journey is globally broken.
+
+Every Phase 1 or W1-W4 closure that changes an advertised authoring path
+therefore names a **vertical contract fixture** for that path. The smallest
+adequate fixture proves, from packed external packages:
+
+1. the first-read Guide spelling is retrievable with the diary's plausible
+   wrong vocabulary;
+2. that spelling imports and typechecks from the advertised profile entrypoint;
+3. clean first-pass generation accepts it, or refuses before output with one
+   supported rewrite;
+4. the runtime accepts exactly the generated result/authority contract;
+5. the relevant headless and framework client surfaces preserve the same
+   nullability, identity, and lifecycle meaning; and
+6. one negative case reaches a stable diagnostic naming the semantic fact and
+   repair.
+
+This is a test shape, not a new mechanism owner. Subsystem suites continue to
+own their layers; the vertical fixture is the integration receipt that prevents
+a local fix from moving the mismatch one boundary downstream.
 
 ## Phase 0: decisions and measurement before mechanism work
 
@@ -135,7 +210,8 @@ explicit fixed-port/external-client profile, and treats `start --startup-
 artifacts` plus hand-written environment objects as diagnostic primitives,
 not an alternative golden path. LLP 0223/0261 own the design. Acceptance must
 prove one M1->M2 additive change with the original accounts and sessions
-intact.
+intact. Execution ticket:
+`issues/20260821-fixed-origin-external-client-dev-lifecycle.md`.
 
 ### D0.2 — Client authority-transition state machine
 
@@ -155,6 +231,8 @@ The ruling must answer:
 
 LLP 0059/0107/0218 remain mechanism owners. This Plan requires one shared
 transition matrix and conformance suite so each surface cannot improvise.
+Decision/conformance ticket:
+`issues/20260821-client-authority-transition-state-matrix.md`.
 
 ### D0.3 — Authoring-profile product contract
 
@@ -164,6 +242,7 @@ promises beyond maximal declaration. The decision packet must include:
 - one-pass clean generation and phase parity;
 - the supported handler dialect and helper/module path;
 - result-kind partitions and generated-runtime equivalence;
+- public entrypoint/export parity for capabilities the profile claims;
 - ephemeral, assets, membership, and sequence feature parity;
 - when the generator should suggest switching profiles;
 - which Explicit facts are policy decisions versus derivable repetition; and
@@ -172,6 +251,8 @@ promises beyond maximal declaration. The decision packet must include:
 
 LLP 0252/0253 and LLP 0275 own the decisions. No default-profile change occurs
 until a later claim-eligible wave shows both outcome and cost evidence.
+Cross-layer fixture ticket:
+`issues/20260821-authoring-profile-vertical-contract-fixtures.md`.
 
 ### D0.4 — Authority relation versus product projection
 
@@ -187,7 +268,8 @@ product-visible roster/history. Options to compare:
 The ruling must preserve private-row non-enumerability, transition atomicity,
 send-time recipient semantics, leave/rejoin history, and exact acceptance over
 absent/idempotent branches. LLP 0240/0278 own the mechanism; the new guide
-ticket can teach today's sanctioned pattern immediately.
+ticket can teach today's sanctioned pattern immediately. Decision ticket:
+`issues/20260821-private-authority-product-roster-decision.md`.
 
 ### D0.5 — Provider connection and publication budget
 
@@ -203,7 +285,8 @@ Set explicit budgets and ownership for headless/provider adapters:
 
 LLP 0095/0278/0280 own the contracts. Exact's provider runtime must consume
 the same lifecycle facts through LLP 0279 rather than invent a parallel
-Snapback-specific adapter policy.
+Snapback-specific adapter policy. Decision ticket:
+`issues/20260821-provider-connection-subscription-budget-decision.md`.
 
 ### D0.6 — Efficiency instrument and target registration
 
@@ -225,10 +308,30 @@ implementation ticket. The new skill-routing ticket covers the orientation
 carrier. A run that lacks phase usage may still debug product behavior but
 cannot adjudicate the efficiency target.
 
-## Phase 1: straightforward retirement batch
+### Phase-order ruling
 
-These items need ordinary issue triage and affected-scope verification, not a
-new architecture decision. They may run in parallel while Phase 0 is reviewed.
+Work is commissioned in this order, even when independent tickets land in
+parallel:
+
+1. **Liveness and identity correctness:** auth transitions, foreground versus
+   housekeeping writes, and ordinary multi-subscription consistency.
+2. **Vertical contract coherence:** Guide/types/codegen/runtime/client parity
+   for paths already advertised.
+3. **Lifecycle consolidation and composition:** fixed-origin development,
+   private-authority projections, and provider connection ownership.
+4. **Ceremony and cost reduction:** generated conveniences, warning density,
+   artifact size, and token/wall optimization.
+
+An ergonomics change may not mask an unresolved liveness or identity failure.
+This prevents the program from optimizing the singleton-query workaround, for
+example, before learning whether six ordinary subscriptions expose a real
+client/runtime defect.
+
+## Phase 1: retirement and evidence-qualification batch
+
+The 1A-1C items need ordinary issue triage and affected-scope verification, not
+a new architecture decision. The 1D items need bounded causal investigation
+before choosing a repair. All may run while Phase 0 is reviewed.
 
 ### 1A. Published package and compiler/runtime parity
 
@@ -266,6 +369,25 @@ Every page fix adds retrieval-eval cases using the exact plausible wrong
 vocabulary the diary recorded, per LLP 0061/0187. Closing a guide ticket
 requires a cold retrieval probe, not only prose presence.
 
+### 1D. Current-source qualification and developer-loop cost
+
+- `issues/20260820-familiar-live-subscription-contention.md`
+- `issues/20260820-debug-binary-symbol-bloat.md`
+- existing `issues/20260816-write-posture-migration-closure.md`
+
+These are deliberately not all called straight repairs. The subscription case
+first needs a minimized two-principal, six-reference reproduction that records
+auth, outbox, snapshot, and subscription state and compares one equivalent
+relational reference. The binary case first needs like-for-like builds around
+the suspected refactor, linker/crate attribution, and a recorded link-time and
+size baseline. Only then may either investigation choose a mechanism.
+
+Exit: the subscription observation is classified as product defect, documented
+composition bound, or benchmark-app defect with deterministic evidence; the
+debug artifact has causal attribution and an explicit developer profile rather
+than blind stripping; repeated migration advisories are grouped by semantic
+repair so 17-19 instances do not bury the useful generation summary.
+
 ## Phase 2: cross-cutting workstreams after the rulings
 
 ### W1. One development loop, many clients
@@ -299,8 +421,10 @@ Implement D0.3 in two parallel lanes:
 
 - **Familiar coherence:** one-pass generation; source/runtime parity; a first-
   read dialect projection; exact types for nullability and result kinds; parity
-  for ephemeral/assets/membership; and pre-output refusals for unsupported
-  Convex-shaped forms.
+  for ephemeral/assets/membership; profile-entrypoint export parity; and pre-
+  output refusals for unsupported Convex-shaped forms. Each supported result
+  kind gets one vertical contract fixture; unsupported forms fail at the
+  earliest layer rather than generating artifacts that a later layer rejects.
 - **Explicit economy:** apply LLP 0275 to derive exact result/dependency facts,
   scaffold recurring fixed lifecycle wiring, and preserve authored authority,
   visibility, retention, and asset policy.
@@ -331,13 +455,16 @@ cost guardrails and diagnostics to report:
 - mutation queue wait, authorization wait, execution, commit, and live-delivery
   phases;
 - query examined rows, fan-out count, rerun cause, and subscriber count;
+- subscription owner/readiness, snapshot version, auth-barrier state, and
+  outbox suspension reason when an ordinary fan-out misses delivery;
 - repeated equivalent writes/effects; and
 - React/provider subscription and asset-issuance multiplicity where the
   framework owns enough information to know it.
 
 This is a design proposal to LLP 0267 and the React/client owners, not a ticket
 to add ambient telemetry. Redaction, bounded storage, and local/hosted posture
-must be settled first.
+must be settled first. Design ticket:
+`issues/20260821-app-boundary-runtime-cost-diagnostics-design.md`.
 
 ### W6. Instrument and context economy
 
@@ -348,6 +475,9 @@ Implement D0.6 plus LLP 0281:
 - replace broad text selectors with structural vocabulary;
 - refuse missing suite-status linkage before a run;
 - split feature failures from instrument/setup failures in the first line;
+- retain wrapper-versus-qualified-binary identity, packed/prepack closure, and
+  declared toolchain versions as structured setup fields so those failures
+  cannot be misfiled as product defects;
 - load one bounded lane packet and suppress irrelevant device/EAS skill
   routing for a web-only lane; and
 - generate diary/final-report aggregates from one structured run record where
@@ -355,7 +485,8 @@ Implement D0.6 plus LLP 0281:
 
 The last item reduces reporting work without deleting the qualitative essay:
 the essay remains pre-metrics narrative evidence, while pins, counts, timing,
-and correction tables become generated projections.
+and correction tables become generated projections. Coordinated version-bump
+ticket: `issues/20260821-clique-instrument-observability-version-bump.md`.
 
 ### W7. Exact/Contract coordination
 
@@ -387,6 +518,11 @@ profile. Each must reach M1 green and perform one additive schema change with:
 A failure returns to its owning workstream; it does not expand the benchmark
 matrix prematurely.
 
+For the Familiar React arm, R1 also runs the minimized independent-
+subscription fixture from 1D. Consolidating six reads into one relational read
+may remain a recommended optimization, but it is not accepted as the only
+correct path unless the declared subscription budget and diagnostic say so.
+
 ### R2. Load-isolated calibration rerun
 
 Repeat the 12 cells with reserved machines or enforced load ceilings. Preserve
@@ -413,11 +549,14 @@ the author may revise them at D0.6 with rationale:
 | Custom fixed-origin relay/binding implementations | repeated | zero |
 | Destructive restart/reseed for additive milestone schema | repeated | zero |
 | Silent auth/query wait requiring an app timeout | repeated | zero |
+| Advertised path with Guide/type/codegen/runtime/client disagreement | confirmed again in current-source Familiar | zero in paths closed by Phase 1/W3 vertical fixtures |
 | Semantic correction actions | not normalized | >=40% lower median in matched cells after D0.6 registration |
 | Output tokens | lane totals available | >=20% lower median in matched cells, same harness/model |
 | M1 wall to first green | usually the longest phase | >=30% lower median, load-qualified cells |
 | Full choreography reruns caused by instrument state | repeated | at most one retry per failed assertion; unaffected checks isolated |
 | Orientation before first product edit | unmetered; irrelevant skills observed | one <=16 KiB deduplicated packet plus task-selected detail |
+| Repeated identical migration advisories | 19 Explicit / 17 Familiar in the current-source final generation | one grouped advisory per repair class with affected-table count |
+| Debug executable size and link wall | 489 MB at `708e2e5c`; causal baseline absent | like-for-like baseline, attributed budget, and visible drift; no size-only claim |
 
 These are internal program targets, not comparative claims. Missing phase
 metering, excessive host load, or an API interruption makes a cell ineligible
@@ -437,6 +576,7 @@ for the efficiency scorecard while retaining its product findings.
 | Provider/paged composition | LLP 0278, LLP 0280 | requires bounded connection/query budgets |
 | Benchmark observability | LLP 0281 | sequences before R2 |
 | Exact-side defects | LLP 0279 / Exact repository | coordinates release and rerun only |
+| Debug artifact attribution | `issues/20260820-debug-binary-symbol-bloat.md` | records developer-loop impact; does not prescribe stripping |
 
 ## Risks
 
@@ -457,6 +597,14 @@ for the efficiency scorecard while retaining its product findings.
    against exact published closures; optimistic landing remains ordinary, and
    claim evidence binds scoped package/instrument identities rather than a
    quiet HEAD.
+7. **A workaround becomes the de facto contract before root cause.** Mitigation:
+   1D classifies the six-subscription observation before W4 standardizes the
+   relational singleton shape; both independent and aggregate query forms get
+   explicit supported bounds.
+8. **Vertical fixtures ossify incidental syntax.** Mitigation: fixtures bind
+   semantic facts and advertised entrypoints, not internal lowering. A profile
+   may narrow or change its spelling through its owning LLP, but all layers and
+   the migration diagnostic move together.
 
 ## Open questions for author review
 
@@ -474,3 +622,9 @@ for the efficiency scorecard while retaining its product findings.
 6. Does the next R2 rerun include both Coterie and Clique immediately, or should
    the cheap R1 probes gate each app independently before all twelve cells are
    commissioned?
+7. What ordinary independent-subscription envelope should the client promise,
+   and does the six-reference reproduction need to gate R2 or only the Familiar
+   React cell?
+8. Which debug posture should be the ordinary local binary after attribution:
+   full inline debug, split debug information, or a reduced-debug developer
+   profile with an explicit opt-in full-symbol build?

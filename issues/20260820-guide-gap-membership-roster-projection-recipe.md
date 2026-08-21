@@ -15,11 +15,20 @@ handlers cannot enumerate the private roster. Both maintained a separate
 ordinary projection table, learning the sanctioned pattern only after several
 precise refusals.
 
+Diary 0105 reproduces this on current local main and adds a concrete Guide/type
+drift: the Familiar page demonstrates membership visibility with
+`resourceField: "_id"`, but the generated TypeScript surface rejected `_id` as
+outside the resource table's authored field union. The lane introduced and
+maintained an ordinary resource key before it could reach the private-authority
+plus product-projection design below.
+
 ## Requested repair
 
 - Add one end-to-end chat/room recipe that declares the private authority
   roster and an app-visible projection, updates both on bootstrap/add/remove/
   promote/leave, and handles absent/idempotent branches.
+- Make the `resourceField: "_id"` example typecheck as written or replace it
+  with a generated-and-checked authored-key example.
 - Explain which facts belong to authority versus product history, how send-time
   recipient snapshots are derived, and how later join/leave affects receipts.
 - Include a drift/acceptance check proving the projection and authority

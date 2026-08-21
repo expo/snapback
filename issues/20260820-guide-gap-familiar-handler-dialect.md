@@ -14,6 +14,17 @@ it a dialect rather than unrestricted TypeScript. Agents learned by refusal
 that dynamic computed access, captured constants, imported helpers, some
 result forms, clock-dependent visibility, and sequence surfaces differ.
 
+Diary 0105 adds build-matched current-source evidence for the result-form
+boundary. `guide/backend/familiar-profile.md` positively says a point query may
+return `v.union([v.doc("todos"), v.null()])` and a closed object directly, while
+the same checkout's Familiar lowering explicitly refuses the nullable document
+shape and generation rejects a value-object live query with
+`SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID`. Both succeeded only after becoming
+singleton relational arrays. The same lane also found that membership-backed
+ephemeral typing is buildable but the Familiar entrypoint does not export the
+ephemeral constructor, so the capability escape required Guide search plus the
+lower-level public type declarations.
+
 An older guide fix documents the inline subset elsewhere; the current matrix
 shows that it is not routed from the Familiar decision point and therefore
 does not prevent repeated correction loops.
@@ -23,6 +34,11 @@ does not prevent repeated correction loops.
 - Add one compact "handler dialect" table to the Familiar page: allowed form,
   refused familiar-looking form, standard rewrite, and when Explicit is the
   better profile.
+- Reconcile the direct point/object return promise with LLP 0253, Familiar
+  lowering, and runtime result admission. Positive snippets must generate and
+  execute; otherwise document the exact singleton-array contract.
+- Add one short capability-escape row for shared declarations such as
+  ephemeral collections, including the supported import surface.
 - Link it from generated refusals and the Familiar template start packet.
 - Add retrieval-eval cases for `array[i]`, imported helper, top-level const,
   `Date.now`, mutation document arrays, and sequence allocation.

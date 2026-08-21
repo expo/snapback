@@ -14,3 +14,10 @@ ideally a diagnostic when a second client adopts an existing durable session
 in-process. Related hardening context: the 0.1.24 owner-key isolation series
 (108545929..e674ee382) fixed cross-APP sharing; this is the in-process
 multi-client seam of the same subsystem.
+
+**Additional evidence, 2026-08-20/21:** diary 0104 reproduced the behavior on
+current local main while building the Explicit Clique acceptance replay.
+Multiple actor clients adopted the same default durable authority and wrote as
+one persona until the lane assigned one `storagePartition` per actor. The
+correct API exists; the default remains surprising for the ordinary
+multi-persona test/agent case.
