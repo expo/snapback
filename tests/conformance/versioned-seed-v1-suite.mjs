@@ -227,19 +227,42 @@ if (!explicitCurrentBinary) {
 }
 chmodSync(currentBinary, 0o755);
 
-const rustProof = spawnSync(
-  'cargo',
-  // @ref LLP 0109#18-dated-amendment-the-membership-fixture-lane-lands-2026-08-01 —
-  // The closed evidence consumes both the original conformance witnesses and
-  // the `versioned_seed_membership_fixture_*` pair. Filter on their shared
-  // family prefix so required witnesses cannot sit outside the producer run.
-  ['test', '--lib', 'versioned_seed', '--', '--nocapture'],
-  { cwd: root, encoding: 'utf8' },
-);
+// @ref LLP 0109#18-dated-amendment-the-membership-fixture-lane-lands-2026-08-01 —
+// The closed evidence consumes both the original conformance witnesses and
+// the `versioned_seed_membership_fixture_*` pair. Pin their owning crate and
+// filter on the shared family prefix so a later crate move fails non-vacuously.
+const rustProofCommand = [
+  'test', '-p', 'snapback-kernel', '--lib', 'versioned_seed', '--', '--nocapture',
+];
+const expectedRustWitnesses = [
+  'versioned_seed_conformance_effect_boundaries_and_migration_refusal',
+  'versioned_seed_conformance_empty_target_and_sessions_membership_lane',
+  'versioned_seed_membership_fixture_lane_installs_resets_and_retires_runtime_authority',
+  'versioned_seed_membership_fixture_lane_fails_closed',
+  'versioned_seed_conformance_precommit_fault_restores_complete_predecessor',
+];
+const rustProof = spawnSync('cargo', rustProofCommand, { cwd: root, encoding: 'utf8' });
 if (rustProof.status !== 0) {
-  throw new Error(`versioned seed Rust proof failed:\n${rustProof.stdout}\n${rustProof.stderr}`);
+  throw new Error(
+    `SNAPBACK_SEED_CONFORMANCE_RUST_TESTS_FAILED: cargo ${rustProofCommand.join(' ')} `
+      + `exited ${rustProof.status ?? rustProof.signal ?? 'unknown'}\n`
+      + `${rustProof.stdout}\n${rustProof.stderr}`,
+  );
 }
 const rustOutput = `${rustProof.stdout}\n${rustProof.stderr}`;
+const executedRustWitnesses = expectedRustWitnesses.filter((name) => rustOutput.includes(name));
+if (executedRustWitnesses.length !== expectedRustWitnesses.length) {
+  const missing = expectedRustWitnesses.filter((name) => !executedRustWitnesses.includes(name));
+  const diagnostic = executedRustWitnesses.length === 0
+    ? 'SNAPBACK_SEED_CONFORMANCE_RUST_WITNESSES_NOT_EXECUTED: selected no tests'
+    : 'SNAPBACK_SEED_CONFORMANCE_RUST_WITNESSES_INCOMPLETE';
+  const missingDetail = executedRustWitnesses.length === 0 ? '' : `; missing=${missing.join(',')}`;
+  throw new Error(
+    `${diagnostic}; executed ${executedRustWitnesses.length}/`
+      + `${expectedRustWitnesses.length} expected witnesses${missingDetail}; `
+      + `command=cargo ${rustProofCommand.join(' ')}`,
+  );
+}
 
 const schema = JSON.parse(readFileSync(
   join(root, 'demos/todo/snapback/generated/schema.manifest.json'),
