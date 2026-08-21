@@ -1,0 +1,16 @@
+{
+  "seedVersion": "2026-08-21.1",
+  "tables": {
+    "profiles": [
+      { "_id": "profile_ada", "handle": "ada", "displayName": "Ada Lovelace", "bio": "Poetical science, analytical engines, and the future.", "avatarUrl": "https://i.pravatar.cc/240?img=47", "verified": true, "followers": 184200 },
+      { "_id": "profile_grace", "handle": "grace", "displayName": "Grace Hopper", "bio": "Computer pioneer. Admirals can debug too.", "avatarUrl": "https://i.pravatar.cc/240?img=32", "verified": true, "followers": 128900 },
+      { "_id": "profile_noor", "handle": "noor", "displayName": "Noor Patel", "bio": "Shipping photos, tiny jokes, and questionable product opinions.", "avatarUrl": "https://i.pravatar.cc/240?img=5", "verified": false, "followers": 2840 }
+    ],
+    "posts": [
+      { "_id": "post_welcome", "authorId": "profile_ada", "body": "The engine might compose elaborate and scientific pieces of music. It can probably handle a social feed too.", "createdAt": 1785769200000, "likeCount": 842, "replyCount": 28 },
+      { "_id": "post_debug", "authorId": "profile_grace", "body": "A ship in port is safe, but that is not what ships are for. Ship the knockoff.", "createdAt": 1785765600000, "likeCount": 1204, "replyCount": 47 },
+      { "_id": "post_snapback", "authorId": "profile_noor", "body": "Built our own login and immediately learned why Clerk exists. Still worth it.", "createdAt": 1785758400000, "likeCount": 96, "replyCount": 11 }
+    ],
+    "likes": []
+  }
+}

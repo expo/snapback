@@ -19,6 +19,7 @@
     { "backend": "demos/file-drop/snapback", "appId": "file-drop", "fixtureProfiles": [] },
     { "backend": "demos/fleet-observatory-move1/snapback", "appId": "fleet-observatory-move1", "fixtureProfiles": [] },
     { "backend": "demos/graffiti/snapback", "appId": "graffiti", "fixtureProfiles": [] },
+    { "backend": "demos/knockoff/snapback", "appId": "knockoff", "fixtureProfiles": [] },
     { "backend": "demos/latency-kanban/snapback", "appId": "latency-kanban", "fixtureProfiles": [] },
     { "backend": "demos/messaging-snapback/snapback", "appId": "messaging-snapback", "fixtureProfiles": [] },
     { "backend": "demos/partiful-matrix/snapback", "appId": "partiful-matrix", "fixtureProfiles": [] },

@@ -2050,7 +2050,7 @@ export function createRqsRegisteredRegistry(bundle: unknown): RqsRegisteredRegis
 
 Stable identity: `npm:@expo/snapback-client#createSnapbackAppClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/app-client.d.mts:197`
+Source: `packages/snapback-client/app-client.d.mts:198`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createSnapbackAppClient(input: Readonly<{
@@ -5871,7 +5871,7 @@ export type SnapbackAppBindingV1 = Readonly<{
 
 Stable identity: `npm:@expo/snapback-client#SnapbackAppClient`
 Kind: `type-interface`
-Source: `packages/snapback-client/app-client.d.mts:189`
+Source: `packages/snapback-client/app-client.d.mts:190`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SnapbackAppClient {
@@ -6037,6 +6037,7 @@ export interface SnapbackAuthFacade {
   subscribeCurrentPrincipal(listener: () => void): () => void;
   readonly signUpWithPassword: SnapbackClient['authPasswordSignup'];
   readonly signInWithPassword: SnapbackClient['authPasswordSignIn'];
+  readonly signInWithExternalCode: SnapbackClient['authExchange'];
   readonly consumeRecoveryCode: SnapbackClient['authRecoveryConsume'];
   readonly rotateRecoveryCodes: SnapbackClient['authRecoveryRotate'];
   readonly changePassword: SnapbackClient['authPasswordChange'];
@@ -6050,6 +6051,7 @@ Members and overload groups:
 - `subscribeCurrentPrincipal` — method; 1 signature
 - `signUpWithPassword` — property; 1 signature
 - `signInWithPassword` — property; 1 signature
+- `signInWithExternalCode` — property; 1 signature
 - `consumeRecoveryCode` — property; 1 signature
 - `rotateRecoveryCodes` — property; 1 signature
 - `changePassword` — property; 1 signature

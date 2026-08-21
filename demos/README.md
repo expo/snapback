@@ -39,6 +39,7 @@ rows in `guide/capabilities.md`, the current capability truth.
 | `file-drop` | Local asset pipeline: upload progress, trusted image finalization, typed attachment, live gallery, public delivery | headless (required), react (integration) | yes |
 | `fleet-observatory-move1` | One mixed snapshot-batch.v2 composite route over 250,000 protected events | none declared (web app + `tests/`; workload-manifest.2026-08-06.v1.json) | yes |
 | `graffiti` | Shared pixel wall: durable last-writer-wins marks over live queries plus TTL ephemeral cursor presence | headless/widget (required), contract (optional), macosNative (blocked), react (absent — historical scoping) | yes |
+| `knockoff` | Expo social app with app-owned Apple/Google broker entry and principal-derived posts and likes | expo (ios/android/web), headless social-auth acceptance | yes |
 | `latency-kanban` | Generated-IR optimistic paint, Lane-L settlement, observer convergence, loss-free retained replay | none declared (web app + `tests/`) | yes |
 | `media-happy-post` | Owner-scoped Expo avatar and ordered image/video posts through generated media commands and delivery hooks | expo (ios/android integration) | yes |
 | `messaging-snapback` | Expo Router messaging app: DMs, groups, text/image messages, reactions, reply previews, live typing | expo (ios/android/web), headless acceptance | yes |

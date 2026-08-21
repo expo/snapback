@@ -1210,6 +1210,21 @@ function requirePasswordMechanism(owner) {
   );
 }
 
+function requireExternalSessionEntry(owner) {
+  if (owner.policy.entryMechanisms.includes('external-session-explicit-v1')) return;
+  throw refusal(
+    'SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE',
+    'The generated application auth policy does not admit external-session-explicit-v1.',
+    { mechanism: 'external-session-explicit-v1', policyAdmitted: false },
+    [remediation(
+      'regenerateAppDescriptor',
+      'Set externalSessionEntry: true in the application auth program and regenerate.',
+      { mechanism: 'external-session-explicit-v1' },
+    )],
+    { operation: 'auth-entry', effectCommitted: false, effectMayHaveCommitted: false },
+  );
+}
+
 function entryFailure(error, signedOut, principalStatus) {
   const causeCode = safeCauseCode(error);
   const settledAnonymous = signedOut && principalStatus === 'anonymous';
@@ -1229,9 +1244,13 @@ function entryFailure(error, signedOut, principalStatus) {
   );
 }
 
-async function enterWith(owner, operation, { requirePassword = false } = {}) {
+async function enterWith(owner, operation, {
+  requirePassword = false,
+  requireExternal = false,
+} = {}) {
   return serializeOwner(owner, async () => {
     if (requirePassword) requirePasswordMechanism(owner);
+    if (requireExternal) requireExternalSessionEntry(owner);
     const principal = owner.client.auth.currentPrincipal();
     if (['loading', 'refreshing', 'blocked'].includes(principal.status)) {
       throw unsettledEntryError(principal.status);
@@ -1326,6 +1345,15 @@ function createFacade(owner, subscriptions) {
       owner,
       () => owner.client.auth.authPasswordSignIn(input),
       { requirePassword: true },
+    ),
+    // @ref LLP 0151#the-oauth-completion-protocol — an app-owned provider
+    // broker may hand the application one short-lived email-code exchange;
+    // the ordinary coordinator still owns bearer custody and authority
+    // replacement. This does not claim a first-party OIDC provider.
+    signInWithExternalCode: (input) => enterWith(
+      owner,
+      () => owner.client.auth.authExchange(input),
+      { requireExternal: true },
     ),
     // @ref LLP 0258#d9-generated-completeness-keeps-mechanisms-and-clients-aligned
     // — recovery is policy-derived rather than an entry mechanism, while the

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:cfce5e5187003463ca7b9b07f8d73f64e232b210dc5fde79a4283c686e4ebb7d"
+    "sourceDigest": "sha256:630b77d494688d9b9cb68d65cb16406606150f99418805c20d8a707d9ed2c304"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,7 +10,7 @@
   "counts": {
     "codes": 3442,
     "sourceFiles": 585,
-    "emittingSites": 11867,
+    "emittingSites": 11868,
     "httpClassified": 1030,
     "guideAnchored": 420
   },
@@ -16774,6 +16774,11 @@
           "column": 6
         },
         {
+          "file": "packages/snapback-client/app-client.mjs",
+          "line": 1216,
+          "column": 6
+        },
+        {
           "file": "packages/snapback-codegen/client-lifecycle.mjs",
           "line": 279,
           "column": 109
@@ -17120,7 +17125,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1356,
+          "line": 1384,
           "column": 12
         }
       ],
@@ -18721,7 +18726,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1244,
+          "line": 1263,
           "column": 12
         }
       ],
@@ -18736,7 +18741,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1217,
+          "line": 1232,
           "column": 6
         }
       ],
@@ -27589,7 +27594,7 @@
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1653,
+          "line": 1681,
           "column": 4
         },
         {

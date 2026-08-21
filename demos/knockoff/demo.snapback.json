@@ -1,0 +1,29 @@
+{
+  "id": "knockoff",
+  "title": "Knockoff — social app with owned identity",
+  "description": "An Expo SDK 57 social app that uses an app-owned Apple and Google identity broker, Snapback session custody, principal-derived writes, and live feeds.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["API", "Storage", "Runtime", "Realtime", "Auth", "Identity", "React/Expo", "Developer experience"],
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "codegen": "node ../../packages/snapback-codegen/index.mjs snapback",
+    "generated": ["snapback/generated/artifacts.json"]
+  },
+  "surfaces": {
+    "expo": { "buildTargets": ["ios", "android", "web"], "entrypoint": "src/app/_layout.tsx" },
+    "headless": { "runner": "node tests/acceptance/social-auth.mjs" }
+  },
+  "capabilityGaps": ["auth.first-party-social-providers"],
+  "capabilityGapsBoundary": {
+    "status": "current-platform",
+    "asOf": "2026-08-21",
+    "authority": "guide/capabilities.md",
+    "reason": "The demo proves the app-owned local broker seam with hermetic Apple and Google fixtures. The first-party provider capability remains a platform GAP owned by LLP 0151's wave-4 program."
+  },
+  "notClaiming": [
+    "hosted or production authentication",
+    "first-party Snapback OIDC provider support",
+    "real-provider CI without app-owned Apple and Google registrations"
+  ]
+}

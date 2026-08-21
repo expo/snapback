@@ -187,6 +187,19 @@
       "documentation": { "status": "contract", "path": "demos/graffiti/README.md" }
     },
     {
+      "id": "knockoff",
+      "directory": "demos/knockoff",
+      "teaches": "An Expo SDK 57 social app that uses an app-owned Apple and Google identity broker, Snapback session custody, principal-derived writes, and live feeds.",
+      "clients": ["expo", "headless"],
+      "targets": ["local"],
+      "maturity": "integration",
+      "run": "bun run --cwd demos/knockoff start",
+      "proof": "bun run --cwd demos/knockoff test",
+      "expectedEvidence": "A passing hermetic Apple and Google broker acceptance with stable principals and a principal-derived post.",
+      "evidence": ["demos/knockoff/tests/acceptance/social-auth.mjs"],
+      "documentation": { "status": "contract", "path": "demos/knockoff/README.md" }
+    },
+    {
       "id": "latency-kanban",
       "directory": "demos/latency-kanban",
       "teaches": "Provider-native Kanban proving generated-IR optimistic paint, Lane-L settlement, observer convergence, and loss-free retained replay.",

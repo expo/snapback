@@ -21,6 +21,7 @@ export const EXPECTED_DEMO_IDS = Object.freeze([
   'file-drop',
   'fleet-observatory-move1',
   'graffiti',
+  'knockoff',
   'latency-kanban',
   'media-happy-post',
   'messaging-snapback',

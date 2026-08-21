@@ -1475,13 +1475,13 @@ id: auth.native-apps
 order: 3
 audience: agent-first
 capabilities: [auth.external-identity-broker]
-authorities: [llp/0024-agent-operating-surface.spec.md, llp/0045-notifications-outbox.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-client/index.mjs, packages/snapback-expo/supervised-environment.mjs, crates/snapback-cli/src/cli.rs, clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift]
-examples: []
+authorities: [llp/0024-agent-operating-surface.spec.md, llp/0045-notifications-outbox.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-client/app-client.mjs, packages/snapback-client/index.mjs, packages/snapback-expo/supervised-environment.mjs, crates/snapback-cli/src/cli.rs, clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift]
+examples: [demos/knockoff]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:82893b993434042d00d895244476e58ba7c0cca1643a3d0cc695ee2e9e22eb6e
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:6a6299803527109f6c2771d85ed567fabfdbb379d8041b49bb57bf7368b2e79a
 ---
 
 # Authenticate a native app
@@ -1510,6 +1510,20 @@ ordinary session through its loopback-only
 `GET /_snapback/expo/v1/bootstrap` exchange under `SnapbackExpoProvider` —
 see [the supervised Expo development loop](../clients/react-expo.md#run-the-supervised-expo-development-loop)
 before wiring a broker by hand.
+
+An application that uses `SnapbackExpoProvider` can consume the broker's
+one-time email-code exchange through `useSnapbackAuth()`:
+
+- declare `externalSessionEntry: true` in `defineAuth` and regenerate;
+- let the trusted broker verify the external provider and return only
+  `{ challengeId, code }` from the local capture path; and
+- call `auth.signInWithExternalCode(exchange)`.
+
+The application Auth facade runs the existing `authExchange` operation through
+the same coordinator-owned custody transition as built-in entry. It refuses
+before network I/O if the generated policy omits
+`external-session-explicit-v1`. This method does not make the broker a
+first-party provider and does not widen the local-only claim on this page.
 
 ## Keep the broker server-side
 

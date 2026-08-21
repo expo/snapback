@@ -9302,16 +9302,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 197,
+        "line": 198,
         "column": 1,
-        "endLine": 211
+        "endLine": 212
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 197,
+          "line": 198,
           "column": 1,
-          "endLine": 211
+          "endLine": 212
         }
       ],
       "publicDeclaration": {
@@ -25749,9 +25749,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 190,
+              "line": 191,
               "column": 3,
-              "endLine": 190
+              "endLine": 191
             }
           ]
         },
@@ -25768,9 +25768,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 191,
+              "line": 192,
               "column": 3,
-              "endLine": 191
+              "endLine": 192
             }
           ]
         },
@@ -25787,9 +25787,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 192,
+              "line": 193,
               "column": 3,
-              "endLine": 192
+              "endLine": 193
             }
           ]
         },
@@ -25806,9 +25806,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 193,
+              "line": 194,
               "column": 3,
-              "endLine": 193
+              "endLine": 194
             }
           ]
         },
@@ -25825,9 +25825,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 194,
+              "line": 195,
               "column": 3,
-              "endLine": 194
+              "endLine": 195
             }
           ]
         }
@@ -25838,16 +25838,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 189,
+        "line": 190,
         "column": 1,
-        "endLine": 195
+        "endLine": 196
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 189,
+          "line": 190,
           "column": 1,
-          "endLine": 195
+          "endLine": 196
         }
       ],
       "publicDeclaration": {
@@ -26222,7 +26222,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface SnapbackAuthFacade {\n  currentPrincipal(): CurrentPrincipalSnapshot;\n  subscribeCurrentPrincipal(listener: () => void): () => void;\n  readonly signUpWithPassword: SnapbackClient['authPasswordSignup'];\n  readonly signInWithPassword: SnapbackClient['authPasswordSignIn'];\n  readonly consumeRecoveryCode: SnapbackClient['authRecoveryConsume'];\n  readonly rotateRecoveryCodes: SnapbackClient['authRecoveryRotate'];\n  readonly changePassword: SnapbackClient['authPasswordChange'];\n  readonly signOut: SnapbackClient['authLogout'];\n}",
+      "signature": "export interface SnapbackAuthFacade {\n  currentPrincipal(): CurrentPrincipalSnapshot;\n  subscribeCurrentPrincipal(listener: () => void): () => void;\n  readonly signUpWithPassword: SnapbackClient['authPasswordSignup'];\n  readonly signInWithPassword: SnapbackClient['authPasswordSignIn'];\n  readonly signInWithExternalCode: SnapbackClient['authExchange'];\n  readonly consumeRecoveryCode: SnapbackClient['authRecoveryConsume'];\n  readonly rotateRecoveryCodes: SnapbackClient['authRecoveryRotate'];\n  readonly changePassword: SnapbackClient['authPasswordChange'];\n  readonly signOut: SnapbackClient['authLogout'];\n}",
       "overloads": [],
       "members": [
         {
@@ -26302,6 +26302,25 @@
           ]
         },
         {
+          "identity": "npm:@expo/snapback-client#SnapbackAuthFacade.signInWithExternalCode",
+          "name": "signInWithExternalCode",
+          "kind": "property",
+          "signature": "readonly signInWithExternalCode: SnapbackClient['authExchange'];",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/app-client.d.mts",
+              "line": 183,
+              "column": 3,
+              "endLine": 183
+            }
+          ]
+        },
+        {
           "identity": "npm:@expo/snapback-client#SnapbackAuthFacade.consumeRecoveryCode",
           "name": "consumeRecoveryCode",
           "kind": "property",
@@ -26314,9 +26333,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 183,
+              "line": 184,
               "column": 3,
-              "endLine": 183
+              "endLine": 184
             }
           ]
         },
@@ -26333,9 +26352,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 184,
+              "line": 185,
               "column": 3,
-              "endLine": 184
+              "endLine": 185
             }
           ]
         },
@@ -26352,9 +26371,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 185,
+              "line": 186,
               "column": 3,
-              "endLine": 185
+              "endLine": 186
             }
           ]
         },
@@ -26371,9 +26390,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 186,
+              "line": 187,
               "column": 3,
-              "endLine": 186
+              "endLine": 187
             }
           ]
         }
@@ -26386,14 +26405,14 @@
         "file": "packages/snapback-client/app-client.d.mts",
         "line": 178,
         "column": 1,
-        "endLine": 187
+        "endLine": 188
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
           "line": 178,
           "column": 1,
-          "endLine": 187
+          "endLine": 188
         }
       ],
       "publicDeclaration": {
@@ -119921,6 +119940,9 @@
         "npm:@expo/snapback-client#SnapbackAuthFacade"
       ],
       "SnapbackAuthFacade.signInWithPassword": [
+        "npm:@expo/snapback-client#SnapbackAuthFacade"
+      ],
+      "SnapbackAuthFacade.signInWithExternalCode": [
         "npm:@expo/snapback-client#SnapbackAuthFacade"
       ],
       "SnapbackAuthFacade.consumeRecoveryCode": [

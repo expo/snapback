@@ -1968,6 +1968,40 @@ test('entry gating protects authenticated principals while changePassword remain
   }
 });
 
+test('external-code entry uses application custody only when the generated policy admits it', async () => {
+  const server = installServer();
+  const exchange = Object.freeze({ challengeId: 'sbc_external', code: '123456' });
+  const admitted = makeApp({ entryMechanisms: ['external-session-explicit-v1'] });
+  const appClient = await createSnapbackAppClient(optionsFor(admitted));
+  try {
+    server.respond('/auth/exchange', ({ authorization, body }) => {
+      assert.equal(authorization, null);
+      assert.deepEqual(body, exchange);
+      return Response.json(server.credential());
+    });
+    const result = await appClient.auth.signInWithExternalCode(exchange);
+    assert.equal(result.session.userId, USER);
+    assert.equal(Object.hasOwn(result, 'token'), false);
+    assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
+  } finally {
+    await appClient.dispose();
+  }
+
+  const refused = await createSnapbackAppClient(optionsFor(makeApp()));
+  try {
+    const before = server.requests.length;
+    await assert.rejects(
+      refused.auth.signInWithExternalCode(exchange),
+      (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE'
+        && error?.diagnostic?.details?.mechanism === 'external-session-explicit-v1',
+    );
+    assert.equal(server.requests.length, before);
+  } finally {
+    await refused.dispose();
+    server.restore();
+  }
+});
+
 test('recovery facade preserves consume and rotate one-time result contracts', async () => {
   const server = installServer();
   const appClient = await createSnapbackAppClient(optionsFor(makeApp()));

@@ -8,7 +8,12 @@ OpenAI Codex (`gpt-5.6-sol`) and a non-author Fable context (rounds 1–2, per
 Charlie's direction that the other family participate in the design, not
 only review it)
 **Date:** 2026-08-02
-**Revised:** 2026-08-08 (wave-4 kickoff: the **generated-domain passkeys
+**Revised:** 2026-08-21 (author ruling: first-party providers get a
+zero-setup shared development profile. Snapback-owned provider registrations
+serve non-production rehearsal only. Staging and production require app-owned
+credentials, and activation refuses while a development profile or rehearsal
+identity remains. Apple development identities do not graduate because Apple
+subjects and relay addresses are team-scoped.) 2026-08-08 (wave-4 kickoff: the **generated-domain passkeys
 tier is RULED — preview-only exception**, with a named promotion condition;
 see the dated ruling in §Open questions. The shared-delivery twin remains
 open and is no longer bound to the passkeys answer.) 2026-08-06 (sitting #4: wave-4 deferral of the generated-domain passkeys tier and shared-delivery questions AFFIRMED; decided together at wave-4 kickoff.) 2026-08-03 (decision-sitting propagation: the two remaining
@@ -100,11 +105,12 @@ works the **credential-ownership question** — who registers and holds the
 OAuth client credentials for agent-built apps — into a per-provider matrix.
 After two review rounds the matrix carried a **convergent two-family
 recommendation** (§Credential ownership), and the 2026-08-02 author sitting
-adopted it: app-owned registration with automation and guided walkthroughs
-now; a hard-constrained transport broker only as a pre-pinned conditional. The
-one pinned constraint: whatever shape wins must not fundamentally tether a
-Snapback app's sign-in to Expo's servers; Expo-hosted convenience is
-welcome, hard dependency is not (Charlie, 2026-08-02).
+adopted app-owned registration for production. The 2026-08-21 ruling makes a
+hard-constrained shared broker the default development profile. The broker is
+rehearsal infrastructure, not a production credential owner. The app replaces
+the profile with app-owned credentials before staging or production. The
+standing constraint remains: production sign-in cannot depend on Snapback or
+Expo infrastructure unless the app selects that dependency explicitly.
 
 Nothing here changes LLP 0011's authorization model, its guest-claiming
 amendment, or LLP 0039's slice; where this RFC touches settled ground it
@@ -735,18 +741,19 @@ as the production paved path.
 
 **The per-provider matrix (both families, round 1):**
 
-| Provider | Paved registration path | Broker exposure |
+| Provider | Development default | Production path |
 |---|---|---|
-| Expo | native per-app registration (we own the IdP) | none needed |
-| GitHub | **assisted BYO** via GitHub App manifest one-click registration | none needed |
-| Apple | **BYO-only, never brokered** — enabled at App-Store time, when the app's own team necessarily exists | excluded by design (team-scoped subs + relay addresses make graduation lossy) |
-| Google | the genuine hard case — no registration API, exact redirects | the only candidate for a shared broker |
+| Expo | Snapback development registration | Native per-app registration because Expo owns the IdP |
+| GitHub | Snapback shared development registration | Assisted app-owned registration through the GitHub App manifest flow |
+| Apple | Snapback shared browser registration with rehearsal identities | App-owned registration on the app's Apple developer team |
+| Google | Snapback shared browser registration with rehearsal identities | App-owned registration through the guided Google console flow |
 
 **The options** (A–C from the initial draft; D added by Codex round 1):
-**A** — BYO credentials only. **B** — hosted broker as default (dominated:
-branding leakage, blast radius, Apple structurally broken, default-path
-Expo dependency). **C** — a neutral, self-hostable broker protocol,
-narrowed by the matrix to Google-class providers. **D** — registration
+**A:** BYO credentials only. **B:** a hosted broker as the production default.
+Option B is dominated by branding leakage, shared failure, Apple identity
+migration loss, and an unwanted Expo dependency. **C:** a neutral,
+self-hostable broker protocol, narrowed by the matrix to Google-class
+providers. **D:** registration
 automation without authentication brokering: automate client creation
 wherever an API permits (GitHub today, Expo natively, RFC 7591 IdPs),
 deterministic guided walkthroughs where it doesn't (Google, Apple), all
@@ -782,12 +789,63 @@ asserted Google-issuer continuity, a broker issuer namespace, and
 app-side Google-token verification simultaneously — mutually
 incompatible; this paragraph is the resolution.)
 
-**Author decision — 2026-08-02.** Option D is adopted now, with the
-transparent Google-issuer relay retained as the pre-pinned conditional only.
-Google carries the external-prerequisite annotation unless that conditional
-is later activated. Residual C costs that no constraint removes: consent-screen brand
-leakage, shared suspension/rate-limit fate, cross-app correlation at the
-broker, availability coupling.
+**Author decision — 2026-08-02, amended 2026-08-21.** Option D remains the
+production path. The shared broker is now the default development path for
+first-party providers. Development identities carry rehearsal provenance and
+cannot enter a staging or production deployment. The broker's remaining costs
+are visible in development: its consent-screen brand, shared suspension and
+rate limits, availability dependency, and correlation risk. None of those
+costs silently enters production.
+
+### Default development provider profiles
+
+A new app can select a first-party provider without creating provider
+credentials. The provider declaration names the provider and leaves credential
+selection on `auto`:
+
+```ts
+providers: {
+  apple: { kind: 'apple', credentials: 'auto' },
+  google: { kind: 'oidc', preset: 'google', credentials: 'auto' },
+}
+```
+
+`auto` is one authored setting with deployment-specific resolution:
+
+- local development uses the Snapback shared development profile;
+- tests and checked demos use the synthetic conformance IdP;
+- a hosted preview may use the shared profile only with an explicit expiry,
+  an app binding, and provider-specific abuse budgets; and
+- staging and production require app-owned credentials from LLP 0036 config.
+
+The development profile uses the browser completion flow, including on native
+apps. Shared credentials cannot satisfy bundle-id, signing-certificate, or
+team-bound native provider checks. The broker accepts only a generated app
+binding and a fixed provider name. It never accepts an arbitrary callback URL.
+The app holds the redemption verifier. The callback carries only a one-use
+completion code, and the app redeems both values for the ordinary Snapback
+session. Provider tokens and Snapback session credentials never cross a URL.
+
+The development broker creates an app-scoped rehearsal identity. The durable
+identity tuple includes the development provider installation and a subject
+derived from both the app id and the provider subject. The broker does not use
+email to link accounts. Two apps that use the shared profile do not receive the
+same Snapback identity.
+
+Rehearsal is disposable. Switching from `auto` to app-owned credentials does
+not reinterpret an existing provider installation. Apple subjects and relay
+addresses can change with the developer team, and Google continuity is not a
+reason to weaken the uniform rule. Before staging or production, the operator
+must either reset rehearsal auth state or run an explicit reviewed migration.
+Production activation refuses if the resolved provider profile is shared,
+the app still contains a rehearsal identity, or a required app-owned config
+reference is unset.
+
+The setup interface reports the transition as one replacement task per
+provider. It opens the provider registration page, captures public client ids
+and secret values into LLP 0036 deployment state, verifies the callback, and
+changes the resolved profile to app-owned. Secret values never enter source,
+generated artifacts, client bundles, logs, or receipts.
 
 ## Non-goals
 
@@ -833,9 +891,10 @@ labeled walkthrough.
 
 ## Open questions
 
-- **Credential ownership — ANSWERED 2026-08-02:** Option D is the production
-  paved path; the transparent-relay conditional remains pre-pinned and the
-  broker-issuer variant remains rejected.
+- **Credential ownership — ANSWERED 2026-08-02, amended 2026-08-21:** Option D
+  is the production path. The shared broker is the default development profile
+  and issues only app-scoped rehearsal identities. The production provider
+  installation remains app-owned.
 - **SMS tier placement — ANSWERED 2026-08-02:** tier 2, supported with vendor
   configuration; promotion requires a named delivery-vendor owner.
 - **Generated-domain passkeys — RULED 2026-08-08 (Charlie, wave-4 kickoff):
