@@ -5,7 +5,10 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-21 (handler-visible buffered-insert versions use a
+**Revised:** 2026-08-21 (client-owned authorization/custody blanks project as
+`null`, rather than keep-last or a false single-value server-contract
+violation, on typed headless live handles and callbacks); 2026-08-21
+(handler-visible buffered-insert versions use a
 commit-time allocator fence: a moved global head rejects the invocation before
 effects; buffered mutation document results carry a host-owned post-insert read
 witness into preview and commit, and storage never infers settlement-projection
@@ -387,6 +390,16 @@ back to the authored value, so an object handler result is an object at the
 Familiar React surface rather than a one-element array. Row-shaped contracts
 (`documents`, `records`, and the legacy form) retain the array-only safety
 floor unchanged.
+
+The exactly-one-row rule governs server-authored query deliveries. A
+client-owned authorization/custody blank is instead an empty internal lifecycle
+carrier required by LLP 0059's exposure barrier; it is never reclassified as a
+server result-contract violation. Typed headless single-value handle reads,
+`authoritativeRows`, `poll()`, and application `onUpdate` project that transient
+blank as `null`. This deliberately chooses an observable blank over keep-last:
+the predecessor value is unreadable until resume/resubscribe publishes the next
+validated one-row snapshot. Row-array headless queries keep their existing
+empty-array blank, and React keeps its raw lifecycle-carrier ownership.
 
 The recursive v1 value vocabulary is:
 

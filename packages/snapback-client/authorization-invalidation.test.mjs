@@ -70,6 +70,20 @@ const handshake = {
   authorizedLease: null,
 };
 
+const atomicSingleValueReference = Object.freeze({
+  artifactKind: 'functionReference',
+  schemaVersion: 'snapback.v1',
+  appId: 'atomic-authorization-fixture',
+  id: 'atomic-authorization-fixture:atomicTodos',
+  name: 'atomicTodos',
+  kind: 'LiveQuery',
+  implementationHash: `sha256:${'a'.repeat(64)}`,
+  argsContractHash: `sha256:${'b'.repeat(64)}`,
+  argsContract: { fields: [] },
+  resultContractHash: `sha256:${'c'.repeat(64)}`,
+  resultContract: { kind: 'value', value: { kind: 'unknown' } },
+});
+
 const witness = (version) => ({
   authorization,
   data: { versionStream: 'stream-atomic-authorization', minCommitVersion: version },
@@ -173,7 +187,7 @@ function createLockManagerDouble() {
   };
 }
 
-test('liveQuery applies same-envelope authorization resolution without a blank boundary', async () => {
+test('typed single-value liveQuery resolves atomically and recovers from a quarantine blank', async () => {
   const originalFetch = globalThis.fetch;
   const outbox = [];
   const acknowledgements = [];
@@ -221,7 +235,7 @@ test('liveQuery applies same-envelope authorization resolution without a blank b
     if (path === '/live/authorization-invalidation/acknowledge') {
       const { ackToken } = JSON.parse(init.body);
       assert.equal(boundaries.at(-1)?.kind, 'authorization_snapshot');
-      assert.deepEqual(handle?.rows, [{ id: 'refreshed' }]);
+      assert.ok(handle?.rows?.id === 'refreshed' || handle?.rows?.id === 'recovered');
       acknowledgements.push(ackToken);
       return response({ outcome: 'discharged' });
     }
@@ -241,7 +255,7 @@ test('liveQuery applies same-envelope authorization resolution without a blank b
       clientStoreId: 'store_atomic_authorization',
       rqsStore: null,
     });
-    handle = await client.liveQuery('atomicTodos', {
+    handle = await client.liveQuery(atomicSingleValueReference, {
       connectionId: 'atomic-authorization-label',
       persistResume: false,
       onAuthorizationBoundary(rows, detail) {
@@ -254,7 +268,7 @@ test('liveQuery applies same-envelope authorization resolution without a blank b
         authorizationErrors.push(error);
       },
     });
-    assert.deepEqual(handle.rows, [{ id: 'held' }]);
+    assert.deepEqual(handle.rows, { id: 'held' });
     boundaries.length = 0;
     updates.length = 0;
 
@@ -284,11 +298,11 @@ test('liveQuery applies same-envelope authorization resolution without a blank b
       false,
     );
     assert.equal(
-      updates.some((entry) => entry.rows.length === 0),
+      updates.some((entry) => entry.rows === null),
       false,
-      'same-envelope refresh published a blank row set',
+      'same-envelope refresh published a blank value',
     );
-    assert.deepEqual(handle.rows, [{ id: 'refreshed' }]);
+    assert.deepEqual(handle.rows, { id: 'refreshed' });
     assert.equal(handle.authorizationDisposition, 'retain');
 
     boundaries.length = 0;
@@ -311,12 +325,13 @@ test('liveQuery applies same-envelope authorization resolution without a blank b
       ),
       'stale same-envelope resolution did not repair to quarantine',
     );
-    assert.deepEqual(handle.rows, []);
+    assert.equal(handle.rows, null);
     assert.equal(acknowledgements.includes('ack_stale_authorization'), false);
 
     boundaries.length = 0;
     updates.length = 0;
-    outbox.push([envelope({ pending: obligation(scopeId, 4, 13) })]);
+    const pendingWithoutResolution = obligation(scopeId, 4, 13);
+    outbox.push([envelope({ pending: pendingWithoutResolution })]);
     await handle.poll();
     await waitFor(
       () => assert.deepEqual(
@@ -325,9 +340,31 @@ test('liveQuery applies same-envelope authorization resolution without a blank b
       ),
       'no-resolution obligation did not quarantine immediately',
     );
-    assert.deepEqual(handle.rows, []);
+    assert.equal(handle.rows, null);
+    assert.equal(handle.authoritativeRows, null);
     assert.equal(handle.authorizationDisposition, 'quarantine');
-    assert.deepEqual(updates.map((entry) => entry.rows), [[]]);
+    assert.deepEqual(updates.map((entry) => entry.rows), [null]);
+
+    boundaries.length = 0;
+    updates.length = 0;
+    outbox.push([envelope({
+      pending: pendingWithoutResolution,
+      resolved: resolution(pendingWithoutResolution, 'ack_atomic_authorization_recovered'),
+      version: 13,
+      rows: [{ id: 'recovered' }],
+    })]);
+    await handle.poll();
+    await waitFor(
+      () => assert.equal(
+        acknowledgements.at(-1),
+        'ack_atomic_authorization_recovered',
+      ),
+      'authorization resnapshot was not acknowledged after the blank',
+    );
+    assert.deepEqual(handle.rows, { id: 'recovered' });
+    assert.deepEqual(handle.authoritativeRows, { id: 'recovered' });
+    assert.deepEqual(updates.map((entry) => entry.rows), [{ id: 'recovered' }]);
+    assert.equal(handle.authorizationDisposition, 'retain');
   } finally {
     try { await handle?.dispose?.(); } catch { /* cleanup cannot mask assertions */ }
     globalThis.fetch = originalFetch;

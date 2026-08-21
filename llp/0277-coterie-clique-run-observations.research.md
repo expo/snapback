@@ -505,7 +505,7 @@ workaround
 and a mutation `v.doc` result could pass generation then fail at runtime.
 Agents repeatedly regenerated schema first and preserved/reseeded stores around
 the mismatch. Straight parity ticket:
-`issues/20260820-familiar-vdoc-generation-runtime-parity.md`.
+`issues/closed/20260820-familiar-vdoc-generation-runtime-parity.md`.
 
 #### P19. Familiar feels like TypeScript until its closed dialect appears — convergent
 

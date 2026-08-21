@@ -344,6 +344,12 @@ export type FunctionArgs<Ref> =
   Ref extends { readonly __args?: infer Args } ? Args : Record<string, unknown>;
 export type FunctionResult<Ref> =
   Ref extends { readonly __result?: infer Result } ? Result : unknown;
+/** Public headless live-query value. A client-owned authorization/custody
+ * blank is `null` for generated single-value (`document`/`value`) references;
+ * row-array references continue to expose an empty array at runtime. Generated
+ * reference phantoms currently carry the result value but not its contract
+ * kind, so this safe public type includes the lifecycle blank for either form. */
+export type LiveQueryConsumerResult<Ref> = FunctionResult<Ref> | null;
 export type EphemeralScope<Ref> =
   Ref extends { readonly __scope?: infer Scope } ? Scope : Record<string, unknown>;
 export type EphemeralValue<Ref> =
@@ -820,6 +826,8 @@ export interface LiveQueryAuthorizationDenial {
   readonly atMs: number;
 }
 
+/** For a typed generated reference, `Rows` should be the corresponding
+ * `LiveQueryConsumerResult<Ref>` so a single-value lifecycle blank is explicit. */
 export interface LiveQueryHandle<Rows> {
   subscriptionId: string | null;
   version: number;
@@ -1951,13 +1959,13 @@ export class SnapbackClient {
       readonly userId?: string;
       readonly pollCadenceMs?: number;
       readonly fallbackToPoll?: boolean;
-      readonly onUpdate?: (rows: FunctionResult<Ref>) => void;
+      readonly onUpdate?: (rows: LiveQueryConsumerResult<Ref>) => void;
       readonly onConnectionChange?: (
-        connection: LiveQueryHandle<FunctionResult<Ref>>['connection'],
+        connection: LiveQueryHandle<LiveQueryConsumerResult<Ref>>['connection'],
         detail?: { readonly error?: unknown },
       ) => void;
     } & LiveQueryRegistrationOptions,
-  ): Promise<LiveQueryHandle<FunctionResult<Ref>>>;
+  ): Promise<LiveQueryHandle<LiveQueryConsumerResult<Ref>>>;
   liveQuery<Row = unknown>(
     ref: NamedReference,
     options: {
@@ -1981,14 +1989,14 @@ export class SnapbackClient {
       readonly userId?: string;
       readonly pollCadenceMs?: number;
       readonly fallbackToPoll?: boolean;
-      readonly supersedes?: StartedLiveQueryHandle<FunctionResult<Ref>> | null;
-      readonly onUpdate?: (rows: FunctionResult<Ref>) => void;
+      readonly supersedes?: StartedLiveQueryHandle<LiveQueryConsumerResult<Ref>> | null;
+      readonly onUpdate?: (rows: LiveQueryConsumerResult<Ref>) => void;
       readonly onConnectionChange?: (
-        connection: LiveQueryHandle<FunctionResult<Ref>>['connection'],
+        connection: LiveQueryHandle<LiveQueryConsumerResult<Ref>>['connection'],
         detail?: { readonly error?: unknown },
       ) => void;
     } & LiveQueryRegistrationOptions,
-  ): StartedLiveQueryHandle<FunctionResult<Ref>>;
+  ): StartedLiveQueryHandle<LiveQueryConsumerResult<Ref>>;
   subscribeLive<Ref extends FunctionRef<'LiveQuery'>>(
     ref: Ref,
     options?: {

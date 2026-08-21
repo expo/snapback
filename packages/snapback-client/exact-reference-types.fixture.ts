@@ -88,6 +88,11 @@ client.query(oneShotTodo);
 client.query(liveTodo);
 client.liveQuery(oneShotTodo, { connectionId: 'kind-fixture' });
 client.liveQuery(liveTodo, { connectionId: 'kind-fixture' });
+client.liveQuery(oneShotTodo, { connectionId: 'single-value-blank-fixture' }).then((handle) => {
+  handle.rows satisfies string | null;
+  handle.authoritativeRows satisfies string | null;
+  handle.poll().then((value) => value satisfies string | null);
+});
 client.mutate(renameTodo);
 client.action(rebuildTodo);
 commandClient.start(uploadTodo, {});
@@ -158,7 +163,7 @@ client.liveQuery(listTodos, {
   connectionId: 'fixture',
   args: { owner: 'ada' },
   onUpdate(rows) {
-    rows[0]?.title.toUpperCase();
+    rows?.[0]?.title.toUpperCase();
   },
 });
 declare const disposableLiveQuery: LiveQueryHandle<readonly { _id: string; title: string }[]>;

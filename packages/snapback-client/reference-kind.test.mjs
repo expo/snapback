@@ -308,3 +308,95 @@ test('typed headless live queries project the internal row carrier', async () =>
     globalThis.fetch = originalFetch;
   }
 });
+
+test('typed single-value live handles expose a blank as null through pause and resume', async () => {
+  const originalFetch = globalThis.fetch;
+  const updates = [];
+  let subscribeSequence = 0;
+  const reference = {
+    artifactKind: 'functionReference',
+    schemaVersion: 'snapback.v0',
+    appId: 'live-query-blank-fixture',
+    id: 'live-query-blank-fixture:todos.get',
+    name: 'todos.get',
+    kind: 'LiveQuery',
+    implementationHash: `sha256:${'7'.repeat(64)}`,
+    argsContractHash: `sha256:${'8'.repeat(64)}`,
+    argsContract: { fields: [] },
+    resultContractHash: `sha256:${'9'.repeat(64)}`,
+    resultContract: { kind: 'document', table: 'todos' },
+  };
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') {
+      return Response.json({
+        connectionId: 'live-query-blank-wire',
+        connectionToken: 'live-query-blank-token',
+        wireVersion: 'snapback.v1',
+        authorizationInvalidation: null,
+      });
+    }
+    if (path === '/live/todos.get/subscribe') {
+      subscribeSequence += 1;
+      const body = JSON.parse(init.body);
+      return Response.json({
+        subscription_id: `live-query-blank-subscription-${subscribeSequence}`,
+        snapshot: {
+          version: subscribeSequence,
+          rows: [{ _id: `todo_${subscribeSequence}`, title: `snapshot ${subscribeSequence}` }],
+        },
+        permission_epochs: {},
+        ...(body.supersedes
+          ? { supersessionRefusal: 'SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN' }
+          : {}),
+      });
+    }
+    if (path === '/live/todos.get/unsubscribe') {
+      return Response.json({
+        subscription_id: JSON.parse(init.body).subscription_id,
+        disposed: true,
+      });
+    }
+    throw new Error(`unexpected live blank request: ${path}`);
+  };
+  let handle = null;
+  let client = null;
+  try {
+    client = new SnapbackClient('http://live-query-blank.test', { rqsStore: null });
+    handle = await client.liveQuery(reference, {
+      connectionId: 'live-query-blank-label',
+      persistResume: false,
+      onUpdate: (value, detail) => updates.push({ value, kind: detail.kind }),
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(handle.rows, { _id: 'todo_1', title: 'snapshot 1' });
+    assert.deepEqual(updates.at(-1), {
+      value: { _id: 'todo_1', title: 'snapshot 1' },
+      kind: 'snapshot',
+    });
+
+    await handle.pause();
+    client.__authTransportParticipant.blank({
+      reason: 'typed_single_value_test_blank',
+      disposition: 'delete',
+    });
+    assert.equal(handle.rows, null);
+    assert.equal(handle.authoritativeRows, null);
+    assert.equal(await handle.poll(), null, 'a paused blank remains safely readable');
+    assert.deepEqual(updates.at(-1), { value: null, kind: 'authorization_delete' });
+
+    await handle.resume();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(handle.rows, { _id: 'todo_2', title: 'snapshot 2' });
+    assert.deepEqual(handle.authoritativeRows, { _id: 'todo_2', title: 'snapshot 2' });
+    assert.deepEqual(updates.at(-1), {
+      value: { _id: 'todo_2', title: 'snapshot 2' },
+      kind: 'snapshot',
+    });
+    assert.equal(subscribeSequence, 2, 'resume obtains a fresh one-row snapshot');
+  } finally {
+    await handle?.dispose();
+    await client?.closeAuth();
+    globalThis.fetch = originalFetch;
+  }
+});

@@ -13556,7 +13556,7 @@ export class SnapbackClient {
     let authoritativeAnswerClass = 'unknown';
 
     const projectRowsForConsumer = (rows) => (
-      __internalRawResultCarrier ? rows : projectTypedQueryRows(ref, rows)
+      __internalRawResultCarrier ? rows : projectTypedLiveQueryRows(ref, rows)
     );
     const handle = {
       get subscriptionId() {
@@ -18688,6 +18688,20 @@ function projectTypedQueryRows(ref, rows) {
     );
   }
   return rows[0];
+}
+
+// @ref LLP 0059#exposure-invariant — a client-owned custody/invalidation blank
+// uses an empty carrier to make predecessor data synchronously unreadable. It
+// is not a server result-contract delivery: typed headless single-value handles
+// expose that transient lifecycle state as null, while non-empty server
+// carriers retain LLP 0108's strict exactly-one-row projection above.
+function projectTypedLiveQueryRows(ref, rows) {
+  if (
+    hasSingleValueQueryContract(ref)
+    && Array.isArray(rows)
+    && rows.length === 0
+  ) return null;
+  return projectTypedQueryRows(ref, rows);
 }
 
 function typedQueryCarrierRows(ref, value) {
