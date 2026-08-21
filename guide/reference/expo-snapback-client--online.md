@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:dd8101e348c5ae1e0dfc02192db1ae0756d2e18f82a4
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:7e7f4d9c9ba520656392c67cea8ad291eb3d2458e4dfdc7948b3a1dd0bc24a91`.
+`sha256:780cd06baa465a8fc5e15d045b528285b127efa67407f06f729553f90cb13bf0`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -38,7 +38,7 @@ Symbols: 4 total; 3 runtime values; 1 type-only.
 
 Stable identity: `npm:@expo/snapback-client/online#bindSnapbackAppLifecycle`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2079`
+Source: `packages/snapback-client/index.d.mts:2081`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function bindSnapbackAppLifecycle(
@@ -59,7 +59,7 @@ export function bindSnapbackAppLifecycle(
 
 Stable identity: `npm:@expo/snapback-client/online#createExternalSessionClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2075`
+Source: `packages/snapback-client/index.d.mts:2077`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createExternalSessionClient(
@@ -78,6 +78,8 @@ Source: `packages/snapback-client/index.d.mts:1595`
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
   constructor(baseUrl: string, options?: SnapbackClientOptions);
+  /** Normalized origin used by framework-neutral client extensions. */
+  readonly baseUrl: string;
   /** Constructor-selected default outbox scheduling policy. */
   readonly outboxDrainPolicy: 'auto' | 'manual';
   /** LLP 0238 D6 namespaced projection; flat methods remain compatible. */
@@ -560,6 +562,7 @@ export class SnapbackClient {
 Members and overload groups:
 
 - `constructor` — constructor; 1 signature
+- `baseUrl` — property; 1 signature
 - `outboxDrainPolicy` — property; 1 signature
 - `auth` — property; 1 signature
 - `diagnosticsChannel` — method; 1 signature

@@ -1594,6 +1594,8 @@ export interface ProgrammaticQueryRegistrationOptions<Args = Record<string, unkn
 
 export class SnapbackClient {
   constructor(baseUrl: string, options?: SnapbackClientOptions);
+  /** Normalized origin used by framework-neutral client extensions. */
+  readonly baseUrl: string;
   /** Constructor-selected default outbox scheduling policy. */
   readonly outboxDrainPolicy: 'auto' | 'manual';
   /** LLP 0238 D6 namespaced projection; flat methods remain compatible. */

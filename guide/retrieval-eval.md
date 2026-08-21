@@ -739,6 +739,18 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     Route terms: "point read", "bounded document arrays", "results.value".
     Required guidance: "bounded document arrays lower to results.value", "returns: v.array(v.doc".
 
+Case 72 absorbs the 2026-08-21 asset-client accessor mismatch that sent a
+packed-package author to a nonexistent raw-client namespace.
+
+72. **Asset client accessor correction:** "I tried
+    `client.assets.start(...)`, but the raw `SnapbackClient` has no `assets`
+    property. What is the public upload entry point?" The run fails if it adds
+    or casts in a `.assets` facade instead of wrapping the client with the
+    published `createAssetClient(client)` export.
+    Expected pages: `backend/assets.md`.
+    Route terms: "client.assets.start", "createAssetClient(client)",
+    "raw SnapbackClient assets".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

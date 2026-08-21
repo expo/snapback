@@ -330,7 +330,9 @@ client claims. The server resolves all referenced rows and authority itself.
 The framework-neutral client owns the task. Conceptually:
 
 ```ts
-const task = client.assets.start({
+import { createAssetClient } from '@expo/snapback-client'
+
+const task = createAssetClient(client).start({
   upload: api.avatarUpload,
   args: {},
   file,
@@ -2249,7 +2251,7 @@ The live projection and headless client landed with L1-14's first half:
 the reserved `_snapback.assetRecord` system live query proves the
 no-polling acceptance rows (publish wakes, first attachment wakes through
 the pinned empty-range capture, revocation blanks), and
-`client.assets.start` in the JS client covers the task rows
+`createAssetClient(client).start` in the JS client covers the task rows
 (per-chunk checksums, persisted-fact hygiene, resume, retry preserving
 identity).
 

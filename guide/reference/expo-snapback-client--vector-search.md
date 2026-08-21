@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:36204de542028c5735b92c5ddf791a3240e8585dc840
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:7e7f4d9c9ba520656392c67cea8ad291eb3d2458e4dfdc7948b3a1dd0bc24a91`.
+`sha256:780cd06baa465a8fc5e15d045b528285b127efa67407f06f729553f90cb13bf0`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -44,6 +44,8 @@ Source: `packages/snapback-client/index.d.mts:1595`
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
   constructor(baseUrl: string, options?: SnapbackClientOptions);
+  /** Normalized origin used by framework-neutral client extensions. */
+  readonly baseUrl: string;
   /** Constructor-selected default outbox scheduling policy. */
   readonly outboxDrainPolicy: 'auto' | 'manual';
   /** LLP 0238 D6 namespaced projection; flat methods remain compatible. */
@@ -526,6 +528,7 @@ export class SnapbackClient {
 Members and overload groups:
 
 - `constructor` — constructor; 1 signature
+- `baseUrl` — property; 1 signature
 - `outboxDrainPolicy` — property; 1 signature
 - `auth` — property; 1 signature
 - `diagnosticsChannel` — method; 1 signature

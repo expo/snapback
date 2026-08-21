@@ -280,7 +280,9 @@ export interface AssetRecordWatchStore {
 }
 
 export declare function createAssetClient(
-  client: ConstructorParameters<typeof SnapbackAssetClient>[0],
+  client:
+    | import('./index.mjs').SnapbackClient
+    | ConstructorParameters<typeof SnapbackAssetClient>[0],
   options?: ConstructorParameters<typeof SnapbackAssetClient>[1],
 ): SnapbackAssetClient;
 

@@ -177,6 +177,12 @@ if (runConsistency) {
     ['--check'],
     ['typescript'],
   );
+  runExternalCheck(
+    'asset client minimal example packed typecheck',
+    'scripts/check-guide-asset-client-example.mjs',
+    ['--check'],
+    ['typescript'],
+  );
 }
 
 let corpus = null;

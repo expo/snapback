@@ -1,6 +1,6 @@
 # guide-gap: assets guide uses an accessor the published client does not expose
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 5
@@ -49,3 +49,21 @@ client used by this example.
 - A drift test fails if the documented accessor and published package surface
   diverge again.
 
+## Resolution
+
+Resolved 2026-08-21. The orchestrator ruled that
+`createAssetClient(client)` stays the public framework-neutral contract; no
+`.assets` facade was added because that would be an API change with parity
+obligations not justified by this documentation defect.
+
+The minimal Guide example now transcludes a complete TypeScript import and
+call fixture. The Guide consistency gate npm-packs the public client and
+contract packages into a fresh scaffold, typechecks that exact fixture, and
+asserts both the wrapper export and the continued absence of a raw-client
+`assets` facade. The packed check also exposed and repaired the declaration's
+omission of the runtime `SnapbackClient.baseUrl` property required by
+`createAssetClient`, so the ruled spelling compiles without a cast. Capability
+aliases and retrieval-eval case 59 route the observed `client.assets.start`
+spelling to the correction.
+
+Landing SHA: TBD

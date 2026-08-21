@@ -2967,13 +2967,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets, clients.asset-signed-delivery, clients.asset-upload]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, crates/snapback-services/src/assets.rs, crates/snapback-services/src/assets_cut.rs, crates/snapback-cli/src/cli.rs, crates/snapback-engine/src/local.rs, crates/snapback-server/src/server.rs, crates/snapback-server/src/server/asset_routes.rs, packages/snapback-client/assets.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
-examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs, packages/snapback-client/assets.test.mjs, packages/snapback-react/assets.test.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, crates/snapback-services/src/assets.rs, crates/snapback-services/src/assets_cut.rs, crates/snapback-cli/src/cli.rs, crates/snapback-engine/src/local.rs, crates/snapback-server/src/server.rs, crates/snapback-server/src/server/asset_routes.rs, packages/snapback-client/assets.d.mts, packages/snapback-client/assets.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/package.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs, packages/snapback-client/assets.test.mjs, packages/snapback-react/assets.test.mjs, tests/fixtures/guide-asset-client-accessor]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:ac2cd7a89de0a56f4add93da19c9e943c1fd38470c9d223c21fa404259320788
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:f5de8473ebe24952779b5536452d7d873ab92fe9d2505021d30deab9acd34469
 ---
 
 # Assets
@@ -3037,14 +3037,28 @@ profiles: defineTable({
 ```
 
 Upload under the derived reference (`defaults.<table>.<field>` in the
-generated api), then attach in any ordinary mutation:
+generated api), then attach in any ordinary mutation. The framework-neutral
+`SnapbackClient` deliberately has no `client.assets` namespace: wrap it with
+`createAssetClient(client)`. If you arrived by searching for
+`client.assets.start`, this is the public-package correction:
 
-```js fragment reason="client flow over the derived reference; conformance covers the transport"
+```ts source=tests/fixtures/guide-asset-client-accessor/asset-client-example.mts
+import {
+  SnapbackClient,
+  createAssetClient,
+} from '@expo/snapback-client';
 import { defaults } from './snapback/generated/api.mjs';
-const task = client.assets.start({ upload: defaults.profiles.avatar, file });
-// in a mutation handler:
-//   { avatar: await ctx.assets.attach(args.assetId) }
+
+export function startAvatarUpload(client: SnapbackClient, file: Blob) {
+  return createAssetClient(client).start({
+    upload: defaults.profiles.avatar,
+    file,
+  });
+}
 ```
+
+In a mutation handler, attach the resulting asset id with
+`{ avatar: await ctx.assets.attach(args.assetId) }`.
 
 Sized thumbnails need no declared variants either — request any width and
 the ladder rendition materializes once, then serves immutably:
