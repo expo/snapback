@@ -1,8 +1,11 @@
 # Investigate Familiar React degradation with six concurrent live subscriptions
 
-**Status:** Resolved — documented composition bound (category b)
+**Status:** Open — category (b) classification complete; pre-inconsistency
+client diagnostic still required
 **Systems:** React client, live queries, auth invalidation, outbox
 **Date:** 2026-08-20/21
+**Reopened:** 2026-08-21 — independent review showed Wanted #4 was not met;
+the inspect-only overload diagnostic is not an application-visible warning
 **Evidence:** Diary 0105 M2; frozen Clique `0.3.2-m8` two-client choreography
 on local commit `708e2e5c5348b5bb863cd7120afbafad9db99e9a`
 
@@ -52,12 +55,15 @@ Related: `issues/20260818-guide-gap-background-writes-during-auth-transitions.md
 owns the authoring recipe for the same suspension code, but not this
 multi-subscription investigation.
 
-## Resolution (2026-08-21)
+## Investigation status (2026-08-21; corrected after independent review)
 
-Classification: **(b) documented composition bound**, governed by LLP 0200
-§2.5 (cancellation, fairness, and bounded staleness). This is not an auth or
-outbox defect, and the observed false controls are not evidence that React
-lost hook ownership.
+The classification portion is complete: **(b) documented composition bound**,
+governed by LLP 0200 §2.5 (cancellation, fairness, and bounded staleness).
+Within the minimized fixture, post-settlement misses are not caused by auth
+suspension, queued-outbox congestion, disconnection, or lost React hook
+ownership. This does not close the ticket: Wanted #4 also requires a diagnostic
+before the UI becomes inconsistent or suspended, and no such client mechanism
+has shipped.
 
 The admission ceiling of 64 subscriptions per connection is a resource cap,
 not a latency guarantee. LLP 0200 defines scheduler capacity as pending
@@ -95,9 +101,11 @@ counts were exactly 6/12 in the independent arm and 1/2 in the relational arm.
 The same generated manifest, binary, sessions, rows, mutation, and observation
 logic were used; only the query composition changed.
 
-### Deterministic evidence
+### Retained characterization and deterministic gate
 
-Final retained run, six authenticated writes per arm:
+The initial retained run produced this characterization for six authenticated
+writes per arm. The exact miss count is load-sensitive evidence, not the test
+invariant:
 
 | Fact | Six independent references | One relational reference |
 |---|---:|---:|
@@ -112,12 +120,29 @@ Final retained run, six authenticated writes per arm:
 | Incoherent React renders, Alice | 25/40 | 0/9 |
 | Incoherent React renders, Bob | 29/43 | 0/10 |
 
-At every miss both coordinators were `phase: settled`, both terminal-auth facts
-were false, both providers reported ready/current live stores, both sockets
-were open, every outbox had `pending: 0` and `blockedReason: null`, and the
-transport recorder showed different per-reference snapshot versions. The
-server simultaneously recorded the overload conversion. All independent
-references eventually converged; none timed out or tore down.
+An independent review rerun observed 2/6 independent-reference misses rather
+than 6/6 and correctly rejected the old exact-count assertion. That variance is
+consistent with LLP 0200's capacity equation: host-dependent evaluation cost
+changes how many writes cross 15 seconds. The revised gate asserts the stable
+mechanism instead:
+
+- at least one independent-reference write misses the 15-second ceiling, while
+  the relational control has zero misses;
+- every miss has settled authenticated custody, non-terminal auth, live/current
+  React query states, unpaused live providers, open sockets, all 12 server
+  subscriptions, and concrete per-reference snapshot versions;
+- the fixture has no outbox-capable store (`outbox.supported: false`), every
+  settled-only Familiar mutation fulfills, and authorization-suspension count is
+  derived from captured mutation outcomes rather than written as a literal;
+- the independent arm records overload conversion while the relational control
+  does not; and
+- the scheduler performs exactly 72 finished, zero-abandoned turns for the six
+  references versus 12 finished, zero-abandoned turns for the relational
+  reference, after which every reference converges.
+
+The harness now refuses a stale configured runtime: the shared launch ladder
+must return a `verified` current-source identity, and the receipt retains the
+selected binary's SHA-256 digest.
 
 The immediately preceding 12-write characterization repeated the shape at
 larger N: 12/12 independent misses versus 0/12 relational misses, 98 versus 0
@@ -129,16 +154,18 @@ The original observation bundled two other application-level effects with the
 composition bound:
 
 - Familiar `useMutation` is the settled-only `queue: false` path (LLP 0253
-  §6.3). The frozen app's unhandled
+  §6.3), and this fixture intentionally installs no RQS/outbox store. The frozen
+  app's unhandled
   `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` rejection and the resulting Expo
-  overlay were not queued-outbox congestion and did not reproduce here.
+  overlay remain separate authority-transition evidence owned by the related
+  guide/state-matrix work; they did not reproduce here.
 - Independent references are independently versioned. Consuming partial
   readiness as one atomic UI state produced the frozen app's false controls;
   this fixture directly recorded the same transient disagreement. The
   relational reference removed it because one snapshot contains all six
   relations.
 
-### Mechanism decision and owning follow-up
+### Mechanism decision and outstanding exit
 
 No runtime/client mechanism is implemented in this lane. Parallelizing turns,
 changing scheduler capacity, or inventing a Familiar-only consistency promise
@@ -147,31 +174,45 @@ bounded mechanism is the one the benchmark discovered: compose route-atomic
 state into one bounded relational reference, or gate controls until every
 independent reference reaches the required application revision.
 
-The owning LLP 0200 follow-up should design a client-visible projection of the
-existing overload fact: carry a subscription-scoped pending/overload or
-convergence-watermark state to `useQueryState` (and provider diagnostics) when
-`SNAPBACK_LIVE_OVERLOAD_DEGRADE` fires. Polling `/inspect` is not an application
-mechanism. That design must preserve LLP 0200's latest-value, fail-closed,
-refresh-obligation, and typed-teardown semantics. LLP 0200 §2.5 currently says
-the client-visible staleness signal is future protocol surface, so adding it
-here without an owning decision would be scope expansion rather than a bounded
-repair.
+Polling `/inspect` is not an application mechanism and does not meet Wanted #4.
+The open D0.5/W4 decision packet at
+`issues/20260821-provider-connection-subscription-budget-decision.md` owns the
+supported independent-versus-aggregate envelope and the diagnostic emitted
+before that envelope is exceeded. The W5 design packet at
+`issues/20260821-app-boundary-runtime-cost-diagnostics-design.md` owns the
+bounded/redacted application projection. A follow-on implementation should
+carry the decided subscription-scoped pending/overload or convergence state to
+`useQueryState` and provider diagnostics while preserving LLP 0200's
+latest-value, fail-closed, refresh-obligation, and typed-teardown semantics.
 
-### Verification
+This ticket remains open until that client-visible diagnostic is implemented
+and an acceptance test proves it arrives before the first inconsistent or
+suspended UI observation. LLP 0200 §2.5 calls the stale marker future protocol
+surface, so the classification harness cannot truthfully claim that exit by
+observing the server's existing overload fact after a miss.
 
-- `scripts/bootstrap-ibex-runtime` — passed exact current-checkout link,
-  launch, and restricted no-eval handler-VM qualification. Three earlier
-  attempts retained partial target work but hit
-  `SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT` under concurrent clean-worktree builds;
-  none reported missing symbols or a runtime failure.
-- Familiar fixture codegen smoke — passed; only the repository's known
-  pre-0264 table-write posture advisories were emitted.
+### Verification record
+
+- `scripts/bootstrap-ibex-runtime` — passed on the final rerun by reusing the
+  exact-current-revision, digest-bound readiness receipt. An earlier
+  review-reconciliation attempt linked but timed out during the launch probe
+  while other worktrees were compiling; `scripts/ibex-doctor` found the
+  runtime inputs and Hermes loader artifacts healthy.
+- `target/debug/snapback runtime-qualify` with dynamic-loader overrides
+  scrubbed — passed the restricted no-eval handler-VM probe and reported
+  commit `201f74e9c562ccbb729767ff4a0e7ce29e662ed3`, `gitDirty: false`.
+- Familiar fixture codegen smoke — passed inside the acceptance harness; only
+  the repository's known pre-0264 table-write posture advisories were emitted.
 - `node --check tests/acceptance/familiar-six-subscription-contention-v1.mjs`
   — passed.
-- `node tests/acceptance/familiar-six-subscription-contention-v1.mjs` — passed
-  with the final state and comparison above. React's deprecated test renderer
-  emitted two non-fatal `act(...)` notices during asynchronous connection-state
-  publication; live frame delivery itself is instrumented inside `act(...)`.
+- `node tests/acceptance/familiar-six-subscription-contention-v1.mjs` — the
+  original 6/6 exact-count gate passed once, then failed under independent
+  review with 2/6. The corrected mechanism gate passed with 5/6 independent
+  misses versus 0/6 relational misses, 47 versus 0 overload conversions,
+  72 versus 12 finished scheduler turns, zero abandoned turns, all 12
+  mutations fulfilled, and zero authorization suspensions. The server identity
+  was `verified`; the receipt recorded SHA-256
+  `63ff2fa3331c953641f638789406471b7b7cf959f4190f530890208f6aa6a501`.
 - `./ref-check --verbose` — passed: 296 LLP documents, 5,982 references in
   11,216 files, zero errors and zero unchecked references.
 - `node scripts/check-inventories.mjs` — ran and stopped on inherited inputs

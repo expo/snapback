@@ -9,9 +9,10 @@
 // are part of the reproduction rather than a source-checkout approximation.
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
@@ -271,6 +272,142 @@ function reactSummary(surface) {
   };
 }
 
+function diagnosticCode(error) {
+  return error?.diagnostic?.code ?? error?.code ?? null;
+}
+
+function liveEvaluationDelta(arm, field) {
+  const before = arm.before.server.liveEvaluation?.[field];
+  const after = arm.after.server.liveEvaluation?.[field];
+  assert.equal(Number.isSafeInteger(before), true, `${arm.arm} before ${field} must be inspectable`);
+  assert.equal(Number.isSafeInteger(after), true, `${arm.arm} after ${field} must be inspectable`);
+  return after - before;
+}
+
+function assertPrincipalAvailable(principal, {
+  context,
+  expectedSubscriptions,
+}) {
+  assert.equal(principal.auth.phase, 'settled', `${context} auth must be settled`);
+  assert.equal(principal.auth.authority?.kind, 'session', `${context} must retain session authority`);
+  assert.equal(
+    principal.auth.authority?.isAuthenticated,
+    true,
+    `${context} must retain authenticated authority`,
+  );
+  assert.equal(principal.auth.terminal?.terminated, false, `${context} auth must not be terminal`);
+
+  // asUser deliberately installs no RQS store. That makes queued outbox work
+  // structurally unavailable; pending:0 alone would be a tautology and is not
+  // used as evidence against an outbox explanation.
+  assert.equal(principal.outbox.supported, false, `${context} must have no queued outbox`);
+
+  assert.equal(principal.subscriptions.provider.terminal, false, `${context} provider must be live`);
+  assert.equal(
+    principal.subscriptions.provider.custodyPaused,
+    false,
+    `${context} provider custody must not be paused`,
+  );
+  assert.equal(
+    principal.subscriptions.provider.hostPaused,
+    false,
+    `${context} provider host must not be paused`,
+  );
+  assert.equal(
+    principal.subscriptions.provider.stores,
+    expectedSubscriptions,
+    `${context} provider store count`,
+  );
+  assert.equal(
+    principal.subscriptions.provider.serverSubscriptions,
+    expectedSubscriptions,
+    `${context} provider subscription count`,
+  );
+  assert.equal(
+    principal.subscriptions.client.managerCount,
+    1,
+    `${context} must retain one client connection manager`,
+  );
+  assert.equal(
+    principal.subscriptions.client.managers[0]?.open,
+    true,
+    `${context} client socket must be open`,
+  );
+  assert.equal(
+    principal.subscriptions.client.managers[0]?.closed,
+    false,
+    `${context} client socket must not be closed`,
+  );
+
+  const states = principal.snapshot.last?.states ?? {};
+  assert.equal(
+    Object.keys(states).length,
+    expectedSubscriptions,
+    `${context} must retain every React query state`,
+  );
+  for (const [reference, state] of Object.entries(states)) {
+    assert.ok(
+      state.status === 'ready' || state.status === 'refreshing',
+      `${context} ${reference} must remain ready or refreshing`,
+    );
+    assert.equal(state.connection, 'live', `${context} ${reference} connection must remain live`);
+    assert.equal(state.freshness, 'current', `${context} ${reference} must remain current`);
+    assert.equal(state.errorCode, null, `${context} ${reference} must have no query error`);
+  }
+}
+
+function assertArmBoundaryFacts(arm) {
+  for (const [boundary, state] of [['before', arm.before], ['after', arm.after]]) {
+    for (const [label, principal] of Object.entries(state.principals)) {
+      assertPrincipalAvailable(principal, {
+        context: `${arm.arm} ${boundary} ${label}`,
+        expectedSubscriptions: arm.expectedSubscriptionsPerPrincipal,
+      });
+    }
+  }
+}
+
+function assertMissClassificationFacts(arm, miss) {
+  const expectedSubscriptions = arm.expectedSubscriptionsPerPrincipal;
+  for (const [label, principal] of Object.entries(miss.state.principals)) {
+    const context = `${arm.arm} revision ${miss.revision} miss ${label}`;
+    assertPrincipalAvailable(principal, { context, expectedSubscriptions });
+    const transport = Object.values(principal.transport);
+    assert.equal(
+      transport.length,
+      expectedSubscriptions,
+      `${context} must retain transport facts for every reference`,
+    );
+    const lastVersions = transport
+      .map((reference) => reference.lastVersion)
+      .filter((version) => Number.isSafeInteger(version));
+    assert.equal(
+      lastVersions.length,
+      expectedSubscriptions,
+      `${context} must retain every transport snapshot version`,
+    );
+    assert.ok(
+      lastVersions.every((version) => version >= 0),
+      `${context} must report a non-negative version for every reference`,
+    );
+  }
+  assert.equal(
+    miss.state.server.subscriptions,
+    expectedSubscriptions * Object.keys(miss.state.principals).length,
+    `${arm.arm} revision ${miss.revision} must retain every server subscription`,
+  );
+  const beforeOverloads = (
+    arm.before.server.recentDiagnostics.SNAPBACK_LIVE_OVERLOAD_DEGRADE ?? 0
+  );
+  const missOverloads = (
+    miss.state.server.recentDiagnostics.SNAPBACK_LIVE_OVERLOAD_DEGRADE ?? 0
+  );
+  assert.ok(
+    missOverloads > beforeOverloads,
+    `${arm.arm} revision ${miss.revision} must coincide with an overload conversion`,
+  );
+}
+
 async function mountSurface({ arm, session, label, binding, api, labels }) {
   const connectionId = `familiar-contention-${arm}-${label}`;
   const provider = createSnapbackReactCoreProvider(binding, { connectionId });
@@ -424,6 +561,7 @@ async function runArm({
     const convergenceLatencies = [];
     const totalLatencies = [];
     const misses = [];
+    const mutationOutcomes = [];
     for (let offset = 0; offset < writesPerArm; offset += 1) {
       const writerIndex = offset % sessions.length;
       const writer = sessions[writerIndex];
@@ -431,8 +569,24 @@ async function runArm({
       const enabled = revision % 2 === 0;
       const started = performance.now();
       let mutationResult;
-      await act(async () => {
-        mutationResult = await surfaces[writerIndex].mutate({ revision, enabled });
+      try {
+        await act(async () => {
+          mutationResult = await surfaces[writerIndex].mutate({ revision, enabled });
+        });
+      } catch (error) {
+        mutationOutcomes.push({
+          revision,
+          writer: writer.label,
+          status: 'rejected',
+          code: diagnosticCode(error),
+        });
+        throw error;
+      }
+      mutationOutcomes.push({
+        revision,
+        writer: writer.label,
+        status: 'fulfilled',
+        code: null,
       });
       const settled = performance.now();
       const settlementMs = Math.round(settled - started);
@@ -452,6 +606,11 @@ async function runArm({
           afterSettlementMs: Math.round(performance.now() - settled),
           state: compactMissState(miss),
         });
+        assertMissClassificationFacts({
+          arm,
+          expectedSubscriptionsPerPrincipal: expectedSubscriptions,
+          before,
+        }, misses.at(-1));
         try {
           await until(
             () => surfaces.every((surface) => tablesMatch(surface.current.tables, expected, labels)),
@@ -475,8 +634,7 @@ async function runArm({
       totalLatencies.push(Math.round(converged - started));
       for (const { session } of sessions) {
         const outbox = await session.client.outboxStatus();
-        assert.equal(outbox.pending, 0);
-        assert.equal(outbox.blockedReason, null);
+        assert.equal(outbox.supported, false, `${arm} intentionally has no queued outbox`);
         assert.equal(session.client.authTerminalStatus().terminated, false);
       }
     }
@@ -486,6 +644,7 @@ async function runArm({
       writes: writesPerArm,
       observationCeilingMs,
       expectedSubscriptionsPerPrincipal: expectedSubscriptions,
+      mutationOutcomes,
       misses,
       before,
       after,
@@ -525,9 +684,25 @@ try {
     db: ':memory:',
     cwd: repositoryRoot,
     startupArtifacts,
-    serverBinary: join(repositoryRoot, 'target', 'debug', 'snapback'),
     captureImpersonationCapability: true,
   });
+  assert.equal(
+    server.identity?.verdict,
+    'verified',
+    `contention qualification requires a current-source server, got ${JSON.stringify(server.identity)}`,
+  );
+  const selectedServerBinary = resolve(
+    repositoryRoot,
+    server.runtimeRecovery?.selectedBinary ?? '',
+  );
+  assert.notEqual(
+    server.runtimeRecovery?.selectedBinary,
+    undefined,
+    'server launch must report the selected runtime binary',
+  );
+  const serverBinarySha256 = createHash('sha256')
+    .update(await readFile(selectedServerBinary))
+    .digest('hex');
   const alice = await asUser(server, schema.appId, 'alice@familiar-contention.test', {
     clientStoreId: 'familiar-contention-alice',
   });
@@ -577,10 +752,11 @@ try {
       relationalReference.before.server.recentDiagnostics.SNAPBACK_LIVE_OVERLOAD_DEGRADE ?? 0
     ),
   };
-  assert.equal(
-    sixReferences.misses.length,
-    writesPerArm,
-    'six independent references must reproduce the post-settlement contention miss',
+  assertArmBoundaryFacts(sixReferences);
+  assertArmBoundaryFacts(relationalReference);
+  assert.ok(
+    sixReferences.misses.length > 0,
+    'six independent references must reproduce at least one post-settlement contention miss',
   );
   assert.equal(
     relationalReference.misses.length,
@@ -596,6 +772,38 @@ try {
     0,
     'the relational control must not record an overload conversion',
   );
+  const schedulerTurns = {
+    sixReferences: {
+      started: liveEvaluationDelta(sixReferences, 'evaluationsStarted'),
+      finished: liveEvaluationDelta(sixReferences, 'evaluationsFinished'),
+      abandoned: liveEvaluationDelta(sixReferences, 'evaluationsAbandoned'),
+    },
+    relationalReference: {
+      started: liveEvaluationDelta(relationalReference, 'evaluationsStarted'),
+      finished: liveEvaluationDelta(relationalReference, 'evaluationsFinished'),
+      abandoned: liveEvaluationDelta(relationalReference, 'evaluationsAbandoned'),
+    },
+  };
+  assert.deepEqual(
+    schedulerTurns.sixReferences,
+    { started: writesPerArm * 12, finished: writesPerArm * 12, abandoned: 0 },
+    'six references for two principals must consume twelve scheduler turns per write',
+  );
+  assert.deepEqual(
+    schedulerTurns.relationalReference,
+    { started: writesPerArm * 2, finished: writesPerArm * 2, abandoned: 0 },
+    'one relational reference for two principals must consume two scheduler turns per write',
+  );
+  const mutationOutcomes = [
+    ...sixReferences.mutationOutcomes,
+    ...relationalReference.mutationOutcomes,
+  ];
+  const mutationFailures = mutationOutcomes.filter((outcome) => outcome.status !== 'fulfilled');
+  const authorizationSuspensions = mutationOutcomes.filter(
+    (outcome) => outcome.code === 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED',
+  ).length;
+  assert.equal(mutationFailures.length, 0, 'every settled-only Familiar mutation must fulfill');
+  assert.equal(authorizationSuspensions, 0, 'no mutation may hit authorization suspension');
   const receipt = {
     schemaVersion: 'snapback.familiar-six-subscription-contention.v1',
     ok: true,
@@ -608,9 +816,20 @@ try {
     classificationEvidence: {
       sixReferenceMisses: sixReferences.misses.length,
       relationalReferenceMisses: relationalReference.misses.length,
-      authorizationSuspensions: 0,
-      outboxPendingMaximum: 0,
+      mutationOutcomes,
+      authorizationSuspensions,
+      outbox: {
+        supported: false,
+        reason: 'asUser installs rqsStore:null; Familiar useMutation is queue:false',
+      },
       overloadDegrades,
+      schedulerTurns,
+    },
+    runtime: {
+      launchRung: server.launch?.rung ?? null,
+      identity: server.identity,
+      serverBinary: selectedServerBinary,
+      serverBinarySha256,
     },
     arms: [sixReferences, relationalReference],
   };

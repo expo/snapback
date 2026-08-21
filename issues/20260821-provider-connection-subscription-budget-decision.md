@@ -15,10 +15,11 @@ The public ceiling on individual subscriptions is not an application
 composition contract. Matrix adapters independently opened connections,
 nested reads inside update callbacks, rebuilt streams during auth settlement,
 and fanned one stream per visible entity. Separately, six ordinary Familiar
-React subscriptions showed a probable liveness/consistency problem that
-disappeared when consolidated. Without explicit ownership and budgets, neither
-authors nor diagnostics can distinguish supported composition, inefficient
-composition, and product defect.
+React subscriptions showed an LLP 0200 overload/convergence delay that
+disappeared when consolidated; the classification fixture still lacks a
+client-visible warning before inconsistent UI. Without explicit ownership and
+budgets, neither authors nor diagnostics can distinguish supported composition,
+inefficient composition, and product defect.
 
 ## Decision packet
 

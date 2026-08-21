@@ -8,7 +8,11 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-21 (LLP 0294 stratum registration: records the early-Expo
+**Revised:** 2026-08-21 (1D review reconciliation: the six-subscription
+observation is classified as LLP 0200 overload with a mechanism-sensitive
+fixture; the investigation remains open until a client-visible diagnostic
+precedes inconsistent UI);
+2026-08-21 (LLP 0294 stratum registration: records the early-Expo
 current-main contradictions as a third evidence stratum for the vertical
 paved-path coherence invariant, extends the invariant/W1/R1 language to the
 Expo/native client arm, and adds externally-owned demand-evidence routing rows
@@ -63,9 +67,11 @@ lost its M1 advantage in M2/M3 while the builder reconciled live projections,
 membership authority, and capability exports. It confirmed that the Familiar
 Guide's nullable-document/value result forms and membership `resourceField:
 "_id"` spelling disagree with current generated/runtime contracts. The run
-also found one probable six-subscription client/live defect and a 489 MB debug
-binary. Those are routed investigations, not established causes or release
-regressions. Their value here is that they sharpen the program's order: make
+also found one six-subscription composition-sensitive live delay and a 489 MB
+debug binary. The delay is now classified as LLP 0200 overload rather than a
+client defect, but its pre-inconsistency client diagnostic remains open. The
+binary remains a routed investigation, not an established cause or release
+regression. Their value here is that they sharpen the program's order: make
 the declared path coherent and live under ordinary composition before adding
 more surface vocabulary.
 
@@ -451,14 +457,18 @@ requires a cold retrieval probe, not only prose presence.
 - existing `issues/20260816-write-posture-migration-closure.md`
 
 These are deliberately not all called straight repairs. The subscription case
-first needs a minimized two-principal, six-reference reproduction that records
-auth, outbox, snapshot, and subscription state and compares one equivalent
-relational reference. The binary case first needs like-for-like builds around
+now has a minimized two-principal, six-reference reproduction that records and
+asserts auth, outbox availability, snapshot, connection, subscription, and
+scheduler state against one equivalent relational reference. It classifies the
+delay as LLP 0200 overload without treating a load-sensitive exact miss count as
+the invariant. The ticket remains open for D0.5/W4's client-visible diagnostic
+before inconsistent UI. The binary case still needs like-for-like builds around
 the suspected refactor, linker/crate attribution, and a recorded link-time and
-size baseline. Only then may either investigation choose a mechanism.
+size baseline before choosing a mechanism.
 
-Exit: the subscription observation is classified as product defect, documented
-composition bound, or benchmark-app defect with deterministic evidence; the
+Exit: the subscription observation is classified as a documented composition
+bound with mechanism-sensitive evidence, while its ticket separately stays open
+for the promised pre-inconsistency diagnostic; the
 debug artifact has causal attribution and an explicit developer profile rather
 than blind stripping; repeated migration advisories are grouped by semantic
 repair so 17-19 instances do not bury the useful generation summary.
