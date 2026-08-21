@@ -269,6 +269,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'activity-presence.test.mjs',
       'app-binding.test.mjs',
       'asset-source.test.mjs',
+      'auth-partition-digest.test.mjs',
       'config-plugin.test.mjs',
       'expo-sqlite-carrier.test.mjs',
       'metro-first-render.test.mjs',
@@ -555,7 +556,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 316,
+  expectedTotal = 317,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1020,6 +1021,9 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-react gains the five-scenario settled-authority successor suite.
 // 315 -> 316 (2026-08-21, LLP 0295 1A): @expo/snapback-vite gains the packed
 // external password/recovery relay lifecycle proof.
+// 316 -> 317 (2026-08-21, LLP 0181 native auth digest):
+// @expo/snapback-expo gains WebCrypto/iOS/Android partition parity and the
+// hashing-versus-secure-randomness capability-separation suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

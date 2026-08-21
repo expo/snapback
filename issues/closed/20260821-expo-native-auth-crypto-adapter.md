@@ -1,6 +1,6 @@
 # Resolve Expo native auth crypto without a consumer polyfill
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 3
@@ -48,3 +48,26 @@ auth-bootstrap implementation.
 - Missing native module, digest failure, and unavailable secure randomness
   remain distinct actionable refusals.
 
+## Resolution
+
+The Expo provider now owns a SHA-256-only `expo-crypto` adapter and passes that
+narrow capability into the common LLP 0258 application-client custody owner.
+The client continues to own the canonical UTF-8 transcript and returns the
+same partition identity for WebCrypto, iOS, and Android adapter vectors. The
+adapter deliberately exposes no random-byte API and creates no alternate
+session or custody store.
+
+Provider integration tests run with `globalThis.crypto` absent and distinguish
+an absent or unlinked native module
+(`SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE`), a resolved module whose
+digest fails (`SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED`), and independently
+unavailable secure randomness (`SNAPBACK_CLIENT_WEBCRYPTO_RNG_MISSING`). The
+packed local-source Expo closure now carries an offline `expo-crypto` fixture,
+and the Guide's zero-consumer-polyfill claim names the boundary explicitly.
+
+Simulator execution was attempted on the implementation host, but `xcrun`
+could not locate `simctl` and `adb` was not installed. Native execution is
+therefore evidenced here by OS-labeled parity vectors, provider integration,
+and the packed closure proof rather than a launched simulator.
+
+**Landing SHA:** TBD

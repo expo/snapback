@@ -53,9 +53,11 @@ assert.doesNotMatch(webAppStateSource, /import\('react-native'\)/u);
 assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
   '@expo/snapback-client',
   '@expo/snapback-react',
+  'expo-crypto',
   'expo-device',
   'expo-sqlite',
 ]);
+assert.equal(manifest.dependencies['expo-crypto'], '~57.0.1');
 assert.equal(manifest.dependencies['expo-device'], '~57.0.1');
 assert.equal(manifest.dependencies['expo-sqlite'], '~57.0.1');
 assert.equal(files.has('expo-sqlite-carrier.mjs'), true);
@@ -109,6 +111,7 @@ const productionSources = [
   'asset-source.mjs',
   'activity-presence.mjs',
   'lifecycle-source.mjs',
+  'expo-crypto-digest.mjs',
   'expo-sqlite-carrier.mjs',
   'expo-sqlite-target.mjs',
 ]
@@ -131,6 +134,13 @@ assert.doesNotMatch(
   readFileSync(new URL('../snapback-client/index.mjs', import.meta.url), 'utf8'),
   /expo-sqlite/u,
   'the universal client root does not import the native Expo module',
+);
+assert.match(providerSource, /require\('expo-crypto'\)/u,
+  'Expo provider owns the guarded native digest-module import');
+assert.doesNotMatch(
+  readFileSync(new URL('../snapback-client/app-client.mjs', import.meta.url), 'utf8'),
+  /from ['"]expo-crypto['"]|require\(['"]expo-crypto['"]\)/u,
+  'the universal application client accepts a digest adapter without importing Expo',
 );
 
 console.log('package.test.mjs: exports, public-only dependencies, React aliases, and production closure pass');

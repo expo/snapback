@@ -30,6 +30,7 @@ export type {
   SnapbackAppClientPlatform,
   SnapbackApplicationDescriptorV1,
   SnapbackAuthFacade,
+  SnapbackSha256DigestAdapter,
 } from './app-client.mjs';
 export {
   ARGUMENT_NORMALIZATION_VERSION,

@@ -4,7 +4,14 @@ import type {
   SnapbackAppClient,
   SnapbackAppClientPlatform,
   SnapbackApplicationDescriptorV1,
+  SnapbackSha256DigestAdapter,
 } from './app-client.mjs';
+
+export function authStoragePartitionIdentityHash(
+  appId: string,
+  storagePartition: string,
+  platform: SnapbackAppClientPlatform,
+): Promise<`sha256:${string}`>;
 
 export function classifyHostedDevelopmentHostname(
   hostname: string,
@@ -26,12 +33,13 @@ export function createSnapbackAppClientWithBootstrapObserver(
 export function createProviderValidatedExpoNativePlatform(input: Readonly<{
   authCustodyStorage: Extract<SnapbackAppClientPlatform, { kind: 'expo-native' }>['authCustodyStorage'];
   authCustodyGrade: Readonly<{
-    os: 'android';
+    os: 'android' | 'ios';
     grade: 'single-runtime';
     mechanism: unknown;
     readonly [key: string]: unknown;
   }>;
   cryptoObject?: unknown;
+  digestAdapter?: SnapbackSha256DigestAdapter;
 }>): Extract<SnapbackAppClientPlatform, { kind: 'expo-native' }>;
 
 export function applicationDescriptorForAppClient(

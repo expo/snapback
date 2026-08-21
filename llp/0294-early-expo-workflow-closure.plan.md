@@ -29,7 +29,7 @@ issues/20260819-minimal-expo-starter.md,
 issues/20260819-readme-notifications-capability-overclaim.md,
 issues/closed/20260821-guide-gap-asset-client-accessor-mismatch.md,
 issues/20260821-guest-session-client-entry.md,
-issues/20260821-expo-native-auth-crypto-adapter.md,
+issues/closed/20260821-expo-native-auth-crypto-adapter.md,
 issues/20260821-expo-supervised-binding-refresh.md,
 issues/20260821-guide-gap-capability-link-app-flows.md,
 issues/20260821-starter-verify-provenance-warning.md,
@@ -280,7 +280,7 @@ The guest route is a security-bearing feature and waits for its owner review.
 The crypto and binding-refresh defects are straight repairs and should proceed
 first with packed native witnesses. Tracked by
 `issues/20260821-guest-session-client-entry.md`,
-`issues/20260821-expo-native-auth-crypto-adapter.md`, and
+`issues/closed/20260821-expo-native-auth-crypto-adapter.md`, and
 `issues/20260821-expo-supervised-binding-refresh.md`.
 
 ### W7 — Turn shipped primitives into discoverable application workflows

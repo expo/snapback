@@ -248,6 +248,8 @@ export interface SnapbackExpoEnvironmentV1 {
   }>): SnapbackAppClientPlatform | Promise<SnapbackAppClientPlatform>;
   /** Narrow host-OS seam used before the evidence-gated native custody load. */
   resolveNativeAuthCustodyOperatingSystem?(): string | Promise<string>;
+  /** Test/host seam for the provider-owned hashing-only expo-crypto adapter. */
+  resolveNativeAuthDigestModule?(): unknown | Promise<unknown>;
   /** Test/host seams for exact Expo SQLite target-cell resolution. */
   resolveExpoSqliteOperatingSystem?(): string | Promise<string>;
   resolveExpoSqliteRuntimeKind?(): string | Promise<string>;

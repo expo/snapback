@@ -2,17 +2,17 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:44edee5695d60e1c87b19c5edd38eeb469dca4df808f1f4be88ca71ccde780af"
+    "sourceDigest": "sha256:f375538ace5ab0e9cb4b823fbf004a999e64855a56eb5518b66509cbd48210df"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 3442,
-    "sourceFiles": 586,
-    "emittingSites": 11876,
+    "codes": 3446,
+    "sourceFiles": 587,
+    "emittingSites": 11892,
     "httpClassified": 1030,
-    "guideAnchored": 422
+    "guideAnchored": 424
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -6983,7 +6983,7 @@
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 250,
+          "line": 282,
           "column": 6
         }
       ],
@@ -7036,7 +7036,7 @@
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 251,
+          "line": 283,
           "column": 6
         }
       ],
@@ -7146,7 +7146,7 @@
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 420,
+          "line": 453,
           "column": 23
         },
         {
@@ -7293,7 +7293,7 @@
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 252,
+          "line": 284,
           "column": 6
         }
       ],
@@ -7378,7 +7378,7 @@
       "sites": [
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 412,
+          "line": 445,
           "column": 23
         },
         {
@@ -14281,32 +14281,32 @@
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 559,
+          "line": 592,
           "column": 31
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 570,
+          "line": 603,
           "column": 51
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 578,
+          "line": 611,
           "column": 23
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 763,
+          "line": 796,
           "column": 59
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 771,
+          "line": 804,
           "column": 27
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 796,
+          "line": 829,
           "column": 33
         },
         {
@@ -16557,7 +16557,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1078,
+          "line": 1149,
           "column": 8
         },
         {
@@ -16617,42 +16617,42 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1112,
+          "line": 1183,
           "column": 8
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1115,
+          "line": 1186,
           "column": 24
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1139,
+          "line": 1210,
           "column": 8
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1142,
+          "line": 1213,
           "column": 24
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1152,
+          "line": 1223,
           "column": 8
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1155,
+          "line": 1226,
           "column": 24
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1166,
+          "line": 1237,
           "column": 8
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1169,
+          "line": 1240,
           "column": 24
         },
         {
@@ -16706,18 +16706,107 @@
       "guideAnchor": null,
       "guideAnchors": []
     },
+    "SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED": {
+      "code": "SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED",
+      "subsystem": "auth",
+      "sites": [
+        {
+          "file": "packages/snapback-client/app-client.mjs",
+          "line": 728,
+          "column": 24
+        },
+        {
+          "file": "packages/snapback-client/app-client.mjs",
+          "line": 732,
+          "column": 8
+        },
+        {
+          "file": "packages/snapback-client/app-client.mjs",
+          "line": 739,
+          "column": 24
+        },
+        {
+          "file": "packages/snapback-client/app-client.mjs",
+          "line": 749,
+          "column": 8
+        },
+        {
+          "file": "packages/snapback-client/app-client.mjs",
+          "line": 752,
+          "column": 24
+        },
+        {
+          "file": "packages/snapback-expo/expo-crypto-digest.mjs",
+          "line": 84,
+          "column": 12
+        },
+        {
+          "file": "packages/snapback-expo/expo-crypto-digest.mjs",
+          "line": 91,
+          "column": 12
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": "/_snapback/guide/clients/react-expo.md#crypto-prerequisites-react-native-ships-no-webcrypto",
+      "guideAnchors": [
+        "/_snapback/guide/clients/react-expo.md#crypto-prerequisites-react-native-ships-no-webcrypto"
+      ]
+    },
+    "SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE": {
+      "code": "SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE",
+      "subsystem": "auth",
+      "sites": [
+        {
+          "file": "packages/snapback-client/app-client.mjs",
+          "line": 711,
+          "column": 8
+        },
+        {
+          "file": "packages/snapback-client/app-client.mjs",
+          "line": 714,
+          "column": 24
+        },
+        {
+          "file": "packages/snapback-client/app-client.mjs",
+          "line": 724,
+          "column": 24
+        },
+        {
+          "file": "packages/snapback-expo/expo-crypto-digest.mjs",
+          "line": 39,
+          "column": 6
+        },
+        {
+          "file": "packages/snapback-expo/provider.mjs",
+          "line": 147,
+          "column": 26
+        },
+        {
+          "file": "packages/snapback-expo/provider.mjs",
+          "line": 286,
+          "column": 6
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": "/_snapback/guide/clients/react-expo.md#crypto-prerequisites-react-native-ships-no-webcrypto",
+      "guideAnchors": [
+        "/_snapback/guide/clients/react-expo.md#crypto-prerequisites-react-native-ships-no-webcrypto"
+      ]
+    },
     "SNAPBACK_AUTH_BOOTSTRAP_FAILED": {
       "code": "SNAPBACK_AUTH_BOOTSTRAP_FAILED",
       "subsystem": "auth",
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 817,
+          "line": 888,
           "column": 49
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 834,
+          "line": 905,
           "column": 10
         },
         {
@@ -16737,7 +16826,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 561,
+          "line": 577,
           "column": 8
         },
         {
@@ -16772,12 +16861,12 @@
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1201,
+          "line": 1272,
           "column": 6
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1216,
+          "line": 1287,
           "column": 6
         },
         {
@@ -16817,22 +16906,27 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 522,
+          "line": 523,
           "column": 8
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 539,
+          "line": 544,
           "column": 8
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 683,
+          "line": 555,
           "column": 8
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 823,
+          "line": 699,
+          "column": 8
+        },
+        {
+          "file": "packages/snapback-client/app-client.mjs",
+          "line": 894,
           "column": 23
         },
         {
@@ -16877,7 +16971,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1094,
+          "line": 1165,
           "column": 8
         },
         {
@@ -16897,7 +16991,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1065,
+          "line": 1136,
           "column": 8
         },
         {
@@ -16917,7 +17011,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 603,
+          "line": 619,
           "column": 8
         }
       ],
@@ -17127,7 +17221,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1384,
+          "line": 1455,
           "column": 12
         }
       ],
@@ -18040,22 +18134,22 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 624,
+          "line": 640,
           "column": 10
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 730,
+          "line": 800,
           "column": 10
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 750,
+          "line": 820,
           "column": 10
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 822,
+          "line": 893,
           "column": 33
         },
         {
@@ -18070,7 +18164,7 @@
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 102,
+          "line": 106,
           "column": 17
         }
       ],
@@ -18090,17 +18184,17 @@
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 710,
+          "line": 780,
           "column": 24
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 771,
+          "line": 841,
           "column": 24
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 789,
+          "line": 860,
           "column": 22
         },
         {
@@ -18285,7 +18379,7 @@
       "sites": [
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 176,
+          "line": 209,
           "column": 21
         }
       ],
@@ -18728,7 +18822,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1263,
+          "line": 1334,
           "column": 12
         }
       ],
@@ -18743,7 +18837,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1232,
+          "line": 1303,
           "column": 6
         }
       ],
@@ -18758,12 +18852,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1180,
+          "line": 1251,
           "column": 6
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1183,
+          "line": 1254,
           "column": 22
         }
       ],
@@ -23560,7 +23654,7 @@
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 825,
+          "line": 896,
           "column": 23
         },
         {
@@ -23585,22 +23679,22 @@
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 234,
+          "line": 266,
           "column": 37
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 486,
+          "line": 519,
           "column": 49
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 558,
+          "line": 591,
           "column": 31
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 795,
+          "line": 828,
           "column": 33
         },
         {
@@ -24683,12 +24777,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1190,
+          "line": 1261,
           "column": 6
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1193,
+          "line": 1264,
           "column": 22
         },
         {
@@ -27596,17 +27690,17 @@
       "sites": [
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 856,
+          "line": 927,
           "column": 6
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 887,
+          "line": 958,
           "column": 45
         },
         {
           "file": "packages/snapback-client/app-client.mjs",
-          "line": 1681,
+          "line": 1754,
           "column": 4
         },
         {
@@ -46264,12 +46358,12 @@
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 63,
+          "line": 67,
           "column": 25
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 67,
+          "line": 71,
           "column": 20
         }
       ],
@@ -46294,7 +46388,7 @@
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 253,
+          "line": 285,
           "column": 6
         },
         {
@@ -46378,6 +46472,36 @@
           "file": "packages/snapback-cli/expo-dev.mjs",
           "line": 1757,
           "column": 22
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_EXPO_CRYPTO_DIGEST_INVALID": {
+      "code": "SNAPBACK_EXPO_CRYPTO_DIGEST_INVALID",
+      "subsystem": "expo",
+      "sites": [
+        {
+          "file": "packages/snapback-expo/expo-crypto-digest.mjs",
+          "line": 94,
+          "column": 20
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_EXPO_CRYPTO_MODULE_INVALID": {
+      "code": "SNAPBACK_EXPO_CRYPTO_MODULE_INVALID",
+      "subsystem": "expo",
+      "sites": [
+        {
+          "file": "packages/snapback-expo/expo-crypto-digest.mjs",
+          "line": 66,
+          "column": 16
         }
       ],
       "httpStatus": null,
@@ -46496,22 +46620,22 @@
       "sites": [
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 402,
+          "line": 435,
           "column": 23
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 589,
+          "line": 622,
           "column": 23
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 673,
+          "line": 706,
           "column": 31
         },
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 716,
+          "line": 749,
           "column": 25
         },
         {
@@ -46944,7 +47068,7 @@
       "sites": [
         {
           "file": "packages/snapback-expo/provider.mjs",
-          "line": 908,
+          "line": 941,
           "column": 19
         }
       ],

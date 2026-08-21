@@ -94,6 +94,12 @@ export type SnapbackAppBindingV1 = Readonly<{
     }>
 );
 
+/** SHA-256 only. This capability carries no secure-randomness authority. */
+export type SnapbackSha256DigestAdapter = Readonly<{
+  format: 'snapback.sha256-digest.v1';
+  digest(input: Uint8Array): Promise<ArrayBuffer | Uint8Array>;
+}>;
+
 export type SnapbackAppClientPlatform =
   | 'browser'
   | 'expo-web'
@@ -109,6 +115,7 @@ export type SnapbackAppClientPlatform =
       indexedDB?: unknown;
       lockManager?: unknown;
       cryptoObject?: unknown;
+      digestAdapter?: SnapbackSha256DigestAdapter;
       databaseName?: string;
     }>
   | Readonly<{
@@ -125,6 +132,8 @@ export type SnapbackAppClientPlatform =
         }>>;
       }>;
       cryptoObject?: unknown;
+      /** Hashing-only adapter; never interpreted as a secure RNG. */
+      digestAdapter?: SnapbackSha256DigestAdapter;
     }>;
 
 export type PublicAuthCustodyFacts = Readonly<{

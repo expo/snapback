@@ -32,6 +32,7 @@ assert.equal(
   false,
   'the published framework subpath must not expose raw hosted admission',
 );
+assert.equal(typeof appClientInternal.authStoragePartitionIdentityHash, 'function');
 
 assert.equal(typeof SnapbackClient, 'function');
 assert.equal(admitSnapbackId('todos', 'todo_01'), 'todo_01');

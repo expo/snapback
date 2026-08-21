@@ -36,6 +36,10 @@ import {
 } from './asset-source.mjs';
 import { resolveSnapbackExpoLifecycleSource } from './lifecycle-source.mjs';
 import { acquireExpoSqliteDefaultRqsStore } from './expo-sqlite-carrier.mjs';
+import {
+  createExpoCryptoSha256DigestAdapter,
+  expoCryptoDigestModuleUnavailable,
+} from './expo-crypto-digest.mjs';
 
 const bootContext = createContext(null);
 const lifecycleContext = createContext(null);
@@ -123,6 +127,28 @@ async function resolveNativeOperatingSystem(environment) {
   }
 }
 
+async function resolveNativeAuthDigestAdapter(environment) {
+  let digestModule;
+  try {
+    if (typeof environment.resolveNativeAuthDigestModule === 'function') {
+      digestModule = await environment.resolveNativeAuthDigestModule();
+    } else if (typeof require === 'function') {
+      // @ref LLP 0181#metro-and-package-closure — the literal guarded require
+      // keeps Expo's native module in the packed Metro graph without making
+      // the universal client package import an Expo-only dependency.
+      digestModule = require('expo-crypto');
+    } else {
+      const error = new Error('native digest package resolution is unavailable');
+      error.code = 'ERR_MODULE_NOT_FOUND';
+      throw error;
+    }
+    return createExpoCryptoSha256DigestAdapter(digestModule);
+  } catch (cause) {
+    if (cause?.code === 'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE') throw cause;
+    throw expoCryptoDigestModuleUnavailable(cause);
+  }
+}
+
 async function resolveExpoSqliteRuntimeKind(environment) {
   if (typeof environment.resolveExpoSqliteRuntimeKind === 'function') {
     const kind = await environment.resolveExpoSqliteRuntimeKind();
@@ -145,13 +171,20 @@ async function resolveAppClientPlatform(environment, app) {
     return environment.resolveAppClientPlatform({ app });
   }
   if (globalThis.indexedDB?.open) return Object.freeze({ kind: 'expo-web' });
-  if (app.authBootstrap.custody === 'volatile-explicit') {
-    return Object.freeze({ kind: 'memory' });
-  }
   const operatingSystem = await resolveNativeOperatingSystem(environment);
+  if (app.authBootstrap.custody === 'volatile-explicit') {
+    return QUALIFIED_NATIVE_AUTH_CUSTODY_OSES.includes(operatingSystem)
+      ? Object.freeze({
+          kind: 'memory',
+          digestAdapter: await resolveNativeAuthDigestAdapter(environment),
+        })
+      : Object.freeze({ kind: 'memory', cryptoObject: globalThis.crypto });
+  }
   if (!QUALIFIED_NATIVE_AUTH_CUSTODY_OSES.includes(operatingSystem)) {
     return NATIVE_AUTH_CUSTODY_SENTINEL;
   }
+  let authCustodyStorage;
+  let authCustodyGrade;
   try {
     let custodyModule;
     if (typeof environment.resolveNativeAuthCustodyModule === 'function') {
@@ -176,23 +209,22 @@ async function resolveAppClientPlatform(environment, app) {
       error.code = 'SNAPBACK_AUTH_CUSTODY_MODULE_INVALID';
       throw error;
     }
-    const authCustodyStorage = createNativeAuthCustodyStorage();
-    const authCustodyGrade = await authCustodyStorage.platformGrade();
-    if (
-      authCustodyGrade?.os === operatingSystem
-      && QUALIFIED_NATIVE_AUTH_CUSTODY_OSES.includes(authCustodyGrade.os)
-      && authCustodyGrade?.grade === 'single-runtime'
-    ) {
-      return createProviderValidatedExpoNativePlatform({
-        authCustodyStorage,
-        authCustodyGrade,
-        cryptoObject: globalThis.crypto,
-      });
-    }
-    return NATIVE_AUTH_CUSTODY_SENTINEL;
+    authCustodyStorage = createNativeAuthCustodyStorage();
+    authCustodyGrade = await authCustodyStorage.platformGrade();
   } catch (cause) {
     throw durableCustodyUnavailable(cause);
   }
+  if (
+    authCustodyGrade?.os !== operatingSystem
+    || !QUALIFIED_NATIVE_AUTH_CUSTODY_OSES.includes(authCustodyGrade.os)
+    || authCustodyGrade?.grade !== 'single-runtime'
+  ) return NATIVE_AUTH_CUSTODY_SENTINEL;
+  const digestAdapter = await resolveNativeAuthDigestAdapter(environment);
+  return createProviderValidatedExpoNativePlatform({
+    authCustodyStorage,
+    authCustodyGrade,
+    digestAdapter,
+  });
 }
 
 function canonicalJson(value) {
@@ -251,6 +283,7 @@ function errorState(error, correlationId) {
     'SNAPBACK_APP_BINDING_FORMAT_UNSUPPORTED',
     'SNAPBACK_APP_BINDING_SOURCE_UNSUPPORTED',
     'SNAPBACK_EXPO_COMPATIBILITY_UNSUPPORTED',
+    'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE',
   ]);
   return Object.freeze({
     status: unsupportedCodes.has(value.code) ? 'unsupported' : 'error',

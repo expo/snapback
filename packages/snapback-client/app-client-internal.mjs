@@ -4,6 +4,7 @@ export {
   __applicationDescriptorForAppClient as applicationDescriptorForAppClient,
   __classifyHostedDevelopmentHostname as classifyHostedDevelopmentHostname,
   __adoptSupervisedBootstrapAuthority as adoptSupervisedBootstrapAuthority,
+  __authStoragePartitionIdentityHash as authStoragePartitionIdentityHash,
   __createSnapbackAppClientWithBootstrapObserver as createSnapbackAppClientWithBootstrapObserver,
   __createProviderValidatedExpoNativePlatform as createProviderValidatedExpoNativePlatform,
 } from './app-client.mjs';

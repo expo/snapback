@@ -504,6 +504,7 @@ function normalizePlatform(platform) {
     'broadcastChannelFactory',
     'cryptoObject',
     'databaseName',
+    'digestAdapter',
     'hintStorage',
     'indexedDB',
     'kind',
@@ -530,6 +531,21 @@ function normalizePlatform(platform) {
       || typeof normalized.authCustodyStorage === 'function')
     && normalized.authCustodyStorage.ownerKeyCapability === 'owner-key-v1'
     && typeof normalized.authCustodyStorage.withOwnership === 'function';
+  const digestAdapter = normalized.digestAdapter;
+  if (
+    digestAdapter !== undefined
+    && (
+      !isRecord(digestAdapter)
+      || digestAdapter.format !== 'snapback.sha256-digest.v1'
+      || typeof digestAdapter.digest !== 'function'
+    )
+  ) {
+    throw refusal(
+      'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED',
+      'Application authentication bootstrap requires an admitted SHA-256 digest adapter.',
+      { platform: normalized.kind },
+    );
+  }
   if (
     (!['browser', 'expo-web', 'memory'].includes(normalized.kind) && !injectedNativeCustody)
     || (normalized.kind !== 'expo-native'
@@ -677,28 +693,82 @@ const exactCapture = (left, right) => left !== null && right !== null
   && left.authorityEpoch === right.authorityEpoch
   && left.authorityKey === right.authorityKey;
 
-async function partitionIdentityHash(appId, storagePartition, cryptoObject) {
-  if (!cryptoObject?.subtle || typeof TextEncoder !== 'function') {
+async function partitionIdentityHash(appId, storagePartition, platform) {
+  if (typeof TextEncoder !== 'function') {
     throw refusal(
       'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED',
-      'The selected custody platform does not provide WebCrypto identity hashing.',
+      'The selected custody platform does not provide canonical UTF-8 encoding.',
       {},
     );
   }
   const bytes = new TextEncoder().encode(
     `snapback.auth-storage-partition.v1\n${JSON.stringify([appId, storagePartition])}`,
   );
-  const digest = new Uint8Array(await cryptoObject.subtle.digest('SHA-256', bytes));
+  const cryptoObject = platform.cryptoObject ?? globalThis.crypto;
+  const digestOperation = platform.digestAdapter?.digest;
+  if (typeof digestOperation !== 'function' && typeof cryptoObject?.subtle?.digest !== 'function') {
+    throw refusal(
+      'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE',
+      'The selected custody platform has neither an admitted SHA-256 digest adapter nor WebCrypto.',
+      { platform: platform.kind, algorithm: 'SHA-256' },
+      [retryBootstrap('SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE')],
+    );
+  }
+  let result;
+  try {
+    result = digestOperation === undefined
+      ? await cryptoObject.subtle.digest('SHA-256', bytes)
+      : await digestOperation.call(platform.digestAdapter, bytes);
+  } catch (cause) {
+    if (
+      cause?.code === 'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE'
+      && cause?.diagnostic?.schemaVersion === 'snapback.client-diagnostic.v1'
+    ) throw cause;
+    if (
+      cause?.code === 'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED'
+      && cause?.diagnostic?.schemaVersion === 'snapback.client-diagnostic.v1'
+    ) throw cause;
+    throw refusal(
+      'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED',
+      'Application authentication bootstrap could not compute its storage-partition digest.',
+      {
+        platform: platform.kind,
+        algorithm: 'SHA-256',
+        causeCode: cause?.diagnostic?.code ?? cause?.code ?? null,
+      },
+      [retryBootstrap('SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED')],
+    );
+  }
+  const digest = result instanceof ArrayBuffer
+    ? new Uint8Array(result)
+    : ArrayBuffer.isView(result)
+      ? new Uint8Array(result.buffer, result.byteOffset, result.byteLength)
+      : null;
+  if (digest?.byteLength !== 32) {
+    throw refusal(
+      'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED',
+      'Application authentication bootstrap received a malformed SHA-256 digest.',
+      { platform: platform.kind, algorithm: 'SHA-256' },
+      [retryBootstrap('SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED')],
+    );
+  }
   return `sha256:${[...digest].map((byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
+export async function __authStoragePartitionIdentityHash(appId, storagePartition, platform) {
+  return partitionIdentityHash(
+    appId,
+    validateStoragePartition(storagePartition),
+    normalizePlatform(platform),
+  );
 }
 
 async function resolveCustody(preflighted) {
   const { app, platform, policy, storagePartition } = preflighted;
-  const cryptoObject = platform.cryptoObject ?? globalThis.crypto;
   const storagePartitionIdentityHash = await partitionIdentityHash(
     app.identity.app,
     storagePartition,
-    cryptoObject,
+    platform,
   );
   if (policy.custody === 'volatile-explicit') {
     return Object.freeze({
@@ -774,6 +844,7 @@ async function resolveCustody(preflighted) {
     });
   }
   const lockManager = platform.lockManager ?? globalThis.navigator?.locks ?? null;
+  const cryptoObject = platform.cryptoObject ?? globalThis.crypto;
   const storage = createIndexedDbAuthCustodyStorage({
     indexedDB: platform.indexedDB ?? globalThis.indexedDB,
     lockManager,
@@ -1644,11 +1715,13 @@ export function __createProviderValidatedExpoNativePlatform({
   authCustodyStorage,
   authCustodyGrade,
   cryptoObject,
+  digestAdapter,
 }) {
   const platform = Object.freeze({
     kind: 'expo-native',
     authCustodyStorage,
-    cryptoObject,
+    ...(cryptoObject === undefined ? {} : { cryptoObject }),
+    ...(digestAdapter === undefined ? {} : { digestAdapter }),
   });
   PROVIDER_VALIDATED_NATIVE_GRADES.set(platform, authCustodyGrade);
   return platform;

@@ -6,6 +6,12 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-21 (t) — Native auth storage-partition identity now uses a
+provider-owned, SHA-256-only `expo-crypto` adapter over the common application
+client's canonical UTF-8 bytes. The adapter exposes no randomness capability;
+missing/unlinked native digest support, digest execution failure, and missing
+secure randomness remain distinct refusals. The Expo provider no longer passes
+or requires a consumer-installed `globalThis.crypto` for this path.
 **Revised:** 2026-08-16 (s) — Fix round 4 makes the ruled generated-artifact
 trust root usable: codegen derives exact app/schema/functions/HTTPS target
 tuples from closed `codegen.policy.json` hosted-development declarations and
@@ -892,6 +898,19 @@ Capability claims remain independent. Retaining query state does not prove
 durable mutation settlement, source-byte custody, background upload, or offline
 asset command. The provider reports each grade and LLP 0180 refuses claims it
 cannot support.
+
+The native auth storage-partition digest is one of those independent adapter
+facts. The Expo provider resolves `expo-crypto` and projects only a
+`snapback.sha256-digest.v1` adapter into LLP 0258's common application-client
+owner. That owner retains the canonical transcript and UTF-8 encoding, so
+WebCrypto, iOS, and Android hash byte-identical inputs. The adapter never
+projects `getRandomValues`, random UUIDs, or another CSPRNG fact. An absent or
+unlinked native module refuses as
+`SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE`; a resolved module whose
+digest call fails or returns a non-32-byte result refuses as
+`SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED`; existing secure-randomness operations
+continue to refuse independently as `SNAPBACK_CLIENT_WEBCRYPTO_RNG_MISSING`.
+None of these paths creates an Expo-only custody or session store.
 
 LLP 0180 v1 uses an ordinary session for asset transfer. This package does not
 depend on an attempt grant. A later background adapter may consume one only

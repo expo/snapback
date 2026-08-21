@@ -4077,12 +4077,22 @@ carrier-safe without polyfills:
 
 - **Binding digests** (`prepareReactBinding` manifest/contract hashes) fall
   back to the parity-tested pure-JS SHA-256 when `crypto.subtle` is absent.
+- **Auth storage-partition digests** use the provider-owned, hashing-only
+  `expo-crypto` adapter on iOS and Android. The provider passes canonical UTF-8
+  bytes to SHA-256 and never asks the application to install a crypto global.
 - **Process-local labels** (provider ids, optimistic-layer ids, mutation ids,
   and storeless active-query bookkeeping) fall back to time+sequence
   uniqueness.
 
 So a fresh Expo app on this path reaches a ready provider and a live query
 with zero consumer polyfills.
+
+Native auth keeps digest resolution and execution diagnosable. A missing or
+unlinked `expo-crypto` native module refuses with
+`SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE`; a module that resolves but
+cannot return exactly 32 SHA-256 bytes refuses with
+`SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED`. Neither refusal says anything about
+secure randomness.
 
 **Security-bearing random identity is never synthesized.** Surfaces that
 mint unpredictable identity — seed operation ids, bundle-boot/register-mode
@@ -4105,7 +4115,9 @@ actionable code:
 To use those surfaces on RN, provide native secure randomness before
 constructing the client. Expo apps can hand `expo-crypto` directly to the
 store registration as shown below, without mutating `globalThis`; a global
-polyfill also works. Bare RN can use `react-native-get-random-values`.
+polyfill also works. The provider's hashing-only adapter deliberately does not
+forward `getRandomValues`, so successful auth boot cannot satisfy or mask this
+separate requirement. Bare RN can use `react-native-get-random-values`.
 
 ## The store: useful relaunch persistence, but no durable queue claim yet
 

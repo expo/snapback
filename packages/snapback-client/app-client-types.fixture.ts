@@ -5,6 +5,7 @@ import {
   type SnapbackAppBindingV1,
   type SnapbackApplicationDescriptorV1,
   type SnapbackClientOptions,
+  type SnapbackSha256DigestAdapter,
 } from './index.mjs';
 
 const devIdentityOptions = {
@@ -91,6 +92,18 @@ const hostedDevelopmentBinding = {
   integrity: { channel: 'hosted-target-admission' },
 } as const satisfies SnapbackAppBindingV1;
 void hostedDevelopmentBinding;
+
+const digestAdapter = {
+  format: 'snapback.sha256-digest.v1',
+  async digest(_input: Uint8Array) {
+    return new Uint8Array(32);
+  },
+} as const satisfies SnapbackSha256DigestAdapter;
+void createSnapbackAppClient({
+  app,
+  binding,
+  platform: { kind: 'memory', digestAdapter },
+});
 
 async function fixture() {
   const appClient = await createSnapbackAppClient({ app, binding, platform: 'memory' });

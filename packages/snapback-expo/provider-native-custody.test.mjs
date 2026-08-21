@@ -7,6 +7,9 @@ import {
   APPLICATION_AUTH_BOOTSTRAP_CAPABILITY,
   createSnapbackExpoBoot,
 } from './provider.mjs';
+import {
+  authStoragePartitionIdentityHash,
+} from '@expo/snapback-client/app-client-internal';
 
 const TEST_NOW_MS = Date.parse('2026-08-16T22:00:00.000Z');
 const SENTINEL = Object.freeze({ kind: 'expo-native-phase-2-evidence-required' });
@@ -88,6 +91,10 @@ function fakeAppClient() {
 
 function environmentFor({
   moduleResolver,
+  digestModuleResolver = async () => Object.freeze({
+    CryptoDigestAlgorithm: Object.freeze({ SHA256: 'SHA-256' }),
+    digest: (algorithm, input) => webcrypto.subtle.digest(algorithm, input),
+  }),
   operatingSystem = 'android',
   platformOverride,
 } = {}) {
@@ -109,13 +116,17 @@ function environmentFor({
     ...(moduleResolver === undefined
       ? {}
       : { resolveNativeAuthCustodyModule: moduleResolver }),
+    resolveNativeAuthDigestModule: digestModuleResolver,
     ...(platformOverride === undefined
       ? {}
       : { resolveAppClientPlatform: platformOverride }),
   });
 }
 
-async function runBoot(environment, { realApplicationClient = false } = {}) {
+async function runBoot(environment, {
+  realApplicationClient = false,
+  exercisePartitionDigest = false,
+} = {}) {
   const applicationClientInputs = [];
   const boot = createSnapbackExpoBoot({
     app,
@@ -126,6 +137,13 @@ async function runBoot(environment, { realApplicationClient = false } = {}) {
       : {
           async createApplicationClient(input) {
             applicationClientInputs.push(input);
+            if (exercisePartitionDigest) {
+              await authStoragePartitionIdentityHash(
+                app.identity.app,
+                'default',
+                input.platform,
+              );
+            }
             return fakeAppClient();
           },
         }),
@@ -154,10 +172,7 @@ function assertTypedUnavailable(result, expectedCauseCode) {
 test('native custody provider admits only the evidenced tuple and refuses every other cell', async (t) => {
   const previousCrypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
   const previousIndexedDb = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB');
-  Object.defineProperty(globalThis, 'crypto', {
-    configurable: true,
-    value: webcrypto,
-  });
+  delete globalThis.crypto;
   delete globalThis.indexedDB;
 
   try {
@@ -171,16 +186,26 @@ test('native custody provider admits only the evidenced tuple and refuses every 
             factoryCalls += 1;
             return probe.storage;
           }),
-        }));
+        }), { exercisePartitionDigest: true });
         assert.equal(result.state.status, 'ready');
         assert.equal(factoryCalls, 1);
         assert.equal(probe.gradeCalls(), 1, 'provider evaluates platformGrade exactly once');
         assert.equal(result.applicationClientInputs.length, 1);
-        assert.deepEqual(result.applicationClientInputs[0].platform, {
-          kind: 'expo-native',
-          authCustodyStorage: probe.storage,
-          cryptoObject: webcrypto,
-        });
+        assert.equal(result.applicationClientInputs[0].platform.kind, 'expo-native');
+        assert.equal(result.applicationClientInputs[0].platform.authCustodyStorage, probe.storage);
+        assert.equal(result.applicationClientInputs[0].platform.cryptoObject, undefined);
+        assert.equal(
+          result.applicationClientInputs[0].platform.digestAdapter?.format,
+          'snapback.sha256-digest.v1',
+        );
+        assert.equal(
+          await authStoragePartitionIdentityHash(
+            app.identity.app,
+            'default',
+            result.applicationClientInputs[0].platform,
+          ),
+          'sha256:5e9f14b295a427ded1ac177e96c96258c40bc56858689a8069ae01788bd86ed1',
+        );
         await result.boot.dispose();
       });
     }
@@ -264,6 +289,68 @@ test('native custody provider admits only the evidenced tuple and refuses every 
           assertTypedUnavailable(result, cell.expectedCauseCode);
         });
       }
+    }
+
+    for (const operatingSystem of ['android', 'ios']) {
+      await t.test(`${operatingSystem} missing digest module stays distinct from custody`, async () => {
+        const probe = fakeStorage({ os: operatingSystem });
+        const result = await runBoot(environmentFor({
+          operatingSystem,
+          moduleResolver: async () => moduleFor(probe.storage),
+          digestModuleResolver: async () => {
+            throw Object.assign(new Error('expo-crypto package absent'), {
+              code: 'ERR_MODULE_NOT_FOUND',
+            });
+          },
+        }));
+        assert.equal(result.state.status, 'unsupported');
+        assert.equal(
+          result.state.diagnostic.code,
+          'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE',
+        );
+        assert.equal(result.applicationClientInputs.length, 0);
+      });
+
+      await t.test(`${operatingSystem} unlinked native digest module is an unavailable module`, async () => {
+        const probe = fakeStorage({ os: operatingSystem });
+        const result = await runBoot(environmentFor({
+          operatingSystem,
+          moduleResolver: async () => moduleFor(probe.storage),
+          digestModuleResolver: async () => Object.freeze({
+            CryptoDigestAlgorithm: Object.freeze({ SHA256: 'SHA-256' }),
+            async digest() {
+              throw Object.assign(new Error('Cannot find native module ExpoCrypto'), {
+                code: 'ERR_NATIVE_MODULE_NOT_FOUND',
+              });
+            },
+          }),
+        }), { exercisePartitionDigest: true });
+        assert.equal(result.state.status, 'unsupported');
+        assert.equal(
+          result.state.diagnostic.code,
+          'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE',
+        );
+        assert.equal(result.applicationClientInputs.length, 1);
+      });
+
+      await t.test(`${operatingSystem} digest execution failure is not module absence`, async () => {
+        const probe = fakeStorage({ os: operatingSystem });
+        const result = await runBoot(environmentFor({
+          operatingSystem,
+          moduleResolver: async () => moduleFor(probe.storage),
+          digestModuleResolver: async () => Object.freeze({
+            CryptoDigestAlgorithm: Object.freeze({ SHA256: 'SHA-256' }),
+            async digest() {
+              throw Object.assign(new Error('native SHA-256 execution failed'), {
+                code: 'ERR_CRYPTO_DIGEST',
+              });
+            },
+          }),
+        }), { exercisePartitionDigest: true });
+        assert.equal(result.state.status, 'error');
+        assert.equal(result.state.diagnostic.code, 'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED');
+        assert.equal(result.applicationClientInputs.length, 1);
+      });
     }
 
     await t.test('platform override has precedence over OS and module seams', async () => {
