@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import {
   closeSync,
   existsSync,
@@ -17,6 +18,14 @@ import { parseGateCalls } from '../scripts/check-local-proof-gates.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const runner = join(root, 'scripts', 'lib', 'proof-runner.sh');
+
+function selectedGateBytes(selected) {
+  return selected.map((gateId) => `${gateId}\n`).join('');
+}
+
+function selectedGateDigest(selected) {
+  return `sha256:${createHash('sha256').update(selectedGateBytes(selected)).digest('hex')}`;
+}
 
 function selectedGateIds(body) {
   return [...new Set(
@@ -95,17 +104,18 @@ await runAcceptance(suite, async () => {
   await new Promise(() => {});
 }, { cleanups });
 `);
-  writeFileSync(selectedGates, selected.map((gateId) => `${gateId}\n`).join(''));
+  writeFileSync(selectedGates, selectedGateBytes(selected));
   const script = `
 set -euo pipefail
 source ${JSON.stringify(runner)}
-proof_runner_init fixture ${JSON.stringify(receipt)} ${keepGoing} ${JSON.stringify(selectedGates)}
+proof_runner_init fixture ${JSON.stringify(receipt)} ${keepGoing} ${JSON.stringify(selectedGates)} ${selected.length} ${JSON.stringify(selectedGateDigest(selected))}
 ${body}
 proof_runner_finish
 `;
   const env = {
     ...process.env,
     FIXTURE_MARKER: marker,
+    FIXTURE_SELECTED_GATES: selectedGates,
     FIXTURE_CHILD_PID: childPid,
     FIXTURE_WRITER_PID: writerPid,
     FIXTURE_DETACHED_WRITER: detachedWriter,
@@ -169,6 +179,131 @@ function processExists(pid) {
     throw error;
   }
 }
+
+test('init rejects path aliasing, truncated prefixes, and same-count id substitution', () => {
+  const selected = ['first-gate', 'second-gate'];
+  for (const variant of ['alias', 'truncated', 'substituted']) {
+    const scratch = mkdtempSync(join(tmpdir(), `snapback-proof-runner-${variant}-`));
+    const selectedGates = join(scratch, 'selected-gates.txt');
+    const results = variant === 'alias' ? selectedGates : join(scratch, 'results.jsonl');
+    writeFileSync(
+      selectedGates,
+      selectedGateBytes(
+        variant === 'truncated'
+          ? selected.slice(0, 1)
+          : variant === 'substituted'
+            ? ['first-gate', 'different-gate']
+            : selected,
+      ),
+    );
+    const script = `
+set -euo pipefail
+source ${JSON.stringify(runner)}
+proof_runner_init fixture ${JSON.stringify(results)} 1 ${JSON.stringify(selectedGates)} ${selected.length} ${JSON.stringify(selectedGateDigest(selected))}
+`;
+    const result = spawnSync('/bin/bash', ['-c', script], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    try {
+      assert.equal(result.status, 2, `${result.stdout}\n${result.stderr}`);
+      assert.match(
+        result.stderr,
+        variant === 'alias'
+          ? /selected-gates and results paths must not alias/u
+          : variant === 'truncated'
+            ? /selected gate count mismatch/u
+            : /selected gate digest mismatch/u,
+      );
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  }
+});
+
+test('runtime selection membership remains authoritative after the source file changes', () => {
+  const run = fixture(`
+: > "$FIXTURE_SELECTED_GATES"
+proof_gate selected-gate -- /usr/bin/true
+`, { selected: ['selected-gate'] });
+  try {
+    assert.equal(run.result.status, 0, run.result.stderr);
+    assert.deepEqual(
+      run.records.map(({ gateId, state }) => [gateId, state]),
+      [['selected-gate', 'PASS']],
+    );
+  } finally {
+    rmSync(run.scratch, { recursive: true, force: true });
+  }
+});
+
+test('policy NOT_SELECTED rejects a gate present in the selected snapshot', () => {
+  const run = fixture(`
+proof_not_selected selected-gate "attempted policy bypass"
+`, { selected: ['selected-gate'] });
+  try {
+    assert.equal(run.result.status, 2, `${run.result.stdout}\n${run.result.stderr}`);
+    assert.match(run.result.stderr, /policy NOT_SELECTED cannot reconcile selected gate selected-gate/u);
+    assert.deepEqual(run.records, []);
+  } finally {
+    rmSync(run.scratch, { recursive: true, force: true });
+  }
+});
+
+test('gate-local exit/exec are recorded while top-level exit/exec cannot bypass finish', () => {
+  const gateExit = fixture(`
+proof_gate selected-gate -- exit 0
+`, { selected: ['selected-gate'] });
+  const gateExec = fixture(`
+proof_gate selected-gate -- exec /usr/bin/true
+`, { selected: ['selected-gate'] });
+  const topLevelExit = fixture(`
+exit 0
+`, { selected: ['selected-gate'] });
+  const topLevelExec = fixture(`
+exec /usr/bin/true
+`, { selected: ['selected-gate'] });
+  const topLevelBuiltinExec = fixture(`
+builtin exec /usr/bin/true
+`, { selected: ['selected-gate'] });
+  const topLevelCommandExec = fixture(`
+command exec /usr/bin/true
+`, { selected: ['selected-gate'] });
+  try {
+    assert.equal(gateExit.result.status, 0, gateExit.result.stderr);
+    assert.deepEqual(
+      gateExit.records.map(({ gateId, state, exitCode }) => [gateId, state, exitCode]),
+      [['selected-gate', 'PASS', 0]],
+    );
+    assert.equal(gateExec.result.status, 0, gateExec.result.stderr);
+    assert.deepEqual(
+      gateExec.records.map(({ gateId, state, exitCode }) => [gateId, state, exitCode]),
+      [['selected-gate', 'PASS', 0]],
+    );
+    assert.equal(topLevelExit.result.status, 2, topLevelExit.result.stderr);
+    assert.match(
+      topLevelExit.result.stderr,
+      /terminated before successful reconciliation \(phase: declarations\)/u,
+    );
+    assert.deepEqual(topLevelExit.records, []);
+    assert.equal(topLevelExec.result.status, 2, topLevelExec.result.stderr);
+    assert.match(topLevelExec.result.stderr, /exec cannot replace an unreconciled proof shell/u);
+    assert.deepEqual(topLevelExec.records, []);
+    assert.equal(topLevelBuiltinExec.result.status, 2, topLevelBuiltinExec.result.stderr);
+    assert.match(topLevelBuiltinExec.result.stderr, /exec cannot replace an unreconciled proof shell/u);
+    assert.deepEqual(topLevelBuiltinExec.records, []);
+    assert.equal(topLevelCommandExec.result.status, 2, topLevelCommandExec.result.stderr);
+    assert.match(topLevelCommandExec.result.stderr, /exec cannot replace an unreconciled proof shell/u);
+    assert.deepEqual(topLevelCommandExec.records, []);
+  } finally {
+    rmSync(gateExit.scratch, { recursive: true, force: true });
+    rmSync(gateExec.scratch, { recursive: true, force: true });
+    rmSync(topLevelExit.scratch, { recursive: true, force: true });
+    rmSync(topLevelExec.scratch, { recursive: true, force: true });
+    rmSync(topLevelBuiltinExec.scratch, { recursive: true, force: true });
+    rmSync(topLevelCommandExec.scratch, { recursive: true, force: true });
+  }
+});
 
 test('finish rejects a selected gate hidden behind a false guard and accepts it unguarded', () => {
   const selected = ['guarded-gate'];

@@ -12,6 +12,13 @@ TERM/KILL target the gate process group, signal-aware acceptance cleanup owns
 known session-escaping resources, and bounded capture readers loudly retain
 unknown survivors as `timeout-cleanup-failed`; the Rust workspace gate also
 disables Cargo's target-level fail-fast behavior.)
+**Revised:** 2026-08-21 (proof-ledger reconciliation hardening: the selected
+gate snapshot is count/digest-bound to the exact selector receipt and is the
+only runtime membership authority; selected gates cannot claim cadence-level
+`NOT_SELECTED`; statically declared host/policy predicates instead emit
+structured `INAPPLICABLE`; an EXIT guard and gate-command subshell prevent
+early successful termination from bypassing the final reconciliation, with a
+top-level `exec` interlock covering shell replacement.)
 **Revised:** 2026-08-11 (LLP 0232 accepting change, author ruling in session:
 the 2026-08-07 D2.1 ruling gains four narrowings — baseline-corroborated
 infrastructure fail-open, receipt-validated reuse for trigger-matched gates,
@@ -317,12 +324,19 @@ sets. At minimum, model these producer groups:
 - demo/surface materialization; and
 - browser availability.
 
-A gate has one of four terminal results:
+A gate has one of five terminal results:
 
 - `PASS` — it executed and passed;
 - `FAIL` — it executed and found an independent failure;
 - `BLOCKED` — it did not execute because a prerequisite failed; or
-- `NOT_SELECTED` — its suite was outside the declared change/cadence scope.
+- `NOT_SELECTED` — its suite was outside the declared change/cadence scope; or
+- `INAPPLICABLE` — the gate was selected, but one of its statically inventoried
+  host/policy predicates was false, with predicate-specific structured
+  evidence retained in the result.
+
+`NOT_SELECTED` is never legal for a selected gate. `INAPPLICABLE` is legal only
+for a literal gate/predicate pair checked by the static inventory and rechecked
+by the complete-battery consumer; a free-form skip reason has no authority.
 
 In keep-going mode, `FAIL` does not stop unrelated gates. It does prevent every
 transitive dependent from executing. The final summary names root failures and
@@ -980,17 +994,17 @@ Accepted, partially implemented. Phase 0, the fast/affected selector, the
 latest-main cadence, and the first two native-deduplication legs now have
 executable code:
 
-- `scripts/verify-local-proof` names and times every gate, records
-  `PASS | FAIL | BLOCKED | NOT_SELECTED` as JSONL, and declares the generated,
-  native-runtime, current-binary, readiness, surface, and browser producer
-  edges used by their dependents;
+- `scripts/verify-local-proof` names and times every gate, records `PASS | FAIL
+  | BLOCKED | NOT_SELECTED | INAPPLICABLE` as JSONL, and declares the
+  generated, native-runtime, current-binary, readiness, surface, and browser
+  producer edges used by their dependents;
 - `tests/proof_runner_v0.mjs` proves independent continuation, transitive
   blocking, strict runtime/static timeout agreement, natural-124 versus
   timeout identity, bounded capture with a surviving double-forked writer,
   same-group TERM resistance, and signal cleanup of a genuine `setsid()`
-  descendant, while `tests/local_proof_inventory_v0.mjs` proves
-  unknown edges, duplicate ids, missing producers, the bounded non-fail-fast
-  Rust workspace command, and a new direct real-server gate without
+  descendant, while `tests/local_proof_inventory_v0.mjs` proves unknown edges,
+  duplicate ids, missing producers, the bounded non-fail-fast Rust workspace
+  command, and a new direct real-server gate without
   current-binary readiness fail closed;
 - CI uploads the result artifact even when the proof is red;
 - the canonical proof builds/qualifies the ordinary binary before invoking

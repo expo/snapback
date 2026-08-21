@@ -272,6 +272,9 @@ The initial NOT READY reviews were verified against the implementation and
 their reported fixes landed in this worktree. Complete-battery projection is now
 order-insensitive over an exact duplicate-free gate-id set, accepts
 host-conditioned `NOT_SELECTED`, and normalizes TAP timing/temp-path noise.
+The 2026-08-21 gate-reconciliation review-fix supersedes that one disposition:
+complete batteries reject cadence `NOT_SELECTED`, while statically declared
+host/policy absence uses structured, consumer-validated `INAPPLICABLE`.
 The GitHub workflow is report-only; a separate six-hour local publisher owns
 durable ticket commits. Reopen/reset removes stale author escalation, and
 standing claims are discovered from the complete on-disk publication-anchor

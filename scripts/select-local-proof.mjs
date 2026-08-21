@@ -6,13 +6,23 @@
 // path-to-suite authority fails broad for unknown/shared inputs and closes
 // every selected gate over its declared prerequisites.
 
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import {
+  appendFileSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { parseGateCalls } from './check-local-proof-gates.mjs';
+import {
+  parseGateCalls,
+  parseInapplicabilityDeclarations,
+  validateInapplicabilityDeclarations,
+} from './check-local-proof-gates.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const POLICY_PATH = resolve(ROOT, 'scripts/local-proof-selection-policy.v1.json');
@@ -24,14 +34,20 @@ export function loadSelectionContext() {
   const policyBytes = readFileSync(POLICY_PATH);
   const proofSource = readFileSync(PROOF_PATH, 'utf8');
   const calls = parseGateCalls(proofSource);
+  const inapplicabilityDeclarations = parseInapplicabilityDeclarations(proofSource);
+  validateInapplicabilityDeclarations(calls, inapplicabilityDeclarations);
   const policy = JSON.parse(policyBytes.toString('utf8'));
   const inventory = validateSelectionPolicy(policy, calls);
   return {
     policy,
     calls,
+    inapplicabilityDeclarations,
     inventory,
     policyDigest: sha256(policyBytes),
-    gateInventoryDigest: sha256(Buffer.from(JSON.stringify(calls))),
+    gateInventoryDigest: sha256(Buffer.from(JSON.stringify({
+      calls,
+      inapplicabilityDeclarations,
+    }))),
   };
 }
 
@@ -382,7 +398,36 @@ export function planSelection({ cadence, base = null, head = 'HEAD' }) {
     changedFiles,
     canonicalGateCount: context.inventory.canonicalGates.length,
     selectedGateCount: selection.selectedGates.length,
+    selectedGateDigest: digestSelectedGateIds(selection.selectedGates),
     ...selection,
+  };
+}
+
+export function selectedGateBytes(gateIds) {
+  validateUniqueStrings(gateIds, 'selected gates');
+  for (const gateId of gateIds) {
+    assert(/^[a-z0-9-]+$/u.test(gateId), `selected gate id ${JSON.stringify(gateId)}`);
+  }
+  return Buffer.from(gateIds.map((gateId) => `${gateId}\n`).join(''));
+}
+
+export function digestSelectedGateIds(gateIds) {
+  return `sha256:${sha256(selectedGateBytes(gateIds))}`;
+}
+
+export function materializeSelectedGates(gateIds, output) {
+  assert(typeof output === 'string' && output.length > 0, 'selected gate output path');
+  const bytes = selectedGateBytes(gateIds);
+  const temporary = resolve(dirname(output), `.selected-gates-${process.pid}-${randomUUID()}.tmp`);
+  try {
+    writeFileSync(temporary, bytes, { flag: 'wx' });
+    renameSync(temporary, output);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+  return {
+    selectedGateCount: gateIds.length,
+    selectedGateDigest: `sha256:${sha256(bytes)}`,
   };
 }
 
@@ -420,11 +465,21 @@ function main() {
   } else if (command === 'gates') {
     const path = onlyPathArg(args);
     const receipt = validateSelectionReceipt(readJson(path));
-    process.stdout.write(`${receipt.selectedGates.join('\n')}\n`);
+    process.stdout.write(selectedGateBytes(receipt.selectedGates));
+  } else if (command === 'materialize') {
+    validateOptionArgs(args, ['--receipt', '--output']);
+    const receipt = validateSelectionReceipt(readJson(requiredArg(args, '--receipt')));
+    const metadata = materializeSelectedGates(receipt.selectedGates, requiredArg(args, '--output'));
+    process.stdout.write(`${JSON.stringify(metadata)}\n`);
   } else if (command === 'gate') {
-    validateOptionArgs(args, ['--id']);
+    validateOptionArgs(args, ['--id', '--output']);
     const gates = selectGate(requiredArg(args, '--id'));
-    process.stdout.write(`${gates.join('\n')}\n`);
+    const output = optionalArg(args, '--output');
+    if (output) {
+      process.stdout.write(`${JSON.stringify(materializeSelectedGates(gates, output))}\n`);
+    } else {
+      process.stdout.write(selectedGateBytes(gates));
+    }
   } else {
     usage();
   }
@@ -499,6 +554,7 @@ function writeGitHubOutputs(path, receipt) {
     cadence: receipt.cadence,
     selection_class: receipt.selectionClass,
     selected_gate_count: receipt.selectedGateCount,
+    selected_gate_digest: receipt.selectedGateDigest,
     requires_javascript_dependencies: receipt.requirements.javascriptDependencies,
     requires_native: receipt.requirements.native,
     requires_rust_toolchain: receipt.requirements.rustToolchain,
@@ -518,6 +574,7 @@ function summary(receipt) {
     headRevision: receipt.headRevision,
     changedFileCount: receipt.changedFiles.length,
     selectedGateCount: receipt.selectedGateCount,
+    selectedGateDigest: receipt.selectedGateDigest,
     canonicalGateCount: receipt.canonicalGateCount,
     selectedGroups: receipt.selectedGroups,
     unknownFiles: receipt.unknownFiles,
@@ -588,6 +645,6 @@ function fail(label) {
 
 function usage() {
   throw new Error(
-    'usage: select-local-proof.mjs plan --cadence complete|affected [--base REV] [--head REV] --output FILE [--github-output FILE] | validate RECEIPT | gates RECEIPT | gate --id ID',
+    'usage: select-local-proof.mjs plan --cadence complete|affected [--base REV] [--head REV] --output FILE [--github-output FILE] | validate RECEIPT | gates RECEIPT | materialize --receipt RECEIPT --output FILE | gate --id ID [--output FILE]',
   );
 }

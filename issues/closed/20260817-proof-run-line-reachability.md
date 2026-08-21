@@ -51,11 +51,17 @@ battery red.
 
 ## Resolution
 
-Resolved 2026-08-21. `proof_runner_init` now snapshots and validates the exact
-selected gate-id set from the selector's output file and derives its progress
-count from that set. `proof_runner_finish` reconciles every selected id against
-the runtime result ledger and exits nonzero with the missing ids when a shell
-guard or other control flow prevents a selected gate from being recorded.
+Resolved 2026-08-21 and adversarially hardened in the follow-up review-fix.
+`proof_runner_init` snapshots and validates the exact selected gate-id set from
+the selector's atomically materialized output, binds the parsed set to the
+validated receipt's exact count and digest, rejects selected/results aliasing,
+and makes that in-memory snapshot the only runtime membership authority.
+`proof_runner_finish` reconciles every selected id against the runtime result
+ledger and exits nonzero with the missing ids when a shell guard or other
+control flow prevents a selected gate from being recorded. An EXIT trap turns
+top-level early success into a hard error, an `exec` interlock prevents shell
+replacement while reconciliation is armed, and gate commands run in a subshell
+so gate-local `exit`/`exec` cannot bypass recording.
 
 The proof-runner fixtures cover the original `if false; then ... fi` case and
 the same inventory with the gate unguarded. Static `run` parsing remains
@@ -64,7 +70,10 @@ unchanged and fail-closed.
 A complete-inventory reachability traversal surfaced 15 existing
 host-conditioned omissions in the canonical shell: the Darwin side of the
 Linux runtime-package branch and the unavailable side of the Exact/admin
-branch. Each branch now records its non-applicable canonical gate ids as
-`NOT_SELECTED`; a repeat traversal reconciled all 172 selected ids.
+branch. The review-fix separates those cases from cadence `NOT_SELECTED`: each
+selected non-applicable gate now emits `INAPPLICABLE` only through a statically
+declared gate/predicate pair with structured evidence checked by both the
+inventory and complete-battery consumer. A repeat traversal reconciled all 172
+selected ids.
 
 **Landing SHA:** TBD

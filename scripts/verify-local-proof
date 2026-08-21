@@ -4,6 +4,14 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERIFY_EXACT="${SNAPBACK_VERIFY_EXACT:-auto}"
+case "$VERIFY_EXACT" in
+    0|1|auto) ;;
+    *)
+        printf '[snapback-verify] SNAPBACK_VERIFY_EXACT must be 0, 1, or auto (got %s)\n' \
+            "$VERIFY_EXACT" >&2
+        exit 2
+        ;;
+esac
 
 usage() {
     cat <<'EOF'
@@ -106,8 +114,8 @@ mkdir -p "$ROOT/target/proof"
 mkdir -p "$(dirname "$PROOF_SELECTED_GATES")"
 if [ -n "$PROOF_GATE_ID" ]; then
     PROOF_CADENCE="gate $PROOF_GATE_ID"
-    node "$ROOT/scripts/select-local-proof.mjs" gate --id "$PROOF_GATE_ID" \
-        > "$PROOF_SELECTED_GATES"
+    selection_metadata="$(node "$ROOT/scripts/select-local-proof.mjs" gate \
+        --id "$PROOF_GATE_ID" --output "$PROOF_SELECTED_GATES")"
 elif [ -n "$PROOF_SELECTION_RECEIPT" ]; then
     node "$ROOT/scripts/select-local-proof.mjs" validate "$PROOF_SELECTION_RECEIPT"
     PROOF_CADENCE="$(node -e \
@@ -127,9 +135,15 @@ else
     PROOF_SELECTION_RECEIPT="$PROOF_SELECTION_RESULTS"
 fi
 if [ -z "$PROOF_GATE_ID" ]; then
-    node "$ROOT/scripts/select-local-proof.mjs" gates "$PROOF_SELECTION_RECEIPT" \
-        > "$PROOF_SELECTED_GATES"
+    selection_metadata="$(node "$ROOT/scripts/select-local-proof.mjs" materialize \
+        --receipt "$PROOF_SELECTION_RECEIPT" --output "$PROOF_SELECTED_GATES")"
 fi
+PROOF_SELECTED_COUNT="$(node -e \
+    'process.stdout.write(String(JSON.parse(process.argv[1]).selectedGateCount))' \
+    "$selection_metadata")"
+PROOF_SELECTED_DIGEST="$(node -e \
+    'process.stdout.write(JSON.parse(process.argv[1]).selectedGateDigest)' \
+    "$selection_metadata")"
 
 # @ref LLP 0175#d1--make-keep-going-dependency-aware — named gates retain
 # structured timings and distinguish root FAIL from transitive BLOCKED.
@@ -141,29 +155,47 @@ PROOF_RESULTS="${SNAPBACK_PROOF_RESULTS:-$ROOT/target/proof/local-proof-results.
 if [ "$PROOF_CADENCE" = "complete" ]; then
     export SNAPBACK_PROOF_CAPTURE_FAILURE_SIGNATURES=1
 fi
-proof_runner_init local-proof "$PROOF_RESULTS" "$KEEP_GOING" "$PROOF_SELECTED_GATES"
+proof_runner_init local-proof "$PROOF_RESULTS" "$KEEP_GOING" "$PROOF_SELECTED_GATES" \
+    "$PROOF_SELECTED_COUNT" "$PROOF_SELECTED_DIGEST"
+
+# Host/policy inapplicability is a closed inventory separate from cadence
+# NOT_SELECTED. scripts/check-local-proof-gates.mjs validates every literal
+# pair, and the complete-battery consumer validates its structured evidence.
+proof_runner_declare_inapplicable cargo-test-profile-clean ci-only
+proof_runner_declare_inapplicable cargo-test-profile-clean cargo-clean-required
+proof_runner_declare_inapplicable runtime-package-stage linux-host
+proof_runner_declare_inapplicable swift-client swift-toolchain
+proof_runner_declare_inapplicable exact-todo-install exact-surface-enabled
+proof_runner_declare_inapplicable exact-todo-v2-install exact-surface-enabled
+proof_runner_declare_inapplicable exact-graffiti-install exact-surface-enabled
+proof_runner_declare_inapplicable exact-all-aboard-install exact-surface-enabled
+proof_runner_declare_inapplicable exact-todo-contract exact-surface-enabled
+proof_runner_declare_inapplicable exact-todo-v2-contract exact-surface-enabled
+proof_runner_declare_inapplicable exact-graffiti-contract exact-surface-enabled
+proof_runner_declare_inapplicable exact-all-aboard-live exact-surface-enabled
+proof_runner_declare_inapplicable regression-optimistic-clobber exact-surface-enabled
+proof_runner_declare_inapplicable regression-ephemeral-wiring exact-surface-enabled
+proof_runner_declare_inapplicable regression-multilive-scoped exact-surface-enabled
+proof_runner_declare_inapplicable admin-install exact-surface-enabled
+proof_runner_declare_inapplicable admin-acceptance exact-surface-enabled
+proof_runner_declare_inapplicable exact-dependencies-required exact-dependencies-sentinel-needed
 
 run() {
-    local gate_id="$1" selection_status=0
-    if [ ! -r "$PROOF_SELECTED_GATES" ]; then
-        printf '[snapback-verify] HARD ERROR: selected-gates file is missing or unreadable: %s\n' \
-            "$PROOF_SELECTED_GATES" >&2
-        return 2
+    local gate_id="$1"
+    if proof_selected_gate_index "$gate_id" >/dev/null 2>&1; then
+        proof_gate "$@"
+    else
+        proof_not_selected "$gate_id" "not selected by $PROOF_CADENCE proof policy"
     fi
-    grep -Fqx -- "$gate_id" "$PROOF_SELECTED_GATES" || selection_status=$?
-    case "$selection_status" in
-        0) proof_gate "$@" ;;
-        1) proof_not_selected "$gate_id" "not selected by $PROOF_CADENCE proof policy" ;;
-        *)
-            printf '[snapback-verify] HARD ERROR: could not read selected-gates file %s (grep exit %s)\n' \
-                "$PROOF_SELECTED_GATES" "$selection_status" >&2
-            return 2
-            ;;
-    esac
 }
 
-not_selected() {
-    proof_not_selected "$@"
+inapplicable() {
+    local gate_id="$1" predicate="$2" evidence="$3"
+    if proof_selected_gate_index "$gate_id" >/dev/null 2>&1; then
+        proof_inapplicable "$gate_id" "$predicate" "$evidence"
+    else
+        proof_not_selected "$gate_id" "not selected by $PROOF_CADENCE proof policy"
+    fi
 }
 
 finish() {
@@ -216,7 +248,8 @@ stamp_snapback_build_identity() {
     fi
 }
 
-case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
+PROOF_HOST_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+case "$PROOF_HOST_OS" in
     darwin)
         export DYLD_FRAMEWORK_PATH="$ROOT/vendor/ibex/ios/Frameworks:$ROOT/vendor/ibex/ios/Frameworks/macosx${DYLD_FRAMEWORK_PATH:+:$DYLD_FRAMEWORK_PATH}"
         ;;
@@ -467,7 +500,8 @@ true|TRUE|True|1|yes|YES|on|ON)
             run cargo-test-profile-clean -- cargo clean --profile test
             ;;
         preserve)
-            not_selected cargo-test-profile-clean "measured CI headroom permits preserving dependency artifacts"
+            inapplicable cargo-test-profile-clean cargo-clean-required \
+                '{"ci":true,"cleanupDecision":"preserve"}'
             ;;
         *)
             printf '[snapback-verify] unable to measure CI disk headroom; cleaning the test profile\n'
@@ -476,7 +510,7 @@ true|TRUE|True|1|yes|YES|on|ON)
     esac
     ;;
 *)
-    not_selected cargo-test-profile-clean "CI-only disk-pressure guard"
+    inapplicable cargo-test-profile-clean ci-only '{"ci":false}'
     ;;
 esac
 # cargo test builds test harnesses, not the normal server executable. A restored
@@ -540,7 +574,7 @@ run current-binary-readiness --requires current-binary-build -- \
 # environment.
 runtime_binary="$ROOT/target/debug/snapback"
 runtime_prerequisite="current-binary-readiness"
-if [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "linux" ]; then
+if [ "$PROOF_HOST_OS" = "linux" ]; then
     run runtime-package-stage --requires current-binary-readiness -- env \
         SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY="$runtime_binary" \
         SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY="$ROOT/vendor/ibex/linux/lib/libhermesvm.so" \
@@ -549,7 +583,8 @@ if [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "linux" ]; then
     runtime_binary="$ROOT/packages/snapback-runtime-linux-x64/bin/snapback"
     runtime_prerequisite="runtime-package-stage"
 else
-    not_selected runtime-package-stage "Linux-only runtime package stage"
+    inapplicable runtime-package-stage linux-host \
+        "{\"hostOs\":\"$PROOF_HOST_OS\"}"
 fi
 # LLP 0079 SC-1b: the control-plane MCP acceptance loop (@expo/snapback-cli) drives
 # a real native server through `snapback mcp-control`; point the JS CLI at the
@@ -674,7 +709,7 @@ run snapback-codegen-package --requires package-test-inventory -- bun run --cwd 
 if command -v swift >/dev/null 2>&1 && swift --version >/dev/null 2>&1; then
     run swift-client -- swift test --package-path clients/swift/SnapbackClient
 else
-    not_selected swift-client "no Swift toolchain"
+    inapplicable swift-client swift-toolchain '{"swiftAvailable":false}'
 fi
 # LLP 0040/0049: run the explicit inventory of every non-remote Cloudflare
 # regression. The runner pins suite IDs, the expected check count, completion
@@ -682,8 +717,8 @@ fi
 # through a rename or an unreferenced standalone script.
 run cloudflare-local-suite -- node targets/cloudflare/test/local-suite.mjs
 
-not_selected_exact_surface_gates() {
-    local reason="$1" gate_id=""
+inapplicable_exact_surface_gates() {
+    local evidence="$1" gate_id=""
     for gate_id in \
         exact-todo-install \
         exact-todo-v2-install \
@@ -699,12 +734,13 @@ not_selected_exact_surface_gates() {
         admin-install \
         admin-acceptance
     do
-        not_selected "$gate_id" "$reason"
+        inapplicable "$gate_id" exact-surface-enabled "$evidence"
     done
 }
 
 if [ "$VERIFY_EXACT" != "0" ]; then
     if exact_available; then
+        exact_evidence="{\"verifyExact\":\"$VERIFY_EXACT\",\"exactAvailable\":true}"
         # Every acceptance caller resolves Exact only from its own lock-owned
         # surface tree. A clean canonical runner must install each one instead
         # of inheriting another demo's successful install (ENG-24502).
@@ -724,19 +760,24 @@ if [ "$VERIFY_EXACT" != "0" ]; then
         # proof gate, not an optional local command that CI can forget to run.
         run admin-acceptance --requires admin-install,browser-availability -- \
             bash -lc 'cd admin-ui && ./build.sh && bun run test && bun run test:browser-security && bun run audit:production'
-        not_selected exact-dependencies-required "Exact dependencies available"
+        inapplicable exact-dependencies-required exact-dependencies-sentinel-needed \
+            "$exact_evidence"
     elif [ "$VERIFY_EXACT" = "1" ]; then
-        not_selected_exact_surface_gates "Exact dependencies unavailable"
+        exact_evidence='{"verifyExact":"1","exactAvailable":false}'
+        inapplicable_exact_surface_gates "$exact_evidence"
         run exact-dependencies-required -- bash -c \
             'printf "SNAPBACK_VERIFY_EXACT=1 but bun or installed Exact packages are unavailable\\n" >&2; exit 1'
     else
-        exact_unavailable_reason="Exact dependencies unavailable; set SNAPBACK_VERIFY_EXACT=1 to require them"
-        not_selected_exact_surface_gates "$exact_unavailable_reason"
-        not_selected exact-dependencies-required "$exact_unavailable_reason"
+        exact_evidence='{"verifyExact":"auto","exactAvailable":false}'
+        inapplicable_exact_surface_gates "$exact_evidence"
+        inapplicable exact-dependencies-required exact-dependencies-sentinel-needed \
+            "$exact_evidence"
     fi
 else
-    not_selected_exact_surface_gates "SNAPBACK_VERIFY_EXACT=0"
-    not_selected exact-dependencies-required "SNAPBACK_VERIFY_EXACT=0"
+    exact_evidence='{"verifyExact":"0","exactAvailable":null}'
+    inapplicable_exact_surface_gates "$exact_evidence"
+    inapplicable exact-dependencies-required exact-dependencies-sentinel-needed \
+        "$exact_evidence"
 fi
 
 finish

@@ -39,6 +39,7 @@ import {
   selectDriftProneGates,
   selectGate,
 } from './select-local-proof.mjs';
+import { validateInapplicabilityRecord } from './check-local-proof-gates.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const ZERO_SHA = /^0{40}$/u;
@@ -1682,7 +1683,8 @@ function validateBatteryResult(value, index) {
   const requiredKeys = [
     'schemaVersion', 'proofId', 'gateId', 'state', 'startedAtMs', 'endedAtMs',
     'durationMs', 'exitCode', 'prerequisites', 'blockedBy', 'command',
-    'failureSignature', 'terminationReason',
+    'failureSignature', 'terminationReason', 'selectionReason', 'applicabilityPredicate',
+    'applicabilityEvidence',
   ];
   const actualKeys = Object.keys(value).sort();
   if (JSON.stringify(actualKeys) !== JSON.stringify([...requiredKeys].sort())) {
@@ -1694,7 +1696,7 @@ function validateBatteryResult(value, index) {
   if (typeof value.gateId !== 'string' || !/^[a-z0-9-]+$/u.test(value.gateId)) {
     fail(`battery result ${index} has an invalid gate id`);
   }
-  if (!['PASS', 'FAIL', 'BLOCKED', 'NOT_SELECTED'].includes(value.state)) {
+  if (!['PASS', 'FAIL', 'BLOCKED', 'NOT_SELECTED', 'INAPPLICABLE'].includes(value.state)) {
     fail(`battery result ${index} has an invalid state`);
   }
   for (const key of ['startedAtMs', 'endedAtMs', 'durationMs']) {
@@ -1726,6 +1728,27 @@ function validateBatteryResult(value, index) {
   }
   if (value.state === 'BLOCKED' && value.blockedBy.length === 0) {
     fail(`battery BLOCKED result ${value.gateId} does not name a prerequisite`);
+  }
+  if (value.state === 'NOT_SELECTED') {
+    if (typeof value.selectionReason !== 'string' || value.selectionReason.length === 0
+      || value.applicabilityPredicate !== null || value.applicabilityEvidence !== null
+      || value.command !== '') {
+      fail(`battery NOT_SELECTED result ${value.gateId} lacks policy selection evidence`);
+    }
+  } else if (value.state === 'INAPPLICABLE') {
+    if (value.selectionReason !== null
+      || typeof value.applicabilityPredicate !== 'string'
+      || !/^[a-z0-9-]+$/u.test(value.applicabilityPredicate)
+      || !value.applicabilityEvidence
+      || typeof value.applicabilityEvidence !== 'object'
+      || Array.isArray(value.applicabilityEvidence)
+      || value.command !== '') {
+      fail(`battery INAPPLICABLE result ${value.gateId} lacks structured evidence`);
+    }
+  } else if (value.selectionReason !== null
+    || value.applicabilityPredicate !== null
+    || value.applicabilityEvidence !== null) {
+    fail(`battery executed result ${value.gateId} carries skip evidence`);
   }
   return value;
 }
@@ -2145,6 +2168,22 @@ function readCompleteBatteryResults({ root, resultsPath, context }) {
   }
   const records = parseBatteryResults(readFileSync(resolvedResults, 'utf8'));
   validateCompleteBatteryInventory(records, context.inventory.canonicalGates);
+  for (const record of records) {
+    if (record.state === 'NOT_SELECTED') {
+      fail(`complete battery cannot contain policy NOT_SELECTED gate ${record.gateId}`);
+    }
+    if (record.state !== 'INAPPLICABLE') continue;
+    try {
+      validateInapplicabilityRecord(
+        record.gateId,
+        record.applicabilityPredicate,
+        record.applicabilityEvidence,
+        context.inapplicabilityDeclarations ?? [],
+      );
+    } catch (error) {
+      fail(`battery INAPPLICABLE result ${record.gateId} is unauthorized: ${error.message}`);
+    }
+  }
   return records;
 }
 
@@ -2155,7 +2194,7 @@ export function runBatteryReport({
 } = {}) {
   const records = readCompleteBatteryResults({ root, resultsPath, context });
   const counts = Object.fromEntries(
-    ['PASS', 'FAIL', 'BLOCKED', 'NOT_SELECTED'].map((state) => [
+    ['PASS', 'FAIL', 'BLOCKED', 'NOT_SELECTED', 'INAPPLICABLE'].map((state) => [
       state,
       records.filter((record) => record.state === state).length,
     ]),
@@ -2164,7 +2203,7 @@ export function runBatteryReport({
   console[red ? 'error' : 'log'](
     `[snapback-battery-report] ${red ? 'RED' : 'GREEN'} `
       + `${counts.PASS} passed, ${counts.FAIL} root failure(s), `
-      + `${counts.BLOCKED} blocked, ${counts.NOT_SELECTED} host-conditioned not selected`,
+      + `${counts.BLOCKED} blocked, ${counts.INAPPLICABLE} inapplicable`,
   );
   return red ? 1 : 0;
 }
@@ -2211,11 +2250,11 @@ export function runBatteryBackstop({
       );
       continue;
     }
-    if (record.state === 'NOT_SELECTED') {
+    if (record.state === 'INAPPLICABLE') {
       for (const path of openForGate()) resetBatteryTicketStreak(path, { runId });
       console.log(
-        `[snapback-battery-backstop] NOT_SELECTED ${record.gateId}; `
-          + 'host-conditioned absence breaks the red streak and files no ticket',
+        `[snapback-battery-backstop] INAPPLICABLE ${record.gateId} `
+          + `(${record.applicabilityPredicate}); absence breaks the red streak and files no ticket`,
       );
       continue;
     }

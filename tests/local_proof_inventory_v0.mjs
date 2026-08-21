@@ -16,6 +16,7 @@ test('the canonical proof has named gates and its producer edges are closed', ()
   const result = checkLocalProof();
   assert(result.gateCount > 80, 'the canonical inventory unexpectedly became vacuous');
   assert(result.uniqueGateCount > 80, 'the canonical stable-id inventory unexpectedly shrank');
+  assert(result.inapplicabilityDeclarationCount > 0, 'host applicability inventory is empty');
 
   const source = readFileSync(resolve(root, 'scripts/verify-local-proof'), 'utf8');
   const rustTests = parseGateCalls(source).find(({ gateId }) => gateId === 'rust-tests');
@@ -63,6 +64,18 @@ test('the canonical proof has named gates and its producer edges are closed', ()
     seedSuite,
     /const explicitCurrentBinary = process\.env\.SNAPBACK_BINARY;[\s\S]*if \(!explicitCurrentBinary\) \{[\s\S]*spawnSync\('cargo', \['build', '--quiet', '--bin', 'snapback'\]/u,
     'versioned-seed must not rebuild and overwrite the qualified root binary when an explicit carrier is supplied',
+  );
+});
+
+test('host inapplicability declarations are literal, known gate/predicate pairs', () => {
+  const canonical = readFileSync(resolve(root, 'scripts/verify-local-proof'), 'utf8');
+  const mutated = canonical.replace(
+    'proof_runner_declare_inapplicable runtime-package-stage linux-host',
+    'proof_runner_declare_inapplicable runtime-package-stage invented-host-predicate',
+  );
+  assert.throws(
+    () => checkLocalProof(mutated),
+    /unknown predicate invented-host-predicate/u,
   );
 });
 

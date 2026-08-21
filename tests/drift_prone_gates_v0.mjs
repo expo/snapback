@@ -21,6 +21,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
+  digestSelectedGateIds,
   loadSelectionContext,
   selectDriftProneGates,
 } from '../scripts/select-local-proof.mjs';
@@ -1306,19 +1307,19 @@ test('backstop keys distinct reds by signature and updates an unchanged observat
 function captureDeclarationOrderBatteryFixture(scratch, context) {
   const resultsPath = join(scratch, 'declaration-order-results.jsonl');
   const selectedGatesPath = join(scratch, 'declaration-order-selected-gates.txt');
-  writeFileSync(selectedGatesPath, '');
   const seen = new Set();
   const declarationOrder = context.calls.flatMap(({ gateId }) => {
     if (seen.has(gateId)) return [];
     seen.add(gateId);
     return [gateId];
   });
+  writeFileSync(selectedGatesPath, declarationOrder.map((gateId) => `${gateId}\n`).join(''));
   const script = [
     'set -euo pipefail',
     `source ${JSON.stringify(PROOF_RUNNER)}`,
-    `proof_runner_init local-proof ${JSON.stringify(resultsPath)} 1 ${JSON.stringify(selectedGatesPath)}`,
+    `proof_runner_init local-proof ${JSON.stringify(resultsPath)} 1 ${JSON.stringify(selectedGatesPath)} ${declarationOrder.length} ${JSON.stringify(digestSelectedGateIds(declarationOrder))}`,
     ...declarationOrder.map((gateId) => (
-      `proof_not_selected ${gateId} 'host-conditioned fixture capture'`
+      `proof_gate ${gateId} -- /usr/bin/true`
     )),
     'proof_runner_finish',
   ].join('\n');
@@ -1356,6 +1357,9 @@ test('complete battery inventory rejects duplicate and missing gate ids independ
     exitCode: 0,
     failureSignature: null,
     terminationReason: 'exit',
+    selectionReason: null,
+    applicabilityPredicate: null,
+    applicabilityEvidence: null,
     gateId: 'only-gate',
     prerequisites: [],
     proofId: 'local-proof',
@@ -1407,6 +1411,56 @@ test('complete battery inventory rejects duplicate and missing gate ids independ
         context: { inventory: { canonicalGates: ['only-gate', 'missing-gate'] } },
       }),
       /missing: missing-gate/u,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('complete battery accepts only declared INAPPLICABLE pairs with predicate-valid evidence', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-battery-inapplicable-'));
+  const resultsPath = join(scratch, 'results.jsonl');
+  const record = {
+    applicabilityEvidence: { ci: false },
+    applicabilityPredicate: 'ci-only',
+    blockedBy: [],
+    command: '',
+    durationMs: 0,
+    endedAtMs: 1,
+    exitCode: null,
+    failureSignature: null,
+    gateId: 'conditional-gate',
+    prerequisites: [],
+    proofId: 'local-proof',
+    schemaVersion: 'snapback.proof-gate-result.v3',
+    selectionReason: null,
+    startedAtMs: 1,
+    state: 'INAPPLICABLE',
+  };
+  const context = {
+    inventory: { canonicalGates: ['conditional-gate'] },
+    inapplicabilityDeclarations: [{ gateId: 'conditional-gate', predicate: 'ci-only' }],
+  };
+  try {
+    writeFileSync(resultsPath, `${JSON.stringify(record)}\n`);
+    assert.equal(runBatteryReport({ resultsPath, root: scratch, context }), 0);
+
+    assert.throws(
+      () => runBatteryReport({
+        resultsPath,
+        root: scratch,
+        context: { ...context, inapplicabilityDeclarations: [] },
+      }),
+      /undeclared inapplicability pair conditional-gate\/ci-only/u,
+    );
+
+    writeFileSync(resultsPath, `${JSON.stringify({
+      ...record,
+      applicabilityEvidence: { ci: true },
+    })}\n`);
+    assert.throws(
+      () => runBatteryReport({ resultsPath, root: scratch, context }),
+      /ci-only evidence must be exactly/u,
     );
   } finally {
     rmSync(scratch, { recursive: true, force: true });
@@ -1470,6 +1524,10 @@ test('complete battery tickets track signatures, claims, streaks, closure, and r
     const head = commitAll(repo, 'test: battery fixture');
     const context = {
       inventory: { canonicalGates: ['dependent-gate', 'root-gate'] },
+      inapplicabilityDeclarations: [
+        { gateId: 'dependent-gate', predicate: 'ci-only' },
+        { gateId: 'root-gate', predicate: 'ci-only' },
+      ],
     };
     const resultsPath = join(repo, 'target', 'proof', 'results.jsonl');
     mkdirSync(dirname(resultsPath), { recursive: true });
@@ -1540,8 +1598,10 @@ test('complete battery tickets track signatures, claims, streaks, closure, and r
       normalizationPaths: [repo],
     });
     const result = (gateId, state, signature = null) => ({
+      applicabilityEvidence: state === 'INAPPLICABLE' ? { ci: false } : null,
+      applicabilityPredicate: state === 'INAPPLICABLE' ? 'ci-only' : null,
       blockedBy: state === 'BLOCKED' ? ['root-gate'] : [],
-      command: `node ${gateId}.mjs`,
+      command: ['NOT_SELECTED', 'INAPPLICABLE'].includes(state) ? '' : `node ${gateId}.mjs`,
       durationMs: 1,
       endedAtMs: 2,
       exitCode: state === 'FAIL' ? 7 : state === 'PASS' ? 0 : null,
@@ -1551,12 +1611,13 @@ test('complete battery tickets track signatures, claims, streaks, closure, and r
       prerequisites: gateId === 'dependent-gate' ? ['root-gate'] : [],
       proofId: 'local-proof',
       schemaVersion: 'snapback.proof-gate-result.v3',
+      selectionReason: state === 'NOT_SELECTED' ? 'outside fixture cadence' : null,
       startedAtMs: 1,
       state,
     });
     const writeResults = (rootState, signature = null) => {
       const dependentState = rootState === 'PASS' ? 'PASS'
-        : rootState === 'NOT_SELECTED' ? 'NOT_SELECTED' : 'BLOCKED';
+        : ['NOT_SELECTED', 'INAPPLICABLE'].includes(rootState) ? rootState : 'BLOCKED';
       writeFileSync(resultsPath, [
         result('root-gate', rootState, signature),
         result('dependent-gate', dependentState),
@@ -1603,10 +1664,15 @@ test('complete battery tickets track signatures, claims, streaks, closure, and r
     assert.equal(openTickets().length, 1, 'BLOCKED neither files nor closes a root ticket');
 
     writeResults('NOT_SELECTED');
+    assert.throws(
+      () => runBattery('run-4a'),
+      /complete battery cannot contain policy NOT_SELECTED gate/u,
+    );
+    writeResults('INAPPLICABLE');
     assert.equal(runBattery('run-4b'), 0);
     body = readFileSync(join(repo, issuesDir, openTickets()[0]), 'utf8');
     assert.match(body, /\*\*Consecutive red runs:\*\* `0`/u);
-    assert.equal(openTickets().length, 1, 'NOT_SELECTED neither files nor closes a ticket');
+    assert.equal(openTickets().length, 1, 'INAPPLICABLE neither files nor closes a ticket');
 
     writeResults('FAIL', signatureB);
     for (const runId of ['run-5', 'run-6', 'run-7', 'run-8']) assert.equal(runBattery(runId), 1);

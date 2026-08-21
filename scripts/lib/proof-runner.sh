@@ -5,13 +5,19 @@
 # feedback while replacing failed-producer timeout cascades with BLOCKED.
 #
 # The caller remains responsible for `set -e` and calls:
-#   proof_runner_init <proof-id> <jsonl-output> <keep-going:0|1> <selected-gates-file>
+#   proof_runner_init <proof-id> <jsonl-output> <keep-going:0|1> \
+#     <selected-gates-file> <expected-count> <expected-sha256>
+#   proof_runner_declare_inapplicable <gate-id> <predicate-id>
 #   proof_gate <gate-id> [--requires <comma-separated-gate-ids>]
 #       [--timeout-seconds <positive-integer>] -- <command...>
 #   proof_not_selected <gate-id> <reason>
+#   proof_inapplicable <gate-id> <predicate-id> <evidence-json>
 #   proof_runner_finish
 #
 # Bash 3.2 compatibility is deliberate: macOS agents use the system Bash.
+# Gate commands run in a subshell and must communicate durable effects through
+# files/processes, not mutations to the proof shell. The canonical shell's one
+# function-valued gate (`build_current_binary`) already follows that contract.
 
 PROOF_RUNNER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PROOF_GATE_IDS=()
@@ -21,6 +27,8 @@ PROOF_GATE_PREREQUISITES=()
 PROOF_GATE_BLOCKED_BY=()
 PROOF_GATE_EXIT_CODES=()
 PROOF_SELECTED_GATE_IDS=()
+PROOF_INAPPLICABLE_GATE_IDS=()
+PROOF_INAPPLICABLE_PREDICATES=()
 
 proof_now_ms() {
     if command -v perl >/dev/null 2>&1; then
@@ -83,7 +91,7 @@ proof_run_gate_with_timeout() {
 
     case "$-" in *m*) monitor_was_enabled=1 ;; esac
     if [ "$monitor_was_enabled" -eq 0 ]; then set -m; fi
-    "$@" &
+    (PROOF_RUNNER_GATE_SUBSHELL=1; "$@") &
     command_pid=$!
     if [ "$monitor_was_enabled" -eq 0 ]; then set +m; fi
 
@@ -138,17 +146,107 @@ proof_run_gate_with_timeout() {
     return 124
 }
 
+proof_file_sha256() {
+    node -e '
+const { createHash } = require("node:crypto");
+const { readFileSync } = require("node:fs");
+process.stdout.write(`sha256:${createHash("sha256").update(readFileSync(process.argv[1])).digest("hex")}`);
+' "$1"
+}
+
+proof_canonical_path() {
+    local path="$1" directory="" base=""
+    directory="$(dirname "$path")" || return $?
+    base="$(basename "$path")" || return $?
+    (cd "$directory" && printf '%s/%s\n' "$(pwd -P)" "$base")
+}
+
+proof_selected_gate_index() {
+    local wanted="$1" index=0
+    while [ "$index" -lt "${#PROOF_SELECTED_GATE_IDS[@]}" ]; do
+        if [ "${PROOF_SELECTED_GATE_IDS[$index]}" = "$wanted" ]; then
+            printf '%s\n' "$index"
+            return 0
+        fi
+        index=$((index + 1))
+    done
+    return 1
+}
+
+proof_runner_exit_guard() {
+    local shell_status=$? guarded_status=0
+    trap - EXIT
+    if [ "${PROOF_RUNNER_GATE_SUBSHELL:-0}" = "1" ]; then
+        exit "$shell_status"
+    fi
+    if [ "${PROOF_RUNNER_RECONCILED:-0}" != "1" ]; then
+        printf '[snapback-proof] proof runner terminated before successful reconciliation (phase: %s)\n' \
+            "${PROOF_RUNNER_PHASE:-unknown}" >&2
+        guarded_status="$shell_status"
+        [ "$guarded_status" -ne 0 ] || guarded_status=2
+        exit "$guarded_status"
+    fi
+    exit "$shell_status"
+}
+
+proof_runner_debug_guard() {
+    if [ "${PROOF_RUNNER_GATE_SUBSHELL:-0}" = "1" ] \
+        || [ "${PROOF_RUNNER_INITIALIZED:-0}" != "1" ] \
+        || [ "${PROOF_RUNNER_RECONCILED:-0}" = "1" ]; then
+        return 0
+    fi
+    case "$BASH_COMMAND" in
+        exec|exec\ *|builtin\ exec|builtin\ exec\ *|command\ exec|command\ exec\ *)
+            printf '[snapback-proof] exec cannot replace an unreconciled proof shell (phase: %s)\n' \
+                "${PROOF_RUNNER_PHASE:-unknown}" >&2
+            return 2
+            ;;
+    esac
+    return 0
+}
+
+# Bash does not promise to run an EXIT trap when `exec` replaces the proof
+# shell. Interpose the normal builtin spelling while reconciliation is armed;
+# gate-command subshells retain ordinary exec semantics.
+exec() {
+    if [ "${PROOF_RUNNER_GATE_SUBSHELL:-0}" = "1" ]; then
+        builtin exec "$@"
+        return $?
+    fi
+    if [ "${PROOF_RUNNER_INITIALIZED:-0}" = "1" ] \
+        && [ "${PROOF_RUNNER_RECONCILED:-0}" != "1" ]; then
+        printf '[snapback-proof] exec cannot replace an unreconciled proof shell (phase: %s)\n' \
+            "${PROOF_RUNNER_PHASE:-unknown}" >&2
+        return 2
+    fi
+    builtin exec "$@"
+}
+
 proof_runner_init() {
-    if [ "$#" -ne 4 ]; then
-        printf '[snapback-proof] proof_runner_init expects proof id, result path, keep-going flag, and selected-gates file\n' >&2
+    if [ "$#" -ne 6 ]; then
+        printf '[snapback-proof] proof_runner_init expects proof id, result path, keep-going flag, selected-gates file, expected count, and expected sha256\n' >&2
+        return 2
+    fi
+    if [ "${PROOF_RUNNER_INITIALIZED:-0}" = "1" ] && [ "${PROOF_RUNNER_RECONCILED:-0}" != "1" ]; then
+        printf '[snapback-proof] proof runner is already initialized and unreconciled\n' >&2
         return 2
     fi
     PROOF_ID="$1"
     PROOF_RESULTS_PATH="$2"
     PROOF_KEEP_GOING="$3"
     PROOF_SELECTED_GATES_PATH="$4"
+    PROOF_SELECTED_EXPECTED_COUNT="$5"
+    PROOF_SELECTED_EXPECTED_DIGEST="$6"
     PROOF_SELECTED_INDEX=0
+    PROOF_GATE_IDS=()
+    PROOF_GATE_STATES=()
+    PROOF_GATE_COMMANDS=()
+    PROOF_GATE_PREREQUISITES=()
+    PROOF_GATE_BLOCKED_BY=()
+    PROOF_GATE_EXIT_CODES=()
     PROOF_SELECTED_GATE_IDS=()
+    PROOF_INAPPLICABLE_GATE_IDS=()
+    PROOF_INAPPLICABLE_PREDICATES=()
     case "$PROOF_KEEP_GOING" in
         0|1) ;;
         *)
@@ -156,9 +254,47 @@ proof_runner_init() {
             return 2
             ;;
     esac
+    case "$PROOF_SELECTED_EXPECTED_COUNT" in
+        ''|*[!0-9]*)
+            printf '[snapback-proof] expected selected gate count must be a non-negative integer, got %s\n' \
+                "$PROOF_SELECTED_EXPECTED_COUNT" >&2
+            return 2
+            ;;
+    esac
+    case "$PROOF_SELECTED_EXPECTED_DIGEST" in
+        sha256:*) ;;
+        *)
+            printf '[snapback-proof] expected selected gate digest must be sha256 hex, got %s\n' \
+                "$PROOF_SELECTED_EXPECTED_DIGEST" >&2
+            return 2
+            ;;
+    esac
+    local selected_expected_hex="${PROOF_SELECTED_EXPECTED_DIGEST#sha256:}"
+    case "$selected_expected_hex" in
+        ''|*[!0-9a-f]*)
+            printf '[snapback-proof] expected selected gate digest must be sha256 hex, got %s\n' \
+                "$PROOF_SELECTED_EXPECTED_DIGEST" >&2
+            return 2
+            ;;
+    esac
+    if [ "${#selected_expected_hex}" -ne 64 ]; then
+        printf '[snapback-proof] expected selected gate digest must contain exactly 64 hex digits\n' >&2
+        return 2
+    fi
     if [ ! -r "$PROOF_SELECTED_GATES_PATH" ]; then
         printf '[snapback-proof] selected-gates file is missing or unreadable: %s\n' \
             "$PROOF_SELECTED_GATES_PATH" >&2
+        return 2
+    fi
+    mkdir -p "$(dirname "$PROOF_RESULTS_PATH")"
+    local selected_canonical="" results_canonical=""
+    selected_canonical="$(proof_canonical_path "$PROOF_SELECTED_GATES_PATH")" || return $?
+    results_canonical="$(proof_canonical_path "$PROOF_RESULTS_PATH")" || return $?
+    if [ "$selected_canonical" = "$results_canonical" ] || {
+        [ -e "$PROOF_RESULTS_PATH" ] && [ "$PROOF_SELECTED_GATES_PATH" -ef "$PROOF_RESULTS_PATH" ];
+    }; then
+        printf '[snapback-proof] selected-gates and results paths must not alias: %s / %s\n' \
+            "$PROOF_SELECTED_GATES_PATH" "$PROOF_RESULTS_PATH" >&2
         return 2
     fi
     local gate_id="" selected_index=0
@@ -183,11 +319,83 @@ proof_runner_init() {
         PROOF_SELECTED_GATE_IDS+=("$gate_id")
     done < "$PROOF_SELECTED_GATES_PATH"
     PROOF_SELECTED_COUNT="${#PROOF_SELECTED_GATE_IDS[@]}"
-    mkdir -p "$(dirname "$PROOF_RESULTS_PATH")"
+    if [ "$PROOF_SELECTED_COUNT" -ne "$PROOF_SELECTED_EXPECTED_COUNT" ]; then
+        printf '[snapback-proof] selected gate count mismatch: parsed %d, receipt expects %d\n' \
+            "$PROOF_SELECTED_COUNT" "$PROOF_SELECTED_EXPECTED_COUNT" >&2
+        return 2
+    fi
+    local selected_snapshot="" selected_digest=""
+    selected_snapshot="$(mktemp "$(dirname "$PROOF_RESULTS_PATH")/.proof-selected-gates.XXXXXX")" || return $?
+    : > "$selected_snapshot"
+    selected_index=0
+    while [ "$selected_index" -lt "${#PROOF_SELECTED_GATE_IDS[@]}" ]; do
+        printf '%s\n' "${PROOF_SELECTED_GATE_IDS[$selected_index]}" >> "$selected_snapshot"
+        selected_index=$((selected_index + 1))
+    done
+    selected_digest="$(proof_file_sha256 "$selected_snapshot")" || {
+        rm -f -- "$selected_snapshot"
+        return 2
+    }
+    rm -f -- "$selected_snapshot"
+    if [ "$selected_digest" != "$PROOF_SELECTED_EXPECTED_DIGEST" ]; then
+        printf '[snapback-proof] selected gate digest mismatch: parsed %s, receipt expects %s\n' \
+            "$selected_digest" "$PROOF_SELECTED_EXPECTED_DIGEST" >&2
+        return 2
+    fi
+    PROOF_SELECTED_GATE_DIGEST="$selected_digest"
     : > "$PROOF_RESULTS_PATH"
     export PROOF_ID PROOF_RESULTS_PATH PROOF_KEEP_GOING PROOF_SELECTED_GATES_PATH
-    export PROOF_SELECTED_COUNT PROOF_SELECTED_INDEX
+    export PROOF_SELECTED_COUNT PROOF_SELECTED_INDEX PROOF_SELECTED_GATE_DIGEST
+    PROOF_RUNNER_INITIALIZED=1
+    PROOF_RUNNER_RECONCILED=0
+    PROOF_RUNNER_PHASE="declarations"
+    PROOF_RUNNER_PREVIOUS_DEBUG_TRAP="$(trap -p DEBUG)"
+    trap proof_runner_exit_guard EXIT
+    trap proof_runner_debug_guard DEBUG
     printf '[snapback-proof] structured gate results: %s\n' "$PROOF_RESULTS_PATH"
+}
+
+proof_runner_declare_inapplicable() {
+    if [ "$#" -ne 2 ]; then
+        printf '[snapback-proof] proof_runner_declare_inapplicable expects a gate id and predicate id\n' >&2
+        return 2
+    fi
+    local gate_id="$1" predicate="$2" index=0
+    case "$gate_id" in
+        ''|*[!a-z0-9-]*)
+            printf '[snapback-proof] invalid inapplicable gate id %q\n' "$gate_id" >&2
+            return 2
+            ;;
+    esac
+    case "$predicate" in
+        ''|*[!a-z0-9-]*)
+            printf '[snapback-proof] invalid inapplicability predicate id %q\n' "$predicate" >&2
+            return 2
+            ;;
+    esac
+    while [ "$index" -lt "${#PROOF_INAPPLICABLE_GATE_IDS[@]}" ]; do
+        if [ "${PROOF_INAPPLICABLE_GATE_IDS[$index]}" = "$gate_id" ] \
+            && [ "${PROOF_INAPPLICABLE_PREDICATES[$index]}" = "$predicate" ]; then
+            printf '[snapback-proof] duplicate inapplicability declaration: %s/%s\n' \
+                "$gate_id" "$predicate" >&2
+            return 2
+        fi
+        index=$((index + 1))
+    done
+    PROOF_INAPPLICABLE_GATE_IDS+=("$gate_id")
+    PROOF_INAPPLICABLE_PREDICATES+=("$predicate")
+}
+
+proof_inapplicability_declared() {
+    local gate_id="$1" predicate="$2" index=0
+    while [ "$index" -lt "${#PROOF_INAPPLICABLE_GATE_IDS[@]}" ]; do
+        if [ "${PROOF_INAPPLICABLE_GATE_IDS[$index]}" = "$gate_id" ] \
+            && [ "${PROOF_INAPPLICABLE_PREDICATES[$index]}" = "$predicate" ]; then
+            return 0
+        fi
+        index=$((index + 1))
+    done
+    return 1
 }
 
 proof_gate_index() {
@@ -237,6 +445,8 @@ proof_record() {
     local gate_id="$1" state="$2" started="$3" ended="$4" exit_code="$5"
     local prerequisites="$6" blocked_by="$7" command="$8" failure_signature="${9:-}"
     local termination_reason="${10:-}"
+    local selection_reason="${11:-}" applicability_predicate="${12:-}"
+    local applicability_evidence="${13:-}"
     PROOF_GATE_IDS+=("$gate_id")
     PROOF_GATE_STATES+=("$state")
     PROOF_GATE_COMMANDS+=("$command")
@@ -246,17 +456,24 @@ proof_record() {
     local exit_json="null"
     local signature_json="null"
     local termination_json="null"
+    local selection_reason_json="null" applicability_predicate_json="null"
+    local applicability_evidence_json="null"
     [ -z "$exit_code" ] || exit_json="$exit_code"
     [ -z "$failure_signature" ] || signature_json="$(proof_json_quote "$failure_signature")"
     [ -z "$termination_reason" ] || termination_json="$(proof_json_quote "$termination_reason")"
-    printf '{"schemaVersion":"snapback.proof-gate-result.v3","proofId":%s,"gateId":%s,"state":%s,"startedAtMs":%s,"endedAtMs":%s,"durationMs":%s,"exitCode":%s,"prerequisites":%s,"blockedBy":%s,"command":%s,"failureSignature":%s,"terminationReason":%s}\n' \
+    [ -z "$selection_reason" ] || selection_reason_json="$(proof_json_quote "$selection_reason")"
+    [ -z "$applicability_predicate" ] || applicability_predicate_json="$(proof_json_quote "$applicability_predicate")"
+    [ -z "$applicability_evidence" ] || applicability_evidence_json="$applicability_evidence"
+    printf '{"schemaVersion":"snapback.proof-gate-result.v3","proofId":%s,"gateId":%s,"state":%s,"startedAtMs":%s,"endedAtMs":%s,"durationMs":%s,"exitCode":%s,"prerequisites":%s,"blockedBy":%s,"command":%s,"failureSignature":%s,"terminationReason":%s,"selectionReason":%s,"applicabilityPredicate":%s,"applicabilityEvidence":%s}\n' \
         "$(proof_json_quote "$PROOF_ID")" \
         "$(proof_json_quote "$gate_id")" \
         "$(proof_json_quote "$state")" \
         "$started" "$ended" "$((ended - started))" "$exit_json" \
         "$(proof_json_csv_array "$prerequisites")" \
         "$(proof_json_csv_array "$blocked_by")" \
-        "$(proof_json_quote "$command")" "$signature_json" "$termination_json" >> "$PROOF_RESULTS_PATH"
+        "$(proof_json_quote "$command")" "$signature_json" "$termination_json" \
+        "$selection_reason_json" "$applicability_predicate_json" \
+        "$applicability_evidence_json" >> "$PROOF_RESULTS_PATH"
 }
 
 proof_update_last_termination_reason() {
@@ -480,6 +697,10 @@ proof_gate() {
         "$gate_id" "$timeout_override" "$timeout_override_set")" || \
         return $?
     proof_validate_gate_id "$gate_id" || return $?
+    if ! proof_selected_gate_index "$gate_id" >/dev/null 2>&1; then
+        printf '[snapback-proof] proof_gate cannot execute unselected gate %s\n' "$gate_id" >&2
+        return 2
+    fi
     PROOF_SELECTED_INDEX=$((PROOF_SELECTED_INDEX + 1))
     if [ "$PROOF_SELECTED_INDEX" -gt "$PROOF_SELECTED_COUNT" ]; then
         printf '[snapback-proof] selected gate count exceeded: saw %d, expected %d\n' \
@@ -526,11 +747,13 @@ proof_gate() {
         "$PROOF_SELECTED_INDEX" "$PROOF_SELECTED_COUNT" "$gate_id"
     printf ' %q' "$@"
     printf '\n'
+    PROOF_RUNNER_PHASE="gate:$gate_id"
     if proof_execute_gate "$gate_id" "$timeout_seconds" "$@"; then
         ended="$(proof_now_ms)"
         proof_record "$gate_id" PASS "$started" "$ended" 0 \
             "$prerequisites" "" "$command" "" exit
         printf '[snapback-verify] PASS %s (%d ms)\n' "$gate_id" "$((ended - started))"
+        PROOF_RUNNER_PHASE="declarations"
         return 0
     else
         gate_status=$?
@@ -541,6 +764,7 @@ proof_gate() {
             "$prerequisites" "" "$command" "$failure_signature" "$termination_reason"
         printf '\n[snapback-verify] FAIL %s (exit %d, %d ms): %s\n' \
             "$gate_id" "$gate_status" "$((ended - started))" "$command"
+        PROOF_RUNNER_PHASE="declarations"
         if [ "$PROOF_KEEP_GOING" = "1" ]; then
             return 0
         fi
@@ -555,19 +779,70 @@ proof_not_selected() {
     fi
     local gate_id="$1" reason="$2" now=""
     proof_validate_gate_id "$gate_id" || return $?
+    if proof_selected_gate_index "$gate_id" >/dev/null 2>&1; then
+        printf '[snapback-proof] policy NOT_SELECTED cannot reconcile selected gate %s\n' \
+            "$gate_id" >&2
+        return 2
+    fi
+    if [ -z "$reason" ]; then
+        printf '[snapback-proof] policy NOT_SELECTED requires a non-empty cadence reason for %s\n' \
+            "$gate_id" >&2
+        return 2
+    fi
     now="$(proof_now_ms)"
-    proof_record "$gate_id" NOT_SELECTED "$now" "$now" "" "" "" "$reason"
+    proof_record "$gate_id" NOT_SELECTED "$now" "$now" "" "" "" "" "" "" "$reason"
     printf '\n[snapback-verify] NOT_SELECTED %s: %s\n' "$gate_id" "$reason"
 }
 
+proof_inapplicable() {
+    if [ "$#" -ne 3 ]; then
+        printf '[snapback-proof] proof_inapplicable expects a gate id, predicate id, and evidence JSON\n' >&2
+        return 2
+    fi
+    local gate_id="$1" predicate="$2" evidence="$3" canonical_evidence="" now=""
+    proof_validate_gate_id "$gate_id" || return $?
+    if ! proof_selected_gate_index "$gate_id" >/dev/null 2>&1; then
+        printf '[snapback-proof] INAPPLICABLE cannot reconcile unselected gate %s\n' "$gate_id" >&2
+        return 2
+    fi
+    if ! proof_inapplicability_declared "$gate_id" "$predicate"; then
+        printf '[snapback-proof] undeclared inapplicability pair: %s/%s\n' \
+            "$gate_id" "$predicate" >&2
+        return 2
+    fi
+    canonical_evidence="$(node -e '
+const value = JSON.parse(process.argv[1]);
+if (!value || typeof value !== "object" || Array.isArray(value)) process.exit(2);
+process.stdout.write(JSON.stringify(value));
+' "$evidence")" || {
+        printf '[snapback-proof] inapplicability evidence for %s/%s must be a JSON object\n' \
+            "$gate_id" "$predicate" >&2
+        return 2
+    }
+    PROOF_SELECTED_INDEX=$((PROOF_SELECTED_INDEX + 1))
+    if [ "$PROOF_SELECTED_INDEX" -gt "$PROOF_SELECTED_COUNT" ]; then
+        printf '[snapback-proof] selected gate count exceeded: saw %d, expected %d\n' \
+            "$PROOF_SELECTED_INDEX" "$PROOF_SELECTED_COUNT" >&2
+        return 2
+    fi
+    now="$(proof_now_ms)"
+    proof_record "$gate_id" INAPPLICABLE "$now" "$now" "" "" "" "" "" "" "" \
+        "$predicate" "$canonical_evidence"
+    printf '\n[snapback-verify] INAPPLICABLE %d/%d %s (%s): %s\n' \
+        "$PROOF_SELECTED_INDEX" "$PROOF_SELECTED_COUNT" "$gate_id" "$predicate" \
+        "$canonical_evidence"
+}
+
 proof_runner_finish() {
-    local index=0 failures=0 blocked=0 not_selected=0
+    local index=0 failures=0 blocked=0 not_selected=0 inapplicable=0
     local missing_count=0 missing_gate_ids="" selected_gate_id=""
+    PROOF_RUNNER_PHASE="reconciliation"
     while [ "$index" -lt "${#PROOF_GATE_IDS[@]}" ]; do
         case "${PROOF_GATE_STATES[$index]}" in
             FAIL) failures=$((failures + 1)) ;;
             BLOCKED) blocked=$((blocked + 1)) ;;
             NOT_SELECTED) not_selected=$((not_selected + 1)) ;;
+            INAPPLICABLE) inapplicable=$((inapplicable + 1)) ;;
         esac
         index=$((index + 1))
     done
@@ -596,9 +871,17 @@ proof_runner_finish() {
         return 2
     fi
 
+    PROOF_RUNNER_RECONCILED=1
+    PROOF_RUNNER_PHASE="reconciled"
+    if [ -n "$PROOF_RUNNER_PREVIOUS_DEBUG_TRAP" ]; then
+        eval "$PROOF_RUNNER_PREVIOUS_DEBUG_TRAP"
+    else
+        trap - DEBUG
+    fi
+
     if [ "$failures" -gt 0 ] || [ "$blocked" -gt 0 ]; then
-        printf '\n[snapback-verify] PROOF SUMMARY: %d root failure(s), %d blocked gate(s), %d not selected\n' \
-            "$failures" "$blocked" "$not_selected"
+        printf '\n[snapback-verify] PROOF SUMMARY: %d root failure(s), %d blocked gate(s), %d not selected, %d inapplicable\n' \
+            "$failures" "$blocked" "$not_selected" "$inapplicable"
         index=0
         while [ "$index" -lt "${#PROOF_GATE_IDS[@]}" ]; do
             case "${PROOF_GATE_STATES[$index]}" in
@@ -616,6 +899,6 @@ proof_runner_finish() {
         done
         return 1
     fi
-    printf '\n[snapback-verify] PROOF SUMMARY: all selected gates passed (%d not selected)\n' \
-        "$not_selected"
+    printf '\n[snapback-verify] PROOF SUMMARY: all applicable selected gates passed (%d not selected, %d inapplicable)\n' \
+        "$not_selected" "$inapplicable"
 }

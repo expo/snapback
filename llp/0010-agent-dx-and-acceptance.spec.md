@@ -10,6 +10,11 @@ between runtime and inventory, v3 gate JSONL distinguishes natural exits from
 timeouts/cleanup failures, FIFO capture completion is bounded, and the shared
 acceptance harness runs registered cleanup during TERM/INT grace so exact-owned
 resources outside the gate process group are not abandoned.)
+**Revised:** 2026-08-21 (the proof runner binds its immutable selected-id
+snapshot to the selector receipt's exact count/digest, reserves
+`NOT_SELECTED` for cadence exclusion, records declared host/policy absence as
+structured `INAPPLICABLE`, and fails closed if the proof shell exits before
+final reconciliation.)
 **Revised:** 2026-08-15 (a missing Cargo command now has the actionable
 `SNAPBACK_IBEX_CARGO_NOT_FOUND` host diagnostic; genuine exact-link probe
 driver faults retain `SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`).
@@ -882,15 +887,20 @@ are failures there, never automatic skips.
 
 The canonical runner additionally gives every command a stable gate id and an
 explicit prerequisite set. Its terminal vocabulary is `PASS | FAIL | BLOCKED |
-NOT_SELECTED`: keep-going continues independent gates after a root `FAIL`, but
-does not execute a transitive dependent; a selected `BLOCKED` result still
-makes the proof red. The runner writes one JSONL result per gate with command,
-prerequisites, timestamps, duration, exit status, structural termination reason,
-and causal blockers, and CI retains that artifact even on failure. Executing
-v3 records use `exit`, `timeout`, or `timeout-cleanup-failed`, so exit 124 alone
-is never interpreted as evidence that the runner enforced a deadline. The
-dependency inventory rejects an unknown prerequisite, duplicate stable id, or
-a newly added direct `startServer` gate that omits current-binary readiness.
+NOT_SELECTED | INAPPLICABLE`: keep-going continues independent gates after a
+root `FAIL`, but does not execute a transitive dependent; a selected `BLOCKED`
+result still makes the proof red. `NOT_SELECTED` is cadence-policy evidence and
+is rejected for an id in the immutable selected snapshot. Host/policy absence
+uses `INAPPLICABLE` only for a statically inventoried gate/predicate pair and
+carries predicate-specific structured evidence checked again by the battery
+consumer. The runner writes one JSONL result per gate with command,
+prerequisites, timestamps, duration, exit status, causal blockers, structural
+termination reason, and applicability evidence where relevant; CI retains that
+artifact even on failure. Executing v3 records use `exit`, `timeout`, or
+`timeout-cleanup-failed`, so exit 124 alone is never interpreted as evidence
+that the runner enforced a deadline. The dependency inventory rejects an
+unknown prerequisite, duplicate stable id, undeclared applicability pair, or a
+newly added direct `startServer` gate that omits current-binary readiness.
 
 The shared acceptance runner treats TERM/INT as a cleanup boundary, not an
 immediate default exit: it runs the live registered cleanup stack exactly once
@@ -907,7 +917,8 @@ the Contract/Exact and admin behavior lanes remain mandatory for every
 affected code selection; and shared authority, selector machinery, or an
 unknown path selects the complete inventory. Explicit LLP/issue/diary docs and
 guide-only changes retain a fast static lane. CI binds the base/head diff,
-policy digest, exact gate inventory, chosen/not-chosen gates, and tool
+policy digest, exact gate inventory, chosen/not-chosen gates, selected-id
+count/digest, and tool
 requirements in `local-proof-selection.json`, reopens that receipt before
 execution, and uploads it beside the JSONL results. Pull requests and `main`
 pushes use this affected selection. A six-hour/manual, non-cancelling

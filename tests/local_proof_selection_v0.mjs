@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  digestSelectedGateIds,
   loadSelectionContext,
   planSelection,
   selectGate,
@@ -405,6 +406,8 @@ test('historical defect diffs replay to the gates that caught them', () => {
 
 test('selection receipts bind the exact policy, inventory, diff, and current HEAD', () => {
   const receipt = planSelection({ cadence: 'affected', base: 'HEAD^', head: 'HEAD' });
+  assert.equal(receipt.selectedGateCount, receipt.selectedGates.length);
+  assert.equal(receipt.selectedGateDigest, digestSelectedGateIds(receipt.selectedGates));
   assert.doesNotThrow(() => validateSelectionReceipt(receipt));
   const tampered = structuredClone(receipt);
   tampered.selectedGates = tampered.selectedGates.slice(1);
