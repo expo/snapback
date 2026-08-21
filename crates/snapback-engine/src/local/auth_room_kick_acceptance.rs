@@ -1154,8 +1154,29 @@ fn commit_error_with_durable_rollback_removes_only_its_exact_room_ticket() {
 }
 
 fn codegen_membership_schema() -> SchemaManifest {
-    serde_json::from_str(CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON)
-        .expect("slice-1 codegen membership manifest parses")
+    let mut schema: SchemaManifest = serde_json::from_str(CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON)
+        .expect("slice-1 codegen membership manifest parses");
+    schema.tables.push(TableManifest {
+        name: "versionedMemberships".to_owned(),
+        fields: vec![FieldManifest {
+            name: "subject".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        }],
+        indexes: Vec::new(),
+        syncable: true,
+        permission_backing: true,
+        permission_fields: Some(vec!["subject".to_owned()]),
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility: None,
+        history: None,
+    });
+    schema
 }
 
 fn codegen_membership_scope() -> crate::ephemeral::Scope {
@@ -1281,6 +1302,58 @@ fn authorization_affecting_seed_projects_issuer_before_kernel_finalizer() {
 }
 
 #[test]
+fn authorization_affecting_versioned_seed_projects_issuer_before_kernel_finalizer() {
+    use crate::seed_identity::{
+        InstallSeedRequestV1, SEED_ARTIFACT_FORMAT_V1, SEED_INSTALL_REQUEST_FORMAT_V1,
+        SeedArtifactV1, SeedEnsureResultV1, artifact_digest,
+    };
+
+    let (mut snapback, binding) = codegen_membership_snapback_with_binding();
+    let before = snapback
+        .authorization_reservation_snapshot()
+        .expect("capture predecessor authorization frontier");
+    let mut artifact = SeedArtifactV1 {
+        format_version: SEED_ARTIFACT_FORMAT_V1.to_owned(),
+        app_id: codegen_membership_schema().app_id,
+        seed_version: "authorization-witness-v1".to_owned(),
+        seed_digest: String::new(),
+        tables: BTreeMap::from([(
+            "versionedMemberships".to_owned(),
+            vec![Map::from_iter([
+                ("_id".to_owned(), json!("versioned-member-c")),
+                ("subject".to_owned(), json!(USER_C)),
+            ])],
+        )]),
+    };
+    artifact.seed_digest = artifact_digest(&artifact).expect("canonical seed artifact digest");
+
+    let outcome = snapback
+        .ensure_versioned_seed(InstallSeedRequestV1 {
+            format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
+            operation_id: "01982c7a-7c00-7000-8000-00000000face".to_owned(),
+            artifact,
+            requested_mode: AuthMode::Sessions,
+            asset_fixtures: None,
+        })
+        .expect("authorization-affecting versioned seed commits and settles");
+    assert!(matches!(outcome, SeedEnsureResultV1::Installed { .. }));
+
+    let after = snapback
+        .authorization_reservation_snapshot()
+        .expect("capture settled authorization frontier");
+    assert_eq!(after.0, before.0 + 1);
+    assert_eq!(after.1.incarnation, before.1.incarnation);
+    assert_eq!(after.1.epoch, before.1.epoch + 1);
+    assert_eq!(
+        binding
+            .authorization_expectation()
+            .expect("bound issuer reads the versioned seed successor"),
+        after.1,
+        "the versioned ensure adapter cannot discard the authorization witness"
+    );
+}
+
+#[test]
 fn authorization_affecting_seed_refuses_after_installed_issuer_is_cleared() {
     let (mut snapback, binding) = codegen_membership_snapback_with_binding();
     let before = snapback
@@ -1314,6 +1387,50 @@ fn authorization_affecting_seed_refuses_after_installed_issuer_is_cleared() {
             .expect("refused seed preserves both durable frontiers"),
         before,
         "typed refusal occurs before SQLite commits"
+    );
+}
+
+#[test]
+fn postcommit_projection_after_issuer_clear_does_not_reopen_or_panic() {
+    let (mut snapback, binding) = codegen_membership_snapback_with_binding();
+    let reservation = snapback
+        .ephemeral
+        .reserve_authorization_commit(
+            AuthorizationCommitPreflight::AllProtectedRooms,
+            Arc::new(crate::storage::AuthorizationReservationCancellation::new()),
+        )
+        .expect("reserve the authorization-affecting seed");
+
+    let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+    let reservation_scope = reservation.install();
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "conversationMembers".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("member-projection-failure")),
+                    ("userId".to_owned(), json!(USER_C)),
+                    ("conversationId".to_owned(), json!(BOARD_ID)),
+                    ("role".to_owned(), json!("member")),
+                ])],
+            )]),
+        })
+        .expect("seed reaches a known durable commit");
+    assert!(reservation_scope.take_unused().is_none());
+    let batch = local_scope.take_after_local_batch();
+    drop(local_scope);
+
+    snapback
+        .clear_installed_auth_invalidation(&binding)
+        .expect("suspend the issuer before its queued projection runs");
+    crate::exec_guard::run_after_local_batch(batch);
+
+    let error = snapback
+        .authorization_commit_reservation_required()
+        .expect_err("the queued predecessor projection must not undo issuer-clear suspension");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
     );
 }
 

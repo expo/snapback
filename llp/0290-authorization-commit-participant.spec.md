@@ -6,6 +6,20 @@
 **Author:** codex `gpt-5.6-sol`, synthesizing two independent blind designs — codex
 `gpt-5.6-sol` and grok-4.6 — orchestrated by Claude (Opus 5) for Charlie Cheever  
 **Date:** 2026-08-20  
+**Revised:** 2026-08-21 (post-review closure: activation now requires an opaque,
+exact-registry `AuthorizationIssuerProjection` whose live lease is retained by
+the installed issuer; every issuer clear suspends before removal and advances
+an epoch that invalidates every pre-clear carrier. The ready
+latch validates that live lease and its exact registry/generation/incarnation
+at reservation and bind. Participant replacement refuses a known committed
+dependency until its deferred finalizer drains. Seed and versioned-seed
+adapters return witness-bearing carriers; because a source-public caller can
+still discard such a carrier after durable commit, an unprojected or otherwise
+invalid deferred finalizer latches the interlock fail-closed and retains its
+dependency instead of panicking. Destructive server reset transfers an opaque
+closed-handoff token from the committed transaction through finalizer drain,
+reset publication, predecessor suspension, and exact successor-issuer install;
+only successful completion reopens generic managed writers.)
 **Revised:** 2026-08-21 (implementation hardening: `ParticipantReady` now
 includes a release/acquire issuer-projection availability latch. Public issuer
 clear and committed-reset cleanup suspend it before dropping either issuer
@@ -71,13 +85,19 @@ This specification resolves that risk:
   `crates/snapback-kernel/src/storage.rs:1301-1342`. Backend construction reaches
   `ParticipantBound` only; the existing auth-invalidation enable point reaches
   `ParticipantReady`. Ready also carries an acquire/release projection-
-  availability latch: issuer removal suspends the latch before dropping the
-  issuer, and only the database-validated activation path reopens it.
-  Transaction bind compares the reservation against that exact ready database
-  state and rechecks the latch immediately before commit. A participant minted
-  by database A cannot settle a transaction on database B.
+  availability latch bound by weak lease to one opaque exact-registry issuer
+  projection: issuer removal suspends the latch before dropping the issuer, and
+  only database-validated activation with that live carrier reopens it.
+  Reservation and transaction bind both compare the live projection against
+  the exact ready registry, generation, activation identity, and incarnation.
+  A participant minted by database A cannot settle a transaction on database B.
 - A public, opaque `AuthorizationCommitReservation` remains because the current server and engine carry it through the independently owned blocking task. It has no public constructor and no public bind method.
 - `PreparedAuthorizationCommit` is `pub(crate)`. Its kernel-only `finalize_committed`, `finalize_rolled_back`, and `finalize_ambiguous` methods accept no closure.
+- Seed, reset, and versioned-seed adapters that can commit authorization changes
+  return witness-bearing carriers instead of output-only results. A discarded
+  same-incarnation carrier cannot make the already-durable transaction
+  disappear; its deferred finalizer retains the exact dependency and poisons
+  the projection latch with a typed fail-closed error rather than panicking.
 - Known commit settlement is a kernel finalizer, not a sync acknowledgement.
   Same-incarnation issuer projection remains an ordinary after-Local effect and
   consumes only a kernel-minted committed outcome; settlement remains a
@@ -785,6 +805,7 @@ impl ServingDatabase {
     pub fn activate_authorization_commit_participant(
         &mut self,
         participant: &AuthorizationCommitParticipant,
+        issuer_projection: &AuthorizationIssuerProjection,
     ) -> SnapbackResult<()>;
 }
 ```
@@ -808,12 +829,15 @@ Both backend methods borrow the one participant stored in private
    the same read, allowing the post-rotation successor-issuer rebuild or an
    exact idempotent retry; and
 5. returns an `AuthorizationExpectationView` bound to that exact registry,
-   generation, activation identity, and kernel-read incarnation.
+   generation, activation identity, current issuer-suspension epoch, and
+   kernel-read incarnation.
 
 In `install_auth_invalidation`, the engine requests this view first, requires
 `view.current() == authorization` for the value returned by the immediately
 preceding boot-issuer reservation, and passes the view to
-`issuer.bind_authorization_expectation`. A mismatch is
+`issuer.bind_authorization_expectation`. That bind converts the view into and
+retains an opaque `AuthorizationIssuerProjection`; activation accepts that
+exact carrier rather than a caller-provided authorization value. A mismatch is
 `SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE`; it leaves the database
 in its prior state and admits no new authorization write. The engine then
 installs the version stream and local obligation state and queues the existing
@@ -821,17 +845,20 @@ ephemeral issuer ordinary effect. Only after all of those steps succeed does it
 call `activate_authorization_commit_interlock`, replacing today's call at
 `engine.rs:7772`.
 
-Activation again requires the exact `ParticipantBound` tuple and initialized
-registry, then changes the activation atomic `BOUND -> READY` and the
+Activation again requires the exact `ParticipantBound` tuple, initialized
+registry, and issuer projection whose registry `Arc`, generation, activation
+identity, suspension epoch, and incarnation match the newly read view. It then changes the
+activation atomic `BOUND -> READY` and the
 `LocalDatabase` field `ParticipantBound -> ParticipantReady`. In the exact
 `ParticipantReady` reset-rebuild case it re-enables the same latch; any
-mismatched ready tuple fails. Direct/startup installation stores the issuer
-copy before the activation path release-stores projection availability. A
-managed reset rebuild first installs the bound issuer view and engine-owned
-state, then re-enables the database-validated latch while it still owns the
-sole Local writer and queues the sync-owned issuer copy as an after-Local
-effect. The managed writer handoff remains closed until that effect runs, so no
-transaction can bind between latch reactivation and issuer-copy installation.
+mismatched or already-dropped projection fails. The latch retains only a weak
+lease; dropping every exact projection carrier makes reservation fail closed
+even if no clear helper ran. Direct/startup installation stores the issuer copy
+before activation. A managed reset rebuild retains an opaque closed-handoff
+token from before the destructive finalizer through reset publication and
+successor installation. Its token-owned Local turn re-enables the database-
+validated latch and drains the queued sync issuer copy while generic managed
+writers remain outside the mutex; only then may the token reopen the handoff.
 The current boot/reset entry point calls
 `install_auth_invalidation` only after its durable boot reservation
 (`engine.rs:7792-7822`); normal startup invokes that entry point before
@@ -842,12 +869,15 @@ server rebuilds the issuer only after committed reset publication returns
 rebind branch. Early construction activation is forbidden.
 
 Issuer removal is the inverse fail-closed cut, not a reverse participant state
-transition. `clear_installed_auth_invalidation` and committed-reset process
-cleanup release-store projection availability false before clearing the engine
-issuer or the sync-owned issuer clone. The transition is denial-only and may be
-public on the opaque participant; only the exact database activation method can
-store true again. A concurrent reservation either observes suspension during
-prepare or is rejected by the mandatory bind-time acquire-load. The supported
+transition. Every public sync `clear_authorization_issuer` call suspends the
+participant before removing the issuer; engine clear and committed-reset
+cleanup use that same intrinsic ordering. Suspension advances an internal
+epoch, so every carrier minted before the clear is permanently invalid for
+reactivation even if another clone remains live. The transition is denial-only;
+only exact database activation with a freshly obtained live projection carrier
+can store true again.
+A concurrent reservation either observes suspension during prepare or is
+rejected by the mandatory bind-time acquire-load. The supported
 clear and write entry points both require exclusive `&mut LocalSnapback`, so a
 clear cannot interleave between that bind check and the immediately following
 SQLite commit. Destructive reset settlement already has a known committed
@@ -877,7 +907,8 @@ The complete mutator inventory is:
   where no reservation or finalizer is installed;
 - public `ServingDatabase::activate_authorization_commit_participant` changes
   the exact initialized `ParticipantBound` tuple to `ParticipantReady`, or
-  re-enables the same exact ready tuple during reset rebuild. In the production
+  re-enables the same exact ready tuple during reset rebuild, but only when
+  given the opaque live projection carrier matching that tuple. In the production
   graph its sole call is behind
   `LocalEphemeralBackend::activate_authorization_commit_interlock`, which now
   requires the installed issuer and its bound expectation first. These kernel
@@ -891,15 +922,12 @@ The complete mutator inventory is:
   are internal composition operations. Product installation/clearing orders
   them through the engine methods above; the suspend transition is denial-only.
 
-Thus no supported public product API can retain `ParticipantReady` with
-projection required while removing the issuer, and a reservation minted before
-the cut cannot cross the transaction bind.
-
-The kernel cannot inspect whether an auth-owned issuer object stored the view
-without depending upward on `snapback-auth`. The concrete production guarantee
-is the above order in one engine method, together with refusal tests that
-remove, mismatch, or reorder initialization, view binding, and activation. This
-is not the A-beside-B proof; §5.4 transaction bind is.
+Thus no activation API accepts a Boolean or an `AuthorizationVersion` as
+projection proof. The kernel validates the opaque carrier's exact identity and
+keeps only a weak lease, while the auth-owned live issuer retains the strong
+lease. A copied or forked database at the same durable version cannot activate,
+an issuer clear intrinsically suspends, and a reservation minted before the cut
+cannot cross transaction bind.
 
 ### 4.5 Why A cannot be installed beside B
 
@@ -923,14 +951,18 @@ bind is the settlement safety proof.
 
 It:
 
-1. changes the old activation atomic `READY -> RETIRED` with release ordering;
-2. sets `old_registry.retired = true` with `Release`;
-3. notifies `quiescent`, waking blocked prepare waiters;
-4. creates a new registry with the same `DatabaseBinding` and generation `old + 1`;
-5. leaves the new registry authorization-uninitialized;
-6. installs it as `ParticipantPending`;
-7. returns a new non-cloneable participant; and
-8. requires the same auth-time initialization and exact issuer-view binding
+1. locks the old registry and refuses with
+   `SNAPBACK_AUTH_PARTICIPANT_DEPENDENCY_PENDING` if any dependency already has
+   a known committed verdict awaiting its deferred finalizer;
+2. sets `old_registry.retired = true` with `Release` only after that check;
+3. notifies `quiescent`, waking blocked prepare waiters, and waits for admitted
+   active operations to leave;
+4. retires the old activation, intrinsically suspending projection;
+5. creates a new registry with the same `DatabaseBinding` and generation `old + 1`;
+6. leaves the new registry authorization-uninitialized;
+7. installs it as `ParticipantPending`;
+8. returns a new non-cloneable participant; and
+9. requires the same auth-time initialization and exact issuer-view binding
    before the replacement can become `ParticipantReady`.
 
 Every operation on the old registry acquire-loads `retired` and fails closed. A prepare waiter awakened by retirement compare-removes its own ticket and returns `SNAPBACK_AUTH_INTERLOCK_RETIRED`.
@@ -1054,8 +1086,9 @@ For `NoAuthorizationEvent`, prepare allocates no ticket and does not lock the re
 
 For `AllProtectedRooms` or `AppWrites`, prepare:
 
-1. acquire-loads `participant.activation.state` and projection availability,
-   requiring `READY` with a live issuer projection;
+1. acquire-loads `participant.activation.state` and requires `READY` with a
+   live issuer-projection lease whose registry, generation, activation identity,
+   and incarnation match this participant's current projected fact;
 2. snapshots the protected catalog, catalog revision, and durable predecessor under the registry mutex;
 3. derives the conservative selector;
 4. allocates one exact ticket and reserves one non-wrapping outcome sequence;
@@ -1106,8 +1139,9 @@ the transaction at `storage.rs:5020-5024,5873-5877`.
 Bind performs, in this order:
 
 1. pattern-match `authorization_interlock` as `ParticipantReady`; every other state fails with `SNAPBACK_AUTH_PROJECTION_UNAVAILABLE` once `witness.event` is true;
-2. acquire-load the ready activation and require both `READY` and projection
-   availability; this closes the race with an issuer clear after reservation;
+2. acquire-load the ready activation and require both `READY` and the same live,
+   exact-registry issuer projection; this closes the race with an issuer clear,
+   projection drop, or incarnation rotation after reservation;
 3. compare the reservation binding with the committing database's `DatabaseBinding` using `DatabaseBinding::matches`;
 4. compare the ready registry's private binding with that same database binding;
 5. require `Arc::ptr_eq(&reservation.registry, ready_registry)`;
@@ -1215,7 +1249,15 @@ It then atomically:
 8. records `latest_committed_outcome`;
 9. notifies the condition variable.
 
-If validation unexpectedly fails, no ticket or mark is removed. A known commit is never converted into rollback. In a deferred finalizer, an invariant failure is fail-closed and may panic after leaving the ticket installed, matching the current finalizer posture.
+If validation unexpectedly fails, no ticket or mark is removed and a known
+commit is never converted into rollback. The deferred finalizer suspends the
+projection latch and stores a `SNAPBACK_AUTH_PROJECTION_UNAVAILABLE` failure on
+the activation; subsequent authorization reservation/activation returns that
+typed failure. This is deliberately a wedged, fail-closed store requiring
+operator recovery, not a process panic. The source-public seed APIs make this
+necessary: their witness-bearing result prevents accidental output-only
+adapters, but Rust callers can still explicitly discard it after SQLite has
+committed.
 
 The durable verdict source remains the current kernel reconciliation:
 successful COMMIT settles committed, exact durable predecessor settles rollback,
@@ -1242,6 +1284,10 @@ pub struct AuthorizationExpectationView {
     activation: Arc<AuthorizationParticipantActivation>,
     issuer_incarnation: Arc<str>,
 }
+
+pub struct AuthorizationIssuerProjection {
+    // private Arc identity retaining the exact view above
+}
 ```
 
 Fields are private; there is no public constructor.
@@ -1266,6 +1312,14 @@ impl AuthorizationCommitParticipant {
 impl AuthorizationExpectationView {
     pub fn current(&self) -> SnapbackResult<AuthorizationVersion>;
 
+    pub fn into_issuer_projection(
+        self,
+    ) -> SnapbackResult<AuthorizationIssuerProjection>;
+}
+
+impl AuthorizationIssuerProjection {
+    pub fn current(&self) -> SnapbackResult<AuthorizationVersion>;
+
     pub fn project_committed(
         &self,
         outcome: &AuthorizationCommitOutcome,
@@ -1287,7 +1341,10 @@ and returns the private-field outcome for that record. No match is
 `SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE`; caller input cannot mint an
 outcome.
 
-`project_committed`:
+The projection carrier owns the exact view identity. Activation stores only a
+weak lease to it, while `LiveInvalidationIssuer` retains the strong carrier;
+therefore `ParticipantReady` cannot remain projection-available after the last
+live issuer projection is dropped. `project_committed`:
 
 1. asserts that Local is inactive;
 2. compares the view and outcome bindings, exact registry `Arc`, and registry generation;
@@ -1336,7 +1393,7 @@ unproved one-commit-per-batch invariant.
 ```rust
 pub struct LiveInvalidationIssuer {
     // existing authenticated issuer, signer, stream, and counters...
-    authorization_expectation: Arc<OnceLock<AuthorizationExpectationView>>,
+    authorization_expectation: Arc<OnceLock<AuthorizationIssuerProjection>>,
 }
 
 impl LiveInvalidationIssuer {
@@ -1378,9 +1435,11 @@ Schema/collection replacement is already queued as an ordinary effect at
 Notifier/fan-out effects stay after it. This projection is queued only for a
 same-incarnation commit. Destructive rotation runs its reset-owned ordinary
 effects without asking the predecessor issuer to cross incarnations; its
-successor issuer is authenticated and bound later as described above. Any error
-in a queued same-incarnation projection panics the prevalidated ordinary
-effect, so `run_after_local_batch` never reaches the settlement finalizers
+successor issuer is authenticated and bound later as described above. An error
+in a queued same-incarnation projection leaves `issuer_projected` false and
+returns normally so the settlement finalizer can retain the exact dependency
+and poison the latch with the typed fail-closed diagnostic. The issuer callback
+must not panic before that finalizer
 (`crates/snapback-types/src/exec_guard.rs:224-241`).
 
 Consequences:
@@ -1391,11 +1450,21 @@ Consequences:
 - destructive incarnation rotation makes the predecessor view fail closed;
 - ignoring a same-incarnation committed outcome cannot select another terminal
   result; it leaves `issuer_projected = false`, so the kernel finalizer retains
-  the exact ticket;
+  the exact ticket and latches projection fail-closed without panicking;
 - ignoring `latest_committed_outcome` or pending reauthorization work after
   settlement can delay delivery but cannot reopen rooms.
 - an authorization witness is never reclassified as neutral merely because the
   engine issuer is absent; absence is a typed precommit projection refusal.
+
+All seed-family commit adapters were audited with the same rule. Ordinary
+`seed`, low-level `SchemaSeedKernel::seed`, and fresh
+`ensure_versioned_seed` return witness-bearing carriers; replayed
+or matched versioned ensures carry no publication because they made no commit.
+The engine consumes each fresh carrier under the one existing seed
+`AdmissionEffectGuard`, queues issuer projection only after that guard drops,
+and creates no re-entrant admission guard. Reset adapters return their rotated
+witness; coordinated reset intentionally uses the no-predecessor-projection
+branch and the closed-handoff protocol below.
 
 ## 6. Sync-owned outbox rewrite
 
@@ -1724,8 +1793,15 @@ For destructive rotation, the ordinary reset effect runs but there is no issuer
 projection: the current carrier explicitly skips predecessor-issuer publication
 across incarnations (`crates/snapback-sync/src/ephemeral.rs:4279-4283,4698-4701`).
 The kernel finalizer advances projected and durable state together, settles the
-room ticket, and records the outcome. Only afterward does server reset
-orchestration authenticate and bind the successor issuer
+room ticket, and records the outcome. Before dropping the transaction's Local
+guard, the reset-only writer wrapper closes `ManagedLocalHandoff`; after the
+batch and finalizer drain it returns an opaque `CommittedResetHandoff` token
+without reopening. The server uses token-owned Local turns to publish the reset,
+suspend/clear the predecessor issuer, and authenticate/bind the exact successor.
+Generic managed writers remain queued throughout. Only successful successor
+installation consumes the token by reopening; cancellation, panic, or error
+after the known commit leaves the handoff closed. This is a reset-only type
+transition, not a caller-settable flag on the generic writer wrapper
 (`crates/snapback-engine/src/local/engine.rs:8491-8505`;
 `crates/snapback-server/src/server.rs:23755-23801`).
 

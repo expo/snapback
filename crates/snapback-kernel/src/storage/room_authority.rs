@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
-use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, PoisonError};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, PoisonError, Weak};
 
 const ACTIVATION_PENDING: u8 = 0;
 const ACTIVATION_BOUND: u8 = 1;
@@ -29,6 +29,13 @@ const ACTIVATION_RETIRED: u8 = 3;
 pub(super) struct AuthorizationParticipantActivation {
     state: AtomicU8,
     projection_available: AtomicBool,
+    projection: Mutex<AuthorizationProjectionState>,
+}
+
+struct AuthorizationProjectionState {
+    epoch: u64,
+    carrier: Option<Weak<AuthorizationIssuerProjectionIdentity>>,
+    failure: Option<SnapbackError>,
 }
 
 impl AuthorizationParticipantActivation {
@@ -36,6 +43,11 @@ impl AuthorizationParticipantActivation {
         Self {
             state: AtomicU8::new(ACTIVATION_PENDING),
             projection_available: AtomicBool::new(false),
+            projection: Mutex::new(AuthorizationProjectionState {
+                epoch: 1,
+                carrier: None,
+                failure: None,
+            }),
         }
     }
 
@@ -51,7 +63,12 @@ impl AuthorizationParticipantActivation {
     }
 
     pub(super) fn retire(&self) {
+        let mut projection = self
+            .projection
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         self.projection_available.store(false, Ordering::Release);
+        projection.carrier = None;
         self.state.store(ACTIVATION_RETIRED, Ordering::Release);
     }
 
@@ -67,12 +84,31 @@ impl AuthorizationParticipantActivation {
         self.state() == ACTIVATION_READY
     }
 
-    pub(super) fn enable_projection(&self) -> SnapbackResult<()> {
+    pub(super) fn enable_projection(
+        &self,
+        projection: &AuthorizationIssuerProjection,
+    ) -> SnapbackResult<()> {
+        if !std::ptr::eq(Arc::as_ptr(&projection.identity.view.activation), self) {
+            return Err(participant_registry_mismatch());
+        }
+        let mut state = self
+            .projection
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         if !self.is_ready() {
             return Err(participant_state_error(
                 "authorization projection cannot activate before the participant is ready",
             ));
         }
+        if let Some(failure) = state.failure.clone() {
+            return Err(failure);
+        }
+        if projection.identity.view.projection_epoch != state.epoch {
+            return Err(projection_unavailable(
+                "authorization issuer projection was invalidated by issuer suspension",
+            ));
+        }
+        state.carrier = Some(Arc::downgrade(&projection.identity));
         self.projection_available.store(true, Ordering::Release);
         Ok(())
     }
@@ -81,8 +117,91 @@ impl AuthorizationParticipantActivation {
         self.projection_available.load(Ordering::Acquire)
     }
 
+    fn projection_epoch(&self) -> u64 {
+        self.projection
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .epoch
+    }
+
     pub(super) fn suspend_projection(&self) {
+        let mut projection = self
+            .projection
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         self.projection_available.store(false, Ordering::Release);
+        projection.carrier = None;
+        if let Some(next_epoch) = projection.epoch.checked_add(1) {
+            projection.epoch = next_epoch;
+        } else {
+            projection.failure = Some(projection_unavailable(
+                "authorization issuer projection suspension epoch exhausted",
+            ));
+        }
+    }
+
+    pub(super) fn require_projection(
+        &self,
+        registry: &Arc<RoomAuthorityRegistry>,
+    ) -> SnapbackResult<()> {
+        let state = self
+            .projection
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let Some(failure) = state.failure.clone() {
+            return Err(failure);
+        }
+        if !self.projection_available() {
+            return Err(projection_unavailable(
+                "authorization commit issuer projection is unavailable",
+            ));
+        }
+        let projection = state
+            .carrier
+            .as_ref()
+            .and_then(Weak::upgrade)
+            .ok_or_else(|| {
+                projection_unavailable("authorization commit issuer projection is no longer live")
+            })?;
+        if !std::ptr::eq(Arc::as_ptr(&projection.view.activation), self)
+            || !Arc::ptr_eq(&projection.view.registry, registry)
+            || projection.view.registry_generation != registry.generation()
+            || projection.view.projection_epoch != state.epoch
+        {
+            return Err(projection_unavailable(
+                "authorization commit issuer projection belongs to another registry or suspension epoch",
+            ));
+        }
+        let projected = registry.lock().projected_authorization.clone();
+        if projected.as_ref().map(|value| value.incarnation.as_str())
+            != Some(projection.view.issuer_incarnation.as_ref())
+        {
+            return Err(projection_unavailable(
+                "authorization commit issuer projection belongs to another incarnation",
+            ));
+        }
+        Ok(())
+    }
+
+    fn fail_closed(&self, error: SnapbackError) {
+        let error = SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            format!(
+                "authorization commit finalization failed closed after the durable commit: {} ({})",
+                error.diagnostic.message, error.diagnostic.code
+            ),
+        );
+        let mut projection = self
+            .projection
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        self.projection_available.store(false, Ordering::Release);
+        projection.carrier = None;
+        projection.epoch = projection.epoch.saturating_add(1);
+        if projection.failure.is_none() {
+            projection.failure = Some(error);
+        }
     }
 }
 
@@ -253,7 +372,7 @@ impl RoomAuthorityRegistry {
         self.retired.load(Ordering::Acquire)
     }
 
-    pub(super) fn retire(&self) {
+    pub(super) fn retire(&self) -> SnapbackResult<()> {
         // Replacement participates in the registry mutex so every finite
         // admission either linearizes before retirement or observes it. Wait
         // only for operations that already crossed that cut; merely holding
@@ -262,6 +381,17 @@ impl RoomAuthorityRegistry {
         // @ref LLP 0290#46-same-database-replacement — old permits and guards
         // fail closed once replacement returns.
         let mut state = self.lock();
+        if state
+            .dependencies
+            .values()
+            .any(|pending| pending.known_commit.get().is_some())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PARTICIPANT_DEPENDENCY_PENDING",
+                "auth",
+                "authorization participant has a committed dependency awaiting its deferred finalizer",
+            ));
+        }
         self.retired.store(true, Ordering::Release);
         self.quiescent.notify_all();
         while state.active_operations != 0 {
@@ -270,6 +400,7 @@ impl RoomAuthorityRegistry {
                 .wait(state)
                 .unwrap_or_else(PoisonError::into_inner);
         }
+        Ok(())
     }
 }
 
@@ -531,11 +662,7 @@ impl AuthorizationCommitParticipant {
                 self.registry_generation,
             ));
         }
-        if !self.activation.projection_available() {
-            return Err(projection_unavailable(
-                "authorization commit issuer projection is unavailable",
-            ));
-        }
+        self.activation.require_projection(&self.registry)?;
         let mut state = self.registry.lock();
         if self.require_live_locked(false).is_err() {
             return Err(interlock_retired());
@@ -802,6 +929,11 @@ impl Default for NonAuthorizingRoomAuthority {
         let activation = Arc::new(AuthorizationParticipantActivation {
             state: AtomicU8::new(ACTIVATION_BOUND),
             projection_available: AtomicBool::new(false),
+            projection: Mutex::new(AuthorizationProjectionState {
+                epoch: 1,
+                carrier: None,
+                failure: None,
+            }),
         });
         Self {
             participant: AuthorizationCommitParticipant::new(binding, registry, 1, activation),
@@ -968,11 +1100,7 @@ impl AuthorizationCommitReservation {
                 "authorization participant is not ready at transaction bind",
             ));
         }
-        if !activation.projection_available() {
-            return Err(projection_unavailable(
-                "authorization commit issuer projection became unavailable before transaction bind",
-            ));
-        }
+        activation.require_projection(ready_registry)?;
         if !self.binding.matches(database_binding) {
             return Err(participant_database_mismatch());
         }
@@ -1046,6 +1174,7 @@ impl AuthorizationCommitReservation {
         Ok(PreparedAuthorizationCommit {
             binding: self.binding.clone(),
             registry: self.registry.clone(),
+            activation,
             registry_generation: self.registry_generation,
             ticket,
             predecessor: durable_predecessor.cloned(),
@@ -1112,6 +1241,7 @@ pub(super) fn take_managed_authorization_reservation() -> Option<AuthorizationCo
 pub(crate) struct PreparedAuthorizationCommit {
     binding: DatabaseBinding,
     registry: Arc<RoomAuthorityRegistry>,
+    activation: Arc<AuthorizationParticipantActivation>,
     registry_generation: u64,
     ticket: RoomDependencyTicket,
     predecessor: Option<AuthorizationVersion>,
@@ -1138,12 +1268,17 @@ impl PreparedAuthorizationCommit {
             .set(known)
             .map_err(|_| expectation_stale("authorization commit verdict was already installed"))?;
         let registry = self.registry.clone();
+        let activation = self.activation.clone();
         let binding = self.binding.clone();
         let generation = self.registry_generation;
         let ticket_id = self.ticket.ticket_id;
         crate::exec_guard::run_or_defer_after_local_finalizer(move || {
-            finalize_known_commit(&registry, &binding, generation, ticket_id)
-                .expect("prevalidated authorization commit finalizes after Local");
+            if let Err(error) = finalize_known_commit(&registry, &binding, generation, ticket_id) {
+                // @ref LLP 0290#55-finalize — source-public witness carriers
+                // can be discarded after commit, so invariant failure retains
+                // the dependency and poisons projection instead of panicking.
+                activation.fail_closed(error);
+            }
         });
         Ok(())
     }
@@ -1201,7 +1336,42 @@ pub struct AuthorizationExpectationView {
     registry: Arc<RoomAuthorityRegistry>,
     registry_generation: u64,
     activation: Arc<AuthorizationParticipantActivation>,
+    projection_epoch: u64,
     issuer_incarnation: Arc<str>,
+}
+
+/// The exact database-bound projection capability held by a live invalidation
+/// issuer. A plain authorization value is not activation proof: this carrier
+/// retains the registry, generation, activation identity, suspension epoch,
+/// and incarnation of the view the issuer actually owns.
+///
+/// @ref LLP 0290#44-auth-time-activation — READY retains only a weak lease to
+/// this exact carrier, so a dropped or foreign issuer cannot leave it enabled.
+#[derive(Clone)]
+pub struct AuthorizationIssuerProjection {
+    identity: Arc<AuthorizationIssuerProjectionIdentity>,
+}
+
+struct AuthorizationIssuerProjectionIdentity {
+    view: AuthorizationExpectationView,
+}
+
+impl AuthorizationIssuerProjection {
+    pub fn current(&self) -> SnapbackResult<AuthorizationVersion> {
+        self.identity.view.current()
+    }
+
+    pub fn project_committed(&self, outcome: &AuthorizationCommitOutcome) -> SnapbackResult<()> {
+        self.identity.view.project_committed(outcome)
+    }
+
+    pub(super) fn matches_view(&self, view: &AuthorizationExpectationView) -> bool {
+        Arc::ptr_eq(&self.identity.view.registry, &view.registry)
+            && self.identity.view.registry_generation == view.registry_generation
+            && Arc::ptr_eq(&self.identity.view.activation, &view.activation)
+            && self.identity.view.projection_epoch == view.projection_epoch
+            && self.identity.view.issuer_incarnation == view.issuer_incarnation
+    }
 }
 
 impl AuthorizationExpectationView {
@@ -1211,10 +1381,28 @@ impl AuthorizationExpectationView {
         activation: Arc<AuthorizationParticipantActivation>,
         issuer_incarnation: Arc<str>,
     ) -> Self {
+        let projection_epoch = activation.projection_epoch();
+        Self::new_at_epoch(
+            registry,
+            registry_generation,
+            activation,
+            projection_epoch,
+            issuer_incarnation,
+        )
+    }
+
+    fn new_at_epoch(
+        registry: Arc<RoomAuthorityRegistry>,
+        registry_generation: u64,
+        activation: Arc<AuthorizationParticipantActivation>,
+        projection_epoch: u64,
+        issuer_incarnation: Arc<str>,
+    ) -> Self {
         Self {
             registry,
             registry_generation,
             activation,
+            projection_epoch,
             issuer_incarnation,
         }
     }
@@ -1239,6 +1427,16 @@ impl AuthorizationExpectationView {
             ));
         }
         Ok(current)
+    }
+
+    /// Bind this exact view as the projection capability stored by one live
+    /// invalidation issuer. Activation accepts this opaque identity, never a
+    /// caller-supplied authorization value.
+    pub fn into_issuer_projection(self) -> SnapbackResult<AuthorizationIssuerProjection> {
+        self.current()?;
+        Ok(AuthorizationIssuerProjection {
+            identity: Arc::new(AuthorizationIssuerProjectionIdentity { view: self }),
+        })
     }
 
     pub fn project_committed(&self, outcome: &AuthorizationCommitOutcome) -> SnapbackResult<()> {
@@ -1534,6 +1732,10 @@ pub(super) fn initialize_authorization(
     let authorization = authorization.ok_or_else(|| {
         expectation_stale("durable authorization is absent during issuer installation")
     })?;
+    // Capture before the registry mutex to preserve the global
+    // projection-state -> registry lock order. A concurrent suspension makes
+    // the returned view stale; activation then rejects it by epoch.
+    let projection_epoch = participant.activation.projection_epoch();
     let mut state = participant.registry.lock();
     if participant.require_live_locked(true).is_err() {
         return Err(interlock_retired());
@@ -1564,10 +1766,11 @@ pub(super) fn initialize_authorization(
             "ready participant does not match the durable authorization snapshot",
         ));
     }
-    Ok(AuthorizationExpectationView::new(
+    Ok(AuthorizationExpectationView::new_at_epoch(
         participant.registry.clone(),
         participant.registry_generation,
         participant.activation.clone(),
+        projection_epoch,
         Arc::from(authorization.incarnation),
     ))
 }
@@ -2060,6 +2263,7 @@ mod tests {
         database: ServingDatabase,
         participant: AuthorizationCommitParticipant,
         view: AuthorizationExpectationView,
+        _issuer_projection: AuthorizationIssuerProjection,
         authorization: AuthorizationVersion,
     }
 
@@ -2079,13 +2283,15 @@ mod tests {
             .authorization_expectation_view_for_participant_install(&participant)
             .expect("kernel-owned expectation view");
         assert_eq!(view.current().unwrap(), authorization);
+        let issuer_projection = view.clone().into_issuer_projection().unwrap();
         database
-            .activate_authorization_commit_participant(&participant)
+            .activate_authorization_commit_participant(&participant, &issuer_projection)
             .expect("ready participant");
         ReadyFixture {
             database,
             participant,
             view,
+            _issuer_projection: issuer_projection,
             authorization,
         }
     }
@@ -2169,9 +2375,17 @@ mod tests {
                 .unwrap()
         );
 
-        let error = database
-            .activate_authorization_commit_participant(&participant)
-            .expect_err("construction binding alone cannot enable the interlock");
+        let error = match AuthorizationExpectationView::new(
+            participant.registry.clone(),
+            participant.registry_generation,
+            participant.activation.clone(),
+            Arc::from(authorization.incarnation.clone()),
+        )
+        .into_issuer_projection()
+        {
+            Err(error) => error,
+            Ok(_) => panic!("an uninitialized view cannot mint issuer projection proof"),
+        };
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
@@ -2181,8 +2395,9 @@ mod tests {
             .authorization_expectation_view_for_participant_install(&participant)
             .unwrap();
         assert_eq!(view.current().unwrap(), authorization);
+        let issuer_projection = view.into_issuer_projection().unwrap();
         database
-            .activate_authorization_commit_participant(&participant)
+            .activate_authorization_commit_participant(&participant, &issuer_projection)
             .unwrap();
         assert!(
             database
@@ -2234,13 +2449,42 @@ mod tests {
     }
 
     #[test]
+    fn projection_suspension_invalidates_every_preclear_activation_carrier() {
+        let mut fixture = ready_fixture();
+        let stale_projection = fixture._issuer_projection.clone();
+        fixture.participant.suspend_authorization_projection();
+
+        let error = fixture
+            .database
+            .activate_authorization_commit_participant(&fixture.participant, &stale_projection)
+            .expect_err("a pre-clear exact carrier cannot reactivate the latch");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE"
+        );
+
+        let successor_view = fixture
+            .database
+            .authorization_expectation_view_for_participant_install(&fixture.participant)
+            .expect("obtain a post-clear exact view");
+        let successor_projection = successor_view.into_issuer_projection().unwrap();
+        fixture
+            .database
+            .activate_authorization_commit_participant(&fixture.participant, &successor_projection)
+            .expect("only the post-clear carrier can reactivate");
+    }
+
+    #[test]
     fn participant_and_transaction_bind_reject_database_b() {
         let fixture_a = ready_fixture();
         let mut fixture_b = ready_fixture();
 
         let activation_error = fixture_b
             .database
-            .activate_authorization_commit_participant(&fixture_a.participant)
+            .activate_authorization_commit_participant(
+                &fixture_a.participant,
+                &fixture_a.view.clone().into_issuer_projection().unwrap(),
+            )
             .expect_err("participant A cannot activate beside database B");
         assert_eq!(
             activation_error.diagnostic.code,
@@ -2278,6 +2522,34 @@ mod tests {
                 .lock()
                 .dependencies
                 .is_empty()
+        );
+    }
+
+    #[test]
+    fn activation_rejects_a_foreign_projection_with_the_same_authorization_value() {
+        let mut fixture = ready_fixture();
+        let foreign = ready_fixture();
+        {
+            let mut state = foreign.participant.registry.lock();
+            state.durable_authorization = Some(fixture.authorization.clone());
+            state.projected_authorization = Some(fixture.authorization.clone());
+        }
+        let foreign_view = AuthorizationExpectationView::new(
+            foreign.participant.registry.clone(),
+            foreign.participant.registry_generation,
+            foreign.participant.activation.clone(),
+            Arc::from(fixture.authorization.incarnation.clone()),
+        );
+        let foreign_projection = foreign_view.into_issuer_projection().unwrap();
+        assert_eq!(foreign_projection.current().unwrap(), fixture.authorization);
+
+        let error = fixture
+            .database
+            .activate_authorization_commit_participant(&fixture.participant, &foreign_projection)
+            .expect_err("matching durable values cannot substitute for exact issuer identity");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE"
         );
     }
 
@@ -2421,7 +2693,7 @@ mod tests {
                 );
                 std::thread::yield_now();
             }
-            fixture.participant.registry.retire();
+            fixture.participant.registry.retire().unwrap();
             let error = match worker.join().unwrap() {
                 Err(error) => error,
                 Ok(reservation) => {
@@ -2515,6 +2787,53 @@ mod tests {
     }
 
     #[test]
+    fn ready_interlock_requires_the_exact_projection_carrier_to_remain_live() {
+        let ReadyFixture {
+            database,
+            _issuer_projection: issuer_projection,
+            ..
+        } = ready_fixture();
+        assert!(
+            database
+                .authorization_commit_reservation_required()
+                .unwrap()
+        );
+        drop(issuer_projection);
+
+        let error = database
+            .authorization_commit_reservation_required()
+            .expect_err("a ready latch cannot outlive its exact issuer projection");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+    }
+
+    #[test]
+    fn missing_projection_at_deferred_finalization_latches_fail_closed_without_panicking() {
+        let fixture = ready_fixture();
+        let witness = witness(successor(&fixture.authorization));
+        let prepared = bind_all_rooms(&fixture, &witness);
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        prepared.finalize_committed(11).unwrap();
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+
+        crate::exec_guard::run_after_local_batch(batch);
+
+        let error = fixture
+            .database
+            .authorization_commit_reservation_required()
+            .expect_err("an unprojected durable commit must poison the latch");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+        assert!(error.diagnostic.message.contains("failed closed"));
+        assert_eq!(fixture.participant.registry.lock().dependencies.len(), 1);
+    }
+
+    #[test]
     fn rollback_removes_exact_ticket_but_ambiguity_retains_it() {
         let fixture = ready_fixture();
         let witness = witness(successor(&fixture.authorization));
@@ -2587,9 +2906,10 @@ mod tests {
             .authorization_expectation_view_for_participant_install(&replacement)
             .unwrap();
         assert_eq!(replacement_view.current().unwrap(), fixture.authorization);
+        let replacement_projection = replacement_view.into_issuer_projection().unwrap();
         fixture
             .database
-            .activate_authorization_commit_participant(&replacement)
+            .activate_authorization_commit_participant(&replacement, &replacement_projection)
             .unwrap();
         assert_eq!(replacement.room_generation(&room), 0);
 
@@ -2609,6 +2929,45 @@ mod tests {
             error.diagnostic.code,
             "SNAPBACK_AUTH_PARTICIPANT_REGISTRY_MISMATCH"
         );
+    }
+
+    #[test]
+    fn replacement_refuses_a_committed_dependency_until_its_finalizer_drains() {
+        let mut fixture = ready_fixture();
+        let authorization = successor(&fixture.authorization);
+        let witness = witness(authorization.clone());
+        let prepared = bind_all_rooms(&fixture, &witness);
+
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        prepared.finalize_committed(9).unwrap();
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+
+        let outcome = fixture
+            .participant
+            .committed_outcome(&witness, 9)
+            .expect("known commit exposes its exact deferred outcome");
+        fixture
+            .view
+            .project_committed(&outcome)
+            .expect("issuer projects before the kernel finalizer");
+
+        let error = match fixture.database.replace_authorization_commit_participant() {
+            Err(error) => error,
+            Ok(_) => panic!("replacement cannot retire a committed dependency"),
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PARTICIPANT_DEPENDENCY_PENDING"
+        );
+        assert!(!fixture.participant.registry.is_retired());
+
+        crate::exec_guard::run_after_local_batch(batch);
+        assert_eq!(fixture.view.current().unwrap(), authorization);
+        fixture
+            .database
+            .replace_authorization_commit_participant()
+            .expect("replacement succeeds after the exact finalizer drains");
     }
 
     #[test]

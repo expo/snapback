@@ -12,7 +12,8 @@
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::{
-    AuthorizationCommitOutcome, AuthorizationExpectationView, AuthorizationVersion,
+    AuthorizationCommitOutcome, AuthorizationExpectationView, AuthorizationIssuerProjection,
+    AuthorizationVersion,
 };
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -154,7 +155,7 @@ pub struct IssuerRetirement {
 pub struct LiveInvalidationIssuer {
     authenticated: AuthenticatedBootIssuer,
     retirement_signer: Option<Arc<RetirementSigner>>,
-    authorization_expectation: Arc<OnceLock<AuthorizationExpectationView>>,
+    authorization_expectation: Arc<OnceLock<AuthorizationIssuerProjection>>,
     version_stream: Arc<RwLock<Option<String>>>,
     next_connection_generation: Arc<AtomicU64>,
     next_scope_sequence: Arc<AtomicU64>,
@@ -230,7 +231,8 @@ impl LiveInvalidationIssuer {
     ) -> SnapbackResult<()> {
         let authorization = view.current()?;
         validate_retirement_authorization(&authorization, &self.authenticated.issuer_id)?;
-        self.authorization_expectation.set(view).map_err(|_| {
+        let projection = view.into_issuer_projection()?;
+        self.authorization_expectation.set(projection).map_err(|_| {
             invalidation_error(
                 "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
                 "invalidation issuer authorization expectation was already bound",
@@ -263,6 +265,20 @@ impl LiveInvalidationIssuer {
                 )
             })?
             .current()
+    }
+
+    /// Exact database/registry/generation identity of the projection this
+    /// issuer owns. Callers use it as activation proof; comparing only
+    /// `AuthorizationVersion` would accept a copied or forked database.
+    pub fn authorization_issuer_projection(
+        &self,
+    ) -> SnapbackResult<&AuthorizationIssuerProjection> {
+        self.authorization_expectation.get().ok_or_else(|| {
+            invalidation_error(
+                "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
+                "invalidation issuer has no bound authorization expectation",
+            )
+        })
     }
 
     pub fn install_version_stream(&self, version_stream: impl Into<String>) -> SnapbackResult<()> {

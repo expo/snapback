@@ -921,7 +921,7 @@ mod tests {
             .schema_seed()
             .ensure_versioned_seed(request.clone())
             .expect("install");
-        let receipt = match installed {
+        let receipt = match installed.output {
             SeedEnsureResultV1::Installed { receipt } => receipt,
             SeedEnsureResultV1::Matched { .. } => panic!("fresh install matched"),
         };
@@ -930,7 +930,8 @@ mod tests {
             database
                 .schema_seed()
                 .ensure_versioned_seed(request)
-                .expect("response-loss replay"),
+                .expect("response-loss replay")
+                .output,
             SeedEnsureResultV1::Installed {
                 receipt: receipt.clone()
             }
@@ -945,7 +946,7 @@ mod tests {
                 asset_fixtures: None,
             })
             .expect("matched");
-        match matched {
+        match matched.output {
             SeedEnsureResultV1::Matched { observation } => {
                 assert_eq!(observation.outcome, "matched");
                 assert_eq!(observation.establishing_receipt, receipt);
@@ -1004,7 +1005,7 @@ mod tests {
                 asset_fixtures: None,
             })
             .expect("1024 direct effects install");
-        let SeedEnsureResultV1::Installed { receipt } = installed else {
+        let SeedEnsureResultV1::Installed { receipt } = installed.output else {
             panic!("fresh bounded install must be effectful")
         };
         assert_eq!(receipt.direct_application_rows, 1024);

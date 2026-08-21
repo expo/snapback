@@ -12459,8 +12459,8 @@ mod guarded_commit_tests {
         let baseline = db.authorization_version().unwrap();
         let seed = db
             .schema_seed()
-            .seed_with_authorization(seed_data("old", "old data"))
-            .expect("permission seed");
+            .seed(seed_data("old", "old data"))
+            .expect("public permission seed retains its witness");
         assert!(seed.authorization.event);
         assert_eq!(seed.authorization.version.epoch, baseline.epoch + 1);
         assert_eq!(
@@ -12470,8 +12470,8 @@ mod guarded_commit_tests {
 
         let reset = db
             .schema_seed()
-            .reset_and_seed_with_authorization(Some(seed_data("new", "new data")))
-            .expect("reset with seed");
+            .reset_and_seed(Some(seed_data("new", "new data")))
+            .expect("public reset with seed retains its witness");
         assert!(reset.authorization.event);
         assert!(reset.authorization.incarnation_rotated);
         assert_eq!(reset.authorization.version.epoch, 0);
@@ -12486,13 +12486,63 @@ mod guarded_commit_tests {
 
         let post_reset = db
             .schema_seed()
-            .seed_with_authorization(seed_data("again", "again"))
-            .expect("post-reset permission seed");
+            .seed(seed_data("again", "again"))
+            .expect("public post-reset permission seed retains its witness");
         assert_eq!(post_reset.authorization.version.epoch, baseline.epoch);
         assert_ne!(
             post_reset.authorization.version.incarnation, baseline.incarnation,
             "equal epochs across reset cannot create an ABA witness"
         );
+    }
+
+    #[test]
+    fn discarded_public_seed_witness_fails_closed_instead_of_panicking() {
+        let local = permission_database(Some(vec!["rank"]));
+        let mut database = ServingDatabase::adopt(local).expect("serving database");
+        let _ = database
+            .reserve_invalidation_boot_issuer()
+            .expect("durable authorization snapshot");
+        let participant = database
+            .take_authorization_commit_participant()
+            .expect("sole participant");
+        database
+            .bind_authorization_commit_participant(&participant)
+            .expect("participant bind");
+        let view = database
+            .authorization_expectation_view_for_participant_install(&participant)
+            .expect("initialized projection view");
+        let issuer_projection = view
+            .into_issuer_projection()
+            .expect("live projection carrier");
+        database
+            .activate_authorization_commit_participant(&participant, &issuer_projection)
+            .expect("exact issuer activation");
+        let reservation = participant
+            .prepare_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::new()),
+            )
+            .expect("authorization reservation");
+
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let reservation_scope = reservation.install();
+        let _discarded = database
+            .schema_seed()
+            .seed(seed_data("ignored", "ignored witness"))
+            .expect("durable seed commit");
+        assert!(reservation_scope.take_unused().is_none());
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+
+        crate::exec_guard::run_after_local_batch(batch);
+        let error = database
+            .authorization_commit_reservation_required()
+            .expect_err("discarding the witness must poison the latch");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+        assert!(error.diagnostic.message.contains("failed closed"));
     }
 
     #[test]
@@ -17236,7 +17286,7 @@ mod membership_write_tests {
                 asset_fixtures: None,
             })
             .expect("membership fixture seed installs");
-        let SeedEnsureResultV1::Installed { receipt } = installed else {
+        let SeedEnsureResultV1::Installed { receipt } = installed.output else {
             panic!("fresh fixture seed must install");
         };
 
@@ -19987,7 +20037,7 @@ mod membership_write_tests {
             .expect("install predecessor");
         let SeedEnsureResultV1::Installed {
             receipt: predecessor_receipt,
-        } = predecessor
+        } = predecessor.output
         else {
             panic!("fresh predecessor must install")
         };
@@ -20051,7 +20101,7 @@ mod membership_write_tests {
                 asset_fixtures: None,
             })
             .expect("predecessor identity remains active");
-        assert!(matches!(matched, SeedEnsureResultV1::Matched { .. }));
+        assert!(matches!(matched.output, SeedEnsureResultV1::Matched { .. }));
     }
 }
 

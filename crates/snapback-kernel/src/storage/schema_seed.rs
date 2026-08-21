@@ -442,8 +442,8 @@ impl LocalDatabase {
         Ok(diagnostics)
     }
 
-    pub(super) fn reset(&mut self) -> SnapbackResult<()> {
-        self.reset_and_seed(None).map(|_| ())
+    pub(super) fn reset(&mut self) -> SnapbackResult<ResetCommit> {
+        self.reset_and_seed(None)
     }
 
     /// Replace all app data with an optional declarative seed in one SQLite
@@ -454,10 +454,7 @@ impl LocalDatabase {
     /// @ref LLP 0003#execution-and-write-semantics — a logical mutation has
     /// one durable commit boundary; reset+seed is one operation, not a
     /// committed reset followed by a fallible second mutation.
-    pub(super) fn reset_and_seed(
-        &mut self,
-        seed: Option<SeedData>,
-    ) -> SnapbackResult<Option<MutationOutput>> {
+    pub(super) fn reset_and_seed(&mut self, seed: Option<SeedData>) -> SnapbackResult<ResetCommit> {
         let _writer_token = self
             .writer_authority
             .enter(write_authority::LocalWriterLaneV1::ResetAndSeed)?;
@@ -469,7 +466,15 @@ impl LocalDatabase {
         let attempt =
             self.attempt_reset_and_seed_with_authorization_stream(seed, &predecessor, &successor);
         match attempt {
-            auth::AuthTransactionAttempt::Committed(output) => Ok(output),
+            auth::AuthTransactionAttempt::Committed(seeded) => Ok(ResetCommit {
+                seeded,
+                authorization: AuthorizationCommitWitness {
+                    version: self.authorization_version()?,
+                    event: true,
+                    incarnation_rotated: true,
+                    membership_declarations: Vec::new(),
+                },
+            }),
             auth::AuthTransactionAttempt::RolledBack(error) => Err(error),
             auth::AuthTransactionAttempt::CommitUncertain(_) => Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
@@ -752,16 +757,7 @@ impl LocalDatabase {
         &mut self,
         seed: Option<SeedData>,
     ) -> SnapbackResult<ResetCommit> {
-        let seeded = self.reset_and_seed(seed)?;
-        Ok(ResetCommit {
-            seeded,
-            authorization: AuthorizationCommitWitness {
-                version: self.authorization_version()?,
-                event: true,
-                incarnation_rotated: true,
-                membership_declarations: Vec::new(),
-            },
-        })
+        self.reset_and_seed(seed)
     }
 
     /// Install or observe one generated v1 seed against the current app pair.
@@ -773,7 +769,7 @@ impl LocalDatabase {
     pub(super) fn ensure_versioned_seed(
         &mut self,
         request: crate::seed_identity::InstallSeedRequestV1,
-    ) -> SnapbackResult<crate::seed_identity::SeedEnsureResultV1> {
+    ) -> SnapbackResult<SeedEnsureCommit> {
         let _writer_token = self
             .writer_authority
             .enter(write_authority::LocalWriterLaneV1::StandaloneSeed)?;
@@ -808,7 +804,10 @@ impl LocalDatabase {
                 ));
             }
             tx.rollback()?;
-            return Ok(crate::seed_identity::SeedEnsureResultV1::Installed { receipt });
+            return Ok(SeedEnsureCommit {
+                output: crate::seed_identity::SeedEnsureResultV1::Installed { receipt },
+                publication: None,
+            });
         }
 
         if let Some(stream) = current_stream.as_deref()
@@ -819,14 +818,17 @@ impl LocalDatabase {
                 && active.identity.seed_digest == request.artifact.seed_digest
             {
                 tx.rollback()?;
-                return Ok(crate::seed_identity::SeedEnsureResultV1::Matched {
-                    observation: crate::seed_identity::SeedMatchedObservationV1 {
-                        format_version: crate::seed_identity::SEED_MATCHED_OBSERVATION_FORMAT_V1
-                            .to_owned(),
-                        outcome: "matched".to_owned(),
-                        active: active.identity,
-                        establishing_receipt: active.receipt,
+                return Ok(SeedEnsureCommit {
+                    output: crate::seed_identity::SeedEnsureResultV1::Matched {
+                        observation: crate::seed_identity::SeedMatchedObservationV1 {
+                            format_version:
+                                crate::seed_identity::SEED_MATCHED_OBSERVATION_FORMAT_V1.to_owned(),
+                            outcome: "matched".to_owned(),
+                            active: active.identity,
+                            establishing_receipt: active.receipt,
+                        },
                     },
+                    publication: None,
                 });
             }
             let code = if active.identity.app_id == request.artifact.app_id
@@ -961,7 +963,13 @@ impl LocalDatabase {
             authorization_interlock,
             &commit_authority_identity,
         )?;
-        Ok(crate::seed_identity::SeedEnsureResultV1::Installed { receipt })
+        Ok(SeedEnsureCommit {
+            output: crate::seed_identity::SeedEnsureResultV1::Installed { receipt },
+            publication: Some(SeedCommitPublication {
+                version,
+                authorization,
+            }),
+        })
     }
 
     /// Read-only classification for the v1 seed family. This uses a deferred
@@ -1105,11 +1113,6 @@ impl LocalDatabase {
         })
     }
 
-    pub(super) fn seed(&mut self, seed: SeedData) -> SnapbackResult<MutationOutput> {
-        self.seed_with_authorization(seed)
-            .map(|commit| commit.output)
-    }
-
     pub(super) fn preview_seed_changes(
         &mut self,
         seed: SeedData,
@@ -1132,6 +1135,13 @@ impl LocalDatabase {
         validate_membership_activation(&tx, &schema, next_version)?;
         tx.rollback()?;
         Ok(changes)
+    }
+
+    /// Kernel-internal convenience for fixtures and migration simulations.
+    /// It retains the same witness-bearing carrier as the public adapter so a
+    /// new internal caller cannot recreate an output-only commit seam.
+    pub(super) fn seed(&mut self, seed: SeedData) -> SnapbackResult<SeedCommit> {
+        self.seed_with_authorization(seed)
     }
 
     pub(super) fn seed_with_authorization(&mut self, seed: SeedData) -> SnapbackResult<SeedCommit> {
@@ -1222,15 +1232,12 @@ impl<'a> SchemaSeedKernel<'a> {
         self.db.apply_schema(manifest)
     }
 
-    pub fn reset(&mut self) -> SnapbackResult<()> {
-        self.db.reset()
+    pub fn reset(&mut self) -> SnapbackResult<ResetCommit> {
+        self.db.reset_and_seed_with_authorization(None)
     }
 
-    pub fn reset_and_seed(
-        &mut self,
-        seed: Option<SeedData>,
-    ) -> SnapbackResult<Option<MutationOutput>> {
-        self.db.reset_and_seed(seed)
+    pub fn reset_and_seed(&mut self, seed: Option<SeedData>) -> SnapbackResult<ResetCommit> {
+        self.db.reset_and_seed_with_authorization(seed)
     }
 
     pub fn attempt_reset_and_seed_with_authorization_stream(
@@ -1275,7 +1282,7 @@ impl<'a> SchemaSeedKernel<'a> {
     pub fn ensure_versioned_seed(
         &mut self,
         request: crate::seed_identity::InstallSeedRequestV1,
-    ) -> SnapbackResult<crate::seed_identity::SeedEnsureResultV1> {
+    ) -> SnapbackResult<SeedEnsureCommit> {
         self.db.ensure_versioned_seed(request)
     }
 
@@ -1302,8 +1309,8 @@ impl<'a> SchemaSeedKernel<'a> {
         Ok(identity)
     }
 
-    pub fn seed(&mut self, seed: SeedData) -> SnapbackResult<MutationOutput> {
-        self.db.seed(seed)
+    pub fn seed(&mut self, seed: SeedData) -> SnapbackResult<SeedCommit> {
+        self.db.seed_with_authorization(seed)
     }
 
     pub fn preview_seed_changes(&mut self, seed: SeedData) -> SnapbackResult<Vec<ChangedRow>> {

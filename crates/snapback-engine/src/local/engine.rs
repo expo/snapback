@@ -8534,7 +8534,23 @@ impl LocalSnapback {
         &mut self,
         request: crate::seed_identity::InstallSeedRequestV1,
     ) -> SnapbackResult<crate::seed_identity::SeedEnsureResultV1> {
-        self.db.schema_seed().ensure_versioned_seed(request)
+        let admission = self.admission.admit()?;
+        self.try_with_direct_authorization_write(
+            crate::storage::AuthorizationCommitPreflight::AllProtectedRooms,
+            move |snapback| {
+                // Versioned ensure shares the seed lane's sole admission
+                // effect guard. Projection happens only after that guard has
+                // dropped, avoiding the non-reentrant admission mutex.
+                let commit = {
+                    let _effect = admission.effect_guard("versioned seed transaction")?;
+                    snapback.db.schema_seed().ensure_versioned_seed(request)?
+                };
+                if let Some(publication) = commit.publication.as_ref() {
+                    snapback.notify_seed_publication(publication, &admission);
+                }
+                Ok(commit.output)
+            },
+        )?
     }
 
     pub fn preview_versioned_seed(
@@ -27248,7 +27264,19 @@ impl LocalSnapback {
         commit: &crate::storage::SeedCommit,
         admission: &AdmissionLease,
     ) {
-        let projection_required = if commit.authorization.event {
+        let publication = crate::storage::SeedCommitPublication {
+            version: commit.output.version,
+            authorization: commit.authorization.clone(),
+        };
+        self.notify_seed_publication(&publication, admission);
+    }
+
+    fn notify_seed_publication(
+        &mut self,
+        publication: &crate::storage::SeedCommitPublication,
+        admission: &AdmissionLease,
+    ) {
+        let projection_required = if publication.authorization.event {
             match self.authorization_commit_reservation_required() {
                 Ok(required) => required,
                 Err(error) => {
@@ -27269,7 +27297,7 @@ impl LocalSnapback {
         }
 
         self.schedule_invalidated_watches(&[]);
-        let frame_version = commit.output.version;
+        let frame_version = publication.version;
         self.begin_live_commit_egress(Instant::now());
         let result = (|| -> SnapbackResult<()> {
             let observed = self.db.versions_read().current_version()?;
@@ -27287,7 +27315,7 @@ impl LocalSnapback {
 
             self.begin_live_delivery_frame(self.subscriptions.len());
             let resynced = self.notify_authorization_event_in_frame(
-                &commit.authorization,
+                &publication.authorization,
                 frame_version,
                 admission,
             )?;
@@ -28196,7 +28224,13 @@ impl LocalSnapback {
             let issuer = self
                 .auth_invalidation
                 .as_ref()
-                .expect("authorization event requires installed invalidation state")
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                        "auth",
+                        "authorization event cannot project without invalidation state",
+                    )
+                })?
                 .issuer
                 .clone();
             let witness = authorization.clone();
@@ -28204,12 +28238,16 @@ impl LocalSnapback {
             // issuer projection is ordinary after-Local work and therefore
             // precedes the kernel settlement finalizer.
             crate::exec_guard::run_or_defer_after_local(move || {
-                let outcome = ephemeral
-                    .committed_authorization_outcome(&witness, min_commit_version)
-                    .expect("known authorization commit exposes its exact kernel outcome");
-                issuer
-                    .project_authorization_expectation(&outcome)
-                    .expect("known authorization commit projects its bound issuer view");
+                if let Ok(outcome) =
+                    ephemeral.committed_authorization_outcome(&witness, min_commit_version)
+                {
+                    // A projection error deliberately leaves `issuer_projected`
+                    // false. The following kernel finalizer then retains the
+                    // exact dependency and poisons the commit latch with the
+                    // stable fail-closed diagnostic; this callback must not
+                    // panic and prevent that finalizer from running.
+                    let _ = issuer.project_authorization_expectation(&outcome);
+                }
             });
         }
         self.live_delivery.authorization_blast_radius.for_event(

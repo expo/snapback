@@ -82,7 +82,7 @@ mod versions;
 
 pub use room_authority::{
     AuthorizationCommitOutcome, AuthorizationCommitParticipant, AuthorizationCommitReservation,
-    AuthorizationExpectationView, AuthorizationOutboxAdmission,
+    AuthorizationExpectationView, AuthorizationIssuerProjection, AuthorizationOutboxAdmission,
     AuthorizationReservationCancellation, DurableAuthorizationPermit,
     ManagedAuthorizationReservationScope, NonAuthorizingRoomAuthority, OutboxFrameDisposition,
     PendingRoomReauthorization, RealtimePublicationHandoff, RealtimePublicationPermit,
@@ -1119,6 +1119,28 @@ pub struct SeedCommit {
     pub authorization: AuthorizationCommitWitness,
 }
 
+impl std::ops::Deref for SeedCommit {
+    type Target = MutationOutput;
+
+    fn deref(&self) -> &Self::Target {
+        &self.output
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct SeedCommitPublication {
+    pub version: u64,
+    pub authorization: AuthorizationCommitWitness,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct SeedEnsureCommit {
+    pub output: crate::seed_identity::SeedEnsureResultV1,
+    /// Present only when this call executed a new SQLite commit. Matched and
+    /// replayed results are observations and carry no publication witness.
+    pub publication: Option<SeedCommitPublication>,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ResetCommit {
     pub seeded: Option<MutationOutput>,
@@ -1339,7 +1361,11 @@ impl AuthorizationInterlockState {
                 "auth",
                 "authorization participant construction is still pending",
             )),
-            Self::ParticipantReady { activation, .. } => {
+            Self::ParticipantReady {
+                registry,
+                activation,
+                ..
+            } => {
                 let activation = activation.upgrade().ok_or_else(|| {
                     SnapbackError::error(
                         "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
@@ -1347,13 +1373,14 @@ impl AuthorizationInterlockState {
                         "ready authorization participant was dropped",
                     )
                 })?;
-                if !activation.is_ready() || !activation.projection_available() {
+                if !activation.is_ready() {
                     return Err(SnapbackError::error(
                         "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
                         "auth",
                         "authorization commit issuer projection is unavailable",
                     ));
                 }
+                activation.require_projection(registry)?;
                 Ok(true)
             }
         }
@@ -1787,8 +1814,13 @@ impl ServingDatabase {
                 "ready authorization participant was dropped",
             )
         })?;
+        // A known commit already owns a deferred finalizer against this exact
+        // registry. Replacement must not retire its identity out from under
+        // that finalizer; the caller can retry after the after-Local batch
+        // drains. Uncommitted waiters are still woken and fail closed by the
+        // ordinary retirement path.
+        old_registry.retire()?;
         old_activation.retire();
-        old_registry.retire();
         let next_generation = registry_generation.checked_add(1).ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_AUTH_PARTICIPANT_GENERATION_MISMATCH",
@@ -1883,6 +1915,7 @@ impl ServingDatabase {
     pub fn activate_authorization_commit_participant(
         &mut self,
         participant: &AuthorizationCommitParticipant,
+        issuer_projection: &AuthorizationIssuerProjection,
     ) -> SnapbackResult<()> {
         if let AuthorizationInterlockState::ParticipantReady {
             registry,
@@ -1897,7 +1930,21 @@ impl ServingDatabase {
                 &activation,
             )?;
             if participant.activation().is_ready() {
-                return participant.activation().enable_projection();
+                let expected = room_authority::initialize_authorization(
+                    participant,
+                    auth_stream::read_authorization_version_snapshot(&self.db.conn)?,
+                    true,
+                )?;
+                if !issuer_projection.matches_view(&expected) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                        "auth",
+                        "authorization issuer projection is not bound to the exact ready database registry",
+                    ));
+                }
+                return participant
+                    .activation()
+                    .enable_projection(issuer_projection);
             }
         }
         let AuthorizationInterlockState::ParticipantBound {
@@ -1920,13 +1967,23 @@ impl ServingDatabase {
         )?;
         let authorization = auth_stream::read_authorization_version_snapshot(&self.db.conn)?;
         room_authority::require_initialized_authorization(participant, authorization.as_ref())?;
+        let expected = room_authority::initialize_authorization(participant, authorization, false)?;
+        if !issuer_projection.matches_view(&expected) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                "auth",
+                "authorization issuer projection is not bound to the exact database registry",
+            ));
+        }
         participant.activation().ready()?;
         self.db.authorization_interlock = AuthorizationInterlockState::ParticipantReady {
             registry,
             registry_generation,
             activation,
         };
-        participant.activation().enable_projection()
+        participant
+            .activation()
+            .enable_projection(issuer_projection)
     }
 
     fn validate_authorization_participant(

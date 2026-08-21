@@ -128,6 +128,172 @@ enum StagedAuthorizationWrite<S, T, F> {
     },
 }
 
+/// Opaque ownership of the reset transaction's still-closed managed handoff.
+/// Only the coordinated-reset path can obtain this carrier, and it can run
+/// only against the exact `ManagedLocalHandoff` it closed. Dropping it does
+/// not reopen: a lost committed-reset owner must leave the store fail-closed.
+pub(super) struct CommittedResetHandoff {
+    handoff: Arc<crate::exec_guard::ManagedLocalHandoff>,
+}
+
+impl CommittedResetHandoff {
+    pub(super) async fn with_snapback<T, F>(&self, state: &SharedSnapback, work: F) -> T
+    where
+        F: FnOnce(&mut LocalSnapback) -> T + Send + 'static,
+        T: Send + 'static,
+    {
+        let mut guard = state.clone().lock_owned().await;
+        let installed = guard.managed_local_handoff();
+        assert!(
+            Arc::ptr_eq(&installed, &self.handoff) && installed.is_closed(),
+            "committed reset lost ownership of its closed managed handoff"
+        );
+        tokio::task::spawn_blocking(move || {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+            let output =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(&mut guard)));
+            let batch = local_scope.take_after_local_batch();
+            drop(guard);
+            drop(local_scope);
+            crate::exec_guard::run_after_local_batch(batch);
+            match output {
+                Ok(output) => output,
+                Err(payload) => std::panic::resume_unwind(payload),
+            }
+        })
+        .await
+        .expect("committed-reset continuation task panicked")
+    }
+
+    pub(super) fn reopen(self) {
+        self.handoff.reopen();
+    }
+}
+
+pub(super) struct CoordinatedResetWrite<T> {
+    pub(super) attempt: crate::storage::auth::AuthTransactionAttempt<T>,
+    pub(super) committed_handoff: Option<CommittedResetHandoff>,
+}
+
+/// Reset-only authorization write choreography. Unlike the generic wrapper,
+/// a known commit transfers the closed managed handoff to the reset
+/// orchestrator after the destructive finalizer drains. Publication and exact
+/// successor-issuer reconstruction use that opaque carrier; no request flag
+/// or generic caller can select the retained-closed path.
+///
+/// @ref LLP 0290#76-after-local-sequencing — the reset handoff remains closed
+/// across finalizer drain, reset publication, and successor issuer rebuild.
+pub(super) async fn with_snapback_coordinated_reset_write<T, F>(
+    state: &SharedSnapback,
+    work: F,
+) -> CoordinatedResetWrite<T>
+where
+    F: FnOnce(&mut LocalSnapback) -> crate::storage::auth::AuthTransactionAttempt<T>
+        + Send
+        + 'static,
+    T: Send + 'static,
+{
+    use crate::storage::auth::AuthTransactionAttempt;
+
+    let guard = lock_managed_snapback(state).await;
+    let cancellation = Arc::new(crate::storage::AuthorizationReservationCancellation::new());
+    let staged = tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let generation = guard.app_generation();
+        let snapshot = guard.authorization_reservation_snapshot();
+        let ephemeral = guard.ephemeral_api();
+        let batch = local_scope.take_after_local_batch();
+        drop(guard);
+        drop(local_scope);
+        crate::exec_guard::run_after_local_batch(batch);
+        snapshot.map(|snapshot| (generation, snapshot, ephemeral))
+    })
+    .await
+    .expect("coordinated-reset staging task panicked");
+    let (generation, snapshot, ephemeral) = match staged {
+        Ok(staged) => staged,
+        Err(error) => {
+            return CoordinatedResetWrite {
+                attempt: AuthTransactionAttempt::RolledBack(error),
+                committed_handoff: None,
+            };
+        }
+    };
+    let reservation = match ephemeral.reserve_authorization_commit(
+        crate::storage::AuthorizationCommitPreflight::AllProtectedRooms,
+        cancellation,
+    ) {
+        Ok(reservation) => reservation,
+        Err(error) => {
+            return CoordinatedResetWrite {
+                attempt: AuthTransactionAttempt::RolledBack(error),
+                committed_handoff: None,
+            };
+        }
+    };
+
+    let mut guard = lock_managed_snapback(state).await;
+    tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let current_snapshot = guard.authorization_reservation_snapshot();
+        let snapshot_matches = current_snapshot
+            .as_ref()
+            .is_ok_and(|current| current == &snapshot);
+        if guard.app_generation() != generation || !snapshot_matches {
+            drop(guard);
+            reservation.cancel();
+            let error = current_snapshot.err().unwrap_or_else(|| {
+                authorization_reservation_stale(
+                    "coordinated reset reservation became stale before the durable transaction",
+                )
+            });
+            return CoordinatedResetWrite {
+                attempt: AuthTransactionAttempt::RolledBack(error),
+                committed_handoff: None,
+            };
+        }
+        let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let reservation_scope = reservation.install();
+        let attempt = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(&mut guard)));
+        let unused = reservation_scope.take_unused();
+        let batch = local_scope.take_after_local_batch();
+        let committed = matches!(attempt, Ok(AuthTransactionAttempt::Committed(_)));
+        let close = committed || batch.has_effects() || unused.is_some();
+        let handoff = close.then(|| {
+            let handoff = guard.managed_local_handoff();
+            handoff.close();
+            handoff
+        });
+        drop(guard);
+        drop(local_scope);
+        if let Some(unused) = unused {
+            unused.cancel();
+        }
+        crate::exec_guard::run_after_local_batch(batch);
+        let attempt = match attempt {
+            Ok(attempt) => attempt,
+            Err(payload) => std::panic::resume_unwind(payload),
+        };
+        if committed {
+            return CoordinatedResetWrite {
+                attempt,
+                committed_handoff: handoff.map(|handoff| CommittedResetHandoff { handoff }),
+            };
+        }
+        if let Some(handoff) = handoff {
+            handoff.reopen();
+        }
+        CoordinatedResetWrite {
+            attempt,
+            committed_handoff: None,
+        }
+    })
+    .await
+    .expect("coordinated-reset transaction task panicked")
+}
+
 struct CancelAuthorizationReservationOnDrop {
     cancellation: Arc<crate::storage::AuthorizationReservationCancellation>,
     armed: bool,

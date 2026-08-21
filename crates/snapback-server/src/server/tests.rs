@@ -9,13 +9,13 @@ use super::{
     TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
     already_terminal_session_error, app, configured_action_worker_limit,
     configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
-    finish_registered_response, install_targeted_agent_invitation_commit_hook,
-    install_targeted_agent_invitation_hook, install_test_finite_authority_pause,
-    linearize_detached_action_abandonment, parse_action_watchdog_timeout, parse_optional_json,
-    reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
-    retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
-    spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
-    with_snapback_staged_authorization_write,
+    finish_registered_response, install_committed_reset_handoff_test_hook,
+    install_targeted_agent_invitation_commit_hook, install_targeted_agent_invitation_hook,
+    install_test_finite_authority_pause, linearize_detached_action_abandonment,
+    parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
+    reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
+    run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
+    status_for_diagnostic_code, with_snapback, with_snapback_staged_authorization_write,
 };
 use crate::manifest::SchemaManifestValidationExt as _;
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
@@ -2003,6 +2003,31 @@ fn manual_clock_sessions_fixture(start_ms: u64) -> (AppState, Arc<ManualServerAu
 
 fn auth_invalidation_reset_fixture() -> AppState {
     let mut snapback = LocalSnapback::memory().expect("memory reset fixture");
+    snapback
+        .apply_schema(SchemaManifest {
+            tables: vec![TableManifest {
+                name: "resetPermissions".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "subject".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: true,
+                permission_fields: Some(vec!["subject".to_owned()]),
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                authority_profile: None,
+                asset_sharing: None,
+                visibility: None,
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        })
+        .expect("apply reset authorization fixture schema");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
     activate_catalog(
         snapback.remainder_auth_database_mut(),
@@ -31522,6 +31547,74 @@ async fn committed_reset_rebuilds_every_invalidation_projection_before_reopening
         "SNAPBACK_UNKNOWN_FUNCTION",
         "the successor query and lease gates must reach function lookup",
     );
+}
+
+#[tokio::test]
+async fn committed_reset_keeps_a_queued_managed_writer_out_until_successor_install() {
+    let state = auth_invalidation_reset_fixture();
+    let (reset_committed, release_reset) =
+        install_committed_reset_handoff_test_hook(&state.snapback);
+    let reset_state = state.clone();
+    let reset_admission = test_route_admission(&state).0;
+    let reset =
+        tokio::spawn(
+            async move { coordinated_app_reset(&reset_state, &reset_admission, None).await },
+        );
+
+    tokio::time::timeout(Duration::from_secs(2), reset_committed.notified())
+        .await
+        .expect("reset reaches the post-finalizer handoff gap");
+
+    let writer_state = state.snapback.clone();
+    let (writer_started_tx, writer_started_rx) = tokio::sync::oneshot::channel();
+    let (writer_entered_tx, mut writer_entered_rx) = tokio::sync::oneshot::channel();
+    let writer = tokio::spawn(async move {
+        writer_started_tx.send(()).unwrap();
+        super::with_snapback_authorization_write(
+            &writer_state,
+            |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+            move |snapback| {
+                writer_entered_tx.send(()).unwrap();
+                snapback.seed(SeedData {
+                    tables: BTreeMap::from([(
+                        "resetPermissions".to_owned(),
+                        vec![serde_json::Map::from_iter([
+                            ("_id".to_owned(), json!("queued-writer")),
+                            ("subject".to_owned(), json!("successor")),
+                        ])],
+                    )]),
+                })
+            },
+        )
+        .await
+        .and_then(|result| result)
+    });
+    writer_started_rx.await.expect("queued writer task started");
+
+    assert!(
+        tokio::time::timeout(Duration::from_millis(100), &mut writer_entered_rx)
+            .await
+            .is_err(),
+        "a managed writer entered after reset finalization but before successor issuer install"
+    );
+
+    release_reset.notify_one();
+    let reset_output = tokio::time::timeout(Duration::from_secs(2), reset)
+        .await
+        .expect("reset resumes after the test barrier")
+        .expect("reset task joins")
+        .expect("reset succeeds");
+    assert!(reset_output.is_none());
+
+    tokio::time::timeout(Duration::from_secs(2), &mut writer_entered_rx)
+        .await
+        .expect("queued writer enters after reset publication")
+        .expect("queued writer reports entry");
+    let output = writer
+        .await
+        .expect("queued writer task joins")
+        .expect("queued authorization write commits under the successor issuer");
+    assert_eq!(output.changed_count, 1);
 }
 
 #[tokio::test]

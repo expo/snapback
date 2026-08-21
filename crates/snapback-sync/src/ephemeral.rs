@@ -3669,8 +3669,10 @@ impl LocalEphemeralBackend {
                     "authorization commit interlock cannot activate without an installed issuer",
                 )
             })?;
-        issuer.authorization_expectation()?;
-        database.activate_authorization_commit_participant(participant)
+        database.activate_authorization_commit_participant(
+            participant,
+            issuer.authorization_issuer_projection()?,
+        )
     }
 
     pub fn committed_authorization_outcome(
@@ -3716,18 +3718,9 @@ impl LocalEphemeralBackend {
                 "standalone ephemeral backend has no database-bound authorization participant",
             ));
         };
-        let expected = database
-            .authorization_expectation_view_for_participant_install(participant)?
-            .current()?;
-        if issuer.authorization_expectation()? != expected {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
-                "auth",
-                "authorization issuer does not match the committing database projection",
-            ));
-        }
+        let issuer_projection = issuer.authorization_issuer_projection()?.clone();
         if crate::exec_guard::local_write_scope_active() {
-            database.activate_authorization_commit_participant(participant)?;
+            database.activate_authorization_commit_participant(participant, &issuer_projection)?;
             let backend = self.clone();
             crate::exec_guard::run_or_defer_after_local(move || {
                 backend.install_authorization_issuer(issuer);
@@ -3736,13 +3729,14 @@ impl LocalEphemeralBackend {
         }
 
         self.install_authorization_issuer(issuer);
-        database.activate_authorization_commit_participant(participant)
+        database.activate_authorization_commit_participant(participant, &issuer_projection)
     }
 
     pub fn clear_authorization_issuer(&self) {
         crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
             "ephemeral authorization issuer clearing",
         );
+        self.suspend_authorization_commit_projection();
         *lock(&self.shared.authorization_issuer) = None;
     }
 
@@ -9388,10 +9382,42 @@ mod tests {
     }
 
     #[test]
+    fn activation_without_an_installed_issuer_fails_closed() {
+        let local = crate::storage::LocalDatabase::memory().expect("in-memory database");
+        let mut database = ServingDatabase::adopt(local).expect("serving database");
+        database
+            .reserve_invalidation_boot_issuer()
+            .expect("durable authorization snapshot");
+        let backend = LocalEphemeralBackend::for_serving_database(
+            EphemeralStoreLimits::default(),
+            &mut database,
+        )
+        .expect("database-bound room authority");
+        backend
+            .authorization_expectation_view_for_install(&mut database)
+            .expect("kernel view initialization alone");
+
+        let error = backend
+            .activate_authorization_commit_interlock(&mut database)
+            .expect_err("a kernel view is not proof of an installed live issuer");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+    }
+
+    #[test]
     fn managed_successor_install_reactivates_a_suspended_projection_before_reopening() {
         let mut fixture = bound_backend_fixture();
-        fixture.backend.suspend_authorization_commit_projection();
         fixture.backend.clear_authorization_issuer();
+        let unavailable = fixture
+            .database
+            .authorization_commit_reservation_required()
+            .expect_err("clearing the issuer intrinsically suspends the commit latch");
+        assert_eq!(
+            unavailable.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
 
         let (authorization, version_stream, boot_sequence) = fixture
             .database
