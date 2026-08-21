@@ -429,6 +429,13 @@ one owner with two admission postures, not a second lifecycle surface.
      application identity, artifact hashes), and the authority mode (auth
      state); LLP 0224's atomic-publish, remove-before-work, and
      no-bearer-bytes discipline is unchanged. No fifth file is minted.
+     Extending the receipt's closed bind-set
+     (`application-ready.schema.json` is `additionalProperties: false`)
+     amends LLP 0224 and its schema as W1 follow-through. Qualified-binary
+     identity is host/launcher-shaped, so whether it lands on the
+     application receipt or on `HostReadyDescriptor` is deferred to W1
+     implementation; the ruling requires only that the fact be
+     receipt-discoverable at attach time.
    - The **`HostReadyDescriptor`** (`--ready-file`) stays the unchanged
      host-only layer; attach verifies it first and uses it to locate the
      receipt at its deterministic sibling, exactly as `snapback wait

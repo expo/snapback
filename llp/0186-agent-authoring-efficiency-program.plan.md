@@ -440,7 +440,9 @@ W5 adds two measurement layers to W1:
    and diagnosis phase times where the transcript supports the boundary.
 2. **Semantic action facts:** guide/reference lookups, package-source reads,
    binary-string excavation, authored file edits, process launches, proof
-   commands, and retries. Raw tool calls are useful within one pinned harness
+   commands, and retries. (Recording contract superseded 2026-08-21: the
+   closed taxonomy in the D0.6 amendment below refines this prose list in
+   place — implementers record against that list, not this one.) Raw tool calls are useful within one pinned harness
    but are gameable by command bundling; the product goal is fewer user-visible
    decisions and operations, not cosmetically larger shell invocations.
 
@@ -899,7 +901,11 @@ threshold defined in the run-record schema before the first measured run
 silent discovery miss · other), semantic actions until recovery, and the
 recovery outcome. The schema also tags W5's existing semantic-action
 classes (guide/reference lookups, orientation reads) so reorientation
-cost is observable without a failed action. This is a run-record schema
+cost is observable without a failed action. (Classification updated
+2026-08-21: guide/reference lookups are `guide-lookup` in the D0.6 closed
+taxonomy; orientation reads are metered as orientation bytes or
+attributed context acquisition per that amendment's mapping rules, not a
+standalone class.) This is a run-record schema
 plus post-run annotation — no runtime telemetry — and it exists to
 answer, with evidence instead of intuition, which failure presentations
 (wrong-name guesses, serialized validation cycles, mid-session
@@ -936,9 +942,21 @@ the action belongs to a failure-to-recovery episode (this Plan's
 inclusive); everything else is `progress`. **"Semantic correction
 actions" is defined as the count of `correction`-tagged actions** —
 productive first-pass edits and generations never count against the
-target. This is a within-one-pinned-harness recording contract; OQ7's
-cross-harness normalization question remains open and is not resolved
-here.
+target.
+
+**Mapping rules for generic reads** (closing the classes over every
+observed action): a file or reference read classifies by its target —
+guide, generated-reference, and diagnostic-registry reads are
+`guide-lookup`; Snapback/Exact package or checkout source reads are
+`source-inspection`; reads of the lane's own project files are **context
+acquisition, not standalone semantic actions** — they attribute to the
+semantic action they serve (and inside an episode they carry that
+episode's `correction` tag), except reads before the first product edit,
+which are metered as field-7 orientation bytes rather than actions.
+LLP 0295's D0.6 bullet list was amended in place to this taxonomy (its
+draft parenthetical named a generic `read` class; there is none). This is
+a within-one-pinned-harness recording contract; OQ7's cross-harness
+normalization question remains open and is not resolved here.
 
 **Commissioned R2 targets.** Matched cells means same app x profile x
 client stack x model/harness/effort; cells must be load-qualified and

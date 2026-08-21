@@ -47,7 +47,10 @@ in brief:
   class for declared clients).
 - The authoritative ready receipt is **`snapback.application-ready.v1`**
   (LLP 0224), extended with binding, client origin(s), and
-  qualified-binary-vs-wrapper identity; the `HostReadyDescriptor`
+  qualified-binary-vs-wrapper identity (that last fact's placement —
+  receipt vs `HostReadyDescriptor` — is deferred to W1; it must be
+  receipt-discoverable at attach time, and the extension amends LLP 0224
+  and its closed schema as W1 follow-through); the `HostReadyDescriptor`
   (`--ready-file`) stays host-only and locates it; the supervisor stream
   stays events; `expo-supervisor.json`/`connectCarrier` become projections.
   All consumers read the receipt, none parses logs.
@@ -103,7 +106,8 @@ in brief:
 
 Fresh packed-package Expo, Vite/Exact, and headless fixtures attach through the
 ruled lifecycle, reach application-ready state, perform an additive schema
-successor with the original accounts and sessions intact, and shut down only
-their owned children. They use no custom relay/binding middleware, destructive
+successor with the original accounts and sessions intact — asserting the
+reported old -> new deployment-identity advance per LLP 0058, never identity
+equality — and shut down only their owned children. They use no custom relay/binding middleware, destructive
 reseed, or source-checkout-only helper. A stale listener and a wrong binding
 both refuse with stable identity-bearing diagnostics.

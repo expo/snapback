@@ -140,7 +140,8 @@ composition half, and the binding here is deliberately small:
 - **Design point 5 sharpens.** "Exit into the ordinary lifecycle" now means
   the *ruled* lifecycle: an `init`-adopted app participates in exactly the
   same `snapback dev` verbs (fresh start / attach / regenerate / additive
-  successor / shutdown), the same sessions-identity preservation, the same
+  successor / shutdown), the same sessions continuity (accounts and stores
+  preserved while the deployment identity advances per LLP 0058), the same
   binding-admission postures — supervised rendezvous by default, the
   fixed-origin/external-client profile when the host app's own dev server
   (Vite, custom web stack) owns the client origin — and the same single

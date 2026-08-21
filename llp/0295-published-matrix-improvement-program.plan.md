@@ -211,7 +211,10 @@ Choose one semantic lifecycle that covers:
 - Expo/React and external Vite/Exact clients;
 - fresh start, attach to an already-running server, regenerate, additive
   schema successor, and shutdown;
-- sessions-mode deployment identity and store preservation;
+- sessions-mode continuity — accounts, custody, sessions, and stores
+  preserved while the deployment identity advances per LLP 0058, old/new
+  reported (wording updated 2026-08-21 with the ruling; the draft said
+  "identity preservation");
 - binding delivery/admission without pretending a caller override is a
   supervisor exchange; and
 - a single ready receipt naming server, app artifact, binding, authority mode,
@@ -222,7 +225,8 @@ explicit fixed-port/external-client profile, and treats `start --startup-
 artifacts` plus hand-written environment objects as diagnostic primitives,
 not an alternative golden path. LLP 0223/0261 own the design. Acceptance must
 prove one M1->M2 additive change with the original accounts and sessions
-intact. Execution ticket:
+intact (the deployment identity itself advances per LLP 0058). Execution
+ticket:
 `issues/20260821-fixed-origin-external-client-dev-lifecycle.md`.
 
 **Ruled 2026-08-21:** the default proposal is adopted (author may revise).
@@ -319,8 +323,13 @@ milestone boundary records:
 
 - fresh input, cache read/write, output, and reasoning tokens using the native
   harness fields without cross-harness normalization;
-- semantic actions (read, edit, generate, start/restart, suite, choreography,
-  source inspection, guide lookup, retry);
+- semantic actions under the closed taxonomy registered in LLP 0186's
+  2026-08-21 amendment (`guide-lookup`, `source-inspection` with flagged
+  `binary-excavation`, `edit`, `generate`, `process`, `reseed`, `suite`,
+  `choreography`, `retry`, each tagged `progress`/`correction`; generic
+  reads classify by target per that amendment's mapping rules — this list
+  was amended in place 2026-08-21 from the original draft's `read`-bearing
+  parenthetical);
 - failure-to-recovery episodes with attribution and outcome;
 - server/process restart and reseed counts;
 - browser assertion attempts and time spent waiting;
