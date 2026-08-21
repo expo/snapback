@@ -352,25 +352,41 @@ try {
   const freshDatabase = join(root, 'fresh-cleanup.sqlite3');
   const freshReadyFile = join(root, 'fresh-cleanup.ready.json');
   const freshApplicationReadyFile = join(root, 'fresh-cleanup.application-ready.json');
-  for (const path of [
+  const freshAssetBlobDirectory = join(root, 'assets', 'blobs');
+  const freshAssetBlob = join(freshAssetBlobDirectory, 'sha256-fixture');
+  mkdirSync(freshAssetBlobDirectory, { recursive: true });
+  const managedFreshState = [
     freshDatabase,
+    `${freshDatabase}-wal`,
+    `${freshDatabase}-shm`,
+    `${freshDatabase}-journal`,
+    `${freshDatabase}.auth-keyring.json`,
+    `${freshDatabase}.config.json`,
+    `${freshDatabase}.operation-detail-keyring.json`,
+    `${freshDatabase}.admin-token`,
+    `${freshDatabase}.console-credentials`,
     `${freshDatabase}.dev-identity`,
+    join(root, 'completeness-proof-keyring.json'),
+    join(root, 'resume-keyring.json'),
+    freshAssetBlob,
     freshReadyFile,
     `${freshReadyFile}.dev-identity`,
     freshApplicationReadyFile,
-  ]) writeFileSync(path, 'fixture');
+  ];
+  for (const path of managedFreshState) writeFileSync(path, 'fixture');
   __test.removeManagedDatabaseState(
     freshDatabase,
     freshReadyFile,
     freshApplicationReadyFile,
   );
-  for (const path of [
-    freshDatabase,
-    `${freshDatabase}.dev-identity`,
-    freshReadyFile,
-    `${freshReadyFile}.dev-identity`,
-    freshApplicationReadyFile,
-  ]) assert.equal(existsSync(path), false, `dev-fresh removes managed state ${path}`);
+  for (const path of managedFreshState) {
+    assert.equal(existsSync(path), false, `dev-fresh removes managed state ${path}`);
+  }
+  assert.equal(
+    existsSync(freshAssetBlobDirectory),
+    false,
+    'dev-fresh removes the finalized asset-blob tree, not only one fixture blob',
+  );
   assert.equal(__test.runtimeReadinessRoot({
     binary: join(root, 'target', 'release', 'snapback'),
     checkoutRoot: root,
@@ -668,7 +684,8 @@ console.log(JSON.stringify({
   assert.match(chatAcceptanceSource, /createSnapbackExpoBoot/u);
   assert.doesNotMatch(
     chatAcceptanceSource,
-    /new SnapbackClient|createExternalSessionClient|AuthCoordinator|bearer|adoptAuthority/u,
+    /new SnapbackClient|AuthCoordinator|adoptAuthority/u,
+    'the generated acceptance may use the public external-session wrapper but must not assemble its authority internals',
   );
   assert.match(chatAcceptanceSource, /observeSnapbackSurface/u);
   assert.match(chatAcceptanceSource, /client\.mutate\(api\.sendMessage/u);

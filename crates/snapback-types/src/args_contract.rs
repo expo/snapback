@@ -454,9 +454,13 @@ fn validate_node(
                 return Err(mismatch());
             };
             if text.len() > *max_bytes {
-                return Err(ArgsViolation::at(path, "string", "string")
-                    .with_byte_bound("child", text.len(), *max_bytes)
-                    .into());
+                return Err(ArgsViolation::at(
+                    path,
+                    "string within declared maxBytes",
+                    "oversized string",
+                )
+                .with_byte_bound("child", text.len(), *max_bytes)
+                .into());
             }
             Ok(())
         }
@@ -487,18 +491,26 @@ fn validate_node(
         } => {
             let actual_bytes = serde_json::to_vec(value).map_or(usize::MAX, |bytes| bytes.len());
             if actual_bytes > *max_bytes {
-                return Err(ArgsViolation::at(path, "json", json_kind(value))
-                    .with_byte_bound("child", actual_bytes, *max_bytes)
-                    .into());
+                return Err(ArgsViolation::at(
+                    path,
+                    "json within declared maxBytes",
+                    "oversized json",
+                )
+                .with_byte_bound("child", actual_bytes, *max_bytes)
+                .into());
             }
             validate_json_budget(value, depth, *max_depth, path, budget)
         }
         ResultValueContract::Array { element, max_items } => {
             let values = value.as_array().ok_or_else(mismatch)?;
             if values.len() > *max_items {
-                return Err(ArgsViolation::at(path, "array", "array")
-                    .with_item_bound("collection", values.len(), *max_items)
-                    .into());
+                return Err(ArgsViolation::at(
+                    path,
+                    "array within declared maxItems",
+                    "oversized array",
+                )
+                .with_item_bound("collection", values.len(), *max_items)
+                .into());
             }
             for (index, value) in values.iter().enumerate() {
                 let mut child = path.to_vec();
@@ -1086,6 +1098,45 @@ mod tests {
         assert_eq!(details["candidateFields"][0]["name"], "title");
         assert_eq!(details["candidateFields"][0]["expected"], "string");
         assert!(details["expectedArgumentContract"].is_object());
+    }
+
+    #[test]
+    fn declared_bounds_replace_same_kind_expected_actual_pairs_with_measured_facts() {
+        let function = function(FunctionArgsContract {
+            fields: vec![
+                field("title", true, ResultValueContract::String { max_bytes: 3 }),
+                field(
+                    "tags",
+                    true,
+                    ResultValueContract::Array {
+                        element: Box::new(ResultValueContract::String { max_bytes: 8 }),
+                        max_items: 1,
+                    },
+                ),
+            ],
+        });
+        let bytes = validate_function_args(&function, &json!({ "title": "four", "tags": [] }))
+            .expect_err("string byte bound refuses");
+        assert_eq!(
+            bytes.diagnostic.details["expected"],
+            "string within declared maxBytes"
+        );
+        assert_eq!(bytes.diagnostic.details["actual"], "oversized string");
+        assert_eq!(bytes.diagnostic.details["boundKind"], "child");
+        assert_eq!(bytes.diagnostic.details["actualBytes"], 4);
+        assert_eq!(bytes.diagnostic.details["maxBytes"], 3);
+
+        let items =
+            validate_function_args(&function, &json!({ "title": "ok", "tags": ["one", "two"] }))
+                .expect_err("array item bound refuses");
+        assert_eq!(
+            items.diagnostic.details["expected"],
+            "array within declared maxItems"
+        );
+        assert_eq!(items.diagnostic.details["actual"], "oversized array");
+        assert_eq!(items.diagnostic.details["boundKind"], "collection");
+        assert_eq!(items.diagnostic.details["actualItems"], 2);
+        assert_eq!(items.diagnostic.details["maxItems"], 1);
     }
 
     #[test]

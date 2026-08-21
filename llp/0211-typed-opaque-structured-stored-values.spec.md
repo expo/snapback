@@ -9,7 +9,8 @@
 and row bound refusals now identify the bounded path and exact measured
 quantity; field/row failures carry canonical-byte contributions, the guide
 route, and supported representation repairs. Boundary evidence is exact at
-limit−1/limit/limit+1 for nested record/array values.)
+limit−1/limit/limit+1 for nested record/array values; row diagnostics rank the
+largest contributors and WebSocket ingress reports `boundKind: "live-frame"`.)
 **Revised:** 2026-08-15 (migration completion: case 2's same-name staged
 route is now the LLP 0081 `ConvertJsonToStructured` intent, with successor
 validation/canonical rewrite and row-count/content-digest proof).
@@ -317,10 +318,10 @@ The refusal itself distinguishes the violated semantic fact. Details carry a
 bounded `fieldPath`, RFC 6901 `path`, and closed `boundKind`: `child` for a
 declared nested byte bound, `collection` for `maxItems`, `field` for the 32 KiB
 canonical aggregate, and `row` for the 48 KiB structured contribution.
-The live-delivery machinery keeps its own named `live-frame` refusal rather
-than misreporting a storage ceiling. Field and row failures carry
+The WebSocket ingress machinery keeps its own `boundKind: "live-frame"`
+refusal rather than misreporting a storage ceiling. Field and row failures carry
 `actualCanonicalBytes` / `maxCanonicalBytes`; row failures additionally carry
-at most eight per-field canonical-byte contributions and the total/omitted
+the eight largest per-field canonical-byte contributions and the total/omitted
 counts. A bounded repair points authors to shortening the value, projecting
 queryable facts into scalar fields, or moving growing collections to bounded
 child rows. Rejected application bytes are never echoed.
@@ -520,9 +521,11 @@ tier, because a stable, named refusal covering the complete
    table: assetRef, id/relation incarnation, vector, json, platform refs,
    tuple) refuses at schema compile with its named code; principal arrays
    round-trip as nominal snapshots and reject invalid principal leaves;
-   over-ceiling refusal for all four bounds (value bytes, depth, element
-   count, per-row aggregate) with pointer diagnostics and the closed bound
-   kind; nested record/array canonical-byte fixtures cover
+   over-ceiling refusal for all four limits (value bytes, descriptor depth,
+   element count, per-row aggregate): the three write-time limits carry pointer
+   diagnostics and the closed bound kind, while descriptor depth is a
+   schema-time `SNAPBACK_STRUCTURED_CONTRACT_INVALID` refusal with a bounded
+   reason; nested record/array canonical-byte fixtures cover
    limit−1/limit/limit+1 for both the per-field and per-row aggregate; a
    non-validating write provably writes nothing.
 3. Canonical-bytes stability: the CV-10 insert/seed fixture class extended

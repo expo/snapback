@@ -143,9 +143,14 @@ For `AssetRef`, the display name alone is not the type identity. The retype
 diagnostic's `existingAssetRef`, `requestedAssetRef`, and `changedFacts`
 identify changes to upload/media intent, policy generation, media kinds,
 delivery, variants, classification, retention, and target capability. Preserve
-data by adding a successor AssetRef field and using the reviewed migration
-loop; do not interpret `AssetRef` → `AssetRef` as stale codegen or an in-place
-compatible policy edit.
+data by adding a nullable successor AssetRef field and repopulating it through
+ordinary authorized application mutations. That route invokes the AssetRef
+attachment hook, which rechecks the successor intent/media policy and maintains
+the successor field's reverse edges. Do **not** use generic migration copy or
+backfill for AssetRef values: that path does not run the attachment hook. Keep
+the predecessor field until an AssetRef-aware retirement migration exists; do
+not interpret `AssetRef` → `AssetRef` as stale codegen or an in-place compatible
+policy edit.
 
 If this is a disposable local target and you intentionally do **not** need the
 data, use `snapback reset --dev-fresh --db <db>`. The store is not one file:
@@ -160,7 +165,7 @@ procedure are in [Back up, copy, and move a store](../operating/backup-and-copy.
 | --- | --- |
 | `SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | A settled sessions start has no readable trusted complete-pair carrier. Restore the exact generated carrier and retry. |
 | `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | The carrier differs from the pin or is not a coherent closed pair. Read `expectedDeployment`/`observedDeployment`; use the exact-carrier then managed-successor recipe above. |
-| `SNAPBACK_SCHEMA_FIELD_RETYPED` | Existing storage makes a direct field retype non-additive. Preserve the predecessor and route through a new-field backfill or reviewed migration. For AssetRef → AssetRef, read `changedFacts` and the old/new policy identities. |
+| `SNAPBACK_SCHEMA_FIELD_RETYPED` | Existing storage makes a direct field retype non-additive. Preserve the predecessor and route ordinary fields through a new-field backfill or reviewed migration. For AssetRef → AssetRef, read `changedFacts`, add a nullable successor, and populate it only through ordinary authorized application mutations; generic migration copy/backfill is not AssetRef-safe. |
 | `SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED` | Populated rows lack the proposed required value. Add it as optional and backfill, or declare the reviewed migration. |
 
 For seed identity changes, use [versioned seeds](./versioned-seeds.md). For

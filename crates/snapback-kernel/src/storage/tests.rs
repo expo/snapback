@@ -1786,11 +1786,15 @@ mod stored_enum_tests {
                 .as_array()
                 .is_some_and(|facts| facts.iter().any(|fact| fact == "uploadIntent"))
         );
+        let preserve_data = error.diagnostic.details["repair"]["preserveData"]
+            .as_str()
+            .unwrap();
+        assert!(preserve_data.contains("ordinary authorized application mutations"));
+        assert!(preserve_data.contains("rechecks successor policy and writes reverse edges"));
+        assert!(preserve_data.contains("generic migration copy/backfill is not AssetRef-safe"));
         assert!(
-            error.diagnostic.details["repair"]["preserveData"]
-                .as_str()
-                .unwrap()
-                .contains("snapback migrate preview --help")
+            !preserve_data.contains("snapback migrate preview --help"),
+            "the generic migration loop bypasses AssetRef admission and edge maintenance"
         );
         assert!(
             error.diagnostic.details["repair"]["devFresh"]
@@ -2286,6 +2290,11 @@ mod stored_structured_value_tests {
         assert_eq!(child.diagnostic.code, "SNAPBACK_STRUCTURED_VALUE_INVALID");
         assert_eq!(child.diagnostic.details["fieldPath"], "items.payload/text");
         assert_eq!(child.diagnostic.details["boundKind"], "child");
+        assert_eq!(
+            child.diagnostic.details["expected"],
+            "string within declared maxBytes"
+        );
+        assert_eq!(child.diagnostic.details["actual"], "oversized string");
         assert_eq!(child.diagnostic.details["actualBytes"], 4);
         assert_eq!(child.diagnostic.details["maxBytes"], 3);
 
@@ -2314,6 +2323,11 @@ mod stored_structured_value_tests {
         );
         assert_eq!(elements.diagnostic.details["fieldPath"], "items.payload");
         assert_eq!(elements.diagnostic.details["boundKind"], "collection");
+        assert_eq!(
+            elements.diagnostic.details["expected"],
+            "array within declared maxItems"
+        );
+        assert_eq!(elements.diagnostic.details["actual"], "oversized array");
         assert_eq!(elements.diagnostic.details["actualItems"], 1_025);
         assert_eq!(elements.diagnostic.details["maxItems"], 1_024);
 
@@ -2339,7 +2353,7 @@ mod stored_structured_value_tests {
         let mut db = LocalDatabase::memory().unwrap();
         db.apply_schema(schema(vec![
             field("left", text.clone()),
-            field("right", text),
+            field("right", text.clone()),
         ]))
         .unwrap();
         let aggregate = insert(
@@ -2364,6 +2378,39 @@ mod stored_structured_value_tests {
         );
         assert_eq!(aggregate.diagnostic.details["structuredFieldCount"], 2);
         assert!(db.get("items", "aggregate").unwrap().is_none());
+
+        let mut db = LocalDatabase::memory().unwrap();
+        db.apply_schema(schema(
+            (0..9)
+                .map(|index| field(&format!("payload{index}"), text.clone()))
+                .collect(),
+        ))
+        .unwrap();
+        let many_fields = Map::from_iter((0..9).map(|index| {
+            let content_bytes = if index == 8 { 30_000 } else { 3_000 };
+            (
+                format!("payload{index}"),
+                json!({ "text": "x".repeat(content_bytes) }),
+            )
+        }));
+        let ranked = insert(&mut db, "ranked-contributors", many_fields)
+            .expect_err("nine structured fields exceed the row ceiling");
+        assert_eq!(
+            ranked.diagnostic.code,
+            "SNAPBACK_STRUCTURED_ROW_BYTES_EXCEEDED"
+        );
+        assert_eq!(
+            ranked.diagnostic.details["structuredFields"][0]["fieldPath"], "items.payload8",
+            "the bounded projection starts with the largest contributor even when it is last in schema order"
+        );
+        assert_eq!(
+            ranked.diagnostic.details["structuredFields"]
+                .as_array()
+                .unwrap()
+                .len(),
+            8
+        );
+        assert_eq!(ranked.diagnostic.details["omittedStructuredFieldCount"], 1);
     }
 
     #[test]
@@ -20595,6 +20642,16 @@ mod media_ref_projection_acceptance_tests {
             fresh.output.result["image"],
             json!({ "assetId": "asset-ready", "kind": "image" })
         );
+        let edge_tx = db
+            .conn
+            .unchecked_transaction()
+            .expect("ordinary attachment edge probe");
+        let edges = crate::assets::load_edges_for_asset(&edge_tx, "asset-ready")
+            .expect("ordinary mutation writes reverse edge");
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].table_name, "profiles");
+        assert_eq!(edges[0].field_path, "image");
+        edge_tx.rollback().expect("edge probe rollback");
         let replay = db
             .mutation_writes()
             .execute_mutation_idempotent(&plan, &input, &identity)

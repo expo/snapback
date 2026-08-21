@@ -3436,17 +3436,29 @@ async function validateReadyDescriptorHealth(descriptor) {
   }
 }
 
+// @ref LLP 0192#d-1-the-durable-state-registry — dev-fresh removes the
+// database plus its Folded, Required, and Optional siblings, including the
+// path-bound keyrings and asset blobs.
 function removeManagedDatabaseState(database, readyFile = null, applicationReadyFile = null) {
+  const storeDirectory = dirname(database);
   for (const path of [
     database,
     `${database}-wal`,
     `${database}-shm`,
+    `${database}-journal`,
+    `${database}.auth-keyring.json`,
+    `${database}.config.json`,
+    `${database}.operation-detail-keyring.json`,
     `${database}.admin-token`,
+    `${database}.console-credentials`,
     `${database}.dev-identity`,
+    join(storeDirectory, 'completeness-proof-keyring.json'),
+    join(storeDirectory, 'resume-keyring.json'),
+    join(storeDirectory, 'assets', 'blobs'),
     ...(readyFile === null ? [] : [readyFile, `${readyFile}.dev-identity`]),
     ...(applicationReadyFile === null ? [] : [applicationReadyFile]),
   ]) {
-    rmSync(path, { force: true });
+    rmSync(path, { force: true, recursive: true });
   }
 }
 

@@ -32056,7 +32056,7 @@
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 915,
+          "line": 927,
           "column": 14
         }
       ],
@@ -47311,6 +47311,16 @@
           "file": "packages/snapback-cli/index.mjs",
           "line": 6869,
           "column": 12
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6841,
+          "column": 12
+        },
+        {
+          "file": "packages/snapback-cli/index.mjs",
+          "line": 6847,
+          "column": 12
         }
       ],
       "httpStatus": null,
@@ -50723,37 +50733,37 @@
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 764,
+          "line": 776,
           "column": 10
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 939,
+          "line": 951,
           "column": 18
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 963,
+          "line": 975,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 984,
+          "line": 996,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 1055,
+          "line": 1067,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 1134,
+          "line": 1185,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 1217,
+          "line": 1268,
           "column": 14
         },
         {
@@ -83456,17 +83466,17 @@
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 694,
+          "line": 706,
           "column": 10
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 1174,
+          "line": 1225,
           "column": 44
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 1187,
+          "line": 1238,
           "column": 38
         },
         {
@@ -87400,8 +87410,10 @@
       ],
       "httpStatus": 413,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/getting-started/your-first-backend.md#structured-stored-values",
+      "guideAnchors": [
+        "/_snapback/guide/getting-started/your-first-backend.md#structured-stored-values"
+      ]
     },
     "SNAPBACK_STRUCTURED_VALUE_BYTES_EXCEEDED": {
       "code": "SNAPBACK_STRUCTURED_VALUE_BYTES_EXCEEDED",
@@ -87420,8 +87432,10 @@
       ],
       "httpStatus": 413,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/getting-started/your-first-backend.md#structured-stored-values",
+      "guideAnchors": [
+        "/_snapback/guide/getting-started/your-first-backend.md#structured-stored-values"
+      ]
     },
     "SNAPBACK_STRUCTURED_VALUE_INVALID": {
       "code": "SNAPBACK_STRUCTURED_VALUE_INVALID",
@@ -87455,8 +87469,10 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/getting-started/your-first-backend.md#structured-stored-values",
+      "guideAnchors": [
+        "/_snapback/guide/getting-started/your-first-backend.md#structured-stored-values"
+      ]
     },
     "SNAPBACK_STRUCTURED_WRITE_CONTEXT_MISSING": {
       "code": "SNAPBACK_STRUCTURED_WRITE_CONTEXT_MISSING",

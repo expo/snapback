@@ -33683,6 +33683,15 @@ fn live_socket_rejects_oversized_control_frames_before_json_decode() {
         response["diagnostic"]["code"],
         "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE"
     );
+    assert_eq!(response["diagnostic"]["details"]["boundKind"], "live-frame");
+    assert_eq!(
+        response["diagnostic"]["details"]["bytes"],
+        super::MAX_LIVE_SOCKET_FRAME_BYTES + 1
+    );
+    assert_eq!(
+        response["diagnostic"]["details"]["maxBytes"],
+        super::MAX_LIVE_SOCKET_FRAME_BYTES
+    );
 }
 
 #[test]

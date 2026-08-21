@@ -2489,7 +2489,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:b476c2fd5a9a0f161241edaf426111b715fe4ff7e28400191b91deeb893ee2ed",
-      "sha256": "7d5a14e603371f74cddd089b938b812210f4bdf9a8061e402141c1969f86c61f",
+      "sha256": "8278a44963886cb0d85e042c63ac966ed3ce146384dd8aec3af1e8bc7ccb8403",
       "snippets": []
     },
     "backend.sequences": {
@@ -3910,7 +3910,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:6d755bb061ddcaae93be8cdfbb10d1a402fed39cc7dbee3b5ec870fdc5ff8479",
-      "sha256": "c4310d014b108eb84f499c3983efc63841b41a7e9cbb44aa601cac8d3f68d00d",
+      "sha256": "906134d9dce61b319c2ad7a0c719ec4acbad32c5753d9af769e15893a9ad19db",
       "snippets": [
         {
           "lang": "js",

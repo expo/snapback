@@ -157,9 +157,12 @@ When a write crosses a bound, inspect the diagnostic before changing the
 representation. `boundKind` says whether the failed fact is a nested `child`
 byte bound, a `collection` item count, the 32 KiB canonical `field`
 aggregate, or the 48 KiB structured `row` aggregate; transport ingress uses
-the separate `live-frame` spelling. Field/row failures include `fieldPath`,
-`actualCanonicalBytes`, `maxCanonicalBytes`, and bounded per-field row
-contributions. Supported repairs are to shorten the bounded child, project
+the separate `live-frame` spelling. The stable write codes are
+`SNAPBACK_STRUCTURED_VALUE_INVALID` for child/collection bounds,
+`SNAPBACK_STRUCTURED_VALUE_BYTES_EXCEEDED` for the field aggregate, and
+`SNAPBACK_STRUCTURED_ROW_BYTES_EXCEEDED` for the row aggregate. Field/row
+failures include `fieldPath`, `actualCanonicalBytes`, `maxCanonicalBytes`, and
+up to eight largest per-field row contributions. Supported repairs are to shorten the bounded child, project
 queryable facts into scalar columns, or move a growing collection into
 bounded child rows. Raising a child `maxBytes` cannot raise the independent
 field or row aggregate ceiling.

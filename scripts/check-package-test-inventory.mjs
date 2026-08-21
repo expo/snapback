@@ -247,6 +247,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'optimistic.test.mjs',
       'optional-user-auth-transition.test.mjs',
       'package.test.mjs',
+      'packed-asset-url.test.mjs',
       'presence.test.mjs',
       'subscribe-retry.test.mjs',
       'subscribe-runtime-import-failure.test.mjs',

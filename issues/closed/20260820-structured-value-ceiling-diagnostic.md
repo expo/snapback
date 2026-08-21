@@ -33,8 +33,9 @@ crossed and which supported redesigns preserve the intended value shape.
 Structured-value refusals now distinguish child, collection, field, and row
 bounds in stable diagnostic details. Field failures name the schema field and
 report actual versus maximum canonical bytes; row failures report the row
-total plus a bounded list of per-field contributions. Child-string and
-collection validators likewise carry their measured byte or item counts.
+total plus a bounded list of the eight largest per-field contributions.
+Child-string and collection validators likewise carry their measured byte or
+item counts.
 Every stored-value refusal points to the version-bound guide and recommends
 supported repairs: shorten the value, split it into scalar columns, or move
 the repeated data into bounded child rows.
@@ -46,6 +47,6 @@ diagnostic registry and guide projections were refreshed.
 Evidence:
 
 - `cargo test -p snapback-kernel storage::tests::stored_structured_value_tests:: -- --nocapture` — 10 passed.
-- `cargo test -p snapback-types args_contract::tests:: -- --nocapture` — 19 passed, 1 benchmark ignored.
+- `cargo test -p snapback-types args_contract::tests:: -- --nocapture` — 20 passed, 1 benchmark ignored.
 - `node scripts/check-guide.mjs` under the repository's Node 24 toolchain — 19 checks passed.
-- `./ref-check --verbose` — 296 documents and 6,107 references checked with 0 errors.
+- `./ref-check --verbose` — 296 documents and 6,108 references checked with 0 errors.

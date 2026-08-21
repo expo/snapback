@@ -30763,6 +30763,7 @@ fn handle_live_socket_text_authorized(
                 "WebSocket message exceeded the ephemeral control-frame limit",
             )
             .with_details(json!({
+                "boundKind": "live-frame",
                 "bytes": text.len(),
                 "maxBytes": MAX_LIVE_SOCKET_FRAME_BYTES,
             })),

@@ -19953,7 +19953,13 @@ fn structured_row_ceiling_exceeded(
     let actual = contributions
         .iter()
         .fold(0_usize, |total, (_, bytes)| total.saturating_add(*bytes));
-    let structured_fields = contributions
+    let mut largest_contributions = contributions.to_vec();
+    largest_contributions.sort_by(|(left_field, left_bytes), (right_field, right_bytes)| {
+        right_bytes
+            .cmp(left_bytes)
+            .then_with(|| left_field.cmp(right_field))
+    });
+    let structured_fields = largest_contributions
         .iter()
         .take(MAX_STRUCTURED_FIELDS_IN_DIAGNOSTIC)
         .map(|(field, bytes)| {

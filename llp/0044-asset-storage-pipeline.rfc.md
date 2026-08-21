@@ -7,7 +7,8 @@
 **Date:** 2026-07-07
 **Revised:** 2026-08-21 (AssetRef schema-evolution diagnostics now render the
 bounded old/new intent and media-policy identity, name the changed facts, and
-separate preserve-data migration from whole-store dev-fresh repair.)
+separate the attachment-hook-safe successor-field repair from whole-store
+dev-fresh repair.)
 **Revised:** 2026-08-10 (local finalize choreography amendment: Phase B's
 idempotent canonical object put now runs outside the global Local writer,
 between a lock-held `planned` commit and a separately lock-held
@@ -1056,10 +1057,14 @@ retention class, and target capability. An installed field may therefore
 refuse a changed declaration as `SNAPBACK_SCHEMA_FIELD_RETYPED` even when both
 display names are `AssetRef`. That refusal carries bounded
 `existingAssetRef`, `requestedAssetRef`, and `changedFacts` details. It offers
-two distinct repairs: preserve data by adding a successor field and using the
-reviewed migration loop, or discard a development store with
-`snapback reset --dev-fresh`; stale generated artifacts are not diagnosed as a
-policy-compatible in-place retype.
+two distinct repairs: preserve data by adding a nullable successor field and
+repopulating it through ordinary authorized application mutations (the path
+that re-runs successor policy admission and reverse-edge maintenance), or
+discard a development store with `snapback reset --dev-fresh`. Generic
+migration copy/backfill is explicitly not AssetRef-safe and is not recommended;
+the predecessor remains until an AssetRef-aware retirement migration exists.
+Stale generated artifacts are not diagnosed as a policy-compatible in-place
+retype.
 
 The generated field type, attach helper, reverse-edge record, and codegen
 projection must be single-sourced under LLP 0007/0037. The client cannot
