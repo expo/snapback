@@ -3868,6 +3868,45 @@ async fn approval_effect_server_fixture(approval: ApiFunctionApproval) -> AppSta
     approval_effect_server_fixture_with_authority_creation(approval, false).await
 }
 
+async fn capability_link_server_fixture() -> AppState {
+    tokio::task::spawn_blocking(|| {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let mut functions = activation_functions('2', false);
+        for function in &mut functions.functions {
+            function.api_exposure = Some(ApiFunctionExposure::default());
+        }
+        functions
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "queuedWrite")
+            .expect("capability-link fixture mutation")
+            .api_exposure = Some(ApiFunctionExposure {
+            expose: true,
+            since: None,
+            approval: None,
+        });
+        sessions_activation_server_fixture_with_api(
+            functions,
+            None,
+            Some(agent_policy(AgentsMode::Disabled, InvitedBy::Operators)),
+            Some(ApiManifest {
+                enabled: true,
+                functions: BTreeMap::from([(
+                    "queuedWrite".to_owned(),
+                    ApiFunctionExposure {
+                        expose: true,
+                        since: None,
+                        approval: None,
+                    },
+                )]),
+                ..ApiManifest::default()
+            }),
+        )
+    })
+    .await
+    .expect("construct capability-link fixture off async workers")
+}
+
 async fn sessions_activation_server_fixture_with_ask_async(
     provider_base_url: String,
     result_max_bytes: u64,
@@ -4520,6 +4559,75 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
             row.lane == "declared" && row.caller_key == caller_key && row.count >= 1
         })
     );
+}
+
+#[tokio::test]
+async fn capability_link_one_use_mint_without_function_approval_returns() {
+    let state = capability_link_server_fixture().await;
+    let router = app(state.clone());
+    let owner = mint_test_credential(&state, "one-use-link-owner@example.test").await;
+    let minted = router
+        .oneshot(session_auth_http_request(
+            "/capability-links",
+            serde_json::to_vec(&json!({
+                "function": "queuedWrite",
+                "pinnedArgs": { "value": "one-use" },
+                "uses": 1,
+            }))
+            .unwrap(),
+            owner["token"].as_str().unwrap(),
+        ))
+        .await
+        .unwrap();
+    let status = minted.status();
+    let minted = response_json(minted).await;
+    assert_eq!(status, StatusCode::OK, "{minted}");
+    assert_eq!(minted["approvalPerUse"], false);
+    assert_eq!(minted["remainingUses"], 1);
+}
+
+#[tokio::test]
+async fn capability_link_revoke_returns_after_directly_seeded_link() {
+    let state = capability_link_server_fixture().await;
+    let router = app(state.clone());
+    let owner = mint_test_credential(&state, "revoke-link-owner@example.test").await;
+    let bearer = owner["token"].as_str().unwrap().to_owned();
+    let minter_principal_id = owner["session"]["userId"].as_str().unwrap().to_owned();
+    let minter_session_id = owner["session"]["id"].as_str().unwrap().to_owned();
+    let minter_authority_instance_id = owner["authorityDescriptor"]["authorityInstanceId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let now_ms = super::now_millis();
+    let minted = with_snapback(&state.snapback, move |snapback| {
+        snapback.remainder_auth_database_mut().mint_capability_link(
+            crate::storage::capability_links::MintCapabilityLink {
+                minter_principal_id,
+                minter_session_id,
+                minter_authority_instance_id,
+                function_id: "fn:queuedWrite".to_owned(),
+                function_name: "queuedWrite".to_owned(),
+                function_kind:
+                    crate::storage::capability_links::CapabilityLinkFunctionKind::Mutation,
+                pinned_args_json: r#"{"value":"revoke-seeded"}"#.to_owned(),
+                caller_args: Vec::new(),
+                expires_at_ms: now_ms + 60_000,
+                remaining_uses: Some(1),
+                approval_per_use: false,
+                now_ms,
+            },
+        )
+    })
+    .await
+    .expect("seed capability link outside the transport guard path");
+    let mut revoke = session_auth_http_request(
+        &format!("/capability-links/{}", minted.record.id),
+        Vec::new(),
+        &bearer,
+    );
+    *revoke.method_mut() = axum::http::Method::DELETE;
+    let revoked = router.oneshot(revoke).await.unwrap();
+    assert_eq!(revoked.status(), StatusCode::NO_CONTENT);
 }
 
 #[tokio::test]

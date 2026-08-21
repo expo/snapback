@@ -5110,6 +5110,8 @@ impl LocalSnapback {
                 "capability-link minting facts do not match exact session authority",
             ));
         }
+        // @ref LLP 0058#gate-algorithm — this is the sole admission guard and
+        // must remain live across the durable capability-link commit.
         let _effect = authority.effect_guard("capability-link mint transaction")?;
         self.db.mint_capability_link(request)
     }
@@ -5164,6 +5166,8 @@ impl LocalSnapback {
                 "capability-link revocation requires exact management authority",
             ));
         }
+        // @ref LLP 0058#gate-algorithm — this is the sole admission guard and
+        // must remain live across the durable capability-link commit.
         let _effect = authority.effect_guard("capability-link revoke transaction")?;
         self.db
             .revoke_capability_link(id, user_id, session_id, authority_instance_id, now_ms)

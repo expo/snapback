@@ -25583,7 +25583,6 @@ async fn capability_link_mint(
     let requested_approval = request.approval;
     let effect_authority = authority.clone();
     let minted = with_snapback(&state, move |snapback| {
-        let _effect = effect_authority.effect_guard("capability-link mint transaction")?;
         let function = snapback.capability_link_mint_function(&function_name)?;
         let function_kind = capability_link_kind(&function.kind);
         if requested_approval
@@ -25832,7 +25831,6 @@ async fn capability_link_revoke(
     let _ = (user_id, session_id, authority_instance_id);
     let effect_authority = authority.clone();
     with_snapback(&state, move |snapback| {
-        let _effect = effect_authority.effect_guard("capability-link revoke transaction")?;
         snapback.revoke_capability_link(&effect_authority, &id, now_millis())
     })
     .await?;
