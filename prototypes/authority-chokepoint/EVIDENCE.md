@@ -1,14 +1,15 @@
 # LLP 0293 authority-chokepoint compiler evidence
 
-This is evidence from a throwaway structural prototype, not an implementation
-or a semantic-correctness claim. The positive configuration was compiled with
-the three intentionally failing features disabled.
+This is evidence from two throwaway structural prototypes, not an
+implementation or a semantic-correctness claim. Positive configurations were
+compiled with their intentionally failing features disabled.
 
-The checked-out commit was `157118d4e`. It did not contain the canonical
+The initial checked-out commit was `157118d4e`. It did not contain the canonical
 `llp/0293-authority-transition-chokepoint.spec.md`; the complete Review text
 available at `/Users/ccheever/lanes/out/choke-synth2.final.md` had the title,
 sections, and nine questions quoted by the task. That text was read in full,
-followed by checked-in LLPs 0292, 0291, and 0283.
+followed by checked-in LLPs 0292, 0291, and 0283. The canonical LLP 0293 file is
+now included with the §10.3 resolution.
 
 ## Positive compiler and runtime evidence
 
@@ -32,6 +33,92 @@ The transaction test uses the real `rusqlite::Connection`,
 statements, dynamic protected-table registry, epoch/nonce state, and protected
 SQL. It also proves that direct writes to both a static protected table and the
 dynamically registered membership table are denied after the permit closes.
+
+## Focused §10.3 compiler and runtime evidence
+
+The focused crate at `http-handoff/` uses Axum 0.8.9 and `http` 1.5.0, matching
+the server's current HTTP stack. It models the real
+`enforce_registered_route_policy_inner` topology: asynchronous middleware
+prepares a move-only operation, inserts a private take-once slot into
+`Request<Body>`, calls Axum `Next::run`, and a custom extractor atomically takes
+the operation before moving it through a detached `Send + 'static` task.
+
+```text
+$ cargo check --manifest-path prototypes/authority-chokepoint/http-handoff/Cargo.toml --all-targets --offline
+    Checking authority-http-handoff-prototype v0.0.0 (.../prototypes/authority-chokepoint/http-handoff)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.12s
+
+$ cargo test --manifest-path prototypes/authority-chokepoint/http-handoff/Cargo.toml --offline
+running 5 tests
+test tests::explicit_second_take_fails_closed ... ok
+test tests::concurrent_takers_cannot_duplicate_the_operation ... ok
+test tests::typed_registry_remove_is_also_single_owner ... ok
+test tests::direct_handler_call_path_is_single_owner ... ok
+test tests::move_once_slot_crosses_real_axum_next_and_detached_task ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+```
+
+The direct extension remains correctly rejected; the suggested compiler help
+to derive `Clone` is deliberately not followed:
+
+```text
+$ cargo check --manifest-path prototypes/authority-chokepoint/http-handoff/Cargo.toml --offline --features negative-direct-extension
+error[E0277]: the trait bound `PreparedOperation<QueryKind>: Clone` is not satisfied
+   --> src/lib.rs:180:23
+    |
+180 |     extensions.insert(operation);
+    |                ------ ^^^^^^^^^ the trait `Clone` is not implemented for `PreparedOperation<QueryKind>`
+    |                |
+    |                required by a bound introduced by this call
+    |
+note: required by a bound in `Extensions::insert`
+   --> .../http-1.5.0/src/extensions.rs:62:22
+    |
+ 62 |     pub fn insert<T: Clone + Send + Sync + 'static>(&mut self, val: T) -> Option<T> {
+    |                      ^^^^^ required by this bound in `Extensions::insert`
+```
+
+Axum's current `Next` provides no separate per-request side channel:
+
+```text
+$ cargo check --manifest-path prototypes/authority-chokepoint/http-handoff/Cargo.toml --offline --features negative-next-side-channel
+error[E0061]: this method takes 1 argument but 2 arguments were supplied
+   --> src/lib.rs:189:10
+    |
+189 |     next.run(request, operation).await
+    |          ^^^          --------- unexpected argument #2 of type `PreparedOperation<QueryKind>`
+    |
+note: method defined here
+   --> .../axum-0.8.9/src/middleware/from_fn.rs:344:18
+    |
+344 |     pub async fn run(mut self, req: Request) -> Response {
+    |                  ^^^
+```
+
+Wrapping the request body to make it the owner is incompatible with the same
+`Next` boundary:
+
+```text
+$ cargo check --manifest-path prototypes/authority-chokepoint/http-handoff/Cargo.toml --offline --features negative-request-body-owner
+error[E0308]: mismatched types
+   --> src/lib.rs:203:14
+    |
+203 |     next.run(request).await
+    |          --- ^^^^^^^ expected `Request<Body>`, found `Request<RequestOwner<Body, ...>>`
+    |          |
+    |          arguments to this method are incorrect
+    |
+    = note: expected struct `axum::http::Request<Body>`
+               found struct `axum::http::Request<RequestOwner<Body, PreparedOperation<QueryKind>>>`
+```
+
+The compiled alternatives establish two additional facts. A typed registry
+using atomic `HashMap::remove` compiles and remains single-owner, but adds a
+process-lived claim registry and cancellation/expiry/binding obligations. A
+direct async function that prepares and calls the exact handler also compiles
+and is linear, but it does not cross the real centralized middleware-to-router
+`Next` boundary.
 
 ## Intentional compiler failures
 
@@ -124,11 +211,13 @@ SNAPBACK_WORKSPACE_GRAPH_VIOLATION: unmatched Rust file outside a member source 
 2. **ANSWERED YES — authorizer mutability.** Mutating captured authorizer state
    while the transaction exists compiles and passes. Reinstalling the hook is
    unnecessary; the connection-local cell is the viable atomic arrangement.
-3. **ANSWERED NO — movement through the current paths.** One-owner async and
-   detached movement compiles without `Clone`, but the current HTTP extension
-   path requires `Clone` (`E0277`). The carrier/topology must change to a
-   move-once extraction or another single-owner handoff; `PreparedOperation`
-   must not be made cloneable.
+3. **ANSWERED YES — movement through the current paths after a carrier-only
+   change.** Direct insertion remains rejected (`E0277`). A private cloneable
+   `Arc<Mutex<Option<PreparedOperation<Kind>>>>` slot crosses real Axum
+   middleware and `Next`; a custom extractor atomically takes and returns the
+   still-non-`Clone` operation by value. The handler then moves it through a
+   detached `Send + 'static` task. Sequential and concurrent second takes both
+   fail closed with `AlreadyTaken`.
 4. **ANSWERED YES — crate DAG.** Kernel-owned password/provider computation is
    downward-compatible with the checked-in matrix, and the graph script's
    artifact/metadata validator passes. The full graph command has the unrelated
@@ -151,21 +240,20 @@ SNAPBACK_WORKSPACE_GRAPH_VIOLATION: unmatched Rust file outside a member source 
    `pub(super)` layout compiles. The sibling spelling fails exactly with
    `E0742`; no visibility was widened.
 
-Section 10 still blocks implementation: question 3 is resolved **NO** and
-requires a design change, while question 7 remains **STILL OPEN**. Of the nine,
-only question 7 is unresolved by this prototype; question 3 is resolved but
-blocking.
+Of the nine §10 questions, only question 7 remains unresolved. Question 3 is
+now resolved **YES** without adding `Clone` to `PreparedOperation<Kind>` and no
+longer blocks the design. LLP 0293 remains non-implementation-authoritative
+because the administrator-anchor protocol is still open.
 
 ## Git persistence result
 
-The requested scratch ref and local commit could not be created because this
-environment may read but not write the shared Git directory. No push was
-attempted. The prototype is deliberately left unstaged in the worktree.
+The shared branch-ref directory is read-only in this environment, so the
+requested named scratch branch could not be created. The worktree index and
+object store did permit a local detached commit, and the worktree `HEAD` and
+reflog retain it. The exact commit hash is reported in the handoff. No push was
+attempted.
 
 ```text
-$ git switch -c scratch/authority-chokepoint-compile-prototype
-fatal: cannot lock ref 'refs/heads/scratch/authority-chokepoint-compile-prototype': unable to create directory for /Users/ccheever/projects/snapback/.git/refs/heads/scratch/authority-chokepoint-compile-prototype
-
-$ git add -- <prototype paths>
-fatal: Unable to create '/Users/ccheever/projects/snapback/.git/worktrees/f1b/index.lock': Operation not permitted
+$ git branch scratch-llp-0293-move-once-http HEAD
+fatal: cannot lock ref 'refs/heads/scratch-llp-0293-move-once-http': Unable to create '/Users/ccheever/projects/snapback/.git/refs/heads/scratch-llp-0293-move-once-http.lock': Operation not permitted
 ```

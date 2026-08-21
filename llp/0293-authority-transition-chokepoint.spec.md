@@ -1,51 +1,14 @@
-# LLP 0293: The authority-transition chokepoint mechanism
+# LLP 0293: Authority-transition chokepoint mechanism
 
 **Type:** Spec
-**Status:** Review
-**Systems:** Security/authorization, Storage, Auth, Rust core, Verification
-**Author:** codex `gpt-5.6-sol`, synthesizing two independently commissioned designs
-(codex `gpt-5.6-sol` and grok-4.6), orchestrated by Claude (Opus 5) for Charlie Cheever
+**Status:** Review — implements LLP 0292’s accepted direction; not implementation-authoritative until the compile questions in §10 are resolved
+**Systems:** Security/authorization, kernel storage, identity/auth, grants, watches, capability links, internal work, restore/import, verification
+**Author:** Codex synthesis, for Charlie Cheever
 **Date:** 2026-08-20
-**Revised:** 2026-08-20 (a — initial synthesis)
-**Related:** LLP 0292 (accepted direction), LLP 0291 (the enumerated surface),
-LLP 0285 (§2 rulings 5-7; superseded in part), LLP 0283 (F-1), LLP 0284, LLP 0290, LLP 0059
-
-## Why this document exists
-
-LLP 0292 is the accepted *direction* — author ruling 5: delete and rebuild the
-authority-creation surface rather than migrate the ~46 families LLP 0291 enumerated. What it
-lacked was the *mechanism*. This supplies it, and is what LLP 0292 phases 2-3 build from.
-
-**It is `Review`, not `Accepted`, and deliberately so.** §10 lists **nine blocking open
-questions** that no source design compiled — borrow conflicts between a permanently installed
-SQLite authorizer and an open transaction, whether `PreparedOperation<Kind>` can move through
-async and detached paths without `Clone`, whether the kernel can own password/provider
-computation without reversing the crate DAG, and whether the authority module can host every
-required inherent impl without reopening sibling visibility. §10 says plainly: *"A prototype
-must resolve these with `cargo check --all-targets --workspace` before implementation proceeds
-beyond the authority core."*
-
-## Provenance caveat, stated plainly
-
-The two source designs were commissioned blind from different model families. However, the
-grok source as captured is **a reviewed summary and transcript**, not the full underlying
-design, which it referenced from a temporary path that did not survive. The synthesis
-therefore explicitly does **not** treat claims from that unavailable artifact as verified, and
-says so in §9. So this is closer to one complete design plus a substantial second opinion than
-to two symmetric blind designs — weaker provenance than LLP 0285's, and worth knowing when
-weighing §9's selections.
-
-## The sentence that matters most
-
-From §9, on why a chokepoint is only a chokepoint if it owns custody end to end:
-
-> A public evidence-consuming function by itself would be the same failed design moved one API
-> earlier.
-
-That is the failure this whole program has hit eleven times. Any implementation must be
-measured against it.
-
----
+**Revised:** 2026-08-20 (b — §10.3 resolved by a compiled move-once HTTP handoff prototype)
+**Related:** LLP 0283 (F-1), LLP 0284, LLP 0285, LLP 0291, LLP 0292
+**Inputs:** `llp/0292-authority-straight-path.plan.md`, `choke-codex.md`, `choke-grok.md`
+**Scope:** Mechanism for LLP 0292 phases 2–3
 
 ## 1. Evidence status and decision
 
@@ -242,6 +205,14 @@ The public replacement for `ResolvedAppAuthority` and generic `PreparedAuthority
 
 Creating `PreparedOperation<Kind>` is itself an authority transition and therefore happens only after evidence consumption. A later durable write may use it as a lookup selector, but must reload its durable predecessors and mint fresh evidence.
 
+On the HTTP path, the operation crosses from policy middleware to its exact
+handler inside a private request-local take-once slot. The slot is the only
+cloneable extension value; every clone points to the same synchronized
+`Option<PreparedOperation<Kind>>`. A custom extractor atomically takes the
+operation and returns it by value. `PreparedOperation<Kind>` itself remains
+non-`Clone`, and a second extraction fails closed. Section 10.3 records the
+compiled shape and rejected alternatives.
+
 Codex correctly identifies the need for an opaque admitted result (`choke-codex.md:268-293`); Grok correctly identifies that closing SQL without closing the in-memory constructor leaves the class open (`choke-grok.md:65-71`). LLP 0292 is stronger than either carrier proposal: the generic legacy authority enums disappear outright (`llp/0292-authority-straight-path.plan.md:212-241`).
 
 ## 5. Forcing every authority write through the operation
@@ -290,7 +261,7 @@ All mutations of protected objects—not merely those classified in advance as i
 |---|---|---|
 | Lexical custody | Protected writer SQL and typed writers live only under nested `authority_transition/**` modules. Raw connection access and `auth_database_mut` disappear. Production `test-support` cannot expose protected mutation. | Rust privacy prevents safe callers from invoking protected writers directly. |
 | Runtime custody | The SQLite authorizer denies protected insert, update, delete, replacement, trigger, schema, and attached-database operations without the active transaction permit and matching write set. Protected statements are prepared only after the permit opens. | A missed direct writer inside the kernel fails closed at runtime. |
-| Authority-surface custody | Public writers, all-field plans, privileged membership variants, closure factories, generation publishers, callback-principal constructors, generic `System`, and in-memory authority constructors are deleted. | Prevents authority from being created without protected SQL or from being created entirely in memory. |
+| Authority-surface custody | Public writers, all-field plans, privileged membership variants, closure factories, generation publishers, callback-principal constructors, generic `System`, and in-memory authority constructors are deleted. HTTP may carry only a private take-once slot whose clones share one cell; the operation itself remains move-only. | Prevents authority from being created without protected SQL or from being created entirely in memory, while allowing one exact request consumer to receive an admitted operation. |
 
 Grok is correct that a syn SQL scanner alone is a ratchet, not force (`choke-grok.md:61-67`). Codex supplies the stronger runtime mechanism through a protected registry and SQLite authorizer (`choke-codex.md:295-340`). The synthesis uses Grok’s claim discipline and Codex’s fail-closed runtime enforcement.
 
@@ -603,56 +574,13 @@ Two source statements are plainly unusable as final authority:
 
 The chokepoint concept is correct only with custody of verification, evidence, durable writes, and returned in-memory authority. A public evidence-consuming function by itself would be the same failed design moved one API earlier.
 
-## 10a. Prototype results (2026-08-20) — eight of nine answered, one BLOCKING
-
-A throwaway compiled prototype was built to answer §10 rather than leave it as inherited
-debt (LLP 0285 §8 risk 7). Evidence: `prototypes/authority-chokepoint/EVIDENCE.md`.
-
-| § | Question | Result |
-| --- | --- | --- |
-| 10.1 | Borrow coexistence | **YES**, but only in one shape |
-| 10.2 | Authorizer mutability during a transaction | **YES** |
-| 10.3 | Movement without `Clone` | **NO — BLOCKING** |
-| 10.4 | Crate DAG | **YES** |
-| 10.5 | Delivery handoff | **YES** — authenticated durable receipt |
-| 10.6 | Cron as a closed operation | **YES** — durable due/claim row with generation CAS |
-| 10.7 | Administrator anchor | **STILL OPEN** |
-| 10.8 | Commit-uncertainty reconciliation | **YES**, structurally |
-| 10.9 | Inherent-impl hosting | **YES** |
-
-**§10.3 blocks implementation.** A move-only operation compiles in a `Send` async future and a
-detached thread, but the current HTTP extension carrier does not:
-
-```text
-error[E0277]: the trait bound `PreparedOperation<QueryKind>: Clone` is not satisfied
-  note: Extensions::insert requires T: Clone + Send + Sync + 'static
-```
-
-The design must replace that carrier with move-once extraction or another single-owner
-handoff. **Adding `Clone` is not viable** — it is the capability-duplication the whole design
-exists to prevent, and the prototype correctly refused to add it to make the code compile.
-
-Two further results are worth carrying into implementation:
-
-- **§10.1** compiles only when `Connection` is split from a connection-local
-  `Arc<Mutex<PermitState>>`. The naive owner reborrow fails conclusively:
-  `error[E0499]: cannot borrow *store as mutable more than once at a time`.
-- **§10.9** confirms §9's selection of grok's nested `pub(super)` layout was correct, and that
-  the rejected sibling spelling is genuinely illegal:
-  `error[E0742]: visibilities can only be restricted to ancestor modules`.
-
-§10.7 was not prototyped: the KDF/MAC, sidecar format, rotation protocol and staged
-physical-restore recovery remain to be specified under ruling 7.
-
-The original question list follows.
-
 ## 10. Open implementation questions
 
-Nothing in either source design was compiled; LLP 0285 records that debt explicitly (`llp/0285-kernel-authorization-closure.spec.md:595-598`). The following are blocking questions, not implementation details to improvise:
+Neither source design was originally compiled; LLP 0285 records that debt explicitly (`llp/0285-kernel-authorization-closure.spec.md:595-598`). The prior compiler prototype and the focused §10.3 prototype now resolve eight of these nine questions structurally. The administrator-anchor protocol in question 7 remains open. Compiler success establishes viability, not semantic correctness.
 
 1. Whether `rusqlite::Transaction`, a permanently installed authorizer, transaction epoch/nonce state, dynamic membership schema, and protected statements can coexist without conflicting borrows.
 2. Whether authorizer state may safely change while a transaction exists; if not, whether a dedicated connection-local permit cell or a different protected-writer arrangement preserves atomicity.
-3. Whether moving `PreparedOperation<Kind>` through current async and detached paths works without `Clone`.
+3. **RESOLVED YES, with a private take-once request slot.** The operation remains non-`Clone`; only an `Arc<Mutex<Option<T>>>` slot is cloneable, and all slot clones share the same single value. A custom Axum extractor takes the value once and returns it by value. The exact middleware → `Next::run(Request<Body>)` → handler extractor → detached `Send + 'static` task path compiles and passes. A second take returns a closed error. See §10.3 and `prototypes/authority-chokepoint/http-handoff/`.
 4. Whether the kernel can own password/provider computation without reversing the crate DAG.
 5. Whether delivery handoff uses a private move-only lease or a cryptographically authenticated durable receipt.
 6. Whether cron can be represented as a closed kernel operation over sealed runtime state or requires a new durable due/claim row.
@@ -661,6 +589,92 @@ Nothing in either source design was compiled; LLP 0285 records that debt explici
 9. Whether the authority module can host every required inherent implementation without violating crate ownership or reopening sibling visibility. Rust’s inherent-impl rule is a known architectural constraint (`llp/0283-post-rearchitecture-followups.plan.md:270-277`).
 
 A prototype must resolve these with `cargo check --all-targets --workspace` before implementation proceeds beyond the authority core. A compiler success would establish structural viability, not semantic correctness.
+
+### 10.3 Resolution: private take-once HTTP handoff
+
+The real insertion site is
+`crates/snapback-server/src/server.rs:14022-14041`, inside
+`enforce_registered_route_policy_inner`. That middleware performs asynchronous
+credential and policy work, prepares the current authority carrier, inserts
+request-local values, and then calls `next.run(request).await`. The downstream
+handlers use Axum extractors. Axum 0.8.9's `Next::run` accepts only
+`Request<Body>`, `http::Extensions::insert` requires the inserted type to be
+`Clone + Send + Sync + 'static`, and Axum's general `Extension<T>` extractor
+clones `T`.
+
+The selected transport is:
+
+```rust
+struct TakeOnce<T> {
+    inner: Arc<Mutex<Option<T>>>,
+}
+
+impl<T> Clone for TakeOnce<T> {
+    fn clone(&self) -> Self {
+        Self { inner: Arc::clone(&self.inner) }
+    }
+}
+
+impl<T> TakeOnce<T> {
+    fn take(&self) -> Result<T, TakeOnceError> {
+        let mut slot = self.inner.lock().map_err(|_| TakeOnceError::Poisoned)?;
+        slot.take().ok_or(TakeOnceError::AlreadyTaken)
+    }
+}
+```
+
+The real carrier and extractor must be private to the common server module that
+owns the policy middleware and exact handler. Its constructor, cell, and
+`take` method are not public API. It exposes no `Deref`, reference-returning
+getter, replacement method, conversion, or serialization. The custom
+`FromRequestParts` implementation obtains `&TakeOnce<_>` through
+`Extensions::get`, atomically takes the operation, and returns the move-only
+`PreparedOperation<Kind>` itself. The handler never receives a cloneable slot.
+The slot accepts only an already kernel-prepared value; it has no callback,
+factory, default/empty public constructor, or path that can mint or reconstruct
+an operation.
+
+The `Clone` implementation duplicates only an `Arc` to one state machine. It
+does not clone `T`; its trait bounds require `T: Send + 'static`, not
+`T: Clone` or `T: Sync`. Competing extractors can cause denial by taking first,
+but cannot produce two operations. Privacy confines even that take capability
+to the designated server module. Request cancellation drops an untaken
+operation with the request instead of leaving it in a process-wide registry.
+
+Every unavailable state fails closed:
+
+- First take moves the only `PreparedOperation<Kind>` out of `Some` and leaves
+  `None` under the same mutex.
+- A sequential or concurrent second take returns `AlreadyTaken`; it never
+  returns `None` as an ordinary anonymous/public path and never reconstructs an
+  operation.
+- A missing slot and a poisoned mutex return the same class of internal
+  refusal. Poison is not recovered by taking the guarded value.
+- If extraction succeeds but later async work is cancelled, ordinary Rust drop
+  semantics destroy the owned operation; it is not put back or replayed.
+
+The focused prototype uses the repository's actual Axum 0.8.9 and `http` 1.5.0
+types. `cargo check --all-targets` succeeds, and five tests pass. The end-to-end
+test crosses real Axum middleware and `Next`, extracts once, moves the
+operation into `tokio::spawn`, and has the middleware attempt a second take
+after the handler. Dedicated tests prove sequential and concurrent second-take
+failure. Exact output and negative compiler diagnostics are retained in
+`prototypes/authority-chokepoint/EVIDENCE.md`.
+
+Alternatives were considered as follows:
+
+| Shape | Compiles? | Preserves one operation? | Disposition |
+|---|---|---|---|
+| Private `Arc<Mutex<Option<T>>>` request slot plus custom extractor | Yes; full Axum path and detached task pass. | Yes; atomic `Option::take`, with closed missing/taken/poisoned errors. | **Selected.** It matches the existing middleware/handler cut and request lifetime. |
+| Kernel-side typed registry keyed by opaque powerless ID | Yes; insert/remove and second-remove tests pass. | Yes, if removal is atomic and the lookup API is confined. | Rejected here. It adds a process-lived claim registry, cancellation cleanup, ID binding, expiry, and leak/DoS obligations when the request already provides the right lifetime owner. It remains a possible fallback only if a future path truly outlives the request. |
+| Pass the operation directly through the handler's own call path | Yes when one async function prepares and directly calls the exact handler. | Yes; ordinary Rust move semantics suffice. | Rejected for the current HTTP topology. The central policy middleware and routed handler are separated by `Next`; `Next::run(request, operation)` fails with E0061. Co-locating preparation and handlers would rewrite the registered policy/precedence flow rather than solve this carrier seam. |
+| Framework request-scoped owner outside extensions | No compatible owner is already threaded. `Next::run` accepts exactly `Request<Body>`; wrapping the body with an operation fails with E0308. Direct operation insertion still fails with E0277. | Not applicable on the current `Next` boundary. | The request's extension map is Axum's request-local typed owner. The selected private slot uses that owner without making the operation cloneable. |
+
+This resolution does not change §4's authority operation, evidence binding, or
+one-use semantics; it adds only the HTTP transport detail to §4.3. It does not
+change §5's forcing model. The §5 clarification says that the private slot is
+the sole safe clone exception at this seam and that neither the operation nor
+any authority constructor becomes cloneable or public.
 
 ## 11. Acceptance criteria for LLP 0292 phases 2–3
 
