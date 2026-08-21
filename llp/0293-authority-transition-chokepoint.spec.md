@@ -603,6 +603,49 @@ Two source statements are plainly unusable as final authority:
 
 The chokepoint concept is correct only with custody of verification, evidence, durable writes, and returned in-memory authority. A public evidence-consuming function by itself would be the same failed design moved one API earlier.
 
+## 10a. Prototype results (2026-08-20) — eight of nine answered, one BLOCKING
+
+A throwaway compiled prototype was built to answer §10 rather than leave it as inherited
+debt (LLP 0285 §8 risk 7). Evidence: `prototypes/authority-chokepoint/EVIDENCE.md`.
+
+| § | Question | Result |
+| --- | --- | --- |
+| 10.1 | Borrow coexistence | **YES**, but only in one shape |
+| 10.2 | Authorizer mutability during a transaction | **YES** |
+| 10.3 | Movement without `Clone` | **NO — BLOCKING** |
+| 10.4 | Crate DAG | **YES** |
+| 10.5 | Delivery handoff | **YES** — authenticated durable receipt |
+| 10.6 | Cron as a closed operation | **YES** — durable due/claim row with generation CAS |
+| 10.7 | Administrator anchor | **STILL OPEN** |
+| 10.8 | Commit-uncertainty reconciliation | **YES**, structurally |
+| 10.9 | Inherent-impl hosting | **YES** |
+
+**§10.3 blocks implementation.** A move-only operation compiles in a `Send` async future and a
+detached thread, but the current HTTP extension carrier does not:
+
+```text
+error[E0277]: the trait bound `PreparedOperation<QueryKind>: Clone` is not satisfied
+  note: Extensions::insert requires T: Clone + Send + Sync + 'static
+```
+
+The design must replace that carrier with move-once extraction or another single-owner
+handoff. **Adding `Clone` is not viable** — it is the capability-duplication the whole design
+exists to prevent, and the prototype correctly refused to add it to make the code compile.
+
+Two further results are worth carrying into implementation:
+
+- **§10.1** compiles only when `Connection` is split from a connection-local
+  `Arc<Mutex<PermitState>>`. The naive owner reborrow fails conclusively:
+  `error[E0499]: cannot borrow *store as mutable more than once at a time`.
+- **§10.9** confirms §9's selection of grok's nested `pub(super)` layout was correct, and that
+  the rejected sibling spelling is genuinely illegal:
+  `error[E0742]: visibilities can only be restricted to ancestor modules`.
+
+§10.7 was not prototyped: the KDF/MAC, sidecar format, rotation protocol and staged
+physical-restore recovery remain to be specified under ruling 7.
+
+The original question list follows.
+
 ## 10. Open implementation questions
 
 Nothing in either source design was compiled; LLP 0285 records that debt explicitly (`llp/0285-kernel-authorization-closure.spec.md:595-598`). The following are blocking questions, not implementation details to improvise:
