@@ -1,6 +1,6 @@
 # guide-gap: pinned-port / fixed-origin dev loop needs a first-class recipe
 
-**Status:** Open — reopened 2026-08-21 after independent review
+**Status:** Closed 2026-08-21
 **Systems:** Guide, CLI dev loop, Expo client
 **Date:** 2026-08-18
 **Evidence:** diaries 0092 (hand-built fixed-origin Expo binding), 0096
@@ -49,3 +49,32 @@ uses.
 
 Partial evidence: retrieval, Guide, and first-read checks pass. They prove the
 route and generated corpus, not the missing packed vertical contract.
+
+## Resolution — 2026-08-21
+
+The docs-only 1C ruling closes the guide gap against today's shipped surface.
+The recipe now distinguishes `snapback start` process ownership from
+`snapback dev --attach --ready-file` generation/hot-load ownership, states
+that `--no-watch` is the one-pass form, and records that attached regeneration
+does not rewrite the Sessions startup carrier. It documents Vite attach and
+the lower-level provider composition for a separately owned Expo/Metro
+process, including the exact binding and listener-enumeration refusals from
+diaries 0096/0100/0104/0105. It does not invent the pending fixed-port
+`snapback dev` profile.
+
+Retrieval case 59 now carries the diaries' exact plausible wrong vocabulary:
+`snapback dev will not pin 42080`, `SNAPBACK_APP_BINDING_UNAVAILABLE`,
+`OVERRIDE_UNCONFIRMED`, `AUTH_MODE_PENDING`, `STARTUP_ARTIFACT_MISMATCH`,
+`SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE`, and `managed-runtime port
+wrapper`. The retained cold probe at
+`guide/eval-runs/2026-08-21/fixed-origin-development.md` reached the page on
+tool call 3 of 5; the static retrieval check was rerun after this correction.
+
+LLP 0295 D0.1/W1 and
+`issues/20260821-fixed-origin-external-client-dev-lifecycle.md` retain the
+product work: one fixed-port/external-client lifecycle, owner-performed carrier
+rewrite, admitted provider binding, and packed external vertical fixtures.
+Those pending mechanisms are deliberately not claimed by this docs-only
+closure.
+
+Landing SHA: TBD

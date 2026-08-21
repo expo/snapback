@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:5ece64b7a901f27f149fbd29746007f5c0d30c2cf303f99462499bed5822ab90"
+    "sourceDigest": "sha256:f0f7800a61fb2938620ddb2c594394770b3e11bff3f03dc3d2c237f66b3a5248"
   },
   "limits": {
     "lookupBytes": 16384
@@ -12,7 +12,7 @@
     "sourceFiles": 588,
     "emittingSites": 11959,
     "httpClassified": 1030,
-    "guideAnchored": 428
+    "guideAnchored": 429
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -7162,9 +7162,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly",
+      "guideAnchor": "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-client-to-the-running-fixed-origin",
       "guideAnchors": [
-        "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly"
+        "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-client-to-the-running-fixed-origin"
       ]
     },
     "SNAPBACK_APP_BINDING_SCHEMA_INVALID": {
@@ -7389,8 +7389,11 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/sync/offline-and-retention.md#branch-on-a-persisted-binding-receipt-at-offline-cold-boot",
+      "guideAnchor": "/_snapback/guide/recipes/fixed-origin-development.md#anti-patterns",
       "guideAnchors": [
+        "/_snapback/guide/recipes/fixed-origin-development.md#anti-patterns",
+        "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-client-to-the-running-fixed-origin",
+        "/_snapback/guide/retrieval-eval.md#seed-intents",
         "/_snapback/guide/sync/offline-and-retention.md#branch-on-a-persisted-binding-receipt-at-offline-cold-boot",
         "/_snapback/guide/sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes"
       ]
@@ -21944,8 +21947,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/recipes/fixed-origin-development.md#preserve-the-sessions-startup-carrier",
+      "guideAnchors": [
+        "/_snapback/guide/recipes/fixed-origin-development.md#preserve-the-sessions-startup-carrier"
+      ]
     },
     "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT": {
       "code": "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT",
@@ -47204,9 +47209,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly",
+      "guideAnchor": "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-client-to-the-running-fixed-origin",
       "guideAnchors": [
-        "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-separately-owned-client-honestly",
+        "/_snapback/guide/recipes/fixed-origin-development.md#bind-a-client-to-the-running-fixed-origin",
         "/_snapback/guide/retrieval-eval.md#seed-intents"
       ]
     },

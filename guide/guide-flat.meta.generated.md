@@ -1768,8 +1768,8 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     carrier, passes a raw origin to `SnapbackExpoProvider`, or lets two
     supervisors own the same listener.
     Expected pages: `recipes/fixed-origin-development.md`.
-    Route terms: "attach Expo web to already-running --port server", "fixed origin", "pinned port", "SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE".
-    Required guidance: "Attached regeneration generates and loads the running server; it does not rewrite the startup carrier", "Only managed start/restart/reset paths refresh startup-artifacts.json".
+    Route terms: "attach Expo web to an already-running --port server", "fixed origin", "pin the port", "snapback dev will not pin 42080", "SNAPBACK_APP_BINDING_UNAVAILABLE", "OVERRIDE_UNCONFIRMED", "AUTH_MODE_PENDING", "STARTUP_ARTIFACT_MISMATCH", "SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE", "managed-runtime port wrapper".
+    Required guidance: "Attached regeneration generates and loads the running server; it does not rewrite the startup carrier", "Only managed snapback dev start/restart/reset paths refresh startup-artifacts.json", "it has no --port option today", "The workaround is the split ownership above".
     Rejected guidance: "Each successful regeneration rewrites that startup carrier".
 
 60. **Node multi-persona custody:** "Several app clients run as different
