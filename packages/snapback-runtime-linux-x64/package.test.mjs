@@ -360,6 +360,15 @@ console.log(JSON.stringify({
     readLinuxRuntimeBuildIdentity(identityPath, sourceRevision),
     buildIdentity,
   );
+  const unstampedBuildIdentity = structuredClone(buildIdentity);
+  unstampedBuildIdentity.binary.gitCommit = 'unknown';
+  unstampedBuildIdentity.binary.gitDirty = true;
+  writeFileSync(identityPath, `${JSON.stringify(unstampedBuildIdentity)}\n`);
+  assert.throws(
+    () => readLinuxRuntimeBuildIdentity(identityPath, sourceRevision),
+    (error) => error.code === 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
+  );
+  writeFileSync(identityPath, `${JSON.stringify(buildIdentity)}\n`);
   const attestation = createLinuxRuntimeArtifactAttestation({
     binaryPath: attestedBinary,
     hermesPath: attestedHermes,

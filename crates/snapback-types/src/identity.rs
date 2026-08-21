@@ -93,12 +93,28 @@ fn startup_nonce() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command;
 
     #[test]
     fn identity_is_populated_and_nonce_is_stable_within_a_process() {
         let a = binary_identity();
         assert_eq!(a.crate_version, env!("CARGO_PKG_VERSION"));
         assert!(!a.crate_version.is_empty());
+        let in_git_work_tree = Command::new("git")
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .args(["rev-parse", "--is-inside-work-tree"])
+            .output()
+            .is_ok_and(|output| output.status.success());
+        if in_git_work_tree {
+            assert_ne!(
+                a.git_commit, "unknown",
+                "a build inside this git worktree must be stamped by build.rs",
+            );
+            assert!(
+                option_env!("SNAPBACK_BUILD_GIT_COMMIT").is_some(),
+                "snapback-types must receive its package-local build-script stamp",
+            );
+        }
         assert!(matches!(a.build_profile.as_str(), "debug" | "release"));
         assert!(matches!(
             build_distribution(),

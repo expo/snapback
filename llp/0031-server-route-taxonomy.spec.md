@@ -5,7 +5,10 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-12 (OAuth advertised-origin hardening: local discovery
+**Revised:** 2026-08-21 (the build-identity emitter is now one shared source
+included by `snapback-types`, `snapback`, and `snapback-tools`; package-local
+Cargo stamping retains the ENG-23365/ENG-23419 invalidation contract).
+2026-08-12 (OAuth advertised-origin hardening: local discovery
 and DCR derive endpoint URLs from bound listener state, never request Host).
 2026-08-10 (LLP 0204 commissioned the granted-operation
 capability-link mint/serve/invoke/revoke operation classes and response
@@ -744,7 +747,8 @@ server can never be verified and are always refused:
 To shrink that unverifiable set, `/health` carries a **server-binary identity**
 block (ENG-22798): `{ crateVersion, gitCommit, gitDirty, buildProfile,
 startupNonce }`. `crateVersion` is `CARGO_PKG_VERSION`; `gitCommit`/`gitDirty` are
-stamped by `crates/snapback/build.rs` at build time (overridable via the matching
+stamped by the shared `crates/snapback-types/build_identity.rs` emitter at
+build time (included by the package-local build scripts and overridable via the
 `SNAPBACK_BUILD_GIT_COMMIT`/`SNAPBACK_BUILD_GIT_DIRTY` env vars for a
 deterministic CI stamp); `startupNonce` is a per-process UUIDv7 boot id. Together
 they answer "is this MY checkout's binary?" before any app is provisioned.
@@ -820,10 +824,11 @@ for deterministic CI stamps — the freshly compiled child stamped exactly the
 value the kit then compared against: the commit check was a tautology and
 checkout drift was invisible on that path (surfaced by the All Aboard matrix
 external review; `issues/closed/20260724-kit-identity-stamp-env-injection-tautology.md`).
-The injection predated nothing it was needed for: the crates/snapback/build.rs hardening that
-makes the stamp track the binary's real inputs (ENG-23365) and the clean-tree
-dirty probe (ENG-23419) had already landed. The fix removes the injection —
-the child's stamp is crates/snapback/build.rs's own independent probe again — and replaces the
+The injection predated nothing it was needed for: the shared build-identity
+emitter hardening that makes the stamp track the binary's real inputs
+(ENG-23365) and the clean-tree dirty probe (ENG-23419) had already landed. The
+fix removes the injection — the child's stamp is the build script's own
+independent probe again — and replaces the
 brittle strict-equality gate with an honest classification in
 `demos/_kit/server-process.mjs` (`classifyBinaryIdentity`): `verified` (same
 clean commit both sides), `unpinned` (commits agree, a side is dirty — dirt
@@ -837,7 +842,7 @@ returned server handle (`handle.identity`) so receipts and reuse decisions can
 distinguish verification from attestation. Regression coverage:
 `demos/_kit/tests/server-process-lifecycle.mjs` (no-injection assertion, drift
 detection, dirty-divergence honesty, env-stamp classification) and
-`demos/_kit/tests/binary-provenance-drift.mjs` (the real crates/snapback/build.rs-stamped
+`demos/_kit/tests/binary-provenance-drift.mjs` (the real shared-emitter-stamped
 binary against a drifted expectation must yield `stamp-mismatch` or
 `unverifiable`, never confirmation).
 

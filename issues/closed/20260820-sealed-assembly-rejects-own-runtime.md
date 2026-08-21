@@ -58,36 +58,38 @@ sealed binary, and created the restricted Hermes handler VM.
 
 ## Resolution
 
-**Resolved:** 2026-08-21. **Landing SHA:** TBD.
+**Resolved:** 2026-08-21. **Review-fix landing SHA:** TBD.
 
-`binary_identity()` remains in `snapback-types`, and that package now owns a
-`build.rs` port of the complete build-identity contract: explicit
-`SNAPBACK_BUILD_GIT_COMMIT` / `SNAPBACK_BUILD_GIT_DIRTY` /
-`SNAPBACK_BUILD_DISTRIBUTION` stamps win; otherwise the commit and scoped dirty
-fact are probed from Git with the same worktree/common-directory invalidation,
-unknown cleanliness remains fail-closed, and distribution stays restricted to
-`contributor-source` or `public-package`. The shared runtime-input definition
-now names the new build script as both a consumer and an input.
+`binary_identity()` remains in `snapback-types`. Its package-local `build.rs`
+and the `snapback` and `snapback-tools` build scripts now `include!` one source
+of truth at `crates/snapback-types/build_identity.rs`. The shared emitter keeps
+the complete ENG-23365/ENG-23419 contract: runtime-input and Git-ref
+invalidation, worktree/common-directory resolution, success-with-empty-output
+clean detection, conservative unknown handling, and explicit deterministic
+stamp precedence. `scripts/runtime-build-inputs.txt` covers the shared file.
 
-Both platform assemblers now require a sealable clean release identity even on
-`--source-test-staging`; that flag bypasses only the `public-package`
-distribution requirement. The Darwin staged-assembly regression proves a
-correctly stamped contributor binary is accepted and sealed, then substitutes
-a genuinely unstamped (`gitCommit: "unknown"`, `gitDirty: true`) binary and
-proves it is rejected without disturbing the previously valid assembly.
+`--source-test-staging` again admits debug/dirty contributor binaries for the
+Linux local proof. The manufacturing script adds the distinct
+`--strict-clean-release` mode after building `--release` from a clean checkout;
+default public-package preparation remains strict as well. The Darwin
+staged-assembly regression proves a debug/dirty contributor binary stages in
+source-test mode and is rejected by strict manufacturing without disturbing
+the valid assembly. Its unstamped Node substitution remains assembler-teeth
+coverage, and the Linux attestation tests now carry the equivalent unstamped
+substitution.
 
-Verified with no ambient `SNAPBACK_BUILD_*` overrides:
+The `snapback-types` identity test also refuses an unstamped in-worktree build:
+when `git rev-parse --is-inside-work-tree` succeeds it requires both a known
+`binary_identity().git_commit` and a present compile-time
+`SNAPBACK_BUILD_GIT_COMMIT`. Deleting or emptying the package build script can
+no longer leave the regression green.
 
-- `node --test scripts/runtime-package-authority.test.mjs`
-- `node packages/snapback-runtime-darwin-arm64/package.test.mjs`
-- `node packages/snapback-runtime-linux-x64/package.test.mjs`
-- `cargo test -p snapback-types`
-- `./ref-check --verbose`
+The separately observed admin-console build blocker was environmental. This
+worktree had been installed with Bun 1.3.14 despite root `package.json` pinning
+1.3.12. After installing Bun 1.3.12, moving aside the prior dependency tree,
+and running `bun install --frozen-lockfile --cwd admin-ui`, the unchanged
+`bun run --cwd admin-ui build` completed and produced the static snapshot. No
+Exact/Vite temp-lifecycle workaround was required.
 
-The required clean-checkout `scripts/assemble-runtime-package` verification was
-attempted with no ambient `SNAPBACK_BUILD_*` overrides. Its built-in bootstrap
-step stopped before the release build with
-`SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT` after the exact current-checkout link
-probe exceeded 900000 ms under host-wide concurrent Cargo load. Per the ticket
-execution instruction, it was not retried or hand-repaired; end-to-end assembly
-success remains unverified by this landing.
+Verification and final clean-checkout assembly evidence follow in the landing
+record after the review fix is committed.

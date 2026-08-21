@@ -265,11 +265,39 @@ process.exit(ok ? 0 : 1);
     architecture: 'arm64',
   });
   assert.equal(verifyAssembly().ok, true);
-  const originalReceipt = readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8');
+  let originalReceipt;
   const originalBinary = readFileSync(join(packageRoot, 'bin', 'snapback'), 'utf8');
 
-  // The source-test seam bypasses only the public-package distribution class;
-  // it must still reject the exact commitless identity produced when the
+  const debugDirtyIdentity = structuredClone(fixtureIdentity);
+  debugDirtyIdentity.binary.gitDirty = true;
+  debugDirtyIdentity.binary.buildProfile = 'debug';
+  writeFileSync(sourceBinary, fixtureBinarySourceFor(debugDirtyIdentity));
+  chmodSync(sourceBinary, 0o755);
+  const sourceTestPrepared = prepareDarwinRuntimePackage(preparation);
+  assert.deepEqual(sourceTestPrepared.identity, debugDirtyIdentity);
+  assert.equal(verifyAssembly().ok, true);
+  const sourceTestReceipt = readFileSync(
+    join(packageRoot, 'runtime-readiness.json'),
+    'utf8',
+  );
+  const sourceTestBinary = readFileSync(join(packageRoot, 'bin', 'snapback'), 'utf8');
+  assert.throws(
+    () => prepareDarwinRuntimePackage({
+      ...preparation,
+      args: [...preparation.args, '--strict-clean-release'],
+    }),
+    (error) => error.code === 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
+  );
+  assert.equal(
+    readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8'),
+    sourceTestReceipt,
+  );
+  assert.equal(
+    readFileSync(join(packageRoot, 'bin', 'snapback'), 'utf8'),
+    sourceTestBinary,
+  );
+  // Source-test staging admits known-commit contributor debug/dirty builds,
+  // but it must still reject the exact commitless identity produced when the
   // owning crate has no package-local build stamp.
   const unstampedIdentity = structuredClone(fixtureIdentity);
   unstampedIdentity.binary.gitCommit = 'unknown';
@@ -281,10 +309,19 @@ process.exit(ok ? 0 : 1);
     (error) => error.code === 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
   );
   assert.equal(verifyAssembly().ok, true);
-  assert.equal(readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8'), originalReceipt);
-  assert.equal(readFileSync(join(packageRoot, 'bin', 'snapback'), 'utf8'), originalBinary);
+  assert.equal(
+    readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8'),
+    sourceTestReceipt,
+  );
+  assert.equal(
+    readFileSync(join(packageRoot, 'bin', 'snapback'), 'utf8'),
+    sourceTestBinary,
+  );
   writeFileSync(sourceBinary, fixtureBinarySource);
   chmodSync(sourceBinary, 0o755);
+  prepareDarwinRuntimePackage(preparation);
+  originalReceipt = readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8');
+  assert.equal(readFileSync(join(packageRoot, 'bin', 'snapback'), 'utf8'), originalBinary);
 
   assert.throws(
     () => prepareDarwinRuntimePackage({

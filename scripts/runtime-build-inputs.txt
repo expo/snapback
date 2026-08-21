@@ -10,9 +10,8 @@
 # (issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
 #
 # Consumers (keep in sync when adding one):
-#   crates/snapback/build.rs            (compile-time fallback probe)
-#   crates/snapback-types/build.rs      (binary-identity owner fallback probe)
-#   crates/snapback-tools/build.rs      (proof-recorder fallback probe)
+#   crates/snapback-types/build_identity.rs (shared compile-time fallback probe,
+#                                            included by three build scripts)
 #   scripts/verify-local-proof          (stamp_snapback_build_identity)
 #   scripts/bootstrap-ibex-runtime      (reuse_authoritative_runtime_receipt)
 #   demos/_kit/provenance.mjs           (readCheckoutBinaryIdentity)
@@ -42,6 +41,7 @@ crates/snapback-server/build.rs
 crates/snapback-runtime/build.rs
 crates/snapback-types/Cargo.toml
 crates/snapback-types/build.rs
+crates/snapback-types/build_identity.rs
 crates/snapback-tools/Cargo.toml
 crates/snapback-tools/build.rs
 rust-toolchain.toml

@@ -13,6 +13,7 @@ import {
   PUBLIC_PACKAGE_BUILD_DISTRIBUTION,
   assertPublicPackageBuildIdentity,
   assertRuntimePackageBuildIdentity,
+  assertRuntimePackageSourceIdentity,
   installPackagedStoreQualificationReceipt,
 } from './runtime-package-authority.mjs';
 
@@ -32,10 +33,40 @@ test('admits only a clean release binary compiled for public packaging', () => {
   assert.equal(assertPublicPackageBuildIdentity(valid), valid);
 });
 
-test('source assembly admits a clean release contributor binary', () => {
+test('assembler strict mode admits a clean release contributor binary', () => {
   const contributor = structuredClone(valid);
   contributor.buildDistribution = 'contributor-source';
   assert.equal(assertRuntimePackageBuildIdentity(contributor), contributor);
+});
+
+test('assembler strict mode rejects a source-test debug/dirty contributor binary', () => {
+  const contributor = structuredClone(valid);
+  contributor.buildDistribution = 'contributor-source';
+  contributor.binary.gitDirty = true;
+  contributor.binary.buildProfile = 'debug';
+  assert.throws(
+    () => assertRuntimePackageBuildIdentity(contributor),
+    (error) => error.code === 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
+  );
+});
+
+test('source-test staging admits a known-commit debug/dirty contributor binary', () => {
+  const contributor = structuredClone(valid);
+  contributor.buildDistribution = 'contributor-source';
+  contributor.binary.gitDirty = true;
+  contributor.binary.buildProfile = 'debug';
+  assert.equal(assertRuntimePackageSourceIdentity(contributor), contributor);
+});
+
+test('source-test staging rejects an unstamped contributor binary', () => {
+  const contributor = structuredClone(valid);
+  contributor.buildDistribution = 'contributor-source';
+  contributor.binary.gitCommit = 'unknown';
+  contributor.binary.gitDirty = true;
+  assert.throws(
+    () => assertRuntimePackageSourceIdentity(contributor),
+    (error) => error.code === 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
+  );
 });
 
 for (const [name, mutate] of [

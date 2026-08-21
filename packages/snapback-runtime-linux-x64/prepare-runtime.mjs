@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import {
   assertPublicPackageBuildIdentity,
   assertRuntimePackageBuildIdentity,
+  assertRuntimePackageSourceIdentity,
   installPackagedStoreQualificationReceipt,
 } from '../../scripts/runtime-package-authority.mjs';
 import { installAdminConsoleSnapshot } from '../snapback-cli/admin-snapshot.mjs';
@@ -217,6 +218,7 @@ export function prepareLinuxRuntimePackage(options = {}) {
 
   const sourceTestStaging = args.includes('--source-test-staging');
   const nativeArtifactStaging = args.includes('--native-artifact-staging');
+  const strictCleanRelease = args.includes('--strict-clean-release');
   let identity;
   let transportedQualification = null;
   let artifactAttestation = null;
@@ -268,7 +270,8 @@ export function prepareLinuxRuntimePackage(options = {}) {
       }
       identity = JSON.parse(identityResult.stdout);
     }
-    assertRuntimePackageBuildIdentity(identity);
+    assertRuntimePackageSourceIdentity(identity);
+    if (strictCleanRelease) assertRuntimePackageBuildIdentity(identity);
     if (!sourceTestStaging) assertPublicPackageBuildIdentity(identity);
   } catch (error) {
     throw diagnosticError(
@@ -280,8 +283,9 @@ export function prepareLinuxRuntimePackage(options = {}) {
 
   // Native-artifact staging transports only the binary/Hermes inputs to the
   // final publication assembler; that assembler adds and seals the console.
-  // Source-test staging bypasses only public-package distribution, never a
-  // clean release identity or the console.
+  // Source-test staging admits contributor debug/dirty binaries for local
+  // proof. Manufacturing adds --strict-clean-release; neither mode may omit
+  // the console.
   const allowMissingAdminConsole = nativeArtifactStaging;
   const stagingRoot = mkdtempSync(join(packageRoot, '.staging-'));
   const binDirectory = join(stagingRoot, 'bin');

@@ -84,7 +84,7 @@ function packageIdentityError(message) {
   return error;
 }
 
-export function assertRuntimePackageBuildIdentity(identity) {
+export function assertRuntimePackageSourceIdentity(identity) {
   if (identity?.schemaVersion !== 'snapback.binary-identity.v1'
       || ![
         CONTRIBUTOR_SOURCE_BUILD_DISTRIBUTION,
@@ -92,7 +92,21 @@ export function assertRuntimePackageBuildIdentity(identity) {
       ].includes(identity?.buildDistribution)
       || typeof identity?.binary?.gitCommit !== 'string'
       || identity.binary.gitCommit === 'unknown'
-      || identity.binary.gitDirty !== false
+      || identity.binary.gitCommit.length === 0
+      || typeof identity.binary.gitDirty !== 'boolean'
+      || typeof identity.binary.buildProfile !== 'string'
+      || identity.binary.buildProfile.length === 0) {
+    throw packageIdentityError(
+      'native runtime does not carry a usable source identity; '
+      + 'runtime package staging requires a known source revision',
+    );
+  }
+  return identity;
+}
+
+export function assertRuntimePackageBuildIdentity(identity) {
+  assertRuntimePackageSourceIdentity(identity);
+  if (identity.binary.gitDirty !== false
       || identity.binary.buildProfile !== 'release') {
     throw packageIdentityError(
       'native runtime was not built with a sealable clean release identity; '

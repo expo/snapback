@@ -74,7 +74,8 @@ if ! bun run --cwd admin-ui build; then
 fi
 
 log "step 4/4: validating and swapping ${runtime_package}"
-if ! node "${runtime_package}/prepare-runtime.mjs" --source-test-staging; then
+if ! node "${runtime_package}/prepare-runtime.mjs" \
+    --source-test-staging --strict-clean-release; then
   fail "step 4/4 failed: ${runtime_package} was not assembled; any prior valid assembly was retained"
 fi
 
