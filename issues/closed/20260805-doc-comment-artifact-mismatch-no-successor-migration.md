@@ -80,14 +80,18 @@ itself, on both surfaces:
   the carrier matching `expectedDeployment`, then apply the changed sources
   through the running server's `snapback dev` watch reload), `reseedFresh`
   (back up with the real `snapback auth backup --db <db> --output
-  <ignored-backup-dir>` command naming the exact store, remove the entire
-  `.snapback` store (database and keyrings), then restart on the new carrier
-  or run `snapback reset --dev-fresh` for disposable local dev data only), and
-  `safety` (the pin is auth-mode state per LLP 0058, not a runtime/codegen
-  defect). It rides the existing `snapback.startup-diagnostic.v1` stderr line.
+  <ignored-backup-dir>` command, explicitly limited to the database/auth backup
+  unit, then run `snapback reset --dev-fresh --db <the diagnostic database>`
+  for disposable local dev data only), and `safety` (the unequal deployment
+  identities are stored in the database per LLP 0058, not a keyring or
+  runtime/codegen defect). The reset text enumerates only the selected
+  database, WAL/SHM, admin-token, dev-identity, and managed readiness files;
+  it gives no directory-deletion advice and says keyrings and unrelated
+  databases remain. It rides the existing `snapback.startup-diagnostic.v1`
+  stderr line.
 - Managed (`packages/snapback-cli/index.mjs`): the refined pin diagnostic's
   `recovery` block gains `freshReseed` with the same backup-then-reseed
-  procedure, printing the managed store's exact path.
+  procedure, printing the managed database's exact path on both commands.
 - Tests: `settled_sessions_pin_refusal_names_supported_repair_paths`
   (`src/cli.rs`) reproduces the doc-comment case (bundle identity rotated,
   schema unchanged) and asserts the repair text;

@@ -34,7 +34,7 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 
 #[test]
-fn settled_pin_repair_names_the_whole_store_and_supported_dev_fresh_reset() {
+fn settled_pin_repair_names_the_exact_backup_and_dev_fresh_artifacts() {
     let database = PathBuf::from("/tmp/example/.snapback/dev.sqlite3");
     let error = crate::diagnostic::SnapbackError::error(
         "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
@@ -50,10 +50,21 @@ fn settled_pin_repair_names_the_whole_store_and_supported_dev_fresh_reset() {
     let reseed = repaired.diagnostic.details["repair"]["reseedFresh"]
         .as_str()
         .unwrap();
-    assert!(reseed.contains("snapback auth backup --db /tmp/example/.snapback/dev.sqlite3"));
-    assert!(reseed.contains("remove the entire `.snapback` store (database and keyrings)"));
-    assert!(reseed.contains(super::DEV_FRESH_DESTRUCTIVE_REPAIR));
+    assert!(reseed.contains("snapback auth backup --db '/tmp/example/.snapback/dev.sqlite3'"));
+    assert!(
+        reseed.contains("snapback reset --dev-fresh --db '/tmp/example/.snapback/dev.sqlite3'")
+    );
+    assert!(reseed.contains("captures only the database/auth backup unit"));
+    assert!(reseed.contains("not the config store, asset blobs, or operation-detail keyring"));
+    assert!(reseed.contains(super::DEV_FRESH_RESET_ARTIFACTS));
+    assert!(!reseed.contains("entire `.snapback` store"));
+    assert!(!reseed.contains("database and keyrings"));
     assert!(!reseed.contains("move or delete the database file"));
+    let safety = repaired.diagnostic.details["repair"]["safety"]
+        .as_str()
+        .unwrap();
+    assert!(safety.contains("deployment identity stored in the selected database"));
+    assert!(safety.contains("not a keyring"));
 }
 
 #[test]
@@ -1780,14 +1791,21 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
     assert!(
         reseed.contains("snapback auth backup --db")
             && reseed.contains(&database.display().to_string())
-            && reseed.contains("remove the entire `.snapback` store (database and keyrings)")
-            && reseed.contains(super::DEV_FRESH_DESTRUCTIVE_REPAIR),
-        "reseedFresh names the exact whole-store backup and destructive repair paths: {reseed}"
+            && reseed.contains("snapback reset --dev-fresh --db")
+            && reseed.contains("captures only the database/auth backup unit")
+            && reseed.contains(super::DEV_FRESH_RESET_ARTIFACTS),
+        "reseedFresh names the exact database-targeted backup and reset boundaries: {reseed}"
     );
+    assert!(!reseed.contains("entire `.snapback` store"), "{reseed}");
+    assert!(!reseed.contains("database and keyrings"), "{reseed}");
     assert!(
-        repair["safety"].as_str().unwrap().contains("LLP 0058"),
-        "safety attributes the pin to auth-mode state"
+        repair["safety"]
+            .as_str()
+            .unwrap()
+            .contains("deployment identity stored in the selected database"),
+        "safety attributes the pin to database deployment state"
     );
+    assert!(repair["safety"].as_str().unwrap().contains("not a keyring"));
 
     let activation_args = Args {
         activate_startup_successor: true,

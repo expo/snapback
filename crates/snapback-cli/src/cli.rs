@@ -29,7 +29,19 @@ use uuid::Uuid;
 
 const DEFAULT_PORT_RANGE_START: u16 = 4287;
 const DEFAULT_PORT_RANGE_END: u16 = 4387;
-const DEV_FRESH_DESTRUCTIVE_REPAIR: &str = "For disposable local dev data only, run `snapback reset --dev-fresh`; this destructive repair removes the entire `.snapback` store (database and keyrings), recreates it, and reseeds from generated artifacts";
+const DEV_FRESH_RESET_ARTIFACTS: &str = "this removes only the selected database, its `-wal`, `-shm`, `.admin-token`, and `.dev-identity` siblings, and the managed ready/application-ready files; it does not remove the auth keyring, config store, operation-detail keyring, asset blobs, or any other database in the containing directory";
+
+fn shell_single_quote_path(path: &Path) -> String {
+    format!("'{}'", path.to_string_lossy().replace('\'', "'\"'\"'"))
+}
+
+fn dev_fresh_destructive_repair(database: &Path) -> String {
+    format!(
+        "For disposable local dev data only, run `snapback reset --dev-fresh --db {}`; {DEV_FRESH_RESET_ARTIFACTS}",
+        shell_single_quote_path(database),
+    )
+}
+
 /// The one-file cold-start carrier for a complete deployment pair. Keeping
 /// the outer DTO closed prevents a second, unvalidated authority channel from
 /// being smuggled beside the exact schema/functions/seed tuple.
@@ -111,8 +123,8 @@ fn auth_policy_unavailable(message: &'static str) -> crate::diagnostic::Snapback
 /// without named repair paths authors reverse-engineer an ad-hoc local-store
 /// rollover. Name both supported ways forward on the refusal itself: the
 /// data-preserving live evolution through the running server, and the
-/// data-discarding whole-store backup-then-reseed procedure with the real
-/// backup command.
+/// data-discarding, database-targeted backup-then-reseed procedure with the
+/// real commands and their deliberately narrower artifact boundaries.
 // @ref LLP 0058#cold-startup-artifact-carrier — "this is not a wedge": the
 // refusal must carry its own repair, not just the expected identity
 // (issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md).
@@ -120,16 +132,17 @@ fn with_settled_pin_repair(
     mut error: crate::diagnostic::SnapbackError,
     database: &Path,
 ) -> crate::diagnostic::SnapbackError {
+    let quoted_database = shell_single_quote_path(database);
+    let dev_fresh = dev_fresh_destructive_repair(database);
     if let Value::Object(details) = &mut error.diagnostic.details {
         details.insert(
             "repair".to_owned(),
             json!({
                 "keepData": "restart on the startup carrier matching expectedDeployment (regenerate it from the previous sources if needed), then apply the changed sources through the running server's live reload (`snapback dev` watch reload): the running-server provision moves the pinned deployment forward without touching local data",
                 "reseedFresh": format!(
-                    "to discard local data instead: back up the store with `snapback auth backup --db {} --output <ignored-backup-dir>`. After backup, either remove the entire `.snapback` store (database and keyrings) and restart on the new carrier to reseed from scratch, or follow this supported one-shot path: {DEV_FRESH_DESTRUCTIVE_REPAIR}",
-                    database.display(),
+                    "to discard the selected database and reseed from scratch: first run `snapback auth backup --db {quoted_database} --output <ignored-backup-dir>`; that command captures only the database/auth backup unit (`database.sqlite3`, `auth-keyring.json`, and `backup.json`), not the config store, asset blobs, or operation-detail keyring. Then use the supported one-shot path: {dev_fresh}",
                 ),
-                "safety": "the refusal is auth-mode deployment state (LLP 0058), not a runtime or codegen defect; do not hand-edit generated artifacts or hashes to match the pin",
+                "safety": "the refusal compares the startup carrier's deployment identity with the active deployment identity stored in the selected database; it is not a keyring, runtime, or codegen mismatch (LLP 0058); do not hand-edit generated artifacts or hashes to match the pin",
             }),
         );
     }

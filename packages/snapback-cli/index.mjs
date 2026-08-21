@@ -3449,6 +3449,16 @@ function removeManagedDatabaseState(database, readyFile = null, applicationReady
   }
 }
 
+const DEV_FRESH_RESET_ARTIFACTS = 'this removes only the selected database, its `-wal`, `-shm`, `.admin-token`, and `.dev-identity` siblings, and the managed ready/application-ready files; it does not remove the auth keyring, config store, operation-detail keyring, asset blobs, or any other database in the containing directory';
+
+function shellSingleQuotePath(path) {
+  return `'${String(path).replaceAll("'", `'"'"'`)}'`;
+}
+
+function devFreshDestructiveRepair(database) {
+  return `For disposable local dev data only, run \`snapback reset --dev-fresh --db ${shellSingleQuotePath(database)}\`; ${DEV_FRESH_RESET_ARTIFACTS}`;
+}
+
 export function native(binary, args, options = {}) {
   return spawnSync(binary, args, {
     cwd: options.cwd,
@@ -3564,7 +3574,6 @@ const ARTIFACT_DECODE_EVIDENCE = /(?:unknown|missing|duplicate) field|invalid (?
 // messages prove that; carrier shape/format failures with the same code stay
 // decode-shaped (a genuinely stale runtime emits those).
 const AUTH_STARTUP_PIN_EVIDENCE = /startup artifact (?:pair|identity) differs from the (?:pinned|pending) deployment/i;
-const DEV_FRESH_DESTRUCTIVE_REPAIR = 'For disposable local dev data only, run `snapback reset --dev-fresh`; this destructive repair removes the entire `.snapback` store (database and keyrings), recreates it, and reseeds from generated artifacts';
 
 function failureEvidenceStrings(error) {
   const diagnostic = error?.diagnostic ?? {};
@@ -3657,6 +3666,9 @@ function refineGeneratedArtifactFailure(error, {
   // running server, not a cold start over regenerated artifacts.
   const pin = authStartupPinRefusal(error);
   if (pin) {
+    const diagnosticDatabase = database ? resolve(database) : '<database>';
+    const quotedDatabase = shellSingleQuotePath(diagnosticDatabase);
+    const devFresh = devFreshDestructiveRepair(diagnosticDatabase);
     const refused = diagnosticError(
       'SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH',
       'the sessions deployment refused to start because the startup artifact pair differs from the pinned deployment; the runtime and codegen agree — evolve the deployment through the running server instead of cold-starting on regenerated artifacts',
@@ -3670,12 +3682,12 @@ function refineGeneratedArtifactFailure(error, {
           coldStartRepair: 'to cold-start first, restore the generated artifacts matching the pinned deployment (regenerate from the previous sources if needed), boot, then apply the evolved sources through the running server',
           // issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
           // the discard path is a supported procedure, not author intuition —
-          // name the real backup command and the complete custody store it targets.
-          freshReseed: 'to discard local data and reseed from scratch instead: back up the store with '
-            + `\`snapback auth backup --db ${database ? resolve(database) : '<database>'} --output <ignored-backup-dir>\`, `
-            + 'then either remove the entire `.snapback` store (database and keyrings) and restart on the new artifacts, '
-            + `or follow this supported one-shot path: ${DEV_FRESH_DESTRUCTIVE_REPAIR}`,
-          safety: 'do not reinstall the runtime or set SNAPBACK_RUNTIME_BINARY; the startup pin is auth-mode state (LLP 0058), not a runtime/codegen mismatch',
+          // name the exact, deliberately narrower backup and reset units.
+          freshReseed: 'to discard the selected database and reseed from scratch: first run '
+            + `\`snapback auth backup --db ${quotedDatabase} --output <ignored-backup-dir>\`; `
+            + 'that command captures only the database/auth backup unit (`database.sqlite3`, `auth-keyring.json`, and `backup.json`), not the config store, asset blobs, or operation-detail keyring. '
+            + `Then use the supported one-shot path: ${devFresh}`,
+          safety: 'the refusal compares the startup carrier\'s deployment identity with the active deployment identity stored in the selected database; it is not a keyring, runtime, or codegen mismatch (LLP 0058); do not hand-edit generated artifacts or hashes to match the pin',
         },
       },
     );

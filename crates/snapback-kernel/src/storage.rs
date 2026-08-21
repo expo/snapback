@@ -11240,7 +11240,89 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
     Ok(())
 }
 
-const DEV_FRESH_DESTRUCTIVE_REPAIR: &str = "For disposable local dev data only, run `snapback reset --dev-fresh`; this destructive repair removes the entire `.snapback` store (database and keyrings), recreates it, and reseeds from generated artifacts";
+const DEV_FRESH_DESTRUCTIVE_REPAIR: &str = "For disposable local dev data only, run `snapback reset --dev-fresh --db <path-to-this-database>`; this removes only the selected database, its `-wal`, `-shm`, `.admin-token`, and `.dev-identity` siblings, and the managed ready/application-ready files; it does not remove the auth keyring, config store, operation-detail keyring, asset blobs, or any other database in the containing directory";
+const ASSET_REF_SEMANTIC_STRING_PREVIEW_MAX_BYTES: usize = 128;
+const ASSET_REF_SEMANTIC_ARRAY_PREVIEW_MAX_COUNT: usize = 4;
+
+fn semantic_omission_digest(bytes: &[u8]) -> String {
+    format!("sha256:{:x}", Sha256::digest(bytes))
+}
+
+/// Project one authoring value into a fixed-width diagnostic summary.
+///
+/// Strings retain a UTF-8-safe prefix. Arrays retain at most four recursively
+/// bounded values. Every omission carries the size of the original content
+/// and a SHA-256 digest over the exact omitted UTF-8 suffix or canonical JSON
+/// array tail, so two large declarations remain distinguishable without
+/// copying either declaration into the diagnostic.
+fn bounded_asset_ref_semantic_value(value: &Value) -> Value {
+    match value {
+        Value::Null => json!({
+            "preview": null,
+            "byteCount": 0,
+            "truncated": false,
+        }),
+        Value::String(value) => {
+            let mut preview_bytes = value.len().min(ASSET_REF_SEMANTIC_STRING_PREVIEW_MAX_BYTES);
+            while !value.is_char_boundary(preview_bytes) {
+                preview_bytes -= 1;
+            }
+            let omitted = &value.as_bytes()[preview_bytes..];
+            let mut summary = json!({
+                "preview": &value[..preview_bytes],
+                "byteCount": value.len(),
+                "truncated": !omitted.is_empty(),
+            });
+            if !omitted.is_empty() {
+                let details = summary.as_object_mut().expect("fixed summary object");
+                details.insert("omittedByteCount".to_owned(), json!(omitted.len()));
+                details.insert(
+                    "omittedSha256".to_owned(),
+                    json!(semantic_omission_digest(omitted)),
+                );
+            }
+            summary
+        }
+        Value::Array(values) => {
+            let preview_count = values.len().min(ASSET_REF_SEMANTIC_ARRAY_PREVIEW_MAX_COUNT);
+            let preview = values[..preview_count]
+                .iter()
+                .map(bounded_asset_ref_semantic_value)
+                .collect::<Vec<_>>();
+            let nested_truncated = preview
+                .iter()
+                .any(|value| value["truncated"].as_bool() == Some(true));
+            let omitted = &values[preview_count..];
+            let encoded = serde_json::to_vec(value).expect("manifest values serialize");
+            let mut summary = json!({
+                "preview": preview,
+                "byteCount": encoded.len(),
+                "count": values.len(),
+                "previewCount": preview_count,
+                "truncated": nested_truncated || !omitted.is_empty(),
+            });
+            if !omitted.is_empty() {
+                let omitted_bytes =
+                    serde_json::to_vec(omitted).expect("manifest array tail serializes");
+                let details = summary.as_object_mut().expect("fixed summary object");
+                details.insert("omittedCount".to_owned(), json!(omitted.len()));
+                details.insert("omittedByteCount".to_owned(), json!(omitted_bytes.len()));
+                details.insert(
+                    "omittedSha256".to_owned(),
+                    json!(semantic_omission_digest(&omitted_bytes)),
+                );
+            }
+            summary
+        }
+        // AssetRef identity currently contains only strings, string-like enum
+        // arrays, and null. Keep this fallback bounded if that closed set grows
+        // before this exhaustive identity projection is updated.
+        value => {
+            let encoded = serde_json::to_string(value).expect("manifest value serializes");
+            bounded_asset_ref_semantic_value(&Value::String(encoded))
+        }
+    }
+}
 
 /// Return the complete, bounded identity delta for two AssetRef declarations.
 ///
@@ -11327,8 +11409,8 @@ fn asset_ref_stored_identity_delta(
                 (existing != requested).then(|| {
                     json!({
                         "fact": fact,
-                        "existing": existing,
-                        "requested": requested,
+                        "existing": bounded_asset_ref_semantic_value(&existing),
+                        "requested": bounded_asset_ref_semantic_value(&requested),
                     })
                 })
             })

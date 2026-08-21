@@ -31,9 +31,15 @@ correct data-preserving or destructive repair path.
 Resolved 2026-08-21. `SNAPBACK_SCHEMA_FIELD_RETYPED` now renders a bounded
 `semanticDelta` for every stored `AssetRef` identity participant (upload/media
 intent, policy identity, accepted media classes, delivery, variants,
-classification, retention, and target capability). The message and structured
-repair distinguish the reviewed preserve-data migration from the explicitly
-destructive local-dev `snapback reset --dev-fresh` path. Rust fixtures pin the
-equal-display-type/unequal-intent case and the complete participant list.
+classification, retention, and target capability). Every scalar and array uses
+a capped preview with original byte/count metadata and stable SHA-256 digests
+for omitted content, so a multi-megabyte valid manifest cannot become a
+multi-megabyte diagnostic. The message and structured repair distinguish the
+reviewed preserve-data migration from the explicitly database-targeted local
+dev `snapback reset --dev-fresh --db <path-to-this-database>` path, naming the
+database/WAL/SHM/admin-token/dev-identity/readiness artifacts it removes and
+the keyrings, asset blobs, and unrelated databases it leaves intact. Rust
+fixtures pin the equal-display-type/unequal-intent case, all nine participants,
+digest stability, and the serialized bound.
 
 landing SHA: TBD

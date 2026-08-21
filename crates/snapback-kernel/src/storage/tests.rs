@@ -729,12 +729,12 @@ mod asset_ref_retype_diagnostic_tests {
     use super::*;
     use crate::contract_types::{MediaFieldDescriptorV1, MediaKindV1};
 
-    fn media(
+    fn media<S: Into<String>>(
         intent: &str,
         policy: &str,
         kinds: Vec<MediaKindV1>,
         delivery: Option<&str>,
-        variants: Vec<&str>,
+        variants: Vec<S>,
         classification_profile: &str,
         retention_class: &str,
         target_capability: &str,
@@ -744,7 +744,7 @@ mod asset_ref_retype_diagnostic_tests {
             policy: policy.to_owned(),
             kinds,
             delivery: delivery.map(str::to_owned),
-            variants: variants.into_iter().map(str::to_owned).collect(),
+            variants: variants.into_iter().map(Into::into).collect(),
             classification_profile: classification_profile.to_owned(),
             retention_class: retention_class.to_owned(),
             target_capability: target_capability.to_owned(),
@@ -816,13 +816,29 @@ mod asset_ref_retype_diagnostic_tests {
             json!([
                 {
                     "fact": "uploadIntent",
-                    "existing": "avatarUpload",
-                    "requested": "profileImageUpload",
+                    "existing": {
+                        "preview": "avatarUpload",
+                        "byteCount": 12,
+                        "truncated": false,
+                    },
+                    "requested": {
+                        "preview": "profileImageUpload",
+                        "byteCount": 18,
+                        "truncated": false,
+                    },
                 },
                 {
                     "fact": "mediaIntent",
-                    "existing": "avatarUpload",
-                    "requested": "profileImageUpload",
+                    "existing": {
+                        "preview": "avatarUpload",
+                        "byteCount": 12,
+                        "truncated": false,
+                    },
+                    "requested": {
+                        "preview": "profileImageUpload",
+                        "byteCount": 18,
+                        "truncated": false,
+                    },
                 },
             ])
         );
@@ -830,8 +846,10 @@ mod asset_ref_retype_diagnostic_tests {
             error
                 .diagnostic
                 .message
-                .contains("uploadIntent changed from \"avatarUpload\" to \"profileImageUpload\"")
+                .contains("uploadIntent changed from")
         );
+        assert!(error.diagnostic.message.contains("avatarUpload"));
+        assert!(error.diagnostic.message.contains("profileImageUpload"));
         assert!(!error.diagnostic.message.contains("AssetRef to AssetRef"));
         assert!(
             error.diagnostic.details["repair"]["preserveData"]
@@ -897,6 +915,114 @@ mod asset_ref_retype_diagnostic_tests {
                 "retentionClass",
                 "targetCapability",
             ]
+        );
+    }
+
+    #[test]
+    fn asset_ref_semantic_delta_bounds_every_scalar_and_array() {
+        let long = |prefix: char| format!("{prefix}{}", prefix.to_string().repeat(4_095));
+        let existing_long = long('a');
+        let requested_long = long('b');
+        let existing_variants = (0..5_000)
+            .map(|index| format!("old-{index:05}-{}", "x".repeat(256)))
+            .collect::<Vec<_>>();
+        let requested_variants = (0..5_000)
+            .map(|index| format!("new-{index:05}-{}", "y".repeat(256)))
+            .collect::<Vec<_>>();
+        let existing = FieldType::AssetRef {
+            upload: Some(existing_long.clone()),
+            media: Some(media(
+                &existing_long,
+                &existing_long,
+                vec![MediaKindV1::Image; 5_000],
+                Some(&existing_long),
+                existing_variants,
+                &existing_long,
+                &existing_long,
+                &existing_long,
+            )),
+        };
+        let requested = FieldType::AssetRef {
+            upload: Some(requested_long.clone()),
+            media: Some(media(
+                &requested_long,
+                &requested_long,
+                vec![MediaKindV1::Video; 5_000],
+                Some(&requested_long),
+                requested_variants,
+                &requested_long,
+                &requested_long,
+                &requested_long,
+            )),
+        };
+
+        let error = reject_field_retypes(&schema(existing), &schema(requested))
+            .expect_err("a large semantic identity change remains a bounded refusal");
+        let delta = error.diagnostic.details["semanticDelta"]
+            .as_array()
+            .expect("semantic delta array");
+        assert_eq!(delta.len(), 9, "the nine identity facts remain visible");
+        for change in delta {
+            for side in ["existing", "requested"] {
+                let summary = &change[side];
+                assert_eq!(summary["truncated"], true, "{change}");
+                assert!(summary["byteCount"].as_u64().unwrap() > 128, "{change}");
+                if let Some(preview) = summary["preview"].as_str() {
+                    assert!(preview.len() <= ASSET_REF_SEMANTIC_STRING_PREVIEW_MAX_BYTES);
+                    assert_eq!(
+                        summary["omittedByteCount"].as_u64().unwrap(),
+                        summary["byteCount"].as_u64().unwrap() - preview.len() as u64,
+                    );
+                } else {
+                    let preview = summary["preview"].as_array().expect("array preview");
+                    assert_eq!(preview.len(), ASSET_REF_SEMANTIC_ARRAY_PREVIEW_MAX_COUNT,);
+                    assert_eq!(summary["count"], 5_000);
+                    assert_eq!(summary["previewCount"], 4);
+                    assert_eq!(summary["omittedCount"], 4_996);
+                    for item in preview {
+                        assert!(
+                            item["preview"]
+                                .as_str()
+                                .is_some_and(|value| value.len() <= 128),
+                            "{item}",
+                        );
+                    }
+                }
+                assert!(
+                    summary["omittedSha256"].as_str().is_some_and(|digest| {
+                        digest.len() == 71 && digest.starts_with("sha256:")
+                    }),
+                    "{change}",
+                );
+            }
+        }
+
+        let encoded = serde_json::to_vec(&error.diagnostic).expect("diagnostic serializes");
+        assert!(
+            encoded.len() < 64 * 1024,
+            "multi-megabyte manifests must produce a sub-64-KiB diagnostic, got {} bytes",
+            encoded.len(),
+        );
+        let repeated = reject_field_retypes(
+            &schema(FieldType::AssetRef {
+                upload: Some(existing_long.clone()),
+                media: None,
+            }),
+            &schema(FieldType::AssetRef {
+                upload: Some(requested_long.clone()),
+                media: None,
+            }),
+        )
+        .expect_err("same bounded input still refuses");
+        let first_digest = &delta[0]["existing"]["omittedSha256"];
+        assert_eq!(
+            first_digest,
+            &repeated.diagnostic.details["semanticDelta"][0]["existing"]["omittedSha256"],
+            "omitted-content digests are stable across projections",
+        );
+        assert_ne!(
+            first_digest, &delta[0]["requested"]["omittedSha256"],
+            "different omitted content has a different digest",
         );
     }
 }

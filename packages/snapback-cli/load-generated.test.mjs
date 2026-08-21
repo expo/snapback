@@ -96,10 +96,19 @@ try {
     }, { database });
     const freshReseed = refined.diagnostic.details.recovery.freshReseed;
     assert.match(freshReseed, /snapback auth backup --db/u);
-    assert.match(freshReseed, /remove the entire `\.snapback` store \(database and keyrings\)/u);
-    assert.match(freshReseed, /snapback reset --dev-fresh/u);
+    assert.ok(freshReseed.includes(`snapback auth backup --db '${database}'`));
+    assert.ok(freshReseed.includes(`snapback reset --dev-fresh --db '${database}'`));
+    assert.match(freshReseed, /captures only the database\/auth backup unit/u);
+    assert.match(freshReseed, /not the config store, asset blobs, or operation-detail keyring/u);
+    assert.match(freshReseed, /removes only the selected database/u);
+    assert.match(freshReseed, /does not remove the auth keyring/u);
     assert.match(freshReseed, /For disposable local dev data only/u);
+    assert.doesNotMatch(freshReseed, /entire `\.snapback` store/u);
+    assert.doesNotMatch(freshReseed, /database and keyrings/u);
     assert.doesNotMatch(freshReseed, /move or delete the database file/u);
+    const safety = refined.diagnostic.details.recovery.safety;
+    assert.match(safety, /deployment identity stored in the selected database/u);
+    assert.match(safety, /not a keyring/u);
   }
 
   {
