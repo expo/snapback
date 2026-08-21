@@ -401,13 +401,33 @@ export interface AuthorityCreatingAuthOptions extends FunctionAuthOptions {
   authorityCreating?: boolean;
 }
 
-export interface QueryAuthOptions extends FunctionAuthOptions {
-  /** Trusted declaration that the complete result is caller-authority invariant.
-   * Item 4 accepts true only for a public, ambient-free HostPlan query. */
-  authorityIndependent?: boolean;
+interface QueryRetentionOptions {
   /** Opt into AuthorizedLease-backed offline retention after load-time proof. */
   retainable?: boolean;
 }
+
+/**
+ * Query authority declarations preserve the codegen implication
+ * `authorityIndependent: true` => `auth: 'public'`. `publicInline: true` is
+ * the adjacent exact implication: it is valid only on that same branch.
+ *
+ * @ref LLP 0090#authorization-scope-v1 — authority-independent queries are
+ * already public; the declaration never grants invocation authority.
+ * @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact — inline
+ * disclosure requires a valid authority-independent declaration.
+ */
+export type QueryAuthOptions = QueryRetentionOptions & (
+  | (FunctionAuthOptions & {
+      authorityIndependent?: false;
+      publicInline?: false;
+    })
+  | (Omit<FunctionAuthOptions, 'auth' | 'requires'> & {
+      auth: 'public';
+      requires?: never;
+      authorityIndependent: true;
+      publicInline?: boolean;
+    })
+);
 
 export interface PolicyInputTableV1 {
   readonly kind: 'table';
@@ -439,7 +459,7 @@ export declare const authorization: {
   custom(spec: CustomAuthorizationV1): CustomAuthorizationDeclarationV1;
 };
 
-export interface HostPlanQuerySpec extends QueryAuthOptions {
+interface HostPlanQueryFields {
   table: string;
   args?: Record<string, Validator>;
   filter?: FilterSpec[];
@@ -453,7 +473,9 @@ export interface HostPlanQuerySpec extends QueryAuthOptions {
   membership?: MembershipPredicate[];
 }
 
-interface JsQuerySpecBase extends QueryAuthOptions {
+export type HostPlanQuerySpec = HostPlanQueryFields & QueryAuthOptions;
+
+interface JsQuerySpecFields {
   args?: Record<string, Validator>;
   reads: string[];
   result?: Validator | ResultContract;
@@ -484,7 +506,7 @@ interface JsQuerySpecBase extends QueryAuthOptions {
    * refusal until strict input completeness is enforceable. */
   authorization?: CustomAuthorizationDeclarationV1;
 }
-export type JsQuerySpec = JsQuerySpecBase & (
+export type JsQuerySpec = JsQuerySpecFields & QueryAuthOptions & (
   | { source: string; exportName: string; handler?: never }
   | { handler: (ctx: any, args: any) => unknown; source?: never; exportName?: never }
 );

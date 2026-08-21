@@ -1,12 +1,14 @@
 # Make invalid authority/auth combinations unrepresentable in TypeScript
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 3
 **Confidence:** 5
 **Systems:** Authoring API, TypeScript, Code generation, Diagnostics
 **Date:** 2026-08-21
+**Resolved:** 2026-08-21
+**Landing SHA:** TBD
 **Governing:** LLP 0090 authorization scope; LLP 0178; LLP 0275 P1/P2
 **Evidence:** Messtimate published-0.1.24 diary
 
@@ -39,3 +41,21 @@ normal editor catches it before generation.
   diagnostic.
 - Generated manifest/runtime semantics are unchanged.
 
+## Resolution
+
+`QueryAuthOptions` is now a discriminated union. Its authority-independent
+branch requires the already-authored `auth: 'public'` fact, while the ordinary
+branch accepts public, optional-user, authenticated, or omitted auth with no
+authority-independence claim. `publicInline: true` joins the independent branch
+because LLP 0092 gives it the same exact stable implication; retention,
+membership, auth scopes, and expression-level authority dependencies remain
+under codegen's deeper semantic proof rather than widening this ticket into a
+type-system rewrite.
+
+A strict TypeScript fixture covers the invalid literal pair, both valid
+variants, spread and generic-helper composition, the `publicInline` coupling,
+and an explicit cast bypass. The existing runtime/codegen validator is
+unchanged and now has regressions for direct JavaScript and a post-builder
+mutation/package-skew shape, both pinned to
+`FUNCTION_AUTHORITY_INDEPENDENT_INVALID`. Generated manifest and runtime
+semantics are unchanged.

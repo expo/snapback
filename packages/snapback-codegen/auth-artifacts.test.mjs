@@ -932,6 +932,49 @@ export const jobs = defineCron({ tick: { schedule: { everyMs: 60000 }, action: '
 }
 
 {
+  const invalidAuthCoupling = `
+import { defineLiveQuery } from '${defineUrl}';
+export const listTodos = defineLiveQuery({
+  table: 'todos',
+  auth: 'authenticated',
+  authorityIndependent: true,
+});
+`;
+  const dir = backend(sessionsSchema, invalidAuthCoupling);
+  const result = await generate(dir);
+  assert.equal(result.ok, false);
+  assert(
+    result.diagnostics.some((diagnostic) => (
+      diagnostic.code === 'FUNCTION_AUTHORITY_INDEPENDENT_INVALID'
+      && diagnostic.message === 'listTodos: authorityIndependent requires a public HostPlan query with no auth, membership, auth-scope, runtime-clock, or runtime-id dependency'
+    )),
+    `invalid authority/auth pair omitted its stable diagnostic: ${JSON.stringify(result.diagnostics)}`,
+  );
+}
+
+{
+  const castOrSkewedAuthCoupling = `
+import { defineLiveQuery } from '${defineUrl}';
+export const listTodos = defineLiveQuery({
+  table: 'todos',
+  auth: 'public',
+  authorityIndependent: true,
+});
+listTodos.auth = 'authenticated';
+`;
+  const dir = backend(sessionsSchema, castOrSkewedAuthCoupling);
+  const result = await generate(dir);
+  assert.equal(result.ok, false);
+  assert(
+    result.diagnostics.some((diagnostic) => (
+      diagnostic.code === 'FUNCTION_AUTHORITY_INDEPENDENT_INVALID'
+      && diagnostic.authRequirement === 'authenticated'
+    )),
+    `mutated/cast declaration bypassed the stable codegen diagnostic: ${JSON.stringify(result.diagnostics)}`,
+  );
+}
+
+{
   const invalidIndependent = `
 import { authUserId, defineLiveQuery, eq } from '${defineUrl}';
 export const listTodos = defineLiveQuery({
