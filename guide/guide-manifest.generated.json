@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:dadad4625382e404c862be3da76ff53b3eb6fb4a3d87d8f5ec4b1ac8735ff87b"
+    "sourceDigest": "sha256:da5ecfcf652d3f964fc17732686e75b1ed46a7b4345dd0072c06f26efbb4a034"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2853,7 +2853,7 @@
       "examples": [],
       "reviewed": "2026-08-17",
       "reviewedAuthoritiesDigest": "sha256:7f9585e2924827e7f5057f9a42dfda3b1c15cefeb0c142a6f5c2a2fcaab3db64",
-      "sha256": "8f25a6a41a7ecdaa17e1e5bfec78034b533791e9281eb0825b602ba7aacb1298",
+      "sha256": "bc934a2b477791c239e91178d95c687d6721f3c9e540ba47f7a80a90ae2a5cad",
       "snippets": []
     },
     "clients.app-cli": {
@@ -12476,7 +12476,7 @@
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
       "bytes": 3565222,
-      "sha256": "e190bc39d04cd527fc56053ec8ce37ff5768f6f36e0b5d6156fed2776e75c7f6"
+      "sha256": "0eb4ee4a8a61df6cddeb0c695c2ee8f999b492a0bf2103bf1f3f017ebfe078a5"
     },
     "sections": {
       "meta": {
@@ -12484,7 +12484,7 @@
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
         "bytes": 149922,
-        "sha256": "37831f3abcf1f17776758378014801cf0a4ec6dd559e7988a5d267fdbc63a420"
+        "sha256": "0001e9cfe57ed45b461ea81ef2aa1aaa0719c86812ed740a6151adac590f874c"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -12579,5 +12579,5 @@
       }
     }
   },
-  "contentHash": "dadad4625382e404c862be3da76ff53b3eb6fb4a3d87d8f5ec4b1ac8735ff87b"
+  "contentHash": "da5ecfcf652d3f964fc17732686e75b1ed46a7b4345dd0072c06f26efbb4a034"
 }

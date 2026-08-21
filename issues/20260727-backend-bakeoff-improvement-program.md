@@ -123,3 +123,43 @@ fastpath-ledger-0.1.8-5d5c6b7183af). The newer program index is
 demos/improvement-sweep/reports/sweep-report.md §4 +
 gap-ledger.v1.json; that ledger deliberately indexes only the 54 LLP
 0137 findings, so this ticket remains the owner of these four rows.
+
+## Expired bounded-children GAP review disposition — 2026-08-20
+
+The `backend.bounded-children-v1` Guide review gate fired on 2026-08-20. A
+fresh source and publication audit confirms that the GAP is still real:
+
+- the exact `local-dev-sqlite-ibex` contributor-source carrier still publishes
+  `bounded_children_v1`, and the codegen declaration remains authorable;
+- `crates/snapback-engine/src/manifest/capabilities.rs` still refuses the
+  relation/activity carrier when `buildDistribution` is not
+  `contributor-source`, so public-package source presence is not a positive
+  runtime capability fact;
+- the recorded newest public closure is 0.1.24, but no
+  `PackageCapabilityAttestationV1` has shipped to authorize this capability in
+  that closure; and
+- `schemas/capability.manifest.remote-service-sqlite-ibex.json` still lists
+  `bounded_children_v1` in `capabilityGaps`, with no hosted target corpus or
+  target-scoped publication authority establishing a contrary claim.
+
+The Guide row therefore remains a GAP. Its authorities are corrected to the
+actual governing publication documents (LLP 0110, LLP 0113, and LLP 0108), and
+its next review is **2026-09-30**. That date is not a schedule-only rollover:
+it aligns this row with LLP 0110's existing Charlie-owned review milestone for
+the shared release-key-signed packaged-capability attestation rather than
+inventing a separate date for the same prerequisite.
+
+Before that review, the disposition must cover both residuals:
+
+1. **Public package:** either ship and verify the LLP 0110
+   `PackageCapabilityAttestationV1` chain (release key, binary and target
+   identity, tarball/post-promotion lineage, source revision, and embedded
+   local-carrier binding) with positive packaged-closure acceptance, or record
+   an explicit author decision that keeps public packages unsupported.
+2. **Hosted:** either land the relation/activity claim family's target-scoped
+   hosted publication carrier and executable hosted corpus, with
+   `bounded_children_v1` removed from the hosted capability gaps, or record an
+   explicit product decision that hosted bounded children remain a nonclaim.
+3. Update the carrier/receipt evidence, Guide wording, and capability row from
+   those outcomes. The date must not move again without another evidence-based
+   disposition.
