@@ -155,12 +155,14 @@ impl Drop for CancelAuthorizationReservationOnDrop {
 }
 
 /// Staging may evaluate a stored mutation plan or already-buffered handler
-/// effects to obtain exact changed rows. Every plan then leaves Local before
-/// the kernel carrier is minted, including the authorization-neutral sentinel.
-/// Durable data and authorization witnesses are rechecked after that handoff;
-/// stale work is cancelled off-Local and returned as a typed conflict. The
-/// one-attempt bound deliberately prevents rerunning a handler whose buffered
-/// effects may already have been computed.
+/// effects to obtain exact changed rows. A ready authorization event then
+/// leaves Local before the kernel carrier is minted. Authorization-neutral and
+/// dormant-bound work stays in the original turn; the kernel still derives
+/// the transaction's actual witness. After a reservation handoff, durable data
+/// and authorization witnesses are rechecked; stale work is cancelled
+/// off-Local and returned as a typed conflict. The one-attempt bound
+/// deliberately prevents rerunning a handler whose buffered effects may
+/// already have been computed.
 pub(crate) async fn with_snapback_staged_authorization_write<S, T, P, F>(
     state: &SharedSnapback,
     writer_gate: Option<Arc<crate::live_coalesce::LiveFanoutCoalescer>>,
@@ -188,16 +190,24 @@ where
             let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let (preflight, staged) = stage(&mut guard)?;
-                if matches!(
+                let authorization_event = !matches!(
                     preflight,
                     crate::storage::AuthorizationCommitPreflight::NoAuthorizationEvent
-                ) {
+                );
+                let reservation_required =
+                    authorization_event && guard.authorization_commit_reservation_required()?;
+                if !reservation_required {
                     // The preview does not authorize the commit: the kernel
-                    // derives and checks the transaction's actual witness.
-                    // Keeping a genuinely neutral write in this Local turn
-                    // preserves its single deferred-publication batch; a
-                    // false neutral preview reaches the kernel without a
-                    // reservation and fails closed before COMMIT.
+                    // still derives and checks the transaction's actual
+                    // witness. A dormant ParticipantBound likewise preserves
+                    // the former disabled-interlock behavior and stays in this
+                    // Local turn; only ParticipantReady may split for an exact
+                    // room reservation. A false neutral preview or an
+                    // unexpected lifecycle transition still fails closed in
+                    // the kernel before COMMIT.
+                    //
+                    // @ref LLP 0290#step-8--switch-production-composition-and-transactions
+                    // — native reservations begin only after auth-time activation.
                     let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         work(&mut guard, staged)
                     }));

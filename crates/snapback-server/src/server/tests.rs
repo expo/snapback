@@ -2569,6 +2569,70 @@ async fn staged_authorization_writer_gate_drains_after_completion_refusal_and_pa
     assert_eq!(coalescer.writers_waiting(), 0);
 }
 
+/// A fresh serving database intentionally keeps its room-authority participant
+/// dormant until an invalidation issuer is installed. Ordinary dev setup must
+/// therefore preserve the former disabled-interlock behavior while the exact
+/// registry is `ParticipantBound`; it is neither replacement nor retirement.
+///
+/// @ref LLP 0290#step-8--switch-production-composition-and-transactions — native
+/// reservations begin only after auth-time activation.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dormant_serving_schema_load_does_not_report_registry_retirement() {
+    let mut context = ServerContext::detached();
+    context.profile = ServerProfile::Test;
+    context.admin_token = Some("dormant-serving-admin".to_owned());
+    let state = test_app_state_from_snapback(
+        LocalSnapback::memory().expect("dormant serving database"),
+        context,
+    );
+    let manifest = SchemaManifest {
+        app_id: "dormant-serving-regression".to_owned(),
+        schema_hash: Some("dormant-serving-schema".to_owned()),
+        tables: vec![TableManifest {
+            name: "todos".to_owned(),
+            fields: vec![FieldManifest {
+                name: "title".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            }],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
+            history: None,
+        }],
+        ..SchemaManifest::default()
+    };
+
+    let response = app(state.clone())
+        .oneshot(auth_http_request(
+            "POST",
+            "/_snapback/api/schema/load",
+            serde_json::to_vec(&manifest).expect("serialize dormant serving schema"),
+            true,
+            Some("dormant-serving-admin"),
+            None,
+        ))
+        .await
+        .expect("schema-load serving response");
+
+    let status = response.status();
+    let response = response_json(response).await;
+    assert_eq!(status, StatusCode::OK, "{response}");
+    assert_eq!(response["diagnostics"], json!([]));
+    assert_eq!(
+        with_snapback(&state.snapback, |snapback| snapback.loaded_schema_hash()).await,
+        Some("dormant-serving-schema".to_owned()),
+    );
+}
+
 #[test]
 fn authority_preparation_writer_priority_is_limited_to_mutation_writers() {
     let mutation_sources = InvocationSource::ALL

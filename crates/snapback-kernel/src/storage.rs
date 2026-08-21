@@ -721,19 +721,8 @@ fn prepare_authorization_commit_interlock(
     if !witness.event {
         return Ok(None);
     }
-    match authorization_interlock {
-        AuthorizationInterlockState::Disabled
-        | AuthorizationInterlockState::ParticipantBound { .. } => {
-            return Ok(None);
-        }
-        AuthorizationInterlockState::ParticipantPending { .. } => {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-                "auth",
-                "authorization participant construction is still pending",
-            ));
-        }
-        AuthorizationInterlockState::ParticipantReady { .. } => {}
+    if !authorization_interlock.authorization_commit_reservation_required()? {
+        return Ok(None);
     }
     // Any interlocked transaction must arrive with a dependency that was
     // installed and quiesced before SQLite opened. There is intentionally no
@@ -1120,6 +1109,20 @@ enum AuthorizationInterlockState {
     },
 }
 
+impl AuthorizationInterlockState {
+    fn authorization_commit_reservation_required(&self) -> SnapbackResult<bool> {
+        match self {
+            Self::Disabled | Self::ParticipantBound { .. } => Ok(false),
+            Self::ParticipantPending { .. } => Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "authorization participant construction is still pending",
+            )),
+            Self::ParticipantReady { .. } => Ok(true),
+        }
+    }
+}
+
 pub struct LocalDatabase {
     conn: Connection,
     /// Process-unique identity for opaque commit carriers. A carrier minted
@@ -1218,6 +1221,22 @@ impl ServingDatabase {
 
     pub fn binding(&self) -> DatabaseBinding {
         self.authority.binding()
+    }
+
+    /// Whether an authorization-changing serving write must install the exact
+    /// off-Local room reservation before it enters SQLite. Construction-bound
+    /// participants deliberately preserve the former disabled-interlock
+    /// behavior; only auth-time activation makes the reservation mandatory.
+    /// A ready tuple always makes the reservation mandatory, so participant
+    /// retirement remains subject to its fail-closed validation; replacement
+    /// moves the database itself to pending only after retiring P0.
+    ///
+    /// @ref LLP 0290#step-8--switch-production-composition-and-transactions —
+    /// native reservations begin only after auth-time activation.
+    pub fn authorization_commit_reservation_required(&self) -> SnapbackResult<bool> {
+        self.db
+            .authorization_interlock
+            .authorization_commit_reservation_required()
     }
 
     /// @ref LLP 0285#51-defect-1--the-publicly-claimable-authority-root —

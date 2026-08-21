@@ -1,6 +1,6 @@
 # Step 8's registry retirement fires during normal serving, breaking live-delta
 
-**Status:** Open
+**Status:** Open — repair implemented; external live-gate confirmation pending
 **Filed:** 2026-08-20
 **Severity:** High — regression on `main`
 **Systems:** Live/realtime, Security/authorization, Storage
@@ -55,3 +55,32 @@ silently degrades to "cannot start" and the underlying product failure stays hid
 - `node demos/_kit/tests/live-delta-e2e.mjs` passes.
 - The held-permit regression from `8176b4348` still fails without the retirement fix.
 - A test exercises ordinary serving against a live registry so the two cases are distinguished.
+
+## Repair implemented (2026-08-21)
+
+No ordinary-serving lifecycle transition was retiring the registry. The managed server writer
+gate treated every non-neutral preflight as requiring a room-authority reservation, even while
+the database intentionally remained `ParticipantBound` before auth-time activation. Participant
+preparation requires `READY`, and its non-live error was mapped to
+`SNAPBACK_AUTH_INTERLOCK_RETIRED`; the live-but-dormant registry was therefore misreported as
+retired.
+
+The kernel now owns the lifecycle query that decides whether an authorization reservation is
+required: `Disabled` and `ParticipantBound` preserve the former in-turn behavior,
+`ParticipantPending` fails closed as unavailable, and `ParticipantReady` takes the exact
+reservation path. Both the managed writer gate and direct engine helper consume that query.
+Registry retirement and every post-replacement issued-authority validation remain unchanged.
+
+`dormant_serving_schema_load_does_not_report_registry_retirement` exercises the real Axum
+schema-load route against a fresh serving database. It failed before the repair with HTTP 500 and
+the exact retirement diagnostic, and passes afterward with the committed schema hash.
+
+The `8176b4348` property was mutation-checked independently: temporarily neutralizing the old
+registry's authoritative retired bit made
+`same_database_participant_replacement_rejects_held_room_permit` fail at the final transport
+boundary. Restoring it made that regression and
+`same_database_replacement_rejects_previously_admitted_transport_handoff` pass.
+
+All non-network acceptance checks pass. This agent execution sandbox denied a minimal
+`127.0.0.1:0` bind and the live gate reached the same OS error after runtime bootstrap, so the
+ticket remains open only for an unsandboxed run of `node demos/_kit/tests/live-delta-e2e.mjs`.

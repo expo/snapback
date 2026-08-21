@@ -7876,17 +7876,22 @@ impl LocalSnapback {
         //
         // @ref LLP 0290#step-8--switch-production-composition-and-transactions
         // — native reservations begin only after auth-time activation.
-        let reservation_scope = if self.auth_invalidation.is_some() {
-            let cancellation =
-                Arc::new(crate::storage::AuthorizationReservationCancellation::new());
-            Some(
-                self.ephemeral
-                    .reserve_authorization_commit(preflight, cancellation)?
-                    .install(),
-            )
-        } else {
-            None
-        };
+        let authorization_event = !matches!(
+            preflight,
+            crate::storage::AuthorizationCommitPreflight::NoAuthorizationEvent
+        );
+        let reservation_scope =
+            if authorization_event && self.authorization_commit_reservation_required()? {
+                let cancellation =
+                    Arc::new(crate::storage::AuthorizationReservationCancellation::new());
+                Some(
+                    self.ephemeral
+                        .reserve_authorization_commit(preflight, cancellation)?
+                        .install(),
+                )
+            } else {
+                None
+            };
 
         let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
         let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(self)));
@@ -20655,6 +20660,10 @@ impl LocalSnapback {
         &self,
     ) -> SnapbackResult<(u64, crate::storage::AuthorizationVersion)> {
         self.db.authorization_reservation_snapshot()
+    }
+
+    pub fn authorization_commit_reservation_required(&self) -> SnapbackResult<bool> {
+        self.db.authorization_commit_reservation_required()
     }
 
     pub(crate) fn authorization_commit_preflight_for_changes(

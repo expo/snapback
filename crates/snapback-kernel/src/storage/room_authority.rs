@@ -2104,11 +2104,28 @@ mod tests {
     fn activation_requires_the_kernel_initialized_snapshot() {
         let local = LocalDatabase::memory().unwrap();
         let mut database = ServingDatabase::adopt(local).unwrap();
+        assert!(
+            !database
+                .authorization_commit_reservation_required()
+                .unwrap()
+        );
         let (authorization, _, _) = database.reserve_invalidation_boot_issuer().unwrap();
         let participant = database.take_authorization_commit_participant().unwrap();
+        let pending = database
+            .authorization_commit_reservation_required()
+            .expect_err("pending construction cannot select dormant serving");
+        assert_eq!(
+            pending.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
         database
             .bind_authorization_commit_participant(&participant)
             .unwrap();
+        assert!(
+            !database
+                .authorization_commit_reservation_required()
+                .unwrap()
+        );
 
         let error = database
             .activate_authorization_commit_participant(&participant)
@@ -2125,6 +2142,11 @@ mod tests {
         database
             .activate_authorization_commit_participant(&participant)
             .unwrap();
+        assert!(
+            database
+                .authorization_commit_reservation_required()
+                .unwrap()
+        );
     }
 
     #[test]
