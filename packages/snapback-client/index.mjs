@@ -8401,11 +8401,19 @@ export class SnapbackClient {
   // and AgentAuthorityFence carrier/token generations are deliberately absent.
   // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — capture-at-enqueue authority
   //   descriptor, principal scope, and durable fence lineage.
-  async #captureQueueAuthority() {
+  async #captureQueueAuthority(expectedCapture = null) {
     if (!this.authorityFence) return null;
     const capture = this.authorityFence.capture();
+    if (
+      expectedCapture !== null
+      && !sameAuthorityCapture(capture, expectedCapture)
+    ) throw staleAuthorityError();
     const session = await this.authSession();
     if (!this.authorityFence.isCurrent?.(capture)) throw staleAuthorityError();
+    if (
+      expectedCapture !== null
+      && !sameAuthorityCapture(capture, expectedCapture)
+    ) throw staleAuthorityError();
     return this.#queueAuthorityFromSession(capture, session);
   }
 
@@ -11150,6 +11158,18 @@ export class SnapbackClient {
     if (queue !== 'auto' && queue !== false && queue !== true) {
       throw new TypeError("mutate queue option must be 'auto', true, or false");
     }
+    // @ref LLP 0059#authority-identity-and-captures — foreground admission,
+    // asynchronous generated preparation, and transport belong to one exact
+    // authority. Internal durable replay already supplies its owned capture.
+    let preparationAuthorityCapture = authorityCapture;
+    if (
+      preparationAuthorityCapture === null
+      && requiresGeneratedAuthenticatedAuthority(ref)
+      && this.authorityFence
+      && __authorizationDispatchOwnership !== OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP
+    ) {
+      preparationAuthorityCapture = this.captureAuthority();
+    }
     // Queue admission and authorization fencing are separate capabilities.
     // Preserve the shared authorization store before an `auto` capability
     // probe can relinquish durable replay: a ledger-less target still may
@@ -11201,6 +11221,10 @@ export class SnapbackClient {
         settlementClaims,
         boundedSkew,
       } = prepared);
+      if (
+        preparationAuthorityCapture !== null
+        && !this.isAuthorityCaptureCurrent(preparationAuthorityCapture)
+      ) throw staleAuthorityError();
     }
     if (
       settlementLane !== null
@@ -11265,7 +11289,7 @@ export class SnapbackClient {
     let queueAuthority = null;
     if (queueStore && clientMutationId !== null && this.authorityFence) {
       try {
-        queueAuthority = await this.#captureQueueAuthority();
+        queueAuthority = await this.#captureQueueAuthority(preparationAuthorityCapture);
       } catch (error) {
         this.#recordOutboxDiagnostic({
           code: 'SNAPBACK_OFFLINE_MUTATION_QUEUE_REFUSED',
@@ -11672,6 +11696,10 @@ export class SnapbackClient {
       && !durableOnlineRecord
       && durableMutationRecord !== null
     ) {
+      if (
+        preparationAuthorityCapture !== null
+        && !this.isAuthorityCaptureCurrent(preparationAuthorityCapture)
+      ) throw staleAuthorityError();
       this.#installEphemeralOptimisticRecord(
         durableMutationRecord,
         optimisticInvocationSequence,
@@ -11727,6 +11755,10 @@ export class SnapbackClient {
             authAdmissionOperation: 'mutation',
             beforeTransportDispatch: async () => {
               await __beforeTransportDispatch?.();
+              if (
+                preparationAuthorityCapture !== null
+                && !this.isAuthorityCaptureCurrent(preparationAuthorityCapture)
+              ) throw staleAuthorityError();
               if (!authorizationDispatchStore) return;
               await releaseAuthorizationDispatch();
               authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(

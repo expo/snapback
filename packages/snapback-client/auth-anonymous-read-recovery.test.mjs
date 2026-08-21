@@ -125,6 +125,16 @@ const protectedMutation = Object.freeze({
   argsContract: { kind: 'object', fields: [] },
   authRequirement: 'authenticated',
 });
+const generatedProtectedMutation = Object.freeze({
+  ...protectedMutation,
+  name: 'preparedPrivateMutation',
+  mutationIr: Object.freeze({
+    format: 'snapback.generated-mutation-ir.v1',
+    capabilityClass: 'local-executable',
+    operationHash: `sha256:${'4'.repeat(64)}`,
+    plan: Object.freeze({ steps: Object.freeze([]) }),
+  }),
+});
 const legacyProtectedQuery = Object.freeze({
   artifactKind: 'functionReference',
   kind: 'Query',
@@ -193,6 +203,9 @@ function makeFixture() {
         return authRequired();
       }
       return Response.json({ rows: [{ id: 'private-1' }], version: 1 });
+    }
+    if (path === '/mutation/preparedPrivateMutation') {
+      return Response.json({ result: { admitted: true }, version: 2 });
     }
     if (path === '/action/privateAction' || path === '/mutation/privateMutation') {
       if (heldEffect === null) throw new Error(`unexpected unheld effect request: ${path}`);
@@ -927,6 +940,71 @@ test('anonymous protected one-shots recover on the same client', async (t) => {
     } finally {
       gate?.release();
       await gate?.unregister();
+      await fixture.close();
+    }
+  });
+
+  await t.test('authenticated mutation preparation cannot cross into successor authority', async () => {
+    const fixture = makeFixture();
+    try {
+      await fixture.client.authSession();
+      const anonymousCapture = fixture.coordinator.capture();
+      const anonymousAuthority = fixture.coordinator.credentialFor(anonymousCapture).authority;
+      await fixture.client.authExchange({
+        challengeId: 'challenge-mutation-preparation-fence',
+        code: '975310',
+      });
+
+      const originalStoreRuntimeInvoke = fixture.client.__storeRuntimeInvoke.bind(fixture.client);
+      let reportPreparationStarted;
+      let releasePreparation;
+      const preparationStarted = new Promise((resolve) => {
+        reportPreparationStarted = resolve;
+      });
+      const preparationHeld = new Promise((resolve) => {
+        releasePreparation = resolve;
+      });
+      fixture.client.__storeRuntimeInvoke = async (name, payload) => {
+        if (name !== 'prepareGeneratedMutation') {
+          return originalStoreRuntimeInvoke(name, payload);
+        }
+        reportPreparationStarted();
+        await preparationHeld;
+        return {
+          generatedMutation: { operationHash: generatedProtectedMutation.mutationIr.operationHash },
+          clientMutationId: payload.clientMutationId,
+          optimisticOperation: null,
+          ctxLedger: null,
+          settlementLane: null,
+          settlementIdentity: null,
+          settlementClaims: null,
+          boundedSkew: null,
+        };
+      };
+
+      const mutation = fixture.client.mutate(generatedProtectedMutation, {
+        args: {},
+        queue: false,
+        __generatedOptimistic: false,
+      });
+      await preparationStarted;
+      await fixture.coordinator.transition(
+        fixture.coordinator.capture(),
+        { authority: anonymousAuthority, bearer: null, refreshAfterMs: null },
+        'logout-during-generated-mutation-preparation',
+      );
+      releasePreparation();
+
+      await assert.rejects(
+        mutation,
+        (error) => error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+      );
+      assert.equal(
+        fixture.requests.filter(({ path }) => path === '/mutation/preparedPrivateMutation').length,
+        0,
+        'the mutation is refused before successor-authority transport dispatch',
+      );
+    } finally {
       await fixture.close();
     }
   });
