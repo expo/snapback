@@ -28,7 +28,16 @@ After scaffolding:
 cd my-chat
 bun install
 bun run dev
+bun run prove
 ```
+
+`bun run prove` is ordinary completion and the only done-oracle: it writes the
+authoritative aggregate `snapback verify` receipt (acceptance evidence, not
+formal proof). `npm test` runs the raw starter acceptance that `prove` wraps
+for debugging, while `bun run test:static` checks no-server source/generated
+coherence. Available `bun run carry:*` commands drive browser or simulator
+observation only after accepting the `prove` receipt; their artifacts are not
+proof authority.
 
 ## Documentation outside a checkout
 

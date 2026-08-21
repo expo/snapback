@@ -14,7 +14,7 @@ and require a manifest-checked script glossary.)
 LLP 0196, LLP 0259, LLP 0275, Diary 0091,
 issues/20260819-verify-starter-receipt-field-diagnostics.md,
 issues/20260819-expo-web-carrier-supervised-origin.md,
-issues/20260819-template-script-surface-glossary.md,
+issues/closed/20260819-template-script-surface-glossary.md,
 issues/20260819-expo-everyday-simulator-launch.md,
 issues/20260819-heic-image-normalization.md,
 issues/20260819-minimal-expo-starter.md,
@@ -120,7 +120,7 @@ the boundary and recovery path, not substitute for a working command.
 
 Direct work is tracked by the two existing LLP 0275 tickets plus
 `issues/20260819-verify-starter-receipt-field-diagnostics.md` and
-`issues/20260819-template-script-surface-glossary.md`.
+`issues/closed/20260819-template-script-surface-glossary.md`.
 
 ### W2 — Make Expo carriers executable, not reconstructable
 

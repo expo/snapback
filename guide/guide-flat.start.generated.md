@@ -85,7 +85,7 @@ when no template is selected.
   should then be declared explicitly.
 - **The loop.** Edit → `bun run generate` → `bun run dev` →
   `bun run prove`. A green verify receipt is "done"; anything else is a
-  claim.
+  claim. Here, “prove” means acceptance evidence, not formal proof.
 - **When something refuses,** read the `SNAPBACK_*` code, then run
   `snapback guide <CODE>` for the exact rule and fix.
 
@@ -145,9 +145,18 @@ Vite; it prints the admin console URL) → `bun run prove`.
 `bun run prove` (`npm run prove` is equivalent) is the acceptance command:
 it runs the registered live profile through `snapback verify` and writes
 the receipt to `.snapback/verify-receipt.json`. Done = green receipt.
-Carrier kits when you need a driven environment: `npm run carry:headless`,
-`npm run carry:web-browser`; `npm run carry:self-check` validates without a
-server.
+
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
 
 ## Edit targets (work files — listed, not charged to the first read)
 
@@ -248,32 +257,33 @@ Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
 launches a device or simulator — Expo Go, a dev client, or
 `expo run:ios|android` is your job) → `bun run prove`.
 
-`bun run prove` (`npm run prove` is equivalent) is the acceptance command:
-it runs the registered live profile through `snapback verify` and writes
-the receipt to `.snapback/verify-receipt.json`. Done = green receipt.
-Carrier kits: `npm run carry:headless`, `npm run carry:web-browser`,
-`npm run carry:native-simulator` (owns simulator boot, deep-link drive, and
-screenshots); `npm run carry:self-check` validates without a server. If you
-launch Metro yourself, do not inherit `CI=1` — a truthy `CI` disables file
-watching and serves a stale bundle; prefer `bun run dev`.
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`, `bun run carry:native-simulator`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+The native carrier owns simulator boot, drive, and screenshots. Self-started
+Metro must not inherit `CI=1` (it disables watching); prefer `bun run dev`.
 
 ## Edit targets (work files — listed, not charged to the first read)
 
-- `snapback/schema.mjs` — sessions mode with guest, password, and email-code
-  entry (`defineAuth` + `{ auth: { mode: 'sessions' } }`), tables for users,
-  conversations, memberships, messages, reactions; ephemeral `typing`.
+- `snapback/schema.mjs` — sessions auth; user/conversation/membership/message/
+  reaction tables; ephemeral `typing`.
 - `snapback/functions.mjs` — inbox and thread live queries, `sendText` /
   `sendReply` / `react` mutations, and the bound `send` command.
 - `snapback/seed.json` — seeded demo personas and conversations.
-- `App.tsx` — boot: `SnapbackExpoProvider` with the generated `app`
-  descriptor; `registerExpoFileSystemRqsFiles` at the root gives retained
-  offline rendering on native (web uses the browser persistence arm).
-  `useSnapbackCurrentPrincipal` and `useSnapbackAuth` provide the ordinary
-  password signup/sign-in/current-principal/sign-out journey.
+- `App.tsx` — generated `app` → `SnapbackExpoProvider`; native retained files;
+  password entry via `useSnapbackCurrentPrincipal` / `useSnapbackAuth`.
 - `src/screens/inbox-screen.tsx` / `src/screens/chat-screen.tsx` — the
-  consumers: `useSnapbackQuery` for inbox rows; one `useSurface` handle
-  drives the thread (live reads, replies, reactions, typing presence,
-  image upload) from `@expo/snapback-expo`.
+  `useSnapbackQuery` inbox and `useSurface` thread (replies, reactions,
+  typing, upload) from `@expo/snapback-expo`.
 - `acceptance.mjs` + `snapback.verify.config.mjs` — the registered proof.
 
 `snapback/generated/` is codegen-owned: regenerate, commit
@@ -282,10 +292,8 @@ watching and serves a stale bundle; prefer `bun run dev`.
 ## Posture
 
 - **Auth: sessions mode, guest-first plus ordinary password entry.** The
-  generated application descriptor opts into the first-party auth path and
-  reaches anonymous `ready` before entry. Recovery codes surface once after
-  password signup. The supervised dev loop may also provide a guest session
-  for authenticated sends and in-app image upload.
+  app reaches anonymous `ready`; recovery codes surface once after signup.
+  Supervised dev may provide a guest session for sends and image upload.
 - **Custody: `volatile-explicit`.** Native durable custody is still pending
   Phase 2, so this disposable chat template says memory custody explicitly;
   it does not claim durable native custody or silently weaken a durable
@@ -352,22 +360,25 @@ reviewed-authorities-digest: sha256:b1f8201cab1348a01e401a2f12412ee36b6412cc13d3
 # Start stub: the `crud-dashboard` template
 
 <!-- start-packet:begin crud-dashboard -->
-Mental model first: [Snapback in one screen](./mental-model.md) — that page
-plus this stub is the whole first read (LLP 0259 Rung A).
+Mental model: [Snapback in one screen](./mental-model.md); with this stub it is
+the whole first read.
 
-- Loop: edit `snapback/schema.mjs` + `snapback/functions.mjs` +
-  `snapback/seed.json` → `bun run generate` → `bun run dev` →
-  `bun run prove` — the acceptance command (receipt:
-  `.snapback/verify-receipt.json`); carrier kit: `npm run carry:web-browser`.
-- Edit targets: those three plus `src/App.tsx`; `snapback/generated/` is
-  codegen-owned (commit `generated/artifacts.json`).
-- Consumer: `useSnapbackQuery` / `useSnapbackMutation` (with a replayable
-  `optimistic:` projection) from `@expo/snapback-react`;
-  `projectDirectory` is a relational query joining projects to teams —
-  keep its joined uniqueness intact.
-- Sessions is the schema default; the sample data and mutations stay
-  public so the scaffold works without sign-in UI.
-- Escalate one page at a time: `snapback guide <query>`.
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+Edit `snapback/{schema,functions}.mjs`, `seed.json`, `src/App.tsx` →
+`generate` → `dev` → `prove`; generated files are codegen-owned. The consumer
+uses `useSnapbackQuery` / `useSnapbackMutation`. Escalate with
+`snapback guide <query>`.
 <!-- start-packet:end -->
 
 ---
@@ -391,24 +402,24 @@ reviewed-authorities-digest: sha256:f805ed361a34d8e055b4cf2e28c744733ae6c5c21627
 # Start stub: the `media-feed` template
 
 <!-- start-packet:begin media-feed -->
-Mental model first: [Snapback in one screen](./mental-model.md) — that page
-plus this stub is the whole first read (LLP 0259 Rung A).
+Mental model: [Snapback in one screen](./mental-model.md); with this stub it is
+the whole first read.
 
-- Loop: edit `snapback/schema.mjs` + `snapback/functions.mjs` +
-  `snapback/seed.json` → `bun run generate` → `bun run dev` →
-  `bun run prove` — the acceptance command (receipt:
-  `.snapback/verify-receipt.json`); carrier kit:
-  `npm run carry:native-simulator`.
-- Edit targets: those three plus `App.tsx` and `pagination.mjs`;
-  `snapback/generated/` is codegen-owned (commit
-  `generated/artifacts.json`).
-- Consumer: Expo + `useSnapbackQuery`; the `publishEntry` command owns
-  upload → finalize → typed `assetRef` attach; sessions custody is
-  required for app-side uploads (the supervised loop adopts it).
-- Pagination keys on an immutable `pageKey`: the live head is whole-result
-  replacement; older pages accumulate in component state, deduplicated by
-  `_id`.
-- Escalate one page at a time: `snapback guide <query>`.
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`, `bun run carry:native-simulator`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+Edit `snapback/{schema,functions}.mjs`, `seed.json`, `App.tsx`, and
+`pagination.mjs` → `generate` → `dev` → `prove`. `publishEntry` owns
+upload/finalize/attach. Escalate with `snapback guide <query>`.
 <!-- start-packet:end -->
 
 ---
@@ -435,17 +446,19 @@ reviewed-authorities-digest: sha256:775cff52172764ba61fe9e51b068f63a7dd4afc72372
 Mental model first: [Snapback in one screen](./mental-model.md) — that page
 plus this stub is the whole first read (LLP 0259 Rung A).
 
-- This starter is backend + headless client only — no UI ships. Want a UI
-  out of the box? Scaffold `react` or `expo-chat` instead.
-- Loop: edit `snapback/schema.mjs` + `snapback/functions.mjs` +
-  `snapback/seed.json` → `bun run generate` → `bun run dev` →
-  `bun run prove` — the acceptance command (receipt:
-  `.snapback/verify-receipt.json`); carrier kit: `npm run carry:headless`.
-- Consumer: the headless `SnapbackClient` — `client.query(api.listTodos,
-  {})` and `client.mutate(api.createTodo, …)` as `acceptance.mjs` shows.
-- Auth: dev mode; flip to `{ auth: { mode: 'sessions' } }` before users or
-  uploads.
-- `snapback/generated/` is codegen-owned (commit
-  `generated/artifacts.json`).
-- Escalate one page at a time: `snapback guide <query>`.
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+Backend + headless. Edit `snapback/{schema,functions}.mjs` and `seed.json`
+→ `generate` → `dev` → `prove`; generated files are codegen-owned.
+`SnapbackClient` is the consumer. Escalate with `snapback guide <query>`.
 <!-- start-packet:end -->

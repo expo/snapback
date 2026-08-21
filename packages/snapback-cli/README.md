@@ -50,8 +50,13 @@ live queries, the generated conversation surface, and typing presence).
      --args '{}'
    ```
 
-The generated project also includes `bun run test`, which owns an isolated
-server and proves a real query and mutation before it succeeds.
+For ordinary completion, run `bun run prove`, the only done-oracle; it writes
+the authoritative aggregate `snapback verify` receipt (acceptance evidence,
+not formal proof). `npm test` runs the raw starter acceptance that `prove`
+wraps for debugging, while `bun run test:static` checks no-server
+source/generated coherence. Available `bun run carry:*` commands drive browser
+or simulator observation only after accepting the `prove` receipt; their
+artifacts are not proof authority.
 
 ## Documentation outside a checkout
 

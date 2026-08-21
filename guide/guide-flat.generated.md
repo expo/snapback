@@ -27424,7 +27424,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-backup-plan-invalid"></a>`SNAPBACK_BACKUP_PLAN_INVALID` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2668` | 4 |
 | <a id="diagnostic-snapback-backup-stale-plan"></a>`SNAPBACK_BACKUP_STALE_PLAN` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2751` | 1 |
 | <a id="diagnostic-snapback-backup-state-changed"></a>`SNAPBACK_BACKUP_STATE_CHANGED` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2799` | 1 |
-| <a id="diagnostic-snapback-backup-subcommand-unimplemented"></a>`SNAPBACK_BACKUP_SUBCOMMAND_UNIMPLEMENTED` | cli | — | — | `packages/snapback-cli/index.mjs:6589` | 1 |
+| <a id="diagnostic-snapback-backup-subcommand-unimplemented"></a>`SNAPBACK_BACKUP_SUBCOMMAND_UNIMPLEMENTED` | cli | — | — | `packages/snapback-cli/index.mjs:6593` | 1 |
 | <a id="diagnostic-snapback-batch-read-index-invalid"></a>`SNAPBACK_BATCH_READ_INDEX_INVALID` | codegen | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6524` | 8 |
 | <a id="diagnostic-snapback-batch-read-input-bytes-exceeded"></a>`SNAPBACK_BATCH_READ_INPUT_BYTES_EXCEEDED` | harness | 413 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6358` | 5 |
 | <a id="diagnostic-snapback-batch-read-input-invalid"></a>`SNAPBACK_BATCH_READ_INPUT_INVALID` | harness | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6258` | 13 |
@@ -27963,7 +27963,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-deploy-rollback-failed"></a>`SNAPBACK_DEPLOY_ROLLBACK_FAILED` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:3680` | 1 |
 | <a id="diagnostic-snapback-deploy-source-status-failed"></a>`SNAPBACK_DEPLOY_SOURCE_STATUS_FAILED` | cli | — | — | `packages/snapback-cli/index.mjs:969` | 1 |
 | <a id="diagnostic-snapback-deploy-source-unversioned"></a>`SNAPBACK_DEPLOY_SOURCE_UNVERSIONED` | cli | — | [guide](../deploying/releases.md#repair-a-refused-build) | `packages/snapback-cli/index.mjs:953` | 4 |
-| <a id="diagnostic-snapback-deploy-subcommand-unimplemented"></a>`SNAPBACK_DEPLOY_SUBCOMMAND_UNIMPLEMENTED` | cli | — | — | `packages/snapback-cli/index.mjs:6712` | 1 |
+| <a id="diagnostic-snapback-deploy-subcommand-unimplemented"></a>`SNAPBACK_DEPLOY_SUBCOMMAND_UNIMPLEMENTED` | cli | — | — | `packages/snapback-cli/index.mjs:6716` | 1 |
 | <a id="diagnostic-snapback-deploy-target-profile-mismatch"></a>`SNAPBACK_DEPLOY_TARGET_PROFILE_MISMATCH` | cli | — | — | `packages/snapback-cli/index.mjs:1476` | 1 |
 | <a id="diagnostic-snapback-dev-admin-token-file-invalid"></a>`SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID` | cli | — | — | `packages/snapback-cli/index.mjs:3738` | 3 |
 | <a id="diagnostic-snapback-dev-application-not-ready"></a>`SNAPBACK_DEV_APPLICATION_NOT_READY` | cli | — | — | `packages/snapback-cli/index.mjs:4248` | 1 |
@@ -28878,10 +28878,10 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-network-profile-forbidden"></a>`SNAPBACK_NETWORK_PROFILE_FORBIDDEN` | server | 403 | [guide](../operating/network-profiles.md#know-where-activation-is-allowed) | `crates/snapback-engine/src/local/engine.rs:6215` | 3 |
 | <a id="diagnostic-snapback-network-profile-invalid"></a>`SNAPBACK_NETWORK_PROFILE_INVALID` | server | 400 | — | `crates/snapback-types/src/network_profile.rs:21` | 1 |
 | <a id="diagnostic-snapback-new-name-invalid"></a>`SNAPBACK_NEW_NAME_INVALID` | cli | — | — | `packages/snapback-cli/index.mjs:1670` | 1 |
-| <a id="diagnostic-snapback-new-name-required"></a>`SNAPBACK_NEW_NAME_REQUIRED` | create-snapback-app | — | — | `packages/create-snapback-app/cli.mjs:86` | 2 |
+| <a id="diagnostic-snapback-new-name-required"></a>`SNAPBACK_NEW_NAME_REQUIRED` | create-snapback-app | — | — | `packages/create-snapback-app/cli.mjs:94` | 2 |
 | <a id="diagnostic-snapback-new-target-exists"></a>`SNAPBACK_NEW_TARGET_EXISTS` | cli | — | — | `packages/snapback-cli/index.mjs:1673` | 1 |
-| <a id="diagnostic-snapback-new-template-unknown"></a>`SNAPBACK_NEW_TEMPLATE_UNKNOWN` | create-snapback-app | — | — | `packages/create-snapback-app/cli.mjs:47` | 2 |
-| <a id="diagnostic-snapback-new-usage"></a>`SNAPBACK_NEW_USAGE` | create-snapback-app | — | — | `packages/create-snapback-app/cli.mjs:50` | 2 |
+| <a id="diagnostic-snapback-new-template-unknown"></a>`SNAPBACK_NEW_TEMPLATE_UNKNOWN` | create-snapback-app | — | — | `packages/create-snapback-app/cli.mjs:52` | 2 |
+| <a id="diagnostic-snapback-new-usage"></a>`SNAPBACK_NEW_USAGE` | create-snapback-app | — | — | `packages/create-snapback-app/cli.mjs:55` | 2 |
 | <a id="diagnostic-snapback-observation-stage-duplicate"></a>`SNAPBACK_OBSERVATION_STAGE_DUPLICATE` | server | — | — | `crates/snapback-types/src/telemetry_contract.rs:779` | 2 |
 | <a id="diagnostic-snapback-observation-stage-missing"></a>`SNAPBACK_OBSERVATION_STAGE_MISSING` | server | — | — | `crates/snapback-types/src/telemetry_contract.rs:763` | 1 |
 | <a id="diagnostic-snapback-offline-mutations-deleted-authority-change"></a>`SNAPBACK_OFFLINE_MUTATIONS_DELETED_AUTHORITY_CHANGE` | client | — | — | `packages/snapback-client/index.mjs:8469` | 1 |
@@ -29425,9 +29425,9 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-repo-root"></a>`SNAPBACK_REPO_ROOT` | swift-client | — | [guide](../clients/swift.md#dependency-declaration-not-supported) | `clients/swift/SnapbackClient/Sources/snapback-prove/main.swift:19` | 2 |
 | <a id="diagnostic-snapback-request-body-timeout"></a>`SNAPBACK_REQUEST_BODY_TIMEOUT` | server | 408 | — | `crates/snapback-server/src/server.rs:10125` | 4 |
 | <a id="diagnostic-snapback-request-json-invalid"></a>`SNAPBACK_REQUEST_JSON_INVALID` | swift-client | 400 | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:277` | 12 |
-| <a id="diagnostic-snapback-reset-dev-loop-active"></a>`SNAPBACK_RESET_DEV_LOOP_ACTIVE` | cli | — | — | `packages/snapback-cli/index.mjs:5973` | 2 |
-| <a id="diagnostic-snapback-reset-supervisor-response-invalid"></a>`SNAPBACK_RESET_SUPERVISOR_RESPONSE_INVALID` | cli | — | — | `packages/snapback-cli/index.mjs:5954` | 1 |
-| <a id="diagnostic-snapback-reset-supervisor-stale"></a>`SNAPBACK_RESET_SUPERVISOR_STALE` | cli | — | — | `packages/snapback-cli/index.mjs:5870` | 1 |
+| <a id="diagnostic-snapback-reset-dev-loop-active"></a>`SNAPBACK_RESET_DEV_LOOP_ACTIVE` | cli | — | — | `packages/snapback-cli/index.mjs:5977` | 2 |
+| <a id="diagnostic-snapback-reset-supervisor-response-invalid"></a>`SNAPBACK_RESET_SUPERVISOR_RESPONSE_INVALID` | cli | — | — | `packages/snapback-cli/index.mjs:5958` | 1 |
+| <a id="diagnostic-snapback-reset-supervisor-stale"></a>`SNAPBACK_RESET_SUPERVISOR_STALE` | cli | — | — | `packages/snapback-cli/index.mjs:5874` | 1 |
 | <a id="diagnostic-snapback-response-invalid"></a>`SNAPBACK_RESPONSE_INVALID` | admin-client | — | — | `packages/snapback-admin-client/index.mjs:1011` | 2 |
 | <a id="diagnostic-snapback-response-not-json"></a>`SNAPBACK_RESPONSE_NOT_JSON` | admin-client | — | — | `packages/snapback-admin-client/index.mjs:283` | 2 |
 | <a id="diagnostic-snapback-response-token"></a>`SNAPBACK_RESPONSE_TOKEN` | harness | — | — | `crates/snapback-runtime/src/workerd_exec.rs:339` | 3 |
@@ -29445,7 +29445,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-restore-receipt-not-paused"></a>`SNAPBACK_RESTORE_RECEIPT_NOT_PAUSED` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:3320` | 1 |
 | <a id="diagnostic-snapback-restore-result-invalid"></a>`SNAPBACK_RESTORE_RESULT_INVALID` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2319` | 1 |
 | <a id="diagnostic-snapback-restore-stale-plan"></a>`SNAPBACK_RESTORE_STALE_PLAN` | cli | — | [guide](../deploying/releases.md#repair-a-refused-build) | `packages/snapback-cli/deployment-control.mjs:3170` | 1 |
-| <a id="diagnostic-snapback-restore-subcommand-unimplemented"></a>`SNAPBACK_RESTORE_SUBCOMMAND_UNIMPLEMENTED` | cli | — | — | `packages/snapback-cli/index.mjs:6526` | 1 |
+| <a id="diagnostic-snapback-restore-subcommand-unimplemented"></a>`SNAPBACK_RESTORE_SUBCOMMAND_UNIMPLEMENTED` | cli | — | — | `packages/snapback-cli/index.mjs:6530` | 1 |
 | <a id="diagnostic-snapback-result-contract-kind-mismatch"></a>`SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH` | server | 400 | — | `crates/snapback-server/src/server/api_error.rs:1354` | 2 |
 | <a id="diagnostic-snapback-result-transform-base-invalid"></a>`SNAPBACK_RESULT_TRANSFORM_BASE_INVALID` | client | 400 | — | `crates/snapback-server/src/server/api_error.rs:1192` | 3 |
 | <a id="diagnostic-snapback-result-transform-comparator-unknown"></a>`SNAPBACK_RESULT_TRANSFORM_COMPARATOR_UNKNOWN` | client | 400 | — | `crates/snapback-server/src/server/api_error.rs:1193` | 3 |
@@ -29945,7 +29945,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-verify-profile-identity-incomplete"></a>`SNAPBACK_VERIFY_PROFILE_IDENTITY_INCOMPLETE` | cli | — | — | `packages/snapback-cli/verify.mjs:1881` | 1 |
 | <a id="diagnostic-snapback-verify-profile-identity-invalid"></a>`SNAPBACK_VERIFY_PROFILE_IDENTITY_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1861` | 1 |
 | <a id="diagnostic-snapback-verify-profile-threw"></a>`SNAPBACK_VERIFY_PROFILE_THREW` | cli | — | — | `packages/snapback-cli/verify.mjs:1842` | 1 |
-| <a id="diagnostic-snapback-verify-profile-timeout"></a>`SNAPBACK_VERIFY_PROFILE_TIMEOUT` | cli | — | [guide](../testing/verify.md#author-snapbackverifyconfigmjs) | `packages/snapback-cli/index.mjs:6141` | 3 |
+| <a id="diagnostic-snapback-verify-profile-timeout"></a>`SNAPBACK_VERIFY_PROFILE_TIMEOUT` | cli | — | [guide](../testing/verify.md#author-snapbackverifyconfigmjs) | `packages/snapback-cli/index.mjs:6145` | 3 |
 | <a id="diagnostic-snapback-verify-qualify-runtime"></a>`SNAPBACK_VERIFY_QUALIFY_RUNTIME` | cli | — | — | `packages/snapback-cli/verify.mjs:71` | 1 |
 | <a id="diagnostic-snapback-verify-receipt-invalid"></a>`SNAPBACK_VERIFY_RECEIPT_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:2129` | 3 |
 | <a id="diagnostic-snapback-verify-regenerate-artifacts"></a>`SNAPBACK_VERIFY_REGENERATE_ARTIFACTS` | cli | — | — | `packages/snapback-cli/verify.mjs:65` | 1 |
@@ -65874,7 +65874,7 @@ when no template is selected.
   should then be declared explicitly.
 - **The loop.** Edit → `bun run generate` → `bun run dev` →
   `bun run prove`. A green verify receipt is "done"; anything else is a
-  claim.
+  claim. Here, “prove” means acceptance evidence, not formal proof.
 - **When something refuses,** read the `SNAPBACK_*` code, then run
   `snapback guide <CODE>` for the exact rule and fix.
 
@@ -65934,9 +65934,18 @@ Vite; it prints the admin console URL) → `bun run prove`.
 `bun run prove` (`npm run prove` is equivalent) is the acceptance command:
 it runs the registered live profile through `snapback verify` and writes
 the receipt to `.snapback/verify-receipt.json`. Done = green receipt.
-Carrier kits when you need a driven environment: `npm run carry:headless`,
-`npm run carry:web-browser`; `npm run carry:self-check` validates without a
-server.
+
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
 
 ## Edit targets (work files — listed, not charged to the first read)
 
@@ -66037,32 +66046,33 @@ Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
 launches a device or simulator — Expo Go, a dev client, or
 `expo run:ios|android` is your job) → `bun run prove`.
 
-`bun run prove` (`npm run prove` is equivalent) is the acceptance command:
-it runs the registered live profile through `snapback verify` and writes
-the receipt to `.snapback/verify-receipt.json`. Done = green receipt.
-Carrier kits: `npm run carry:headless`, `npm run carry:web-browser`,
-`npm run carry:native-simulator` (owns simulator boot, deep-link drive, and
-screenshots); `npm run carry:self-check` validates without a server. If you
-launch Metro yourself, do not inherit `CI=1` — a truthy `CI` disables file
-watching and serves a stale bundle; prefer `bun run dev`.
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`, `bun run carry:native-simulator`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+The native carrier owns simulator boot, drive, and screenshots. Self-started
+Metro must not inherit `CI=1` (it disables watching); prefer `bun run dev`.
 
 ## Edit targets (work files — listed, not charged to the first read)
 
-- `snapback/schema.mjs` — sessions mode with guest, password, and email-code
-  entry (`defineAuth` + `{ auth: { mode: 'sessions' } }`), tables for users,
-  conversations, memberships, messages, reactions; ephemeral `typing`.
+- `snapback/schema.mjs` — sessions auth; user/conversation/membership/message/
+  reaction tables; ephemeral `typing`.
 - `snapback/functions.mjs` — inbox and thread live queries, `sendText` /
   `sendReply` / `react` mutations, and the bound `send` command.
 - `snapback/seed.json` — seeded demo personas and conversations.
-- `App.tsx` — boot: `SnapbackExpoProvider` with the generated `app`
-  descriptor; `registerExpoFileSystemRqsFiles` at the root gives retained
-  offline rendering on native (web uses the browser persistence arm).
-  `useSnapbackCurrentPrincipal` and `useSnapbackAuth` provide the ordinary
-  password signup/sign-in/current-principal/sign-out journey.
+- `App.tsx` — generated `app` → `SnapbackExpoProvider`; native retained files;
+  password entry via `useSnapbackCurrentPrincipal` / `useSnapbackAuth`.
 - `src/screens/inbox-screen.tsx` / `src/screens/chat-screen.tsx` — the
-  consumers: `useSnapbackQuery` for inbox rows; one `useSurface` handle
-  drives the thread (live reads, replies, reactions, typing presence,
-  image upload) from `@expo/snapback-expo`.
+  `useSnapbackQuery` inbox and `useSurface` thread (replies, reactions,
+  typing, upload) from `@expo/snapback-expo`.
 - `acceptance.mjs` + `snapback.verify.config.mjs` — the registered proof.
 
 `snapback/generated/` is codegen-owned: regenerate, commit
@@ -66071,10 +66081,8 @@ watching and serves a stale bundle; prefer `bun run dev`.
 ## Posture
 
 - **Auth: sessions mode, guest-first plus ordinary password entry.** The
-  generated application descriptor opts into the first-party auth path and
-  reaches anonymous `ready` before entry. Recovery codes surface once after
-  password signup. The supervised dev loop may also provide a guest session
-  for authenticated sends and in-app image upload.
+  app reaches anonymous `ready`; recovery codes surface once after signup.
+  Supervised dev may provide a guest session for sends and image upload.
 - **Custody: `volatile-explicit`.** Native durable custody is still pending
   Phase 2, so this disposable chat template says memory custody explicitly;
   it does not claim durable native custody or silently weaken a durable
@@ -66141,22 +66149,25 @@ reviewed-authorities-digest: sha256:b1f8201cab1348a01e401a2f12412ee36b6412cc13d3
 # Start stub: the `crud-dashboard` template
 
 <!-- start-packet:begin crud-dashboard -->
-Mental model first: [Snapback in one screen](./mental-model.md) — that page
-plus this stub is the whole first read (LLP 0259 Rung A).
+Mental model: [Snapback in one screen](./mental-model.md); with this stub it is
+the whole first read.
 
-- Loop: edit `snapback/schema.mjs` + `snapback/functions.mjs` +
-  `snapback/seed.json` → `bun run generate` → `bun run dev` →
-  `bun run prove` — the acceptance command (receipt:
-  `.snapback/verify-receipt.json`); carrier kit: `npm run carry:web-browser`.
-- Edit targets: those three plus `src/App.tsx`; `snapback/generated/` is
-  codegen-owned (commit `generated/artifacts.json`).
-- Consumer: `useSnapbackQuery` / `useSnapbackMutation` (with a replayable
-  `optimistic:` projection) from `@expo/snapback-react`;
-  `projectDirectory` is a relational query joining projects to teams —
-  keep its joined uniqueness intact.
-- Sessions is the schema default; the sample data and mutations stay
-  public so the scaffold works without sign-in UI.
-- Escalate one page at a time: `snapback guide <query>`.
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+Edit `snapback/{schema,functions}.mjs`, `seed.json`, `src/App.tsx` →
+`generate` → `dev` → `prove`; generated files are codegen-owned. The consumer
+uses `useSnapbackQuery` / `useSnapbackMutation`. Escalate with
+`snapback guide <query>`.
 <!-- start-packet:end -->
 
 ---
@@ -66180,24 +66191,24 @@ reviewed-authorities-digest: sha256:f805ed361a34d8e055b4cf2e28c744733ae6c5c21627
 # Start stub: the `media-feed` template
 
 <!-- start-packet:begin media-feed -->
-Mental model first: [Snapback in one screen](./mental-model.md) — that page
-plus this stub is the whole first read (LLP 0259 Rung A).
+Mental model: [Snapback in one screen](./mental-model.md); with this stub it is
+the whole first read.
 
-- Loop: edit `snapback/schema.mjs` + `snapback/functions.mjs` +
-  `snapback/seed.json` → `bun run generate` → `bun run dev` →
-  `bun run prove` — the acceptance command (receipt:
-  `.snapback/verify-receipt.json`); carrier kit:
-  `npm run carry:native-simulator`.
-- Edit targets: those three plus `App.tsx` and `pagination.mjs`;
-  `snapback/generated/` is codegen-owned (commit
-  `generated/artifacts.json`).
-- Consumer: Expo + `useSnapbackQuery`; the `publishEntry` command owns
-  upload → finalize → typed `assetRef` attach; sessions custody is
-  required for app-side uploads (the supervised loop adopts it).
-- Pagination keys on an immutable `pageKey`: the live head is whole-result
-  replacement; older pages accumulate in component state, deduplicated by
-  `_id`.
-- Escalate one page at a time: `snapback guide <query>`.
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`, `bun run carry:native-simulator`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+Edit `snapback/{schema,functions}.mjs`, `seed.json`, `App.tsx`, and
+`pagination.mjs` → `generate` → `dev` → `prove`. `publishEntry` owns
+upload/finalize/attach. Escalate with `snapback guide <query>`.
 <!-- start-packet:end -->
 
 ---
@@ -66224,19 +66235,21 @@ reviewed-authorities-digest: sha256:775cff52172764ba61fe9e51b068f63a7dd4afc72372
 Mental model first: [Snapback in one screen](./mental-model.md) — that page
 plus this stub is the whole first read (LLP 0259 Rung A).
 
-- This starter is backend + headless client only — no UI ships. Want a UI
-  out of the box? Scaffold `react` or `expo-chat` instead.
-- Loop: edit `snapback/schema.mjs` + `snapback/functions.mjs` +
-  `snapback/seed.json` → `bun run generate` → `bun run dev` →
-  `bun run prove` — the acceptance command (receipt:
-  `.snapback/verify-receipt.json`); carrier kit: `npm run carry:headless`.
-- Consumer: the headless `SnapbackClient` — `client.query(api.listTodos,
-  {})` and `client.mutate(api.createTodo, …)` as `acceptance.mjs` shows.
-- Auth: dev mode; flip to `{ auth: { mode: 'sessions' } }` before users or
-  uploads.
-- `snapback/generated/` is codegen-owned (commit
-  `generated/artifacts.json`).
-- Escalate one page at a time: `snapback guide <query>`.
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+Backend + headless. Edit `snapback/{schema,functions}.mjs` and `seed.json`
+→ `generate` → `dev` → `prove`; generated files are codegen-owned.
+`SnapbackClient` is the consumer. Escalate with `snapback guide <query>`.
 <!-- start-packet:end -->
 
 ---
