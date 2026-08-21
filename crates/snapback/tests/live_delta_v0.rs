@@ -648,7 +648,7 @@ fn functions() -> FunctionManifest {
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Patch {
                     table: "todos".to_owned(),
                     id: ValueExpr::Arg("id".to_owned()),

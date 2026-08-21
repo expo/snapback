@@ -135,6 +135,13 @@ function relevantLines(output) {
   )).join('\n');
 }
 
+function inheritedStaleGateNames(output) {
+  return [...new Set(
+    [...output.matchAll(/^\[snapback-drift\] PRE-EXISTING STALE ([^:]+):/gmu)]
+      .map((match) => match[1]),
+  )].sort();
+}
+
 function installGuideDriftFixtureChecker(repo) {
   // This suite exercises revision selection, baseline attribution, refusal,
   // and reconciliation in the drift runner. Keep that integration fixture
@@ -171,6 +178,7 @@ function setupCommittedClone() {
     .find((path) => (
       existsSync(join(path, 'node_modules/.bun'))
         && existsSync(join(path, 'packages/snapback-codegen/node_modules'))
+        && GUIDE_PREPARED_INPUTS.every((input) => existsSync(join(path, input)))
     ));
   assert.ok(dependencyRoot, 'a prepared worktree with JavaScript dependencies is required');
   const sourceModules = join(dependencyRoot, 'node_modules');
@@ -1779,7 +1787,10 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
     assert.match(strict.output, /RUN agent-safe-publication-fixtures:/u);
     assert.match(strict.output, /RUN workspace-graph:/u);
     assert.match(strict.output, /PASS agent-safe-publication-fixtures/u);
-    assert.match(strict.output, /ALLOWED(?: WITH PRE-EXISTING STALENESS|:)/u);
+    // This checkpoint intentionally carries no inherited red; an ambient stale
+    // gate must not hide behind a permissive summary-count assertion.
+    assert.deepEqual(inheritedStaleGateNames(strict.output), []);
+    assert.match(strict.output, /ALLOWED: 3 selected drift-prone gate\(s\) passed/u);
     console.log(
       `DEMO explicit strict trigger in isolated checkout -> executed and allowed\n`
         + relevantLines(strict.output),
@@ -1829,7 +1840,8 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
       { env: strictEnv },
     );
     assert.equal(allowed.status, 0, allowed.output);
-    assert.match(allowed.output, /ALLOWED(?: WITH PRE-EXISTING STALENESS|:)/u);
+    assert.deepEqual(inheritedStaleGateNames(allowed.output), []);
+    assert.match(allowed.output, /ALLOWED: 3 selected drift-prone gate\(s\) passed/u);
     console.log(`DEMO (b) same committed change with generated record -> allowed\n${relevantLines(allowed.output)}`);
     console.log(`TIMING measured-surface git push: ${allowed.wallMs} ms`);
 
@@ -1876,8 +1888,17 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
       { env: strictEnv },
     );
     assert.equal(preExisting.status, 0, preExisting.output);
-    assert.match(preExisting.output, /PRE-EXISTING STALE guide: also fails at baseline [0-9a-f]{12}/u);
-    assert.match(preExisting.output, /ALLOWED WITH PRE-EXISTING STALENESS: 1 gate\(s\)/u);
+    // The bypassed commit deliberately leaves only Guide stale. Compare names
+    // so an unrelated red cannot replace Guide while preserving a bare count.
+    const expectedInheritedStaleGates = ['guide'];
+    assert.deepEqual(inheritedStaleGateNames(preExisting.output), expectedInheritedStaleGates);
+    assert.match(
+      preExisting.output,
+      new RegExp(
+        `ALLOWED WITH PRE-EXISTING STALENESS: ${expectedInheritedStaleGates.length} gate\\(s\\)`,
+        'u',
+      ),
+    );
     console.log(
       `DEMO (e) baseline-stale gate -> allowed with attribution\n`
         + relevantLines(preExisting.output),

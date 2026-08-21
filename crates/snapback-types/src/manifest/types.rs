@@ -2,8 +2,6 @@
 
 use super::*;
 
-
-
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
 /// The paired schema/function artifact version reserved for session authority.
 /// Non-pair artifacts (capabilities, diagnostics, runtime state, and wire DTOs)
@@ -172,7 +170,10 @@ mod single_table_v1_tests {
     #[test]
     fn normalization_and_identity_match_the_codegen_golden() {
         let mut function = eligible_function();
-        assert!(!function.authority_independent, "fixture carries no app assertion");
+        assert!(
+            !function.authority_independent,
+            "fixture carries no app assertion"
+        );
         let normalized = single_table_plan_v1(&function)
             .expect("normalization succeeds")
             .expect("derived predicate selects the class");
@@ -300,7 +301,6 @@ fn function_manifest_kind() -> String {
     "functionManifest".to_owned()
 }
 
-
 fn local_app_id() -> String {
     "local-app".to_owned()
 }
@@ -312,7 +312,6 @@ fn default_true() -> bool {
 fn is_false(value: &bool) -> bool {
     !*value
 }
-
 
 /// Framework-owned zero-to-many media relation. The generated child table is
 /// still an ordinary SQLite table for OCC, backup, and live-query purposes;
@@ -960,7 +959,6 @@ impl SchemaManifest {
         Ok(())
     }
 }
-
 
 /// Public schema identity facts. The schema itself is intentionally public,
 /// but artifact diagnostics are projected to their stable classification so
@@ -4634,7 +4632,6 @@ fn validate_elevated_read_capabilities(function: &FunctionDefinition) -> Snapbac
     Ok(())
 }
 
-
 fn validate_custom_authorization(function: &FunctionDefinition) -> SnapbackResult<()> {
     let Some(custom) = &function.custom_authorization else {
         return Ok(());
@@ -6089,8 +6086,6 @@ pub fn validate_search_query_plan_shape(plan: &SearchQueryPlanV1) -> SnapbackRes
     }
     Ok(())
 }
-
-
 
 /// Rust projection of codegen's schema-derived `SearchItemV1` records
 /// contract. Pair activation compares this exact value, so a direct artifact
@@ -11645,7 +11640,6 @@ pub enum TargetCapabilityId {
     AgentSafeDerivedDeploymentForkV1,
 }
 
-
 /// The closed maturity vocabulary for registry capability ids (LLP 0058
 /// §Capability maturity, amendment 2026-07-24; LLP 0074's no-overclaim rule
 /// for Draft authorities).
@@ -11672,8 +11666,6 @@ pub enum CapabilityMaturity {
     Stable,
 }
 
-
-
 /// Version-1 auth protocol numbers reported by an auth-aware target.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -11684,7 +11676,6 @@ pub struct AuthProtocols {
     pub staged_mode: u32,
     pub bootstrap: u32,
 }
-
 
 /// Version discriminator for the orthogonal agent-safe storage fact block.
 /// This is intentionally independent of [`TargetCapabilityId`]: class facts
@@ -12553,7 +12544,6 @@ pub struct ConnectedClientPredicateFactsV2 {
     pub aggregation_mode: String,
 }
 
-
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CapabilityRangeV1 {
@@ -12563,7 +12553,6 @@ pub struct CapabilityRangeV1 {
     #[serde(rename = "maxMs")]
     pub max_ms: u64,
 }
-
 
 /// The declared standard-pattern live posture (LLP 0065 §4).
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -12708,7 +12697,6 @@ pub struct AppCliTargetFactsV1 {
     pub per_grant_token_cap: Option<u32>,
 }
 
-
 pub fn vm_lifecycle_fresh() -> String {
     "fresh-per-invocation".to_owned()
 }
@@ -12731,8 +12719,6 @@ pub enum ResourceLimitStatus {
     Advisory,
     Missing,
 }
-
-
 
 #[cfg(test)]
 mod approval_manifest_tests {
@@ -12808,13 +12794,10 @@ mod approval_manifest_tests {
     }
 }
 
-
-
 #[cfg(test)]
 mod membership_manifest_grammar_tests {
     use super::*;
     use serde_json::json;
-
 
     fn result_contract_function(contract: FunctionResultContract) -> FunctionDefinition {
         let mut function = FunctionDefinition::new(
@@ -13262,7 +13245,6 @@ mod membership_manifest_grammar_tests {
             "SNAPBACK_VECTOR_INDEX_INVALID"
         );
     }
-
 
     fn snapshot_node_fixture(
         parent_id_arg: &str,
@@ -13927,7 +13909,6 @@ mod membership_manifest_grammar_tests {
             "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
         );
     }
-
 
     #[test]
     fn stream_fact_is_action_only_and_survives_public_projection() {

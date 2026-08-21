@@ -508,10 +508,7 @@ impl AuthProgramReadiness {
         }
     }
 
-    pub fn with_password_provider(
-        mut self,
-        password_provider: PasswordProviderReadiness,
-    ) -> Self {
+    pub fn with_password_provider(mut self, password_provider: PasswordProviderReadiness) -> Self {
         self.password_provider = password_provider;
         self
     }

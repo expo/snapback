@@ -42,10 +42,7 @@ impl ApiCompatOutcome {
 impl ApiEnvelopeV1 {
     /// Route activation through the envelope contract owner without giving
     /// the unassigned `local.rs` remainder a new module dependency.
-    pub fn classify_compatibility(
-        prior: Option<&Self>,
-        next: Option<&Self>,
-    ) -> ApiCompatOutcome {
+    pub fn classify_compatibility(prior: Option<&Self>, next: Option<&Self>) -> ApiCompatOutcome {
         classify_api_compatibility(prior, next)
     }
 }

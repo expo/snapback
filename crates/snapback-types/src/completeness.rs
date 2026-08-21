@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 pub use crate::auth::invalidation::AuthorizationWitnessRecordV1;
 pub use crate::contract_types::CompletenessProofV1;

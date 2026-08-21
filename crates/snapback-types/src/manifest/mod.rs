@@ -45,10 +45,10 @@ mod identity;
 mod types;
 mod vector;
 
-pub use types::*;
-pub use vector::*;
 pub use capability_registry::*;
 pub use identity::*;
+pub use types::*;
+pub use vector::*;
 
 #[doc(hidden)]
 pub fn capability_manifest_kind() -> String {
@@ -74,10 +74,7 @@ pub fn sha256_is_well_formed_nonzero(value: &str) -> bool {
 }
 
 #[doc(hidden)]
-pub fn unsupported_capability_error(
-    capability: &str,
-    message: impl Into<String>,
-) -> SnapbackError {
+pub fn unsupported_capability_error(capability: &str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_CAPABILITY_UNSUPPORTED",
         "capability",

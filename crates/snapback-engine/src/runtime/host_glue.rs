@@ -10214,10 +10214,7 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("T1's stale counter read aborts the whole attempt");
         assert_eq!(t1_error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
-        assert_eq!(
-            db.versions().current_version().unwrap(),
-            committed_version
-        );
+        assert_eq!(db.versions().current_version().unwrap(), committed_version);
         assert!(
             db.settlement_read()
                 .client_mutation_result(&t1_identity)

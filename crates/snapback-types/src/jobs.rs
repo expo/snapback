@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
 /// The bounded per-enqueue fact echoed on the producing mutation's receipt —
 /// the mutation-side half of the association (jobId/action/availableAt only;
 /// never argument values).

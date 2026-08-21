@@ -176,7 +176,6 @@ pub fn reconcile_orphaned_record(record_json: &str) -> Option<String> {
     serde_json::to_string(&persisted).ok()
 }
 
-
 fn unix_time_millis() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

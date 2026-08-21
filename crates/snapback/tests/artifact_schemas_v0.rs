@@ -93,14 +93,14 @@ use snapback::result_transform::{
 use snapback::runtime::{
     CapabilityState, IbexCliCapability, IbexSubmoduleCapability, RuntimeCapabilities,
 };
-use snapback_server::schema_export::http_routes_artifact;
-use snapback_types::schema_export::{EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS, SchemaArtifact};
 use snapback::service_profile::{
     PublishedArtifactRef, RemoteAuthCapabilityManifest, RemoteCredentialPolicy,
     RemoteDataCapabilityManifest, RemoteEndpointPolicy, RemoteServiceDataTierIdentity,
     RemoteServiceGitPublication, RemoteServiceOperation, RemoteServiceProfile,
 };
 use snapback_kernel::storage::{ClientMutationRetentionInfo, StorageInfo};
+use snapback_server::schema_export::http_routes_artifact;
+use snapback_types::schema_export::{EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS, SchemaArtifact};
 
 fn artifact_schemas() -> Vec<SchemaArtifact> {
     let mut artifacts = snapback_types::schema_export::schema_registrations();

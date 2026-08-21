@@ -111,8 +111,7 @@ pub struct ClientMutationIdentity {
     pub operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
 }
 
-const TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID: &str =
-    "018f0d90-7b24-7a22-8c33-445566778899";
+const TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID: &str = "018f0d90-7b24-7a22-8c33-445566778899";
 
 impl ClientMutationIdentity {
     pub fn new(id: impl Into<String>, function: impl Into<String>, input: &HandlerInput) -> Self {

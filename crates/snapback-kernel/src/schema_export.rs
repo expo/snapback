@@ -283,12 +283,18 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "asset.lifecycle-message.schema.json",
             schemars::schema_for!(crate::assets::AssetLifecycleMessageV1),
         ),
-        finish("asset.receipt.schema.json", schemars::schema_for!(crate::assets::AssetReceiptV1)),
+        finish(
+            "asset.receipt.schema.json",
+            schemars::schema_for!(crate::assets::AssetReceiptV1),
+        ),
         finish(
             "asset.refusal-detail.schema.json",
             schemars::schema_for!(crate::assets::AssetRefusalDetailV1),
         ),
-        finish("asset.record.schema.json", schemars::schema_for!(crate::assets::AssetRecordV1)),
+        finish(
+            "asset.record.schema.json",
+            schemars::schema_for!(crate::assets::AssetRecordV1),
+        ),
         finish(
             "asset.record-view.schema.json",
             schemars::schema_for!(crate::assets::AssetRecordClientViewV1),
@@ -309,7 +315,10 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "asset.publication-record.schema.json",
             schemars::schema_for!(crate::assets::AssetPublicationRecordV1),
         ),
-        finish("asset.work-row.schema.json", schemars::schema_for!(crate::assets::AssetWorkRowV1)),
+        finish(
+            "asset.work-row.schema.json",
+            schemars::schema_for!(crate::assets::AssetWorkRowV1),
+        ),
         finish(
             "asset.cut-manifest.schema.json",
             schemars::schema_for!(crate::assets_cut::AssetCutManifestV1),
@@ -329,7 +338,10 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
             "migration.journal-machine.v1.json",
             crate::storage::migration_executor::migration_journal_artifact(),
         ),
-        instance("migration.vectors-v1.json", crate::migration::migration_vectors_artifact()),
+        instance(
+            "migration.vectors-v1.json",
+            crate::migration::migration_vectors_artifact(),
+        ),
         instance(
             "boundary-digest.golden-v1.json",
             crate::proof_checkpoint::boundary_digest_golden_artifact(),

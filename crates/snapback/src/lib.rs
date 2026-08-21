@@ -308,9 +308,16 @@ pub mod push {
     pub use snapback_types::push::*;
 }
 #[doc(hidden)]
+pub use snapback_cli::store_state;
+#[doc(hidden)]
 pub use snapback_engine::runtime;
 #[doc(hidden)]
 pub use snapback_kernel::remediation;
+#[doc(hidden)]
+pub use snapback_kernel::search;
+pub(crate) use snapback_kernel::secure_file;
+#[doc(hidden)]
+pub use snapback_kernel::seed_identity;
 #[doc(hidden)]
 pub use snapback_services::replication;
 pub use snapback_sync::realtime;
@@ -321,13 +328,6 @@ pub use snapback_types::result_contract;
 #[doc(hidden)]
 pub use snapback_types::result_transform;
 pub use snapback_types::rqs_contract;
-#[doc(hidden)]
-pub use snapback_cli::store_state;
-#[doc(hidden)]
-pub use snapback_kernel::search;
-pub(crate) use snapback_kernel::secure_file;
-#[doc(hidden)]
-pub use snapback_kernel::seed_identity;
 #[doc(hidden)]
 pub mod storage {
     pub use snapback_kernel::storage::{

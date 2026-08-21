@@ -2,7 +2,6 @@
 //! versions, exact target capabilities, and manifest-load refusals.
 
 use serde_json::json;
-use snapback::manifest::{CapabilityManifestLocalExt as _, SchemaManifestValidationExt as _};
 use snapback::manifest::{
     AgentsManifest, AgentsMode, ApiDisclosure, ApiFunctionExposure, ApiManifest, ApiOAuthBundle,
     ApiOAuthManifest, AuthManifest, AuthMode, AuthRequirement, CapabilityManifest,
@@ -11,6 +10,7 @@ use snapback::manifest::{
     QueryPlan, ResultRowsBound, ResultValueContract, SNAPBACK_SCHEMA_VERSION,
     SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, TargetCapabilityId, ValueExpr,
 };
+use snapback::manifest::{CapabilityManifestLocalExt as _, SchemaManifestValidationExt as _};
 use std::collections::BTreeMap;
 
 fn host_query(name: &str) -> FunctionDefinition {

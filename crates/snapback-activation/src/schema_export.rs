@@ -16,11 +16,26 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "auth.hosted-admission-refresh.schema.json",
             schemars::schema_for!(crate::deploy::HostedAdmissionRefreshReceipt),
         ),
-        finish("release.manifest.schema.json", schemars::schema_for!(crate::deploy::ReleaseManifest)),
-        finish("target.descriptor.schema.json", schemars::schema_for!(crate::deploy::TargetDescriptor)),
-        finish("remote-drill.plan.schema.json", schemars::schema_for!(crate::deploy::RemoteDrillPlan)),
-        finish("vm-adapter.request.schema.json", schemars::schema_for!(crate::deploy::AdapterRequest)),
-        finish("vm-adapter.response.schema.json", schemars::schema_for!(crate::deploy::AdapterResponse)),
+        finish(
+            "release.manifest.schema.json",
+            schemars::schema_for!(crate::deploy::ReleaseManifest),
+        ),
+        finish(
+            "target.descriptor.schema.json",
+            schemars::schema_for!(crate::deploy::TargetDescriptor),
+        ),
+        finish(
+            "remote-drill.plan.schema.json",
+            schemars::schema_for!(crate::deploy::RemoteDrillPlan),
+        ),
+        finish(
+            "vm-adapter.request.schema.json",
+            schemars::schema_for!(crate::deploy::AdapterRequest),
+        ),
+        finish(
+            "vm-adapter.response.schema.json",
+            schemars::schema_for!(crate::deploy::AdapterResponse),
+        ),
         finish(
             "vm-adapter.lifecycle-request.schema.json",
             schemars::schema_for!(crate::deploy::AdapterLifecycleRequest),
@@ -85,8 +100,14 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "hosted-product-journey-v1.schema.json",
             schemars::schema_for!(crate::deploy::HostedProductJourneyV1),
         ),
-        finish("backup.manifest.schema.json", schemars::schema_for!(crate::deploy::BackupManifest)),
-        finish("backup.plan.schema.json", schemars::schema_for!(crate::deploy::BackupPlan)),
+        finish(
+            "backup.manifest.schema.json",
+            schemars::schema_for!(crate::deploy::BackupManifest),
+        ),
+        finish(
+            "backup.plan.schema.json",
+            schemars::schema_for!(crate::deploy::BackupPlan),
+        ),
         finish(
             "control.audit-event.schema.json",
             schemars::schema_for!(crate::deploy::ControlAuditEvent),
@@ -103,10 +124,22 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "prepared-release.manifest.schema.json",
             schemars::schema_for!(crate::deploy::PreparedReleaseManifest),
         ),
-        finish("deploy.plan.schema.json", schemars::schema_for!(crate::deploy::DeployPlan)),
-        finish("deploy.receipt.schema.json", schemars::schema_for!(crate::deploy::DeployReceipt)),
-        finish("rollback.plan.schema.json", schemars::schema_for!(crate::deploy::RollbackPlan)),
-        finish("restore.plan.schema.json", schemars::schema_for!(crate::deploy::RestorePlan)),
+        finish(
+            "deploy.plan.schema.json",
+            schemars::schema_for!(crate::deploy::DeployPlan),
+        ),
+        finish(
+            "deploy.receipt.schema.json",
+            schemars::schema_for!(crate::deploy::DeployReceipt),
+        ),
+        finish(
+            "rollback.plan.schema.json",
+            schemars::schema_for!(crate::deploy::RollbackPlan),
+        ),
+        finish(
+            "restore.plan.schema.json",
+            schemars::schema_for!(crate::deploy::RestorePlan),
+        ),
         finish(
             "restore.activation-plan.schema.json",
             schemars::schema_for!(crate::deploy::RestoreActivationPlan),
@@ -135,8 +168,17 @@ pub fn schema_registrations() -> Vec<SchemaArtifact> {
             "application-ready.schema.json",
             schemars::schema_for!(crate::operational_readiness::ApplicationReadyReceiptV1),
         ),
-        finish("app.bundle.input.schema.json", schemars::schema_for!(crate::bundle::BundleRequest)),
-        finish("app.bundle.output.schema.json", schemars::schema_for!(crate::bundle::BundleResponse)),
-        finish("routes.manifest.schema.json", schemars::schema_for!(crate::bundle::RoutesManifest)),
+        finish(
+            "app.bundle.input.schema.json",
+            schemars::schema_for!(crate::bundle::BundleRequest),
+        ),
+        finish(
+            "app.bundle.output.schema.json",
+            schemars::schema_for!(crate::bundle::BundleResponse),
+        ),
+        finish(
+            "routes.manifest.schema.json",
+            schemars::schema_for!(crate::bundle::RoutesManifest),
+        ),
     ]
 }

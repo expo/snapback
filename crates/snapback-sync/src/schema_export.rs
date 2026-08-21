@@ -69,6 +69,9 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
             "relational.result-encoding-v1.json",
             crate::rqs::relational_result_encoding_artifact(),
         ),
-        instance("content-digest.v1.json", crate::rqs::content_digest_artifact()),
+        instance(
+            "content-digest.v1.json",
+            crate::rqs::content_digest_artifact(),
+        ),
     ]
 }

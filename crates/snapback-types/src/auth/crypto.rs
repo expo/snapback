@@ -947,9 +947,7 @@ pub fn encode_base64url(bytes: &[u8]) -> String {
     URL_SAFE_NO_PAD.encode(bytes)
 }
 
-pub fn decode_canonical_base64url<const N: usize>(
-    encoded: &str,
-) -> Result<[u8; N], CryptoError> {
+pub fn decode_canonical_base64url<const N: usize>(encoded: &str) -> Result<[u8; N], CryptoError> {
     if encoded.is_empty() || encoded.contains('=') {
         return Err(CryptoError::InvalidBearer);
     }

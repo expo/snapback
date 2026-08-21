@@ -137,7 +137,6 @@ pub struct AssetTargetFactsV1 {
     pub missing: Vec<String>,
 }
 
-
 /// Consistent-cut export/import facts: cut export and import validation are
 /// implemented claims; `import_apply` stays `"experimental"` until the
 /// restore epoch machinery graduates (the flag-gated posture). Byte-level

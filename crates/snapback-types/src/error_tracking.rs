@@ -298,7 +298,6 @@ pub fn failure_classifier_registry() -> FailureClassifierRegistryV1 {
     }
 }
 
-
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FailureCarrierV1 {

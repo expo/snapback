@@ -4613,12 +4613,12 @@ impl LocalEphemeralBackend {
             .read()
             .unwrap_or_else(PoisonError::into_inner);
         let factory = commit_carriers.as_ref().ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-                    "auth",
-                    "kernel authorization commit carriers are not installed",
-                )
-            })?;
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "kernel authorization commit carriers are not installed",
+            )
+        })?;
         if matches!(
             preflight,
             AuthorizationCommitPreflight::NoAuthorizationEvent
