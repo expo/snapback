@@ -249,12 +249,14 @@ Attach the asset to a row in an ordinary mutation:
 ```js source=tests/acceptance/fixtures/asset-conformance/handlers.mjs
   async createPhoto(ctx, args) {
     return await ctx.db.insert('photos', {
-      ownerId: ctx.auth.userId,
       caption: String(args.caption ?? '').trim(),
       image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),
     });
   },
 ```
+
+The `photos` table uses owner visibility, so the insert deliberately omits its
+`ownerId`; Snapback stamps the authenticated principal at the commit boundary.
 
 Enforcement lives at the storage commit boundary, not the helper: a raw
 id-shaped string written into a `v.assetRef` field fails the commit with

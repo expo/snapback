@@ -35,6 +35,9 @@ const schema = {
       ],
       indexes: [],
       syncable: true,
+      // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — userId is
+      // the delta matcher under test, not ownership authority.
+      visibility: { kind: 'public-read' },
     },
   ],
 };

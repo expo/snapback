@@ -39,7 +39,6 @@ globalThis.__snapbackHandlers = {
 
   async createPhoto(ctx, args) {
     return await ctx.db.insert('photos', {
-      ownerId: ctx.auth.userId,
       caption: String(args.caption ?? '').trim(),
       image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),
     });
@@ -54,7 +53,6 @@ globalThis.__snapbackHandlers = {
     // Deliberately no attach: the raw string must fail the commit with
     // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).
     return await ctx.db.insert('photos', {
-      ownerId: ctx.auth.userId,
       caption: String(args.caption ?? '').trim(),
       image: args.assetId,
     });

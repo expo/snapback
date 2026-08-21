@@ -47,7 +47,7 @@ export default defineSchema({
   things: defineTable({
     title: v.string(),
     note: v.optional(v.string()),
-  }).sync(),
+  }).visibility({ kind: 'public-read' }).sync(),
 });
 `;
 
@@ -181,7 +181,7 @@ export const ephemeral = defineQuery({ table: 'things' });
       schema: `
 import { defineSchema, defineTable, v } from '../../_kit/define.mjs';
 export default defineSchema({
-  ['__proto__']: defineTable({ value: v.string() }).sync(),
+  ['__proto__']: defineTable({ value: v.string() }).visibility({ kind: 'public-read' }).sync(),
 });
 `,
       functions: `
@@ -255,7 +255,7 @@ export const listThings = defineJsQuery({
       schema: `
 import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from '../../_kit/define.mjs';
 export default defineSchema({
-  things: defineTable({ title: v.string() }).sync(),
+  things: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
 }, {
   ephemeral: defineEphemeral({
     cursors: ephemeral.collection({

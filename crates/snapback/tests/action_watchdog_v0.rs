@@ -22,7 +22,7 @@ use snapback::manifest::{
     ConfigEntryDefinition, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
     CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FieldManifest, FieldType,
     FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, IbexModule,
-    SchemaManifest, TableManifest,
+    SchemaManifest, TableManifest, TableVisibilityV1,
 };
 use snapback_server::test_support::axum::body::Body;
 use snapback_server::test_support::axum::http::Request;
@@ -181,7 +181,10 @@ fn watchdog_schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — watchdog
+            // rows are synthetic shared test data, so their generic writer stays
+            // intentionally public-read.
+            visibility: Some(TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()

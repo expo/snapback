@@ -9,7 +9,9 @@ export default defineSchema(
       authorId: v.principal(),
       title: v.string(),
       body: v.string(),
-    }).sync(),
+    })
+      .visibility({ kind: 'owner', field: 'authorId' })
+      .sync(),
   },
   { auth: { mode: 'sessions' } },
 );
