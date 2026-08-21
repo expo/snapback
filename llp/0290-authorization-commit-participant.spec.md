@@ -10,7 +10,12 @@
 includes a release/acquire issuer-projection availability latch. Public issuer
 clear and committed-reset cleanup suspend it before dropping either issuer
 projection; authorization reservation and transaction bind fail closed while
-suspended, including for a reservation minted before the clear.)
+suspended, including for a reservation minted before the clear. A committed
+reset rebuild reuses exact database activation while the managed writer handoff
+remains closed, and installs the successor issuer copy before that handoff
+reopens; it has no caller-selected bypass. Missing or too-narrow reservations
+under an otherwise available projection retain the existing
+`SNAPBACK_AUTH_RESERVATION_STALE` identity.)
 **Revised:** 2026-08-20 (b — answers the grok-4.6 LLP 0005 review that returned
 NEEDS REVISION: separates issuer projection from kernel settlement in the real
 ordinary-effects-before-finalizers order; puts pending/bound/ready participant
@@ -819,9 +824,14 @@ call `activate_authorization_commit_interlock`, replacing today's call at
 Activation again requires the exact `ParticipantBound` tuple and initialized
 registry, then changes the activation atomic `BOUND -> READY` and the
 `LocalDatabase` field `ParticipantBound -> ParticipantReady`. In the exact
-`ParticipantReady` reset-rebuild case it is an idempotent no-op; any mismatched
-ready tuple fails. The activation path release-stores projection availability
-only after the issuer view and process-local issuer state have been installed.
+`ParticipantReady` reset-rebuild case it re-enables the same latch; any
+mismatched ready tuple fails. Direct/startup installation stores the issuer
+copy before the activation path release-stores projection availability. A
+managed reset rebuild first installs the bound issuer view and engine-owned
+state, then re-enables the database-validated latch while it still owns the
+sole Local writer and queues the sync-owned issuer copy as an after-Local
+effect. The managed writer handoff remains closed until that effect runs, so no
+transaction can bind between latch reactivation and issuer-copy installation.
 The current boot/reset entry point calls
 `install_auth_invalidation` only after its durable boot reservation
 (`engine.rs:7792-7822`); normal startup invokes that entry point before
@@ -841,8 +851,11 @@ prepare or is rejected by the mandatory bind-time acquire-load. The supported
 clear and write entry points both require exclusive `&mut LocalSnapback`, so a
 clear cannot interleave between that bind check and the immediately following
 SQLite commit. Destructive reset settlement already has a known committed
-rotation and retains §5.5's no-predecessor-projection finalizer branch;
-suspension closes only subsequent writes while the successor issuer is rebuilt.
+rotation and retains §5.5's no-predecessor-projection finalizer branch. Its
+successor rebuild uses the same exact ready-tuple activation, not a separate
+flag: the latch is re-established while the sole writer is held and the queued
+issuer-copy installation drains before the managed handoff reopens. Abandoned
+clear has no such rebuild and therefore remains suspended.
 
 The complete mutator inventory is:
 
@@ -854,7 +867,9 @@ The complete mutator inventory is:
   either issuer copy;
 - private failed-reset cleanup and private committed-reset finalization use the
   same suspend-first clear helper; the latter was the only additional direct
-  `auth_invalidation = None` assignment and no direct clear assignment remains;
+  `auth_invalidation = None` assignment and no direct clear assignment remains.
+  A successful committed-reset successor rebuild then uses the ordinary exact
+  database activation while its managed handoff is still closed;
 - public `ServingDatabase::take_authorization_commit_participant` changes
   `Disabled -> ParticipantPending`, where authorization writes refuse;
 - public `ServingDatabase::bind_authorization_commit_participant` changes
@@ -1110,7 +1125,12 @@ Bind performs, in this order:
 14. transfer rollback ownership, the transaction-read predecessor, and the
     pre-reserved outcome sequence to `PreparedAuthorizationCommit`.
 
-A neutral reservation presented with an authorization event returns `SNAPBACK_AUTH_RESERVATION_STALE`.
+A neutral reservation presented with an authorization event, an actual selector
+that exceeds its prepared selector, or an authorization event that reaches a
+ready projection without its matching off-Local reservation returns
+`SNAPBACK_AUTH_RESERVATION_STALE`. In all three cases the projection exists;
+the precommit reservation is what became stale or incomplete. A missing or
+suspended issuer projection remains `SNAPBACK_AUTH_PROJECTION_UNAVAILABLE`.
 
 Bind acquires no registry, room, outbox, issuer, or SQLite-adjacent process
 mutex. Its only mutation is `expected_authorization.set`. Pointer comparisons,

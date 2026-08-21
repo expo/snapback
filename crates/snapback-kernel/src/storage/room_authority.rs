@@ -1003,7 +1003,7 @@ impl AuthorizationCommitReservation {
         })?;
         let actual_selector = selector_for_collections(&self.protected_collections, impact);
         if !reserved_selector.covers(&actual_selector) {
-            return Err(projection_unavailable(
+            return Err(authorization_reservation_stale(
                 "authorization write exceeded its off-Local protected-room reservation",
             ));
         }
@@ -1990,7 +1990,7 @@ fn generation_exhausted_error() -> EphemeralError {
     )
 }
 
-fn authorization_reservation_stale(message: &'static str) -> SnapbackError {
+pub(super) fn authorization_reservation_stale(message: &'static str) -> SnapbackError {
     SnapbackError::error("SNAPBACK_AUTH_RESERVATION_STALE", "auth", message).with_details(
         serde_json::json!({
             "retryable": true,

@@ -1245,7 +1245,7 @@ fn codegen_membership_snapback() -> LocalSnapback {
 
 #[test]
 fn authorization_affecting_seed_projects_issuer_before_kernel_finalizer() {
-    let mut snapback = codegen_membership_snapback();
+    let (mut snapback, binding) = codegen_membership_snapback_with_binding();
     let before = snapback
         .authorization_reservation_snapshot()
         .expect("capture predecessor authorization frontier");
@@ -1270,10 +1270,13 @@ fn authorization_affecting_seed_projects_issuer_before_kernel_finalizer() {
     assert_eq!(output.changed_count, 1);
     assert_eq!(after.0, before.0 + 1, "seed advances the data frontier");
     assert_eq!(after.1.incarnation, before.1.incarnation);
+    assert_eq!(after.1.epoch, before.1.epoch + 1);
     assert_eq!(
-        after.1.epoch,
-        before.1.epoch + 1,
-        "the deferred finalizer settles the projected authorization successor"
+        binding
+            .authorization_expectation()
+            .expect("bound issuer reads its projected authorization successor"),
+        after.1,
+        "the bound issuer projection reaches the committed successor"
     );
 }
 
@@ -1311,6 +1314,35 @@ fn authorization_affecting_seed_refuses_after_installed_issuer_is_cleared() {
             .expect("refused seed preserves both durable frontiers"),
         before,
         "typed refusal occurs before SQLite commits"
+    );
+}
+
+#[test]
+fn managed_local_install_rebuilds_a_suspended_issuer_projection() {
+    let (mut snapback, predecessor) = codegen_membership_snapback_with_binding();
+    snapback
+        .clear_installed_auth_invalidation(&predecessor)
+        .expect("suspend and clear the predecessor issuer");
+
+    let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+    let (_, successor) = install_invalidation_with_binding(&mut snapback);
+    let batch = local_scope.take_after_local_batch();
+    drop(local_scope);
+    crate::exec_guard::run_after_local_batch(batch);
+
+    assert!(
+        snapback
+            .authorization_commit_reservation_required()
+            .expect("successor issuer reactivates authorization commits")
+    );
+    assert_eq!(
+        successor
+            .authorization_expectation()
+            .expect("successor issuer reads the rebuilt projection"),
+        snapback
+            .authorization_reservation_snapshot()
+            .expect("read the durable successor frontier")
+            .1
     );
 }
 

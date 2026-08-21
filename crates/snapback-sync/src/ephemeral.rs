@@ -3693,6 +3693,52 @@ impl LocalEphemeralBackend {
         *lock(&self.shared.authorization_issuer) = Some(issuer);
     }
 
+    /// Install the exact database-bound issuer and activate its commit
+    /// projection. Managed Local callers validate and re-enable the database
+    /// latch while they still own the sole writer, then defer only the issuer
+    /// copy installation. The managed handoff remains closed until that
+    /// after-Local effect finishes, so no transaction can bind in between.
+    /// Direct/startup callers install the issuer first and then activate.
+    ///
+    /// @ref LLP 0290#44-auth-time-activation — reset rebuild uses the same
+    /// database-validated activation as first installation, not a bypass.
+    /// @ref LLP 0059#locking-and-linearization — the issuer mutex remains
+    /// outside the managed/direct Local write scope.
+    pub fn install_authorization_issuer_and_activate(
+        &self,
+        database: &mut ServingDatabase,
+        issuer: crate::auth::invalidation::LiveInvalidationIssuer,
+    ) -> SnapbackResult<()> {
+        let RoomAuthority::Bound(participant) = &self.shared.room_authority else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "standalone ephemeral backend has no database-bound authorization participant",
+            ));
+        };
+        let expected = database
+            .authorization_expectation_view_for_participant_install(participant)?
+            .current()?;
+        if issuer.authorization_expectation()? != expected {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                "auth",
+                "authorization issuer does not match the committing database projection",
+            ));
+        }
+        if crate::exec_guard::local_write_scope_active() {
+            database.activate_authorization_commit_participant(participant)?;
+            let backend = self.clone();
+            crate::exec_guard::run_or_defer_after_local(move || {
+                backend.install_authorization_issuer(issuer);
+            });
+            return Ok(());
+        }
+
+        self.install_authorization_issuer(issuer);
+        database.activate_authorization_commit_participant(participant)
+    }
+
     pub fn clear_authorization_issuer(&self) {
         crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
             "ephemeral authorization issuer clearing",
@@ -9310,7 +9356,7 @@ mod tests {
 
     struct BoundBackendFixture {
         backend: LocalEphemeralBackend,
-        _database: ServingDatabase,
+        database: ServingDatabase,
         authorization: AuthorizationVersion,
     }
 
@@ -9336,9 +9382,49 @@ mod tests {
             .expect("ready authorization participant");
         BoundBackendFixture {
             backend,
-            _database: database,
+            database,
             authorization,
         }
+    }
+
+    #[test]
+    fn managed_successor_install_reactivates_a_suspended_projection_before_reopening() {
+        let mut fixture = bound_backend_fixture();
+        fixture.backend.suspend_authorization_commit_projection();
+        fixture.backend.clear_authorization_issuer();
+
+        let (authorization, version_stream, boot_sequence) = fixture
+            .database
+            .reserve_invalidation_boot_issuer()
+            .expect("reserve a successor issuer while projection is suspended");
+        let view = fixture
+            .backend
+            .authorization_expectation_view_for_install(&mut fixture.database)
+            .expect("bind the successor view to the exact ready participant");
+        let issuer = authorization_issuer(&authorization, boot_sequence, &version_stream, view);
+
+        let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        fixture
+            .backend
+            .install_authorization_issuer_and_activate(&mut fixture.database, issuer)
+            .expect("database-validated successor activation");
+        let batch = local_scope.take_after_local_batch();
+        drop(local_scope);
+        crate::exec_guard::run_after_local_batch(batch);
+
+        assert!(
+            fixture
+                .database
+                .authorization_commit_reservation_required()
+                .expect("successor projection reopens authorization commits")
+        );
+        assert_eq!(
+            fixture
+                .backend
+                .authorization_expectation_for_test()
+                .expect("successor issuer copy is installed before reopening"),
+            authorization
+        );
     }
 
     #[test]
@@ -9357,7 +9443,7 @@ mod tests {
             .expect("protected room returns a second P0 transport permit");
 
         let _replacement = fixture
-            ._database
+            .database
             .replace_authorization_commit_participant()
             .expect("same-database replacement retires P0");
 
@@ -9602,7 +9688,7 @@ mod tests {
             .expect("protected frame is admitted under P0");
 
         let _replacement = fixture
-            ._database
+            .database
             .replace_authorization_commit_participant()
             .expect("same-database replacement retires P0");
 

@@ -7886,12 +7886,8 @@ impl LocalSnapback {
             version_stream,
             next_cause_sequence: 1,
         });
-        let ephemeral = self.ephemeral.clone();
-        crate::exec_guard::run_or_defer_after_local(move || {
-            ephemeral.install_authorization_issuer(issuer);
-        });
         self.ephemeral
-            .activate_authorization_commit_interlock(&mut self.db)?;
+            .install_authorization_issuer_and_activate(&mut self.db, issuer)?;
         Ok(())
     }
 

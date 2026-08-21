@@ -952,10 +952,8 @@ fn prepare_authorization_commit_interlock(
     // direct-library fallback here: calling a process interlock now would
     // overlap its registry/condvar with the live transaction.
     let reservation = take_managed_authorization_reservation().ok_or_else(|| {
-        SnapbackError::error(
-            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-            "auth",
-            "authorization write reached SQLite without an off-Local, off-SQLite room reservation",
+        room_authority::authorization_reservation_stale(
+            "authorization write reached SQLite without its matching off-Local, off-SQLite room reservation",
         )
     })?;
     reservation
