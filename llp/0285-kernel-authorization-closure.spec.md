@@ -181,6 +181,50 @@ DoS-prevention, **not** authorization; no safety argument here may rest on it.
    *creation* and preserves LLP 0059's room/outbox/rollback/ambiguity algorithms, while step 8
    moves the room-authority *mechanism* into the kernel.
 
+
+9. **Go to the best final state; do not weigh short-term breakage (standing author ruling
+   2026-08-20).** Asked to settle two narrower questions, the author ruled generally:
+
+   > "Just do whatever the most correct and elegant and best final state thing is. Don't worry
+   > about backwards compatibility or breaking things in the short term. Just go straight to
+   > the best possible product."
+
+   This generalizes ruling 5 from the authority rebuild to the whole program. Where a design
+   choice trades correctness or elegance for compatibility, migration convenience, or avoiding
+   short-term breakage, **take the correct one**. The licensing facts are unchanged:
+   `CLAUDE.md:160` records that no current users depend on stability, and 14 of 16 crates are
+   `publish = false`.
+
+   The two constraints that still bind are unchanged and are NOT relaxed by this: anything
+   **already published** to npm is immutable forever (LLP 0041), and **durable local
+   databases** are real though mostly regenerable. Breakage must still be enumerated, not
+   waved at.
+
+   Two questions resolved under it immediately:
+
+   **(a) `ServingDatabase` loses `Deref` entirely.** Read-only `Deref` was the weaker option
+   and survives only under a standing proof obligation — *every* authority-bearing shared
+   method must be private or powerless, forever, including methods not yet written. This
+   program has already paid for that twice: `checkpoints_read()` erasing protected records and
+   `versions_read()` pruning history, both reachable from a shared borrow, and then two
+   `*_for_test` methods that DROP tables. Each was found by review, not by a gate, because the
+   gate can only check it by enumerating a 111-row census that goes stale the moment someone
+   adds a method.
+
+   Removing `Deref` converts that standing obligation into a structural impossibility, and
+   turns the LLP 0284 property from "audit every `&self` method forever" into "there is no
+   blanket dereference." `Deref` existed to let thousands of `self.db.*` sites compile
+   unchanged during a migration — and under ruling 5 there is no migration to ease, because
+   the surface is being rebuilt. It has no remaining justification. Every access becomes an
+   explicit `ServingDatabase` method that derives what it needs.
+
+   **(b) The D-4 claim-relevant gate set is DERIVED, never copied.** LLP 0283 F-3 already says
+   to derive it rather than copy the historical release list, and the correct final state is a
+   set computed from what the closure actually claims — so a gate becomes claim-relevant by
+   construction rather than by having appeared on a previous list. A copied list is stale on
+   arrival, which is the same failure as LLP 0289's frozen `scripts/` census (measured 1,663,
+   then 1,695, then 1,696 within one day) and the drift-gate count that was wrong twice.
+
 ## 3. Threat model
 
 - **Attacker A — a direct dependent crate in this workspace (live today).** Any

@@ -143,10 +143,19 @@ Overall F-1 is still a **large-to-extra-large, multi-engineer-week security prog
 
 ## Exact questions still requiring decisions
 
-- **Serving-store surface:** Must the final `ServingDatabase` lose `Deref<Target = LocalDatabase>` entirely, or may read-only `Deref` survive after every authority-bearing shared method is private or powerless? LLP 0292 clearly rejects wide privileged dereferencing but does not settle this narrower final shape.
+- ~~**Serving-store surface**~~ — **RESOLVED, author ruling 9 (2026-08-20).** `ServingDatabase`
+  loses `Deref` entirely. Read-only `Deref` survives only under a standing proof obligation
+  covering methods not yet written; this program already paid for that twice
+  (`checkpoints_read()`, `versions_read()`, then two table-dropping `*_for_test` methods).
+  Removing it converts an audit-forever obligation into a structural impossibility.
 
-- **Publication claim scope:** Which exact current D-4 gates are claim-relevant for the next npm closure? F-3 explicitly says to derive this set rather than copy the historical release list.
+- ~~**Publication claim scope**~~ — **RESOLVED, author ruling 9 (2026-08-20).** The D-4
+  claim-relevant set is DERIVED from what the closure actually claims, never copied from a
+  historical release list. A copied list is stale on arrival.
 
-- **Handler boundary:** Does the next npm closure assert adversarial-handler containment? If yes, the five handler-sandbox findings and their two-engine qualification are mandatory blockers; if no, the release claim must explicitly disclaim that boundary.
+- ~~**Handler boundary**~~ — **RESOLVED, author ruling 2026-08-20.** Pre-public-release npm
+  closures do NOT assert adversarial-handler containment, and the release claim must
+  explicitly disclaim it. See
+  `issues/20260820-handler-sandbox-triage-and-scheduling.md`.
 
 The administrator-anchor question no longer needs a direction ruling—ruling 7 already requires it. It needs a focused technical specification and acceptance.
