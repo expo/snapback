@@ -1,6 +1,6 @@
 # Fixture policy repair: ~67 transcribable, ~96 need an author ruling
 
-**Status:** Open — BLOCKED on a policy ruling for the larger half
+**Status:** Open — BLOCKED ON IMPLEMENTATION, not (yet) on a ruling
 **Filed:** 2026-08-21
 **Parent:** `issues/20260821-rust-tests-179-failures-decomposed.md`
 
@@ -69,3 +69,60 @@ policy is not.
 4. Rule on the codegen route fixture's audience.
 
 Steps 2–4 are author decisions. Step 1 can proceed now.
+
+
+## Correction — 2026-08-21: the blocker is not the ruling
+
+This plan assumed the write postures were declarable and only the CHOICE was
+missing. That premise is wrong. A repair lane stopped before modifying anything
+and reported why:
+
+- **LLP 0274 says its own runtime manifest carrier and lowerer do not yet
+  exist** (`llp/0274-explicit-write-authority-postures.spec.md:68`).
+- `TableManifest` carries read `visibility` but has **no write-posture field**
+  (`crates/snapback-types/src/manifest/types.rs:1192`).
+- Codegen is still `snapback.owner-write.v1`; non-owner visibility lowers to
+  `migration-pending` (`packages/snapback-codegen/write-policy.mjs:13`).
+- Runtime dispatch supports only derived owner-write. Declaring `PublicRead`
+  here would use the Phase-1a pass-through that this plan explicitly forbids
+  (`crates/snapback-kernel/src/storage.rs:19925`).
+
+So `open-write` (48 fixtures) and `authenticated-write` (3) **cannot be
+declared at all today**. The nine rulings still need to be made eventually, but
+making them now would not retire a single failure.
+
+### What IS actionable
+
+- **Owner fixtures (11)** — derived owner-write is supported.
+- **Governance-config (3)** — likely, needs confirmation.
+- The **Graffiti ruling already exists** and did not need to be sought:
+  `cells` uses `authenticated-write`, attribution `authorId`, insert-only
+  (`llp/0274:1734`). It is blocked on the same missing mechanism.
+
+### Useful findings the lane produced before stopping
+
+**47 of the 48 candidate open-write fixtures were confirmed genuinely
+anonymous** — writing paths use default/anonymous auth and the tables have no
+owner or membership field. Breakdown: unhandled rejection 15, workerd twin 10,
+handler settlement 8, context ledger 6, conformance 4, egress ambient 1,
+handler-harness security 1, runtime qualification 1, warm VM 1.
+
+**One was reclassified**: `data_tier_corpus_v0`. Its aggregate corpus includes
+`todos.userId` and supplies `case.auth_user_id`, so labelling the shared corpus
+open-write would incorrectly widen owner-shaped cases. That is exactly the
+reclassification the brief asked for rather than defaulting to the weakest
+posture.
+
+### The 163 figure is stale
+
+Measured per-target failure totals on current main exceed the earlier
+decomposition — `admin_v0` alone shows 45, `workerd_twin_v0` 32. The 163 came
+from the `f99b92cee` battery; main has moved considerably since. Re-measure
+before planning against these numbers again.
+
+### Revised order
+
+1. Land the LLP 0274 write-posture mechanism — manifest field, codegen
+   lowering, runtime dispatch. Everything else waits on this.
+2. Then apply the nine rulings.
+3. Then the mechanical repairs, using the 47/1 classification above.
