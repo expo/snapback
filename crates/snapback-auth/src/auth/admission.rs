@@ -948,9 +948,38 @@ impl AdmissionLease {
             state: Some(state),
             _rank: Some(rank),
         };
+        #[cfg(any(test, feature = "test-support"))]
+        LIVE_MANAGED_ADMISSION_EFFECT_GUARDS.with(|depth| {
+            depth.set(
+                depth
+                    .get()
+                    .checked_add(1)
+                    .expect("managed admission-effect guard depth overflowed"),
+            );
+        });
         crate::exec_guard::retain_through_after_local(self.clone());
         Ok(guard)
     }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+thread_local! {
+    /// Read-only proof state for commit-boundary tests. This deliberately does
+    /// not inspect, acquire, or re-enter `AdmissionInner.state`: commit hooks
+    /// execute while the non-reentrant mutex is already held by the guard.
+    static LIVE_MANAGED_ADMISSION_EFFECT_GUARDS: std::cell::Cell<usize> =
+        const { std::cell::Cell::new(0) };
+}
+
+/// Whether this thread currently owns a managed admission-effect guard.
+///
+/// This is test instrumentation, not an authorization API. In particular it
+/// reads only guard-lifetime bookkeeping and never touches the admission-state
+/// mutex, so it is safe to call immediately beside `tx.commit()`.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn current_thread_holds_admission_effect_guard_for_test() -> bool {
+    LIVE_MANAGED_ADMISSION_EFFECT_GUARDS.with(|depth| depth.get() > 0)
 }
 
 /// Guard proving the lease was current at one effect boundary.
@@ -958,6 +987,22 @@ pub struct AdmissionEffectGuard<'a> {
     #[allow(dead_code)]
     state: Option<MutexGuard<'a, AdmissionState>>,
     _rank: Option<AuthLockRankGuard>,
+}
+
+impl Drop for AdmissionEffectGuard<'_> {
+    fn drop(&mut self) {
+        #[cfg(any(test, feature = "test-support"))]
+        if self.state.is_some() {
+            LIVE_MANAGED_ADMISSION_EFFECT_GUARDS.with(|depth| {
+                depth.set(
+                    depth
+                        .get()
+                        .checked_sub(1)
+                        .expect("managed admission-effect guard depth underflowed"),
+                );
+            });
+        }
+    }
 }
 
 impl fmt::Debug for AdmissionEffectGuard<'_> {
@@ -1479,6 +1524,20 @@ mod tests {
             7,
             "production admission access must recover the same poisoned mutex"
         );
+    }
+
+    #[test]
+    fn effect_guard_lifetime_probe_does_not_reenter_the_admission_mutex() {
+        let controller = AdmissionController::new(7, true).unwrap();
+        let lease = controller.admit().unwrap();
+        assert!(!current_thread_holds_admission_effect_guard_for_test());
+        let guard = lease.effect_guard("commit-boundary probe").unwrap();
+        assert!(
+            current_thread_holds_admission_effect_guard_for_test(),
+            "the read-only lifetime probe must work while the non-reentrant mutex is held"
+        );
+        drop(guard);
+        assert!(!current_thread_holds_admission_effect_guard_for_test());
     }
 
     #[test]

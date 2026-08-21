@@ -1700,6 +1700,7 @@ impl LocalDatabase {
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         require_ready_on(&tx)?;
         let output = operation(&tx)?;
+        super::observe_durable_commit_for_test();
         tx.commit()?;
         Ok(output)
     }
@@ -1731,6 +1732,7 @@ impl LocalDatabase {
             Ok(output) => output,
             Err(error) => return rollback_auth_transaction(tx, error),
         };
+        super::observe_durable_commit_for_test();
         match tx.commit() {
             Ok(()) => AuthTransactionAttempt::Committed(output),
             Err(error) => AuthTransactionAttempt::CommitUncertain(error.into()),
@@ -1786,6 +1788,7 @@ impl LocalDatabase {
                 return rollback_prepared_service_auth_transaction(tx, error, prepared);
             }
         };
+        super::observe_durable_commit_for_test();
         match tx.commit() {
             Ok(()) => match prepared.committed() {
                 Ok(()) => ServiceAuthTransactionAttempt::Committed(output),

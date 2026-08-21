@@ -20,6 +20,15 @@ const TOKEN_BYTES: usize = 32;
 const TOKEN_LOOKUP_BYTES: usize = 16;
 const MAX_SAFE_COUNTER: u64 = 9_007_199_254_740_991;
 
+#[cfg(any(test, feature = "test-support"))]
+thread_local! {
+    /// One-shot failure after mint COMMIT and before the fallible row reread.
+    /// This pins the reachable error-after-commit shape for admission-fence
+    /// tests without changing production error handling.
+    static FAIL_CAPABILITY_LINK_MINT_POST_COMMIT_READ:
+        std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 const TABLE_SQL: &str = r#"
 CREATE TABLE IF NOT EXISTS _snapback_capability_links (
   id TEXT NOT NULL PRIMARY KEY,
@@ -372,6 +381,29 @@ fn resolve_on(conn: &Connection, token: &str, now_ms: u64) -> SnapbackResult<Cap
 }
 
 impl LocalDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn fail_next_capability_link_mint_post_commit_read_for_test(&mut self) {
+        FAIL_CAPABILITY_LINK_MINT_POST_COMMIT_READ.with(|slot| {
+            assert!(
+                !slot.replace(true),
+                "capability-link read fault must be one-shot"
+            );
+        });
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn capability_link_count_for_test(&self) -> SnapbackResult<u64> {
+        self.conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_capability_links",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(Into::into)
+    }
+
     pub fn mint_capability_link(
         &mut self,
         request: MintCapabilityLink,
@@ -442,6 +474,14 @@ impl LocalDatabase {
             )?;
             Ok(())
         })?;
+        #[cfg(any(test, feature = "test-support"))]
+        if FAIL_CAPABILITY_LINK_MINT_POST_COMMIT_READ.with(|slot| slot.replace(false)) {
+            return Err(SnapbackError::error(
+                "TEST_CAPABILITY_LINK_POST_COMMIT_READ_FAILURE",
+                "capability-links",
+                "injected capability-link row read failure after durable commit",
+            ));
+        }
         Ok(MintedCapabilityLink {
             record: row_for_id_on(&self.conn, &id_for_read)?.ok_or_else(catalog_corrupt)?,
             token,
