@@ -51,8 +51,10 @@ for subscription-budget interactions. Revised same day through two review
 rounds: LLP 0267 v0.8 (dual xhigh round — codex 5 MAJOR + grok MAJORs 1–5,
 MINORs 6–15), v0.9 (codex delta re-review items 1–4 + grok round-4
 pins 1–3), v0.10 (codex round-4 single MAJOR — registry owed-ness
-facts), and v0.11 (codex round-5 — total transition table with
-compare-and-clear delivery and defined absent-row semantics). Summary:
+facts), v0.11 (codex round-5 — compare-and-clear delivery and defined
+absent-row semantics), and v0.12 (codex round-6 — orthogonal
+`evaluation`/`pendingWork` fields, complete LLP 0200 exit/lifecycle rows,
+exhaustive four-outcome derivation). Summary:
 
 - **Posture settled first (LLP 0295 open question 5 — recommendation: yes).**
   Local developer diagnostics only in v1; hosted telemetry is an explicit
@@ -99,14 +101,17 @@ compare-and-clear delivery and defined absent-row semantics). Summary:
   subscriber/group counts, real/memo turn counts with max+checked-sum
   timing. Join: subscription id → server registry row → `waveSeq`; the
   registry row carries exact, unsampled per-subscription facts —
-  `lastDeliveredWaveSeq`/`lastDeliveredVersion` plus `owedThroughVersion`,
-  `pendingState` (`idle`/`queued`/`coalescing`/`evaluating`), and
-  `currentWaveSeq` while evaluating — maintained by a total transition
-  table: matcher charge takes `max`, delivery is compare-and-clear (a
-  charge landed during evaluation is preserved and re-queued, per the
-  admitted LLP 0200 post-cut race), T-LOSS retires the row, T-RECONNECT
-  establishes a fresh one; all versions are LLP 0095 §1.3 `LIVE(version)`
-  storage commit versions.
+  `lastDeliveredWaveSeq`/`lastDeliveredVersion`, `owedThroughVersion`, and
+  two orthogonal stage fields: `evaluation` (`idle`/`evaluating` +
+  `currentWaveSeq`) and `pendingWork` (`none`/`queued`/`coalescing`), so
+  the LLP 0200 post-cut race is the recorded composite
+  `evaluating`+`queued`/`coalescing` — maintained by a total transition
+  table: matcher charge takes `max`, delivery is compare-and-clear with
+  the recorded `pendingWork` as successor, every LLP 0200 §2.4–2.5 exit
+  has a row (authority-gate discard, cancellation, timeout, refresh
+  degradation), T-SUB creates the row, and T-UNSUB/T-LOSS/T-GRANT-LOSS/
+  terminal teardown retire it (owed-ness does not survive retirement);
+  all versions are LLP 0095 §1.3 `LIVE(version)` storage commit versions.
   `LiveCoalesceStats` already serialize on `InspectState`/`PublicInspect`
   (`liveCoalesce`); the wave record complements them and is the per-wave
   detail the 20260808 ticket deferred.
@@ -116,17 +121,23 @@ compare-and-clear delivery and defined absent-row semantics). Summary:
   (delivery lag — scalar pinned to the most recent covered commit, client
   clock; dedup-suppression counter). `pendingDeliveryReason` is a
   **derived inspect-time join result** computed by tooling over the two
-  gated snapshots, stored on neither side — a closed six-member enum with
-  a pinned precedence order (terminal-quarantine, auth-barrier,
-  custody-unsettled, authority-unavailable, transport-recovery,
-  server-pending) in two total branches: registry row present (owed-ness
-  = `owedThroughVersion` > `authoritativeRevision`; candidates 1–5 from
-  the client row, member 6 from `pendingState`) and registry row absent
-  (T-LOSS-retired — client-row candidates only; D0.5
-  `DROPPED`/`RECOVERING`/`PENDING`-supersedes derive transport-recovery;
-  member 6 never derivable; settled-claiming client against an absent row
-  is the defect case); value-equal dedup is a completed delivery, not a
-  miss.
+  gated snapshots, stored on neither side — an **exhaustive four-outcome
+  derivation** (reason/neutral/defect/snapshot-skew) over a closed
+  six-member reason enum with a pinned precedence order
+  (terminal-quarantine, auth-barrier, custody-unsettled,
+  authority-unavailable, transport-recovery, server-pending). Members 1–5
+  derive from client state alone, never gated on the owed comparison
+  (`RECOVERING`/`GRANT_LOST`/`DROPPED`/`PENDING`-supersedes/
+  `RESYNC_PENDING` map to transport-recovery, row present or absent);
+  member 6 needs a row and `owedThroughVersion` >
+  `authoritativeRevision`, staged by the `evaluation`/`pendingWork`
+  composite. Residuals: not-owed / initial `PENDING` / in-transit
+  (poll-drain or socket custody) are neutral; owed+idle+none is the
+  unrepresentable defect; row-absent + `ATTACHED_LIVE` is snapshot-skew
+  with defect only on persistence across a re-read; value-equal dedup is
+  a completed delivery, not a miss. Neutral-class detail spellings are
+  delegated to LLP 0095/0114 owner acceptance; the four-outcome shape is
+  normative.
 - **Repeated equivalent writes/effects:** only provable equivalences —
   no-op commits (empty row-image delta), identical (function, args-hash)
   enqueues in a window, housekeeping-supersession counts. Warnings/counters
@@ -163,10 +174,11 @@ compare-and-clear delivery and defined absent-row semantics). Summary:
       primary-cause precedence, `coalesced`/`coveredVersions`, per-group
       max+sum timing; registry rows maintain the exact unsampled
       per-subscription facts (`lastDeliveredWaveSeq`/
-      `lastDeliveredVersion`, `owedThroughVersion`, `pendingState`,
-      `currentWaveSeq`) via the §7.3 total transition table
-      (compare-and-clear delivery, T-LOSS row retirement, T-RECONNECT
-      fresh row) at the matcher/coalescer/evaluation/transport seams
+      `lastDeliveredVersion`, `owedThroughVersion`, `evaluation` +
+      `currentWaveSeq`, `pendingWork`) via the §7.3 total transition
+      table (compare-and-clear delivery with recorded successor, LLP 0200
+      §2.4–2.5 exits, T-SUB creation, retirement rows) at the
+      matcher/coalescer/evaluation/authority-gate/transport seams
       (complements the existing `liveCoalesce` inspect fields; no second
       coalesce surface).
 - [ ] Client: typed `MutationPhaseCostV1` from the ruling-6 fields (after
@@ -191,5 +203,6 @@ compare-and-clear delivery and defined absent-row semantics). Summary:
       reading the cost snapshot and the two worked attributions.
 - [ ] Acceptance fixtures per §7.7 (attribution ×2, redaction incl.
       adversarial caller-supplied ids, join uniqueness incl.
-      invalidation-during-evaluation and T-LOSS/T-RECONNECT absent-row
-      derivation, bounds, multiplicity, posture).
+      composite-state invalidation-during-evaluation, the authority-gate
+      discard exit, T-LOSS/T-RECONNECT absent-row derivation, and
+      snapshot-skew resolved by re-read, bounds, multiplicity, posture).

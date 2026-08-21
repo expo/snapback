@@ -5,7 +5,11 @@
 **Systems:** Live queries, Relational queries, Performance, Diagnostics, Schema
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-21 (v0.11 — §7 round-5: total registry transition table
+**Revised:** 2026-08-21 (v0.12 — §7 round-6: orthogonal
+`evaluation`/`pendingWork` stage fields with the complete LLP 0200
+§2.4–2.5 exit and lifecycle rows, and an exhaustive four-outcome
+derivation — reason/neutral/defect/snapshot-skew).
+2026-08-21 (v0.11 — §7 round-5: total registry transition table
 — delivery is compare-and-clear preserving a mid-evaluation charge, and a
 T-LOSS-retired/absent row is a defined derivation branch yielding
 `transport-recovery`). 2026-08-21 (v0.10 — §7 round-4: exact unsampled
@@ -854,26 +858,36 @@ details):
 - `owedThroughVersion: number | null` — the newest committed
   `LIVE(version)` whose commit invalidated this subscription and has not
   yet been covered by a delivery; `null` when nothing is owed;
-- `pendingState: "idle" | "queued" | "coalescing" | "evaluating"` — which
-  server stage holds the owed work (scheduler queue, rung-1 coalescer
-  pending frame, in-flight §1.5 turn), with
-  `currentWaveSeq: number | null` set while `evaluating` so the in-flight
-  wave is nameable before its record exists.
+- **two orthogonal stage fields**, so a charge that lands during an
+  evaluation has a recorded home instead of an inferred one:
+  - `evaluation: "idle" | "evaluating"`, with
+    `currentWaveSeq: number | null` non-null exactly while `evaluating`,
+    naming the in-flight wave before its record exists;
+  - `pendingWork: "none" | "queued" | "coalescing"` — charged work not
+    yet inside an evaluation turn (scheduler queue or rung-1 coalescer
+    pending frame). `evaluating` + `queued`/`coalescing` is the composite
+    state of LLP 0200's admitted post-cut race.
 
 The maintenance is a **total transition table** — every seam that touches
-the subscription has exactly one row, and delivery is a **compare-and-
-clear**, never an unconditional reset, because LLP 0200's admitted race
-(a commit landing after an evaluation's atomic cut) means a newer
-invalidation can charge the subscription while wave W is mid-flight:
+the subscription has exactly one row, delivery is a **compare-and-clear**,
+never an unconditional reset, and every LLP 0200 §2.4–2.5 non-delivery
+exit defines its `currentWaveSeq` clearing and owed-ness disposition.
+Delivery's successor stage is the recorded `pendingWork` value, never an
+unrecorded "merged frame" inference:
 
-| Event | `owedThroughVersion` | `pendingState` / `currentWaveSeq` |
-| --- | --- | --- |
-| Matcher charges the subscription at committed version `V` | `max(owed, V)` (`null` counts as 0) | `idle → queued`; `queued`/`coalescing`/`evaluating` unchanged (the new charge waits) |
-| Coalescer merges the pending frame | unchanged (already charged) | `queued → coalescing` |
-| Wave `W` starts its §1.5 turn at cut `Vc` | unchanged | `→ evaluating`, `currentWaveSeq = W` |
-| Wave `W` delivers at version `V` | if `owed <= V`: `→ null`; if `owed > V` (charged during evaluation): **preserved** | `lastDelivered* = (W, V)`; `currentWaveSeq → null`; if cleared `→ idle`, else `→ queued` (or `coalescing` when a merged pending frame already exists) |
-| T-LOSS drops the subscription server-side (LLP 0095) | row **retired** — no registry row exists for the subscription id | — |
-| T-RECONNECT fresh subscribe with `supersedes` establishes | fresh row: `owed = null`, `lastDelivered*` from the establishment snapshot | `idle` |
+| Event | `owedThroughVersion` | `evaluation`/`currentWaveSeq` | `pendingWork` |
+| --- | --- | --- | --- |
+| T-SUB establishes (row created; also T-RECONNECT's fresh `supersedes` subscribe) | `null`; `lastDelivered*` from the establishment snapshot | `idle` / `null` | `none` |
+| Matcher charges the subscription at committed version `V` | `max(owed, V)` (`null` counts as 0) | unchanged | `none → queued`; `queued`/`coalescing` unchanged |
+| Coalescer merges the pending frame | unchanged (already charged) | unchanged (defined during `evaluating` too — the race's merge is representable) | `queued → coalescing` |
+| Wave `W` starts its §1.5 turn (dequeues the pending work at its atomic cut) | unchanged | `→ evaluating`, `currentWaveSeq = W` | `→ none` |
+| Wave `W` delivers at version `V` | if `owed <= V`: `→ null`; if `owed > V` (charged during evaluation): **preserved** | `→ idle` / `null`; `lastDelivered* = (W, V)` | unchanged — the mid-flight charge already recorded `queued`/`coalescing`; nothing is inferred |
+| Delivery-time authority-gate discard (LLP 0200 §2.4 — frame resolved under pre-transition authority; subscription fenced, owed re-resolution) | preserved | `→ idle` / `null` | `→ queued` (the restoration is owed work) |
+| Cancellation of queued work by a superseding frame (LLP 0200 §2.5 latest-value collapse; obligations transfer) | unchanged | unchanged | unchanged (`queued`/`coalescing` — the superseding frame takes the slot) |
+| Best-effort in-flight cancellation completes | preserved | `→ idle` / `null` | `→ queued` |
+| Evaluation-turn timeout (LLP 0200 §2.5 — waiter abandoned, one refresh retry; result discarded on eventual completion) | preserved | `→ idle` / `null` | `→ queued` (the refresh retry) |
+| Refresh degradation (LLP 0200 §2.5 overload/timeout collapse to a priority refresh-signal obligation) | preserved | unchanged per its own row | `→ queued` (its wave records `rerunCause: "refresh"`) |
+| Retirement — T-UNSUB release, T-LOSS socket drop, T-GRANT-LOSS re-open-everything, second-timeout `resync_required` teardown, §3.4 terminal quarantine | row **retired** — no registry row for the subscription id; a still-in-flight turn's result is discarded at the gate. Owed-ness does not survive retirement: a successor's T-SUB establishment snapshot subsumes it | — | — |
 
 A retired/absent row is a defined state of this system, not a gap: T-LOSS
 removes the server subscription while D0.5 keeps the client row alive in
@@ -957,54 +971,79 @@ that join. `pendingDeliveryReason` is **not a stored field on either side**
 — the client cannot know owed-ness or server execution state, and the
 server cannot know client hold states, without the carrier this amendment
 disclaims. It is a **derived result of the inspect-time join**: the
-CLI/tooling that reads both gated snapshots computes it, normatively, in
-two total branches keyed on whether the client row's subscription id has a
-server registry row (§7.3 — a T-LOSS-retired row is a defined absence):
+CLI/tooling that reads both gated snapshots computes it, normatively, and
+the derivation is **exhaustive** — every admitted (client state, registry
+state) pair yields exactly one of four outcomes:
 
-- **Row present.** The subscription is **owed a delivery** when the row's
-  `owedThroughVersion` (exact and unsampled) is non-null and greater than
-  the client row's `authoritativeRevision`. For every owed delivery the
-  joined view derives exactly one member of the closed enum below —
-  candidates 1–5 read from the client row's ruled state, owed-ness and
-  member 6 from the registry row's `owedThroughVersion`/`pendingState` —
-  assigned by first match in the precedence order.
-- **Row absent.** The owed comparison is not computable and is **not
-  attempted**; the absence itself is the server-side fact. The same
-  precedence order runs over the client-row candidates alone: a client
-  hold state among members 1–4 wins as usual; the D0.5
-  `DROPPED`/`RECOVERING`/`PENDING`-with-`supersedes` recovery states
-  derive `transport-recovery` (member 5) — this is exactly the T-LOSS
-  shape, where the server dropped the durable subscription while the
-  client recovers. Member 6 is never derivable without a row. A client
-  row claiming settled `ATTACHED_LIVE` against an absent server row
-  matches nothing and is the defect case.
+- **reason** — a member of the closed enum below;
+- **neutral** — nothing is owed or the work is in ordinary in-flight
+  transit; not a hold, not a defect (detail names the neutral class);
+- **snapshot-skew** — the two gated snapshots are pulled without causal
+  alignment, and this pair is a valid transient of that skew; the
+  resolution is a re-read of both snapshots, and only a **persistent**
+  skew across the re-read is a defect;
+- **defect** — a pair the transition table makes unrepresentable, or a
+  persistent skew.
 
-The closed enum and its precedence (first match wins):
+The closed reason enum and its precedence (first match wins). Members 1–5
+derive from the client row's ruled state **alone** — a recovery or hold
+state is a reason in its own right and is never gated on the owed
+comparison (delivery cannot proceed regardless of what the server owes):
 
-1. `terminal-quarantine` — §3.4 retired handle; detail carries the
-   terminal code;
+1. `terminal-quarantine` — §3.4 retired handle or `TERMINAL_AUTH`; detail
+   carries the terminal code;
 2. `auth-barrier` — the ruled LLP 0059 barrier suspension;
 3. `custody-unsettled` — the ruled non-barrier custody pause;
 4. `authority-unavailable` — detail carries the ruled
    `authority-unavailable:*` spelling verbatim, so the enum member is
    closed while the ruled open-suffix vocabulary stays where LLP 0059
    owns it;
-5. `transport-recovery` — bounded T-LOSS/T-RECONNECT/T-GRANT-LOSS recovery,
-   including `resync_required`-driven resubscribe in flight;
-6. `server-pending` — delivery owed by the serving process: the registry
-   row's `pendingState` names the stage (`queued`, `coalescing`, or
-   `evaluating`, carried in the derived detail), and `currentWaveSeq`
-   names the in-flight wave while `evaluating`; the wave records and the
-   existing `liveCoalesce` counters add context but are not the
-   per-subscription authority.
+5. `transport-recovery` — bounded recovery in flight, from the client
+   row's own states: connection `RECOVERING` or `GRANT_LOST`
+   (T-LOSS/T-GRANT-LOSS), subscription `DROPPED`,
+   `PENDING`-with-`supersedes` (T-RECONNECT resubscribe), or
+   `RESYNC_PENDING` (`resync_required`-driven resubscribe). Applies with
+   the registry row present **or** absent — row-present +
+   `PENDING`-with-`supersedes` + `owed = null` (replacement established
+   server-side, client not yet caught up) is still `transport-recovery`;
+6. `server-pending` — requires a registry row and the owed comparison
+   (`owedThroughVersion` non-null and greater than the client row's
+   `authoritativeRevision`): the row's `evaluation`/`pendingWork`
+   composite names the stage (`evaluating` with `currentWaveSeq`,
+   `queued`, `coalescing`, or a race composite of both, carried in the
+   derived detail); the wave records and the existing `liveCoalesce`
+   counters add context but are not the per-subscription authority.
+
+When no member 1–6 matches, the residual classification is total:
+
+- **Row present, not owed** (`owedThroughVersion` null or
+  `<= authoritativeRevision`): **neutral**. This includes ordinary settled
+  rows, initial `PENDING` establishment, and the in-transit case —
+  `lastDeliveredVersion > authoritativeRevision` with the client settled
+  on either lane means the delivery sits in outbox/socket custody
+  (`ATTACHED_POLL` awaiting its declared drain cadence, or a live frame
+  in flight); detail names it `in-transit`.
+- **Row present, owed, but `evaluation: "idle"` and
+  `pendingWork: "none"`**: **defect** — the §7.3 table makes owed work
+  with no recorded stage unrepresentable.
+- **Row absent, client in a lifecycle-settled state** (`RELEASED`,
+  `TERMINAL_DELETED`, connection `CLOSED`/`IDLE`, or ordinary initial
+  `PENDING` whose establishment is simply not yet processed):
+  **neutral** — being established or already retired; nothing is owed by
+  a subscription the server does not hold.
+- **Row absent, client claiming settled delivery** (`ATTACHED_LIVE` with
+  `LIVE(v)`): **snapshot-skew** — server-side retirement (T-LOSS,
+  reaping) can precede the client's observation of the loss, and the two
+  snapshots carry no causal alignment. Re-read both; only a skew that
+  persists across the re-read is the defect (an orphaned subscription).
 
 Consumer-level equal-snapshot dedup is deliberately **not** in this enum:
 a value-equal delivery that advanced `authoritativeRevision` is a completed
 delivery with a suppressed notification (visible via the suppression
-counter and the advanced revision), not a miss. An owed delivery matching
-none of the six members is a product defect, not a diagnostics gap — the
-enum deliberately includes every already-ruled hold state so that sentence
-is decidable.
+counter and the advanced revision), not a miss. The four outcomes are
+normative; the exact per-surface spelling of the neutral-class details is
+owner-acceptance detail for LLP 0095/0114 alongside their inspection
+carrier.
 
 ### 7.5 Repeated equivalent writes and effects (bounded to what the framework knows)
 
@@ -1115,16 +1154,26 @@ page.
   uniquely with two subscriptions on one function at the same delivered
   version (distinct args/owners); the derived `pendingDeliveryReason` is
   reproducible from the two snapshots alone, exercising
-  `owedThroughVersion` advance and compare-and-clear, each `pendingState`
-  stage (`queued`, `coalescing`, `evaluating` with `currentWaveSeq`), a
-  not-owed sibling subscription on the same function that stays `null`,
-  **invalidation during evaluation** (charge `V+1` while wave `W`
-  evaluates its cut at `V`: delivery of `V` preserves
-  `owedThroughVersion = V+1` and transitions to `queued`/`coalescing`,
-  then drains), and **T-LOSS/T-RECONNECT** (socket loss retires the
-  registry row while the client holds `DROPPED`/`RECOVERING` — the
-  absent-row branch derives `transport-recovery`; after the fresh
-  `supersedes` subscribe a fresh row appears with `owed = null`, `idle`);
+  `owedThroughVersion` advance and compare-and-clear, each
+  `evaluation`/`pendingWork` value, a not-owed sibling subscription on the
+  same function that derives **neutral**, **invalidation during
+  evaluation via the composite state** (charge `V+1` while wave `W`
+  evaluates its cut at `V`: the row records `evaluating` +
+  `queued`/`coalescing` — including the coalescer merge landing during
+  `evaluating` — and delivery of `V` preserves
+  `owedThroughVersion = V+1` with the recorded `pendingWork` as the
+  successor, then drains), **one LLP 0200 non-delivery exit**
+  (authority-gate discard: `currentWaveSeq` clears, owed-ness preserved,
+  `pendingWork → queued`, and the derived reason follows the fence
+  through members 2/4 to `server-pending` at restoration),
+  **T-LOSS/T-RECONNECT** (socket loss retires the registry row while the
+  client holds `DROPPED`/`RECOVERING` — the absent-row branch derives
+  `transport-recovery`; row-present + `PENDING`-with-`supersedes` +
+  `owed = null` also derives `transport-recovery`; after establishment a
+  fresh row appears with `owed = null`, `idle`/`none`), and one
+  **snapshot-skew** case (row retired before the client observes the
+  loss: first read classifies snapshot-skew, the re-read resolves it —
+  and a fabricated persistent skew classifies defect);
 - §7.5/§7.6: no-op-commit, equivalent-enqueue, duplicate-subscription, and
   asset-multiplicity counters each triggered and attributed to owner labels;
 - posture: hosted-default-off proven; no export path exists to test;
@@ -1149,6 +1198,26 @@ it adds a visibility surface and deliberately adds no bounds surface.
 
 ## Revision history
 
+- **v0.12 (2026-08-21).** §7 round-6 (codex two remaining MAJORs): the
+  single `pendingState` scalar splits into orthogonal `evaluation`
+  (`idle`/`evaluating` + `currentWaveSeq`) and `pendingWork`
+  (`none`/`queued`/`coalescing`) fields, so a charge during evaluation has
+  a recorded home and delivery's successor stage is recorded fact; the
+  transition table gains every LLP 0200 §2.4–2.5 exit (authority-gate
+  discard, queued/in-flight cancellation, timeout, refresh degradation)
+  and the lifecycle rows (T-SUB creation; T-UNSUB/T-LOSS/T-GRANT-LOSS/
+  second-timeout/terminal-quarantine retirement, owed-ness not surviving
+  retirement). The inspect-time derivation is exhaustive with four
+  outcomes (reason/neutral/defect/snapshot-skew): members 1–5 derive from
+  client state alone, never gated on the owed comparison (fixing
+  row-present + `PENDING`-supersedes + `owed=null`); `RESYNC_PENDING`,
+  `GRANT_LOST`, and `TERMINAL_AUTH` mapped; ordinary initial `PENDING`
+  and poll-lane/in-transit settled states are neutral; row-absent +
+  `ATTACHED_LIVE` is snapshot-skew with defect reserved for persistence
+  across a re-read. Fixture extended (composite-state race, authority-gate
+  discard exit, snapshot-skew re-read). Neutral-class detail spellings
+  delegated to LLP 0095/0114 owner acceptance with the four-outcome shape
+  normative.
 - **v0.11 (2026-08-21).** §7 round-5 (codex remaining MAJOR — non-total
   state machine): the registry facts gain a total transition table.
   Delivery of wave `W` at version `V` is a **compare-and-clear**:
