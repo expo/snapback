@@ -311,6 +311,27 @@ test('native custody provider admits only the evidenced tuple and refuses every 
         assert.equal(result.applicationClientInputs.length, 0);
       });
 
+      await t.test(`${operatingSystem} lazy digest-module unavailability from the real application client projects unsupported`, async () => {
+        const probe = fakeStorage({ os: operatingSystem });
+        const result = await runBoot(environmentFor({
+          operatingSystem,
+          moduleResolver: async () => moduleFor(probe.storage),
+          digestModuleResolver: async () => Object.freeze({
+            CryptoDigestAlgorithm: Object.freeze({ SHA256: 'SHA-256' }),
+            async digest() {
+              throw Object.assign(new Error('Cannot find native module ExpoCrypto'), {
+                code: 'ERR_NATIVE_MODULE_NOT_FOUND',
+              });
+            },
+          }),
+        }), { realApplicationClient: true });
+        assert.equal(result.state.status, 'unsupported');
+        assert.equal(
+          result.state.diagnostic.code,
+          'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE',
+        );
+      });
+
       await t.test(`${operatingSystem} unlinked native digest module is an unavailable module`, async () => {
         const probe = fakeStorage({ os: operatingSystem });
         const result = await runBoot(environmentFor({

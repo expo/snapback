@@ -888,10 +888,14 @@ const safeCauseCode = (error) => {
   return nonEmptyString(observed) ? observed : 'SNAPBACK_AUTH_BOOTSTRAP_FAILED';
 };
 
+// @ref LLP 0181#native-adapters — a missing or unlinked native digest module
+// is an unsupported platform capability even when this owner attaches the
+// authoritative LLP 0258 D7 bootstrap snapshot before the provider sees it.
 function failureSnapshot(error) {
   const causeCode = safeCauseCode(error);
   const status = causeCode === 'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE'
     || causeCode === 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED'
+    || causeCode === 'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE'
     ? 'unsupported'
     : (causeCode === 'SNAPBACK_AUTH_POLICY_UNAVAILABLE'
       || causeCode.includes('AUTH_MODE'))

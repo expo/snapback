@@ -68,6 +68,10 @@ and the Guide's zero-consumer-polyfill claim names the boundary explicitly.
 Simulator execution was attempted on the implementation host, but `xcrun`
 could not locate `simctl` and `adb` was not installed. Native execution is
 therefore evidenced here by OS-labeled parity vectors, provider integration,
-and the packed closure proof rather than a launched simulator.
+and the packed closure proof rather than a launched simulator. The remaining
+native-boot witness is tracked separately in
+[`issues/20260821-expo-crypto-adapter-native-witness.md`](../20260821-expo-crypto-adapter-native-witness.md);
+closing this ticket records the landed implementation, not completion of that
+platform witness.
 
-**Landing SHA:** TBD
+**Landing SHA:** `ca108246f`
