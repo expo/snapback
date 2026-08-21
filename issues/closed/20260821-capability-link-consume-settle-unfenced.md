@@ -1,6 +1,6 @@
 # `consume_capability_link_use` and `settle_capability_link_use` commit with no admission fence
 
-**Status:** Open
+**Status:** Resolved
 **Filed:** 2026-08-21
 **Found by:** grok-4.6 review of `244385daa`
 **Related:** `issues/20260821-capability-link-mint-revoke-deadlock.md`
@@ -48,3 +48,22 @@ as an oversight.
 Do not add a guard by copying the transport pattern that caused the deadlock:
 see the related ticket for how the same non-reentrant mutex wedges when a guard
 is held across a call that revalidates.
+
+
+## Resolution — 2026-08-21
+
+Both paths did need the fence. They mutate durable capability-link counters and
+outcomes and have no structural exemption from LLP 0058's gate algorithm, so
+the argument for fencing mint and revoke applies to them unchanged.
+
+Fences added ENGINE-side, deliberately not at the transport. `server.rs` only
+passes the existing `PreparedAuthority`; it does not take a guard. Taking one
+there is what deadlocked capability-link mint, revoke, and push.send, since the
+engine method then re-locks the same non-reentrant `AdmissionInner.state`.
+
+Both are proven by mutation rather than asserted: deleting either fence makes
+its own regression fail and restoring it makes it pass. See
+`crates/snapback-engine/src/local/admission_fence_tests.rs`.
+
+The reachability question this ticket left open is now moot — the fences exist
+and are enforced, so whether the gap was exploitable no longer needs settling.

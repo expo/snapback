@@ -25734,8 +25734,10 @@ async fn capability_link_invoke(
         Err(error) => return error.into_response(),
     };
     let consume_link = link.clone();
+    let consume_authority = authority.clone();
+    let settle_authority = authority.clone();
     let consumed = with_snapback(&state, move |snapback| {
-        snapback.consume_capability_link_use(&consume_link, now_millis())
+        snapback.consume_capability_link_use(&consume_authority, &consume_link, now_millis())
     })
     .await;
     let consumed = match consumed {
@@ -25801,7 +25803,7 @@ async fn capability_link_invoke(
         })
         .to_owned();
     if let Err(error) = with_snapback(&state, move |snapback| {
-        snapback.settle_capability_link_use(consumed, &outcome, now_millis())
+        snapback.settle_capability_link_use(&settle_authority, consumed, &outcome, now_millis())
     })
     .await
     {

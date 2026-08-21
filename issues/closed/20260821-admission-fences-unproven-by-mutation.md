@@ -1,6 +1,6 @@
 # The admission fences are correct but unproven — deleting one fails no test
 
-**Status:** Open
+**Status:** Resolved
 **Filed:** 2026-08-21
 **Related:** `issues/closed/20260821-capability-link-mint-revoke-deadlock.md`
 
@@ -52,3 +52,26 @@ Also settle whether `consume_capability_link_use` and
 `settle_capability_link_use` need a fence at all:
 `issues/20260821-capability-link-consume-settle-unfenced.md`. If they do, they
 inherit this same testing requirement.
+
+
+## Resolution — 2026-08-21
+
+All five durable-write fences now fail their own removal.
+
+A `#[cfg(test)]` hook retires the active admission epoch after prevalidation
+and immediately before the effect guard — the window that matters. Retiring
+before the operation would have proven nothing, since the pre-guard
+`validate_admission` already catches that, and such a test would pass with the
+fence deleted while looking like coverage. Production builds contain neither
+the hook nor any call to it.
+
+Each test observes the fence's EFFECT: a durable write racing a retirement is
+refused AND leaves no durable row, counter change, or outcome behind.
+
+Verified independently, not taken on report: deleting the push fence takes the
+focused suite to 4 passed / 1 failed, failing exactly its own proof. Before
+this work the identical mutation left 4 passed / 0 failed.
+
+Scope grew from three fences to five: capability-link consume and settle were
+found to need fences too, and got the same treatment
+(`issues/closed/20260821-capability-link-consume-settle-unfenced.md`).
