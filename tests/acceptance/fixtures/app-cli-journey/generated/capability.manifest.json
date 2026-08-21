@@ -1,4 +1,105 @@
 {
+  "agentSafe": {
+    "appEffective": {
+      "aggregate": {
+        "core": "Missing",
+        "history": "Missing"
+      },
+      "diff": {
+        "data": "Missing",
+        "effects": "Missing"
+      },
+      "envelope": {
+        "auth": "Missing",
+        "durableBackgroundWork": "Missing",
+        "hostChildMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
+        "migration": "Missing",
+        "ordinaryMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
+        "push": "Missing"
+      },
+      "explanation": {
+        "scopedFacts": []
+      },
+      "forks": {
+        "derivedDeployment": {
+          "base": "Missing",
+          "egress": "Missing",
+          "isolation": "Missing",
+          "promotion": "Missing"
+        },
+        "inApp": {
+          "base": "Missing",
+          "egress": "Missing",
+          "isolation": "Missing",
+          "promotion": "Missing"
+        }
+      },
+      "history": "Missing",
+      "proof": "Missing",
+      "replay": {
+        "actions": "Missing",
+        "handlers": "Missing"
+      },
+      "resourceBounds": "Missing",
+      "schemaEvolution": "Missing"
+    },
+    "schemaVersion": "agentSafe.v1",
+    "target": {
+      "aggregate": {
+        "core": "Missing",
+        "history": "Missing"
+      },
+      "diff": {
+        "data": "Missing",
+        "effects": "Missing"
+      },
+      "envelope": {
+        "auth": "Missing",
+        "durableBackgroundWork": "Missing",
+        "hostChildMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
+        "migration": "Missing",
+        "ordinaryMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
+        "push": "Missing"
+      },
+      "explanation": {
+        "scopedFacts": []
+      },
+      "forks": {
+        "derivedDeployment": {
+          "base": "Missing",
+          "egress": "Missing",
+          "isolation": "Missing",
+          "promotion": "Missing"
+        },
+        "inApp": {
+          "base": "Missing",
+          "egress": "Missing",
+          "isolation": "Missing",
+          "promotion": "Missing"
+        }
+      },
+      "history": "Missing",
+      "proof": "Missing",
+      "replay": {
+        "actions": "Missing",
+        "handlers": "Missing"
+      },
+      "resourceBounds": "Missing",
+      "schemaEvolution": "Missing"
+    }
+  },
   "appCliTarget": {
     "acceptsGenerationAssertions": true,
     "capabilityId": "app-cli.target",
@@ -76,6 +177,7 @@
       "s3-compatible"
     ],
     "maxChunkBytes": 8388608,
+    "maxGrantsPerApp": 1024,
     "maxOpenAttemptsPerApp": 64,
     "maxOpenAttemptsPerPrincipal": 8,
     "minAccountingUnitBytes": 4096,
@@ -138,6 +240,8 @@
     "notifications",
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing",
+    "agent_safe_storage_v1",
+    "agent_safe_derived_deployment_fork_v1",
     "live_full_text_search_v1"
   ],
   "capabilityMaturity": {
@@ -147,20 +251,38 @@
     "asset_lifecycle_v1": "experimental",
     "asset_reference_gc_v1": "experimental",
     "asset_video_finalization_v1": "experimental",
+    "assets.media-collection.v1": "experimental",
+    "assets.media-command.v1": "experimental",
+    "assets.media-ref-projection.v1": "experimental",
+    "bounded_batch_reads_v1": "experimental",
     "bounded_children_v1": "experimental",
     "inline_handler_v1": "experimental",
     "jobs_one_off_v1": "experimental",
     "mixed_bundle_boot_v2": "experimental",
+    "offline_mutation_replay": "experimental",
+    "realtime.connected-client-predicate": "experimental",
     "registered_bundle_boot_v1": "experimental",
     "result_contract_v1": "experimental",
     "sequence_allocation_v1": "experimental",
     "single_table_v1": "experimental",
     "snapshot_batch_v1": "experimental",
     "snapshot_batch_v2": "experimental",
+    "structured_stored_value_v1": "experimental",
     "vector_search_v1": "experimental",
     "versioned_seed_install_v1": "experimental",
     "versioned_seed_reset_v1": "experimental",
     "write_activity_v1": "experimental"
+  },
+  "connectedClientPredicate": {
+    "aggregationMode": "single-authority-routing",
+    "authorityScope": "app-instance-process",
+    "capabilityId": "realtime.connected-client-predicate",
+    "freshnessBudgetMs": 15000,
+    "semanticsVersion": 2,
+    "transport": [
+      "managed-websocket",
+      "authenticated-poll"
+    ]
   },
   "cron": true,
   "ephemeralHostedAdapter": false,
@@ -283,7 +405,8 @@
     "liveDelivery": "live_replace",
     "retention": [
       "none",
-      "opaque-authorized-snapshot-v1"
+      "opaque-authorized-snapshot-v1",
+      "result-transform-snapshot-v1"
     ]
   },
   "replaceOnlyQueries": true,
@@ -350,6 +473,16 @@
     }
   ],
   "runtimeEngine": "ibex",
+  "runtimeFacts": {
+    "boundedBatchReadsV1": {
+      "logicalBatchesPerHostCall": 1,
+      "maxCanonicalInputBytes": 1048576,
+      "maxItems": 256,
+      "maxPolicyProbesPerItem": 8,
+      "maxResponseBytes": 4194304,
+      "sqliteVariableFloor": 999
+    }
+  },
   "schemaVersion": "snapback.v0",
   "standardPatterns": {
     "authScopeDisjointnessSkip": "disabled",
@@ -377,6 +510,7 @@
   "supportedCapabilities": [
     "auth.sessions.v1",
     "bounded_children_v1",
+    "bounded_batch_reads_v1",
     "cron",
     "cron_action_run_mutation",
     "host_plan_runtime",
@@ -384,7 +518,9 @@
     "inline_handler_v1",
     "jobs_one_off_v1",
     "notifications.expoPushSeam",
+    "realtime.connected-client-predicate",
     "live_subscriptions",
+    "offline_mutation_replay",
     "mutation_read_set_validation",
     "mixed_bundle_boot_v2",
     "permission_epoch_resync",
@@ -398,12 +534,16 @@
     "full_text_search_v1",
     "vector_search_v1",
     "result_contract_v1",
+    "structured_stored_value_v1",
     "settlement.bounded_skew",
     "args_contract_v1",
     "versioned_seed_install_v1",
     "versioned_seed_reset_v1",
     "write_activity_v1",
     "asset_lifecycle_v1",
+    "assets.media-ref-projection.v1",
+    "assets.media-collection.v1",
+    "assets.media-command.v1",
     "asset_image_finalization_v1",
     "asset_image_pipeline_v1",
     "asset_reference_gc_v1",

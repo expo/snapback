@@ -5,14 +5,16 @@
   "auth": {
     "mode": "sessions"
   },
+  "authoredSourceHash": "sha256:fcd8fc2963d1c785f3bed02c2089dbb10b52d649391f5229c4bc31d0d0bac60c",
+  "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:5b011bf6d364fd947edb58deb0455ef61721da6069ee8f8dc81043e2ac391bff",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:8d68b004dd5e8c5a84cb4dbcc852d12161ed213bb75b1a388aefe00a02f69114",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:f4122c7b795682bdc01c2f880827d8ad6c1cf0bf3f7d7d3630977b3dfc651d29",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:92a043ae5fcc27cbdc46206ade7b96bb456c83affccd7cd84e32d9cc28b3f403",
   "schemaVersion": "snapback.v1",
   "tables": [
     {
@@ -30,7 +32,16 @@
       ],
       "indexes": [],
       "name": "workspaces",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "declaration": "workspaceMembers",
+        "kind": "membership",
+        "resourceField": "_id",
+        "roles": [
+          "owner",
+          "member"
+        ]
+      }
     },
     {
       "fields": [
@@ -95,7 +106,11 @@
         ]
       },
       "name": "workspaceMembers",
-      "syncable": false
+      "syncable": false,
+      "visibility": {
+        "field": "userId",
+        "kind": "owner"
+      }
     },
     {
       "fields": [
@@ -132,7 +147,10 @@
       ],
       "indexes": [],
       "name": "assetCallbackLog",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "assetSharing": {
@@ -178,7 +196,10 @@
         }
       ],
       "name": "notes",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "assetSharing": {
@@ -208,7 +229,11 @@
       ],
       "indexes": [],
       "name": "photos",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "field": "ownerId",
+        "kind": "owner"
+      }
     },
     {
       "fields": [
@@ -234,7 +259,10 @@
       ],
       "indexes": [],
       "name": "mixedDocs",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "fields": [
@@ -258,7 +286,11 @@
       ],
       "indexes": [],
       "name": "openDocs",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "field": "ownerId",
+        "kind": "owner"
+      }
     }
   ],
   "targetProfile": "local-dev-sqlite-ibex"

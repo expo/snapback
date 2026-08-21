@@ -1,0 +1,668 @@
+{
+  "admissionVersion": "snapback.handler-admission.legacy.v1",
+  "appId": "fixtures",
+  "artifactKind": "handlerRuntimeProfile",
+  "authoredSourceHash": "sha256:b8d759bc8f706e77ed8faf07b7aa0f533e5ecb2798fa9c0510a08bfb85d312ff",
+  "computedAccess": {
+    "dynamicProperties": "forbidden",
+    "forbiddenReflectionProperties": [
+      "__proto__",
+      "constructor",
+      "prototype"
+    ],
+    "objectReflectionMethods": [
+      "getOwnPropertyDescriptor",
+      "getOwnPropertyDescriptors",
+      "getOwnPropertyNames",
+      "getOwnPropertySymbols",
+      "getPrototypeOf",
+      "setPrototypeOf"
+    ],
+    "staticNumericIndexes": "admitted-where-the-current-scanner-resolves-a-literal",
+    "staticStringProperties": "admitted"
+  },
+  "diagnostics": [
+    {
+      "alternative": "Move the helper into the same authored file; imported helpers are not admitted yet.",
+      "code": "BUNDLE_UNSUPPORTED_IMPORT",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#can-i-import-a-helper",
+      "id": "module.import.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Register closed-script handlers on globalThis.__snapbackHandlers.",
+      "code": "BUNDLE_UNSUPPORTED_EXPORT",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#closed-script-handler-files",
+      "id": "module.export.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use ordinary lexical bindings.",
+      "code": "BUNDLE_UNSUPPORTED_WITH",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#forbidden-syntax-and-computed-access",
+      "id": "syntax.dynamic-scope.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Pass declared data through arguments, ctx, or configured action secrets.",
+      "code": "BUNDLE_UNSUPPORTED_PROCESS",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#can-i-use-node-crypto",
+      "id": "global.process.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use admitted JavaScript or a host-mediated capability.",
+      "code": "BUNDLE_UNSUPPORTED_WEBASSEMBLY",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#forbidden-syntax-and-computed-access",
+      "id": "global.webassembly.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Treat fetched or stored text as data; do not evaluate it.",
+      "code": "BUNDLE_UNSUPPORTED_EVAL",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#forbidden-syntax-and-computed-access",
+      "id": "syntax.eval.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use authored functions in the closed handler source.",
+      "code": "BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#forbidden-syntax-and-computed-access",
+      "id": "syntax.function-constructor.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Move the helper into the same authored file; CommonJS loading is unavailable.",
+      "code": "BUNDLE_UNSUPPORTED_REQUIRE",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#can-i-import-a-helper",
+      "id": "module.require.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use an Action and enable SNAPBACK_OUTBOUND_ACTIONS, or use a host-mediated declared capability.",
+      "code": "BUNDLE_UNSUPPORTED_FETCH",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#globals-and-operation-kinds",
+      "id": "global.fetch.opt-in",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use durable jobs for delayed work and ctx.runtime.now() for trusted timestamps.",
+      "code": "BUNDLE_UNSUPPORTED_TIMER",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#globals-and-operation-kinds",
+      "id": "global.timer.opt-in",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use ctx.runtime.id() for identifiers or pass deterministic input.",
+      "code": "BUNDLE_UNSUPPORTED_RANDOM",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#globals-and-operation-kinds",
+      "id": "global.random.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use ctx.runtime.now() for a trusted integer timestamp.",
+      "code": "BUNDLE_UNSUPPORTED_TIME",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#globals-and-operation-kinds",
+      "id": "global.time.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Fix the named JavaScript or TypeScript source span.",
+      "code": "BUNDLE_HANDLER_PARSE_FAILED",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#closed-script-handler-files",
+      "id": "closed-script.source.parse",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use one direct handler function or the documented closed-script source form.",
+      "code": "SNAPBACK_FUNCTION_HANDLER_FORM_INVALID",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.form.invalid",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Fix the named JavaScript or TypeScript source span.",
+      "code": "SNAPBACK_INLINE_HANDLER_SOURCE_INVALID",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution",
+      "id": "inline.source.parse",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Write one direct non-computed handler property containing a function expression.",
+      "code": "SNAPBACK_INLINE_HANDLER_DIRECT_LITERAL_REQUIRED",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.literal.direct",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use the admitted inline syntax or a declarative plan.",
+      "code": "SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#forbidden-syntax-and-computed-access",
+      "id": "inline.syntax.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Pass data through args or ctx, or use a same-file function declaration.",
+      "code": "SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#globals-and-operation-kinds",
+      "id": "inline.global.allowlist",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Rewrite the helper using the admitted inline syntax.",
+      "code": "SNAPBACK_INLINE_HELPER_SYNTAX_FORBIDDEN",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.helper.syntax",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Pass the value as an argument or make the helper self-contained.",
+      "code": "SNAPBACK_INLINE_HELPER_FREE_IDENTIFIER",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.helper.free-identifier",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use a top-level function declaration; imports and top-level values cannot be spliced.",
+      "code": "SNAPBACK_INLINE_HELPER_INADMISSIBLE",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#can-i-import-a-helper",
+      "id": "inline.helper.inadmissible",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Break the same-file helper cycle.",
+      "code": "SNAPBACK_INLINE_HELPER_CYCLE",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.helper.cycle",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Keep the direct authored handler expression bound to its generated definition marker.",
+      "code": "SNAPBACK_INLINE_HANDLER_MARKER_INVALID",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.marker.invalid",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Export the direct inline definition so codegen can bind its authored handler.",
+      "code": "SNAPBACK_INLINE_HANDLER_NOT_BOUND",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.marker.unbound",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Replace the named value with strict JSON data.",
+      "code": "SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution",
+      "id": "definition.strict-json",
+      "phase": "definition-evaluation"
+    },
+    {
+      "alternative": "Add export to the named top-level builder binding.",
+      "code": "SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution",
+      "id": "definition.export.required",
+      "phase": "definition-discovery"
+    },
+    {
+      "alternative": "Use the operation kind and ctx capability named by the diagnostic.",
+      "code": "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#static-and-runtime-refusals",
+      "id": "runtime.ambient-capability",
+      "phase": "runtime-check"
+    },
+    {
+      "alternative": "Register the closed-script export on globalThis.__snapbackHandlers.",
+      "code": "SNAPBACK_HANDLER_EXPORT_MISSING",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#closed-script-handler-files",
+      "id": "runtime.export.required",
+      "phase": "runtime-check"
+    }
+  ],
+  "globals": {
+    "Action": {
+      "basis": "current-codegen-admission",
+      "handlerForms": {
+        "closedScript": {
+          "admissionModel": "scanner-denylist-plus-runtime-boundary",
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "process": "unavailable",
+          "timers": "unavailable"
+        },
+        "inline": {
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "positiveAllowlist": [
+            "Array",
+            "BigInt",
+            "Boolean",
+            "Date",
+            "Error",
+            "Infinity",
+            "JSON",
+            "Map",
+            "Math",
+            "NaN",
+            "Number",
+            "Object",
+            "Promise",
+            "RangeError",
+            "ReferenceError",
+            "RegExp",
+            "Set",
+            "String",
+            "SyntaxError",
+            "TypeError",
+            "URIError",
+            "Uint8Array",
+            "decodeURI",
+            "decodeURIComponent",
+            "encodeURI",
+            "encodeURIComponent",
+            "isFinite",
+            "isNaN",
+            "parseFloat",
+            "parseInt",
+            "undefined"
+          ],
+          "process": "unavailable",
+          "timers": "unavailable"
+        }
+      },
+      "identifiers": [
+        "Array",
+        "BigInt",
+        "Boolean",
+        "Date",
+        "Error",
+        "Infinity",
+        "JSON",
+        "Map",
+        "Math",
+        "NaN",
+        "Number",
+        "Object",
+        "Promise",
+        "RangeError",
+        "ReferenceError",
+        "RegExp",
+        "Set",
+        "String",
+        "SyntaxError",
+        "TypeError",
+        "URIError",
+        "Uint8Array",
+        "decodeURI",
+        "decodeURIComponent",
+        "encodeURI",
+        "encodeURIComponent",
+        "isFinite",
+        "isNaN",
+        "parseFloat",
+        "parseInt",
+        "undefined"
+      ]
+    },
+    "LiveQuery": {
+      "basis": "current-codegen-admission",
+      "handlerForms": {
+        "closedScript": {
+          "admissionModel": "scanner-denylist-plus-runtime-boundary",
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "process": "unavailable",
+          "timers": "unavailable"
+        },
+        "inline": {
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "positiveAllowlist": [
+            "Array",
+            "BigInt",
+            "Boolean",
+            "Date",
+            "Error",
+            "Infinity",
+            "JSON",
+            "Map",
+            "Math",
+            "NaN",
+            "Number",
+            "Object",
+            "Promise",
+            "RangeError",
+            "ReferenceError",
+            "RegExp",
+            "Set",
+            "String",
+            "SyntaxError",
+            "TypeError",
+            "URIError",
+            "Uint8Array",
+            "decodeURI",
+            "decodeURIComponent",
+            "encodeURI",
+            "encodeURIComponent",
+            "isFinite",
+            "isNaN",
+            "parseFloat",
+            "parseInt",
+            "undefined"
+          ],
+          "process": "unavailable",
+          "timers": "unavailable"
+        }
+      },
+      "identifiers": [
+        "Array",
+        "BigInt",
+        "Boolean",
+        "Date",
+        "Error",
+        "Infinity",
+        "JSON",
+        "Map",
+        "Math",
+        "NaN",
+        "Number",
+        "Object",
+        "Promise",
+        "RangeError",
+        "ReferenceError",
+        "RegExp",
+        "Set",
+        "String",
+        "SyntaxError",
+        "TypeError",
+        "URIError",
+        "Uint8Array",
+        "decodeURI",
+        "decodeURIComponent",
+        "encodeURI",
+        "encodeURIComponent",
+        "isFinite",
+        "isNaN",
+        "parseFloat",
+        "parseInt",
+        "undefined"
+      ]
+    },
+    "Mutation": {
+      "basis": "current-codegen-admission",
+      "handlerForms": {
+        "closedScript": {
+          "admissionModel": "scanner-denylist-plus-runtime-boundary",
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "process": "unavailable",
+          "timers": "unavailable"
+        },
+        "inline": {
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "positiveAllowlist": [
+            "Array",
+            "BigInt",
+            "Boolean",
+            "Date",
+            "Error",
+            "Infinity",
+            "JSON",
+            "Map",
+            "Math",
+            "NaN",
+            "Number",
+            "Object",
+            "Promise",
+            "RangeError",
+            "ReferenceError",
+            "RegExp",
+            "Set",
+            "String",
+            "SyntaxError",
+            "TypeError",
+            "URIError",
+            "Uint8Array",
+            "decodeURI",
+            "decodeURIComponent",
+            "encodeURI",
+            "encodeURIComponent",
+            "isFinite",
+            "isNaN",
+            "parseFloat",
+            "parseInt",
+            "undefined"
+          ],
+          "process": "unavailable",
+          "timers": "unavailable"
+        }
+      },
+      "identifiers": [
+        "Array",
+        "BigInt",
+        "Boolean",
+        "Date",
+        "Error",
+        "Infinity",
+        "JSON",
+        "Map",
+        "Math",
+        "NaN",
+        "Number",
+        "Object",
+        "Promise",
+        "RangeError",
+        "ReferenceError",
+        "RegExp",
+        "Set",
+        "String",
+        "SyntaxError",
+        "TypeError",
+        "URIError",
+        "Uint8Array",
+        "decodeURI",
+        "decodeURIComponent",
+        "encodeURI",
+        "encodeURIComponent",
+        "isFinite",
+        "isNaN",
+        "parseFloat",
+        "parseInt",
+        "undefined"
+      ]
+    },
+    "Query": {
+      "basis": "current-codegen-admission",
+      "handlerForms": {
+        "closedScript": {
+          "admissionModel": "scanner-denylist-plus-runtime-boundary",
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "process": "unavailable",
+          "timers": "unavailable"
+        },
+        "inline": {
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "positiveAllowlist": [
+            "Array",
+            "BigInt",
+            "Boolean",
+            "Date",
+            "Error",
+            "Infinity",
+            "JSON",
+            "Map",
+            "Math",
+            "NaN",
+            "Number",
+            "Object",
+            "Promise",
+            "RangeError",
+            "ReferenceError",
+            "RegExp",
+            "Set",
+            "String",
+            "SyntaxError",
+            "TypeError",
+            "URIError",
+            "Uint8Array",
+            "decodeURI",
+            "decodeURIComponent",
+            "encodeURI",
+            "encodeURIComponent",
+            "isFinite",
+            "isNaN",
+            "parseFloat",
+            "parseInt",
+            "undefined"
+          ],
+          "process": "unavailable",
+          "timers": "unavailable"
+        }
+      },
+      "identifiers": [
+        "Array",
+        "BigInt",
+        "Boolean",
+        "Date",
+        "Error",
+        "Infinity",
+        "JSON",
+        "Map",
+        "Math",
+        "NaN",
+        "Number",
+        "Object",
+        "Promise",
+        "RangeError",
+        "ReferenceError",
+        "RegExp",
+        "Set",
+        "String",
+        "SyntaxError",
+        "TypeError",
+        "URIError",
+        "Uint8Array",
+        "decodeURI",
+        "decodeURIComponent",
+        "encodeURI",
+        "encodeURIComponent",
+        "isFinite",
+        "isNaN",
+        "parseFloat",
+        "parseInt",
+        "undefined"
+      ]
+    }
+  },
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:2277a887af989814310be7f5b6914edd94fe9fbdcf7a3d18e6ae931a04ec2011",
+  "moduleGraph": {
+    "admittedSpecifiers": [],
+    "cycles": "forbidden",
+    "graphRecordSchema": {
+      "admissionVersion": "snapback.handler-admission.legacy.v1",
+      "digestFields": {
+        "canonicalExecutableAstDigest": "canonical-executable",
+        "rawSourceEvidenceDigest": "raw-source-evidence"
+      },
+      "extractorVersion": "snapback.inline-handler-extractor.v1",
+      "moduleFormat": "esm",
+      "normalizedTarget": "root-relative-posix-path",
+      "sameFileTargetResolution": "self",
+      "schemaVersion": "snapback.handler-graph-record.v1",
+      "sourceSnapshot": {
+        "attestedReread": "not-applicable-while-relative-imports-are-not-admitted",
+        "protocol": "single-captured-source-buffer-v1"
+      },
+      "topology": "directed-node-and-edge-list"
+    },
+    "identityEvidence": {
+      "canonicalExecutableDigestField": "implementationHash",
+      "rawEvidenceDigestField": "authoredSourceHash"
+    },
+    "importedHelpers": "not-admitted",
+    "integerIndexGrammar": "not-applicable-to-legacy-profiles",
+    "maximumFiles": 1,
+    "maximumImportDepth": 0,
+    "reExports": "forbidden",
+    "records": [],
+    "sameFileFunctionDeclarations": true
+  },
+  "operations": [
+    {
+      "operation": "createNote",
+      "operationId": "fixtures:createNote",
+      "operationKind": "Mutation",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "listNotes",
+      "operationId": "fixtures:listNotes",
+      "operationKind": "Query",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "watchNotes",
+      "operationId": "fixtures:watchNotes",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    }
+  ],
+  "profileVersion": "snapback.handler-runtime-profile.v1",
+  "runtimeCapabilities": {
+    "dynamicCodeGeneration": false,
+    "filesystem": false,
+    "freshIdentifiers": "ctx.runtime.id",
+    "nodeBuiltins": false,
+    "nodeCrypto": false,
+    "outboundFetch": false,
+    "trustedTime": "ctx.runtime.now",
+    "wasm": false
+  },
+  "schemaVersion": "snapback.handler-runtime-profile.v1",
+  "selectionReasonVocabulary": {
+    "current": [
+      "legacy-profile"
+    ],
+    "reservedForBoundedModules": [
+      "explicit",
+      "required-by-import"
+    ]
+  },
+  "syntax": {
+    "admitted": [
+      "direct function and arrow-function expressions",
+      "statically named ordinary property access",
+      "same-file top-level function declarations reached from a handler"
+    ],
+    "forbidden": [
+      "class syntax",
+      "ambient this or super",
+      "dynamic import",
+      "eval",
+      "Function construction",
+      "dynamic computed member access",
+      "prototype and descriptor reflection",
+      "helper cycles"
+    ]
+  },
+  "targetDifferences": {
+    "local-dev-sqlite-ibex": {
+      "engine": "Hermes through Ibex",
+      "handlerAdmission": "legacy-v1"
+    },
+    "remote-service-sqlite-ibex": {
+      "engine": "Hermes through Ibex",
+      "handlerAdmission": "legacy-v1"
+    },
+    "workerd-v8": {
+      "status": "not-admitted-in-rollout-1"
+    }
+  },
+  "targetProfile": "local-dev-sqlite-ibex"
+}

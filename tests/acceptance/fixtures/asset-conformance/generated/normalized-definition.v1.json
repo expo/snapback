@@ -1,0 +1,1734 @@
+{
+  "definition": {
+    "application": {
+      "assetUploadIntents": [
+        {
+          "accept": {
+            "maxBytes": 32000000,
+            "mediaTypes": [
+              "application/octet-stream"
+            ]
+          },
+          "access": {
+            "read": "owner-only"
+          },
+          "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+          "authRequirement": "authenticated",
+          "callbacks": null,
+          "delivery": {
+            "kind": "private-strict"
+          },
+          "grants": false,
+          "image": null,
+          "intentPolicyHash": "sha256:6eb6bdd673951d3f8c6648eb2379585e70fd4ff7cd7e6798a1959e82dde210e7",
+          "name": "bulkUpload",
+          "reads": [],
+          "video": null
+        },
+        {
+          "accept": {
+            "maxBytes": 1000000,
+            "mediaTypes": [
+              "image/png"
+            ]
+          },
+          "access": {
+            "read": "via-references"
+          },
+          "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+          "authRequirement": "authenticated",
+          "callbacks": null,
+          "delivery": {
+            "kind": "public-immutable"
+          },
+          "grants": false,
+          "image": {
+            "location": "strip"
+          },
+          "intentPolicyHash": "sha256:84283e5384d91faaf7f9d5f12f57d2347654d8e0568c8650ccfc135fa11c6b34",
+          "name": "coverUpload",
+          "reads": [],
+          "video": null
+        },
+        {
+          "accept": {
+            "maxBytes": 100000,
+            "mediaTypes": [
+              "application/octet-stream",
+              "application/zip"
+            ]
+          },
+          "access": {
+            "read": "owner-only"
+          },
+          "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+          "authRequirement": "authenticated",
+          "callbacks": {
+            "ready": "recordAssetReady"
+          },
+          "delivery": {
+            "kind": "private-strict"
+          },
+          "grants": false,
+          "image": null,
+          "intentPolicyHash": "sha256:bf066ee7f8344dc15fcd015bfdbfb4e3db7868d034add5be66d6ae5c29cab1e6",
+          "name": "fileUpload",
+          "reads": [],
+          "video": null
+        },
+        {
+          "accept": {
+            "maxBytes": 1000000,
+            "mediaTypes": [
+              "image/jpeg",
+              "image/png"
+            ]
+          },
+          "access": {
+            "read": "via-references"
+          },
+          "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+          "authRequirement": "authenticated",
+          "callbacks": null,
+          "delivery": {
+            "kind": "private-strict"
+          },
+          "grants": false,
+          "image": {
+            "location": "strip",
+            "variants": [
+              {
+                "key": "thumb",
+                "required": true,
+                "width": 4
+              },
+              {
+                "key": "display",
+                "required": true,
+                "width": 8
+              }
+            ]
+          },
+          "intentPolicyHash": "sha256:e25859995af5cc7f027231a4be10f15a6a2ee213fe04c42bd37b8e7bde25f87a",
+          "name": "photoUpload",
+          "reads": [],
+          "video": null
+        },
+        {
+          "accept": {
+            "maxBytes": 1000000,
+            "mediaTypes": [
+              "image/png"
+            ]
+          },
+          "access": {
+            "read": "owner-only"
+          },
+          "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+          "authRequirement": "authenticated",
+          "callbacks": null,
+          "delivery": {
+            "kind": "private-signed"
+          },
+          "grants": false,
+          "image": {
+            "location": "strip"
+          },
+          "intentPolicyHash": "sha256:e4e65798f462ed9563f7ae0b4275df630b9be7c0d3619c5c8f9e2b212154bd6a",
+          "name": "shareUpload",
+          "reads": [],
+          "video": null
+        }
+      ],
+      "authorityProfile": null,
+      "memberships": [
+        {
+          "membership": {
+            "bootstrapRole": "owner",
+            "id": "workspaceMembers",
+            "lastHolder": {
+              "protect": "owner"
+            },
+            "principal": "userId",
+            "provenance": "full",
+            "resource": "workspaceId",
+            "resourceTable": "workspaces",
+            "role": "role",
+            "roles": [
+              "owner",
+              "member"
+            ],
+            "scope": "resource",
+            "transitions": [
+              {
+                "by": [
+                  "owner"
+                ],
+                "op": "insert",
+                "target": "other",
+                "to": [
+                  "member"
+                ]
+              },
+              {
+                "by": [
+                  "self"
+                ],
+                "from": [
+                  "member"
+                ],
+                "op": "remove",
+                "target": "self"
+              }
+            ]
+          },
+          "table": "workspaceMembers"
+        }
+      ],
+      "migrations": null,
+      "retention": {
+        "operations": [
+          {
+            "operationName": "addMember",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "clearPhoto",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "createMixedPlan",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "createNotePlan",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "createOpenDocPlan",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "createPhoto",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "createPhotoPlan",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "createWorkspace",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "forgePhoto",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "leaveWorkspace",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "listAssetCallbackLog",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "recordAssetReady",
+            "retainable": false,
+            "retentionClass": null
+          }
+        ],
+        "schema": null
+      },
+      "routes": null,
+      "schema": {
+        "api": null,
+        "assets": null,
+        "auth": {
+          "mode": "sessions"
+        },
+        "authProgram": null,
+        "ephemeralCollections": [],
+        "portabilityFlags": [],
+        "pushSeam": null,
+        "requiredCapabilities": [
+          "auth.sessions.v1"
+        ],
+        "strictDeclarations": false,
+        "tables": [
+          {
+            "fields": [
+              {
+                "field_type": "String",
+                "name": "name",
+                "optional": false
+              },
+              {
+                "field_type": "Principal",
+                "name": "createdBy",
+                "optional": false
+              }
+            ],
+            "indexes": [],
+            "name": "workspaces",
+            "syncable": true,
+            "visibility": {
+              "declaration": "workspaceMembers",
+              "kind": "membership",
+              "resourceField": "_id",
+              "roles": [
+                "owner",
+                "member"
+              ]
+            }
+          },
+          {
+            "fields": [
+              {
+                "field_type": {
+                  "Id": {
+                    "table": "workspaces"
+                  }
+                },
+                "name": "workspaceId",
+                "optional": false
+              },
+              {
+                "field_type": "Principal",
+                "name": "userId",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "role",
+                "optional": false
+              }
+            ],
+            "indexes": [],
+            "membership": {
+              "bootstrapRole": "owner",
+              "id": "workspaceMembers",
+              "lastHolder": {
+                "protect": "owner"
+              },
+              "principal": "userId",
+              "provenance": "full",
+              "resource": "workspaceId",
+              "resourceTable": "workspaces",
+              "role": "role",
+              "roles": [
+                "owner",
+                "member"
+              ],
+              "scope": "resource",
+              "transitions": [
+                {
+                  "by": [
+                    "owner"
+                  ],
+                  "op": "insert",
+                  "target": "other",
+                  "to": [
+                    "member"
+                  ]
+                },
+                {
+                  "by": [
+                    "self"
+                  ],
+                  "from": [
+                    "member"
+                  ],
+                  "op": "remove",
+                  "target": "self"
+                }
+              ]
+            },
+            "name": "workspaceMembers",
+            "syncable": false,
+            "visibility": {
+              "field": "userId",
+              "kind": "owner"
+            }
+          },
+          {
+            "fields": [
+              {
+                "field_type": "String",
+                "name": "assetId",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "event",
+                "optional": false
+              },
+              {
+                "field_type": "Principal",
+                "name": "actorId",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "actorKind",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "provider",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "sessionId",
+                "optional": true
+              }
+            ],
+            "indexes": [],
+            "name": "assetCallbackLog",
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
+          },
+          {
+            "assetSharing": {
+              "kind": "membership",
+              "membership": "workspaceMembers"
+            },
+            "fields": [
+              {
+                "field_type": {
+                  "Id": {
+                    "table": "workspaces"
+                  }
+                },
+                "name": "workspaceId",
+                "optional": false
+              },
+              {
+                "field_type": "Principal",
+                "name": "authorId",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "body",
+                "optional": false
+              },
+              {
+                "field_type": {
+                  "AssetRef": {
+                    "upload": "photoUpload"
+                  }
+                },
+                "name": "photo",
+                "optional": true
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "workspaceId"
+                ],
+                "name": "by_workspace"
+              }
+            ],
+            "name": "notes",
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
+          },
+          {
+            "assetSharing": {
+              "field": "ownerId",
+              "kind": "owner"
+            },
+            "fields": [
+              {
+                "field_type": "Principal",
+                "name": "ownerId",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "caption",
+                "optional": false
+              },
+              {
+                "field_type": {
+                  "AssetRef": {
+                    "upload": "photoUpload"
+                  }
+                },
+                "name": "image",
+                "optional": true
+              }
+            ],
+            "indexes": [],
+            "name": "photos",
+            "syncable": true,
+            "visibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
+          },
+          {
+            "fields": [
+              {
+                "field_type": "Principal",
+                "name": "ownerId",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "title",
+                "optional": false
+              },
+              {
+                "field_type": {
+                  "AssetRef": {
+                    "upload": "photoUpload"
+                  }
+                },
+                "name": "attachment",
+                "optional": true
+              }
+            ],
+            "indexes": [],
+            "name": "mixedDocs",
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
+          },
+          {
+            "fields": [
+              {
+                "field_type": "Principal",
+                "name": "ownerId",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "title",
+                "optional": false
+              },
+              {
+                "field_type": {
+                  "AssetRef": {}
+                },
+                "name": "attachment",
+                "optional": true
+              }
+            ],
+            "indexes": [],
+            "name": "openDocs",
+            "syncable": true,
+            "visibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
+          }
+        ],
+        "version": "snapback.v1"
+      }
+    },
+    "operations": [
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "workspaceId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "workspaces"
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": true,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "workspaceMembers"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "addMember",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "workspaceMembers",
+          "tables": [
+            "workspaceMembers"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "photos"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "photos"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "clearPhoto",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "photos",
+          "tables": [
+            "photos"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "assetId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [
+            "authUserId"
+          ],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "insert"
+              ],
+              "table": "mixedDocs"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "createMixedPlan",
+        "plan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "id"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "id",
+                  "table": "mixedDocs",
+                  "values": {
+                    "attachment": {
+                      "Arg": "assetId"
+                    },
+                    "ownerId": "AuthUserId",
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
+        "writes": {
+          "mode": "mutationPlan",
+          "primaryTable": "mixedDocs",
+          "tables": [
+            "mixedDocs"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "workspaceId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "workspaces"
+              }
+            },
+            {
+              "name": "body",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "assetId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [
+            "authUserId"
+          ],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "insert"
+              ],
+              "table": "notes"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "createNotePlan",
+        "plan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "id"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "id",
+                  "table": "notes",
+                  "values": {
+                    "authorId": "AuthUserId",
+                    "body": {
+                      "Arg": "body"
+                    },
+                    "photo": {
+                      "Arg": "assetId"
+                    },
+                    "workspaceId": {
+                      "Arg": "workspaceId"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
+        "writes": {
+          "mode": "mutationPlan",
+          "primaryTable": "notes",
+          "tables": [
+            "notes"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "assetId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [
+            "authUserId"
+          ],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "insert"
+              ],
+              "table": "openDocs"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "createOpenDocPlan",
+        "plan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "id"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "id",
+                  "table": "openDocs",
+                  "values": {
+                    "attachment": {
+                      "Arg": "assetId"
+                    },
+                    "ownerId": "AuthUserId",
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
+        "writes": {
+          "mode": "mutationPlan",
+          "primaryTable": "openDocs",
+          "tables": [
+            "openDocs"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "caption",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "assetId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "photos"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "createPhoto",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "photos",
+          "tables": [
+            "photos"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "caption",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "assetId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [
+            "authUserId"
+          ],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "insert"
+              ],
+              "table": "photos"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "createPhotoPlan",
+        "plan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "id"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "id",
+                  "table": "photos",
+                  "values": {
+                    "caption": {
+                      "Arg": "caption"
+                    },
+                    "image": {
+                      "Arg": "assetId"
+                    },
+                    "ownerId": "AuthUserId"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
+        "writes": {
+          "mode": "mutationPlan",
+          "primaryTable": "photos",
+          "tables": [
+            "photos"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "name",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": true,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "workspaceMembers"
+            },
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "workspaces"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "createWorkspace",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "workspaces",
+          "tables": [
+            "workspaces",
+            "workspaceMembers"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "caption",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "assetId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "photos"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "forgePhoto",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "photos",
+          "tables": [
+            "photos"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "workspaceId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "workspaces"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": true,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "workspaceMembers"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "leaveWorkspace",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "workspaceMembers",
+          "tables": [
+            "workspaceMembers"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": []
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [
+            "opaque"
+          ],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "table": "assetCallbackLog"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Query",
+        "operationName": "listAssetCallbackLog",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": "assetCallbackLog",
+          "tables": [
+            "assetCallbackLog"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "online-only",
+        "trackedRefusals": [],
+        "writePolicy": null,
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "event",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "assetId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "facts",
+              "required": true,
+              "value": {
+                "kind": "json",
+                "maxBytes": 1048576,
+                "maxDepth": 16
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "assetCallbackLog"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "recordAssetReady",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "assetCallbackLog",
+          "tables": [
+            "assetCallbackLog"
+          ]
+        }
+      }
+    ]
+  },
+  "excludedFields": [
+    "behavior",
+    "graphRecords",
+    "authoringProfile",
+    "appId"
+  ],
+  "normalizedContractId": "sha256:8777056531b57a0cbf8c6d177e033be661ea643bd6d8b1242272bd682e39f000",
+  "normalizedSchemaId": "sha256:b0629df9fa23e5513cbe0862278ab3be5bc86829aeda1b2657dae62455d313e2",
+  "schemaVersion": "snapback.normalized-application-definition.v1"
+}

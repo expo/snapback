@@ -5,14 +5,16 @@
   "auth": {
     "mode": "sessions"
   },
+  "authoredSourceHash": "sha256:b8d759bc8f706e77ed8faf07b7aa0f533e5ecb2798fa9c0510a08bfb85d312ff",
+  "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:fbd9e86d4c5a8d51a5b243b2ab58e9cf3f9a9546b29f40b22e0e199c4fec2f01",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:2277a887af989814310be7f5b6914edd94fe9fbdcf7a3d18e6ae931a04ec2011",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:ffe87da5e57dfd272d0bc0e23c17b41633a05d6ce31d445047d9ac95d589f6f2",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:d1eee9ab0c0026e160d8960b0e605960682140da0064e46e0bfdb45b1be14530",
   "schemaVersion": "snapback.v1",
   "tables": [
     {
@@ -35,7 +37,11 @@
       ],
       "indexes": [],
       "name": "notes",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "field": "authorId",
+        "kind": "owner"
+      }
     }
   ],
   "targetProfile": "local-dev-sqlite-ibex"

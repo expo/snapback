@@ -1,6 +1,7 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:824f80b95d2a18c347eb03865f28cc5af8d7479b72a71275cf462753aabc17d4",
+  "authoredSourceHash": "sha256:b8d759bc8f706e77ed8faf07b7aa0f533e5ecb2798fa9c0510a08bfb85d312ff",
+  "bundleHash": "snapback.v1:sessions:function:sha256:0923d9efe195c2689f98c02681b2c1dc4276e688db50fbe02e08e4226d43daa6",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -15,7 +16,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:fbd9e86d4c5a8d51a5b243b2ab58e9cf3f9a9546b29f40b22e0e199c4fec2f01",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:2277a887af989814310be7f5b6914edd94fe9fbdcf7a3d18e6ae931a04ec2011",
   "manifestVersion": 2,
   "mutations": {
     "createNote": {
@@ -34,7 +35,7 @@
         }
       },
       "argsHash": "sha256:035a0c33bf052e607c8dac0ebe5a32f42fe735463dea711b63ea2f594bc5080c",
-      "implementationHash": "sha256:a15bd14ec59d4f86571f17b4b867e6fb65fffb1e2810a1bdc337749d8c399d9d",
+      "implementationHash": "sha256:3e21f37734b8c90a08035632596903ce79d4eb32e9219595905f5f7606dbd545",
       "invalidates": [
         "notes"
       ],
@@ -80,7 +81,7 @@
       "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
       "defaultLive": false,
       "ephemeral": false,
-      "implementationHash": "sha256:cdd924caecacaa563d7d57c5229e56f50d354235330b60b1806bd78de2130eac",
+      "implementationHash": "sha256:e76c2c00edab253bbaee1d2df06d68139a67469274b46372e56a069323be23c8",
       "initialSnapshot": false,
       "livePush": false,
       "localRunnable": false,
@@ -210,7 +211,7 @@
       "argsHash": "sha256:183eacdd291aace7e537f40eba314ec53ab2435baedec326d97336385a2cee0c",
       "defaultLive": true,
       "ephemeral": false,
-      "implementationHash": "sha256:403bf7e40ac9f7819a559c529255334815cdd73111076c5d60fd556c095266ad",
+      "implementationHash": "sha256:b46fa6039caf34abbeff40b09ac642958e49890dd4cb446cba13eccc02078608",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,
@@ -331,6 +332,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:ffe87da5e57dfd272d0bc0e23c17b41633a05d6ce31d445047d9ac95d589f6f2",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:d1eee9ab0c0026e160d8960b0e605960682140da0064e46e0bfdb45b1be14530",
   "schemaVersion": "snapback.v1"
 }
