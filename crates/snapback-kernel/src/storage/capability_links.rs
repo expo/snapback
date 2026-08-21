@@ -25,7 +25,7 @@ thread_local! {
     /// One-shot failure after mint COMMIT and before the fallible row reread.
     /// This pins the reachable error-after-commit shape for admission-fence
     /// tests without changing production error handling.
-    static FAIL_CAPABILITY_LINK_MINT_POST_COMMIT_READ:
+    static FAIL_CAPABILITY_LINK_MINT_AFTER_COMMIT_BEFORE_READ:
         std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
@@ -383,8 +383,8 @@ fn resolve_on(conn: &Connection, token: &str, now_ms: u64) -> SnapbackResult<Cap
 impl LocalDatabase {
     #[cfg(any(test, feature = "test-support"))]
     #[doc(hidden)]
-    pub fn fail_next_capability_link_mint_post_commit_read_for_test(&mut self) {
-        FAIL_CAPABILITY_LINK_MINT_POST_COMMIT_READ.with(|slot| {
+    pub fn fail_next_capability_link_mint_after_commit_before_read_for_test(&mut self) {
+        FAIL_CAPABILITY_LINK_MINT_AFTER_COMMIT_BEFORE_READ.with(|slot| {
             assert!(
                 !slot.replace(true),
                 "capability-link read fault must be one-shot"
@@ -475,11 +475,11 @@ impl LocalDatabase {
             Ok(())
         })?;
         #[cfg(any(test, feature = "test-support"))]
-        if FAIL_CAPABILITY_LINK_MINT_POST_COMMIT_READ.with(|slot| slot.replace(false)) {
+        if FAIL_CAPABILITY_LINK_MINT_AFTER_COMMIT_BEFORE_READ.with(|slot| slot.replace(false)) {
             return Err(SnapbackError::error(
                 "TEST_CAPABILITY_LINK_POST_COMMIT_READ_FAILURE",
                 "capability-links",
-                "injected capability-link row read failure after durable commit",
+                "injected capability-link failure after durable commit and before the row read",
             ));
         }
         Ok(MintedCapabilityLink {

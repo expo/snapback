@@ -24,7 +24,7 @@ use serde_json::Map;
 use std::collections::BTreeMap;
 use std::io::{Read, Seek, SeekFrom};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 const USER_ID: &str = "admission-fence-user";
 const SESSION_ID: &str = "admission-fence-session";
@@ -177,12 +177,35 @@ fn assert_retired_refusal(error: &SnapbackError, fired: &AtomicBool) {
 /// test-only guard-lifetime bookkeeping there and at every SQLite commit
 /// attempt owned by this operation. The probe never acquires or re-enters the
 /// admission mutex it is proving held.
+struct GuardCommitObservation {
+    installed:
+        std::rc::Rc<std::cell::RefCell<Option<crate::storage::DurableCommitObservationForTest>>>,
+}
+
+impl GuardCommitObservation {
+    fn matching_commits(&self) -> usize {
+        self.installed
+            .borrow()
+            .as_ref()
+            .map_or(0, |observation| observation.matching_commits())
+    }
+
+    fn mismatched_commits(&self) -> usize {
+        self.installed
+            .borrow()
+            .as_ref()
+            .map_or(0, |observation| observation.mismatched_commits())
+    }
+}
+
 fn observe_guard_through_next_commit(
     site: AdmissionEffectSite,
-    _controller: AdmissionController,
-) -> Arc<AtomicUsize> {
-    let commit_observed = Arc::new(AtomicUsize::new(0));
-    let commit_observed_in_hook = commit_observed.clone();
+    controller: AdmissionController,
+) -> GuardCommitObservation {
+    let admission_epoch = controller.snapshot().admission_epoch;
+    let expected_guard = controller.effect_guard_identity_for_test(admission_epoch);
+    let installed = std::rc::Rc::new(std::cell::RefCell::new(None));
+    let installed_in_hook = installed.clone();
     AFTER_ADMISSION_EFFECT_GUARD_HOOK.with(|slot| {
         assert!(
             slot.borrow().is_none(),
@@ -194,31 +217,33 @@ fn observe_guard_through_next_commit(
                 "live retirement reached the wrong durable write"
             );
             assert!(
-                crate::auth::admission::current_thread_holds_admission_effect_guard_for_test(),
+                crate::auth::admission::current_thread_holds_admission_effect_guard_for_test(
+                    &controller,
+                    admission_epoch,
+                ),
                 "{site:?} admission effect guard was not live after the effect-guard statement; \
                  the guard was never acquired or was dropped before the durable write"
             );
-            crate::storage::observe_next_durable_commits_for_test(
+            let observation = crate::storage::observe_next_durable_commits_for_test(
                 site.durable_commit_count(),
-                move || {
-                    assert!(
-                        crate::auth::admission::current_thread_holds_admission_effect_guard_for_test(),
-                        "{site:?} admission effect guard was not live at a durable commit; \
-                         the effect guard was dropped after observation and before the write"
-                    );
-                    commit_observed_in_hook.fetch_add(1, Ordering::SeqCst);
-                },
+                expected_guard,
             );
+            *installed_in_hook.borrow_mut() = Some(observation);
         }));
     });
-    commit_observed
+    GuardCommitObservation { installed }
 }
 
-fn assert_guard_observed_at_commit(site: AdmissionEffectSite, observed: &AtomicUsize) {
+fn assert_guard_observed_at_commit(site: AdmissionEffectSite, observed: &GuardCommitObservation) {
     assert_eq!(
-        observed.load(Ordering::SeqCst),
+        observed.matching_commits(),
         site.durable_commit_count(),
         "{site:?} commit-boundary hook did not observe the live effect guard at every durable commit"
+    );
+    assert_eq!(
+        observed.mismatched_commits(),
+        0,
+        "{site:?} commit-boundary hook observed a commit without the exact controller/epoch guard"
     );
 }
 
@@ -635,6 +660,53 @@ fn client_mutation_acknowledgement_refuses_retired_epoch_and_holds_the_guard_thr
 }
 
 #[test]
+fn partial_multi_commit_failure_drops_its_commit_observer_before_later_work() {
+    let (mut snapback, controller, authority, mutation_id) =
+        client_mutation_acknowledgement_fixture();
+    let partial_observation = observe_guard_through_next_commit(
+        AdmissionEffectSite::ClientMutationAcknowledgement,
+        controller.clone(),
+    );
+    FAIL_CLIENT_MUTATION_ACK_AFTER_FIRST_COMMIT.with(|slot| {
+        assert!(!slot.replace(true), "partial-commit fault is one-shot");
+    });
+
+    let error = snapback
+        .acknowledge_client_mutations_with_authority(&authority, std::slice::from_ref(&mutation_id))
+        .expect_err("the injected failure returns before the second COMMIT primitive");
+    assert_eq!(
+        error.diagnostic.code,
+        "TEST_CLIENT_MUTATION_ACK_AFTER_FIRST_COMMIT"
+    );
+    assert_eq!(partial_observation.matching_commits(), 1);
+    assert_eq!(partial_observation.mismatched_commits(), 0);
+
+    // The observation expected two commits but saw only one. Its RAII owner
+    // must remove the still-pending observer before this worker thread reuses
+    // the same commit sites for another operation.
+    drop(partial_observation);
+    let authority = session_authority_for_source(&controller, InvocationSource::HttpMutation);
+    let later_observation = observe_guard_through_next_commit(
+        AdmissionEffectSite::ClientMutationAcknowledgement,
+        controller,
+    );
+    assert_eq!(
+        snapback
+            .acknowledge_client_mutations_with_authority(
+                &authority,
+                std::slice::from_ref(&mutation_id),
+            )
+            .expect("later acknowledgement is not poisoned by the partial observer"),
+        0,
+        "the first transaction already removed the one retained settlement"
+    );
+    assert_guard_observed_at_commit(
+        AdmissionEffectSite::ClientMutationAcknowledgement,
+        &later_observation,
+    );
+}
+
+#[test]
 fn watch_creation_refuses_retired_epoch_and_holds_the_guard_through_commit() {
     let (mut snapback, controller) = watch_creation_fixture();
     let authority = session_authority_for_source(&controller, InvocationSource::WatchManagement);
@@ -708,7 +780,7 @@ fn capability_link_mint_refuses_retired_epoch_without_a_durable_row() {
 }
 
 #[test]
-fn capability_link_mint_observes_the_guard_when_the_post_commit_read_fails() {
+fn capability_link_mint_observes_the_guard_when_an_error_follows_commit() {
     let (mut snapback, controller) = capability_link_fixture();
     let authority = session_management_authority(&controller);
     assert_eq!(
@@ -720,7 +792,7 @@ fn capability_link_mint_observes_the_guard_when_the_post_commit_read_fails() {
     );
     snapback
         .auth_database_mut()
-        .fail_next_capability_link_mint_post_commit_read_for_test();
+        .fail_next_capability_link_mint_after_commit_before_read_for_test();
     let commit_observed =
         observe_guard_through_next_commit(AdmissionEffectSite::CapabilityLinkMint, controller);
 
@@ -740,6 +812,27 @@ fn capability_link_mint_observes_the_guard_when_the_post_commit_read_fails() {
         1,
         "the capability-link row must be durable even though the caller returned an error"
     );
+    assert_guard_observed_at_commit(AdmissionEffectSite::CapabilityLinkMint, &commit_observed);
+}
+
+#[test]
+fn capability_link_mint_proof_is_bound_to_its_controller_and_epoch() {
+    let (mut snapback, controller) = capability_link_fixture();
+    let authority = session_management_authority(&controller);
+    let other_controller = AdmissionController::new(1, true).expect("different controller");
+    let other_lease = other_controller
+        .admit()
+        .expect("different-controller admission");
+    let _other_guard = other_lease
+        .effect_guard("different-controller nested proof regression")
+        .expect("different-controller guard");
+    let commit_observed =
+        observe_guard_through_next_commit(AdmissionEffectSite::CapabilityLinkMint, controller);
+
+    snapback
+        .mint_capability_link(&authority, link_request(Some(1)))
+        .expect("the target operation still owns its exact nested guard");
+
     assert_guard_observed_at_commit(AdmissionEffectSite::CapabilityLinkMint, &commit_observed);
 }
 

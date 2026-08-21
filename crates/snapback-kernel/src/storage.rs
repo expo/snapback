@@ -263,9 +263,23 @@ pub mod auth_stream;
 type ResetCommitHook = Box<dyn FnOnce() -> SnapbackResult<()>>;
 
 #[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct AdmissionEffectGuardIdentityForTest {
+    controller: usize,
+    admission_epoch: u64,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+struct DurableCommitObservationStateForTest {
+    matching_commits: std::sync::atomic::AtomicUsize,
+    mismatched_commits: std::sync::atomic::AtomicUsize,
+}
+
+#[cfg(any(test, feature = "test-support"))]
 struct DurableCommitObserverForTest {
     remaining: usize,
-    observe: Box<dyn FnMut()>,
+    expected_guard: AdmissionEffectGuardIdentityForTest,
+    observation: std::sync::Arc<DurableCommitObservationStateForTest>,
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -274,24 +288,166 @@ thread_local! {
     /// Thread-local keeps parallel tests from perturbing unrelated databases.
     static BEFORE_RESET_COMMIT_HOOK: std::cell::RefCell<Option<ResetCommitHook>> =
         const { std::cell::RefCell::new(None) };
-    /// Deterministic commit-attempt observation for admission-fence proofs.
-    /// The callback runs immediately before SQLite's commit primitive. It must
-    /// never acquire the non-reentrant admission mutex; callers use the auth
-    /// crate's thread-local guard-lifetime proof instead.
+    /// Exact managed admission guards live on this thread, keyed by controller
+    /// identity and admission epoch. AdmissionEffectGuard registers here after
+    /// it has acquired the admission mutex; reading this map never re-enters it.
+    static LIVE_ADMISSION_EFFECT_GUARDS_FOR_TEST:
+        std::cell::RefCell<std::collections::BTreeMap<AdmissionEffectGuardIdentityForTest, usize>> =
+        const { std::cell::RefCell::new(std::collections::BTreeMap::new()) };
+    /// Passive commit-attempt observation for admission-fence proofs. Commit
+    /// sites compare the exact expected guard identity and update counters;
+    /// they do not invoke caller code.
     static DURABLE_COMMIT_OBSERVER_FOR_TEST:
         std::cell::RefCell<Option<DurableCommitObserverForTest>> =
         const { std::cell::RefCell::new(None) };
 }
 
-/// Observe the next `count` instrumented durable commit attempts on this
-/// thread. The observer is removed after the final attempt.
+/// Construct the identity used only by cross-crate admission-fence tests.
 #[cfg(any(test, feature = "test-support"))]
 #[doc(hidden)]
-pub fn observe_next_durable_commits_for_test(count: usize, observe: impl FnMut() + 'static) {
+pub fn admission_effect_guard_identity_for_test(
+    controller: usize,
+    admission_epoch: u64,
+) -> AdmissionEffectGuardIdentityForTest {
+    AdmissionEffectGuardIdentityForTest {
+        controller,
+        admission_epoch,
+    }
+}
+
+/// Register one exact managed guard without consulting the admission mutex.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn enter_admission_effect_guard_for_test(identity: AdmissionEffectGuardIdentityForTest) {
+    LIVE_ADMISSION_EFFECT_GUARDS_FOR_TEST.with(|guards| {
+        let mut guards = guards.borrow_mut();
+        let count = guards.entry(identity).or_default();
+        *count = count
+            .checked_add(1)
+            .expect("managed admission-effect guard identity depth overflowed");
+    });
+}
+
+/// Balance one exact managed-guard registration.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn exit_admission_effect_guard_for_test(identity: AdmissionEffectGuardIdentityForTest) {
+    LIVE_ADMISSION_EFFECT_GUARDS_FOR_TEST.with(|guards| {
+        let mut guards = guards.borrow_mut();
+        let remove = match guards.get_mut(&identity) {
+            Some(count) if *count > 1 => {
+                *count -= 1;
+                false
+            }
+            Some(_) => true,
+            None => panic!("managed admission-effect guard identity depth underflowed"),
+        };
+        if remove {
+            guards.remove(&identity);
+        }
+    });
+}
+
+/// Whether this thread holds the exact managed controller/epoch guard.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn current_thread_holds_admission_effect_guard_for_test(
+    identity: AdmissionEffectGuardIdentityForTest,
+) -> bool {
+    LIVE_ADMISSION_EFFECT_GUARDS_FOR_TEST.with(|guards| {
+        guards
+            .borrow()
+            .get(&identity)
+            .is_some_and(|count| *count > 0)
+    })
+}
+
+/// RAII scope for one operation's passive durable-commit observation.
+/// Dropping it removes a partially consumed observer, so an early return from
+/// a multi-commit operation cannot leak into later work on the same thread.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub struct DurableCommitObservationForTest {
+    observation: std::sync::Arc<DurableCommitObservationStateForTest>,
+    // Cleanup must run on the TLS-owning commit thread.
+    _not_send: std::marker::PhantomData<std::rc::Rc<()>>,
+}
+
+/// Thread-safe, passive receipt split from a thread-bound observation scope.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone)]
+pub struct DurableCommitObservationReceiptForTest {
+    observation: std::sync::Arc<DurableCommitObservationStateForTest>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl DurableCommitObservationForTest {
+    #[doc(hidden)]
+    pub fn matching_commits(&self) -> usize {
+        self.receipt().matching_commits()
+    }
+
+    #[doc(hidden)]
+    pub fn mismatched_commits(&self) -> usize {
+        self.receipt().mismatched_commits()
+    }
+
+    #[doc(hidden)]
+    pub fn receipt(&self) -> DurableCommitObservationReceiptForTest {
+        DurableCommitObservationReceiptForTest {
+            observation: self.observation.clone(),
+        }
+    }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl DurableCommitObservationReceiptForTest {
+    #[doc(hidden)]
+    pub fn matching_commits(&self) -> usize {
+        self.observation
+            .matching_commits
+            .load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    #[doc(hidden)]
+    pub fn mismatched_commits(&self) -> usize {
+        self.observation
+            .mismatched_commits
+            .load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl Drop for DurableCommitObservationForTest {
+    fn drop(&mut self) {
+        DURABLE_COMMIT_OBSERVER_FOR_TEST.with(|slot| {
+            let installed = slot.borrow().as_ref().is_some_and(|observer| {
+                std::sync::Arc::ptr_eq(&observer.observation, &self.observation)
+            });
+            if installed {
+                slot.borrow_mut().take();
+            }
+        });
+    }
+}
+
+/// Observe the next `count` instrumented durable commit attempts on this
+/// thread. The returned scope removes a partially consumed observer on drop.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn observe_next_durable_commits_for_test(
+    count: usize,
+    expected_guard: AdmissionEffectGuardIdentityForTest,
+) -> DurableCommitObservationForTest {
     assert!(
         count > 0,
         "a durable-commit observer needs at least one commit"
     );
+    let observation = std::sync::Arc::new(DurableCommitObservationStateForTest {
+        matching_commits: std::sync::atomic::AtomicUsize::new(0),
+        mismatched_commits: std::sync::atomic::AtomicUsize::new(0),
+    });
     DURABLE_COMMIT_OBSERVER_FOR_TEST.with(|slot| {
         assert!(
             slot.borrow().is_none(),
@@ -299,19 +455,34 @@ pub fn observe_next_durable_commits_for_test(count: usize, observe: impl FnMut()
         );
         *slot.borrow_mut() = Some(DurableCommitObserverForTest {
             remaining: count,
-            observe: Box::new(observe),
+            expected_guard,
+            observation: observation.clone(),
         });
     });
+    DurableCommitObservationForTest {
+        observation,
+        _not_send: std::marker::PhantomData,
+    }
 }
 
+#[cfg(any(test, feature = "test-support"))]
 #[inline]
 fn observe_durable_commit_for_test() {
-    #[cfg(any(test, feature = "test-support"))]
     DURABLE_COMMIT_OBSERVER_FOR_TEST.with(|slot| {
         let Some(mut observer) = slot.borrow_mut().take() else {
             return;
         };
-        (observer.observe)();
+        if current_thread_holds_admission_effect_guard_for_test(observer.expected_guard) {
+            observer
+                .observation
+                .matching_commits
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        } else {
+            observer
+                .observation
+                .mismatched_commits
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
         observer.remaining = observer
             .remaining
             .checked_sub(1)

@@ -194,6 +194,10 @@ thread_local! {
     static AFTER_ADMISSION_EFFECT_GUARD_HOOK:
         std::cell::RefCell<Option<Box<dyn FnOnce(AdmissionEffectSite)>>> =
         std::cell::RefCell::new(None);
+    /// Multi-commit observer regression: fail after the first acknowledgement
+    /// transaction commits and before the second transaction reaches COMMIT.
+    static FAIL_CLIENT_MUTATION_ACK_AFTER_FIRST_COMMIT:
+        std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 #[cfg(test)]
@@ -10443,6 +10447,14 @@ impl LocalSnapback {
                 &descriptor.authority_instance_id,
                 ids,
             )?;
+        #[cfg(test)]
+        if FAIL_CLIENT_MUTATION_ACK_AFTER_FIRST_COMMIT.with(|slot| slot.replace(false)) {
+            return Err(SnapbackError::error(
+                "TEST_CLIENT_MUTATION_ACK_AFTER_FIRST_COMMIT",
+                "storage",
+                "injected acknowledgement failure after the first durable commit",
+            ));
+        }
         let legacy = self
             .db
             .settlement()
@@ -30514,7 +30526,12 @@ impl ReadLane {
         })();
         if let Some(failure) = vector_quarantine.take() {
             // `DbRead::vector` already fenced the exact generation in-process;
-            // this post-snapshot step only makes that quarantine durable.
+            // this post-snapshot step makes that quarantine durable. The query
+            // invocation's exact admission fence must cover both the registered
+            // writer's failure-side continuity mark and the generation update.
+            // @ref LLP 0058#gate-algorithm — an admitted query may not commit
+            // a quarantine after its process-local epoch retires.
+            let _effect = prepared.effect_guard("vector query quarantine transaction")?;
             result = Err(pool.settle_vector_query_failure(failure));
         }
         finish_function_observation(span, &mut result);
@@ -34981,7 +34998,13 @@ fn execute_query_invocation(
             // Detection already installed the shared pending gate before this
             // pinned view returned; settlement records the durable state now.
             return Err(match serving_database {
-                Some(database) => database.settle_vector_query_failure(failure),
+                Some(database) => {
+                    // @ref LLP 0058#gate-algorithm — the write-lane query path
+                    // owes the same exact admitted-epoch fence as the pooled
+                    // read path before it makes quarantine state durable.
+                    let _effect = prepared.effect_guard("vector query quarantine transaction")?;
+                    database.settle_vector_query_failure(failure)
+                }
                 None => failure.error().clone(),
             });
         }
