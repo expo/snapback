@@ -474,12 +474,23 @@ where
         });
         drop(guard);
         drop(local_scope);
-        crate::exec_guard::run_after_local_batch(batch);
+        let after_local = crate::exec_guard::run_after_local_batch(batch);
         if let Some(handoff) = handoff {
             handoff.reopen();
         }
         match output {
-            Ok(output) => after(output),
+            Ok(output) => {
+                // This generic lane cannot reach an authorization commit: it
+                // installs no reservation, so a ready participant refuses at
+                // transaction bind before any checked callback is queued.
+                // Authorization-capable writes use writer_gate's fallible
+                // boundary below. Other after-Local work remains infallible.
+                debug_assert!(
+                    after_local.is_ok(),
+                    "fallible authorization finalization requires the authorization writer boundary"
+                );
+                after(output)
+            }
             Err(payload) => std::panic::resume_unwind(payload),
         }
     })
@@ -811,27 +822,44 @@ impl std::ops::DerefMut for ScopedLocalSnapbackGuard {
     }
 }
 
-impl Drop for ScopedLocalSnapbackGuard {
-    fn drop(&mut self) {
+impl ScopedLocalSnapbackGuard {
+    fn drain_after_local(&mut self) -> SnapbackResult<()> {
         let batch = self
             .scope
             .as_mut()
-            .expect("scoped LocalSnapback scope remains live until drop")
+            .expect("scoped LocalSnapback scope remains live until completion")
             .take_after_local_batch();
         let handoff = batch.has_effects().then(|| {
             let handoff = self
                 .guard
                 .as_ref()
-                .expect("scoped LocalSnapback guard remains live until drop")
+                .expect("scoped LocalSnapback guard remains live until completion")
                 .managed_local_handoff();
             handoff.close();
             handoff
         });
         drop(self.guard.take());
         drop(self.scope.take());
-        crate::exec_guard::run_after_local_batch(batch);
+        let after_local = crate::exec_guard::run_after_local_batch(batch);
         if let Some(handoff) = handoff {
             handoff.reopen();
+        }
+        after_local.map_err(SnapbackError::from)
+    }
+
+    fn complete_after_local(mut self) -> SnapbackResult<()> {
+        self.drain_after_local()
+    }
+}
+
+impl Drop for ScopedLocalSnapbackGuard {
+    fn drop(&mut self) {
+        if self.guard.is_some() {
+            let after_local = self.drain_after_local();
+            debug_assert!(
+                after_local.is_ok() || std::thread::panicking(),
+                "fallible after-Local work requires an explicit completing caller"
+            );
         }
     }
 }
@@ -1402,14 +1430,17 @@ impl IbexActionHost for DetachedActionHost {
                     )
                 }));
                 let unused = reservation_scope.take_unused();
-                drop(snapback);
+                let after_local = snapback.complete_after_local();
                 if let Some(unused) = unused {
                     unused.cancel();
                 }
-                let output = match outcome {
+                let mut output = match outcome {
                     Ok(result) => result,
                     Err(payload) => std::panic::resume_unwind(payload),
                 };
+                if let Err(error) = after_local {
+                    output = Err(error);
+                }
                 if output.is_ok() {
                     // @ref LLP 0076#settlement-and-retry — a successful
                     // nested commit while an attempt cursor is open counts as
@@ -1509,13 +1540,17 @@ impl IbexActionHost for DetachedActionHost {
                         )
                     }));
                     let unused = reservation_scope.take_unused();
-                    drop(snapback);
+                    let after_local = snapback.complete_after_local();
                     if let Some(unused) = unused {
                         unused.cancel();
                     }
-                    match outcome {
+                    let output = match outcome {
                         Ok(result) => result,
                         Err(payload) => std::panic::resume_unwind(payload),
+                    };
+                    match after_local {
+                        Ok(()) => output,
+                        Err(error) => Err(error),
                     }
                 })();
                 match &mut output {
@@ -23808,7 +23843,39 @@ async fn coordinated_app_reset_inner(
             }
         })
         .await;
-    let committed = match reset_write.attempt {
+    let writer_gate::CoordinatedResetWrite {
+        attempt,
+        committed_handoff,
+        finalization_error,
+    } = reset_write;
+    if let Some(error) = finalization_error {
+        let committed_handoff = committed_handoff
+            .expect("failed known reset finalization retains the managed writer handoff");
+        if let Some(maintenance) = maintenance.as_ref() {
+            maintenance.clear_mailbox_after_committed_reset();
+        }
+        drop(maintenance);
+        runtime.clear_reset_auth_invalidation();
+        committed_handoff
+            .with_snapback(&runtime.snapback, |snapback| {
+                snapback.fail_closed_auth_invalidation_after_commit();
+            })
+            .await?;
+        let _coordinator_error = match coordinator.finish_stream_reset(
+            carrier,
+            AuthTransactionAttempt::<CoordinatedResetOutput>::CommitUncertain(error.clone()),
+        ) {
+            Err(coordinator_error) => coordinator_error,
+            Ok(_) => SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "post-commit finalization failure did not close the reset coordinator",
+            ),
+        };
+        committed_handoff.release_after_fail_closed();
+        return Err(error);
+    }
+    let committed = match attempt {
         AuthTransactionAttempt::Committed(committed) => committed,
         AuthTransactionAttempt::RolledBack(error) => {
             drop(maintenance);
@@ -23825,9 +23892,8 @@ async fn coordinated_app_reset_inner(
             );
         }
     };
-    let committed_handoff = reset_write
-        .committed_handoff
-        .expect("known reset commit retains the managed writer handoff");
+    let committed_handoff =
+        committed_handoff.expect("known reset commit retains the managed writer handoff");
     #[cfg(test)]
     pause_after_committed_reset_handoff_for_test(&runtime.snapback).await;
     if let Some(maintenance) = maintenance.as_ref() {
@@ -23858,7 +23924,7 @@ async fn coordinated_app_reset_inner(
                 snapback.publish_coordinated_versioned_seed_reset(*committed),
             ),
         })
-        .await;
+        .await?;
     runtime.secret_reads.clear_after_committed_reset();
     if let Some(coordinator) = runtime.auth_coordinator.as_ref() {
         coordinator.clear_rehearsal_authority();
@@ -23885,7 +23951,7 @@ async fn coordinated_app_reset_inner(
                         Some(&successor_incarnation),
                     )
                 })
-                .await
+                .await?
         }
         .await;
         let successor_binding = match rebuild {
@@ -23923,7 +23989,7 @@ async fn coordinated_app_reset_inner(
                 .with_snapback(&runtime.snapback, move |snapback| {
                     snapback.clear_installed_auth_invalidation(&installed_successor_binding)
                 })
-                .await?;
+                .await??;
             let _ = coordinator.fail_global_closed();
             committed_handoff.release_after_fail_closed();
             return Err(SnapbackError::error(

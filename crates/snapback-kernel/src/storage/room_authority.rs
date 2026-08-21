@@ -30,6 +30,10 @@ pub(super) struct AuthorizationParticipantActivation {
     state: AtomicU8,
     projection_available: AtomicBool,
     projection: Mutex<AuthorizationProjectionState>,
+    #[cfg(any(test, feature = "test-support"))]
+    fail_next_outcome_observation: AtomicBool,
+    #[cfg(any(test, feature = "test-support"))]
+    fail_next_issuer_projection: AtomicBool,
 }
 
 struct AuthorizationProjectionState {
@@ -48,6 +52,10 @@ impl AuthorizationParticipantActivation {
                 carrier: None,
                 failure: None,
             }),
+            #[cfg(any(test, feature = "test-support"))]
+            fail_next_outcome_observation: AtomicBool::new(false),
+            #[cfg(any(test, feature = "test-support"))]
+            fail_next_issuer_projection: AtomicBool::new(false),
         }
     }
 
@@ -183,7 +191,14 @@ impl AuthorizationParticipantActivation {
         Ok(())
     }
 
-    fn fail_closed(&self, error: SnapbackError) {
+    fn fail_closed(&self, error: SnapbackError) -> SnapbackError {
+        let mut projection = self
+            .projection
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let Some(failure) = projection.failure.clone() {
+            return failure;
+        }
         let error = SnapbackError::error(
             "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
             "auth",
@@ -192,16 +207,35 @@ impl AuthorizationParticipantActivation {
                 error.diagnostic.message, error.diagnostic.code
             ),
         );
-        let mut projection = self
-            .projection
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
         self.projection_available.store(false, Ordering::Release);
         projection.carrier = None;
         projection.epoch = projection.epoch.saturating_add(1);
-        if projection.failure.is_none() {
-            projection.failure = Some(error);
-        }
+        projection.failure = Some(error.clone());
+        error
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn inject_outcome_observation_failure(&self) {
+        self.fail_next_outcome_observation
+            .store(true, Ordering::Release);
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn take_outcome_observation_failure(&self) -> bool {
+        self.fail_next_outcome_observation
+            .swap(false, Ordering::AcqRel)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn inject_issuer_projection_failure(&self) {
+        self.fail_next_issuer_projection
+            .store(true, Ordering::Release);
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn take_issuer_projection_failure(&self) -> bool {
+        self.fail_next_issuer_projection
+            .swap(false, Ordering::AcqRel)
     }
 }
 
@@ -490,6 +524,24 @@ impl AuthorizationCommitParticipant {
     /// requires a live issuer projection, including across reset rebuilds.
     pub fn suspend_authorization_projection(&self) {
         self.activation.suspend_projection();
+    }
+
+    /// Convert a post-commit issuer-observation/projection failure into the
+    /// same sticky denial used by kernel settlement failure. This transition
+    /// is monotone: callers can close authorization projection but only the
+    /// database-validated activation path can install a successor projection.
+    pub fn fail_closed_authorization_projection(&self, error: SnapbackError) -> SnapbackError {
+        self.activation.fail_closed(error)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn inject_outcome_observation_failure(&self) {
+        self.activation.inject_outcome_observation_failure();
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn inject_issuer_projection_failure(&self) {
+        self.activation.inject_issuer_projection_failure();
     }
 
     fn require_live_locked(&self, allow_bound: bool) -> Result<(), EphemeralError> {
@@ -795,6 +847,12 @@ impl AuthorizationCommitParticipant {
         crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
             "authorization commit outcome lookup",
         );
+        #[cfg(any(test, feature = "test-support"))]
+        if self.activation.take_outcome_observation_failure() {
+            return Err(expectation_stale(
+                "injected committed authorization outcome observation failure",
+            ));
+        }
         let state = self.registry.lock();
         if self.require_live_locked(false).is_err() {
             return Err(interlock_retired());
@@ -934,6 +992,10 @@ impl Default for NonAuthorizingRoomAuthority {
                 carrier: None,
                 failure: None,
             }),
+            #[cfg(any(test, feature = "test-support"))]
+            fail_next_outcome_observation: AtomicBool::new(false),
+            #[cfg(any(test, feature = "test-support"))]
+            fail_next_issuer_projection: AtomicBool::new(false),
         });
         Self {
             participant: AuthorizationCommitParticipant::new(binding, registry, 1, activation),
@@ -1272,14 +1334,11 @@ impl PreparedAuthorizationCommit {
         let binding = self.binding.clone();
         let generation = self.registry_generation;
         let ticket_id = self.ticket.ticket_id;
-        crate::exec_guard::run_or_defer_after_local_finalizer(move || {
-            if let Err(error) = finalize_known_commit(&registry, &binding, generation, ticket_id) {
-                // @ref LLP 0290#55-finalize — source-public witness carriers
-                // can be discarded after commit, so invariant failure retains
-                // the dependency and poisons projection instead of panicking.
-                activation.fail_closed(error);
-            }
-        });
+        crate::exec_guard::run_or_defer_after_local_finalizer_checked(move || {
+            finalize_known_commit(&registry, &binding, generation, ticket_id)
+                .map_err(|error| activation.fail_closed(error).into())
+        })
+        .map_err(SnapbackError::from)?;
         Ok(())
     }
 
@@ -1443,6 +1502,13 @@ impl AuthorizationExpectationView {
         crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
             "authorization issuer expectation projection",
         );
+        #[cfg(any(test, feature = "test-support"))]
+        if self.activation.take_issuer_projection_failure() {
+            return Err(expectation_stale(
+                "injected authorization issuer projection failure",
+            ));
+        }
+        self.activation.require_projection(&self.registry)?;
         if !self.registry.binding_matches(&outcome.binding)
             || !Arc::ptr_eq(&self.registry, &outcome.registry)
             || self.registry_generation != outcome.registry_generation
@@ -2775,7 +2841,7 @@ mod tests {
             assert_eq!(state.dependencies.len(), 1);
         }
 
-        crate::exec_guard::run_after_local_batch(batch);
+        crate::exec_guard::run_after_local_batch(batch).unwrap();
         let state = fixture.participant.registry.lock();
         assert_eq!(state.durable_authorization, Some(witness.version.clone()));
         assert!(state.dependencies.is_empty());
@@ -2819,7 +2885,12 @@ mod tests {
         let batch = scope.take_after_local_batch();
         drop(scope);
 
-        crate::exec_guard::run_after_local_batch(batch);
+        let finalization_error = crate::exec_guard::run_after_local_batch(batch)
+            .expect_err("missing issuer projection is a checked finalization failure");
+        assert_eq!(
+            finalization_error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
 
         let error = fixture
             .database
@@ -2962,7 +3033,7 @@ mod tests {
         );
         assert!(!fixture.participant.registry.is_retired());
 
-        crate::exec_guard::run_after_local_batch(batch);
+        crate::exec_guard::run_after_local_batch(batch).unwrap();
         assert_eq!(fixture.view.current().unwrap(), authorization);
         fixture
             .database

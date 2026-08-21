@@ -692,6 +692,8 @@ fn codegen_membership_removal_unregisters_the_room_subscriber() {
             },
         )
         .expect("the direct embedder installs the room reservation")
+        .require_finalized()
+        .expect("the direct embedder observes authorization finalization")
         .expect("membership removal commits through the authorization interlock");
     assert_eq!(committed.output.changed_count, 1);
     let pending = ephemeral.pending_room_reauthorizations();
@@ -1353,6 +1355,111 @@ fn authorization_affecting_versioned_seed_projects_issuer_before_kernel_finalize
     );
 }
 
+fn assert_postcommit_seed_finalization_failure_is_caller_visible(
+    inject: impl FnOnce(&crate::local::EphemeralApi),
+    row_id: &str,
+    expected_cause: &str,
+) {
+    let (mut snapback, _binding) = codegen_membership_snapback_with_binding();
+    let ephemeral = snapback.ephemeral_api();
+    inject(&ephemeral);
+
+    let error = snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "conversationMembers".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!(row_id)),
+                    ("userId".to_owned(), json!(USER_C)),
+                    ("conversationId".to_owned(), json!(BOARD_ID)),
+                    ("role".to_owned(), json!("member")),
+                ])],
+            )]),
+        })
+        .expect_err("the durable commit must not be reported as finalized");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+    );
+    assert!(
+        error.diagnostic.message.contains(expected_cause),
+        "the initiating refusal retains the exact finalization cause: {}",
+        error.diagnostic.message
+    );
+
+    let refusal = snapback
+        .authorization_commit_reservation_required()
+        .expect_err("the same failure leaves subsequent authorization writes closed");
+    assert_eq!(
+        refusal.diagnostic.code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+    );
+}
+
+#[test]
+fn outcome_observation_failure_fails_closed_for_the_initiating_seed() {
+    assert_postcommit_seed_finalization_failure_is_caller_visible(
+        |ephemeral| ephemeral.inject_authorization_outcome_observation_failure(),
+        "member-outcome-observation-failure",
+        "injected committed authorization outcome observation failure",
+    );
+}
+
+#[test]
+fn issuer_projection_failure_fails_closed_for_the_initiating_seed() {
+    assert_postcommit_seed_finalization_failure_is_caller_visible(
+        |ephemeral| ephemeral.inject_authorization_issuer_projection_failure(),
+        "member-issuer-projection-failure",
+        "injected authorization issuer projection failure",
+    );
+}
+
+#[test]
+fn initiating_mutation_refuses_finalization_without_relabeling_the_durable_commit() {
+    let fixture = KickFixture::new();
+    fixture
+        .ephemeral
+        .inject_authorization_issuer_projection_failure();
+
+    let (result, receipt) = fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .invoke_mutation_recording_with_authority_descriptor(
+            "kickMember",
+            HandlerInput {
+                args: json!({ "id": MEMBER_A }),
+                ..HandlerInput::default()
+            },
+            None,
+            None,
+            "test",
+            session_authority(InvocationSource::HttpMutation, USER_B),
+        );
+    let error = result.expect_err("the initiating mutation must not report finalized success");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+    );
+    match receipt {
+        crate::live_wire::Receipt::Mutation {
+            outcome,
+            snapshot_version,
+            rollback_reason,
+            ..
+        } => {
+            assert_eq!(
+                outcome,
+                crate::live_wire::MutationReceiptOutcome::Confirmed,
+                "the caller refusal must not relabel a durable commit as rolled back"
+            );
+            assert!(snapshot_version.is_some());
+            assert_eq!(rollback_reason, None);
+        }
+        _ => panic!("expected mutation receipt"),
+    }
+}
+
 #[test]
 fn authorization_affecting_seed_refuses_after_installed_issuer_is_cleared() {
     let (mut snapback, binding) = codegen_membership_snapback_with_binding();
@@ -1423,7 +1530,12 @@ fn postcommit_projection_after_issuer_clear_does_not_reopen_or_panic() {
     snapback
         .clear_installed_auth_invalidation(&binding)
         .expect("suspend the issuer before its queued projection runs");
-    crate::exec_guard::run_after_local_batch(batch);
+    let finalization_error = crate::exec_guard::run_after_local_batch(batch)
+        .expect_err("suspended issuer makes the initiating finalization fail closed");
+    assert_eq!(
+        finalization_error.diagnostic.code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+    );
 
     let error = snapback
         .authorization_commit_reservation_required()
@@ -1445,7 +1557,7 @@ fn managed_local_install_rebuilds_a_suspended_issuer_projection() {
     let (_, successor) = install_invalidation_with_binding(&mut snapback);
     let batch = local_scope.take_after_local_batch();
     drop(local_scope);
-    crate::exec_guard::run_after_local_batch(batch);
+    crate::exec_guard::run_after_local_batch(batch).unwrap();
 
     assert!(
         snapback

@@ -12094,6 +12094,8 @@ fn successor_only_publication_gates_blind_mutation_artifact_generation() {
             snapback.commit_staged_recorded_authorization_mutation(staged)
         })
         .expect("reserve successor write")
+        .require_finalized()
+        .expect("finalize successor write")
         .expect("record successor write")
         .0
         .expect("commit successor write");
@@ -12111,6 +12113,8 @@ fn successor_only_publication_gates_blind_mutation_artifact_generation() {
             snapback.commit_staged_recorded_authorization_mutation(staged)
         })
         .expect("reserve legacy write")
+        .require_finalized()
+        .expect("finalize legacy write")
         .expect("record legacy write")
         .0
         .expect("commit legacy write");
@@ -13858,6 +13862,8 @@ fn same_mode_activation_with_live_subscriber_survives_after_local_owner_retentio
             },
         )
         .expect("reserve the authorization write lane")
+        .require_finalized()
+        .expect("finalize the authorization write lane")
         .expect(
             "a live subscriber's retained publication admission must not wedge the \
                  same-mode activation",
@@ -23154,6 +23160,8 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
                 snapback.commit_staged_recorded_authorization_mutation(staged)
             })
             .expect("reserve staged mutation")
+            .require_finalized()
+            .expect("finalize staged mutation")
             .expect("record staged mutation");
         result.expect("commit staged mutation");
     }
@@ -23235,6 +23243,8 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
             snapback.commit_staged_recorded_authorization_mutation(refused_staged)
         })
         .expect("reserve refused mutation")
+        .require_finalized()
+        .expect("finalize refused mutation")
         .expect("record refused mutation");
     refused.expect_err("authoritative commit must refuse the changed staged plan");
 
@@ -23957,9 +23967,11 @@ fn invoke_synthetic_settlement(
             None,
             settlement,
         )?;
-    snapback.try_with_direct_authorization_write(preflight, move |snapback| {
-        snapback.commit_staged_recorded_authorization_mutation(staged)
-    })?
+    snapback
+        .try_with_direct_authorization_write(preflight, move |snapback| {
+            snapback.commit_staged_recorded_authorization_mutation(staged)
+        })?
+        .require_finalized()?
 }
 
 fn invoke_guarded_settlement(
@@ -24594,6 +24606,8 @@ fn llp0133_sketch_10_stale_reservation_rolls_back_then_retry_rederives() {
             snapback.commit_staged_recorded_authorization_mutation(staged)
         })
         .expect("reservation creation")
+        .require_finalized()
+        .expect("reservation finalization")
         .expect("stale commit is recorded");
     let error = first_result.expect_err("changed impact invalidates reservation");
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_RESERVATION_STALE");

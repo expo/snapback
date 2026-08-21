@@ -3685,6 +3685,42 @@ impl LocalEphemeralBackend {
             .committed_outcome(witness, min_commit_version)
     }
 
+    /// Latch the bound authorization participant closed after a durable
+    /// commit whose issuer outcome cannot be observed or projected exactly.
+    /// This is a denial-only composition seam; it exposes no reopening or
+    /// caller-selected authorization state.
+    pub fn fail_closed_authorization_projection(&self, error: SnapbackError) -> SnapbackError {
+        match &self.shared.room_authority {
+            RoomAuthority::Bound(participant) => {
+                participant.fail_closed_authorization_projection(error)
+            }
+            RoomAuthority::Unbound(_) => SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                format!(
+                    "authorization commit finalization failed closed after the durable commit: {} ({})",
+                    error.diagnostic.message, error.diagnostic.code
+                ),
+            ),
+        }
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn inject_authorization_outcome_observation_failure(&self) {
+        let RoomAuthority::Bound(participant) = &self.shared.room_authority else {
+            panic!("authorization outcome failure injection requires a bound participant");
+        };
+        participant.inject_outcome_observation_failure();
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn inject_authorization_issuer_projection_failure(&self) {
+        let RoomAuthority::Bound(participant) = &self.shared.room_authority else {
+            panic!("authorization projection failure injection requires a bound participant");
+        };
+        participant.inject_issuer_projection_failure();
+    }
+
     pub fn install_authorization_issuer(
         &self,
         issuer: crate::auth::invalidation::LiveInvalidationIssuer,
@@ -9436,7 +9472,7 @@ mod tests {
             .expect("database-validated successor activation");
         let batch = local_scope.take_after_local_batch();
         drop(local_scope);
-        crate::exec_guard::run_after_local_batch(batch);
+        crate::exec_guard::run_after_local_batch(batch).unwrap();
 
         assert!(
             fixture
@@ -9590,7 +9626,7 @@ mod tests {
                 .is_err(),
             "outbox enqueue alone may not lock or wake the notifier beneath Local"
         );
-        crate::exec_guard::run_after_local_batch(batch);
+        crate::exec_guard::run_after_local_batch(batch).unwrap();
         tokio::time::timeout(Duration::from_secs(1), wake.notified())
             .await
             .expect("the owned after-Local callback delivers the deferred wake");

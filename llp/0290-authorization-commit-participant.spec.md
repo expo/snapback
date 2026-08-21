@@ -6,6 +6,16 @@
 **Author:** codex `gpt-5.6-sol`, synthesizing two independent blind designs — codex
 `gpt-5.6-sol` and grok-4.6 — orchestrated by Claude (Opus 5) for Charlie Cheever  
 **Date:** 2026-08-20  
+**Revised:** 2026-08-21 (caller-boundary closure: authorization outcome lookup,
+issuer projection, and kernel settlement are checked after-Local work. The
+owner drains the complete batch after releasing Local but before reporting the
+initiating operation's outcome. Any checked failure enters the same sticky
+`SNAPBACK_AUTH_PROJECTION_UNAVAILABLE` transition, retains the exact
+dependency, and returns the typed refusal to the initiating direct or managed
+caller. Direct mutation receipts retain committed durable truth; reset and
+mode-provision callers classify the already-durable cut as commit-uncertain.
+Reset handoff tests now prove a writer is queued while finalization fails and
+wakes only after the lasting fail-closed state is installed.)
 **Revised:** 2026-08-21 (post-review closure: activation now requires an opaque,
 exact-registry `AuthorizationIssuerProjection` whose live lease is retained by
 the installed issuer; every issuer clear suspends before removal and advances
@@ -102,8 +112,10 @@ This specification resolves that risk:
 - Seed, reset, and versioned-seed adapters that can commit authorization changes
   return witness-bearing carriers instead of output-only results. A discarded
   same-incarnation carrier cannot make the already-durable transaction
-  disappear; its deferred finalizer retains the exact dependency and poisons
-  the projection latch with a typed fail-closed error rather than panicking.
+  disappear; its checked deferred finalizer retains the exact dependency and
+  poisons the projection latch with a typed fail-closed error rather than
+  panicking. The batch owner must observe that error before reporting the
+  initiating operation as finalized.
 - Known commit settlement is a kernel finalizer, not a sync acknowledgement.
   Same-incarnation issuer projection remains an ordinary after-Local effect and
   consumes only a kernel-minted committed outcome; settlement remains a
@@ -230,6 +242,14 @@ one finalizer (`crates/snapback-sync/src/ephemeral.rs:4273-4307,4688-4702`), eve
 though the scheduler explicitly names issuer work as ordinary projection
 (`crates/snapback-types/src/exec_guard.rs:193-201`). Revision (b) removes that
 contradiction.
+
+Both buckets admit checked authorization work. The drain still runs the whole
+ordinary bucket and then the whole finalizer bucket, retaining the first typed
+failure. The caller that owns the Local scope may defer the work with respect
+to the lock, but may not defer its verdict past the operation boundary: direct
+embedders, managed writer tasks, nested action hosts, and reset handoff owners
+all drain and inspect the batch before returning. This preserves the lock
+ordering without introducing a plain-success “projection pending” state.
 
 The kernel now owns two distinct facts:
 
@@ -1209,7 +1229,8 @@ No public or `test-support` method exposes these transitions.
 3. installs the exact predecessor, successor, commit version, rotation bit, and
    `issuer_projected = false` into `ticket.known_commit` with one
    `OnceLock::set`; and
-4. schedules a kernel-owned finalizer through `run_or_defer_after_local_finalizer`.
+4. schedules a kernel-owned checked finalizer through
+   `run_or_defer_after_local_finalizer_checked`.
 
 An enabled authorization interlock requires an active managed or direct
 `LocalSnapbackWriteScope` before SQLite commit. The check happens in
@@ -1221,6 +1242,10 @@ immediate branch at `crates/snapback-types/src/exec_guard.rs:202-208`. The
 direct-library compatibility path already enters a scope, transfers the batch,
 drops the scope, and runs the batch synchronously at
 `crates/snapback-engine/src/local/engine.rs:7865-7890`.
+Managed writer owners and nested action guards perform the same drain after
+dropping Local and before completing their result. `run_after_local_batch` is
+`#[must_use]`: it runs every queued phase, returns the first checked error, and
+cannot be treated as a unit notification seam.
 
 The finalizer locks the registry and, before mutating, validates:
 
@@ -1258,12 +1283,14 @@ It then atomically:
 If validation unexpectedly fails, no ticket or mark is removed and a known
 commit is never converted into rollback. The deferred finalizer suspends the
 projection latch and stores a `SNAPBACK_AUTH_PROJECTION_UNAVAILABLE` failure on
-the activation; subsequent authorization reservation/activation returns that
-typed failure. This is deliberately a wedged, fail-closed store requiring
-operator recovery, not a process panic. The source-public seed APIs make this
-necessary: their witness-bearing result prevents accidental output-only
-adapters, but Rust callers can still explicitly discard it after SQLite has
-committed.
+the activation; the batch owner returns that same sticky typed failure to the
+initiating caller, and subsequent authorization reservation/activation returns
+it again. Outcome lookup failure and issuer projection failure enter this same
+transition before the kernel finalizer runs; neither is discardable. This is
+deliberately a wedged, fail-closed store requiring operator recovery, not a
+process panic. The source-public seed APIs make this necessary: their
+witness-bearing result prevents accidental output-only adapters, but Rust
+callers can still explicitly discard it after SQLite has committed.
 
 The durable verdict source remains the current kernel reconciliation:
 successful COMMIT settles committed, exact durable predecessor settles rollback,
@@ -1346,6 +1373,13 @@ kernel-only `known_commit` matches both the witness and minimum commit version,
 and returns the private-field outcome for that record. No match is
 `SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE`; caller input cannot mint an
 outcome.
+
+The engine composes `committed_outcome` and `project_committed` as one checked
+ordinary after-Local effect. Failure of either operation is passed through the
+participant's denial-only `fail_closed_authorization_projection` seam, which
+installs or returns the first sticky
+`SNAPBACK_AUTH_PROJECTION_UNAVAILABLE`. The seam exposes no reopening value,
+authorization version, or caller-selected bypass.
 
 The projection carrier owns the exact view identity. Activation stores only a
 weak lease to it, while `LiveInvalidationIssuer` retains the strong carrier;
@@ -1771,11 +1805,11 @@ vector before the finalizer vector
 (`crates/snapback-types/src/exec_guard.rs:41-46,118-141,224-241`). This ordering,
 not callback registration order alone, is normative here.
 
-Known commit and rollback settlement use
-`run_or_defer_after_local_finalizer`. A ready interlock additionally requires an
-active Local write scope before commit, so participant settlement cannot execute
-through that helper's immediate outside-Local branch
-(`exec_guard.rs:202-208`).
+Known commit settlement uses
+`run_or_defer_after_local_finalizer_checked`; rollback remains an infallible
+exact-remove finalizer. A ready interlock additionally requires an active Local
+write scope before commit, so participant settlement cannot execute through
+the helper's immediate outside-Local branch (`exec_guard.rs:202-208`).
 
 Ordinary successor effects run first:
 
@@ -1788,12 +1822,16 @@ Ordinary successor effects run first:
 For a same-incarnation commit, at the issuer slot the engine resolves the exact
 kernel-minted committed outcome and projects it through the already-bound
 expectation view. This updates only `projected_authorization` and the exact
-commit's `issuer_projected` bit. Only after all ordinary effects succeed does
-the kernel finalizer validate that projection and update
+commit's `issuer_projected` bit. The drain records any checked ordinary failure,
+continues to the finalizer so all cleanup/fail-closed work runs, and returns the
+first typed failure. Only after exact issuer projection does the kernel
+finalizer update
 `durable_authorization`, the exact dependency/room marks, room generations, and
-level-triggered obligations. If an ordinary effect panics, finalizers are
-skipped and the ticket stays installed; this is the explicit behavior at
-`exec_guard.rs:199-201,231-241`.
+level-triggered obligations. If the outcome lookup or projection returns an
+error, the activation is first latched closed and the finalizer refuses
+settlement, leaving the ticket installed. If an ordinary effect panics,
+finalizers are skipped and the ticket likewise stays installed; this is the
+explicit behavior at `exec_guard.rs:199-201,231-241`.
 
 For destructive rotation, the ordinary reset effect runs but there is no issuer
 projection: the current carrier explicitly skips predecessor-issuer publication
@@ -2051,6 +2089,12 @@ Tests must establish:
 - ordinary successor effects execute before registry settlement;
 - issuer projection changes `projected_authorization` but not `durable_authorization`;
 - the finalizer refuses settlement when the exact outcome was not projected;
+- outcome-observation failure and issuer-projection failure each return
+  `SNAPBACK_AUTH_PROJECTION_UNAVAILABLE` to the initiating direct and managed
+  operation, retain the dependency, and refuse later reservations;
+- a direct mutation whose durable commit precedes the failure returns an error
+  while retaining a `Confirmed` receipt, and direct reset/mode provisioning
+  classify the result as commit-uncertain rather than rolled back;
 - two exact outcomes in one synthetic after-Local batch project A then B and finalize A then B without requiring finalizer A to mistake latest projected B for its own projection;
 - a forged witness cannot obtain an outcome;
 - an outcome from database A or an old registry generation cannot project a view for B/current A;
@@ -2068,6 +2112,10 @@ Tests must establish:
   `SNAPBACK_AUTH_PROJECTION_UNAVAILABLE` before SQLite changes;
 - a reservation minted before projection suspension fails transaction bind and
   exact-rolls back its ticket rather than committing or reaching finalization.
+- a writer is observably queued on the closed reset handoff when reset
+  finalization fails; after the lasting global/projection refusal is installed,
+  the handoff releases and that exact writer wakes with the typed refusal
+  without entering its Local committing closure.
 
 ### 10.4 Outbox and retained work
 

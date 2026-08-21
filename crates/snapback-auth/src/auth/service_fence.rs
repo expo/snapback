@@ -2031,7 +2031,7 @@ mod tests {
             "lifecycle fanout must not run while Local is held"
         );
 
-        crate::exec_guard::run_after_local_batch(batch);
+        crate::exec_guard::run_after_local_batch(batch).unwrap();
         assert!(lifecycle_ran.load(Ordering::SeqCst));
 
         registry

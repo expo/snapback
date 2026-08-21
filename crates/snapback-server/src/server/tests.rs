@@ -31628,6 +31628,56 @@ async fn committed_reset_keeps_a_queued_managed_writer_out_until_successor_insta
 }
 
 #[tokio::test]
+async fn managed_authorization_finalization_failure_reaches_the_initiating_writer() {
+    for projection_failure in [false, true] {
+        let state = auth_invalidation_reset_fixture_with_context(ServerContext::detached());
+        with_snapback(&state.snapback, move |snapback| {
+            let ephemeral = snapback.ephemeral_api();
+            if projection_failure {
+                ephemeral.inject_authorization_issuer_projection_failure();
+            } else {
+                ephemeral.inject_authorization_outcome_observation_failure();
+            }
+        })
+        .await;
+
+        let error = super::with_snapback_authorization_write(
+            &state.snapback,
+            |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+            move |snapback| {
+                snapback.seed(SeedData {
+                    tables: BTreeMap::from([(
+                        "resetPermissions".to_owned(),
+                        vec![serde_json::Map::from_iter([
+                            (
+                                "_id".to_owned(),
+                                json!(if projection_failure {
+                                    "projection-failure"
+                                } else {
+                                    "outcome-failure"
+                                }),
+                            ),
+                            ("subject".to_owned(), json!("postcommit")),
+                        ])],
+                    )]),
+                })
+            },
+        )
+        .await
+        .expect_err("checked after-Local failure must cross the managed caller boundary");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+        assert!(error.diagnostic.message.contains(if projection_failure {
+            "injected authorization issuer projection failure"
+        } else {
+            "injected committed authorization outcome observation failure"
+        }));
+    }
+}
+
+#[tokio::test]
 async fn dormant_dev_reset_rotates_stream_without_installing_a_session_issuer() {
     // Match the production startup graph: even a dormant dev database has
     // one inspected provider and one rebuilt stream coordinator. The old
@@ -31767,21 +31817,83 @@ async fn active_dev_ready_catalog_reset_stays_session_issuer_free() {
 #[tokio::test]
 async fn postcommit_reset_finalize_failure_clears_issuers_and_stays_globally_closed() {
     let state = auth_invalidation_reset_fixture_with_context(ServerContext::detached());
+    let managed_handoff =
+        with_snapback(&state.snapback, |snapback| snapback.managed_local_handoff()).await;
+    let writer_queued =
+        super::writer_gate::install_managed_handoff_waiter_test_hook(&managed_handoff);
     let coordinator = state.auth_coordinator.clone().expect("reset coordinator");
     let predecessor = coordinator
         .authorization_stream_incarnation()
         .expect("predecessor incarnation");
     coordinator.inject_finalize_failure();
+    let (reset_committed, release_reset) =
+        install_committed_reset_handoff_test_hook(&state.snapback);
     let route_admission = test_route_admission(&state).0;
+    let reset_state = state.clone();
+    let reset =
+        tokio::spawn(
+            async move { coordinated_app_reset(&reset_state, &route_admission, None).await },
+        );
+    tokio::time::timeout(Duration::from_secs(2), reset_committed.notified())
+        .await
+        .expect("reset reaches its closed post-finalizer handoff");
 
-    let error = tokio::time::timeout(
-        Duration::from_secs(2),
-        coordinated_app_reset(&state, &route_admission, None),
-    )
-    .await
-    .expect("postcommit finalize failure returns without wedging")
-    .expect_err("injected postcommit finalize failure");
+    let writer_state = state.snapback.clone();
+    let (writer_started_tx, writer_started_rx) = tokio::sync::oneshot::channel();
+    let (writer_entered_tx, mut writer_entered_rx) = tokio::sync::oneshot::channel();
+    let writer = tokio::spawn(async move {
+        writer_started_tx.send(()).unwrap();
+        super::with_snapback_authorization_write(
+            &writer_state,
+            |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+            move |snapback| {
+                writer_entered_tx.send(()).unwrap();
+                snapback.seed(SeedData {
+                    tables: BTreeMap::from([(
+                        "resetPermissions".to_owned(),
+                        vec![serde_json::Map::from_iter([
+                            ("_id".to_owned(), json!("must-not-commit")),
+                            ("subject".to_owned(), json!("closed")),
+                        ])],
+                    )]),
+                })
+            },
+        )
+        .await
+        .and_then(|result| result)
+    });
+    writer_started_rx.await.expect("queued writer task started");
+    tokio::time::timeout(Duration::from_secs(2), writer_queued.notified())
+        .await
+        .expect("writer registers as a waiter on the closed reset handoff");
+    assert!(managed_handoff.is_closed());
+    assert!(
+        tokio::time::timeout(Duration::from_millis(100), &mut writer_entered_rx)
+            .await
+            .is_err(),
+        "writer must be queued on the closed handoff before reset finalization fails"
+    );
+
+    release_reset.notify_one();
+    let error = tokio::time::timeout(Duration::from_secs(2), reset)
+        .await
+        .expect("postcommit finalize failure returns without wedging")
+        .expect("reset task joins")
+        .expect_err("injected postcommit finalize failure");
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_REVOCATION_UNCERTAIN");
+    let refused = tokio::time::timeout(Duration::from_secs(2), writer)
+        .await
+        .expect("queued writer wakes after fail-closed reset")
+        .expect("queued writer task joins")
+        .expect_err("queued writer observes the lasting typed refusal");
+    assert_eq!(
+        refused.diagnostic.code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+    );
+    assert!(
+        writer_entered_rx.await.is_err(),
+        "the refused writer never enters its committing Local closure"
+    );
     let durable = tokio::time::timeout(
         Duration::from_secs(2),
         with_snapback(&state.snapback, |snapback| {
@@ -31831,32 +31943,6 @@ async fn postcommit_reset_finalize_failure_clears_issuers_and_stays_globally_clo
         .await
         .is_none(),
         "query issuer is cleared",
-    );
-
-    let refused = tokio::time::timeout(
-        Duration::from_secs(2),
-        super::with_snapback_authorization_write(
-            &state.snapback,
-            |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
-            |snapback| {
-                snapback.seed(SeedData {
-                    tables: BTreeMap::from([(
-                        "resetPermissions".to_owned(),
-                        vec![serde_json::Map::from_iter([
-                            ("_id".to_owned(), json!("must-not-commit")),
-                            ("subject".to_owned(), json!("closed")),
-                        ])],
-                    )]),
-                })
-            },
-        ),
-    )
-    .await
-    .expect("authorization write refuses instead of parking")
-    .expect_err("globally closed projection refuses the write");
-    assert_eq!(
-        refused.diagnostic.code,
-        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
     );
 }
 

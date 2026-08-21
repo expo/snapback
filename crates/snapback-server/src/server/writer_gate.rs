@@ -12,6 +12,53 @@ use crate::local::LocalSnapback;
 #[cfg(test)]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use std::sync::Arc;
+#[cfg(test)]
+use std::sync::{Mutex as StdMutex, OnceLock};
+
+#[cfg(test)]
+struct ManagedHandoffWaiterTestHook {
+    handoff_identity: usize,
+    reached: Arc<tokio::sync::Notify>,
+}
+
+#[cfg(test)]
+static MANAGED_HANDOFF_WAITER_TEST_HOOK: OnceLock<StdMutex<Option<ManagedHandoffWaiterTestHook>>> =
+    OnceLock::new();
+
+#[cfg(test)]
+pub(super) fn install_managed_handoff_waiter_test_hook(
+    handoff: &Arc<crate::exec_guard::ManagedLocalHandoff>,
+) -> Arc<tokio::sync::Notify> {
+    let reached = Arc::new(tokio::sync::Notify::new());
+    let mut hook = MANAGED_HANDOFF_WAITER_TEST_HOOK
+        .get_or_init(|| StdMutex::new(None))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    assert!(
+        hook.is_none(),
+        "managed handoff waiter test hook already installed"
+    );
+    *hook = Some(ManagedHandoffWaiterTestHook {
+        handoff_identity: Arc::as_ptr(handoff) as usize,
+        reached: reached.clone(),
+    });
+    reached
+}
+
+#[cfg(test)]
+fn notify_managed_handoff_waiter_for_test(handoff: &Arc<crate::exec_guard::ManagedLocalHandoff>) {
+    let mut hook = MANAGED_HANDOFF_WAITER_TEST_HOOK
+        .get_or_init(|| StdMutex::new(None))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if hook
+        .as_ref()
+        .is_some_and(|hook| hook.handoff_identity == Arc::as_ptr(handoff) as usize)
+    {
+        let hook = hook.take().expect("matched managed handoff waiter hook");
+        hook.reached.notify_one();
+    }
+}
 
 /// Run write-lane work against the instance without blocking a tokio worker.
 ///
@@ -43,6 +90,8 @@ pub(super) async fn lock_managed_snapback(
             return guard;
         }
         drop(guard);
+        #[cfg(test)]
+        notify_managed_handoff_waiter_for_test(&handoff);
         handoff.wait_until_open().await;
     }
 }
@@ -137,7 +186,11 @@ pub(super) struct CommittedResetHandoff {
 }
 
 impl CommittedResetHandoff {
-    pub(super) async fn with_snapback<T, F>(&self, state: &SharedSnapback, work: F) -> T
+    pub(super) async fn with_snapback<T, F>(
+        &self,
+        state: &SharedSnapback,
+        work: F,
+    ) -> SnapbackResult<T>
     where
         F: FnOnce(&mut LocalSnapback) -> T + Send + 'static,
         T: Send + 'static,
@@ -156,9 +209,9 @@ impl CommittedResetHandoff {
             let batch = local_scope.take_after_local_batch();
             drop(guard);
             drop(local_scope);
-            crate::exec_guard::run_after_local_batch(batch);
+            crate::exec_guard::run_after_local_batch(batch).map_err(SnapbackError::from)?;
             match output {
-                Ok(output) => output,
+                Ok(output) => Ok(output),
                 Err(payload) => std::panic::resume_unwind(payload),
             }
         })
@@ -191,6 +244,7 @@ impl CommittedResetHandoff {
 pub(super) struct CoordinatedResetWrite<T> {
     pub(super) attempt: crate::storage::auth::AuthTransactionAttempt<T>,
     pub(super) committed_handoff: Option<CommittedResetHandoff>,
+    pub(super) finalization_error: Option<SnapbackError>,
 }
 
 enum CoordinatedResetStage<T, F> {
@@ -224,7 +278,9 @@ fn finish_coordinated_reset_write_turn<T>(
     if let Some(unused) = unused {
         unused.cancel();
     }
-    crate::exec_guard::run_after_local_batch(batch);
+    let finalization_error = crate::exec_guard::run_after_local_batch(batch)
+        .map_err(SnapbackError::from)
+        .err();
     let attempt = match attempt {
         Ok(attempt) => attempt,
         Err(payload) => std::panic::resume_unwind(payload),
@@ -233,6 +289,7 @@ fn finish_coordinated_reset_write_turn<T>(
         return CoordinatedResetWrite {
             attempt,
             committed_handoff: handoff.map(|handoff| CommittedResetHandoff { handoff }),
+            finalization_error,
         };
     }
     if let Some(handoff) = handoff {
@@ -241,6 +298,7 @@ fn finish_coordinated_reset_write_turn<T>(
     CoordinatedResetWrite {
         attempt,
         committed_handoff: None,
+        finalization_error,
     }
 }
 
@@ -292,7 +350,7 @@ where
         let batch = local_scope.take_after_local_batch();
         drop(guard);
         drop(local_scope);
-        crate::exec_guard::run_after_local_batch(batch);
+        crate::exec_guard::run_after_local_batch(batch).map_err(SnapbackError::from)?;
         Ok(CoordinatedResetStage::NeedsReservation {
             generation,
             snapshot,
@@ -314,6 +372,7 @@ where
             return CoordinatedResetWrite {
                 attempt: AuthTransactionAttempt::RolledBack(error),
                 committed_handoff: None,
+                finalization_error: None,
             };
         }
     };
@@ -327,6 +386,7 @@ where
             return CoordinatedResetWrite {
                 attempt: AuthTransactionAttempt::RolledBack(error),
                 committed_handoff: None,
+                finalization_error: None,
             };
         }
     };
@@ -349,6 +409,7 @@ where
             return CoordinatedResetWrite {
                 attempt: AuthTransactionAttempt::RolledBack(error),
                 committed_handoff: None,
+                finalization_error: None,
             };
         }
         let local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
@@ -463,10 +524,11 @@ where
             });
             drop(guard);
             drop(local_scope);
-            crate::exec_guard::run_after_local_batch(batch);
+            let after_local = crate::exec_guard::run_after_local_batch(batch);
             if let Some(handoff) = handoff {
                 handoff.reopen();
             }
+            after_local.map_err(SnapbackError::from)?;
             let turn = match result {
                 Ok(result) => result?,
                 Err(payload) => std::panic::resume_unwind(payload),
@@ -544,10 +606,11 @@ where
         if let Some(unused) = unused {
             unused.cancel();
         }
-        crate::exec_guard::run_after_local_batch(batch);
+        let after_local = crate::exec_guard::run_after_local_batch(batch);
         if let Some(handoff) = handoff {
             handoff.reopen();
         }
+        after_local.map_err(SnapbackError::from)?;
         match output {
             Ok(output) => Ok(AuthorizationWriteAttempt::Complete(output)),
             Err(payload) => std::panic::resume_unwind(payload),

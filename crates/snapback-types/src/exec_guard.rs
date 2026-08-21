@@ -17,6 +17,8 @@ use std::cell::{Cell, RefCell};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use crate::diagnostic::SnapbackResult;
+
 /// Highest auth lock rank forbidden inside a local SQLite write scope.
 ///
 /// @ref LLP 0059#locking-and-linearization — topology, stream/session, and
@@ -24,11 +26,29 @@ use std::sync::atomic::{AtomicBool, Ordering};
 pub const AUTH_LOCK_RANK_CONNECTION_REGISTRY: u8 = 40;
 
 pub type AfterLocalEffect = Box<dyn FnOnce() + Send + 'static>;
+type CheckedAfterLocalEffect = Box<dyn FnOnce() -> SnapbackResult<()> + Send + 'static>;
 type AfterLocalOwner = Box<dyn Send + 'static>;
 
+enum AfterLocalWork {
+    Infallible(AfterLocalEffect),
+    Checked(CheckedAfterLocalEffect),
+}
+
+impl AfterLocalWork {
+    fn run(self) -> SnapbackResult<()> {
+        match self {
+            Self::Infallible(effect) => {
+                effect();
+                Ok(())
+            }
+            Self::Checked(effect) => effect(),
+        }
+    }
+}
+
 pub struct AfterLocalBatch {
-    effects: Vec<AfterLocalEffect>,
-    finalizers: Vec<AfterLocalEffect>,
+    effects: Vec<AfterLocalWork>,
+    finalizers: Vec<AfterLocalWork>,
     owners: Vec<AfterLocalOwner>,
 }
 
@@ -41,8 +61,8 @@ impl AfterLocalBatch {
 thread_local! {
     static BLOCKING_SANCTIONED: Cell<bool> = const { Cell::new(false) };
     static LOCAL_APP_WRITE_DEPTH: Cell<u32> = const { Cell::new(0) };
-    static AFTER_LOCAL_EFFECTS: RefCell<Vec<AfterLocalEffect>> = const { RefCell::new(Vec::new()) };
-    static AFTER_LOCAL_FINALIZERS: RefCell<Vec<AfterLocalEffect>> = const { RefCell::new(Vec::new()) };
+    static AFTER_LOCAL_EFFECTS: RefCell<Vec<AfterLocalWork>> = const { RefCell::new(Vec::new()) };
+    static AFTER_LOCAL_FINALIZERS: RefCell<Vec<AfterLocalWork>> = const { RefCell::new(Vec::new()) };
     static AFTER_LOCAL_OWNERS: RefCell<Vec<AfterLocalOwner>> = const { RefCell::new(Vec::new()) };
 }
 
@@ -186,7 +206,32 @@ pub fn run_or_defer_after_local(effect: impl FnOnce() + Send + 'static) {
     if LOCAL_APP_WRITE_DEPTH.with(Cell::get) == 0 {
         effect();
     } else {
-        AFTER_LOCAL_EFFECTS.with(|effects| effects.borrow_mut().push(effect));
+        AFTER_LOCAL_EFFECTS.with(|effects| {
+            effects
+                .borrow_mut()
+                .push(AfterLocalWork::Infallible(effect))
+        });
+    }
+}
+
+/// Execute a fallible process-local projection immediately for direct-library
+/// use, or attach its result to the managed Local batch. The blocking owner
+/// must inspect [`run_after_local_batch`] before acknowledging its operation.
+///
+/// Unlike a panic, a typed failure does not skip later ordinary effects or the
+/// settlement finalizers. Authorization finalization can therefore retain its
+/// exact dependency and latch fail-closed while returning the same refusal to
+/// the initiating boundary.
+pub fn run_or_defer_after_local_checked(
+    effect: impl FnOnce() -> SnapbackResult<()> + Send + 'static,
+) -> SnapbackResult<()> {
+    let effect: CheckedAfterLocalEffect = Box::new(effect);
+    if LOCAL_APP_WRITE_DEPTH.with(Cell::get) == 0 {
+        effect()
+    } else {
+        AFTER_LOCAL_EFFECTS
+            .with(|effects| effects.borrow_mut().push(AfterLocalWork::Checked(effect)));
+        Ok(())
     }
 }
 
@@ -204,7 +249,31 @@ pub fn run_or_defer_after_local_finalizer(finalizer: impl FnOnce() + Send + 'sta
     if LOCAL_APP_WRITE_DEPTH.with(Cell::get) == 0 {
         finalizer();
     } else {
-        AFTER_LOCAL_FINALIZERS.with(|finalizers| finalizers.borrow_mut().push(finalizer));
+        AFTER_LOCAL_FINALIZERS.with(|finalizers| {
+            finalizers
+                .borrow_mut()
+                .push(AfterLocalWork::Infallible(finalizer));
+        });
+    }
+}
+
+/// Checked counterpart to [`run_or_defer_after_local_finalizer`]. The
+/// finalizer still runs only after every ordinary effect, and its typed failure
+/// is returned by [`run_after_local_batch`] after the full checked batch has
+/// had a chance to establish its fail-closed state.
+pub fn run_or_defer_after_local_finalizer_checked(
+    finalizer: impl FnOnce() -> SnapbackResult<()> + Send + 'static,
+) -> SnapbackResult<()> {
+    let finalizer: CheckedAfterLocalEffect = Box::new(finalizer);
+    if LOCAL_APP_WRITE_DEPTH.with(Cell::get) == 0 {
+        finalizer()
+    } else {
+        AFTER_LOCAL_FINALIZERS.with(|finalizers| {
+            finalizers
+                .borrow_mut()
+                .push(AfterLocalWork::Checked(finalizer));
+        });
+        Ok(())
     }
 }
 
@@ -221,7 +290,8 @@ pub fn local_write_scope_active() -> bool {
     LOCAL_APP_WRITE_DEPTH.with(Cell::get) != 0
 }
 
-pub fn run_after_local_batch(batch: AfterLocalBatch) {
+#[must_use = "after-Local projection/finalization failures must reach the initiating boundary"]
+pub fn run_after_local_batch(batch: AfterLocalBatch) -> SnapbackResult<()> {
     debug_assert_eq!(LOCAL_APP_WRITE_DEPTH.with(Cell::get), 0);
     let AfterLocalBatch {
         effects,
@@ -231,14 +301,27 @@ pub fn run_after_local_batch(batch: AfterLocalBatch) {
     // Leaking exact owners on callback panic is intentionally fail-closed:
     // terminal mutation must not drain past a projection that did not finish.
     let mut owners = std::mem::ManuallyDrop::new(owners);
+    let mut first_error = None;
     for effect in effects {
-        effect();
+        if let Err(error) = effect.run()
+            && first_error.is_none()
+        {
+            first_error = Some(error);
+        }
     }
     for finalizer in finalizers {
-        finalizer();
+        if let Err(error) = finalizer.run()
+            && first_error.is_none()
+        {
+            first_error = Some(error);
+        }
     }
     // SAFETY: this is the sole explicit drop, reached only after every effect.
     unsafe { std::mem::ManuallyDrop::drop(&mut owners) };
+    match first_error {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
 }
 
 /// Logical continuation of the per-instance writer while committed
@@ -340,5 +423,53 @@ pub fn debug_assert_off_async_worker(what: &str) {
     #[cfg(not(debug_assertions))]
     {
         let _ = what;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    #[test]
+    fn checked_batch_runs_every_phase_and_returns_the_first_error() {
+        let order = Arc::new(Mutex::new(Vec::new()));
+        let mut scope = LocalSnapbackWriteScope::enter();
+
+        let first_order = order.clone();
+        run_or_defer_after_local_checked(move || {
+            first_order.lock().unwrap().push("effect-error");
+            Err(crate::diagnostic::SnapbackError::error(
+                "FIRST_AFTER_LOCAL_FAILURE",
+                "auth",
+                "first checked failure",
+            ))
+        })
+        .unwrap();
+        let later_order = order.clone();
+        run_or_defer_after_local_checked(move || {
+            later_order.lock().unwrap().push("effect-later");
+            Ok(())
+        })
+        .unwrap();
+        let finalizer_order = order.clone();
+        run_or_defer_after_local_finalizer_checked(move || {
+            finalizer_order.lock().unwrap().push("finalizer-error");
+            Err(crate::diagnostic::SnapbackError::error(
+                "LATER_AFTER_LOCAL_FAILURE",
+                "auth",
+                "later checked failure",
+            ))
+        })
+        .unwrap();
+
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+        let error = run_after_local_batch(batch).expect_err("checked batch must fail");
+        assert_eq!(error.diagnostic.code, "FIRST_AFTER_LOCAL_FAILURE");
+        assert_eq!(
+            *order.lock().unwrap(),
+            vec!["effect-error", "effect-later", "finalizer-error"]
+        );
     }
 }

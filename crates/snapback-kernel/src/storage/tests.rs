@@ -12534,7 +12534,12 @@ mod guarded_commit_tests {
         let batch = scope.take_after_local_batch();
         drop(scope);
 
-        crate::exec_guard::run_after_local_batch(batch);
+        let finalization_error = crate::exec_guard::run_after_local_batch(batch)
+            .expect_err("discarded witness is a checked finalization failure");
+        assert_eq!(
+            finalization_error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
         let error = database
             .authorization_commit_reservation_required()
             .expect_err("discarding the witness must poison the latch");

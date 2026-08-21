@@ -2289,6 +2289,17 @@ pub struct DisconnectedConnectionTopology {
 }
 
 impl EphemeralApi {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn inject_authorization_outcome_observation_failure(&self) {
+        self.store
+            .inject_authorization_outcome_observation_failure();
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn inject_authorization_issuer_projection_failure(&self) {
+        self.store.inject_authorization_issuer_projection_failure();
+    }
+
     pub fn reserve_authorization_commit(
         &self,
         preflight: crate::storage::AuthorizationCommitPreflight,
@@ -4493,6 +4504,24 @@ fn prepare_media_command_invocation(
         binding,
         invocation,
     }))
+}
+
+/// Result of a direct authorization writer after its after-Local batch has
+/// drained. A checked finalization failure retains the body output because the
+/// SQLite commit may already be durable; callers can then preserve committed
+/// receipts while refusing to report the operation as finalized.
+enum DirectAuthorizationWrite<R> {
+    Finalized(R),
+    FinalizationFailed { output: R, error: SnapbackError },
+}
+
+impl<R> DirectAuthorizationWrite<R> {
+    fn require_finalized(self) -> SnapbackResult<R> {
+        match self {
+            Self::Finalized(output) => Ok(output),
+            Self::FinalizationFailed { error, .. } => Err(error),
+        }
+    }
 }
 
 impl LocalSnapback {
@@ -7910,6 +7939,13 @@ impl LocalSnapback {
         });
     }
 
+    /// Monotone post-commit recovery seam for a checked after-Local failure.
+    /// It can only suspend and clear the current issuer; successor activation
+    /// remains available solely through the authenticated database-bound path.
+    pub fn fail_closed_auth_invalidation_after_commit(&mut self) {
+        self.clear_auth_invalidation_projection();
+    }
+
     /// Reserve, authenticate, and install the boot-local invalidation issuer
     /// without exposing the intermediate database reservation. The provider
     /// is the opaque key-custody authority; an optional reset carrier exact-
@@ -7991,9 +8027,9 @@ impl LocalSnapback {
         &mut self,
         preflight: crate::storage::AuthorizationCommitPreflight,
         work: impl FnOnce(&mut Self) -> R,
-    ) -> SnapbackResult<R> {
+    ) -> SnapbackResult<DirectAuthorizationWrite<R>> {
         if crate::exec_guard::local_write_scope_active() {
-            return Ok(work(self));
+            return Ok(DirectAuthorizationWrite::Finalized(work(self)));
         }
 
         // Construction leaves the database-bound participant dormant. Until
@@ -8033,10 +8069,14 @@ impl LocalSnapback {
         if let Some(unused) = unused {
             unused.cancel();
         }
-        crate::exec_guard::run_after_local_batch(after_local);
+        let finalization =
+            crate::exec_guard::run_after_local_batch(after_local).map_err(SnapbackError::from);
 
         match outcome {
-            Ok(output) => Ok(output),
+            Ok(output) => match finalization {
+                Ok(()) => Ok(DirectAuthorizationWrite::Finalized(output)),
+                Err(error) => Ok(DirectAuthorizationWrite::FinalizationFailed { output, error }),
+            },
             Err(panic) => std::panic::resume_unwind(panic),
         }
     }
@@ -8150,6 +8190,7 @@ impl LocalSnapback {
                 Ok(diagnostics)
             },
         )?
+        .require_finalized()?
     }
 
     pub fn load_functions(&mut self, manifest: FunctionManifest) -> Vec<Diagnostic> {
@@ -8447,7 +8488,10 @@ impl LocalSnapback {
             },
         );
         let attempt = match attempt {
-            Ok(attempt) => attempt,
+            Ok(DirectAuthorizationWrite::Finalized(attempt)) => attempt,
+            Ok(DirectAuthorizationWrite::FinalizationFailed { error, .. }) => {
+                crate::storage::auth::AuthTransactionAttempt::CommitUncertain(error)
+            }
             Err(error) => crate::storage::auth::AuthTransactionAttempt::RolledBack(error),
         };
         coordinator.finish_stream_reset(carrier, attempt)
@@ -8546,11 +8590,12 @@ impl LocalSnapback {
                     snapback.db.schema_seed().ensure_versioned_seed(request)?
                 };
                 if let Some(publication) = commit.publication.as_ref() {
-                    snapback.notify_seed_publication(publication, &admission);
+                    snapback.notify_seed_publication(publication, &admission)?;
                 }
                 Ok(commit.output)
             },
         )?
+        .require_finalized()?
     }
 
     pub fn preview_versioned_seed(
@@ -9174,7 +9219,13 @@ impl LocalSnapback {
                 )
             },
         ) {
-            Ok(committed) => committed,
+            Ok(DirectAuthorizationWrite::Finalized(committed)) => committed,
+            // The checked after-Local batch can fail only after a durable
+            // authorization cut. Preserve that distinction: the caller must
+            // not treat the operation as rolled back or as successful.
+            Ok(DirectAuthorizationWrite::FinalizationFailed { error, .. }) => {
+                Err(ModeCommitFailure::Uncertain(error))
+            }
             Err(error) => Err(ModeCommitFailure::RolledBack(error)),
         }
     }
@@ -9712,9 +9763,10 @@ impl LocalSnapback {
             // @ref LLP 0290#56-issuer-expectation-and-committed-observation —
             // preserve the storage witness so the issuer's ordinary
             // after-Local projection is queued before the kernel finalizer.
-            snapback.notify_seed_commit(&commit, &admission);
+            snapback.notify_seed_commit(&commit, &admission)?;
             Ok(commit.output)
         })?
+        .require_finalized()?
     }
 
     // Cheap identity/artifact facts for host-ops envelopes (LLP 0032 P6):
@@ -14916,8 +14968,17 @@ impl LocalSnapback {
             snapback.commit_staged_recorded_authorization_mutation_with_dependencies(staged)
         });
         match committed {
-            Ok(Ok(recorded)) => recorded,
-            Ok(Err(error)) | Err(error) => {
+            Ok(DirectAuthorizationWrite::Finalized(Ok(recorded))) => recorded,
+            Ok(DirectAuthorizationWrite::FinalizationFailed {
+                output: Ok((_committed_outcome, receipt, capture)),
+                error,
+            }) => (Err(error), receipt, capture),
+            Ok(DirectAuthorizationWrite::Finalized(Err(error)))
+            | Ok(DirectAuthorizationWrite::FinalizationFailed {
+                output: Err(_),
+                error,
+            })
+            | Err(error) => {
                 let (outcome, receipt) = self.record_mutation_commit_after_publication_guard(
                     MutationReceiptPublication::new(
                         name,
@@ -16654,6 +16715,9 @@ impl LocalSnapback {
         })();
         self.current_live_network_egress = None;
         if let Err(error) = postcommit {
+            if error.diagnostic.code == "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE" {
+                return Err(error);
+            }
             self.record_attached_diagnostics(vec![error.diagnostic]);
         }
         Ok(commit)
@@ -27263,19 +27327,19 @@ impl LocalSnapback {
         &mut self,
         commit: &crate::storage::SeedCommit,
         admission: &AdmissionLease,
-    ) {
+    ) -> SnapbackResult<()> {
         let publication = crate::storage::SeedCommitPublication {
             version: commit.output.version,
             authorization: commit.authorization.clone(),
         };
-        self.notify_seed_publication(&publication, admission);
+        self.notify_seed_publication(&publication, admission)
     }
 
     fn notify_seed_publication(
         &mut self,
         publication: &crate::storage::SeedCommitPublication,
         admission: &AdmissionLease,
-    ) {
+    ) -> SnapbackResult<()> {
         let projection_required = if publication.authorization.event {
             match self.authorization_commit_reservation_required() {
                 Ok(required) => required,
@@ -27293,7 +27357,7 @@ impl LocalSnapback {
         };
         if !projection_required {
             self.notify_live_subscriptions(&[]);
-            return;
+            return Ok(());
         }
 
         self.schedule_invalidated_watches(&[]);
@@ -27323,11 +27387,15 @@ impl LocalSnapback {
         })();
         self.end_live_commit_egress();
         if let Err(error) = result {
+            if error.diagnostic.code == "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE" {
+                return Err(error);
+            }
             // The durable commit remains truth. The kernel ticket is still
             // fail-closed and its strict finalizer will expose any impossible
             // projection failure instead of silently advancing room authority.
             self.record_attached_diagnostics(vec![error.diagnostic]);
         }
+        Ok(())
     }
 
     /// Bounded matcher fixture. It applies one fixed-shape owner-field test
@@ -28237,18 +28305,14 @@ impl LocalSnapback {
             // @ref LLP 0290#56-issuer-expectation-and-committed-observation —
             // issuer projection is ordinary after-Local work and therefore
             // precedes the kernel settlement finalizer.
-            crate::exec_guard::run_or_defer_after_local(move || {
-                if let Ok(outcome) =
-                    ephemeral.committed_authorization_outcome(&witness, min_commit_version)
-                {
-                    // A projection error deliberately leaves `issuer_projected`
-                    // false. The following kernel finalizer then retains the
-                    // exact dependency and poisons the commit latch with the
-                    // stable fail-closed diagnostic; this callback must not
-                    // panic and prevent that finalizer from running.
-                    let _ = issuer.project_authorization_expectation(&outcome);
-                }
-            });
+            crate::exec_guard::run_or_defer_after_local_checked(move || {
+                let projected = ephemeral
+                    .committed_authorization_outcome(&witness, min_commit_version)
+                    .and_then(|outcome| issuer.project_authorization_expectation(&outcome));
+                projected
+                    .map_err(|error| ephemeral.fail_closed_authorization_projection(error).into())
+            })
+            .map_err(SnapbackError::from)?;
         }
         self.live_delivery.authorization_blast_radius.for_event(
             &authorization.membership_declarations,
