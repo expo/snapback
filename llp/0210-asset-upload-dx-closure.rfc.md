@@ -534,7 +534,10 @@ when D1 lands; the helper and settlement table get their own row).
   demand starts a fresh `issuing` entry; unsubscribe before an
   in-flight issuance resolves proves zero residual work and the entry
   is absent post-eviction, with resubscription getting a fresh
-  generation; headless-contract fixtures for the DTO obligations; the
+  generation; React type/runtime fixtures cover absent → present → absent,
+  proving stable `empty` typing, hook-order preservation, predecessor
+  unsubscribe, and zero absent issuance/refresh work; headless-contract
+  fixtures for the DTO obligations; the
   LLP 0114 named-projection ledger entry recorded.
 - D2: empty-body issuance returns a primary-variant URL; unknown
   variant returns the typed enumeration refusal; no issuance-route

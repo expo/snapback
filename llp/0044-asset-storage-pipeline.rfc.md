@@ -5,6 +5,9 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-21 (AssetRef schema-evolution diagnostics now render the
+bounded old/new intent and media-policy identity, name the changed facts, and
+separate preserve-data migration from whole-store dev-fresh repair.)
 **Revised:** 2026-08-10 (local finalize choreography amendment: Phase B's
 idempotent canonical object put now runs outside the global Local writer,
 between a lock-held `planned` commit and a separately lock-held
@@ -1046,6 +1049,18 @@ quota before committing the system edge with app writes and receipts. A
 handler refusal leaves neither kind of write behind, and a replayed mutation
 returns its original ledgered `agr_` identity instead of minting another edge.
 
+The upload restriction and finalized-media descriptor participate in the
+field's semantic type identity: upload/media intent, policy generation,
+accepted media kinds, delivery policy, variants, classification profile,
+retention class, and target capability. An installed field may therefore
+refuse a changed declaration as `SNAPBACK_SCHEMA_FIELD_RETYPED` even when both
+display names are `AssetRef`. That refusal carries bounded
+`existingAssetRef`, `requestedAssetRef`, and `changedFacts` details. It offers
+two distinct repairs: preserve data by adding a successor field and using the
+reviewed migration loop, or discard a development store with
+`snapback reset --dev-fresh`; stale generated artifacts are not diagnosed as a
+policy-compatible in-place retype.
+
 The generated field type, attach helper, reverse-edge record, and codegen
 projection must be single-sourced under LLP 0007/0037. The client cannot
 manufacture an admitted asset reference by casting a string. Contract/Exact
@@ -1441,6 +1456,9 @@ must distinguish at least:
   rewriting capability);
 - auth, read-access, or attachment denial;
 - unverified asset-reference commit refusal (`SNAPBACK_ASSET_REF_UNVERIFIED`);
+- installed AssetRef semantic-identity retype
+  (`SNAPBACK_SCHEMA_FIELD_RETYPED`, with old/new policy facts and separate
+  preserve-data/dev-fresh repairs);
 - media type, size, count, and quota refusal;
 - offset/part conflict, cancellation, expiry, and superseded-attempt
   refusal;

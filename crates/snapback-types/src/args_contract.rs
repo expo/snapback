@@ -108,6 +108,21 @@ struct ArgsViolation {
     actual: &'static str,
     failed_variants: Option<usize>,
     unknown_field: Option<UnknownFieldContext>,
+    bound: Option<ArgsBoundViolation>,
+}
+
+#[derive(Clone, Copy)]
+enum ArgsBoundViolation {
+    Bytes {
+        kind: &'static str,
+        actual: usize,
+        maximum: usize,
+    },
+    Items {
+        kind: &'static str,
+        actual: usize,
+        maximum: usize,
+    },
 }
 
 struct UnknownFieldContext {
@@ -123,7 +138,26 @@ impl ArgsViolation {
             actual,
             failed_variants: None,
             unknown_field: None,
+            bound: None,
         }
+    }
+
+    fn with_byte_bound(mut self, kind: &'static str, actual: usize, maximum: usize) -> Self {
+        self.bound = Some(ArgsBoundViolation::Bytes {
+            kind,
+            actual,
+            maximum,
+        });
+        self
+    }
+
+    fn with_item_bound(mut self, kind: &'static str, actual: usize, maximum: usize) -> Self {
+        self.bound = Some(ArgsBoundViolation::Items {
+            kind,
+            actual,
+            maximum,
+        });
+        self
     }
 
     fn with_unknown_field(
@@ -168,6 +202,7 @@ pub fn validate_function_args(function: &FunctionDefinition, args: &Value) -> Sn
                 actual: "oversized",
                 failed_variants: None,
                 unknown_field: None,
+                bound: None,
             },
         ));
     }
@@ -201,11 +236,13 @@ pub fn validate_stored_structured_value(
                 expected,
                 actual,
                 failed_variants,
+                bound,
                 ..
             } = shape;
             let mut details = json!({
                 "table": table,
                 "field": field,
+                "fieldPath": format!("{table}.{field}{pointer}"),
                 "contractHash": contract_hash,
                 "path": pointer,
                 "expected": expected,
@@ -214,12 +251,26 @@ pub fn validate_stored_structured_value(
             if let (Some(map), Some(failed)) = (details.as_object_mut(), failed_variants) {
                 map.insert("failedVariants".to_owned(), json!(failed));
             }
-            Err(SnapbackError::error(
-                "SNAPBACK_STRUCTURED_VALUE_INVALID",
-                "storage",
-                "stored structured value does not satisfy its declared shape",
+            if let (Some(map), Some(bound)) = (details.as_object_mut(), bound) {
+                add_bound_details(map, bound);
+                map.insert(
+                    "repair".to_owned(),
+                    json!("shorten the bounded child value or represent the collection as bounded child rows/scalar columns; see guide/getting-started/your-first-backend.md#structured-stored-values"),
+                );
+                map.insert(
+                    "guide".to_owned(),
+                    json!("guide/getting-started/your-first-backend.md#structured-stored-values"),
+                );
+            }
+            let message = if bound.is_some() {
+                "stored structured value exceeds its declared child or collection bound"
+            } else {
+                "stored structured value does not satisfy its declared shape"
+            };
+            Err(
+                SnapbackError::error("SNAPBACK_STRUCTURED_VALUE_INVALID", "storage", message)
+                    .with_details(details),
             )
-            .with_details(details))
         }
         Err(ArgsFailure::Delegated(_)) => Err(SnapbackError::error(
             "SNAPBACK_STRUCTURED_CONTRACT_INVALID",
@@ -267,6 +318,7 @@ pub fn validate_function_args_template(
                 actual: "oversized",
                 failed_variants: None,
                 unknown_field: None,
+                bound: None,
             },
         ));
     }
@@ -397,11 +449,17 @@ fn validate_node(
     match contract {
         ResultValueContract::Null => value.is_null().then_some(()).ok_or_else(mismatch),
         ResultValueContract::Boolean => value.is_boolean().then_some(()).ok_or_else(mismatch),
-        ResultValueContract::String { max_bytes } => value
-            .as_str()
-            .filter(|text| text.len() <= *max_bytes)
-            .map(|_| ())
-            .ok_or_else(mismatch),
+        ResultValueContract::String { max_bytes } => {
+            let Some(text) = value.as_str() else {
+                return Err(mismatch());
+            };
+            if text.len() > *max_bytes {
+                return Err(ArgsViolation::at(path, "string", "string")
+                    .with_byte_bound("child", text.len(), *max_bytes)
+                    .into());
+            }
+            Ok(())
+        }
         ResultValueContract::Integer { min, max } => value
             .as_i64()
             .filter(|number| number >= min && number <= max)
@@ -427,15 +485,20 @@ fn validate_node(
             max_depth,
             max_bytes,
         } => {
-            if serde_json::to_vec(value).map_or(true, |bytes| bytes.len() > *max_bytes) {
-                return Err(mismatch());
+            let actual_bytes = serde_json::to_vec(value).map_or(usize::MAX, |bytes| bytes.len());
+            if actual_bytes > *max_bytes {
+                return Err(ArgsViolation::at(path, "json", json_kind(value))
+                    .with_byte_bound("child", actual_bytes, *max_bytes)
+                    .into());
             }
             validate_json_budget(value, depth, *max_depth, path, budget)
         }
         ResultValueContract::Array { element, max_items } => {
             let values = value.as_array().ok_or_else(mismatch)?;
             if values.len() > *max_items {
-                return Err(mismatch());
+                return Err(ArgsViolation::at(path, "array", "array")
+                    .with_item_bound("collection", values.len(), *max_items)
+                    .into());
             }
             for (index, value) in values.iter().enumerate() {
                 let mut child = path.to_vec();
@@ -675,6 +738,7 @@ fn violation(function: &FunctionDefinition, shape: ArgsViolation) -> SnapbackErr
         actual,
         failed_variants,
         unknown_field,
+        bound,
     } = shape;
     let mut details = json!({
         "functionId": function.id,
@@ -686,6 +750,9 @@ fn violation(function: &FunctionDefinition, shape: ArgsViolation) -> SnapbackErr
     });
     if let (Some(map), Some(failed)) = (details.as_object_mut(), failed_variants) {
         map.insert("failedVariants".to_owned(), json!(failed));
+    }
+    if let (Some(map), Some(bound)) = (details.as_object_mut(), bound) {
+        add_bound_details(map, bound);
     }
     if let Some(map) = details.as_object_mut() {
         let unknown_field = unknown_field
@@ -699,6 +766,29 @@ fn violation(function: &FunctionDefinition, shape: ArgsViolation) -> SnapbackErr
         "the function was invoked with arguments outside its served contract",
     )
     .with_details(details)
+}
+
+fn add_bound_details(details: &mut serde_json::Map<String, Value>, bound: ArgsBoundViolation) {
+    match bound {
+        ArgsBoundViolation::Bytes {
+            kind,
+            actual,
+            maximum,
+        } => {
+            details.insert("boundKind".to_owned(), json!(kind));
+            details.insert("actualBytes".to_owned(), json!(actual));
+            details.insert("maxBytes".to_owned(), json!(maximum));
+        }
+        ArgsBoundViolation::Items {
+            kind,
+            actual,
+            maximum,
+        } => {
+            details.insert("boundKind".to_owned(), json!(kind));
+            details.insert("actualItems".to_owned(), json!(actual));
+            details.insert("maxItems".to_owned(), json!(maximum));
+        }
+    }
 }
 
 #[cfg(test)]

@@ -668,6 +668,13 @@ const issuedDiagnostic: AssetDiagnostic | null = issuedUrl.diagnostic;
 const refreshed: Promise<void> = issuedUrl.refresh();
 void issuedDiagnostic;
 void refreshed;
+const emptyIssuedUrl: AssetUrlEmptyState = useSnapbackAssetUrl(null);
+if (emptyIssuedUrl.status === 'empty') emptyIssuedUrl.url satisfies null;
+export function OptionalAssetUrl(
+  { assetId }: { assetId: string | null },
+): AssetUrlHookState {
+  return useSnapbackAssetUrl(assetId);
+}
 ```
 
 TTL refresh is platform-owned. Applications should not hand-roll issuance

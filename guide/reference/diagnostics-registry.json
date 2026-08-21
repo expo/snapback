@@ -27600,6 +27600,7 @@
       "guideAnchors": [
         "/_snapback/guide/backend/schema-evolution.md#recover-from-snapbackauthstartupartifactmismatch",
         "/_snapback/guide/backend/schema-evolution.md#diagnose-the-four-boundary-codes",
+        "/_snapback/guide/backend/schema-evolution.md#recover-after-a-partial-load-materialized-data",
         "/_snapback/guide/backend/schema-evolution.md#what-the-sessions-pin-means",
         "/_snapback/guide/getting-started/the-authoring-loop.md#evolve-a-table-that-already-has-data",
         "/_snapback/guide/recipes/fixed-origin-development.md#preserve-the-sessions-startup-carrier"
@@ -32050,12 +32051,12 @@
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 256,
+          "line": 307,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 825,
+          "line": 915,
           "column": 14
         }
       ],
@@ -50722,37 +50723,37 @@
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 697,
+          "line": 764,
           "column": 10
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 849,
+          "line": 939,
           "column": 18
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 873,
+          "line": 963,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 894,
+          "line": 984,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 965,
+          "line": 1055,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 1044,
+          "line": 1134,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 1127,
+          "line": 1217,
           "column": 14
         },
         {
@@ -82538,9 +82539,9 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": "/_snapback/guide/getting-started/your-first-backend.md#declare-the-schema",
+      "guideAnchor": "/_snapback/guide/getting-started/your-first-backend.md#structured-stored-values",
       "guideAnchors": [
-        "/_snapback/guide/getting-started/your-first-backend.md#declare-the-schema"
+        "/_snapback/guide/getting-started/your-first-backend.md#structured-stored-values"
       ]
     },
     "SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD": {
@@ -83450,22 +83451,22 @@
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 145,
+          "line": 179,
           "column": 43
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 631,
+          "line": 694,
           "column": 10
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 1084,
+          "line": 1174,
           "column": 44
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 1097,
+          "line": 1187,
           "column": 38
         },
         {
@@ -87358,7 +87359,7 @@
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 225,
+          "line": 276,
           "column": 14
         },
         {
@@ -87448,8 +87449,8 @@
         },
         {
           "file": "crates/snapback-types/src/args_contract.rs",
-          "line": 218,
-          "column": 18
+          "line": 271,
+          "column": 39
         }
       ],
       "httpStatus": 400,

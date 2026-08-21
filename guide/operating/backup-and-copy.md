@@ -4,13 +4,13 @@ id: operating.backup-and-copy
 order: 9
 audience: agent-first
 capabilities: [operating.store-durable-state]
-authorities: [llp/0192-store-durable-state-set.decision.md, llp/0057-auth-provider-protocol.spec.md, crates/snapback-cli/src/store_state.rs, crates/snapback-cli/src/cli.rs, crates/snapback-auth/src/auth/backup.rs, crates/snapback-server/src/auth/runtime.rs]
-examples: [crates/snapback-cli/src/store_state.rs]
+authorities: [llp/0192-store-durable-state-set.decision.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-cli/src/store_state.rs, crates/snapback-cli/src/cli.rs, crates/snapback-auth/src/auth/backup.rs, crates/snapback-server/src/auth/runtime.rs, packages/snapback-cli/index.mjs]
+examples: [crates/snapback-cli/src/store_state.rs, crates/snapback-cli/src/cli/tests.rs, packages/snapback-cli/load-generated.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:d7a40a97571ef8ca095a38d8bed21070410b646277c209f5344dbd49c35b277a
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:fd7ebe8e26470cb62e4958cff0a06be70be3a352ea820b3b8161758c587f1a19
 ---
 
 # Back up, copy, and move a store
@@ -33,7 +33,16 @@ copy it, and how do I get it back after a disaster.
 **Aliases for the thing you are probably searching for:** backup, back up,
 restore, copy database, clone database, duplicate store, move store, migrate
 store, snapshot, disaster recovery, `cp app.sqlite3`, sqlite backup, WAL,
-`auth-keyring.json`, missing keyring, `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE`.
+`auth-keyring.json`, missing keyring, `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE`,
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`, dev-fresh reset, delete database
+file, whole store.
+
+If an artifact-mismatch refusal offers a destructive fresh-development repair,
+follow its `snapback reset --dev-fresh --db <db>` command. That verb removes
+and reseeds the managed whole store. Do not delete only `<db>` or `<db>-wal`:
+the path-bound custody siblings survive, so the target is neither the old
+store nor a fresh one. Use `snapback store export` first when the existing
+state might matter.
 
 These CLI verbs are **contributor-source** today: they exist in the source
 `snapback` binary and are not yet part of a published `@expo/snapback-*`

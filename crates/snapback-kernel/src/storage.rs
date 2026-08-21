@@ -11844,6 +11844,14 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
                          reviewed successor generation — declare ConvertJsonToStructured",
                         table.name, field.name
                     )
+                } else if let Some((existing, requested)) = &asset_ref_delta {
+                    let changed = changed_asset_ref_facts(existing, requested);
+                    format!(
+                        "field {}.{} keeps the AssetRef display type but changes its stored semantic identity in [{}]; an in-place policy/intent retype is not supported",
+                        table.name,
+                        field.name,
+                        changed.join(", "),
+                    )
                 } else {
                     format!(
                         "field {}.{} cannot change type from {} to {}; \
@@ -16978,7 +16986,7 @@ fn insert_document(
         SqlValue::Integer(timestamp_to_sql_millis(now_ms)?),
         SqlValue::Integer(timestamp_to_sql_millis(now_ms)?),
     ];
-    let mut structured_bytes = 0_usize;
+    let mut structured_contributions = Vec::new();
 
     for field in &table.fields {
         let value = match relation_stamps
@@ -17001,21 +17009,21 @@ fn insert_document(
         };
         let (normalized, sql_value, bytes) =
             prepare_declared_field_value(&table.name, field, &value)?;
-        structured_bytes = structured_bytes.saturating_add(bytes);
+        if bytes > 0 {
+            structured_contributions.push((field.name.clone(), bytes));
+        }
         values.push(sql_value);
         columns.push(field.name.clone());
         document.insert(field.name.clone(), normalized);
     }
+    let structured_bytes = structured_contributions
+        .iter()
+        .fold(0_usize, |total, (_, bytes)| total.saturating_add(*bytes));
     if structured_bytes > MAX_STORED_STRUCTURED_ROW_BYTES {
-        return Err(SnapbackError::error(
-            "SNAPBACK_STRUCTURED_ROW_BYTES_EXCEEDED",
-            "storage",
-            "row exceeds the aggregate structured canonical-byte ceiling",
-        )
-        .with_detail("table", table.name.clone())
-        .with_detail("path", "")
-        .with_detail("actualBytes", structured_bytes as u64)
-        .with_detail("maxBytes", MAX_STORED_STRUCTURED_ROW_BYTES as u64));
+        return Err(structured_row_ceiling_exceeded(
+            &table.name,
+            &structured_contributions,
+        ));
     }
 
     let placeholders = (0..columns.len())
@@ -19912,6 +19920,72 @@ const PORTABLE_INTEGER_MIN: i64 = -PORTABLE_INTEGER_MAX;
 // structured contribution without claiming a complete live-envelope bound.
 pub const MAX_STORED_STRUCTURED_VALUE_BYTES: usize = 32 * 1024;
 pub const MAX_STORED_STRUCTURED_ROW_BYTES: usize = 48 * 1024;
+const MAX_STRUCTURED_FIELDS_IN_DIAGNOSTIC: usize = 8;
+const STRUCTURED_VALUE_REPAIR: &str = "shorten the bounded value, split independent facts into scalar columns, or represent a growing collection as bounded child rows; see guide/getting-started/your-first-backend.md#structured-stored-values";
+
+fn structured_value_ceiling_exceeded(table: &str, field: &str, actual: usize) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_STRUCTURED_VALUE_BYTES_EXCEEDED",
+        "storage",
+        format!(
+            "structured field {table}.{field} uses {actual} canonical bytes, above the {MAX_STORED_STRUCTURED_VALUE_BYTES}-byte field ceiling"
+        ),
+    )
+    .with_details(json!({
+        "table": table,
+        "field": field,
+        "fieldPath": format!("{table}.{field}"),
+        "path": "",
+        "boundKind": "field",
+        "actualBytes": actual,
+        "maxBytes": MAX_STORED_STRUCTURED_VALUE_BYTES,
+        "actualCanonicalBytes": actual,
+        "maxCanonicalBytes": MAX_STORED_STRUCTURED_VALUE_BYTES,
+        "repair": STRUCTURED_VALUE_REPAIR,
+        "guide": "guide/getting-started/your-first-backend.md#structured-stored-values",
+    }))
+}
+
+fn structured_row_ceiling_exceeded(
+    table: &str,
+    contributions: &[(String, usize)],
+) -> SnapbackError {
+    let actual = contributions
+        .iter()
+        .fold(0_usize, |total, (_, bytes)| total.saturating_add(*bytes));
+    let structured_fields = contributions
+        .iter()
+        .take(MAX_STRUCTURED_FIELDS_IN_DIAGNOSTIC)
+        .map(|(field, bytes)| {
+            json!({
+                "fieldPath": format!("{table}.{field}"),
+                "actualCanonicalBytes": bytes,
+            })
+        })
+        .collect::<Vec<_>>();
+    SnapbackError::error(
+        "SNAPBACK_STRUCTURED_ROW_BYTES_EXCEEDED",
+        "storage",
+        format!(
+            "row {table} uses {actual} structured canonical bytes, above the {MAX_STORED_STRUCTURED_ROW_BYTES}-byte row ceiling"
+        ),
+    )
+    .with_details(json!({
+        "table": table,
+        "fieldPath": table,
+        "path": "",
+        "boundKind": "row",
+        "actualBytes": actual,
+        "maxBytes": MAX_STORED_STRUCTURED_ROW_BYTES,
+        "actualCanonicalBytes": actual,
+        "maxCanonicalBytes": MAX_STORED_STRUCTURED_ROW_BYTES,
+        "structuredFieldCount": contributions.len(),
+        "structuredFields": structured_fields,
+        "omittedStructuredFieldCount": contributions.len().saturating_sub(MAX_STRUCTURED_FIELDS_IN_DIAGNOSTIC),
+        "repair": STRUCTURED_VALUE_REPAIR,
+        "guide": "guide/getting-started/your-first-backend.md#structured-stored-values",
+    }))
+}
 
 fn portable_integer_value(value: &Value) -> Option<i64> {
     value
@@ -20178,16 +20252,11 @@ fn canonicalize_stored_structured_value(
         .with_detail("path", "")
     })?;
     if canonical.len() > MAX_STORED_STRUCTURED_VALUE_BYTES {
-        return Err(SnapbackError::error(
-            "SNAPBACK_STRUCTURED_VALUE_BYTES_EXCEEDED",
-            "storage",
-            "stored structured value exceeds the canonical-byte ceiling",
-        )
-        .with_detail("table", table.to_owned())
-        .with_detail("field", field.to_owned())
-        .with_detail("path", "")
-        .with_detail("actualBytes", canonical.len() as u64)
-        .with_detail("maxBytes", MAX_STORED_STRUCTURED_VALUE_BYTES as u64));
+        return Err(structured_value_ceiling_exceeded(
+            table,
+            field,
+            canonical.len(),
+        ));
     }
     // Reparse the exact durable spelling. This is the admission-normalization
     // step: an interior integral Real whose JCS spelling is `5` becomes the
@@ -20239,7 +20308,7 @@ fn validate_structured_row_aggregate(
     table: &TableManifest,
     values: &Map<String, Value>,
 ) -> SnapbackResult<usize> {
-    let mut total = 0_usize;
+    let mut contributions = Vec::new();
     for field in &table.fields {
         if !matches!(field.field_type, FieldType::Structured { .. }) {
             continue;
@@ -20251,18 +20320,13 @@ fn validate_structured_row_aggregate(
             continue;
         }
         let (_, _, bytes) = prepare_declared_field_value(&table.name, field, value)?;
-        total = total.saturating_add(bytes);
+        contributions.push((field.name.clone(), bytes));
     }
+    let total = contributions.iter().fold(0_usize, |aggregate, (_, bytes)| {
+        aggregate.saturating_add(*bytes)
+    });
     if total > MAX_STORED_STRUCTURED_ROW_BYTES {
-        return Err(SnapbackError::error(
-            "SNAPBACK_STRUCTURED_ROW_BYTES_EXCEEDED",
-            "storage",
-            "row exceeds the aggregate structured canonical-byte ceiling",
-        )
-        .with_detail("table", table.name.clone())
-        .with_detail("path", "")
-        .with_detail("actualBytes", total as u64)
-        .with_detail("maxBytes", MAX_STORED_STRUCTURED_ROW_BYTES as u64));
+        return Err(structured_row_ceiling_exceeded(&table.name, &contributions));
     }
     Ok(total)
 }

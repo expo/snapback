@@ -5,6 +5,10 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
+**Revised:** 2026-08-21 (cold-startup mismatch remediation now distinguishes
+data-preserving live evolution from destructive whole-store dev reset. The
+fresh route uses `snapback reset --dev-fresh` and explicitly rejects the
+database-as-one-file model per LLP 0192.)
 **Revised:** 2026-08-12 (Dev browser-origin hardening: body-selected users are
 admitted only from the bound origin or an explicit exact loopback allowlist;
 no-Origin trusted-local callers are unchanged). 2026-08-12 (target registry
@@ -866,6 +870,16 @@ start. Missing, unreadable, or mismatched artifacts fail pre-bind with
 silently substituted. This is not a wedge: the operator can rerun with the
 pinned pair, and the CLI emits the exact expected deployment identity without
 secret material.
+
+The mismatch diagnostic carries both supported authoring repairs. The
+data-preserving branch restores the exact pinned carrier and advances the
+successor through the running managed server. The destructive development
+branch may first preserve the complete durable-state set with
+`snapback store export`, then runs `snapback reset --dev-fresh --db <db>`.
+It must say that the managed store is not one file and that deleting only the
+SQLite database leaves custody keyrings/config/assets behind; remediation may
+not instruct an author to move or delete the database file in isolation (LLP
+0192 D-1/D-2).
 
 The explicit pre-bind `--activate-startup-successor` flag is the sole cold
 same-mode exception to exact identity equality. It requires the startup carrier,

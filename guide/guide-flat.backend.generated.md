@@ -3634,6 +3634,13 @@ const issuedDiagnostic: AssetDiagnostic | null = issuedUrl.diagnostic;
 const refreshed: Promise<void> = issuedUrl.refresh();
 void issuedDiagnostic;
 void refreshed;
+const emptyIssuedUrl: AssetUrlEmptyState = useSnapbackAssetUrl(null);
+if (emptyIssuedUrl.status === 'empty') emptyIssuedUrl.url satisfies null;
+export function OptionalAssetUrl(
+  { assetId }: { assetId: string | null },
+): AssetUrlHookState {
+  return useSnapbackAssetUrl(assetId);
+}
 ```
 
 TTL refresh is platform-owned. Applications should not hand-roll issuance
@@ -6208,8 +6215,8 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.21
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:0aa239149530db05c541bcb02491fd9d2f69e8aa558e1b34e8a293ba11aeaa7a
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:b476c2fd5a9a0f161241edaf426111b715fe4ff7e28400191b91deeb893ee2ed
 ---
 
 # Evolve a sessions schema without discarding data
@@ -6337,13 +6344,28 @@ Do not delete the database to make the new type load, and do not patch the
 stored JSON manually. The data already materialized under the predecessor is
 the reason the applier refuses; preserving it is the recovery objective.
 
+For `AssetRef`, the display name alone is not the type identity. The retype
+diagnostic's `existingAssetRef`, `requestedAssetRef`, and `changedFacts`
+identify changes to upload/media intent, policy generation, media kinds,
+delivery, variants, classification, retention, and target capability. Preserve
+data by adding a successor AssetRef field and using the reviewed migration
+loop; do not interpret `AssetRef` → `AssetRef` as stale codegen or an in-place
+compatible policy edit.
+
+If this is a disposable local target and you intentionally do **not** need the
+data, use `snapback reset --dev-fresh --db <db>`. The store is not one file:
+deleting only the SQLite database leaves custody keyrings, config, and assets
+behind and can reproduce `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`. Preserve a
+copy first with `snapback store export` when needed; the complete inventory and
+procedure are in [Back up, copy, and move a store](../operating/backup-and-copy.md).
+
 ## Diagnose the four boundary codes
 
 | Code | Meaning and next action |
 | --- | --- |
 | `SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | A settled sessions start has no readable trusted complete-pair carrier. Restore the exact generated carrier and retry. |
 | `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | The carrier differs from the pin or is not a coherent closed pair. Read `expectedDeployment`/`observedDeployment`; use the exact-carrier then managed-successor recipe above. |
-| `SNAPBACK_SCHEMA_FIELD_RETYPED` | Existing storage makes a direct field retype non-additive. Preserve the predecessor and route through a new-field backfill or reviewed migration. |
+| `SNAPBACK_SCHEMA_FIELD_RETYPED` | Existing storage makes a direct field retype non-additive. Preserve the predecessor and route through a new-field backfill or reviewed migration. For AssetRef → AssetRef, read `changedFacts` and the old/new policy identities. |
 | `SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED` | Populated rows lack the proposed required value. Add it as optional and backfill, or declare the reviewed migration. |
 
 For seed identity changes, use [versioned seeds](./versioned-seeds.md). For

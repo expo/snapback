@@ -128,6 +128,9 @@ fn auth_policy_unavailable(message: &'static str) -> crate::diagnostic::Snapback
 // @ref LLP 0058#cold-startup-artifact-carrier — "this is not a wedge": the
 // refusal must carry its own repair, not just the expected identity
 // (issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md).
+// @ref LLP 0192#d-1-the-durable-state-registry — destructive recovery must
+// reset the managed durable-state set; a database-only deletion leaves
+// path-bound custody siblings behind.
 fn with_settled_pin_repair(
     mut error: crate::diagnostic::SnapbackError,
     database: &Path,

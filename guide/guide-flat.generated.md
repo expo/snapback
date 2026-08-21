@@ -1732,7 +1732,8 @@ sessions-evolution, and familiar-profile discovery misses.
     "SecureStore custody".
 
 Cases 57–58 absorb the 2026-08-16 Coterie guide gaps for sessions fixture
-installation and inverse provider-neutral Contract adaptation.
+installation and inverse provider-neutral Contract adaptation. Case 59 absorbs
+the 2026-08-18 custody-store repair miss.
 
 57. **Sessions fixture install:** "Install deterministic password accounts,
     principal-owned profile rows, and typed avatar media in a sessions-mode
@@ -8899,6 +8900,13 @@ const issuedDiagnostic: AssetDiagnostic | null = issuedUrl.diagnostic;
 const refreshed: Promise<void> = issuedUrl.refresh();
 void issuedDiagnostic;
 void refreshed;
+const emptyIssuedUrl: AssetUrlEmptyState = useSnapbackAssetUrl(null);
+if (emptyIssuedUrl.status === 'empty') emptyIssuedUrl.url satisfies null;
+export function OptionalAssetUrl(
+  { assetId }: { assetId: string | null },
+): AssetUrlHookState {
+  return useSnapbackAssetUrl(assetId);
+}
 ```
 
 TTL refresh is platform-owned. Applications should not hand-roll issuance
@@ -11473,8 +11481,8 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.21
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:0aa239149530db05c541bcb02491fd9d2f69e8aa558e1b34e8a293ba11aeaa7a
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:b476c2fd5a9a0f161241edaf426111b715fe4ff7e28400191b91deeb893ee2ed
 ---
 
 # Evolve a sessions schema without discarding data
@@ -11602,13 +11610,28 @@ Do not delete the database to make the new type load, and do not patch the
 stored JSON manually. The data already materialized under the predecessor is
 the reason the applier refuses; preserving it is the recovery objective.
 
+For `AssetRef`, the display name alone is not the type identity. The retype
+diagnostic's `existingAssetRef`, `requestedAssetRef`, and `changedFacts`
+identify changes to upload/media intent, policy generation, media kinds,
+delivery, variants, classification, retention, and target capability. Preserve
+data by adding a successor AssetRef field and using the reviewed migration
+loop; do not interpret `AssetRef` → `AssetRef` as stale codegen or an in-place
+compatible policy edit.
+
+If this is a disposable local target and you intentionally do **not** need the
+data, use `snapback reset --dev-fresh --db <db>`. The store is not one file:
+deleting only the SQLite database leaves custody keyrings, config, and assets
+behind and can reproduce `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`. Preserve a
+copy first with `snapback store export` when needed; the complete inventory and
+procedure are in [Back up, copy, and move a store](../operating/backup-and-copy.md).
+
 ## Diagnose the four boundary codes
 
 | Code | Meaning and next action |
 | --- | --- |
 | `SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | A settled sessions start has no readable trusted complete-pair carrier. Restore the exact generated carrier and retry. |
 | `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | The carrier differs from the pin or is not a coherent closed pair. Read `expectedDeployment`/`observedDeployment`; use the exact-carrier then managed-successor recipe above. |
-| `SNAPBACK_SCHEMA_FIELD_RETYPED` | Existing storage makes a direct field retype non-additive. Preserve the predecessor and route through a new-field backfill or reviewed migration. |
+| `SNAPBACK_SCHEMA_FIELD_RETYPED` | Existing storage makes a direct field retype non-additive. Preserve the predecessor and route through a new-field backfill or reviewed migration. For AssetRef → AssetRef, read `changedFacts` and the old/new policy identities. |
 | `SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED` | Populated rows lack the proposed required value. Add it as optional and backfill, or declare the reviewed migration. |
 
 For seed identity changes, use [versioned seeds](./versioned-seeds.md). For
@@ -18246,8 +18269,8 @@ examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapba
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-09
-reviewed-authorities-digest: sha256:b3d9adcd8e76825df7794cd4c78f72926c6f0cd6fa43552f8d54d2f82cc125ba
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:6d755bb061ddcaae93be8cdfbb10d1a402fed39cc7dbee3b5ec870fdc5ff8479
 ---
 
 # Your first backend
@@ -18358,6 +18381,8 @@ every stored value already satisfies it; otherwise the whole activation
 refuses with `SNAPBACK_SCHEMA_ENUM_DOMAIN_BACKFILL_REQUIRED` naming an
 offending value, and neither the manifest nor the table moves.
 
+### Structured stored values
+
 **Typed opaque arrays and objects.** At a table-field position,
 `v.object({...})`, `v.array(inner)`, and non-enum unions rooted in those nodes
 now compile to a persisted structured contract instead of silently degrading
@@ -18382,6 +18407,17 @@ elements. Structured values are opaque to observation in this phase: ordinary
 indexes, filters, orders, live matchers, search membership, search/vector
 `storedFields`, and bounded/relational/maintained projections refuse them.
 Project a scalar into an ordinary field when it must be queried.
+
+When a write crosses a bound, inspect the diagnostic before changing the
+representation. `boundKind` says whether the failed fact is a nested `child`
+byte bound, a `collection` item count, the 32 KiB canonical `field`
+aggregate, or the 48 KiB structured `row` aggregate; transport ingress uses
+the separate `live-frame` spelling. Field/row failures include `fieldPath`,
+`actualCanonicalBytes`, `maxCanonicalBytes`, and bounded per-field row
+contributions. Supported repairs are to shorten the bounded child, project
+queryable facts into scalar columns, or move a growing collection into
+bounded child rows. Raising a child `maxBytes` cannot raise the independent
+field or row aggregate ceiling.
 
 `structured_stored_value_v1` is registered experimental and supported on the
 local target. Schemas using this grammar carry that explicit capability
@@ -22362,13 +22398,13 @@ id: operating.backup-and-copy
 order: 9
 audience: agent-first
 capabilities: [operating.store-durable-state]
-authorities: [llp/0192-store-durable-state-set.decision.md, llp/0057-auth-provider-protocol.spec.md, crates/snapback-cli/src/store_state.rs, crates/snapback-cli/src/cli.rs, crates/snapback-auth/src/auth/backup.rs, crates/snapback-server/src/auth/runtime.rs]
-examples: [crates/snapback-cli/src/store_state.rs]
+authorities: [llp/0192-store-durable-state-set.decision.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-cli/src/store_state.rs, crates/snapback-cli/src/cli.rs, crates/snapback-auth/src/auth/backup.rs, crates/snapback-server/src/auth/runtime.rs, packages/snapback-cli/index.mjs]
+examples: [crates/snapback-cli/src/store_state.rs, crates/snapback-cli/src/cli/tests.rs, packages/snapback-cli/load-generated.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:d7a40a97571ef8ca095a38d8bed21070410b646277c209f5344dbd49c35b277a
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:fd7ebe8e26470cb62e4958cff0a06be70be3a352ea820b3b8161758c587f1a19
 ---
 
 # Back up, copy, and move a store
@@ -22391,7 +22427,16 @@ copy it, and how do I get it back after a disaster.
 **Aliases for the thing you are probably searching for:** backup, back up,
 restore, copy database, clone database, duplicate store, move store, migrate
 store, snapshot, disaster recovery, `cp app.sqlite3`, sqlite backup, WAL,
-`auth-keyring.json`, missing keyring, `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE`.
+`auth-keyring.json`, missing keyring, `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE`,
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`, dev-fresh reset, delete database
+file, whole store.
+
+If an artifact-mismatch refusal offers a destructive fresh-development repair,
+follow its `snapback reset --dev-fresh --db <db>` command. That verb removes
+and reseeds the managed whole store. Do not delete only `<db>` or `<db>-wal`:
+the path-bound custody siblings survive, so the target is neither the old
+store nor a fresh one. Use `snapback store export` first when the existing
+state might matter.
 
 These CLI verbs are **contributor-source** today: they exist in the source
 `snapback` binary and are not yet part of a published `@expo/snapback-*`
@@ -55279,6 +55324,8 @@ Symbols: 135 total; 47 runtime values; 88 type-only.
 - [`AssetUploadHookState`](#symbol-assetuploadhookstate-f7188b8455) — type-type-alias
 - [`AssetUploadHookStatus`](#symbol-assetuploadhookstatus-84f9f859f0) — type-type-alias
 - [`AssetUploadTask`](#symbol-assetuploadtask-a3867462ec) — type-interface
+- [`AssetUrlEmptyState`](#symbol-asseturlemptystate-4ec6145e2e) — type-interface
+- [`AssetUrlHookState`](#symbol-asseturlhookstate-e292f63744) — type-type-alias
 - [`AssetUrlState`](#symbol-asseturlstate-212764cbc6) — type-interface
 - [`AuthorityMyRoleRow`](#symbol-authoritymyrolerow-599f8aa58e) — type-type-alias
 - [`AuthorityProfileReferences`](#symbol-authorityprofilereferences-c08b09108f) — type-type-alias
@@ -55793,6 +55840,44 @@ Members and overload groups:
 - `resume` — method; 1 signature
 - `cancel` — method; 1 signature
 - `retry` — method; 1 signature
+
+<a id="symbol-asseturlemptystate-4ec6145e2e"></a>
+## `AssetUrlEmptyState`
+
+Stable identity: `npm:@expo/snapback-react#AssetUrlEmptyState`
+Kind: `type-interface`
+Source: `packages/snapback-react/index.d.mts:1084`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export interface AssetUrlEmptyState {
+  readonly url: null;
+  readonly status: 'empty';
+  readonly diagnostic: null;
+  readonly expiresAt: null;
+  readonly rendition: null;
+  readonly refresh: () => Promise<void>;
+}
+```
+
+Members and overload groups:
+
+- `url` — property; 1 signature
+- `status` — property; 1 signature
+- `diagnostic` — property; 1 signature
+- `expiresAt` — property; 1 signature
+- `rendition` — property; 1 signature
+- `refresh` — property; 1 signature
+
+<a id="symbol-asseturlhookstate-e292f63744"></a>
+## `AssetUrlHookState`
+
+Stable identity: `npm:@expo/snapback-react#AssetUrlHookState`
+Kind: `type-type-alias`
+Source: `packages/snapback-react/index.d.mts:1093`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export type AssetUrlHookState = AssetUrlState | AssetUrlEmptyState;
+```
 
 <a id="symbol-asseturlstate-212764cbc6"></a>
 ## `AssetUrlState`
@@ -57950,6 +58035,14 @@ export function useSnapbackAssetUrl(
   assetIdOrNull: string | null | undefined,
   options?: AssetSignedUrlOptions,
 ): AssetUrlState;
+export function useSnapbackAssetUrl(
+  assetId: null,
+  options?: AssetSignedUrlOptions,
+): AssetUrlEmptyState;
+export function useSnapbackAssetUrl(
+  assetId: string | null,
+  options?: AssetSignedUrlOptions,
+): AssetUrlHookState;
 ```
 
 <a id="symbol-usesnapbackauth-a7e9fb376d"></a>
@@ -60134,6 +60227,8 @@ Symbols: 185 total; 73 runtime values; 112 type-only.
 - [`AssetUploadHookState`](#symbol-assetuploadhookstate-0649b01db4) — type-type-alias
 - [`AssetUploadHookStatus`](#symbol-assetuploadhookstatus-e2eb248a8e) — type-type-alias
 - [`AssetUploadTask`](#symbol-assetuploadtask-f86f01bf3f) — type-interface
+- [`AssetUrlEmptyState`](#symbol-asseturlemptystate-1df9684f3a) — type-interface
+- [`AssetUrlHookState`](#symbol-asseturlhookstate-f855f11d5a) — type-type-alias
 - [`AssetUrlState`](#symbol-asseturlstate-c3ca1b83b2) — type-interface
 - [`AuthorityAdoptionResult`](#symbol-authorityadoptionresult-4961170387) — type-type-alias
 - [`AuthorityMyRoleRow`](#symbol-authoritymyrolerow-5728fadf21) — type-type-alias
@@ -60880,6 +60975,44 @@ Members and overload groups:
 - `resume` — method; 1 signature
 - `cancel` — method; 1 signature
 - `retry` — method; 1 signature
+
+<a id="symbol-asseturlemptystate-1df9684f3a"></a>
+## `AssetUrlEmptyState`
+
+Stable identity: `npm:@expo/snapback-expo#AssetUrlEmptyState`
+Kind: `type-interface`
+Source: `packages/snapback-react/index.d.mts:1084`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export interface AssetUrlEmptyState {
+  readonly url: null;
+  readonly status: 'empty';
+  readonly diagnostic: null;
+  readonly expiresAt: null;
+  readonly rendition: null;
+  readonly refresh: () => Promise<void>;
+}
+```
+
+Members and overload groups:
+
+- `url` — property; 1 signature
+- `status` — property; 1 signature
+- `diagnostic` — property; 1 signature
+- `expiresAt` — property; 1 signature
+- `rendition` — property; 1 signature
+- `refresh` — property; 1 signature
+
+<a id="symbol-asseturlhookstate-f855f11d5a"></a>
+## `AssetUrlHookState`
+
+Stable identity: `npm:@expo/snapback-expo#AssetUrlHookState`
+Kind: `type-type-alias`
+Source: `packages/snapback-react/index.d.mts:1093`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export type AssetUrlHookState = AssetUrlState | AssetUrlEmptyState;
+```
 
 <a id="symbol-asseturlstate-c3ca1b83b2"></a>
 ## `AssetUrlState`
@@ -63862,6 +63995,14 @@ export function useSnapbackAssetUrl(
   assetIdOrNull: string | null | undefined,
   options?: AssetSignedUrlOptions,
 ): AssetUrlState;
+export function useSnapbackAssetUrl(
+  assetId: null,
+  options?: AssetSignedUrlOptions,
+): AssetUrlEmptyState;
+export function useSnapbackAssetUrl(
+  assetId: string | null,
+  options?: AssetSignedUrlOptions,
+): AssetUrlHookState;
 ```
 
 <a id="symbol-usesnapbackauth-f5afae4f91"></a>

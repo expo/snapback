@@ -9,8 +9,8 @@ examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapba
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-09
-reviewed-authorities-digest: sha256:b3d9adcd8e76825df7794cd4c78f72926c6f0cd6fa43552f8d54d2f82cc125ba
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:6d755bb061ddcaae93be8cdfbb10d1a402fed39cc7dbee3b5ec870fdc5ff8479
 ---
 
 # Your first backend
@@ -121,6 +121,8 @@ every stored value already satisfies it; otherwise the whole activation
 refuses with `SNAPBACK_SCHEMA_ENUM_DOMAIN_BACKFILL_REQUIRED` naming an
 offending value, and neither the manifest nor the table moves.
 
+### Structured stored values
+
 **Typed opaque arrays and objects.** At a table-field position,
 `v.object({...})`, `v.array(inner)`, and non-enum unions rooted in those nodes
 now compile to a persisted structured contract instead of silently degrading
@@ -145,6 +147,17 @@ elements. Structured values are opaque to observation in this phase: ordinary
 indexes, filters, orders, live matchers, search membership, search/vector
 `storedFields`, and bounded/relational/maintained projections refuse them.
 Project a scalar into an ordinary field when it must be queried.
+
+When a write crosses a bound, inspect the diagnostic before changing the
+representation. `boundKind` says whether the failed fact is a nested `child`
+byte bound, a `collection` item count, the 32 KiB canonical `field`
+aggregate, or the 48 KiB structured `row` aggregate; transport ingress uses
+the separate `live-frame` spelling. Field/row failures include `fieldPath`,
+`actualCanonicalBytes`, `maxCanonicalBytes`, and bounded per-field row
+contributions. Supported repairs are to shorten the bounded child, project
+queryable facts into scalar columns, or move a growing collection into
+bounded child rows. Raising a child `maxBytes` cannot raise the independent
+field or row aggregate ceiling.
 
 `structured_stored_value_v1` is registered experimental and supported on the
 local target. Schemas using this grammar carry that explicit capability

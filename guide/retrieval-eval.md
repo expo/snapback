@@ -612,7 +612,8 @@ sessions-evolution, and familiar-profile discovery misses.
     "SecureStore custody".
 
 Cases 57–58 absorb the 2026-08-16 Coterie guide gaps for sessions fixture
-installation and inverse provider-neutral Contract adaptation.
+installation and inverse provider-neutral Contract adaptation. Case 59 absorbs
+the 2026-08-18 custody-store repair miss.
 
 57. **Sessions fixture install:** "Install deterministic password accounts,
     principal-owned profile rows, and typed avatar media in a sessions-mode

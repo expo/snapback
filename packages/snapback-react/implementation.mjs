@@ -7303,6 +7303,20 @@ function disposeAssetRegistryFor(provider) {
   return assetRegistry?.dispose();
 }
 
+const EMPTY_ASSET_URL_SNAPSHOT = Object.freeze({
+  url: null,
+  status: 'empty',
+  diagnostic: null,
+  expiresAt: null,
+  rendition: null,
+});
+const EMPTY_ASSET_URL_STORE = Object.freeze({
+  getSnapshot: () => EMPTY_ASSET_URL_SNAPSHOT,
+  getServerSnapshot: () => EMPTY_ASSET_URL_SNAPSHOT,
+  subscribe: () => () => {},
+  refresh: async () => {},
+});
+
 /**
  * Project the framework-neutral issued-URL controller into React. The asset
  * client owns empty-state selection, issuance, refresh/retry timers, authority

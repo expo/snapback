@@ -45,6 +45,8 @@ Symbols: 135 total; 47 runtime values; 88 type-only.
 - [`AssetUploadHookState`](#symbol-assetuploadhookstate-f7188b8455) — type-type-alias
 - [`AssetUploadHookStatus`](#symbol-assetuploadhookstatus-84f9f859f0) — type-type-alias
 - [`AssetUploadTask`](#symbol-assetuploadtask-a3867462ec) — type-interface
+- [`AssetUrlEmptyState`](#symbol-asseturlemptystate-4ec6145e2e) — type-interface
+- [`AssetUrlHookState`](#symbol-asseturlhookstate-e292f63744) — type-type-alias
 - [`AssetUrlState`](#symbol-asseturlstate-212764cbc6) — type-interface
 - [`AuthorityMyRoleRow`](#symbol-authoritymyrolerow-599f8aa58e) — type-type-alias
 - [`AuthorityProfileReferences`](#symbol-authorityprofilereferences-c08b09108f) — type-type-alias
@@ -559,6 +561,44 @@ Members and overload groups:
 - `resume` — method; 1 signature
 - `cancel` — method; 1 signature
 - `retry` — method; 1 signature
+
+<a id="symbol-asseturlemptystate-4ec6145e2e"></a>
+## `AssetUrlEmptyState`
+
+Stable identity: `npm:@expo/snapback-react#AssetUrlEmptyState`
+Kind: `type-interface`
+Source: `packages/snapback-react/index.d.mts:1084`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export interface AssetUrlEmptyState {
+  readonly url: null;
+  readonly status: 'empty';
+  readonly diagnostic: null;
+  readonly expiresAt: null;
+  readonly rendition: null;
+  readonly refresh: () => Promise<void>;
+}
+```
+
+Members and overload groups:
+
+- `url` — property; 1 signature
+- `status` — property; 1 signature
+- `diagnostic` — property; 1 signature
+- `expiresAt` — property; 1 signature
+- `rendition` — property; 1 signature
+- `refresh` — property; 1 signature
+
+<a id="symbol-asseturlhookstate-e292f63744"></a>
+## `AssetUrlHookState`
+
+Stable identity: `npm:@expo/snapback-react#AssetUrlHookState`
+Kind: `type-type-alias`
+Source: `packages/snapback-react/index.d.mts:1093`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export type AssetUrlHookState = AssetUrlState | AssetUrlEmptyState;
+```
 
 <a id="symbol-asseturlstate-212764cbc6"></a>
 ## `AssetUrlState`
@@ -2716,6 +2756,14 @@ export function useSnapbackAssetUrl(
   assetIdOrNull: string | null | undefined,
   options?: AssetSignedUrlOptions,
 ): AssetUrlState;
+export function useSnapbackAssetUrl(
+  assetId: null,
+  options?: AssetSignedUrlOptions,
+): AssetUrlEmptyState;
+export function useSnapbackAssetUrl(
+  assetId: string | null,
+  options?: AssetSignedUrlOptions,
+): AssetUrlHookState;
 ```
 
 <a id="symbol-usesnapbackauth-a7e9fb376d"></a>

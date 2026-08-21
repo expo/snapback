@@ -1082,10 +1082,29 @@ export interface AssetUrlState extends AssetIssuedUrlSnapshot {
   readonly refresh: () => Promise<void>;
 }
 
+export interface AssetUrlEmptyState {
+  readonly url: null;
+  readonly status: 'empty';
+  readonly diagnostic: null;
+  readonly expiresAt: null;
+  readonly rendition: null;
+  readonly refresh: () => Promise<void>;
+}
+
+export type AssetUrlHookState = AssetUrlState | AssetUrlEmptyState;
+
 export function useSnapbackAssetUrl(
   assetIdOrNull: string | null | undefined,
   options?: AssetSignedUrlOptions,
 ): AssetUrlState;
+export function useSnapbackAssetUrl(
+  assetId: null,
+  options?: AssetSignedUrlOptions,
+): AssetUrlEmptyState;
+export function useSnapbackAssetUrl(
+  assetId: string | null,
+  options?: AssetSignedUrlOptions,
+): AssetUrlHookState;
 
 export type MediaHookState<K extends MediaKind = MediaKind> = MediaState<K> & Readonly<{
   refresh: () => Promise<void>;

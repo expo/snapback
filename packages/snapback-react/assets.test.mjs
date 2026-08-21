@@ -554,6 +554,41 @@ function renderHook(provider, hook, { strict = false } = {}) {
 
 {
   const { provider, assets } = await harness();
+  let latest = null;
+  function OptionalAssetUrl({ assetId }) {
+    latest = useSnapbackAssetUrl(assetId, { variant: 'card' });
+    return null;
+  }
+  const renderProbe = (assetId) => React.createElement(
+    SnapbackProvider,
+    { provider },
+    React.createElement(OptionalAssetUrl, { assetId }),
+  );
+  let renderer;
+  act(() => { renderer = TestRenderer.create(renderProbe(null)); });
+  assert.equal(latest.status, 'empty');
+  assert.equal(latest.url, null);
+  assert.equal(assets.issuedUrlStoreCalls, 0, 'absent asset creates no issuance store');
+  await act(async () => { await latest.refresh(); });
+  assert.equal(assets.issuedUrlStoreCalls, 0, 'absent refresh remains inert');
+
+  act(() => { renderer.update(renderProbe('asset-url-optional')); });
+  assert.equal(latest.status, 'issuing');
+  assert.equal(assets.issuedUrlStoreCalls, 1);
+  const present = assets.issuedUrlStoreFor('asset-url-optional', { variant: 'card' });
+  assert.equal(present.listeners.size, 1);
+
+  act(() => { renderer.update(renderProbe(null)); });
+  assert.equal(latest.status, 'empty');
+  assert.equal(latest.url, null);
+  assert.equal(present.listeners.size, 0, 'present to absent releases issuance demand');
+  assert.equal(assets.issuedUrlStoreCalls, 1, 'present to absent creates no sentinel store');
+  act(() => { renderer.unmount(); });
+  console.log('asset issued URL null -> present -> null is empty-safe with zero absent work: ok');
+}
+
+{
+  const { provider, assets } = await harness();
   const options = { variant: 'chat', ttlMs: 30_000 };
   const { output, renderer } = renderHook(
     provider,

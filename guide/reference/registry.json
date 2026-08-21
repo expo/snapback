@@ -1725,6 +1725,8 @@
         "npm:@expo/snapback-react#AssetUploadHookState",
         "npm:@expo/snapback-react#AssetUploadHookStatus",
         "npm:@expo/snapback-react#AssetUploadTask",
+        "npm:@expo/snapback-react#AssetUrlEmptyState",
+        "npm:@expo/snapback-react#AssetUrlHookState",
         "npm:@expo/snapback-react#AssetUrlState",
         "npm:@expo/snapback-react#AuthorityMyRoleRow",
         "npm:@expo/snapback-react#AuthorityProfileReferences",
@@ -2053,6 +2055,8 @@
         "npm:@expo/snapback-expo#AssetUploadHookState",
         "npm:@expo/snapback-expo#AssetUploadHookStatus",
         "npm:@expo/snapback-expo#AssetUploadTask",
+        "npm:@expo/snapback-expo#AssetUrlEmptyState",
+        "npm:@expo/snapback-expo#AssetUrlHookState",
         "npm:@expo/snapback-expo#AssetUrlState",
         "npm:@expo/snapback-expo#AuthorityAdoptionResult",
         "npm:@expo/snapback-expo#AuthorityMyRoleRow",
@@ -82958,6 +82962,209 @@
       }
     },
     {
+      "identity": "npm:@expo/snapback-react#AssetUrlEmptyState",
+      "originIdentity": "packages/snapback-react/index.d.mts#AssetUrlEmptyState",
+      "anchor": "symbol-asseturlemptystate-4ec6145e2e",
+      "name": "AssetUrlEmptyState",
+      "package": "@expo/snapback-react",
+      "module": "@expo/snapback-react",
+      "moduleSubpath": ".",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface AssetUrlEmptyState {\n  readonly url: null;\n  readonly status: 'empty';\n  readonly diagnostic: null;\n  readonly expiresAt: null;\n  readonly rendition: null;\n  readonly refresh: () => Promise<void>;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-react#AssetUrlEmptyState.url",
+          "name": "url",
+          "kind": "property",
+          "signature": "readonly url: null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 1085,
+              "column": 3,
+              "endLine": 1085
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-react#AssetUrlEmptyState.status",
+          "name": "status",
+          "kind": "property",
+          "signature": "readonly status: 'empty';",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 1086,
+              "column": 3,
+              "endLine": 1086
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-react#AssetUrlEmptyState.diagnostic",
+          "name": "diagnostic",
+          "kind": "property",
+          "signature": "readonly diagnostic: null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 1087,
+              "column": 3,
+              "endLine": 1087
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-react#AssetUrlEmptyState.expiresAt",
+          "name": "expiresAt",
+          "kind": "property",
+          "signature": "readonly expiresAt: null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 1088,
+              "column": 3,
+              "endLine": 1088
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-react#AssetUrlEmptyState.rendition",
+          "name": "rendition",
+          "kind": "property",
+          "signature": "readonly rendition: null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 1089,
+              "column": 3,
+              "endLine": 1089
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-react#AssetUrlEmptyState.refresh",
+          "name": "refresh",
+          "kind": "property",
+          "signature": "readonly refresh: () => Promise<void>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 1090,
+              "column": 3,
+              "endLine": 1090
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-react/index.d.mts",
+        "line": 1084,
+        "column": 1,
+        "endLine": 1091
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-react/index.d.mts",
+          "line": 1084,
+          "column": 1,
+          "endLine": 1091
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-react/index.d.mts",
+        "exportName": "AssetUrlEmptyState"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-react#AssetUrlHookState",
+      "originIdentity": "packages/snapback-react/index.d.mts#AssetUrlHookState",
+      "anchor": "symbol-asseturlhookstate-e292f63744",
+      "name": "AssetUrlHookState",
+      "package": "@expo/snapback-react",
+      "module": "@expo/snapback-react",
+      "moduleSubpath": ".",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type AssetUrlHookState = AssetUrlState | AssetUrlEmptyState;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-react/index.d.mts",
+        "line": 1093,
+        "column": 1,
+        "endLine": 1093
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-react/index.d.mts",
+          "line": 1093,
+          "column": 1,
+          "endLine": 1093
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-react/index.d.mts",
+        "exportName": "AssetUrlHookState"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
       "identity": "npm:@expo/snapback-react#AssetUrlState",
       "originIdentity": "packages/snapback-react/index.d.mts#AssetUrlState",
       "anchor": "symbol-asseturlstate-212764cbc6",
@@ -98051,6 +98258,209 @@
       "publicDeclaration": {
         "file": "packages/snapback-expo/index.d.mts",
         "exportName": "AssetUploadTask"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-expo#AssetUrlEmptyState",
+      "originIdentity": "packages/snapback-react/index.d.mts#AssetUrlEmptyState",
+      "anchor": "symbol-asseturlemptystate-1df9684f3a",
+      "name": "AssetUrlEmptyState",
+      "package": "@expo/snapback-expo",
+      "module": "@expo/snapback-expo",
+      "moduleSubpath": ".",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface AssetUrlEmptyState {\n  readonly url: null;\n  readonly status: 'empty';\n  readonly diagnostic: null;\n  readonly expiresAt: null;\n  readonly rendition: null;\n  readonly refresh: () => Promise<void>;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-expo#AssetUrlEmptyState.url",
+          "name": "url",
+          "kind": "property",
+          "signature": "readonly url: null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 1085,
+              "column": 3,
+              "endLine": 1085
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-expo#AssetUrlEmptyState.status",
+          "name": "status",
+          "kind": "property",
+          "signature": "readonly status: 'empty';",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 1086,
+              "column": 3,
+              "endLine": 1086
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-expo#AssetUrlEmptyState.diagnostic",
+          "name": "diagnostic",
+          "kind": "property",
+          "signature": "readonly diagnostic: null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 1087,
+              "column": 3,
+              "endLine": 1087
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-expo#AssetUrlEmptyState.expiresAt",
+          "name": "expiresAt",
+          "kind": "property",
+          "signature": "readonly expiresAt: null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 1088,
+              "column": 3,
+              "endLine": 1088
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-expo#AssetUrlEmptyState.rendition",
+          "name": "rendition",
+          "kind": "property",
+          "signature": "readonly rendition: null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 1089,
+              "column": 3,
+              "endLine": 1089
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-expo#AssetUrlEmptyState.refresh",
+          "name": "refresh",
+          "kind": "property",
+          "signature": "readonly refresh: () => Promise<void>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 1090,
+              "column": 3,
+              "endLine": 1090
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-react/index.d.mts",
+        "line": 1084,
+        "column": 1,
+        "endLine": 1091
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-react/index.d.mts",
+          "line": 1084,
+          "column": 1,
+          "endLine": 1091
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-expo/index.d.mts",
+        "exportName": "AssetUrlEmptyState"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-expo#AssetUrlHookState",
+      "originIdentity": "packages/snapback-react/index.d.mts#AssetUrlHookState",
+      "anchor": "symbol-asseturlhookstate-f855f11d5a",
+      "name": "AssetUrlHookState",
+      "package": "@expo/snapback-expo",
+      "module": "@expo/snapback-expo",
+      "moduleSubpath": ".",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type AssetUrlHookState = AssetUrlState | AssetUrlEmptyState;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-react/index.d.mts",
+        "line": 1093,
+        "column": 1,
+        "endLine": 1093
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-react/index.d.mts",
+          "line": 1093,
+          "column": 1,
+          "endLine": 1093
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-expo/index.d.mts",
+        "exportName": "AssetUrlHookState"
       },
       "closure": {
         "status": "build-bound",
@@ -124603,6 +125013,38 @@
       "AssetUploadHookStatus": [
         "npm:@expo/snapback-react#AssetUploadHookStatus",
         "npm:@expo/snapback-expo#AssetUploadHookStatus"
+      ],
+      "AssetUrlEmptyState": [
+        "npm:@expo/snapback-react#AssetUrlEmptyState",
+        "npm:@expo/snapback-expo#AssetUrlEmptyState"
+      ],
+      "AssetUrlEmptyState.url": [
+        "npm:@expo/snapback-react#AssetUrlEmptyState",
+        "npm:@expo/snapback-expo#AssetUrlEmptyState"
+      ],
+      "AssetUrlEmptyState.status": [
+        "npm:@expo/snapback-react#AssetUrlEmptyState",
+        "npm:@expo/snapback-expo#AssetUrlEmptyState"
+      ],
+      "AssetUrlEmptyState.diagnostic": [
+        "npm:@expo/snapback-react#AssetUrlEmptyState",
+        "npm:@expo/snapback-expo#AssetUrlEmptyState"
+      ],
+      "AssetUrlEmptyState.expiresAt": [
+        "npm:@expo/snapback-react#AssetUrlEmptyState",
+        "npm:@expo/snapback-expo#AssetUrlEmptyState"
+      ],
+      "AssetUrlEmptyState.rendition": [
+        "npm:@expo/snapback-react#AssetUrlEmptyState",
+        "npm:@expo/snapback-expo#AssetUrlEmptyState"
+      ],
+      "AssetUrlEmptyState.refresh": [
+        "npm:@expo/snapback-react#AssetUrlEmptyState",
+        "npm:@expo/snapback-expo#AssetUrlEmptyState"
+      ],
+      "AssetUrlHookState": [
+        "npm:@expo/snapback-react#AssetUrlHookState",
+        "npm:@expo/snapback-expo#AssetUrlHookState"
       ],
       "AssetUrlState": [
         "npm:@expo/snapback-react#AssetUrlState",

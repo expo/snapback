@@ -1538,6 +1538,7 @@
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/familiar.mjs",
         "packages/snapback-expo/asset-source.mjs",
+        "packages/snapback-react/implementation.mjs",
         "packages/snapback-react/index.mjs",
         "packages/snapback-react/index.d.mts",
         "packages/snapback-vite/allowlist.mjs",
@@ -2486,9 +2487,9 @@
         "crates/snapback-cli/src/cli/tests.rs",
         "crates/snapback-kernel/src/storage/tests.rs"
       ],
-      "reviewed": "2026-08-15",
-      "reviewedAuthoritiesDigest": "sha256:0aa239149530db05c541bcb02491fd9d2f69e8aa558e1b34e8a293ba11aeaa7a",
-      "sha256": "76f2069a67dcb58c1d6e0bbec5ea428d56a25f33daa358706f1877179e3b1593",
+      "reviewed": "2026-08-21",
+      "reviewedAuthoritiesDigest": "sha256:b476c2fd5a9a0f161241edaf426111b715fe4ff7e28400191b91deeb893ee2ed",
+      "sha256": "7d5a14e603371f74cddd089b938b812210f4bdf9a8061e402141c1969f86c61f",
       "snippets": []
     },
     "backend.sequences": {
@@ -3907,9 +3908,9 @@
         "packages/snapback-codegen/stored-enum-authoring.test.mjs",
         "packages/snapback-codegen/structured-stored-values.test.mjs"
       ],
-      "reviewed": "2026-08-09",
-      "reviewedAuthoritiesDigest": "sha256:b3d9adcd8e76825df7794cd4c78f72926c6f0cd6fa43552f8d54d2f82cc125ba",
-      "sha256": "f1fd65c8ec8cd41676858b7d64c0c99099cafc28cae2491ef54ccee1d8f36160",
+      "reviewed": "2026-08-21",
+      "reviewedAuthoritiesDigest": "sha256:6d755bb061ddcaae93be8cdfbb10d1a402fed39cc7dbee3b5ec870fdc5ff8479",
+      "sha256": "c4310d014b108eb84f499c3983efc63841b41a7e9cbb44aa601cac8d3f68d00d",
       "snippets": [
         {
           "lang": "js",
@@ -4104,17 +4105,21 @@
       "authorities": [
         "llp/0192-store-durable-state-set.decision.md",
         "llp/0057-auth-provider-protocol.spec.md",
+        "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "crates/snapback-cli/src/store_state.rs",
         "crates/snapback-cli/src/cli.rs",
         "crates/snapback-auth/src/auth/backup.rs",
-        "crates/snapback-server/src/auth/runtime.rs"
+        "crates/snapback-server/src/auth/runtime.rs",
+        "packages/snapback-cli/index.mjs"
       ],
       "examples": [
-        "crates/snapback-cli/src/store_state.rs"
+        "crates/snapback-cli/src/store_state.rs",
+        "crates/snapback-cli/src/cli/tests.rs",
+        "packages/snapback-cli/load-generated.test.mjs"
       ],
-      "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:d7a40a97571ef8ca095a38d8bed21070410b646277c209f5344dbd49c35b277a",
-      "sha256": "89f17107cb313afc49790991e2938c970d3541e999de7ab85be8de846af7cccb",
+      "reviewed": "2026-08-21",
+      "reviewedAuthoritiesDigest": "sha256:fd7ebe8e26470cb62e4958cff0a06be70be3a352ea820b3b8161758c587f1a19",
+      "sha256": "2142c9921e47afb6dd486c033306ae5cf8d3557c55afa5b34ba76850aa29be48",
       "snippets": [
         {
           "lang": "json",
@@ -12778,8 +12783,8 @@
         "path": "guide/guide-flat.operating.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.operating.generated.md",
         "uri": "snapback-guide://flat/operating",
-        "bytes": 178663,
-        "sha256": "c160ec292c8464c48a239042c21fb8194e035aa158ab95cd82e99c7d13d72762"
+        "bytes": 179356,
+        "sha256": "a41b732751bb688c41ddfcaa9f320c0036a02f0b92be6e7da3f7d392aba605f5"
       },
       "protocol": {
         "path": "guide/guide-flat.protocol.generated.md",

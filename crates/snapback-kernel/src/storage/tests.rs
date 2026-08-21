@@ -1717,6 +1717,88 @@ mod stored_enum_tests {
             .expect("integer column declaration");
         assert_eq!(declared, "INTEGER");
     }
+
+    #[test]
+    fn asset_ref_retype_names_the_underlying_policy_identity_delta() {
+        use crate::contract_types::{MediaFieldDescriptorV1, MediaKindV1};
+
+        let media = |intent: &str, policy: &str, kind, delivery: &str| FieldType::AssetRef {
+            upload: Some(intent.to_owned()),
+            media: Some(MediaFieldDescriptorV1 {
+                intent: intent.to_owned(),
+                policy: policy.to_owned(),
+                kinds: vec![kind],
+                delivery: Some(delivery.to_owned()),
+                variants: vec!["display".to_owned()],
+                classification_profile: "detected-content-type.v1".to_owned(),
+                retention_class: "media-reference.v1".to_owned(),
+                target_capability: "assets.media-ref-projection.v1".to_owned(),
+            }),
+        };
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.schema_seed()
+            .apply_schema(schema(vec![field(
+                "media",
+                media(
+                    "avatarUpload",
+                    "sha256:avatar-policy-v1",
+                    MediaKindV1::Image,
+                    "private-signed",
+                ),
+                false,
+            )]))
+            .expect("apply predecessor asset reference");
+
+        let error = db
+            .schema_seed()
+            .apply_schema(schema(vec![field(
+                "media",
+                media(
+                    "clipUpload",
+                    "sha256:clip-policy-v2",
+                    MediaKindV1::Video,
+                    "private-strict",
+                ),
+                false,
+            )]))
+            .expect_err("equal display types with unequal asset intent must refuse");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
+        assert_eq!(error.diagnostic.details["existingType"], "AssetRef");
+        assert_eq!(error.diagnostic.details["requestedType"], "AssetRef");
+        assert_eq!(
+            error.diagnostic.details["existingAssetRef"]["uploadIntent"],
+            "avatarUpload"
+        );
+        assert_eq!(
+            error.diagnostic.details["requestedAssetRef"]["uploadIntent"],
+            "clipUpload"
+        );
+        assert_eq!(
+            error.diagnostic.details["existingAssetRef"]["mediaKinds"],
+            json!(["image"])
+        );
+        assert_eq!(
+            error.diagnostic.details["requestedAssetRef"]["deliveryPolicy"],
+            "private-strict"
+        );
+        assert!(
+            error.diagnostic.details["changedFacts"]
+                .as_array()
+                .is_some_and(|facts| facts.iter().any(|fact| fact == "uploadIntent"))
+        );
+        assert!(
+            error.diagnostic.details["repair"]["preserveData"]
+                .as_str()
+                .unwrap()
+                .contains("snapback migrate preview --help")
+        );
+        assert!(
+            error.diagnostic.details["repair"]["devFresh"]
+                .as_str()
+                .unwrap()
+                .contains("snapback reset --dev-fresh")
+        );
+    }
 }
 
 #[cfg(test)]
@@ -2170,6 +2252,42 @@ mod stored_structured_value_tests {
             "SNAPBACK_STRUCTURED_VALUE_BYTES_EXCEEDED"
         );
         assert_eq!(oversized.diagnostic.details["path"], "");
+        assert_eq!(oversized.diagnostic.details["fieldPath"], "items.payload");
+        assert_eq!(oversized.diagnostic.details["boundKind"], "field");
+        assert_eq!(
+            oversized.diagnostic.details["actualCanonicalBytes"],
+            oversized.diagnostic.details["actualBytes"]
+        );
+        assert_eq!(
+            oversized.diagnostic.details["maxCanonicalBytes"],
+            MAX_STORED_STRUCTURED_VALUE_BYTES
+        );
+        assert!(
+            oversized.diagnostic.details["repair"]
+                .as_str()
+                .unwrap()
+                .contains("bounded child rows")
+        );
+
+        let child_text = object(vec![member(
+            "text",
+            true,
+            ResultValueContract::String { max_bytes: 3 },
+        )]);
+        let mut db = LocalDatabase::memory().unwrap();
+        db.apply_schema(schema(vec![field("payload", child_text)]))
+            .unwrap();
+        let child = insert(
+            &mut db,
+            "child-bound",
+            Map::from_iter([("payload".to_owned(), json!({ "text": "four" }))]),
+        )
+        .expect_err("child byte ceiling refuses");
+        assert_eq!(child.diagnostic.code, "SNAPBACK_STRUCTURED_VALUE_INVALID");
+        assert_eq!(child.diagnostic.details["fieldPath"], "items.payload/text");
+        assert_eq!(child.diagnostic.details["boundKind"], "child");
+        assert_eq!(child.diagnostic.details["actualBytes"], 4);
+        assert_eq!(child.diagnostic.details["maxBytes"], 3);
 
         let arrays = ResultValueContract::Array {
             element: Box::new(ResultValueContract::Integer {
@@ -2194,7 +2312,10 @@ mod stored_structured_value_tests {
             elements.diagnostic.code,
             "SNAPBACK_STRUCTURED_VALUE_INVALID"
         );
-        assert!(elements.diagnostic.details["path"].is_string());
+        assert_eq!(elements.diagnostic.details["fieldPath"], "items.payload");
+        assert_eq!(elements.diagnostic.details["boundKind"], "collection");
+        assert_eq!(elements.diagnostic.details["actualItems"], 1_025);
+        assert_eq!(elements.diagnostic.details["maxItems"], 1_024);
 
         let mut nested = object(vec![]);
         for index in 0..17 {
@@ -2235,7 +2356,121 @@ mod stored_structured_value_tests {
             "SNAPBACK_STRUCTURED_ROW_BYTES_EXCEEDED"
         );
         assert_eq!(aggregate.diagnostic.details["path"], "");
+        assert_eq!(aggregate.diagnostic.details["fieldPath"], "items");
+        assert_eq!(aggregate.diagnostic.details["boundKind"], "row");
+        assert_eq!(
+            aggregate.diagnostic.details["structuredFields"][0]["fieldPath"],
+            "items.left"
+        );
+        assert_eq!(aggregate.diagnostic.details["structuredFieldCount"], 2);
         assert!(db.get("items", "aggregate").unwrap().is_none());
+    }
+
+    #[test]
+    fn nested_record_array_canonical_byte_boundaries_are_exact() {
+        fn nested_value(canonical_bytes: usize) -> Value {
+            let empty = json!({ "records": [{ "payload": "" }] });
+            let overhead = crate::rqs_contract::jcs(&empty).unwrap().len();
+            assert!(canonical_bytes >= overhead);
+            let value = json!({
+                "records": [{
+                    "payload": "x".repeat(canonical_bytes - overhead),
+                }],
+            });
+            assert_eq!(
+                crate::rqs_contract::jcs(&value).unwrap().len(),
+                canonical_bytes
+            );
+            value
+        }
+
+        let nested = object(vec![member(
+            "records",
+            true,
+            ResultValueContract::Array {
+                element: Box::new(object(vec![member(
+                    "payload",
+                    true,
+                    ResultValueContract::String {
+                        max_bytes: 1024 * 1024,
+                    },
+                )])),
+                max_items: 8,
+            },
+        )]);
+        let mut db = LocalDatabase::memory().unwrap();
+        db.apply_schema(schema(vec![field("payload", nested.clone())]))
+            .unwrap();
+        for (id, bytes) in [
+            ("limit-minus-one", MAX_STORED_STRUCTURED_VALUE_BYTES - 1),
+            ("limit", MAX_STORED_STRUCTURED_VALUE_BYTES),
+        ] {
+            insert(
+                &mut db,
+                id,
+                Map::from_iter([("payload".to_owned(), nested_value(bytes))]),
+            )
+            .unwrap_or_else(|error| panic!("{id} must fit: {error}"));
+        }
+        let field_error = insert(
+            &mut db,
+            "limit-plus-one",
+            Map::from_iter([(
+                "payload".to_owned(),
+                nested_value(MAX_STORED_STRUCTURED_VALUE_BYTES + 1),
+            )]),
+        )
+        .expect_err("field limit + 1 refuses");
+        assert_eq!(
+            field_error.diagnostic.details["actualCanonicalBytes"],
+            MAX_STORED_STRUCTURED_VALUE_BYTES + 1
+        );
+        assert_eq!(
+            field_error.diagnostic.details["maxCanonicalBytes"],
+            MAX_STORED_STRUCTURED_VALUE_BYTES
+        );
+
+        let mut db = LocalDatabase::memory().unwrap();
+        db.apply_schema(schema(vec![
+            field("left", nested.clone()),
+            field("right", nested),
+        ]))
+        .unwrap();
+        let left_bytes = 24 * 1024;
+        for (id, total) in [
+            ("row-limit-minus-one", MAX_STORED_STRUCTURED_ROW_BYTES - 1),
+            ("row-limit", MAX_STORED_STRUCTURED_ROW_BYTES),
+        ] {
+            insert(
+                &mut db,
+                id,
+                Map::from_iter([
+                    ("left".to_owned(), nested_value(left_bytes)),
+                    ("right".to_owned(), nested_value(total - left_bytes)),
+                ]),
+            )
+            .unwrap_or_else(|error| panic!("{id} must fit: {error}"));
+        }
+        let row_error = insert(
+            &mut db,
+            "row-limit-plus-one",
+            Map::from_iter([
+                ("left".to_owned(), nested_value(left_bytes)),
+                (
+                    "right".to_owned(),
+                    nested_value(MAX_STORED_STRUCTURED_ROW_BYTES + 1 - left_bytes),
+                ),
+            ]),
+        )
+        .expect_err("row limit + 1 refuses");
+        assert_eq!(
+            row_error.diagnostic.details["actualCanonicalBytes"],
+            MAX_STORED_STRUCTURED_ROW_BYTES + 1
+        );
+        assert_eq!(
+            row_error.diagnostic.details["maxCanonicalBytes"],
+            MAX_STORED_STRUCTURED_ROW_BYTES
+        );
     }
 
     #[test]
