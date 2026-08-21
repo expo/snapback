@@ -8,7 +8,7 @@
 **Systems:** Authoring API, TypeScript, Code generation, Diagnostics
 **Date:** 2026-08-21
 **Resolved:** 2026-08-21
-**Landing SHA:** TBD
+**Landing SHA:** 7c5790013
 **Governing:** LLP 0090 authorization scope; LLP 0178; LLP 0275 P1/P2
 **Evidence:** Messtimate published-0.1.24 diary
 
