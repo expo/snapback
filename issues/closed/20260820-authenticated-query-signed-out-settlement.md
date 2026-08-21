@@ -67,8 +67,8 @@ the freshly packed contract, client, and React tarballs into an external
 Fresh packed tarball integrities:
 
 - `@expo/snapback-contract`: `sha512-ALx5GYme79Kf45WRtTYXC3oAeCNGQAryIYIDLeCSCnsCaOmvbBkIiN7gBgCjHMGK2cX21mhpkIYr/oLtI4RGCA==`
-- `@expo/snapback-client`: `sha512-BXCbGf1Z4cFvl4L/2QSuhwYM23QgubP+aaQvic2kwaPidwPQDsoBHTie+iQA09e/uXw2UTFQSHBjJbgh2b1Iaw==`
-- `@expo/snapback-react`: `sha512-GMfaDP1XrxrIPcnEoHm5dUxAumMp3a5Lep03g20voBVuGnMJqQyrej23/OYdy74tclSinG+Xgz5C8qELog9qlA==`
+- `@expo/snapback-client`: `sha512-iNbDRo3NV+ivhflECAkJeXLwl/YSHLiw82MEVobaQbQ/D3JxQxyKKp8sXl3vO8aD+KUNRDQoHhKDHR16/go/AQ==`
+- `@expo/snapback-react`: `sha512-SBXg9b1HRdRNWSD19gfJnAuRXqd5BE1G1KIE4WDBEJUVJpzYYuBayax/tQCH5ScdvQDSH7ZklMW4r51YFIRULQ==`
 
 The client test body, focused React settlement suites, optional-user transition
 matrix, React type fixtures, packed proof, generated Guide projections, and

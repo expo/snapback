@@ -6,6 +6,11 @@ import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import { createSnapbackReactProvider } from './index.mjs';
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((resolvePromise) => { resolve = resolvePromise; });
+  return Object.freeze({ promise, resolve });
+};
 const queryContract = {
   kind: 'records',
   record: {
@@ -52,6 +57,12 @@ function fakeClient({ initialAuthority = 'anonymous', raceToAnonymous = false } 
     raceToAnonymous,
     beforeStagedFlush: null,
     afterStagedFlush: null,
+    terminalStatus: Object.freeze({
+      terminated: false,
+      code: null,
+      authorityDisposition: null,
+      atMs: null,
+    }),
   };
   const captureForState = () => Object.freeze({
     authorityEpoch: state.authorityEpoch,
@@ -78,6 +89,7 @@ function fakeClient({ initialAuthority = 'anonymous', raceToAnonymous = false } 
   const client = {
     state,
     authCoordinator: coordinator,
+    authTerminalStatus() { return state.terminalStatus; },
     liveQuery() {},
     async inspect() {
       return {
@@ -150,6 +162,12 @@ function fakeClient({ initialAuthority = 'anonymous', raceToAnonymous = false } 
       state.authority = authority;
       state.authorityEpoch += 1;
       state.custodyRevision += 1;
+      state.terminalStatus = Object.freeze({
+        terminated: false,
+        code: null,
+        authorityDisposition: null,
+        atMs: null,
+      });
       const capture = captureForState();
       const authorityView = Object.freeze({
         ...capture,
@@ -189,6 +207,12 @@ function fakeClient({ initialAuthority = 'anonymous', raceToAnonymous = false } 
         terminal: true,
         terminalError: error,
         disposition: 'quarantine',
+      });
+      state.terminalStatus = Object.freeze({
+        terminated: true,
+        code: error.code,
+        authorityDisposition: 'carrier',
+        atMs: Date.now(),
       });
       state.publicationPaused = true;
       await participant.quiesce(context);
@@ -261,6 +285,62 @@ async function assertBlockedStability(mounted, client, expectedAttempts) {
 }
 
 test('protected React live resources remain auth-blocked until barrier resume', async (t) => {
+  await t.test('store mounted after blank remains visibly blocked while commit is held', async () => {
+    const client = fakeClient();
+    const mounted = await mount(client, { subscribe: false });
+    const gateEntered = deferred();
+    const releaseGate = deferred();
+    const signingIn = client.transitionAuthority('session', 'login', async () => {
+      gateEntered.resolve();
+      await releaseGate.promise;
+    });
+    try {
+      await gateEntered.promise;
+      mounted.subscribe();
+      assert.deepEqual(mounted.registry.snapshot(mounted.descriptor), {
+        status: 'blocked',
+        reason: 'authentication-not-settled',
+        transitionOwner: 'auth-coordinator',
+        data: undefined,
+        error: null,
+        connection: 'idle',
+        freshness: 'unknown',
+        answerClass: 'unknown',
+        retention: null,
+        optimisticPresentation: null,
+      });
+      assert.equal(client.state.attempts, 0, 'held custody starts no live transport');
+      releaseGate.resolve();
+      await signingIn;
+      await flush();
+      assert.equal(mounted.registry.snapshot(mounted.descriptor).status, 'ready');
+      assert.equal(client.state.attempts, 1);
+    } finally {
+      releaseGate.resolve();
+      await signingIn.catch(() => {});
+      mounted.lease?.release();
+      await mounted.provider.dispose();
+    }
+  });
+
+  await t.test('store mounted after terminal loss recovers the terminal classification', async () => {
+    const client = fakeClient({ initialAuthority: 'session' });
+    const mounted = await mount(client, { subscribe: false });
+    try {
+      await client.revoke();
+      mounted.subscribe();
+      const snapshot = mounted.registry.snapshot(mounted.descriptor);
+      assert.equal(snapshot.status, 'error');
+      assert.equal(snapshot.error?.code, 'SNAPBACK_AUTH_SESSION_REVOKED');
+      assert.equal(snapshot.transitionOwner, 'auth-coordinator');
+      assert.equal(snapshot.error?.details?.transitionOwner, 'auth-coordinator');
+      assert.equal(client.state.attempts, 0, 'terminal authority starts no live transport');
+    } finally {
+      mounted.lease?.release();
+      await mounted.provider.dispose();
+    }
+  });
+
   await t.test('registration after staged flush but before public exposure starts from the confirmed successor', async () => {
     const client = fakeClient();
     const mounted = await mount(client, { subscribe: false });

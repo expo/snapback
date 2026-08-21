@@ -727,10 +727,14 @@ const authenticatedOneShotAdmissionError = (ref, client = {}, operation = null) 
     capture = authCoordinator.capture();
   } catch (cause) {
     if (!isAuthorityFenceUnsettledError(cause)) throw cause;
-    // A blank coordinator is still allowed to bootstrap a legacy/public
-    // operation. Only an active clearing phase is the no-transport boundary
-    // this legacy-reference fallback closes.
-    if (!authenticatedRequired && authCoordinator.phase !== 'clearing') return null;
+    // A genuinely blank coordinator is still allowed to bootstrap a
+    // legacy/public operation. Every other capture refusal is a closed
+    // publication level, including resume/final confirmation (whose durable
+    // record already reads `settled`) and a peer clearing wakeup that paused
+    // publication before its asynchronous durable reload.
+    // @ref LLP 0059#coordinator-interface — capture(), rather than the durable
+    // record's phase label, is the final app-visible admission authority.
+    if (!authenticatedRequired && authCoordinator.phase === 'blank') return null;
     return oneShotAuthAdmissionError({
       code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
       message: 'authentication custody is not settled for this generated operation',
@@ -5676,8 +5680,22 @@ export class SnapbackClient {
     externalBearerTransitionPermit = null,
     beforeTransportDispatch = null,
     onTransportFailure = null,
+    authAdmissionReference = null,
+    authAdmissionOperation = null,
   } = {}) {
     this.#assertAuthCountersAvailable();
+    if (authAdmissionReference !== null) {
+      // @ref LLP 0059#participant-contract — bind one-shot admission to the
+      // final request-start capture. Mutation preparation can await local
+      // durable work before reaching this cut, so its earlier eager preflight
+      // is necessary but not sufficient.
+      const authAdmissionError = authenticatedOneShotAdmissionError(
+        authAdmissionReference,
+        this,
+        authAdmissionOperation,
+      );
+      if (authAdmissionError !== null) throw authAdmissionError;
+    }
     const externalBearerTransition = this.__externalBearerTransition;
     if (
       externalBearerTransition
@@ -5702,6 +5720,7 @@ export class SnapbackClient {
     let terminalHandle = null;
     let custodyCleared = false;
     let requestTransportGeneration = null;
+    let fetchInvoked = false;
     try {
       if (this.authorityFence) {
         this.#ensureAgentTransportParticipant();
@@ -5906,7 +5925,10 @@ export class SnapbackClient {
                   path,
                   wireBody,
                   merged,
-                  senderFetchOptions,
+                  {
+                    ...senderFetchOptions,
+                    onFetchInvoked: () => { fetchInvoked = true; },
+                  },
                 );
               },
             );
@@ -5918,7 +5940,10 @@ export class SnapbackClient {
               path,
               wireBody,
               merged,
-              senderFetchOptions,
+              {
+                ...senderFetchOptions,
+                onFetchInvoked: () => { fetchInvoked = true; },
+              },
             );
           }
           const result = await requestTask;
@@ -5974,6 +5999,8 @@ export class SnapbackClient {
           externalBearerTransitionPermit,
           beforeTransportDispatch,
           onTransportFailure,
+          authAdmissionReference,
+          authAdmissionOperation,
         });
       }
       if (this.authorityFence && capture && error?.receipt) {
@@ -6013,6 +6040,8 @@ export class SnapbackClient {
             externalBearerTransitionPermit,
             beforeTransportDispatch,
             onTransportFailure,
+            authAdmissionReference,
+            authAdmissionOperation,
           });
         }
         try { await this.#familyAlarmWithBearer(bearerUsed); } catch { /* named stolen-successor residual */ }
@@ -6048,7 +6077,7 @@ export class SnapbackClient {
         ?? (error?.effectCommitted === false
           ? false
           : (path.startsWith('/mutation/') || path.startsWith('/action/'))
-            && error?.fetchDispatchFailed !== true);
+            && fetchInvoked);
       throw asSnapbackDiagnosticError(error, {
         operation: path.startsWith('/mutation/')
           ? 'mutation'
@@ -6107,6 +6136,7 @@ export class SnapbackClient {
       includeSenderNonce = false,
       onSenderNonce = null,
       onSenderErrorNonce = null,
+      onFetchInvoked = null,
       forbiddenSecrets = [],
     } = {},
   ) {
@@ -6118,6 +6148,9 @@ export class SnapbackClient {
     }
     if (onSenderErrorNonce !== null && typeof onSenderErrorNonce !== 'function') {
       throw new TypeError('onSenderErrorNonce must be a function');
+    }
+    if (onFetchInvoked !== null && typeof onFetchInvoked !== 'function') {
+      throw new TypeError('onFetchInvoked must be a function');
     }
     const merged = {
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
@@ -6135,6 +6168,7 @@ export class SnapbackClient {
     let res;
     let text;
     try {
+      onFetchInvoked?.();
       res = await fetch(`${this.baseUrl}${path}`, {
         method,
         headers: Object.keys(merged).length > 0 ? merged : undefined,
@@ -7604,7 +7638,11 @@ export class SnapbackClient {
         ...(generation === null ? {} : { expectedGeneration: generation }),
       },
       undefined,
-      { expectedAuthorityCapture: authorityCapture },
+      {
+        expectedAuthorityCapture: authorityCapture,
+        authAdmissionReference: ref,
+        authAdmissionOperation: 'query',
+      },
     ).catch(async (error) => {
       if (!isConnectivityFailureError(error)) throw error;
       throw queryOfflineUnavailableError({
@@ -7954,7 +7992,11 @@ export class SnapbackClient {
         ...(generation === null ? {} : { expectedGeneration: generation }),
       },
       undefined,
-      { expectedAuthorityCapture: authorityCapture },
+      {
+        expectedAuthorityCapture: authorityCapture,
+        authAdmissionReference: ref,
+        authAdmissionOperation: 'action',
+      },
     );
   }
 
@@ -11663,6 +11705,8 @@ export class SnapbackClient {
           undefined,
           {
             expectedAuthorityCapture: reservationRetryAuthorityCapture,
+            authAdmissionReference: ref,
+            authAdmissionOperation: 'mutation',
             beforeTransportDispatch: async () => {
               await __beforeTransportDispatch?.();
               if (!authorizationDispatchStore) return;

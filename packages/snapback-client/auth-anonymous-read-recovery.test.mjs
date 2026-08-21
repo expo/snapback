@@ -139,11 +139,43 @@ const authRequired = () => Response.json({
   },
 }, { status: 401 });
 
+const deferred = () => {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return Object.freeze({ promise, resolve, reject });
+};
+
+class BroadcastHub {
+  channels = new Map();
+  onPostMessage = null;
+
+  factory = (name) => {
+    const channel = {
+      onmessage: null,
+      postMessage: (message) => {
+        for (const peer of this.channels.get(name) ?? []) {
+          if (peer !== channel) peer.onmessage?.({ data: structuredClone(message) });
+        }
+        this.onPostMessage?.(structuredClone(message));
+      },
+      close: () => this.channels.get(name)?.delete(channel),
+    };
+    if (!this.channels.has(name)) this.channels.set(name, new Set());
+    this.channels.get(name).add(channel);
+    return channel;
+  };
+}
+
 function makeFixture() {
   const originalFetch = globalThis.fetch;
   const requests = [];
   let exchanged = false;
   let refuseNextAnonymousQuery = false;
+  let heldEffect = null;
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
     const authorization = new Headers(init.headers).get('authorization');
@@ -161,6 +193,17 @@ function makeFixture() {
         return authRequired();
       }
       return Response.json({ rows: [{ id: 'private-1' }], version: 1 });
+    }
+    if (path === '/action/privateAction' || path === '/mutation/privateMutation') {
+      if (heldEffect === null) throw new Error(`unexpected unheld effect request: ${path}`);
+      const gate = heldEffect;
+      heldEffect = null;
+      gate.entered.resolve();
+      return new Promise((resolve, reject) => {
+        const abort = () => reject(init.signal?.reason ?? new Error('request aborted'));
+        if (init.signal?.aborted) abort();
+        else init.signal?.addEventListener('abort', abort, { once: true });
+      });
     }
     throw new Error(`unexpected anonymous-read recovery request: ${path}`);
   };
@@ -184,6 +227,12 @@ function makeFixture() {
     coordinator,
     requests,
     refuseNextAnonymousQuery() { refuseNextAnonymousQuery = true; },
+    holdNextEffect() {
+      assert.equal(heldEffect, null, 'only one controlled effect may be held');
+      const entered = deferred();
+      heldEffect = { entered };
+      return Object.freeze({ entered: entered.promise });
+    },
     exchanged() { return exchanged; },
     async close() {
       await client.closeAuth();
@@ -246,6 +295,21 @@ const gateNextTransitionCommit = (coordinator) => {
   return Object.freeze({ entered, release: releaseCommit, unregister });
 };
 
+const gateNextTransitionResume = (coordinator) => {
+  let reportEntered;
+  let releaseResume;
+  const entered = new Promise((resolve) => { reportEntered = resolve; });
+  const held = new Promise((resolve) => { releaseResume = resolve; });
+  const unregister = coordinator.registerParticipant({
+    name: `auth-one-shot-resume-gate-${++transitionGateSequence}`,
+    async resume() {
+      reportEntered();
+      await held;
+    },
+  });
+  return Object.freeze({ entered, release: releaseResume, unregister });
+};
+
 test('anonymous protected one-shots recover on the same client', async (t) => {
   await t.test('local generated preflight performs no transport I/O and sign-in succeeds', async () => {
     const fixture = makeFixture();
@@ -305,6 +369,53 @@ test('anonymous protected one-shots recover on the same client', async (t) => {
     }
   });
 
+  await t.test('mid-flight revocation keeps action and mutation effects possibly committed', async () => {
+    for (const { label, start } of [
+      {
+        label: 'action',
+        start: (client) => client.run(protectedAction),
+      },
+      {
+        label: 'mutation',
+        start: (client) => client.mutate(protectedMutation, { queue: false }),
+      },
+    ]) {
+      const fixture = makeFixture();
+      try {
+        await fixture.client.authSession();
+        await fixture.client.authExchange({
+          challengeId: `challenge-mid-flight-${label}`,
+          code: '112233',
+        });
+        const gate = fixture.holdNextEffect();
+        const operation = start(fixture.client);
+        await gate.entered;
+        const revoked = new Error('SNAPBACK_AUTH_SESSION_REVOKED: session was revoked');
+        revoked.code = 'SNAPBACK_AUTH_SESSION_REVOKED';
+        const terminal = fixture.client.handleTerminalAuthLoss(
+          fixture.coordinator.capture(),
+          revoked,
+        );
+        await assert.rejects(operation, (error) => {
+          assert.equal(
+            error?.effectMayHaveCommitted,
+            true,
+            `${label} transport entry makes retry safety indeterminate`,
+          );
+          assert.notEqual(
+            error?.effectCommitted,
+            false,
+            `${label} revocation cannot manufacture authoritative no-effect proof`,
+          );
+          return true;
+        });
+        await terminal.settlement;
+      } finally {
+        await fixture.close();
+      }
+    }
+  });
+
   await t.test('legacy protected query refuses a transition instead of joining its barrier', async () => {
     const fixture = makeFixture();
     let gate = null;
@@ -349,6 +460,157 @@ test('anonymous protected one-shots recover on the same client', async (t) => {
       gate?.release();
       await gate?.unregister();
       await fixture.close();
+    }
+  });
+
+  await t.test('legacy protected query refuses while successor resume is settled but unexposed', async () => {
+    const fixture = makeFixture();
+    let gate = null;
+    try {
+      await fixture.client.authSession();
+      gate = gateNextTransitionResume(fixture.coordinator);
+      const signingIn = fixture.coordinator.transition(
+        fixture.coordinator.capture(),
+        {
+          authority: {
+            kind: 'session',
+            authMode: 'sessions',
+            authorizationStreamIncarnation: INCARNATION,
+            sessionId: SESSION_ID,
+            userId: USER_ID,
+          },
+          bearer: BEARER,
+          refreshAfterMs: Date.now() + 60_000,
+        },
+        'login',
+      );
+      await gate.entered;
+      assert.equal(
+        fixture.coordinator.phase,
+        'settled',
+        'durable custody is settled while publication remains paused in resume',
+      );
+      const requestsBeforeRefusal = fixture.requests.length;
+      await promptRejection(
+        fixture.client.query(legacyProtectedQuery),
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'authentication-not-settled',
+      );
+      assert.equal(fixture.requests.length, requestsBeforeRefusal);
+      gate.release();
+      await signingIn;
+      await gate.unregister();
+      gate = null;
+    } finally {
+      gate?.release();
+      await gate?.unregister();
+      await fixture.close();
+    }
+  });
+
+  await t.test('legacy protected query refuses synchronously after a peer clearing wakeup', async () => {
+    const originalFetch = globalThis.fetch;
+    const shared = { custody: {} };
+    const hub = new BroadcastHub();
+    const requests = [];
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      const authorization = new Headers(init.headers).get('authorization');
+      requests.push({ path, authorization });
+      if (path === '/auth/session') {
+        return Response.json(handshake(authorization === `Bearer ${BEARER}`));
+      }
+      if (path === '/query/privateRecords') {
+        return Response.json({ rows: [{ id: 'private-1' }], version: 1 });
+      }
+      throw new Error(`unexpected peer-wakeup request: ${path}`);
+    };
+    const coordinatorA = new AuthCoordinator({
+      appId: APP_ID,
+      storage: createMemoryAuthCustodyStorage({ state: shared }),
+      broadcastChannelFactory: hub.factory,
+      hintStorage: null,
+    });
+    const coordinatorB = new AuthCoordinator({
+      appId: APP_ID,
+      storage: createMemoryAuthCustodyStorage({ state: shared }),
+      broadcastChannelFactory: hub.factory,
+      hintStorage: null,
+    });
+    const clientOptions = {
+      authClientProtocol: 1,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      rqsStore: null,
+      offlineQueue: false,
+    };
+    const clientA = new SnapbackClient('https://anonymous-read-recovery.test', {
+      ...clientOptions,
+      authCoordinator: coordinatorA,
+    });
+    const clientB = new SnapbackClient('https://anonymous-read-recovery.test', {
+      ...clientOptions,
+      authCoordinator: coordinatorB,
+    });
+    let gate = null;
+    let transition = null;
+    let peerOperation = null;
+    let peerPhaseAtAdmission = null;
+    try {
+      await clientA.authSession();
+      await clientB.authSession();
+      hub.onPostMessage = (message) => {
+        if (message.phase !== 'clearing' || peerOperation !== null) return;
+        peerPhaseAtAdmission = coordinatorB.phase;
+        peerOperation = clientB.query(legacyProtectedQuery);
+      };
+      gate = gateNextTransitionCommit(coordinatorA);
+      transition = coordinatorA.transition(
+        coordinatorA.capture(),
+        {
+          authority: {
+            kind: 'session',
+            authMode: 'sessions',
+            authorizationStreamIncarnation: INCARNATION,
+            sessionId: SESSION_ID,
+            userId: USER_ID,
+          },
+          bearer: BEARER,
+          refreshAfterMs: Date.now() + 60_000,
+        },
+        'peer-login',
+      );
+      await gate.entered;
+      assert.equal(peerPhaseAtAdmission, 'settled');
+      assert.ok(peerOperation, 'the clearing wakeup started the peer one-shot race');
+      const queryRequestsBeforeRefusal = requests.filter(
+        ({ path }) => path === '/query/privateRecords',
+      ).length;
+      await promptRejection(
+        peerOperation,
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'authentication-not-settled',
+      );
+      assert.equal(
+        requests.filter(({ path }) => path === '/query/privateRecords').length,
+        queryRequestsBeforeRefusal,
+        'the wakeup race performs zero query transport',
+      );
+      gate.release();
+      await transition;
+      await gate.unregister();
+      gate = null;
+      transition = null;
+    } finally {
+      hub.onPostMessage = null;
+      gate?.release();
+      await transition?.catch(() => {});
+      await gate?.unregister();
+      await clientB.closeAuth();
+      await clientA.closeAuth();
+      await coordinatorB.close();
+      await coordinatorA.close();
+      globalThis.fetch = originalFetch;
     }
   });
 

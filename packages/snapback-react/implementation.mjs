@@ -1343,8 +1343,65 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     notifyConnection();
   };
 
+  const publishLevelTriggeredAuthAdmission = (store) => {
+    if (!generatedAuthScopedLiveReference(store.reference)) return false;
+    const terminalStatus = typeof client.authTerminalStatus === 'function'
+      ? client.authTerminalStatus()
+      : null;
+    if (terminalStatus?.terminated === true) {
+      const code = terminalStatus.code ?? 'SNAPBACK_AUTH_TRANSITION_FAILED';
+      if (
+        store.snapshot.status !== 'error'
+        || store.snapshot.transitionOwner !== AUTH_TRANSITION_OWNER
+        || store.snapshot.error?.code !== code
+      ) {
+        const generation = ++store.generation;
+        const terminalError = diagnosticError(
+          code,
+          'the live query authority terminated',
+          {
+            ...(terminalStatus.authorityDisposition == null
+              ? {}
+              : { authorityDisposition: terminalStatus.authorityDisposition }),
+          },
+        );
+        store.freshness = 'unknown';
+        store.retention = null;
+        publish(store, Object.freeze({
+          status: 'error',
+          data: undefined,
+          error: authOwnedDiagnostic(terminalError),
+          transitionOwner: AUTH_TRANSITION_OWNER,
+          connection: 'error',
+          freshness: 'unknown',
+          answerClass: 'unknown',
+          retention: null,
+          optimisticPresentation: null,
+        }), generation);
+      }
+      return true;
+    }
+    if (!custodyPaused) return false;
+    if (
+      store.snapshot.status !== 'blocked'
+      || store.snapshot.reason !== 'authentication-not-settled'
+    ) {
+      const generation = ++store.generation;
+      store.freshness = 'unknown';
+      store.retention = null;
+      publish(store, AUTHENTICATION_NOT_SETTLED_BLOCKED, generation);
+    }
+    return true;
+  };
+
   const startStore = (store, supersedes = null, authorityContext = null) => {
-    if (terminal || runtimePaused() || store.handle || (store.consumers === 0 && store.pins === 0)) return;
+    if (terminal || store.handle || (store.consumers === 0 && store.pins === 0)) return;
+    // @ref LLP 0059#exposure-invariant — auth admission is level-triggered:
+    // a store created after blank() must still observe the closed barrier, and
+    // a store created after a terminal cut must recover the recorded terminal
+    // classification even though it missed that cut's registry walk.
+    if (publishLevelTriggeredAuthAdmission(store)) return null;
+    if (runtimePaused()) return;
     if (store.readOnlySnapshot !== null) return null;
     const settledAuthorityContext = authorityContext ?? confirmedAuthorityContext;
     const authorityAdmission = generatedLiveAuthorityAdmission(
