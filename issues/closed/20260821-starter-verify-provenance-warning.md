@@ -73,4 +73,4 @@ Verification (2026-08-21):
   `readProvenance: unsupported` / `writeProvenance: unsupported`.
 - `./ref-check --verbose` — 0 errors, 0 unchecked references.
 
-Landing SHA: TBD
+Landing SHA: 2fe7ec5d7
