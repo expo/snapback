@@ -517,6 +517,44 @@ async function runStarterReceiptFixture({
   const absentBoth = await runStarterReceiptFixture({ receipt: absentBundleHashes });
   assert.equal(absentBoth.ok, true, JSON.stringify(absentBoth.diagnostics));
 
+  const invalidBundleHashes = [
+    ['null', null, 'null'],
+    ['number', 7, 'integer'],
+    ['object', { digest: 'bundle' }, 'object'],
+  ];
+  for (const [label, bundleHash, observedKind] of invalidBundleHashes) {
+    const invalidBundleHashReceipt = validStarterAcceptanceReceipt();
+    invalidBundleHashReceipt.identity.artifact.bundleHash = bundleHash;
+    invalidBundleHashReceipt.identity.loaded.bundleHash = bundleHash;
+    const invalidBundleHash = await runStarterReceiptFixture({ receipt: invalidBundleHashReceipt });
+    assert.equal(invalidBundleHash.ok, false, label);
+    assert.equal(
+      invalidBundleHash.diagnostics[0].code,
+      'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED',
+      label,
+    );
+    assert.deepEqual(
+      invalidBundleHash.diagnostics[0].details.invalidPaths.map(({ path, expected, observed }) => ({
+        path,
+        expectedKind: expected.kind,
+        observedKind: observed.kind,
+      })),
+      [
+        {
+          path: '$.identity.artifact.bundleHash',
+          expectedKind: 'string',
+          observedKind,
+        },
+        {
+          path: '$.identity.loaded.bundleHash',
+          expectedKind: 'string',
+          observedKind,
+        },
+      ],
+      label,
+    );
+  }
+
   const missingLoadedBundleHash = validStarterAcceptanceReceipt();
   delete missingLoadedBundleHash.identity.loaded.bundleHash;
   const missingLoaded = await runStarterReceiptFixture({ receipt: missingLoadedBundleHash });

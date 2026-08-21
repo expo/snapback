@@ -505,12 +505,22 @@ function validatePassingStarterReceipt(receipt, registeredPaths, artifact) {
   );
   // LLP 0146 D2 binds the loaded and generated identities by equality; it
   // does not require a bundle hash on receipt classes where both sides omit it.
-  const artifactBundleHash = receiptLeaf(artifactIdentity, 'bundleHash');
+  let artifactBundleHash = receiptLeaf(artifactIdentity, 'bundleHash');
   const loadedAppId = requireLiteral(
     '$.identity.loaded.appId', loadedIdentity, 'appId', 'string', 'present',
     (value) => typeof value === 'string',
   );
-  const loadedBundleHash = receiptLeaf(loadedIdentity, 'bundleHash');
+  let loadedBundleHash = receiptLeaf(loadedIdentity, 'bundleHash');
+  if (artifactBundleHash.present || loadedBundleHash.present) {
+    artifactBundleHash = requireLiteral(
+      '$.identity.artifact.bundleHash', artifactIdentity, 'bundleHash', 'string', 'present',
+      (value) => typeof value === 'string',
+    );
+    loadedBundleHash = requireLiteral(
+      '$.identity.loaded.bundleHash', loadedIdentity, 'bundleHash', 'string', 'present',
+      (value) => typeof value === 'string',
+    );
+  }
   if (
     artifactAppId.present && typeof artifactAppId.value === 'string'
     && loadedAppId.present && typeof loadedAppId.value === 'string'
@@ -521,11 +531,14 @@ function validatePassingStarterReceipt(receipt, registeredPaths, artifact) {
       loadedAppId.value, true, 'identity-mismatch',
     ));
   }
-  if (loadedBundleHash.value !== artifactBundleHash.value) {
+  if (
+    artifactBundleHash.present && typeof artifactBundleHash.value === 'string'
+    && loadedBundleHash.present && typeof loadedBundleHash.value === 'string'
+    && loadedBundleHash.value !== artifactBundleHash.value
+  ) {
     add(invalidReceiptPath(
-      '$.identity.loaded.bundleHash', receiptValueKind(artifactBundleHash.value, artifactBundleHash.present),
-      'matches-$.identity.artifact.bundleHash', loadedBundleHash.value,
-      loadedBundleHash.present, 'identity-mismatch',
+      '$.identity.loaded.bundleHash', 'string', 'matches-$.identity.artifact.bundleHash',
+      loadedBundleHash.value, true, 'identity-mismatch',
     ));
   }
 
