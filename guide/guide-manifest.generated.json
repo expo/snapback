@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:516e2d21a4c1b195ef58c6b3047dfbe4aec3816022cac4f902d79fc395546082"
+    "sourceDigest": "sha256:f68f808e79cda32645c562f3a3830d9effc4d0bad12dcd7d16e416c3045a176b"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2937,6 +2937,8 @@
         "packages/snapback-contract/index.mjs",
         "packages/snapback-contract/keyed-provider.mjs",
         "packages/snapback-contract/online-surface.mjs",
+        "packages/snapback-vite/allowlist.mjs",
+        "packages/snapback-vite/first-party-auth-relay-routes.generated.json",
         "demos/coterie/src/data/provider-factory.ts",
         "demos/coterie/src/data/snapback-provider.ts",
         "demos/coterie/src/data/generated/coterie.bindings.ts",
@@ -2950,12 +2952,13 @@
         "demos/pointing-room",
         "demos/coterie",
         "packages/snapback-contract/agent-authority-contract.test.mjs",
+        "packages/snapback-vite/password-recovery-relay.test.mjs",
         "demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs",
         "demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs"
       ],
-      "reviewed": "2026-08-17",
-      "reviewedAuthoritiesDigest": "sha256:a8834849a995ffffe9f52a2bb0958b1127b7c4f93aa5f1c5fb2b2c95261baa3f",
-      "sha256": "1805789f50576a06ceede97fc19c31806669231c5cfcf87d4d6a787f79640a3b",
+      "reviewed": "2026-08-21",
+      "reviewedAuthoritiesDigest": "sha256:c4b6790716a2d0dba83efc6d1fade29d72b3cf409ecc4404fa0a2adfa23c50ec",
+      "sha256": "c58aff7b655355ec7fc3121eefd043ea9df2ffe633cf4019860415c950ff40a2",
       "snippets": [
         {
           "lang": "json",
@@ -3794,6 +3797,8 @@
         "packages/snapback-cli/templates",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-codegen/visibility-governance-dev-config.mjs",
+        "packages/snapback-vite/allowlist.mjs",
+        "packages/snapback-vite/first-party-auth-relay-routes.generated.json",
         "packages/snapback-vite/lifecycle.mjs",
         "packages/snapback-vite/proxy.mjs",
         "scripts/mint-visibility-governance-dev-config.mjs",
@@ -3807,13 +3812,14 @@
         "packages/snapback-cli/templates/expo-chat",
         "packages/snapback-cli/sessions-dev-loop.test.mjs",
         "packages/snapback-cli/visibility-governance-dev-loop.test.mjs",
+        "packages/snapback-vite/password-recovery-relay.test.mjs",
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/todo/surfaces/headless/run.mjs",
         "demos/_kit/tests/visibility-governance-dev-config.mjs"
       ],
-      "reviewed": "2026-08-16",
-      "reviewedAuthoritiesDigest": "sha256:23426581d2c63656586caa20d7c8e32a4ddf64949f2ebc8d91938eaa9fc191f7",
-      "sha256": "7ebd74c33a9f36503abda3eca203899aee5c20386ff6efc5e0d502c4e7ac34b3",
+      "reviewed": "2026-08-21",
+      "reviewedAuthoritiesDigest": "sha256:d8b4dfcc49fbaa6a1fcd618cc68a024136ddcdcc44f3f5c39a5a1d34c3336574",
+      "sha256": "419d598d8726257b09bc8c9a84d8fdcfbf7f166c7b20ea8af99ae54bffa263f3",
       "snippets": [
         {
           "lang": "ts",
@@ -12347,7 +12353,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2589406,
-      "sha256": "33b730b2877d6bbf25967b8fb85aaaac9b16c724ff9ed3013a80fa8c12eacf20",
+      "sha256": "7cb38e232ff69402719643d199c4b57b76c3ec12a35d4097f60d266841dabab3",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12356,7 +12362,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:630b77d494688d9b9cb68d65cb16406606150f99418805c20d8a707d9ed2c304",
+      "sourceDigest": "sha256:f69d881fe3869361b9a5012eddbf575aab2f94ba4f36c6084d5e593c07b507f4",
       "codes": 3442,
       "emittingSites": 11868
     }
@@ -12495,8 +12501,8 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3572702,
-      "sha256": "6655f67a6b2f51ffc3f0b37f58d96bdc8ddd2cb57a6bfe62f39b53e80a60cc87"
+      "bytes": 3574434,
+      "sha256": "94cbf559905d7c76d48996a6522a4cfe99156e64bc9c94210ade575eaa82aaa2"
     },
     "sections": {
       "meta": {
@@ -12524,8 +12530,8 @@
         "path": "guide/guide-flat.clients.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.clients.generated.md",
         "uri": "snapback-guide://flat/clients",
-        "bytes": 257399,
-        "sha256": "252e34ecafeade06b4a40ca41a3204b0ee585be7e31ab0d55d2151fafc466bd5"
+        "bytes": 258193,
+        "sha256": "4583b1bca571f8c591d8442065c6158065d19976ebfae66cd63408575b14a4b5"
       },
       "deploying": {
         "path": "guide/guide-flat.deploying.generated.md",
@@ -12538,8 +12544,8 @@
         "path": "guide/guide-flat.getting-started.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.getting-started.generated.md",
         "uri": "snapback-guide://flat/getting-started",
-        "bytes": 63193,
-        "sha256": "69b3cc1671e61dd1a2bbb495857b78d5ef831d992d60d697a1b66b5977f695ec"
+        "bytes": 64131,
+        "sha256": "1e5accfd676e38387dae94f115f68f10b284b35803982ff30df1d469c56e9664"
       },
       "operating": {
         "path": "guide/guide-flat.operating.generated.md",
@@ -12599,5 +12605,5 @@
       }
     }
   },
-  "contentHash": "516e2d21a4c1b195ef58c6b3047dfbe4aec3816022cac4f902d79fc395546082"
+  "contentHash": "f68f808e79cda32645c562f3a3830d9effc4d0bad12dcd7d16e416c3045a176b"
 }

@@ -29,4 +29,6 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
     artifacts
 }
 
-pub use snapback_server::schema_export::http_routes_artifact;
+pub use snapback_server::schema_export::{
+    http_routes_artifact, vite_first_party_auth_relay_routes_artifact,
+};

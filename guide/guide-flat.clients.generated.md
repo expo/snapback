@@ -9,13 +9,13 @@ id: clients.contract-adapter
 order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0266-coterie-exact-contract-benchmark.plan.md, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs, demos/coterie/src/data/provider-factory.ts, demos/coterie/src/data/snapback-provider.ts, demos/coterie/src/data/generated/coterie.bindings.ts, demos/coterie/tests/snapback-provider.integration.test.ts]
-examples: [demos/todo-v2/snapback/codegen.policy.json, demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, demos/pointing-room, demos/coterie, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
+authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0266-coterie-exact-contract-benchmark.plan.md, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs, packages/snapback-vite/allowlist.mjs, packages/snapback-vite/first-party-auth-relay-routes.generated.json, demos/coterie/src/data/provider-factory.ts, demos/coterie/src/data/snapback-provider.ts, demos/coterie/src/data/generated/coterie.bindings.ts, demos/coterie/tests/snapback-provider.integration.test.ts]
+examples: [demos/todo-v2/snapback/codegen.policy.json, demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, demos/pointing-room, demos/coterie, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-vite/password-recovery-relay.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-17
-reviewed-authorities-digest: sha256:a8834849a995ffffe9f52a2bb0958b1127b7c4f93aa5f1c5fb2b2c95261baa3f
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:c4b6790716a2d0dba83efc6d1fade29d72b3cf409ecc4404fa0a2adfa23c50ec
 ---
 
 # The Contract adapter
@@ -403,6 +403,18 @@ what's missing, seeds only empty tables — a reload never resets data; LLP
 0034 §5). If the backend is unreachable, the surface may still boot from an
 authorized retained snapshot; a true first run fails with the original
 network error instead of inventing an empty app.
+
+<!-- since: 0.1.25 unreleased -->
+
+> **Unreleased.** The exact password/recovery relay projection is not in the
+> newest published `@expo/snapback-*` closure, 0.1.24.
+
+A Contract/Vite surface can use the generated app binding for signup, sign-in,
+recovery, logout, and live data without splitting auth onto the backend origin.
+The Vite relay admits only the exact server-registered password and recovery
+method/path set; follow the
+[same-origin Vite password lifecycle](../getting-started/the-authoring-loop.md#use-password-and-recovery-through-the-vite-origin)
+rather than adding provider middleware or a broad `/auth/*` proxy.
 
 A sessions-mode Contract/Vite surface that needs its one-time code during
 local boot should use the

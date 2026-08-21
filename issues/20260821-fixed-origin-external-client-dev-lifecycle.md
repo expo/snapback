@@ -7,7 +7,7 @@ Sessions auth, Verification
 **Governing:** LLP 0295 D0.1/W1; LLP 0223; LLP 0261
 **Related:** `issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`;
 `issues/20260819-expo-web-carrier-supervised-origin.md`;
-`issues/20260820-vite-password-auth-relay-allowlist.md`
+`issues/closed/20260820-vite-password-auth-relay-allowlist.md`
 
 ## Problem
 

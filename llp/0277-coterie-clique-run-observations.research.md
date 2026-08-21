@@ -461,7 +461,7 @@ Coterie lanes independently found that `@expo/snapback-vite`'s `__snapback`
 relay omitted `/auth/password/*` and `/auth/recovery/*`. They added pre-Vite
 middleware or split auth and live-data origins, then paid additional handshake,
 CORS, and stream-continuity debugging. Straight repair:
-`issues/20260820-vite-password-auth-relay-allowlist.md`.
+`issues/closed/20260820-vite-password-auth-relay-allowlist.md`.
 
 #### P15. Auth custody scope is correct but undiscoverable — convergent
 

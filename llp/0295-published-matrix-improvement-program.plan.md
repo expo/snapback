@@ -405,7 +405,7 @@ before choosing a repair. All may run while Phase 0 is reviewed.
 
 ### 1A. Published package and compiler/runtime parity
 
-- `issues/20260820-vite-password-auth-relay-allowlist.md`
+- `issues/closed/20260820-vite-password-auth-relay-allowlist.md`
 - `issues/closed/20260820-expo-metro-default-storage-partition-cycle.md` —
   resolved through a cycle-free defaults leaf and packed external Metro
   bundle/first-render proof

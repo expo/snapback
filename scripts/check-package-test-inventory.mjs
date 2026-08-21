@@ -98,6 +98,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'channel-a.test.mjs',
       'dev-identity-relay.test.mjs',
       'package.test.mjs',
+      'password-recovery-relay.test.mjs',
       'rqs-serializer.test.mjs',
     ],
   },
@@ -554,7 +555,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 315,
+  expectedTotal = 316,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1017,6 +1018,8 @@ export function checkPackageTestInventories(options = {}) {
 // clean external Metro bundle/first-render proof.
 // 314 -> 315 (2026-08-21, optional-user auth transition repair):
 // @expo/snapback-react gains the five-scenario settled-authority successor suite.
+// 315 -> 316 (2026-08-21, LLP 0295 1A): @expo/snapback-vite gains the packed
+// external password/recovery relay lifecycle proof.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

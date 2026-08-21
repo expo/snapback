@@ -4,13 +4,13 @@ id: getting-started.the-authoring-loop
 order: 2
 audience: agent-first
 capabilities: [backend.codegen, authoring.declaration-suggestions, operating.packaged-dev-loop, testing.acceptance, operating.inspect]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, llp/0234-visibility-override-governance.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, crates/snapback-cli/src/cli.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback-types/src/visibility_governance.rs, demos/_kit/server-process.mjs, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/templates, packages/snapback-codegen/index.mjs, packages/snapback-codegen/visibility-governance-dev-config.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, scripts/mint-visibility-governance-dev-config.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof, scripts/visibility-governance-dev-apps.v1.json]
-examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, packages/snapback-cli/sessions-dev-loop.test.mjs, packages/snapback-cli/visibility-governance-dev-loop.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs, demos/_kit/tests/visibility-governance-dev-config.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, llp/0234-visibility-override-governance.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, crates/snapback-cli/src/cli.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback-types/src/visibility_governance.rs, demos/_kit/server-process.mjs, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/templates, packages/snapback-codegen/index.mjs, packages/snapback-codegen/visibility-governance-dev-config.mjs, packages/snapback-vite/allowlist.mjs, packages/snapback-vite/first-party-auth-relay-routes.generated.json, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, scripts/mint-visibility-governance-dev-config.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof, scripts/visibility-governance-dev-apps.v1.json]
+examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, packages/snapback-cli/sessions-dev-loop.test.mjs, packages/snapback-cli/visibility-governance-dev-loop.test.mjs, packages/snapback-vite/password-recovery-relay.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs, demos/_kit/tests/visibility-governance-dev-config.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:23426581d2c63656586caa20d7c8e32a4ddf64949f2ebc8d91938eaa9fc191f7
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:d8b4dfcc49fbaa6a1fcd618cc68a024136ddcdcc44f3f5c39a5a1d34c3336574
 ---
 
 # The authoring loop
@@ -189,6 +189,22 @@ unrelated npm product, which is why publication historically used the
 `@ccheever/snapback-*` aliases; under the terminal `@expo/snapback-*` scope
 application imports and published names are one identity and no alias
 mapping exists.
+
+<!-- since: 0.1.25 unreleased -->
+
+> **Unreleased.** The exact password/recovery relay projection is not in the
+> newest published `@expo/snapback-*` closure, 0.1.24.
+
+## Use password and recovery through the Vite origin
+
+The generated development binding supports the first-party
+[email/password and recovery lifecycle](../auth/passwords.md#sign-up-then-sign-in)
+on the same Vite page origin. The maintained relay registry admits the exact
+server-registered `POST /auth/password/*` and `POST /auth/recovery/*` routes,
+along with the existing session and logout routes. It does not proxy a broad
+`/auth/*` prefix: unknown methods and paths, administrative auth routes, and
+system routes remain refused. No application middleware or direct-backend auth
+exception is needed.
 
 ## 1. Edit
 

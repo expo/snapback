@@ -73,6 +73,41 @@ pub fn http_routes_artifact() -> Value {
     })
 }
 
+/// Project the exact first-party password/recovery app routes consumed by the
+/// packaged Vite relay. Selection happens over `route_registry()` itself, so
+/// adding or removing a server registration cannot require transcribing a
+/// second method/path list in JavaScript.
+///
+/// @ref LLP 0031#enforcement — the installed router and every maintained
+///   route projection share the same `RegisteredRoute` authority.
+pub fn vite_first_party_auth_relay_routes_artifact() -> Value {
+    let mut routes = crate::server::route_registry()
+        .into_iter()
+        .filter(|route| {
+            route.class == crate::server::RouteClass::AppData
+                && (route.path.starts_with("/auth/password/")
+                    || route.path.starts_with("/auth/recovery/"))
+        })
+        .map(|route| {
+            json!({
+                "method": route.method,
+                "path": route.path,
+            })
+        })
+        .collect::<Vec<_>>();
+    routes.sort_by(|left, right| {
+        left["path"]
+            .as_str()
+            .cmp(&right["path"].as_str())
+            .then_with(|| left["method"].as_str().cmp(&right["method"].as_str()))
+    });
+    json!({
+        "formatVersion": "snapback.vite-first-party-auth-relay-routes.v1",
+        "source": "snapback.server.route-registry.v1",
+        "routes": routes,
+    })
+}
+
 fn schema_ref(file: &str) -> Value {
     json!({ "$ref": file })
 }

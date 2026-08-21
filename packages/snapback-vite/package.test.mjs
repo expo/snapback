@@ -77,6 +77,12 @@ async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {
     ['POST', '/ephemeral/delete'],
     ['POST', '/ephemeral/collections/ensure'],
     ['GET', '/auth/session'],
+    ['POST', '/auth/password/signup'],
+    ['POST', '/auth/password/signin'],
+    ['POST', '/auth/password/change'],
+    ['POST', '/auth/password/reset'],
+    ['POST', '/auth/recovery/consume'],
+    ['POST', '/auth/recovery/rotate'],
     ['POST', '/assets/attempts'],
     ['GET', '/assets/attempts/att_1'],
     ['POST', '/assets/attempts/att_1/cancel'],
@@ -113,6 +119,11 @@ async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {
     ['GET', '/assets/attempts/att_1/finalize'],
     ['POST', '/assets/public/ast_1/display'],
     ['GET', '/assets/records/ast_1/bytes/primary/extra'],
+    ['GET', '/auth/password/signin'],
+    ['POST', '/auth/password/unknown'],
+    ['POST', '/auth/recovery/unknown'],
+    ['POST', '/auth/unknown'],
+    ['POST', '/_snapback/api/auth/password/unlock'],
   ];
   for (const [method, path] of refused) {
     assert.equal(matchAppRoute(method, path).allowed, false, `${method} ${path} should be refused`);

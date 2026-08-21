@@ -14,17 +14,33 @@
 
 use snapback_tools::schema_export::{
     EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS, SchemaArtifact, artifact_instances, artifact_schemas,
+    vite_first_party_auth_relay_routes_artifact,
 };
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 fn main() -> std::io::Result<()> {
-    let schemas_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("schemas");
+    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let schemas_dir = repo_root.join("schemas");
     let schemas = artifact_schemas();
     write_schema_artifacts(&schemas_dir, &schemas)?;
-    write_artifact_instances(&schemas_dir, &artifact_instances())
+    write_artifact_instances(&schemas_dir, &artifact_instances())?;
+    write_vite_first_party_auth_relay_routes(&repo_root)
+}
+
+fn write_vite_first_party_auth_relay_routes(repo_root: &Path) -> std::io::Result<()> {
+    let path = repo_root
+        .join("packages")
+        .join("snapback-vite")
+        .join("first-party-auth-relay-routes.generated.json");
+    let rendered = format!(
+        "{}\n",
+        serde_json::to_string_pretty(&vite_first_party_auth_relay_routes_artifact())
+            .expect("Vite first-party auth relay routes render to JSON")
+    );
+    std::fs::write(&path, rendered)?;
+    println!("wrote {}", path.display());
+    Ok(())
 }
 
 fn write_artifact_instances(

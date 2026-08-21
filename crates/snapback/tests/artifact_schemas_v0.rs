@@ -99,7 +99,9 @@ use snapback::service_profile::{
     RemoteServiceGitPublication, RemoteServiceOperation, RemoteServiceProfile,
 };
 use snapback_kernel::storage::{ClientMutationRetentionInfo, StorageInfo};
-use snapback_server::schema_export::http_routes_artifact;
+use snapback_server::schema_export::{
+    http_routes_artifact, vite_first_party_auth_relay_routes_artifact,
+};
 use snapback_types::schema_export::{EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS, SchemaArtifact};
 
 fn artifact_schemas() -> Vec<SchemaArtifact> {
@@ -761,6 +763,21 @@ fn dk7_committed_public_instances_match_rust_types() {
             }
         }
     }
+}
+
+#[test]
+fn vite_first_party_auth_relay_routes_match_the_server_route_authority() {
+    let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+        .join("packages/snapback-vite/first-party-auth-relay-routes.generated.json");
+    let committed: Value = serde_json::from_slice(
+        &std::fs::read(&path).expect("read committed Vite auth relay route projection"),
+    )
+    .expect("parse committed Vite auth relay route projection");
+    assert_eq!(
+        committed,
+        vite_first_party_auth_relay_routes_artifact(),
+        "Vite password/recovery relay routes drifted from the server authority; regenerate with `cargo run -p snapback-tools --bin snapback-schemagen`"
+    );
 }
 
 #[test]

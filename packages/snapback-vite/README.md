@@ -48,6 +48,13 @@ attaches to the ready target and gives browser code the relative
 `/__snapback` path without exposing the backend origin, admin token, runtime
 path, or repository path.
 
+The relay registry includes the exact server-registered methods under
+`/auth/password/*` and `/auth/recovery/*`, so the generated binding supports
+signup, sign-in, recovery, logout, and live data on that one page origin. This
+is not a broad `/auth/*` proxy; unknown and privileged auth routes remain
+refused. See the served Guide's
+[authoring loop](http://127.0.0.1:4287/_snapback/guide/getting-started/the-authoring-loop.md#use-password-and-recovery-through-the-vite-origin).
+
 ## Documentation outside a checkout
 
 A running Snapback server serves the Guide compiled into that exact build.

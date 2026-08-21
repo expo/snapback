@@ -9,6 +9,9 @@
 //   `/ephemeral/collections/ensure` are app-data and forward, while
 //   `/ephemeral/cleanup`, the `/ephemeral/collections` register route, and
 //   `/connections/{id}/disconnect` are system and stay refused.
+// @ref LLP 0031#enforcement — password/recovery rows are a generated projection
+//   of the same `route_registry()` entries that install the server router, not
+//   a second transcribed auth allowlist.
 //
 // `/app/ensure` is deliberately absent even though the server classifies it
 // AppData: its legacy/provision half loads schema and executable function
@@ -16,7 +19,42 @@
 // LLP 0030#backend-setup-ownership moves out of the browser and into the
 // plugin's managed setup step.
 
+import firstPartyAuthRelayAuthority from './first-party-auth-relay-routes.generated.json' with { type: 'json' };
+
 const entry = (method, path, extra = {}) => Object.freeze({ method, path, ws: false, ...extra });
+
+function firstPartyAuthRelayEntries(authority) {
+  if (
+    authority?.formatVersion !== 'snapback.vite-first-party-auth-relay-routes.v1'
+    || authority?.source !== 'snapback.server.route-registry.v1'
+    || !Array.isArray(authority?.routes)
+    || authority.routes.length === 0
+  ) {
+    throw new TypeError('generated first-party auth relay route authority is invalid');
+  }
+  const seen = new Set();
+  return authority.routes.map((route) => {
+    const method = route?.method;
+    const path = route?.path;
+    const key = `${method} ${path}`;
+    if (
+      typeof method !== 'string'
+      || !/^[A-Z]+$/u.test(method)
+      || typeof path !== 'string'
+      || (!path.startsWith('/auth/password/') && !path.startsWith('/auth/recovery/'))
+      || path.includes('{')
+      || seen.has(key)
+    ) {
+      throw new TypeError(`generated first-party auth relay route is invalid: ${key}`);
+    }
+    seen.add(key);
+    return entry(method, path);
+  });
+}
+
+const FIRST_PARTY_AUTH_RELAY_ROUTES = firstPartyAuthRelayEntries(
+  firstPartyAuthRelayAuthority,
+);
 
 export const APP_ROUTE_ALLOWLIST = Object.freeze([
   entry('GET', '/'),
@@ -25,6 +63,7 @@ export const APP_ROUTE_ALLOWLIST = Object.freeze([
   entry('GET', '/auth/session'),
   entry('POST', '/auth/request-code'),
   entry('POST', '/auth/exchange'),
+  ...FIRST_PARTY_AUTH_RELAY_ROUTES,
   entry('POST', '/auth/refresh'),
   entry('POST', '/auth/logout'),
   entry('POST', '/auth/family-alarm'),

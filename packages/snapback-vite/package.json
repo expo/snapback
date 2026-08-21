@@ -22,6 +22,7 @@
   "files": [
     "README.md",
     "index.d.mts",
+    "first-party-auth-relay-routes.generated.json",
     "allowlist.d.mts",
     "allowlist.mjs",
     "channel-a-core.d.mts",
@@ -80,6 +81,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node dev-identity-relay.test.mjs && node package.test.mjs && node channel-a.test.mjs && node rqs-serializer.test.mjs && bun bun-relay.test.mjs"
+    "test": "node dev-identity-relay.test.mjs && node package.test.mjs && node password-recovery-relay.test.mjs && node channel-a.test.mjs && node rqs-serializer.test.mjs && bun bun-relay.test.mjs"
   }
 }

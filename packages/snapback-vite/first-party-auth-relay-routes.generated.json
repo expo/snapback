@@ -1,0 +1,30 @@
+{
+  "formatVersion": "snapback.vite-first-party-auth-relay-routes.v1",
+  "source": "snapback.server.route-registry.v1",
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/auth/password/change"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/password/reset"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/password/signin"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/password/signup"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/recovery/consume"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/recovery/rotate"
+    }
+  ]
+}
