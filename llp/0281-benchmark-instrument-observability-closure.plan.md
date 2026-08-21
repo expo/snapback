@@ -6,13 +6,15 @@
 Developer experience
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-17
-**Revised:** 2026-08-17 (initial Draft: consolidates the instrument gaps
+**Revised:** 2026-08-20 (W4 reconciliation: provider/model preflight is
+implemented; the abandoned 0.1.21 cell fill is superseded by the completed
+published-0.1.24 matrix); 2026-08-17 (initial Draft: consolidates the instrument gaps
 recorded across the Clique 0.1.21 sweep and the Coterie M1–M3 program into
 one worklist under LLP 0201/0266 authority)
 **Related:** LLP 0201, LLP 0236, LLP 0266, LLP 0277,
 Diary 0078, Diary 0080, Diary 0081, Diary 0086,
 `issues/20260815-clique-choreography-typing-observation-boundary.md`,
-`issues/20260815-clique-sweep-model-auth-preflight.md`
+`issues/closed/20260815-clique-sweep-model-auth-preflight.md`
 
 ## Summary
 
@@ -68,13 +70,17 @@ kit-level group-lifecycle controls. Removed-member history retention (a
 brief-required behavior proved only through public function surfaces today)
 becomes drivable once membership controls exist.
 
-### W4. Provider-credential preflight — ticketed
+### W4. Provider-credential preflight — implemented
 
 The Supabase lane spent its whole M1 budget discovering that its packet had
 placeholder credentials and no DDL authority. Preflight must validate
 provider credentials and required authority *before the clock starts* and
 report `provider-setup` failure distinctly.
-Ticket: `issues/20260815-clique-sweep-model-auth-preflight.md`.
+The live model probes, provider-authority probe, just-in-time credential
+recheck, and bounded retry landed in the retained 0.1.21 sweep harness. The
+old run's unfilled cells were superseded by the completed published-0.1.24
+matrix; resolution is recorded in
+`issues/closed/20260815-clique-sweep-model-auth-preflight.md`.
 
 ### W5. Outcome classification in the first summary line
 

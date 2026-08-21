@@ -63,3 +63,12 @@ endpoints).
 
 Until someone runs that on a quiet host, no stage-turn optimization work
 should cite this ticket as its regression evidence.
+
+## Resolution — 2026-08-20 triage
+
+Close as **disproved regression / no current defect**. The investigation found
+that the headline compared different boundaries and that the measured hot path
+was byte-identical at both endpoints. A quiet-host equal-boundary experiment
+would be useful metrology, but it is not a reason to keep a product-regression
+ticket open. If future same-boundary evidence shows a repeatable regression,
+file a new ticket with the instrument identity and raw endpoint receipts.

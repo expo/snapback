@@ -35,7 +35,7 @@ full-lib runs today, default stack) the red set is exactly five:
 quad) is green again. The current five are the MediaRef-rollout manifest-drift
 family (the capability_maturity assertion diff literally shows
 `MediaRefProjectionV1` present-vs-absent), owned by the in-flight LLP 0239
-media lane; see `issues/20260815-codegen-pretest-media-ref-capability-unsupported.md`
+media lane; see `issues/closed/20260815-codegen-pretest-media-ref-capability-unsupported.md`
 for the sibling package-level signature. The 2026-08-15 rehearsal-capture
 stack-overflow abort that used to hide part of the suite is fixed
 (`ab825e299`), so the full suite reaches its summary on default stacks —

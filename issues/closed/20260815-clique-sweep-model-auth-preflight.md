@@ -157,3 +157,19 @@ archives only recognized auth failures, and re-probes each model just before
 that model's first pending lane.
 
 Close this ticket once the 14 cells are filled.
+
+## Resolution — 2026-08-20 triage
+
+Close as **mechanism complete and historical run superseded**.
+
+- The live model/provider preflight, just-in-time model recheck, bounded retry,
+  visible action-required result, and Supabase DDL probe all landed in the
+  retained sweep harness and were green before the ticket's final update.
+- The unfilled cells belonged to the exploratory 0.1.21 seven-backend run.
+  Replaying those abandoned cells is no longer the current measurement plan:
+  the published 0.1.24 model-by-profile-by-app matrix completed all twelve of
+  its commissioned lanes across three model families, with its own retained
+  record under `benchmarks/runs/2026-08-17-model-profile-app-matrix/`.
+- Future runs retain the preflight mechanism. Remaining instrument work is
+  owned by LLP 0281/0295 and the per-milestone/context-budget tickets; it does
+  not justify keeping this old operational fill-in ticket open.

@@ -1,4 +1,4 @@
-# Clique-defect fixes: six minor review findings (fix-forward)
+# Clique-defect review residue: compatibility aliases and grouped-query memoization
 
 - **Date:** 2026-08-09
 - **Source:** same-family review of the clique-defects integration
@@ -48,3 +48,19 @@ expectedArgsContractHash/carriedArgsContractHash compat-alias rename (ticket's
 own "after one release" caveat — do at/after the next release cut), plus the
 noted follow-up that `useSnapbackQueries` still memoizes on `entries` object
 identity rather than a content key.
+
+## Triage — 2026-08-20
+
+Keep open as a **P3 two-item cleanup**, not as a six-finding Clique program.
+The intervening 0.1.21 through 0.1.24 releases satisfy the compatibility
+alias's "after one release" wait. Remaining work is now:
+
+1. remove or truthfully rename the
+   `expectedArgsContractHash`/`carriedArgsContractHash` compatibility aliases,
+   with skew fixtures for the oldest still-supported generated references; and
+2. reproduce `useSnapbackQueries` with structurally equal freshly allocated
+   entries, then give grouped queries the content-key treatment if identity
+   churn still rebuilds subscriptions.
+
+Neither item gates the next Clique run. Take them with adjacent client/search
+work or close the second as not reproducible on the current package.

@@ -1,4 +1,4 @@
-# LLP 0247 rollout 6 + LLP 0248 rollout 6: Clique-shaped measurement reruns
+# LLP 0247/0248 remaining Clique-shaped measurement and batch-read metrology
 
 **Opened:** 2026-08-12 (ordinary-TS authoring wave, run llp0245-0249-ordinary-ts-20260812)
 
@@ -38,3 +38,19 @@ the messaging choreography rerun uses a **FRESH LLP 0201 rig run against the
 published 0.1.22 packages** (not the `demos/messaging-snapback` surrogate).
 Numbers land as LLP 0189 calibration evidence unless bound to a scoped
 qualification digest.
+
+## Triage — 2026-08-20 after the published 0.1.24 matrix
+
+The literal 0.1.22 run window is obsolete. The later published-package matrix
+did complete fresh Clique Explicit and Familiar lanes across three model
+families, and it supplied qualitative confirmation that batch reads and
+authority profiles are usable. It did **not** collect the exact evidence this
+ticket asks for: normalized auth/recovery conformance, duplicated imperative
+membership-guard counts, or controlled host-call/latency/read-amplification
+numbers for feed hydration.
+
+Keep only that measurement residue open. Fold it into LLP 0295 R1/R2 after
+per-milestone token/action metering lands; do not commission another standalone
+0.1.22 recreation. The next run should use the then-current published closure
+and record the authority-profile and batch-read facts as explicit receipt
+fields, not infer them from a lane diary.

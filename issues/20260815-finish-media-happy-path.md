@@ -217,3 +217,22 @@ fixture from the author's device), the media-bearing retained-row staleness
 (issues/20260816-media-livequery-retained-row-staleness.md), and the
 published-package rerun (unchanged, gated on the umbrella first-publish
 ceremony).
+
+## Triage — 2026-08-20
+
+The three blockers named above are no longer blockers: the iPhone MOV walker
+and retained-row/live-push defects are closed, and the umbrella package has
+published through 0.1.24. The 0.1.24 Clique matrix exercised published-package
+avatars and image/video posts, but most lanes used lower-level asset refs,
+ordinary child rows, or direct attachment; that is useful product evidence but
+not the required proof of `assetCollection` plus `defineMediaCommand`.
+
+Keep this ticket open only for LLP 0239 rollout 6:
+
+1. land the migration preview; and
+2. rerun bounded collection/media-command slices in Relay Room, Tandem, and
+   Clique from the current published closure, recording whether the new path
+   deletes the lower-level composition workarounds.
+
+This is high leverage for a future full Clique M4/media run, but it does not
+gate another reduced M1–M3 matrix.
