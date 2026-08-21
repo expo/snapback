@@ -169,6 +169,23 @@ impl CommittedResetHandoff {
     pub(super) fn reopen(self) {
         self.handoff.reopen();
     }
+
+    /// Release the transient reset sequencing fence after every durable and
+    /// process-local authorization surface has been made fail-closed. The
+    /// projection/coordinator latches, not this writer-ordering handoff, own
+    /// the lasting refusal and its typed diagnostic.
+    ///
+    /// Keeping this distinct from the success method makes the failure owner
+    /// prove its ordering at the call site: predecessor/successor issuers are
+    /// cleared or suspended first, and the coordinator is globally closed,
+    /// before queued writers are woken to observe that refusal.
+    ///
+    /// @ref LLP 0290#76-after-local-sequencing — the handoff is a transient
+    /// ordering fence; the suspended participant and closed coordinator own
+    /// the lasting typed refusal after a classified postcommit failure.
+    pub(super) fn release_after_fail_closed(self) {
+        self.handoff.reopen();
+    }
 }
 
 pub(super) struct CoordinatedResetWrite<T> {

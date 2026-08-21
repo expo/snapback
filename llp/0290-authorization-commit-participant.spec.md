@@ -18,8 +18,11 @@ still discard such a carrier after durable commit, an unprojected or otherwise
 invalid deferred finalizer latches the interlock fail-closed and retains its
 dependency instead of panicking. Destructive server reset transfers an opaque
 closed-handoff token from the committed transaction through finalizer drain,
-reset publication, predecessor suspension, and exact successor-issuer install;
-only successful completion reopens generic managed writers.)
+reset publication, predecessor suspension, and exact successor-issuer install.
+Success reopens only after exact successor installation; postcommit failure
+reopens the transient writer-ordering handoff only after issuer projection is
+suspended/cleared and the coordinator has installed its lasting typed global
+refusal.)
 **Revised:** 2026-08-21 (implementation hardening: `ParticipantReady` now
 includes a release/acquire issuer-projection availability latch. Public issuer
 clear and committed-reset cleanup suspend it before dropping either issuer
@@ -1798,10 +1801,15 @@ guard, the reset-only writer wrapper closes `ManagedLocalHandoff`; after the
 batch and finalizer drain it returns an opaque `CommittedResetHandoff` token
 without reopening. The server uses token-owned Local turns to publish the reset,
 suspend/clear the predecessor issuer, and authenticate/bind the exact successor.
-Generic managed writers remain queued throughout. Only successful successor
-installation consumes the token by reopening; cancellation, panic, or error
-after the known commit leaves the handoff closed. This is a reset-only type
-transition, not a caller-settable flag on the generic writer wrapper
+Generic managed writers remain queued throughout. Successful successor
+installation consumes the token by reopening. A classified postcommit failure
+first suspends and clears every issuer projection and globally closes the
+coordinator, then consumes the token to release the transient writer-ordering
+latch; queued authorization writers wake only to receive the lasting typed
+`SNAPBACK_AUTH_PROJECTION_UNAVAILABLE` refusal. Cancellation or panic before
+that classified fail-closed transition still leaves the handoff closed. This is
+a reset-only type transition, not a caller-settable flag on the generic writer
+wrapper
 (`crates/snapback-engine/src/local/engine.rs:8491-8505`;
 `crates/snapback-server/src/server.rs:23755-23801`).
 

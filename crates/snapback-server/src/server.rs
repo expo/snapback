@@ -23895,19 +23895,21 @@ async fn coordinated_app_reset_inner(
                     carrier,
                     AuthTransactionAttempt::<CoordinatedResetOutput>::CommitUncertain(error),
                 );
-                return match classified {
+                let error = match classified {
                     Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_REVOCATION_UNCERTAIN" => {
-                        Err(error)
+                        error
                     }
                     _ => {
                         let _ = coordinator.fail_global_closed();
-                        Err(SnapbackError::error(
+                        SnapbackError::error(
                             "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
                             "auth",
                             "committed reset successor projection could not be reconstructed",
-                        ))
+                        )
                     }
                 };
+                committed_handoff.release_after_fail_closed();
+                return Err(error);
             }
         };
         let installed_successor_binding = successor_binding.clone();
@@ -23923,6 +23925,7 @@ async fn coordinated_app_reset_inner(
                 })
                 .await?;
             let _ = coordinator.fail_global_closed();
+            committed_handoff.release_after_fail_closed();
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
                 "auth",
@@ -23938,6 +23941,7 @@ async fn coordinated_app_reset_inner(
     {
         runtime.clear_reset_auth_invalidation();
         let _ = coordinator.fail_global_closed();
+        committed_handoff.release_after_fail_closed();
         return Err(SnapbackError::error(
             "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
             "auth",

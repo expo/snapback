@@ -2002,6 +2002,10 @@ fn manual_clock_sessions_fixture(start_ms: u64) -> (AppState, Arc<ManualServerAu
 }
 
 fn auth_invalidation_reset_fixture() -> AppState {
+    auth_invalidation_reset_fixture_with_context(bound_loopback_context())
+}
+
+fn auth_invalidation_reset_fixture_with_context(context: ServerContext) -> AppState {
     let mut snapback = LocalSnapback::memory().expect("memory reset fixture");
     snapback
         .apply_schema(SchemaManifest {
@@ -2044,7 +2048,7 @@ fn auth_invalidation_reset_fixture() -> AppState {
         .install_authenticated_auth_invalidation(&provider, None)
         .expect("install predecessor invalidation projections");
 
-    test_app_state_from_snapback(snapback, bound_loopback_context())
+    test_app_state_from_snapback(snapback, context)
         .try_with_auth_provider(provider)
         .expect("auth provider app state")
         .with_auth_invalidation(invalidation)
@@ -31755,7 +31759,7 @@ async fn active_dev_ready_catalog_reset_stays_session_issuer_free() {
 
 #[tokio::test]
 async fn postcommit_reset_finalize_failure_clears_issuers_and_stays_globally_closed() {
-    let state = auth_invalidation_reset_fixture();
+    let state = auth_invalidation_reset_fixture_with_context(ServerContext::detached());
     let coordinator = state.auth_coordinator.clone().expect("reset coordinator");
     let predecessor = coordinator
         .authorization_stream_incarnation()
@@ -31763,17 +31767,25 @@ async fn postcommit_reset_finalize_failure_clears_issuers_and_stays_globally_clo
     coordinator.inject_finalize_failure();
     let route_admission = test_route_admission(&state).0;
 
-    let error = coordinated_app_reset(&state, &route_admission, None)
-        .await
-        .expect_err("injected postcommit finalize failure");
+    let error = tokio::time::timeout(
+        Duration::from_secs(2),
+        coordinated_app_reset(&state, &route_admission, None),
+    )
+    .await
+    .expect("postcommit finalize failure returns without wedging")
+    .expect_err("injected postcommit finalize failure");
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_REVOCATION_UNCERTAIN");
-    let durable = with_snapback(&state.snapback, |snapback| {
-        snapback
-            .remainder_auth_database_mut()
-            .authorization_version()
-            .expect("durable committed successor")
-    })
-    .await;
+    let durable = tokio::time::timeout(
+        Duration::from_secs(2),
+        with_snapback(&state.snapback, |snapback| {
+            snapback
+                .remainder_auth_database_mut()
+                .authorization_version()
+                .expect("durable committed successor")
+        }),
+    )
+    .await
+    .expect("fail-closed reset releases the transient writer handoff");
     assert_ne!(durable.incarnation, predecessor);
     assert_eq!(
         coordinator
@@ -31812,6 +31824,32 @@ async fn postcommit_reset_finalize_failure_clears_issuers_and_stays_globally_clo
         .await
         .is_none(),
         "query issuer is cleared",
+    );
+
+    let refused = tokio::time::timeout(
+        Duration::from_secs(2),
+        super::with_snapback_authorization_write(
+            &state.snapback,
+            |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+            |snapback| {
+                snapback.seed(SeedData {
+                    tables: BTreeMap::from([(
+                        "resetPermissions".to_owned(),
+                        vec![serde_json::Map::from_iter([
+                            ("_id".to_owned(), json!("must-not-commit")),
+                            ("subject".to_owned(), json!("closed")),
+                        ])],
+                    )]),
+                })
+            },
+        ),
+    )
+    .await
+    .expect("authorization write refuses instead of parking")
+    .expect_err("globally closed projection refuses the write");
+    assert_eq!(
+        refused.diagnostic.code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
     );
 }
 
