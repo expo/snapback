@@ -2,7 +2,7 @@
 
 **Status:** Resolved
 **Resolved:** 2026-08-21
-**Landing SHA:** TBD
+**Landing SHA:** 2ff70f609af412223a72d0b9dfcd69a81cf9cdbe
 **Systems:** Guide, client outbox, auth invalidation
 **Date:** 2026-08-18
 **Evidence:** diary 0092 M3 — eager route-entry receipt writes hit

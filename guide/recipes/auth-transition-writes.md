@@ -58,7 +58,11 @@ For receipts, route-entry bookkeeping, feed acknowledgements, and other
 background work that remains meaningful after the same logical user settles,
 use the default queueable generated mutation path. In React,
 `useSnapbackMutation(reference)` uses the `queue: "auto"` behavior and returns
-the truthful `settled | queued` union. On the local target with a qualified
+the truthful `settled | queued` union. Call the hook with no `queue` option —
+the React hook admits only omitted `queue` or `queue: false`
+(`useSnapbackSettledMutation` is the settled-only spelling); passing
+`queue: "auto"` or `queue: true` to the hook throws a `TypeError`. Those
+option spellings belong to the headless `client.mutate()` surface only. On the local target with a qualified
 outbox and settlement ledger, accepted intent held behind the authorization
 barrier resolves `queued`; the headless outcome additionally reports
 `authorizationDisposition: "authorization-suspended"`. The outbox drain

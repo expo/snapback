@@ -51,7 +51,7 @@ tuning without investigation.
    If it is a runtime/client defect, keep six independent queries green under a
    deterministic regression.
 
-Related: `issues/20260818-guide-gap-background-writes-during-auth-transitions.md`
+Related: `issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`
 owns the authoring recipe for the same suspension code, but not this
 multi-subscription investigation.
 

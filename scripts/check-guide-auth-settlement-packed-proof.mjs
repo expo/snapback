@@ -7,6 +7,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -37,6 +38,8 @@ const scratch = mkdtempSync(join(tmpdir(), 'snapback-guide-auth-settlement-'));
 const tarballDirectory = join(scratch, 'tarballs');
 const scaffold = join(scratch, 'scaffold');
 const npmCache = join(scratch, 'npm-cache');
+const rendererPackageDirectory = realpathSync(join(root, 'node_modules/react-test-renderer'));
+const rendererDependencyDirectory = dirname(rendererPackageDirectory);
 
 function run(command, args, options = {}) {
   return execFileSync(command, args, {
@@ -77,8 +80,11 @@ try {
     ['@expo/snapback-client', 'packages/snapback-client'],
     ['@expo/snapback-react', 'packages/snapback-react'],
     ['react', 'node_modules/react'],
+    ['react-is', join(rendererDependencyDirectory, 'react-is')],
+    ['scheduler', join(rendererDependencyDirectory, 'scheduler')],
+    ['react-test-renderer', rendererPackageDirectory],
   ]) {
-    installPacked(packageName, packInto(join(root, packageDirectory)));
+    installPacked(packageName, packInto(resolve(root, packageDirectory)));
   }
 
   const output = run(process.execPath, [join(scaffold, 'auth-settlement-packed-proof.mjs')], {
@@ -99,6 +105,7 @@ try {
     live: {
       signedOut: 'blocked:authentication-required',
       signingIn: 'blocked:authentication-not-settled',
+      familiar: 'optional-user:session-successor',
       signedIn: 'ready',
       signingOut: 'blocked:authentication-not-settled',
       revoked: 'error:SNAPBACK_AUTH_SESSION_REVOKED',
