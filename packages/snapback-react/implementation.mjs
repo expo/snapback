@@ -1197,6 +1197,88 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     store.retry = null;
   };
 
+  const classifySubscribeFailure = (
+    store,
+    error,
+    generation,
+    handle,
+    terminalProtocolRefusal,
+    failureAlreadyPublished = false,
+    cause = error,
+  ) => {
+    if (store.generation !== generation || store.handle !== handle) return;
+    store.retry ??= () => {};
+    void loadReactRuntime().then(({ handleSubscribeFailure }) => (
+      handleSubscribeFailure([
+        store, error, generation, handle, clearUnadoptedSubscription,
+        allHandles, recoverExpiredRegisteredConnection, publish, serializeError,
+        () => !terminal && !runtimePaused(),
+        () => startStore(store),
+        () => isAnonymousProtectedAuthorizationDenial(
+          client,
+          store.reference,
+          cause,
+        ) ? AUTHENTICATION_REQUIRED_BLOCKED : null,
+        recordDiagnostic,
+        terminalProtocolRefusal,
+        failureAlreadyPublished,
+      ])
+    )).catch((loadError) => {
+      recordDiagnostic(loadError);
+      if (
+        store.retry === null
+        || store.generation !== generation
+        || store.handle !== handle
+      ) return;
+      // The optional failure helper is an optimization, never the owner of
+      // correctness. If its chunk cannot load, synchronously cut the dead
+      // handle and publish the subscribe failure, then use a deliberately
+      // simple fixed-delay retry so the query remains recoverable.
+      clearUnadoptedSubscription(store);
+      store.handle = null;
+      allHandles.delete(handle);
+      if (isAnonymousProtectedAuthorizationDenial(client, store.reference, cause)) {
+        store.retry = null;
+        store.freshness = 'unknown';
+        store.retention = null;
+        publish(store, AUTHENTICATION_REQUIRED_BLOCKED, generation);
+        return;
+      }
+      if (!failureAlreadyPublished) {
+        publish(store, Object.freeze({
+          status: 'error',
+          data: undefined,
+          error: serializeError(error),
+          connection: 'error',
+          freshness: 'unknown',
+          retention: store.retention,
+        }), generation);
+      }
+      if (terminalProtocolRefusal) {
+        // Keep a no-op failure-window sentinel while this mounted demand
+        // remains. Render-driven re-subscribe calls must not turn a
+        // terminal negotiation refusal into an immediate retry loop.
+        store.retry = () => {};
+        if (!failureAlreadyPublished) recordDiagnostic(error);
+        return;
+      }
+      let retryHandle = setTimeout(() => {
+        retryHandle = null;
+        if (store.retry !== cancelRetry) return;
+        store.retry = null;
+        if (!terminal && !runtimePaused() && (store.consumers > 0 || store.pins > 0)) {
+          startStore(store);
+        }
+      }, REACT_RUNTIME_FALLBACK_RETRY_MS);
+      retryHandle?.unref?.();
+      const cancelRetry = () => {
+        if (retryHandle !== null) clearTimeout(retryHandle);
+        retryHandle = null;
+      };
+      store.retry = cancelRetry;
+    });
+  };
+
   const stopStore = (store, { blank = false } = {}) => {
     store.generation += 1;
     clearSubscribeFailureWindow(store);
@@ -1428,11 +1510,24 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       });
     } catch (error) {
       if (transitionSuccessorPending) {
-        publishAuthTransitionSuccessorFailure(
+        // Arm the held failure window before notifying subscribers. A render
+        // synchronously prompted by the error snapshot must not turn the
+        // retryable creation failure into an immediate subscribe loop.
+        store.retry = () => {};
+        const subscribeError = publishAuthTransitionSuccessorFailure(
           store,
           error,
           generation,
           { creation: 'synchronous' },
+        );
+        classifySubscribeFailure(
+          store,
+          subscribeError,
+          generation,
+          null,
+          isTerminalLiveProtocolRefusal(error),
+          true,
+          error,
         );
       } else {
         throw error;
@@ -1489,73 +1584,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         ? authTransitionSuccessorError(store, error, { creation: 'asynchronous' })
         : error;
       if (transitionSuccessorPending) recordDiagnostic(subscribeError);
-      store.retry = () => {};
-      void loadReactRuntime().then(({ handleSubscribeFailure }) => (
-        handleSubscribeFailure([
-          store, subscribeError, generation, handle, clearUnadoptedSubscription,
-          allHandles, recoverExpiredRegisteredConnection, publish, serializeError,
-          () => !terminal && !runtimePaused(),
-          () => startStore(store),
-          () => isAnonymousProtectedAuthorizationDenial(
-            client,
-            store.reference,
-            error,
-          ) ? AUTHENTICATION_REQUIRED_BLOCKED : null,
-          recordDiagnostic,
-          terminalProtocolRefusal,
-        ])
-      )).catch((loadError) => {
-        recordDiagnostic(loadError);
-        if (
-          store.retry === null
-          || store.generation !== generation
-          || store.handle !== handle
-        ) return;
-        // The optional failure helper is an optimization, never the owner of
-        // correctness. If its chunk cannot load, synchronously cut the dead
-        // handle and publish the subscribe failure, then use a deliberately
-        // simple fixed-delay retry so the query remains recoverable.
-        clearUnadoptedSubscription(store);
-        store.handle = null;
-        allHandles.delete(handle);
-        if (isAnonymousProtectedAuthorizationDenial(client, store.reference, error)) {
-          store.retry = null;
-          store.freshness = 'unknown';
-          store.retention = null;
-          publish(store, AUTHENTICATION_REQUIRED_BLOCKED, generation);
-          return;
-        }
-        publish(store, Object.freeze({
-          status: 'error',
-          data: undefined,
-          error: serializeError(subscribeError),
-          connection: 'error',
-          freshness: 'unknown',
-          retention: store.retention,
-        }), generation);
-        if (terminalProtocolRefusal) {
-          // Keep a no-op failure-window sentinel while this mounted demand
-          // remains. Render-driven re-subscribe calls must not turn a
-          // terminal negotiation refusal into an immediate retry loop.
-          store.retry = () => {};
-          recordDiagnostic(error);
-          return;
-        }
-        let retryHandle = setTimeout(() => {
-          retryHandle = null;
-          if (store.retry !== cancelRetry) return;
-          store.retry = null;
-          if (!terminal && !runtimePaused() && (store.consumers > 0 || store.pins > 0)) {
-            startStore(store);
-          }
-        }, REACT_RUNTIME_FALLBACK_RETRY_MS);
-        retryHandle?.unref?.();
-        const cancelRetry = () => {
-          if (retryHandle !== null) clearTimeout(retryHandle);
-          retryHandle = null;
-        };
-        store.retry = cancelRetry;
-      });
+      classifySubscribeFailure(
+        store,
+        subscribeError,
+        generation,
+        handle,
+        terminalProtocolRefusal,
+        false,
+        error,
+      );
     });
     void handle.settled().finally(() => allHandles.delete(handle));
     notifyConnection();

@@ -4,6 +4,7 @@ import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
+import { LIVE_RECONNECT_BASE_DELAY_MS } from '../snapback-client/index.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import { createSnapbackReactProvider } from './core.mjs';
 import { SnapbackProvider, useQuery } from './familiar.mjs';
@@ -269,7 +270,10 @@ test('core optional-user live query transitions replace one fenced predecessor',
       assertSingleSettledSuccessor(client, capture);
       assertReadyFor(mounted, 'A');
 
-      predecessor.publish(rowsFor('anonymous'));
+      assert.doesNotThrow(
+        () => predecessor.publish(Object.freeze([Object.freeze({ id: 42 })])),
+        'a stale-generation row is fenced before result-contract validation',
+      );
       predecessor.connection('disconnected');
       assertReadyFor(mounted, 'A');
     } finally {
@@ -382,6 +386,36 @@ test('optional-user successor creation failure is a classified projection', asyn
         await mounted.provider.dispose();
       }
     });
+  }
+});
+
+test('retryable synchronous optional-user successor failure recovers on the retry timer', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const client = fakeClient();
+  const mounted = await mountRegistry(client);
+  try {
+    client.state.failNextSuccessor = 'synchronous';
+    const { capture } = await client.transitionAuthority(
+      'A',
+      'sign-in-synchronous-retryable-failure',
+    );
+    await flush();
+
+    assertSingleSettledSuccessor(client, capture);
+    assert.equal(mounted.snapshot().status, 'error');
+
+    t.mock.timers.tick(LIVE_RECONNECT_BASE_DELAY_MS - 1);
+    await flush();
+    assert.equal(client.state.attempts.length, 2, 'no retry occurs before the timer boundary');
+
+    t.mock.timers.tick(1);
+    await flush();
+    assert.equal(client.state.attempts.length, 3, 'the retry timer creates one successor');
+    assert.deepEqual(client.state.attempts.at(-1).capture, capture);
+    assertReadyFor(mounted, 'A');
+  } finally {
+    mounted.lease.release();
+    await mounted.provider.dispose();
   }
 });
 
