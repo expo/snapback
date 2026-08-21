@@ -27,8 +27,6 @@ export default defineVerifyConfig({
     provenanceBaseline: [
       'relational-project-directory',
       'create-project',
-      'update-project-live-detail',
-      'delete-project',
     ],
   })],
 });

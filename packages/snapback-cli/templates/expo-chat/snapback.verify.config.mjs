@@ -35,13 +35,8 @@ export default defineVerifyConfig({
       { id: 'reaction', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
     ],
     provenanceBaseline: [
-      'zero-config-supervised-connect',
-      'membership-dm-group-shape',
-      'test-persona-membership-switch',
       'conversation-surface-read',
       'send-message',
-      'reply',
-      'reaction',
     ],
   })],
 });

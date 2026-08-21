@@ -245,6 +245,13 @@ function normalizeCoverageCapability(value, profileId, paths) {
     baselinePathIds.every((pathId) => registeredPathIds.has(pathId)),
     `profiles[${profileId}].coverageCapability.baselinePathIds must name registered paths`,
   );
+  const receiptAddressedPathIds = new Set(paths.flatMap(({ id, functionId }) => (
+    functionId === null ? [] : [id]
+  )));
+  assert(
+    baselinePathIds.every((pathId) => receiptAddressedPathIds.has(pathId)),
+    `profiles[${profileId}].coverageCapability.baselinePathIds must name paths with receipt-addressed observation identities`,
+  );
   return Object.freeze({
     claim: value.claim,
     baselinePathIds,
@@ -827,9 +834,8 @@ async function runStarterAcceptanceProfile({ acceptanceFile, artifact, identityC
   return Object.freeze({
     ok,
     context: identityContext,
-    conformance: Object.freeze(unsupportedConformance(paths.filter(({ id, functionId }) => (
-      functionId === null
-      || passingValidation === null
+    conformance: Object.freeze(unsupportedConformance(paths.filter(({ id }) => (
+      passingValidation === null
       || passingValidation.observedPathIds.includes(id)
     )))),
     diagnostics: Object.freeze(diagnostics),
@@ -1775,6 +1781,7 @@ export function aggregateConformance(profiles, results, {
       // identity observation may be green without manufacturing operation
       // provenance; a stronger configured claim remains fail-closed below.
       const isDeclaredUnsupportedBaseline = status === 'unsupported'
+        && path.functionId !== null
         && profile.coverageCapability?.claim === 'identity-bound-path-observation'
         && baselinePathIds.has(path.id);
       if (status !== 'authoritative' && !isDeclaredUnsupportedBaseline) {

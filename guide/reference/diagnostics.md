@@ -19,7 +19,7 @@ reviewed-authorities-digest: sha256:231982b802a77f395cce051e23a569d64cb4be61cc5c
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,446 stable codes** from 587 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**3,447 stable codes** from 587 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |
@@ -2613,7 +2613,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-proof-domain-mismatch"></a>`SNAPBACK_PROOF_DOMAIN_MISMATCH` | server | — | — | `crates/snapback-kernel/src/proof_checkpoint.rs:245` | 2 |
 | <a id="diagnostic-snapback-proof-expected-derivation-missing"></a>`SNAPBACK_PROOF_EXPECTED_DERIVATION_MISSING` | server | — | — | `crates/snapback-kernel/src/proof_checkpoint.rs:252` | 3 |
 | <a id="diagnostic-snapback-proof-rows-not-canonical"></a>`SNAPBACK_PROOF_ROWS_NOT_CANONICAL` | server | — | — | `crates/snapback-kernel/src/proof_checkpoint.rs:284` | 3 |
-| <a id="diagnostic-snapback-proof-url"></a>`SNAPBACK_PROOF_URL` | cli | — | [guide](../deploying/cloudflare.md#run-the-remote-proof) | `packages/snapback-cli/verify.mjs:1022` | 3 |
+| <a id="diagnostic-snapback-proof-url"></a>`SNAPBACK_PROOF_URL` | cli | — | [guide](../deploying/cloudflare.md#run-the-remote-proof) | `packages/snapback-cli/verify.mjs:1066` | 3 |
 | <a id="diagnostic-snapback-protected-erasure-authority-invalid"></a>`SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID` | server | 403 | — | `crates/snapback-engine/src/local/engine.rs:6560` | 7 |
 | <a id="diagnostic-snapback-protected-erasure-busy"></a>`SNAPBACK_PROTECTED_ERASURE_BUSY` | server | 409 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:2798` | 2 |
 | <a id="diagnostic-snapback-protected-erasure-identity-reused"></a>`SNAPBACK_PROTECTED_ERASURE_IDENTITY_REUSED` | server | 409 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:2784` | 5 |
@@ -3383,52 +3383,53 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-vector-query-plan-invalid"></a>`SNAPBACK_VECTOR_QUERY_PLAN_INVALID` | codegen | 400 | — | `crates/snapback-engine/src/local/engine.rs:32230` | 4 |
 | <a id="diagnostic-snapback-vector-value-invalid"></a>`SNAPBACK_VECTOR_VALUE_INVALID` | server | 400 | [guide](../backend/vector-search.md#stay-inside-the-exact-work-envelope) | `crates/snapback-kernel/src/vector/diagnostics.rs:10` | 2 |
 | <a id="diagnostic-snapback-vector-work-limit"></a>`SNAPBACK_VECTOR_WORK_LIMIT` | server | — | [guide](../backend/vector-search.md#stay-inside-the-exact-work-envelope) | `crates/snapback-kernel/src/vector/diagnostics.rs:13` | 2 |
-| <a id="diagnostic-snapback-verify-admission-identity-mismatch"></a>`SNAPBACK_VERIFY_ADMISSION_IDENTITY_MISMATCH` | cli | — | — | `packages/snapback-cli/verify.mjs:1591` | 1 |
-| <a id="diagnostic-snapback-verify-artifact-invalid"></a>`SNAPBACK_VERIFY_ARTIFACT_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1319` | 4 |
-| <a id="diagnostic-snapback-verify-artifact-regen-failed"></a>`SNAPBACK_VERIFY_ARTIFACT_REGEN_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:1334` | 1 |
-| <a id="diagnostic-snapback-verify-artifact-stale"></a>`SNAPBACK_VERIFY_ARTIFACT_STALE` | cli | — | — | `packages/snapback-cli/verify.mjs:1347` | 1 |
-| <a id="diagnostic-snapback-verify-capability-gap"></a>`SNAPBACK_VERIFY_CAPABILITY_GAP` | cli | — | — | `packages/snapback-cli/verify.mjs:1620` | 1 |
+| <a id="diagnostic-snapback-verify-admission-identity-mismatch"></a>`SNAPBACK_VERIFY_ADMISSION_IDENTITY_MISMATCH` | cli | — | — | `packages/snapback-cli/verify.mjs:1642` | 1 |
+| <a id="diagnostic-snapback-verify-artifact-invalid"></a>`SNAPBACK_VERIFY_ARTIFACT_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1370` | 4 |
+| <a id="diagnostic-snapback-verify-artifact-regen-failed"></a>`SNAPBACK_VERIFY_ARTIFACT_REGEN_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:1385` | 1 |
+| <a id="diagnostic-snapback-verify-artifact-stale"></a>`SNAPBACK_VERIFY_ARTIFACT_STALE` | cli | — | — | `packages/snapback-cli/verify.mjs:1398` | 1 |
+| <a id="diagnostic-snapback-verify-capability-gap"></a>`SNAPBACK_VERIFY_CAPABILITY_GAP` | cli | — | — | `packages/snapback-cli/verify.mjs:1671` | 1 |
 | <a id="diagnostic-snapback-verify-cli-failed"></a>`SNAPBACK_VERIFY_CLI_FAILED` | cli | — | — | `packages/snapback-cli/cli.mjs:10` | 1 |
-| <a id="diagnostic-snapback-verify-cloudflare-acceptance-failed"></a>`SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:1132` | 1 |
-| <a id="diagnostic-snapback-verify-cloudflare-acceptance-nonclaim"></a>`SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_NONCLAIM` | cli | — | — | `packages/snapback-cli/verify.mjs:1136` | 1 |
-| <a id="diagnostic-snapback-verify-cloudflare-acceptance-output-limit"></a>`SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_OUTPUT_LIMIT` | cli | — | — | `packages/snapback-cli/verify.mjs:1129` | 1 |
-| <a id="diagnostic-snapback-verify-cloudflare-acceptance-timeout"></a>`SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_TIMEOUT` | cli | — | — | `packages/snapback-cli/verify.mjs:1131` | 1 |
-| <a id="diagnostic-snapback-verify-cloudflare-credentials-missing"></a>`SNAPBACK_VERIFY_CLOUDFLARE_CREDENTIALS_MISSING` | cli | — | — | `packages/snapback-cli/verify.mjs:1030` | 1 |
-| <a id="diagnostic-snapback-verify-cloudflare-proof-url-invalid"></a>`SNAPBACK_VERIFY_CLOUDFLARE_PROOF_URL_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1046` | 1 |
-| <a id="diagnostic-snapback-verify-config-invalid"></a>`SNAPBACK_VERIFY_CONFIG_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:120` | 3 |
-| <a id="diagnostic-snapback-verify-config-unavailable"></a>`SNAPBACK_VERIFY_CONFIG_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/verify.mjs:1236` | 1 |
-| <a id="diagnostic-snapback-verify-conformance-invalid"></a>`SNAPBACK_VERIFY_CONFORMANCE_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:2019` | 1 |
-| <a id="diagnostic-snapback-verify-coverage-evidence-incomplete"></a>`SNAPBACK_VERIFY_COVERAGE_EVIDENCE_INCOMPLETE` | cli | — | — | `packages/snapback-cli/verify.mjs:1725` | 1 |
-| <a id="diagnostic-snapback-verify-coverage-evidence-unsupported"></a>`SNAPBACK_VERIFY_COVERAGE_EVIDENCE_UNSUPPORTED` | cli | — | — | `packages/snapback-cli/verify.mjs:1724` | 1 |
-| <a id="diagnostic-snapback-verify-coverage-path-incomplete"></a>`SNAPBACK_VERIFY_COVERAGE_PATH_INCOMPLETE` | cli | — | — | `packages/snapback-cli/verify.mjs:1708` | 1 |
-| <a id="diagnostic-snapback-verify-coverage-path-unsupported"></a>`SNAPBACK_VERIFY_COVERAGE_PATH_UNSUPPORTED` | cli | — | — | `packages/snapback-cli/verify.mjs:1708` | 1 |
-| <a id="diagnostic-snapback-verify-fix-acceptance"></a>`SNAPBACK_VERIFY_FIX_ACCEPTANCE` | cli | — | — | `packages/snapback-cli/verify.mjs:89` | 1 |
-| <a id="diagnostic-snapback-verify-fix-admission-or-coverage"></a>`SNAPBACK_VERIFY_FIX_ADMISSION_OR_COVERAGE` | cli | — | — | `packages/snapback-cli/verify.mjs:77` | 1 |
-| <a id="diagnostic-snapback-verify-probe-failed"></a>`SNAPBACK_VERIFY_PROBE_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:1922` | 1 |
-| <a id="diagnostic-snapback-verify-profile"></a>`SNAPBACK_VERIFY_PROFILE` | cli | — | — | `packages/snapback-cli/verify.mjs:683` | 3 |
-| <a id="diagnostic-snapback-verify-profile-identity-incomplete"></a>`SNAPBACK_VERIFY_PROFILE_IDENTITY_INCOMPLETE` | cli | — | — | `packages/snapback-cli/verify.mjs:1881` | 1 |
-| <a id="diagnostic-snapback-verify-profile-identity-invalid"></a>`SNAPBACK_VERIFY_PROFILE_IDENTITY_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1861` | 1 |
-| <a id="diagnostic-snapback-verify-profile-threw"></a>`SNAPBACK_VERIFY_PROFILE_THREW` | cli | — | — | `packages/snapback-cli/verify.mjs:1842` | 1 |
+| <a id="diagnostic-snapback-verify-cloudflare-acceptance-failed"></a>`SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:1176` | 1 |
+| <a id="diagnostic-snapback-verify-cloudflare-acceptance-nonclaim"></a>`SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_NONCLAIM` | cli | — | — | `packages/snapback-cli/verify.mjs:1180` | 1 |
+| <a id="diagnostic-snapback-verify-cloudflare-acceptance-output-limit"></a>`SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_OUTPUT_LIMIT` | cli | — | — | `packages/snapback-cli/verify.mjs:1173` | 1 |
+| <a id="diagnostic-snapback-verify-cloudflare-acceptance-timeout"></a>`SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_TIMEOUT` | cli | — | — | `packages/snapback-cli/verify.mjs:1175` | 1 |
+| <a id="diagnostic-snapback-verify-cloudflare-credentials-missing"></a>`SNAPBACK_VERIFY_CLOUDFLARE_CREDENTIALS_MISSING` | cli | — | — | `packages/snapback-cli/verify.mjs:1074` | 1 |
+| <a id="diagnostic-snapback-verify-cloudflare-proof-url-invalid"></a>`SNAPBACK_VERIFY_CLOUDFLARE_PROOF_URL_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1090` | 1 |
+| <a id="diagnostic-snapback-verify-config-invalid"></a>`SNAPBACK_VERIFY_CONFIG_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:124` | 3 |
+| <a id="diagnostic-snapback-verify-config-unavailable"></a>`SNAPBACK_VERIFY_CONFIG_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/verify.mjs:1280` | 1 |
+| <a id="diagnostic-snapback-verify-conformance-invalid"></a>`SNAPBACK_VERIFY_CONFORMANCE_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:2116` | 1 |
+| <a id="diagnostic-snapback-verify-coverage-evidence-incomplete"></a>`SNAPBACK_VERIFY_COVERAGE_EVIDENCE_INCOMPLETE` | cli | — | — | `packages/snapback-cli/verify.mjs:1791` | 1 |
+| <a id="diagnostic-snapback-verify-coverage-evidence-unsupported"></a>`SNAPBACK_VERIFY_COVERAGE_EVIDENCE_UNSUPPORTED` | cli | — | — | `packages/snapback-cli/verify.mjs:1790` | 1 |
+| <a id="diagnostic-snapback-verify-coverage-path-incomplete"></a>`SNAPBACK_VERIFY_COVERAGE_PATH_INCOMPLETE` | cli | — | — | `packages/snapback-cli/verify.mjs:1767` | 1 |
+| <a id="diagnostic-snapback-verify-coverage-path-unsupported"></a>`SNAPBACK_VERIFY_COVERAGE_PATH_UNSUPPORTED` | cli | — | — | `packages/snapback-cli/verify.mjs:1767` | 1 |
+| <a id="diagnostic-snapback-verify-coverage-provenance-required"></a>`SNAPBACK_VERIFY_COVERAGE_PROVENANCE_REQUIRED` | cli | — | — | `packages/snapback-cli/verify.mjs:1821` | 1 |
+| <a id="diagnostic-snapback-verify-fix-acceptance"></a>`SNAPBACK_VERIFY_FIX_ACCEPTANCE` | cli | — | — | `packages/snapback-cli/verify.mjs:93` | 1 |
+| <a id="diagnostic-snapback-verify-fix-admission-or-coverage"></a>`SNAPBACK_VERIFY_FIX_ADMISSION_OR_COVERAGE` | cli | — | — | `packages/snapback-cli/verify.mjs:81` | 1 |
+| <a id="diagnostic-snapback-verify-probe-failed"></a>`SNAPBACK_VERIFY_PROBE_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:2016` | 1 |
+| <a id="diagnostic-snapback-verify-profile"></a>`SNAPBACK_VERIFY_PROFILE` | cli | — | — | `packages/snapback-cli/verify.mjs:719` | 3 |
+| <a id="diagnostic-snapback-verify-profile-identity-incomplete"></a>`SNAPBACK_VERIFY_PROFILE_IDENTITY_INCOMPLETE` | cli | — | — | `packages/snapback-cli/verify.mjs:1974` | 1 |
+| <a id="diagnostic-snapback-verify-profile-identity-invalid"></a>`SNAPBACK_VERIFY_PROFILE_IDENTITY_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1954` | 1 |
+| <a id="diagnostic-snapback-verify-profile-threw"></a>`SNAPBACK_VERIFY_PROFILE_THREW` | cli | — | — | `packages/snapback-cli/verify.mjs:1935` | 1 |
 | <a id="diagnostic-snapback-verify-profile-timeout"></a>`SNAPBACK_VERIFY_PROFILE_TIMEOUT` | cli | — | [guide](../testing/verify.md#author-snapbackverifyconfigmjs) | `packages/snapback-cli/index.mjs:6145` | 3 |
-| <a id="diagnostic-snapback-verify-qualify-runtime"></a>`SNAPBACK_VERIFY_QUALIFY_RUNTIME` | cli | — | — | `packages/snapback-cli/verify.mjs:71` | 1 |
-| <a id="diagnostic-snapback-verify-receipt-invalid"></a>`SNAPBACK_VERIFY_RECEIPT_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:2129` | 3 |
-| <a id="diagnostic-snapback-verify-regenerate-artifacts"></a>`SNAPBACK_VERIFY_REGENERATE_ARTIFACTS` | cli | — | — | `packages/snapback-cli/verify.mjs:65` | 1 |
-| <a id="diagnostic-snapback-verify-repository-acceptance-failed"></a>`SNAPBACK_VERIFY_REPOSITORY_ACCEPTANCE_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:980` | 1 |
-| <a id="diagnostic-snapback-verify-repository-acceptance-output-limit"></a>`SNAPBACK_VERIFY_REPOSITORY_ACCEPTANCE_OUTPUT_LIMIT` | cli | — | — | `packages/snapback-cli/verify.mjs:977` | 1 |
-| <a id="diagnostic-snapback-verify-repository-acceptance-timeout"></a>`SNAPBACK_VERIFY_REPOSITORY_ACCEPTANCE_TIMEOUT` | cli | — | — | `packages/snapback-cli/verify.mjs:979` | 1 |
-| <a id="diagnostic-snapback-verify-repository-catalog-invalid"></a>`SNAPBACK_VERIFY_REPOSITORY_CATALOG_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:919` | 1 |
-| <a id="diagnostic-snapback-verify-runtime-probe-missing"></a>`SNAPBACK_VERIFY_RUNTIME_PROBE_MISSING` | cli | — | — | `packages/snapback-cli/verify.mjs:1947` | 1 |
-| <a id="diagnostic-snapback-verify-select-capable-target"></a>`SNAPBACK_VERIFY_SELECT_CAPABLE_TARGET` | cli | — | — | `packages/snapback-cli/verify.mjs:83` | 1 |
-| <a id="diagnostic-snapback-verify-served-target-authority-missing"></a>`SNAPBACK_VERIFY_SERVED_TARGET_AUTHORITY_MISSING` | cli | — | — | `packages/snapback-cli/verify.mjs:1406` | 1 |
-| <a id="diagnostic-snapback-verify-served-target-authority-profile-unsupported"></a>`SNAPBACK_VERIFY_SERVED_TARGET_AUTHORITY_PROFILE_UNSUPPORTED` | cli | — | — | `packages/snapback-cli/verify.mjs:1466` | 1 |
-| <a id="diagnostic-snapback-verify-served-target-invalid"></a>`SNAPBACK_VERIFY_SERVED_TARGET_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1515` | 1 |
-| <a id="diagnostic-snapback-verify-served-target-refused"></a>`SNAPBACK_VERIFY_SERVED_TARGET_REFUSED` | cli | — | — | `packages/snapback-cli/verify.mjs:1467` | 1 |
-| <a id="diagnostic-snapback-verify-served-target-timeout"></a>`SNAPBACK_VERIFY_SERVED_TARGET_TIMEOUT` | cli | — | — | `packages/snapback-cli/verify.mjs:1439` | 1 |
-| <a id="diagnostic-snapback-verify-served-target-unavailable"></a>`SNAPBACK_VERIFY_SERVED_TARGET_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/verify.mjs:1440` | 1 |
-| <a id="diagnostic-snapback-verify-starter-acceptance-failed"></a>`SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:746` | 1 |
-| <a id="diagnostic-snapback-verify-starter-acceptance-output-limit"></a>`SNAPBACK_VERIFY_STARTER_ACCEPTANCE_OUTPUT_LIMIT` | cli | — | — | `packages/snapback-cli/verify.mjs:743` | 1 |
-| <a id="diagnostic-snapback-verify-starter-acceptance-timeout"></a>`SNAPBACK_VERIFY_STARTER_ACCEPTANCE_TIMEOUT` | cli | — | — | `packages/snapback-cli/verify.mjs:745` | 1 |
-| <a id="diagnostic-snapback-verify-under-declaration"></a>`SNAPBACK_VERIFY_UNDER_DECLARATION` | cli | — | — | `packages/snapback-cli/verify.mjs:1740` | 1 |
+| <a id="diagnostic-snapback-verify-qualify-runtime"></a>`SNAPBACK_VERIFY_QUALIFY_RUNTIME` | cli | — | — | `packages/snapback-cli/verify.mjs:75` | 1 |
+| <a id="diagnostic-snapback-verify-receipt-invalid"></a>`SNAPBACK_VERIFY_RECEIPT_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:2238` | 3 |
+| <a id="diagnostic-snapback-verify-regenerate-artifacts"></a>`SNAPBACK_VERIFY_REGENERATE_ARTIFACTS` | cli | — | — | `packages/snapback-cli/verify.mjs:69` | 1 |
+| <a id="diagnostic-snapback-verify-repository-acceptance-failed"></a>`SNAPBACK_VERIFY_REPOSITORY_ACCEPTANCE_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:1024` | 1 |
+| <a id="diagnostic-snapback-verify-repository-acceptance-output-limit"></a>`SNAPBACK_VERIFY_REPOSITORY_ACCEPTANCE_OUTPUT_LIMIT` | cli | — | — | `packages/snapback-cli/verify.mjs:1021` | 1 |
+| <a id="diagnostic-snapback-verify-repository-acceptance-timeout"></a>`SNAPBACK_VERIFY_REPOSITORY_ACCEPTANCE_TIMEOUT` | cli | — | — | `packages/snapback-cli/verify.mjs:1023` | 1 |
+| <a id="diagnostic-snapback-verify-repository-catalog-invalid"></a>`SNAPBACK_VERIFY_REPOSITORY_CATALOG_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:963` | 1 |
+| <a id="diagnostic-snapback-verify-runtime-probe-missing"></a>`SNAPBACK_VERIFY_RUNTIME_PROBE_MISSING` | cli | — | — | `packages/snapback-cli/verify.mjs:2041` | 1 |
+| <a id="diagnostic-snapback-verify-select-capable-target"></a>`SNAPBACK_VERIFY_SELECT_CAPABLE_TARGET` | cli | — | — | `packages/snapback-cli/verify.mjs:87` | 1 |
+| <a id="diagnostic-snapback-verify-served-target-authority-missing"></a>`SNAPBACK_VERIFY_SERVED_TARGET_AUTHORITY_MISSING` | cli | — | — | `packages/snapback-cli/verify.mjs:1457` | 1 |
+| <a id="diagnostic-snapback-verify-served-target-authority-profile-unsupported"></a>`SNAPBACK_VERIFY_SERVED_TARGET_AUTHORITY_PROFILE_UNSUPPORTED` | cli | — | — | `packages/snapback-cli/verify.mjs:1517` | 1 |
+| <a id="diagnostic-snapback-verify-served-target-invalid"></a>`SNAPBACK_VERIFY_SERVED_TARGET_INVALID` | cli | — | — | `packages/snapback-cli/verify.mjs:1566` | 1 |
+| <a id="diagnostic-snapback-verify-served-target-refused"></a>`SNAPBACK_VERIFY_SERVED_TARGET_REFUSED` | cli | — | — | `packages/snapback-cli/verify.mjs:1518` | 1 |
+| <a id="diagnostic-snapback-verify-served-target-timeout"></a>`SNAPBACK_VERIFY_SERVED_TARGET_TIMEOUT` | cli | — | — | `packages/snapback-cli/verify.mjs:1490` | 1 |
+| <a id="diagnostic-snapback-verify-served-target-unavailable"></a>`SNAPBACK_VERIFY_SERVED_TARGET_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/verify.mjs:1491` | 1 |
+| <a id="diagnostic-snapback-verify-starter-acceptance-failed"></a>`SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED` | cli | — | — | `packages/snapback-cli/verify.mjs:782` | 1 |
+| <a id="diagnostic-snapback-verify-starter-acceptance-output-limit"></a>`SNAPBACK_VERIFY_STARTER_ACCEPTANCE_OUTPUT_LIMIT` | cli | — | — | `packages/snapback-cli/verify.mjs:779` | 1 |
+| <a id="diagnostic-snapback-verify-starter-acceptance-timeout"></a>`SNAPBACK_VERIFY_STARTER_ACCEPTANCE_TIMEOUT` | cli | — | — | `packages/snapback-cli/verify.mjs:781` | 1 |
+| <a id="diagnostic-snapback-verify-under-declaration"></a>`SNAPBACK_VERIFY_UNDER_DECLARATION` | cli | — | — | `packages/snapback-cli/verify.mjs:1806` | 1 |
 | <a id="diagnostic-snapback-version-out-of-range"></a>`SNAPBACK_VERSION_OUT_OF_RANGE` | server | — | — | `crates/snapback-kernel/src/storage.rs:14404` | 1 |
 | <a id="diagnostic-snapback-version--"></a>`SNAPBACK_VERSION__` | cli | — | — | `packages/snapback-cli/index.mjs:1690` | 1 |
 | <a id="diagnostic-snapback-visibility-governance-dev-config-refused"></a>`SNAPBACK_VISIBILITY_GOVERNANCE_DEV_CONFIG_REFUSED` | cli | — | — | `packages/snapback-cli/index.mjs:4423` | 2 |

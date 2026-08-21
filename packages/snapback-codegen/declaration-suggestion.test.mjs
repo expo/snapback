@@ -162,6 +162,7 @@ function writeRuntimeReceipt(backend, {
   extraReads = [],
   extraWrites = [],
   noRegisteredPaths = false,
+  enrichedV1 = false,
 } = {}) {
   const functions = JSON.parse(readFileSync(join(backend, 'generated', 'functions.manifest.json'), 'utf8'));
   const functionId = functions.functions.find(({ name }) => name === functionName).id;
@@ -224,6 +225,7 @@ function writeRuntimeReceipt(backend, {
     overDeclarations,
     diagnostics: [],
   };
+  if (enrichedV1) aggregate.coverageRequirement = 'path-observation';
   const admissionStatus = underDeclarations.length > 0 ? 'failed' : 'passed';
   const testBytes = {
     algorithm: 'sha256-path-length-content.v1',
@@ -246,6 +248,7 @@ function writeRuntimeReceipt(backend, {
     durationMs: 1,
     testBytes,
     context,
+    ...(enrichedV1 ? { coverageCapability: null } : {}),
     conformance: [{ pathId, status: 'observed', report }],
     diagnostics: [],
   }];
@@ -601,6 +604,20 @@ try {
   check(runtimeAppliedSource.includes('reads: ["secrets"]'));
   check(runtimeAppliedSource.includes('writes: ["todos", "audit"]'));
   equal((await generate(runtimeWitnessed)).ok, true, 'addition-only dependency patch must enter ordinary generation');
+
+  const enrichedV1RuntimeWitnessed = fixture();
+  equal((await generate(enrichedV1RuntimeWitnessed)).ok, true);
+  writeRuntimeReceipt(enrichedV1RuntimeWitnessed, {
+    functionName: 'literalResult',
+    missingReads: ['secrets'],
+    enrichedV1: true,
+  });
+  const enrichedV1Suggestion = onlySuggestion(enrichedV1RuntimeWitnessed, 'literalResult').suggestion;
+  equal(
+    enrichedV1Suggestion.runtimeEvidenceReceipts.length,
+    1,
+    'the codegen runtime-evidence validator must accept enriched v1 receipts as well as legacy v1 receipts',
+  );
 
   const alreadyDeclared = fixture({ explicitStoredResult: true });
   equal((await generate(alreadyDeclared)).ok, true);

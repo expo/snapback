@@ -20,6 +20,7 @@ export interface VerifyConfig {
   readonly schemaVersion: 'snapback.verify-config.v1';
   readonly backendDirectory?: string;
   readonly generatedDirectory?: string;
+  readonly coverageRequirement?: 'path-observation' | 'complete-operation-provenance';
   readonly servedTarget?: {
     readonly url: string;
     readonly adminTokenEnv?: string;
@@ -39,6 +40,10 @@ export interface VerifyConfig {
       readonly targetProfileId: string;
       readonly functionId?: string | null;
     }[];
+    readonly coverageCapability?: {
+      readonly claim: 'identity-bound-path-observation';
+      readonly baselinePathIds: readonly string[];
+    };
     run(context: Readonly<Record<string, unknown>>): Promise<Readonly<Record<string, unknown>>>;
   }[];
 }
@@ -55,6 +60,7 @@ export interface StarterVerifyProfileOptions {
     readonly targetProfileId: string;
     readonly functionId?: string | null;
   }[];
+  readonly provenanceBaseline?: readonly string[];
   readonly timeoutMs?: number;
 }
 

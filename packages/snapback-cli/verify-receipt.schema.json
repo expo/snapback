@@ -230,14 +230,17 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "status", "disposition", "coverageRequirement", "scope", "limitationReason", "complete",
+        "status", "disposition", "scope", "limitationReason", "complete",
         "expectedPaths", "observedPaths", "pathEvidence", "underDeclarations",
         "overDeclarations", "diagnostics"
       ],
       "properties": {
         "status": { "enum": ["passed", "partial", "failed", "not-claimed", "blocked"] },
         "disposition": { "type": "string", "minLength": 1 },
-        "coverageRequirement": { "enum": ["path-observation", "complete-operation-provenance"] },
+        "coverageRequirement": {
+          "enum": ["path-observation", "complete-operation-provenance"],
+          "default": "path-observation"
+        },
         "scope": { "const": "registered-or-repository-adapted-paths" },
         "limitationReason": { "type": "string", "minLength": 1 },
         "complete": { "type": "boolean" },
@@ -298,7 +301,7 @@
     "profileResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["profileId", "title", "status", "startedAtMs", "finishedAtMs", "durationMs", "testBytes", "context", "coverageCapability", "conformance", "diagnostics"],
+      "required": ["profileId", "title", "status", "startedAtMs", "finishedAtMs", "durationMs", "testBytes", "context", "conformance", "diagnostics"],
       "properties": {
         "profileId": { "type": "string", "minLength": 1 },
         "title": { "type": "string", "minLength": 1 },
@@ -309,6 +312,7 @@
         "testBytes": { "$ref": "#/$defs/testBytes" },
         "context": { "$ref": "#/$defs/context" },
         "coverageCapability": {
+          "default": null,
           "oneOf": [
             { "type": "null" },
             {

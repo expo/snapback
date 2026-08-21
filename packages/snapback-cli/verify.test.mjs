@@ -480,6 +480,45 @@ async function runStarterReceiptFixture({
       })),
       [{ code: 'SNAPBACK_VERIFY_COVERAGE_EVIDENCE_UNSUPPORTED', pathId: 'starter-mutation' }],
     );
+
+    const configOnlyPath = Object.freeze({
+      id: 'config-only-path',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      functionId: null,
+    });
+    assert.throws(
+      () => defineStarterVerifyProfile({
+        id: 'starter-config-only-baseline',
+        acceptanceFile,
+        paths: [...paths, configOnlyPath],
+        provenanceBaseline: [...paths.map(({ id }) => id), configOnlyPath.id],
+      }),
+      /baselinePathIds must name paths with receipt-addressed observation identities/u,
+    );
+    const configOnlyUnbaselined = defineStarterVerifyProfile({
+      id: 'starter-config-only-unbaselined',
+      acceptanceFile,
+      paths: [...paths, configOnlyPath],
+      provenanceBaseline: paths.map(({ id }) => id),
+    });
+    const configOnlyReceipt = await runVerify(config([configOnlyUnbaselined]), passOptions({
+      artifactProbe: async () => starterArtifact(),
+    }));
+    assert.equal(configOnlyReceipt.ok, false);
+    assert.deepEqual(
+      configOnlyReceipt.stages[2].diagnostics.map(({ code, details }) => ({
+        code,
+        pathId: details.pathId,
+      })),
+      [{ code: 'SNAPBACK_VERIFY_COVERAGE_PATH_INCOMPLETE', pathId: configOnlyPath.id }],
+    );
+    assert.equal(
+      configOnlyReceipt.stages[2].evidence.conformance.pathEvidence.find(({ id }) => (
+        id === configOnlyPath.id
+      )).report,
+      null,
+    );
     cases += 1;
   } finally {
     rmSync(scratch, { recursive: true, force: true });

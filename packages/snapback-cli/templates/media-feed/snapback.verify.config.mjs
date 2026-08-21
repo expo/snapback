@@ -27,8 +27,6 @@ export default defineVerifyConfig({
     provenanceBaseline: [
       'retained-live-feed-pages',
       'session-upload-and-typed-attach',
-      'thumbnail-rendition-delivery',
-      'display-rendition-delivery',
     ],
   })],
 });
