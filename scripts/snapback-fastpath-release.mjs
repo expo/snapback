@@ -12,7 +12,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -438,7 +437,7 @@ export function defaultContinueInWorktree({
       },
     );
   }
-  const parsed = split.value ?? { ok: result.status === 0 };
+  const parsed = split.value;
   return {
     ...parsed,
     ok: parsed.ok === true && result.status === 0,
@@ -986,17 +985,7 @@ function usage() {
 `;
 }
 
-function realpathOrResolve(path) {
-  try {
-    return realpathSync(path);
-  } catch {
-    return resolve(path);
-  }
-}
-
-const invoked = process.argv[1]
-  && realpathOrResolve(process.argv[1]) === realpathOrResolve(fileURLToPath(import.meta.url));
-if (invoked) {
+if (import.meta.main) {
   try {
     const options = parseArguments(process.argv.slice(2));
     if (options.help) {

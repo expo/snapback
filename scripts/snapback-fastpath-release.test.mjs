@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   rmSync,
   symlinkSync,
@@ -349,6 +350,52 @@ test('default re-exec rejects exit zero without a JSON result', () => {
     (error) => error.code === 'SNAPBACK_FASTPATH_ISOLATE_FAILED'
       && error.details?.stdout === '',
   );
+});
+
+test('isolated re-exec succeeds through a symlinked tmp directory', () => {
+  const fixture = createFixtureRepo();
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'snapback-fastpath-symlink-tmp-'));
+  const realTmp = join(tmpRoot, 'real');
+  const symlinkedTmp = join(tmpRoot, 'linked');
+  mkdirSync(realTmp);
+  symlinkSync(realTmp, symlinkedTmp, 'dir');
+  mkdirSync(join(fixture.root, 'scripts'));
+  writeFileSync(
+    join(fixture.root, 'scripts', 'snapback-fastpath-release.mjs'),
+    `if (import.meta.main) {
+  if (!process.argv.includes('--no-isolate-worktree')) process.exitCode = 2;
+  else console.log(JSON.stringify({ ok: true }));
+}
+`,
+  );
+  fixture.git(['add', 'scripts/snapback-fastpath-release.mjs']);
+  fixture.git(['-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'add cheap ceremony']);
+  const revision = fixture.git(['rev-parse', 'HEAD']);
+  let worktree = null;
+  try {
+    worktree = provisionIsolatedWorktree({
+      revision,
+      cwd: fixture.root,
+      tmpDir: symlinkedTmp,
+    });
+    assert.ok(worktree.path.startsWith(`${symlinkedTmp}/`));
+    const result = defaultContinueInWorktree({
+      worktree,
+      options: {
+        subcommand: 'stage',
+        version: '0.1.20',
+        out: join(fixture.root, 'out'),
+        runtimePlatforms: 'all',
+      },
+    });
+    assert.equal(result.ok, true);
+  } finally {
+    if (worktree?.path && existsSync(worktree.path)) {
+      teardownIsolatedWorktree({ path: worktree.path, cwd: fixture.root });
+    }
+    rmSync(fixture.root, { recursive: true, force: true });
+    rmSync(tmpRoot, { recursive: true, force: true });
+  }
 });
 
 test('CLI entry runs when the script path has a symlinked ancestor', () => {
