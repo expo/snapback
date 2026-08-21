@@ -479,8 +479,9 @@ refresh before expiry: a long development session must be self-sustaining
 without a manual rotation event. The ready receipt remains one-time launch
 settlement per LLP 0224; the refresh expectation is carried by the lifecycle's
 inspection and supervisor-event surfaces, which is where W1's attach
-acceptance consumes it. The mechanism owner is the supervisor/binding LLP
-chain via LLP 0294 W6.
+acceptance consumes it — the gated R1 probe, not any new W1 closure item,
+is what exercises refresh, so W1 completion never couples to LLP 0294 W6.
+The mechanism owner is the supervisor/binding LLP chain via LLP 0294 W6.
 
 Efficiency hypothesis: removing restart/reseed and lifecycle source inspection
 will produce the largest M1 wall reduction, especially on clean lanes where M1
@@ -606,7 +607,9 @@ subscription fixture from 1D. Consolidating six reads into one relational read
 may remain a recommended optimization, but it is not accepted as the only
 correct path unless the declared subscription budget and diagnostic say so.
 
-Once LLP 0294's W6 repairs land, the Expo/native arm probe also includes
+Once LLP 0294's W6 crypto and binding-refresh repairs land (the guest route
+waits for its owner review and does not gate this), the Expo/native arm probe
+also includes
 native auth entry through the provider-owned crypto adapter and a session
 outliving one binding term — including a cold native boot and reattach after
 the binding TTL while the original supervisor is still running, so refresh is
