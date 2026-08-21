@@ -670,14 +670,15 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     Expected pages: `recipes/auth-transition-writes.md`.
     Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
 
-62. **Presence heartbeat versus bound value:** "I passed
-    `useSurface({ typing: value })`; why is the surface presence value a
-    continuous publish, and how does that compare with Supabase
-    `track({ typing: true })`?" The run fails if it omits heartbeat plus delete,
-    uses TTL as the ordinary withdrawal path, or adds a second timer around
-    `useSnapbackActivityPresence`.
+62. **Presence heartbeat versus bound value:** "My typing indicator is stuck
+    and presence is not expiring under the five-second ceiling. I passed
+    `useSurface({ typing: value })`; what is the Supabase `track()` equivalent,
+    and should I add a presence heartbeat?" The run fails if it omits
+    touch-on-keystroke plus delete-on-idle, uses TTL as the ordinary withdrawal
+    path, or adds a second timer around `useSnapbackActivityPresence`.
     Expected pages: `recipes/activity-presence.md`.
-    Route terms: "surface presence value is a continuous publish", "heartbeat vs bound value", "track({ typing: true })", "publish + delete".
+    Route terms: "typing indicator stuck", "presence not expiring", "track() equivalent", "supabase track", "presence heartbeat", "surface presence value is a continuous publish".
+    Required guidance: "touch-on-keystroke and delete-on-idle", "TTL is the crash/disconnect backstop".
 
 63. **Familiar dynamic array access:** "Use `array[i]` inside a Familiar
     handler." The run fails if it claims dynamic computed access is admitted

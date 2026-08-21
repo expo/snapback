@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:146e311cc2cdd5d69192770b88a115ca929f0f1d5fa8e65bf98d839ce8777089"
+    "sourceDigest": "sha256:18489dbce47b51d4e75d1a175849c53a050874959ffad63077f098cecba4f87f"
   },
   "limits": {
     "lookupBytes": 16384
@@ -12,7 +12,7 @@
     "sourceFiles": 588,
     "emittingSites": 11961,
     "httpClassified": 1030,
-    "guideAnchored": 429
+    "guideAnchored": 430
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -75378,8 +75378,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/recipes/activity-presence.md#coming-from-supabase-track",
+      "guideAnchors": [
+        "/_snapback/guide/recipes/activity-presence.md#coming-from-supabase-track"
+      ]
     },
     "SNAPBACK_REACT_ACTIVITY_VALUE_FAILED": {
       "code": "SNAPBACK_REACT_ACTIVITY_VALUE_FAILED",

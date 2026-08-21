@@ -1790,14 +1790,15 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     Expected pages: `recipes/auth-transition-writes.md`.
     Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
 
-62. **Presence heartbeat versus bound value:** "I passed
-    `useSurface({ typing: value })`; why is the surface presence value a
-    continuous publish, and how does that compare with Supabase
-    `track({ typing: true })`?" The run fails if it omits heartbeat plus delete,
-    uses TTL as the ordinary withdrawal path, or adds a second timer around
-    `useSnapbackActivityPresence`.
+62. **Presence heartbeat versus bound value:** "My typing indicator is stuck
+    and presence is not expiring under the five-second ceiling. I passed
+    `useSurface({ typing: value })`; what is the Supabase `track()` equivalent,
+    and should I add a presence heartbeat?" The run fails if it omits
+    touch-on-keystroke plus delete-on-idle, uses TTL as the ordinary withdrawal
+    path, or adds a second timer around `useSnapbackActivityPresence`.
     Expected pages: `recipes/activity-presence.md`.
-    Route terms: "surface presence value is a continuous publish", "heartbeat vs bound value", "track({ typing: true })", "publish + delete".
+    Route terms: "typing indicator stuck", "presence not expiring", "track() equivalent", "supabase track", "presence heartbeat", "surface presence value is a continuous publish".
+    Required guidance: "touch-on-keystroke and delete-on-idle", "TTL is the crash/disconnect backstop".
 
 63. **Familiar dynamic array access:** "Use `array[i]` inside a Familiar
     handler." The run fails if it claims dynamic computed access is admitted
@@ -27378,13 +27379,13 @@ id: recipes.activity-presence
 order: 13
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, packages/snapback-react/index.mjs, packages/snapback-react/implementation.mjs]
-examples: [demos/messaging-snapback, packages/snapback-cli/templates/expo-chat]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, packages/snapback-react/index.mjs, packages/snapback-react/implementation.mjs, packages/snapback-expo/activity-presence.mjs, scripts/activity-presence-vertical-contract.mjs]
+examples: [demos/messaging-snapback, packages/snapback-cli/templates/expo-chat, tests/fixtures/activity-presence-vertical]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:f645f4b9705e5a52f2adb649c71a1e2c03d5a3bc13a19c40d81957c5a4b4f054
+reviewed-authorities-digest: sha256:bc63638fe4b4139746c3c8da33d2670e25eebb35d8985d34b5f226fde2343200
 ---
 
 # Recipe: activity presence, heartbeats, and withdrawal
@@ -27393,37 +27394,68 @@ reviewed-authorities-digest: sha256:f645f4b9705e5a52f2adb649c71a1e2c03d5a3bc13a1
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-Snapback presence is an ephemeral lease. A bound value is not a durable row,
-and publishing it once does not promise that it remains present. Conversely,
-a convenience surface can continuously republish a non-null bound value. This
-is why `useSurface({ typing: value })` may look like simple state binding while
-behaving like a continuous publish.
+Snapback presence is an ephemeral lease. The key rule is: **a surface presence
+value is a continuous publish**. A non-null value bound through
+`useSurface({ typing: value })` remains desired while that binding is mounted,
+so the provider heartbeat keeps renewing it. A five-second TTL or acceptance
+ceiling does not make that value disappear after five seconds of no typing.
 
-Put in the diary's exact terms: “surface presence value is a continuous
-publish.” The heartbeat vs bound value decision determines whether the owner
-should continuously publish or explicitly publish + delete.
+This is the usual cause of a “typing indicator stuck” or “presence not
+expiring” report. The heartbeat-vs-bound-value decision comes before choosing
+a TTL:
 
-Search phrase: surface presence value is a continuous publish.
-
-Choose the lifetime you actually mean:
+Search vocabulary: typing indicator stuck; presence not expiring; track() equivalent; supabase track; presence heartbeat; surface presence value is a continuous publish.
 
 - **Continuous bound value:** keep publishing while the component and scope
   are active. Use for “online in this room” when mounting is the activity.
 - **Activity-driven value:** use `useSnapbackActivityPresence` when input,
   focus, pointer, or another activity signal should touch the lease. It owns
-  the activity deadline and withdrawal after the idle window; the provider
-  owns lease heartbeat/renewal.
+  the absolute idle deadline and calls the delete path after that window; the
+  provider owns presence heartbeat/renewal.
 - **Explicit event:** call the presence publisher on activity and the delete
   path on blur, send, cancel, scope change, or unmount. Use this in a
   headless/adapter owner that already owns those transitions.
 
-For a typing indicator, call `touch()` on meaningful input and withdraw on
-send, clear, blur, room change, and dispose. The provider renews the published
-lease while the activity owner remains active; do not add a second timer. TTL
-is the crash/disconnect backstop; explicit or idle withdrawal is the ordinary
-stop signal. The mental translation from Supabase
-`track({ typing: true })` is therefore “publish plus heartbeat plus delete,”
-not “assign a bound value forever.”
+For a typing indicator, the supported spelling is touch-on-keystroke and
+delete-on-idle. `withdraw()` is the helper's explicit delete action for send,
+clear, blur, room change, and dispose:
+
+```ts source=tests/fixtures/activity-presence-vertical/client-projection.ts
+export function TypingComposer() {
+  const presence = useSnapbackActivityPresence(typing, {
+    scope: { roomId: 'room-one' },
+    value: () => ({ userHandle: 'ada', name: 'Ada' }),
+    idleMs: 3_000,
+  });
+
+  const onKeystroke = () => presence.touch();
+  const onClearOrSend = () => void presence.withdraw();
+  void onKeystroke;
+  void onClearOrSend;
+  return null;
+}
+```
+
+The provider renews the admitted lease while the activity owner remains
+active; do not add a second app timer or heartbeat loop. TTL is the
+crash/disconnect backstop. Explicit or idle delete is the ordinary stop
+signal.
+
+## Coming from Supabase `track()`
+
+There is no one-shot `track()` equivalent for idle activity. Translating
+Supabase `track({ typing: true })` as a long-lived bound value imports the
+wrong prior. Translate it as **touch + provider heartbeat + delete**:
+
+- `touch()` on each meaningful activity tick;
+- let the provider renew the unchanged admitted value;
+- let `useSnapbackActivityPresence` delete at `idleMs`, and call
+  `withdraw()` for earlier product transitions.
+
+The hook admits `idleMs` only as a finite safe integer from 250 through
+2,147,483,647 milliseconds. Invalid configuration refuses during render with
+`SNAPBACK_REACT_ACTIVITY_IDLE_MS_INVALID`; fix the deadline instead of
+clamping or adding another timer.
 
 The generated room scope and membership admission remain authoritative.
 Heartbeat extends only an already admitted ephemeral entry; it does not grant
@@ -27438,6 +27470,12 @@ membership or make presence durable history.
   owns heartbeat and withdrawal.
 - Treating an expired or deleted entry as a durable offline-status record.
 - Reusing presence as membership, authorization, or message history.
+
+The packed external vertical receipt is
+`node scripts/activity-presence-vertical-contract.mjs`. It proves the `typing`
+Guide route, generated reference and public imports, runtime publish/delete,
+React idle and explicit withdrawal, Expo background withdrawal, and the
+invalid-`idleMs` diagnostic from one installed package closure.
 
 ---
 
@@ -30518,7 +30556,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-query-registration-volatile-only"></a>`SNAPBACK_QUERY_REGISTRATION_VOLATILE_ONLY` | queries | — | — | `packages/snapback-client/store-runtime.mjs:1235` | 2 |
 | <a id="diagnostic-snapback-query-unknown-index"></a>`SNAPBACK_QUERY_UNKNOWN_INDEX` | queries | 400 | — | `crates/snapback-engine/src/local/engine.rs:32179` | 4 |
 | <a id="diagnostic-snapback-random-unavailable"></a>`SNAPBACK_RANDOM_UNAVAILABLE` | server | — | — | `crates/snapback-kernel/src/storage/capability_links.rs:251` | 3 |
-| <a id="diagnostic-snapback-react-activity-idle-ms-invalid"></a>`SNAPBACK_REACT_ACTIVITY_IDLE_MS_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:5587` | 1 |
+| <a id="diagnostic-snapback-react-activity-idle-ms-invalid"></a>`SNAPBACK_REACT_ACTIVITY_IDLE_MS_INVALID` | react | — | [guide](../recipes/activity-presence.md#coming-from-supabase-track) | `packages/snapback-react/implementation.mjs:5587` | 1 |
 | <a id="diagnostic-snapback-react-activity-value-failed"></a>`SNAPBACK_REACT_ACTIVITY_VALUE_FAILED` | react | — | — | `packages/snapback-react/implementation.mjs:5605` | 1 |
 | <a id="diagnostic-snapback-react-args-invalid"></a>`SNAPBACK_REACT_ARGS_INVALID` | client | — | — | `packages/snapback-client/canonical-client-value.mjs:36` | 2 |
 | <a id="diagnostic-snapback-react-asset-strict-delivery-sessions"></a>`SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS` | react | — | [guide](../backend/assets.md#render-the-uploaded-image-in-a-plain-image) | `packages/snapback-react/implementation.mjs:7550` | 1 |
