@@ -516,8 +516,10 @@ async function proveLive() {
   }
 }
 
+// guide-auth-settlement-packed-proof:start
 const result = Object.freeze({
   oneShot: await proveOneShots(),
   live: await proveLive(),
 });
 process.stdout.write(`${JSON.stringify(result)}\n`);
+// guide-auth-settlement-packed-proof:end

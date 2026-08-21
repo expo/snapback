@@ -183,6 +183,11 @@ if (runConsistency) {
     ['--check'],
     ['typescript'],
   );
+  runExternalCheck(
+    'auth settlement packed proof',
+    'scripts/check-guide-auth-settlement-packed-proof.mjs',
+    ['--check'],
+  );
 }
 
 let corpus = null;

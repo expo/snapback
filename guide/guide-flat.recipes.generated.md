@@ -3115,13 +3115,13 @@ id: recipes.auth-transition-writes
 order: 12
 audience: agent-first
 capabilities: [clients.outbox-drain, clients.mutation-outcomes, auth.invalidation-barrier]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/index.mjs, packages/snapback-react/implementation.mjs, packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/outbox-store.test.mjs, scripts/auth-settlement-packed-proof.mjs]
-examples: [packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/outbox-store.test.mjs, scripts/auth-settlement-packed-proof.mjs, demos/browser-local-first]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/index.mjs, packages/snapback-react/implementation.mjs, packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/outbox-store.test.mjs, scripts/auth-settlement-packed-proof.mjs, scripts/check-guide-auth-settlement-packed-proof.mjs]
+examples: [packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/outbox-store.test.mjs, scripts/auth-settlement-packed-proof.mjs, demos/browser-local-first]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:e21fb82f65cc1d86dea17670c0bbe9de622ed2fb591609d59e3b7a326e360df6
+reviewed-authorities-digest: sha256:d99337e46d8723f811216c93f0b822dd08535ceb5aa9ee1bd52e1ce04b825ce8
 ---
 
 # Recipe: writes during authentication transitions
@@ -3226,14 +3226,35 @@ subscription behavior or make one aggregate query a universal requirement.
 ## What proves this contract
 
 The [packed-external settlement fixture](repo:scripts/auth-settlement-packed-proof.mjs)
-loads freshly packed Contract, client, and React packages and proves the
+is executed by the Guide check against freshly packed Contract, client, and
+React packages and proves the
 signed-out, signing-in, signed-in, signing-out, and revoked rows for both
 one-shot and live-query projections. Its retained tarball-integrity receipt is
 in the [signed-out settlement closure](repo:issues/closed/20260820-authenticated-query-signed-out-settlement.md).
-The outbox-specific queue and
-`queue: false` behavior remains pinned by the authorization-invalidation and
-outbox-store tests named in this page's authorities. This is the vertical
-receipt for the advertised settlement spelling; it does not claim the
+
+```js source=scripts/auth-settlement-packed-proof.mjs
+const result = Object.freeze({
+  oneShot: await proveOneShots(),
+  live: await proveLive(),
+});
+process.stdout.write(`${JSON.stringify(result)}\n`);
+```
+
+That packed closure stops at the advertised settlement spelling: it does not
+exercise mutation queueing or a component event handler. Those promises are
+separately CI-enforced by the client package suite. In
+[`generated-optimistic-default.test.mjs`](repo:packages/snapback-client/generated-optimistic-default.test.mjs),
+“generated read-free insert cannot repaint after authorization quarantine”
+proves the default generated mutation resolves `queued` with
+`authorizationDisposition: "authorization-suspended"`. In
+[`authorization-invalidation.test.mjs`](repo:packages/snapback-client/authorization-invalidation.test.mjs),
+“client-owned outbox suspension” independently proves explicit queueing does
+not cross transport, while “offlineQueue:false persists live roots” proves
+`queue: false` rejects with `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` before
+transport. In
+[`outbox-store.test.mjs`](repo:packages/snapback-client/outbox-store.test.mjs),
+“default foreground mutation without an explicit id” independently pins the
+same no-transport foreground rejection. None of these receipts claims the
 unimplemented D0.2 housekeeping-lane surface.
 
 ## Anti-patterns

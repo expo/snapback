@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:545db1d5e42db68802dc1e727551ab0b5006c9568cce93a8507cd37938eed843"
+    "sourceDigest": "sha256:db37ebe4b2f2dc06f7b64b24d0d224c3eff148d3a0d91a81199bcced6910be3c"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -4752,19 +4752,28 @@
         "packages/snapback-client/index.mjs",
         "packages/snapback-react/implementation.mjs",
         "packages/snapback-client/authorization-invalidation.test.mjs",
+        "packages/snapback-client/generated-optimistic-default.test.mjs",
         "packages/snapback-client/outbox-store.test.mjs",
-        "scripts/auth-settlement-packed-proof.mjs"
+        "scripts/auth-settlement-packed-proof.mjs",
+        "scripts/check-guide-auth-settlement-packed-proof.mjs"
       ],
       "examples": [
         "packages/snapback-client/authorization-invalidation.test.mjs",
+        "packages/snapback-client/generated-optimistic-default.test.mjs",
         "packages/snapback-client/outbox-store.test.mjs",
         "scripts/auth-settlement-packed-proof.mjs",
         "demos/browser-local-first"
       ],
       "reviewed": "2026-08-21",
-      "reviewedAuthoritiesDigest": "sha256:e21fb82f65cc1d86dea17670c0bbe9de622ed2fb591609d59e3b7a326e360df6",
-      "sha256": "383a754c6ee62af9dac0c8d694226aaef3e816d116e728c9350fe25b8c3d9bb2",
-      "snippets": []
+      "reviewedAuthoritiesDigest": "sha256:d99337e46d8723f811216c93f0b822dd08535ceb5aa9ee1bd52e1ce04b825ce8",
+      "sha256": "2031284190b060e816cbb35c9a75d6fc6338fb6a2ffb40e57dbde81c8866c084",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "scripts/auth-settlement-packed-proof.mjs"
+        }
+      ]
     },
     "recipes.browser-auth": {
       "path": "guide/recipes/browser-auth.md",
@@ -12603,8 +12612,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2610006,
-      "sha256": "6a16481948f8e91c784d85e018bffe67b814cfe650d9fa75ca09f249fcb02199",
+      "bytes": 2610094,
+      "sha256": "768781aec50eeeec5ea6230d19a8f62fef25dd04303c34c8b459f77858cf1d75",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12613,7 +12622,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:54b7691d353e491c301609c2710303da06aca4e339fc86b148f81dfaeea7aff0",
+      "sourceDigest": "sha256:a84bfd3eccfae5a308f489e654b7bd259ca10825a50ff3eb412d333c5f8d62bb",
       "codes": 3465,
       "emittingSites": 11959
     }
@@ -12752,8 +12761,8 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3637393,
-      "sha256": "0e4a060db96e42d134575c9946dc6d27e7d6e0e65a0c6daa4637647f38869da8"
+      "bytes": 3638677,
+      "sha256": "27c8e77bc9b2b5ea6900b1655f8120ccacca2392a18b465d021014f3d7c64a46"
     },
     "sections": {
       "meta": {
@@ -12823,8 +12832,8 @@
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 161986,
-        "sha256": "78782fd3d02b1b7ea09a96dcca943442cb098580dcfcf6360c56e970233418a1"
+        "bytes": 163270,
+        "sha256": "ec9a77aa661c7428f51c54ee7484d6edd2b467cef62dfc77f8c26b5219a778c9"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
@@ -12856,5 +12865,5 @@
       }
     }
   },
-  "contentHash": "545db1d5e42db68802dc1e727551ab0b5006c9568cce93a8507cd37938eed843"
+  "contentHash": "db37ebe4b2f2dc06f7b64b24d0d224c3eff148d3a0d91a81199bcced6910be3c"
 }

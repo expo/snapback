@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:54b7691d353e491c301609c2710303da06aca4e339fc86b148f81dfaeea7aff0"
+    "sourceDigest": "sha256:a84bfd3eccfae5a308f489e654b7bd259ca10825a50ff3eb412d333c5f8d62bb"
   },
   "limits": {
     "lookupBytes": 16384
@@ -69694,6 +69694,7 @@
         "/_snapback/guide/index.md#recipes",
         "/_snapback/guide/recipes/auth-transition-writes.md#fence-non-queueable-gestures",
         "/_snapback/guide/recipes/auth-transition-writes.md#recipe-writes-during-authentication-transitions",
+        "/_snapback/guide/recipes/auth-transition-writes.md#what-proves-this-contract",
         "/_snapback/guide/retrieval-eval.md#seed-intents"
       ]
     },
