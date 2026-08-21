@@ -227,6 +227,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'activity-presence.test.mjs',
       'assets.test.mjs',
       'auth-bootstrap.test.mjs',
+      'auth-transition-liveness-packed.test.mjs',
       'authority-hooks.test.mjs',
       'ssr-hydration.test.mjs',
       'auth-blocked-resource.test.mjs',
@@ -558,7 +559,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 319,
+  expectedTotal = 320,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1030,6 +1031,8 @@ export function checkPackageTestInventories(options = {}) {
 // the packed browser/auth-barrier lifecycle proof alongside the native-server proof.
 // 318 -> 319 (2026-08-21, LLP 0294 W2): @expo/snapback-cli gains the
 // structured Expo web carrier origin, exact-child binding, and lifecycle suite.
+// 319 -> 320 (2026-08-21, LLP 0295 Phase 1A reconciliation):
+// @expo/snapback-react gains the isolated fresh-tarball auth-transition liveness runner.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

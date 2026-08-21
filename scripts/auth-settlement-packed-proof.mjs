@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import React from 'react';
+import TestRenderer, { act } from 'react-test-renderer';
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const moduleRoot = process.env.SNAPBACK_AUTH_SETTLEMENT_MODULE_ROOT ?? null;
 if (moduleRoot === null) {
@@ -21,6 +25,10 @@ const { prepareReactBindingForClient } = await import(
 const { createSnapbackReactProvider } = await import(
   moduleUrl('@expo/snapback-react', 'index.mjs')
 );
+const {
+  SnapbackProvider: FamiliarSnapbackProvider,
+  useQuery: useFamiliarQuery,
+} = await import(moduleUrl('@expo/snapback-react', 'familiar.mjs'));
 
 const APP_ID = '018f0d90-7d10-7a22-8c33-445566778899';
 const INCARNATION = '018f0d90-7d11-7a22-8c33-445566778899';
@@ -284,12 +292,22 @@ const privateLive = Object.freeze({
   resultContractHash: 'sha256:1e0850e532f8ed1e2d073a6578c441f488b4325cecc00aaa731a9cd6bedbbc5e',
   resultContract: queryContract,
 });
+const optionalLive = Object.freeze({
+  ...privateLive,
+  id: `${APP_ID}:optionalLive`,
+  name: 'optionalLive',
+  authoringProfile: 'snapback-familiar-ts-v1',
+  delivery: 'live',
+  retention: 'none',
+  authRequirement: 'optional-user',
+  implementationHash: 'sha256:optional-live-implementation',
+});
 const functions = Object.freeze({
   artifactKind: 'functionManifest',
   schemaVersion: 'snapback.v0',
   appId: APP_ID,
   bundleHash: 'sha256:auth-settlement-packed-react',
-  functions: Object.freeze([privateLive]),
+  functions: Object.freeze([privateLive, optionalLive]),
 });
 
 const flush = () => new Promise((resolveFlush) => setImmediate(resolveFlush));
@@ -359,7 +377,11 @@ function projectedClient() {
     liveStreamManager() { return { async settled() {} }; },
     startLiveQuery(_reference, options) {
       state.attempts += 1;
-      const current = { rows: [{ id: 'private-1' }], connection: 'live', freshness: 'current' };
+      const current = {
+        rows: [{ id: state.authority === 'anonymous' ? 'anonymous' : 'session' }],
+        connection: 'live',
+        freshness: 'current',
+      };
       const handle = {
         current,
         started: async () => {},
@@ -428,21 +450,43 @@ async function proveLive() {
   const descriptor = provider.registry.descriptor(privateLive, {});
   const lease = provider.registry.subscribe(descriptor, () => {});
   const snapshot = () => provider.registry.snapshot(descriptor);
+  const familiarRenders = [];
+  const FamiliarProbe = () => (familiarRenders.push(useFamiliarQuery(optionalLive, {})), null);
+  let familiarRenderer = null;
   await flush();
   const matrix = {};
   try {
+    await act(async () => {
+      familiarRenderer = TestRenderer.create(React.createElement(
+        FamiliarSnapbackProvider,
+        { provider },
+        React.createElement(FamiliarProbe),
+      ));
+      await flush();
+    });
+    assert.deepEqual(familiarRenders.at(-1), [{ id: 'anonymous' }]);
     assert.equal(snapshot().status, 'blocked');
     assert.equal(snapshot().reason, 'authentication-required');
     assert.equal(snapshot().transitionOwner, TRANSITION_OWNER);
     matrix.signedOut = 'blocked:authentication-required';
 
-    await client.transitionAuthority('session', 'login', () => {
-      assert.equal(snapshot().status, 'blocked');
-      assert.equal(snapshot().reason, 'authentication-not-settled');
-      assert.equal(snapshot().transitionOwner, TRANSITION_OWNER);
-      matrix.signingIn = 'blocked:authentication-not-settled';
+    await act(async () => {
+      await client.transitionAuthority('session', 'login', () => {
+        assert.equal(snapshot().status, 'blocked');
+        assert.equal(snapshot().reason, 'authentication-not-settled');
+        assert.equal(snapshot().transitionOwner, TRANSITION_OWNER);
+        matrix.signingIn = 'blocked:authentication-not-settled';
+      });
+      await flush();
     });
     assert.equal(snapshot().status, 'ready');
+    assert.deepEqual(familiarRenders.at(-1), [{ id: 'session' }]);
+    matrix.familiar = 'optional-user:session-successor';
+    await act(async () => {
+      familiarRenderer.unmount();
+      familiarRenderer = null;
+      await flush();
+    });
     matrix.signedIn = 'ready';
 
     await client.transitionAuthority('anonymous', 'logout', () => {
@@ -463,6 +507,10 @@ async function proveLive() {
     });
     return Object.freeze(matrix);
   } finally {
+    await act(async () => {
+      familiarRenderer?.unmount();
+      await flush();
+    });
     lease.release();
     await provider.dispose();
   }

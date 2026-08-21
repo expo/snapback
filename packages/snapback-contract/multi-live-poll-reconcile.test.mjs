@@ -215,6 +215,22 @@ const makeRuntime = () => ({
   });
   assert.equal(surface.livePush, true);
   assert.equal(client.state.liveQueryCalls, 2);
+  const alphaLiveOptions = client.state.liveQueryOptions.find(({ name }) => name === 'alpha').options;
+  alphaLiveOptions.onAuthorizationBoundary([], {
+    kind: 'authorization_error',
+    terminal: true,
+    error: new Error('injected terminal auth loss'),
+  });
+  assert.deepEqual(
+    surface.boundary.cells.get('alpha'),
+    [],
+    'terminal auth loss synchronously blanks the private multi-live predecessor boundary',
+  );
+  assert.deepEqual(
+    surface.boundary.cells.get('beta'),
+    [{ _id: 'b1', _version: 1 }],
+    'a query-scoped terminal carrier does not blank an unrelated multi-live cell',
+  );
   await surface.links.addRow({ id: 'a2' });
   assert.equal(client.state.queryCalls.length, 0, 'push mode never issues client.query');
   surface.dispose();
