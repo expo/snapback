@@ -1,5 +1,53 @@
 // Deterministic author-facing projection of one complete codegen result.
 
+const WRITE_POSTURE_MIGRATION_WARNING =
+  'SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING';
+
+// @ref LLP 0264#d9-authorization-review-projection — structured diagnostics
+// and writePolicyChecks retain site/table facts; only the human summary groups
+// repeated migration findings by their semantic repair.
+function migrationAdvisoryGroups(diagnostics) {
+  const groups = new Map();
+  for (const diagnostic of diagnostics) {
+    if (diagnostic.code !== WRITE_POSTURE_MIGRATION_WARNING
+      || diagnostic.severity !== 'warning') continue;
+    const repairClass = diagnostic.repairClass ?? diagnostic.details?.repairClass
+      ?? 'declare-explicit-write-authority';
+    const current = groups.get(repairClass) ?? {
+      code: WRITE_POSTURE_MIGRATION_WARNING,
+      repairClass,
+      affectedTables: new Set(),
+      affectedOperations: new Set(),
+      occurrences: 0,
+    };
+    const table = diagnostic.table ?? diagnostic.details?.table;
+    if (typeof table === 'string') {
+      current.affectedTables.add(table);
+    }
+    const operation = diagnostic.function ?? diagnostic.details?.function;
+    if (typeof operation === 'string') current.affectedOperations.add(operation);
+    current.occurrences += 1;
+    groups.set(repairClass, current);
+  }
+  return [...groups.values()]
+    .map((group) => ({
+      code: group.code,
+      repairClass: group.repairClass,
+      affectedTableCount: group.affectedTables.size,
+      affectedTables: [...group.affectedTables].sort(),
+      affectedOperationCount: group.affectedOperations.size,
+      affectedOperations: [...group.affectedOperations].sort(),
+      occurrences: group.occurrences,
+      detailSurfaces: [
+        '--json diagnostics',
+        'generated/authorization-review.json#writePolicyChecks',
+      ],
+    }))
+    .sort((left, right) => (
+      left.repairClass < right.repairClass ? -1 : left.repairClass > right.repairClass ? 1 : 0
+    ));
+}
+
 export function createCodegenSummary({
   appId,
   inputsHash,
@@ -21,6 +69,7 @@ export function createCodegenSummary({
     if (fn.kind === 'LiveQuery') operationCounts.live += 1;
   }
   const warnings = diagnostics.filter(({ severity }) => severity === 'warning');
+  const migrationAdvisories = migrationAdvisoryGroups(diagnostics);
   const implicitAuthRequirements = diagnostics
     .filter(({ code }) => code === 'SNAPBACK_AUTH_REQUIREMENT_IMPLICIT')
     .map((diagnostic) => {
@@ -162,12 +211,14 @@ export function createCodegenSummary({
       ephemeralCollections: ephemeralCollections.length,
       custody,
       warnings: warnings.length,
+      migrationAdvisories: migrationAdvisories.length,
       implicitAuthRequirements: implicitAuthRequirements.length,
       degradedResults: degradedResults.length,
       fieldBoundaries: fieldBoundaries.length,
       ...(seedArtifact ? { seedRows: seedRowCount } : {}),
     },
     tableVisibility,
+    migrationAdvisories,
     fieldBoundaries,
     implicitAuthRequirements,
     degradedResults,
@@ -201,6 +252,13 @@ export function formatCodegenSummary(summary) {
     lines.push(
       `  auth ${item.operation}: ${item.source.path}:${item.source.line}:${item.source.column} omits auth and currently uses ${item.effectiveLegacyRequirement}`,
       `    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see ${item.guideAnchor}`,
+    );
+  }
+  for (const advisory of summary.migrationAdvisories ?? []) {
+    lines.push(
+      `  migration ${advisory.repairClass}: ${advisory.affectedTableCount} affected table${advisory.affectedTableCount === 1 ? '' : 's'} across ${advisory.occurrences} finding${advisory.occurrences === 1 ? '' : 's'}`,
+      '    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.',
+      `    Per-table detail: ${advisory.detailSurfaces.join('; ')}`,
     );
   }
   const visibility = summary.tableVisibility;

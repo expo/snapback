@@ -116,3 +116,29 @@ same revision (artifacts under `llp/reviews/0274-*`). Rulings recorded there:
 Closure of this ticket tracks LLP 0274's acceptance, implementation, and
 independent qualification plus the per-job migrations; the sitting converted
 the blocking design question into scheduled work.
+
+## 2026-08-21 Phase 1D advisory-output resolution
+
+The repeated-advisory presentation problem is resolved without weakening the
+migration evidence. Successful human codegen output now groups
+`SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING` findings by semantic repair
+class and reports one `declare-explicit-write-authority` advisory with the
+affected-table and finding counts. For example, Campfire's three findings over
+two tables render as one migration block rather than three identical warnings.
+
+Per-operation and per-table facts remain independently reachable in `--json`
+diagnostics and in
+`generated/authorization-review.json#writePolicyChecks`. The summary itself
+also carries deterministic affected-table and affected-operation lists, so the
+grouping is a human-output projection rather than a loss of evidence.
+
+Focused qualification passed:
+
+- `node packages/snapback-codegen/write-policy.test.mjs` (27/27);
+- `node packages/snapback-codegen/review-surface.test.mjs`;
+- `node packages/snapback-codegen/auth-artifacts.test.mjs`; and
+- `node packages/snapback-codegen/index.mjs demos/campfire/snapback --check`,
+  including a manual `--json` check that retained all three detailed findings.
+
+This closes only the migration-advisory grouping aspect. The ticket remains
+open for the 34-job posture migration and closure receipt described above.

@@ -5,8 +5,10 @@ import {
   buildWritePolicyChecks,
   deriveWritePosture,
   scanGenericWriteSites,
+  WRITE_POSTURE_MIGRATION_REPAIR_CLASS,
   WRITE_POSTURE_MIGRATION_WARNING,
 } from './write-policy.mjs';
+import { createCodegenSummary, formatCodegenSummary } from './codegen-summary.mjs';
 import {
   compareVisibilityPolicies,
   normalizePolicyBody,
@@ -122,8 +124,64 @@ test('Phase 1a warns and projects migration-pending without applying owner check
     assert.deepEqual(result.rows[0].authoritativeChecks, ['pre-0264-runtime-behavior']);
     assert.equal(warnings.length, 1);
     assert.equal(warnings[0].code, WRITE_POSTURE_MIGRATION_WARNING);
+    assert.equal(
+      warnings[0].details.repairClass,
+      WRITE_POSTURE_MIGRATION_REPAIR_CLASS,
+    );
     assert.equal(warnings[0].details.candidateWritePolicyCheck.id, result.rows[0].id);
   }
+});
+
+test('migration advisories group by repair class while retaining per-table detail', () => {
+  const diagnostics = [
+    ['createPost', 'posts', 'insert'],
+    ['updatePost', 'posts', 'patch'],
+    ['sendMessage', 'messages', 'insert'],
+  ].map(([operation, table, writeForm]) => ({
+    code: WRITE_POSTURE_MIGRATION_WARNING,
+    severity: 'warning',
+    subsystem: 'auth',
+    message: `${operation}: migration pending`,
+    function: operation,
+    table,
+    writeForm,
+    policyKind: 'public-read',
+    repairClass: WRITE_POSTURE_MIGRATION_REPAIR_CLASS,
+  }));
+  const summary = createCodegenSummary({
+    appId: 'migration-summary',
+    inputsHash: 'fixture-input',
+    tables: {
+      posts: { visibility: { kind: 'public-read' } },
+      messages: { visibility: { kind: 'public-read' } },
+    },
+    functions: [],
+    ephemeralCollections: [],
+    fileRecords: [],
+    diagnostics,
+  });
+  assert.equal(summary.counts.warnings, 3);
+  assert.equal(summary.counts.migrationAdvisories, 1);
+  assert.deepEqual(summary.migrationAdvisories, [{
+    code: WRITE_POSTURE_MIGRATION_WARNING,
+    repairClass: WRITE_POSTURE_MIGRATION_REPAIR_CLASS,
+    affectedTableCount: 2,
+    affectedTables: ['messages', 'posts'],
+    affectedOperationCount: 3,
+    affectedOperations: ['createPost', 'sendMessage', 'updatePost'],
+    occurrences: 3,
+    detailSurfaces: [
+      '--json diagnostics',
+      'generated/authorization-review.json#writePolicyChecks',
+    ],
+  }]);
+  const rendered = formatCodegenSummary(summary);
+  assert.equal(
+    rendered.match(/migration declare-explicit-write-authority:/gu)?.length,
+    1,
+  );
+  assert.match(rendered, /2 affected tables across 3 findings/u);
+  assert.match(rendered, /Per-table detail: --json diagnostics/u);
 });
 
 test('Phase 1b synthetic flip refuses declared non-owner generic writes', () => {

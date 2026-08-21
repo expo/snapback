@@ -46,6 +46,20 @@ export interface ImplicitAuthRequirementEntry {
   readonly guideAnchor: string;
 }
 
+export interface MigrationAdvisoryGroup {
+  readonly code: 'SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING';
+  readonly repairClass: string;
+  readonly affectedTableCount: number;
+  readonly affectedTables: readonly string[];
+  readonly affectedOperationCount: number;
+  readonly affectedOperations: readonly string[];
+  readonly occurrences: number;
+  readonly detailSurfaces: readonly [
+    '--json diagnostics',
+    'generated/authorization-review.json#writePolicyChecks',
+  ];
+}
+
 export interface TableVisibilitySummary {
   readonly declared: ReadonlyArray<Readonly<{
     table: string;
@@ -91,12 +105,16 @@ export interface CodegenSummary {
       total: number;
     }>;
     warnings: number;
+    migrationAdvisories: number;
     implicitAuthRequirements: number;
     degradedResults: number;
     fieldBoundaries: number;
     seedRows?: number | null;
   }>;
   readonly tableVisibility: TableVisibilitySummary;
+  /** Human-output groups only; per-site facts remain in diagnostics and the
+   * authorization-review writePolicyChecks projection. */
+  readonly migrationAdvisories: readonly MigrationAdvisoryGroup[];
   /** Opaque JavaScript handler claims: handler-enforced review declarations,
    * not mechanically proven field-level policies. */
   readonly fieldBoundaries: readonly FieldBoundarySummaryEntry[];

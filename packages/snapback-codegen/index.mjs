@@ -20111,7 +20111,16 @@ export async function runCodegenCli(argv = process.argv) {
   }
   const backendDir = resolve(args[0] ?? join(packageDir(), '..', '..', 'demos', 'todo', 'snapback'));
   const result = await generate(backendDir, { targetProfile, check });
-  for (const d of result.diagnostics) console.error(`[${d.severity}] ${d.code} (${d.subsystem}) ${d.message}`);
+  // @ref LLP 0264#d9-authorization-review-projection — the summary owns the
+  // grouped human rendering while --json and authorization-review keep every
+  // independently actionable table/site fact.
+  const summaryGroupedCodes = new Set(
+    (result.ok ? result.summary?.migrationAdvisories ?? [] : []).map(({ code }) => code),
+  );
+  for (const d of result.diagnostics) {
+    if (d.severity === 'warning' && summaryGroupedCodes.has(d.code)) continue;
+    console.error(`[${d.severity}] ${d.code} (${d.subsystem}) ${d.message}`);
+  }
   if (result.ok) {
     if (json) console.log(JSON.stringify(result, null, 2));
     else console.log(`${formatCodegenSummary(result.summary)}\n${check ? 'codegen preflight ok (no artifacts emitted)' : `codegen ok: ${result.outDir}`}  (inputsHash ${result.inputsHash.slice(0, 12)}…)`);

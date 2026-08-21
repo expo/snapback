@@ -15,6 +15,8 @@ export const WRITE_POLICY_CHECKS_SCHEMA_VERSION =
   'snapback.authorization-review.write-policy-checks.v2';
 export const WRITE_POSTURE_MIGRATION_WARNING =
   'SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING';
+export const WRITE_POSTURE_MIGRATION_REPAIR_CLASS =
+  'declare-explicit-write-authority';
 
 const WRITE_FORMS = Object.freeze(['insert', 'insert-each', 'patch', 'delete', 'delete-where']);
 const JS_WRITE_FORMS = Object.freeze(['insert', 'patch', 'delete']);
@@ -552,6 +554,7 @@ function migrationWarning(warn, operation, table, writeForm, candidate) {
       table: table.name,
       writeForm,
       policyKind: table.visibility.kind,
+      repairClass: WRITE_POSTURE_MIGRATION_REPAIR_CLASS,
       candidateWritePolicyCheck: candidate,
     },
   );
