@@ -1,8 +1,10 @@
 # `workspace-graph` is red on main: a shared build-script include has no source home
 
-**Status:** Open
+**Status:** Resolved
 **Filed:** 2026-08-21
 **Introduced by:** `7c8e43657` ("fix: harden sealed runtime assembly")
+**Resolved:** 2026-08-21
+**Landing SHA:** 05e6efd70
 
 ## The red
 
@@ -60,3 +62,28 @@ file location.
 This is another session's regression, recorded rather than silently patched so
 the ownership decision is made deliberately by whoever owns LLP 0276's
 projection, not improvised to turn a gate green.
+
+## Resolution
+
+The workspace-graph check now derives shared build-script source homes from
+literal `include!` calls in workspace-member `build.rs` files. A referenced
+file is accepted only when its resolved path is a `.rs` file directly under a
+member root. No filename allowlist or wildcard was added: an unreferenced
+member-root `.rs` file still fails, and an include cannot grant the shape to a
+nested non-source path.
+
+Coverage includes the real three-build-script positive, a synthetic literal
+and raw-literal positive that rejects comment/string examples, an unreferenced
+member-root negative, and a referenced nested-path negative.
+
+**Review notes (dual review, 2026-08-21):** grok: clean. codex raised one
+medium and two lows, disposed as follows rather than fixed: (1) an
+`include!` token inside another macro's unexpanded input (`stringify!`,
+unused `macro_rules!` bodies) would be counted as a real include — refuted
+as out of this check's threat model, which guards against *accidental*
+stray files; deliberately obfuscated blessing inside a reviewed build.rs is
+covered by code review and the other gates, and full token-tree parsing is
+disproportionate for this guard. (2) `include! { }` / `include! [ ]`
+delimiters and (3) cooked-string escapes are not recognized — both fail
+CLOSED (a legitimate unusual spelling re-reds loudly and lands here as an
+ordinary papercut), accepted by design.

@@ -17,6 +17,7 @@ import {
   canonicalRegularFileExists,
   maskRustCommentsAndLiterals,
   rustSourceFiles,
+  sharedBuildScriptIncludePaths,
   validateArtifactAndMetadata,
   validateEngineDefinitionDenylist,
   validateModuleMembership,
@@ -31,6 +32,7 @@ const workspaceRustFiles = rustSourceFiles(cratesRoot);
 const rustPaths = workspaceRustFiles
   .map(({ path }) => relative(repositoryRoot, path).split(sep).join('/'))
   .sort();
+const sharedBuildScriptIncludes = sharedBuildScriptIncludePaths(workspaceRustFiles);
 const generatedSourceHomePrefixes = artifact.generatedSourceHomes
   .map(({ path }) => `${path}/`);
 const moduleCount = rustPaths.filter(
@@ -92,10 +94,17 @@ test('the Phase 2 facade is assigned with no confined externals', () => {
     members: artifact.crates.map((entry) => entry.name).sort(),
     plannedCrates: 14,
   });
-  assert.deepEqual(validateModuleMembership(artifact, rustPaths), {
+  assert.deepEqual(validateModuleMembership(
+    artifact,
+    rustPaths,
+    undefined,
+    undefined,
+    sharedBuildScriptIncludes,
+  ), {
     moduleCount,
     exceptionCount: 0,
     generatedSourceHomeCount: 0,
+    sharedBuildScriptIncludeCount: 1,
   });
   assert.doesNotThrow(() => validateWorkspacePathModules(workspaceRustFiles));
 });
@@ -121,6 +130,7 @@ test('a Rust file outside the assigned workspace members fails closed', () => {
         || path.startsWith('issues/')
         || rustPaths.includes(path),
       '2026-08-18',
+      sharedBuildScriptIncludes,
     ),
     /not inside an assigned workspace member/u,
   );
@@ -156,7 +166,13 @@ test('a named membership exception cannot appear outside the reviewed inventory'
   const added = structuredClone(artifact);
   added.membershipExceptions.push(syntheticMembershipException());
   assert.throws(
-    () => validateModuleMembership(added, rustPaths, undefined, '2026-08-18'),
+    () => validateModuleMembership(
+      added,
+      rustPaths,
+      undefined,
+      '2026-08-18',
+      sharedBuildScriptIncludes,
+    ),
     /membership exception assignments drifted/u,
   );
 });
@@ -168,7 +184,13 @@ test('membership exceptions must match their physical member and stay bounded', 
     actualMember: 'snapback',
   });
   assert.throws(
-    () => validateModuleMembership(wrongMember, rustPaths, undefined, '2026-08-18'),
+    () => validateModuleMembership(
+      wrongMember,
+      rustPaths,
+      undefined,
+      '2026-08-18',
+      sharedBuildScriptIncludes,
+    ),
     /actualMember does not match/u,
   );
 
@@ -178,7 +200,13 @@ test('membership exceptions must match their physical member and stay bounded', 
     expiresAt: '2026-08-17',
   });
   assert.throws(
-    () => validateModuleMembership(expired, rustPaths, undefined, '2026-08-18'),
+    () => validateModuleMembership(
+      expired,
+      rustPaths,
+      undefined,
+      '2026-08-18',
+      sharedBuildScriptIncludes,
+    ),
     /expired on 2026-08-17/u,
   );
 });
@@ -192,6 +220,7 @@ test('a loose Rust file outside the source and build-script homes fails closed',
         || path.startsWith('issues/')
         || rustPaths.includes(path),
       '2026-08-18',
+      sharedBuildScriptIncludes,
     ),
     /unmatched Rust file outside a member source home/u,
   );
@@ -204,7 +233,13 @@ test('generated Rust source homes are exact, member-local ownership assignments'
     path: 'crates/snapback-engine/generated',
   });
   assert.throws(
-    () => validateModuleMembership(widened, rustPaths),
+    () => validateModuleMembership(
+      widened,
+      rustPaths,
+      undefined,
+      undefined,
+      sharedBuildScriptIncludes,
+    ),
     /generated source homes drifted/u,
   );
 
@@ -215,6 +250,59 @@ test('generated Rust source homes are exact, member-local ownership assignments'
       [...rustPaths, undeclaredGeneratedFile].sort(),
       (path) => path === undeclaredGeneratedFile || rustPaths.includes(path),
       '2026-08-18',
+      sharedBuildScriptIncludes,
+    ),
+    /unmatched Rust file outside a member source home/u,
+  );
+});
+
+test('literal build-script includes declare only their resolved member-root Rust file', () => {
+  assert.deepEqual(
+    [...sharedBuildScriptIncludes],
+    ['crates/snapback-types/build_identity.rs'],
+  );
+
+  const target = 'crates/snapback-types/synthetic_build_shared.rs';
+  const syntheticIncludes = sharedBuildScriptIncludePaths([{
+    path: join(repositoryRoot, 'crates/snapback-tools/build.rs'),
+    source: [
+      '// include!("../snapback-types/commented.rs");',
+      'const EXAMPLE: &str = "include!(\\"../snapback-types/string.rs\\")";',
+      'include!(/* direct literal */ r#"../snapback-types/synthetic_build_shared.rs"#);',
+    ].join('\n'),
+  }]);
+  assert.deepEqual([...syntheticIncludes], [target]);
+  assert.deepEqual(
+    validateModuleMembership(
+      artifact,
+      [target],
+      () => true,
+      '2026-08-18',
+      syntheticIncludes,
+    ),
+    {
+      moduleCount: 0,
+      exceptionCount: 0,
+      generatedSourceHomeCount: 0,
+      sharedBuildScriptIncludeCount: 1,
+    },
+  );
+});
+
+test('an include cannot widen the shared-build-source shape below the member root', () => {
+  const nestedTarget = 'crates/snapback-types/support/nested.rs';
+  const syntheticIncludes = sharedBuildScriptIncludePaths([{
+    path: join(repositoryRoot, 'crates/snapback-tools/build.rs'),
+    source: 'include!("../snapback-types/support/nested.rs");\n',
+  }]);
+  assert.deepEqual([...syntheticIncludes], [nestedTarget]);
+  assert.throws(
+    () => validateModuleMembership(
+      artifact,
+      [nestedTarget],
+      () => true,
+      '2026-08-18',
+      syntheticIncludes,
     ),
     /unmatched Rust file outside a member source home/u,
   );

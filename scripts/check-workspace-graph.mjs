@@ -252,9 +252,95 @@ function workspaceMemberForPath(path) {
   return match?.[1];
 }
 
+function rustIncludeStringLiteral(source, start) {
+  let cursor = start;
+  while (cursor < source.length) {
+    if (/\s/u.test(source[cursor])) {
+      cursor += 1;
+      continue;
+    }
+    if (source.startsWith('//', cursor)) {
+      const end = source.indexOf('\n', cursor + 2);
+      cursor = end === -1 ? source.length : end;
+      continue;
+    }
+    if (source.startsWith('/*', cursor)) {
+      let depth = 1;
+      cursor += 2;
+      while (cursor < source.length && depth > 0) {
+        if (source.startsWith('/*', cursor)) {
+          depth += 1;
+          cursor += 2;
+        } else if (source.startsWith('*/', cursor)) {
+          depth -= 1;
+          cursor += 2;
+        } else {
+          cursor += 1;
+        }
+      }
+      if (depth > 0) return undefined;
+      continue;
+    }
+    break;
+  }
+  if (source[cursor] === '"') {
+    const end = quotedEnd(source, cursor, '"');
+    const literal = source.slice(cursor + 1, end - 1);
+    return source[end - 1] === '"' && !literal.includes('\\')
+      ? { end, value: literal }
+      : undefined;
+  }
+  const rawStart = /^r(#+)?"/u.exec(source.slice(cursor));
+  if (!rawStart) return undefined;
+  const hashes = rawStart[1] ?? '';
+  const valueStart = cursor + rawStart[0].length;
+  const terminator = `"${hashes}`;
+  const valueEnd = source.indexOf(terminator, valueStart);
+  if (valueEnd === -1) return undefined;
+  return {
+    end: valueEnd + terminator.length,
+    value: source.slice(valueStart, valueEnd),
+  };
+}
+
+// A member-root Rust file is an authored source home only when a real workspace
+// build script includes that exact resolved file. Derive the set from syntax so
+// the exception cannot widen into a filename convention or an allowlist.
+export function sharedBuildScriptIncludePaths(files) {
+  const includedPaths = new Set();
+  for (const file of files) {
+    const buildScriptPath = relative(ROOT, file.path).split(sep).join('/');
+    if (!/^crates\/[a-z0-9-]+\/build\.rs$/u.test(buildScriptPath)) continue;
+    const maskedSource = maskRustCommentsAndLiterals(file.source);
+    for (const match of maskedSource.matchAll(/\binclude\s*!\s*\(/gu)) {
+      if (/[A-Za-z0-9_#:]/u.test(maskedSource[match.index - 1] ?? '')) continue;
+      const literal = rustIncludeStringLiteral(
+        file.source,
+        match.index + match[0].length,
+      );
+      if (!literal) continue;
+      let cursor = literal.end;
+      while (/\s/u.test(maskedSource[cursor] ?? '')) cursor += 1;
+      if (maskedSource[cursor] === ',') {
+        cursor += 1;
+        while (/\s/u.test(maskedSource[cursor] ?? '')) cursor += 1;
+      }
+      if (maskedSource[cursor] !== ')') continue;
+      const targetPath = relative(ROOT, resolve(dirname(file.path), literal.value))
+        .split(sep).join('/');
+      if (targetPath === '..' || targetPath.startsWith('../')) continue;
+      if (posix.normalize(targetPath) !== targetPath) continue;
+      includedPaths.add(targetPath);
+    }
+  }
+  return includedPaths;
+}
+
 // @ref LLP 0189#decision — analyzer retirement may not silently drop
-// module-home coverage. Every Rust file inherits its workspace member's
-// assigned owner; a named exception is the only other accepted home.
+// module-home coverage. Every Rust file must have an explicit authored,
+// syntax-derived build-include, generated, or bounded-exception home.
+// @ref LLP 0276#design-principles-for-the-target-layout — derive shared build
+// sources from literal include! syntax so one-home enforcement stays narrow.
 // @ref LLP 0276#crates--the-rust-workspace — committed generated Rust uses
 // an exact, matrix-declared member source home rather than masquerading as
 // authored source or temporary membership debt.
@@ -263,8 +349,10 @@ export function validateModuleMembership(
   rustPaths,
   pathExists = (path) => canonicalRegularFileExists(ROOT_REAL, path),
   today = new Date().toISOString().slice(0, 10),
+  sharedBuildScriptIncludes = new Set(),
 ) {
   sortedUniqueStrings(rustPaths, 'workspace Rust paths');
+  assert(sharedBuildScriptIncludes instanceof Set, 'shared build-script includes must be a Set');
   const members = new Map((artifact.crates ?? []).map((entry) => [entry.name, entry]));
   const owners = new Set((artifact.crates ?? []).map((entry) => entry.owner));
   assert(rustPaths.length > 0, 'workspace Rust inventory must not be empty');
@@ -314,15 +402,19 @@ export function validateModuleMembership(
   }
 
   let moduleCount = 0;
+  let sharedBuildScriptIncludeCount = 0;
   for (const rustPath of rustPaths) {
     validateCanonicalRepositoryPath(rustPath, 'workspace Rust path');
     const isModule = /^crates\/[a-z0-9-]+\/(?:src|tests|examples|benches)\/.+\.rs$/u.test(rustPath);
     const isBuildScript = /^crates\/[a-z0-9-]+\/build\.rs$/u.test(rustPath);
+    const isSharedBuildScriptInclude = /^crates\/[a-z0-9-]+\/[^/]+\.rs$/u.test(rustPath)
+      && !isBuildScript
+      && sharedBuildScriptIncludes.has(rustPath);
     const generatedHome = generatedSourceHomes.find(
       ({ path }) => rustPath.startsWith(`${path}/`) && rustPath.endsWith('.rs'),
     );
     assert(
-      isModule || isBuildScript || generatedHome,
+      isModule || isBuildScript || isSharedBuildScriptInclude || generatedHome,
       `unmatched Rust file outside a member source home: ${rustPath}`,
     );
     assert(pathExists(rustPath), `assigned Rust file does not exist: ${rustPath}`);
@@ -333,6 +425,7 @@ export function validateModuleMembership(
       !generatedHome || actualMember === generatedHome.member,
       `generated Rust file ${rustPath} escapes its assigned member ${generatedHome?.member}`,
     );
+    if (isSharedBuildScriptInclude) sharedBuildScriptIncludeCount += 1;
     if (!isModule && !generatedHome) continue;
     moduleCount += 1;
     const exception = exceptionAssignments.get(rustPath);
@@ -358,6 +451,7 @@ export function validateModuleMembership(
     moduleCount,
     exceptionCount: exceptionAssignments.size,
     generatedSourceHomeCount: generatedSourceHomes.length,
+    sharedBuildScriptIncludeCount,
   };
 }
 
@@ -992,7 +1086,14 @@ function main() {
     const rustPaths = rustFiles
       .map(({ path }) => relative(ROOT, path).split(sep).join('/'))
       .sort();
-    const membership = validateModuleMembership(artifact, rustPaths);
+    const sharedBuildScriptIncludes = sharedBuildScriptIncludePaths(rustFiles);
+    const membership = validateModuleMembership(
+      artifact,
+      rustPaths,
+      undefined,
+      undefined,
+      sharedBuildScriptIncludes,
+    );
     validateEngineDefinitionDenylist(artifact);
     const workspaceManifestSource = readFileSync(resolve(ROOT, 'Cargo.toml'), 'utf8');
     const metadata = JSON.parse(execFileSync(
@@ -1005,6 +1106,7 @@ function main() {
       `[workspace-graph] PASS: ${result.members.length} members (${result.members.join(', ')}); `
         + `${result.plannedCrates} planned matrix rows; ${membership.moduleCount} Rust modules `
         + `across ${membership.generatedSourceHomeCount} committed generated source home(s) `
+        + `and ${membership.sharedBuildScriptIncludeCount} shared build-script include(s) `
         + `(${membership.exceptionCount} named membership exceptions)\n`,
     );
   } catch (error) {
