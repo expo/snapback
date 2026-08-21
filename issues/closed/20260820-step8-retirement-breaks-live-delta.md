@@ -1,6 +1,6 @@
 # Step 8's registry retirement fires during normal serving, breaking live-delta
 
-**Status:** Open — repair implemented; external live-gate confirmation pending
+**Status:** Resolved — repair implemented; external live-gate confirmation pending
 **Filed:** 2026-08-20
 **Severity:** High — regression on `main`
 **Systems:** Live/realtime, Security/authorization, Storage
@@ -84,3 +84,37 @@ boundary. Restoring it made that regression and
 All non-network acceptance checks pass. This agent execution sandbox denied a minimal
 `127.0.0.1:0` bind and the live gate reached the same OS error after runtime bootstrap, so the
 ticket remains open only for an unsandboxed run of `node demos/_kit/tests/live-delta-e2e.mjs`.
+
+## Resolution — 2026-08-21
+
+Fixed by `6974f80e8`, landed with its regression and verified unsandboxed.
+
+The cause was not a lifecycle transition wrongly retiring a registry. It was a
+wrong live path: ordinary serving's live `ParticipantBound` registry was routed
+through READY-only reservation preparation and misreported as retired. Only
+`ParticipantReady` may now split for an exact room reservation; dormant
+`ParticipantBound` stays in its original turn and the kernel still derives the
+transaction's actual witness.
+
+The tempting fix — relaxing the retirement check — would have reopened the
+defect `8176b4348` closed. That property is preserved, and proven by mutation
+rather than asserted: neutralizing the registry's retired bit makes the
+held-P0-permit test fail at the final transport assertion, and restoring it
+makes both replacement regressions pass. Two independent reviewers (codex
+`gpt-5.6-sol`, grok-4.6, both xhigh) separately confirmed a held P0 permit is
+still denied at admit and at transport after replacement.
+
+`node demos/_kit/tests/live-delta-e2e.mjs` now passes 3/3. It needed two fixes
+that were being made in separate lanes: this one, and the visibility-cluster
+migration that gave the fixture an explicit table policy. Neither alone was
+sufficient.
+
+A route-level serving regression was added, since nothing faster than the
+complete battery exercised a live serving flow — the coverage gap that let
+this reach main.
+
+Note: the separate hang in
+`approval_gate_returns_one_pending_shape_on_bare_api_mcp_and_link_ingress` is
+NOT fixed by this and is not caused by it; it reproduces on `origin/main`
+without these changes. Tracked in
+`issues/20260821-approval-gate-ingress-test-hangs.md`.
