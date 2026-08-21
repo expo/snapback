@@ -5775,6 +5775,19 @@ export class SnapbackClient {
         if (capture) bearerUsed = this.authorityFence.credentialFor(capture).bearer;
       }
 
+      if (authAdmissionReference !== null) {
+        // @ref LLP 0059#participant-contract — synchronize() may join an
+        // authority barrier that settled to a different admission state. The
+        // post-handshake capture is the last local authority fact before
+        // dispatch, so revalidate generated one-shot admission against it.
+        const authAdmissionError = authenticatedOneShotAdmissionError(
+          authAdmissionReference,
+          this,
+          authAdmissionOperation,
+        );
+        if (authAdmissionError !== null) throw authAdmissionError;
+      }
+
       const sessionsMode = session?.activeMode === 'sessions';
       let requestBody = body;
       const mutationIdentityRequest = path.startsWith('/mutation/') && body?.clientMutationId;
@@ -5969,7 +5982,6 @@ export class SnapbackClient {
         ? await this.authCoordinator.withSenderRequestSerialization(capture, dispatch)
         : await dispatch();
     } catch (error) {
-      const code = error?.diagnostic?.code ?? error?.code;
       const responseCapture = error?.[AUTHORITY_CAPTURE] ?? null;
       if (
         responseCapture
@@ -5982,8 +5994,14 @@ export class SnapbackClient {
         && !this.authorityFence.isCurrent(capture)
         && !this.#isTerminalAuthorityCapture(capture)
       ) {
-        throw staleAuthorityError();
+        if (!fetchInvoked) throw staleAuthorityError();
+        // Once fetch() has been invoked, a logout abort cannot prove that an
+        // action or mutation had no server effect. Preserve the stale
+        // authority classification, but let the common diagnostic wrapper
+        // stamp effectMayHaveCommitted from the transport-entry fact below.
+        error = staleAuthorityError();
       }
+      const code = error?.diagnostic?.code ?? error?.code;
       if (
         code === 'SNAPBACK_AUTH_SENDER_PROOF_REQUIRED'
         && senderChallengeRetry

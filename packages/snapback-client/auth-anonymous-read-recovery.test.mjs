@@ -310,6 +310,26 @@ const gateNextTransitionResume = (coordinator) => {
   return Object.freeze({ entered, release: releaseResume, unregister });
 };
 
+const gateNextSynchronization = (coordinator) => {
+  const entered = deferred();
+  const release = deferred();
+  const synchronize = coordinator.synchronize;
+  let intercepted = false;
+  coordinator.synchronize = async function gatedSynchronization(...args) {
+    if (!intercepted) {
+      intercepted = true;
+      entered.resolve();
+      await release.promise;
+    }
+    return Reflect.apply(synchronize, this, args);
+  };
+  return Object.freeze({
+    entered: entered.promise,
+    release: release.resolve,
+    restore() { coordinator.synchronize = synchronize; },
+  });
+};
+
 test('anonymous protected one-shots recover on the same client', async (t) => {
   await t.test('local generated preflight performs no transport I/O and sign-in succeeds', async () => {
     const fixture = makeFixture();
@@ -413,6 +433,221 @@ test('anonymous protected one-shots recover on the same client', async (t) => {
       } finally {
         await fixture.close();
       }
+    }
+  });
+
+  await t.test('mid-flight logout keeps action and mutation effects possibly committed', async () => {
+    for (const { label, start } of [
+      {
+        label: 'action',
+        start: (client) => client.run(protectedAction),
+      },
+      {
+        label: 'mutation',
+        start: (client) => client.mutate(protectedMutation, { queue: false }),
+      },
+    ]) {
+      const fixture = makeFixture();
+      try {
+        await fixture.client.authSession();
+        const anonymousCapture = fixture.coordinator.capture();
+        const anonymousAuthority = fixture.coordinator.credentialFor(
+          anonymousCapture,
+        ).authority;
+        await fixture.client.authExchange({
+          challengeId: `challenge-mid-flight-logout-${label}`,
+          code: '223344',
+        });
+        const gate = fixture.holdNextEffect();
+        const operation = start(fixture.client);
+        await gate.entered;
+        const logout = fixture.coordinator.transition(
+          fixture.coordinator.capture(),
+          { authority: anonymousAuthority, bearer: null, refreshAfterMs: null },
+          'logout',
+        );
+        await assert.rejects(operation, (error) => {
+          assert.equal(
+            error?.effectMayHaveCommitted,
+            true,
+            `${label} transport entry remains retry-indeterminate across logout`,
+          );
+          assert.notEqual(
+            error?.effectCommitted,
+            false,
+            `${label} logout cannot manufacture authoritative no-effect proof`,
+          );
+          return true;
+        });
+        await logout;
+      } finally {
+        await fixture.close();
+      }
+    }
+  });
+
+  await t.test('admitted one-shots recheck auth after joining logout synchronization', async () => {
+    for (const { label, start, requestPath } of [
+      {
+        label: 'action',
+        start: (client) => client.run(protectedAction),
+        requestPath: '/action/privateAction',
+      },
+      {
+        label: 'mutation',
+        start: (client) => client.mutate(protectedMutation, { queue: false }),
+        requestPath: '/mutation/privateMutation',
+      },
+    ]) {
+      const fixture = makeFixture();
+      let transitionGate = null;
+      let synchronizationGate = null;
+      let logout = null;
+      try {
+        await fixture.client.authSession();
+        const anonymousCapture = fixture.coordinator.capture();
+        const anonymousAuthority = fixture.coordinator.credentialFor(
+          anonymousCapture,
+        ).authority;
+        await fixture.client.authExchange({
+          challengeId: `challenge-post-synchronize-${label}`,
+          code: '334455',
+        });
+        synchronizationGate = gateNextSynchronization(fixture.coordinator);
+        const requestsBeforeOperation = fixture.requests.filter(
+          ({ path }) => path === requestPath,
+        ).length;
+        const operation = start(fixture.client);
+        await synchronizationGate.entered;
+
+        transitionGate = gateNextTransitionCommit(fixture.coordinator);
+        logout = fixture.coordinator.transition(
+          fixture.coordinator.capture(),
+          { authority: anonymousAuthority, bearer: null, refreshAfterMs: null },
+          'logout',
+        );
+        await transitionGate.entered;
+        synchronizationGate.release();
+        await Promise.resolve();
+        assert.equal(
+          fixture.requests.filter(({ path }) => path === requestPath).length,
+          requestsBeforeOperation,
+          `${label} performs no effect request while synchronize owns the barrier join`,
+        );
+
+        transitionGate.release();
+        await logout;
+        await assert.rejects(operation, (error) => {
+          assert.equal(error?.code, 'SNAPBACK_AUTH_REQUIRED');
+          assert.equal(error?.reason, 'authentication-required');
+          assert.equal(error?.effectCommitted, false);
+          assert.equal(error?.effectMayHaveCommitted, false);
+          assert.equal(
+            error?.diagnostic?.details?.transitionOwner,
+            'auth-coordinator',
+          );
+          return true;
+        });
+        assert.equal(
+          fixture.requests.filter(({ path }) => path === requestPath).length,
+          requestsBeforeOperation,
+          `${label} cannot dispatch anonymously after the joined logout settles`,
+        );
+        await transitionGate.unregister();
+        transitionGate = null;
+        logout = null;
+      } finally {
+        synchronizationGate?.release();
+        synchronizationGate?.restore();
+        transitionGate?.release();
+        await logout?.catch(() => {});
+        await transitionGate?.unregister();
+        await fixture.close();
+      }
+    }
+  });
+
+  await t.test('a held logout projects blocked ownership while an admitted one-shot is joined', async () => {
+    const fixture = makeFixture();
+    let transitionGate = null;
+    let synchronizationGate = null;
+    let logout = null;
+    try {
+      await fixture.client.authSession();
+      const anonymousCapture = fixture.coordinator.capture();
+      const anonymousAuthority = fixture.coordinator.credentialFor(
+        anonymousCapture,
+      ).authority;
+      await fixture.client.authExchange({
+        challengeId: 'challenge-held-logout-projection',
+        code: '998877',
+      });
+
+      synchronizationGate = gateNextSynchronization(fixture.coordinator);
+      let admittedOutcome = null;
+      const admitted = fixture.client.run(protectedAction).then(
+        () => { admittedOutcome = { status: 'resolved' }; },
+        (error) => { admittedOutcome = { status: 'rejected', error }; },
+      );
+      await synchronizationGate.entered;
+
+      transitionGate = gateNextTransitionCommit(fixture.coordinator);
+      logout = fixture.coordinator.transition(
+        fixture.coordinator.capture(),
+        { authority: anonymousAuthority, bearer: null, refreshAfterMs: null },
+        'logout',
+      );
+      await transitionGate.entered;
+      synchronizationGate.release();
+      await Promise.resolve();
+      assert.equal(
+        admittedOutcome,
+        null,
+        'the admitted predecessor is explicitly owned by the held synchronization barrier',
+      );
+
+      let blockedProjection = null;
+      await fixture.client.mutate(protectedMutation, { queue: false }).then(
+        () => assert.fail('a one-shot started inside the held barrier must not execute'),
+        (error) => {
+          blockedProjection = {
+            status: 'blocked',
+            reason: error?.reason,
+            transitionOwner: error?.diagnostic?.details?.transitionOwner,
+            effectMayHaveCommitted: error?.effectMayHaveCommitted,
+          };
+        },
+      );
+      assert.deepEqual(blockedProjection, {
+        status: 'blocked',
+        reason: 'authentication-not-settled',
+        transitionOwner: 'auth-coordinator',
+        effectMayHaveCommitted: false,
+      });
+      assert.equal(
+        fixture.requests.some(
+          ({ path }) => path === '/action/privateAction' || path === '/mutation/privateMutation',
+        ),
+        false,
+        'the indefinitely held barrier starts no action or mutation transport',
+      );
+
+      transitionGate.release();
+      await logout;
+      await admitted;
+      assert.equal(admittedOutcome?.status, 'rejected');
+      assert.equal(admittedOutcome?.error?.code, 'SNAPBACK_AUTH_REQUIRED');
+      assert.equal(admittedOutcome?.error?.effectMayHaveCommitted, false);
+      await transitionGate.unregister();
+      transitionGate = null;
+      logout = null;
+    } finally {
+      synchronizationGate?.release();
+      synchronizationGate?.restore();
+      transitionGate?.release();
+      await logout?.catch(() => {});
+      await transitionGate?.unregister();
+      await fixture.close();
     }
   });
 
