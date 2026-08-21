@@ -65,4 +65,4 @@ operation keys, all five outcomes, stable special-case codes, detail bounds,
 multiple/truncated path failures, identity mismatch, cleanup failure, and an
 unchanged valid receipt.
 
-**Landing SHA:** TBD
+**Landing SHA:** fc2eb317f (with review-fix commits on the same push)
