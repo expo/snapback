@@ -40,6 +40,8 @@ const packageRoots = Object.freeze([
 ]);
 const guidePath = 'recipes/activity-presence.md';
 const negativeCode = 'SNAPBACK_REACT_ACTIVITY_IDLE_MS_INVALID';
+const collectionTtlMs = 5_000;
+const deleteVisibilityMs = 2_000;
 
 function usage() {
   return `Usage: node scripts/activity-presence-vertical-contract.mjs [options]
@@ -119,6 +121,17 @@ async function waitFor(predicate, label, timeoutMs = 15_000) {
   assert.fail(`timed out waiting for ${label}`);
 }
 
+async function waitForDeleteBeforeTtl(predicate, label) {
+  const startedAt = Date.now();
+  await waitFor(predicate, label, deleteVisibilityMs);
+  const elapsedMs = Date.now() - startedAt;
+  assert(
+    elapsedMs < deleteVisibilityMs,
+    `${label} took ${elapsedMs}ms; delete must be visible before the ${collectionTtlMs}ms TTL`,
+  );
+  return elapsedMs;
+}
+
 function cleanRuntimeEnvironment() {
   const environment = {
     ...process.env,
@@ -184,6 +197,7 @@ function copyFixtureFiles(target) {
     'codegen.policy.json',
     'functions.mjs',
     'schema.mjs',
+    'surface-model.mjs',
     'tsconfig.json',
   ]) {
     cpSync(join(fixtureRoot, name), join(target, name));
@@ -368,6 +382,11 @@ async function main() {
       `${pathToFileURL(join(generatedRoot, 'app.mjs')).href}?activity-presence-vertical`
     )).app;
     const typing = generatedApp.api.ephemeral.typing;
+    assert.equal(
+      typing.defaultTtlMs,
+      collectionTtlMs,
+      'generated typing reference must carry the 5s fixture TTL used by delete timing assertions',
+    );
     const scope = { roomId: 'room-one' };
 
     observer = await client.subscribeEphemeral(typing, {
@@ -386,7 +405,7 @@ async function main() {
       return observer.currentEntries().some(({ value }) => value.userHandle === 'headless');
     }, 'headless publish visibility');
     await headlessPublisher.delete();
-    await waitFor(async () => {
+    const headlessDeleteMs = await waitForDeleteBeforeTtl(async () => {
       await observer.drain();
       return !observer.currentEntries().some(({ value }) => value.userHandle === 'headless');
     }, 'headless delete visibility');
@@ -429,22 +448,64 @@ async function main() {
       await observer.drain();
       return observer.currentEntries().some(({ value }) => value.userHandle === 'react');
     }, 'React touch visibility');
-    const idleObservedAt = Date.now();
-    await waitFor(async () => {
+    const idleDeleteMs = await waitForDeleteBeforeTtl(async () => {
       await observer.drain();
       return !observer.currentEntries().some(({ value }) => value.userHandle === 'react');
-    }, 'React idle withdrawal', 5_000);
-    assert(Date.now() - idleObservedAt < 5_000, 'activity presence must withdraw below the 5s ceiling');
+    }, 'React idle withdrawal');
     TestRenderer.act(() => { activity.touch(); });
     await waitFor(async () => {
       await observer.drain();
       return observer.currentEntries().some(({ value }) => value.userHandle === 'react');
     }, 'React second touch visibility');
     await TestRenderer.act(async () => { await activity.withdraw(); });
-    await waitFor(async () => {
+    const explicitDeleteMs = await waitForDeleteBeforeTtl(async () => {
       await observer.drain();
       return !observer.currentEntries().some(({ value }) => value.userHandle === 'react');
     }, 'React explicit withdrawal');
+    await TestRenderer.act(async () => { renderer.unmount(); });
+    renderer = null;
+
+    function BoundValueProbe({ enabled }) {
+      reactPackage.useSurface(generatedApp.surfaces.typingRoom, scope, {
+        presence: {
+          typing: enabled
+            ? { userHandle: 'bound-react', name: 'Bound React' }
+            : reactPackage.skip,
+        },
+      });
+      return null;
+    }
+    await TestRenderer.act(async () => {
+      renderer = TestRenderer.create(React.createElement(
+        reactPackage.SnapbackProvider,
+        { binding },
+        React.createElement(BoundValueProbe, { enabled: true }),
+      ));
+      await sleep(0);
+    });
+    await waitFor(async () => {
+      await observer.drain();
+      return observer.currentEntries().some(({ value }) => value.userHandle === 'bound-react');
+    }, 'bound surface presence visibility');
+    await sleep(collectionTtlMs + 750);
+    await observer.drain();
+    assert.equal(
+      observer.currentEntries().some(({ value }) => value.userHandle === 'bound-react'),
+      true,
+      'truthy useSurface presence must remain visible beyond TTL while mounted',
+    );
+    await TestRenderer.act(async () => {
+      renderer.update(React.createElement(
+        reactPackage.SnapbackProvider,
+        { binding },
+        React.createElement(BoundValueProbe, { enabled: false }),
+      ));
+      await sleep(0);
+    });
+    const boundSkipDeleteMs = await waitForDeleteBeforeTtl(async () => {
+      await observer.drain();
+      return !observer.currentEntries().some(({ value }) => value.userHandle === 'bound-react');
+    }, 'bound surface skip withdrawal');
     await TestRenderer.act(async () => { renderer.unmount(); });
     renderer = null;
 
@@ -482,7 +543,7 @@ async function main() {
       appState.transition('background');
       await sleep(0);
     });
-    await waitFor(async () => {
+    const backgroundDeleteMs = await waitForDeleteBeforeTtl(async () => {
       await observer.drain();
       return !observer.currentEntries().some(({ value }) => value.userHandle === 'expo');
     }, 'Expo background withdrawal');
@@ -515,7 +576,7 @@ async function main() {
     }
 
     process.stdout.write(`${JSON.stringify({
-      schemaVersion: 'snapback.activity-presence-vertical-contract.v1',
+      schemaVersion: 'snapback.activity-presence-vertical-contract.v2',
       ok: true,
       packageClosure: installed.packageClosure,
       guide: { query: 'typing', path: guidePath },
@@ -524,10 +585,26 @@ async function main() {
         reusedPackedRoot: args.reuseRoot !== null,
         typedGeneratedEphemeralReference: true,
       },
-      runtime: { packedByteIdenticalCarrier: true, headlessPublishDelete: true },
+      runtime: {
+        packedByteIdenticalCarrier: true,
+        collectionTtlMs,
+        deleteVisibilityMs,
+        headlessPublishDelete: true,
+        headlessDeleteMs,
+      },
       clients: {
-        react: { touch: true, idleWithdrawalBelowFiveSeconds: true, explicitWithdrawal: true },
-        expo: { touch: true, backgroundWithdrawal: true },
+        react: {
+          touch: true,
+          idleWithdrawalBeforeTtl: true,
+          idleDeleteMs,
+          explicitWithdrawal: true,
+          explicitDeleteMs,
+          boundValueContinuousRenewal: true,
+          boundValuePersistedBeyondTtl: true,
+          boundSkipWithdrawalBeforeTtl: true,
+          boundSkipDeleteMs,
+        },
+        expo: { touch: true, backgroundWithdrawal: true, backgroundDeleteMs },
       },
       negative: {
         code: negativeCode,

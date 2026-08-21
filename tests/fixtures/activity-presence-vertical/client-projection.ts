@@ -1,5 +1,5 @@
 import { useSnapbackActivityPresence as useExpoActivityPresence } from '@expo/snapback-expo';
-import { useSnapbackActivityPresence } from '@expo/snapback-react';
+import { skip, useSnapbackActivityPresence, useSurface } from '@expo/snapback-react';
 import { app } from './generated/app';
 
 const typing = app.api.ephemeral.typing;
@@ -25,6 +25,16 @@ export function ExpoTypingComposer() {
     idleMs: 3_000,
   });
   presence.peers satisfies readonly unknown[];
+  return null;
+}
+
+export function BoundTypingComposer({ enabled }: { enabled: boolean }) {
+  const surface = useSurface(app.surfaces.typingRoom, { roomId: 'room-one' }, {
+    presence: {
+      typing: enabled ? { userHandle: 'ada', name: 'Ada' } : skip,
+    },
+  });
+  surface.presence.typing.members satisfies readonly unknown[];
   return null;
 }
 

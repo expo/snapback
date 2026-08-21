@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:bc63638fe4b4139746c3c8da33d2670e25eebb35d8985d34b5f226fde2343200
+reviewed-authorities-digest: sha256:8f70a44985f5309caef3b140d31f6714b5a0f2fe8bd26961e0bada330ce66219
 ---
 
 # Recipe: activity presence, heartbeats, and withdrawal
