@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:5a2dfa009e8561dac727edf4272dc9972e434dc00ac62f1bcd1d224ee287f85d"
+    "sourceDigest": "sha256:54b7691d353e491c301609c2710303da06aca4e339fc86b148f81dfaeea7aff0"
   },
   "limits": {
     "lookupBytes": 16384
@@ -12,7 +12,7 @@
     "sourceFiles": 588,
     "emittingSites": 11959,
     "httpClassified": 1030,
-    "guideAnchored": 427
+    "guideAnchored": 428
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -25949,7 +25949,9 @@
       "guideAnchor": "/_snapback/guide/auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals",
       "guideAnchors": [
         "/_snapback/guide/auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals",
-        "/_snapback/guide/backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients"
+        "/_snapback/guide/backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients",
+        "/_snapback/guide/recipes/auth-transition-writes.md#fence-non-queueable-gestures",
+        "/_snapback/guide/recipes/auth-transition-writes.md#read-the-settlement-state-first"
       ]
     },
     "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT": {
@@ -33704,8 +33706,11 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/recipes/auth-transition-writes.md#fence-non-queueable-gestures",
+      "guideAnchors": [
+        "/_snapback/guide/recipes/auth-transition-writes.md#fence-non-queueable-gestures",
+        "/_snapback/guide/recipes/auth-transition-writes.md#read-the-settlement-state-first"
+      ]
     },
     "SNAPBACK_CLIENT_AUTHORITY_STALE": {
       "code": "SNAPBACK_CLIENT_AUTHORITY_STALE",

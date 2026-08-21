@@ -664,9 +664,11 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     receipt or feed write fails with
     `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` while login changes." The run
     fails if it creates an unbounded effect/retry loop, treats suspension as a
-    content refusal, or declares a queued mutation settled.
+    content refusal, or declares a queued mutation settled. It also fails if it
+    invents a pending housekeeping flag/API from the D0.2 ruling.
     Expected pages: `recipes/auth-transition-writes.md`.
-    Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
+    Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground", "write after login", "mutation during sign-in", "outbox suspended", "background write auth".
+    Required guidance: "blocked:authentication-required", "blocked:authentication-not-settled", "transitionOwner", "auth-coordinator", "Every dispatched promise must be awaited or have a rejection handler attached immediately".
 
 62. **Presence heartbeat versus bound value:** "I passed
     `useSurface({ typing: value })`; why is the surface presence value a
@@ -751,6 +753,20 @@ packed-package author to a nonexistent raw-client namespace.
     Expected pages: `backend/assets.md`.
     Route terms: "client.assets.start", "createAssetClient(client)",
     "raw SnapbackClient assets".
+
+Case 73 absorbs diary 0105 M2's foreground variant of the auth-transition
+failure, including the development-overlay consequence and its separate
+six-subscription trigger.
+
+73. **Foreground auth-transition rejection:** "A repeated interactive feed
+    mutation hit `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`; its unhandled
+    rejection left the Expo error overlay intercepting later gestures while
+    the route had six live subscriptions." The run fails if it retries
+    without a bound, leaves the final promise unobserved, or treats query
+    consolidation as proof that authorization suspension is ordinary tuning.
+    Expected pages: `recipes/auth-transition-writes.md`.
+    Route terms: "interactive feed mutation", "unhandled rejection", "Expo error overlay", "six live subscriptions", "authorization-suspended foreground gesture".
+    Required guidance: "one bounded retry only if the resulting principal is still the intended actor", "separate open contention investigation".
 
 ## Static routing check
 

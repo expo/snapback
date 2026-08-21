@@ -25,3 +25,14 @@ under a successor.
 10. Located the headless authority section.
 11. Read that bounded section.
 12. Read `guide/recipes/auth-transition-writes.md` and produced the plan.
+
+## Settlement-vocabulary extension
+
+The same cold-run verdict remains the closure probe for case 61. The
+2026-08-21 foreground-evidence extension adds static case 73 rather than
+claiming a second cold-agent run: `node scripts/check-retrieval-eval.mjs
+--check` passed all 73 cases and found lexical routes from the diary-exact
+“interactive feed mutation”, “unhandled rejection”, “Expo error overlay”, and
+“six live subscriptions” terms to the recipe. Case 61 also passed with “write
+after login”, “mutation during sign-in”, “outbox suspended”, and “background
+write auth”.

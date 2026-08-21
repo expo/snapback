@@ -1784,9 +1784,11 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     receipt or feed write fails with
     `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` while login changes." The run
     fails if it creates an unbounded effect/retry loop, treats suspension as a
-    content refusal, or declares a queued mutation settled.
+    content refusal, or declares a queued mutation settled. It also fails if it
+    invents a pending housekeeping flag/API from the D0.2 ruling.
     Expected pages: `recipes/auth-transition-writes.md`.
-    Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
+    Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground", "write after login", "mutation during sign-in", "outbox suspended", "background write auth".
+    Required guidance: "blocked:authentication-required", "blocked:authentication-not-settled", "transitionOwner", "auth-coordinator", "Every dispatched promise must be awaited or have a rejection handler attached immediately".
 
 62. **Presence heartbeat versus bound value:** "I passed
     `useSurface({ typing: value })`; why is the surface presence value a
@@ -1871,6 +1873,20 @@ packed-package author to a nonexistent raw-client namespace.
     Expected pages: `backend/assets.md`.
     Route terms: "client.assets.start", "createAssetClient(client)",
     "raw SnapbackClient assets".
+
+Case 73 absorbs diary 0105 M2's foreground variant of the auth-transition
+failure, including the development-overlay consequence and its separate
+six-subscription trigger.
+
+73. **Foreground auth-transition rejection:** "A repeated interactive feed
+    mutation hit `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`; its unhandled
+    rejection left the Expo error overlay intercepting later gestures while
+    the route had six live subscriptions." The run fails if it retries
+    without a bound, leaves the final promise unobserved, or treats query
+    consolidation as proof that authorization suspension is ordinary tuning.
+    Expected pages: `recipes/auth-transition-writes.md`.
+    Route terms: "interactive feed mutation", "unhandled rejection", "Expo error overlay", "six live subscriptions", "authorization-suspended foreground gesture".
+    Required guidance: "one bounded retry only if the resulting principal is still the intended actor", "separate open contention investigation".
 
 ## Static routing check
 
@@ -27120,13 +27136,13 @@ id: recipes.auth-transition-writes
 order: 12
 audience: agent-first
 capabilities: [clients.outbox-drain, clients.mutation-outcomes, auth.invalidation-barrier]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/outbox-store.test.mjs]
-examples: [packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/outbox-store.test.mjs, demos/browser-local-first]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/index.mjs, packages/snapback-react/implementation.mjs, packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/outbox-store.test.mjs, scripts/auth-settlement-packed-proof.mjs]
+examples: [packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/outbox-store.test.mjs, scripts/auth-settlement-packed-proof.mjs, demos/browser-local-first]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:d8cac17f99ba2c4dcf845310194e20d29b6542948551e506397efdbc259e00ba
+reviewed-authorities-digest: sha256:e21fb82f65cc1d86dea17670c0bbe9de622ed2fb591609d59e3b7a326e360df6
 ---
 
 # Recipe: writes during authentication transitions
@@ -27145,19 +27161,48 @@ This includes the reproduced “eager route-entry receipt” and broader
 “background writes during auth transitions” cases, as well as an
 authorization-suspended foreground gesture.
 
-The multi-subscription trigger observed in the same run remains an open
-[contention investigation](repo:issues/20260820-familiar-live-subscription-contention.md).
-This recipe describes how callers settle writes safely; it does not classify
-or close that separate liveness question.
+In the vocabulary builders actually searched, this is the **write after login**,
+**mutation during sign-in**, **outbox suspended**, or **background write auth**
+recipe.
+
+## Read the settlement state first
+
+The shipped generated-client vocabulary distinguishes a stable signed-out
+state from an authority transition. `blocked:authentication-required` and
+`blocked:authentication-not-settled` below are compact spellings for the two
+field pairs, not single status strings:
+
+| Situation | Protected live-query state | Imperative one-shot refusal | Caller response |
+| --- | --- | --- | --- |
+| Settled signed out | `status: "blocked"`, `reason: "authentication-required"`, `transitionOwner: "auth-coordinator"` | `SNAPBACK_AUTH_REQUIRED` with `reason: "authentication-required"` and `diagnostic.details.transitionOwner: "auth-coordinator"` | Keep the intent undispatched; ask for authentication. Do not start a retry timer. |
+| Signing in or signing out | `status: "blocked"`, `reason: "authentication-not-settled"`, `transitionOwner: "auth-coordinator"` | `SNAPBACK_CLIENT_AUTHORITY_CLEARING` with `reason: "authentication-not-settled"` and `diagnostic.details.transitionOwner: "auth-coordinator"` | Wait for the in-flight auth operation to settle. No transport was issued. |
+| Settled signed in | `ready` or `refreshing` | admitted | Dispatch under the settled principal. |
+| Terminal auth failure | `status: "error"` with `transitionOwner: "auth-coordinator"` | the recorded terminal code | Stop automatic retry, restore the control, and render/report the terminal diagnostic. |
+
+A protected live query leaving `blocked:authentication-not-settled` is a
+useful framework-visible settlement observation. Awaiting the sign-in or
+sign-out call is the corresponding gesture-owned barrier. Do not invent a
+second timer, a `waitForAuthSettlement` API, or a private coordinator probe.
 
 ## Prefer queueable generated mutations
 
 For receipts, route-entry bookkeeping, feed acknowledgements, and other
 background work that remains meaningful after the same logical user settles,
-use the generated queueable mutation path. During the barrier it resolves as
-queued with `authorizationDisposition: "authorization-suspended"`; the outbox
-drain resumes only after authority proof. Render that as pending and observe
-the mutation settlement rather than turning it into an unhandled UI error.
+use the default queueable generated mutation path. In React,
+`useSnapbackMutation(reference)` uses the `queue: "auto"` behavior and returns
+the truthful `settled | queued` union. On the local target with a qualified
+outbox and settlement ledger, accepted intent held behind the authorization
+barrier resolves `queued`; the headless outcome additionally reports
+`authorizationDisposition: "authorization-suspended"`. The outbox drain
+resumes only after authority proof. Render that branch as pending and observe
+the mutation settlement rather than declaring success.
+
+`queue: "auto"` is capability-sensitive: without a qualified outbox it
+degrades to `queue: false` and rejects instead of pretending the intent is
+durable. Explicit `queue: true` requires outbox support. The separate declared
+housekeeping lane and `blockedReason: "auth-barrier"` vocabulary in the LLP
+0295 D0.2 implementation program are not shipped APIs today; do not invent a
+`housekeeping: true` flag or promise foreground/housekeeping lane isolation.
 
 Capture the logical intent once. Do not let a React effect manufacture a new
 mutation id on every auth snapshot or retry tick. After a principal change,
@@ -27167,21 +27212,58 @@ the reported disposition rather than silently replaying it as the successor.
 ## Fence non-queueable gestures
 
 A foreground operation declared with `queue: false` rejects locally while
-authority is suspended and does not reach transport. Disable or defer the
-gesture until the coordinator/app client reports settled authority. If a race
-still produces `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`, keep the same logical
-intent, wait for that barrier to settle once, and offer or perform one bounded
-retry only if the resulting principal is still the intended actor.
+authority is suspended and does not reach transport. This includes
+`useSnapbackSettledMutation` and Familiar `useMutation`. Disable or defer the
+gesture while its sign-in/sign-out promise is in flight or its protected query
+state is `blocked:authentication-not-settled`.
+
+If a race still makes an interactive feed mutation reject with
+`SNAPBACK_CLIENT_AUTHORITY_CLEARING` or
+`SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`, keep the same logical intent, wait
+for that barrier to settle once, and offer or perform one bounded retry only
+if the resulting principal is still the intended actor. A
+`SNAPBACK_AUTH_REQUIRED` result after settlement is not another transient
+attempt: return the gesture to an enabled state and route the user to sign-in.
+
+Every dispatched promise must be awaited or have a rejection handler attached
+immediately. An event handler that starts async work must end in an observed
+`try`/`catch` path (or attach `.catch(...)` at dispatch), including the final
+retry. Always restore disabled/pending UI in `finally`. This makes the
+authorization race a rendered terminal branch instead of an unhandled rejection
+that leaves the Expo error overlay intercepting later gestures.
 
 Treat every terminal branch explicitly: success, queued, application refusal,
 auth terminal status, and genuine transport/lifecycle failure. An uncaught
 authorization-suspended rejection can poison a route even though the system is
 behaving correctly.
 
+The run that exposed the poisoned overlay also used six live subscriptions.
+Consolidating them removed its repeated trigger, but that behavior remains a
+separate open contention investigation:
+[the retained ticket](repo:issues/20260820-familiar-live-subscription-contention.md).
+This recipe settles the foreground promise safely; it does not classify the
+subscription behavior or make one aggregate query a universal requirement.
+
+## What proves this contract
+
+The [packed-external settlement fixture](repo:scripts/auth-settlement-packed-proof.mjs)
+loads freshly packed Contract, client, and React packages and proves the
+signed-out, signing-in, signed-in, signing-out, and revoked rows for both
+one-shot and live-query projections. Its retained tarball-integrity receipt is
+in the [signed-out settlement closure](repo:issues/closed/20260820-authenticated-query-signed-out-settlement.md).
+The outbox-specific queue and
+`queue: false` behavior remains pinned by the authorization-invalidation and
+outbox-store tests named in this page's authorities. This is the vertical
+receipt for the advertised settlement spelling; it does not claim the
+unimplemented D0.2 housekeeping-lane surface.
+
 ## Anti-patterns
 
-- Retrying from an unbounded effect whose dependency is the changing auth
-  object.
+- Dispatching from an effect whose dependency is a mutation function or
+  changing auth object; effect identity changes can turn one intent into
+  repeated writes.
+- Fire-and-forget foreground dispatch with no rejection handler; the first
+  auth refusal can poison the development UI.
 - Converting authorization suspension into a content refusal or “server
   failed” message.
 - Assuming a foreground rejection means the mutation may already have
@@ -28522,7 +28604,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-cleanup-state-invalid"></a>`SNAPBACK_CLEANUP_STATE_INVALID` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/index.mjs:893` | 1 |
 | <a id="diagnostic-snapback-client-agent-credential-validation-required"></a>`SNAPBACK_CLIENT_AGENT_CREDENTIAL_VALIDATION_REQUIRED` | client | — | — | `packages/snapback-client/agent-authority.mjs:103` | 3 |
 | <a id="diagnostic-snapback-client-artifact-stale"></a>`SNAPBACK_CLIENT_ARTIFACT_STALE` | client | — | [guide](../sync/offline-and-retention.md#migration-boundaries-quarantine-dont-fail) | `packages/snapback-contract/client-store.mjs:2195` | 3 |
-| <a id="diagnostic-snapback-client-authority-clearing"></a>`SNAPBACK_CLIENT_AUTHORITY_CLEARING` | client | — | — | `packages/snapback-client/index.mjs:630` | 20 |
+| <a id="diagnostic-snapback-client-authority-clearing"></a>`SNAPBACK_CLIENT_AUTHORITY_CLEARING` | client | — | [guide](../recipes/auth-transition-writes.md#fence-non-queueable-gestures) | `packages/snapback-client/index.mjs:630` | 20 |
 | <a id="diagnostic-snapback-client-authority-stale"></a>`SNAPBACK_CLIENT_AUTHORITY_STALE` | client | — | [guide](../clients/headless.md#call-ordinary-functions) | `packages/snapback-client/agent-authority.mjs:99` | 63 |
 | <a id="diagnostic-snapback-client-authorization-task-generation-exhausted"></a>`SNAPBACK_CLIENT_AUTHORIZATION_TASK_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:14508` | 1 |
 | <a id="diagnostic-snapback-client-auth-barrier-generation-exhausted"></a>`SNAPBACK_CLIENT_AUTH_BARRIER_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/agent-authority.mjs:2643` | 1 |
