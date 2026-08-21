@@ -13,6 +13,11 @@ reviewed: 2026-08-05
 reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
+> **Historical evidence — do not use as current documentation.** This page is
+> the served Guide snapshot consulted during the published-0.1.10 bakeoff on
+> 2026-08-06. It intentionally preserves superseded examples; use the current
+> `guide/backend/assets.md` page instead. See this cache's `README.md`.
+
 # Assets
 
 > **Local target only.** `asset_lifecycle_v1`, the image pipeline

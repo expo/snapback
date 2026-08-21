@@ -6,6 +6,9 @@
 Client integration, Scheduled work, Guide, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-19
+**Revised:** 2026-08-21 (resolved W7.1: corrected the raw-client asset example,
+retained a packed bare-specifier runtime/type witness, and closed the guide-gap
+ticket.)
 **Revised:** 2026-08-21 (reconciled the complete Messtimate 0.1.24 feedback
 summary against current main; added guest entry, native crypto, binding refresh,
 asset-guide parity, capability-link/scheduled-work recipes, proof-warning,
@@ -24,7 +27,7 @@ issues/20260819-expo-everyday-simulator-launch.md,
 issues/20260819-heic-image-normalization.md,
 issues/20260819-minimal-expo-starter.md,
 issues/20260819-readme-notifications-capability-overclaim.md,
-issues/20260821-guide-gap-asset-client-accessor-mismatch.md,
+issues/closed/20260821-guide-gap-asset-client-accessor-mismatch.md,
 issues/20260821-guest-session-client-entry.md,
 issues/20260821-expo-native-auth-crypto-adapter.md,
 issues/20260821-expo-supervised-binding-refresh.md,
@@ -106,11 +109,13 @@ workflow is common and mechanically owned by the platform, its cheapest path
 belongs in a template command or generated API. Documentation should explain
 the boundary and recovery path, not substitute for a working command.
 
-The complete Messtimate summary supplied on 2026-08-21 adds four present-tense
-contradictions on current main, not only 0.1.24 historical findings:
+The complete Messtimate summary supplied on 2026-08-21 identified four
+present-tense contradictions on main at intake, not only 0.1.24 historical
+findings:
 
-- the assets Guide still uses `client.assets.start(...)` in its minimal example
-  and later says that exact accessor does not exist;
+- the assets Guide used `client.assets.start(...)` in its minimal example while
+  later saying that exact raw-client accessor did not exist (resolved by W7.1
+  on 2026-08-21);
 - `guestPolicy` and the guest mechanism are declarable while the generated
   client lifecycle explicitly excludes guest as an entry mechanism;
 - the Expo native auth-custody path still passes `globalThis.crypto` into a
@@ -280,9 +285,11 @@ first with packed native witnesses. Tracked by
 
 ### W7 — Turn shipped primitives into discoverable application workflows
 
-1. Correct the assets Guide/API contradiction immediately and compile the exact
-   snippet against packed packages. This is a current docs defect, not a design
-   debate.
+1. **Resolved 2026-08-21.** Corrected the assets Guide/API contradiction while
+   retaining the defect as historical evidence, and compiled the exact
+   `createAssetClient(client)` snippet against packed packages. The packed
+   runtime witness imports the client by its public bare specifier so the root
+   export-map target is part of the proof.
 2. Teach the shipped anonymous-set capability-link journey end to end, including
    Expo deep-link parsing, inert GET, explicit invocation, expiry/revocation,
    and the boundary before granted-operation or identity-bearing links.
@@ -294,7 +301,9 @@ first with packed native witnesses. Tracked by
    runner after LLP 0275 D5 supplies the single operation identity. Application
    journey intent and assertions stay app-authored.
 
-Tracked by `issues/20260821-guide-gap-asset-client-accessor-mismatch.md`,
+W7.1 is closed in
+`issues/closed/20260821-guide-gap-asset-client-accessor-mismatch.md`. Remaining
+work is tracked by
 `issues/20260821-guide-gap-capability-link-app-flows.md`,
 `issues/20260821-guide-gap-scheduled-status-flips.md`,
 `issues/20260821-starter-verify-provenance-warning.md`, and
