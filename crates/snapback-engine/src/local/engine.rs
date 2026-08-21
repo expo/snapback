@@ -189,6 +189,16 @@ thread_local! {
     static BEFORE_ADMISSION_EFFECT_GUARD_HOOK:
         std::cell::RefCell<Option<Box<dyn FnOnce(AdmissionEffectSite)>>> =
         std::cell::RefCell::new(None);
+    /// One-shot observation after guard acquisition and before the durable
+    /// write. Production builds contain neither this hook nor any call to it.
+    static AFTER_ADMISSION_EFFECT_GUARD_HOOK:
+        std::cell::RefCell<Option<Box<dyn FnOnce(AdmissionEffectSite)>>> =
+        std::cell::RefCell::new(None);
+    /// One-shot observation after a successful durable write and before its
+    /// admission effect guard leaves scope.
+    static AFTER_ADMISSION_EFFECT_COMMIT_HOOK:
+        std::cell::RefCell<Option<Box<dyn FnOnce(AdmissionEffectSite)>>> =
+        std::cell::RefCell::new(None);
 }
 
 #[cfg(test)]
@@ -199,11 +209,32 @@ enum AdmissionEffectSite {
     CapabilityLinkSettle,
     CapabilityLinkRevoke,
     PushReservation,
+    PushBatchClaim,
+    PushBatchTransmitting,
+    PushBatchSettlement,
 }
 
 #[cfg(test)]
 fn run_before_admission_effect_guard_hook(site: AdmissionEffectSite) {
     BEFORE_ADMISSION_EFFECT_GUARD_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook(site);
+        }
+    });
+}
+
+#[cfg(test)]
+fn run_after_admission_effect_guard_hook(site: AdmissionEffectSite) {
+    AFTER_ADMISSION_EFFECT_GUARD_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook(site);
+        }
+    });
+}
+
+#[cfg(test)]
+fn run_after_admission_effect_commit_hook(site: AdmissionEffectSite) {
+    AFTER_ADMISSION_EFFECT_COMMIT_HOOK.with(|slot| {
         if let Some(hook) = slot.borrow_mut().take() {
             hook(site);
         }
@@ -5139,7 +5170,14 @@ impl LocalSnapback {
         // @ref LLP 0058#gate-algorithm — this is the sole admission guard and
         // must remain live across the durable capability-link commit.
         let _effect = authority.effect_guard("capability-link mint transaction")?;
-        self.db.mint_capability_link(request)
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkMint);
+        let result = self.db.mint_capability_link(request);
+        #[cfg(test)]
+        if result.is_ok() {
+            run_after_admission_effect_commit_hook(AdmissionEffectSite::CapabilityLinkMint);
+        }
+        result
     }
 
     pub fn consume_capability_link_use(
@@ -5154,12 +5192,20 @@ impl LocalSnapback {
         // @ref LLP 0058#gate-algorithm — use reservation is a durable effect of
         // the admitted link invocation and cannot cross epoch retirement.
         let _effect = authority.effect_guard("capability-link use consumption transaction")?;
-        self.db
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkConsume);
+        let result = self
+            .db
             .consume_capability_link_use(link.id(), now_ms)
             .map(|use_| ConsumedCapabilityLinkUse {
                 link_id: link.id().to_owned(),
                 ordinal: use_.ordinal,
-            })
+            });
+        #[cfg(test)]
+        if result.is_ok() {
+            run_after_admission_effect_commit_hook(AdmissionEffectSite::CapabilityLinkConsume);
+        }
+        result
     }
 
     pub fn settle_capability_link_use(
@@ -5175,8 +5221,16 @@ impl LocalSnapback {
         // @ref LLP 0058#gate-algorithm — outcome settlement remains a durable
         // transaction sink of the admitted link invocation.
         let _effect = authority.effect_guard("capability-link use settlement transaction")?;
-        self.db
-            .settle_capability_link_use(&use_.link_id, use_.ordinal, outcome, now_ms)
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkSettle);
+        let result =
+            self.db
+                .settle_capability_link_use(&use_.link_id, use_.ordinal, outcome, now_ms);
+        #[cfg(test)]
+        if result.is_ok() {
+            run_after_admission_effect_commit_hook(AdmissionEffectSite::CapabilityLinkSettle);
+        }
+        result
     }
 
     pub fn revoke_capability_link(
@@ -5211,8 +5265,16 @@ impl LocalSnapback {
         // @ref LLP 0058#gate-algorithm — this is the sole admission guard and
         // must remain live across the durable capability-link commit.
         let _effect = authority.effect_guard("capability-link revoke transaction")?;
-        self.db
-            .revoke_capability_link(id, user_id, session_id, authority_instance_id, now_ms)
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkRevoke);
+        let result =
+            self.db
+                .revoke_capability_link(id, user_id, session_id, authority_instance_id, now_ms);
+        #[cfg(test)]
+        if result.is_ok() {
+            run_after_admission_effect_commit_hook(AdmissionEffectSite::CapabilityLinkRevoke);
+        }
+        result
     }
 
     pub fn effective_agents_manifest(&self) -> crate::manifest::AgentsManifest {
@@ -5922,8 +5984,19 @@ impl LocalSnapback {
         batch_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<Option<crate::push::PushBatchClaimV1>> {
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::PushBatchClaim);
+        // @ref LLP 0058#gate-algorithm — the admitted push action's claim
+        // transaction must remain inside its admission epoch at commit.
         let _effect = authority.effect_guard("push batch claim")?;
-        self.db.push_registry().claim_batch(batch_id, now_ms)
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::PushBatchClaim);
+        let result = self.db.push_registry().claim_batch(batch_id, now_ms);
+        #[cfg(test)]
+        if result.is_ok() {
+            run_after_admission_effect_commit_hook(AdmissionEffectSite::PushBatchClaim);
+        }
+        result
     }
 
     pub fn mark_push_batch_transmitting(
@@ -5932,10 +6005,22 @@ impl LocalSnapback {
         claim: &crate::push::PushBatchClaimV1,
         now_ms: u64,
     ) -> SnapbackResult<()> {
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::PushBatchTransmitting);
+        // @ref LLP 0058#gate-algorithm — the durable transmitting cut remains
+        // inside the admitted push action's epoch at commit.
         let _effect = authority.effect_guard("push batch transmitting marker")?;
-        self.db
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::PushBatchTransmitting);
+        let result = self
+            .db
             .push_registry()
-            .mark_batch_transmitting(claim, now_ms)
+            .mark_batch_transmitting(claim, now_ms);
+        #[cfg(test)]
+        if result.is_ok() {
+            run_after_admission_effect_commit_hook(AdmissionEffectSite::PushBatchTransmitting);
+        }
+        result
     }
 
     pub fn settle_push_batch(
@@ -5945,10 +6030,22 @@ impl LocalSnapback {
         settlement: &crate::push::PushBatchSettlementV1,
         now_ms: u64,
     ) -> SnapbackResult<()> {
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::PushBatchSettlement);
+        // @ref LLP 0058#gate-algorithm — the provider outcome transaction
+        // remains inside the admitted push action's epoch at commit.
         let _effect = authority.effect_guard("push batch settlement")?;
-        self.db
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::PushBatchSettlement);
+        let result = self
+            .db
             .push_registry()
-            .settle_batch(claim, settlement, now_ms)
+            .settle_batch(claim, settlement, now_ms);
+        #[cfg(test)]
+        if result.is_ok() {
+            run_after_admission_effect_commit_hook(AdmissionEffectSite::PushBatchSettlement);
+        }
+        result
     }
 
     pub fn push_intent_state(&mut self, intent_id: &str) -> SnapbackResult<String> {
@@ -6695,7 +6792,9 @@ impl LocalSnapback {
         // @ref LLP 0058#gate-algorithm — the engine owns the sole admission
         // epoch fence across the durable push-reservation commit.
         let _effect = authority.effect_guard("push durable reservation")?;
-        self.db.push_registry().reserve_send_admitted_storage(
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::PushReservation);
+        let result = self.db.push_registry().reserve_send_admitted_storage(
             declaration,
             schema,
             push_authority,
@@ -6703,7 +6802,12 @@ impl LocalSnapback {
             deferred_grant,
             request,
             now_ms,
-        )
+        );
+        #[cfg(test)]
+        if result.is_ok() {
+            run_after_admission_effect_commit_hook(AdmissionEffectSite::PushReservation);
+        }
+        result
     }
 
     #[cfg(test)]

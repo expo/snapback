@@ -730,6 +730,14 @@ impl AdmissionController {
         self.begin_transition_with_suspend_and_timeout(|| Ok(()), Duration::ZERO)
     }
 
+    /// Behavioral test seam for proving an effect guard owns the admission
+    /// state mutex. A false result is observable lock ownership, not a type- or
+    /// syntax-level assertion about a guard binding.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn state_mutex_available_for_test(&self) -> bool {
+        self.inner.state.try_lock().is_ok()
+    }
+
     fn retire_and_reopen(
         &self,
         old_epoch: u64,
