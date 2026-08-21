@@ -8,7 +8,12 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-21 (Phase 0 recording pass: D0.1 is ruled in LLP 0223's
+**Revised:** 2026-08-21 (LLP 0294 stratum registration: records the early-Expo
+current-main contradictions as a third evidence stratum for the vertical
+paved-path coherence invariant, extends the invariant/W1/R1 language to the
+Expo/native client arm, and adds externally-owned demand-evidence routing rows
+— LLP 0294 and its tickets remain the owners/executors);
+2026-08-21 (Phase 0 recording pass: D0.1 is ruled in LLP 0223's
 2026-08-21 dated amendment (LLP 0261 carries the composition binding) and
 D0.6 is registered in LLP 0201 (fields) and LLP 0186 (targets), each
 "Adopted per LLP 0295 default proposal; author may revise", with
@@ -30,7 +35,7 @@ efficiency as a first-class outcome)
 **Related:** LLP 0059, LLP 0061, LLP 0095, LLP 0107, LLP 0186, LLP 0189,
 LLP 0198, LLP 0201, LLP 0223, LLP 0236, LLP 0237, LLP 0240, LLP 0252,
 LLP 0253, LLP 0259, LLP 0261, LLP 0264, LLP 0275, LLP 0277, LLP 0278, LLP 0279,
-LLP 0280, LLP 0281,
+LLP 0280, LLP 0281, LLP 0294,
 Diary 0092, Diary 0093, Diary 0094, Diary 0095, Diary 0096, Diary 0097,
 Diary 0098, Diary 0099, Diary 0100, Diary 0101, Diary 0102, Diary 0103,
 Diary 0104, Diary 0105,
@@ -117,6 +122,19 @@ initially omitted prepack artifacts; and the wrong Node major produced a false
 inventory result. These remain setup/instrument findings and must not inflate
 the Snapback defect count.
 
+A third evidence stratum arrived 2026-08-21 through LLP 0294's reconciled
+Messtimate summary: four present-tense contradictions on current main — the
+assets Guide's minimal example uses an accessor the same page says does not
+exist; `guestPolicy` is declarable while the generated client lifecycle
+excludes guest as an entry mechanism; the Expo native auth-custody path passes
+`globalThis.crypto` into a digest path that requires `crypto.subtle`; and a
+supervised AppBinding is served past its one-hour term unless another rotation
+event fires. Each is exactly the vertical paved-path failure shape — a semantic
+fact changing across layers — and together they extend that shape to the
+Expo/native client arm, which the Clique/Coterie matrix underrepresents. This
+stratum corroborates the program invariant; it adds no execution obligation
+here. LLP 0294 and its 2026-08-21 tickets own and are executing the repairs.
+
 The raw accounting still gives a strong program signal. Across all twelve
 lanes Explicit and Familiar were nearly equal in total output tokens, but
 profile fit reversed by app: Clique Familiar used 16.8% more output tokens
@@ -197,6 +215,13 @@ adequate fixture proves, from packed external packages:
 This is a test shape, not a new mechanism owner. Subsystem suites continue to
 own their layers; the vertical fixture is the integration receipt that prevents
 a local fix from moving the mismatch one boundary downstream.
+
+Where an advertised path is advertised on the Expo/native client arm, its
+vertical fixture must cover that arm too — guide spelling, types, generation,
+runtime, native client projection, and negative diagnostic — not only the web
+projection. LLP 0294's 2026-08-21 tickets supply the current concrete cases;
+their closures are expected to name such fixtures per this invariant, through
+their own owners.
 
 ## Phase 0: decisions and measurement before mechanism work
 
@@ -447,6 +472,12 @@ templates. The same ready receipt should let the Expo, Vite/Exact, headless,
 and acceptance consumers prove they are attached to the intended app and
 authority mode.
 
+The lifecycle contract's liveness expectations include supervised AppBinding
+refresh before expiry: a long development session must be self-sustaining
+without a manual rotation event. The mechanism owner is the supervisor/binding
+LLP chain via LLP 0294 W6; W1 only consumes the fact in its ready-receipt and
+attach acceptance.
+
 Efficiency hypothesis: removing restart/reseed and lifecycle source inspection
 will produce the largest M1 wall reduction, especially on clean lanes where M1
 was 3-6x either later milestone.
@@ -571,6 +602,10 @@ subscription fixture from 1D. Consolidating six reads into one relational read
 may remain a recommended optimization, but it is not accepted as the only
 correct path unless the declared subscription budget and diagnostic say so.
 
+Once LLP 0294's W6 repairs land, the Expo/native arm probe also includes
+native auth entry through the provider-owned crypto adapter and a session
+outliving one binding term. Failures classify by owner as elsewhere in R1.
+
 ### R2. Load-isolated calibration rerun
 
 Repeat the 12 cells with reserved machines or enforced load ceilings. Preserve
@@ -628,6 +663,11 @@ for the efficiency scorecard while retaining its product findings.
 | Benchmark observability | LLP 0281 | sequences before R2 |
 | Exact-side defects | LLP 0279 / Exact repository | coordinates release and rerun only |
 | Debug artifact attribution | `issues/20260820-debug-binary-symbol-bloat.md` | records developer-loop impact; does not prescribe stripping |
+| Early-Expo repairs and routes | LLP 0294 and its 20260821 tickets | registers the evidence stratum; does not sequence or own |
+| Capability links | LLP 0204, LLP 0150 | registers demand evidence, does not sequence or own |
+| Field masking | LLP 0235 | registers demand evidence, does not sequence or own |
+| Scheduled work | LLP 0028, LLP 0070 | registers demand evidence, does not sequence or own |
+| Acceptance-harness extraction | LLP 0275 D5 | registers demand evidence, does not sequence or own |
 
 ## Risks
 
