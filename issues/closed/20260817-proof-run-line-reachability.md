@@ -92,4 +92,4 @@ declared gate/predicate pair with structured evidence checked by both the
 inventory and complete-battery consumer. A repeat traversal reconciled all 172
 selected ids.
 
-**Landing SHA:** TBD
+**Landing SHA:** f4b0c76b4 (with review-fix commits on the same push)
