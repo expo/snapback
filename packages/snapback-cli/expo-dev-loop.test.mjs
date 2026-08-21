@@ -58,6 +58,14 @@ const scratchRoot = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-expo-dev-l
 const metroScript = join(scratchRoot, 'headless-metro.mjs');
 const cliLifecycleRunner = join(scratchRoot, 'cli-lifecycle-runner.mjs');
 const supervisors = [];
+const governanceInputs = Object.freeze([
+  'elevated-read-site-baseline.json',
+  'table-visibility-policy-baseline.json',
+  'table-visibility-policy-transition-ledger.json',
+  'visibility-governance-quarantine-ledger.json',
+  'visibility-override-baseline.json',
+  'visibility-override-owner-baseline.json',
+]);
 
 writeFileSync(metroScript, `
 import { writeFileSync } from 'node:fs';
@@ -187,13 +195,55 @@ function fixture(name, { sessions }) {
   const backendRoot = join(projectRoot, 'snapback');
   const expoRoot = join(projectRoot, 'app');
   cpSync(sourceFixture, backendRoot, { recursive: true });
+  const governance = governanceInputs.map((name) => [
+    name,
+    readFileSync(join(backendRoot, 'generated', name)),
+  ]);
+  rmSync(join(backendRoot, 'generated'), { recursive: true, force: true });
+  mkdirSync(join(backendRoot, 'generated'), { recursive: true });
+  for (const [name, contents] of governance) {
+    writeFileSync(join(backendRoot, 'generated', name), contents);
+  }
   mkdirSync(expoRoot, { recursive: true });
   if (sessions) {
     const schemaPath = join(backendRoot, 'schema.mjs');
     const source = readFileSync(schemaPath, 'utf8');
-    const updated = source.replace(
+    const withAuthImport = source.replace(
+      'import { defineEphemeral, defineSchema, defineTable, v }',
+      'import { defineAuth, defineEphemeral, defineSchema, defineTable, v }',
+    );
+    const withAuthProgram = withAuthImport.replace(
+      'export default defineSchema(',
+      `const authProgram = defineAuth({
+  version: 1,
+  custody: 'volatile-explicit',
+  mechanisms: {
+    password: {
+      kind: 'password',
+      identifier: 'email',
+      provider: 'builtIn',
+      recovery: 'recoveryCodes',
+    },
+  },
+  assuranceRequirements: {},
+  recoveryPolicy: {
+    recoveryCodes: {
+      enabled: true,
+      requiredWhen: 'no-independent-recovery',
+      rotateAfterUse: true,
+      plaintextCustody: 'one-time-response',
+    },
+    lastAuthenticator: 'enforce',
+  },
+  guestPolicy: { enabled: false },
+  secretReferences: {},
+});
+
+export default defineSchema(`,
+    );
+    const updated = withAuthProgram.replace(
       '  {\n    ephemeral: defineEphemeral({',
-      "  {\n    auth: { mode: 'sessions' },\n    ephemeral: defineEphemeral({",
+      "  {\n    auth: { mode: 'sessions' },\n    authProgram,\n    ephemeral: defineEphemeral({",
     );
     assert.notEqual(updated, source, 'sessions fixture must alter the schema auth mode');
     writeFileSync(schemaPath, updated);
@@ -236,6 +286,9 @@ async function startFixture(target, options = {}) {
     runtimeBinary,
     platform: options.platform ?? 'ios',
     email: options.email ?? 'first@expo-e1.test',
+    now: options.now,
+    bindingTtlMs: options.bindingTtlMs,
+    bindingRefreshWindowMs: options.bindingRefreshWindowMs,
     metroCommand: { command: process.execPath, args: [metroScript] },
     env: {
       ...process.env,
@@ -334,7 +387,7 @@ async function runCliSupervisor(target, platform = 'ios') {
   const exchange = await (
     await fetch(`${readyEvent.bootstrap.origin}${SUPERVISED_EXCHANGE_PATH}`)
   ).json();
-  child.kill('SIGTERM');
+  child.kill('SIGINT');
   const exit = await Promise.race([
     new Promise((resolveExit) => child.once('exit', (code, signal) => resolveExit({ code, signal }))),
     new Promise((_, rejectExit) => setTimeout(
@@ -743,7 +796,15 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   // Settled Sessions mode: real mint, provider boot, canonical live/mutation/
   // presence owners, HMR-shaped reattachment, reconnect, and authority barrier.
   const settled = fixture('settled', { sessions: true });
-  const settledRun = await startFixture(settled, { platform: 'web' });
+  let settledNow = Date.now();
+  const bindingTtlMs = 1_000;
+  const bindingRefreshWindowMs = 200;
+  const settledRun = await startFixture(settled, {
+    platform: 'web',
+    now: () => settledNow,
+    bindingTtlMs,
+    bindingRefreshWindowMs,
+  });
   const { supervisor, events } = settledRun;
   assert.equal(supervisor.state, 'ready');
   assert.equal(supervisor.connectCarrier, 'supervisor-rendezvous');
@@ -792,7 +853,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assertListenerInventory(supervisor);
   assert.equal(supervisor.binding.source, 'supervised-dev');
   assert.equal(supervisor.binding.integrity.channel, 'local-supervised-ipc');
-  assert(Date.parse(supervisor.binding.provenance.expiresAt) > Date.now());
+  assert(Date.parse(supervisor.binding.provenance.expiresAt) > settledNow);
   const firstExchange = await (
     await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
   ).json();
@@ -842,7 +903,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     },
   });
   const bootStates = [];
-  const boot = createSnapbackExpoBoot({ app, environment });
+  const boot = createSnapbackExpoBoot({ app, environment, now: () => settledNow });
   const offBoot = boot.subscribe(() => bootStates.push(boot.getSnapshot()));
   const ready = await boot.start();
   assert.equal(ready.status, 'ready', JSON.stringify(ready));
@@ -852,6 +913,78 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   const firstUserId = ready.authority.userId;
   const provider = boot.reactProvider();
   assert(provider, 'ready Expo boot must project the canonical React provider');
+
+  // A fake-clock loop crosses three predecessor TTL boundaries. Each cycle
+  // proves a cold boot immediately before the refresh window and another just
+  // after the predecessor's expiry, without replacing the supervisor.
+  const ordinaryFlowNow = settledNow;
+  const initialSupervisorGeneration = supervisor.supervisorGeneration;
+  const coldBootIssuedAt = [];
+  const runColdBoot = async (label) => {
+    const coldState = appStateHarness();
+    const coldBoot = createSnapbackExpoBoot({
+      app,
+      environment: createSupervisedExpoEnvironment({
+        exchangeOrigin: supervisor.exchangeOrigin,
+        appState: coldState,
+        clientOptions: {
+          rqsStore: null,
+          offlineQueue: false,
+          clientStoreId: `expo-e1-${label}`,
+        },
+      }),
+      now: () => settledNow,
+    });
+    const coldReady = await coldBoot.start();
+    assert.equal(coldReady.status, 'ready', `${label} must reach application-ready state`);
+    assert.equal(
+      coldReady.binding.provenance.supervisorGeneration,
+      initialSupervisorGeneration,
+      `${label} must stay on the original supervisor generation`,
+    );
+    coldBootIssuedAt.push(coldReady.binding.provenance.issuedAt);
+    await coldBoot.dispose();
+    assert.equal(coldState.count(), 0);
+    return coldReady;
+  };
+  for (let cycle = 1; cycle <= 3; cycle += 1) {
+    const predecessor = supervisor.binding;
+    const predecessorExpiry = Date.parse(predecessor.provenance.expiresAt);
+    settledNow = predecessorExpiry - bindingRefreshWindowMs - 1;
+    const beforeBoundary = await runColdBoot(`ttl-${cycle}-before`);
+    assert.equal(beforeBoundary.binding.provenance.issuedAt, predecessor.provenance.issuedAt);
+
+    settledNow = predecessorExpiry - bindingRefreshWindowMs;
+    const refreshedExchange = await (
+      await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
+    ).json();
+    assert.notEqual(
+      refreshedExchange.binding.provenance.issuedAt,
+      predecessor.provenance.issuedAt,
+      `cycle ${cycle} must publish one fresh issuance inside the window`,
+    );
+    settledNow = predecessorExpiry + 1;
+    const afterBoundary = await runColdBoot(`ttl-${cycle}-after`);
+    assert.equal(
+      afterBoundary.binding.provenance.issuedAt,
+      refreshedExchange.binding.provenance.issuedAt,
+    );
+  }
+  assert.equal(coldBootIssuedAt.length, 6);
+  assert.equal(supervisor.supervisorGeneration, initialSupervisorGeneration);
+  assert.equal(
+    events.filter((event) => event.state === 'binding-refreshed').length,
+    3,
+  );
+  assert.equal(
+    JSON.stringify(events.filter((event) => event.state === 'binding-refreshed')).includes(firstBearer),
+    false,
+    'structured binding refresh events must carry no bearer material',
+  );
+  // The TTL witness owns its fake-clock excursion. Restore F's ordinary
+  // carrier timeline before its later legacy authority/HMR journey re-admits
+  // the binding originally held by this long-lived boot.
+  settledNow = ordinaryFlowNow;
 
   const queryStates = [];
   const queryEntries = { rows: { ref: api.liveRows, args: {} } };
@@ -1044,6 +1177,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
         clientStoreId: 'expo-e1-hot-successor',
       },
     }),
+    now: () => settledNow,
   });
   const successorReady = await successorBoot.start();
   assert.equal(successorReady.status, 'ready');
@@ -1196,7 +1330,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     'shutdown reports every owned arm reclaimed',
   );
 
-  console.log('expo-dev-loop.test.mjs: WS reset/cancelled-response handoff, zero-write rendezvous carrier, transient descriptor, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement, leak matrix, and strict cleanup pass');
+  console.log('expo-dev-loop.test.mjs: WS reset/cancelled-response handoff, zero-write rendezvous carrier, repeated TTL cold boots, transient descriptor, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
 } finally {
   await Promise.allSettled(supervisors.flatMap((supervisor) => (
     typeof supervisor?.close === 'function' ? [supervisor.close()] : []

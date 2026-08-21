@@ -489,7 +489,12 @@ await assert.rejects(
     now: Date.parse('2026-08-05T21:00:00.000Z'),
     delivery: { channel: 'local-supervised-ipc' },
   }),
-  (error) => error.code === 'SNAPBACK_APP_BINDING_EXPIRED',
+  (error) => error.code === 'SNAPBACK_APP_BINDING_EXPIRED'
+    && error.remediations.some((entry) => (
+      entry.kind === 'restartExpoSupervisor'
+      && /older supervisor that cannot refresh/u.test(entry.description)
+      && /snapback dev --expo/u.test(entry.description)
+    )),
 );
 await assert.rejects(
   admitAppBindingV1(devBinding, app, {

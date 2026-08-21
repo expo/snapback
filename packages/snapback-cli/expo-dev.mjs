@@ -38,6 +38,7 @@ import {
   spawnLeasedProcess,
   stopProcessGroup,
 } from './process-teardown.mjs';
+import { createSupervisedBindingPublisher } from './expo-binding-refresh.mjs';
 
 export const EXPO_DEV_EVENT_FORMAT = 'snapback.expo-dev.v1';
 export const EXPO_SUPERVISOR_DESCRIPTOR_FORMAT = 'snapback.expo-supervisor.v1';
@@ -1508,7 +1509,14 @@ export async function startBootstrapExchange(
       response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND' }));
       return;
     }
-    const payload = getPayload();
+    let payload;
+    try {
+      payload = await getPayload();
+    } catch {
+      response.statusCode = 503;
+      response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE' }));
+      return;
+    }
     if (payload === null) {
       response.statusCode = 503;
       response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE' }));
@@ -1778,32 +1786,6 @@ function startMetro({
   return { child, logs, command: resolved.display };
 }
 
-function bindingFromDescriptor({ descriptor, origin, routing, generation, now, ttlMs }) {
-  const offeredCapabilities = new Set(descriptor.capabilities.required);
-  if (descriptor.authBootstrap?.entryMechanisms?.includes('password-v1')) {
-    offeredCapabilities.add('auth.passwords');
-  }
-  return Object.freeze({
-    format: 'snapback.app-binding.v1',
-    source: 'supervised-dev',
-    descriptorIdentity: descriptor.identity.descriptor,
-    target: Object.freeze({
-      app: descriptor.identity.app,
-      schema: descriptor.identity.schema,
-      functions: descriptor.identity.functions,
-      origin,
-      routing,
-    }),
-    capabilities: Object.freeze({ offered: Object.freeze([...offeredCapabilities].sort()) }),
-    provenance: Object.freeze({
-      supervisorGeneration: generation,
-      issuedAt: new Date(now).toISOString(),
-      expiresAt: new Date(now + ttlMs).toISOString(),
-    }),
-    integrity: Object.freeze({ channel: 'local-supervised-ipc' }),
-  });
-}
-
 function publicBinding(binding) {
   return structuredClone(binding);
 }
@@ -1889,7 +1871,6 @@ export async function runExpoDev(options = {}) {
   let metro = null;
   let metroFront = null;
   let forwarding = null;
-  let binding = null;
   let authority = null;
   let checkoutRegistry = null;
   let checkoutNonce = null;
@@ -1900,6 +1881,7 @@ export async function runExpoDev(options = {}) {
   let closeSupervisor = null;
   let parentLease = null;
   let cleanupLease = null;
+  let bindingPublisher = null;
   let metroAttestation = null;
   let startupCriticalExit = null;
   let startupPublished = false;
@@ -1915,9 +1897,10 @@ export async function runExpoDev(options = {}) {
     if (closePromise !== null) return closePromise;
     closePromise = (async () => {
       closed = true;
-      parentLease?.close?.();
-      parentLease = null;
       const failures = [];
+      try { parentLease?.close?.(); } catch (error) { failures.push(error); }
+      parentLease = null;
+      try { bindingPublisher?.close?.(); } catch (error) { failures.push(error); }
       for (const [path, resource] of [
         [supervisorDescriptorFile, supervisorDescriptorCleanupResource],
         [supervisorDescriptorTemporaryFile, supervisorDescriptorTemporaryCleanupResource],
@@ -1941,7 +1924,6 @@ export async function runExpoDev(options = {}) {
       checkoutRegistry = null;
       checkoutNonce = null;
       authority = null;
-      binding = null;
       if (abortListener !== null) abortSignal?.removeEventListener('abort', abortListener);
       abortListener = null;
       emit({ ok: failures.length === 0, state: 'closed', reclaimed: {
@@ -1973,18 +1955,6 @@ export async function runExpoDev(options = {}) {
       );
     }
   };
-  if (abortSignal !== null) {
-    abortListener = () => reportCriticalExit(
-      abortSignal.reason instanceof Error
-        ? abortSignal.reason
-        : diagnosticError(
-          'SNAPBACK_EXPO_DEV_INTERRUPTED',
-          'the Expo supervisor was interrupted during startup',
-        ),
-    );
-    if (abortSignal.aborted) abortListener();
-    else abortSignal.addEventListener('abort', abortListener, { once: true });
-  }
   try {
     // Install the carrier lease before starting any owned process. If the
     // carrier is SIGKILLed during backend startup, the supervisor must still
@@ -1993,7 +1963,27 @@ export async function runExpoDev(options = {}) {
       env: options.env ?? process.env,
       onLost: reportCriticalExit,
     });
+    assertStartupActive();
+    bindingPublisher = createSupervisedBindingPublisher({
+      generation,
+      now: options.now ?? Date.now,
+      ttlMs: options.bindingTtlMs ?? DEFAULT_BINDING_TTL_MS,
+      refreshWindowMs: options.bindingRefreshWindowMs,
+      onEvent: emit,
+    });
     cleanupLease = openCarrierCleanupLease(options.env ?? process.env);
+    if (abortSignal !== null) {
+      abortListener = () => reportCriticalExit(
+        abortSignal.reason instanceof Error
+          ? abortSignal.reason
+          : diagnosticError(
+            'SNAPBACK_EXPO_DEV_INTERRUPTED',
+            'the Expo supervisor was interrupted during startup',
+          ),
+      );
+      if (abortSignal.aborted) abortListener();
+      else abortSignal.addEventListener('abort', abortListener, { once: true });
+    }
     assertStartupActive();
     const selectedDevice = resolveExpoDeviceSelection({ ...options, env: childEnv });
     const platform = options.platform ?? 'ios';
@@ -2038,7 +2028,10 @@ export async function runExpoDev(options = {}) {
         reportCriticalExit(error);
       },
     });
-    if (dev.ok === false) return dev;
+    if (dev.ok === false) {
+      await closeSupervisor();
+      return dev;
+    }
     if (closed) {
       try { await dev.close?.(); } catch { /* latched critical exit wins */ }
     }
@@ -2083,16 +2076,17 @@ export async function runExpoDev(options = {}) {
     };
     mintAndSwapAuthority(options.email ?? DEFAULT_EMAIL, { emitReplacement: false });
     let route = null;
-    bootstrap = await startBootstrapExchange(() => (
-      binding === null || authority === null
+    bootstrap = await startBootstrapExchange(async () => {
+      const exchangeBinding = await bindingPublisher.bindingForExchange();
+      return exchangeBinding === null || authority === null
         ? null
         : Object.freeze({
             format: SUPERVISED_EXCHANGE_FORMAT,
             correlationId,
-            binding,
+            binding: exchangeBinding,
             authority,
-          })
-    ), {
+          });
+    }, {
       onDevIdentityCheckout: (presented) => checkoutRegistry?.redeem(presented) ?? null,
       onControl: async ({ operatorToken, body }) => {
         let expectedOperatorToken = null;
@@ -2169,13 +2163,10 @@ export async function runExpoDev(options = {}) {
             androidSerial: selectedDevice.serial,
             androidDeviceClass: selectedDevice.class,
           });
-          binding = bindingFromDescriptor({
+          bindingPublisher.issue({
             descriptor,
             origin: appOrigin(route.appHost, backendRoute.port),
             routing: route.bindingRouting,
-            generation,
-            now: options.now?.() ?? Date.now(),
-            ttlMs: options.bindingTtlMs ?? DEFAULT_BINDING_TTL_MS,
           });
           forwarding?.remove?.();
           forwarding = installAndroidPortForwarding(route, {
@@ -2271,13 +2262,10 @@ export async function runExpoDev(options = {}) {
       androidSerial: selectedDevice.serial,
       androidDeviceClass: selectedDevice.class,
     });
-    binding = bindingFromDescriptor({
+    bindingPublisher.issue({
       descriptor,
       origin: appOrigin(route.appHost, backendRoute.port),
       routing: route.bindingRouting,
-      generation,
-      now: options.now?.() ?? Date.now(),
-      ttlMs: options.bindingTtlMs ?? DEFAULT_BINDING_TTL_MS,
     });
     const shouldLaunchNativeCheckout = shouldLaunchExpoNativeCheckout(route, options);
     if (shouldLaunchNativeCheckout) {
@@ -2297,13 +2285,10 @@ export async function runExpoDev(options = {}) {
       if (successor.identity.descriptor === descriptor.identity.descriptor) return null;
       const previousDescriptorIdentity = descriptor.identity.descriptor;
       descriptor = successor;
-      binding = bindingFromDescriptor({
+      const rotatedBinding = bindingPublisher.issue({
         descriptor,
         origin: appOrigin(route.appHost, backendRoute.port),
         routing: route.bindingRouting,
-        generation,
-        now: options.now?.() ?? Date.now(),
-        ttlMs: options.bindingTtlMs ?? DEFAULT_BINDING_TTL_MS,
       });
       return {
         ok: true,
@@ -2311,7 +2296,7 @@ export async function runExpoDev(options = {}) {
         changed: event.changed ?? null,
         previousDescriptorIdentity,
         descriptorIdentity: descriptor.identity.descriptor,
-        binding: publicBinding(binding),
+        binding: publicBinding(rotatedBinding),
       };
     };
     metroAttestation = createMetroRunAttestation(platform);
@@ -2488,7 +2473,7 @@ export async function runExpoDev(options = {}) {
       state: finalState,
       connectCarrier: SUPERVISED_CONNECT_CARRIER,
       ...createExpoRoutingReadiness(route),
-      binding: publicBinding(binding),
+      binding: publicBinding(bindingPublisher.current),
       authority: authority.status === 'ready'
         ? { status: 'ready', kind: 'session', authMode: 'sessions' }
         : authority,
@@ -2565,7 +2550,7 @@ export async function runExpoDev(options = {}) {
       supervisorGeneration: generation,
       connectCarrier: SUPERVISED_CONNECT_CARRIER,
       device: route.device,
-      get binding() { return publicBinding(binding); },
+      get binding() { return publicBinding(bindingPublisher.current); },
       exchangeOrigin: bootstrap.origin,
       metroOrigin: `http://${LOOPBACK_HOST}:${metroPort}`,
       get listeners() { return listeners; },
@@ -2580,7 +2565,9 @@ export async function runExpoDev(options = {}) {
         return Object.freeze({
           correlationId,
           listeners,
-          binding: binding === null ? null : publicBinding(binding),
+          binding: bindingPublisher.current === null
+            ? null
+            : publicBinding(bindingPublisher.current),
           metro: Object.freeze({
             pid: metro.child.pid,
             origin: `http://${LOOPBACK_HOST}:${metroPort}`,

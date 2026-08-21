@@ -6,6 +6,13 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-21 (y) — Supervised AppBindings now refresh lazily at
+bootstrap exchange inside a bounded window. Concurrent exchanges join one
+supervisor-owned publication; refresh preserves every fact except issuance and
+expiry, loses to any newer descriptor/backend rotation, emits bearer-free
+structured readiness, and adds stale-supervisor recovery text. LLP 0294 OQ7
+records the orchestrator ruling; no background timer or app-side extension was
+added.
 **Revised:** 2026-08-21 (x) — Closes the spawn-to-finalization kill window:
 each child has an owner-only, run-bound pending lease on disk before spawn,
 carrying its intended command and any unique browser profile; the launcher
@@ -719,10 +726,13 @@ than assumed.
 
 - starts or adopts the exact Snapback backend generation;
 - starts Expo/Metro in a routing mode compatible with the selected device;
-- issues one expiring `source: "supervised-dev"` binding and, after each
-  successor graph reaches the backend's `generated-and-loaded` compatible-cut
-  event, atomically remints it for the new descriptor identity while retaining
-  the supervisor generation and resolved route;
+- issues one expiring `source: "supervised-dev"` binding; at each bootstrap
+  exchange, lazily re-mints it once remaining TTL enters the bounded refresh
+  window, with concurrent exchanges joining one atomic publication that changes
+  only `issuedAt`/`expiresAt`; and, after each successor graph reaches the
+  backend's `generated-and-loaded` compatible-cut event, atomically remints it
+  for the new descriptor identity while retaining the supervisor generation and
+  resolved route (that governing rotation supersedes any older expiry refresh);
 - makes an ordinary session available through the local bootstrap seam —
   today by email, per LLP 0176 G0's primitive; a declared-dev-persona layer
   once the routed ask to the auth owner is accepted;
@@ -1053,6 +1063,8 @@ The provider and supervisor join facts by a correlation id and expose:
 
 - backend/Metro readiness and generation;
 - descriptor/binding/target compatibility;
+- supervised binding refresh/rotation and refresh refusal, without binding or
+  authority bearer material;
 - selected route (`loopback | port-forward | https`);
 - public authority state without bearer material;
 - capability and per-OS gaps;
@@ -1346,9 +1358,10 @@ E5 is LLP 0176 G5 and does not block E0–E4.
   release condition refuses. DNS-named private origins remain outside the
   client classifier's guarantees pending ruling 6.
 - `snapback dev --expo` reaches one readiness state, survives HMR, remints its
-  binding when a function edit rotates the loaded descriptor, proves the new
-  digest callable without a supervisor restart, and cleans up every owned
-  resource on success, failure, and signal.
+  binding lazily across repeated TTL boundaries and when a function edit
+  rotates the loaded descriptor, proves cold boots and the new digest callable
+  without a supervisor restart, and cleans up every owned resource on success,
+  failure, and signal.
 - The release graph contains only public client code and the intended release
   binding; no dev secret or endpoint leaks.
 - iOS and Android claims have separate LLP 0064 receipts.

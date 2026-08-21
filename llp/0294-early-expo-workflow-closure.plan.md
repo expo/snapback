@@ -6,6 +6,9 @@
 Client integration, Scheduled work, Guide, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-19
+**Revised:** 2026-08-21 (OQ7 resolved by orchestrator ruling: supervised
+AppBindings refresh lazily at bootstrap exchange through one supervisor-owned
+convergent publication point; no background timer or app-side extension.)
 **Revised:** 2026-08-21 (resolved W7.1: corrected the raw-client asset example,
 retained a packed bare-specifier runtime/type witness, and closed the guide-gap
 ticket.)
@@ -30,7 +33,7 @@ issues/20260819-readme-notifications-capability-overclaim.md,
 issues/closed/20260821-guide-gap-asset-client-accessor-mismatch.md,
 issues/20260821-guest-session-client-entry.md,
 issues/closed/20260821-expo-native-auth-crypto-adapter.md,
-issues/20260821-expo-supervised-binding-refresh.md,
+issues/closed/20260821-expo-supervised-binding-refresh.md,
 issues/20260821-guide-gap-capability-link-app-flows.md,
 issues/20260821-starter-verify-provenance-warning.md,
 issues/20260821-0275-acceptance-harness-library.md,
@@ -272,16 +275,18 @@ Three defects compose into the native first-use boundary:
 2. Resolve the auth-custody partition digest through a provider-owned Expo
    crypto adapter. Binding-digest fallback and security-bearing randomness
    remain separate facts: a SHA-256 adapter does not create a CSPRNG.
-3. Refresh supervised AppBindings before expiry. The supervisor must remain the
-   issuer and preserve its generation/descriptor/route boundary; the app must
-   not paper over expiry by extending timestamps locally.
+3. Refresh supervised AppBindings before expiry through OQ7's resolved lazy
+   per-exchange path. The supervisor remains the issuer and preserves its
+   generation/descriptor/route/capability boundary; only `issuedAt` and
+   `expiresAt` change absent another governing event. The app does not extend
+   timestamps locally and neither side owns a background refresh timer.
 
 The guest route is a security-bearing feature and waits for its owner review.
 The crypto and binding-refresh defects are straight repairs and should proceed
 first with packed native witnesses. Tracked by
 `issues/20260821-guest-session-client-entry.md`,
 `issues/closed/20260821-expo-native-auth-crypto-adapter.md`, and
-`issues/20260821-expo-supervised-binding-refresh.md`.
+`issues/closed/20260821-expo-supervised-binding-refresh.md`.
 
 ### W7 — Turn shipped primitives into discoverable application workflows
 
@@ -455,8 +460,18 @@ packages outside the repository workspace:
    receipt, never as proof authority.
 6. Should guest entry be a method on the generated application auth facade, a
    coordinator method projected into hooks, or both views of one owner?
-7. Should supervised bindings refresh lazily per exchange or proactively on a
-   supervisor timer? Which choice makes concurrent cold boots and fake-clock
-   tests simplest without creating background lifecycle work in the app?
+7. **Resolved 2026-08-21 by orchestrator ruling — lazy per-exchange refresh.**
+   On each bootstrap exchange the supervisor checks the current binding's
+   remaining TTL and re-mints once it enters a bounded window: five minutes for
+   the ordinary one-hour TTL, capped at one quarter of a shorter configured
+   TTL. One in-flight refresh is shared by concurrent exchanges and publishes
+   with a revision/identity check, so a descriptor or backend rotation that
+   wins the race cannot be overwritten by the older expiry refresh. Refresh
+   changes only issuance/expiry facts; failure leaves the complete predecessor
+   published, makes that exchange unavailable, and is retried by a later
+   exchange. The supervisor stays the issuer. There is no supervisor timer and
+   no background lifecycle work or local timestamp extension in the app. This
+   choice satisfies OQ7's fake-clock/concurrent-cold-boot criterion with the
+   smallest lifecycle surface.
 8. Does the common acceptance runner remain template-internal first, or is its
    compatibility contract stable enough for a public package entrypoint?

@@ -533,7 +533,9 @@ export async function admitAppBindingV1(candidate, app, {
         },
         [remediation(
           'restartExpoSupervisor',
-          'Restart the supervised Expo development session to obtain a fresh binding.',
+          'Reload to fetch the current supervisor\'s lazily refreshed binding. '
+            + 'If this client is attached to an older supervisor that cannot refresh, '
+            + 'stop that stale supervisor and restart `snapback dev --expo`.',
           { supervisorGeneration: candidate.provenance.supervisorGeneration },
         )],
       );

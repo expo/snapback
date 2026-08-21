@@ -6,6 +6,238 @@ import {
   admittedBrowserExchangeOrigin,
   startBootstrapExchange,
 } from './expo-dev.mjs';
+import { createSupervisedBindingPublisher } from './expo-binding-refresh.mjs';
+
+const BASE_NOW = Date.parse('2026-08-21T12:00:00.000Z');
+const TEST_TTL_MS = 1_000;
+const TEST_REFRESH_WINDOW_MS = 200;
+const TEST_GENERATION = 'supervisor-fake-clock';
+
+function descriptor(suffix = 'a') {
+  return Object.freeze({
+    identity: Object.freeze({
+      app: 'app:binding-refresh',
+      schema: `sha256:schema-${suffix}`,
+      functions: `sha256:functions-${suffix}`,
+      descriptor: `sha256:descriptor-${suffix}`,
+    }),
+    capabilities: Object.freeze({
+      required: Object.freeze(['auth.application-bootstrap.v1']),
+    }),
+    authBootstrap: Object.freeze({ entryMechanisms: Object.freeze(['password-v1']) }),
+  });
+}
+
+function refreshIssuance(binding, { now, ttlMs }) {
+  return Object.freeze({
+    ...binding,
+    provenance: Object.freeze({
+      supervisorGeneration: binding.provenance.supervisorGeneration,
+      issuedAt: new Date(now).toISOString(),
+      expiresAt: new Date(now + ttlMs).toISOString(),
+    }),
+  });
+}
+
+function nonIssuanceFacts(binding) {
+  const clone = structuredClone(binding);
+  delete clone.provenance.issuedAt;
+  delete clone.provenance.expiresAt;
+  return clone;
+}
+
+function issueTestBinding(publisher, suffix = 'a') {
+  return publisher.issue({
+    descriptor: descriptor(suffix),
+    origin: 'http://127.0.0.1:4310',
+    routing: 'loopback',
+  });
+}
+
+// Fake-clock concurrency: every exchange crossing the window joins one mint
+// and receives the exact same complete successor publication.
+let fakeNow = BASE_NOW;
+let releaseConcurrentMint;
+let markConcurrentMintStarted;
+let concurrentMintCalls = 0;
+const concurrentMintStarted = new Promise((resolve) => { markConcurrentMintStarted = resolve; });
+const concurrentMintGate = new Promise((resolve) => { releaseConcurrentMint = resolve; });
+const refreshEvents = [];
+const concurrentPublisher = createSupervisedBindingPublisher({
+  generation: TEST_GENERATION,
+  now: () => fakeNow,
+  ttlMs: TEST_TTL_MS,
+  refreshWindowMs: TEST_REFRESH_WINDOW_MS,
+  async mintRefresh(binding, timing) {
+    concurrentMintCalls += 1;
+    markConcurrentMintStarted();
+    await concurrentMintGate;
+    return refreshIssuance(binding, timing);
+  },
+  onEvent: (event) => refreshEvents.push(event),
+});
+const concurrentPredecessor = issueTestBinding(concurrentPublisher);
+fakeNow = BASE_NOW + TEST_TTL_MS - TEST_REFRESH_WINDOW_MS - 1;
+assert.strictEqual(
+  await concurrentPublisher.bindingForExchange(),
+  concurrentPredecessor,
+  'the publisher retains a binding immediately before the bounded refresh window',
+);
+fakeNow += 1;
+const concurrentExchanges = [
+  concurrentPublisher.bindingForExchange(),
+  concurrentPublisher.bindingForExchange(),
+  concurrentPublisher.bindingForExchange(),
+];
+await concurrentMintStarted;
+assert.equal(concurrentMintCalls, 1);
+releaseConcurrentMint();
+const concurrentSuccessors = await Promise.all(concurrentExchanges);
+assert(concurrentSuccessors.every((binding) => binding === concurrentSuccessors[0]));
+assert.deepEqual(nonIssuanceFacts(concurrentSuccessors[0]), nonIssuanceFacts(concurrentPredecessor));
+assert.notEqual(
+  concurrentSuccessors[0].provenance.issuedAt,
+  concurrentPredecessor.provenance.issuedAt,
+);
+assert.deepEqual(refreshEvents.map(({ state }) => state), ['binding-refreshed']);
+assert.equal(JSON.stringify(refreshEvents).includes('sbs_'), false);
+fakeNow = Date.parse(concurrentPredecessor.provenance.expiresAt) + 1;
+assert.throws(
+  () => concurrentPublisher.publish(concurrentPredecessor),
+  (error) => error.code === 'SNAPBACK_EXPO_BINDING_PUBLICATION_STALE',
+  'an expired cached predecessor cannot replace the refreshed exchange successor',
+);
+assert.strictEqual(concurrentPublisher.current, concurrentSuccessors[0]);
+
+// The five-minute production window exceeds AppBinding's admitted one-minute
+// host/device skew. Model the same ratio here: when the client reaches expiry
+// 60 ms ahead of this scaled fake host, the host is already inside the window.
+let skewedHostNow = BASE_NOW;
+const skewedPublisher = createSupervisedBindingPublisher({
+  generation: 'supervisor-skewed-clock',
+  now: () => skewedHostNow,
+  ttlMs: TEST_TTL_MS,
+  refreshWindowMs: TEST_REFRESH_WINDOW_MS,
+});
+const skewedPredecessor = issueTestBinding(skewedPublisher);
+skewedHostNow = BASE_NOW + TEST_TTL_MS - 60;
+const skewedSuccessor = await skewedPublisher.bindingForExchange();
+assert.notStrictEqual(skewedSuccessor, skewedPredecessor);
+assert(Date.parse(skewedSuccessor.provenance.expiresAt) > BASE_NOW + TEST_TTL_MS);
+
+// Descriptor publication wins atomically over an expiry refresh already in
+// flight. The late predecessor refresh converges on the descriptor successor,
+// and the cached predecessor cannot subsequently replace it.
+let racingNow = BASE_NOW;
+let releaseRacingMint;
+let markRacingMintStarted;
+const racingMintStarted = new Promise((resolve) => { markRacingMintStarted = resolve; });
+const racingMintGate = new Promise((resolve) => { releaseRacingMint = resolve; });
+const racingPublisher = createSupervisedBindingPublisher({
+  generation: 'supervisor-descriptor-race',
+  now: () => racingNow,
+  ttlMs: TEST_TTL_MS,
+  refreshWindowMs: TEST_REFRESH_WINDOW_MS,
+  async mintRefresh(binding, timing) {
+    markRacingMintStarted();
+    await racingMintGate;
+    return refreshIssuance(binding, timing);
+  },
+});
+const racingPredecessor = issueTestBinding(racingPublisher);
+racingNow = BASE_NOW + TEST_TTL_MS - TEST_REFRESH_WINDOW_MS;
+const racingExchange = racingPublisher.bindingForExchange();
+await racingMintStarted;
+racingNow += 1;
+const descriptorSuccessor = issueTestBinding(racingPublisher, 'b');
+releaseRacingMint();
+assert.strictEqual(await racingExchange, descriptorSuccessor);
+assert.strictEqual(racingPublisher.current, descriptorSuccessor);
+assert.throws(
+  () => racingPublisher.publish(racingPredecessor),
+  (error) => error.code === 'SNAPBACK_EXPO_BINDING_PUBLICATION_STALE',
+);
+
+// Failed minting is visible, keeps the predecessor published, and retries on
+// the next exchange instead of installing a partial or invalid successor.
+let failureNow = BASE_NOW;
+let failRefresh = true;
+const failureEvents = [];
+const failurePublisher = createSupervisedBindingPublisher({
+  generation: 'supervisor-refresh-failure',
+  now: () => failureNow,
+  ttlMs: TEST_TTL_MS,
+  refreshWindowMs: TEST_REFRESH_WINDOW_MS,
+  mintRefresh(binding, timing) {
+    if (failRefresh) throw Object.assign(new Error('injected refresh failure'), { code: 'INJECTED' });
+    return refreshIssuance(binding, timing);
+  },
+  onEvent: (event) => failureEvents.push(event),
+});
+const failurePredecessor = issueTestBinding(failurePublisher);
+failureNow = BASE_NOW + TEST_TTL_MS - TEST_REFRESH_WINDOW_MS;
+await assert.rejects(failurePublisher.bindingForExchange(), /injected refresh failure/u);
+assert.strictEqual(failurePublisher.current, failurePredecessor);
+assert.equal(failureEvents.at(-1).state, 'binding-refresh-failed');
+assert.equal(
+  failureEvents.at(-1).diagnostics[0].code,
+  'SNAPBACK_EXPO_BINDING_REFRESH_FAILED',
+);
+assert.equal(JSON.stringify(failureEvents).includes('injected refresh failure'), false);
+failRefresh = false;
+assert.notStrictEqual(await failurePublisher.bindingForExchange(), failurePredecessor);
+
+let invalidNow = BASE_NOW;
+const invalidPublisher = createSupervisedBindingPublisher({
+  generation: 'supervisor-invalid-refresh',
+  now: () => invalidNow,
+  ttlMs: TEST_TTL_MS,
+  refreshWindowMs: TEST_REFRESH_WINDOW_MS,
+  mintRefresh(binding, timing) {
+    const refreshed = refreshIssuance(binding, timing);
+    return Object.freeze({
+      ...refreshed,
+      target: Object.freeze({ ...refreshed.target, origin: 'http://127.0.0.1:9999' }),
+    });
+  },
+});
+const invalidPredecessor = issueTestBinding(invalidPublisher);
+invalidNow = BASE_NOW + TEST_TTL_MS - TEST_REFRESH_WINDOW_MS;
+await assert.rejects(
+  invalidPublisher.bindingForExchange(),
+  (error) => error.code === 'SNAPBACK_EXPO_BINDING_REFRESH_INVALID',
+);
+assert.strictEqual(invalidPublisher.current, invalidPredecessor);
+
+// Cleanup invalidates a pending refresh. This is the publisher half of the
+// existing real SIGINT supervisor test in the dev-loop suite.
+let cleanupNow = BASE_NOW;
+let releaseCleanupMint;
+let markCleanupMintStarted;
+const cleanupMintStarted = new Promise((resolve) => { markCleanupMintStarted = resolve; });
+const cleanupMintGate = new Promise((resolve) => { releaseCleanupMint = resolve; });
+const cleanupEvents = [];
+const cleanupPublisher = createSupervisedBindingPublisher({
+  generation: 'supervisor-cleanup',
+  now: () => cleanupNow,
+  ttlMs: TEST_TTL_MS,
+  refreshWindowMs: TEST_REFRESH_WINDOW_MS,
+  async mintRefresh(binding, timing) {
+    markCleanupMintStarted();
+    await cleanupMintGate;
+    return refreshIssuance(binding, timing);
+  },
+  onEvent: (event) => cleanupEvents.push(event),
+});
+issueTestBinding(cleanupPublisher);
+cleanupNow = BASE_NOW + TEST_TTL_MS - TEST_REFRESH_WINDOW_MS;
+const cleanupExchange = cleanupPublisher.bindingForExchange();
+await cleanupMintStarted;
+cleanupPublisher.close();
+releaseCleanupMint();
+assert.equal(await cleanupExchange, null);
+assert.equal(cleanupPublisher.current, null);
+assert.deepEqual(cleanupEvents, []);
 
 const admittedOrigins = [
   'http://127.0.0.1:8081',
@@ -38,7 +270,11 @@ const payload = {
   session: { accessToken: 'ordinary-session' },
 };
 let currentPayload = payload;
-const exchange = await startBootstrapExchange(() => currentPayload);
+let payloadFailure = null;
+const exchange = await startBootstrapExchange(async () => {
+  if (payloadFailure !== null) throw payloadFailure;
+  return currentPayload;
+});
 
 try {
   const admittedGet = await fetch(`${exchange.origin}${SUPERVISED_EXCHANGE_PATH}`, {
@@ -79,6 +315,15 @@ try {
   assert.equal(originlessGet.headers.get('access-control-allow-methods'), null);
   assert.equal(originlessGet.headers.get('cache-control'), 'no-store, max-age=0');
   assert.deepEqual(await originlessGet.json(), payload);
+
+  payloadFailure = new Error('injected lazy refresh failure');
+  const failedRefreshGet = await fetch(`${exchange.origin}${SUPERVISED_EXCHANGE_PATH}`);
+  assert.equal(failedRefreshGet.status, 503);
+  assert.deepEqual(await failedRefreshGet.json(), {
+    ok: false,
+    code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE',
+  });
+  payloadFailure = null;
 
   currentPayload = null;
   const unavailableGet = await fetch(`${exchange.origin}${SUPERVISED_EXCHANGE_PATH}`, {

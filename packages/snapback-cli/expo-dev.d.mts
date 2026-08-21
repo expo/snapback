@@ -101,7 +101,7 @@ export function createDevIdentityCheckoutRegistry(options: Readonly<{
 }>): DevIdentityCheckoutRegistry;
 
 export function startBootstrapExchange(
-  getPayload: () => unknown | null,
+  getPayload: () => unknown | null | Promise<unknown | null>,
   options?: Readonly<{
     onControl?: (
       request: BootstrapExchangeControlRequest,
@@ -313,6 +313,12 @@ export interface ExpoDevSupervisor {
 }
 
 export interface RunExpoDevOptions extends Readonly<Record<string, unknown>> {
+  /** Testable supervisor wall clock used for binding issuance and refresh. */
+  readonly now?: () => number;
+  /** Lifetime of one supervised AppBinding. Defaults to one hour. */
+  readonly bindingTtlMs?: number;
+  /** Lazy exchange refresh window. Defaults to five minutes for the one-hour TTL. */
+  readonly bindingRefreshWindowMs?: number;
   /** Explicit protocol opt-in for an application-owned development client. */
   readonly nativeCheckout?: boolean;
   /** Required own-bundle target when nativeCheckout selects iOS. */
