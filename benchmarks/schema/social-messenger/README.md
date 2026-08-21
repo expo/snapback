@@ -17,9 +17,15 @@ LLP 0201's 2026-08-11 dated amendment).
   complete-lane enumeration, usable-grading-record gate.
 - `run-record-extension.schema.json` — the social-messenger extension
   over `benchmarks/schema/run-record.schema.json` (per-milestone
-  phases/statuses/charging, harness-native fresh/cache/output/reasoning
-  counters, the first-product-edit orientation snapshot, separate clocks,
-  compaction, replay and probe results with O5 band inputs, grading pointers).
+  phases/statuses/charging, execution-ordered terminal boundaries,
+  harness-native fresh/cache/output/reasoning
+  counters, hash-bound session/receipt/clock provenance, the first-product-edit
+  orientation snapshot, separate clocks, compaction, replay and probe results
+  with O5 band inputs, grading pointers).
+- `run-record.schema.json` — the complete composed record schema. It restricts
+  `tokens.source` by `capFamily` and requires advisory or explicitly
+  unavailable metering to use null totals, phases, milestone token caps/counts,
+  and charges without `capped-tokens`.
 
 The grader-side half of the instrument (frozen prompt, report schema,
 calibration plan, probe machinery) lives in

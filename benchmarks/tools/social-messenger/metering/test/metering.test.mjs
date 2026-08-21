@@ -1,10 +1,27 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import {
+  copyFile,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import test from "node:test";
 
-import { adaptAdvisoryFamily } from "../adapters/advisory.mjs";
-import { adaptClaudeSession } from "../adapters/claude-session.mjs";
-import { adaptCodexSession } from "../adapters/codex-session.mjs";
+import {
+  adaptClaudeSession,
+  adaptClaudeSessionTree,
+} from "../adapters/claude-session.mjs";
+import {
+  adaptCodexSession,
+  adaptCodexSessionTree,
+} from "../adapters/codex-session.mjs";
+import { adaptUnavailableFamily } from "../adapters/unavailable.mjs";
 import {
   mergeBoundaryMaps,
   normalizeBoundaryMap,
@@ -12,18 +29,40 @@ import {
 } from "../boundaries.mjs";
 import { joinUsageToMilestones } from "../joiner.mjs";
 import { parseJsonLines } from "../jsonl.mjs";
-import { TokenCapWatchdog } from "../watchdog.mjs";
+import { loadMeteringManifest } from "../manifest.mjs";
+import {
+  TokenCapEnforcedError,
+  TokenCapWatchdog,
+} from "../watchdog.mjs";
 import { validateJsonSchema } from "../../../lib/json-schema.mjs";
 
+const execFileAsync = promisify(execFile);
 const FIXTURES = new URL("./fixtures/", import.meta.url);
 const ROOT = new URL("../../../../../", import.meta.url);
+const meterPath = fileURLToPath(new URL("../meter.mjs", import.meta.url));
 const extensionSchema = JSON.parse(await readFile(
   new URL("benchmarks/schema/social-messenger/run-record-extension.schema.json", ROOT),
   "utf8",
 ));
+const baseSchema = JSON.parse(await readFile(
+  new URL("benchmarks/schema/run-record.schema.json", ROOT),
+  "utf8",
+));
+const composedSchema = JSON.parse(await readFile(
+  new URL("benchmarks/schema/social-messenger/run-record.schema.json", ROOT),
+  "utf8",
+));
 
-function assertSchema(schema, value) {
-  assert.deepEqual(validateJsonSchema(schema, value), []);
+function assertSchema(schema, value, schemas = []) {
+  assert.deepEqual(validateJsonSchema(schema, value, { schemas }), []);
+}
+
+function assertExtensionDefinition(name, value) {
+  assertSchema({
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    $id: `https://snapback.dev/benchmarks/test/${name}.schema.json`,
+    $ref: `${extensionSchema.$id}#/$defs/${name}`,
+  }, value, [extensionSchema]);
 }
 
 async function fixtureText(name) {
@@ -34,7 +73,26 @@ async function fixtureJson(name) {
   return JSON.parse(await fixtureText(name));
 }
 
-test("Claude native usage joins exact boundary prefixes into milestone phases", async () => {
+function counts(input, output, cacheRead = 0, cacheWrite = 0, reasoning = 0) {
+  return { input, output, cacheRead, cacheWrite, reasoning };
+}
+
+function nullCounts() {
+  return counts(null, null, null, null, null);
+}
+
+function immediateController(id = "fixture-enforcer") {
+  return {
+    id,
+    terminate: async (trip) => ({
+      acknowledged: true,
+      acknowledgedAt: trip.observedAt,
+      evidence: `terminated:${trip.milestone}`,
+    }),
+  };
+}
+
+test("Claude native usage joins exact terminal prefixes into milestone phases", async () => {
   const channel = adaptClaudeSession(parseJsonLines(
     await fixtureText("claude-session.jsonl"),
     "claude fixture",
@@ -57,161 +115,477 @@ test("Claude native usage joins exact boundary prefixes into milestone phases", 
 
   assert.equal(result.source, "claude-code-session-usage");
   assert.equal(result.available, true);
-  assert.deepEqual(result.milestones.M1.authoring.tokens, {
-    input: 200,
-    output: 40,
-    cacheRead: 270,
-    cacheWrite: 20,
-    reasoning: 10,
-  });
+  assert.equal(result.capAdjudicationEligible, true);
+  assert.deepEqual(result.executionOrder, ["M1", "M2"]);
+  assert.deepEqual(result.milestones.M1.authoring.tokens, counts(200, 40, 270, 20, 10));
   assert.deepEqual(result.boundarySnapshots.M1.tokens, result.milestones.M1.authoring.tokens);
-  assert.deepEqual(result.milestones.M2.authoring.tokens, {
-    input: 50,
-    output: 12,
-    cacheRead: 270,
-    cacheWrite: 10,
-    reasoning: 3,
-  });
-  assert.deepEqual(result.boundarySnapshots.M2.tokens, {
-    input: 250,
-    output: 52,
-    cacheRead: 540,
-    cacheWrite: 30,
-    reasoning: 13,
-  });
+  assert.deepEqual(result.milestones.M2.authoring.tokens, counts(50, 12, 270, 10, 3));
+  assert.deepEqual(result.totals, counts(250, 52, 540, 30, 13));
   assert.deepEqual(result.firstProductEdit, {
     at: "2026-08-21T10:00:30.000Z",
     orientationBytes: 12103,
     selectedSkills: ["snapback-authoring", "llp-orient"],
-    orientationTokens: {
-      input: 100,
-      output: 10,
-      cacheRead: 50,
-      cacheWrite: 20,
-      reasoning: 2,
-    },
+    orientationTokens: counts(100, 10, 50, 20, 2),
   });
   for (const milestone of Object.values(result.milestones)) {
-    assertSchema(extensionSchema.$defs.tokenCounts, milestone.authoring.tokens);
+    assertExtensionDefinition("tokenCounts", milestone.authoring.tokens);
   }
-  assertSchema(extensionSchema.$defs.firstProductEditSnapshot, result.firstProductEdit);
-  assertSchema(extensionSchema.$defs.tokenCounts, result.firstProductEdit.orientationTokens);
+  assertExtensionDefinition("firstProductEditSnapshot", result.firstProductEdit);
 });
 
-test("Codex adapter differences cumulative rollout counters without double-counting", async () => {
-  const channel = adaptCodexSession(parseJsonLines(
-    await fixtureText("codex-rollout.jsonl"),
-    "codex fixture",
-  ));
+test("failed, green, and final aborted milestones each retain their own tokens", async () => {
+  const channel = {
+    source: "claude-code-session-usage",
+    unavailableReason: null,
+    turns: [
+      { id: "m1-turn", completedAt: "2026-08-21T13:00:30.000Z", usage: counts(80, 20) },
+      { id: "m2-turn", completedAt: "2026-08-21T13:01:30.000Z", usage: counts(40, 10) },
+      { id: "m3-turn", completedAt: "2026-08-21T13:02:30.000Z", usage: counts(20, 5) },
+    ],
+  };
+  const result = joinUsageToMilestones({
+    channel,
+    boundaries: await fixtureJson("non-green-boundaries.json"),
+  });
+  assert.deepEqual(result.executionOrder, ["M1", "M2", "M3"]);
+  assert.equal(result.milestones.M1.status, "capability-failure");
+  assert.deepEqual(result.milestones.M1.authoring.tokens, counts(80, 20));
+  assert.equal(result.milestones.M1.authoring.firstGreenAt, null);
+  assert.equal(result.milestones.M2.status, "green");
+  assert.deepEqual(result.milestones.M2.authoring.tokens, counts(40, 10));
+  assert.equal(result.milestones.M3.status, "aborted");
+  assert.deepEqual(result.milestones.M3.authoring.tokens, counts(20, 5));
+  assert.equal(result.milestones.M3.authoring.firstGreenAt, null);
+  assert.deepEqual(result.totals, counts(140, 35));
+});
+
+test("recorded clock-skew bounds reject ambiguous timestamp joins", async () => {
+  assert.throws(() => joinUsageToMilestones({
+    channel: {
+      source: "claude-code-session-usage",
+      turns: [{
+        id: "near-boundary",
+        completedAt: "2026-08-21T13:00:59.950Z",
+        usage: counts(1, 1),
+      }],
+    },
+    boundaries: {
+      M1: {
+        status: "capability-failure",
+        firstGreenAt: null,
+        suitePassAt: null,
+        choreoPassAt: null,
+        terminalAt: "2026-08-21T13:01:00.000Z",
+        terminalSequence: 1,
+        terminalReason: "token-cap",
+      },
+    },
+    maxClockSkewMs: 100,
+  }), /within the recorded 100ms clock-skew bound/u);
+});
+
+test("Codex adapter differences every session's cumulative counters", async () => {
+  const records = parseJsonLines(await fixtureText("codex-rollout.jsonl"), "codex fixture");
+  const channel = adaptCodexSession(records);
   assert.equal(channel.source, "codex-rollout-token-count");
   assert.equal(channel.turns.length, 3, "repeated cumulative snapshots must not create turns");
   assert.deepEqual(channel.turns.map((turn) => turn.usage), [
-    { input: 60, output: 30, cacheRead: 120, cacheWrite: 20, reasoning: 10 },
-    { input: 90, output: 20, cacheRead: 180, cacheWrite: 30, reasoning: 5 },
-    { input: 150, output: 30, cacheRead: 200, cacheWrite: 50, reasoning: 5 },
+    counts(60, 30, 120, 20, 10),
+    counts(90, 20, 180, 30, 5),
+    counts(150, 30, 200, 50, 5),
   ]);
-  const joined = joinUsageToMilestones({
-    channel,
-    boundaries: {
-      M1: {
-        suitePassAt: "2026-08-21T11:00:19.000Z",
-        choreoPassAt: "2026-08-21T11:00:20.000Z",
-      },
-      M2: {
-        suitePassAt: "2026-08-21T11:00:29.000Z",
-        choreoPassAt: "2026-08-21T11:00:30.000Z",
+  const tree = adaptCodexSessionTree([
+    { sourceId: "builder", nativeSessionId: "codex-parent", records },
+    { sourceId: "descendant", nativeSessionId: "codex-child", records },
+  ]);
+  assert.equal(tree.turns.length, 6, "builder and descendant counters are both charged");
+  assert.equal(tree.turns.reduce((sum, turn) => sum + turn.usage.output, 0), 160);
+});
+
+test("retained real Claude descendant tree is hash-bound and fully aggregated", async () => {
+  const manifestPath = fileURLToPath(new URL("real-claude-tree-manifest.json", FIXTURES));
+  const input = await loadMeteringManifest(manifestPath);
+  assert.equal(input.channel.turns.length, 14);
+  const descendantTurns = input.channel.turns.filter(
+    (turn) => turn.sourceId === "builder-descendant-af165d69f7468e749",
+  );
+  assert.equal(descendantTurns.length, 12);
+  assert.equal(descendantTurns.reduce((sum, turn) => sum + turn.usage.output, 0), 21_496);
+  const result = joinUsageToMilestones(input);
+  assert.equal(result.totals.output, 21_997);
+  assert.equal(result.meteringProvenance.sessions.length, 2);
+  assert.equal(result.meteringProvenance.receipts[0].runId, "retained-claude-m1-receipt");
+  assertSchema({
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    $id: "https://snapback.dev/benchmarks/test/metering-provenance.schema.json",
+    $ref: `${extensionSchema.$id}#/properties/meteringProvenance`,
+  }, result.meteringProvenance, [extensionSchema]);
+
+  const { stdout } = await execFileAsync(process.execPath, [
+    meterPath,
+    "--manifest",
+    manifestPath,
+  ]);
+  const cliResult = JSON.parse(stdout);
+  assert.equal(cliResult.totals.output, 21_997);
+  assert.equal(cliResult.meteringProvenance.sessions[1].role, "builder-descendant");
+});
+
+test("lane manifest rejects source-hash and receipt-identity mismatches", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "snapback-metering-manifest-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const artifactNames = [
+    "real-claude-tree-parent.jsonl",
+    "real-claude-tree-descendant.jsonl",
+    "real-claude-tree-boundaries.json",
+    "real-claude-tree-receipt.jsonl",
+  ];
+  for (const name of artifactNames) {
+    await copyFile(new URL(name, FIXTURES), join(directory, name));
+  }
+  const manifest = await fixtureJson("real-claude-tree-manifest.json");
+
+  const badHash = structuredClone(manifest);
+  badHash.sessions[0].sha256 = `sha256:${"0".repeat(64)}`;
+  const badHashPath = join(directory, "bad-hash.json");
+  await writeFile(badHashPath, `${JSON.stringify(badHash)}\n`);
+  await assert.rejects(loadMeteringManifest(badHashPath), /digest mismatch/u);
+
+  const badReceipt = structuredClone(manifest);
+  badReceipt.receipts[0].runId = "wrong-receipt-run";
+  const badReceiptPath = join(directory, "bad-receipt.json");
+  await writeFile(badReceiptPath, `${JSON.stringify(badReceipt)}\n`);
+  await assert.rejects(loadMeteringManifest(badReceiptPath), /does not belong to runId/u);
+});
+
+test("Claude message identity de-duplicates globally across declared sources", () => {
+  const record = {
+    timestamp: "2026-08-21T14:00:00.000Z",
+    message: {
+      id: "globally-shared",
+      usage: {
+        input_tokens: 10,
+        output_tokens: 5,
+        cache_read_input_tokens: 0,
+        cache_creation_input_tokens: 0,
       },
     },
-  });
-  assert.deepEqual(joined.milestones.M1.authoring.tokens, {
-    input: 150,
-    output: 50,
-    cacheRead: 300,
-    cacheWrite: 50,
-    reasoning: 15,
-  });
-  assert.deepEqual(joined.milestones.M2.authoring.tokens, {
-    input: 150,
-    output: 30,
-    cacheRead: 200,
-    cacheWrite: 50,
-    reasoning: 5,
-  });
-});
-
-test("cap-advisory families preserve honest null milestone and orientation tokens", async () => {
-  const result = joinUsageToMilestones({
-    channel: adaptAdvisoryFamily("grok-advisory"),
-    boundaries: normalizeBoundaryMap(await fixtureJson("boundaries.json")),
-    firstProductEdit: await fixtureJson("first-product-edit.json"),
-  });
-  const nulls = {
-    input: null,
-    output: null,
-    cacheRead: null,
-    cacheWrite: null,
-    reasoning: null,
   };
-  assert.equal(result.available, false);
-  assert.equal(result.source, null);
-  assert.equal(result.unavailableReason, "harness-no-per-turn-usage");
-  assert.deepEqual(result.milestones.M1.authoring.tokens, nulls);
-  assert.deepEqual(result.milestones.M2.authoring.tokens, nulls);
-  assert.deepEqual(result.firstProductEdit.orientationTokens, nulls);
-  assertSchema(extensionSchema.$defs.tokenCounts, nulls);
+  const tree = adaptClaudeSessionTree([
+    { sourceId: "builder", records: [record] },
+    { sourceId: "descendant", records: [record] },
+  ]);
+  assert.equal(tree.turns.length, 1);
+  assert.equal(tree.deduplicatedRecords, 1);
 });
 
-test("watchdog trips once at fresh-input-plus-output cap and emits schema charging", () => {
-  const trips = [];
-  const watchdog = new TokenCapWatchdog({ onTrip: (trip) => trips.push(trip) });
+test("unavailable mode emits honest null totals and phases for every cap family", async () => {
+  for (const family of [
+    "claude-frontier",
+    "gpt-frontier",
+    "mid-tier",
+    "kimi-advisory",
+    "grok-advisory",
+  ]) {
+    const result = joinUsageToMilestones({
+      channel: adaptUnavailableFamily(family, "retained-session-stream-missing"),
+      boundaries: normalizeBoundaryMap(await fixtureJson("boundaries.json")),
+      firstProductEdit: await fixtureJson("first-product-edit.json"),
+    });
+    assert.equal(result.available, false);
+    assert.equal(result.capAdjudicationEligible, false);
+    assert.equal(result.source, null);
+    assert.equal(result.unavailableReason, "retained-session-stream-missing");
+    assert.deepEqual(result.totals, nullCounts());
+    assert.deepEqual(result.milestones.M1.authoring.tokens, nullCounts());
+    assert.deepEqual(result.firstProductEdit.orientationTokens, nullCounts());
+  }
+  assert.throws(
+    () => adaptUnavailableFamily("gpt-frontier", "free form reason"),
+    /stable lowercase kebab-case/u,
+  );
+
+  const manifestInput = await loadMeteringManifest(fileURLToPath(
+    new URL("unavailable-manifest.json", FIXTURES),
+  ));
+  const manifestResult = joinUsageToMilestones(manifestInput);
+  assert.equal(manifestResult.source, null);
+  assert.equal(manifestResult.capAdjudicationEligible, false);
+  assert.deepEqual(manifestResult.totals, nullCounts());
+  assert.equal(manifestResult.meteringProvenance.sessions.length, 0);
+});
+
+test("watchdog requires a controller and a wall-clock origin", () => {
+  assert.throws(() => new TokenCapWatchdog(), /enforcementController/u);
+  const watchdog = new TokenCapWatchdog({ enforcementController: immediateController() });
+  assert.throws(() => watchdog.arm({
+    capFamily: "gpt-frontier",
+    milestone: "M1",
+    tokenCap: 100,
+  }), /watchdog startedAt/u);
+});
+
+test("watchdog enforces termination before any next turn and retains overshoot", async () => {
+  let acknowledge;
+  const terminationRequested = new Promise((resolve) => {
+    acknowledge = resolve;
+  });
+  let executedTurns = 0;
+  const watchdog = new TokenCapWatchdog({
+    enforcementController: {
+      id: "deferred-process-controller",
+      terminate: () => terminationRequested,
+    },
+  });
   watchdog.arm({
     capFamily: "gpt-frontier",
     milestone: "M2",
     tokenCap: 100,
     startedAt: "2026-08-21T12:00:00.000Z",
   });
-  const first = {
-    id: "turn-1",
-    completedAt: "2026-08-21T12:00:05.000Z",
-    usage: { input: 40, output: 10, cacheRead: 1000, cacheWrite: 500, reasoning: 4 },
+  const modelTurn = (id, completedAt, usage) => async () => {
+    executedTurns += 1;
+    return { id, completedAt, usage };
   };
-  assert.equal(watchdog.observe(first), null);
-  assert.equal(watchdog.observe(first), null, "duplicate turn ID must not recharge the cap");
-  const trip = watchdog.observe({
-    id: "turn-2",
-    completedAt: "2026-08-21T12:00:12.000Z",
-    usage: { input: 55, output: 5, cacheRead: 9000, cacheWrite: 7000, reasoning: 2 },
+  await watchdog.runTurn(modelTurn("turn-1", "2026-08-21T12:00:05.000Z", counts(40, 10, 1000, 500, 4)));
+  const { trip } = await watchdog.runTurn(
+    modelTurn("turn-2", "2026-08-21T12:00:12.000Z", counts(55, 5, 9000, 7000, 2)),
+  );
+  assert.equal(trip.actualTokens, 110);
+  assert.equal(trip.charging.chargedWallSeconds, 12);
+  assert.equal(trip.enforcementController, "deferred-process-controller");
+
+  const forbiddenTurn = watchdog.runTurn(
+    modelTurn("turn-3", "2026-08-21T12:00:13.000Z", counts(100, 100)),
+  );
+  await Promise.resolve();
+  assert.equal(executedTurns, 2, "the next model turn must remain gated while termination is pending");
+  acknowledge({
+    acknowledged: true,
+    acknowledgedAt: "2026-08-21T12:00:12.100Z",
+    evidence: "process-exit:fixture-42",
   });
-  assert.deepEqual(trip, {
-    type: "token-cap-exhausted",
+  await assert.rejects(forbiddenTurn, (error) => (
+    error instanceof TokenCapEnforcedError
+    && error.code === "SOCIAL_MESSENGER_TOKEN_CAP_ENFORCED"
+  ));
+  assert.equal(executedTurns, 2, "no model turn may execute after the trip");
+
+  watchdog.observe({
+    id: "already-in-flight-after-trip",
+    completedAt: "2026-08-21T12:00:12.050Z",
+    usage: counts(20, 5),
+  });
+  assert.equal(watchdog.state.actualTokens, 135);
+  assert.equal(watchdog.state.overshoot.tokens, 25);
+  assert.deepEqual(watchdog.state.overshoot.turns, [{
+    id: "already-in-flight-after-trip",
+    completedAt: "2026-08-21T12:00:12.050Z",
+    tokens: 25,
+  }]);
+});
+
+test("watchdog turn identities remain cumulative across milestone arms", () => {
+  const watchdog = new TokenCapWatchdog({ enforcementController: immediateController() });
+  const first = {
+    id: "lane-global-turn-1",
+    completedAt: "2026-08-21T15:00:05.000Z",
+    usage: counts(40, 10),
+  };
+  watchdog.arm({
+    capFamily: "gpt-frontier",
+    milestone: "M1",
+    tokenCap: 1000,
+    startedAt: "2026-08-21T15:00:00.000Z",
+  });
+  watchdog.observe(first);
+  assert.equal(watchdog.state.actualTokens, 50);
+  watchdog.disarm();
+  watchdog.arm({
     capFamily: "gpt-frontier",
     milestone: "M2",
-    status: "capability-failure",
-    tokenCap: 100,
-    actualTokens: 110,
-    observedAt: "2026-08-21T12:00:12.000Z",
+    tokenCap: 1000,
+    startedAt: "2026-08-21T15:01:00.000Z",
+  });
+  watchdog.observe(first);
+  assert.equal(watchdog.state.actualTokens, 0, "rereading the cumulative log cannot recharge M1");
+  watchdog.observe({
+    id: "lane-global-turn-2",
+    completedAt: "2026-08-21T15:01:05.000Z",
+    usage: counts(20, 5),
+  });
+  assert.equal(watchdog.state.actualTokens, 25);
+});
+
+function milestoneRecord({ metered, sequence }) {
+  const tokenUsage = metered ? counts(10, 2, 20, 0, 1) : nullCounts();
+  return {
+    status: "green",
+    authoring: {
+      wallSeconds: 12,
+      tokens: tokenUsage,
+      firstGreenAt: `2026-08-21T16:0${sequence}:00.000Z`,
+      suitePassAt: `2026-08-21T16:0${sequence}:00.000Z`,
+      choreoPassAt: `2026-08-21T16:0${sequence}:00.000Z`,
+      terminalAt: `2026-08-21T16:0${sequence}:00.000Z`,
+      terminalSequence: sequence,
+      terminalReason: "green",
+    },
+    caps: {
+      wallCapSeconds: 120,
+      tokenCap: metered ? 1000 : null,
+    },
     charging: {
       chargedWallSeconds: 12,
-      chargedTokens: 100,
-      flags: ["capped-tokens"],
+      chargedTokens: metered ? 12 : null,
+      flags: [],
     },
-  });
-  watchdog.observe({
-    id: "turn-3",
-    completedAt: "2026-08-21T12:00:13.000Z",
-    usage: { input: 100, output: 100, cacheRead: 0, cacheWrite: 0, reasoning: 0 },
-  });
-  assert.equal(trips.length, 1);
+  };
+}
 
-  const advisory = new TokenCapWatchdog();
-  assert.deepEqual(advisory.arm({
-    capFamily: "kimi-advisory",
-    milestone: "M1",
-    tokenCap: null,
-  }), {
-    armed: false,
-    reason: "cap-advisory-family",
-    capFamily: "kimi-advisory",
-    milestone: "M1",
+function composedRecord({ capFamily, source, metered }) {
+  const basePhase = metered ? 1 : null;
+  return {
+    schemaVersion: 1,
+    lane: "snapback",
+    brief: "social-messenger",
+    harness: { name: "fixture", model: "fixture", effort: null },
+    timestamps: {
+      startedAt: "2026-08-21T16:00:00.000Z",
+      finishedAt: "2026-08-21T16:03:00.000Z",
+    },
+    firstGreenProofAt: "2026-08-21T16:01:00.000Z",
+    wallClock: {
+      totalSeconds: 180,
+      phases: { orientation: 1, authoring: 177, verification: 1, diagnosis: 1 },
+    },
+    tokens: {
+      input: metered ? 30 : null,
+      output: metered ? 6 : null,
+      source,
+      phases: {
+        orientation: basePhase,
+        authoring: metered ? 33 : null,
+        verification: basePhase,
+        diagnosis: basePhase,
+      },
+    },
+    correctionLoops: [],
+    handAuthoredLoc: { lines: 1, files: 1 },
+    diary: "benchmarks/records/fixture.md",
+    socialMessenger: {
+      extensionVersion: 2,
+      runScope: "reduced",
+      capFamily,
+      deploymentPosture: "local-dev-server",
+      milestones: {
+        M1: milestoneRecord({ metered, sequence: 1 }),
+        M2: milestoneRecord({ metered, sequence: 2 }),
+        M3: milestoneRecord({ metered, sequence: 3 }),
+      },
+      termination: { terminatedEarly: false, reason: null, afterMilestone: null },
+      compaction: { policy: "fixture", events: [] },
+      firstProductEdit: {
+        at: null,
+        orientationBytes: null,
+        orientationTokens: metered ? counts(1, 0, 0, 0, 0) : nullCounts(),
+        selectedSkills: [],
+      },
+      meteringProvenance: {
+        manifestVersion: "social-messenger-metering-manifest.v1",
+        laneRunId: "fixture-lane",
+        driver: {
+          id: "fixture-driver",
+          stampedAt: "2026-08-21T16:03:01.000Z",
+          startedAt: "2026-08-21T16:00:00.000Z",
+        },
+        manifestSha256: `sha256:${"0".repeat(64)}`,
+        clockCorrelation: {
+          method: "rfc3339-with-bounded-skew",
+          maxSkewMillis: 0,
+          evidence: "fixture clock",
+        },
+        sessions: metered ? [{
+          sourceId: "builder",
+          parentSourceId: null,
+          role: "builder",
+          nativeSessionId: "fixture-native-session",
+          nativeAgentId: null,
+          path: "fixture.jsonl",
+          sha256: `sha256:${"1".repeat(64)}`,
+        }] : [],
+        receipts: [],
+        boundaries: {
+          path: "boundaries.json",
+          sha256: `sha256:${"2".repeat(64)}`,
+        },
+        firstProductEdit: null,
+      },
+      coverageManifest: { path: "fixture", validated: true },
+      assertionManifest: { path: "fixture" },
+      clocks: {
+        grading: {
+          sessions: [{ wallSeconds: 1, tokens: nullCounts() }],
+        },
+      },
+      grading: {
+        graderReportPath: "fixture",
+        graderFamily: "fixture",
+        sameFamilyGraded: false,
+        usableGradingRecord: true,
+      },
+    },
+  };
+}
+
+function composedErrors(record) {
+  return validateJsonSchema(composedSchema, record, {
+    schemas: [baseSchema, extensionSchema],
   });
+}
+
+test("composed schema restricts approved sources and null cap posture", () => {
+  const gpt = composedRecord({
+    capFamily: "gpt-frontier",
+    source: "codex-rollout-token-count",
+    metered: true,
+  });
+  assert.deepEqual(composedErrors(gpt), []);
+
+  const unavailableGpt = composedRecord({
+    capFamily: "gpt-frontier",
+    source: null,
+    metered: false,
+  });
+  assert.deepEqual(composedErrors(unavailableGpt), []);
+
+  const grok = composedRecord({
+    capFamily: "grok-advisory",
+    source: null,
+    metered: false,
+  });
+  assert.deepEqual(composedErrors(grok), []);
+
+  const arbitrarySource = structuredClone(gpt);
+  arbitrarySource.tokens.source = "provider-usage-estimate";
+  assert.notDeepEqual(composedErrors(arbitrarySource), []);
+
+  const wrongFamilySource = structuredClone(gpt);
+  wrongFamilySource.socialMessenger.capFamily = "claude-frontier";
+  assert.notDeepEqual(composedErrors(wrongFamilySource), []);
+
+  const advisoryNumbers = structuredClone(grok);
+  advisoryNumbers.tokens.input = 10;
+  advisoryNumbers.tokens.output = 2;
+  advisoryNumbers.socialMessenger.milestones.M1.authoring.tokens = counts(10, 2);
+  advisoryNumbers.socialMessenger.milestones.M1.caps.tokenCap = 100;
+  advisoryNumbers.socialMessenger.milestones.M1.charging.chargedTokens = 100;
+  advisoryNumbers.socialMessenger.milestones.M1.charging.flags = ["capped-tokens"];
+  assert.notDeepEqual(composedErrors(advisoryNumbers), []);
+
+  const unavailableCap = structuredClone(unavailableGpt);
+  unavailableCap.socialMessenger.milestones.M2.caps.tokenCap = 100;
+  unavailableCap.socialMessenger.milestones.M2.charging.chargedTokens = 100;
+  unavailableCap.socialMessenger.milestones.M2.charging.flags = ["capped-tokens"];
+  assert.notDeepEqual(composedErrors(unavailableCap), []);
 });

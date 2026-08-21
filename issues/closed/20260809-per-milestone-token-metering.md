@@ -17,11 +17,11 @@ per-milestone attribution.
 ## Ruling
 
 The 2026-08-20 orchestrator ruling selects the diary-0069 harness-native path
-as the sole cap-bearing channel. There is no estimator subsystem. Boundary
-snapshots are prefix sums over harness-native per-turn usage joined to the
-milestone receipt timestamps. Families whose harness provides no trustworthy
-per-turn usage record use honest nulls and remain token-cap-advisory under LLP
-0201 D2.
+as the sole cap-bearing channel. There is no estimator subsystem. Terminal
+snapshots are prefix sums over harness-native per-turn usage joined to
+driver-stamped green/cap/abort boundaries in execution order. Families whose
+harness provides no trustworthy per-turn usage record use explicit
+reason-coded honest nulls and cannot adjudicate a token cap under LLP 0201 D2.
 
 The cap sums **fresh input plus native output**. Cache reads and writes remain
 recorded but excluded; reasoning/thinking is recorded as an output subset and
@@ -29,30 +29,37 @@ is not double-counted.
 
 ## Resolution
 
-- `benchmarks/tools/social-messenger/metering/joiner.mjs` joins normalized
-  usage to `receipts-m*.jsonl` and/or stamped `suitePassAt` /
-  `choreoPassAt` boundaries, emitting schema-shaped per-milestone authoring
-  token phases and replayable prefix snapshots.
+- `benchmarks/tools/social-messenger/metering/manifest.mjs` verifies the
+  driver's hash-bound builder/descendant session tree, receipt identities,
+  terminal-boundary artifact, wall origin, and recorded clock-skew bound.
+- `benchmarks/tools/social-messenger/metering/joiner.mjs` differences every
+  attempted milestone's terminal prefix — green, cap, or abort — so a failed
+  or final failed attempt is emitted and never charged to its successor.
 - `benchmarks/tools/social-messenger/metering/adapters/claude-session.mjs`
-  de-duplicates Claude per-message session usage; `adapters/codex-session.mjs`
-  adds the missing Codex rollout-log adapter by differencing cumulative
-  `token_count` records. Kimi and Grok use `adapters/advisory.mjs` and emit
-  null phases.
-- `benchmarks/tools/social-messenger/metering/watchdog.mjs` is the separable
-  driver enforcement hook. It arms one `(cap family, milestone)` budget,
-  de-duplicates stable turn IDs, excludes cache counters, and emits the LLP
-  0201 `capability-failure` / `capped-tokens` charging block once exhausted.
+  globally de-duplicates Claude messages across the retained tree;
+  `adapters/codex-session.mjs` differences cumulative `token_count` records
+  within each rollout before aggregating descendants. Delegation is charged,
+  not prohibited. `adapters/unavailable.mjs` emits reason-coded nulls for any
+  family whose approved tree is unavailable.
+- `benchmarks/tools/social-messenger/metering/watchdog.mjs` requires a real
+  enforcement controller and wall origin, gates the next model turn until
+  termination acknowledgement and then refuses it, retains post-trip
+  overshoot, and preserves lane-global turn identity across milestone arms.
 - `benchmarks/schema/social-messenger/run-record-extension.schema.json` now
-  records fresh/cache/output/reasoning counts and the explicit
-  `firstProductEdit` snapshot (orientation bytes/tokens plus selected skills)
+  records fresh/cache/output/reasoning counts, terminal sequence/status, and
+  the explicit `firstProductEdit` snapshot (orientation bytes/tokens plus selected skills)
   required by LLP 0295 D0.6 and the matrix skill-routing ticket.
-- `benchmarks/protocol.md` names the approved native sources, inclusive
-  turn-to-green boundary rule, null fallback, exact cap counters, and
-  first-product-edit receipt.
-- Synthetic fixture tests under
+- `benchmarks/schema/social-messenger/run-record.schema.json` composes the base
+  and extension schemas and mechanically restricts approved sources plus the
+  advisory/unavailable null-cap posture.
+- `benchmarks/protocol.md` names the aggregation policy, manifest provenance,
+  inclusive turn-to-terminal rule, unavailable fallback, exact cap counters,
+  enforced watchdog contract, and first-product-edit receipt.
+- Synthetic and retained-usage-only fixture tests under
   `benchmarks/tools/social-messenger/metering/test/` prove Claude/Codex
-  normalization, prefix/delta joins, exact-boundary inclusion, honest advisory
-  nulls, schema-shaped output, and one-shot watchdog charging.
+  descendant aggregation, every-terminal prefix/delta joins, exact-boundary
+  inclusion, honest nulls, cross-milestone de-duplication, composed-schema
+  refusal, and end-to-end no-turn-after-trip enforcement.
 
 No live benchmark rerun was required for this implementation. Token caps must
 still seed only from fresh lanes run under the retained native meter; the P2

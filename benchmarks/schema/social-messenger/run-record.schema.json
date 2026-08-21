@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/benchmarks/social-messenger/run-record.schema.json",
+  "title": "social-messenger composed lane-run record",
+  "description": "Composes the competitive benchmark base record with the social-messenger extension and mechanically restricts token sources and cap-advisory/unavailable token posture.",
+  "allOf": [
+    {
+      "$ref": "https://snapback.dev/benchmarks/run-record.schema.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "socialMessenger"
+      ],
+      "properties": {
+        "brief": {
+          "const": "social-messenger"
+        },
+        "tokens": {
+          "properties": {
+            "source": {
+              "enum": [
+                "claude-code-session-usage",
+                "codex-rollout-token-count",
+                null
+              ]
+            }
+          }
+        },
+        "socialMessenger": {
+          "$ref": "https://snapback.dev/benchmarks/social-messenger/run-record-extension.schema.json"
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "socialMessenger": {
+            "properties": {
+              "capFamily": {
+                "enum": [
+                  "claude-frontier",
+                  "mid-tier"
+                ]
+              }
+            },
+            "required": [
+              "capFamily"
+            ]
+          }
+        },
+        "required": [
+          "socialMessenger"
+        ]
+      },
+      "then": {
+        "properties": {
+          "tokens": {
+            "properties": {
+              "source": {
+                "enum": [
+                  "claude-code-session-usage",
+                  null
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "socialMessenger": {
+            "properties": {
+              "capFamily": {
+                "const": "gpt-frontier"
+              }
+            },
+            "required": [
+              "capFamily"
+            ]
+          }
+        },
+        "required": [
+          "socialMessenger"
+        ]
+      },
+      "then": {
+        "properties": {
+          "tokens": {
+            "properties": {
+              "source": {
+                "enum": [
+                  "codex-rollout-token-count",
+                  null
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "tokens": {
+            "properties": {
+              "source": {
+                "const": null
+              }
+            },
+            "required": [
+              "source"
+            ]
+          }
+        },
+        "required": [
+          "tokens"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/nullMeteringRecord"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "tokens": {
+            "properties": {
+              "source": {
+                "enum": [
+                  "claude-code-session-usage",
+                  "codex-rollout-token-count"
+                ]
+              }
+            },
+            "required": [
+              "source"
+            ]
+          }
+        },
+        "required": [
+          "tokens"
+        ]
+      },
+      "then": {
+        "properties": {
+          "socialMessenger": {
+            "properties": {
+              "meteringProvenance": {
+                "properties": {
+                  "sessions": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "socialMessenger": {
+            "properties": {
+              "capFamily": {
+                "enum": [
+                  "kimi-advisory",
+                  "grok-advisory"
+                ]
+              }
+            },
+            "required": [
+              "capFamily"
+            ]
+          }
+        },
+        "required": [
+          "socialMessenger"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/nullMeteringRecord"
+      }
+    }
+  ],
+  "$defs": {
+    "nullTokenCounts": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "const": null
+        },
+        "output": {
+          "const": null
+        },
+        "cacheRead": {
+          "const": null
+        },
+        "cacheWrite": {
+          "const": null
+        },
+        "reasoning": {
+          "const": null
+        }
+      }
+    },
+    "nullMilestoneMetering": {
+      "type": "object",
+      "required": [
+        "caps"
+      ],
+      "properties": {
+        "authoring": {
+          "properties": {
+            "tokens": {
+              "$ref": "#/$defs/nullTokenCounts"
+            }
+          }
+        },
+        "caps": {
+          "required": [
+            "tokenCap"
+          ],
+          "properties": {
+            "tokenCap": {
+              "const": null
+            }
+          }
+        },
+        "charging": {
+          "properties": {
+            "chargedTokens": {
+              "const": null
+            },
+            "flags": {
+              "items": {
+                "enum": [
+                  "capped-wall",
+                  "aborted"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "nullMilestones": {
+      "type": "object",
+      "properties": {
+        "M1": {
+          "$ref": "#/$defs/nullMilestoneMetering"
+        },
+        "M2": {
+          "$ref": "#/$defs/nullMilestoneMetering"
+        },
+        "M3": {
+          "$ref": "#/$defs/nullMilestoneMetering"
+        },
+        "M4": {
+          "$ref": "#/$defs/nullMilestoneMetering"
+        },
+        "M5": {
+          "$ref": "#/$defs/nullMilestoneMetering"
+        },
+        "M6": {
+          "$ref": "#/$defs/nullMilestoneMetering"
+        },
+        "M7": {
+          "$ref": "#/$defs/nullMilestoneMetering"
+        },
+        "M8": {
+          "$ref": "#/$defs/nullMilestoneMetering"
+        }
+      }
+    },
+    "nullMeteringRecord": {
+      "type": "object",
+      "properties": {
+        "tokens": {
+          "properties": {
+            "input": {
+              "const": null
+            },
+            "output": {
+              "const": null
+            },
+            "source": {
+              "const": null
+            },
+            "phases": {
+              "properties": {
+                "orientation": {
+                  "const": null
+                },
+                "authoring": {
+                  "const": null
+                },
+                "verification": {
+                  "const": null
+                },
+                "diagnosis": {
+                  "const": null
+                }
+              }
+            }
+          }
+        },
+        "socialMessenger": {
+          "properties": {
+            "meteringProvenance": {
+              "properties": {
+                "sessions": {
+                  "maxItems": 0
+                }
+              }
+            },
+            "milestones": {
+              "$ref": "#/$defs/nullMilestones"
+            }
+          }
+        }
+      }
+    }
+  }
+}

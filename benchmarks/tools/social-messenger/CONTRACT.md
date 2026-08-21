@@ -11,13 +11,14 @@ this file is silent.
 - `benchmarks/tools/social-messenger/choreography/` — two-client +
   simulator choreography harness
 - `benchmarks/tools/social-messenger/metering/` — harness-native per-turn
-  token adapters, milestone joiner, and cap watchdog
+  builder-session-tree adapters, every-attempt terminal joiner, and enforced
+  cap watchdog
 - `benchmarks/tools/social-messenger/grader/` — grader prompt, report
   schema, calibration plan, probe machinery
 - `benchmarks/fixtures/social-messenger/` — personas, media, action
   logs, generator, manifests, configs
 - `benchmarks/schema/social-messenger/` — assertion manifest,
-  applicability manifest, run-record extension
+  applicability manifest, run-record extension and composed record policy
 
 ## Determinism
 

@@ -84,39 +84,72 @@ values are:
 
 | Cap family / harness | Approved source | Token-cap posture |
 | --- | --- | --- |
-| Claude frontier, and a Claude-based mid-tier lane | `claude-code-session-usage` (de-duplicated per-message usage from the retained session JSONL) | Cap-bearing when the per-turn stream is retained |
-| GPT frontier under Codex | `codex-rollout-token-count` (deltas of the retained rollout log's cumulative `token_count` records) | Cap-bearing when the per-turn stream is retained |
+| Claude frontier, and a Claude-based mid-tier lane | `claude-code-session-usage` (globally de-duplicated per-message usage from the retained builder session tree) | Cap-bearing when the complete tree is retained |
+| GPT frontier under Codex | `codex-rollout-token-count` (session-local deltas of every builder/descendant rollout's cumulative `token_count` records, then globally de-duplicated) | Cap-bearing when the complete tree is retained |
 | Kimi advisory and Grok advisory | `null` | Per-milestone token fields are honest nulls; token caps are inapplicable and never enforced |
 
-A scored-family lane that fails to retain its approved per-turn stream also
-records null rather than substituting an estimator; it cannot adjudicate a
-token-cap or efficiency result. Lane-total final JSON may remain narrative
-diagnostic evidence, but it is not a milestone meter.
+A scored-family lane that fails to retain its approved per-turn stream uses
+the explicit `unavailable` adapter with a stable reason code. It records null
+lane totals and milestone phases rather than substituting an estimator, and
+all milestone token caps/charges are null; it cannot adjudicate a token-cap or
+efficiency result. Lane-total final JSON may remain narrative diagnostic
+evidence, but it is not a milestone meter.
+
+**Delegation policy: aggregate.** Builder delegation is permitted because it
+is part of retained benchmark practice. Every builder-descendant session is
+inside the charged lane. Before metering, the driver stamps one lane manifest
+that declares the rooted builder session tree (native session/agent identity,
+parent, role, relative path, and SHA-256), choreography receipt run IDs and
+hashes, terminal-boundary and first-edit artifact hashes, the lane wall-clock
+origin, and a recorded clock-skew bound. Claude message IDs are de-duplicated
+globally across the tree. Codex cumulative counters are differenced within
+each rollout before the descendant rollouts are aggregated, with identities
+de-duplicated globally. A missing/unbound descendant makes native metering
+invalid; it never silently becomes zero.
 
 Milestone boundary snapshots are prefix sums of native usage records ordered
-by the time each turn completed. A turn completed at or before milestone
-`m`'s first-green receipt belongs to `m`; a turn after that receipt belongs to
-the next attempted milestone. Consequently, each milestone phase is the
-difference between its prefix snapshot and the preceding green boundary's
-snapshot, in actual execution order. Green is the later of the separately
-stamped `suitePassAt` and `choreoPassAt`; when the choreography's
-`segment-summary` is already green, its `recordedAt` is the exact combined
-`firstGreenAt`. Equality is inclusive.
+by the time each turn completed. The driver records **every attempted
+milestone's terminal boundary** in a lane-global monotonic sequence: first
+green, token/wall cap, or abort. A turn completed at or before milestone `m`'s
+terminal boundary belongs to `m`; a turn after it belongs to the next
+attempted milestone. Each phase is the difference between consecutive
+terminal-prefix snapshots in driver execution order, including failed and
+final failed milestones. No failed milestone's tokens roll into its successor.
+`firstGreenAt` is populated only for `green`; it is null for caps and aborts.
+Green remains the later of separately stamped `suitePassAt` and
+`choreoPassAt`; a green choreography `segment-summary.recordedAt` is the exact
+combined terminal/`firstGreenAt`. Timestamp equality is inclusive. The driver
+sequence determines ordering; the recorded skew bound audits timestamp
+correlation, and a usage turn within a nonzero skew ambiguity window makes the
+join fail closed.
 
 Every native record preserves fresh input, output, cache-read, cache-write,
 and reasoning/thinking counters where the harness exposes them. **The token
 cap sums fresh input plus native output.** Cache reads and writes are recorded
 but excluded. Reasoning is recorded as a subset of native output and is not
-added again. A live watchdog trips when that sum reaches or exceeds the
+added again. A live watchdog requires a non-optional enforcement controller
+and a wall-clock origin. It trips when that sum reaches or exceeds the
 registered `(cap family, milestone)` token cap; the milestone becomes a
 `capability-failure` and charges the token cap plus actual wall with
-`capped-tokens`, per LLP 0201 D2.
+`capped-tokens`, per LLP 0201 D2. The controller must request termination and
+return a timestamped evidence acknowledgement. The watchdog gates the next
+model turn until that acknowledgement arrives and then refuses that turn; the
+driver may proceed only by arming the next milestone after acknowledgement.
+Any already-in-flight post-trip usage remains retained as overshoot evidence.
+Turn identity is lane-global and cumulative across `arm()` calls, so rereading
+a cumulative session log cannot recharge an earlier milestone.
 
 The social-messenger extension also records an explicit first-product-edit
 receipt: driver-stamped timestamp, exact orientation bytes, selected skills,
 and the native token prefix at that instant. The driver measures the bytes and
 skill selection directly; the metering tool does not infer them from prose or
 shell-command heuristics.
+
+Complete social-messenger records validate against
+`schema/social-messenger/run-record.schema.json`, which composes the base and
+extension schemas. It restricts `tokens.source` to the approved values and
+mechanically requires advisory and unavailable records to carry null token
+totals, phases, caps, and charges with no `capped-tokens` flag.
 
 ## Repetitions and variance
 

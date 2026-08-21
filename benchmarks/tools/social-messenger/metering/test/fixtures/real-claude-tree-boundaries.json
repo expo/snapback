@@ -1,0 +1,17 @@
+{
+  "laneRunId": "retained-claude-tree-fixture",
+  "driverId": "fixture-extract-driver",
+  "milestones": {
+    "M1": {
+      "status": "green",
+      "authoring": {
+        "suitePassAt": "2026-08-12T10:07:15.000Z",
+        "choreoPassAt": "2026-08-12T10:07:20.000Z",
+        "firstGreenAt": "2026-08-12T10:07:20.000Z",
+        "terminalAt": "2026-08-12T10:07:20.000Z",
+        "terminalSequence": 1,
+        "terminalReason": "green"
+      }
+    }
+  }
+}

@@ -53,7 +53,7 @@ function normalizeCodexCumulative(usage, label) {
   };
 }
 
-export function adaptCodexSession(records) {
+function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
   const cumulativeRecords = [];
   for (const [index, record] of records.entries()) {
     const info = record?.type === "event_msg"
@@ -82,17 +82,64 @@ export function adaptCodexSession(records) {
   for (const entry of cumulativeRecords) {
     if (tokenCountsEqual(entry.cumulative, previous)) continue;
     const usage = subtractTokenCounts(entry.cumulative, previous);
+    const cumulativeIdentity = [
+      entry.cumulative.input,
+      entry.cumulative.output,
+      entry.cumulative.cacheRead,
+      entry.cumulative.cacheWrite,
+      entry.cumulative.reasoning,
+    ].join(":");
     turns.push({
-      id: `codex-token-count-${entry.recordIndex}-${entry.completedAt}`,
+      id: `codex-token-count:${nativeSessionId}:${entry.completedAt}:${cumulativeIdentity}`,
+      sourceId,
       completedAt: entry.completedAt,
       usage,
     });
     previous = entry.cumulative;
   }
+  return turns;
+}
+
+export function adaptCodexSessionTree(sessions) {
+  if (!Array.isArray(sessions) || sessions.length === 0) {
+    throw new TypeError("Codex session tree must contain at least one session");
+  }
+  const byIdentity = new Map();
+  for (const [index, session] of sessions.entries()) {
+    if (
+      session === null
+      || typeof session !== "object"
+      || typeof session.sourceId !== "string"
+      || typeof session.nativeSessionId !== "string"
+      || !Array.isArray(session.records)
+    ) {
+      throw new TypeError(`Codex session tree entry ${index + 1} is invalid`);
+    }
+    for (const turn of adaptOneCodexSession(session)) {
+      const previous = byIdentity.get(turn.id);
+      if (previous !== undefined && !tokenCountsEqual(previous.usage, turn.usage)) {
+        throw new RangeError(`Codex turn identity ${turn.id} has conflicting usage`);
+      }
+      byIdentity.set(turn.id, turn);
+    }
+  }
+  const turns = [...byIdentity.values()].sort((left, right) => (
+    timestampMillis(left.completedAt, `${left.id}.completedAt`)
+    - timestampMillis(right.completedAt, `${right.id}.completedAt`)
+  ));
   return {
     adapter: "codex-rollout-jsonl",
     source: TOKEN_SOURCES.codex,
     turns,
     unavailableReason: null,
+    sourceIds: sessions.map((session) => session.sourceId),
   };
+}
+
+export function adaptCodexSession(records) {
+  return adaptCodexSessionTree([{
+    sourceId: "session",
+    nativeSessionId: "legacy-session",
+    records,
+  }]);
 }

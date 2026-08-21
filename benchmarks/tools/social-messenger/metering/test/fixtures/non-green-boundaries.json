@@ -1,0 +1,39 @@
+{
+  "laneRunId": "non-green-fixture",
+  "driverId": "fixture-driver",
+  "milestones": {
+    "M1": {
+      "status": "capability-failure",
+      "authoring": {
+        "suitePassAt": null,
+        "choreoPassAt": null,
+        "firstGreenAt": null,
+        "terminalAt": "2026-08-21T13:01:00.000Z",
+        "terminalSequence": 10,
+        "terminalReason": "token-cap"
+      }
+    },
+    "M2": {
+      "status": "green",
+      "authoring": {
+        "suitePassAt": "2026-08-21T13:01:45.000Z",
+        "choreoPassAt": "2026-08-21T13:02:00.000Z",
+        "firstGreenAt": "2026-08-21T13:02:00.000Z",
+        "terminalAt": "2026-08-21T13:02:00.000Z",
+        "terminalSequence": 20,
+        "terminalReason": "green"
+      }
+    },
+    "M3": {
+      "status": "aborted",
+      "authoring": {
+        "suitePassAt": null,
+        "choreoPassAt": null,
+        "firstGreenAt": null,
+        "terminalAt": "2026-08-21T13:03:00.000Z",
+        "terminalSequence": 30,
+        "terminalReason": "abort"
+      }
+    }
+  }
+}

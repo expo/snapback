@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://snapback.dev/benchmarks/social-messenger/run-record-extension.schema.json",
   "title": "social-messenger lane-run record extension",
-  "description": "Extension block for one social-messenger lane run, composing with benchmarks/schema/run-record.schema.json (the base record keeps lane, harness, correction loops with the protocol's attribution enum, hand-authored LOC, and diary; this extension adds LLP 0201 D2's milestone structure). A social-messenger record embeds this object under a 'socialMessenger' key, or validates against allOf:[base, this] at record time. Published efficiency claims read the per-milestone authoring clocks only; the grading, replay, and M7 clocks are separately recorded and never included in the authoring statistic (LLP 0201 D2).",
+  "description": "Extension block for one social-messenger lane run. The base record keeps lane, harness, correction loops with the protocol's attribution enum, hand-authored LOC, and diary; this extension adds LLP 0201 D2's milestone structure. A complete record embeds this object under 'socialMessenger' and validates against the sibling composed run-record.schema.json. Published efficiency claims read the per-milestone authoring clocks only; the grading, replay, and M7 clocks are separately recorded and never included in the authoring statistic (LLP 0201 D2).",
   "type": "object",
   "required": [
     "extensionVersion",
@@ -13,16 +13,47 @@
     "termination",
     "compaction",
     "firstProductEdit",
+    "meteringProvenance",
     "coverageManifest",
     "assertionManifest",
     "clocks",
     "grading"
   ],
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "runScope": {
+            "const": "full"
+          }
+        },
+        "required": [
+          "runScope"
+        ]
+      },
+      "then": {
+        "properties": {
+          "milestones": {
+            "required": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5",
+              "M6",
+              "M7",
+              "M8"
+            ]
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "extensionVersion": {
-      "const": 1,
-      "description": "Version of this extension schema."
+      "const": 2,
+      "description": "Version 2 requires an execution-ordered terminal boundary for every attempted milestone."
     },
     "runScope": {
       "enum": [
@@ -185,6 +216,189 @@
     },
     "firstProductEdit": {
       "$ref": "#/$defs/firstProductEditSnapshot"
+    },
+    "meteringProvenance": {
+      "type": "object",
+      "description": "Driver-stamped metering custody: the complete builder session tree, receipt identities, source hashes, terminal-boundary artifact, wall-clock origin, and recorded skew bound used by the join.",
+      "required": [
+        "manifestVersion",
+        "laneRunId",
+        "driver",
+        "manifestSha256",
+        "clockCorrelation",
+        "sessions",
+        "receipts",
+        "boundaries",
+        "firstProductEdit"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "manifestVersion": {
+          "const": "social-messenger-metering-manifest.v1"
+        },
+        "laneRunId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "driver": {
+          "type": "object",
+          "required": [
+            "id",
+            "stampedAt",
+            "startedAt"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "stampedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "startedAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "manifestSha256": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "clockCorrelation": {
+          "type": "object",
+          "required": [
+            "method",
+            "maxSkewMillis",
+            "evidence"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "rfc3339-with-bounded-skew"
+            },
+            "maxSkewMillis": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "sessions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "sourceId",
+              "parentSourceId",
+              "role",
+              "nativeSessionId",
+              "nativeAgentId",
+              "path",
+              "sha256"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "sourceId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "parentSourceId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "role": {
+                "enum": [
+                  "builder",
+                  "builder-descendant"
+                ]
+              },
+              "nativeSessionId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "nativeAgentId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              }
+            }
+          }
+        },
+        "receipts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "sourceId",
+              "runId",
+              "milestone",
+              "path",
+              "sha256"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "sourceId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "runId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "milestone": {
+                "enum": [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5",
+                  "M6",
+                  "M7",
+                  "M8"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              }
+            }
+          }
+        },
+        "boundaries": {
+          "$ref": "#/$defs/hashedArtifact"
+        },
+        "firstProductEdit": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/hashedArtifact"
+            }
+          ]
+        }
+      }
     },
     "coverageManifest": {
       "type": "object",
@@ -710,6 +924,24 @@
     }
   },
   "$defs": {
+    "hashedArtifact": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      }
+    },
     "tokenCounts": {
       "type": "object",
       "description": "Harness-native per-turn token usage. input is fresh uncached input; output is the native output total; cacheRead/cacheWrite and the reasoning subset are recorded separately. The cap sum is input + output only, so cache counters are excluded and reasoning is not double-counted. Nulls record an un-metered phase honestly, per benchmarks/protocol.md.",
@@ -810,6 +1042,87 @@
         "charging"
       ],
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "status": { "const": "green" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "authoring": {
+                "properties": {
+                  "firstGreenAt": { "type": "string", "format": "date-time" },
+                  "terminalAt": { "type": "string", "format": "date-time" },
+                  "terminalSequence": { "type": "integer", "minimum": 0 },
+                  "terminalReason": { "const": "green" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "enum": ["capability-failure", "aborted"] } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "authoring": {
+                "properties": {
+                  "firstGreenAt": { "const": null },
+                  "terminalAt": { "type": "string", "format": "date-time" },
+                  "terminalSequence": { "type": "integer", "minimum": 0 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "const": "capability-failure" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "authoring": {
+                "properties": { "terminalReason": { "enum": ["token-cap", "wall-cap"] } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "const": "aborted" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "authoring": {
+                "properties": { "terminalReason": { "const": "abort" } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "enum": ["blocked", "not-run"] } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "authoring": {
+                "properties": {
+                  "firstGreenAt": { "const": null },
+                  "terminalAt": { "const": null },
+                  "terminalSequence": { "const": null },
+                  "terminalReason": { "const": null }
+                }
+              }
+            }
+          }
+        }
+      ],
       "properties": {
         "status": {
           "enum": [
@@ -857,7 +1170,10 @@
           "required": [
             "wallSeconds",
             "tokens",
-            "firstGreenAt"
+            "firstGreenAt",
+            "terminalAt",
+            "terminalSequence",
+            "terminalReason"
           ],
           "additionalProperties": false,
           "properties": {
@@ -894,6 +1210,31 @@
               ],
               "format": "date-time",
               "description": "Timestamp of the passing choreography-segment run."
+            },
+            "terminalAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time",
+              "description": "Driver-stamped terminal boundary for this attempt: first green, token/wall cap, or abort. Null only for blocked/not-run milestones."
+            },
+            "terminalSequence": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "description": "Lane-global driver sequence ordering attempted milestone terminal boundaries independently of wall-clock adjustment."
+            },
+            "terminalReason": {
+              "enum": [
+                "green",
+                "token-cap",
+                "wall-cap",
+                "abort",
+                null
+              ]
             }
           }
         },

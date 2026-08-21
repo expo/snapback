@@ -1,0 +1,50 @@
+{
+  "manifestVersion": "social-messenger-metering-manifest.v1",
+  "laneRunId": "retained-claude-tree-fixture",
+  "capFamily": "claude-frontier",
+  "adapter": "claude",
+  "driver": {
+    "id": "fixture-extract-driver",
+    "stampedAt": "2026-08-12T10:07:21.000Z",
+    "startedAt": "2026-08-12T10:02:56.000Z"
+  },
+  "clockCorrelation": {
+    "method": "rfc3339-with-bounded-skew",
+    "maxSkewMillis": 0,
+    "evidence": "usage-only retained extract and driver fixtures share the recorded host clock"
+  },
+  "sessions": [
+    {
+      "sourceId": "builder",
+      "parentSourceId": null,
+      "role": "builder",
+      "nativeSessionId": "ac574163-220b-4778-abc3-87de28c2c4f0",
+      "nativeAgentId": null,
+      "path": "real-claude-tree-parent.jsonl",
+      "sha256": "sha256:6468927d054321729d64d922905e9d0365b980f28c4b9b3fd5487f3a42823dcb"
+    },
+    {
+      "sourceId": "builder-descendant-af165d69f7468e749",
+      "parentSourceId": "builder",
+      "role": "builder-descendant",
+      "nativeSessionId": "ac574163-220b-4778-abc3-87de28c2c4f0",
+      "nativeAgentId": "af165d69f7468e749",
+      "path": "real-claude-tree-descendant.jsonl",
+      "sha256": "sha256:8e59a299f8aacd24ab1fb854ec5940b39f466fea7c6f96902f9277ba5478f71e"
+    }
+  ],
+  "receipts": [
+    {
+      "sourceId": "m1-choreography",
+      "runId": "retained-claude-m1-receipt",
+      "milestone": "M1",
+      "path": "real-claude-tree-receipt.jsonl",
+      "sha256": "sha256:48adc16ce1ea30deb9420d5a29628e106f9688f6968468aa3e74ad0a2c5da17f"
+    }
+  ],
+  "boundaries": {
+    "path": "real-claude-tree-boundaries.json",
+    "sha256": "sha256:c5c836de0797a12f51cbfce478bcd5dc791997cc4fccdd5702ad7eee3a85f110"
+  },
+  "firstProductEdit": null
+}

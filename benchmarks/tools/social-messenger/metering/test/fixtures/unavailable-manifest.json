@@ -1,0 +1,42 @@
+{
+  "manifestVersion": "social-messenger-metering-manifest.v1",
+  "laneRunId": "fixture-lane-run",
+  "capFamily": "gpt-frontier",
+  "adapter": "unavailable",
+  "unavailableReason": "retained-session-stream-missing",
+  "driver": {
+    "id": "fixture-driver",
+    "stampedAt": "2026-08-21T10:02:31.000Z",
+    "startedAt": "2026-08-21T10:00:00.000Z"
+  },
+  "clockCorrelation": {
+    "method": "rfc3339-with-bounded-skew",
+    "maxSkewMillis": 0,
+    "evidence": "driver and receipt artifacts share the fixture clock"
+  },
+  "sessions": [],
+  "receipts": [
+    {
+      "sourceId": "m1-choreography",
+      "runId": "00000000-0000-4000-8000-000000000001",
+      "milestone": "M1",
+      "path": "receipts-m1.jsonl",
+      "sha256": "sha256:e219d25e91852b624efdee288dd4b396f842292f175fd7745efedfaf19b74054"
+    },
+    {
+      "sourceId": "m2-choreography",
+      "runId": "00000000-0000-4000-8000-000000000002",
+      "milestone": "M2",
+      "path": "receipts-m2.jsonl",
+      "sha256": "sha256:f560c281b32b7e088a8ac3dd55e8d670dcf61e4419bdfb15399903d0986ebe82"
+    }
+  ],
+  "boundaries": {
+    "path": "boundaries.json",
+    "sha256": "sha256:efe3bb3cb3ec0e3b8de6c13906375576c1157be8b91662841cf68fe312f2b2fd"
+  },
+  "firstProductEdit": {
+    "path": "first-product-edit.json",
+    "sha256": "sha256:7a53f1322cbd57f086391f161cd97433a329c02bea40fa736b3c419554bdf1b8"
+  }
+}

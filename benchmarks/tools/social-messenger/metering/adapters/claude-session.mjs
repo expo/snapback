@@ -35,28 +35,43 @@ function normalizeClaudeUsage(usage, label) {
   }, label);
 }
 
-export function adaptClaudeSession(records) {
+export function adaptClaudeSessionTree(sessions) {
+  if (!Array.isArray(sessions) || sessions.length === 0) {
+    throw new TypeError("Claude session tree must contain at least one session");
+  }
   const byMessage = new Map();
-  for (const [index, record] of records.entries()) {
-    const usage = record?.message?.usage;
-    if (usage === undefined || usage === null) continue;
-    const id = record.message.id;
-    if (typeof id !== "string" || id.length === 0) {
-      throw new TypeError(`Claude usage record ${index + 1} has no message.id`);
+  let usageRecords = 0;
+  for (const [sessionIndex, session] of sessions.entries()) {
+    if (
+      session === null
+      || typeof session !== "object"
+      || typeof session.sourceId !== "string"
+      || !Array.isArray(session.records)
+    ) {
+      throw new TypeError(`Claude session tree entry ${sessionIndex + 1} is invalid`);
     }
-    const completedAt = record.timestamp;
-    const completedAtMs = timestampMillis(
-      completedAt,
-      `Claude usage record ${index + 1}.timestamp`,
-    );
-    const turn = {
-      id,
-      completedAt,
-      usage: normalizeClaudeUsage(usage, `Claude usage record ${index + 1}.usage`),
-    };
-    const previous = byMessage.get(id);
-    if (previous === undefined || completedAtMs >= previous.completedAtMs) {
-      byMessage.set(id, { ...turn, completedAtMs });
+    for (const [recordIndex, record] of session.records.entries()) {
+      const usage = record?.message?.usage;
+      if (usage === undefined || usage === null) continue;
+      usageRecords += 1;
+      const id = record.message.id;
+      const label = `Claude usage record ${session.sourceId}:${recordIndex + 1}`;
+      if (typeof id !== "string" || id.length === 0) {
+        throw new TypeError(`${label} has no message.id`);
+      }
+      const completedAt = record.timestamp;
+      const completedAtMs = timestampMillis(completedAt, `${label}.timestamp`);
+      const turn = {
+        id: `claude-message:${id}`,
+        nativeId: id,
+        sourceId: session.sourceId,
+        completedAt,
+        usage: normalizeClaudeUsage(usage, `${label}.usage`),
+      };
+      const previous = byMessage.get(id);
+      if (previous === undefined || completedAtMs >= previous.completedAtMs) {
+        byMessage.set(id, { ...turn, completedAtMs });
+      }
     }
   }
 
@@ -68,5 +83,12 @@ export function adaptClaudeSession(records) {
     source: TOKEN_SOURCES.claude,
     turns,
     unavailableReason: null,
+    sourceIds: sessions.map((session) => session.sourceId),
+    usageRecords,
+    deduplicatedRecords: usageRecords - turns.length,
   };
+}
+
+export function adaptClaudeSession(records) {
+  return adaptClaudeSessionTree([{ sourceId: "session", records }]);
 }

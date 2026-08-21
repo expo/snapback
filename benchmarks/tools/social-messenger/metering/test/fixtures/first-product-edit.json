@@ -1,4 +1,5 @@
 {
+  "laneRunId": "fixture-lane-run",
   "at": "2026-08-21T10:00:30.000Z",
   "orientationBytes": 12103,
   "selectedSkills": ["snapback-authoring", "llp-orient", "snapback-authoring"]

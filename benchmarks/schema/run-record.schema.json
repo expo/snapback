@@ -33,11 +33,18 @@
         "required": ["rubric"]
       },
       "else": {
-        "properties": {
-          "outcomeRubric": true,
-          "invariantPlatformScore": true
+        "if": {
+          "properties": { "brief": { "const": "social-messenger" } },
+          "required": ["brief"]
         },
-        "required": ["outcomeRubric", "invariantPlatformScore"]
+        "then": {},
+        "else": {
+          "properties": {
+            "outcomeRubric": true,
+            "invariantPlatformScore": true
+          },
+          "required": ["outcomeRubric", "invariantPlatformScore"]
+        }
       }
     }
   ],
@@ -60,7 +67,7 @@
     },
     "brief": {
       "description": "Which fixed brief was run, verbatim, from benchmarks/briefs/.",
-      "enum": ["messaging", "messaging-equal-proof-bar", "crud", "media"]
+      "enum": ["messaging", "messaging-equal-proof-bar", "crud", "media", "social-messenger"]
     },
     "harness": {
       "type": "object",
@@ -146,6 +153,7 @@
         }
       }
     },
+    "socialMessenger": true,
     "toolUses": {
       "type": ["integer", "null"],
       "minimum": 0,
