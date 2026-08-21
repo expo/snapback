@@ -16,7 +16,7 @@ Rust source-home set is empty again.)
 `crates/snapback-server/generated/` as the server crate's generated Rust
 source home in the allowed-dependencies artifact and its checked projection.
 This assigns the manifest-pinned embedded Guide API artifact to its real owner
-without treating generated source as authored `src/` or temporary membership
+without treating generated source as authored `crates/*/src/` or temporary membership
 debt.)
 **Revised:** 2026-08-19 (F-1 test-confinement amendment: add the rank-7
 `snapback-harness` proof crate and permit `rusqlite` in `snapback` and
@@ -357,7 +357,7 @@ Workspace-wide rules:
   exact directories whose Rust artifacts inherit their member's owner. The set
   is currently empty: the former `crates/snapback-server/generated/` home was
   retired when the embedded Guide stopped consuming generated Rust. Such homes
-  are neither authored `src/` nor expiring membership exceptions; widening the
+  are neither authored `crates/*/src/` nor expiring membership exceptions; widening the
   list is an amendment and the gate's duplicated checked projection fails
   closed on drift.
 - **External-dependency confinement**, gate-enforced: `rusqlite` only in

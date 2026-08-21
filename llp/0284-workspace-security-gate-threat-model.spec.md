@@ -592,7 +592,7 @@ as security evidence. An unrelated error whose message matches a regex is a
   empty. The gate still never compiles or executes `build.rs` as audit evidence.
 
   The served-content half of the old producer-drift requirement survives in a
-  different mechanism. `src/guide_artifact.rs` is the single committed source
+  different mechanism. `crates/snapback-server/src/guide_artifact.rs` is the single committed source
   for the minimum required path set used by both `build.rs` and the decoder.
   Before exposing any record, the committed decoder requires that closure, at
   least one section flat, canonical strictly sorted paths, UTF-8 for every
