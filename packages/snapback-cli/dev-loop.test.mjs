@@ -288,6 +288,14 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
     requestId: 'runtime-typo-remove',
     label: 'runtime typo handler removal',
   });
+  const removedRuntimeTypoResponse = await fetch(`${relay}/mutation/runtimeTypo`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ args: {}, auth: auth(ADA), read_set: [] }),
+  });
+  assert.equal(removedRuntimeTypoResponse.status, 404);
+  const removedRuntimeTypo = await removedRuntimeTypoResponse.json();
+  assert.equal(removedRuntimeTypo.diagnostic.code, 'SNAPBACK_UNKNOWN_FUNCTION');
   console.log('managed dev surfaces missing ctx member, TypeError detail, and handler position');
 
   // --- live edit observable through the client surface -----------------------
