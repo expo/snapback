@@ -1695,6 +1695,23 @@ impl LocalDatabase {
         &mut self,
         operation: impl FnOnce(&Transaction<'_>) -> SnapbackResult<T>,
     ) -> SnapbackResult<T> {
+        self.with_auth_transaction_guarded(operation, || Ok(()))
+    }
+
+    /// Run one direct auth mutation and acquire a caller-owned guard only at
+    /// the durable cut. All validation and row work completes before the
+    /// guard is installed; nothing except SQLite COMMIT runs beneath it.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — callers reserve
+    /// live authority outside Local and acquire mode admission last here.
+    pub(super) fn with_auth_transaction_guarded<T, G, BeforeCommit>(
+        &mut self,
+        operation: impl FnOnce(&Transaction<'_>) -> SnapbackResult<T>,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<T>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -1702,6 +1719,7 @@ impl LocalDatabase {
         let output = operation(&tx)?;
         #[cfg(any(test, feature = "test-support"))]
         super::observe_durable_commit_for_test();
+        let _commit_guard = before_commit()?;
         tx.commit()?;
         Ok(output)
     }
@@ -1719,6 +1737,20 @@ impl LocalDatabase {
         &mut self,
         operation: impl FnOnce(&Transaction<'_>) -> SnapbackResult<T>,
     ) -> AuthTransactionAttempt<T> {
+        self.attempt_auth_transaction_guarded(operation, || Ok(()))
+    }
+
+    /// Commit-certainty-preserving sibling of `with_auth_transaction_guarded`.
+    /// A refused commit guard is a proven rollback; an SQLite commit error
+    /// after guard acquisition retains the ordinary ambiguous outcome.
+    pub(super) fn attempt_auth_transaction_guarded<T, G, BeforeCommit>(
+        &mut self,
+        operation: impl FnOnce(&Transaction<'_>) -> SnapbackResult<T>,
+        before_commit: BeforeCommit,
+    ) -> AuthTransactionAttempt<T>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         let tx = match self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -1735,6 +1767,10 @@ impl LocalDatabase {
         };
         #[cfg(any(test, feature = "test-support"))]
         super::observe_durable_commit_for_test();
+        let _commit_guard = match before_commit() {
+            Ok(guard) => guard,
+            Err(error) => return rollback_auth_transaction(tx, error),
+        };
         match tx.commit() {
             Ok(()) => AuthTransactionAttempt::Committed(output),
             Err(error) => AuthTransactionAttempt::CommitUncertain(error.into()),

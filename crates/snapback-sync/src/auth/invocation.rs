@@ -1231,6 +1231,9 @@ pub struct AuthorizedEffectReservation {
     authority: PreparedAuthority,
     _publication: AuthorizedPublicationReservation,
     service: Option<ServiceAuthorityWorkPermit>,
+    #[cfg(any(test, feature = "test-support"))]
+    before_commit_guard_for_test:
+        std::sync::Mutex<Option<Box<dyn FnOnce(&'static str) + Send + 'static>>>,
 }
 
 /// The inner synchronous commit guard for an authorized effect. Field order is
@@ -1244,12 +1247,38 @@ pub struct AuthorizedEffectCommitGuard<'a> {
 }
 
 impl AuthorizedEffectReservation {
+    /// Install one exact-reservation callback immediately before the mode
+    /// commit guard is acquired. This test-only seam can retire the captured
+    /// epoch at the historical pre-guard cut without affecting another
+    /// concurrent authorized effect.
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn with_before_commit_guard_for_test(
+        self,
+        hook: impl FnOnce(&'static str) + Send + 'static,
+    ) -> Self {
+        *self
+            .before_commit_guard_for_test
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Box::new(hook));
+        self
+    }
+
     /// Acquire the independent mode guard last and retain the complete
     /// authority bundle until the returned transaction guard is dropped.
     pub fn commit_guard(
         &self,
         effect: &'static str,
     ) -> SnapbackResult<AuthorizedEffectCommitGuard<'_>> {
+        #[cfg(any(test, feature = "test-support"))]
+        if let Some(hook) = self
+            .before_commit_guard_for_test
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+        {
+            hook(effect);
+        }
         let service = self
             .service
             .as_ref()
@@ -1467,6 +1496,14 @@ impl PreparedAuthority {
             Some(publication.authorization_stream_incarnation().to_owned());
         self.publication = Some(publication);
         self
+    }
+
+    /// Whether this prepared caller carries the process-live authorization
+    /// publication that an authorized-effect reservation must retain. Some
+    /// credential-free internal invocations (including watch reactions) run
+    /// in sessions mode without such a carrier and remain mode-fenced only.
+    pub fn has_fenced_publication(&self) -> bool {
+        self.publication.is_some()
     }
 
     pub fn with_service_publication(mut self, publication: ServiceAuthorityPublication) -> Self {
@@ -1708,6 +1745,8 @@ impl PreparedAuthority {
             authority: self.clone(),
             _publication: publication,
             service,
+            #[cfg(any(test, feature = "test-support"))]
+            before_commit_guard_for_test: std::sync::Mutex::new(None),
         })
     }
 
@@ -2556,9 +2595,16 @@ fn source_allows_authority(
         | InvocationSource::AgentGrantManagement
         | InvocationSource::CapabilityLinkManagement
         | InvocationSource::EffectManagement
-        | InvocationSource::WatchManagement
         | InvocationSource::PushTokenRegistry => {
             mode == AuthMode::Sessions && matches!(resolved, ResolvedAppAuthority::Session { .. })
+        }
+        InvocationSource::WatchManagement => {
+            mode == AuthMode::Sessions
+                && matches!(
+                    resolved,
+                    ResolvedAppAuthority::Session { .. }
+                        | ResolvedAppAuthority::ServicePrincipal { .. }
+                )
         }
         InvocationSource::HttpQuery
         | InvocationSource::HttpMutation
@@ -3676,9 +3722,14 @@ mod tests {
                 | InvocationSource::AgentGrantManagement
                 | InvocationSource::CapabilityLinkManagement
                 | InvocationSource::EffectManagement
-                | InvocationSource::WatchManagement
                 | InvocationSource::PushTokenRegistry => {
                     mode == AuthMode::Sessions && matches!(kind, Kind::Session)
+                }
+                InvocationSource::WatchManagement => {
+                    matches!(
+                        (mode, kind),
+                        (AuthMode::Sessions, Kind::Session | Kind::Service)
+                    )
                 }
                 InvocationSource::HttpQuery
                 | InvocationSource::HttpMutation

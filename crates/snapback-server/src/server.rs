@@ -180,102 +180,6 @@ static DETACHED_ACTION_WORKERS: AtomicUsize = AtomicUsize::new(0);
 static DETACHED_ACTION_REJECTIONS: AtomicU64 = AtomicU64::new(0);
 static DETACHED_ACTION_LIMITER: OnceLock<DetachedActionLimiter> = OnceLock::new();
 
-#[cfg(test)]
-struct TargetedAgentInvitationHook {
-    user_id: String,
-    hook: Box<dyn FnOnce() + Send + 'static>,
-}
-
-#[cfg(test)]
-struct TargetedAgentInvitationCommitHook {
-    user_id: String,
-    hook: Box<dyn FnOnce() -> snapback_kernel::storage::DurableCommitObservationForTest + Send>,
-}
-
-#[cfg(test)]
-static BEFORE_AGENT_INVITATION_EFFECT_GUARD_HOOK: StdMutex<Option<TargetedAgentInvitationHook>> =
-    StdMutex::new(None);
-#[cfg(test)]
-static AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK: StdMutex<
-    Option<TargetedAgentInvitationCommitHook>,
-> = StdMutex::new(None);
-
-#[cfg(test)]
-fn install_targeted_agent_invitation_hook(
-    slot: &StdMutex<Option<TargetedAgentInvitationHook>>,
-    user_id: &str,
-    hook: impl FnOnce() + Send + 'static,
-) {
-    let mut slot = slot
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    assert!(
-        slot.is_none(),
-        "an agent-invitation fence hook is already installed"
-    );
-    *slot = Some(TargetedAgentInvitationHook {
-        user_id: user_id.to_owned(),
-        hook: Box::new(hook),
-    });
-}
-
-#[cfg(test)]
-fn run_targeted_agent_invitation_hook(
-    slot: &StdMutex<Option<TargetedAgentInvitationHook>>,
-    user_id: &str,
-) {
-    let hook = {
-        let mut slot = slot
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if slot.as_ref().is_some_and(|hook| hook.user_id == user_id) {
-            slot.take().map(|hook| hook.hook)
-        } else {
-            None
-        }
-    };
-    if let Some(hook) = hook {
-        hook();
-    }
-}
-
-#[cfg(test)]
-fn install_targeted_agent_invitation_commit_hook(
-    slot: &StdMutex<Option<TargetedAgentInvitationCommitHook>>,
-    user_id: &str,
-    hook: impl FnOnce() -> snapback_kernel::storage::DurableCommitObservationForTest + Send + 'static,
-) {
-    let mut slot = slot
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    assert!(
-        slot.is_none(),
-        "an agent-invitation commit hook is already installed"
-    );
-    *slot = Some(TargetedAgentInvitationCommitHook {
-        user_id: user_id.to_owned(),
-        hook: Box::new(hook),
-    });
-}
-
-#[cfg(test)]
-fn run_targeted_agent_invitation_commit_hook(
-    slot: &StdMutex<Option<TargetedAgentInvitationCommitHook>>,
-    user_id: &str,
-) -> Option<snapback_kernel::storage::DurableCommitObservationForTest> {
-    let hook = {
-        let mut slot = slot
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if slot.as_ref().is_some_and(|hook| hook.user_id == user_id) {
-            slot.take().map(|hook| hook.hook)
-        } else {
-            None
-        }
-    };
-    hook.map(|hook| hook())
-}
-
 const ACTION_WORKER_LIMIT_DEFAULT: usize = 32;
 const ACTION_WORKER_LIMIT_MAX: usize = 1_024;
 const CRON_DISPATCH_CONCURRENCY_DEFAULT: usize = 8;
@@ -2112,15 +2016,33 @@ impl IbexActionHost for DetachedActionHost {
             provider_base.trim_end_matches('/')
         );
         let now_ms = now_millis();
+        let reserve_authorized_effect = if self.authority.has_fenced_publication() {
+            Some(
+                self.authority
+                    .reserve_authorized_effect("push durable reservation")?,
+            )
+        } else {
+            None
+        };
         let (mut attempt, access_token) = {
             let mut snapback = self.lock_live("push.send.reserve")?;
-            let (attempt, declaration) = snapback.reserve_push_send(
-                &self.authority,
-                trigger_mode,
-                self.deferred_push_grant.as_ref(),
-                &request,
-                now_ms,
-            )?;
+            let (attempt, declaration) = match reserve_authorized_effect {
+                Some(authorized_effect) => snapback.reserve_push_send_with_authorized_effect(
+                    &self.authority,
+                    trigger_mode,
+                    self.deferred_push_grant.as_ref(),
+                    &request,
+                    now_ms,
+                    authorized_effect,
+                )?,
+                None => snapback.reserve_push_send(
+                    &self.authority,
+                    trigger_mode,
+                    self.deferred_push_grant.as_ref(),
+                    &request,
+                    now_ms,
+                )?,
+            };
             let access_token = self.push_access_token(&declaration)?;
             (attempt, access_token)
         };
@@ -2135,9 +2057,27 @@ impl IbexActionHost for DetachedActionHost {
         });
 
         for batch in &attempt.batches {
+            let claim_authorized_effect = if self.authority.has_fenced_publication() {
+                Some(
+                    self.authority
+                        .reserve_authorized_effect("push batch claim")?,
+                )
+            } else {
+                None
+            };
             let Some(claim) = ({
                 let mut snapback = self.lock_live("push.send.claim")?;
-                snapback.claim_push_batch(&self.authority, &batch.batch_id, now_millis())?
+                match claim_authorized_effect {
+                    Some(authorized_effect) => snapback.claim_push_batch_with_authorized_effect(
+                        &self.authority,
+                        &batch.batch_id,
+                        now_millis(),
+                        authorized_effect,
+                    )?,
+                    None => {
+                        snapback.claim_push_batch(&self.authority, &batch.batch_id, now_millis())?
+                    }
+                }
             }) else {
                 continue;
             };
@@ -2152,9 +2092,30 @@ impl IbexActionHost for DetachedActionHost {
             let permit = self
                 .authority
                 .begin_service_external_effect(now_millis(), Instant::now())?;
+            let transmitting_authorized_effect = if self.authority.has_fenced_publication() {
+                Some(
+                    self.authority
+                        .reserve_authorized_effect("push batch transmitting marker")?,
+                )
+            } else {
+                None
+            };
             {
                 let mut snapback = self.lock_live("push.send.transmitting")?;
-                snapback.mark_push_batch_transmitting(&self.authority, &claim, now_millis())?;
+                match transmitting_authorized_effect {
+                    Some(authorized_effect) => snapback
+                        .mark_push_batch_transmitting_with_authorized_effect(
+                            &self.authority,
+                            &claim,
+                            now_millis(),
+                            authorized_effect,
+                        )?,
+                    None => snapback.mark_push_batch_transmitting(
+                        &self.authority,
+                        &claim,
+                        now_millis(),
+                    )?,
+                }
             }
 
             let payload = crate::push::expo_send_payload(&claim, &request);
@@ -12302,6 +12263,38 @@ async fn pause_test_finite_authority_request(
     }
 }
 
+/// Reserve caller authority before managed Local. Test pauses bracket only
+/// the lock-free reservation so both retirement orderings can be exercised
+/// without changing production lock scope.
+async fn reserve_route_authorized_effect(
+    authority: &PreparedAuthority,
+    _headers: &HeaderMap,
+    effect: &'static str,
+) -> Result<AuthorizedEffectReservation, ApiError> {
+    #[cfg(test)]
+    pause_test_finite_authority_request(
+        _headers
+            .get(TEST_FINITE_AUTHORITY_PAUSE_HEADER)
+            .and_then(|value| value.to_str().ok()),
+        TestFiniteAuthorityPausePoint::BeforeAuthorizedEffectReservation,
+        None,
+    )
+    .await;
+    let reservation = authority
+        .reserve_authorized_effect(effect)
+        .map_err(ApiError::from)?;
+    #[cfg(test)]
+    pause_test_finite_authority_request(
+        _headers
+            .get(TEST_FINITE_AUTHORITY_PAUSE_HEADER)
+            .and_then(|value| value.to_str().ok()),
+        TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
+        None,
+    )
+    .await;
+    Ok(reservation)
+}
+
 const SENDER_PROOF_HEADER: &str = "dpop";
 const SENDER_NONCE_HEADER: &str = "dpop-nonce";
 const SENDER_NONCE_TTL_SECONDS: u64 = 120;
@@ -14839,27 +14832,21 @@ async fn auth_agent_invitation(
         .for_step_up(coordination, binding, step_up.code.as_str())
         .await
         .map_err(map_provider_error)?;
+    let authorized_effect =
+        reserve_route_authorized_effect(&authority, &headers, "agent invitation mint transaction")
+            .await?;
     let effect_authority = authority.clone();
     let effect_provider = provider.clone();
     let profile = runtime.server.profile;
     let invitation = with_snapback(&runtime.snapback, move |snapback| {
-        #[cfg(test)]
-        run_targeted_agent_invitation_hook(&BEFORE_AGENT_INVITATION_EFFECT_GUARD_HOOK, &user_id);
-        // @ref LLP 0058#gate-algorithm — proof consumption and invitation
-        // insertion commit inside the inviter authority's admission epoch.
-        let _effect = effect_authority.effect_guard("agent invitation mint transaction")?;
-        #[cfg(test)]
-        let _commit_observation = run_targeted_agent_invitation_commit_hook(
-            &AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK,
-            &user_id,
-        );
-        snapback.mint_agent_invitation(
-            &_effect,
+        snapback.mint_agent_invitation_with_authorized_effect(
+            &effect_authority,
             &user_id,
             profile,
             proof.proof(),
             effect_provider.now_ms(),
             effect_provider.agent_random_source(),
+            authorized_effect,
         )
     })
     .await?;
@@ -25262,9 +25249,25 @@ async fn invoke_ask_core(
         Err(error) => return ApiError::from(error).into_response(),
     };
     let budgets = catalog.budgets.clone();
+    let authorized_effect = match reserve_route_authorized_effect(
+        authority,
+        headers,
+        "ask spend reservation transaction",
+    )
+    .await
+    {
+        Ok(authorized_effect) => authorized_effect,
+        Err(error) => return error.into_response(),
+    };
     let reservation_authority = authority.clone();
     let reserved = with_snapback(state, move |snapback| {
-        snapback.reserve_ask_spend(&reservation_authority, now_millis(), subject, &budgets)
+        snapback.reserve_ask_spend_with_authorized_effect(
+            &reservation_authority,
+            now_millis(),
+            subject,
+            &budgets,
+            authorized_effect,
+        )
     })
     .await;
     let (reservation, _) = match reserved {
@@ -25809,6 +25812,7 @@ fn capability_link_kind(
 async fn capability_link_mint(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
     input: Result<Json<CapabilityLinkMintRequest>, JsonRejection>,
 ) -> Result<Json<CapabilityLinkMintResponse>, ApiError> {
     require_provider_session_authority(&authority, InvocationSource::CapabilityLinkManagement)?;
@@ -25881,6 +25885,12 @@ async fn capability_link_mint(
     let minter_authority_instance_id = authority_instance_id.clone();
     let remaining_uses = request.uses;
     let requested_approval = request.approval;
+    let authorized_effect = reserve_route_authorized_effect(
+        &authority,
+        &headers,
+        "capability-link mint authorized-effect reservation",
+    )
+    .await?;
     let effect_authority = authority.clone();
     let minted = with_snapback(&state, move |snapback| {
         let function = snapback.capability_link_mint_function(&function_name)?;
@@ -25922,7 +25932,7 @@ async fn capability_link_mint(
             &pinned_args,
             &caller_args.iter().cloned().collect(),
         )?;
-        snapback.mint_capability_link(
+        snapback.mint_capability_link_with_authorized_effect(
             &effect_authority,
             crate::storage::capability_links::MintCapabilityLink {
                 minter_principal_id,
@@ -25938,6 +25948,7 @@ async fn capability_link_mint(
                 approval_per_use,
                 now_ms,
             },
+            authorized_effect,
         )
     })
     .await?;
@@ -26119,6 +26130,7 @@ async fn capability_link_invoke(
 async fn capability_link_revoke(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
     require_provider_session_authority(&authority, InvocationSource::CapabilityLinkManagement)?;
@@ -26132,9 +26144,20 @@ async fn capability_link_revoke(
         unreachable!("capability-link management source requires session authority")
     };
     let _ = (user_id, session_id, authority_instance_id);
+    let authorized_effect = reserve_route_authorized_effect(
+        &authority,
+        &headers,
+        "capability-link revoke authorized-effect reservation",
+    )
+    .await?;
     let effect_authority = authority.clone();
     with_snapback(&state, move |snapback| {
-        snapback.revoke_capability_link(&effect_authority, &id, now_millis())
+        snapback.revoke_capability_link_with_authorized_effect(
+            &effect_authority,
+            &id,
+            now_millis(),
+            authorized_effect,
+        )
     })
     .await?;
     Ok(StatusCode::NO_CONTENT)
@@ -27151,17 +27174,40 @@ async fn invoke_authorized_lease_query(
 async fn acknowledge_mutations(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
     input: Result<Json<MutationAcknowledgementRequest>, JsonRejection>,
 ) -> Result<Json<MutationAcknowledgementResponse>, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
-    let acknowledged = with_snapback(&state, move |snapback| {
-        snapback.acknowledge_client_mutations_with_authority_descriptor(
-            &authority,
-            request.authority_descriptor.as_ref(),
-            &request.client_mutation_ids,
-        )
-    })
-    .await?;
+    let acknowledged = match authority.resolved() {
+        ResolvedAppAuthority::Session { .. } => {
+            let authorized_effect = reserve_route_authorized_effect(
+                &authority,
+                &headers,
+                "client mutation acknowledgement transaction",
+            )
+            .await?;
+            with_snapback(&state, move |snapback| {
+                snapback
+                    .acknowledge_client_mutations_with_authority_descriptor_and_authorized_effect(
+                        &authority,
+                        request.authority_descriptor.as_ref(),
+                        &request.client_mutation_ids,
+                        authorized_effect,
+                    )
+            })
+            .await?
+        }
+        _ => {
+            with_snapback(&state, move |snapback| {
+                snapback.acknowledge_client_mutations_with_authority_descriptor(
+                    &authority,
+                    request.authority_descriptor.as_ref(),
+                    &request.client_mutation_ids,
+                )
+            })
+            .await?
+        }
+    };
     Ok(Json(MutationAcknowledgementResponse { acknowledged }))
 }
 

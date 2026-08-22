@@ -14645,7 +14645,7 @@ pub(crate) fn validate_asset_witness(
     validate_captured_read_set(tx, schema, input, witness, current_version)
 }
 
-fn validate_captured_read_set(
+pub(super) fn validate_captured_read_set(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
     input: &HandlerInput,
