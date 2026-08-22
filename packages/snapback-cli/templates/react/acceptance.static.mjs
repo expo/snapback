@@ -47,7 +47,10 @@ assert(!app.includes(' as '), 'starter must not need result casts');
 assert.match(runtimeAcceptance, /from '@expo\/snapback-acceptance'/);
 assert.match(runtimeAcceptance, /defineStarterAcceptance/);
 assert.match(runtimeAcceptance, /runStarterAcceptanceIfMain/);
-assert.doesNotMatch(runtimeAcceptance, /snapback\.starter-acceptance\.v1|expectedCheckCount|JSON\.stringify\(receipt\)/);
+assert.doesNotMatch(
+  runtimeAcceptance,
+  /snapback\.starter-acceptance\.v1|expectedCheckCount|executedCheckCount|projectStarterAcceptanceReceipt|JSON\.stringify\s*\(\s*(?:receipt\b|outcome\b|\{[\s\S]{0,256}?(?:schemaVersion|checks|operations|cleanup|lifecycle)\s*:)/u,
+);
 for (const check of [
   'anonymous-ready',
   'password-signup-recovery',

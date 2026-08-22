@@ -131,10 +131,18 @@ const validStarterAcceptanceReceipt = () => ({
   status: 'passed',
   expectedCheckCount: 2,
   executedCheckCount: 2,
-  checks: [{ status: 'passed' }, { status: 'passed' }],
+  checks: [
+    { id: 'starter-query', status: 'passed' },
+    { id: 'starter-mutation', status: 'passed' },
+  ],
   identity: {
-    artifact: { appId: 'starter', bundleHash: 'bundle' },
-    loaded: { appId: 'starter', bundleHash: 'bundle' },
+    artifact: {
+      appId: 'app',
+      inputsHash: 'inputs-1',
+      schemaHash: 'sha256:schema',
+      bundleHash: 'sha256:bundle',
+    },
+    loaded: { appId: 'app', bundleHash: 'sha256:bundle' },
   },
   lifecycle: {
     owned: true,
@@ -142,7 +150,7 @@ const validStarterAcceptanceReceipt = () => ({
     waitLevel: 'application',
     firstQueryRetries: 0,
   },
-  operations: { queryFunctionId: 'app:list', mutationFunctionId: 'app:create' },
+  operations: { 'starter-query': 'app:list', 'starter-mutation': 'app:create' },
   cleanup: {
     attempted: true,
     clientResourcesReleased: true,
@@ -377,10 +385,18 @@ async function runStarterReceiptFixture({
   status: 'passed',
   expectedCheckCount: 2,
   executedCheckCount: 2,
-  checks: [{ status: 'passed' }, { status: 'passed' }],
+  checks: [
+    { id: 'starter-query', status: 'passed' },
+    { id: 'starter-mutation', status: 'passed' },
+  ],
   identity: {
-    artifact: { appId: 'starter', bundleHash: 'bundle' },
-    loaded: { appId: 'starter', bundleHash: 'bundle' },
+    artifact: {
+      appId: 'app',
+      inputsHash: 'inputs-1',
+      schemaHash: 'sha256:schema',
+      bundleHash: 'sha256:bundle',
+    },
+    loaded: { appId: 'app', bundleHash: 'sha256:bundle' },
   },
   lifecycle: {
     owned: true,
@@ -388,7 +404,7 @@ async function runStarterReceiptFixture({
     waitLevel: 'application',
     firstQueryRetries: 0,
   },
-  operations: { queryFunctionId: 'app:list', mutationFunctionId: 'app:create' },
+  operations: { 'starter-query': 'app:list', 'starter-mutation': 'app:create' },
   cleanup: {
     attempted: true,
     clientResourcesReleased: true,
@@ -560,14 +576,13 @@ async function runStarterReceiptFixture({
     ['$.expectedCheckCount', (receipt) => { delete receipt.expectedCheckCount; }],
     ['$.executedCheckCount', (receipt) => { delete receipt.executedCheckCount; }],
     ['$.checks', (receipt) => { delete receipt.checks; }],
+    ['$.checks[0].id', (receipt) => { delete receipt.checks[0].id; }],
+    ['$.checks[1].id', (receipt) => { delete receipt.checks[1].id; }],
     ['$.checks[0].status', (receipt) => { delete receipt.checks[0].status; }],
     ['$.checks[1].status', (receipt) => { delete receipt.checks[1].status; }],
     ['$.identity.artifact.appId', (receipt) => { delete receipt.identity.artifact.appId; }],
     ['$.identity.loaded.appId', (receipt) => { delete receipt.identity.loaded.appId; }],
-    ['$.lifecycle.owned', (receipt) => { delete receipt.lifecycle.owned; }],
     ['$.lifecycle.applicationReadyObserved', (receipt) => { delete receipt.lifecycle.applicationReadyObserved; }],
-    ['$.lifecycle.waitLevel', (receipt) => { delete receipt.lifecycle.waitLevel; }],
-    ['$.lifecycle.firstQueryRetries', (receipt) => { delete receipt.lifecycle.firstQueryRetries; }],
     ['$.cleanup.attempted', (receipt) => { delete receipt.cleanup.attempted; }],
     ['$.cleanup.clientResourcesReleased', (receipt) => { delete receipt.cleanup.clientResourcesReleased; }],
     ['$.cleanup.devExited', (receipt) => { delete receipt.cleanup.devExited; }],
@@ -600,28 +615,32 @@ async function runStarterReceiptFixture({
 
 {
   const missingRegisteredOperation = validStarterAcceptanceReceipt();
-  delete missingRegisteredOperation.operations.queryFunctionId;
+  delete missingRegisteredOperation.operations['starter-query'];
   const missingOperation = await runStarterReceiptFixture({ receipt: missingRegisteredOperation });
   assert.equal(missingOperation.ok, false);
   assert.ok(missingOperation.diagnostics[0].details.invalidPaths.some(({ path: invalidPath }) => (
     invalidPath === '$.operations'
   )));
 
-  const domainNamedOperations = validStarterAcceptanceReceipt();
-  domainNamedOperations.operations = {
+  const aliasedOperations = validStarterAcceptanceReceipt();
+  aliasedOperations.operations = {
     listTodos: 'app:list',
     createTodo: 'app:create',
   };
-  const domainNamed = await runStarterReceiptFixture({ receipt: domainNamedOperations });
-  assert.equal(domainNamed.ok, true, JSON.stringify(domainNamed.diagnostics));
+  const aliased = await runStarterReceiptFixture({ receipt: aliasedOperations });
+  assert.equal(aliased.ok, false);
+  assert.ok(aliased.diagnostics[0].details.invalidPaths.some(({ path: invalidPath }) => (
+    invalidPath.includes('starter-query')
+  )));
 
   const expoChatReceipt = validStarterAcceptanceReceipt();
+  expoChatReceipt.checks = [
+    { id: 'conversation-surface-read', status: 'passed' },
+    { id: 'send-message', status: 'passed' },
+  ];
   expoChatReceipt.operations = {
-    surface: 'conversation',
-    queryFunctionId: 'expo-chat:messagesForConversation',
-    mutationFunctionId: 'expo-chat:sendMessage',
-    replyFunctionId: 'expo-chat:sendReply',
-    reactionFunctionId: 'expo-chat:addReaction',
+    'conversation-surface-read': 'expo-chat:messagesForConversation',
+    'send-message': 'expo-chat:sendMessage',
   };
   const expoChat = await runStarterReceiptFixture({
     receipt: expoChatReceipt,
@@ -659,7 +678,10 @@ async function runStarterReceiptFixture({
   delete absentBundleHashes.identity.artifact.bundleHash;
   delete absentBundleHashes.identity.loaded.bundleHash;
   const absentBoth = await runStarterReceiptFixture({ receipt: absentBundleHashes });
-  assert.equal(absentBoth.ok, true, JSON.stringify(absentBoth.diagnostics));
+  assert.equal(absentBoth.ok, false);
+  assert.ok(absentBoth.diagnostics[0].details.invalidPaths.some(({ path: invalidPath }) => (
+    invalidPath === '$.identity.artifact.bundleHash'
+  )));
 
   const invalidBundleHashes = [
     ['null', null, 'null'],
@@ -713,8 +735,8 @@ async function runStarterReceiptFixture({
 {
   const receipt = validStarterAcceptanceReceipt();
   receipt.operations = {
-    queryFunctionId: 'app:list',
-    mutationFunctionId: 'app:create',
+    'starter-query': 'app:list',
+    'starter-mutation': 'app:create',
     expensesQuery: 'app:expenses',
     addExpense: 'app:addExpense',
     applicationPayload: 'application-payload-must-not-appear',
@@ -727,7 +749,7 @@ async function runStarterReceiptFixture({
   const failure = outcome.diagnostics[0];
   assert.equal(failure.code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED');
   assert.equal(failure.details.outcome, 'incomplete-passing-receipt');
-  assert.equal(failure.details.invalidPathCount, 3);
+  assert.equal(failure.details.invalidPathCount, 4);
   assert.ok(failure.details.invalidPaths.some(({ path: invalidPath, observed }) => (
     invalidPath === '$.operations' && observed.state === 'stale-registration'
   )));
@@ -855,7 +877,7 @@ async function runStarterReceiptFixture({
   });
   const childError = await runStarterReceiptFixture({ removeBeforeRun: true });
   const incompleteReceiptValue = validStarterAcceptanceReceipt();
-  delete incompleteReceiptValue.lifecycle.owned;
+  delete incompleteReceiptValue.lifecycle.applicationReadyObserved;
   const incompleteReceipt = await runStarterReceiptFixture({ receipt: incompleteReceiptValue });
 
   assert.deepEqual([
@@ -931,13 +953,13 @@ async function runStarterReceiptFixture({
   assert.equal(identityMismatch.diagnostics[0].details.invalidPaths[0].path, '$.identity.loaded.bundleHash');
 
   const multipleFailuresValue = validStarterAcceptanceReceipt();
-  delete multipleFailuresValue.lifecycle.owned;
+  delete multipleFailuresValue.lifecycle.applicationReadyObserved;
   delete multipleFailuresValue.cleanup.ok;
   const multipleFailures = await runStarterReceiptFixture({ receipt: multipleFailuresValue });
   assert.equal(multipleFailures.diagnostics[0].details.invalidPathCount, 2);
   assert.deepEqual(
     multipleFailures.diagnostics[0].details.invalidPaths.map(({ path: invalidPath }) => invalidPath),
-    ['$.lifecycle.owned', '$.cleanup.ok'],
+    ['$.lifecycle.applicationReadyObserved', '$.cleanup.ok'],
   );
 
   const boundedFailuresValue = validStarterAcceptanceReceipt();
@@ -945,7 +967,7 @@ async function runStarterReceiptFixture({
   boundedFailuresValue.executedCheckCount = 100;
   boundedFailuresValue.checks = Array.from({ length: 100 }, () => ({}));
   const boundedFailures = await runStarterReceiptFixture({ receipt: boundedFailuresValue });
-  assert.equal(boundedFailures.diagnostics[0].details.invalidPathCount, 100);
+  assert.ok(boundedFailures.diagnostics[0].details.invalidPathCount > 64);
   assert.equal(boundedFailures.diagnostics[0].details.invalidPaths.length, 64);
   assert.equal(boundedFailures.diagnostics[0].details.invalidPathsTruncated, true);
   cases += 1;
@@ -1058,13 +1080,27 @@ for (const [template, expectedPathIds, expectedBaselinePathIds] of [
   ],
   [
     'react',
-    ['list-todos', 'create-todo'],
+    [
+      'anonymous-ready',
+      'password-signup-recovery',
+      'reload-restores-principal',
+      'authenticated-entry-refusal',
+      'sign-out',
+      'list-todos',
+      'create-todo',
+    ],
     ['create-todo', 'list-todos'],
   ],
   [
     'expo-chat',
     [
       'zero-config-supervised-connect',
+      'web-anonymous-ready',
+      'password-signup-recovery',
+      'reload-clears-volatile-principal',
+      'authenticated-entry-refusal',
+      'sign-out',
+      'native-refusal',
       'membership-dm-group-shape',
       'test-persona-membership-switch',
       'conversation-surface-read',

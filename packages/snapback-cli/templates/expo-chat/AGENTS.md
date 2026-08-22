@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:32afe6565d235b20c94c10f9a9c16c11312c4cc2307d662d6bb261e13c03d9e5 -->
+<!-- start-packet:begin expo-chat digest=sha256:8563e0dbb044dcd3a52a754da2c0f3a48172111d7584f3ec60ebe7af71a103bc -->
 This packet is the whole required first read for this app (LLP 0259
 Rung A). Open the edit targets below and work; open one further Guide page
 only via `snapback guide <query>` or on a trigger — the brief is outside
@@ -13,6 +13,10 @@ Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
 → `bun run generate` → `bun run dev` (supervises the Expo client; it never
 launches a device or simulator — Expo Go, a dev client, or
 `expo run:ios|android` is your job) → `bun run prove`.
+
+Before extending or ejecting the proof runner, read
+`node_modules/@expo/snapback-acceptance/README.md`; it is the supported
+compatibility and ownership contract.
 
 <!-- script-glossary:begin -->
 ## Script glossary

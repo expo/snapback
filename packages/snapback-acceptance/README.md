@@ -11,6 +11,8 @@ Application assertions stay in `acceptance.mjs`. A path is declared with a
 generated operation reference, and the same path token is passed to the
 bounded callback that performs the product assertion. The package never turns
 operation existence or invocation into an automatic product claim.
+Non-operation product assertions are declared with `operation: null`; every
+declared token must complete exactly once before the journey can pass.
 
 ```js
 import assert from 'node:assert/strict';
@@ -53,9 +55,40 @@ same builder-issued token and generated operation id. `snapback verify` remains
 the only done-oracle; direct execution is a raw debugging path, not a second
 aggregate verifier.
 
+The definition's `overallTimeoutMs` is a hard runner deadline that reserves
+`cleanupTimeoutMs` for final cleanup. Lifecycle methods, preflight, the
+journey, step callbacks, retry predicates, session-mint children, client
+inspection, cleanup callbacks, and lifecycle stop all receive an
+`AbortSignal`. Callbacks may ignore their signal only if their work is already
+synchronously bounded; spawned or asynchronous work must stop on abort.
+
 ## Extend or eject
 
-The supported extension surface is the root export only:
+The supported extension surface is the root export only. There are three
+different ownership levels:
+
+1. **Extend the managed runner or lifecycle.** Add application-owned path
+   tokens, `step(...)` callbacks, and `defer(...)` resources, or supply a
+   `StarterLifecycleAdapterV1`. The adapter must honor the start/stop signals.
+   Only lifecycle facts the adapter returns in `lifecycleEvidence` are stamped
+   into the receipt; the runner does not invent `owned`, `waitLevel`, or
+   `firstQueryRetries` claims. `mintSession` and `createSessionClient` are
+   managed-CLI-shaped helpers: they require the lifecycle state to expose a
+   Snapback executable, ready file, and admin token. A lifecycle that does not
+   spawn that CLI must mint its own application session inside its bounded
+   callback.
+2. **Eject the process while retaining the package projector.** Keep the
+   declaration/profile builder and call `projectStarterAcceptanceReceipt`,
+   `parseStarterAcceptanceReceipt`, and `validatePassingStarterReceipt` from
+   the same package release. The custom process owns lifecycle and cleanup,
+   while the package and CLI still rotate receipt compatibility together.
+3. **Eject the package completely.** Independently emitting
+   `snapback.starter-acceptance.v1` forfeits same-release receipt-rotation
+   protection. The ejected implementation assumes lifecycle, deadline and
+   child cancellation, cleanup, receipt migration, and CLI-version pinning;
+   `defineStarterVerifyProfile` remains the admitting authority.
+
+Within the first two levels, the supported helpers are:
 
 - add application-owned `step(...)` callbacks and path tokens;
 - use `until(...)`, `defer(...)`, `mintSession(...)`, or
@@ -63,17 +96,17 @@ The supported extension surface is the root export only:
 - supply a `StarterLifecycleAdapterV1` to replace process startup/readiness and
   shutdown while retaining the runner's bounded cleanup and receipt projector;
 - use `projectStarterAcceptanceReceipt`,
-  `validatePassingStarterReceipt`, and `parseStarterAcceptanceReceipt` when a
-  fully custom process needs to keep the admitted v1 receipt contract.
+  `validatePassingStarterReceipt`, and `parseStarterAcceptanceReceipt` when an
+  ejected process retains package-owned compatibility.
 
 Context additions are additive. Removing or changing a declaration field,
 path-token meaning, callback contract, or lifecycle-adapter method requires a
 package major. Deep imports, child-process layout, temp filenames, bounded-log
-formatting, and raw receipt-object members are not extension points. An ejected
-runner that emits its own JSON targets `snapback.starter-acceptance.v1` and
-still passes through `@expo/snapback-cli/verify` for admission. The templates
-pin this package and the CLI to the same Snapback release so their compatibility
-implementation rotates together.
+formatting, and raw receipt-object members are not extension points for code
+that retains the package. A completely ejected runner accepts those members as
+its own migration burden. The templates pin this package and the CLI to the
+same Snapback release so retained compatibility implementations rotate
+together.
 
 ## Documentation outside a checkout
 

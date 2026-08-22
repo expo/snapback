@@ -104,7 +104,10 @@ assert(!chatScreen.includes('emitG2') && !chatScreen.includes('emitG3'),
 assert.match(runtimeAcceptance, /from '@expo\/snapback-acceptance'/);
 assert.match(runtimeAcceptance, /defineStarterAcceptance/);
 assert.match(runtimeAcceptance, /runStarterAcceptanceIfMain/);
-assert.doesNotMatch(runtimeAcceptance, /snapback\.starter-acceptance\.v1|expectedCheckCount|JSON\.stringify\(receipt\)/);
+assert.doesNotMatch(
+  runtimeAcceptance,
+  /snapback\.starter-acceptance\.v1|expectedCheckCount|executedCheckCount|projectStarterAcceptanceReceipt|JSON\.stringify\s*\(\s*(?:receipt\b|outcome\b|\{[\s\S]{0,256}?(?:schemaVersion|checks|operations|cleanup|lifecycle)\s*:)/u,
+);
 assert.match(runtimeAcceptance, /runExpoDev/);
 assert.match(runtimeAcceptance, /createSnapbackExpoBoot/);
 assert.match(runtimeAcceptance, /createSnapbackAppClient/);

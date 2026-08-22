@@ -40,7 +40,10 @@ assert(!appSource.includes(' as '), 'starter UI must not need generated-result c
 assert.match(runtimeAcceptance, /from '@expo\/snapback-acceptance'/);
 assert.match(runtimeAcceptance, /defineStarterAcceptance/);
 assert.match(runtimeAcceptance, /runStarterAcceptanceIfMain/);
-assert.doesNotMatch(runtimeAcceptance, /snapback\.starter-acceptance\.v1|expectedCheckCount|JSON\.stringify\(receipt\)/);
+assert.doesNotMatch(
+  runtimeAcceptance,
+  /snapback\.starter-acceptance\.v1|expectedCheckCount|executedCheckCount|projectStarterAcceptanceReceipt|JSON\.stringify\s*\(\s*(?:receipt\b|outcome\b|\{[\s\S]{0,256}?(?:schemaVersion|checks|operations|cleanup|lifecycle)\s*:)/u,
+);
 for (const operation of ['projectDirectory', 'createProject', 'updateProject', 'deleteProject']) {
   assert.match(runtimeAcceptance, new RegExp(`operation:\\s*api\\.${operation}`));
 }

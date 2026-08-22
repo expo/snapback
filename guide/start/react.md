@@ -30,6 +30,9 @@ Vite; it prints the admin console URL) → `bun run prove`.
 `bun run prove` (`npm run prove` is equivalent) is the acceptance command:
 it runs the registered live profile through `snapback verify` and writes
 the receipt to `.snapback/verify-receipt.json`. Done = green receipt.
+Before extending or ejecting that runner, read
+`node_modules/@expo/snapback-acceptance/README.md`; it is the supported
+compatibility and ownership contract.
 
 <!-- script-glossary:begin -->
 ## Script glossary

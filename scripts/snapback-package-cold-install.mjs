@@ -27,8 +27,6 @@ import { release as osRelease, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { parseStarterAcceptanceReceipt } from '@expo/snapback-acceptance';
-
 import {
   BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
   boundedSerializeBrowserValue,
@@ -343,12 +341,45 @@ async function provePackagedDevLoop({ cli, scaffoldRoot }) {
   return { readyFile, database };
 }
 
-function assertStarterAcceptanceReceipt(output, label) {
-  const parsed = parseStarterAcceptanceReceipt(String(output));
-  if (parsed.kind !== 'receipt' || parsed.receipt?.status !== 'passed') {
-    fail(`${label} emitted no passing starter acceptance receipt: ${JSON.stringify(parsed)}`);
+function assertStarterAcceptanceReceipt(output, label, scaffoldRoot) {
+  const validatorSource = `
+import {
+  parseStarterAcceptanceReceipt,
+  validatePassingStarterReceipt,
+} from '@expo/snapback-acceptance';
+import { acceptance } from './acceptance.mjs';
+import functions from './snapback/generated/functions.manifest.json' with { type: 'json' };
+
+let stdout = '';
+for await (const chunk of process.stdin) stdout += chunk;
+const parsed = parseStarterAcceptanceReceipt(stdout);
+const paths = Object.values(acceptance.paths).map(({ id, kind, targetProfileId, functionId }) => ({
+  id, kind, targetProfileId, functionId,
+}));
+const admission = parsed.kind === 'receipt'
+  ? validatePassingStarterReceipt(parsed.receipt, paths, {
+      identity: acceptance.artifacts,
+      manifests: { functions },
+    })
+  : null;
+if (parsed.receipt?.status !== 'passed' || admission?.complete !== true) {
+  process.stderr.write(JSON.stringify({ parsed, admission }));
+  process.exitCode = 1;
+} else {
+  process.stdout.write(JSON.stringify(parsed.receipt));
+}
+`;
+  const validation = spawnSync(process.execPath, ['--input-type=module', '--eval', validatorSource], {
+    cwd: scaffoldRoot,
+    encoding: 'utf8',
+    input: String(output),
+    timeout: 30_000,
+  });
+  if (validation.status !== 0) {
+    fail(`${label} emitted no fully admitted starter acceptance receipt: `
+      + `${validation.stderr || validation.stdout}`);
   }
-  return parsed.receipt;
+  return JSON.parse(validation.stdout);
 }
 
 async function inspectBrowserStorage(page) {
@@ -2752,10 +2783,7 @@ await build({
     env: { ...process.env, npm_config_offline: 'true' },
   });
   run('npm', ['run', 'test:static'], { cwd: scaffoldRoot });
-  assertStarterAcceptanceReceipt(
-    run('npm', ['test'], { cwd: scaffoldRoot, timeout: 120_000 }),
-    'todo-contract default test',
-  );
+  run('npm', ['run', 'prove'], { cwd: scaffoldRoot, timeout: 180_000 });
   run('git', ['init', '--quiet'], { cwd: scaffoldRoot });
   run('git', [
     'add', '.gitignore', 'package.json', 'package-lock.json', 'acceptance.mjs',
@@ -2911,6 +2939,7 @@ await build({
   assertStarterAcceptanceReceipt(
     run('npm', ['test'], { cwd: reactScaffoldRoot, timeout: 120_000 }),
     'React starter default test',
+    reactScaffoldRoot,
   );
   const reactManifest = JSON.parse(readFileSync(join(reactScaffoldRoot, 'package.json'), 'utf8'));
   const reactMain = readFileSync(join(reactScaffoldRoot, 'src', 'main.tsx'), 'utf8');
@@ -2969,6 +2998,7 @@ await build({
   assertStarterAcceptanceReceipt(
     run('npm', ['test'], { cwd: crudScaffoldRoot, timeout: 120_000 }),
     'CRUD dashboard default test',
+    crudScaffoldRoot,
   );
 
   const expoFixtureRoot = join(appRoot, 'react-expo');
@@ -3025,6 +3055,7 @@ await build({
   assertStarterAcceptanceReceipt(
     run('npm', ['test'], { cwd: mediaScaffoldRoot, timeout: 180_000 }),
     'media feed default test',
+    mediaScaffoldRoot,
   );
 
   // @ref LLP 0186#w2--context-injection-surface-owned-here — exercise the
@@ -3054,6 +3085,7 @@ await build({
     assertStarterAcceptanceReceipt(
       run('npm', ['test'], { cwd: chatRoot, timeout: 180_000 }),
       `${label} default test`,
+      chatRoot,
     );
     const appSource = readFileSync(join(chatRoot, 'App.tsx'), 'utf8');
     const chatScreenSource = readFileSync(

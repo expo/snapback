@@ -25,6 +25,36 @@ export const acceptance = defineStarterAcceptance({
   appRoot: import.meta.dirname,
   artifacts,
   paths: {
+    anonymousReady: {
+      id: 'anonymous-ready',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
+    },
+    passwordSignupRecovery: {
+      id: 'password-signup-recovery',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
+    },
+    reloadRestoresPrincipal: {
+      id: 'reload-restores-principal',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
+    },
+    authenticatedEntryRefusal: {
+      id: 'authenticated-entry-refusal',
+      kind: 'failure',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
+    },
+    signOut: {
+      id: 'sign-out',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
+    },
     listTodos: {
       id: 'list-todos',
       kind: 'success',
@@ -77,7 +107,7 @@ export const acceptance = defineStarterAcceptance({
     });
     appClient = await createSnapbackAppClient({ app, binding, platform });
 
-    await step('anonymous-ready', async () => {
+    await step(paths.anonymousReady, async () => {
       assert.equal(appClient.bootstrapState().status, 'ready');
       assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
       return { custody: appClient.bootstrapState().custody.carrier };
@@ -86,7 +116,7 @@ export const acceptance = defineStarterAcceptance({
     const identity = `react-starter-${process.pid}@example.com`;
     const password = 'react-starter-password';
     let signedUpUserId;
-    await step('password-signup-recovery', async () => {
+    await step(paths.passwordSignupRecovery, async () => {
       const signup = await appClient.auth.signUpWithPassword({ email: identity, password });
       assert.equal(signup.recoveryCodes.length, 8);
       assert.equal(Object.hasOwn(signup, 'token'), false);
@@ -95,7 +125,7 @@ export const acceptance = defineStarterAcceptance({
       return { recoveryCodeCount: signup.recoveryCodes.length, bearerProjected: false };
     });
 
-    await step('reload-restores-principal', async () => {
+    await step(paths.reloadRestoresPrincipal, async () => {
       await appClient.dispose();
       appClient = await createSnapbackAppClient({ app, binding, platform });
       assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
@@ -103,7 +133,7 @@ export const acceptance = defineStarterAcceptance({
       return { userId: signedUpUserId };
     });
 
-    await step('authenticated-entry-refusal', async () => {
+    await step(paths.authenticatedEntryRefusal, async () => {
       await assert.rejects(
         appClient.auth.signInWithPassword({ email: identity, password }),
         (error) => error?.code === 'SNAPBACK_AUTH_ENTRY_AUTHENTICATED',
@@ -111,7 +141,7 @@ export const acceptance = defineStarterAcceptance({
       return { code: 'SNAPBACK_AUTH_ENTRY_AUTHENTICATED' };
     });
 
-    await step('sign-out', async () => {
+    await step(paths.signOut, async () => {
       await appClient.auth.signOut();
       assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
       return { principal: 'anonymous' };

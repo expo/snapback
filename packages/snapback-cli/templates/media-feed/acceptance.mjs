@@ -31,11 +31,13 @@ export const acceptance = defineStarterAcceptance({
       id: 'thumbnail-rendition-delivery',
       kind: 'success',
       targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
     },
     display: {
       id: 'display-rendition-delivery',
       kind: 'success',
       targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
     },
   },
   async journey({ createSessionClient, defer, paths, ready, step }) {

@@ -7,6 +7,12 @@ Authorization, Runtime readiness, Packaging, Templates, Verification,
 Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-17
+**Revised:** 2026-08-22 (D9 review-fix reconciliation: builder tokens are
+definition-owned and generated-reference identity is artifact-generation
+bound; admission correlates each exact path id to both its operation entry and
+passed check; one overall deadline reserves bounded cleanup and propagates
+AbortSignal cancellation; lifecycle evidence and the three ejection levels
+are stated honestly.)
 **Revised:** 2026-08-22 (author ruling: the recurring starter acceptance
 harness becomes the public `@expo/snapback-acceptance` root entrypoint. The
 package owns platform lifecycle and receipt compatibility while product
@@ -501,13 +507,30 @@ await runStarterAcceptanceIfMain(import.meta, acceptance);
 ```
 
 `operation` accepts a generated operation reference object and the builder
-derives its exact id. It never accepts an app-authored raw function-id string.
-`step(pathToken, callback)` records the token's operation as observed only
-after the bounded callback and its assertions succeed. A non-operation product
-or delivery claim uses a builder-issued journey-path token and the same bounded
-callback; it is not projected as operation evidence. Arbitrary output from a
-callback is rejected unless it is bounded JSON-safe detail. The app never
-constructs `snapback.starter-acceptance.*` JSON.
+derives its exact id. The builder requires the reference's
+`artifactKind: 'functionReference'`, generated function kind, app id, and
+complete `expectedGeneration` to match the supplied artifact index; an object
+with only a copied `id` is not a reference. It never accepts an app-authored
+raw function-id string. `step(pathToken, callback)` accepts only the exact
+token object issued by that acceptance definition — not a string, structural
+clone, or token from another definition — and records the token's operation as
+observed only after the bounded callback and its assertions succeed. A
+non-operation product or delivery claim declares `operation: null`, uses its
+builder-issued journey-path token and the same bounded callback, and is not
+projected as operation evidence. Every declared path id must have one passed
+step at journey end; a short journey cannot emit a passing receipt. Arbitrary
+output from a callback is rejected unless it is bounded JSON-safe detail. The
+app never constructs `snapback.starter-acceptance.*` JSON.
+
+The runner has one `overallTimeoutMs` deadline. It reserves
+`cleanupTimeoutMs` from that total, aborts preflight/lifecycle start/journey at
+the execution boundary, and bounds cleanup callbacks, client inspection, and
+lifecycle stop inside the reserved remainder. Lifecycle start/stop, the
+journey, each step, retry predicates and waits, session-mint subprocesses,
+client inspection, and cleanup callbacks receive an `AbortSignal`; managed
+children are killed on abort, and public adapters/callbacks must honor the
+signal for asynchronous work. A timeout wrapper must abort the signal it
+passed to the underlying operation, not merely reject a detached race.
 
 The verify config imports the same declaration and composes it with D5:
 
@@ -535,6 +558,13 @@ currently produced by the CLI adapter. That projection stays explicit: a
 successful starter path is identity-bound observation, not complete D1
 read/write provenance.
 
+Admission is correlated by path, never collapsed to a set of function ids. For
+every registered operation path `p`, a passing receipt requires both
+`operations[p.id] === p.functionId` and a passed `checks[]` member whose id is
+exactly `p.id`. For every `operation: null` path, the exact passed check is
+required and no operation evidence is inferred. Thus two paths that reference
+one generated function remain two independent evidence obligations.
+
 #### Authority and compatibility boundary
 
 This package is **not a second proof authority**. Direct execution remains the
@@ -553,11 +583,21 @@ The public compatibility contract is:
 - custom steps and cleanup resources extend the default runner without
   changing profile or receipt authority;
 - a custom lifecycle implements the versioned `StarterLifecycleAdapterV1`
-  start/readiness/stop contract. Cleanup remains runner-supervised and bounded;
-- a fully ejected process may keep the declaration/profile builder and call the
-  public receipt projector/validator. If it emits a receipt independently, the
-  accepted `snapback.starter-acceptance.v1` contract is its compatibility
-  target and `defineStarterVerifyProfile` remains the admitting authority;
+  start/readiness/stop and AbortSignal contract. Cleanup remains
+  runner-supervised and bounded. Only `lifecycleEvidence` facts the adapter
+  actually supplies are stamped; the runner does not invent `owned`,
+  `waitLevel`, or `firstQueryRetries`. Package `mintSession` is specifically
+  managed-CLI-shaped and requires the adapter to expose that CLI's executable,
+  ready file, and admin token; other lifecycles mint for themselves;
+- a process-ejected runner may keep the declaration/profile builder and call
+  the same-release public receipt projector/parser/validator. It owns process
+  lifecycle and cleanup while retaining package/CLI receipt rotation;
+- a complete package ejection that independently emits the accepted
+  `snapback.starter-acceptance.v1` contract forfeits same-release receipt
+  rotation and assumes lifecycle, deadline/child cancellation, cleanup,
+  receipt migration, and CLI-pinning responsibility;
+- in both ejection cases `defineStarterVerifyProfile` remains the admitting
+  authority;
 - deep imports, child-process layout, temp filenames, log formatting, and raw
   receipt-object members are not extension points. Templates pin the
   acceptance package to the same Snapback release as the CLI so the builder
@@ -721,3 +761,8 @@ be implemented before improving its own golden path.
   harnesses, pinning the generated-reference/bounded-callback builder API,
   retaining app-owned product meaning, and defining the eject/extend and
   no-second-authority boundaries; resolved Open Question 3.
+- 2026-08-22 r5: hostile-review reconciliation — made D9's generated-reference
+  and builder-token identity exact, specified path-keyed admission and complete
+  declared-path execution, added the total deadline/cancellation contract, and
+  separated lifecycle extension, projector-retaining process ejection, and
+  complete package ejection with honest evidence and compatibility ownership.

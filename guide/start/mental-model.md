@@ -38,7 +38,10 @@ when no template is selected.
   should then be declared explicitly.
 - **The loop.** Edit → `bun run generate` → `bun run dev` →
   `bun run prove`. A green verify receipt is "done"; anything else is a
-  claim. Here, “prove” means acceptance evidence, not formal proof.
+  claim. Here, “prove” means acceptance evidence, not formal proof. Before
+  extending or ejecting its runner, read
+  `node_modules/@expo/snapback-acceptance/README.md`, the compatibility and
+  ownership contract.
 - **When something refuses,** read the `SNAPBACK_*` code, then run
   `snapback guide <CODE>` for the exact rule and fix.
 

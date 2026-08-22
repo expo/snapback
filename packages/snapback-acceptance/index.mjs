@@ -27,6 +27,9 @@ const PATH_KINDS = new Set([
 ]);
 const DEFAULT_STEP_TIMEOUT_MS = 30_000;
 const DEFAULT_READINESS_TIMEOUT_MS = 60_000;
+const DEFAULT_OVERALL_TIMEOUT_MS = 180_000;
+const DEFAULT_CLEANUP_TIMEOUT_MS = 20_000;
+const MAX_CLEANUP_CALLBACKS = 64;
 const MAX_CHILD_OUTPUT_BYTES = 64 * 1024;
 const MAX_STEP_DETAIL_BYTES = 16 * 1024;
 const MAX_STEP_DETAIL_ITEMS = 256;
@@ -38,6 +41,14 @@ const DEFINITION = Symbol('snapback.starter-acceptance.definition');
 const STARTER_ACCEPTANCE_MAX_INVALID_PATHS = 64;
 const STARTER_ACCEPTANCE_MAX_OPERATION_PATHS = 16;
 const STARTER_ACCEPTANCE_MAX_REMEDIATION_ID_CHARS = 256;
+const GENERATION_KEYS = Object.freeze([
+  'schemaVersion',
+  'appId',
+  'schemaHash',
+  'bundleHash',
+  'inputsHash',
+]);
+const FUNCTION_REFERENCE_KINDS = new Set(['Query', 'Mutation', 'LiveQuery', 'Action']);
 
 function plainObject(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -60,7 +71,43 @@ function filePath(value, label) {
   return resolve(value);
 }
 
-function normalizePath(path, key) {
+function artifactGeneration(artifacts, label = 'artifacts') {
+  assert.equal(artifacts?.artifactKind, 'artifactIndex', `${label}.artifactKind must be artifactIndex`);
+  const generation = Object.fromEntries(GENERATION_KEYS.map((generationKey) => {
+    const value = artifacts?.[generationKey];
+    assert(
+      typeof value === 'string' && value.length > 0,
+      `${label}.${generationKey} must be a non-empty generated identity`,
+    );
+    return [generationKey, value];
+  }));
+  return Object.freeze(generation);
+}
+
+function normalizeOperationReference(operation, artifacts, label) {
+  assert(plainObject(operation), `${label} must be a generated operation reference object`);
+  assert.equal(operation.artifactKind, 'functionReference', `${label}.artifactKind must be functionReference`);
+  assert(typeof operation.id === 'string' && operation.id.length > 0, `${label}.id must be non-empty`);
+  assert(typeof operation.name === 'string' && operation.name.length > 0, `${label}.name must be non-empty`);
+  assert(FUNCTION_REFERENCE_KINDS.has(operation.kind), `${label}.kind must be a generated function kind`);
+  assert(
+    typeof operation.schemaVersion === 'string' && operation.schemaVersion.length > 0,
+    `${label}.schemaVersion must be non-empty`,
+  );
+  assert.equal(operation.appId, artifacts.appId, `${label}.appId must match artifacts.appId`);
+  assert(plainObject(operation.expectedGeneration), `${label}.expectedGeneration must be generated`);
+  const expectedGeneration = artifactGeneration(artifacts);
+  for (const generationKey of GENERATION_KEYS) {
+    assert.equal(
+      operation.expectedGeneration[generationKey],
+      expectedGeneration[generationKey],
+      `${label}.expectedGeneration.${generationKey} must match artifacts.${generationKey}`,
+    );
+  }
+  return operation;
+}
+
+function normalizePath(path, key, artifacts) {
   assert(plainObject(path), `paths.${key} must be an object`);
   assert(typeof path.id === 'string' && path.id.length > 0, `paths.${key}.id must be non-empty`);
   assert(PATH_KINDS.has(path.kind), `paths.${key}.kind is unsupported`);
@@ -68,12 +115,12 @@ function normalizePath(path, key) {
     typeof path.targetProfileId === 'string' && path.targetProfileId.length > 0,
     `paths.${key}.targetProfileId must be non-empty`,
   );
-  const operation = path.operation ?? null;
   assert(
-    operation === null || (plainObject(operation) && typeof operation.id === 'string'
-      && operation.id.length > 0),
-    `paths.${key}.operation must be a generated operation reference object, never a raw id`,
+    Object.hasOwn(path, 'operation'),
+    `paths.${key}.operation must explicitly be a generated reference or null`,
   );
+  const operation = path.operation;
+  if (operation !== null) normalizeOperationReference(operation, artifacts, `paths.${key}.operation`);
   assert(
     path.provenance === undefined || path.provenance === 'baseline' || path.provenance === 'none',
     `paths.${key}.provenance must be baseline or none`,
@@ -101,10 +148,10 @@ export function defineStarterAcceptance(options) {
     ? dirname(acceptanceFile)
     : filePath(options.appRoot, 'appRoot');
   assert(plainObject(options.artifacts), 'artifacts must be a generated artifact index');
-  assert(
-    typeof options.artifacts.appId === 'string' && options.artifacts.appId.length > 0,
-    'artifacts.appId must be non-empty',
-  );
+  const generatedArtifacts = Object.freeze({
+    artifactKind: 'artifactIndex',
+    ...artifactGeneration(options.artifacts),
+  });
   assert(typeof options.journey === 'function', 'journey must be a bounded callback');
   assert(
     options.preflight === undefined || typeof options.preflight === 'function',
@@ -112,7 +159,7 @@ export function defineStarterAcceptance(options) {
   );
   const paths = Object.fromEntries(Object.entries(options.paths ?? {}).map(([key, path]) => [
     key,
-    normalizePath(path, key),
+    normalizePath(path, key, generatedArtifacts),
   ]));
   assert(
     new Set(Object.values(paths).map(({ id }) => id)).size === Object.keys(paths).length,
@@ -122,12 +169,22 @@ export function defineStarterAcceptance(options) {
     Object.values(paths).some(({ functionId }) => functionId !== null),
     'starter acceptance must bind at least one path to a generated operation reference',
   );
+  const overallTimeoutMs = options.overallTimeoutMs === undefined
+    ? DEFAULT_OVERALL_TIMEOUT_MS
+    : positiveInteger(options.overallTimeoutMs, 'overallTimeoutMs');
+  const cleanupTimeoutMs = options.cleanupTimeoutMs === undefined
+    ? DEFAULT_CLEANUP_TIMEOUT_MS
+    : positiveInteger(options.cleanupTimeoutMs, 'cleanupTimeoutMs');
+  assert(
+    cleanupTimeoutMs < overallTimeoutMs,
+    'cleanupTimeoutMs must be smaller than overallTimeoutMs',
+  );
   return Object.freeze({
     [DEFINITION]: true,
     schemaVersion: STARTER_ACCEPTANCE_DEFINITION_VERSION,
     acceptanceFile,
     appRoot,
-    artifacts: options.artifacts,
+    artifacts: generatedArtifacts,
     paths: Object.freeze(paths),
     stepTimeoutMs: options.stepTimeoutMs === undefined
       ? DEFAULT_STEP_TIMEOUT_MS
@@ -135,6 +192,8 @@ export function defineStarterAcceptance(options) {
     readinessTimeoutMs: options.readinessTimeoutMs === undefined
       ? DEFAULT_READINESS_TIMEOUT_MS
       : positiveInteger(options.readinessTimeoutMs, 'readinessTimeoutMs'),
+    overallTimeoutMs,
+    cleanupTimeoutMs,
     preflight: options.preflight ?? null,
     journey: options.journey,
   });
@@ -152,21 +211,43 @@ function appendBounded(current, chunk) {
   return `${current}${chunk.toString('utf8')}`.slice(-MAX_CHILD_OUTPUT_BYTES);
 }
 
-function waitForExit(child, timeoutMs) {
+function codedError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function signalError(signal) {
+  if (signal?.reason instanceof Error) return signal.reason;
+  return codedError(
+    'SNAPBACK_STARTER_ACCEPTANCE_INTERRUPTED',
+    `starter acceptance interrupted${signal?.reason ? `: ${signal.reason}` : ''}`,
+  );
+}
+
+function waitForExit(child, timeoutMs, signal = null) {
   return new Promise((resolveExit) => {
     if (child === null || child.exitCode !== null || child.signalCode !== null) {
       resolveExit(true);
       return;
     }
-    const timer = setTimeout(() => {
-      child.off('close', closed);
-      resolveExit(false);
-    }, timeoutMs);
-    const closed = () => {
+    let settled = false;
+    const finish = (exited) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
-      resolveExit(true);
+      child.off('close', closed);
+      signal?.removeEventListener('abort', aborted);
+      resolveExit(exited);
     };
+    const timer = setTimeout(() => {
+      finish(false);
+    }, timeoutMs);
+    const closed = () => finish(true);
+    const aborted = () => finish(false);
     child.once('close', closed);
+    signal?.addEventListener('abort', aborted, { once: true });
+    if (signal?.aborted) aborted();
   });
 }
 
@@ -182,8 +263,9 @@ export function createManagedDevLifecycleAdapter() {
   const lifecycleEvents = [];
   return Object.freeze({
     schemaVersion: STARTER_LIFECYCLE_ADAPTER_VERSION,
-    async start({ appRoot, stateRoot, readinessTimeoutMs, environment }) {
+    async start({ appRoot, stateRoot, readinessTimeoutMs, environment, signal }) {
       assert.equal(child, null, 'managed lifecycle adapters are single-use');
+      if (signal?.aborted) throw signalError(signal);
       const readyFile = join(stateRoot, 'dev.ready.json');
       const database = join(stateRoot, 'dev.sqlite3');
       const executable = join(
@@ -232,10 +314,21 @@ export function createManagedDevLifecycleAdapter() {
       let waitStderr = '';
       waiter.stdout.on('data', (chunk) => { waitStdout = appendBounded(waitStdout, chunk); });
       waiter.stderr.on('data', (chunk) => { waitStderr = appendBounded(waitStderr, chunk); });
-      const exit = await new Promise((resolveExit, reject) => {
-        waiter.once('error', reject);
-        waiter.once('close', (code, signal) => resolveExit({ code, signal }));
-      });
+      const abortStartedChildren = () => {
+        if (waiter.exitCode === null && waiter.signalCode === null) waiter.kill('SIGKILL');
+        if (child?.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      };
+      signal?.addEventListener('abort', abortStartedChildren, { once: true });
+      let exit;
+      try {
+        exit = await new Promise((resolveExit, reject) => {
+          waiter.once('error', reject);
+          waiter.once('close', (code, exitSignal) => resolveExit({ code, signal: exitSignal }));
+        });
+      } finally {
+        signal?.removeEventListener('abort', abortStartedChildren);
+      }
+      if (signal?.aborted) throw signalError(signal);
       let envelope = null;
       try { envelope = JSON.parse(waitStdout); } catch {}
       if (exit.code !== 0 || envelope?.ok !== true) {
@@ -256,7 +349,12 @@ export function createManagedDevLifecycleAdapter() {
         readyFile,
         executable,
         adminToken,
-        lifecycleEvents: Object.freeze(lifecycleEvents),
+        lifecycleEvents: Object.freeze([...lifecycleEvents]),
+        lifecycleEvidence: Object.freeze({
+          owned: true,
+          waitLevel: 'application',
+          firstQueryRetries: 0,
+        }),
         health() {
           const running = child !== null
             && child.exitCode === null
@@ -272,46 +370,64 @@ export function createManagedDevLifecycleAdapter() {
         },
       });
     },
-    async stop() {
+    async stop(_state, { signal = null } = {}) {
       if (child === null) return Object.freeze({ exited: true });
-      if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
-      if (!(await waitForExit(child, 10_000))) child.kill('SIGKILL');
-      return Object.freeze({ exited: await waitForExit(child, 5_000) });
+      const killImmediately = () => {
+        if (child?.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      };
+      signal?.addEventListener('abort', killImmediately, { once: true });
+      try {
+        if (signal?.aborted) killImmediately();
+        else if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+        if (!(await waitForExit(child, 10_000, signal))) killImmediately();
+        return Object.freeze({ exited: await waitForExit(child, 5_000, signal) });
+      } finally {
+        signal?.removeEventListener('abort', killImmediately);
+      }
     },
   });
 }
 
 function abortError(signal) {
-  const error = new Error(`starter acceptance interrupted${signal.reason ? `: ${signal.reason}` : ''}`);
-  error.code = 'SNAPBACK_STARTER_ACCEPTANCE_INTERRUPTED';
-  return error;
+  return signalError(signal);
 }
 
-function withTimeout(promise, timeoutMs, code, message, signal) {
-  return new Promise((resolvePromise, reject) => {
+function withTimeout(operation, timeoutMs, code, message, parentSignal = null) {
+  assert(typeof operation === 'function', 'withTimeout requires a cancellable operation');
+  positiveInteger(timeoutMs, 'withTimeout timeoutMs');
+  if (parentSignal?.aborted) return Promise.reject(abortError(parentSignal));
+  const controller = new AbortController();
+  const timeoutError = codedError(code, message);
+  const relayAbort = () => controller.abort(abortError(parentSignal));
+  parentSignal?.addEventListener('abort', relayAbort, { once: true });
+  const timer = setTimeout(() => controller.abort(timeoutError), timeoutMs);
+  const aborted = new Promise((_, reject) => {
+    controller.signal.addEventListener('abort', () => reject(signalError(controller.signal)), {
+      once: true,
+    });
+  });
+  const running = Promise.resolve().then(() => operation(controller.signal));
+  return Promise.race([running, aborted]).finally(() => {
+    clearTimeout(timer);
+    parentSignal?.removeEventListener('abort', relayAbort);
+  });
+}
+
+function abortableDelay(timeoutMs, signal) {
+  return new Promise((resolveDelay, reject) => {
     if (signal?.aborted) {
-      reject(abortError(signal));
+      reject(signalError(signal));
       return;
     }
     const timer = setTimeout(() => {
-      const error = new Error(message);
-      error.code = code;
-      reject(error);
+      signal?.removeEventListener('abort', aborted);
+      resolveDelay();
     }, timeoutMs);
-    const aborted = () => reject(abortError(signal));
+    const aborted = () => {
+      clearTimeout(timer);
+      reject(signalError(signal));
+    };
     signal?.addEventListener('abort', aborted, { once: true });
-    Promise.resolve(promise).then(
-      (value) => {
-        clearTimeout(timer);
-        signal?.removeEventListener('abort', aborted);
-        resolvePromise(value);
-      },
-      (error) => {
-        clearTimeout(timer);
-        signal?.removeEventListener('abort', aborted);
-        reject(error);
-      },
-    );
   });
 }
 
@@ -384,12 +500,27 @@ function bindSupervisedApp(app, ready, offeredCapabilities = [], supervisorGener
   });
 }
 
-async function defaultLoadedIdentity(lifecycleState) {
+async function inspectClient(client, signal) {
+  if (signal?.aborted) throw signalError(signal);
+  const abortInspection = () => {
+    try {
+      Promise.resolve(client.dispose?.()).catch(() => {});
+    } catch {}
+  };
+  signal?.addEventListener('abort', abortInspection, { once: true });
+  try {
+    return await client.inspect({ signal });
+  } finally {
+    signal?.removeEventListener('abort', abortInspection);
+  }
+}
+
+async function defaultLoadedIdentity(lifecycleState, signal) {
   if (lifecycleState.loadedIdentity !== undefined && lifecycleState.loadedIdentity !== null) {
     return { loadedIdentity: lifecycleState.loadedIdentity, adminClient: lifecycleState.adminClient ?? null };
   }
   if (lifecycleState.adminClient !== undefined && lifecycleState.adminClient !== null) {
-    const inspected = await lifecycleState.adminClient.inspect();
+    const inspected = await inspectClient(lifecycleState.adminClient, signal);
     return {
       loadedIdentity: {
         appId: inspected.functions?.appId,
@@ -407,7 +538,7 @@ async function defaultLoadedIdentity(lifecycleState) {
     rqsStore: null,
     offlineQueue: false,
   });
-  const inspected = await adminClient.inspect();
+  const inspected = await inspectClient(adminClient, signal);
   return {
     loadedIdentity: {
       appId: inspected.functions?.appId,
@@ -417,37 +548,76 @@ async function defaultLoadedIdentity(lifecycleState) {
   };
 }
 
-async function spawnSessionMint(lifecycleState, appRoot, environment, email) {
+async function spawnSessionMint(lifecycleState, appRoot, environment, email, signal, timeoutMs) {
   assert(
     typeof lifecycleState.executable === 'string'
       && typeof lifecycleState.readyFile === 'string'
       && typeof lifecycleState.adminToken === 'string',
     'selected lifecycle does not support ordinary-session minting',
   );
-  const mint = spawn(lifecycleState.executable, [
-    'session', 'mint', '--email', email, '--ready-file', lifecycleState.readyFile,
-  ], {
-    cwd: appRoot,
-    env: { ...environment, SNAPBACK_ADMIN_TOKEN: lifecycleState.adminToken },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  let stdout = '';
-  let stderr = '';
-  mint.stdout.on('data', (chunk) => { stdout = appendBounded(stdout, chunk); });
-  mint.stderr.on('data', (chunk) => { stderr = appendBounded(stderr, chunk); });
-  const exit = await new Promise((resolveExit, reject) => {
-    mint.once('error', reject);
-    mint.once('close', (code, signal) => resolveExit({ code, signal }));
-  });
-  if (exit.code !== 0) {
-    throw new Error(`ordinary session mint failed (${exit.code ?? exit.signal}): ${stderr}`);
+  return withTimeout(async (mintSignal) => {
+    const mint = spawn(lifecycleState.executable, [
+      'session', 'mint', '--email', email, '--ready-file', lifecycleState.readyFile,
+    ], {
+      cwd: appRoot,
+      env: { ...environment, SNAPBACK_ADMIN_TOKEN: lifecycleState.adminToken },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    mint.stdout.on('data', (chunk) => { stdout = appendBounded(stdout, chunk); });
+    mint.stderr.on('data', (chunk) => { stderr = appendBounded(stderr, chunk); });
+    const killMint = () => {
+      if (mint.exitCode === null && mint.signalCode === null) mint.kill('SIGKILL');
+    };
+    mintSignal.addEventListener('abort', killMint, { once: true });
+    let exit;
+    try {
+      exit = await new Promise((resolveExit, reject) => {
+        mint.once('error', reject);
+        mint.once('close', (code, exitSignal) => resolveExit({ code, signal: exitSignal }));
+      });
+    } finally {
+      mintSignal.removeEventListener('abort', killMint);
+    }
+    if (mintSignal.aborted) throw signalError(mintSignal);
+    if (exit.code !== 0) {
+      throw new Error(`ordinary session mint failed (${exit.code ?? exit.signal}): ${stderr}`);
+    }
+    const envelope = JSON.parse(stdout);
+    assert.equal(envelope?.ok, true, 'ordinary session mint returned a failed envelope');
+    assert.equal(envelope?.operation, 'auth.mintSession');
+    assert.equal(envelope?.data?.tokenType, 'Bearer');
+    assert(typeof envelope?.data?.token === 'string' && envelope.data.token.length > 0);
+    return Object.freeze({ token: envelope.data.token });
+  }, timeoutMs, 'SNAPBACK_STARTER_ACCEPTANCE_SESSION_MINT_TIMEOUT',
+  `ordinary session mint exceeded ${timeoutMs}ms`, signal);
+}
+
+function normalizeLifecycleEvidence(value) {
+  if (value === undefined || value === null) return Object.freeze({});
+  assert(plainObject(value), 'lifecycleEvidence must be an object when supplied');
+  const allowed = new Set(['owned', 'waitLevel', 'firstQueryRetries']);
+  assert(
+    Object.keys(value).every((key) => allowed.has(key)),
+    'lifecycleEvidence contains an unsupported receipt claim',
+  );
+  if (Object.hasOwn(value, 'owned')) {
+    assert(typeof value.owned === 'boolean', 'lifecycleEvidence.owned must be boolean');
   }
-  const envelope = JSON.parse(stdout);
-  assert.equal(envelope?.ok, true, 'ordinary session mint returned a failed envelope');
-  assert.equal(envelope?.operation, 'auth.mintSession');
-  assert.equal(envelope?.data?.tokenType, 'Bearer');
-  assert(typeof envelope?.data?.token === 'string' && envelope.data.token.length > 0);
-  return Object.freeze({ token: envelope.data.token });
+  if (Object.hasOwn(value, 'waitLevel')) {
+    assert(
+      typeof value.waitLevel === 'string' && value.waitLevel.length > 0,
+      'lifecycleEvidence.waitLevel must be non-empty',
+    );
+  }
+  if (Object.hasOwn(value, 'firstQueryRetries')) {
+    assert(
+      Number.isSafeInteger(value.firstQueryRetries) && value.firstQueryRetries >= 0,
+      'lifecycleEvidence.firstQueryRetries must be a non-negative integer',
+    );
+  }
+  return Object.freeze({ ...value });
 }
 
 export function projectStarterAcceptanceReceipt(outcome) {
@@ -457,7 +627,7 @@ export function projectStarterAcceptanceReceipt(outcome) {
   return Object.freeze({
     schemaVersion: STARTER_ACCEPTANCE_SCHEMA_VERSION,
     status: outcome.passed ? 'passed' : 'failed',
-    expectedCheckCount: outcome.checks.length,
+    expectedCheckCount: outcome.declaredPathCount,
     executedCheckCount: outcome.checks.length,
     checks: Object.freeze([...outcome.checks]),
     identity: Object.freeze({
@@ -470,10 +640,8 @@ export function projectStarterAcceptanceReceipt(outcome) {
       loaded: loadedIdentity,
     }),
     lifecycle: Object.freeze({
-      owned: true,
       applicationReadyObserved: outcome.applicationReadyObserved,
-      waitLevel: 'application',
-      firstQueryRetries: 0,
+      ...normalizeLifecycleEvidence(outcome.lifecycleEvidence),
     }),
     operations: Object.freeze({ ...outcome.operations }),
     cleanup: Object.freeze({ ...outcome.cleanup }),
@@ -491,7 +659,23 @@ export async function runStarterAcceptance(definition, options = {}) {
   );
   assert(typeof lifecycle.start === 'function' && typeof lifecycle.stop === 'function');
   const environment = { ...process.env, ...(options.environment ?? {}) };
-  const signal = options.signal ?? null;
+  const externalSignal = options.signal ?? null;
+  const startedAt = Date.now();
+  const overallDeadline = startedAt + definition.overallTimeoutMs;
+  const executionDeadline = overallDeadline - definition.cleanupTimeoutMs;
+  const executionController = new AbortController();
+  const overallTimeoutError = codedError(
+    'SNAPBACK_STARTER_ACCEPTANCE_OVERALL_TIMEOUT',
+    `starter acceptance exceeded its ${definition.overallTimeoutMs}ms overall deadline`,
+  );
+  const interruptExecution = () => executionController.abort(abortError(externalSignal));
+  externalSignal?.addEventListener('abort', interruptExecution, { once: true });
+  if (externalSignal?.aborted) interruptExecution();
+  const executionTimer = setTimeout(
+    () => executionController.abort(overallTimeoutError),
+    Math.max(1, executionDeadline - Date.now()),
+  );
+  const signal = executionController.signal;
   const stateRoot = mkdtempSync(join(tmpdir(), 'snapback-starter-acceptance-'));
   const checks = [];
   const operations = {};
@@ -503,6 +687,8 @@ export async function runStarterAcceptance(definition, options = {}) {
   let loadedIdentity = null;
   let applicationReadyObserved = false;
   let failure = null;
+  let activePhaseSignal = null;
+  let activeStepSignal = null;
   const cleanup = {
     attempted: false,
     clientResourcesReleased: false,
@@ -511,8 +697,9 @@ export async function runStarterAcceptance(definition, options = {}) {
     ok: false,
   };
 
-  const health = () => {
-    if (signal?.aborted) throw abortError(signal);
+  const remaining = (deadline) => Math.max(1, deadline - Date.now());
+  const health = (healthSignal = signal) => {
+    if (healthSignal?.aborted) throw abortError(healthSignal);
     if (typeof lifecycleState?.health === 'function') {
       const state = lifecycleState.health();
       if (state?.running === false) throw new Error(state.diagnostic ?? 'managed lifecycle exited');
@@ -523,41 +710,52 @@ export async function runStarterAcceptance(definition, options = {}) {
     const intervalMs = untilOptions.intervalMs ?? 25;
     positiveInteger(timeoutMs, 'until timeoutMs');
     positiveInteger(intervalMs, 'until intervalMs');
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      health();
-      const value = await predicate();
-      if (value) return value;
-      await withTimeout(
-        new Promise((resolveWait) => setTimeout(resolveWait, intervalMs)),
-        intervalMs + 1_000,
-        'SNAPBACK_STARTER_ACCEPTANCE_RETRY_WAIT_FAILED',
-        `${label}: retry wait failed`,
-        signal,
-      );
-    }
-    const error = new Error(`${label}: timed out after ${timeoutMs}ms`);
-    error.code = 'SNAPBACK_STARTER_ACCEPTANCE_RETRY_TIMEOUT';
-    throw error;
+    assert(typeof predicate === 'function', 'until predicate must be a function');
+    assert(typeof label === 'string' && label.length > 0, 'until label must be non-empty');
+    const parentSignal = untilOptions.signal ?? activeStepSignal ?? activePhaseSignal ?? signal;
+    return withTimeout(async (untilSignal) => {
+      for (;;) {
+        health(untilSignal);
+        const value = await predicate(untilSignal);
+        if (value) return value;
+        await abortableDelay(intervalMs, untilSignal);
+      }
+    }, timeoutMs, 'SNAPBACK_STARTER_ACCEPTANCE_RETRY_TIMEOUT',
+    `${label}: timed out after ${timeoutMs}ms`, parentSignal);
   };
-  const step = async (pathOrId, callback, stepOptions = {}) => {
-    const path = pathOrId?.[PATH_TOKEN] === true ? pathOrId : null;
-    const id = path?.id ?? pathOrId;
-    assert(typeof id === 'string' && id.length > 0, 'step id must be non-empty');
+  const step = async (pathToken, callback, stepOptions = {}) => {
+    const path = pathToken?.[PATH_TOKEN] === true
+      && Object.values(definition.paths).includes(pathToken)
+      ? pathToken
+      : null;
+    assert(path !== null, 'step accepts only a path token issued by this acceptance definition');
+    const id = path.id;
     assert(typeof callback === 'function', `step ${id} callback must be a function`);
     assert.equal(seenSteps.has(id), false, `step ${id} was executed more than once`);
     seenSteps.add(id);
-    const timeoutMs = stepOptions.timeoutMs ?? path?.timeoutMs ?? definition.stepTimeoutMs;
+    const timeoutMs = stepOptions.timeoutMs ?? path.timeoutMs ?? definition.stepTimeoutMs;
     positiveInteger(timeoutMs, `step ${id} timeoutMs`);
-    let details;
+    let result;
     try {
-      const result = await withTimeout(
-        Promise.resolve().then(callback),
+      result = await withTimeout(
+        async (stepSignal) => {
+          activeStepSignal = stepSignal;
+          try {
+            return await callback(stepSignal);
+          } finally {
+            if (activeStepSignal === stepSignal) activeStepSignal = null;
+          }
+        },
         timeoutMs,
         'SNAPBACK_STARTER_ACCEPTANCE_STEP_TIMEOUT',
         `starter acceptance step ${id} exceeded ${timeoutMs}ms`,
-        signal,
+        activePhaseSignal ?? signal,
       );
+    } finally {
+      activeStepSignal = null;
+    }
+    let details;
+    try {
       details = normalizeStepDetail(result);
     } catch (error) {
       if (error instanceof TypeError && error.code === undefined) {
@@ -573,12 +771,20 @@ export async function runStarterAcceptance(definition, options = {}) {
   };
   const defer = (callback) => {
     assert(typeof callback === 'function', 'defer requires a cleanup callback');
+    assert(cleanupStack.length < MAX_CLEANUP_CALLBACKS, 'too many deferred cleanup callbacks');
     cleanupStack.push(callback);
   };
   const mintSession = async ({ email }) => {
     assert(typeof email === 'string' && email.length > 0, 'session email must be non-empty');
     assert(lifecycleState !== null, 'session minting requires a started lifecycle');
-    return spawnSessionMint(lifecycleState, definition.appRoot, environment, email);
+    return spawnSessionMint(
+      lifecycleState,
+      definition.appRoot,
+      environment,
+      email,
+      activeStepSignal ?? activePhaseSignal ?? signal,
+      definition.stepTimeoutMs,
+    );
   };
   const createSessionClient = async ({ email, clientOptions = {} }) => {
     const { token } = await mintSession({ email });
@@ -596,6 +802,7 @@ export async function runStarterAcceptance(definition, options = {}) {
   const context = Object.freeze({
     appRoot: definition.appRoot,
     stateRoot,
+    get signal() { return activeStepSignal ?? activePhaseSignal ?? signal; },
     get ready() { return lifecycleState?.ready ?? null; },
     get adminClient() { return adminClient; },
     paths: definition.paths,
@@ -619,22 +826,42 @@ export async function runStarterAcceptance(definition, options = {}) {
   try {
     if (definition.preflight !== null) {
       await withTimeout(
-        Promise.resolve().then(() => definition.preflight(context)),
-        definition.stepTimeoutMs * 4,
+        async (preflightSignal) => {
+          activePhaseSignal = preflightSignal;
+          try {
+            await definition.preflight(context, preflightSignal);
+          } finally {
+            if (activePhaseSignal === preflightSignal) activePhaseSignal = null;
+          }
+        },
+        Math.min(definition.stepTimeoutMs * 4, remaining(executionDeadline)),
         'SNAPBACK_STARTER_ACCEPTANCE_PREFLIGHT_TIMEOUT',
         'starter acceptance preflight timed out',
         signal,
       );
     }
-    lifecycleState = await lifecycle.start(Object.freeze({
-      appRoot: definition.appRoot,
-      stateRoot,
-      readinessTimeoutMs: definition.readinessTimeoutMs,
-      environment,
-    }));
+    lifecycleState = await withTimeout(
+      (startSignal) => lifecycle.start(Object.freeze({
+        appRoot: definition.appRoot,
+        stateRoot,
+        readinessTimeoutMs: definition.readinessTimeoutMs,
+        environment,
+        signal: startSignal,
+      })),
+      Math.min(definition.readinessTimeoutMs + 10_000, remaining(executionDeadline)),
+      'SNAPBACK_STARTER_ACCEPTANCE_LIFECYCLE_START_TIMEOUT',
+      'starter acceptance lifecycle start timed out',
+      signal,
+    );
     assert.equal(lifecycleState?.ready?.ready, true, 'lifecycle did not return a ready application');
     applicationReadyObserved = true;
-    ({ loadedIdentity, adminClient } = await defaultLoadedIdentity(lifecycleState));
+    ({ loadedIdentity, adminClient } = await withTimeout(
+      (inspectionSignal) => defaultLoadedIdentity(lifecycleState, inspectionSignal),
+      Math.min(definition.stepTimeoutMs, remaining(executionDeadline)),
+      'SNAPBACK_STARTER_ACCEPTANCE_CLIENT_INSPECTION_TIMEOUT',
+      'starter acceptance loaded-identity inspection timed out',
+      signal,
+    ));
     assert.equal(loadedIdentity?.appId, definition.artifacts.appId, 'loaded app id differs from generated artifacts');
     if (typeof definition.artifacts.bundleHash === 'string') {
       assert.equal(
@@ -643,25 +870,54 @@ export async function runStarterAcceptance(definition, options = {}) {
         'loaded bundle hash differs from generated artifacts',
       );
     }
-    await definition.journey(context);
-    if (checks.length === 0) {
-      const error = new Error('starter acceptance journey completed without an application assertion step');
-      error.code = 'SNAPBACK_STARTER_ACCEPTANCE_VACUOUS';
+    await withTimeout(
+      async (journeySignal) => {
+        activePhaseSignal = journeySignal;
+        try {
+          await definition.journey(context, journeySignal);
+        } finally {
+          if (activePhaseSignal === journeySignal) activePhaseSignal = null;
+        }
+      },
+      remaining(executionDeadline),
+      'SNAPBACK_STARTER_ACCEPTANCE_OVERALL_TIMEOUT',
+      `starter acceptance exceeded its ${definition.overallTimeoutMs}ms overall deadline`,
+      signal,
+    );
+    const missingPathIds = Object.values(definition.paths)
+      .filter(({ id }) => !seenSteps.has(id))
+      .map(({ id }) => id);
+    if (missingPathIds.length > 0) {
+      const error = codedError(
+        'SNAPBACK_STARTER_ACCEPTANCE_PATH_NOT_OBSERVED',
+        `starter acceptance did not execute declared paths: ${missingPathIds.join(', ')}`,
+      );
       throw error;
     }
   } catch (error) {
     failure = normalizeFailure(error);
   } finally {
+    clearTimeout(executionTimer);
     cleanup.attempted = true;
+    const cleanupController = new AbortController();
+    const interruptCleanup = () => cleanupController.abort(abortError(externalSignal));
+    externalSignal?.addEventListener('abort', interruptCleanup, { once: true });
+    if (externalSignal?.aborted) interruptCleanup();
+    const cleanupDeadline = Math.min(overallDeadline, Date.now() + definition.cleanupTimeoutMs);
+    const cleanupTimer = setTimeout(
+      () => cleanupController.abort(overallTimeoutError),
+      remaining(cleanupDeadline),
+    );
+    const cleanupSignal = cleanupController.signal;
     let resourceCleanupOk = true;
     for (const callback of [...cleanupStack].reverse()) {
       try {
         await withTimeout(
-          Promise.resolve().then(callback),
-          10_000,
+          (callbackSignal) => callback(callbackSignal),
+          Math.min(10_000, remaining(cleanupDeadline)),
           'SNAPBACK_STARTER_ACCEPTANCE_CLEANUP_TIMEOUT',
           'starter acceptance resource cleanup timed out',
-          null,
+          cleanupSignal,
         );
       } catch (error) {
         resourceCleanupOk = false;
@@ -671,7 +927,13 @@ export async function runStarterAcceptance(definition, options = {}) {
     for (const client of [adminClient, ...sessionClients]) {
       if (client === null || client === undefined || typeof client.inspect !== 'function') continue;
       try {
-        const inspected = await client.inspect();
+        const inspected = await withTimeout(
+          (inspectionSignal) => inspectClient(client, inspectionSignal),
+          Math.min(10_000, remaining(cleanupDeadline)),
+          'SNAPBACK_STARTER_ACCEPTANCE_CLIENT_INSPECTION_TIMEOUT',
+          'starter acceptance cleanup inspection timed out',
+          cleanupSignal,
+        );
         assert.equal(inspected.subscriptions?.length ?? 0, 0, 'client subscriptions remained after cleanup');
       } catch (error) {
         resourceCleanupOk = false;
@@ -680,7 +942,13 @@ export async function runStarterAcceptance(definition, options = {}) {
     }
     cleanup.clientResourcesReleased = resourceCleanupOk;
     try {
-      const stopped = await lifecycle.stop(lifecycleState);
+      const stopped = await withTimeout(
+        (stopSignal) => lifecycle.stop(lifecycleState, Object.freeze({ signal: stopSignal })),
+        Math.min(15_000, remaining(cleanupDeadline)),
+        'SNAPBACK_STARTER_ACCEPTANCE_LIFECYCLE_STOP_TIMEOUT',
+        'starter acceptance lifecycle stop timed out',
+        cleanupSignal,
+      );
       cleanup.devExited = stopped?.exited === true;
       if (!cleanup.devExited) {
         failure ??= Object.freeze({
@@ -702,7 +970,10 @@ export async function runStarterAcceptance(definition, options = {}) {
       && cleanup.devExited
       && cleanup.temporaryStateRemoved
       && failure === null;
+    clearTimeout(cleanupTimer);
+    externalSignal?.removeEventListener('abort', interruptCleanup);
   }
+  externalSignal?.removeEventListener('abort', interruptExecution);
 
   const passed = failure === null
     && applicationReadyObserved
@@ -712,9 +983,11 @@ export async function runStarterAcceptance(definition, options = {}) {
     passed,
     checks,
     operations,
+    declaredPathCount: Object.keys(definition.paths).length,
     artifacts: definition.artifacts,
     loadedIdentity,
     applicationReadyObserved,
+    lifecycleEvidence: lifecycleState?.lifecycleEvidence ?? null,
     cleanup,
     failure,
   });
@@ -920,9 +1193,13 @@ function generatedOperationIds(artifact) {
 // — validation compares builder-derived registrations with observations of the
 // same generated references and emits the typed stale-registration repair.
 export function validatePassingStarterReceipt(receipt, registeredPaths, artifact) {
+  assert(Array.isArray(registeredPaths), 'registeredPaths must be an array');
   const invalidPaths = [];
+  const invalidPathNames = new Set();
   let invalidPathCount = 0;
   const add = (entry) => {
+    if (invalidPathNames.has(entry.path)) return;
+    invalidPathNames.add(entry.path);
     invalidPathCount += 1;
     if (invalidPaths.length < STARTER_ACCEPTANCE_MAX_INVALID_PATHS) invalidPaths.push(entry);
   };
@@ -941,9 +1218,18 @@ export function validatePassingStarterReceipt(receipt, registeredPaths, artifact
     return leaf;
   };
 
+  requireLiteral(
+    '$.schemaVersion', receipt, 'schemaVersion', 'string', STARTER_ACCEPTANCE_SCHEMA_VERSION,
+    (value) => value === STARTER_ACCEPTANCE_SCHEMA_VERSION,
+  );
+  requireLiteral(
+    '$.status', receipt, 'status', 'string', 'passed', (value) => value === 'passed',
+  );
+
   const expectedCheckCount = requireLiteral(
-    '$.expectedCheckCount', receipt, 'expectedCheckCount', 'integer', 'positive',
-    (value) => Number.isInteger(value) && value > 0,
+    '$.expectedCheckCount', receipt, 'expectedCheckCount', 'integer',
+    `registered-path-count:${registeredPaths.length}`,
+    (value) => Number.isInteger(value) && value === registeredPaths.length,
   );
   const executedCheckCount = requireLiteral(
     '$.executedCheckCount', receipt, 'executedCheckCount', 'integer', 'present', Number.isInteger,
@@ -951,7 +1237,7 @@ export function validatePassingStarterReceipt(receipt, registeredPaths, artifact
   if (
     expectedCheckCount.present
     && Number.isInteger(expectedCheckCount.value)
-    && expectedCheckCount.value > 0
+    && expectedCheckCount.value >= 0
     && executedCheckCount.present
     && Number.isInteger(executedCheckCount.value)
     && executedCheckCount.value !== expectedCheckCount.value
@@ -977,7 +1263,7 @@ export function validatePassingStarterReceipt(receipt, registeredPaths, artifact
     if (
       expectedCheckCount.present
       && Number.isInteger(expectedCheckCount.value)
-      && expectedCheckCount.value > 0
+      && expectedCheckCount.value >= 0
       && checks.value.length !== expectedCheckCount.value
     ) {
       add(invalidReceiptPath(
@@ -990,6 +1276,10 @@ export function validatePassingStarterReceipt(receipt, registeredPaths, artifact
       ));
     }
     for (const [index, check] of checks.value.entries()) {
+      requireLiteral(
+        `$.checks[${index}].id`, check, 'id', 'string', 'registered-path-id',
+        (value) => typeof value === 'string' && value.length > 0,
+      );
       requireLiteral(
         `$.checks[${index}].status`, check, 'status', 'string', 'passed',
         (value) => value === 'passed',
@@ -1043,27 +1333,58 @@ export function validatePassingStarterReceipt(receipt, registeredPaths, artifact
       loadedBundleHash.value, true, 'identity-mismatch',
     ));
   }
+  const expectedArtifactIdentity = plainObject(artifact?.identity)
+    ? artifact.identity
+    : plainObject(artifact) && artifact.artifactKind === 'artifactIndex'
+      ? artifact
+      : null;
+  if (expectedArtifactIdentity !== null) {
+    for (const key of ['appId', 'inputsHash', 'schemaHash', 'bundleHash']) {
+      if (typeof expectedArtifactIdentity[key] !== 'string') continue;
+      const observed = receiptLeaf(artifactIdentity, key);
+      if (!observed.present || observed.value !== expectedArtifactIdentity[key]) {
+        add(invalidReceiptPath(
+          `$.identity.artifact.${key}`,
+          'string',
+          `matches-generated-artifact.${key}`,
+          observed.value,
+          observed.present,
+          observed.present ? 'identity-mismatch' : 'missing',
+        ));
+      }
+    }
+  }
 
   const lifecycle = receiptLeaf(receipt, 'lifecycle').value;
-  requireLiteral('$.lifecycle.owned', lifecycle, 'owned', 'boolean', 'true', (value) => value === true);
   requireLiteral(
     '$.lifecycle.applicationReadyObserved', lifecycle, 'applicationReadyObserved',
     'boolean', 'true', (value) => value === true,
   );
-  requireLiteral(
-    '$.lifecycle.waitLevel', lifecycle, 'waitLevel', 'string', 'application',
-    (value) => value === 'application',
-  );
-  requireLiteral(
-    '$.lifecycle.firstQueryRetries', lifecycle, 'firstQueryRetries', 'integer', 'zero',
-    (value) => value === 0,
-  );
+  if (Object.hasOwn(lifecycle ?? {}, 'owned')) {
+    requireLiteral(
+      '$.lifecycle.owned', lifecycle, 'owned', 'boolean', 'declared-by-lifecycle-adapter',
+      (value) => typeof value === 'boolean',
+    );
+  }
+  if (Object.hasOwn(lifecycle ?? {}, 'waitLevel')) {
+    requireLiteral(
+      '$.lifecycle.waitLevel', lifecycle, 'waitLevel', 'string', 'declared-by-lifecycle-adapter',
+      (value) => typeof value === 'string' && value.length > 0,
+    );
+  }
+  if (Object.hasOwn(lifecycle ?? {}, 'firstQueryRetries')) {
+    requireLiteral(
+      '$.lifecycle.firstQueryRetries', lifecycle, 'firstQueryRetries', 'integer',
+      'declared-by-lifecycle-adapter',
+      (value) => Number.isInteger(value) && value >= 0,
+    );
+  }
 
   const operationsLeaf = receiptLeaf(receipt, 'operations');
   const operations = operationsLeaf.value;
   const currentOperationIds = generatedOperationIds(artifact);
   const registeredOperationPaths = registeredPaths.filter(({ functionId }) => functionId !== null);
-  const registeredOperationIds = new Set(registeredOperationPaths.map(({ functionId }) => functionId));
+  const registeredOperationPathsById = new Map(registeredOperationPaths.map((path) => [path.id, path]));
   const observations = [];
   if (currentOperationIds === null) {
     add(invalidReceiptPath(
@@ -1087,38 +1408,53 @@ export function validatePassingStarterReceipt(receipt, registeredPaths, artifact
         continue;
       }
       const current = currentOperationIds?.has(functionId) === true;
-      const registered = registeredOperationIds.has(functionId);
-      if (!current && !registered) continue;
       if (!current) {
         add(invalidReceiptPath(
           path, 'string', 'current-generated-operation-reference-id', functionId, true,
           'stale-or-unknown-operation',
         ));
       }
-      observations.push(Object.freeze({ path, functionId, current }));
+      observations.push(Object.freeze({ key, path, functionId, current }));
     }
   }
-  const observedCurrentIds = new Set(
-    observations.filter(({ current }) => current).map(({ functionId }) => functionId),
-  );
   const observedPathIds = new Set(registeredPaths.flatMap(({ id, functionId }) => (
-    (functionId === null ? passedCheckIds.has(id) : observedCurrentIds.has(functionId))
+    (passedCheckIds.has(id)
+      && (functionId === null || (
+        currentOperationIds?.has(functionId) === true
+        && plainObject(operations)
+        && operations[id] === functionId
+      )))
       ? [id]
       : []
   )));
   const staleRegistrationPaths = registeredOperationPaths.filter(({ functionId }) => (
     currentOperationIds !== null && !currentOperationIds.has(functionId)
   ));
-  const unobservedRegistrationPaths = registeredOperationPaths.filter(({ functionId }) => (
+  const unobservedRegistrationPaths = registeredOperationPaths.filter(({ id, functionId }) => (
     currentOperationIds?.has(functionId) === true
-    && !observedCurrentIds.has(functionId)
+    && (!plainObject(operations) || operations[id] !== functionId || !passedCheckIds.has(id))
   ));
   const unobservedJourneyPaths = registeredPaths.filter(({ id, functionId }) => (
-    functionId === null && !passedCheckIds.has(id)
+    !passedCheckIds.has(id)
+      || (functionId !== null && (!plainObject(operations) || operations[id] !== functionId))
   ));
-  const unclaimedObservations = observations.filter(({ functionId, current }) => (
-    current && !registeredOperationIds.has(functionId)
+  const unclaimedObservations = observations.filter(({ key, functionId, current }) => (
+    current && registeredOperationPathsById.get(key)?.functionId !== functionId
   ));
+  if (plainObject(operations)) {
+    for (const path of registeredOperationPaths) {
+      if (operations[path.id] === path.functionId) continue;
+      const observed = receiptLeaf(operations, path.id);
+      add(invalidReceiptPath(
+        operationReceiptPath(path.id),
+        'string',
+        `exact-registered-function-id:${path.functionId}`,
+        observed.value,
+        observed.present,
+        observed.present ? 'path-operation-mismatch' : 'registered-path-not-observed',
+      ));
+    }
+  }
   let remediation = null;
   if (registeredOperationPaths.length === 0) {
     add(invalidReceiptPath(

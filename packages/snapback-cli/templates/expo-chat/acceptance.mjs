@@ -51,7 +51,7 @@ const snapshotEnvFiles = (directory) => {
 // @ref LLP 0223#design-detail — the Expo starter keeps the zero-config
 // assertion and app-level round trip visible as product evidence. The shared
 // runner supplies its bound step and cleanup envelope, not the product claim.
-async function runZeroConfigSupervisedConnect({ stateRoot }) {
+async function runZeroConfigSupervisedConnect({ stateRoot, signal }) {
   const supervisedReadyFile = join(stateRoot, 'supervised.ready.json');
   const supervisedDatabase = join(stateRoot, 'supervised.sqlite3');
   const supervisorDescriptor = join(stateRoot, 'expo-supervisor.json');
@@ -87,6 +87,7 @@ process.once('SIGINT', stop);
       email: 'zero-config@expo-chat.test',
       metroCommand: { command: process.execPath, args: [metroScript] },
       serverStdio: ['ignore', 'ignore', 'ignore'],
+      signal,
       onEvent(event) { events.push(event); },
     });
     assert.equal(supervisor.state, 'ready');
@@ -100,7 +101,7 @@ process.once('SIGINT', stop);
     assert.equal(existsSync(supervisorDescriptor), true);
     assert.equal(statSync(supervisorDescriptor).mode & 0o777, 0o600);
 
-    const metroResponse = await fetch(supervisor.metroOrigin);
+    const metroResponse = await fetch(supervisor.metroOrigin, { signal });
     assert.equal(metroResponse.ok, true);
     const metroFacts = await metroResponse.json();
     assert.equal(metroFacts.supervisorOrigin, readiness.bootstrap.origin);
@@ -163,7 +164,44 @@ export const acceptance = defineStarterAcceptance({
       id: 'zero-config-supervised-connect',
       kind: 'success',
       targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
       timeoutMs: 120_000,
+    },
+    webAnonymousReady: {
+      id: 'web-anonymous-ready',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
+    },
+    passwordSignupRecovery: {
+      id: 'password-signup-recovery',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
+    },
+    reloadClearsVolatilePrincipal: {
+      id: 'reload-clears-volatile-principal',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
+    },
+    authenticatedEntryRefusal: {
+      id: 'authenticated-entry-refusal',
+      kind: 'failure',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
+    },
+    signOut: {
+      id: 'sign-out',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
+    },
+    nativeRefusal: {
+      id: 'native-refusal',
+      kind: 'failure',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
     },
     conversationShape: {
       id: 'membership-dm-group-shape',
@@ -207,7 +245,7 @@ export const acceptance = defineStarterAcceptance({
   async preflight(context) {
     await context.step(
       context.paths.zeroConfig,
-      () => runZeroConfigSupervisedConnect(context),
+      (signal) => runZeroConfigSupervisedConnect({ ...context, signal }),
       { timeoutMs: 120_000 },
     );
   },
@@ -248,7 +286,7 @@ export const acceptance = defineStarterAcceptance({
     });
     appClient = await createSnapbackAppClient({ app, binding, platform });
 
-    await step('web-anonymous-ready', async () => {
+    await step(paths.webAnonymousReady, async () => {
       assert.equal(appClient.bootstrapState().status, 'ready');
       assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
       return { platform: 'expo-web', principal: 'anonymous' };
@@ -257,7 +295,7 @@ export const acceptance = defineStarterAcceptance({
     const identity = `expo-chat-${process.pid}@example.com`;
     const password = 'expo-chat-password';
     let signedUpUserId;
-    await step('password-signup-recovery', async () => {
+    await step(paths.passwordSignupRecovery, async () => {
       const signup = await appClient.auth.signUpWithPassword({ email: identity, password });
       assert.equal(signup.recoveryCodes.length, 8);
       assert.equal(Object.hasOwn(signup, 'token'), false);
@@ -266,7 +304,7 @@ export const acceptance = defineStarterAcceptance({
       return { recoveryCodeCount: signup.recoveryCodes.length, bearerProjected: false };
     });
 
-    await step('reload-clears-volatile-principal', async () => {
+    await step(paths.reloadClearsVolatilePrincipal, async () => {
       await appClient.dispose();
       appClient = await createSnapbackAppClient({ app, binding, platform });
       // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
@@ -275,7 +313,7 @@ export const acceptance = defineStarterAcceptance({
       return { custody: app.authBootstrap.custody, principal: 'anonymous' };
     });
 
-    await step('authenticated-entry-refusal', async () => {
+    await step(paths.authenticatedEntryRefusal, async () => {
       const signin = await appClient.auth.signInWithPassword({ email: identity, password });
       assert.equal(signin.session.userId, signedUpUserId);
       assert.equal(appClient.auth.currentPrincipal().userId, signedUpUserId);
@@ -286,13 +324,13 @@ export const acceptance = defineStarterAcceptance({
       return { code: 'SNAPBACK_AUTH_ENTRY_AUTHENTICATED' };
     });
 
-    await step('sign-out', async () => {
+    await step(paths.signOut, async () => {
       await appClient.auth.signOut();
       assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
       return { principal: 'anonymous' };
     });
 
-    await step('native-refusal', async () => {
+    await step(paths.nativeRefusal, async () => {
       await assert.rejects(
         createSnapbackAppClient({
           app,

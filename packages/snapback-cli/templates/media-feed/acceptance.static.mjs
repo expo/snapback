@@ -65,7 +65,10 @@ assert.doesNotMatch(carrierSource, /--client-command|expo start --web --port 517
 assert.match(runtimeAcceptance, /from '@expo\/snapback-acceptance'/);
 assert.match(runtimeAcceptance, /defineStarterAcceptance/);
 assert.match(runtimeAcceptance, /runStarterAcceptanceIfMain/);
-assert.doesNotMatch(runtimeAcceptance, /snapback\.starter-acceptance\.v1|expectedCheckCount|JSON\.stringify\(receipt\)/);
+assert.doesNotMatch(
+  runtimeAcceptance,
+  /snapback\.starter-acceptance\.v1|expectedCheckCount|executedCheckCount|projectStarterAcceptanceReceipt|JSON\.stringify\s*\(\s*(?:receipt\b|outcome\b|\{[\s\S]{0,256}?(?:schemaVersion|checks|operations|cleanup|lifecycle)\s*:)/u,
+);
 assert.match(runtimeAcceptance, /createAssetClient\(client\)/);
 assert.match(runtimeAcceptance, /operation:\s*api\.liveFeed/);
 assert.match(runtimeAcceptance, /operation:\s*api\.createEntry/);
