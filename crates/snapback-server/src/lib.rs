@@ -24,6 +24,7 @@ pub use snapback_types::{
 };
 
 pub mod assets {
+    pub(crate) use snapback_engine::local::FinalizePhaseCDOutcomeV1;
     pub use snapback_kernel::assets::*;
     pub(crate) use snapback_services::assets::{
         AssetFactsLocalExt, AssetFinalizePreparation, AssetFinalizePrepareError,
@@ -32,9 +33,8 @@ pub mod assets {
         AssetWidthCommitTicketV1, AssetWidthPlanTicketV1, AssetWidthPreflightV1,
         AssetWidthPrepareTicketV1, AssetWidthPutTicketV1, FinalizeCleanupCommitTicketV1,
         FinalizeCleanupTicketV1, FinalizeCommitTicketV1, FinalizePhaseAOutcomeV1,
-        FinalizePhaseCDOutcomeV1, FinalizePreflightV1, FinalizePreparationV1,
-        FinalizePrepareTicketV1, FinalizePutTicketV1, prepare_asset_variant,
-        prepare_required_asset_variants,
+        FinalizePreflightV1, FinalizePreparationV1, FinalizePrepareTicketV1, FinalizePutTicketV1,
+        prepare_asset_variant, prepare_required_asset_variants,
     };
     pub use snapback_services::assets::{AssetFsStore, detect_content_type};
 }

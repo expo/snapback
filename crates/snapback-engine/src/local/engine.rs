@@ -3541,9 +3541,27 @@ pub struct LocalSnapback {
 pub(crate) use crate::assets::{
     AssetTusPatchTicketV1, AssetWidthCommitTicketV1, AssetWidthPlanTicketV1, AssetWidthPreflightV1,
     AssetWidthPrepareTicketV1, FinalizeCleanupCommitTicketV1, FinalizeCleanupTicketV1,
-    FinalizeCommitTicketV1, FinalizePhaseAOutcomeV1, FinalizePhaseCDOutcomeV1, FinalizePreflightV1,
-    FinalizePreparationV1, FinalizePrepareTicketV1, FinalizePutTicketV1,
+    FinalizeCommitTicketV1, FinalizePhaseAOutcomeV1, FinalizePreflightV1, FinalizePreparationV1,
+    FinalizePrepareTicketV1, FinalizePutTicketV1,
 };
+
+/// Phase C/D either observes a concurrent idempotent completion, asks the
+/// transport to cross the permit-free authorizer boundary, or hands physical
+/// cleanup to the caller after the fenced publication commits.
+pub enum FinalizePhaseCDOutcomeV1 {
+    AlreadyComplete(crate::assets::AssetFinalizeResponseV1),
+    Revalidate(FinalizeWitnessRetryTicketV1),
+    Cleanup(FinalizeCleanupTicketV1),
+}
+
+/// Opaque engine-owned carrier for a moved-witness retry. The route can carry
+/// it across the unlocked authorizer and reservation boundaries, but cannot
+/// fabricate the refreshed witness stored in its private fields.
+pub struct FinalizeWitnessRetryTicketV1 {
+    ticket: FinalizeCommitTicketV1,
+    revalidated_witness: Option<Vec<crate::storage::CapturedReadDependency>>,
+    witness_revalidations: u8,
+}
 
 struct LocalInvalidationState {
     issuer: LiveInvalidationIssuer,
@@ -11973,6 +11991,23 @@ impl LocalSnapback {
         Ok(self.db.asset_reads().load_attempt(attempt_id)?.state)
     }
 
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn asset_move_finalize_witness_for_test(
+        &mut self,
+        attempt_id: &str,
+    ) -> SnapbackResult<()> {
+        self.db.asset_reads().plant_missing_row_witness(
+            attempt_id,
+            &serde_json::json!([{
+                "kind": "missingRow",
+                "table": "items",
+                "id": "phantom_1",
+            }]),
+        )?;
+        let version = self.db.versions_read().current_version()?.max(1);
+        self.db.asset_reads().insert_items_phantom(version)
+    }
+
     pub fn asset_attempt_inspect(
         &mut self,
         authority: &PreparedAuthority,
@@ -13531,7 +13566,101 @@ impl LocalSnapback {
             ticket,
             None,
             Some(authorized_effect),
+            None,
+            0,
         )
+    }
+
+    /// Re-enter Phase C/D only after the route has run the authorizer without
+    /// a permit and reserved a fresh caller effect outside Local.
+    pub fn asset_attempt_finalize_complete_revalidated_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: FinalizeWitnessRetryTicketV1,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<FinalizePhaseCDOutcomeV1> {
+        let witness = ticket.revalidated_witness.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                "the finalize witness-retry ticket has not been revalidated",
+            )
+        })?;
+        self.asset_attempt_finalize_complete_state_inner(
+            authority,
+            ticket.ticket,
+            None,
+            Some(authorized_effect),
+            Some(witness),
+            ticket.witness_revalidations,
+        )
+    }
+
+    /// Permit-free authorizer rerun for an HTTP completion whose frozen
+    /// witness moved. The returned ticket carries the refreshed witness, but
+    /// performs no durable effect; the route must reserve outside Local before
+    /// presenting it to Phase C/D again.
+    pub fn asset_attempt_finalize_revalidate_witness(
+        &mut self,
+        authority: &PreparedAuthority,
+        mut ticket: FinalizeWitnessRetryTicketV1,
+    ) -> SnapbackResult<FinalizeWitnessRetryTicketV1> {
+        if ticket.witness_revalidations >= 2 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_ADMISSION_CONFLICT",
+                "assets",
+                "admission re-validation kept conflicting with concurrent writes",
+            ));
+        }
+        let attempt = ticket.ticket.attempt();
+        let frozen_intent = ticket.ticket.frozen_intent();
+        let definition = self.asset_intent_definition(frozen_intent)?;
+        let prepared = InvocationGate::prepare_function(authority.clone(), &definition)?;
+        let module = match &frozen_intent.runtime {
+            crate::manifest::FunctionRuntime::IbexModule(module) => module.clone(),
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_RUNTIME_UNSUPPORTED",
+                    "assets",
+                    "upload-intent authorizers run as Ibex modules in v1",
+                ));
+            }
+        };
+        let input = prepared.canonicalize_input(crate::manifest::HandlerInput {
+            args: attempt.admission.args.clone(),
+            ..Default::default()
+        });
+        let rerun = self
+            .db
+            .query_reads_read()
+            .with_pinned_read_view(|db| {
+                crate::runtime::run_ibex_asset_authorizer_prepared(
+                    &module,
+                    input.clone(),
+                    &prepared,
+                    db,
+                )
+            })
+            .map_err(|denial| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_ADMISSION_REVOKED",
+                    "assets",
+                    "re-validation denied this admission under current authority",
+                )
+                .with_details(serde_json::json!({
+                    "denial": denial.diagnostic.code,
+                }))
+            })?;
+        if rerun.owner != attempt.admission.owner_principal {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_ADMISSION_REVOKED",
+                "assets",
+                "re-validation admitted a materially different decision",
+            ));
+        }
+        ticket.revalidated_witness = Some(rerun.read_dependencies);
+        ticket.witness_revalidations = ticket.witness_revalidations.saturating_add(1);
+        Ok(ticket)
     }
 
     /// Final post-cleanup receipt. The route reacquires authority after
@@ -13774,14 +13903,17 @@ impl LocalSnapback {
                 .asset_attempts()
                 .attempt_finalize_commit_plan_proved(ticket.app_id(), &attempt_id, &digest, now)?,
         };
-        let mut required_publications = Vec::with_capacity(prepared.required_variants.len());
+        let mut required_publication_proofs = Vec::with_capacity(prepared.required_variants.len());
         for required in &prepared.required_variants {
-            let publication = match authorized_effect.as_ref() {
+            let publication_proof = match authorized_effect.as_ref() {
                 Some(effect) => self
                     .db
                     .asset_attempts()
-                    .stage_prepared_variant_plan_guarded(
+                    .stage_attempt_variant_plan_proved_guarded(
                         ticket.app_id(),
+                        &attempt_id,
+                        &attempt.asset_id,
+                        &required.key,
                         &required.digest,
                         now,
                         || {
@@ -13789,13 +13921,20 @@ impl LocalSnapback {
                                 .commit_guard("asset finalize required-rendition plan transaction")
                         },
                     )?,
-                None => self.db.asset_attempts().stage_prepared_variant_plan(
-                    ticket.app_id(),
-                    &required.digest,
-                    now,
-                )?,
+                None => self
+                    .db
+                    .asset_attempts()
+                    .stage_attempt_variant_plan_proved_guarded(
+                        ticket.app_id(),
+                        &attempt_id,
+                        &attempt.asset_id,
+                        &required.key,
+                        &required.digest,
+                        now,
+                        || Ok(()),
+                    )?,
             };
-            required_publications.push(publication);
+            required_publication_proofs.push(publication_proof);
         }
         if crash_after == Some(AssetFinalizeCrashPoint::AfterPlanned) {
             return Err(asset_test_crash());
@@ -13806,7 +13945,7 @@ impl LocalSnapback {
                 publication_proof,
                 ticket,
                 prepared,
-                required_publications,
+                required_publication_proofs,
                 grade,
             )?,
         )))
@@ -13836,8 +13975,13 @@ impl LocalSnapback {
             ticket,
             crash_after,
             None,
+            None,
+            0,
         )? {
             FinalizePhaseCDOutcomeV1::AlreadyComplete(response) => Ok(response),
+            FinalizePhaseCDOutcomeV1::Revalidate(_) => {
+                unreachable!("host finalization revalidates inside Local")
+            }
             FinalizePhaseCDOutcomeV1::Cleanup(ticket) => {
                 let (response, attempt_id, asset_id) = ticket.cleanup()?.into_parts();
                 self.db
@@ -13853,10 +13997,19 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         ticket: FinalizeCommitTicketV1,
         crash_after: Option<AssetFinalizeCrashPoint>,
-        authorized_effect: Option<AuthorizedEffectReservation>,
+        mut authorized_effect: Option<AuthorizedEffectReservation>,
+        revalidated_witness: Option<Vec<crate::storage::CapturedReadDependency>>,
+        witness_revalidations: u8,
     ) -> SnapbackResult<FinalizePhaseCDOutcomeV1> {
         use crate::assets;
 
+        let mut retry_ticket = authorized_effect
+            .is_some()
+            .then(|| FinalizeWitnessRetryTicketV1 {
+                ticket: ticket.clone(),
+                revalidated_witness: revalidated_witness.clone(),
+                witness_revalidations,
+            });
         let (ticket, mut prepared_required) = ticket.into_parts();
         let (ticket, prepared, mut publication, grade) = ticket.into_parts();
         let attempt_id = ticket.attempt().attempt_id.clone();
@@ -13990,8 +14143,11 @@ impl LocalSnapback {
         // uniqueness, rendition + availability, quota settlement, receipts —
         // one commit. Witness movement re-runs the authorizer and retries
         // once with the fresh witness validated inside the retry transaction.
-        let mut witness: Vec<crate::storage::CapturedReadDependency> =
-            serde_json::from_value(attempt.admission.witness.clone()).unwrap_or_default();
+        let witness_was_revalidated = revalidated_witness.is_some();
+        let mut witness: Vec<crate::storage::CapturedReadDependency> = revalidated_witness
+            .unwrap_or_else(|| {
+                serde_json::from_value(attempt.admission.witness.clone()).unwrap_or_default()
+            });
         let witness_input = HandlerInput {
             args: attempt.admission.args.clone(),
             auth: crate::manifest::AuthInput {
@@ -14000,7 +14156,8 @@ impl LocalSnapback {
             },
             ..Default::default()
         };
-        let mut auth_moved = Self::asset_auth_pair(authority) != attempt.admission.auth;
+        let mut auth_moved =
+            !witness_was_revalidated && Self::asset_auth_pair(authority) != attempt.admission.auth;
         let mut revalidations = 0u8;
         let outcome = loop {
             let publication_id = publication.publication_id.clone();
@@ -14088,10 +14245,11 @@ impl LocalSnapback {
                 }
                 AssetPublishOutcome::WitnessMoved => {
                     if authorized_effect.is_some() {
-                        return Err(SnapbackError::error(
-                            "SNAPBACK_ASSET_ADMISSION_CONFLICT",
-                            "assets",
-                            "asset admission moved before the fenced publication commit; retry finalization",
+                        drop(authorized_effect.take());
+                        return Ok(FinalizePhaseCDOutcomeV1::Revalidate(
+                            retry_ticket
+                                .take()
+                                .expect("HTTP completion retains its retry ticket"),
                         ));
                     }
                     // Re-validate, then refuse only on denial: re-run the
@@ -14272,7 +14430,11 @@ impl LocalSnapback {
             .publication_records_in_state(assets::AssetPublicationState::Planned)?;
         for mut record in planned {
             let attempt = self.db.asset_maintenance().publication_attempt(&record)?;
-            let re_drivable = attempt.as_ref().is_some_and(|a| a.state.is_current());
+            let re_drivable = attempt.as_ref().is_some_and(|a| a.state.is_current())
+                || self
+                    .db
+                    .asset_maintenance()
+                    .publication_width_owner_live(&record)?;
             let object = crate::assets_store::AssetObjectRef::Blob(&record.planned_key);
             let object_verifies = store.exists(object)?
                 && store
@@ -14306,7 +14468,12 @@ impl LocalSnapback {
             .publication_records_in_state(assets::AssetPublicationState::Staged)?;
         for mut record in staged {
             let attempt = self.db.asset_maintenance().publication_attempt(&record)?;
-            if attempt.as_ref().is_some_and(|a| a.state.is_current()) {
+            if attempt.as_ref().is_some_and(|a| a.state.is_current())
+                || self
+                    .db
+                    .asset_maintenance()
+                    .publication_width_owner_live(&record)?
+            {
                 continue;
             }
             self.db
@@ -14503,17 +14670,19 @@ impl LocalSnapback {
         ticket: AssetWidthPlanTicketV1,
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<crate::assets::AssetWidthPutTicketV1> {
-        let publication = self
+        let publication_proof = self
             .db
             .asset_attempts()
-            .stage_prepared_variant_plan_guarded(
+            .stage_width_variant_plan_proved_guarded(
                 ticket.app_id(),
+                ticket.asset_id(),
+                ticket.variant_key(),
                 ticket.digest(),
                 now_millis(),
                 || authorized_effect.commit_guard("asset width publication-plan transaction"),
             )?;
         drop(authorized_effect);
-        Ok(ticket.into_put(publication))
+        ticket.into_put(publication_proof)
     }
 
     /// After the unguarded external PUT verifies, fence both SQLite cuts: the

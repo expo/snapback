@@ -36,8 +36,9 @@ impl AssetAttemptCurrentProof {
     }
 }
 
-/// Proof that the kernel committed and reloaded the exact planned
-/// publication accepted by Phase B.
+/// Proof that the kernel committed and reloaded the exact open publication
+/// accepted by an external PUT. Recovery may already have advanced the row
+/// from `planned` to `staged`; both states prove the write-ahead handoff.
 pub struct AssetPublicationPlannedProof {
     publication: AssetPublicationRecordV1,
 }
@@ -83,6 +84,33 @@ pub trait AssetAttemptsProofLocalExt {
     ) -> SnapbackResult<AssetPublicationPlannedProof>
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>;
+
+    #[allow(clippy::too_many_arguments)]
+    fn stage_attempt_variant_plan_proved_guarded<G, BeforeCommit>(
+        &mut self,
+        app_id: &str,
+        attempt_id: &str,
+        asset_id: &str,
+        variant_key: &str,
+        digest: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>;
+
+    #[allow(clippy::too_many_arguments)]
+    fn stage_width_variant_plan_proved_guarded<G, BeforeCommit>(
+        &mut self,
+        app_id: &str,
+        asset_id: &str,
+        variant_key: &str,
+        digest: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>;
 }
 
 impl AssetAttemptsProofLocalExt for AssetAttemptsKernel<'_> {
@@ -117,6 +145,52 @@ impl AssetAttemptsProofLocalExt for AssetAttemptsKernel<'_> {
         self.attempt_finalize_commit_plan_proved_guarded(
             app_id,
             attempt_id,
+            digest,
+            now,
+            before_commit,
+        )
+    }
+
+    fn stage_attempt_variant_plan_proved_guarded<G, BeforeCommit>(
+        &mut self,
+        app_id: &str,
+        attempt_id: &str,
+        asset_id: &str,
+        variant_key: &str,
+        digest: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.stage_attempt_variant_plan_proved_guarded(
+            app_id,
+            attempt_id,
+            asset_id,
+            variant_key,
+            digest,
+            now,
+            before_commit,
+        )
+    }
+
+    fn stage_width_variant_plan_proved_guarded<G, BeforeCommit>(
+        &mut self,
+        app_id: &str,
+        asset_id: &str,
+        variant_key: &str,
+        digest: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.stage_width_variant_plan_proved_guarded(
+            app_id,
+            asset_id,
+            variant_key,
             digest,
             now,
             before_commit,

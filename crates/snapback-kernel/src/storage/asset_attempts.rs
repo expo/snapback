@@ -58,6 +58,8 @@ fn asset_planned_publication(
         publication_id: assets::new_opaque_key(),
         app_id: app_id.to_owned(),
         attempt_id: Some(attempt_id.to_owned()),
+        asset_id: None,
+        variant_key: None,
         planned_key: assets::new_opaque_key(),
         digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
         digest: digest.to_owned(),
@@ -701,16 +703,100 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
-        let publication = {
-            let mut record = asset_planned_publication(app_id, "variant", digest, now);
-            record.attempt_id = None;
-            record
-        };
+        self.stage_owned_variant_plan_guarded(app_id, None, None, None, digest, now, before_commit)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn stage_owned_variant_plan_guarded<G, BeforeCommit>(
+        &mut self,
+        app_id: &str,
+        attempt_id: Option<&str>,
+        asset_id: Option<&str>,
+        variant_key: Option<&str>,
+        digest: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<assets::AssetPublicationRecordV1>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         self.asset_attempts_transaction_guarded(
-            |tx| assets::insert_publication(tx, &publication),
+            |tx| {
+                if let (Some(asset_id), Some(variant_key)) = (asset_id, variant_key)
+                    && let Some(existing) =
+                        assets::open_publication_for_variant(tx, attempt_id, asset_id, variant_key)?
+                {
+                    if existing.app_id != app_id || existing.digest != digest {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_ASSET_RECORD_INVALID",
+                            "assets",
+                            "an open variant publication has divergent immutable facts",
+                        ));
+                    }
+                    return Ok(existing);
+                }
+
+                let mut publication =
+                    asset_planned_publication(app_id, attempt_id.unwrap_or("variant"), digest, now);
+                publication.attempt_id = attempt_id.map(str::to_owned);
+                publication.asset_id = asset_id.map(str::to_owned);
+                publication.variant_key = variant_key.map(str::to_owned);
+                assets::insert_publication(tx, &publication)?;
+                Ok(publication)
+            },
+            before_commit,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn stage_attempt_variant_plan_proved_guarded<G, BeforeCommit>(
+        &mut self,
+        app_id: &str,
+        attempt_id: &str,
+        asset_id: &str,
+        variant_key: &str,
+        digest: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        let publication = self.stage_owned_variant_plan_guarded(
+            app_id,
+            Some(attempt_id),
+            Some(asset_id),
+            Some(variant_key),
+            digest,
+            now,
             before_commit,
         )?;
-        Ok(publication)
+        Ok(AssetPublicationPlannedProof::new(publication))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn stage_width_variant_plan_proved_guarded<G, BeforeCommit>(
+        &mut self,
+        app_id: &str,
+        asset_id: &str,
+        variant_key: &str,
+        digest: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        let publication = self.stage_owned_variant_plan_guarded(
+            app_id,
+            None,
+            Some(asset_id),
+            Some(variant_key),
+            digest,
+            now,
+            before_commit,
+        )?;
+        Ok(AssetPublicationPlannedProof::new(publication))
     }
 
     pub(super) fn stage_prepared_variant_commit_staged(
@@ -730,12 +816,45 @@ impl LocalDatabase {
     {
         self.asset_attempts_transaction_guarded(
             |tx| {
-                assets::transition_publication(
-                    tx,
-                    publication,
-                    assets::AssetPublicationState::Staged,
-                    now_millis(),
-                )
+                let mut current = assets::load_publication(tx, &publication.publication_id)?
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_TRANSITION_INVALID",
+                            "assets",
+                            "the publication record disappeared before its staged transition",
+                        )
+                    })?;
+                if current.app_id != publication.app_id
+                    || current.planned_key != publication.planned_key
+                    || current.digest != publication.digest
+                    || current.attempt_id != publication.attempt_id
+                    || current.asset_id != publication.asset_id
+                    || current.variant_key != publication.variant_key
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_RECORD_INVALID",
+                        "assets",
+                        "the publication record changed immutable facts before staging",
+                    ));
+                }
+                match current.state {
+                    assets::AssetPublicationState::Planned => assets::transition_publication(
+                        tx,
+                        &mut current,
+                        assets::AssetPublicationState::Staged,
+                        now_millis(),
+                    )?,
+                    assets::AssetPublicationState::Staged => {}
+                    other => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_ASSET_TRANSITION_INVALID",
+                            "assets",
+                            format!("publication cannot stage from persisted state {other:?}"),
+                        ));
+                    }
+                }
+                *publication = current;
+                Ok(())
             },
             before_commit,
         )
@@ -1033,6 +1152,8 @@ impl LocalDatabase {
                                 publication_id: assets::new_opaque_key(),
                                 app_id: app.clone(),
                                 attempt_id: Some(attempt_id.clone()),
+                                asset_id: Some(record.asset_id.clone()),
+                                variant_key: None,
                                 planned_key: orphan_key,
                                 digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
                                 digest: digest_value.clone(),
@@ -1930,6 +2051,54 @@ impl<'a> AssetAttemptsKernel<'a> {
     {
         self.db
             .stage_prepared_variant_plan_guarded(app_id, digest, now, before_commit)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn stage_attempt_variant_plan_proved_guarded<G, BeforeCommit>(
+        &mut self,
+        app_id: &str,
+        attempt_id: &str,
+        asset_id: &str,
+        variant_key: &str,
+        digest: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.stage_attempt_variant_plan_proved_guarded(
+            app_id,
+            attempt_id,
+            asset_id,
+            variant_key,
+            digest,
+            now,
+            before_commit,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn stage_width_variant_plan_proved_guarded<G, BeforeCommit>(
+        &mut self,
+        app_id: &str,
+        asset_id: &str,
+        variant_key: &str,
+        digest: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.stage_width_variant_plan_proved_guarded(
+            app_id,
+            asset_id,
+            variant_key,
+            digest,
+            now,
+            before_commit,
+        )
     }
 
     pub fn stage_prepared_variant_commit_staged(

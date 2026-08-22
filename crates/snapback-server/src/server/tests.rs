@@ -32186,6 +32186,50 @@ async fn asset_reservation_wins_before_logout(site: AssetAuthorizedEffectSite) {
     assert!(terminal_session_facts.3);
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn asset_http_finalize_revalidates_moved_witness_and_retries_under_fresh_reservation() {
+    let fixture = asset_authorized_effect_fixture(AssetAuthorizedEffectSite::Finalize).await;
+    let attempt_id = fixture
+        .target
+        .attempt_id
+        .as_deref()
+        .expect("finalize witness attempt")
+        .to_owned();
+    with_snapback(&fixture.state.snapback, {
+        let attempt_id = attempt_id.clone();
+        move |snapback| {
+            snapback_engine::test_support::asset_move_finalize_witness(snapback, &attempt_id)
+        }
+    })
+    .await
+    .expect("move finalize admission witness");
+
+    let response = fixture
+        .router
+        .clone()
+        .oneshot(asset_session_request(
+            "POST",
+            &format!("/assets/attempts/{attempt_id}/finalize"),
+            serde_json::to_vec(&json!({
+                "attemptId": attempt_id,
+                "lifecycleGeneration": fixture.target.lifecycle_generation,
+            }))
+            .expect("serialize moved-witness finalize"),
+            Some("application/json"),
+            &fixture.bearer,
+        ))
+        .await
+        .expect("moved-witness finalize response");
+    let status = response.status();
+    let body = response_json(response).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "a still-authorized caller must not loop on admission conflict: {body}"
+    );
+    assert_eq!(body["task"]["availability"], "ready", "{body}");
+}
+
 macro_rules! asset_authorized_effect_race_tests {
     ($logout_test:ident, $reservation_test:ident, $site:expr) => {
         #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

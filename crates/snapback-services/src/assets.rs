@@ -62,6 +62,7 @@ pub enum AssetFinalizePrepareError {
 
 /// The restricted-custody object containing the canonical bytes after
 /// preparation. It is not a deliverable blob and carries no database state.
+#[derive(Clone)]
 pub enum AssetPreparedCanonicalObject {
     Staging(String),
     Canonical(String),
@@ -76,6 +77,7 @@ impl AssetPreparedCanonicalObject {
     }
 }
 
+#[derive(Clone)]
 pub struct AssetPreparedCanonical {
     pub object: AssetPreparedCanonicalObject,
     pub digest: String,
@@ -94,6 +96,7 @@ pub struct AssetVariantPreparation {
     pub recipe_version: u64,
 }
 
+#[derive(Clone)]
 pub struct AssetFinalizePreparation {
     pub staged_digest: String,
     pub detected_content_type: &'static str,
@@ -601,11 +604,58 @@ impl AssetWidthPlanTicketV1 {
         &self.prepared.digest
     }
 
-    pub fn into_put(self, publication: AssetPublicationRecordV1) -> AssetWidthPutTicketV1 {
-        AssetWidthPutTicketV1 {
+    pub fn asset_id(&self) -> &str {
+        &self.ticket.asset_id
+    }
+
+    pub fn variant_key(&self) -> &str {
+        &self.ticket.key
+    }
+
+    /// Construct the external PUT capability only from the opaque proof
+    /// returned by the kernel transaction that committed this exact plan.
+    ///
+    /// A raw, caller-synthesized publication record is intentionally the
+    /// wrong argument type:
+    ///
+    /// ```compile_fail
+    /// use snapback_services::assets::{
+    ///     AssetWidthPlanTicketV1, AssetWidthPutTicketV1,
+    /// };
+    /// use snapback_kernel::assets::AssetPublicationRecordV1;
+    ///
+    /// fn forge(
+    ///     ticket: AssetWidthPlanTicketV1,
+    ///     unproven: AssetPublicationRecordV1,
+    /// ) -> AssetWidthPutTicketV1 {
+    ///     ticket.into_put(unproven).unwrap()
+    /// }
+    /// ```
+    pub fn into_put(
+        self,
+        proof: crate::asset_proof::AssetPublicationPlannedProof,
+    ) -> SnapbackResult<AssetWidthPutTicketV1> {
+        let publication = proof.into_publication();
+        if publication.app_id != self.ticket.app_id
+            || publication.asset_id.as_deref() != Some(self.ticket.asset_id.as_str())
+            || publication.variant_key.as_deref() != Some(self.ticket.key.as_str())
+            || publication.digest != self.prepared.digest
+            || !matches!(
+                publication.state,
+                crate::assets::AssetPublicationState::Planned
+                    | crate::assets::AssetPublicationState::Staged
+            )
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                "the committed width publication proof does not match the prepared variant",
+            ));
+        }
+        Ok(AssetWidthPutTicketV1 {
             plan: self,
             publication,
-        }
+        })
     }
 }
 
@@ -644,6 +694,11 @@ impl AssetWidthPutTicketV1 {
                 recipe_version: prepared.recipe_version,
             },
         })
+    }
+
+    #[cfg(any(test, feature = "remainder-tests"))]
+    pub fn publication_for_test(&self) -> &AssetPublicationRecordV1 {
+        &self.publication
     }
 }
 
@@ -723,6 +778,7 @@ impl AssetTusPatchTicketV1 {
 /// Immutable continuity ticket between asset-finalize preflight and commit.
 /// The byte-store handle is config-derived while Local is available, then
 /// clone-shareable without retaining any LocalSnapback or database borrow.
+#[derive(Clone)]
 pub struct FinalizePrepareTicketV1 {
     attempt: AssetAttemptRecordV1,
     request: AssetFinalizeRequestV1,
@@ -753,16 +809,10 @@ pub enum FinalizePhaseAOutcomeV1 {
     Proceed(Box<FinalizePutTicketV1>),
 }
 
-/// Phase C/D either observes a concurrent idempotent completion or hands
-/// physical cleanup to the caller after the fenced publication commits.
-pub enum FinalizePhaseCDOutcomeV1 {
-    AlreadyComplete(AssetFinalizeResponseV1),
-    Cleanup(FinalizeCleanupTicketV1),
-}
-
 /// Type-state handoff from lock-held Phase A to lock-free Phase B. It owns the
 /// immutable prepare result, exact publication key, and clone-shared store;
 /// it carries no `LocalSnapback` or database borrow.
+#[derive(Clone)]
 pub struct FinalizePutTicketV1 {
     ticket: FinalizePrepareTicketV1,
     prepared: AssetFinalizePreparation,
@@ -773,6 +823,7 @@ pub struct FinalizePutTicketV1 {
 
 /// Proof that Phase B's object put returned and the recorded key verified.
 /// Only this ticket is accepted by lock-held Phase C/D.
+#[derive(Clone)]
 pub struct FinalizeCommitTicketV1 {
     put: FinalizePutTicketV1,
     prepared_required: Vec<snapback_kernel::storage::AssetPreparedVariant>,
@@ -794,14 +845,89 @@ pub struct FinalizeCleanupCommitTicketV1 {
 }
 
 impl FinalizePutTicketV1 {
+    /// Every external PUT in this ticket is backed by its own opaque proof of
+    /// a committed publication plan. In particular, required rendition plans
+    /// cannot be supplied as caller-authored records.
+    ///
+    /// ```compile_fail
+    /// use snapback_services::assets::{
+    ///     AssetFinalizePreparation, FinalizePrepareTicketV1, FinalizePutTicketV1,
+    /// };
+    /// use snapback_kernel::{
+    ///     assets::{AssetIntegrityGrade, AssetPublicationRecordV1},
+    ///     services_assets::AssetPublicationPlannedProof,
+    /// };
+    ///
+    /// fn forge_required(
+    ///     primary: AssetPublicationPlannedProof,
+    ///     ticket: FinalizePrepareTicketV1,
+    ///     prepared: AssetFinalizePreparation,
+    ///     unproven: Vec<AssetPublicationRecordV1>,
+    /// ) {
+    ///     let _ = FinalizePutTicketV1::from_planned_publication(
+    ///         primary,
+    ///         ticket,
+    ///         prepared,
+    ///         unproven,
+    ///         AssetIntegrityGrade::ReceivedBytesCanonical,
+    ///     );
+    /// }
+    /// ```
     pub fn from_planned_publication(
         proof: crate::asset_proof::AssetPublicationPlannedProof,
         ticket: FinalizePrepareTicketV1,
         prepared: AssetFinalizePreparation,
-        required_publications: Vec<AssetPublicationRecordV1>,
+        required_proofs: Vec<crate::asset_proof::AssetPublicationPlannedProof>,
         grade: AssetIntegrityGrade,
     ) -> SnapbackResult<Self> {
         let publication = proof.into_publication();
+        if publication.app_id != ticket.app_id
+            || publication.attempt_id.as_deref() != Some(ticket.attempt.attempt_id.as_str())
+            || publication.digest != prepared.canonical.digest
+            || publication.variant_key.is_some()
+            || !matches!(
+                publication.state,
+                crate::assets::AssetPublicationState::Planned
+                    | crate::assets::AssetPublicationState::Staged
+            )
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                "the committed primary publication proof does not match finalization",
+            ));
+        }
+        if prepared.required_variants.len() != required_proofs.len() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                "the required rendition publication proofs do not match the prepared variants",
+            ));
+        }
+        let mut required_publications = Vec::with_capacity(required_proofs.len());
+        for (required, proof) in prepared.required_variants.iter().zip(required_proofs) {
+            let required_publication = proof.into_publication();
+            if required_publication.app_id != ticket.app_id
+                || required_publication.attempt_id.as_deref()
+                    != Some(ticket.attempt.attempt_id.as_str())
+                || required_publication.asset_id.as_deref()
+                    != Some(ticket.attempt.asset_id.as_str())
+                || required_publication.variant_key.as_deref() != Some(required.key.as_str())
+                || required_publication.digest != required.digest
+                || !matches!(
+                    required_publication.state,
+                    crate::assets::AssetPublicationState::Planned
+                        | crate::assets::AssetPublicationState::Staged
+                )
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_RECORD_INVALID",
+                    "assets",
+                    "a committed required-rendition proof does not match finalization",
+                ));
+            }
+            required_publications.push(required_publication);
+        }
         Ok(Self {
             ticket,
             prepared,
@@ -1026,6 +1152,14 @@ impl FinalizePutTicketV1 {
 }
 
 impl FinalizeCommitTicketV1 {
+    pub fn attempt(&self) -> &AssetAttemptRecordV1 {
+        self.put.ticket.attempt()
+    }
+
+    pub fn frozen_intent(&self) -> &crate::manifest::AssetUploadIntentDefinition {
+        &self.put.ticket.frozen_intent
+    }
+
     pub fn into_parts(
         self,
     ) -> (

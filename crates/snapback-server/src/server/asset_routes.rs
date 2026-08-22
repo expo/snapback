@@ -291,7 +291,7 @@ pub(super) async fn asset_attempt_finalize_route(
     )
     .await?;
     let complete_authority = authority.clone();
-    let outcome = with_snapback(&state, move |snapback| {
+    let mut outcome = with_snapback(&state, move |snapback| {
         snapback.asset_attempt_finalize_complete_with_authorized_effect(
             &complete_authority,
             commit_ticket,
@@ -299,11 +299,38 @@ pub(super) async fn asset_attempt_finalize_route(
         )
     })
     .await?;
-    let cleanup_ticket = match outcome {
-        crate::assets::FinalizePhaseCDOutcomeV1::AlreadyComplete(response) => {
-            return Ok(Json(response));
+    let cleanup_ticket = loop {
+        match outcome {
+            crate::assets::FinalizePhaseCDOutcomeV1::AlreadyComplete(response) => {
+                return Ok(Json(response));
+            }
+            crate::assets::FinalizePhaseCDOutcomeV1::Revalidate(ticket) => {
+                let revalidate_authority = authority.clone();
+                let ticket = with_snapback(&state, move |snapback| {
+                    snapback
+                        .asset_attempt_finalize_revalidate_witness(&revalidate_authority, ticket)
+                })
+                .await?;
+                let retry_effect = reserve_asset_authorized_effect(
+                    &authority,
+                    &headers,
+                    "asset finalize witness-retry reservation",
+                    false,
+                    true,
+                )
+                .await?;
+                let retry_authority = authority.clone();
+                outcome = with_snapback(&state, move |snapback| {
+                    snapback.asset_attempt_finalize_complete_revalidated_with_authorized_effect(
+                        &retry_authority,
+                        ticket,
+                        retry_effect,
+                    )
+                })
+                .await?;
+            }
+            crate::assets::FinalizePhaseCDOutcomeV1::Cleanup(ticket) => break ticket,
         }
-        crate::assets::FinalizePhaseCDOutcomeV1::Cleanup(ticket) => ticket,
     };
     let cleanup_commit = tokio::task::spawn_blocking(move || cleanup_ticket.cleanup())
         .await

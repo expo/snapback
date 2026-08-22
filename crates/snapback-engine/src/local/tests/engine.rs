@@ -10534,6 +10534,82 @@ fn asset_on_demand_width_materializes_once_and_refuses_honestly() {
     assert_eq!(gated.diagnostic.code, "SNAPBACK_ASSET_WIDTH_UNSUPPORTED");
 }
 
+#[test]
+fn asset_width_plan_owner_survives_put_window_and_condemned_plan_cannot_stage() {
+    let mut snapback =
+        asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());
+    let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
+    let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+    asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+        .expect("publish width source");
+    let asset_id = created.task.asset_id.clone();
+    let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+
+    let prepare = match snapback
+        .asset_width_preflight(&asset_id, 100)
+        .expect("width preflight")
+    {
+        AssetWidthPreflightV1::Proceed(ticket) => ticket,
+        AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
+    };
+    let plan = prepare.prepare().expect("render width");
+    let plan_effect = authority
+        .reserve_authorized_effect("width owner regression plan")
+        .expect("reserve width plan");
+    let put = snapback
+        .asset_width_plan_with_authorized_effect(plan, plan_effect)
+        .expect("commit proved width plan");
+    let mut publication = put.publication_for_test().clone();
+    let planned_key = publication.planned_key.clone();
+
+    let in_flight = snapback
+        .asset_publication_maintain(now_millis())
+        .expect("maintenance overlaps width PUT window");
+    assert_eq!(
+        in_flight,
+        super::AssetPublicationMaintenanceReport::default(),
+        "the asset/variant owner keeps an objectless width plan re-drivable",
+    );
+
+    // Once the exact owner is gone, recovery may condemn the plan. A stale
+    // in-memory PUT ticket must then fail its planned -> staged CAS instead of
+    // resurrecting the condemned database row.
+    snapback
+        .db
+        .asset_reads()
+        .transition_deleted(&asset_id, now_millis())
+        .expect("end width owner");
+    assert!(
+        !snapback
+            .db
+            .asset_maintenance()
+            .publication_width_owner_live(&publication)
+            .expect("owner liveness"),
+        "the deleted source asset no longer owns width materialization",
+    );
+    snapback
+        .db
+        .asset_maintenance()
+        .publication_condemn_not_redrivable(&mut publication, None, now_millis())
+        .expect("recovery condemns ownerless width plan");
+
+    let commit = put
+        .put()
+        .expect("the already-authorized idempotent PUT runs");
+    let commit_effect = authority
+        .reserve_authorized_effect("width owner regression staged CAS")
+        .expect("reserve staged attempt");
+    let error = snapback
+        .asset_width_commit_with_authorized_effect(commit, commit_effect)
+        .expect_err("a condemned width plan cannot advance to staged");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_TRANSITION_INVALID");
+    snapback
+        .asset_store_obj()
+        .expect("width store")
+        .delete_blob(&planned_key)
+        .expect("clean regression object");
+}
+
 // -----------------------------------------------------------------
 // Strict delivery and the deletion/GC sweeps (tickets L1-09/L1-10).
 // -----------------------------------------------------------------

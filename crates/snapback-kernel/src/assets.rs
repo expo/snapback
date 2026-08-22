@@ -543,6 +543,13 @@ pub struct AssetPublicationRecordV1 {
     pub publication_id: String,
     pub app_id: String,
     pub attempt_id: Option<String>,
+    /// Variant publications carry their durable recovery owner explicitly.
+    /// Required renditions name both the finalize attempt and variant; an
+    /// on-demand width has no upload attempt and is owned by `(asset, variant)`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant_key: Option<String>,
     /// The planned opaque object key, recorded before any object write so
     /// orphans are discoverable from records, never only store listings.
     pub planned_key: String,
@@ -3023,12 +3030,63 @@ pub(crate) fn open_publication_for_attempt(
         .query_row(
             "SELECT record_json FROM _snapback_asset_publications_v1
              WHERE state IN ('planned', 'staged')
-               AND json_extract(record_json, '$.attemptId') = ?1",
+               AND json_extract(record_json, '$.attemptId') = ?1
+               AND json_extract(record_json, '$.variantKey') IS NULL",
             [attempt_id],
             |row| row.get(0),
         )
         .optional()?;
     json.map(|json| decode_record(&json)).transpose()
+}
+
+pub(crate) fn load_publication(
+    tx: &Transaction<'_>,
+    publication_id: &str,
+) -> SnapbackResult<Option<AssetPublicationRecordV1>> {
+    let json: Option<String> = tx
+        .query_row(
+            "SELECT record_json FROM _snapback_asset_publications_v1
+             WHERE publication_id = ?1",
+            [publication_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    json.map(|json| decode_record(&json)).transpose()
+}
+
+/// The one open publication owned by a concrete variant operation. Required
+/// finalize renditions include `attempt_id`; on-demand widths deliberately do
+/// not. The owner tuple makes an unlocked PUT re-drivable from durable state.
+pub(crate) fn open_publication_for_variant(
+    tx: &Transaction<'_>,
+    attempt_id: Option<&str>,
+    asset_id: &str,
+    variant_key: &str,
+) -> SnapbackResult<Option<AssetPublicationRecordV1>> {
+    let mut statement = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_publications_v1
+         WHERE state IN ('planned', 'staged')
+           AND json_extract(record_json, '$.assetId') = ?1
+           AND json_extract(record_json, '$.variantKey') = ?2
+           AND ((?3 IS NULL AND json_extract(record_json, '$.attemptId') IS NULL)
+                OR json_extract(record_json, '$.attemptId') = ?3)
+         ORDER BY updated_at_ms ASC
+         LIMIT 2",
+    )?;
+    let rows = statement
+        .query_map(
+            rusqlite::params![asset_id, variant_key, attempt_id],
+            |row| row.get::<_, String>(0),
+        )?
+        .collect::<Result<Vec<_>, _>>()?;
+    if rows.len() > 1 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ASSET_RECORD_INVALID",
+            "assets",
+            "multiple open publication records share one variant owner",
+        ));
+    }
+    rows.first().map(|json| decode_record(json)).transpose()
 }
 
 pub(crate) fn publications_in_state(
@@ -3051,36 +3109,40 @@ pub(crate) fn transition_publication(
     to: AssetPublicationState,
     now_ms: u64,
 ) -> SnapbackResult<()> {
-    if !publication_transition_allowed(record.state, to) {
+    let from = record.state;
+    if !publication_transition_allowed(from, to) {
         return Err(SnapbackError::error(
             "SNAPBACK_ASSET_TRANSITION_INVALID",
             "assets",
-            format!("publication cannot move {:?} → {to:?}", record.state),
+            format!("publication cannot move {from:?} → {to:?}"),
         ));
     }
-    record.state = to;
-    record.updated_at_ms = now_ms;
+    let mut updated = record.clone();
+    updated.state = to;
+    updated.updated_at_ms = now_ms;
     let changed = tx.execute(
         "UPDATE _snapback_asset_publications_v1
          SET state = ?2, record_json = ?3, updated_at_ms = ?4
-         WHERE publication_id = ?1",
+         WHERE publication_id = ?1 AND state = ?5",
         rusqlite::params![
-            record.publication_id,
-            state_str(record.state)?,
-            record_json(record)?,
-            record.updated_at_ms,
+            updated.publication_id,
+            state_str(updated.state)?,
+            record_json(&updated)?,
+            updated.updated_at_ms,
+            state_str(from)?,
         ],
     )?;
     if changed != 1 {
         return Err(SnapbackError::error(
-            "SNAPBACK_ASSET_RECORD_INVALID",
+            "SNAPBACK_ASSET_TRANSITION_INVALID",
             "assets",
             format!(
-                "publication {} does not exist to update",
-                record.publication_id
+                "publication {} no longer has expected state {:?}",
+                record.publication_id, from
             ),
         ));
     }
+    *record = updated;
     Ok(())
 }
 

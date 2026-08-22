@@ -110,6 +110,16 @@ pub fn asset_attempt_state(
     snapback.asset_attempt_state_for_test(attempt_id)
 }
 
+/// Move the exact phantom-sensitive admission witness used by the HTTP
+/// finalize retry regression. This helper mutates only a fixed test schema and
+/// fixed row; it accepts no caller-supplied code or query shape.
+pub fn asset_move_finalize_witness(
+    snapback: &mut LocalSnapback,
+    attempt_id: &str,
+) -> SnapbackResult<()> {
+    snapback.asset_move_finalize_witness_for_test(attempt_id)
+}
+
 pub fn prepare_subscribe_live_for_transport(
     snapback: &mut LocalSnapback,
     name: String,
