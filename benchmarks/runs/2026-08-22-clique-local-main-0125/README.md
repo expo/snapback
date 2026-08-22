@@ -3,8 +3,8 @@
 Author-requested diagnostic rerun of the 2026-08-20 local-main configuration
 against current `main` HEAD, to test whether post-0820 fixes moved the findings
 in `benchmarks/runs/2026-08-20-clique-local-main-sol-high/record.md`.
-**Status: lanes queued/running — this record is setup documentation until
-results land.**
+**Status: complete — both lanes green.** Consolidated results in
+[record.md](./record.md).
 
 ## Pins
 
