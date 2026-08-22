@@ -8936,10 +8936,23 @@ mod tests {
         let runner = crate::stream_attempt::StreamRunnerIdentity::new(Arc::new(
             std::sync::atomic::AtomicBool::new(false),
         ));
+        let authority = crate::auth::invocation::InvocationGate::prepare_authority(
+            crate::auth::invocation::InvocationSource::LocalAction,
+            crate::manifest::AuthMode::Dev,
+            crate::contract_types::ServerProfile::Test,
+            0,
+            0,
+            &crate::auth::invocation::WireAuthorityFields::default(),
+            crate::auth::invocation::ResolvedAppAuthority::Anonymous,
+        )
+        .expect("prepare mode-only stream origin");
+        let origin = authority.stream_attempt_origin();
         let initiator = crate::stream_attempt::StreamInitiator::SessionUser("user-a".to_owned());
         let client_key = format!("ephemeral-stream-test:{}", uuid::Uuid::new_v4());
-        let attempt = crate::stream_attempt::global_stream_attempt_registry()
-            .start_with_metadata(
+        let registry = crate::stream_attempt::global_stream_attempt_registry();
+        let attempt = origin
+            .stage_start_with_metadata(
+                registry,
                 usize::MAX - 7,
                 &client_key,
                 &runner,
@@ -8997,9 +9010,10 @@ mod tests {
         // Reserve five monotonic indexes, but retain only 3 and 4. This is
         // the post-eviction shape a reconnect must distinguish from a full
         // replay; chunks themselves remain live-only.
+        let host = runner.host_settlement();
         for _ in 0..5 {
-            crate::stream_attempt::global_stream_attempt_registry()
-                .emit_chunk(&attempt.attempt_token, 1, &runner)
+            registry
+                .record_emit_counters_host(&host, &attempt.attempt_token, 1)
                 .expect("reserve chunk index");
         }
         for index in [3_u64, 4] {

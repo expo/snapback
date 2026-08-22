@@ -16,8 +16,10 @@
 //   child cursor record whose certainty folds pessimistically into the
 //   parent.
 
+use crate::auth::invocation::{PreparedAuthority, ResolvedAppAuthority};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use serde::{Deserialize, Serialize};
+use crate::manifest::AuthMode;
+use serde::Serialize;
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -30,6 +32,87 @@ pub const STREAM_CHUNK_MAX_BYTES: usize = 16 * 1024;
 pub const STREAM_ATTEMPT_MAX_BYTES: usize = 2 * 1024 * 1024;
 pub const STREAM_CHUNKS_PER_SECOND: usize = 20;
 const STREAM_LIVE_AUTH_RETENTION: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// Opaque origin for a transition backed by a live caller publication.
+///
+/// The prepared authority is deliberately private: callers can carry this
+/// capability but cannot manufacture or retag it. Only
+/// [`PreparedAuthority::stream_attempt_origin`] constructs it.
+///
+/// ```compile_fail
+/// use snapback_sync::stream_attempt::CallerAuthorized;
+/// let _forged = CallerAuthorized { _authority: todo!() };
+/// ```
+pub struct CallerAuthorized {
+    _authority: PreparedAuthority,
+}
+
+/// Opaque origin for the same authored transitions when only the active mode
+/// admits the credential-free background or Dev invocation.
+///
+/// Like [`CallerAuthorized`], this cannot be constructed or selected from a
+/// boolean, cause, or caller-supplied enum.
+///
+/// ```compile_fail
+/// use snapback_sync::stream_attempt::ModeOnly;
+/// let _forged = ModeOnly { _authority: todo!() };
+/// ```
+pub struct ModeOnly {
+    _authority: PreparedAuthority,
+}
+
+enum PreparedStreamAttemptOriginKind {
+    CallerAuthorized(CallerAuthorized),
+    ModeOnly(ModeOnly),
+}
+
+/// The closed caller/mode origin derived from one immutable
+/// [`PreparedAuthority`]. Its classification is private, so a transition site
+/// must dispatch through the methods on this capability instead of choosing a
+/// provenance tag itself.
+pub struct PreparedStreamAttemptOrigin {
+    kind: PreparedStreamAttemptOriginKind,
+}
+
+impl PreparedAuthority {
+    /// Classify stream-attempt transition authority once, at the transition
+    /// boundary. Sessions-mode caller, scoped-service, and anonymous
+    /// connection work is caller-authorized; Dev and credential-free
+    /// background authorities are mode-only.
+    // @ref LLP 0058#shared-invocation-authority — PreparedAuthority is the
+    //   closed source/mode/resolved-authority/publication boundary.
+    pub fn stream_attempt_origin(&self) -> PreparedStreamAttemptOrigin {
+        let kind = match (self.active_mode(), self.resolved()) {
+            (
+                AuthMode::Sessions,
+                ResolvedAppAuthority::Anonymous
+                | ResolvedAppAuthority::Session { .. }
+                | ResolvedAppAuthority::ServicePrincipal { .. },
+            ) => PreparedStreamAttemptOriginKind::CallerAuthorized(CallerAuthorized {
+                _authority: self.clone(),
+            }),
+            _ => PreparedStreamAttemptOriginKind::ModeOnly(ModeOnly {
+                _authority: self.clone(),
+            }),
+        };
+        PreparedStreamAttemptOrigin { kind }
+    }
+}
+
+trait StreamAttemptTransitionOrigin {
+    #[cfg(any(test, feature = "test-support"))]
+    const PROVENANCE: &'static str;
+}
+
+impl StreamAttemptTransitionOrigin for CallerAuthorized {
+    #[cfg(any(test, feature = "test-support"))]
+    const PROVENANCE: &'static str = "CallerAuthorized";
+}
+
+impl StreamAttemptTransitionOrigin for ModeOnly {
+    #[cfg(any(test, feature = "test-support"))]
+    const PROVENANCE: &'static str = "ModeOnly";
+}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct StreamAttemptMetadata {
@@ -60,13 +143,13 @@ pub struct StreamOutputSnapshot {
 
 struct RunnerHolder {
     invocation_id: String,
-    abandoned: Arc<AtomicBool>,
+    commit_gate: Arc<InvocationCommitGate>,
     finished: Arc<AtomicBool>,
 }
 
 impl RunnerHolder {
     fn alive(&self) -> bool {
-        !self.abandoned.load(Ordering::SeqCst) && !self.finished.load(Ordering::SeqCst)
+        !self.commit_gate.abandoned.load(Ordering::SeqCst) && !self.finished.load(Ordering::SeqCst)
     }
 }
 
@@ -139,9 +222,21 @@ struct RegistryInner {
     /// never wait on the instance lock) and ride the next flush or, after a
     /// crash, the startup reconciler.
     dirty: BTreeSet<String>,
+    #[cfg(any(test, feature = "test-support"))]
+    transition_classifications: Vec<(&'static str, &'static str)>,
 }
 
 impl RegistryInner {
+    fn classify_transition<P: StreamAttemptTransitionOrigin>(
+        &mut self,
+        _origin: &P,
+        _transition: &'static str,
+    ) {
+        #[cfg(any(test, feature = "test-support"))]
+        self.transition_classifications
+            .push((_transition, P::PROVENANCE));
+    }
+
     fn snapshot(&self, token: &str) -> Option<PersistedStreamAttempt> {
         let record = self.by_token.get(token)?;
         Some(PersistedStreamAttempt {
@@ -223,23 +318,86 @@ impl RegistryInner {
     }
 }
 
+/// The one runner-owned gate identity shared by detached mutation commits,
+/// watchdog abandonment, and stream-attempt transition origins. R1 only
+/// unifies identity; stream-attempt persistence does not acquire this gate.
+pub struct InvocationCommitGate {
+    commit: StdMutex<()>,
+    abandoned: Arc<AtomicBool>,
+}
+
+impl InvocationCommitGate {
+    fn new(abandoned: Arc<AtomicBool>) -> Self {
+        Self {
+            commit: StdMutex::new(()),
+            abandoned,
+        }
+    }
+
+    pub fn try_lock(&self) -> std::sync::TryLockResult<std::sync::MutexGuard<'_, ()>> {
+        self.commit.try_lock()
+    }
+
+    pub fn lock(&self) -> std::sync::LockResult<std::sync::MutexGuard<'_, ()>> {
+        self.commit.lock()
+    }
+
+    pub fn abandoned(&self) -> &AtomicBool {
+        self.abandoned.as_ref()
+    }
+}
+
 /// Identity of one detached action invocation as the control plane sees it:
-/// the opaque id plus the liveness flags the lease consults.
+/// the opaque id, shared runner gate, and finished flag the lease consults.
 #[derive(Clone)]
 pub struct StreamRunnerIdentity {
-    pub invocation_id: String,
-    pub abandoned: Arc<AtomicBool>,
-    pub finished: Arc<AtomicBool>,
+    invocation_id: String,
+    commit_gate: Arc<InvocationCommitGate>,
+    finished: Arc<AtomicBool>,
 }
 
 impl StreamRunnerIdentity {
     pub fn new(abandoned: Arc<AtomicBool>) -> Self {
         Self {
             invocation_id: Uuid::new_v4().to_string(),
-            abandoned,
+            commit_gate: Arc::new(InvocationCommitGate::new(abandoned)),
             finished: Arc::new(AtomicBool::new(false)),
         }
     }
+
+    pub fn invocation_id(&self) -> &str {
+        &self.invocation_id
+    }
+
+    pub fn commit_gate(&self) -> Arc<InvocationCommitGate> {
+        self.commit_gate.clone()
+    }
+
+    /// Produce the host-only origin bound to this exact runner and shared
+    /// gate. It carries no PreparedAuthority and remains usable after caller
+    /// or session retirement.
+    pub fn host_settlement(&self) -> HostSettlement {
+        HostSettlement {
+            runner: self.clone(),
+        }
+    }
+}
+
+/// Opaque host-settlement origin. The only constructor is the runner identity
+/// that owns the attempt lease and shared gate; callers cannot substitute a
+/// prepared caller/mode origin for it.
+///
+/// ```compile_fail
+/// use snapback_sync::stream_attempt::HostSettlement;
+/// let _forged = HostSettlement { runner: todo!() };
+/// ```
+pub struct HostSettlement {
+    runner: StreamRunnerIdentity,
+}
+
+impl StreamAttemptTransitionOrigin for HostSettlement {
+    #[cfg(any(test, feature = "test-support"))]
+    const PROVENANCE: &'static str = "HostSettlement";
 }
 
 #[derive(Default)]
@@ -287,14 +445,16 @@ impl StreamAttemptRegistry {
     /// attempt WITHOUT the lease while the holder is alive; once the holder
     /// is abandoned or finished, a new caller takes the lease over under an
     /// incremented runner generation.
-    pub fn start(
+    fn stage_start_from<P: StreamAttemptTransitionOrigin>(
         &self,
+        origin: &P,
         namespace: usize,
         client_key: &str,
         runner: &StreamRunnerIdentity,
         persisted: Option<&PersistedStreamAttempt>,
     ) -> SnapbackResult<StreamAttemptStart> {
-        self.start_with_metadata(
+        self.stage_start_with_metadata_from(
+            origin,
             namespace,
             client_key,
             runner,
@@ -304,10 +464,10 @@ impl StreamAttemptRegistry {
     }
 
     /// Start the same LLP 0076 attempt with the output-stream privacy and
-    /// transcript facts attached at creation. Existing fetch-stream callers
-    /// continue through [`Self::start`] and therefore do not gain this surface.
-    pub fn start_with_metadata(
+    /// transcript facts attached at creation.
+    fn stage_start_with_metadata_from<P: StreamAttemptTransitionOrigin>(
         &self,
+        origin: &P,
         namespace: usize,
         client_key: &str,
         runner: &StreamRunnerIdentity,
@@ -341,7 +501,7 @@ impl StreamAttemptRegistry {
                     record.runner_generation += 1;
                     record.holder = Some(RunnerHolder {
                         invocation_id: runner.invocation_id.clone(),
-                        abandoned: runner.abandoned.clone(),
+                        commit_gate: runner.commit_gate.clone(),
                         finished: runner.finished.clone(),
                     });
                     took_over = true;
@@ -357,6 +517,7 @@ impl StreamAttemptRegistry {
             };
             let token = record.token.clone();
             if took_over {
+                inner.classify_transition(origin, "takeover");
                 inner.dirty.insert(token.clone());
             }
             inner
@@ -435,7 +596,7 @@ impl StreamAttemptRegistry {
             runner_generation,
             holder: lease_held.then(|| RunnerHolder {
                 invocation_id: runner.invocation_id.clone(),
-                abandoned: runner.abandoned.clone(),
+                commit_gate: runner.commit_gate.clone(),
                 finished: runner.finished.clone(),
             }),
             progress_commits,
@@ -451,6 +612,13 @@ impl StreamAttemptRegistry {
             recent_emits: VecDeque::new(),
             live_auth_retain_until,
         };
+        if terminal.is_some() {
+            inner.classify_transition(origin, "terminalAdoption");
+        } else if persisted.is_some() {
+            inner.classify_transition(origin, "takeover");
+        } else {
+            inner.classify_transition(origin, "freshStart");
+        }
         inner.by_client_key.insert(key, token.clone());
         inner.by_token.insert(token.clone(), record);
         inner.dirty.insert(token.clone());
@@ -554,8 +722,9 @@ impl StreamAttemptRegistry {
     /// upstream open after the first durable progress commit — transport
     /// re-segmentation could associate one sequence with different bytes —
     /// and any bind without the current lease.
-    pub fn bind_cursor(
+    fn stage_cursor_premark_from<P: StreamAttemptTransitionOrigin>(
         &self,
+        origin: &P,
         attempt_token: &str,
         cursor_id: &str,
         runner: &StreamRunnerIdentity,
@@ -601,6 +770,7 @@ impl StreamAttemptRegistry {
                 open: true,
             },
         );
+        inner.classify_transition(origin, "cursorPremark");
         inner
             .by_cursor
             .insert(cursor_id.to_owned(), attempt_token.to_owned());
@@ -611,7 +781,12 @@ impl StreamAttemptRegistry {
     /// Narrow or advance a cursor's initiation state. Narrowing to
     /// `definitely_not_initiated` is legal only from `initiation_possible`
     /// (a provable pre-send failure); `response_observed` is absorbing.
-    pub fn cursor_initiation(&self, cursor_id: &str, state: StreamInitiationState) {
+    pub fn record_transport_outcome_host(
+        &self,
+        origin: &HostSettlement,
+        cursor_id: &str,
+        state: StreamInitiationState,
+    ) {
         let mut inner = self.lock();
         let Some(token) = inner.by_cursor.get(cursor_id).cloned() else {
             return;
@@ -621,6 +796,7 @@ impl StreamAttemptRegistry {
             && cursor.initiation_state != StreamInitiationState::ResponseObserved
         {
             cursor.initiation_state = state;
+            inner.classify_transition(origin, "transportOutcome");
             inner.dirty.insert(token);
         }
     }
@@ -642,7 +818,7 @@ impl StreamAttemptRegistry {
             .is_some_and(|record| record.terminal.is_some())
     }
 
-    pub fn close_cursor(&self, cursor_id: &str) {
+    pub fn record_cursor_close_host(&self, origin: &HostSettlement, cursor_id: &str) {
         let mut inner = self.lock();
         let Some(token) = inner.by_cursor.get(cursor_id).cloned() else {
             return;
@@ -651,6 +827,7 @@ impl StreamAttemptRegistry {
             && let Some(cursor) = record.cursors.get_mut(cursor_id)
         {
             cursor.open = false;
+            inner.classify_transition(origin, "cursorClose");
             inner.dirty.insert(token);
         }
     }
@@ -695,7 +872,8 @@ impl StreamAttemptRegistry {
 
     /// Record one successful durable progress commit for every non-terminal
     /// attempt this invocation holds with an open cursor.
-    pub fn record_progress_commit(&self, runner: &StreamRunnerIdentity) {
+    pub fn record_progress_commit_host(&self, origin: &HostSettlement) {
+        let runner = &origin.runner;
         let mut inner = self.lock();
         let Some(tokens) = inner.by_invocation.get(&runner.invocation_id).cloned() else {
             return;
@@ -707,6 +885,7 @@ impl StreamAttemptRegistry {
                 && record.open_cursor_count() > 0
             {
                 record.progress_commits += 1;
+                inner.classify_transition(origin, "progressCommit");
                 inner.dirty.insert(token);
             }
         }
@@ -761,12 +940,13 @@ impl StreamAttemptRegistry {
 
     /// Reserve one monotonic output index under the same runner lease as the
     /// attempt. The transport publishes only after this guard succeeds.
-    pub fn emit_chunk(
+    pub fn record_emit_counters_host(
         &self,
+        origin: &HostSettlement,
         attempt_token: &str,
         byte_len: usize,
-        runner: &StreamRunnerIdentity,
     ) -> SnapbackResult<StreamChunkEmission> {
+        let runner = &origin.runner;
         if byte_len > STREAM_CHUNK_MAX_BYTES {
             return Err(stream_error(
                 "SNAPBACK_STREAM_CHUNK_TOO_LARGE",
@@ -839,13 +1019,15 @@ impl StreamAttemptRegistry {
             chunk_count: record.chunk_count,
             total_bytes: record.emitted_bytes,
         };
+        inner.classify_transition(origin, "emitCounters");
         inner.dirty.insert(attempt_token.to_owned());
         Ok(emission)
     }
 
     /// Initiator cancellation joins the existing terminal compare-and-set.
-    pub fn cancel_by_initiator(
+    fn stage_initiator_cancel_from<P: StreamAttemptTransitionOrigin>(
         &self,
+        origin: &P,
         attempt_token: &str,
         initiator: &StreamInitiator,
     ) -> SnapbackResult<StreamAttemptTerminal> {
@@ -869,6 +1051,7 @@ impl StreamAttemptRegistry {
         for cursor in record.cursors.values_mut() {
             cursor.open = false;
         }
+        inner.classify_transition(origin, "initiatorCancel");
         inner.dirty.insert(attempt_token.to_owned());
         Ok(terminal)
     }
@@ -876,8 +1059,9 @@ impl StreamAttemptRegistry {
     /// Authored terminal settlement under the lease. Compare-and-set: the
     /// first terminal write wins and every later call receives the committed
     /// winner verbatim.
-    pub fn settle(
+    fn settle_authored<P: StreamAttemptTransitionOrigin>(
         &self,
+        origin: &P,
         attempt_token: &str,
         cause: StreamAttemptCause,
         runner: &StreamRunnerIdentity,
@@ -911,8 +1095,79 @@ impl StreamAttemptRegistry {
         for cursor in record.cursors.values_mut() {
             cursor.open = false;
         }
+        inner.classify_transition(origin, "authoredTerminal");
         inner.dirty.insert(attempt_token.to_owned());
         Ok(terminal)
+    }
+
+    /// Provider/automatic completion settlement under the exact runner lease.
+    /// This is intentionally separate from authored settlement even when both
+    /// carry the same terminal cause.
+    pub fn settle_provider_outcome_host(
+        &self,
+        origin: &HostSettlement,
+        attempt_token: &str,
+        cause: StreamAttemptCause,
+    ) -> SnapbackResult<StreamAttemptTerminal> {
+        let runner = &origin.runner;
+        let mut inner = self.lock();
+        let Some(record) = inner.by_token.get_mut(attempt_token) else {
+            return Err(attempt_error(
+                "settle",
+                "the stream attempt token is unknown to this host",
+                json!({ "expected": "a host-issued attempt token", "received": "unknown attempt token" }),
+            ));
+        };
+        if let Some(terminal) = &record.terminal {
+            return Ok(terminal.clone());
+        }
+        if !record.lease_held_by(&runner.invocation_id) {
+            return Err(attempt_error(
+                "settle",
+                "this runner does not hold the attempt's single-runner lease",
+                json!({ "expected": "the current runner lease", "received": "a superseded or concurrent runner" }),
+            ));
+        }
+        let terminal = StreamAttemptTerminal {
+            cause,
+            effect_may_have_executed: record.effect_fold(),
+            settled_by: StreamAttemptSettledBy::Terminalizer,
+        };
+        record.terminal = Some(terminal.clone());
+        record.settled_at_ms = Some(unix_time_millis());
+        record.retain_live_auth_after_settlement();
+        for cursor in record.cursors.values_mut() {
+            cursor.open = false;
+        }
+        inner.classify_transition(origin, "providerTerminal");
+        inner.dirty.insert(attempt_token.to_owned());
+        Ok(terminal)
+    }
+
+    /// Adopt a durable terminal row as host settlement. A caller/mode start
+    /// cannot take this branch: the call site must first observe the terminal
+    /// durable fact and enter this separate API with the exact runner origin.
+    pub fn adopt_terminal_host(
+        &self,
+        origin: &HostSettlement,
+        namespace: usize,
+        client_key: &str,
+        persisted: &PersistedStreamAttempt,
+    ) -> SnapbackResult<StreamAttemptStart> {
+        if persisted.terminal.is_none() {
+            return Err(attempt_error(
+                "attemptStart",
+                "host terminal adoption requires a durable terminal attempt",
+                json!({ "expected": "a terminal durable attempt", "received": "a nonterminal durable attempt" }),
+            ));
+        }
+        self.stage_start_from(
+            origin,
+            namespace,
+            client_key,
+            &origin.runner,
+            Some(persisted),
+        )
     }
 
     /// The trusted terminalizer: settle every non-terminal attempt bound to
@@ -921,11 +1176,12 @@ impl StreamAttemptRegistry {
     /// without an authored settle). Bypasses the lease — it IS the
     /// lease-expiry reconciler — and marks the runner finished so a waiting
     /// starter can take the lease over.
-    pub fn terminalize_invocation(
+    pub fn terminalize_invocation_host(
         &self,
-        runner: &StreamRunnerIdentity,
+        origin: &HostSettlement,
         cause: StreamAttemptCause,
     ) -> Vec<StreamAttemptTerminal> {
+        let runner = &origin.runner;
         runner.finished.store(true, Ordering::SeqCst);
         let mut inner = self.lock();
         let Some(tokens) = inner.by_invocation.get(&runner.invocation_id).cloned() else {
@@ -948,6 +1204,7 @@ impl StreamAttemptRegistry {
                 for cursor in record.cursors.values_mut() {
                     cursor.open = false;
                 }
+                inner.classify_transition(origin, "automaticTerminal");
                 inner.dirty.insert(token);
                 settled.push(terminal);
             }
@@ -974,6 +1231,131 @@ impl StreamAttemptRegistry {
             inner.dirty.len(),
         )
     }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn transition_classifications_for_test(&self) -> Vec<(&'static str, &'static str)> {
+        self.lock().transition_classifications.clone()
+    }
+}
+
+impl PreparedStreamAttemptOrigin {
+    /// Stage an idempotent fresh start or takeover under the authority class
+    /// derived from PreparedAuthority. A terminal durable row is reclassified
+    /// internally as host adoption.
+    pub fn stage_start(
+        &self,
+        registry: &StreamAttemptRegistry,
+        namespace: usize,
+        client_key: &str,
+        runner: &StreamRunnerIdentity,
+        persisted: Option<&PersistedStreamAttempt>,
+    ) -> SnapbackResult<StreamAttemptStart> {
+        if persisted.is_some_and(|row| row.terminal.is_some()) {
+            return Err(attempt_error(
+                "attemptStart",
+                "a durable terminal attempt must enter host adoption",
+                json!({ "expected": "a fresh or nonterminal attempt", "received": "a terminal durable attempt" }),
+            ));
+        }
+        match &self.kind {
+            PreparedStreamAttemptOriginKind::CallerAuthorized(origin) => {
+                registry.stage_start_from(origin, namespace, client_key, runner, persisted)
+            }
+            PreparedStreamAttemptOriginKind::ModeOnly(origin) => {
+                registry.stage_start_from(origin, namespace, client_key, runner, persisted)
+            }
+        }
+    }
+
+    pub fn stage_start_with_metadata(
+        &self,
+        registry: &StreamAttemptRegistry,
+        namespace: usize,
+        client_key: &str,
+        runner: &StreamRunnerIdentity,
+        persisted: Option<&PersistedStreamAttempt>,
+        metadata: StreamAttemptMetadata,
+    ) -> SnapbackResult<StreamAttemptStart> {
+        if persisted.is_some_and(|row| row.terminal.is_some()) {
+            return Err(attempt_error(
+                "attemptStart",
+                "a durable terminal attempt must enter host adoption",
+                json!({ "expected": "a fresh or nonterminal attempt", "received": "a terminal durable attempt" }),
+            ));
+        }
+        match &self.kind {
+            PreparedStreamAttemptOriginKind::CallerAuthorized(origin) => registry
+                .stage_start_with_metadata_from(
+                    origin, namespace, client_key, runner, persisted, metadata,
+                ),
+            PreparedStreamAttemptOriginKind::ModeOnly(origin) => registry
+                .stage_start_with_metadata_from(
+                    origin, namespace, client_key, runner, persisted, metadata,
+                ),
+        }
+    }
+
+    /// Stage the caller/mode write-ahead cursor premark. Host transport
+    /// observations and close use separate HostSettlement methods.
+    pub fn stage_cursor_premark(
+        &self,
+        registry: &StreamAttemptRegistry,
+        attempt_token: &str,
+        cursor_id: &str,
+        runner: &StreamRunnerIdentity,
+    ) -> SnapbackResult<()> {
+        match &self.kind {
+            PreparedStreamAttemptOriginKind::CallerAuthorized(origin) => {
+                registry.stage_cursor_premark_from(origin, attempt_token, cursor_id, runner)
+            }
+            PreparedStreamAttemptOriginKind::ModeOnly(origin) => {
+                registry.stage_cursor_premark_from(origin, attempt_token, cursor_id, runner)
+            }
+        }
+    }
+
+    pub fn stage_authored_terminal(
+        &self,
+        registry: &StreamAttemptRegistry,
+        attempt_token: &str,
+        cause: StreamAttemptCause,
+        runner: &StreamRunnerIdentity,
+    ) -> SnapbackResult<StreamAttemptTerminal> {
+        match &self.kind {
+            PreparedStreamAttemptOriginKind::CallerAuthorized(origin) => {
+                registry.settle_authored(origin, attempt_token, cause, runner)
+            }
+            PreparedStreamAttemptOriginKind::ModeOnly(origin) => {
+                registry.settle_authored(origin, attempt_token, cause, runner)
+            }
+        }
+    }
+
+    pub fn stage_initiator_cancel(
+        &self,
+        registry: &StreamAttemptRegistry,
+        attempt_token: &str,
+        initiator: &StreamInitiator,
+    ) -> SnapbackResult<StreamAttemptTerminal> {
+        match &self.kind {
+            PreparedStreamAttemptOriginKind::CallerAuthorized(origin) => {
+                registry.stage_initiator_cancel_from(origin, attempt_token, initiator)
+            }
+            PreparedStreamAttemptOriginKind::ModeOnly(origin) => {
+                registry.stage_initiator_cancel_from(origin, attempt_token, initiator)
+            }
+        }
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn provenance_for_test(&self) -> &'static str {
+        match &self.kind {
+            PreparedStreamAttemptOriginKind::CallerAuthorized(_) => "CallerAuthorized",
+            PreparedStreamAttemptOriginKind::ModeOnly(_) => "ModeOnly",
+        }
+    }
 }
 
 /// Process-global registry, namespaced per instance by the caller (the local
@@ -987,12 +1369,383 @@ pub fn global_stream_attempt_registry() -> &'static StreamAttemptRegistry {
 mod tests {
     use super::*;
 
+    fn mode_origin() -> PreparedStreamAttemptOrigin {
+        crate::auth::invocation::InvocationGate::prepare_authority(
+            crate::auth::invocation::InvocationSource::LocalAction,
+            AuthMode::Dev,
+            crate::contract_types::ServerProfile::Test,
+            0,
+            0,
+            &crate::auth::invocation::WireAuthorityFields::default(),
+            ResolvedAppAuthority::Anonymous,
+        )
+        .expect("prepare mode-only test authority")
+        .stream_attempt_origin()
+    }
+
+    impl StreamAttemptRegistry {
+        fn start(
+            &self,
+            namespace: usize,
+            client_key: &str,
+            runner: &StreamRunnerIdentity,
+            persisted: Option<&PersistedStreamAttempt>,
+        ) -> SnapbackResult<StreamAttemptStart> {
+            match persisted {
+                Some(row) if row.terminal.is_some() => {
+                    self.adopt_terminal_host(&runner.host_settlement(), namespace, client_key, row)
+                }
+                _ => mode_origin().stage_start(self, namespace, client_key, runner, persisted),
+            }
+        }
+
+        fn start_with_metadata(
+            &self,
+            namespace: usize,
+            client_key: &str,
+            runner: &StreamRunnerIdentity,
+            persisted: Option<&PersistedStreamAttempt>,
+            metadata: StreamAttemptMetadata,
+        ) -> SnapbackResult<StreamAttemptStart> {
+            mode_origin()
+                .stage_start_with_metadata(self, namespace, client_key, runner, persisted, metadata)
+        }
+
+        fn bind_cursor(
+            &self,
+            attempt_token: &str,
+            cursor_id: &str,
+            runner: &StreamRunnerIdentity,
+        ) -> SnapbackResult<()> {
+            mode_origin().stage_cursor_premark(self, attempt_token, cursor_id, runner)
+        }
+
+        fn cursor_initiation(&self, cursor_id: &str, state: StreamInitiationState) {
+            self.record_transport_outcome_host(&runner().host_settlement(), cursor_id, state);
+        }
+
+        fn close_cursor(&self, cursor_id: &str) {
+            self.record_cursor_close_host(&runner().host_settlement(), cursor_id);
+        }
+
+        fn record_progress_commit(&self, runner: &StreamRunnerIdentity) {
+            self.record_progress_commit_host(&runner.host_settlement());
+        }
+
+        fn emit_chunk(
+            &self,
+            attempt_token: &str,
+            byte_len: usize,
+            runner: &StreamRunnerIdentity,
+        ) -> SnapbackResult<StreamChunkEmission> {
+            self.record_emit_counters_host(&runner.host_settlement(), attempt_token, byte_len)
+        }
+
+        fn cancel_by_initiator(
+            &self,
+            attempt_token: &str,
+            initiator: &StreamInitiator,
+        ) -> SnapbackResult<StreamAttemptTerminal> {
+            mode_origin().stage_initiator_cancel(self, attempt_token, initiator)
+        }
+
+        fn settle(
+            &self,
+            attempt_token: &str,
+            cause: StreamAttemptCause,
+            runner: &StreamRunnerIdentity,
+        ) -> SnapbackResult<StreamAttemptTerminal> {
+            mode_origin().stage_authored_terminal(self, attempt_token, cause, runner)
+        }
+
+        fn terminalize_invocation(
+            &self,
+            runner: &StreamRunnerIdentity,
+            cause: StreamAttemptCause,
+        ) -> Vec<StreamAttemptTerminal> {
+            self.terminalize_invocation_host(&runner.host_settlement(), cause)
+        }
+    }
+
     fn runner() -> StreamRunnerIdentity {
         StreamRunnerIdentity::new(Arc::new(AtomicBool::new(false)))
     }
 
     fn registry() -> StreamAttemptRegistry {
         StreamAttemptRegistry::default()
+    }
+
+    fn prepared_origin(
+        source: crate::auth::invocation::InvocationSource,
+        mode: AuthMode,
+        resolved: ResolvedAppAuthority,
+    ) -> PreparedStreamAttemptOrigin {
+        crate::auth::invocation::InvocationGate::prepare_authority(
+            source,
+            mode,
+            crate::contract_types::ServerProfile::Test,
+            1,
+            1,
+            &crate::auth::invocation::WireAuthorityFields::default(),
+            resolved,
+        )
+        .expect("prepare classified stream authority")
+        .stream_attempt_origin()
+    }
+
+    fn session_authority() -> ResolvedAppAuthority {
+        ResolvedAppAuthority::Session {
+            user_id: "user-a".to_owned(),
+            session_id: "session-a".to_owned(),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: "authority-a".to_owned(),
+            session_not_after_ms: 10_000,
+            provider_not_after_ms: None,
+            rehearsal_provenance: None,
+        }
+    }
+
+    #[test]
+    fn prepared_authority_is_the_closed_stream_origin_classifier() {
+        let cases = [
+            (
+                crate::auth::invocation::InvocationSource::HttpAction,
+                AuthMode::Sessions,
+                ResolvedAppAuthority::Anonymous,
+                "CallerAuthorized",
+            ),
+            (
+                crate::auth::invocation::InvocationSource::HttpAction,
+                AuthMode::Sessions,
+                session_authority(),
+                "CallerAuthorized",
+            ),
+            (
+                crate::auth::invocation::InvocationSource::HttpAction,
+                AuthMode::Sessions,
+                ResolvedAppAuthority::ServicePrincipal {
+                    actor_user_id: "agent-a".to_owned(),
+                    credential_id: "credential-a".to_owned(),
+                    credential_generation: 1,
+                    grant_id: "grant-a".to_owned(),
+                    token_id: "token-a".to_owned(),
+                    effective_user_id: Some("user-a".to_owned()),
+                    scopes: Vec::new(),
+                    token_expires_at_ms: 10_000,
+                    integration_status: None,
+                },
+                "CallerAuthorized",
+            ),
+            (
+                crate::auth::invocation::InvocationSource::WatchEvaluation,
+                AuthMode::Sessions,
+                ResolvedAppAuthority::RevalidatedPrincipal {
+                    user_id: "user-a".to_owned(),
+                    authority_instance_id: "authority-a".to_owned(),
+                },
+                "ModeOnly",
+            ),
+            (
+                crate::auth::invocation::InvocationSource::Cron,
+                AuthMode::Sessions,
+                ResolvedAppAuthority::System,
+                "ModeOnly",
+            ),
+            (
+                crate::auth::invocation::InvocationSource::LocalAction,
+                AuthMode::Dev,
+                ResolvedAppAuthority::DevImpersonation {
+                    user_id: "user-a".to_owned(),
+                    roles: Vec::new(),
+                    local_dev_only: true,
+                },
+                "ModeOnly",
+            ),
+        ];
+        for (source, mode, resolved, expected) in cases {
+            assert_eq!(
+                prepared_origin(source, mode, resolved).provenance_for_test(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn every_r1_transition_is_classified_at_its_origin() {
+        let registry = registry();
+        let caller = prepared_origin(
+            crate::auth::invocation::InvocationSource::HttpAction,
+            AuthMode::Sessions,
+            session_authority(),
+        );
+        let mode = mode_origin();
+
+        let first = runner();
+        let started = mode
+            .stage_start(&registry, 41, "mode-takeover", &first, None)
+            .expect("mode fresh start");
+        first.commit_gate.abandoned.store(true, Ordering::SeqCst);
+        let takeover_runner = runner();
+        let takeover = mode
+            .stage_start(&registry, 41, "mode-takeover", &takeover_runner, None)
+            .expect("mode takeover");
+
+        let caller_runner = runner();
+        let caller_started = caller
+            .stage_start(&registry, 41, "caller", &caller_runner, None)
+            .expect("caller fresh start");
+        caller
+            .stage_cursor_premark(
+                &registry,
+                &caller_started.attempt_token,
+                "cursor-caller",
+                &caller_runner,
+            )
+            .expect("caller cursor premark");
+        let caller_host = caller_runner.host_settlement();
+        registry.record_transport_outcome_host(
+            &caller_host,
+            "cursor-caller",
+            StreamInitiationState::ResponseObserved,
+        );
+        registry.record_progress_commit_host(&caller_host);
+        registry.record_cursor_close_host(&caller_host, "cursor-caller");
+        caller
+            .stage_authored_terminal(
+                &registry,
+                &caller_started.attempt_token,
+                StreamAttemptCause::Complete,
+                &caller_runner,
+            )
+            .expect("authored terminal");
+
+        let output_runner = runner();
+        let initiator = StreamInitiator::SessionUser("user-a".to_owned());
+        let output = caller
+            .stage_start_with_metadata(
+                &registry,
+                41,
+                "output",
+                &output_runner,
+                None,
+                StreamAttemptMetadata {
+                    function_id: Some("app:stream".to_owned()),
+                    initiator: Some(initiator.clone()),
+                    started_at_ms: 1,
+                },
+            )
+            .expect("output start");
+        let output_host = output_runner.host_settlement();
+        registry
+            .record_emit_counters_host(&output_host, &output.attempt_token, 1)
+            .expect("host emit counters");
+        caller
+            .stage_initiator_cancel(&registry, &output.attempt_token, &initiator)
+            .expect("caller cancellation");
+
+        let provider_runner = runner();
+        let provider = caller
+            .stage_start(&registry, 41, "provider", &provider_runner, None)
+            .expect("provider attempt start");
+        registry
+            .settle_provider_outcome_host(
+                &provider_runner.host_settlement(),
+                &provider.attempt_token,
+                StreamAttemptCause::Complete,
+            )
+            .expect("provider terminal");
+
+        let automatic_runner = runner();
+        caller
+            .stage_start(&registry, 41, "automatic", &automatic_runner, None)
+            .expect("automatic attempt start");
+        registry.terminalize_invocation_host(
+            &automatic_runner.host_settlement(),
+            StreamAttemptCause::Failed,
+        );
+
+        let terminal_snapshot = registry
+            .dirty_snapshots(41)
+            .into_iter()
+            .find(|snapshot| snapshot.token == caller_started.attempt_token)
+            .expect("terminal snapshot for adoption");
+        let adoption_registry = StreamAttemptRegistry::default();
+        let adoption_runner = runner();
+        adoption_registry
+            .adopt_terminal_host(
+                &adoption_runner.host_settlement(),
+                42,
+                "adopted",
+                &terminal_snapshot,
+            )
+            .expect("terminal adoption");
+
+        assert_eq!(
+            registry.transition_classifications_for_test(),
+            vec![
+                ("freshStart", "ModeOnly"),
+                ("takeover", "ModeOnly"),
+                ("freshStart", "CallerAuthorized"),
+                ("cursorPremark", "CallerAuthorized"),
+                ("transportOutcome", "HostSettlement"),
+                ("progressCommit", "HostSettlement"),
+                ("cursorClose", "HostSettlement"),
+                ("authoredTerminal", "CallerAuthorized"),
+                ("freshStart", "CallerAuthorized"),
+                ("emitCounters", "HostSettlement"),
+                ("initiatorCancel", "CallerAuthorized"),
+                ("freshStart", "CallerAuthorized"),
+                ("providerTerminal", "HostSettlement"),
+                ("freshStart", "CallerAuthorized"),
+                ("automaticTerminal", "HostSettlement"),
+            ]
+        );
+        assert_eq!(
+            adoption_registry.transition_classifications_for_test(),
+            vec![("terminalAdoption", "HostSettlement")]
+        );
+        assert_eq!(started.attempt_token, takeover.attempt_token);
+    }
+
+    #[test]
+    fn provider_terminal_with_authored_cause_never_enters_authored_path() {
+        let registry = registry();
+        let caller = prepared_origin(
+            crate::auth::invocation::InvocationSource::HttpAction,
+            AuthMode::Sessions,
+            session_authority(),
+        );
+        let provider_runner = runner();
+        let provider = caller
+            .stage_start(&registry, 51, "provider-only", &provider_runner, None)
+            .expect("provider attempt");
+        let terminal = registry
+            .settle_provider_outcome_host(
+                &provider_runner.host_settlement(),
+                &provider.attempt_token,
+                StreamAttemptCause::Complete,
+            )
+            .expect("provider completion");
+        assert_eq!(terminal.cause, StreamAttemptCause::Complete);
+        assert_eq!(terminal.settled_by, StreamAttemptSettledBy::Terminalizer);
+        let classified = registry.transition_classifications_for_test();
+        assert!(classified.contains(&("providerTerminal", "HostSettlement")));
+        assert!(
+            !classified
+                .iter()
+                .any(|(transition, _)| *transition == "authoredTerminal"),
+            "provider completion must not enter the authored method: {classified:?}"
+        );
+    }
+
+    #[test]
+    fn runner_and_host_origin_share_one_commit_gate_identity() {
+        let abandoned = Arc::new(AtomicBool::new(false));
+        let runner = StreamRunnerIdentity::new(abandoned.clone());
+        let host = runner.host_settlement();
+        assert!(Arc::ptr_eq(&runner.commit_gate, &host.runner.commit_gate));
+        assert!(Arc::ptr_eq(&runner.commit_gate().abandoned, &abandoned));
     }
 
     #[test]
@@ -1026,7 +1779,7 @@ mod tests {
         let first = runner();
         let second = runner();
         let started = registry.start(7, "key", &first, None).expect("start");
-        first.abandoned.store(true, Ordering::SeqCst);
+        first.commit_gate.abandoned.store(true, Ordering::SeqCst);
         let taken = registry.start(7, "key", &second, None).expect("takeover");
         assert_eq!(taken.attempt_token, started.attempt_token);
         assert!(taken.lease_held);

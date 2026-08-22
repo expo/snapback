@@ -433,7 +433,7 @@ mod tests {
             emitted_bytes: 12,
             chunk_count: 2,
         };
-        let reconciled = crate::stream_attempt::reconcile_orphaned_record(
+        let reconciled = crate::stream_attempt::reconcile_orphaned_record_host(
             &serde_json::to_string(&attempt).unwrap(),
         )
         .expect("live orphan gains terminal");
