@@ -80,7 +80,30 @@ impl LocalDatabase {
         authority_instance_id: &str,
         ids: &[String],
     ) -> SnapbackResult<u64> {
-        self.acknowledge_client_mutations_inner(auth_fingerprint, Some(authority_instance_id), ids)
+        self.acknowledge_client_mutations_for_authority_guarded(
+            auth_fingerprint,
+            authority_instance_id,
+            ids,
+            || Ok(()),
+        )
+    }
+
+    pub(super) fn acknowledge_client_mutations_for_authority_guarded<G, BeforeCommit>(
+        &mut self,
+        auth_fingerprint: &str,
+        authority_instance_id: &str,
+        ids: &[String],
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<u64>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.acknowledge_client_mutations_inner_guarded(
+            auth_fingerprint,
+            Some(authority_instance_id),
+            ids,
+            before_commit,
+        )
     }
 
     pub(super) fn issue_client_operation_identity_range(
@@ -192,6 +215,24 @@ impl LocalDatabase {
         authority_instance_id: Option<&str>,
         ids: &[String],
     ) -> SnapbackResult<u64> {
+        self.acknowledge_client_mutations_inner_guarded(
+            auth_fingerprint,
+            authority_instance_id,
+            ids,
+            || Ok(()),
+        )
+    }
+
+    fn acknowledge_client_mutations_inner_guarded<G, BeforeCommit>(
+        &mut self,
+        auth_fingerprint: &str,
+        authority_instance_id: Option<&str>,
+        ids: &[String],
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<u64>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         if ids.len() > CLIENT_MUTATION_ACK_MAX_IDS {
             return Err(SnapbackError::error(
                 "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED",
@@ -339,6 +380,7 @@ impl LocalDatabase {
         }
         #[cfg(any(test, feature = "test-support"))]
         super::observe_durable_commit_for_test();
+        let _commit_guard = before_commit()?;
         tx.commit()?;
         Ok(deleted)
     }
@@ -723,6 +765,24 @@ impl<'a> SettlementKernel<'a> {
             auth_fingerprint,
             authority_instance_id,
             ids,
+        )
+    }
+
+    pub fn acknowledge_client_mutations_for_authority_guarded<G, BeforeCommit>(
+        &mut self,
+        auth_fingerprint: &str,
+        authority_instance_id: &str,
+        ids: &[String],
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<u64>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.acknowledge_client_mutations_for_authority_guarded(
+            auth_fingerprint,
+            authority_instance_id,
+            ids,
+            before_commit,
         )
     }
 

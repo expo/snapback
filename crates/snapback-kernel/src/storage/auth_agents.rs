@@ -283,56 +283,74 @@ impl LocalDatabase {
         now_ms: u64,
         random: &dyn RandomSource,
     ) -> SnapbackResult<IssuedAgentInvitation> {
+        self.mint_agent_invitation_guarded(user_id, profile, proof, now_ms, random, || Ok(()))
+    }
+
+    pub fn mint_agent_invitation_guarded<G, BeforeCommit>(
+        &mut self,
+        user_id: &str,
+        profile: ServerProfile,
+        proof: &StepUpProof,
+        now_ms: u64,
+        random: &dyn RandomSource,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<IssuedAgentInvitation>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         let invitation_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentInvitation);
         let expires_at_ms = now_ms
             .checked_add(AGENT_INVITATION_TTL_MS)
             .filter(|expires| *expires <= super::MAX_AUTHORIZATION_EPOCH)
             .ok_or_else(agent_invitation_invalid)?;
         let mut body_outcome = None;
-        let attempt = self.attempt_auth_transaction(|tx| {
-            advance_agent_clock_on(tx, now_ms)?;
-            require_human_user_on(tx, user_id)?;
-            if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, now_ms)?
-                != StepUpConsumption::Verified
-            {
-                return Err(step_up_required_error());
-            }
-            let live: i64 = tx.query_row(
-                "SELECT COUNT(*) FROM _auth_agent_invitations
+        let attempt = self.attempt_auth_transaction_guarded(
+            |tx| {
+                advance_agent_clock_on(tx, now_ms)?;
+                require_human_user_on(tx, user_id)?;
+                if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, now_ms)?
+                    != StepUpConsumption::Verified
+                {
+                    return Err(step_up_required_error());
+                }
+                let live: i64 = tx.query_row(
+                    "SELECT COUNT(*) FROM _auth_agent_invitations
                  WHERE class = 'creation' AND created_by = ?1
                    AND revoked_at_ms IS NULL AND consumed_at_ms IS NULL
                    AND expires_at_ms > ?2",
-                params![user_id, now_ms as i64],
-                |row| row.get(0),
-            )?;
-            if live < 0 || live as u64 >= AGENT_INVITATION_LIVE_CAP {
-                return Err(agent_invitation_cap());
-            }
-            let secret = CreationInvitation::generate(random)
-                .map_err(|_| agent_invitation_secret_generation_failed())?;
-            let hash = secret.token_hash();
-            tx.execute(
-                "INSERT INTO _auth_agent_invitations(
+                    params![user_id, now_ms as i64],
+                    |row| row.get(0),
+                )?;
+                if live < 0 || live as u64 >= AGENT_INVITATION_LIVE_CAP {
+                    return Err(agent_invitation_cap());
+                }
+                let secret = CreationInvitation::generate(random)
+                    .map_err(|_| agent_invitation_secret_generation_failed())?;
+                let hash = secret.token_hash();
+                tx.execute(
+                    "INSERT INTO _auth_agent_invitations(
                    id, token_hash, class, created_by, minted_profile,
                    agent_user_id, created_at_ms, expires_at_ms,
                    revoked_at_ms, consumed_at_ms, consumed_by
                  ) VALUES(?1, ?2, 'creation', ?3, ?4, NULL, ?5, ?6, NULL, NULL, NULL)",
-                params![
-                    invitation_id,
-                    hash.as_bytes(),
-                    user_id,
-                    profile.as_str(),
-                    now_ms as i64,
-                    expires_at_ms as i64,
-                ],
-            )?;
-            body_outcome = Some(IssuedAgentInvitation {
-                invitation_id: invitation_id.clone(),
-                expires_at_ms,
-                secret,
-            });
-            Ok(())
-        });
+                    params![
+                        invitation_id,
+                        hash.as_bytes(),
+                        user_id,
+                        profile.as_str(),
+                        now_ms as i64,
+                        expires_at_ms as i64,
+                    ],
+                )?;
+                body_outcome = Some(IssuedAgentInvitation {
+                    invitation_id: invitation_id.clone(),
+                    expires_at_ms,
+                    secret,
+                });
+                Ok(())
+            },
+            before_commit,
+        );
         match attempt {
             AuthTransactionAttempt::Committed(()) => {
                 body_outcome.ok_or_else(agent_invitation_commit_uncertain)
@@ -1637,6 +1655,27 @@ impl super::ServingDatabase {
     ) -> SnapbackResult<IssuedAgentInvitation> {
         self.db
             .mint_agent_invitation(user_id, profile, proof, now_ms, random)
+    }
+    pub fn mint_agent_invitation_guarded<G, BeforeCommit>(
+        &mut self,
+        user_id: &str,
+        profile: ServerProfile,
+        proof: &StepUpProof,
+        now_ms: u64,
+        random: &dyn RandomSource,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<IssuedAgentInvitation>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.mint_agent_invitation_guarded(
+            user_id,
+            profile,
+            proof,
+            now_ms,
+            random,
+            before_commit,
+        )
     }
 }
 impl super::ServingDatabase {

@@ -408,6 +408,17 @@ impl LocalDatabase {
         &mut self,
         request: MintCapabilityLink,
     ) -> SnapbackResult<MintedCapabilityLink> {
+        self.mint_capability_link_guarded(request, || Ok(()))
+    }
+
+    pub fn mint_capability_link_guarded<G, BeforeCommit>(
+        &mut self,
+        request: MintCapabilityLink,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MintedCapabilityLink>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         if !table_exists(&self.conn)? {
             return Err(unavailable());
         }
@@ -429,24 +440,25 @@ impl LocalDatabase {
         let id_for_read = id.clone();
         let token_lookup = hash[..TOKEN_LOOKUP_BYTES].to_vec();
         let token_hash = hash.to_vec();
-        self.with_auth_transaction(|tx| {
-            let principal_live: Option<()> = tx
-                .query_row(
-                    "SELECT 1 FROM _auth_users
+        self.with_auth_transaction_guarded(
+            |tx| {
+                let principal_live: Option<()> = tx
+                    .query_row(
+                        "SELECT 1 FROM _auth_users
                      WHERE id = ?1 AND kind = 'human' AND deactivated_at_ms IS NULL",
-                    params![request.minter_principal_id],
-                    |_| Ok(()),
-                )
-                .optional()?;
-            if principal_live.is_none() {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_CAPABILITY_LINK_MINTER_INVALID",
-                    "capability-links",
-                    "capability-link minting requires a live session principal",
-                ));
-            }
-            tx.execute(
-                "INSERT INTO _snapback_capability_links(
+                        params![request.minter_principal_id],
+                        |_| Ok(()),
+                    )
+                    .optional()?;
+                if principal_live.is_none() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_CAPABILITY_LINK_MINTER_INVALID",
+                        "capability-links",
+                        "capability-link minting requires a live session principal",
+                    ));
+                }
+                tx.execute(
+                    "INSERT INTO _snapback_capability_links(
                    id, token_lookup, token_hash, minter_principal_id,
                    minter_session_id, minter_authority_instance_id,
                    function_id, function_name, function_kind, pinned_args_json,
@@ -454,26 +466,28 @@ impl LocalDatabase {
                    approval_per_use, created_at_ms, updated_at_ms, use_count
                  ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11,
                           ?12, ?13, 'active', ?14, ?15, ?15, 0)",
-                params![
-                    id,
-                    token_lookup,
-                    token_hash,
-                    request.minter_principal_id,
-                    request.minter_session_id,
-                    request.minter_authority_instance_id,
-                    request.function_id,
-                    request.function_name,
-                    request.function_kind.as_str(),
-                    request.pinned_args_json,
-                    caller_args_json,
-                    request.expires_at_ms as i64,
-                    request.remaining_uses.map(|value| value as i64),
-                    i64::from(request.approval_per_use),
-                    request.now_ms as i64,
-                ],
-            )?;
-            Ok(())
-        })?;
+                    params![
+                        id,
+                        token_lookup,
+                        token_hash,
+                        request.minter_principal_id,
+                        request.minter_session_id,
+                        request.minter_authority_instance_id,
+                        request.function_id,
+                        request.function_name,
+                        request.function_kind.as_str(),
+                        request.pinned_args_json,
+                        caller_args_json,
+                        request.expires_at_ms as i64,
+                        request.remaining_uses.map(|value| value as i64),
+                        i64::from(request.approval_per_use),
+                        request.now_ms as i64,
+                    ],
+                )?;
+                Ok(())
+            },
+            before_commit,
+        )?;
         #[cfg(any(test, feature = "test-support"))]
         if FAIL_CAPABILITY_LINK_MINT_AFTER_COMMIT_BEFORE_READ.with(|slot| slot.replace(false)) {
             return Err(SnapbackError::error(
@@ -595,22 +609,47 @@ impl LocalDatabase {
         minter_authority_instance_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
-        let changed = self.with_auth_transaction(|tx| {
-            Ok(tx.execute(
-                "UPDATE _snapback_capability_links
+        self.revoke_capability_link_guarded(
+            id,
+            minter_principal_id,
+            minter_session_id,
+            minter_authority_instance_id,
+            now_ms,
+            || Ok(()),
+        )
+    }
+
+    pub fn revoke_capability_link_guarded<G, BeforeCommit>(
+        &mut self,
+        id: &str,
+        minter_principal_id: &str,
+        minter_session_id: &str,
+        minter_authority_instance_id: &str,
+        now_ms: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<()>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        let changed = self.with_auth_transaction_guarded(
+            |tx| {
+                Ok(tx.execute(
+                    "UPDATE _snapback_capability_links
                  SET status = 'revoked', updated_at_ms = ?1
                  WHERE id = ?2 AND status = 'active'
                    AND minter_principal_id = ?3 AND minter_session_id = ?4
                    AND minter_authority_instance_id = ?5",
-                params![
-                    now_ms as i64,
-                    id,
-                    minter_principal_id,
-                    minter_session_id,
-                    minter_authority_instance_id,
-                ],
-            )?)
-        })?;
+                    params![
+                        now_ms as i64,
+                        id,
+                        minter_principal_id,
+                        minter_session_id,
+                        minter_authority_instance_id,
+                    ],
+                )?)
+            },
+            before_commit,
+        )?;
         if changed == 1 {
             Ok(())
         } else {
@@ -849,6 +888,16 @@ impl super::ServingDatabase {
     ) -> SnapbackResult<MintedCapabilityLink> {
         self.db.mint_capability_link(request)
     }
+    pub fn mint_capability_link_guarded<G, BeforeCommit>(
+        &mut self,
+        request: MintCapabilityLink,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MintedCapabilityLink>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.mint_capability_link_guarded(request, before_commit)
+    }
     pub fn consume_capability_link_use(
         &mut self,
         id: &str,
@@ -880,6 +929,27 @@ impl super::ServingDatabase {
             minter_session_id,
             minter_authority_instance_id,
             now_ms,
+        )
+    }
+    pub fn revoke_capability_link_guarded<G, BeforeCommit>(
+        &mut self,
+        id: &str,
+        minter_principal_id: &str,
+        minter_session_id: &str,
+        minter_authority_instance_id: &str,
+        now_ms: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<()>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.revoke_capability_link_guarded(
+            id,
+            minter_principal_id,
+            minter_session_id,
+            minter_authority_instance_id,
+            now_ms,
+            before_commit,
         )
     }
 }

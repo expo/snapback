@@ -220,6 +220,23 @@ fn authority_mode_name(mode: WatchAuthorityMode) -> &'static str {
 
 impl LocalDatabase {
     pub fn create_watch(&mut self, request: CreateWatchRecord) -> SnapbackResult<WatchRecord> {
+        self.create_watch_guarded(request, || Ok(()))
+    }
+
+    /// Commit the watch row and optional exact anchor grant beneath the
+    /// caller's final commit guard. Secret preparation and the initial query
+    /// remain outside this transaction and outside the guard.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — session or scoped
+    /// integration management authority is reserved before Local.
+    pub fn create_watch_guarded<G, BeforeCommit>(
+        &mut self,
+        request: CreateWatchRecord,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<WatchRecord>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         if !table_exists(&self.conn)? {
             return Err(SnapbackError::error(
                 "SNAPBACK_API_NOT_ENABLED",
@@ -292,6 +309,7 @@ impl LocalDatabase {
         )?;
         #[cfg(any(test, feature = "test-support"))]
         super::observe_durable_commit_for_test();
+        let _commit_guard = before_commit()?;
         tx.commit()?;
         self.watch_for_owner(&request.id, &request.owner_principal_id)?
             .ok_or_else(catalog_corrupt)
@@ -1821,6 +1839,16 @@ mod tests {
 impl super::ServingDatabase {
     pub fn create_watch(&mut self, request: CreateWatchRecord) -> SnapbackResult<WatchRecord> {
         self.db.create_watch(request)
+    }
+    pub fn create_watch_guarded<G, BeforeCommit>(
+        &mut self,
+        request: CreateWatchRecord,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<WatchRecord>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.create_watch_guarded(request, before_commit)
     }
     pub fn revalidate_watch_anchor(
         &mut self,

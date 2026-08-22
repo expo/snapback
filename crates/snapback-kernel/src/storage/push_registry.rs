@@ -97,6 +97,33 @@ impl LocalDatabase {
         request: &crate::push::PushSendRequestV1,
         now_ms: u64,
     ) -> SnapbackResult<crate::push::ReservedPushAttemptV1> {
+        self.push_reserve_send_guarded(
+            declaration,
+            schema,
+            authority,
+            trigger_mode,
+            deferred_grant,
+            request,
+            now_ms,
+            || Ok(()),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn push_reserve_send_guarded<G, BeforeCommit>(
+        &mut self,
+        declaration: &crate::push::PushSeamDeclarationV1,
+        schema: &crate::manifest::SchemaManifest,
+        authority: crate::push::PushStorageAuthority,
+        trigger_mode: crate::push::PushTriggerModeV1,
+        deferred_grant: Option<&crate::push::PushDeferredGrantV1>,
+        request: &crate::push::PushSendRequestV1,
+        now_ms: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<crate::push::ReservedPushAttemptV1>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         if !authority.is_for(&self.binding()) {
             return Err(crate::diagnostic::SnapbackError::error(
                 "SNAPBACK_PUSH_AUTHORITY_INVALID",
@@ -104,20 +131,23 @@ impl LocalDatabase {
                 "push admission carrier belongs to a different database",
             ));
         }
-        self.with_auth_transaction(|tx| {
-            crate::push::reserve_send_in(
-                tx,
-                crate::push::PushSendReservation {
-                    declaration,
-                    schema,
-                    authority: &authority,
-                    trigger_mode,
-                    deferred_grant,
-                    request,
-                    now_ms,
-                },
-            )
-        })
+        self.with_auth_transaction_guarded(
+            |tx| {
+                crate::push::reserve_send_in(
+                    tx,
+                    crate::push::PushSendReservation {
+                        declaration,
+                        schema,
+                        authority: &authority,
+                        trigger_mode,
+                        deferred_grant,
+                        request,
+                        now_ms,
+                    },
+                )
+            },
+            before_commit,
+        )
     }
 
     pub(super) fn push_claim_batch(
@@ -125,7 +155,22 @@ impl LocalDatabase {
         batch_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<Option<crate::push::PushBatchClaimV1>> {
-        self.with_auth_transaction(|tx| crate::push::claim_batch_in(tx, batch_id, now_ms))
+        self.push_claim_batch_guarded(batch_id, now_ms, || Ok(()))
+    }
+
+    pub(super) fn push_claim_batch_guarded<G, BeforeCommit>(
+        &mut self,
+        batch_id: &str,
+        now_ms: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<Option<crate::push::PushBatchClaimV1>>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.with_auth_transaction_guarded(
+            |tx| crate::push::claim_batch_in(tx, batch_id, now_ms),
+            before_commit,
+        )
     }
 
     pub(super) fn push_mark_batch_transmitting(
@@ -133,7 +178,22 @@ impl LocalDatabase {
         claim: &crate::push::PushBatchClaimV1,
         now_ms: u64,
     ) -> SnapbackResult<()> {
-        self.with_auth_transaction(|tx| crate::push::mark_batch_transmitting_in(tx, claim, now_ms))
+        self.push_mark_batch_transmitting_guarded(claim, now_ms, || Ok(()))
+    }
+
+    pub(super) fn push_mark_batch_transmitting_guarded<G, BeforeCommit>(
+        &mut self,
+        claim: &crate::push::PushBatchClaimV1,
+        now_ms: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<()>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.with_auth_transaction_guarded(
+            |tx| crate::push::mark_batch_transmitting_in(tx, claim, now_ms),
+            before_commit,
+        )
     }
 
     pub(super) fn push_settle_batch(
@@ -1074,6 +1134,34 @@ impl<'a> PushRegistryKernel<'a> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
+    #[doc(hidden)]
+    pub fn reserve_send_admitted_storage_guarded<G, BeforeCommit>(
+        &mut self,
+        declaration: &crate::push::PushSeamDeclarationV1,
+        schema: &crate::manifest::SchemaManifest,
+        authority: crate::push::PushStorageAuthority,
+        trigger_mode: crate::push::PushTriggerModeV1,
+        deferred_grant: Option<&crate::push::PushDeferredGrantV1>,
+        request: &crate::push::PushSendRequestV1,
+        now_ms: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<crate::push::ReservedPushAttemptV1>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.push_reserve_send_guarded(
+            declaration,
+            schema,
+            authority,
+            trigger_mode,
+            deferred_grant,
+            request,
+            now_ms,
+            before_commit,
+        )
+    }
+
     pub fn claim_batch(
         &mut self,
         batch_id: &str,
@@ -1082,12 +1170,38 @@ impl<'a> PushRegistryKernel<'a> {
         self.db.push_claim_batch(batch_id, now_ms)
     }
 
+    pub fn claim_batch_guarded<G, BeforeCommit>(
+        &mut self,
+        batch_id: &str,
+        now_ms: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<Option<crate::push::PushBatchClaimV1>>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db
+            .push_claim_batch_guarded(batch_id, now_ms, before_commit)
+    }
+
     pub fn mark_batch_transmitting(
         &mut self,
         claim: &crate::push::PushBatchClaimV1,
         now_ms: u64,
     ) -> SnapbackResult<()> {
         self.db.push_mark_batch_transmitting(claim, now_ms)
+    }
+
+    pub fn mark_batch_transmitting_guarded<G, BeforeCommit>(
+        &mut self,
+        claim: &crate::push::PushBatchClaimV1,
+        now_ms: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<()>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db
+            .push_mark_batch_transmitting_guarded(claim, now_ms, before_commit)
     }
 
     pub fn settle_batch(
@@ -1163,6 +1277,27 @@ impl<'a> PushRegistryKernel<'a> {
 #[cfg(any(test, feature = "test-support"))]
 #[allow(private_interfaces)]
 impl PushRegistryKernel<'_> {
+    pub fn install_immediate_sender_for_test(
+        &mut self,
+        schema: crate::manifest::SchemaManifest,
+        principal_id: &str,
+    ) -> SnapbackResult<()> {
+        self.db.with_auth_transaction(|tx| {
+            tx.execute_batch(
+                "CREATE TABLE app_members(
+                   principal TEXT NOT NULL, role TEXT NOT NULL
+                 );",
+            )?;
+            tx.execute(
+                "INSERT INTO app_members(principal, role) VALUES(?1, 'sender')",
+                params![principal_id],
+            )?;
+            Ok(())
+        })?;
+        self.db.replace_active_schema(schema);
+        Ok(())
+    }
+
     pub fn insert_session_for_test(
         &mut self,
         principal_id: &str,

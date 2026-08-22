@@ -1,16 +1,13 @@
 use super::{
     ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
-    ACTION_WORKER_LIMIT_MAX, ADMITTED_BODY_INGEST_DEADLINE_MS,
-    AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK, AdmissionLease,
-    BEFORE_AGENT_INVITATION_EFFECT_GUARD_HOOK, CRON_DISPATCH_CONCURRENCY_DEFAULT,
-    CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant, ConnectionOpenAttempt, DetachedActionHost,
-    DetachedActionWorkerCounters, HostOperationParentV1, OpenConnectionRequest, PolicyAuthMode,
-    PreparedAuthority, RealtimeEnvelope, SharedSnapback, SnapbackApp,
-    TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
+    ACTION_WORKER_LIMIT_MAX, ADMITTED_BODY_INGEST_DEADLINE_MS, AdmissionLease,
+    CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant,
+    ConnectionOpenAttempt, DetachedActionHost, DetachedActionWorkerCounters, HostOperationParentV1,
+    OpenConnectionRequest, PolicyAuthMode, PreparedAuthority, RealtimeEnvelope, SharedSnapback,
+    SnapbackApp, TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
     already_terminal_session_error, app, configured_action_worker_limit,
     configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
     finish_registered_response, install_committed_reset_handoff_test_hook,
-    install_targeted_agent_invitation_commit_hook, install_targeted_agent_invitation_hook,
     install_test_finite_authority_pause, linearize_detached_action_abandonment,
     parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
     reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
@@ -492,7 +489,7 @@ use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::io::Write as _;
+use std::io::{Read as _, Seek as _, SeekFrom, Write as _};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex as StdMutex, OnceLock};
@@ -3944,6 +3941,65 @@ async fn capability_link_server_fixture() -> AppState {
     })
     .await
     .expect("construct capability-link fixture off async workers")
+}
+
+async fn watch_authorized_effect_server_fixture() -> AppState {
+    let state = tokio::task::spawn_blocking(|| {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let mut functions = activation_functions('2', false);
+        for function in &mut functions.functions {
+            function.api_exposure = Some(ApiFunctionExposure::default());
+        }
+        for name in ["listItems", "liveItems"] {
+            functions
+                .functions
+                .iter_mut()
+                .find(|function| function.name == name)
+                .expect("watch authorized-effect function")
+                .api_exposure = Some(ApiFunctionExposure {
+                expose: true,
+                since: None,
+                approval: None,
+            });
+        }
+        sessions_activation_server_fixture_with_api(
+            functions,
+            None,
+            Some(agent_policy(AgentsMode::Disabled, InvitedBy::Operators)),
+            Some(ApiManifest {
+                enabled: true,
+                functions: BTreeMap::from([
+                    (
+                        "listItems".to_owned(),
+                        ApiFunctionExposure {
+                            expose: true,
+                            since: None,
+                            approval: None,
+                        },
+                    ),
+                    (
+                        "liveItems".to_owned(),
+                        ApiFunctionExposure {
+                            expose: true,
+                            since: None,
+                            approval: None,
+                        },
+                    ),
+                ]),
+                ..ApiManifest::default()
+            }),
+        )
+    })
+    .await
+    .expect("construct watch authorized-effect fixture");
+    with_snapback(&state.snapback, |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .reconcile_auth_scope_bases(&activation_functions('2', false))
+            .expect("install watch exact-function authority bases");
+    })
+    .await;
+    state
 }
 
 async fn sessions_activation_server_fixture_with_ask_async(
@@ -8667,6 +8723,19 @@ async fn request_user_agent_invitation(
     router: &SnapbackApp,
     bearer: &str,
 ) -> axum::response::Response {
+    let request = prepared_user_agent_invitation_request(state, router, bearer).await;
+    router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("mint user agent invitation")
+}
+
+async fn prepared_user_agent_invitation_request(
+    state: &AppState,
+    router: &SnapbackApp,
+    bearer: &str,
+) -> Request<Body> {
     let challenge = router
         .clone()
         .oneshot(session_auth_http_request(
@@ -8693,18 +8762,14 @@ async fn request_user_agent_invitation(
     let code = mailbox["code"]
         .as_str()
         .expect("agent-invitation step-up code");
-    router
-        .clone()
-        .oneshot(session_auth_http_request(
-            "/auth/agent-invitations",
-            serde_json::to_vec(&json!({
-                "stepUp": { "challengeId": challenge_id, "code": code }
-            }))
-            .unwrap(),
-            bearer,
-        ))
-        .await
-        .expect("mint user agent invitation")
+    session_auth_http_request(
+        "/auth/agent-invitations",
+        serde_json::to_vec(&json!({
+            "stepUp": { "challengeId": challenge_id, "code": code }
+        }))
+        .unwrap(),
+        bearer,
+    )
 }
 
 async fn mint_user_agent_invitation(state: &AppState, router: &SnapbackApp, bearer: &str) -> Value {
@@ -8931,6 +8996,7 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
     let Json(wrong) = super::acknowledge_mutations(
         State(state.snapback.clone()),
         Extension(prepared("different-owner")),
+        HeaderMap::new(),
         Ok(Json(MutationAcknowledgementRequest {
             auth: retained_auth.clone(),
             authority_descriptor: None,
@@ -8944,6 +9010,7 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
     let Json(owner) = super::acknowledge_mutations(
         State(state.snapback.clone()),
         Extension(prepared("settlement-owner")),
+        HeaderMap::new(),
         Ok(Json(MutationAcknowledgementRequest {
             auth: AuthInput {
                 principal: None,
@@ -14538,7 +14605,7 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
                     serde_json::to_vec(&json!({
                         "args": { "value": "queued-agent-visible" },
                         "clientMutationId": "cm_agent_queued_1",
-                        "authorityDescriptor": authority_descriptor,
+                        "authorityDescriptor": authority_descriptor.clone(),
                     }))
                     .unwrap(),
                 ))
@@ -17627,122 +17694,6 @@ async fn user_minted_invitation_requires_step_up_and_is_single_use() {
     .await
     .unwrap();
     assert_eq!(invitation_row, (owner_id, Some(agent_id)));
-}
-
-#[tokio::test]
-async fn agent_invitation_mint_refuses_retired_epoch_and_holds_the_guard_through_commit() {
-    let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
-        AgentsMode::Invited,
-        InvitedBy::Users,
-    ))
-    .await;
-    let owner = mint_test_credential(&state, "admission-fence-inviter@example.com").await;
-    let user_id = owner["session"]["userId"]
-        .as_str()
-        .expect("agent-invitation fence user id")
-        .to_owned();
-    let bearer = owner["token"]
-        .as_str()
-        .expect("agent-invitation fence bearer")
-        .to_owned();
-    let router = app(state.clone());
-    let invitation_count = |state: &AppState, user_id: String| {
-        let snapback = state.snapback.clone();
-        async move {
-            with_snapback(&snapback, move |snapback| {
-                snapback
-                    .remainder_auth_database_mut()
-                    .auth_catalog()
-                    .invitation_count_for_test(&user_id)
-            })
-            .await
-            .expect("count agent invitations")
-        }
-    };
-    let before = invitation_count(&state, user_id.clone()).await;
-
-    let controller = state.auth_admission_controller();
-    let fired = Arc::new(AtomicBool::new(false));
-    let fired_in_hook = fired.clone();
-    let retirement_controller = controller.clone();
-    install_targeted_agent_invitation_hook(
-        &BEFORE_AGENT_INVITATION_EFFECT_GUARD_HOOK,
-        &user_id,
-        move || {
-            let error = retirement_controller
-                .retire_current_epoch_for_test()
-                .expect_err("an in-flight invitation authority must force timeout retirement");
-            assert_eq!(
-                error.diagnostic.code,
-                "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
-            );
-            fired_in_hook.store(true, Ordering::SeqCst);
-        },
-    );
-    let refused = request_user_agent_invitation(&state, &router, &bearer).await;
-    let refused_status = refused.status();
-    assert_eq!(refused_status, StatusCode::SERVICE_UNAVAILABLE);
-    assert!(
-        fired.load(Ordering::SeqCst),
-        "the invitation epoch must retire immediately before guard acquisition"
-    );
-    assert_eq!(
-        invitation_count(&state, user_id.clone()).await,
-        before,
-        "refused invitation mint must not add a durable row"
-    );
-
-    let admission_epoch = controller.snapshot().admission_epoch;
-    let commit_receipt = Arc::new(StdMutex::new(None));
-    let commit_receipt_in_hook = commit_receipt.clone();
-    let commit_controller = controller.clone();
-    install_targeted_agent_invitation_commit_hook(
-        &AFTER_AGENT_INVITATION_EFFECT_GUARD_HOOK,
-        &user_id,
-        move || {
-            assert!(
-                crate::auth::admission::current_thread_holds_admission_effect_guard_for_test(
-                    &commit_controller,
-                    admission_epoch,
-                ),
-                "AgentInvitationMint admission effect guard was not live after the \
-                 effect-guard statement; the guard was never acquired or was dropped \
-                 before the durable write"
-            );
-            let observation = snapback_kernel::storage::observe_next_durable_commits_for_test(
-                1,
-                commit_controller.effect_guard_identity_for_test(admission_epoch),
-            );
-            *commit_receipt_in_hook
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(observation.receipt());
-            observation
-        },
-    );
-    let guarded = request_user_agent_invitation(&state, &router, &bearer).await;
-    let guarded_status = guarded.status();
-    let guarded = response_json(guarded).await;
-    assert_eq!(guarded_status, StatusCode::OK, "{guarded}");
-    assert_eq!(
-        invitation_count(&state, user_id).await,
-        before + 1,
-        "the guarded invitation mint must be durable"
-    );
-    let commit_receipt = commit_receipt
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .take()
-        .expect("AgentInvitationMint installed its commit observation");
-    assert_eq!(
-        commit_receipt.matching_commits(),
-        1,
-        "AgentInvitationMint commit hook did not observe its exact live effect guard"
-    );
-    assert_eq!(
-        commit_receipt.mismatched_commits(),
-        0,
-        "AgentInvitationMint commit hook observed a different controller or epoch"
-    );
 }
 
 #[tokio::test]
@@ -31180,6 +31131,1226 @@ async fn grant_deadline_crossing_direct_bearer_expires_every_same_grant_socket()
         .lock()
         .assert_grant_indexes_consistent();
 }
+
+#[derive(Clone, Copy, Debug)]
+enum ModeOnlyMigrationAuthorizedEffectSite {
+    CapabilityLinkMint,
+    CapabilityLinkRevoke,
+    ClientMutationAcknowledgement,
+    WatchCreation,
+    AgentInvitationMint,
+    AskSpendReservation,
+}
+
+impl ModeOnlyMigrationAuthorizedEffectSite {
+    fn label(self) -> &'static str {
+        match self {
+            Self::CapabilityLinkMint => "capability-link-mint",
+            Self::CapabilityLinkRevoke => "capability-link-revoke",
+            Self::ClientMutationAcknowledgement => "client-mutation-acknowledgement",
+            Self::WatchCreation => "watch-creation",
+            Self::AgentInvitationMint => "agent-invitation-mint",
+            Self::AskSpendReservation => "ask-spend-reservation",
+        }
+    }
+}
+
+struct ModeOnlyMigrationAuthorizedEffectFixture {
+    state: AppState,
+    router: SnapbackApp,
+    bearer: String,
+    session_id: String,
+    principal_id: String,
+    request: Request<Body>,
+    acknowledgement: Option<(PreparedAuthority, MutationAcknowledgementRequest)>,
+    watch: Option<(PreparedAuthority, super::WatchCreateRequest)>,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum ModeOnlyMigrationDurableMarker {
+    DatabaseImage(Vec<u8>),
+    WatchCount(usize),
+}
+
+async fn mode_only_migration_durable_marker(
+    state: &AppState,
+    site: ModeOnlyMigrationAuthorizedEffectSite,
+    principal_id: &str,
+) -> ModeOnlyMigrationDurableMarker {
+    if matches!(site, ModeOnlyMigrationAuthorizedEffectSite::WatchCreation) {
+        let principal_id = principal_id.to_owned();
+        return ModeOnlyMigrationDurableMarker::WatchCount(
+            with_snapback(&state.snapback, move |snapback| {
+                snapback
+                    .remainder_auth_database_mut()
+                    .list_watches_for_owner(&principal_id)
+                    .expect("list authorized-effect watch rows")
+                    .len()
+            })
+            .await,
+        );
+    }
+    ModeOnlyMigrationDurableMarker::DatabaseImage(
+        with_snapback(&state.snapback, |snapback| {
+            let mut image =
+                tempfile::tempfile().expect("temporary authorized-effect database image");
+            snapback
+                .backup_database_image_into(&image)
+                .expect("capture authorized-effect database image");
+            image
+                .seek(SeekFrom::Start(0))
+                .expect("rewind database image");
+            let mut bytes = Vec::new();
+            image
+                .read_to_end(&mut bytes)
+                .expect("read authorized-effect database image");
+            bytes
+        })
+        .await,
+    )
+}
+
+fn prepared_test_session_route_authority(
+    state: &AppState,
+    source: InvocationSource,
+    bearer: &str,
+) -> PreparedAuthority {
+    let provider = state.auth_provider.as_ref().expect("auth provider");
+    let coordinator = state.auth_coordinator.as_ref().expect("auth coordinator");
+    let prepared = coordinator
+        .resolve_required_bearer(bearer, provider.now_ms(), provider.monotonic_now())
+        .expect("resolve authorized-effect session bearer");
+    let (resolved, publication) = prepared.into_parts();
+    let session_claims = test_session_claims_for(&resolved);
+    InvocationGate::prepare_admitted_authority(
+        source,
+        AuthMode::Sessions,
+        state.server.profile,
+        test_route_admission(state).0,
+        &WireAuthorityFields::default(),
+        resolved,
+        session_claims,
+    )
+    .expect("prepare authorized-effect session authority")
+    .with_fenced_publication(publication)
+}
+
+async fn prepared_test_service_route_authority(
+    state: &AppState,
+    source: InvocationSource,
+    bearer: &str,
+) -> PreparedAuthority {
+    let provider = state.auth_provider.clone().expect("auth provider");
+    let coordinator = state.auth_coordinator.as_ref().expect("auth coordinator");
+    let token = crate::auth::crypto::ScopedToken::parse(bearer)
+        .expect("parse authorized-effect scoped token");
+    let now_ms = provider.now_ms();
+    let monotonic_now = provider.monotonic_now();
+    let stream_publication = coordinator
+        .prepare_anonymous_publication()
+        .expect("prepare authorized-effect service stream publication");
+    let resolution = with_snapback(&state.snapback, {
+        let provider = provider.clone();
+        move |snapback| {
+            snapback.resolve_scoped_token_route_authority(&token, now_ms, monotonic_now, provider)
+        }
+    })
+    .await
+    .expect("resolve authorized-effect service authority");
+    let profile = state.server.profile;
+    let admission = test_route_admission(state).0;
+    with_snapback(&state.snapback, move |snapback| {
+        snapback.prepare_service_authority(
+            resolution,
+            source,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            &WireAuthorityFields::default(),
+            now_ms,
+            stream_publication,
+        )
+    })
+    .await
+    .expect("prepare authorized-effect service authority")
+}
+
+async fn mode_only_migration_target_response(
+    state: SharedSnapback,
+    router: SnapbackApp,
+    request: Request<Body>,
+    acknowledgement: Option<(PreparedAuthority, MutationAcknowledgementRequest)>,
+    watch: Option<(PreparedAuthority, super::WatchCreateRequest)>,
+) -> axum::response::Response {
+    let headers = request.headers().clone();
+    if let Some((authority, request)) = acknowledgement {
+        return match super::acknowledge_mutations(
+            State(state),
+            Extension(authority),
+            headers,
+            Ok(Json(request)),
+        )
+        .await
+        {
+            Ok(response) => response.into_response(),
+            Err(error) => error.into_response(),
+        };
+    }
+    if let Some((authority, request)) = watch {
+        return match super::watch_create(
+            State(state),
+            Extension(authority),
+            headers,
+            Ok(Json(request)),
+        )
+        .await
+        {
+            Ok(response) => response.into_response(),
+            Err(error) => error.into_response(),
+        };
+    }
+    router
+        .oneshot(request)
+        .await
+        .expect("authorized-effect route response")
+}
+
+async fn mode_only_migration_authorized_effect_fixture(
+    site: ModeOnlyMigrationAuthorizedEffectSite,
+) -> ModeOnlyMigrationAuthorizedEffectFixture {
+    let state = match site {
+        ModeOnlyMigrationAuthorizedEffectSite::CapabilityLinkMint
+        | ModeOnlyMigrationAuthorizedEffectSite::CapabilityLinkRevoke => {
+            capability_link_server_fixture().await
+        }
+        ModeOnlyMigrationAuthorizedEffectSite::ClientMutationAcknowledgement => {
+            sessions_activation_server_fixture_async().await
+        }
+        ModeOnlyMigrationAuthorizedEffectSite::WatchCreation => {
+            watch_authorized_effect_server_fixture().await
+        }
+        ModeOnlyMigrationAuthorizedEffectSite::AgentInvitationMint => {
+            sessions_activation_server_fixture_with_agents_async(agent_policy(
+                AgentsMode::Invited,
+                InvitedBy::Users,
+            ))
+            .await
+        }
+        ModeOnlyMigrationAuthorizedEffectSite::AskSpendReservation => {
+            sessions_activation_server_fixture_with_ask_async(
+                "http://127.0.0.1:9".to_owned(),
+                64 * 1024,
+            )
+            .await
+        }
+    };
+    let credential = mint_test_credential(
+        &state,
+        &format!("{}@authorized-effect.example.test", site.label()),
+    )
+    .await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("authorized-effect session bearer")
+        .to_owned();
+    let session_id = credential["session"]["id"]
+        .as_str()
+        .expect("authorized-effect session id")
+        .to_owned();
+    let principal_id = credential["session"]["userId"]
+        .as_str()
+        .expect("authorized-effect session principal id")
+        .to_owned();
+    let router = app(state.clone());
+    let mut acknowledgement = None;
+    let mut watch = None;
+    let request = match site {
+        ModeOnlyMigrationAuthorizedEffectSite::CapabilityLinkMint => session_auth_http_request(
+            "/capability-links",
+            serde_json::to_vec(&json!({
+                "function": "queuedWrite",
+                "pinnedArgs": { "value": "authorized-effect-mint" },
+                "uses": 1,
+            }))
+            .expect("serialize capability-link mint race request"),
+            &bearer,
+        ),
+        ModeOnlyMigrationAuthorizedEffectSite::CapabilityLinkRevoke => {
+            let minted = router
+                .clone()
+                .oneshot(session_auth_http_request(
+                    "/capability-links",
+                    serde_json::to_vec(&json!({
+                        "function": "queuedWrite",
+                        "pinnedArgs": { "value": "authorized-effect-revoke" },
+                        "uses": 1,
+                    }))
+                    .expect("serialize capability-link revoke fixture mint"),
+                    &bearer,
+                ))
+                .await
+                .expect("capability-link revoke fixture mint response");
+            let status = minted.status();
+            let minted = response_json(minted).await;
+            assert_eq!(status, StatusCode::OK, "revoke fixture mint: {minted}");
+            let id = minted["id"]
+                .as_str()
+                .expect("revoke fixture capability-link id");
+            let mut request =
+                session_auth_http_request(&format!("/capability-links/{id}"), Vec::new(), &bearer);
+            *request.method_mut() = axum::http::Method::DELETE;
+            request
+        }
+        ModeOnlyMigrationAuthorizedEffectSite::ClientMutationAcknowledgement => {
+            let handshake = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/auth/session")
+                        .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+                        .header("x-snapback-auth-client-protocol", "1")
+                        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                        .header("x-snapback-authority-descriptor-protocol", "1")
+                        .body(Body::empty())
+                        .expect("authorized-effect ACK handshake request"),
+                )
+                .await
+                .expect("authorized-effect ACK handshake response");
+            assert_eq!(handshake.status(), StatusCode::OK);
+            let authority_descriptor =
+                response_json(handshake).await["authorityDescriptor"].clone();
+            let mutation_id = format!("cm_authorized_effect_{}", Uuid::new_v4().simple());
+            let mut seed = session_auth_http_request(
+                "/mutation/queuedWrite",
+                serde_json::to_vec(&json!({
+                    "args": { "value": "authorized-effect-ack" },
+                    "clientMutationId": mutation_id,
+                    "authorityDescriptor": authority_descriptor,
+                }))
+                .expect("serialize authorized-effect ACK fixture mutation"),
+                &bearer,
+            );
+            seed.headers_mut().insert(
+                HeaderName::from_static("x-snapback-authority-descriptor-protocol"),
+                HeaderValue::from_static("1"),
+            );
+            let seeded = router
+                .clone()
+                .oneshot(seed)
+                .await
+                .expect("authorized-effect ACK fixture mutation response");
+            let status = seeded.status();
+            let seeded = response_json(seeded).await;
+            assert_eq!(status, StatusCode::OK, "ACK fixture mutation: {seeded}");
+            acknowledgement = Some((
+                prepared_test_session_route_authority(
+                    &state,
+                    InvocationSource::MutationSettlementAcknowledgement,
+                    &bearer,
+                ),
+                MutationAcknowledgementRequest {
+                    auth: AuthInput::default(),
+                    authority_descriptor: serde_json::from_value(authority_descriptor)
+                        .expect("decode ACK authority descriptor"),
+                    client_mutation_ids: vec![mutation_id],
+                },
+            ));
+            let mut request = Request::builder()
+                .method("POST")
+                .uri("/client-mutations/acknowledge")
+                .body(Body::empty())
+                .expect("build direct authorized-effect ACK request");
+            request.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            request.headers_mut().insert(
+                HeaderName::from_static("x-snapback-authority-descriptor-protocol"),
+                HeaderValue::from_static("1"),
+            );
+            request
+        }
+        ModeOnlyMigrationAuthorizedEffectSite::WatchCreation => {
+            let request = json!({
+                "ownerKind": "user",
+                "authorityMode": "revalidatePrincipal",
+                "query": { "function": "liveItems", "args": {} },
+                "predicate": { "path": "/rows", "op": "exists" },
+                "reaction": { "kind": "function", "function": "listItems", "args": {} },
+            });
+            watch = Some((
+                prepared_test_session_route_authority(
+                    &state,
+                    InvocationSource::WatchManagement,
+                    &bearer,
+                ),
+                serde_json::from_value(request)
+                    .expect("decode direct authorized-effect watch request"),
+            ));
+            Request::builder()
+                .method("POST")
+                .uri("/watches")
+                .body(Body::empty())
+                .expect("build direct authorized-effect watch request")
+        }
+        ModeOnlyMigrationAuthorizedEffectSite::AgentInvitationMint => {
+            prepared_user_agent_invitation_request(&state, &router, &bearer).await
+        }
+        ModeOnlyMigrationAuthorizedEffectSite::AskSpendReservation => {
+            let mut request = session_auth_http_request(
+                "/api/v1/ask",
+                serde_json::to_vec(&json!({
+                    "task": "authorized-effect reservation race",
+                    "stream": false,
+                }))
+                .expect("serialize Ask reservation race request"),
+                &bearer,
+            );
+            request.headers_mut().insert(
+                HeaderName::from_static(crate::ask::PROVIDER_KEY_HEADER),
+                HeaderValue::from_static("authorized-effect-provider-key"),
+            );
+            request
+        }
+    };
+    ModeOnlyMigrationAuthorizedEffectFixture {
+        state,
+        router,
+        bearer,
+        session_id,
+        principal_id,
+        request,
+        acknowledgement,
+        watch,
+    }
+}
+
+async fn mode_only_migration_logout_wins(site: ModeOnlyMigrationAuthorizedEffectSite) {
+    let ModeOnlyMigrationAuthorizedEffectFixture {
+        state,
+        router,
+        bearer,
+        session_id: _,
+        principal_id,
+        mut request,
+        acknowledgement,
+        watch,
+    } = mode_only_migration_authorized_effect_fixture(site).await;
+    let pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::BeforeAuthorizedEffectReservation,
+    );
+    request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(pause.id()).expect("pre-reservation pause header"),
+    );
+    let target_router = router.clone();
+    let target_state = state.snapback.clone();
+    let mut target = tokio::spawn(async move {
+        mode_only_migration_target_response(
+            target_state,
+            target_router,
+            request,
+            acknowledgement,
+            watch,
+        )
+        .await
+    });
+    tokio::select! {
+        reached = tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached()) => {
+            reached.unwrap_or_else(|_| panic!("{site:?} reaches its pre-reservation pause"));
+        }
+        joined = &mut target => {
+            let response = joined.expect("early authorized-effect target task");
+            let status = response.status();
+            let body = response_json(response).await;
+            panic!("{site:?} returned before its pre-reservation pause: {status} {body}");
+        }
+    }
+
+    let logout = tokio::time::timeout(
+        Duration::from_secs(5),
+        router.clone().oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &bearer,
+        )),
+    )
+    .await
+    .unwrap_or_else(|_| panic!("{site:?} racing logout does not hang"))
+    .expect("logout response");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    let marker_after_logout = mode_only_migration_durable_marker(&state, site, &principal_id).await;
+
+    pause.release().await;
+    let response = tokio::time::timeout(Duration::from_secs(5), target)
+        .await
+        .unwrap_or_else(|_| panic!("logged-out {site:?} request does not hang"))
+        .expect("logout-winning target task");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let response = response_json(response).await;
+    assert_eq!(
+        response["diagnostic"]["code"],
+        "SNAPBACK_AUTH_SESSION_EXPIRED"
+    );
+    assert_eq!(
+        response["diagnostic"]["details"]["authorityDisposition"],
+        "durableDelete"
+    );
+    assert!(
+        mode_only_migration_durable_marker(&state, site, &principal_id).await
+            == marker_after_logout,
+        "retired caller committed target data for {site:?}"
+    );
+}
+
+async fn mode_only_migration_reservation_wins(site: ModeOnlyMigrationAuthorizedEffectSite) {
+    let ModeOnlyMigrationAuthorizedEffectFixture {
+        state,
+        router,
+        bearer,
+        session_id,
+        principal_id,
+        mut request,
+        acknowledgement,
+        watch,
+    } = mode_only_migration_authorized_effect_fixture(site).await;
+    let marker_before = mode_only_migration_durable_marker(&state, site, &principal_id).await;
+    let logout_premark_probe =
+        prepared_provider_route_authority(&state, InvocationSource::AuthLogout, &bearer).0;
+    let effect_pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
+    );
+    request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(effect_pause.id()).expect("post-reservation pause header"),
+    );
+    let target_router = router.clone();
+    let target_state = state.snapback.clone();
+    let mut target = tokio::spawn(async move {
+        mode_only_migration_target_response(
+            target_state,
+            target_router,
+            request,
+            acknowledgement,
+            watch,
+        )
+        .await
+    });
+    tokio::select! {
+        reached = tokio::time::timeout(Duration::from_secs(5), effect_pause.wait_until_reached()) => {
+            reached.unwrap_or_else(|_| panic!("{site:?} reserves authority before Local"));
+        }
+        joined = &mut target => {
+            let response = joined.expect("early authorized-effect target task");
+            let status = response.status();
+            let body = response_json(response).await;
+            panic!("{site:?} returned before its authorized-effect reservation: {status} {body}");
+        }
+    }
+
+    let logout_pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::AfterSessionTerminalPremark,
+    );
+    let mut logout_request = session_auth_http_request("/auth/logout", br#"{}"#.to_vec(), &bearer);
+    logout_request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(logout_pause.id()).expect("logout premark pause header"),
+    );
+    let logout_router = router.clone();
+    let logout = tokio::spawn(async move {
+        logout_router
+            .oneshot(logout_request)
+            .await
+            .expect("permit-draining logout response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            match logout_premark_probe
+                .reserve_authorized_effect("mode-only migration logout premark probe")
+            {
+                Ok(probe) => {
+                    drop(probe);
+                    tokio::task::yield_now().await;
+                }
+                Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_SESSION_EXPIRED" => break,
+                Err(error) => panic!(
+                    "logout premark probe returned {} for {site:?}",
+                    error.diagnostic.code
+                ),
+            }
+        }
+    })
+    .await
+    .unwrap_or_else(|_| panic!("logout closes later {site:?} reservations"));
+    assert!(
+        !logout_pause.has_reached(),
+        "logout crossed the {site:?} permit"
+    );
+    assert!(
+        !logout.is_finished(),
+        "logout finished while {site:?} was reserved"
+    );
+
+    effect_pause.release().await;
+    let response = tokio::time::timeout(Duration::from_secs(5), target)
+        .await
+        .unwrap_or_else(|_| panic!("reservation-winning {site:?} request does not hang"))
+        .expect("reservation-winning target task");
+    if matches!(
+        site,
+        ModeOnlyMigrationAuthorizedEffectSite::ClientMutationAcknowledgement
+    ) {
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response_json(response).await["acknowledged"], 1);
+    } else if matches!(site, ModeOnlyMigrationAuthorizedEffectSite::WatchCreation) {
+        let status = response.status();
+        let response = response_json(response).await;
+        assert_eq!(
+            status,
+            StatusCode::CREATED,
+            "watch creation response: {response}"
+        );
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let response = response_json(response).await;
+        assert_eq!(
+            response["diagnostic"]["code"],
+            "SNAPBACK_AUTH_SESSION_EXPIRED"
+        );
+        assert_eq!(
+            response["diagnostic"]["details"]["authorityDisposition"],
+            "carrier"
+        );
+    }
+
+    tokio::time::timeout(Duration::from_secs(5), logout_pause.wait_until_reached())
+        .await
+        .unwrap_or_else(|_| panic!("logout drains after {site:?} commits"));
+    assert!(
+        mode_only_migration_durable_marker(&state, site, &principal_id).await != marker_before,
+        "reserved {site:?} did not commit before logout"
+    );
+    let precommit_session_facts = with_snapback(&state.snapback, {
+        let session_id = session_id.clone();
+        move |snapback| {
+            snapback
+                .remainder_auth_database_mut()
+                .auth_catalog()
+                .session_lifetime_facts_for_test(&session_id)
+        }
+    })
+    .await
+    .expect("read pre-logout-commit session facts");
+    assert_eq!(precommit_session_facts.2, 1);
+    assert!(!precommit_session_facts.3);
+
+    logout_pause.release().await;
+    let logout = tokio::time::timeout(Duration::from_secs(5), logout)
+        .await
+        .expect("drained logout does not hang")
+        .expect("drained logout task");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    let terminal_session_facts = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .auth_catalog()
+            .session_lifetime_facts_for_test(&session_id)
+    })
+    .await
+    .expect("read terminal session facts");
+    assert_eq!(terminal_session_facts.2, 2);
+    assert!(terminal_session_facts.3);
+}
+
+macro_rules! mode_only_migration_authorized_effect_race_tests {
+    ($logout_test:ident, $reservation_test:ident, $site:expr) => {
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn $logout_test() {
+            mode_only_migration_logout_wins($site).await;
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn $reservation_test() {
+            mode_only_migration_reservation_wins($site).await;
+        }
+    };
+}
+
+mode_only_migration_authorized_effect_race_tests!(
+    capability_link_mint_logout_wins_before_authorized_effect_reservation,
+    capability_link_mint_authorized_effect_reservation_wins_before_logout,
+    ModeOnlyMigrationAuthorizedEffectSite::CapabilityLinkMint
+);
+mode_only_migration_authorized_effect_race_tests!(
+    capability_link_revoke_logout_wins_before_authorized_effect_reservation,
+    capability_link_revoke_authorized_effect_reservation_wins_before_logout,
+    ModeOnlyMigrationAuthorizedEffectSite::CapabilityLinkRevoke
+);
+mode_only_migration_authorized_effect_race_tests!(
+    client_mutation_acknowledgement_logout_wins_before_authorized_effect_reservation,
+    client_mutation_acknowledgement_authorized_effect_reservation_wins_before_logout,
+    ModeOnlyMigrationAuthorizedEffectSite::ClientMutationAcknowledgement
+);
+mode_only_migration_authorized_effect_race_tests!(
+    watch_creation_logout_wins_before_authorized_effect_reservation,
+    watch_creation_authorized_effect_reservation_wins_before_logout,
+    ModeOnlyMigrationAuthorizedEffectSite::WatchCreation
+);
+mode_only_migration_authorized_effect_race_tests!(
+    agent_invitation_mint_logout_wins_before_authorized_effect_reservation,
+    agent_invitation_mint_authorized_effect_reservation_wins_before_logout,
+    ModeOnlyMigrationAuthorizedEffectSite::AgentInvitationMint
+);
+mode_only_migration_authorized_effect_race_tests!(
+    ask_spend_reservation_logout_wins_before_authorized_effect_reservation,
+    ask_spend_reservation_authorized_effect_reservation_wins_before_logout,
+    ModeOnlyMigrationAuthorizedEffectSite::AskSpendReservation
+);
+
+#[tokio::test]
+async fn client_mutation_acknowledgement_service_branch_stays_mode_only() {
+    let fixture = finite_authority_matrix_fixture().await;
+    let handshake = fixture
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/auth/session")
+                .header(header::AUTHORIZATION, format!("Bearer {}", fixture.token))
+                .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                .header("x-snapback-authority-descriptor-protocol", "1")
+                .body(Body::empty())
+                .expect("service ACK handshake request"),
+        )
+        .await
+        .expect("service ACK handshake response");
+    assert_eq!(handshake.status(), StatusCode::OK);
+    let authority_descriptor = response_json(handshake).await["authorityDescriptor"].clone();
+    let mutation_id = format!("cm_service_ack_{}", Uuid::new_v4().simple());
+    let seeded = fixture
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/mutation/queuedWrite")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {}", fixture.token))
+                .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                .header("x-snapback-authority-descriptor-protocol", "1")
+                .body(Body::from(
+                    serde_json::to_vec(&json!({
+                        "args": { "value": "service-ack-mode-only" },
+                        "clientMutationId": mutation_id,
+                        "authorityDescriptor": authority_descriptor,
+                    }))
+                    .expect("serialize service ACK seed mutation"),
+                ))
+                .expect("service ACK seed mutation request"),
+        )
+        .await
+        .expect("service ACK seed mutation response");
+    let status = seeded.status();
+    let seeded = response_json(seeded).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "service ACK seed mutation: {seeded}"
+    );
+
+    let authority = prepared_test_service_route_authority(
+        &fixture.state,
+        InvocationSource::MutationSettlementAcknowledgement,
+        &fixture.token,
+    )
+    .await;
+    assert!(matches!(
+        authority.resolved(),
+        ResolvedAppAuthority::ServicePrincipal { .. }
+    ));
+    let pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::BeforeAuthorizedEffectReservation,
+    );
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(pause.id()).expect("service ACK reservation pause header"),
+    );
+    let Json(response) = super::acknowledge_mutations(
+        State(fixture.state.snapback.clone()),
+        Extension(authority),
+        headers,
+        Ok(Json(MutationAcknowledgementRequest {
+            auth: AuthInput::default(),
+            authority_descriptor: serde_json::from_value(authority_descriptor)
+                .expect("decode service ACK authority descriptor"),
+            client_mutation_ids: vec![mutation_id],
+        })),
+    )
+    .await
+    .expect("service ACK mode-only branch succeeds");
+    assert_eq!(response.acknowledged, 1);
+    assert!(
+        !pause.has_reached(),
+        "service acknowledgement unexpectedly entered the session reservation branch"
+    );
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ImmediatePushAuthorizedEffectSite {
+    Reservation,
+    BatchClaim,
+    TransmittingMarker,
+}
+
+struct ImmediatePushAuthorizedEffectFixture {
+    state: AppState,
+    router: SnapbackApp,
+    bearer: String,
+    session_id: String,
+    authority: PreparedAuthority,
+    request: crate::push::PushSendRequestV1,
+    batch_id: Option<String>,
+    claim: Option<crate::push::PushBatchClaimV1>,
+}
+
+fn immediate_push_declaration() -> crate::push::PushSeamDeclarationV1 {
+    crate::push::PushSeamDeclarationV1 {
+        app_scope: crate::push::PushAppScopeV1 {
+            eas_project_id: "authorized-effect-race".to_owned(),
+            application_id: "com.example.authorized-effect-race".to_owned(),
+            environment: "test".to_owned(),
+        },
+        registry: crate::push::PushRegistryDeclarationV1 {
+            idle_retention_ms: 86_400_000,
+        },
+        audiences: BTreeMap::from([(
+            "selectedMembers".to_owned(),
+            crate::push::PushAudienceDeclarationV1 {
+                resolve: crate::push::PushAudienceResolverV1::ExplicitPrincipals {
+                    principals_arg: "principalIds".to_owned(),
+                    max_items: 1,
+                },
+                authorize: crate::push::PushAudienceAuthorizeV1::Membership {
+                    declaration: "app_members".to_owned(),
+                    resource_arg: None,
+                    roles: vec!["sender".to_owned()],
+                },
+            },
+        )]),
+        uses: Vec::new(),
+        ledger: Some(crate::push::PushLedgerDeclarationV1 {
+            retention_ms: 86_400_000,
+        }),
+    }
+}
+
+async fn immediate_push_authorized_effect_fixture(
+    site: ImmediatePushAuthorizedEffectSite,
+) -> ImmediatePushAuthorizedEffectFixture {
+    let state = sessions_activation_server_fixture_async().await;
+    let credential = mint_test_credential(&state, "immediate-push-fence@example.test").await;
+    let bearer = credential["token"].as_str().unwrap().to_owned();
+    let session_id = credential["session"]["id"].as_str().unwrap().to_owned();
+    let principal_id = credential["session"]["userId"].as_str().unwrap().to_owned();
+    let installation_id = crate::ids::mint(crate::ids::Kind::Installation)
+        .expect("immediate push fixture installation id");
+    let declaration = immediate_push_declaration();
+    with_snapback(&state.snapback, {
+        let declaration = declaration.clone();
+        let principal_id = principal_id.clone();
+        let session_id = session_id.clone();
+        let installation_id = installation_id.clone();
+        move |snapback| {
+            let database = snapback.remainder_auth_database_mut();
+            database.activate_push_registry_for_test(declaration.clone())?;
+            let mut schema = database.schema().clone();
+            schema.push_seam = Some(declaration.clone());
+            schema.tables.push(TableManifest {
+                name: "app_members".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "principal".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "role".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: Some(crate::manifest::MembershipManifest {
+                    id: Some("app_members".to_owned()),
+                    principal: "principal".to_owned(),
+                    resource: None,
+                    role: "role".to_owned(),
+                    roles: vec!["sender".to_owned()],
+                    pending_roles: None,
+                    bootstrap_role: None,
+                    last_holder: None,
+                    expiry: None,
+                    incidental: None,
+                    provenance: None,
+                    transitions: Vec::new(),
+                    principal_addressed_writes: None,
+                    scope: crate::manifest::MembershipScope::App,
+                    resource_table: None,
+                }),
+                authority_profile: None,
+                asset_sharing: None,
+                visibility: None,
+                history: None,
+            });
+            let mut registry = database.push_registry();
+            registry.install_immediate_sender_for_test(schema, &principal_id)?;
+            registry.register(
+                &declaration,
+                &principal_id,
+                &session_id,
+                1,
+                &installation_id,
+                "ExponentPushToken[authorized-effect-race]",
+                super::now_millis(),
+            )?;
+            Ok::<_, SnapbackError>(())
+        }
+    })
+    .await
+    .expect("install immediate push authorized-effect fixture");
+    let authority =
+        prepared_test_session_route_authority(&state, InvocationSource::HttpAction, &bearer);
+    let request = crate::push::PushSendRequestV1 {
+        to: crate::push::PushAudienceReferenceV1 {
+            audience: "selectedMembers".to_owned(),
+            args: Map::from_iter([("principalIds".to_owned(), json!([principal_id]))]),
+        },
+        title: "authorized effect race".to_owned(),
+        body: "the caller-backed cut is fenced".to_owned(),
+        data: None,
+        dedupe_key: format!("push-race-{}", Uuid::new_v4().simple()),
+        redrive_ambiguous: false,
+    };
+    let mut batch_id = None;
+    let mut claim = None;
+    if matches!(
+        site,
+        ImmediatePushAuthorizedEffectSite::BatchClaim
+            | ImmediatePushAuthorizedEffectSite::TransmittingMarker
+    ) {
+        let reservation = authority
+            .reserve_authorized_effect("seed immediate push reservation")
+            .expect("reserve seed immediate push authority");
+        let (attempt, _) = with_snapback(&state.snapback, {
+            let authority = authority.clone();
+            let request = request.clone();
+            move |snapback| {
+                snapback.reserve_push_send_with_authorized_effect(
+                    &authority,
+                    crate::push::PushTriggerModeV1::Immediate,
+                    None,
+                    &request,
+                    super::now_millis(),
+                    reservation,
+                )
+            }
+        })
+        .await
+        .expect("seed immediate push attempt");
+        batch_id = Some(attempt.batches[0].batch_id.clone());
+    }
+    if matches!(site, ImmediatePushAuthorizedEffectSite::TransmittingMarker) {
+        let reservation = authority
+            .reserve_authorized_effect("seed immediate push batch claim")
+            .expect("reserve seed immediate claim authority");
+        let seeded = with_snapback(&state.snapback, {
+            let authority = authority.clone();
+            let batch_id = batch_id.clone().unwrap();
+            move |snapback| {
+                snapback.claim_push_batch_with_authorized_effect(
+                    &authority,
+                    &batch_id,
+                    super::now_millis(),
+                    reservation,
+                )
+            }
+        })
+        .await
+        .expect("seed immediate push batch claim")
+        .expect("seed push batch exists");
+        claim = Some(seeded);
+    }
+    ImmediatePushAuthorizedEffectFixture {
+        router: app(state.clone()),
+        state,
+        bearer,
+        session_id,
+        authority,
+        request,
+        batch_id,
+        claim,
+    }
+}
+
+async fn commit_immediate_push_authorized_effect(
+    fixture: &ImmediatePushAuthorizedEffectFixture,
+    site: ImmediatePushAuthorizedEffectSite,
+    reservation: crate::auth::invocation::AuthorizedEffectReservation,
+) -> crate::diagnostic::SnapbackResult<()> {
+    with_snapback(&fixture.state.snapback, {
+        let authority = fixture.authority.clone();
+        let request = fixture.request.clone();
+        let batch_id = fixture.batch_id.clone();
+        let claim = fixture
+            .claim
+            .as_ref()
+            .map(|claim| crate::push::PushBatchClaimV1 {
+                batch_id: claim.batch_id.clone(),
+                claim_id: claim.claim_id.clone(),
+                fence: claim.fence,
+                messages: claim
+                    .messages
+                    .iter()
+                    .map(|message| snapback_kernel::push::ReservedPushMessageV1 {
+                        message_id: message.message_id.clone(),
+                        token_id: message.token_id.clone(),
+                        token: message.token.clone(),
+                    })
+                    .collect(),
+            });
+        move |snapback| match site {
+            ImmediatePushAuthorizedEffectSite::Reservation => snapback
+                .reserve_push_send_with_authorized_effect(
+                    &authority,
+                    crate::push::PushTriggerModeV1::Immediate,
+                    None,
+                    &request,
+                    super::now_millis(),
+                    reservation,
+                )
+                .map(|_| ()),
+            ImmediatePushAuthorizedEffectSite::BatchClaim => snapback
+                .claim_push_batch_with_authorized_effect(
+                    &authority,
+                    batch_id.as_deref().expect("claim fixture batch id"),
+                    super::now_millis(),
+                    reservation,
+                )
+                .and_then(|claim| {
+                    claim.map(|_| ()).ok_or_else(|| {
+                        SnapbackError::error(
+                            "TEST_PUSH_BATCH_MISSING",
+                            "push",
+                            "authorized-effect claim fixture batch is missing",
+                        )
+                    })
+                }),
+            ImmediatePushAuthorizedEffectSite::TransmittingMarker => snapback
+                .mark_push_batch_transmitting_with_authorized_effect(
+                    &authority,
+                    claim.as_ref().expect("transmitting fixture claim"),
+                    super::now_millis(),
+                    reservation,
+                ),
+        }
+    })
+    .await
+}
+
+async fn run_immediate_push_authorized_effect(
+    fixture: &ImmediatePushAuthorizedEffectFixture,
+    site: ImmediatePushAuthorizedEffectSite,
+) -> crate::diagnostic::SnapbackResult<()> {
+    let reservation = fixture.authority.reserve_authorized_effect(match site {
+        ImmediatePushAuthorizedEffectSite::Reservation => "push durable reservation",
+        ImmediatePushAuthorizedEffectSite::BatchClaim => "push batch claim",
+        ImmediatePushAuthorizedEffectSite::TransmittingMarker => "push batch transmitting marker",
+    })?;
+    commit_immediate_push_authorized_effect(fixture, site, reservation).await
+}
+
+async fn immediate_push_logout_wins(site: ImmediatePushAuthorizedEffectSite) {
+    let fixture = immediate_push_authorized_effect_fixture(site).await;
+    let logout = fixture
+        .router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &fixture.bearer,
+        ))
+        .await
+        .expect("immediate push racing logout response");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    let after_logout = mode_only_migration_durable_marker(
+        &fixture.state,
+        ModeOnlyMigrationAuthorizedEffectSite::CapabilityLinkMint,
+        "",
+    )
+    .await;
+    let error = run_immediate_push_authorized_effect(&fixture, site)
+        .await
+        .expect_err("logout must close a later immediate push durable cut");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_SESSION_EXPIRED");
+    assert_eq!(
+        error.diagnostic.details["authorityDisposition"],
+        "durableDelete"
+    );
+    assert!(
+        mode_only_migration_durable_marker(
+            &fixture.state,
+            ModeOnlyMigrationAuthorizedEffectSite::CapabilityLinkMint,
+            "",
+        )
+        .await
+            == after_logout,
+        "retired immediate push caller changed durable site state for {site:?}"
+    );
+}
+
+async fn immediate_push_reservation_wins(site: ImmediatePushAuthorizedEffectSite) {
+    let fixture = immediate_push_authorized_effect_fixture(site).await;
+    let before = mode_only_migration_durable_marker(
+        &fixture.state,
+        ModeOnlyMigrationAuthorizedEffectSite::CapabilityLinkMint,
+        "",
+    )
+    .await;
+    let reservation = fixture
+        .authority
+        .reserve_authorized_effect("immediate push race")
+        .expect("reserve immediate push caller authority");
+    let logout_premark_probe = prepared_provider_route_authority(
+        &fixture.state,
+        InvocationSource::AuthLogout,
+        &fixture.bearer,
+    )
+    .0;
+    let logout_pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::AfterSessionTerminalPremark,
+    );
+    let mut logout_request =
+        session_auth_http_request("/auth/logout", br#"{}"#.to_vec(), &fixture.bearer);
+    logout_request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(logout_pause.id()).expect("push logout premark pause header"),
+    );
+    let logout_router = fixture.router.clone();
+    let logout = tokio::spawn(async move {
+        logout_router
+            .oneshot(logout_request)
+            .await
+            .expect("immediate push permit-draining logout response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            match logout_premark_probe.reserve_authorized_effect("immediate push logout probe") {
+                Ok(probe) => {
+                    drop(probe);
+                    tokio::task::yield_now().await;
+                }
+                Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_SESSION_EXPIRED" => break,
+                Err(error) => panic!("unexpected push logout probe: {}", error.diagnostic.code),
+            }
+        }
+    })
+    .await
+    .expect("logout closes later immediate push reservations");
+    assert!(!logout_pause.has_reached());
+    assert!(!logout.is_finished());
+
+    commit_immediate_push_authorized_effect(&fixture, site, reservation)
+        .await
+        .expect("reserved immediate push durable cut commits");
+    tokio::time::timeout(Duration::from_secs(5), logout_pause.wait_until_reached())
+        .await
+        .expect("logout drains after immediate push commit");
+    assert!(
+        mode_only_migration_durable_marker(
+            &fixture.state,
+            ModeOnlyMigrationAuthorizedEffectSite::CapabilityLinkMint,
+            "",
+        )
+        .await
+            != before,
+        "reserved immediate push site did not commit for {site:?}"
+    );
+    let preterminal = with_snapback(&fixture.state.snapback, {
+        let session_id = fixture.session_id.clone();
+        move |snapback| {
+            snapback
+                .remainder_auth_database_mut()
+                .auth_catalog()
+                .session_lifetime_facts_for_test(&session_id)
+        }
+    })
+    .await
+    .expect("read immediate push preterminal session");
+    assert_eq!(preterminal.2, 1);
+    assert!(!preterminal.3);
+
+    logout_pause.release().await;
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(5), logout)
+            .await
+            .expect("immediate push logout completes")
+            .expect("immediate push logout task")
+            .status(),
+        StatusCode::NO_CONTENT
+    );
+    let terminal = with_snapback(&fixture.state.snapback, {
+        let session_id = fixture.session_id.clone();
+        move |snapback| {
+            snapback
+                .remainder_auth_database_mut()
+                .auth_catalog()
+                .session_lifetime_facts_for_test(&session_id)
+        }
+    })
+    .await
+    .expect("read immediate push terminal session");
+    assert_eq!(terminal.2, 2);
+    assert!(terminal.3);
+}
+
+macro_rules! immediate_push_authorized_effect_race_tests {
+    ($logout_test:ident, $reservation_test:ident, $site:expr) => {
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn $logout_test() {
+            immediate_push_logout_wins($site).await;
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn $reservation_test() {
+            immediate_push_reservation_wins($site).await;
+        }
+    };
+}
+
+immediate_push_authorized_effect_race_tests!(
+    immediate_push_reservation_logout_wins_before_authorized_effect_reservation,
+    immediate_push_authorized_effect_reservation_wins_before_logout,
+    ImmediatePushAuthorizedEffectSite::Reservation
+);
+immediate_push_authorized_effect_race_tests!(
+    immediate_push_batch_claim_logout_wins_before_authorized_effect_reservation,
+    immediate_push_batch_claim_authorized_effect_reservation_wins_before_logout,
+    ImmediatePushAuthorizedEffectSite::BatchClaim
+);
+immediate_push_authorized_effect_race_tests!(
+    immediate_push_transmitting_marker_logout_wins_before_authorized_effect_reservation,
+    immediate_push_transmitting_marker_authorized_effect_reservation_wins_before_logout,
+    ImmediatePushAuthorizedEffectSite::TransmittingMarker
+);
 
 const ASSET_AUTHORIZED_EFFECT_TEST_SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {

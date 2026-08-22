@@ -218,6 +218,19 @@ impl LocalDatabase {
         subject: AskSpendSubject,
         budgets: &ApiAskBudgets,
     ) -> SnapbackResult<(AskSpendReservation, AskSpendFacts)> {
+        self.reserve_ask_spend_guarded(now_ms, subject, budgets, || Ok(()))
+    }
+
+    pub fn reserve_ask_spend_guarded<G, BeforeCommit>(
+        &mut self,
+        now_ms: u64,
+        subject: AskSpendSubject,
+        budgets: &ApiAskBudgets,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<(AskSpendReservation, AskSpendFacts)>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         if !table_exists(&self.conn)? {
             return Err(SnapbackError::error(
                 "SNAPBACK_API_ASK_DISABLED",
@@ -230,103 +243,106 @@ impl LocalDatabase {
             })));
         }
         let (day, month) = utc_period_keys(now_ms);
-        self.with_auth_transaction(|tx| {
-            ensure_row(tx, &day, "principal-day", &subject.principal_key)?;
-            ensure_row(tx, &month, "app-month", "app")?;
-            let integration_reserved =
-                budgets.per_integration_day.is_some() && subject.integration_key.is_some();
-            if integration_reserved {
-                ensure_row(
-                    tx,
-                    &day,
-                    "integration-day",
-                    subject
-                        .integration_key
-                        .as_deref()
-                        .expect("checked integration key"),
-                )?;
-            }
-            let before = spend_facts_on(tx, &day, &month, &subject, integration_reserved)?;
-            let request_tokens = budgets.per_request.max_tokens;
-            let request_bytes = budgets.result_volume.max_bytes;
-            if checked_total(before.principal_day_tokens, request_tokens)?
-                > budgets.per_principal_day.max_tokens
-            {
-                return Err(budget_refusal(
-                    "perPrincipalDay.maxTokens",
-                    &before,
-                    budgets.per_principal_day.max_tokens,
-                ));
-            }
-            if checked_total(before.principal_day_result_bytes, request_bytes)?
-                > budgets.result_volume.per_principal_day_bytes
-            {
-                return Err(budget_refusal(
-                    "resultVolume.perPrincipalDayBytes",
-                    &before,
-                    budgets.result_volume.per_principal_day_bytes,
-                ));
-            }
-            if checked_total(before.app_month_tokens, request_tokens)?
-                > budgets.app_monthly.max_tokens
-            {
-                return Err(budget_refusal(
-                    "appMonthly.maxTokens",
-                    &before,
-                    budgets.app_monthly.max_tokens,
-                ));
-            }
-            if let (Some(limit), Some(spent)) = (
-                budgets
-                    .per_integration_day
-                    .as_ref()
-                    .map(|budget| budget.max_tokens),
-                before.integration_day_tokens,
-            ) && checked_total(spent, request_tokens)? > limit
-            {
-                return Err(budget_refusal(
-                    "perIntegrationDay.maxTokens",
-                    &before,
-                    limit,
-                ));
-            }
-            tx.execute(
-                "UPDATE _snapback_ask_spend
+        self.with_auth_transaction_guarded(
+            |tx| {
+                ensure_row(tx, &day, "principal-day", &subject.principal_key)?;
+                ensure_row(tx, &month, "app-month", "app")?;
+                let integration_reserved =
+                    budgets.per_integration_day.is_some() && subject.integration_key.is_some();
+                if integration_reserved {
+                    ensure_row(
+                        tx,
+                        &day,
+                        "integration-day",
+                        subject
+                            .integration_key
+                            .as_deref()
+                            .expect("checked integration key"),
+                    )?;
+                }
+                let before = spend_facts_on(tx, &day, &month, &subject, integration_reserved)?;
+                let request_tokens = budgets.per_request.max_tokens;
+                let request_bytes = budgets.result_volume.max_bytes;
+                if checked_total(before.principal_day_tokens, request_tokens)?
+                    > budgets.per_principal_day.max_tokens
+                {
+                    return Err(budget_refusal(
+                        "perPrincipalDay.maxTokens",
+                        &before,
+                        budgets.per_principal_day.max_tokens,
+                    ));
+                }
+                if checked_total(before.principal_day_result_bytes, request_bytes)?
+                    > budgets.result_volume.per_principal_day_bytes
+                {
+                    return Err(budget_refusal(
+                        "resultVolume.perPrincipalDayBytes",
+                        &before,
+                        budgets.result_volume.per_principal_day_bytes,
+                    ));
+                }
+                if checked_total(before.app_month_tokens, request_tokens)?
+                    > budgets.app_monthly.max_tokens
+                {
+                    return Err(budget_refusal(
+                        "appMonthly.maxTokens",
+                        &before,
+                        budgets.app_monthly.max_tokens,
+                    ));
+                }
+                if let (Some(limit), Some(spent)) = (
+                    budgets
+                        .per_integration_day
+                        .as_ref()
+                        .map(|budget| budget.max_tokens),
+                    before.integration_day_tokens,
+                ) && checked_total(spent, request_tokens)? > limit
+                {
+                    return Err(budget_refusal(
+                        "perIntegrationDay.maxTokens",
+                        &before,
+                        limit,
+                    ));
+                }
+                tx.execute(
+                    "UPDATE _snapback_ask_spend
                  SET reserved_tokens=reserved_tokens+?1,
                      reserved_result_bytes=reserved_result_bytes+?2
                  WHERE day=?3 AND lane='principal-day' AND caller_key=?4",
-                params![
-                    request_tokens as i64,
-                    request_bytes as i64,
-                    day,
-                    subject.principal_key
-                ],
-            )?;
-            tx.execute(
-                "UPDATE _snapback_ask_spend SET reserved_tokens=reserved_tokens+?1
-                 WHERE day=?2 AND lane='app-month' AND caller_key='app'",
-                params![request_tokens as i64, month],
-            )?;
-            if integration_reserved {
+                    params![
+                        request_tokens as i64,
+                        request_bytes as i64,
+                        day,
+                        subject.principal_key
+                    ],
+                )?;
                 tx.execute(
                     "UPDATE _snapback_ask_spend SET reserved_tokens=reserved_tokens+?1
-                     WHERE day=?2 AND lane='integration-day' AND caller_key=?3",
-                    params![request_tokens as i64, day, subject.integration_key],
+                 WHERE day=?2 AND lane='app-month' AND caller_key='app'",
+                    params![request_tokens as i64, month],
                 )?;
-            }
-            let facts = spend_facts_on(tx, &day, &month, &subject, integration_reserved)?;
-            Ok((
-                AskSpendReservation {
-                    day,
-                    month,
-                    subject,
-                    reserved_tokens: request_tokens,
-                    reserved_result_bytes: request_bytes,
-                    integration_reserved,
-                },
-                facts,
-            ))
-        })
+                if integration_reserved {
+                    tx.execute(
+                        "UPDATE _snapback_ask_spend SET reserved_tokens=reserved_tokens+?1
+                     WHERE day=?2 AND lane='integration-day' AND caller_key=?3",
+                        params![request_tokens as i64, day, subject.integration_key],
+                    )?;
+                }
+                let facts = spend_facts_on(tx, &day, &month, &subject, integration_reserved)?;
+                Ok((
+                    AskSpendReservation {
+                        day,
+                        month,
+                        subject,
+                        reserved_tokens: request_tokens,
+                        reserved_result_bytes: request_bytes,
+                        integration_reserved,
+                    },
+                    facts,
+                ))
+            },
+            before_commit,
+        )
     }
 
     pub fn settle_ask_spend(
@@ -549,6 +565,19 @@ impl super::ServingDatabase {
         budgets: &ApiAskBudgets,
     ) -> SnapbackResult<(AskSpendReservation, AskSpendFacts)> {
         self.db.reserve_ask_spend(now_ms, subject, budgets)
+    }
+    pub fn reserve_ask_spend_guarded<G, BeforeCommit>(
+        &mut self,
+        now_ms: u64,
+        subject: AskSpendSubject,
+        budgets: &ApiAskBudgets,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<(AskSpendReservation, AskSpendFacts)>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db
+            .reserve_ask_spend_guarded(now_ms, subject, budgets, before_commit)
     }
     pub fn settle_ask_spend(
         &mut self,

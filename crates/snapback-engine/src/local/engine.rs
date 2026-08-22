@@ -5310,6 +5310,48 @@ impl LocalSnapback {
         self.db.mint_capability_link(request)
     }
 
+    /// HTTP management path: the caller reserves the exact management
+    /// session before entering Local; mode admission is acquired only at the
+    /// capability-link COMMIT.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — management-session
+    /// retirement and this mint serialize at the durable cut.
+    pub fn mint_capability_link_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::storage::capability_links::MintCapabilityLink,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<crate::storage::capability_links::MintedCapabilityLink> {
+        authority.validate_admission("capability-link mint transaction")?;
+        let ResolvedAppAuthority::Session {
+            user_id,
+            session_id,
+            authority_instance_id,
+            ..
+        } = authority.resolved()
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "capability-link minting requires exact session authority",
+            ));
+        };
+        if authority.source() != InvocationSource::CapabilityLinkManagement
+            || request.minter_principal_id != *user_id
+            || request.minter_session_id != *session_id
+            || request.minter_authority_instance_id != *authority_instance_id
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "capability-link minting facts do not match exact session authority",
+            ));
+        }
+        self.db.mint_capability_link_guarded(request, || {
+            authorized_effect.commit_guard("capability-link mint transaction")
+        })
+    }
+
     pub fn consume_capability_link_use(
         &mut self,
         authority: &PreparedAuthority,
@@ -5389,6 +5431,44 @@ impl LocalSnapback {
             .revoke_capability_link(id, user_id, session_id, authority_instance_id, now_ms)
     }
 
+    pub fn revoke_capability_link_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        id: &str,
+        now_ms: u64,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<()> {
+        authority.validate_admission("capability-link revoke transaction")?;
+        let ResolvedAppAuthority::Session {
+            user_id,
+            session_id,
+            authority_instance_id,
+            ..
+        } = authority.resolved()
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "capability-link revocation requires exact session authority",
+            ));
+        };
+        if authority.source() != InvocationSource::CapabilityLinkManagement {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "capability-link revocation requires exact management authority",
+            ));
+        }
+        self.db.revoke_capability_link_guarded(
+            id,
+            user_id,
+            session_id,
+            authority_instance_id,
+            now_ms,
+            || authorized_effect.commit_guard("capability-link revoke transaction"),
+        )
+    }
+
     pub fn effective_agents_manifest(&self) -> crate::manifest::AgentsManifest {
         self.db.schema().effective_agents_manifest()
     }
@@ -5433,6 +5513,42 @@ impl LocalSnapback {
         let _ = effect;
         self.db
             .mint_agent_invitation(user_id, profile, proof, now_ms, random)
+    }
+
+    pub fn mint_agent_invitation_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        user_id: &str,
+        profile: ServerProfile,
+        proof: &crate::auth::crypto::StepUpProof,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<crate::storage::auth_agents::IssuedAgentInvitation> {
+        let ResolvedAppAuthority::Session {
+            user_id: authority_user_id,
+            ..
+        } = authority.resolved()
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "agent-invitation minting requires exact session authority",
+            ));
+        };
+        if authority.source() != InvocationSource::AgentGrantManagement
+            || authority_user_id != user_id
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "agent-invitation minting facts do not match exact inviter authority",
+            ));
+        }
+        self.db
+            .mint_agent_invitation_guarded(user_id, profile, proof, now_ms, random, || {
+                authorized_effect.commit_guard("agent invitation mint transaction")
+            })
     }
 
     pub fn mint_pairing_code(
@@ -5904,6 +6020,24 @@ impl LocalSnapback {
         self.db.reserve_ask_spend(now_ms, subject, budgets)
     }
 
+    pub fn reserve_ask_spend_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        now_ms: u64,
+        subject: crate::storage::ask_spend::AskSpendSubject,
+        budgets: &crate::manifest::ApiAskBudgets,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<(
+        crate::storage::ask_spend::AskSpendReservation,
+        crate::storage::ask_spend::AskSpendFacts,
+    )> {
+        authority.validate_admission("ask spend reservation transaction")?;
+        self.db
+            .reserve_ask_spend_guarded(now_ms, subject, budgets, || {
+                authorized_effect.commit_guard("ask spend reservation transaction")
+            })
+    }
+
     pub fn settle_ask_spend(
         &mut self,
         authority: &PreparedAuthority,
@@ -6122,6 +6256,21 @@ impl LocalSnapback {
         self.db.push_registry().claim_batch(batch_id, now_ms)
     }
 
+    pub fn claim_push_batch_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        batch_id: &str,
+        now_ms: u64,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<Option<crate::push::PushBatchClaimV1>> {
+        authority.validate_admission("push batch claim")?;
+        self.db
+            .push_registry()
+            .claim_batch_guarded(batch_id, now_ms, || {
+                authorized_effect.commit_guard("push batch claim")
+            })
+    }
+
     pub fn mark_push_batch_transmitting(
         &mut self,
         authority: &PreparedAuthority,
@@ -6138,6 +6287,21 @@ impl LocalSnapback {
         self.db
             .push_registry()
             .mark_batch_transmitting(claim, now_ms)
+    }
+
+    pub fn mark_push_batch_transmitting_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        claim: &crate::push::PushBatchClaimV1,
+        now_ms: u64,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<()> {
+        authority.validate_admission("push batch transmitting marker")?;
+        self.db
+            .push_registry()
+            .mark_batch_transmitting_guarded(claim, now_ms, || {
+                authorized_effect.commit_guard("push batch transmitting marker")
+            })
     }
 
     pub fn settle_push_batch(
@@ -6909,6 +7073,53 @@ impl LocalSnapback {
             request,
             now_ms,
         )?;
+        Ok((attempt, declaration))
+    }
+
+    /// Immediate push only. System and Deferred callers retain their durable
+    /// system/grant authority and use the mode-only sibling above.
+    pub fn reserve_push_send_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        trigger_mode: crate::push::PushTriggerModeV1,
+        deferred_grant: Option<&crate::push::PushDeferredGrantV1>,
+        request: &crate::push::PushSendRequestV1,
+        now_ms: u64,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<(
+        crate::push::ReservedPushAttemptV1,
+        crate::push::PushSeamDeclarationV1,
+    )> {
+        authority.validate_admission("push durable reservation")?;
+        if trigger_mode != crate::push::PushTriggerModeV1::Immediate {
+            return Err(SnapbackError::error(
+                "SNAPBACK_PUSH_AUTHORITY_INVALID",
+                "push",
+                "authorized-effect reservation is valid only for immediate push",
+            ));
+        }
+        let schema = self.db.schema().clone();
+        let declaration = schema.push_seam.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
+                "push",
+                "the app schema does not declare the push send seam",
+            )
+        })?;
+        let push_authority = crate::push::admitted_push_storage_authority(&self.db, authority);
+        let attempt = self
+            .db
+            .push_registry()
+            .reserve_send_admitted_storage_guarded(
+                &declaration,
+                &schema,
+                push_authority,
+                trigger_mode,
+                deferred_grant,
+                request,
+                now_ms,
+                || authorized_effect.commit_guard("push durable reservation"),
+            )?;
         Ok((attempt, declaration))
     }
 
@@ -10702,6 +10913,61 @@ impl LocalSnapback {
         })
     }
 
+    /// Session-backed acknowledgement path. The service-principal sibling
+    /// deliberately stays on exact in-lock service revalidation plus the
+    /// existing mode-only guard; only a live session reaches this method.
+    pub(crate) fn acknowledge_client_mutations_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        ids: &[String],
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<u64> {
+        authority.validate_admission("client mutation acknowledgement")?;
+        if !matches!(authority.resolved(), ResolvedAppAuthority::Session { .. }) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "session authorized-effect acknowledgement requires exact session authority",
+            ));
+        }
+        let auth = authority.canonical_auth_input();
+        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+        let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
+        let current = self
+            .db
+            .settlement()
+            .acknowledge_client_mutations_for_authority_guarded(
+                &auth_fingerprint(&auth),
+                &descriptor.authority_instance_id,
+                ids,
+                || authorized_effect.commit_guard("client mutation acknowledgement transaction"),
+            )?;
+        #[cfg(test)]
+        if FAIL_CLIENT_MUTATION_ACK_AFTER_FIRST_COMMIT.with(|slot| slot.replace(false)) {
+            return Err(SnapbackError::error(
+                "TEST_CLIENT_MUTATION_ACK_AFTER_FIRST_COMMIT",
+                "storage",
+                "injected acknowledgement failure after the first durable commit",
+            ));
+        }
+        let legacy = self
+            .db
+            .settlement()
+            .acknowledge_client_mutations_for_authority_guarded(
+                &legacy_auth_fingerprint(&auth),
+                &descriptor.authority_instance_id,
+                ids,
+                || authorized_effect.commit_guard("client mutation acknowledgement transaction"),
+            )?;
+        current.checked_add(legacy).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
+                "storage",
+                "acknowledged settlement count overflowed across auth aliases",
+            )
+        })
+    }
+
     pub fn descriptor_for_prepared_authority(
         &mut self,
         authority: &PreparedAuthority,
@@ -10845,6 +11111,22 @@ impl LocalSnapback {
             require_current_descriptor(Some(supplied), &expected)?;
         }
         self.acknowledge_client_mutations_with_authority(authority, ids)
+    }
+
+    pub fn acknowledge_client_mutations_with_authority_descriptor_and_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        authority_descriptor: Option<&AuthorityDescriptor>,
+        ids: &[String],
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<u64> {
+        if let Some(supplied) = authority_descriptor {
+            authority.validate_admission("client mutation acknowledgement")?;
+            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+            let expected = descriptor_for_authority(authority, incarnation.as_str())?;
+            require_current_descriptor(Some(supplied), &expected)?;
+        }
+        self.acknowledge_client_mutations_with_authorized_effect(authority, ids, authorized_effect)
     }
 
     /// Administrative recovery for settlements whose original client can no
@@ -23173,6 +23455,32 @@ impl LocalSnapback {
         request: crate::watches::CreateWatchSpec,
         now_ms: u64,
     ) -> SnapbackResult<crate::watches::CreatedWatch> {
+        self.create_watch_inner(authority, request, now_ms, None)
+    }
+
+    /// Direct watch management does not enter the ordinary mutation
+    /// revalidation seam, so both admitted management authorities reserve
+    /// their exact live publication before Local.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — the session or
+    /// scoped integration reservation is held through the watch/anchor COMMIT.
+    pub fn create_watch_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::watches::CreateWatchSpec,
+        now_ms: u64,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<crate::watches::CreatedWatch> {
+        self.create_watch_inner(authority, request, now_ms, Some(authorized_effect))
+    }
+
+    fn create_watch_inner(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::watches::CreateWatchSpec,
+        now_ms: u64,
+        authorized_effect: Option<AuthorizedEffectReservation>,
+    ) -> SnapbackResult<crate::watches::CreatedWatch> {
         authority.validate_admission("watch creation")?;
         if authority.source() != InvocationSource::WatchManagement {
             return Err(SnapbackError::error(
@@ -23376,16 +23684,9 @@ impl LocalSnapback {
                 crate::watches::input_invalid("watch anchor lifetime overflows portable time")
             })?;
         // The initial query passes its own ordinary invocation/effect gate.
-        // Acquire management's effect fence only for the durable catalog
-        // commit; nesting it around the query would self-deadlock the same
-        // admission lease and would not strengthen the serialized app cut.
-        #[cfg(test)]
-        run_before_admission_effect_guard_hook(AdmissionEffectSite::WatchCreation);
-        // @ref LLP 0058#gate-algorithm — the watch catalog row and its initial
-        // schedule commit inside the management authority's admission epoch.
-        let _effect = authority.effect_guard("watch creation transaction")?;
-        #[cfg(test)]
-        run_after_admission_effect_guard_hook(AdmissionEffectSite::WatchCreation);
+        // The management guard belongs only at the later watch/anchor COMMIT;
+        // nesting it around the query or secret preparation would re-enter
+        // admission and self-deadlock.
         let watch_id = crate::ids::mint_time_ordered(crate::ids::Kind::Watch);
         let anchor_grant_id = (owner_kind == crate::watches::WatchOwnerKind::Integration)
             .then(|| crate::ids::mint_time_ordered(crate::ids::Kind::Grant));
@@ -23425,40 +23726,51 @@ impl LocalSnapback {
         if owner_kind == crate::watches::WatchOwnerKind::User {
             anchor_scopes.clear();
         }
-        let create = self
-            .db
-            .create_watch(crate::storage::watches::CreateWatchRecord {
-                id: watch_id.clone(),
-                owner_kind,
-                owner_principal_id,
-                owner_authority_instance_id,
-                authority_mode,
-                anchor_grant_id,
-                installation_grant_id,
-                anchor_effective_user_id,
-                anchor_scopes,
-                anchor_expires_at_ms,
-                query_function_id: query.id,
-                query_function_name: query.name,
-                query_basis,
-                query_args_json,
-                query_args_digest,
-                read_dependencies: initial.read_dependencies,
-                predicate_json,
-                reaction_kind,
-                reaction_function_id,
-                reaction_function_name,
-                reaction_function_kind,
-                reaction_basis,
-                reaction_args_json,
-                reaction_args_digest,
-                webhook_url,
-                webhook_secret_ref: webhook_secret_ref.clone(),
-                daily_firing_budget: request.daily_firing_budget,
-                debounce_ms: request.debounce_ms,
-                initial_predicate_state,
-                now_ms,
-            });
+        let record = crate::storage::watches::CreateWatchRecord {
+            id: watch_id.clone(),
+            owner_kind,
+            owner_principal_id,
+            owner_authority_instance_id,
+            authority_mode,
+            anchor_grant_id,
+            installation_grant_id,
+            anchor_effective_user_id,
+            anchor_scopes,
+            anchor_expires_at_ms,
+            query_function_id: query.id,
+            query_function_name: query.name,
+            query_basis,
+            query_args_json,
+            query_args_digest,
+            read_dependencies: initial.read_dependencies,
+            predicate_json,
+            reaction_kind,
+            reaction_function_id,
+            reaction_function_name,
+            reaction_function_kind,
+            reaction_basis,
+            reaction_args_json,
+            reaction_args_digest,
+            webhook_url,
+            webhook_secret_ref: webhook_secret_ref.clone(),
+            daily_firing_budget: request.daily_firing_budget,
+            debounce_ms: request.debounce_ms,
+            initial_predicate_state,
+            now_ms,
+        };
+        let create = match authorized_effect {
+            Some(authorized_effect) => self.db.create_watch_guarded(record, || {
+                authorized_effect.commit_guard("watch creation transaction")
+            }),
+            None => {
+                #[cfg(test)]
+                run_before_admission_effect_guard_hook(AdmissionEffectSite::WatchCreation);
+                let _effect = authority.mode_effect_guard("watch creation transaction")?;
+                #[cfg(test)]
+                run_after_admission_effect_guard_hook(AdmissionEffectSite::WatchCreation);
+                self.db.create_watch(record)
+            }
+        };
         let watch = match create {
             Ok(watch) => watch,
             Err(error) => {
