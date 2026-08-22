@@ -11978,11 +11978,12 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(unknown["diagnostic"]["code"], "SNAPBACK_UNKNOWN_FUNCTION");
     assert_eq!(details["candidateFunctions"][0]["name"], "listTodos");
     assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
-    // The todo source carries no authority profile and is byte-identical to
-    // (re-pinned 2026-08-19: the owner-crate composition registry is part of
-    // the generated bundle identity). This is the checked-in todo artifact,
-    // not a separately authored test value.
-    assert_eq!(details["artifactHash"], "sha256:c5d9ed92819c4094");
+    // The todo source carries no authority profile. This is the checked-in
+    // todo artifact, not a separately authored test value (re-pinned
+    // 2026-08-22: mainline declaration-custody pairing, W4 composition, and
+    // W3's editTitle plan-facts Guide anchor moved generated bundle identity;
+    // the watch-management server delta is composition-neutral).
+    assert_eq!(details["artifactHash"], "sha256:516470d7f94769b8");
     assert_eq!(
         details["remediationSet"]["schemaVersion"],
         "snapback.remediation-set.v1"
