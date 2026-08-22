@@ -17,8 +17,8 @@ reviewed-authorities-digest: sha256:c626ffca5cdf748da0fd61d9154d993bb3f9a766ac6f
 
 # Generated API reference
 
-One build-bound projection of 1361 public symbols (564 runtime values and 797 explicit type-only symbols).
-Registry source identity: `sha256:aea1857f630cce7b3c2534403573e389bfb0fab443c579875c8641b3a63ecde9`.
+One build-bound projection of 1369 public symbols (564 runtime values and 805 explicit type-only symbols).
+Registry source identity: `sha256:133b73f148395a126c217eb4f614753a6a5f69c0439460d30f1134603b23f0e3`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -68,11 +68,11 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 | [`@expo/snapback-client/rqs-store-sqlite`](./expo-snapback-client--rqs-store-sqlite.md) | 9 | 4 | 5 |
 | [`@expo/snapback-client/search`](./expo-snapback-client--search.md) | 11 | 2 | 9 |
 | [`@expo/snapback-client/vector-search`](./expo-snapback-client--vector-search.md) | 5 | 1 | 4 |
-| [`@expo/snapback-react`](./expo-snapback-react.md) | 147 | 53 | 94 |
-| [`@expo/snapback-react/core`](./expo-snapback-react--core.md) | 66 | 27 | 39 |
-| [`@expo/snapback-react/familiar`](./expo-snapback-react--familiar.md) | 15 | 8 | 7 |
+| [`@expo/snapback-react`](./expo-snapback-react.md) | 149 | 53 | 96 |
+| [`@expo/snapback-react/core`](./expo-snapback-react--core.md) | 68 | 27 | 41 |
+| [`@expo/snapback-react/familiar`](./expo-snapback-react--familiar.md) | 17 | 8 | 9 |
 | [`@expo/snapback-react/thumbhash`](./expo-snapback-react--thumbhash.md) | 5 | 5 | 0 |
-| [`@expo/snapback-expo`](./expo-snapback-expo.md) | 197 | 79 | 118 |
+| [`@expo/snapback-expo`](./expo-snapback-expo.md) | 199 | 79 | 120 |
 | [`@expo/snapback-expo/app-binding`](./expo-snapback-expo--app-binding.md) | 13 | 5 | 8 |
 | [`@expo/snapback-expo/app.plugin`](./expo-snapback-expo--app.plugin.md) | 6 | 4 | 2 |
 | [`@expo/snapback-expo/asset-source`](./expo-snapback-expo--asset-source.md) | 7 | 4 | 3 |

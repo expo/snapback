@@ -286,7 +286,16 @@ export type ConnectionEphemeralCollectionReference<
   Value = unknown,
 > = SnapbackEphemeralReference<Name, Scope, Value, 'Connection'>;
 
-export const skip: unique symbol;
+declare const skipSentinelType: unique symbol;
+declare const skipSentinelBrand: unique symbol;
+// @ref LLP 0277#f11-small-clientcodegen-papercuts--single-run-each — the
+// private brand prevents unique-symbol freshness from widening in useMemo.
+/** Nominal symbol type retained through generic object inference such as React useMemo. */
+export type SkipSentinel = typeof skipSentinelType & Readonly<{
+  [skipSentinelBrand]: 'snapback.skip';
+}>;
+export type SkipOr<Value> = Value | SkipSentinel;
+export declare const skip: SkipSentinel;
 
 export interface SnapbackReactCoreProvider {
   readonly kind: 'snapback.react-provider.v1';
@@ -502,7 +511,7 @@ export function useSnapbackAuth(): SnapbackAuthFacade;
 
 export function useSnapbackQuery<Ref extends QueryReference>(
   reference: Ref,
-  args: FunctionArgs<Ref> | typeof skip,
+  args: SkipOr<FunctionArgs<Ref>>,
 ): QueryState<FunctionResult<Ref>>;
 
 /** Live roster plus opaque-cursor load-more lifecycle. Scope, caller, and
@@ -593,7 +602,7 @@ export function useSnapbackPresence<
   reference: Ref,
   options: Readonly<{
     scope: EphemeralScope<Ref>;
-    value: EphemeralValue<Ref> | typeof skip;
+    value: SkipOr<EphemeralValue<Ref>>;
     ttlMs?: number;
   }>,
 ): PresenceState<EphemeralValue<Ref>>;
@@ -673,7 +682,7 @@ type ProjectedCommandTask<Command extends CommandRef> =
 export type SurfaceOptions<Surface extends SnapbackSurfaceDescriptor> = Readonly<{
   presence?: Readonly<{
     [Name in keyof SurfacePresence<Surface>]?: SurfaceMemberReference<SurfacePresence<Surface>[Name]> extends ConnectionEphemeralCollectionReference
-      ? EphemeralValue<SurfaceMemberReference<SurfacePresence<Surface>[Name]>> | typeof skip
+      ? SkipOr<EphemeralValue<SurfaceMemberReference<SurfacePresence<Surface>[Name]>>>
       : never
   }>;
 }>;
@@ -766,12 +775,12 @@ export function useSurface<Surface extends SnapbackSurfaceDescriptor>(
 
 export type QueryEntry<Ref extends QueryReference = QueryReference> = Readonly<{
   ref: Ref;
-  args: FunctionArgs<Ref> | typeof skip;
+  args: SkipOr<FunctionArgs<Ref>>;
 }>;
 
 export type QueryEntryMap = Readonly<Record<string, QueryEntry>>;
 
-type EntryState<Entry> = Entry extends { readonly args: typeof skip }
+type EntryState<Entry> = Entry extends { readonly args: SkipSentinel }
   ? Extract<QueryState<never>, { status: 'skipped' }>
   : Entry extends { readonly ref: infer Ref extends QueryReference }
     ? QueryState<FunctionResult<Ref>>
@@ -995,7 +1004,7 @@ export interface SnapbackOptimisticCreateObserver<Args, Result, Selected> {
 export interface SnapbackPresenceObserver<Value, Scope> {
   update(options: Readonly<{
     scope: Scope;
-    value?: Value | typeof skip;
+    value?: SkipOr<Value>;
     ttlMs?: number;
   }>): void;
   snapshot(): PresenceState<Value>;
@@ -1010,7 +1019,7 @@ export function observeSnapbackPresence<
   reference: Ref,
   options: Readonly<{
     scope: EphemeralScope<Ref>;
-    value?: EphemeralValue<Ref> | typeof skip;
+    value?: SkipOr<EphemeralValue<Ref>>;
     ttlMs?: number;
   }>,
   listener: (state: PresenceState<EphemeralValue<Ref>>) => void,

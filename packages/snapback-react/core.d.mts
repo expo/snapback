@@ -63,6 +63,8 @@ export type {
   QueryReference,
   QueryState,
   QueryStates,
+  SkipOr,
+  SkipSentinel,
   SnapbackConnection,
   SnapbackConnectionState,
   SnapbackDiagnostic,

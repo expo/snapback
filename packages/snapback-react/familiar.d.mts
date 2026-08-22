@@ -14,6 +14,8 @@ export {
   useSnapbackCurrentPrincipal as useCurrentPrincipal,
 } from './index.mjs';
 
+export type { SkipOr, SkipSentinel } from './index.mjs';
+
 export type FamiliarAuthoringProfile = 'snapback-familiar-ts-v1';
 
 type FamiliarBrand = Readonly<{
@@ -48,7 +50,7 @@ export type ActionReference<Name extends string = string, Args = Record<string, 
 
 export function useQuery<Ref extends FamiliarLiveQueryReference>(
   reference: Ref,
-  args: FunctionArgs<Ref> | 'skip' | typeof import('./index.mjs').skip,
+  args: import('./index.mjs').SkipOr<FunctionArgs<Ref>> | 'skip',
 ): FunctionResult<Ref> | undefined;
 
 export function useMutation<Ref extends FamiliarMutationReference>(
