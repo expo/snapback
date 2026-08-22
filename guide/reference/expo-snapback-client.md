@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:0799966f4b4c4a77b3a33675e85990160525f9aa17ac
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:b77c9cd730fc9236f51d68aa27359d0b012944262712e0bc216baccf9d4a1e76`.
+`sha256:aea1857f630cce7b3c2534403573e389bfb0fab443c579875c8641b3a63ecde9`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -2112,7 +2112,7 @@ export function createIdentifierRemediationSet(input: {
 
 Stable identity: `npm:@expo/snapback-client#createIndexedDbRqsResumeStore`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store.d.mts:313`
+Source: `packages/snapback-client/rqs-store.d.mts:317`
 
 IndexedDB-backed persisted RQS resume store under single-writer Web-Lock
 ownership. `indexedDB` and `lockManager` are host handles (an `IDBFactory`
@@ -5352,6 +5352,7 @@ export interface RqsResumeStore {
   outboxDiscardStranded(
     ids: readonly string[],
     principalScope: Readonly<Record<string, unknown>>,
+    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
   ): Promise<false | Readonly<{
     discarded: number;
     clientMutationIds: readonly string[];
@@ -5359,11 +5360,14 @@ export interface RqsResumeStore {
   outboxMarkQuarantined?(
     id: string,
     refusal: Readonly<{ code: string }>,
+    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
   ): Promise<false | Readonly<{
     count: number;
     tombstones: readonly Readonly<Record<string, unknown>>[];
   }>>;
-  outboxReenterQuarantined?(): Promise<false | Readonly<{
+  outboxReenterQuarantined?(
+    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
+  ): Promise<false | Readonly<{
     count: number;
     clientMutationIds: readonly string[];
   }>>;
