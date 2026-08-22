@@ -14141,8 +14141,9 @@ impl LocalSnapback {
 
         // Phase D — the publication transaction: witness re-validation, blob
         // uniqueness, rendition + availability, quota settlement, receipts —
-        // one commit. Witness movement re-runs the authorizer and retries
-        // once with the fresh witness validated inside the retry transaction.
+        // one commit. The HTTP path returns witness movement to its lock-free
+        // authorizer rerun; only the retained in-process composition retries
+        // here with the freshly validated witness.
         let witness_was_revalidated = revalidated_witness.is_some();
         let mut witness: Vec<crate::storage::CapturedReadDependency> = revalidated_witness
             .unwrap_or_else(|| {
@@ -14693,11 +14694,16 @@ impl LocalSnapback {
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<String> {
         let (asset_id, key, app_id, app_quota, mut prepared) = ticket.into_parts();
-        self.db
+        let stage_outcome = self
+            .db
             .asset_attempts()
-            .stage_prepared_variant_commit_staged_guarded(&mut prepared.publication, || {
+            .stage_width_variant_commit_staged_guarded(&mut prepared.publication, || {
                 authorized_effect.commit_guard("asset width publication-staged transaction")
             })?;
+        if stage_outcome == crate::storage::AssetWidthPublicationStageOutcome::AlreadyCommitted {
+            drop(authorized_effect);
+            return Ok(key);
+        }
         self.db
             .asset_attempts()
             .resolve_width_variant_commit_guarded(

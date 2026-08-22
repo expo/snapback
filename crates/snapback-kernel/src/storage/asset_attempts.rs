@@ -4,7 +4,9 @@ use crate::assets;
 use crate::manifest::{
     AssetImageVariant, AssetUploadIntentDefinition, HandlerInput, SchemaManifest,
 };
-use crate::services_assets::{AssetAttemptCurrentProof, AssetPublicationPlannedProof};
+use crate::services_assets::{
+    AssetAttemptCurrentProof, AssetPublicationPlannedProof, AssetWidthPublicationPlannedProof,
+};
 use rusqlite::{OptionalExtension, TransactionBehavior};
 use serde_json::{Map, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -31,6 +33,18 @@ pub enum AssetPublishOutcome {
         reused: bool,
     },
     WitnessMoved,
+}
+
+/// Result of fencing the staged cut for an on-demand width publication.
+#[must_use = "width publication staging must distinguish a staged request from a converged loser"]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AssetWidthPublicationStageOutcome {
+    /// This request advanced or observed the shared publication as staged and
+    /// must still run the rendition/blob/quota commit.
+    Staged,
+    /// A concurrent first request already committed this exact shared
+    /// publication, including its rendition/blob/quota transaction.
+    AlreadyCommitted,
 }
 
 enum AssetVariantCommit {
@@ -783,7 +797,7 @@ impl LocalDatabase {
         digest: &str,
         now: u64,
         before_commit: BeforeCommit,
-    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    ) -> SnapbackResult<AssetWidthPublicationPlannedProof>
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
@@ -796,7 +810,7 @@ impl LocalDatabase {
             now,
             before_commit,
         )?;
-        Ok(AssetPublicationPlannedProof::new(publication))
+        Ok(AssetWidthPublicationPlannedProof::new(publication))
     }
 
     pub(super) fn stage_prepared_variant_commit_staged(
@@ -811,6 +825,35 @@ impl LocalDatabase {
         publication: &mut assets::AssetPublicationRecordV1,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<()>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.stage_variant_publication_commit_staged_guarded(publication, false, before_commit)
+            .map(|_| ())
+    }
+
+    /// Fence the staged cut for a width request while preserving the accepted
+    /// concurrent-first convergence contract.
+    ///
+    /// @ref LLP 0044#acceptance — a loser holding the same publication may
+    /// observe it after the winner's commit and succeeds on that rendition.
+    pub(super) fn stage_width_variant_commit_staged_guarded<G, BeforeCommit>(
+        &mut self,
+        publication: &mut assets::AssetPublicationRecordV1,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetWidthPublicationStageOutcome>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.stage_variant_publication_commit_staged_guarded(publication, true, before_commit)
+    }
+
+    fn stage_variant_publication_commit_staged_guarded<G, BeforeCommit>(
+        &mut self,
+        publication: &mut assets::AssetPublicationRecordV1,
+        converge_committed_width: bool,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetWidthPublicationStageOutcome>
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
@@ -837,14 +880,27 @@ impl LocalDatabase {
                         "the publication record changed immutable facts before staging",
                     ));
                 }
-                match current.state {
-                    assets::AssetPublicationState::Planned => assets::transition_publication(
-                        tx,
-                        &mut current,
-                        assets::AssetPublicationState::Staged,
-                        now_millis(),
-                    )?,
-                    assets::AssetPublicationState::Staged => {}
+                let outcome = match current.state {
+                    assets::AssetPublicationState::Planned => {
+                        assets::transition_publication(
+                            tx,
+                            &mut current,
+                            assets::AssetPublicationState::Staged,
+                            now_millis(),
+                        )?;
+                        AssetWidthPublicationStageOutcome::Staged
+                    }
+                    assets::AssetPublicationState::Staged => {
+                        AssetWidthPublicationStageOutcome::Staged
+                    }
+                    assets::AssetPublicationState::Committed
+                        if converge_committed_width
+                            && current.attempt_id.is_none()
+                            && current.asset_id.is_some()
+                            && current.variant_key.is_some() =>
+                    {
+                        AssetWidthPublicationStageOutcome::AlreadyCommitted
+                    }
                     other => {
                         return Err(SnapbackError::error(
                             "SNAPBACK_ASSET_TRANSITION_INVALID",
@@ -852,9 +908,9 @@ impl LocalDatabase {
                             format!("publication cannot stage from persisted state {other:?}"),
                         ));
                     }
-                }
+                };
                 *publication = current;
-                Ok(())
+                Ok(outcome)
             },
             before_commit,
         )
@@ -2087,7 +2143,7 @@ impl<'a> AssetAttemptsKernel<'a> {
         digest: &str,
         now: u64,
         before_commit: BeforeCommit,
-    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    ) -> SnapbackResult<AssetWidthPublicationPlannedProof>
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
@@ -2118,6 +2174,18 @@ impl<'a> AssetAttemptsKernel<'a> {
     {
         self.db
             .stage_prepared_variant_commit_staged_guarded(publication, before_commit)
+    }
+
+    pub fn stage_width_variant_commit_staged_guarded<G, BeforeCommit>(
+        &mut self,
+        publication: &mut assets::AssetPublicationRecordV1,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetWidthPublicationStageOutcome>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db
+            .stage_width_variant_commit_staged_guarded(publication, before_commit)
     }
 
     pub fn attempt_finalize_load_asset(

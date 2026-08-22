@@ -18,6 +18,13 @@
     "appId": {
       "type": "string"
     },
+    "assetId": {
+      "description": "Variant publications carry their durable recovery owner explicitly.\nRequired renditions name both the finalize attempt and variant; an\non-demand width has no upload attempt and is owned by `(asset, variant)`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "attemptId": {
       "type": [
         "string",
@@ -63,6 +70,12 @@
       "format": "uint64",
       "minimum": 0,
       "type": "integer"
+    },
+    "variantKey": {
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "required": [

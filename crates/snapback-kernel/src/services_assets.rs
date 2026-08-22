@@ -37,13 +37,37 @@ impl AssetAttemptCurrentProof {
 }
 
 /// Proof that the kernel committed and reloaded the exact open publication
-/// accepted by an external PUT. Recovery may already have advanced the row
-/// from `planned` to `staged`; both states prove the write-ahead handoff.
+/// owned by an upload attempt. Recovery may already have advanced the row from
+/// `planned` to `staged`; both states prove the write-ahead handoff.
+///
+/// ```compile_fail
+/// use snapback_kernel::services_assets::AssetPublicationPlannedProof;
+///
+/// let _forged = AssetPublicationPlannedProof { publication: unreachable!() };
+/// ```
 pub struct AssetPublicationPlannedProof {
     publication: AssetPublicationRecordV1,
 }
 
 impl AssetPublicationPlannedProof {
+    pub(crate) fn new(publication: AssetPublicationRecordV1) -> Self {
+        Self { publication }
+    }
+
+    pub fn into_publication(self) -> AssetPublicationRecordV1 {
+        self.publication
+    }
+}
+
+/// Proof that the kernel committed and reloaded the exact attempt-less width
+/// publication accepted by an external PUT. This is deliberately distinct
+/// from [`AssetPublicationPlannedProof`], so an attempt-owned required
+/// rendition cannot cross into the on-demand width lifecycle.
+pub struct AssetWidthPublicationPlannedProof {
+    publication: AssetPublicationRecordV1,
+}
+
+impl AssetWidthPublicationPlannedProof {
     pub(crate) fn new(publication: AssetPublicationRecordV1) -> Self {
         Self { publication }
     }
@@ -108,7 +132,7 @@ pub trait AssetAttemptsProofLocalExt {
         digest: &str,
         now: u64,
         before_commit: BeforeCommit,
-    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    ) -> SnapbackResult<AssetWidthPublicationPlannedProof>
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>;
 }
@@ -183,7 +207,7 @@ impl AssetAttemptsProofLocalExt for AssetAttemptsKernel<'_> {
         digest: &str,
         now: u64,
         before_commit: BeforeCommit,
-    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    ) -> SnapbackResult<AssetWidthPublicationPlannedProof>
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {

@@ -631,12 +631,30 @@ impl AssetWidthPlanTicketV1 {
     ///     ticket.into_put(unproven).unwrap()
     /// }
     /// ```
+    ///
+    /// An attempt-owned required-rendition proof is also the wrong domain,
+    /// even when its asset, variant key, and digest happen to match:
+    ///
+    /// ```compile_fail
+    /// use snapback_kernel::services_assets::AssetPublicationPlannedProof;
+    /// use snapback_services::assets::{
+    ///     AssetWidthPlanTicketV1, AssetWidthPutTicketV1,
+    /// };
+    ///
+    /// fn cross_publication_domains(
+    ///     ticket: AssetWidthPlanTicketV1,
+    ///     attempt_owned: AssetPublicationPlannedProof,
+    /// ) -> AssetWidthPutTicketV1 {
+    ///     ticket.into_put(attempt_owned).unwrap()
+    /// }
+    /// ```
     pub fn into_put(
         self,
-        proof: crate::asset_proof::AssetPublicationPlannedProof,
+        proof: crate::asset_proof::AssetWidthPublicationPlannedProof,
     ) -> SnapbackResult<AssetWidthPutTicketV1> {
         let publication = proof.into_publication();
         if publication.app_id != self.ticket.app_id
+            || publication.attempt_id.is_some()
             || publication.asset_id.as_deref() != Some(self.ticket.asset_id.as_str())
             || publication.variant_key.as_deref() != Some(self.ticket.key.as_str())
             || publication.digest != self.prepared.digest

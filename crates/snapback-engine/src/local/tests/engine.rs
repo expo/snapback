@@ -10610,6 +10610,89 @@ fn asset_width_plan_owner_survives_put_window_and_condemned_plan_cannot_stage() 
         .expect("clean regression object");
 }
 
+#[test]
+fn asset_concurrent_first_width_requests_converge_on_winner() {
+    let mut snapback =
+        asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());
+    let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
+    let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+    asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+        .expect("publish width source");
+    let asset_id = created.task.asset_id.clone();
+    let rendition_events_before = asset_receipt_events(&mut snapback, &asset_id)
+        .iter()
+        .filter(|event| event.as_str() == "rendition-produced")
+        .count();
+    let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+
+    let first_prepare = match snapback
+        .asset_width_preflight(&asset_id, 100)
+        .expect("first width preflight")
+    {
+        AssetWidthPreflightV1::Proceed(ticket) => ticket,
+        AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
+    };
+    let second_prepare = match snapback
+        .asset_width_preflight(&asset_id, 100)
+        .expect("concurrent width preflight")
+    {
+        AssetWidthPreflightV1::Proceed(ticket) => ticket,
+        AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
+    };
+    let first_plan = first_prepare.prepare().expect("render first width");
+    let second_plan = second_prepare.prepare().expect("render concurrent width");
+
+    let first_effect = authority
+        .reserve_authorized_effect("first concurrent width plan")
+        .expect("reserve first width plan");
+    let first_put = snapback
+        .asset_width_plan_with_authorized_effect(first_plan, first_effect)
+        .expect("commit first width plan");
+    let second_effect = authority
+        .reserve_authorized_effect("second concurrent width plan")
+        .expect("reserve second width plan");
+    let second_put = snapback
+        .asset_width_plan_with_authorized_effect(second_plan, second_effect)
+        .expect("concurrent request reuses the live width plan");
+    assert_eq!(
+        first_put.publication_for_test().publication_id,
+        second_put.publication_for_test().publication_id,
+        "concurrent first requests share one durable publication owner",
+    );
+
+    let first_commit = first_put.put().expect("first width PUT succeeds");
+    let second_commit = second_put
+        .put()
+        .expect("concurrent width PUT is idempotent on the shared key");
+    let first_commit_effect = authority
+        .reserve_authorized_effect("first concurrent width commit")
+        .expect("reserve first width commit");
+    let winner = snapback
+        .asset_width_commit_with_authorized_effect(first_commit, first_commit_effect)
+        .expect("first request publishes the width rendition");
+    let second_commit_effect = authority
+        .reserve_authorized_effect("second concurrent width commit")
+        .expect("reserve concurrent width commit");
+    let loser = snapback
+        .asset_width_commit_with_authorized_effect(second_commit, second_commit_effect)
+        .expect("concurrent loser succeeds on the winner's rendition");
+
+    assert_eq!(winner, "w128");
+    assert_eq!(loser, winner);
+    let rendition = asset_rendition_for(&mut snapback, &asset_id, &winner)
+        .expect("winner rendition remains current");
+    assert_eq!(rendition.state, crate::assets::AssetRenditionState::Ready);
+    let events = asset_receipt_events(&mut snapback, &asset_id);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.as_str() == "rendition-produced")
+            .count(),
+        rendition_events_before + 1,
+        "the converged loser cannot publish a second rendition: {events:?}",
+    );
+}
+
 // -----------------------------------------------------------------
 // Strict delivery and the deletion/GC sweeps (tickets L1-09/L1-10).
 // -----------------------------------------------------------------
