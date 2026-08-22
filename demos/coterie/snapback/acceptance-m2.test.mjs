@@ -24,7 +24,11 @@ import {
 import { startServer } from '../../_kit/server-process.mjs';
 
 import { loadGeneratedApi, loadGeneratedJson } from './generated-artifacts.mjs';
-import { chunkValues } from './functions.mjs';
+import {
+  chunkValues,
+  followingSetLimit,
+  requireFollowingSetCapacity,
+} from './functions.mjs';
 import { installM1Fixtures } from './seed-m1.mjs';
 import { installM2Fixtures } from './seed-m2.mjs';
 
@@ -46,6 +50,24 @@ test('query operand chunking keeps the 500/501 boundary exact', () => {
     .map((chunk) => chunk.length), [500]);
   assert.deepEqual(chunkValues(Array.from({ length: 501 }, (_, index) => index), 500)
     .map((chunk) => chunk.length), [500, 1]);
+});
+
+test('following-set admission accepts the 1,024th edge and refuses the 1,025th', () => {
+  const refusalContext = {
+    refuse(appCode) {
+      const error = new Error(appCode);
+      error.appCode = appCode;
+      throw error;
+    },
+  };
+  assert.doesNotThrow(() => requireFollowingSetCapacity(
+    refusalContext,
+    followingSetLimit() - 1,
+  ));
+  assert.throws(
+    () => requireFollowingSetCapacity(refusalContext, followingSetLimit()),
+    (error) => error?.appCode === 'FOLLOWING_SET_LIMIT_EXCEEDED',
+  );
 });
 
 function code(error) {
@@ -138,18 +160,22 @@ async function upload(client, filename, uploadReference) {
   return terminal.assetId;
 }
 
-async function allPages(client, reference) {
-  const output = [];
+async function feedPages(client, reference) {
+  const pages = [];
   let before;
   for (let page = 0; page < 20; page += 1) {
     const rows = (await client.query(reference, {
       args: { ...(before ? { before } : {}) },
     })).rows;
-    output.push(...rows);
-    if (rows.length < 20) return output;
+    pages.push(rows);
+    if (rows.length < 20) return pages;
     before = rows.at(-1).pageKey;
   }
   throw new Error('feed pagination did not terminate within twenty pages');
+}
+
+async function allPages(client, reference) {
+  return (await feedPages(client, reference)).flat();
 }
 
 test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
@@ -238,6 +264,17 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
       const operation = functions.functions.find(({ exportedName }) => exportedName === operationName);
       assert(operation.refusals.includes('REPLY_REPOST_FORBIDDEN'));
     }
+    for (const operationName of ['setFollow', 'ensureFixtureFollow']) {
+      const operation = functions.functions.find(({ exportedName }) => exportedName === operationName);
+      assert(operation.refusals.includes('FOLLOWING_SET_LIMIT_EXCEEDED'));
+    }
+    const followingFeedOperation = functions.functions.find(
+      ({ exportedName }) => exportedName === 'followingFeed',
+    );
+    assert.deepEqual(
+      followingFeedOperation.argsContract.fields.map(({ name }) => name),
+      ['before'],
+    );
 
     const imageIntent = functions.assetUploadIntents.find(({ exportedName }) => (
       exportedName === 'postImageUpload'
@@ -417,7 +454,7 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
     assert(following.every((row) => row._id !== created.carol));
   });
 
-  await t.test('following-feed chunks merge to the exact top 20 across actor sets', async () => {
+  await t.test('forced following-feed chunks paginate exactly across actor sets', async () => {
     created.dave = (await dave.client.mutate(api.createPost, {
       args: { kind: 'text', body: 'Dave crosses the chunk boundary.', imageAssetIds: [] },
     })).result;
@@ -432,9 +469,10 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
       });
     }
 
-    const chunked = (await bob.client.query(api.followingFeed, {
-      args: { actorChunkSize: 3 },
-    })).rows;
+    const chunkedPages = await feedPages(bob.client, api.followingFeedAcceptance);
+    assert.equal(chunkedPages[0]?.length, 20);
+    assert((chunkedPages[1]?.length ?? 0) > 0, 'forced multi-chunk path must fill a second page');
+    const chunked = chunkedPages.flat();
     const visibleActors = new Set([
       bob.profile._id,
       ...followed.map((actor) => actor.profile._id),
@@ -442,8 +480,7 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
     const expected = (await allPages(bob.client, api.globalFeed))
       .filter((row) => visibleActors.has(
         row.eventKind === 'repost' ? row.repostedByProfileId : row.authorProfileId,
-      ))
-      .slice(0, 20);
+      ));
     assert.deepEqual(
       chunked.map(({ itemId }) => itemId),
       expected.map(({ itemId }) => itemId),

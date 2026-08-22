@@ -942,3 +942,24 @@ disposable-store posture: **DESTRUCTIVE-WITH-RESEED**, then `seed-m3.mjs` →
 `seed-m2.mjs` → `seed-m1.mjs`. README and `LANE-NOTES-M3.md` make clear that a
 store worth preserving must instead enter the reviewed migration/backfill
 loop.
+
+## 2026-08-21 — Chunked semi-join recipe review corrections
+
+The guide extraction exposed two risks that the original M2 carrier had made
+look like test conveniences. First, `actorChunkSize` was still an authenticated
+argument on the production `followingFeed`; a caller could set it to one and
+turn a bounded 1,024-follow read into 1,025 queries. Production now owns the
+499-actor chunk size, while a separate snapshot acceptance query fixes the
+test size at three and is never used by the Coterie provider. Second,
+`.take(1024)` was only a truncating read until the write side established the
+same bound. The shared ordinary/fixture follow writer now admits edge 1,024
+and refuses edge 1,025, and acceptance covers both sides of that boundary.
+
+The stronger pagination test was worth the extra fixture choreography. It
+walks a full first page and a non-empty second page while every page is forced
+through multiple actor chunks, then compares the entire sequence with an
+independently filtered global feed. This caught a proof gap that separate
+single-page chunking and ordinary pagination tests could not cover. The guide
+also now says why 499 is specific to Coterie's `public-read` `feedEvents`
+table: owner and membership visibility bindings on protected tables consume
+the same 500-binding budget and must be reserved before choosing a chunk size.

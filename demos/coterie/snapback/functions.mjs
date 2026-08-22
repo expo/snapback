@@ -94,6 +94,18 @@ function threadDirectReplyLimit() {
   return 1023;
 }
 
+// @ref LLP 0278#d3-closed-membership-semi-join — the interim manual plan
+// must admit a finite actor set instead of truncating an unbounded follow graph.
+function followingSetLimit() {
+  return 1024;
+}
+
+function requireFollowingSetCapacity(ctx, currentFollowingCount) {
+  if (currentFollowingCount >= followingSetLimit()) {
+    ctx.refuse('FOLLOWING_SET_LIMIT_EXCEEDED');
+  }
+}
+
 function chunkValues(values, maxItems) {
   const chunks = [];
   for (let start = 0; start < values.length; start += maxItems) {
@@ -496,7 +508,12 @@ async function followingFeedEvents(ctx, visibleActorIds, before, actorChunkSize)
     .slice(0, 20);
 }
 
-async function feedRows(ctx, args, followingOnly) {
+async function feedRows(
+  ctx,
+  args,
+  followingOnly,
+  actorChunkSize = queryFilterBindingLimit() - 1,
+) {
   const viewer = await requireMyProfile(ctx);
   let events;
   if (followingOnly) {
@@ -504,17 +521,11 @@ async function feedRows(ctx, args, followingOnly) {
       .query('follows')
       .withIndex('by_follower')
       .eq('followerProfileId', viewer._id)
-      .take(1024)
+      // setFollowCore admits at most this many rows, so this bounded read is
+      // complete rather than a truncating prefix.
+      .take(followingSetLimit())
       .collect();
     const visibleActorIds = [viewer._id, ...follows.map((follow) => follow.followedProfileId)];
-    const requestedChunkSize = Number.isSafeInteger(args.actorChunkSize)
-      ? args.actorChunkSize
-      : queryFilterBindingLimit() - 1;
-    // Leave one binding for the optional page-key predicate on every page.
-    const actorChunkSize = Math.max(
-      1,
-      Math.min(requestedChunkSize, queryFilterBindingLimit() - 1),
-    );
     events = await followingFeedEvents(ctx, visibleActorIds, args.before, actorChunkSize);
   } else {
     let eventsQuery = ctx.db
@@ -564,10 +575,7 @@ export const globalFeed = defineJsLiveQuery({
 
 export const followingFeed = defineJsLiveQuery({
   auth: 'authenticated',
-  args: {
-    before: v.optional(v.string()),
-    actorChunkSize: v.optional(v.integer()),
-  },
+  args: { before: v.optional(v.string()) },
   result: results.records(feedRow, { minItems: 0, maxItems: 20 }),
   reads: [
     'feedEvents',
@@ -581,6 +589,27 @@ export const followingFeed = defineJsLiveQuery({
   ],
   refusals: ['PROFILE_REQUIRED'],
   handler: async (ctx, args) => feedRows(ctx, args, true),
+});
+
+// Fixed-size, snapshot-only acceptance carrier. Production followingFeed has
+// no caller-controlled cost knob; this separate query forces multiple chunks
+// in the small checked fixture without accepting a chunk-size argument.
+export const followingFeedAcceptance = defineJsQuery({
+  auth: 'authenticated',
+  args: { before: v.optional(v.string()) },
+  result: results.records(feedRow, { minItems: 0, maxItems: 20 }),
+  reads: [
+    'feedEvents',
+    'posts',
+    'profiles',
+    'postImages',
+    'postVideos',
+    'likes',
+    'reposts',
+    'follows',
+  ],
+  refusals: ['PROFILE_REQUIRED'],
+  handler: async (ctx, args) => feedRows(ctx, args, true, 3),
 });
 
 export const thread = defineJsLiveQuery({
@@ -857,8 +886,16 @@ async function setFollowCore(ctx, targetProfileId, following, fixture, clientMut
     .eq('followerProfileId', follower._id)
     .eq('followedProfileId', target._id)
     .first();
+  const followingRows = await ctx.db
+    .query('follows')
+    .withIndex('by_follower')
+    .eq('followerProfileId', follower._id)
+    .take(followingSetLimit())
+    .collect();
+  let followingCount = followingRows.length;
   let disposition = 'matched';
   if (following && !existing) {
+    requireFollowingSetCapacity(ctx, followingCount);
     await ctx.db.insert('follows', {
       followerId: ctx.auth.userId,
       followerProfileId: follower._id,
@@ -869,6 +906,7 @@ async function setFollowCore(ctx, targetProfileId, following, fixture, clientMut
         ? { fixtureMutationId: fixture.mutationId, fixtureDigest: fixture.digest }
         : {}),
     });
+    followingCount += 1;
     disposition = 'created';
   } else if (following && existing && (
     (fixture && (
@@ -886,6 +924,7 @@ async function setFollowCore(ctx, targetProfileId, following, fixture, clientMut
     if (fixture) disposition = 'repaired';
   } else if (!following && existing) {
     await ctx.db.delete('follows', existing._id);
+    followingCount -= 1;
     disposition = 'removed';
   }
   const followers = await ctx.db
@@ -894,16 +933,10 @@ async function setFollowCore(ctx, targetProfileId, following, fixture, clientMut
     .eq('followedProfileId', target._id)
     .take(1024)
     .collect();
-  const followingRows = await ctx.db
-    .query('follows')
-    .withIndex('by_follower')
-    .eq('followerProfileId', follower._id)
-    .take(1024)
-    .collect();
   return {
     following,
     followerCount: followers.length,
-    followingCount: followingRows.length,
+    followingCount,
     disposition,
   };
 }
@@ -1066,7 +1099,12 @@ export const setFollow = defineJsMutation({
   },
   reads: ['profiles', 'follows'],
   writes: ['follows'],
-  refusals: ['PROFILE_REQUIRED', 'PROFILE_NOT_FOUND', 'SELF_FOLLOW_FORBIDDEN'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'PROFILE_NOT_FOUND',
+    'SELF_FOLLOW_FORBIDDEN',
+    'FOLLOWING_SET_LIMIT_EXCEEDED',
+  ],
   result: results.value(v.object({
     following: v.boolean(),
     followerCount: v.integer(),
@@ -1238,7 +1276,12 @@ export const ensureFixtureFollow = defineJsMutation({
   },
   reads: ['profiles', 'follows'],
   writes: ['follows'],
-  refusals: ['PROFILE_REQUIRED', 'PROFILE_NOT_FOUND', 'SELF_FOLLOW_FORBIDDEN'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'PROFILE_NOT_FOUND',
+    'SELF_FOLLOW_FORBIDDEN',
+    'FOLLOWING_SET_LIMIT_EXCEEDED',
+  ],
   result: results.value(v.string()),
   handler: async (ctx, args) => {
     const outcome = await setFollowCore(
@@ -2849,4 +2892,4 @@ export const ensureFixtureMessage = defineJsMutation({
   },
 });
 
-export { chunkValues };
+export { chunkValues, followingSetLimit, requireFollowingSetCapacity };

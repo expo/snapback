@@ -906,9 +906,9 @@ or assuming LLP 0278 D3 shipped.
     lets product behavior depend on the test seam, or asserts rows without an
     independent ordered result.
     Expected pages: `recipes/chunked-semijoin-feed.md`.
-    Route terms: "actorChunkSize", "multi-chunk path", "top 20 per chunk".
-    Required guidance: "acceptance-only actorChunkSize",
-    "compares the merged result IDs against an independent global-feed filter".
+    Route terms: "actorChunkSize", "multi-chunk path", "indexed top-20 per chunk".
+    Required guidance: "separate fixed-size acceptance query",
+    "compares the complete sequence against an independently filtered global feed".
 
 ## Static routing check
 

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:ade4e22aaea14d1782373ebc6fdac2e92921a5337cb1df7cc311929b72efd35b"
+    "sourceDigest": "sha256:c1e8262d94adb817ebb4db0636b640493bead2ed5c227aba54129fab72e4a037"
   },
   "limits": {
     "lookupBytes": 16384
@@ -74947,7 +74947,7 @@
       "guideAnchors": [
         "/_snapback/guide/backend/queries.md#builder-bounds-and-their-refusal-codes",
         "/_snapback/guide/capabilities.md#capabilities",
-        "/_snapback/guide/recipes/chunked-semijoin-feed.md#handle-snapbackqueryinitemsexceeded-by-reserving-the-cursor-binding"
+        "/_snapback/guide/recipes/chunked-semijoin-feed.md#reserve-cursor-and-visibility-bindings-before-sizing-a-chunk"
       ]
     },
     "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE": {
@@ -75126,11 +75126,11 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": "/_snapback/guide/recipes/chunked-semijoin-feed.md#handle-snapbackqueryinitemsexceeded-by-reserving-the-cursor-binding",
+      "guideAnchor": "/_snapback/guide/backend/queries.md#builder-bounds-and-their-refusal-codes",
       "guideAnchors": [
-        "/_snapback/guide/recipes/chunked-semijoin-feed.md#handle-snapbackqueryinitemsexceeded-by-reserving-the-cursor-binding",
         "/_snapback/guide/backend/queries.md#builder-bounds-and-their-refusal-codes",
         "/_snapback/guide/capabilities.md#capabilities",
+        "/_snapback/guide/recipes/chunked-semijoin-feed.md#reserve-cursor-and-visibility-bindings-before-sizing-a-chunk",
         "/_snapback/guide/retrieval-eval.md#seed-intents"
       ]
     },

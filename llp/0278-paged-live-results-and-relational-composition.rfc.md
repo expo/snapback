@@ -74,10 +74,10 @@ Evidence from the run (LLP 0277 F1–F3; Diary 0086; Diary 0078):
 - **Membership feeds outgrow `in()` and fall off the paved road.** The
   builder-bound 500-operand ceiling would refuse the benchmark's 500-follow
   probe. The working fix — chunk actors at ≤499, indexed top-20 per chunk,
-  merge by immutable page key, prove with an acceptance-only chunk-size
-  argument — is exact but opaque: codegen cannot see its cost or cursor
-  facts, and the next app will rebuild it. Diary 0086 asks directly for the
-  guide to teach the pattern or the platform to ship a closed helper.
+  merge by immutable page key, prove with a separate fixed-size acceptance
+  query — is exact but opaque: codegen cannot see its cost or cursor facts,
+  and the next app will rebuild it. Diary 0086 asks directly for the guide to
+  teach the pattern or the platform to ship a closed helper.
 - **Aggregates over entity sets fan out into per-entity streams.** The
   adapter kept one `profileStats` stream per visible profile and hit both
   zero-count exposure during stream open and auth-establishment throttling on
