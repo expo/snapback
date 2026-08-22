@@ -83,10 +83,7 @@ fn spawn_server(directory: &Path) -> (ServerGuard, HostReadyDescriptor, PathBuf)
         .arg("--ready-file")
         .arg(&ready_file)
         .env_remove("SNAPBACK_ADMIN_TOKEN")
-        .env(
-            VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV,
-            governance_config,
-        )
+        .env(VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV, governance_config)
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
@@ -212,7 +209,9 @@ fn receipt(ready_file: &Path, readiness: &OperationalReadinessV1) -> Application
         artifacts: readiness.artifacts.clone(),
         auth: ApplicationReadyAuthV1 {
             active_mode: readiness.auth.active,
+            desired_mode: readiness.auth.desired,
             mode_state: readiness.auth.mode_state,
+            app_data_availability: readiness.auth.app_data_availability,
             session_activation_ready: readiness.auth.session_activation_ready,
         },
         binding: AppBindingV1 {
@@ -236,7 +235,7 @@ fn receipt(ready_file: &Path, readiness: &OperationalReadinessV1) -> Application
                 channel: "local-supervised-ipc".to_owned(),
             },
         },
-        client_origins: vec![],
+        client_origins: readiness.client_origins.clone(),
         runtime_identity: ApplicationReadyRuntimeIdentityV1 {
             qualified_binary: QualifiedBinaryIdentityV1 {
                 path: "/test/snapback".to_owned(),
@@ -388,7 +387,7 @@ fn application_wait_requires_a_strict_current_receipt_and_live_matching_fact() {
     write_receipt(&default_receipt, &wrong_target, 0o600);
     assert_timeout(
         &run_wait(&ready_file, "application", 150, None, None),
-        "operational-readiness-target-mismatch",
+        "operational-readiness-receipt-mismatch",
     );
 
     let mut wrong_digest = correct.clone();

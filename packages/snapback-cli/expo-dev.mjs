@@ -24,7 +24,6 @@ import { pipeline } from 'node:stream/promises';
 import {
   diagnosticError,
   managedAdminToken,
-  projectApplicationReadyReceipt,
   readApplicationReadyReceipt,
   readReadyDescriptor,
   runDev,
@@ -81,13 +80,19 @@ export function expoBackendDevAuthEnvironment(env, metroPort) {
       .map((origin) => origin.trim())
       .filter(Boolean),
   );
-  origins.add(`http://127.0.0.1:${metroPort}`);
-  origins.add(`http://localhost:${metroPort}`);
-  origins.add(`http://[::1]:${metroPort}`);
+  for (const origin of expoBackendClientOrigins(metroPort)) origins.add(origin);
   return {
     ...(env ?? {}),
     SNAPBACK_DEV_AUTH_ORIGINS: [...origins].join(','),
   };
+}
+
+export function expoBackendClientOrigins(metroPort) {
+  return Object.freeze([
+    `http://127.0.0.1:${metroPort}`,
+    `http://[::1]:${metroPort}`,
+    `http://localhost:${metroPort}`,
+  ]);
 }
 
 export function expoMetroChildEnvironment({ env, bootstrapOrigin, port }) {
@@ -1907,7 +1912,8 @@ export async function runExpoDev(options = {}) {
   let abortListener = null;
   const appDescriptorPath = join(backendRoot, 'generated', 'app.descriptor.json');
   let rotateBindingAfterLoad = () => null;
-  let projectBindingToReceipt = () => null;
+  let publishBindingProjection = () => null;
+  let bindingProjection = null;
   let applicationReceiptProjection = null;
   const close = () => {
     if (closePromise !== null) return closePromise;
@@ -2027,9 +2033,10 @@ export async function runExpoDev(options = {}) {
       runtimeBinary: options.runtimeBinary,
       env: backendEnv,
       attach: options.attach === true,
-      // Expo reprojects the same receipt-issued binding onto its admitted
-      // device route after runDev verifies the host/app/runtime identity.
-      allowProjectedBindingAttach: true,
+      // The Metro aliases are declared before the backend process starts, so
+      // Rust's live admission set and the authoritative receipt are identical.
+      // Expo's device-route binding remains a projection outside that file.
+      supervisedClientOrigins: expoBackendClientOrigins(metroPort),
       watch: true,
       serverStdio: options.serverStdio ?? ['ignore', 'ignore', 'ignore'],
       onEvent(event) {
@@ -2097,7 +2104,7 @@ export async function runExpoDev(options = {}) {
     let route = null;
     bootstrap = await startBootstrapExchange(async () => {
       const exchangeBinding = await bindingPublisher.bindingForExchange();
-      if (exchangeBinding !== null) projectBindingToReceipt(exchangeBinding);
+      if (exchangeBinding !== null) publishBindingProjection(exchangeBinding);
       return exchangeBinding === null || authority === null
         ? null
         : Object.freeze({
@@ -2188,7 +2195,7 @@ export async function runExpoDev(options = {}) {
             origin: appOrigin(route.appHost, backendRoute.port),
             routing: route.bindingRouting,
           });
-          projectBindingToReceipt(refreshedBinding);
+          publishBindingProjection(refreshedBinding);
           forwarding?.remove?.();
           forwarding = installAndroidPortForwarding(route, {
             adbBinary: options.adbBinary,
@@ -2283,31 +2290,42 @@ export async function runExpoDev(options = {}) {
       androidSerial: selectedDevice.serial,
       androidDeviceClass: selectedDevice.class,
     });
-    projectBindingToReceipt = (binding) => {
-      const receipt = projectApplicationReadyReceipt(dev.applicationReadyFile, dev.readyFile, {
-        binding,
-        clientOrigins: [appOrigin(route.appHost, metroPort)],
-      });
-      applicationReceiptProjection = publicApplicationReceipt(dev.applicationReadyFile, receipt);
+    publishBindingProjection = (binding) => {
+      bindingProjection = publicBinding(binding);
       if (supervisorDescriptorFile !== null && existsSync(supervisorDescriptorFile)) {
         const current = JSON.parse(readFileSync(supervisorDescriptorFile, 'utf8'));
-        // This is an inspection projection, not attach authority. Preserve
-        // the inode already bound into the cleanup lease so rotation cannot
-        // strand a transient descriptor after supervisor shutdown.
+        // A CLI-owned reload can rotate both the authoritative receipt and
+        // its binding before this callback runs. Refresh the inspection copy
+        // from that file while preserving the ownership boundary: Expo writes
+        // only expo-supervisor.json, never application-ready.json itself.
+        try {
+          applicationReceiptProjection = publicApplicationReceipt(
+            dev.applicationReadyFile,
+            readApplicationReadyReceipt(dev.applicationReadyFile),
+          );
+        } catch (error) {
+          // The CLI deliberately removes the receipt during its short reload
+          // transition. A coincident TTL-only refresh keeps the last settled
+          // inspection copy; malformed present bytes still fail closed.
+          if (existsSync(dev.applicationReadyFile)) throw error;
+        }
+        // This transient descriptor is an inspection projection, not attach
+        // authority. The application-ready file remains untouched.
         writeFileSync(supervisorDescriptorFile, `${JSON.stringify({
           ...current,
+          binding: bindingProjection,
           applicationReady: applicationReceiptProjection,
         }, null, 2)}\n`);
         chmodSync(supervisorDescriptorFile, 0o600);
       }
-      return receipt;
+      return bindingProjection;
     };
     const initialBinding = bindingPublisher.issue({
       descriptor,
       origin: appOrigin(route.appHost, backendRoute.port),
       routing: route.bindingRouting,
     });
-    projectBindingToReceipt(initialBinding);
+    publishBindingProjection(initialBinding);
     const shouldLaunchNativeCheckout = shouldLaunchExpoNativeCheckout(route, options);
     if (shouldLaunchNativeCheckout) {
       checkoutNonce = checkoutRegistry.issue({
@@ -2331,7 +2349,7 @@ export async function runExpoDev(options = {}) {
         origin: appOrigin(route.appHost, backendRoute.port),
         routing: route.bindingRouting,
       });
-      projectBindingToReceipt(rotatedBinding);
+      publishBindingProjection(rotatedBinding);
       return {
         ok: true,
         state: 'binding-rotated',
@@ -2520,7 +2538,7 @@ export async function runExpoDev(options = {}) {
       state: finalState,
       connectCarrier: SUPERVISED_CONNECT_CARRIER,
       ...createExpoRoutingReadiness(route),
-      binding: publicBinding(applicationReceipt.binding),
+      binding: publicBinding(bindingProjection),
       applicationReady: applicationReceiptProjection,
       authority: authority.status === 'ready'
         ? { status: 'ready', kind: 'session', authMode: 'sessions' }
@@ -2559,6 +2577,7 @@ export async function runExpoDev(options = {}) {
       },
       platform: route.platform,
       connectCarrier: SUPERVISED_CONNECT_CARRIER,
+      binding: publicBinding(bindingProjection),
       applicationReady: applicationReceiptProjection,
       exchangeOrigin: bootstrap.origin,
       controlPath: SUPERVISED_CONTROL_PATH,
@@ -2612,7 +2631,7 @@ export async function runExpoDev(options = {}) {
       connectCarrier: SUPERVISED_CONNECT_CARRIER,
       device: route.device,
       get binding() {
-        return publicBinding(currentApplicationReceiptProjection().binding);
+        return publicBinding(bindingProjection);
       },
       get applicationReady() {
         return currentApplicationReceiptProjection();
@@ -2631,7 +2650,7 @@ export async function runExpoDev(options = {}) {
         return Object.freeze({
           correlationId,
           listeners,
-          binding: currentApplicationReceiptProjection().binding,
+          binding: publicBinding(bindingProjection),
           applicationReady: currentApplicationReceiptProjection(),
           metro: Object.freeze({
             pid: metro.child.pid,

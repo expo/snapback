@@ -1,7 +1,7 @@
 # guide-gap: pinned-port / fixed-origin dev loop needs a first-class recipe
 
-**Status:** Open — product path and recipe corrected 2026-08-21; packed
-vertical evidence remains
+**Status:** Closed
+**Closed:** 2026-08-21
 **Systems:** Guide, CLI dev loop, Expo client
 **Date:** 2026-08-18
 **Evidence:** diaries 0092 (hand-built fixed-origin Expo binding), 0096
@@ -48,8 +48,9 @@ diagnostic vocabulary. The retained cold run at
 `guide/eval-runs/2026-08-21/fixed-origin-development.md` passed in 9/15 tool
 uses.
 
-Partial evidence: retrieval, Guide, and first-read checks pass. They prove the
-route and generated corpus, not the missing packed vertical contract.
+The initial retrieval, Guide, and first-read checks prove the route and
+generated corpus. The W1 packed closure below supplies the external vertical
+contract that was originally missing.
 
 ## W1 implementation update — 2026-08-21
 
@@ -63,6 +64,17 @@ shutdown, Vite's receipt binding projection, and the typed stale/wrong-binding
 refusals. Raw `start --startup-artifacts` is retained only as a diagnostic and
 acceptance-harness primitive.
 
-This closes the knowledge gap itself. The ticket stays open until LLP 0295 W1's
-packed Expo/Vite/headless M1→M2 continuity fixture supplies the originally
-missing external vertical evidence.
+## Resolution — 2026-08-21
+
+LLP 0295 W1's packed external fixture now installs materialized CLI, client,
+Expo, and Vite packages and proves receipt-bound headless, real-Vite, and
+Expo-provider M1→M2 continuity. The Vite arm uses the actual plugin and actual
+browser origin; the Expo arm proves the three Metro loopback aliases against
+the Rust server's CORS admission and re-attaches after the separate Expo
+projection without Expo writing the application-ready file. The recipe's
+freshness digest and generated Guide projections were refreshed against those
+authorities. Evidence:
+
+- `packages/snapback-cli/packed-dev-lifecycle.test.mjs`
+- `packages/snapback-cli/expo-dev-loop.test.mjs`
+- `packages/snapback-vite/package.test.mjs`

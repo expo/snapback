@@ -2905,13 +2905,13 @@ id: recipes.fixed-origin-development
 order: 10
 audience: agent-first
 capabilities: [operating.packaged-dev-loop]
-authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0223-zero-config-connect-and-knowledge-closure.plan.md, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-vite/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-environment.mjs]
+authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0223-zero-config-connect-and-knowledge-closure.plan.md, llp/0224-prepared-standalone-operation.rfc.md, crates/snapback-activation/src/operational_readiness.rs, crates/snapback-server/src/server.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-vite/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-environment.mjs]
 examples: [packages/snapback-cli/dev-loop.test.mjs, packages/snapback-cli/sessions-dev-loop.test.mjs, packages/snapback-vite/package.test.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:39e75fcad1150940b319c8c785650f763bc902e5f5eda4a214ea6e429d3092a2
+reviewed-authorities-digest: sha256:5cb68f1a21c2f7a967699c4b57e21a099b8418e0037ede555ac9312acfbde456
 ---
 
 # Recipe: fixed-origin development and attach
@@ -2932,7 +2932,7 @@ For a Vite client on port 5173 and a backend pinned to 42080:
 ```sh
 snapback dev snapback \
   --port 42080 \
-  --external-client-origin http://localhost:5173
+  --external-client-origin http://127.0.0.1:5173
 ```
 
 Snapback owns the backend child and generate/load watcher. It derives the
@@ -2940,23 +2940,34 @@ exact development auth/CORS admission from the declared client origin, but it
 does not launch or stop the Vite process. Start that client with its own normal
 command in another terminal.
 
+The declared origin must equal the browser's actual Vite origin. A Vite server
+bound as `127.0.0.1` is not the `localhost` origin even when both reach the same
+machine. The authoritative receipt records the server's full normalized
+admission set: the declared origins, valid ambient
+`SNAPBACK_DEV_AUTH_ORIGINS`, and any provider-owned aliases.
+
 Re-running the same command with `--attach` is idempotent only for the exact
 intended lifecycle:
 
 ```sh
 snapback dev snapback --attach \
   --port 42080 \
-  --external-client-origin http://localhost:5173
+  --external-client-origin http://127.0.0.1:5173
 ```
 
-Attach validates the host descriptor and live startup nonce, then the
-owner-only application receipt's server digest, app binding, exact client
-origins, qualified native binary, and CLI wrapper identity. A stale listener
-or wrong binding refuses without adopting, killing, or replacing the process.
+Attach validates the host descriptor and live startup nonce, then compares the
+owner-only receipt's application deployment, authority settlement, artifacts,
+target profile, capability digest, actual client origins, app binding,
+qualified native binary, and CLI wrapper with fresh live operational readiness
+before it changes the listener. A stale listener or wrong binding refuses
+without adopting, killing, or replacing the process. An expired binding on an
+otherwise matching cut is reissued rather than treated as a foreign child.
 Closing an attached handle never shuts down the original owner's child.
 `SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER` names an occupied port without the
 intended receipt-bound lifecycle; `SNAPBACK_DEV_FIXED_BINDING_MISMATCH` names
-a live lifecycle whose admitted binding facts differ from the request.
+a live lifecycle whose admitted binding facts differ from the request; and
+`SNAPBACK_DEV_APPLICATION_READY_STALE` names a same-host receipt that differs
+from live application or authority facts.
 
 Do not infer readiness or origin from logs. The host descriptor names the
 listener; its deterministic `<ready-file>.application-ready` sibling is the
@@ -2997,10 +3008,13 @@ Expo process, the application shell must own a complete admitted
 the lower-level app client with that admitted binding. There is currently no
 safe “just pass the fixed URL” shortcut.
 
-The supervised Expo profile projects the same receipt binding/origin/runtime
-facts into its owner-only transient `expo-supervisor.json` and rendezvous
-readiness. Those are inspection/admission projections; attach still trusts the
-application receipt.
+The supervised Expo profile declares Metro's `127.0.0.1`, `[::1]`, and
+`localhost` loopback aliases into `runDev` before backend start. The Rust
+server's consumed set is therefore the set written to the receipt. Expo keeps
+its device-route binding in owner-only transient `expo-supervisor.json` and the
+rendezvous response; it never writes that projection back into the
+application-ready file. Those are inspection/admission projections; attach
+still trusts the application receipt.
 
 ## Anti-patterns
 

@@ -173,6 +173,7 @@ const server = await createServer({
   logLevel: 'silent',
   plugins: [snapbackDev({
     projectRoot: ${JSON.stringify(project)},
+    setup: { backendDirectory: ${JSON.stringify(backend)}, reset: 'never' },
     server: {
       mode: 'auto',
       db: ${JSON.stringify(database)},
@@ -199,7 +200,14 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
     '--client-command', `${JSON.stringify(process.execPath)} client.mjs`,
   ], {
     cwd: project,
-    env: { ...process.env, SNAPBACK_RUNTIME_BINARY: runtimeBinary },
+    // The generic client arm does not invent a browser origin. This fixture
+    // knows its real fixed Vite origin before backend spawn and declares it
+    // through the ambient admission input consumed by both Rust and attach.
+    env: {
+      ...process.env,
+      SNAPBACK_RUNTIME_BINARY: runtimeBinary,
+      SNAPBACK_DEV_AUTH_ORIGINS: clientOrigin,
+    },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   const stream = new EventStream(dev);

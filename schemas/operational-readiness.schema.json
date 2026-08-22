@@ -218,6 +218,13 @@
     "capabilityManifestDigest": {
       "type": "string"
     },
+    "clientOrigins": {
+      "description": "The normalized exact loopback origins admitted by the running server\nfor development auth. This is captured from the Rust consumer of\n`SNAPBACK_DEV_AUTH_ORIGINS`, not reconstructed by a receipt publisher.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "evaluatedAtMs": {
       "format": "uint64",
       "minimum": 0,
@@ -261,6 +268,7 @@
     "auth",
     "capabilityManifestDigest",
     "artifacts",
+    "clientOrigins",
     "networkProfile"
   ],
   "title": "OperationalReadinessV1",

@@ -59,7 +59,7 @@ authoritative), LLP 0058 (sessions successor protocol — the
 identity-advance semantics the amendment reconciles with), LLP 0030
 (host-ready descriptor and the Vite plugin whose disposition the amendment
 names),
-`issues/20260821-fixed-origin-external-client-dev-lifecycle.md` (the D0.1/W1
+`issues/closed/20260821-fixed-origin-external-client-dev-lifecycle.md` (the D0.1/W1
 execution ticket)
 
 ## Summary
@@ -348,9 +348,9 @@ revise.** LLP 0295 §D0.1 requires one semantic development lifecycle before
 its W1 workstream executes. This Plan and LLP 0261 are the named design
 owners; the ruling is recorded here because this Plan already owns the
 supervised connect contract the lifecycle extends. Execution ticket:
-`issues/20260821-fixed-origin-external-client-dev-lifecycle.md`; matrix
+`issues/closed/20260821-fixed-origin-external-client-dev-lifecycle.md`; matrix
 evidence: LLP 0277, diaries 0092/0096/0100/0104/0105, and
-`issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`.
+`issues/closed/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`.
 
 ### Ruling
 
@@ -485,8 +485,8 @@ engine to a supported primitive through this Plan — not by ad-hoc flag
 growth. Disposition for the one shipped orchestrator: the
 `@expo/snapback-vite` plugin (LLP 0030) becomes a fixed-profile/receipt
 consumer under W1; its existing spawn-`snapback start --ready-file` path is
-the diagnostic primitive, not the paved path. (LLP 0030 itself is not
-amended by this packet.)
+the diagnostic primitive, not the paved path. LLP 0030 is amended alongside
+this packet so its plugin contract records that disposition.
 
 Consistency note: this profile is **not** the rejected option 3
 ("run-scoped connect export"). Option 3 proposed a durable exported

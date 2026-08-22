@@ -9,7 +9,8 @@
 `snapback.application-ready.v1` receipt now also binds the lifecycle-issued
 AppBinding, exact client origins, and qualified native binary versus CLI
 wrapper identity; HostReady remains host-only and Expo/Vite surfaces are
-projections, not competing authorities)
+projections, not competing authorities; the same-v1 closed extension is an
+explicit fail-closed tool-upgrade boundary rather than additive compatibility)
 **Revised:** 2026-08-10 (Phase 1 landed; dated OQ5 and OQ2 resolutions
 recorded, author-confirmed in-session — native-binary `wait`; receipt
 gating variant (a). Projection tier author-reviewed: conservative
@@ -375,21 +376,37 @@ additional closed facts:
 
 - `binding`: the bearer-free `snapback.app-binding.v1` issued by the
   lifecycle owner for the exact generated application and admitted origin;
-- `clientOrigins`: the normalized exact origin set declared or supervised by
-  the client provider; and
+- `clientOrigins`: the normalized exact origin set actually admitted by the
+  running Rust server — declared origins union ambient
+  `SNAPBACK_DEV_AUTH_ORIGINS` union provider-owned aliases such as Expo's three
+  Metro loopback spellings; and
 - `runtimeIdentity`: the digest-bound, handler-VM-qualified native binary
   identity and the package/version identity of the CLI wrapper that launched
   it.
 
 Attach still validates `HostReadyDescriptor` and its live startup nonce first.
 It then admits the listener only when the owner-only application receipt binds
-that descriptor digest, nonce, application, binding/origin set, qualified
-binary, and wrapper. A missing/stale receipt or wrong fixed binding is a typed
-refusal and never authorizes adoption, cleanup, or termination of the
-listener. Receipt removal-before-work and atomic owner-only publication remain
+that descriptor digest, nonce, application deployment/obligation digest,
+settled auth facts, active artifacts, target profile, capability-manifest
+digest, server-consumed origin set, binding identity/origin, qualified binary,
+and wrapper. The comparison is against a fresh live `OperationalReadinessV1`
+before receipt removal or any listener mutation. A missing/stale receipt or
+wrong fixed binding is a typed refusal and never authorizes adoption, cleanup,
+or termination of the listener. An expired binding on an otherwise identical
+live cut requests binding/receipt reissue; expiry alone does not make the child
+foreign. Receipt removal-before-work and atomic owner-only publication remain
 unchanged. `.snapback/expo-supervisor.json`, the Expo `connectCarrier` fact,
 and Vite's same-origin virtual binding are projections of these receipt facts;
 they do not become attach authorities.
+
+**Compatibility ruling.** This amendment deliberately extends the existing
+closed `snapback.application-ready.v1` carrier with must-understand fields
+instead of claiming additive compatibility. Pre-amendment readers reject the
+new receipt, and amended readers reject the old receipt. That fail-closed
+same-v1 boundary is accepted for the current no-stability-dependents phase: a
+live development owner must be restarted/reissued as part of the coordinated
+CLI/runtime upgrade. A future independently deployable reader/writer boundary
+must mint a new format version or negotiate it rather than repeating this move.
 
 **Phase 1 checkpoint (2026-08-10).** Landed: the Rust-owned carriers
 `ExpectedActivationTargetV1` / `OperationalReadinessV1` /

@@ -381,7 +381,7 @@ export function snapbackDev(options = {}) {
       }
       return {
         server: {
-          ...(['managed', 'auto'].includes(mode) ? {
+          ...(['managed', 'auto', 'attach'].includes(mode) ? {
             port: config.server?.port ?? 5173,
             strictPort: true,
           } : {}),
@@ -449,7 +449,14 @@ export function snapbackDev(options = {}) {
         channel,
         mode,
       });
-      if (['managed', 'auto'].includes(mode)) {
+      if (['managed', 'auto', 'attach'].includes(mode)) {
+        if (!Number.isSafeInteger(config.server.port) || config.server.port < 1) {
+          throw diagnosticError(
+            'SNAPBACK_DEV_FIXED_BINDING_MISMATCH',
+            'receipt-bound Vite lifecycle modes require a fixed nonzero Vite port so the actual browser origin is known before attach',
+            { mode, vitePort: config.server.port ?? null },
+          );
+        }
         const host = typeof config.server?.host === 'string' ? config.server.host : 'localhost';
         const renderedHost = host.includes(':') ? `[${host}]` : host;
         viteClientOrigin = `http://${renderedHost}:${config.server.port}`;
@@ -475,6 +482,7 @@ export function snapbackDev(options = {}) {
         port: serverOptions.port ?? 3210,
         clientOrigin: viteClientOrigin,
         runtimeBinary: serverOptions.runtimeBinary,
+        qualifiedRuntimeBinary: serverOptions.qualifiedRuntimeBinary,
         readyTimeoutMs: serverOptions.readyTimeoutMs,
         serverStdio: serverOptions.stdio,
         env: options.env,

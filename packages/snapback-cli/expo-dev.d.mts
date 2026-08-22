@@ -18,6 +18,8 @@ export function expoBackendDevAuthEnvironment(
   metroPort: number,
 ): Record<string, string | undefined>;
 
+export function expoBackendClientOrigins(metroPort: number): readonly string[];
+
 export function expoMetroChildEnvironment(options: Readonly<{
   env?: Readonly<Record<string, string | undefined>>;
   bootstrapOrigin: string;

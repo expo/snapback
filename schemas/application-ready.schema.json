@@ -112,6 +112,13 @@
       ],
       "type": "object"
     },
+    "AppDataAvailability": {
+      "enum": [
+        "available",
+        "refusedPending"
+      ],
+      "type": "string"
+    },
     "ApplicationIdentityV1": {
       "oneOf": [
         {
@@ -143,6 +150,12 @@
         "activeMode": {
           "$ref": "#/$defs/AuthMode"
         },
+        "appDataAvailability": {
+          "$ref": "#/$defs/AppDataAvailability"
+        },
+        "desiredMode": {
+          "$ref": "#/$defs/AuthMode"
+        },
         "modeState": {
           "$ref": "#/$defs/AuthModeStatus"
         },
@@ -155,7 +168,9 @@
       },
       "required": [
         "activeMode",
-        "modeState"
+        "desiredMode",
+        "modeState",
+        "appDataAvailability"
       ],
       "type": "object"
     },
@@ -408,6 +423,7 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/application-ready.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "description": "Closed attach authority for one settled application lifecycle.\n\nThe 2026-08-21 D0.1 amendment deliberately extended this same v1 closed\ncarrier with must-understand binding, admission, and runtime facts. It is\nfail-closed rather than additive-compatible: pre-amendment readers reject\namended receipts and amended readers reject pre-amendment receipts. A live\ndevelopment owner must reissue the receipt across that tool upgrade.",
   "properties": {
     "application": {
       "$ref": "#/$defs/ApplicationIdentityV1"

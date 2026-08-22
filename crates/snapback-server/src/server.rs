@@ -22065,6 +22065,7 @@ fn operational_readiness_runtime_facts(
         evaluated_at_ms: now_millis(),
         auth_mode_state: (*runtime.auth_mode_state()).clone(),
         auth_program_readiness: runtime.auth_program_readiness().clone(),
+        client_origins: runtime.server.dev_auth_origins.iter().cloned().collect(),
         // @ref LLP 0167#observation-semantics--what-a-delay-means — readiness
         //   reads the undelayed control plane and only records the active name.
         network_profile: runtime.network_profiles.active().profile.name.clone(),
@@ -22103,8 +22104,14 @@ fn capture_operational_readiness_facts(
         artifacts: crate::host_ops::HostOpsArtifacts {
             schema_hash: snapback.loaded_schema_hash(),
             bundle_hash: snapback.loaded_bundle_hash(),
-            database_version: Some(snapback.durable_version()?),
+            // Application readiness is a one-time settled-generation fact.
+            // Row mutations advance the durable data version without making
+            // the loaded schema/function artifacts stale, so binding that
+            // volatile counter would make every ordinary product write
+            // invalidate attach authority.
+            database_version: None,
         },
+        client_origins: runtime.client_origins,
         network_profile: runtime.network_profile,
         app_id: (!app_id.is_empty()).then_some(app_id),
         route_manifest_hash: snapback.loaded_route_manifest_hash(),

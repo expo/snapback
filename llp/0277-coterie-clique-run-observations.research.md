@@ -451,7 +451,7 @@ Pinned benchmark ports forced agents outside `snapback dev --expo`; they then
 reconstructed startup artifacts, attach semantics, binding delivery, and
 sessions-compatible regeneration by reading package source and refusal text.
 Some paths restarted and reseeded on every schema milestone. Existing ticket:
-`issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`. The higher-level
+`issues/closed/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`. The higher-level
 question—one lifecycle for supervised and externally hosted clients—routes to
 LLP 0295 W1 and LLP 0223/0261.
 

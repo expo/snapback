@@ -34,7 +34,7 @@ publication closure and publication posture; optional
 `issues/20260808-guide-gap-compose-snapback-into-existing-app.md`, Diary 0063
 G4, LLP 0295 (published-matrix improvement program — D0.1 names this RFC a
 lifecycle design co-owner),
-`issues/20260821-fixed-origin-external-client-dev-lifecycle.md` (D0.1/W1
+`issues/closed/20260821-fixed-origin-external-client-dev-lifecycle.md` (D0.1/W1
 execution ticket)
 
 ## Summary
@@ -161,4 +161,4 @@ composition half, and the binding here is deliberately small:
   the deployment identity advances per LLP 0058) applies to `init`-adopted
   Expo/React fixtures the same as scaffolded ones once the `init` path is
   qualified. Execution ticket:
-  `issues/20260821-fixed-origin-external-client-dev-lifecycle.md`.
+  `issues/closed/20260821-fixed-origin-external-client-dev-lifecycle.md`.

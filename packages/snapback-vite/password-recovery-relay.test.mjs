@@ -15,6 +15,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer as createNetServer } from 'node:net';
@@ -123,6 +124,24 @@ function stagePackedClosure(root) {
   return tarballs;
 }
 
+function materializeQualifiedRuntime(root) {
+  const readinessPath = `${runtimeBinary}.runtime-readiness.json`;
+  const receipt = JSON.parse(readFileSync(readinessPath, 'utf8'));
+  const qualifiedRoot = join(root, 'qualified-runtime');
+  const binary = join(qualifiedRoot, 'bin', 'snapback');
+  mkdirSync(dirname(binary), { recursive: true });
+  symlinkSync(runtimeBinary, binary);
+  cpSync(readinessPath, `${binary}.runtime-readiness.json`);
+  for (const artifact of receipt.artifacts) {
+    const source = join(repoRoot, artifact.path);
+    const target = join(qualifiedRoot, artifact.path);
+    assert.ok(existsSync(source), `qualified runtime artifact is missing: ${artifact.path}`);
+    mkdirSync(dirname(target), { recursive: true });
+    symlinkSync(source, target);
+  }
+  return binary;
+}
+
 function freePort() {
   return new Promise((resolvePort, rejectPort) => {
     const probe = createNetServer();
@@ -166,6 +185,7 @@ try {
     type: 'module',
   }, null, 2)}\n`);
   const tarballs = stagePackedClosure(root);
+  const qualifiedRuntimeBinary = materializeQualifiedRuntime(root);
   run('npm', [
     'install',
     '--ignore-scripts',
@@ -206,17 +226,22 @@ try {
   );
   const database = join(project, '.snapback', 'dev.sqlite3');
   const readyFile = join(project, '.snapback', 'dev.ready.json');
+  const vitePort = await freePort();
+  const backendPort = await freePort();
+  const origin = `http://127.0.0.1:${vitePort}`;
   dev = await runDev({
     backendDirectory: backend,
     projectRoot: project,
     database,
     readyFile,
     runtimeBinary,
+    qualifiedRuntimeBinary,
+    port: backendPort,
+    externalClientOrigin: origin,
     watch: false,
     serverStdio: ['ignore', 'ignore', 'ignore'],
   });
   assert.equal(dev.ok, true, JSON.stringify(dev.diagnostics ?? null));
-  const vitePort = await freePort();
   viteServer = await createServer({
     root: webRoot,
     configFile: false,
@@ -226,14 +251,16 @@ try {
         mode: 'attach',
         db: database,
         readyFile,
+        runtimeBinary,
+        qualifiedRuntimeBinary,
       },
       projectRoot: project,
+      setup: { backendDirectory: backend, reset: 'never' },
       logJson: false,
     })],
     server: { host: '127.0.0.1', port: vitePort, strictPort: true },
   });
   await viteServer.listen();
-  const origin = `http://127.0.0.1:${vitePort}`;
   const page = await originalFetch(`${origin}/`);
   assert.equal(page.status, 200, 'external Vite page origin is serving');
 

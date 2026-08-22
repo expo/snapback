@@ -7349,20 +7349,6 @@ async fn host_wait_result(
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
             continue;
         }
-        if readiness.startup_nonce != receipt.startup_nonce {
-            last = WaitObservation {
-                condition: "operational-readiness-startup-nonce-mismatch",
-                observation: json!({
-                    "receiptStartupNonce": receipt.startup_nonce,
-                    "operationalReadinessStartupNonce": readiness.startup_nonce,
-                }),
-            };
-            if started.elapsed() >= timeout {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-            continue;
-        }
         let (receipt_deployment, receipt_obligations_digest) = match &receipt.application {
             crate::operational_readiness::ApplicationIdentityV1::DevGenerated {
                 deployment,
@@ -7380,14 +7366,56 @@ async fn host_wait_result(
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
             continue;
         };
-        if &live_target.deployment != receipt_deployment
-            || &live_target.obligations_digest != receipt_obligations_digest
+        let mut receipt_mismatch = Vec::new();
+        if readiness.startup_nonce != receipt.startup_nonce {
+            receipt_mismatch.push("startupNonce");
+        }
+        if &live_target.deployment != receipt_deployment {
+            receipt_mismatch.push("application.deployment");
+        }
+        if &live_target.obligations_digest != receipt_obligations_digest {
+            receipt_mismatch.push("application.obligationsDigest");
+        }
+        if live_target.target_profile != receipt.target_profile {
+            receipt_mismatch.push("targetProfile");
+        }
+        if readiness.artifacts.schema_hash != receipt.artifacts.schema_hash
+            || readiness.artifacts.bundle_hash != receipt.artifacts.bundle_hash
+            || readiness.artifacts.database_version != receipt.artifacts.database_version
         {
+            receipt_mismatch.push("artifacts");
+        }
+        if readiness.auth.active != receipt.auth.active_mode {
+            receipt_mismatch.push("auth.activeMode");
+        }
+        if readiness.auth.desired != receipt.auth.desired_mode {
+            receipt_mismatch.push("auth.desiredMode");
+        }
+        if readiness.auth.mode_state != receipt.auth.mode_state {
+            receipt_mismatch.push("auth.modeState");
+        }
+        if readiness.auth.app_data_availability != receipt.auth.app_data_availability {
+            receipt_mismatch.push("auth.appDataAvailability");
+        }
+        if readiness.auth.session_activation_ready != receipt.auth.session_activation_ready {
+            receipt_mismatch.push("auth.sessionActivationReady");
+        }
+        if readiness.capability_manifest_digest != receipt.capability_manifest_digest {
+            receipt_mismatch.push("capabilityManifestDigest");
+        }
+        if readiness.client_origins != receipt.client_origins {
+            receipt_mismatch.push("clientOrigins");
+        }
+        if readiness.network_profile != receipt.network_profile {
+            receipt_mismatch.push("networkProfile");
+        }
+        if !receipt_mismatch.is_empty() {
             last = WaitObservation {
-                condition: "operational-readiness-target-mismatch",
+                condition: "operational-readiness-receipt-mismatch",
                 observation: json!({
-                    "receiptApplication": receipt.application,
-                    "liveTarget": live_target,
+                    "mismatch": receipt_mismatch,
+                    "receipt": receipt,
+                    "operationalReadiness": readiness,
                 }),
             };
             if started.elapsed() >= timeout {

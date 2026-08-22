@@ -107,6 +107,10 @@ pub struct OperationalReadinessV1 {
     pub auth: OperationalReadinessAuthV1,
     pub capability_manifest_digest: String,
     pub artifacts: HostOpsArtifacts,
+    /// The normalized exact loopback origins admitted by the running server
+    /// for development auth. This is captured from the Rust consumer of
+    /// `SNAPBACK_DEV_AUTH_ORIGINS`, not reconstructed by a receipt publisher.
+    pub client_origins: Vec<String>,
     pub network_profile: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_id: Option<String>,
@@ -138,6 +142,13 @@ pub struct OperationalReadinessAuthV1 {
     pub session_activation_ready: Option<bool>,
 }
 
+/// Closed attach authority for one settled application lifecycle.
+///
+/// The 2026-08-21 D0.1 amendment deliberately extended this same v1 closed
+/// carrier with must-understand binding, admission, and runtime facts. It is
+/// fail-closed rather than additive-compatible: pre-amendment readers reject
+/// amended receipts and amended readers reject pre-amendment receipts. A live
+/// development owner must reissue the receipt across that tool upgrade.
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ApplicationReadyReceiptV1 {
@@ -268,7 +279,9 @@ pub enum ApplicationIdentityV1 {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ApplicationReadyAuthV1 {
     pub active_mode: AuthMode,
+    pub desired_mode: AuthMode,
     pub mode_state: AuthModeStatus,
+    pub app_data_availability: AppDataAvailability,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_activation_ready: Option<bool>,
 }
@@ -284,6 +297,7 @@ pub struct OperationalReadinessFactsV1 {
     pub auth_program_readiness: AuthProgramReadiness,
     pub capability_manifest_digest: String,
     pub artifacts: HostOpsArtifacts,
+    pub client_origins: Vec<String>,
     pub network_profile: String,
     pub app_id: Option<String>,
     pub route_manifest_hash: Option<String>,
@@ -297,6 +311,7 @@ pub struct OperationalReadinessRuntimeFactsV1 {
     pub evaluated_at_ms: u64,
     pub auth_mode_state: AuthModeStateRecord,
     pub auth_program_readiness: AuthProgramReadiness,
+    pub client_origins: Vec<String>,
     pub network_profile: String,
 }
 
@@ -563,6 +578,7 @@ pub fn evaluate_operational_readiness(
         },
         capability_manifest_digest: facts.capability_manifest_digest.clone(),
         artifacts: facts.artifacts.clone(),
+        client_origins: facts.client_origins.clone(),
         network_profile: facts.network_profile.clone(),
         app_id: facts.app_id.clone(),
     }
@@ -687,6 +703,7 @@ mod tests {
                 bundle_hash: Some(active.bundle_hash.clone()),
                 database_version: Some(7),
             },
+            client_origins: vec!["http://127.0.0.1:5173".to_owned()],
             network_profile: "normal".to_owned(),
             app_id: Some(active.app_id.clone()),
             route_manifest_hash: Some("sha256:routes".to_owned()),

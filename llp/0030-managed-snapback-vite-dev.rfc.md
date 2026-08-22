@@ -9,7 +9,8 @@
 fixed-port/external-client profile of `snapback dev` and its authoritative
 application-ready receipt; attach verifies that receipt; the virtual module
 projects its admitted binding through the same-origin relay instead of
-manufacturing one)
+manufacturing one; verified attach may perform only the canonical idempotent
+generated load and binding reissue, never reset/seed)
 **Revised:** 2026-08-16 (accepted LLP 0262 D2: the managed relay now stamps
 the dev-identity capability server-side while the browser-facts fence remains
 intentionally unchanged)
@@ -284,11 +285,12 @@ The setup policy must be explicit and mode-aware:
 - `auto` after spawning a managed child follows the `managed` setup policy.
 - `auto` after attaching to an existing server follows the `attach` setup policy,
   not the `managed` policy.
-- `attach`: must be non-destructive by default. It validates that the existing
-  server already has compatible schema/functions/data state, reports mismatches,
-  and never resets or seeds unless the config opts into an attached-server reset
-  with a diagnostic that names the server URL, database path, PID, and target
-  descriptor.
+- `attach`: is non-destructive. Before any mutation it compares the complete
+  application receipt with live `OperationalReadinessV1` and the actual Vite
+  origin. A matching cut may run the shared CLI's idempotent generated load and
+  reissue an expired binding; it never resets or seeds the attached server.
+  Mismatches name the server URL, database path, PID, and target descriptor and
+  leave the listener and receipt untouched.
 - `external`: must be non-destructive by default. It can validate and proxy to
   a configured URL, but loading functions, resetting, or seeding an external
   target requires explicit configuration because the target may be shared,
@@ -801,9 +803,10 @@ ordinary auth, not the local managed-server path.
 - If the requested file-backed database is already owned by another server, the
   plugin attaches only when that server is healthy and compatible; otherwise it
   reports an ownership/target diagnostic.
-- `auto` does not reset or seed when it attaches to an existing server. It only
-  runs destructive setup when it spawned the managed child, unless the developer
-  explicitly opted into resetting an attached/external target.
+- `auto` does not reset or seed when it attaches to an existing server. It runs
+  destructive setup only when it spawned the managed child; attached targets
+  admit only the complete identity cut, idempotent generated load, and binding
+  reissue.
 - Browser reload and HMR remount the Contract surface without re-running backend
   setup; data created after managed setup survives a browser reload unless an
   explicit reset command was issued.
@@ -950,8 +953,8 @@ five modes (`off`/`external`/`attach`/`managed`/`auto`), lifecycle built on
 the `@snapback/cli` helpers (ready-file handshake, target + live
 startup-nonce validation, admin-token discovery, nonce-verified stop of only
 its own managed child), managed-only one-shot bring-up over host-ops HTTP
-(reset/seed default `if-new`; attach/external refuse setup without explicit
-opt-in), the `/__snapback` HTTP+WebSocket relay with an explicit
+(reset/seed default `if-new` for owned children; attach never resets/seeds and
+external refuses setup), the `/__snapback` HTTP+WebSocket relay with an explicit
 method+path allowlist derived from the server's `RouteClass::AppData` route
 registrations (host-ops, retired root `/admin/*`, `/ephemeral/cleanup`, the
 `/ephemeral/collections` register, and `POST /app/ensure` — whose legacy

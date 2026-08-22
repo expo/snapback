@@ -28,8 +28,14 @@ export interface SnapbackDevOptions {
     backendDirectory?: string;
     /** Fixed Snapback backend port. Defaults to 3210 in managed/auto mode. */
     port?: number;
+    runtimeBinary?: string;
+    qualifiedRuntimeBinary?: string;
+    stdio?: 'ignore' | 'inherit' | number | readonly unknown[];
   };
   setup?: SnapbackDevSetupOptions | false | null;
+  env?: Readonly<Record<string, string | undefined>>;
+  logJson?: boolean;
+  onEvent?: (event: SnapbackDevDiagnosticEvent) => void;
   onDiagnostic?: (diagnostic: Readonly<Record<string, unknown>>) => void;
 }
 
@@ -115,6 +121,10 @@ export function createSnapbackViteLifecycle(options?: {
   readonly url?: string | null;
   readonly port?: number;
   readonly clientOrigin?: string | null;
+  readonly runtimeBinary?: string;
+  readonly qualifiedRuntimeBinary?: string;
+  readonly serverStdio?: 'ignore' | 'inherit' | number | readonly unknown[];
+  readonly env?: Readonly<Record<string, string | undefined>>;
   readonly readyTimeoutMs?: number;
   readonly channel?: SnapbackDiagnosticsChannel;
   readonly setup?: Readonly<Record<string, unknown>> | false | null;

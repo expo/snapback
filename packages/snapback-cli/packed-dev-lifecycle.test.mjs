@@ -1,4 +1,4 @@
-// @ref LLP 0223#dated-amendment--2026-08-21-d01-ruling--the-canonical-development-lifecycle — packed Expo, Vite/Exact, and headless consumers share the receipt-bound dev lifecycle and prove additive sessions continuity without their own carrier or binding environment.
+// @ref LLP 0223#dated-amendment--2026-08-21-d01-ruling--the-canonical-development-lifecycle — packed Expo-provider, real-Vite, and headless consumers share the receipt-bound dev lifecycle and prove additive sessions continuity without their own carrier or binding environment. Exact-runtime evidence remains LLP 0295 W7.
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -16,7 +16,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { createServer } from 'node:net';
+import { createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { createRequire } from 'node:module';
@@ -82,7 +82,10 @@ function packedDependencyClosure(rootNames) {
     const source = inventory.get(name);
     assert.ok(source, `local packed closure is missing ${name}`);
     closure.set(name, source);
-    for (const dependency of Object.keys(source.manifest.dependencies ?? {})) {
+    for (const dependency of Object.keys({
+      ...(source.manifest.dependencies ?? {}),
+      ...(source.manifest.optionalDependencies ?? {}),
+    })) {
       if (dependency.startsWith('@expo/snapback-')) pending.push(dependency);
     }
   }
@@ -101,6 +104,7 @@ function materializePackedPackages() {
   const closure = packedDependencyClosure([
     '@expo/snapback-cli',
     '@expo/snapback-client',
+    '@expo/snapback-expo',
     '@expo/snapback-vite',
   ]);
   const specifiers = {};
@@ -130,8 +134,10 @@ function materializePackedPackages() {
     dependencies: {
       '@expo/snapback-cli': specifiers['@expo/snapback-cli'],
       '@expo/snapback-client': specifiers['@expo/snapback-client'],
+      '@expo/snapback-expo': specifiers['@expo/snapback-expo'],
       '@expo/snapback-vite': specifiers['@expo/snapback-vite'],
       'fake-indexeddb': '^6.2.5',
+      'vite': '^8.0.0',
     },
     overrides: specifiers,
   }, null, 2)}\n`);
@@ -179,7 +185,7 @@ process.once('SIGTERM', close);
 }
 
 async function freeLoopbackPort() {
-  const server = createServer();
+  const server = createNetServer();
   await new Promise((resolveListen, rejectListen) => {
     server.once('error', rejectListen);
     server.listen(0, '127.0.0.1', resolveListen);
@@ -207,9 +213,9 @@ async function eventually(check, { timeoutMs = 15_000, label = 'condition' } = {
   throw new Error(`timed out waiting for ${label}${lastError ? `: ${lastError.message}` : ''}`);
 }
 
-function scaffoldLane(scaffoldApp, name) {
+function scaffoldLane(scaffoldApp, name, template = 'react') {
   const projectRoot = join(externalRoot, name);
-  assert.equal(scaffoldApp(projectRoot, { template: 'react' }).ok, true);
+  assert.equal(scaffoldApp(projectRoot, { template }).ok, true);
   const backendRoot = join(projectRoot, 'snapback');
   return {
     name,
@@ -225,12 +231,15 @@ function scaffoldLane(scaffoldApp, name) {
 
 function writeAdditiveSchema(lane) {
   const predecessor = readFileSync(lane.schemaPath, 'utf8');
+  const anchor = predecessor.includes('    todos: defineTable({')
+    ? '    todos: defineTable({'
+    : '    users: defineTable({';
   const successor = predecessor.replace(
-    '    todos: defineTable({',
+    anchor,
     `    lifecycleLabels: defineTable({
       name: v.string(),
     }).visibility({ kind: 'public-read' }).sync(),
-    todos: defineTable({`,
+${anchor}`,
   );
   assert.notEqual(successor, predecessor, `${lane.name} must add one compatible table`);
   writeFileSync(lane.schemaPath, successor);
@@ -377,12 +386,18 @@ try {
 
   const installedCli = join(externalRoot, 'node_modules', '@expo', 'snapback-cli');
   const installedClient = join(externalRoot, 'node_modules', '@expo', 'snapback-client');
+  const installedExpo = join(externalRoot, 'node_modules', '@expo', 'snapback-expo');
   const installedVite = join(externalRoot, 'node_modules', '@expo', 'snapback-vite');
   const cli = await import(pathToFileURL(join(installedCli, 'index.mjs')).href);
   const expoDev = await import(pathToFileURL(join(installedCli, 'expo-dev.mjs')).href);
   const client = await import(pathToFileURL(join(installedClient, 'index.mjs')).href);
-  const vite = await import(pathToFileURL(join(installedVite, 'lifecycle.mjs')).href);
+  const expo = await import(pathToFileURL(join(installedExpo, 'index.mjs')).href);
+  const vite = await import(pathToFileURL(join(installedVite, 'index.mjs')).href);
   const consumerRequire = createRequire(join(externalRoot, 'package.json'));
+  const installedViteEntry = consumerRequire.resolve('vite');
+  const { createServer: createViteServer } = await import(pathToFileURL(
+    installedViteEntry,
+  ).href);
   const { IDBFactory } = await import(pathToFileURL(
     consumerRequire.resolve('fake-indexeddb'),
   ).href);
@@ -431,11 +446,14 @@ try {
     activeOwner = null;
   }
 
-  // Vite/Exact: the packed plugin's attach controller consumes the application
-  // receipt directly; there is no fake host-only descriptor or custom relay.
+  // Vite: a real Vite server loads the packed plugin. Its configure cut
+  // consumes the application receipt through the shared CLI attach path; no
+  // direct lifecycle controller, fake host descriptor, or custom relay stands
+  // in for the shipped arm.
   {
     const lane = scaffoldLane(cli.scaffoldApp, 'vite-exact');
     const events = [];
+    const viteEvents = [];
     const backendPort = await freeLoopbackPort();
     const clientPort = await freeLoopbackPort();
     const clientOrigin = `http://127.0.0.1:${clientPort}`;
@@ -452,40 +470,126 @@ try {
       serverStdio: ['ignore', 'ignore', 'ignore'],
       onEvent: (event) => events.push(event),
     });
-    activeConsumer = vite.createSnapbackViteLifecycle({
-      mode: 'attach',
-      projectRoot: lane.projectRoot,
-      database: lane.database,
-      readyFile: lane.readyFile,
-      clientOrigin,
+
+    const startViteConsumer = async () => {
+      const server = await createViteServer({
+        root: lane.projectRoot,
+        configFile: false,
+        logLevel: 'silent',
+        plugins: [vite.snapbackDev({
+          server: {
+            mode: 'attach',
+            db: lane.database,
+            readyFile: lane.readyFile,
+            runtimeBinary,
+            qualifiedRuntimeBinary,
+            stdio: 'ignore',
+          },
+          projectRoot: lane.projectRoot,
+          setup: { backendDirectory: lane.backendRoot, reset: 'never' },
+          onEvent: (event) => viteEvents.push(event),
+          logJson: false,
+        })],
+        server: { host: '127.0.0.1', port: clientPort, strictPort: true },
+      });
+      await server.listen();
+      return server;
+    };
+
+    // Same host, same browser origin, stale capability identity: the actual
+    // packed Vite attach refuses before changing the owner receipt or child.
+    const applicationReadyFile = `${lane.readyFile}.application-ready`;
+    const correctReceiptBytes = readFileSync(applicationReadyFile, 'utf8');
+    const staleReceipt = JSON.parse(correctReceiptBytes);
+    staleReceipt.capabilityManifestDigest = `sha256:${'0'.repeat(64)}`;
+    writeFileSync(applicationReadyFile, `${JSON.stringify(staleReceipt, null, 2)}\n`, { mode: 0o600 });
+    const staleViteWitness = join(lane.stateRoot, 'stale-vite-witness.mjs');
+    writeFileSync(staleViteWitness, `
+import { createServer } from ${JSON.stringify(pathToFileURL(installedViteEntry).href)};
+import { snapbackDev } from ${JSON.stringify(pathToFileURL(join(installedVite, 'index.mjs')).href)};
+try {
+  await createServer({
+    root: ${JSON.stringify(lane.projectRoot)},
+    configFile: false,
+    logLevel: 'silent',
+    plugins: [snapbackDev({
+      server: {
+        mode: 'attach',
+        db: ${JSON.stringify(lane.database)},
+        readyFile: ${JSON.stringify(lane.readyFile)},
+        runtimeBinary: ${JSON.stringify(runtimeBinary)},
+        qualifiedRuntimeBinary: ${JSON.stringify(qualifiedRuntimeBinary)},
+        stdio: 'ignore',
+      },
+      projectRoot: ${JSON.stringify(lane.projectRoot)},
+      setup: { backendDirectory: ${JSON.stringify(lane.backendRoot)}, reset: 'never' },
       logJson: false,
-    });
-    await activeConsumer.start();
+    })],
+    server: { host: '127.0.0.1', port: ${clientPort}, strictPort: true },
+  });
+  process.exitCode = 2;
+} catch (error) {
+  if (error?.code !== 'SNAPBACK_DEV_APPLICATION_READY_STALE') throw error;
+  process.stdout.write(error.code + '\\n');
+  process.exitCode = 0;
+}
+process.exit();
+`);
+    assert.equal(
+      run(process.execPath, [staleViteWitness], { cwd: lane.projectRoot }).stdout.trim(),
+      'SNAPBACK_DEV_APPLICATION_READY_STALE',
+    );
+    assert.equal(readFileSync(applicationReadyFile, 'utf8').includes(`sha256:${'0'.repeat(64)}`), true);
+    await assertOwnerStillRunning(activeOwner, 'stale Vite attach');
+    writeFileSync(applicationReadyFile, correctReceiptBytes, { mode: 0o600 });
+
+    activeConsumer = await startViteConsumer();
+    let virtual = await activeConsumer.ssrLoadModule('virtual:snapback/dev');
+    const m1App = await importGeneratedApp(lane, 'vite-real-m1');
+    assert.equal(virtual.snapbackDevState.ready, true);
+    assert.equal(
+      virtual.createSnapbackDevAppBinding(m1App.app).descriptorIdentity,
+      m1App.app.identity.descriptor,
+    );
+    assert.equal((await fetch(`${clientOrigin}/__snapback/health`)).status, 200);
     await proveM1ToM2({
       lane,
       IDBFactory,
       createSnapbackAppClient: client.createSnapbackAppClient,
       readApplicationReadyReceipt: cli.readApplicationReadyReceipt,
-      binding: () => activeConsumer.binding(),
-      refreshBinding: () => activeConsumer.refreshTarget(),
+      binding: () => cli.readApplicationReadyReceipt(applicationReadyFile).binding,
+      refreshBinding: async () => {
+        await activeConsumer.close();
+        activeConsumer = await startViteConsumer();
+      },
       reload: activeOwner.verbs.reload,
       events,
       expectedClientOrigins: [clientOrigin],
     });
     const m2App = await importGeneratedApp(lane, 'vite-binding-refresh');
-    assert.equal(activeConsumer.binding().descriptorIdentity, m2App.app.identity.descriptor);
+    virtual = await activeConsumer.ssrLoadModule('virtual:snapback/dev');
+    assert.equal(
+      virtual.createSnapbackDevAppBinding(m2App.app).descriptorIdentity,
+      m2App.app.identity.descriptor,
+    );
+    assert.ok(viteEvents.some((event) => event.event === 'server-ready' && event.shape === 'attach'));
     await activeConsumer.close();
     activeConsumer = null;
-    await assertOwnerStillRunning(activeOwner, 'Vite/Exact attach');
-    await closeOwner(activeOwner, 'Vite/Exact');
+    await assertOwnerStillRunning(activeOwner, 'Vite attach');
+    await closeOwner(activeOwner, 'Vite');
     activeOwner = null;
   }
 
-  // Expo: the packed supervisor attaches to an existing intended child and
-  // projects the same authoritative receipt onto its rendezvous carrier.
+  // Expo: the actual packed Expo provider boots through the supervisor
+  // rendezvous. Metro's complete loopback-alias set is declared before the
+  // backend cut, and two sequential supervisors prove attach-after-projection
+  // remains idempotent without Expo rewriting the application-ready carrier.
   {
-    const lane = scaffoldLane(cli.scaffoldApp, 'expo');
+    const lane = scaffoldLane(cli.scaffoldApp, 'expo', 'expo-chat');
     const events = [];
+    const backendPort = await freeLoopbackPort();
+    const metroPort = await freeLoopbackPort();
+    const metroClientOrigins = expoDev.expoBackendClientOrigins(metroPort);
     activeOwner = await cli.runDev({
       backendDirectory: lane.backendRoot,
       projectRoot: lane.projectRoot,
@@ -493,10 +597,13 @@ try {
       database: lane.database,
       runtimeBinary,
       qualifiedRuntimeBinary,
+      port: backendPort,
+      externalClientOrigins: metroClientOrigins,
       watch: false,
       serverStdio: ['ignore', 'ignore', 'ignore'],
     });
-    activeConsumer = await expoDev.runExpoDev({
+
+    const startExpoConsumer = () => expoDev.runExpoDev({
       backendDirectory: lane.backendRoot,
       projectRoot: lane.projectRoot,
       expoDirectory: lane.projectRoot,
@@ -506,24 +613,145 @@ try {
       devOptions: { qualifiedRuntimeBinary },
       attach: true,
       platform: 'web',
+      metroPort,
       email: 'expo-supervisor@packed-lifecycle.test',
       metroCommand: { command: process.execPath, args: [metroScript] },
       env: process.env,
       serverStdio: ['ignore', 'ignore', 'ignore'],
       onEvent: (event) => events.push(event),
     });
+
+    activeConsumer = await startExpoConsumer();
     assert.equal(activeConsumer.connectCarrier, 'supervisor-rendezvous');
     assert.equal(activeConsumer.applicationReady.formatVersion, 'snapback.application-ready.v1');
-    await proveM1ToM2({
-      lane,
-      IDBFactory,
-      createSnapbackAppClient: client.createSnapbackAppClient,
-      readApplicationReadyReceipt: cli.readApplicationReadyReceipt,
-      binding: () => activeConsumer.binding,
-      reload: activeConsumer.verbs.reload,
-      events,
-      expectedClientOrigins: [activeConsumer.metroOrigin],
+    assert.deepEqual(activeConsumer.applicationReady.clientOrigins, metroClientOrigins);
+    assert.notEqual(
+      activeConsumer.applicationReady.binding.provenance.supervisorGeneration,
+      activeConsumer.binding.provenance.supervisorGeneration,
+    );
+    for (const origin of metroClientOrigins) {
+      const cors = await fetch(`${activeOwner.serverUrl}/health`, { headers: { origin } });
+      assert.equal(cors.status, 200);
+      assert.equal(cors.headers.get('access-control-allow-origin'), origin);
+    }
+
+    const firstReceipt = cli.readApplicationReadyReceipt(`${lane.readyFile}.application-ready`);
+    const firstProjectionBytes = readFileSync(`${lane.readyFile}.application-ready`, 'utf8');
+    await activeConsumer.close();
+    activeConsumer = null;
+    assert.equal(
+      readFileSync(`${lane.readyFile}.application-ready`, 'utf8'),
+      firstProjectionBytes,
+      'closing the Expo projection must not rewrite/remove the CLI-owned receipt',
+    );
+    await assertOwnerStillRunning(activeOwner, 'first Expo attach');
+    activeConsumer = await startExpoConsumer();
+    const secondReceipt = cli.readApplicationReadyReceipt(`${lane.readyFile}.application-ready`);
+    assert.equal(secondReceipt.startupNonce, firstReceipt.startupNonce);
+    assert.deepEqual(secondReceipt.application, firstReceipt.application);
+    assert.deepEqual(secondReceipt.clientOrigins, metroClientOrigins);
+
+    const indexedDB = new IDBFactory();
+    const lockManager = Object.freeze({
+      request: (_name, _options, operation) => operation(),
     });
+    const expoPlatform = Object.freeze({
+      kind: 'expo-web',
+      indexedDB,
+      lockManager,
+      cryptoObject: webcrypto,
+      databaseName: 'snapback-packed-lifecycle-expo',
+    });
+    const appState = () => {
+      const listeners = new Set();
+      return {
+        currentState: 'active',
+        addEventListener(_event, listener) {
+          listeners.add(listener);
+          return { remove: () => listeners.delete(listener) };
+        },
+      };
+    };
+    const bootEnvironment = () => Object.freeze({
+      ...expo.createSupervisedExpoEnvironment({
+        exchangeOrigin: activeConsumer.exchangeOrigin,
+        appState: appState(),
+        clientOptions: {
+          rqsStore: null,
+          offlineQueue: false,
+          clientStoreId: 'packed-expo-provider',
+        },
+      }),
+      resolveAppClientPlatform: () => expoPlatform,
+    });
+
+    const m1Generated = await importGeneratedApp(lane, 'expo-provider-m1');
+    let boot = expo.createSnapbackExpoBoot({
+      app: m1Generated.app,
+      environment: bootEnvironment(),
+    });
+    let bootState = await boot.start();
+    assert.equal(bootState.status, 'ready', JSON.stringify(bootState));
+    assert.ok(boot.reactProvider(), 'packed Expo arm must construct the canonical React provider');
+    let appClient = boot.appClient();
+    assert.ok(appClient, 'packed Expo arm must construct the application client');
+    const principal = appClient.auth.currentPrincipal();
+    assert.equal(principal.status, 'authenticated');
+    const originalSession = await appClient.client.authSession();
+    const conversations = (await appClient.client.query(m1Generated.conversations)).rows;
+    const users = (await appClient.client.query(m1Generated.users)).rows;
+    assert.ok(conversations.length > 0 && users.length > 0);
+    const conversationId = conversations[0]._id;
+    const senderId = users[0]._id;
+    const text = 'Packed Expo provider survives M1 to M2';
+    await appClient.client.mutate(m1Generated.sendText, {
+      args: { conversationId, senderId, text },
+      queue: false,
+    });
+    assert.ok(
+      (await appClient.client.query(m1Generated.messagesForConversation, {
+        args: { conversationId },
+      }))
+        .rows.some((row) => row.text === text),
+    );
+    await boot.dispose();
+    boot = null;
+    appClient = null;
+
+    writeAdditiveSchema(lane);
+    const requestId = 'expo-m2-additive';
+    const reloaded = await activeConsumer.verbs.reload({ requestId });
+    assert.equal(reloaded.state, 'generated-and-loaded', JSON.stringify(reloaded));
+    const advance = deploymentEvent(events, requestId);
+    assert.ok(advance, 'Expo reports the M1 -> M2 deployment identity advance');
+    assert.deepEqual(advance.continuity, {
+      database: 'preserved',
+      accounts: 'preserved',
+      sessions: 'preserved',
+      stores: 'preserved',
+    });
+    const m2Generated = await importGeneratedApp(lane, 'expo-provider-m2');
+    assert.equal(activeConsumer.binding.descriptorIdentity, m2Generated.app.identity.descriptor);
+    boot = expo.createSnapbackExpoBoot({
+      app: m2Generated.app,
+      environment: bootEnvironment(),
+    });
+    bootState = await boot.start();
+    assert.equal(bootState.status, 'ready', JSON.stringify(bootState));
+    assert.ok(boot.reactProvider());
+    appClient = boot.appClient();
+    const survivingPrincipal = appClient.auth.currentPrincipal();
+    assert.equal(survivingPrincipal.userId, principal.userId);
+    const survivingSession = await appClient.client.authSession();
+    assert.equal(survivingSession.authority.sessionId, originalSession.authority.sessionId);
+    assert.ok(
+      (await appClient.client.query(m2Generated.messagesForConversation, {
+        args: { conversationId },
+      }))
+        .rows.some((row) => row.text === text),
+      'packed Expo provider preserves its product row through M2',
+    );
+    await boot.dispose();
     assert.equal(
       activeConsumer.inspection().applicationReady.hostReadyDescriptorDigest,
       cli.readApplicationReadyReceipt(`${lane.readyFile}.application-ready`).hostReadyDescriptorDigest,
@@ -536,7 +764,7 @@ try {
   }
 
   console.log(
-    'packed-dev-lifecycle.test.mjs: packed headless, Vite/Exact, and Expo M1 -> M2 receipt-bound continuity passes',
+    'packed-dev-lifecycle.test.mjs: packed headless, real Vite, and Expo provider M1 -> M2 receipt-bound continuity passes',
   );
 } finally {
   await activeConsumer?.close?.().catch(() => {});

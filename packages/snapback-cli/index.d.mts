@@ -547,6 +547,14 @@ export interface RunDevOptions extends RuntimeSelectionOptions {
   readonly database?: string;
   readonly env?: EnvironmentVariables;
   readonly client?: DevClientArmSpec;
+  /** Fixed backend listener port for externally-owned client lifecycles. */
+  readonly port?: number;
+  /** Exact loopback HTTP(S) origin admitted by the backend. Requires `port`. */
+  readonly externalClientOrigin?: string;
+  /** Exact loopback HTTP(S) origins admitted by the backend. Requires `port`. */
+  readonly externalClientOrigins?: readonly string[];
+  /** Already-qualified runtime whose identity is carried by client bindings. */
+  readonly qualifiedRuntimeBinary?: string;
   readonly attach?: boolean;
   readonly watch?: boolean;
   readonly bootstrapGeneratedAtStart?: boolean;
@@ -563,6 +571,8 @@ export interface DevLoopHandle {
   readyFile: string;
   applicationReadyFile: string;
   serverUrl: string;
+  lifecycleProfile: 'selected-port' | 'fixed-port';
+  clientOrigins: readonly string[];
   runtime: ResolvedRuntime;
   runtimeRecovery: RuntimeRecoveryRecord;
   child: ManagedChildProcess | null;
@@ -578,6 +588,52 @@ export interface DevGenerationFailure extends GenerateAppFailure {
 /** Generate, start or attach to the managed server, load, and (by default)
  * watch the backend for hot regenerate-and-load passes. */
 export function runDev(options?: RunDevOptions): Promise<DevLoopHandle | DevGenerationFailure>;
+
+export interface OperationalReadinessV1 {
+  readonly formatVersion: 'snapback.operational-readiness.v1';
+  readonly ready: boolean;
+  readonly startupNonce: string;
+  readonly evaluatedAtMs: number;
+  readonly target: Readonly<Record<string, unknown>>;
+  readonly artifacts: Readonly<Record<string, unknown>>;
+  readonly auth: Readonly<Record<string, unknown>>;
+  readonly clientOrigins: readonly string[];
+  readonly capabilityManifestDigest: string;
+  readonly networkProfile: string;
+  readonly unsatisfied: readonly unknown[];
+  readonly [key: string]: unknown;
+}
+
+export interface ApplicationReadyReceiptV1 {
+  readonly formatVersion: 'snapback.application-ready.v1';
+  readonly startupNonce: string;
+  readonly hostReadyDescriptorDigest: string;
+  readonly application: Readonly<Record<string, unknown>>;
+  readonly targetProfile: string;
+  readonly artifacts: Readonly<Record<string, unknown>>;
+  readonly auth: Readonly<Record<string, unknown>>;
+  readonly binding: Readonly<Record<string, unknown>>;
+  readonly clientOrigins: readonly string[];
+  readonly runtimeIdentity: Readonly<Record<string, unknown>>;
+  readonly capabilityManifestDigest: string;
+  readonly networkProfile: string;
+  readonly settledAtMs: number;
+}
+
+/** Read and validate the closed application-ready receipt schema. */
+export function readApplicationReadyReceipt(path: string): ApplicationReadyReceiptV1;
+
+/** Read the server-owned operational-readiness fact without changing it. */
+export function readOperationalReadiness(
+  descriptor: ReadyDescriptor,
+  adminToken: string | null,
+): Promise<OperationalReadinessV1>;
+
+/** Refuse a receipt whose complete bind-set differs from live readiness. */
+export function verifyApplicationReadyReceiptAgainstReadiness(
+  receipt: ApplicationReadyReceiptV1,
+  readiness: OperationalReadinessV1,
+): ApplicationReadyReceiptV1;
 
 /** Minimal stdin surface the dev control channel drives (process.stdin fits). */
 export interface DevControlStdin {

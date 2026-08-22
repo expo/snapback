@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import {
   existsSync,
@@ -781,96 +780,67 @@ try {
     }, 500);
   });
   const backendUrl = await listen(backend);
-  const database = join(externalApp, '.snapback', 'packed-relay.sqlite3');
-  const readyFile = join(externalApp, '.snapback', 'packed-relay.ready.json');
-  const applicationReadyFile = `${readyFile}.application-ready`;
-  writeFileSync(database, '');
-  const readyBytes = `${JSON.stringify({
-    schemaVersion: 'snapback.v0',
-    descriptorKind: 'snapbackHostReady',
-    ready: true,
-    pid: process.pid,
-    serverUrl: backendUrl,
-    database: { path: database },
-    startupNonce,
-  })}\n`;
-  writeFileSync(readyFile, readyBytes, { mode: 0o600 });
   const issuedAt = new Date().toISOString();
   const expiresAt = new Date(Date.now() + 60 * 60 * 1_000).toISOString();
-  // @ref LLP 0224#dated-amendment-d01-lifecycle-identity-extension-2026-08-21 — even this fake transport backend is admitted to the packed Vite consumer through the authoritative application receipt, never through a host descriptor masquerading as application readiness.
-  writeFileSync(applicationReadyFile, `${JSON.stringify({
-    formatVersion: 'snapback.application-ready.v1',
-    startupNonce,
-    hostReadyDescriptorDigest: `sha256:${createHash('sha256').update(readyBytes).digest('hex')}`,
-    application: {
-      mode: 'dev-generated',
-      deployment: handshakeFor(null).deploymentIdentity,
-      obligationsDigest: `sha256:${'0'.repeat(64)}`,
+  const relayBinding = {
+    format: 'snapback.app-binding.v1',
+    source: 'supervised-dev',
+    descriptorIdentity: generatedApp.identity.descriptor,
+    target: {
+      app: generatedApp.identity.app,
+      schema: generatedApp.identity.schema,
+      functions: generatedApp.identity.functions,
+      origin: backendUrl,
+      routing: 'loopback',
     },
-    targetProfile: 'local-dev-sqlite-ibex',
-    artifacts: {
-      schemaHash: generatedLiveReference.expectedGeneration.schemaHash,
-      bundleHash: generatedLiveReference.expectedGeneration.bundleHash,
-      databaseVersion: 0,
+    capabilities: {
+      offered: [...new Set([
+        ...(generatedApp.capabilities?.required ?? []),
+        'auth.passwords',
+      ])].sort(),
     },
-    auth: { activeMode: 'sessions', modeState: 'settled', sessionActivationReady: true },
-    binding: {
-      format: 'snapback.app-binding.v1',
-      source: 'supervised-dev',
-      descriptorIdentity: generatedApp.identity.descriptor,
-      target: {
-        app: generatedApp.identity.app,
-        schema: generatedApp.identity.schema,
-        functions: generatedApp.identity.functions,
-        origin: backendUrl,
-        routing: 'loopback',
-      },
-      capabilities: {
-        offered: [...new Set([
-          ...(generatedApp.capabilities?.required ?? []),
-          'auth.passwords',
-        ])].sort(),
-      },
-      provenance: {
-        supervisorGeneration: 'packed-password-relay',
-        issuedAt,
-        expiresAt,
-      },
-      integrity: { channel: 'local-supervised-ipc' },
+    provenance: {
+      supervisorGeneration: 'packed-password-relay',
+      issuedAt,
+      expiresAt,
     },
-    clientOrigins: [],
-    runtimeIdentity: {
-      qualifiedBinary: {
-        path: process.execPath,
-        source: 'packed-relay-fixture',
-        platform: `${process.platform}-${process.arch}`,
-        bytes: 0,
-        sha256: `sha256:${'0'.repeat(64)}`,
-        buildIdentity: {},
-        qualification: {
-          receiptSchemaVersion: 'snapback.runtime-readiness.v1',
-          receiptPath: 'packed-relay-fixture',
-          probe: 'restricted-no-eval-handler-vm',
-        },
-      },
-      wrapper: { package: '@expo/snapback-cli', version: 'packed-fixture' },
-    },
-    capabilityManifestDigest: `sha256:${'0'.repeat(64)}`,
-    networkProfile: 'loopback-only',
-    settledAtMs: Date.now(),
-  })}\n`, { mode: 0o600 });
+    integrity: { channel: 'local-supervised-ipc' },
+  };
 
   const { createServer: createViteServer } = await import(
     pathToFileURL(join(externalApp, 'node_modules', 'vite', 'dist', 'node', 'index.js')).href
   );
-  const { default: snapbackDev } = await import(pathToFileURL(join(installedVite, 'index.mjs')).href);
+  const { default: snapbackDev, renderVirtualModule } = await import(
+    pathToFileURL(join(installedVite, 'index.mjs')).href
+  );
   const viteEvents = [];
+  const virtualBindingId = '\0packed-password-relay-binding';
+  // This suite owns browser relay/auth behavior against a fake transport
+  // backend, so it injects a visibly test-only virtual binding. The real
+  // receipt/OperationalReadiness attach identity cut is exercised by
+  // packed-dev-lifecycle.test.mjs and package.test.mjs.
+  const relayBindingFixture = {
+    name: 'packed-password-relay-binding-fixture',
+    enforce: 'pre',
+    resolveId(id) {
+      return id === 'virtual:snapback/dev' ? virtualBindingId : null;
+    },
+    load(id) {
+      return id === virtualBindingId
+        ? renderVirtualModule({
+            base: '/__snapback',
+            state: { mode: 'external', shape: 'external', ready: true },
+            binding: relayBinding,
+          })
+        : null;
+    },
+  };
   viteServer = await createViteServer({
     root: externalApp,
     configFile: false,
     logLevel: 'silent',
-    plugins: [snapbackDev({
-      server: { mode: 'attach', db: database, readyFile },
+    plugins: [relayBindingFixture, snapbackDev({
+      server: { mode: 'external', url: backendUrl },
       projectRoot: externalApp,
       logJson: false,
       onEvent: (event) => viteEvents.push(event),
@@ -880,7 +850,7 @@ try {
   await viteServer.listen();
   assert.ok(
     viteEvents.some((event) => event.event === 'server-ready' && event.ready === true),
-    'packed Vite attach reaches ready through snapback.application-ready.v1',
+    'packed Vite external relay reaches the fake backend',
   );
   const address = viteServer.httpServer.address();
   assert.ok(address && typeof address !== 'string');

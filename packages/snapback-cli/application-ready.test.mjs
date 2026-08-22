@@ -9,6 +9,7 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -78,6 +79,12 @@ function readReceipt(path = applicationReadyFile) {
   ]);
   assert.deepEqual(Object.keys(receipt.application).sort(), [
     'deployment', 'mode', 'obligationsDigest',
+  ]);
+  assert.deepEqual(Object.keys(receipt.auth).sort(), [
+    'activeMode',
+    'appDataAvailability',
+    'desiredMode',
+    'modeState',
   ]);
   assert.equal(statSync(path).mode & 0o777, 0o600);
   assert.equal(receipt.binding.format, 'snapback.app-binding.v1');
@@ -214,6 +221,12 @@ try {
   const fixedPort = portProbe.address().port;
   await new Promise((resolveClose) => portProbe.close(resolveClose));
   const clientOrigin = 'http://localhost:5173';
+  const ambientClientOrigin = 'http://127.0.0.1:19000';
+  const fixedEnvironment = {
+    ...process.env,
+    SNAPBACK_DEV_AUTH_ORIGINS: ambientClientOrigin,
+  };
+  const actualClientOrigins = [ambientClientOrigin, clientOrigin].sort();
   const fixedOwner = await runDev({
     backendDirectory: backendRoot,
     projectRoot,
@@ -222,14 +235,58 @@ try {
     runtimeBinary,
     port: fixedPort,
     externalClientOrigin: clientOrigin,
+    env: fixedEnvironment,
     watch: false,
     serverStdio: ['ignore', 'ignore', 'ignore'],
   });
   handles.push(fixedOwner);
   receipt = readReceipt();
-  assert.deepEqual(receipt.clientOrigins, [clientOrigin]);
+  assert.deepEqual(receipt.clientOrigins, actualClientOrigins);
+  assert.deepEqual(fixedOwner.clientOrigins, actualClientOrigins);
   assert.equal(new URL(receipt.binding.target.origin).port, String(fixedPort));
   const fixedNonce = receipt.startupNonce;
+
+  // A same-host receipt whose application bind-set is stale is refused before
+  // attach removes the receipt or performs an idempotent generated load.
+  const correctReceiptBytes = readFileSync(applicationReadyFile, 'utf8');
+  const staleApplicationReceipt = JSON.parse(correctReceiptBytes);
+  staleApplicationReceipt.capabilityManifestDigest = `sha256:${'0'.repeat(64)}`;
+  writeFileSync(
+    applicationReadyFile,
+    `${JSON.stringify(staleApplicationReceipt, null, 2)}\n`,
+    { mode: 0o600 },
+  );
+  const staleApplicationBytes = readFileSync(applicationReadyFile, 'utf8');
+  await assert.rejects(
+    () => runDev({
+      backendDirectory: backendRoot,
+      projectRoot,
+      readyFile,
+      database,
+      runtimeBinary,
+      port: fixedPort,
+      externalClientOrigin: clientOrigin,
+      env: fixedEnvironment,
+      attach: true,
+      watch: false,
+      serverStdio: ['ignore', 'ignore', 'ignore'],
+    }),
+    (error) => error.code === 'SNAPBACK_DEV_APPLICATION_READY_STALE'
+      && error.diagnostic.details.mismatch.includes('capabilityManifestDigest'),
+  );
+  assert.equal(readFileSync(applicationReadyFile, 'utf8'), staleApplicationBytes);
+  assert.equal(readReadyDescriptor(readyFile).startupNonce, fixedNonce);
+  writeFileSync(applicationReadyFile, correctReceiptBytes, { mode: 0o600 });
+
+  // Binding expiry asks the matching lifecycle to issue a fresh binding; it
+  // does not classify the still-live child as foreign.
+  const expiredReceipt = JSON.parse(correctReceiptBytes);
+  expiredReceipt.binding.provenance.expiresAt = '2000-01-01T00:00:00.000Z';
+  writeFileSync(
+    applicationReadyFile,
+    `${JSON.stringify(expiredReceipt, null, 2)}\n`,
+    { mode: 0o600 },
+  );
   const fixedAttach = await runDev({
     backendDirectory: backendRoot,
     projectRoot,
@@ -238,12 +295,14 @@ try {
     runtimeBinary,
     port: fixedPort,
     externalClientOrigin: clientOrigin,
+    env: fixedEnvironment,
     attach: true,
     watch: false,
     serverStdio: ['ignore', 'ignore', 'ignore'],
   });
   handles.push(fixedAttach);
   assert.equal(readReceipt().startupNonce, fixedNonce);
+  assert(Date.parse(readReceipt().binding.provenance.expiresAt) > Date.now());
   await assert.rejects(
     () => runDev({
       backendDirectory: backendRoot,
@@ -253,6 +312,7 @@ try {
       runtimeBinary,
       port: fixedPort,
       externalClientOrigin: 'http://localhost:5174',
+      env: fixedEnvironment,
       attach: true,
       watch: false,
       serverStdio: ['ignore', 'ignore', 'ignore'],

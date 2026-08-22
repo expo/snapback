@@ -39,9 +39,12 @@ import {
   EXPO_SUPERVISOR_DESCRIPTOR_FORMAT,
   SUPERVISED_EXCHANGE_PATH,
   createExpoRoutingPlan,
+  expoBackendClientOrigins,
+  expoBackendDevAuthEnvironment,
   installAndroidPortForwarding,
   runExpoDev,
 } from './expo-dev.mjs';
+import { runDev } from './index.mjs';
 import {
   defineTemplateCarrierConfig,
   runTemplateCarrierCli,
@@ -826,15 +829,47 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assert.equal(supervisorDiscovery.metro.origin, supervisor.metroOrigin);
   assert.equal(supervisor.applicationReady.formatVersion, 'snapback.application-ready.v1');
   assert.deepEqual(supervisorDiscovery.applicationReady, supervisor.applicationReady);
-  assert.deepEqual(supervisor.applicationReady.clientOrigins, [supervisor.metroOrigin]);
-  assert.equal(
-    supervisor.applicationReady.binding.descriptorIdentity,
-    supervisor.binding.descriptorIdentity,
+  const metroClientOrigins = expoBackendClientOrigins(
+    Number(new URL(supervisor.metroOrigin).port),
+  );
+  assert.deepEqual(supervisor.applicationReady.clientOrigins, metroClientOrigins);
+  assert.equal(supervisor.applicationReady.binding.descriptorIdentity, supervisor.binding.descriptorIdentity);
+  assert.notEqual(
+    supervisor.applicationReady.binding.provenance.supervisorGeneration,
+    supervisor.binding.provenance.supervisorGeneration,
+    'the CLI-owned receipt and Expo device-route projection have distinct issuers',
   );
   assert.match(
     supervisor.applicationReady.runtimeIdentity.qualifiedBinary.sha256,
     /^sha256:[0-9a-f]{64}$/u,
   );
+  for (const origin of metroClientOrigins) {
+    const cors = await fetch(`${supervisor.applicationReady.binding.target.origin}/health`, {
+      headers: { origin },
+    });
+    assert.equal(cors.status, 200);
+    assert.equal(cors.headers.get('access-control-allow-origin'), origin);
+  }
+
+  // The canonical CLI cut remains idempotently attachable after Expo has
+  // published its separate route projection. Expo never substitutes that
+  // projection into the application-ready file.
+  const cliAttachAfterProjection = await runDev({
+    backendDirectory: settled.backendRoot,
+    projectRoot: settled.projectRoot,
+    readyFile: settled.readyFile,
+    database: settled.database,
+    runtimeBinary,
+    env: expoBackendDevAuthEnvironment(process.env, Number(new URL(supervisor.metroOrigin).port)),
+    supervisedClientOrigins: metroClientOrigins,
+    attach: true,
+    watch: false,
+    serverStdio: ['ignore', 'ignore', 'ignore'],
+  });
+  assert.equal(cliAttachAfterProjection.managed, false);
+  assert.deepEqual(cliAttachAfterProjection.clientOrigins, metroClientOrigins);
+  await cliAttachAfterProjection.close();
+  const applicationReadyAfterCliAttach = readFileSync(supervisor.applicationReady.path, 'utf8');
   assert(supervisorDiscovery.listeners.some((listener) => (
     listener.owner === 'metro'
       && listener.port === Number(new URL(supervisorDiscovery.metro.upstreamOrigin).port)
@@ -989,9 +1024,14 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   );
   assert.equal(
     JSON.parse(readFileSync(supervisorDescriptor, 'utf8'))
-      .applicationReady.binding.provenance.issuedAt,
+      .binding.provenance.issuedAt,
     supervisor.binding.provenance.issuedAt,
-    'the transient Expo descriptor must remain a projection of the refreshed application receipt',
+    'the transient Expo descriptor must project the refreshed Expo binding',
+  );
+  assert.equal(
+    readFileSync(supervisor.applicationReady.path, 'utf8'),
+    applicationReadyAfterCliAttach,
+    'Expo binding refresh must never rewrite the CLI-owned application-ready file',
   );
   assert.equal(
     JSON.stringify(events.filter((event) => event.state === 'binding-refreshed')).includes(firstBearer),

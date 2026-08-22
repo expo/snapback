@@ -8,10 +8,7 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-21 (D0.2/W2 implementation correction: records the
-adopted prompt-refusal matrix, independently transcribed 50-cell policy plus
-behavioral witnesses, item-5/SQLite/timing composition, and reopens the two
-agent auth residuals that still lack real witnesses); 2026-08-21 (Phase 1D records the bounded debug-artifact
+**Revised:** 2026-08-21 (Phase 1D records the bounded debug-artifact
 attribution while keeping its drift/reduced-debug follow-up ticket open);
 2026-08-21 (Phase 1A Expo package-parity progress: closes the
 cycle-free Expo Metro initialization ticket with a packed external proof);
@@ -203,7 +200,8 @@ Straight repair tickets in Phase 1 do not wait.
 Choose one semantic lifecycle that covers:
 
 - tool-selected ports and caller-pinned ports;
-- Expo/React and external Vite/Exact clients;
+- Expo/React, external Vite clients, and the Snapback side of later Exact
+  integration (the Exact runtime itself remains W7 evidence);
 - fresh start, attach to an already-running server, regenerate, additive
   schema successor, and shutdown;
 - sessions-mode deployment identity and store preservation;
@@ -220,9 +218,9 @@ prove one M1->M2 additive change with the original accounts and sessions
 intact. Execution ticket:
 `issues/closed/20260821-fixed-origin-external-client-dev-lifecycle.md`.
 
-### D0.2 — Client authority-transition state machine (adopted and implemented)
+### D0.2 — Client authority-transition state machine
 
-LLP 0059 now owns the adopted total state and settlement contract shared by one-shot queries,
+Decide the total state and settlement contract shared by one-shot queries,
 live queries, mutations/outbox, React hooks, Familiar projections, and provider
 adapters across anonymous, authenticating, authenticated, revoking, and
 reconnecting states.
@@ -236,11 +234,10 @@ The ruling must answer:
 - which state is safe for subscribe-after-settle; and
 - which diagnostics expose queue, commit, and delivery time separately.
 
-LLP 0059/0107/0218 remain mechanism owners. W2 landed one shared 50-cell
-transition matrix plus behavioral query/mutation/live/outbox/provider suites;
-it deliberately makes no generated event/timing cartesian conformance claim.
+LLP 0059/0107/0218 remain mechanism owners. This Plan requires one shared
+transition matrix and conformance suite so each surface cannot improvise.
 Decision/conformance ticket:
-`issues/closed/20260821-client-authority-transition-state-matrix.md`.
+`issues/20260821-client-authority-transition-state-matrix.md`.
 
 ### D0.3 — Authoring-profile product contract
 
@@ -343,21 +340,19 @@ before choosing a repair. All may run while Phase 0 is reviewed.
 
 ### 1A. Published package and compiler/runtime parity
 
-- `issues/closed/20260820-vite-password-auth-relay-allowlist.md`
+- `issues/20260820-vite-password-auth-relay-allowlist.md`
 - `issues/closed/20260820-expo-metro-default-storage-partition-cycle.md` —
   resolved through a cycle-free defaults leaf and packed external Metro
   bundle/first-render proof
-- `issues/closed/20260820-familiar-vdoc-generation-runtime-parity.md`
-- `issues/closed/20260820-optional-user-live-query-auth-transition-stall.md`
-- `issues/closed/20260820-authenticated-query-signed-out-settlement.md`
+- `issues/20260820-familiar-vdoc-generation-runtime-parity.md`
+- `issues/20260820-optional-user-live-query-auth-transition-stall.md`
+- `issues/20260820-authenticated-query-signed-out-settlement.md`
 
 Exit: all five reproduce before the fix and pass through packed external
 packages afterward; no source-checkout-only proof closes them.
 
-All five Phase 1A tickets satisfy that exit individually as of 2026-08-21;
-the batch is closed. The separate agent-auth watch-reload/ephemeral residual
-ticket remains open because its last two exit witnesses are not Phase 1A
-package-parity claims.
+The Expo ticket satisfies that exit individually as of 2026-08-21. Phase 1A
+as a batch remains open on the other four tickets.
 
 ### 1B. Precise diagnostics and typed hook contracts
 
@@ -372,9 +367,9 @@ bisection.
 
 ### 1C. High-value guide routes
 
-- `issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`
-- `issues/closed/20260818-guide-gap-node-client-storage-partition-default.md`
-- `issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`
+- `issues/closed/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`
+- `issues/20260818-guide-gap-node-client-storage-partition-default.md`
+- `issues/20260818-guide-gap-background-writes-during-auth-transitions.md`
 - `issues/20260818-guide-gap-presence-heartbeat-vs-bound-value.md`
 - `issues/20260820-guide-gap-familiar-handler-dialect.md`
 - `issues/20260820-guide-gap-membership-roster-projection-recipe.md`
@@ -413,9 +408,10 @@ repair so 17-19 instances do not bury the useful generation summary.
 Implement D0.1 through the existing CLI/lifecycle owners. The milestone is
 not a new flag in isolation; it is the deletion of custom binding environments,
 prebuilt startup-carrier scripts, and destructive reseeds from all four matrix
-templates. The same ready receipt should let the Expo, Vite/Exact, headless,
-and acceptance consumers prove they are attached to the intended app and
-authority mode.
+templates. The same ready receipt should let the Expo provider, real Vite
+plugin, headless, and acceptance consumers prove they are attached to the
+intended app and authority mode. This W1 proof does not substitute for W7's
+Exact-runtime evidence.
 
 Efficiency hypothesis: removing restart/reseed and lifecycle source inspection
 will produce the largest M1 wall reduction, especially on clean lanes where M1
@@ -423,7 +419,7 @@ was 3-6x either later milestone.
 
 ### W2. One authority-transition participant
 
-Implemented D0.2 as a shared core state machine plus per-surface projections.
+Implement D0.2 as a shared core state machine plus per-surface projections.
 Background receipt/read work needs an admitted housekeeping lane or an explicit
 wait/skip policy; it may not silently serialize a foreground send. Provider
 adapters consume the same settled-authority state rather than poll their own
@@ -446,15 +442,6 @@ Implement D0.3 in two parallel lanes:
 - **Explicit economy:** apply LLP 0275 to derive exact result/dependency facts,
   scaffold recurring fixed lifecycle wiring, and preserve authored authority,
   visibility, retention, and asset policy.
-
-Lane C's first Familiar receipt is
-`scripts/familiar-vdoc-vertical-contract.mjs`, backed by
-`tests/fixtures/familiar-vdoc-vertical/`. It covers the Guide's nullable point
-spelling, exact generated types, clean one-pass generation, bare/nullable
-query/list and mutation/action runtime contracts, headless one-shot/live plus
-React projection, present/absent/delete live transitions, byte-preserving
-refused CLI regeneration, and stable pre-output document-composite refusals.
-LLP 0253 S4.3 remains the result partition owner.
 
 Do not compare line counts alone. The success measure is fewer semantic
 correction actions while retaining the same generated manifest and authority

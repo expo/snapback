@@ -6,7 +6,7 @@
 **Systems:** CLI, Local server lifecycle, Expo, Vite/Exact, Headless client,
 Sessions auth, Verification
 **Governing:** LLP 0295 D0.1/W1; LLP 0223; LLP 0261
-**Related:** `issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`;
+**Related:** `issues/closed/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`;
 `issues/20260819-expo-web-carrier-supervised-origin.md`;
 `issues/closed/20260820-vite-password-auth-relay-allowlist.md`
 
@@ -73,7 +73,8 @@ in brief:
 - [x] Preserve accounts, sessions, and stores across regenerate and one
       additive schema successor with the LLP 0058 identity advance reported
       (old/new pair asserted); make any destructive step explicit.
-- [x] Packed-package acceptance fixtures: Expo, Vite/Exact, headless — each
+- [x] Packed-package acceptance fixtures: Expo provider, real Vite plugin,
+      headless — each
       attaches, reaches ready, performs M1 -> M2 additive change with
       original accounts and sessions intact and the identity advance
       reported, shuts down owned children only.
@@ -85,13 +86,13 @@ in brief:
       CLI `carrier.mjs` template sweep.
 - [x] Re-document `start --startup-artifacts` as diagnostic-only; update the
       fixed-origin guide recipe ticket
-      (`issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`) to
+      (`issues/closed/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`) to
       teach the profile once it ships.
 
 ## W1 implementation slice — 2026-08-21
 
-This lane completed checklist items 1–5, 7, and 9 as one coherent lifecycle
-slice. `snapback dev` now owns the fixed backend port, exact declared client
+This lane completed the checklist as one coherent lifecycle slice.
+`snapback dev` now owns the fixed backend port, exact declared client
 origin and derived development admission; attach validates the live host
 nonce and the closed application receipt before touching the listener. The
 receipt itself now carries the lifecycle-issued binding, exact client-origin
@@ -106,8 +107,8 @@ pinned port and a caller-supplied Vite binding override; both refusals name the
 supported fixed profile and leave existing ownership untouched.
 
 The follow-through closes items 6 and 8 together. One external consumer
-materializes packed CLI, client, Vite, and support-package tarballs, then proves
-the headless, Vite/Exact, and Expo arms through M1→M2. Each arm preserves its
+materializes packed CLI, client, Expo, Vite, and support-package tarballs, then
+proves the headless, real-Vite, and Expo-provider arms through M1→M2. Each arm preserves its
 signed-in principal, session identifier, and application row while asserting
 the reported old→new deployment identity and the receipt's continuity facts.
 The attached Vite and Expo consumers close without stopping the lifecycle
@@ -128,7 +129,7 @@ under `benchmarks/runs/2026-08-17-model-profile-app-matrix/`.
 
 ## Implementation scope after the ruling
 
-- Give Expo, Vite/Exact, headless, and acceptance consumers the same structured
+- Give Expo, Vite, headless, and acceptance consumers the same structured
   readiness and attachment facts without parsing logs.
 - Treat an already-running intended child differently from an unrelated stale
   listener; never accept port occupancy as identity.
@@ -142,7 +143,7 @@ under `benchmarks/runs/2026-08-17-model-profile-app-matrix/`.
 
 ## Acceptance
 
-Fresh packed-package Expo, Vite/Exact, and headless fixtures attach through the
+Fresh packed-package Expo-provider, real-Vite, and headless fixtures attach through the
 ruled lifecycle, reach application-ready state, perform an additive schema
 successor with the original accounts and sessions intact — asserting the
 reported old -> new deployment-identity advance per LLP 0058, never identity
@@ -150,3 +151,7 @@ equality — and shut down only their owned children. They use no custom
 relay/binding middleware, destructive reseed, or source-checkout-only helper.
 A stale listener and a wrong binding both refuse with stable identity-bearing
 diagnostics.
+
+This ticket's Vite evidence covers the Snapback-owned plugin and relay. It does
+not claim to execute the Exact runtime; that cross-repository evidence remains
+LLP 0295 W7 / LLP 0279 scope.

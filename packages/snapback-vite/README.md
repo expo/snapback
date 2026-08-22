@@ -45,12 +45,16 @@ export default defineConfig({
 
 Run that configuration with the application's ordinary Vite command. The
 plugin consumes the fixed-port/external-client profile of `snapback dev`, pins
-Vite's loopback origin with `strictPort`, and waits for the authoritative
-`snapback.application-ready.v1` receipt. Attach mode consumes the same receipt
-when another `snapback dev` owner is already running. Browser code receives a
-same-origin projection of the receipt-issued binding at `/__snapback`; the
-backend origin, admin token, receipt/runtime paths, and qualified-binary facts
-remain private.
+Vite's actual loopback origin with `strictPort`, declares that exact origin to
+the backend lifecycle, and waits for the authoritative
+`snapback.application-ready.v1` receipt. Attach mode compares the receipt's
+complete application, authority, artifact, target-profile, capability, and
+admission bind-set with live operational readiness before asking the shared
+CLI lifecycle to perform its idempotent generated load and binding reissue.
+An expired binding is reissued only after that identity cut. Browser code
+receives a same-origin projection of the receipt-issued binding at
+`/__snapback`; the backend origin, admin token, receipt/runtime paths, and
+qualified-binary facts remain private.
 
 The relay registry includes the exact server-registered methods under
 `/auth/password/*` and `/auth/recovery/*`, so the generated binding supports

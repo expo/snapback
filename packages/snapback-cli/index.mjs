@@ -3513,18 +3513,12 @@ function normalizeDevPort(value) {
   return port;
 }
 
-function canonicalExternalClientOrigin(value) {
+function canonicalDevAuthOrigin(value) {
   let url;
   try {
     url = new URL(value);
-  } catch (cause) {
-    const error = diagnosticError(
-      'SNAPBACK_CLI_ARGUMENT_INVALID',
-      '--external-client-origin must be an exact loopback HTTP(S) origin with an explicit port',
-      { origin: value },
-    );
-    error.cause = cause;
-    throw error;
+  } catch {
+    return null;
   }
   const hostname = url.hostname.replace(/^\[|\]$/gu, '').toLowerCase();
   const loopback = hostname === 'localhost'
@@ -3540,13 +3534,21 @@ function canonicalExternalClientOrigin(value) {
     || url.search !== ''
     || url.hash !== ''
   ) {
+    return null;
+  }
+  return url.origin;
+}
+
+function canonicalExternalClientOrigin(value) {
+  const origin = canonicalDevAuthOrigin(value);
+  if (origin === null) {
     throw diagnosticError(
       'SNAPBACK_CLI_ARGUMENT_INVALID',
       '--external-client-origin must be an exact loopback HTTP(S) origin with an explicit port',
       { origin: value },
     );
   }
-  return url.origin;
+  return origin;
 }
 
 function normalizeExternalClientOrigins(options, port) {
@@ -3571,15 +3573,31 @@ function normalizeExternalClientOrigins(options, port) {
   return origins;
 }
 
-function withExternalClientOrigins(environment, clientOrigins) {
-  if (clientOrigins.length === 0) return environment;
+function normalizeSupervisedClientOrigins(options) {
+  const raw = options.supervisedClientOrigins ?? [];
+  if (!Array.isArray(raw)) {
+    throw diagnosticError(
+      'SNAPBACK_CLI_ARGUMENT_INVALID',
+      'supervised client origins must be supplied as an array of exact origins',
+    );
+  }
+  return [...new Set(raw.map(canonicalExternalClientOrigin))].sort();
+}
+
+function withExternalClientOrigins(environment, declaredClientOrigins) {
   const inherited = String(environment.SNAPBACK_DEV_AUTH_ORIGINS ?? '')
     .split(',')
     .map((origin) => origin.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .map(canonicalDevAuthOrigin)
+    .filter((origin) => origin !== null);
+  const clientOrigins = [...new Set([...inherited, ...declaredClientOrigins])].sort();
+  const nextEnvironment = { ...environment };
+  if (clientOrigins.length === 0) delete nextEnvironment.SNAPBACK_DEV_AUTH_ORIGINS;
+  else nextEnvironment.SNAPBACK_DEV_AUTH_ORIGINS = clientOrigins.join(',');
   return {
-    ...environment,
-    SNAPBACK_DEV_AUTH_ORIGINS: [...new Set([...inherited, ...clientOrigins])].sort().join(','),
+    environment: nextEnvironment,
+    clientOrigins,
   };
 }
 
@@ -4524,7 +4542,7 @@ function expectedActivationTargetFromActivation(activation, fallbackTargetProfil
   };
 }
 
-async function evaluateApplicationReadiness(descriptor, adminToken, expectedTarget) {
+async function requestOperationalReadiness(descriptor, adminToken, expectedTarget = undefined) {
   const url = `${descriptor.serverUrl.replace(/\/$/u, '')}/_snapback/api/host-ops`;
   let response;
   try {
@@ -4536,7 +4554,7 @@ async function evaluateApplicationReadiness(descriptor, adminToken, expectedTarg
       },
       body: JSON.stringify({
         operation: 'app.readiness.v1',
-        input: { expectedTarget },
+        ...(expectedTarget === undefined ? {} : { input: { expectedTarget } }),
       }),
     });
   } catch (cause) {
@@ -4561,11 +4579,11 @@ async function evaluateApplicationReadiness(descriptor, adminToken, expectedTarg
     throw error;
   }
   const readiness = envelope?.data?.operationalReadiness;
-  if (envelope?.ok !== true || readiness?.ready !== true) {
+  if (envelope?.ok !== true) {
     const serverDiagnostic = envelope?.diagnostics?.[0];
     throw diagnosticError(
-      serverDiagnostic?.code ?? 'SNAPBACK_DEV_APPLICATION_NOT_READY',
-      serverDiagnostic?.message ?? 'generated application did not reach operational readiness',
+      serverDiagnostic?.code ?? 'SNAPBACK_DEV_APPLICATION_READINESS_FAILED',
+      serverDiagnostic?.message ?? 'the server refused its operational-readiness fact',
       {
         status: response.status,
         diagnostics: envelope?.diagnostics ?? [],
@@ -4581,6 +4599,7 @@ async function evaluateApplicationReadiness(descriptor, adminToken, expectedTarg
     || readiness.target == null
     || readiness.artifacts == null
     || readiness.auth == null
+    || !Array.isArray(readiness.clientOrigins)
   ) {
     throw diagnosticError(
       'SNAPBACK_DEV_APPLICATION_READINESS_INVALID',
@@ -4588,6 +4607,102 @@ async function evaluateApplicationReadiness(descriptor, adminToken, expectedTarg
     );
   }
   return readiness;
+}
+
+async function evaluateApplicationReadiness(descriptor, adminToken, expectedTarget) {
+  const readiness = await requestOperationalReadiness(descriptor, adminToken, expectedTarget);
+  if (readiness.ready !== true) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_NOT_READY',
+      'generated application did not reach operational readiness',
+      {
+        unsatisfied: readiness.unsatisfied ?? [],
+        operationalReadiness: readiness,
+      },
+    );
+  }
+  return readiness;
+}
+
+export async function readOperationalReadiness(descriptor, adminToken) {
+  return requestOperationalReadiness(descriptor, adminToken);
+}
+
+function exactRecordKeys(value, expected) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  return sameStringSet(Object.keys(value), expected);
+}
+
+function recordKeysWithin(value, allowed) {
+  return value !== null
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.keys(value).every((key) => allowed.includes(key));
+}
+
+function receiptReadinessMismatches(receipt, readiness) {
+  const mismatch = [];
+  const liveTarget = readiness?.target;
+  if (readiness?.formatVersion !== 'snapback.operational-readiness.v1') {
+    mismatch.push('operationalReadiness.formatVersion');
+  }
+  if (readiness?.ready !== true || (readiness?.unsatisfied?.length ?? 0) !== 0) {
+    mismatch.push('operationalReadiness.ready');
+  }
+  if (readiness?.startupNonce !== receipt.startupNonce) mismatch.push('startupNonce');
+  if (receipt.application?.mode !== 'dev-generated') mismatch.push('application.mode');
+  if (canonicalJson(receipt.application?.deployment) !== canonicalJson(liveTarget?.deployment)) {
+    mismatch.push('application.deployment');
+  }
+  if (receipt.application?.obligationsDigest !== liveTarget?.obligationsDigest) {
+    mismatch.push('application.obligationsDigest');
+  }
+  if (receipt.targetProfile !== liveTarget?.targetProfile) mismatch.push('targetProfile');
+  if (canonicalJson(receipt.artifacts) !== canonicalJson(readiness?.artifacts)) {
+    mismatch.push('artifacts');
+  }
+  if (receipt.auth?.activeMode !== readiness?.auth?.active) mismatch.push('auth.activeMode');
+  if (receipt.auth?.desiredMode !== readiness?.auth?.desired) mismatch.push('auth.desiredMode');
+  if (receipt.auth?.modeState !== readiness?.auth?.modeState) mismatch.push('auth.modeState');
+  if (receipt.auth?.appDataAvailability !== readiness?.auth?.appDataAvailability) {
+    mismatch.push('auth.appDataAvailability');
+  }
+  if (
+    (receipt.auth?.sessionActivationReady ?? null)
+      !== (readiness?.auth?.sessionActivationReady ?? null)
+  ) mismatch.push('auth.sessionActivationReady');
+  if (readiness?.auth?.active !== readiness?.auth?.desired) mismatch.push('auth.activeDesired');
+  if (readiness?.auth?.modeState !== 'settled') mismatch.push('auth.settlement');
+  if (readiness?.auth?.appDataAvailability !== 'available') mismatch.push('auth.appDataAvailabilityLive');
+  if (
+    readiness?.auth?.active === 'sessions'
+    && readiness?.auth?.sessionActivationReady !== true
+  ) mismatch.push('auth.sessionActivationReadyLive');
+  if (receipt.capabilityManifestDigest !== readiness?.capabilityManifestDigest) {
+    mismatch.push('capabilityManifestDigest');
+  }
+  if (!sameStringSet(receipt.clientOrigins, readiness?.clientOrigins)) {
+    mismatch.push('clientOrigins');
+  }
+  if (receipt.networkProfile !== readiness?.networkProfile) mismatch.push('networkProfile');
+  return mismatch;
+}
+
+export function verifyApplicationReadyReceiptAgainstReadiness(receipt, readiness) {
+  const mismatch = receiptReadinessMismatches(receipt, readiness);
+  if (mismatch.length > 0) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_READY_STALE',
+      'the application-ready receipt no longer matches the live server-owned operational-readiness fact',
+      {
+        mismatch,
+        receiptApplication: receipt.application ?? null,
+        liveTarget: readiness?.target ?? null,
+        safety: 'the listener was not mutated, adopted, or terminated',
+      },
+    );
+  }
+  return receipt;
 }
 
 function writeApplicationReadyReceipt(path, receipt) {
@@ -4633,14 +4748,97 @@ export function readApplicationReadyReceipt(path) {
     error.cause = cause;
     throw error;
   }
+  const rootKeys = [
+    'application',
+    'artifacts',
+    'auth',
+    'binding',
+    'capabilityManifestDigest',
+    'clientOrigins',
+    'formatVersion',
+    'hostReadyDescriptorDigest',
+    'networkProfile',
+    'runtimeIdentity',
+    'settledAtMs',
+    'startupNonce',
+    'targetProfile',
+  ];
+  const deploymentKeys = [
+    'appId', 'authMode', 'bundleHash', 'inputsHash', 'schemaHash', 'schemaVersion',
+  ];
+  const binding = receipt?.binding;
+  const qualifiedBinary = receipt?.runtimeIdentity?.qualifiedBinary;
+  const wrapper = receipt?.runtimeIdentity?.wrapper;
   if (
     receipt?.formatVersion !== 'snapback.application-ready.v1'
+    || !exactRecordKeys(receipt, rootKeys)
     || typeof receipt.startupNonce !== 'string'
     || typeof receipt.hostReadyDescriptorDigest !== 'string'
-    || receipt.binding?.format !== 'snapback.app-binding.v1'
+    || receipt.application?.mode !== 'dev-generated'
+    || !exactRecordKeys(receipt.application, ['deployment', 'mode', 'obligationsDigest'])
+    || !exactRecordKeys(receipt.application?.deployment, deploymentKeys)
+    || Object.values(receipt.application.deployment).some(
+      (value) => typeof value !== 'string' || value.length === 0,
+    )
+    || typeof receipt.application.obligationsDigest !== 'string'
+    || typeof receipt.targetProfile !== 'string'
+    || !recordKeysWithin(receipt.artifacts, ['bundleHash', 'databaseVersion', 'schemaHash'])
+    || !recordKeysWithin(receipt.auth, [
+      'activeMode',
+      'appDataAvailability',
+      'desiredMode',
+      'modeState',
+      'sessionActivationReady',
+    ])
+    || typeof receipt.auth.activeMode !== 'string'
+    || typeof receipt.auth.desiredMode !== 'string'
+    || typeof receipt.auth.modeState !== 'string'
+    || typeof receipt.auth.appDataAvailability !== 'string'
+    || binding?.format !== 'snapback.app-binding.v1'
+    || binding?.source !== 'supervised-dev'
+    || !exactRecordKeys(binding, [
+      'capabilities',
+      'descriptorIdentity',
+      'format',
+      'integrity',
+      'provenance',
+      'source',
+      'target',
+    ])
+    || typeof binding.descriptorIdentity !== 'string'
+    || !exactRecordKeys(binding.target, ['app', 'functions', 'origin', 'routing', 'schema'])
+    || Object.values(binding.target).some((value) => typeof value !== 'string')
+    || !exactRecordKeys(binding.capabilities, ['offered'])
+    || !Array.isArray(binding.capabilities.offered)
+    || binding.capabilities.offered.some((value) => typeof value !== 'string')
+    || !exactRecordKeys(binding.provenance, ['expiresAt', 'issuedAt', 'supervisorGeneration'])
+    || Object.values(binding.provenance).some((value) => typeof value !== 'string')
+    || !exactRecordKeys(binding.integrity, ['channel'])
+    || binding.integrity.channel !== 'local-supervised-ipc'
     || !Array.isArray(receipt.clientOrigins)
-    || receipt.runtimeIdentity?.qualifiedBinary == null
-    || receipt.runtimeIdentity?.wrapper == null
+    || new Set(receipt.clientOrigins).size !== receipt.clientOrigins.length
+    || receipt.clientOrigins.some((origin) => canonicalDevAuthOrigin(origin) !== origin)
+    || !exactRecordKeys(receipt.runtimeIdentity, ['qualifiedBinary', 'wrapper'])
+    || !exactRecordKeys(qualifiedBinary, [
+      'buildIdentity', 'bytes', 'path', 'platform', 'qualification', 'sha256', 'source',
+    ])
+    || typeof qualifiedBinary.path !== 'string'
+    || typeof qualifiedBinary.source !== 'string'
+    || typeof qualifiedBinary.platform !== 'string'
+    || !Number.isSafeInteger(qualifiedBinary.bytes)
+    || typeof qualifiedBinary.sha256 !== 'string'
+    || !recordKeysWithin(qualifiedBinary.buildIdentity, [
+      'buildProfile', 'crateVersion', 'gitCommit', 'gitDirty',
+    ])
+    || !exactRecordKeys(qualifiedBinary.qualification, [
+      'probe', 'receiptPath', 'receiptSchemaVersion',
+    ])
+    || !exactRecordKeys(wrapper, ['package', 'version'])
+    || typeof wrapper.package !== 'string'
+    || typeof wrapper.version !== 'string'
+    || typeof receipt.capabilityManifestDigest !== 'string'
+    || typeof receipt.networkProfile !== 'string'
+    || !Number.isSafeInteger(receipt.settledAtMs)
   ) {
     throw diagnosticError(
       'SNAPBACK_DEV_APPLICATION_READY_INVALID',
@@ -4724,6 +4922,16 @@ function qualifiedRuntimeIdentity(
 }
 
 function publishApplicationReadyReceipt(path, readyFile, readiness, lifecycle) {
+  if (!sameStringSet(readiness.clientOrigins, lifecycle.clientOrigins)) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_READINESS_INVALID',
+      'the running server admission set differs from the lifecycle-declared client origins',
+      {
+        expectedClientOrigins: lifecycle.clientOrigins,
+        observedClientOrigins: readiness.clientOrigins,
+      },
+    );
+  }
   const readyBytes = readFileSync(readyFile);
   const receipt = {
     formatVersion: 'snapback.application-ready.v1',
@@ -4738,48 +4946,21 @@ function publishApplicationReadyReceipt(path, readyFile, readiness, lifecycle) {
     artifacts: readiness.artifacts,
     auth: {
       activeMode: readiness.auth.active,
+      desiredMode: readiness.auth.desired,
       modeState: readiness.auth.modeState,
+      appDataAvailability: readiness.auth.appDataAvailability,
       ...(readiness.auth.sessionActivationReady === undefined
         ? {}
         : { sessionActivationReady: readiness.auth.sessionActivationReady }),
     },
     binding: lifecycle.binding,
-    clientOrigins: lifecycle.clientOrigins,
+    clientOrigins: [...readiness.clientOrigins],
     runtimeIdentity: lifecycle.runtimeIdentity,
     capabilityManifestDigest: readiness.capabilityManifestDigest,
     networkProfile: readiness.networkProfile,
     settledAtMs: readiness.evaluatedAtMs,
   };
   return writeApplicationReadyReceipt(path, receipt);
-}
-
-// Expo's platform route is a projection of the authoritative application
-// receipt, not a second attach authority. Reprojection is nonce/digest bound
-// and preserves the server-owned settlement and qualified-runtime facts.
-export function projectApplicationReadyReceipt(path, readyFile, { binding, clientOrigins }) {
-  const receipt = readApplicationReadyReceipt(path);
-  const descriptor = readReadyDescriptor(readyFile);
-  const readyDigest = sha256Bytes(readFileSync(readyFile));
-  if (
-    receipt.startupNonce !== descriptor.startupNonce
-    || receipt.hostReadyDescriptorDigest !== readyDigest
-  ) {
-    throw diagnosticError(
-      'SNAPBACK_DEV_APPLICATION_READY_STALE',
-      'the application-ready receipt no longer matches the live host descriptor',
-      {
-        expectedStartupNonce: descriptor.startupNonce ?? null,
-        observedStartupNonce: receipt.startupNonce,
-        expectedHostReadyDescriptorDigest: readyDigest,
-        observedHostReadyDescriptorDigest: receipt.hostReadyDescriptorDigest,
-      },
-    );
-  }
-  return writeApplicationReadyReceipt(path, {
-    ...receipt,
-    binding,
-    clientOrigins: [...clientOrigins],
-  });
 }
 
 function generatedApplicationDescriptor(generatedRoot) {
@@ -4824,11 +5005,11 @@ async function verifyDevAttach({
   descriptor,
   readyFile,
   applicationReadyFile,
+  adminToken,
   generatedRoot,
   clientOrigins,
   runtimeIdentity,
   fixedPort,
-  allowProjectedBinding,
 }) {
   try {
     await validateReadyDescriptorHealth(descriptor);
@@ -4868,6 +5049,8 @@ async function verifyDevAttach({
     }
     throw error;
   }
+  const readiness = await readOperationalReadiness(descriptor, adminToken);
+  verifyApplicationReadyReceiptAgainstReadiness(receipt, readiness);
   const generatedDescriptor = generatedApplicationDescriptor(generatedRoot);
   const hostReadyDescriptorDigest = sha256Bytes(readFileSync(readyFile));
   const expectedOrigin = new URL(descriptor.serverUrl).origin;
@@ -4877,10 +5060,7 @@ async function verifyDevAttach({
   if (receipt.hostReadyDescriptorDigest !== hostReadyDescriptorDigest) {
     mismatch.push('hostReadyDescriptorDigest');
   }
-  if (
-    allowProjectedBinding !== true
-    && receipt.binding?.target?.origin !== expectedOrigin
-  ) mismatch.push('binding.target.origin');
+  if (receipt.binding?.target?.origin !== expectedOrigin) mismatch.push('binding.target.origin');
   if (
     receipt.binding?.descriptorIdentity !== generatedDescriptor.identity.descriptor
   ) mismatch.push('binding.descriptorIdentity');
@@ -4891,20 +5071,18 @@ async function verifyDevAttach({
   if (receipt.binding?.target?.functions !== generatedDescriptor.identity.functions) {
     mismatch.push('binding.target.functions');
   }
-  if (
-    allowProjectedBinding !== true
-    && receipt.binding?.target?.routing !== 'loopback'
-  ) mismatch.push('binding.target.routing');
-  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) mismatch.push('binding.provenance.expiresAt');
+  if (receipt.binding?.target?.routing !== 'loopback') mismatch.push('binding.target.routing');
+  // Expiry says the matching owner must reissue before returning a usable
+  // binding; it is not evidence that the live child is foreign. runDev always
+  // republishes a fresh lifecycle-issued binding after this identity cut.
+  if (!Number.isFinite(expiresAt)) mismatch.push('binding.provenance.expiresAt');
   if (!sameStringSet(receipt.clientOrigins, clientOrigins)) mismatch.push('clientOrigins');
-  if (
-    receipt.runtimeIdentity?.qualifiedBinary?.sha256
-      !== runtimeIdentity.qualifiedBinary.sha256
-  ) mismatch.push('runtimeIdentity.qualifiedBinary.sha256');
-  if (
-    receipt.runtimeIdentity?.wrapper?.package !== runtimeIdentity.wrapper.package
-    || receipt.runtimeIdentity?.wrapper?.version !== runtimeIdentity.wrapper.version
-  ) mismatch.push('runtimeIdentity.wrapper');
+  if (canonicalJson(receipt.runtimeIdentity) !== canonicalJson(runtimeIdentity)) {
+    mismatch.push('runtimeIdentity');
+  }
+  if (!(generatedDescriptor.capabilities?.required ?? []).every(
+    (capability) => receipt.binding.capabilities.offered.includes(capability),
+  )) mismatch.push('binding.capabilities.offered');
   if (fixedPort !== null && Number(new URL(descriptor.serverUrl).port) !== fixedPort) {
     mismatch.push('serverPort');
   }
@@ -4994,7 +5172,12 @@ export async function runDev(options = {}) {
     options.applicationReadyFile ?? `${readyFile}.application-ready`,
   );
   const fixedPort = normalizeDevPort(options.port);
-  const clientOrigins = normalizeExternalClientOrigins(options, fixedPort);
+  const externalClientOrigins = normalizeExternalClientOrigins(options, fixedPort);
+  const declaredClientOrigins = [...new Set([
+    ...externalClientOrigins,
+    ...normalizeSupervisedClientOrigins(options),
+  ])].sort();
+  let clientOrigins = declaredClientOrigins;
   // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — receipt
   // lifecycle removes the projection before every launch, reload, restart,
   // reset, and shutdown; absence is the honest intermediate state.
@@ -5024,12 +5207,12 @@ export async function runDev(options = {}) {
       : runtimeIdentity.reason,
   });
   const clientArm = resolveClientArm(options.client, projectRoot);
-  if (clientOrigins.length > 0 && clientArm !== null) {
+  if (externalClientOrigins.length > 0 && clientArm !== null) {
     throw diagnosticError(
       'SNAPBACK_CLI_ARGUMENT_INVALID',
       'the declared external client is owned outside snapback dev and cannot be combined with --client or --client-command',
       {
-        clientOrigins,
+        clientOrigins: externalClientOrigins,
         supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>',
       },
     );
@@ -5047,7 +5230,9 @@ export async function runDev(options = {}) {
       backendRoot,
       outputPath: join(stateRoot, 'visibility-governance-dev-target-config.json'),
     });
-    devRuntimeEnvironment = withExternalClientOrigins(prepared.environment, clientOrigins);
+    const admission = withExternalClientOrigins(prepared.environment, declaredClientOrigins);
+    devRuntimeEnvironment = admission.environment;
+    clientOrigins = admission.clientOrigins;
     return prepared;
   };
   try {
@@ -5132,15 +5317,16 @@ export async function runDev(options = {}) {
   let initialStartupSuccessor = null;
   if (existsSync(readyFile)) {
     descriptor = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
+    const attachAdminToken = managedAdminToken(descriptor, database);
     await verifyDevAttach({
       descriptor,
       readyFile,
       applicationReadyFile,
+      adminToken: attachAdminToken,
       generatedRoot,
       clientOrigins,
       runtimeIdentity: applicationRuntimeIdentity,
       fixedPort,
-      allowProjectedBinding: options.allowProjectedBindingAttach === true,
     });
   } else {
     if (options.attach === true) {

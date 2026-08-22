@@ -14,15 +14,16 @@ import {
   diagnosticError,
   managedAdminToken,
   readApplicationReadyReceipt,
+  readOperationalReadiness,
   readReadyDescriptor,
   resolveGeneratedArtifact,
   runDev,
   validateDevTarget,
+  verifyApplicationReadyReceiptAgainstReadiness,
 } from '@expo/snapback-cli';
 
 export const LIFECYCLE_MODES = Object.freeze(['off', 'external', 'attach', 'managed', 'auto']);
 const RESET_POLICIES = Object.freeze(['if-new', 'always', 'never']);
-const HOST_OPS_SCHEMA_VERSION = 'snapback.v0';
 
 function canonicalFilesystemPath(path) {
   const absolute = resolve(path);
@@ -170,71 +171,6 @@ function hostDescriptorDigest(path) {
   return `sha256:${createHash('sha256').update(readFileSync(path)).digest('hex')}`;
 }
 
-async function postHostOp(serverUrl, adminToken, body) {
-  // Managed bring-up speaks the same host-ops HTTP surface the CLI and MCP
-  // server use — one lifecycle dialect, projected over
-  // `POST /_snapback/api/host-ops` with the minted admin token.
-  //
-  // @ref LLP 0030#backend-setup-ownership — schema/function/seed loading is a
-  //   server-side bring-up step, never a browser call through the app proxy.
-  const url = `${serverUrl.replace(/\/$/, '')}/_snapback/api/host-ops`;
-  let response;
-  try {
-    response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(adminToken ? { 'x-snapback-admin-token': adminToken } : {}),
-      },
-      body: JSON.stringify({
-        schemaVersion: HOST_OPS_SCHEMA_VERSION,
-        requestId: `vite-${randomUUID()}`,
-        ...body,
-      }),
-    });
-  } catch (cause) {
-    const error = diagnosticError('SNAPBACK_DEV_SERVER_SETUP_FAILED', `host-ops request to ${url} failed: ${cause.message}`, {
-      operation: body.operation,
-    });
-    error.cause = cause;
-    throw error;
-  }
-  let envelope;
-  try {
-    envelope = await response.json();
-  } catch (cause) {
-    const error = diagnosticError(
-      'SNAPBACK_DEV_SERVER_SETUP_FAILED',
-      `host-ops response for ${body.operation} was not JSON (HTTP ${response.status})`,
-      { operation: body.operation, status: response.status },
-    );
-    error.cause = cause;
-    throw error;
-  }
-  if (envelope?.ok !== true) {
-    throw diagnosticError('SNAPBACK_DEV_SERVER_SETUP_FAILED', `${body.operation} was refused by the server`, {
-      operation: body.operation,
-      status: response.status,
-      diagnostics: envelope?.diagnostics ?? envelope?.diagnostic ?? null,
-    });
-  }
-  return envelope;
-}
-
-function operationIdV7() {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  let timestamp = BigInt(Date.now());
-  for (let index = 5; index >= 0; index -= 1) {
-    bytes[index] = Number(timestamp & 0xffn);
-    timestamp >>= 8n;
-  }
-  bytes[6] = 0x70 | (bytes[6] & 0x0f);
-  bytes[8] = 0x80 | (bytes[8] & 0x3f);
-  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
 export function createSnapbackViteLifecycle(options = {}) {
   const mode = options.mode ?? 'auto';
   if (!LIFECYCLE_MODES.includes(mode)) {
@@ -264,7 +200,6 @@ export function createSnapbackViteLifecycle(options = {}) {
   let dev = null;
   let descriptor = null;
   let applicationReceipt = null;
-  let adminToken = null;
   let closed = false;
   let missingDevIdentityHandoffWarned = false;
   let devIdentityReadWarning = null;
@@ -338,27 +273,35 @@ export function createSnapbackViteLifecycle(options = {}) {
     }
   }
 
-  function readVerifiedApplicationReceipt(candidate) {
+  async function readVerifiedApplicationReceipt(candidate) {
     const receipt = readApplicationReadyReceipt(applicationReadyFile);
+    const token = managedAdminToken(candidate, database);
+    const readiness = await readOperationalReadiness(candidate, token);
+    verifyApplicationReadyReceiptAgainstReadiness(receipt, readiness);
     const expectedOrigin = new URL(candidate.serverUrl).origin;
-    const expectedClientOrigins = options.clientOrigin ? [new URL(options.clientOrigin).origin] : null;
+    const expectedClientOrigin = options.clientOrigin ? new URL(options.clientOrigin).origin : null;
     const mismatch = [];
     if (receipt.startupNonce !== candidate.startupNonce) mismatch.push('startupNonce');
     if (receipt.hostReadyDescriptorDigest !== hostDescriptorDigest(readyFile)) {
       mismatch.push('hostReadyDescriptorDigest');
     }
     if (receipt.binding?.target?.origin !== expectedOrigin) mismatch.push('binding.target.origin');
-    if (
-      expectedClientOrigins !== null
-      && JSON.stringify([...receipt.clientOrigins].sort())
-        !== JSON.stringify([...expectedClientOrigins].sort())
-    ) mismatch.push('clientOrigins');
+    if (expectedClientOrigin === null || !receipt.clientOrigins.includes(expectedClientOrigin)) {
+      mismatch.push('clientOrigins');
+    }
     if (setup?.backendDirectory) {
       const app = readJsonArtifact(
         join(setup.backendDirectory, 'generated', 'app.descriptor.json'),
         'app.descriptor.json',
       );
       if (receipt.binding?.target?.app !== app.identity?.app) mismatch.push('binding.target.app');
+      if (receipt.binding?.descriptorIdentity !== app.identity?.descriptor) {
+        mismatch.push('binding.descriptorIdentity');
+      }
+      if (receipt.binding?.target?.schema !== app.identity?.schema) mismatch.push('binding.target.schema');
+      if (receipt.binding?.target?.functions !== app.identity?.functions) {
+        mismatch.push('binding.target.functions');
+      }
     }
     if (mismatch.length > 0) {
       throw diagnosticError(
@@ -367,7 +310,7 @@ export function createSnapbackViteLifecycle(options = {}) {
         {
           mismatch,
           expectedOrigin,
-          expectedClientOrigins,
+          expectedClientOrigin,
           observedClientOrigins: receipt.clientOrigins,
           supportedProfile: 'snapbackDev({ server: { mode: "managed", port }, clientOrigin })',
         },
@@ -377,11 +320,9 @@ export function createSnapbackViteLifecycle(options = {}) {
     return receipt;
   }
 
-  // Attach-shaped bring-up: validate, never mutate without explicit opt-in.
-  //
-  // @ref LLP 0030#lifecycle-modes — attach discovers/validates but never
-  //   spawns; destructive reset/seed is allowed by default only for a
-  //   plugin-spawned managed child.
+  // Attach-shaped bring-up reuses runDev's complete identity cut. The only
+  // post-cut mutations are the canonical idempotent generated load and a fresh
+  // binding/receipt issuance; reset and seed remain forbidden.
   async function attachTo({ shape }) {
     if (!existsSync(readyFile)) {
       throw diagnosticError('SNAPBACK_DEV_READY_FILE_REQUIRED', `attach mode requires a readiness descriptor at ${readyFile}`, {
@@ -403,34 +344,82 @@ export function createSnapbackViteLifecycle(options = {}) {
         { readyFile, serverUrl: candidate.serverUrl, database },
       );
     }
-    descriptor = candidate;
-    readVerifiedApplicationReceipt(candidate);
-    state.shape = shape;
-    state.serverUrl = candidate.serverUrl;
-    state.pid = candidate.pid ?? null;
-    state.ready = true;
-    if (setup) {
-      const refusal = {
-        event: 'setup-refused',
-        code: 'SNAPBACK_DEV_SETUP_REFUSED',
-        severity: 'warning',
-        message: 'setup is configured but this receipt-verified server was attached to, not spawned; attached consumers never mutate lifecycle state',
-        shape,
-        serverUrl: candidate.serverUrl,
-        database,
-        pid: candidate.pid ?? null,
-      };
-      if (setup.reset === 'always') {
-        // An explicit always-reset demand cannot be silently skipped.
-        throw diagnosticError('SNAPBACK_DEV_SETUP_REFUSED', refusal.message, {
-          shape,
-          serverUrl: candidate.serverUrl,
-          database,
-          reset: setup.reset,
-        });
-      }
-      emit(refusal);
+    if (!setup?.backendDirectory) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_SETUP_INVALID',
+        'receipt-bound Vite attach requires setup.backendDirectory so the CLI identity cut can verify the intended generated application and reissue expired bindings',
+        { supportedProfile: 'snapbackDev({ setup: { backendDirectory }, server: { mode: "attach", port } })' },
+      );
     }
+    if (setup.reset === 'always') {
+      throw diagnosticError(
+        'SNAPBACK_DEV_SETUP_REFUSED',
+        'attached Vite consumers never reset or seed the existing lifecycle',
+        { shape, serverUrl: candidate.serverUrl, database, reset: setup.reset },
+      );
+    }
+    // Perform the complete read-only receipt/live-readiness cut before the
+    // shared CLI path is allowed to reissue a binding or load artifacts.
+    const observedReceipt = await readVerifiedApplicationReceipt(candidate);
+    const expectedClientOrigin = options.clientOrigin ? new URL(options.clientOrigin).origin : null;
+    if (expectedClientOrigin === null || !observedReceipt.clientOrigins.includes(expectedClientOrigin)) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_FIXED_BINDING_MISMATCH',
+        'the actual Vite client origin is not in the running server admission set',
+        {
+          expectedClientOrigin,
+          observedClientOrigins: observedReceipt.clientOrigins,
+          safety: 'the listener was not mutated, adopted, or terminated',
+        },
+      );
+    }
+    const backendPort = Number(new URL(candidate.serverUrl).port);
+    dev = await runDev({
+      backendDirectory: setup.backendDirectory,
+      projectRoot,
+      readyFile,
+      applicationReadyFile,
+      database,
+      runtimeBinary: options.runtimeBinary,
+      qualifiedRuntimeBinary: options.qualifiedRuntimeBinary,
+      port: backendPort,
+      externalClientOrigins: observedReceipt.clientOrigins,
+      env: options.env,
+      attach: true,
+      watch: false,
+      serverStdio: options.serverStdio ?? 'inherit',
+      onEvent(event) {
+        emit({
+          event: 'backend-lifecycle',
+          severity: event.ok === false ? 'error' : 'note',
+          backend: event,
+        });
+      },
+    });
+    if (dev?.ok !== true) {
+      const refusal = dev?.diagnostics?.[0] ?? {};
+      throw diagnosticError(
+        refusal.code ?? 'SNAPBACK_DEV_SERVER_START_FAILED',
+        refusal.message ?? 'the canonical attach lifecycle did not become application-ready',
+        refusal.details ?? { state: dev?.state ?? null },
+      );
+    }
+    descriptor = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
+    await readVerifiedApplicationReceipt(descriptor);
+    state.shape = shape;
+    state.serverUrl = descriptor.serverUrl;
+    state.pid = descriptor.pid ?? null;
+    state.ready = true;
+    emit({
+      event: 'server-setup',
+      severity: 'note',
+      source: 'snapback.application-ready.v1',
+      loadedSchema: true,
+      loadedFunctions: true,
+      bindingReissued: true,
+      reset: false,
+      resetPolicy: setup.reset,
+    });
   }
 
   async function spawnManaged() {
@@ -458,6 +447,7 @@ export function createSnapbackViteLifecycle(options = {}) {
         applicationReadyFile,
         database,
         runtimeBinary: options.runtimeBinary,
+        qualifiedRuntimeBinary: options.qualifiedRuntimeBinary,
         port: options.port,
         externalClientOrigin: options.clientOrigin,
         env: options.env,
@@ -480,7 +470,7 @@ export function createSnapbackViteLifecycle(options = {}) {
         );
       }
       descriptor = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
-      readVerifiedApplicationReceipt(descriptor);
+      await readVerifiedApplicationReceipt(descriptor);
       state.shape = 'managed';
       state.managed = true;
       state.serverUrl = descriptor.serverUrl;
@@ -496,7 +486,7 @@ export function createSnapbackViteLifecycle(options = {}) {
           );
         }
         descriptor = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
-        readVerifiedApplicationReceipt(descriptor);
+        await readVerifiedApplicationReceipt(descriptor);
         state.serverUrl = descriptor.serverUrl;
         state.pid = descriptor.pid ?? null;
       }
@@ -515,96 +505,6 @@ export function createSnapbackViteLifecycle(options = {}) {
       dev = null;
       throw error;
     }
-  }
-
-  async function runSetup({ dbExisted }) {
-    const loaded = { schema: false, functions: false };
-    const shouldReset = setup.reset === 'always' || (setup.reset === 'if-new' && !dbExisted);
-    const versionedArtifact = setup.seedArtifact && existsSync(setup.seedArtifact)
-      ? readJsonArtifact(setup.seedArtifact, 'seed.artifact.json')
-      : null;
-    if (versionedArtifact) {
-      const capabilities = setup.capabilities
-        ? readJsonArtifact(setup.capabilities, 'capability.manifest.json')
-        : null;
-      const supported = new Set(capabilities?.supportedCapabilities ?? []);
-      const required = shouldReset ? 'versioned_seed_reset_v1' : 'versioned_seed_install_v1';
-      if (!supported.has(required)) {
-        throw diagnosticError(
-          'SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED',
-          `generated target manifest does not advertise ${required}; versioned seed will not fall back to legacy reset/seed`,
-          { capability: required },
-        );
-      }
-    }
-    if (setup.schema) {
-      await postHostOp(state.serverUrl, adminToken, {
-        operation: 'schema.load',
-        schema: readJsonArtifact(setup.schema, 'schema.manifest.json'),
-      });
-      loaded.schema = true;
-    }
-    if (setup.functions) {
-      await postHostOp(state.serverUrl, adminToken, {
-        operation: 'functions.load',
-        functions: readJsonArtifact(setup.functions, 'functions.manifest.json'),
-      });
-      loaded.functions = true;
-    }
-    if (versionedArtifact) {
-      if (shouldReset) {
-        const preview = await postHostOp(state.serverUrl, adminToken, {
-          operation: 'app.seed.preview.v1',
-          input: {
-            formatVersion: 'snapback.seed.preview-request.v1',
-            artifact: versionedArtifact,
-            requestedMode: 'dev',
-            operation: 'install',
-          },
-        });
-        const stream = preview?.data?.requested?.dataVersionStream;
-        const expectedDataVersionStream = typeof stream === 'string'
-          ? { state: 'present', value: stream }
-          : { state: 'absent' };
-        await postHostOp(state.serverUrl, adminToken, {
-          operation: 'app.seed.reset-install.v1',
-          input: {
-            formatVersion: 'snapback.seed.reset-request.v1',
-            operationId: operationIdV7(),
-            operation: 'resetInstall',
-            requestedMode: 'dev',
-            expectedDataVersionStream,
-            artifact: versionedArtifact,
-          },
-        });
-      } else {
-        await postHostOp(state.serverUrl, adminToken, {
-          operation: 'app.seed.ensure.v1',
-          input: {
-            formatVersion: 'snapback.seed.install-request.v1',
-            operationId: operationIdV7(),
-            artifact: versionedArtifact,
-            requestedMode: 'dev',
-          },
-        });
-      }
-    } else if (shouldReset) {
-      const seed = setup.seed && existsSync(setup.seed)
-        ? readJsonArtifact(setup.seed, 'seed.json')
-        : null;
-      await postHostOp(state.serverUrl, adminToken, {
-        operation: 'app.reset',
-        ...(seed ? { seed } : {}),
-      });
-    }
-    emit({
-      event: 'server-setup',
-      severity: 'note',
-      loadedSchema: loaded.schema,
-      loadedFunctions: loaded.functions,
-      reset: shouldReset,
-      resetPolicy: setup.reset,
-    });
   }
 
   async function start() {
@@ -688,10 +588,9 @@ export function createSnapbackViteLifecycle(options = {}) {
   // Re-resolve the backend target from the ready file after the relay hits a
   // refused connection: a `snapback dev` backend restart rewrites the
   // descriptor (possibly with a new port), and the running relay must keep
-  // working without restarting the client process. Verified exactly like
-  // attach — target fencing plus the live startupNonce probe — and never a
-  // mutation path: no spawn, no setup, no ownership change. Returns the
-  // refreshed state, or null when no live verified target exists.
+  // working without restarting the client process. Attach-shaped refresh
+  // repeats the canonical CLI cut and binding reissue; managed refresh checks
+  // the complete receipt against live OperationalReadinessV1.
   //
   // @ref LLP 0079#sc-2b-wire-the-client-arm-into-the-dev-loop-watch-process-from-llp-0078-r1-a3 —
   //   backend restart under a live relay re-resolves through the same
@@ -702,13 +601,19 @@ export function createSnapbackViteLifecycle(options = {}) {
     refreshInFlight ??= (async () => {
       try {
         if (!existsSync(readyFile)) return null;
+        if (state.shape === 'attach') {
+          await dev?.close?.();
+          dev = null;
+          await attachTo({ shape: 'attach' });
+          return publicState();
+        }
         const candidate = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
         const probe = await probeHealth(candidate.serverUrl);
         const staleNonce = typeof candidate.startupNonce === 'string'
           && probe.ok
           && probe.health?.binary?.startupNonce !== candidate.startupNonce;
         if (!probe.ok || staleNonce) return null;
-        readVerifiedApplicationReceipt(candidate);
+        await readVerifiedApplicationReceipt(candidate);
         const changed = state.serverUrl !== candidate.serverUrl || state.pid !== (candidate.pid ?? null);
         descriptor = candidate;
         state.serverUrl = candidate.serverUrl;
@@ -738,10 +643,12 @@ export function createSnapbackViteLifecycle(options = {}) {
     closed = true;
     // Teardown terminates only the child this session spawned; a server the
     // plugin merely attached or proxied to is never stopped.
-    if (state.managed && dev !== null) {
+    if (dev !== null) {
       await dev.close();
       dev = null;
-      emit({ event: 'server-stopped', severity: 'note', pid: state.pid });
+      if (state.managed) {
+        emit({ event: 'server-stopped', severity: 'note', pid: state.pid });
+      }
     }
     state.ready = false;
     applicationReceipt = null;

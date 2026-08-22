@@ -279,6 +279,7 @@ try {
   const { createServer } = await import('vite');
   scaffoldWebRoot(appRoot);
   const vitePort = await freePort();
+  const secondPort = await freePort();
   const backendPort = await freePort();
   viteServer = await createServer({
     root: appRoot,
@@ -296,6 +297,10 @@ try {
         },
         projectRoot: project,
         setup: { backendDirectory: backend },
+        env: {
+          ...process.env,
+          SNAPBACK_DEV_AUTH_ORIGINS: `http://127.0.0.1:${secondPort}`,
+        },
         onEvent: (event) => events.push(event),
         logJson: false,
       }),
@@ -451,7 +456,34 @@ try {
   // --- Receipt-verified attach from a second Vite server ----------------------
 
   const secondEvents = [];
-  const secondPort = await freePort();
+  const applicationReadyFile = `${readyFile}.application-ready`;
+  const correctApplicationReadyBytes = readFileSync(applicationReadyFile, 'utf8');
+  const staleApplicationReady = JSON.parse(correctApplicationReadyBytes);
+  staleApplicationReady.capabilityManifestDigest = `sha256:${'0'.repeat(64)}`;
+  writeFileSync(
+    applicationReadyFile,
+    `${JSON.stringify(staleApplicationReady, null, 2)}\n`,
+    { mode: 0o600 },
+  );
+  const staleAttach = createSnapbackViteLifecycle({
+    mode: 'attach',
+    projectRoot: project,
+    database,
+    readyFile,
+    runtimeBinary,
+    port: backendPort,
+    clientOrigin: `http://127.0.0.1:${secondPort}`,
+    setup: { backendDirectory: backend, reset: 'never' },
+    logJson: false,
+  });
+  await assert.rejects(
+    () => staleAttach.start(),
+    (error) => error.code === 'SNAPBACK_DEV_APPLICATION_READY_STALE',
+  );
+  await staleAttach.close();
+  assert.equal(readFileSync(applicationReadyFile, 'utf8').includes(`sha256:${'0'.repeat(64)}`), true);
+  assert.equal((await fetch(`${descriptor.serverUrl}/health`)).status, 200);
+  writeFileSync(applicationReadyFile, correctApplicationReadyBytes, { mode: 0o600 });
   secondViteServer = await createServer({
     root: appRoot,
     configFile: false,
@@ -472,8 +504,12 @@ try {
   assert.equal(secondReady.shape, 'attach', 'attach consumes the existing application receipt');
   assert.equal(secondReady.managed, false);
   assert.ok(
-    secondEvents.some((event) => event.code === 'SNAPBACK_DEV_SETUP_REFUSED'),
-    'attach-shaped auto refuses destructive setup without opt-in',
+    secondEvents.some((event) => (
+      event.event === 'server-setup'
+      && event.bindingReissued === true
+      && event.reset === false
+    )),
+    'attach performs only the idempotent load/binding-reissue cut',
   );
   const throughSecond = new SnapbackClient(`http://127.0.0.1:${secondPort}/__snapback`);
   const rowsViaSecond = await throughSecond.query(api.listTodos, { userId: ADA });
