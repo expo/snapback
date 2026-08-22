@@ -1234,6 +1234,8 @@ pub struct AuthorizedEffectReservation {
     #[cfg(any(test, feature = "test-support"))]
     before_commit_guard_for_test:
         std::sync::Mutex<Option<Box<dyn FnOnce(&'static str) + Send + 'static>>>,
+    #[cfg(any(test, feature = "test-support"))]
+    commit_guard_failure_for_test: std::sync::Mutex<Option<SnapbackError>>,
 }
 
 /// The inner synchronous commit guard for an authorized effect. Field order is
@@ -1264,6 +1266,28 @@ impl AuthorizedEffectReservation {
         self
     }
 
+    /// Inject a typed final-guard refusal after staging. This test-only seam
+    /// exercises rollback and permit-drain ownership without retiring the
+    /// shared admission controller used by a concurrently draining logout.
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn with_commit_guard_failure_for_test(self, error: SnapbackError) -> Self {
+        self.set_commit_guard_failure_for_test(error);
+        self
+    }
+
+    /// Install the same final-guard refusal after a higher-level owner has
+    /// acquired the reservation. This keeps capsule tests from constructing a
+    /// permit outside the capsule merely to configure the test seam.
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn set_commit_guard_failure_for_test(&self, error: SnapbackError) {
+        *self
+            .commit_guard_failure_for_test
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(error);
+    }
+
     /// Acquire the independent mode guard last and retain the complete
     /// authority bundle until the returned transaction guard is dropped.
     pub fn commit_guard(
@@ -1278,6 +1302,15 @@ impl AuthorizedEffectReservation {
             .take()
         {
             hook(effect);
+        }
+        #[cfg(any(test, feature = "test-support"))]
+        if let Some(error) = self
+            .commit_guard_failure_for_test
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+        {
+            return Err(error);
         }
         let service = self
             .service
@@ -1747,6 +1780,8 @@ impl PreparedAuthority {
             service,
             #[cfg(any(test, feature = "test-support"))]
             before_commit_guard_for_test: std::sync::Mutex::new(None),
+            #[cfg(any(test, feature = "test-support"))]
+            commit_guard_failure_for_test: std::sync::Mutex::new(None),
         })
     }
 

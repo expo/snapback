@@ -136,6 +136,8 @@ use uuid::Uuid;
 mod api_error;
 #[path = "server/asset_routes.rs"]
 mod asset_routes;
+#[path = "server/commit_capsule.rs"]
+mod commit_capsule;
 #[path = "server/effects.rs"]
 mod effects;
 #[path = "server/instance_home.rs"]
@@ -151,6 +153,12 @@ mod writer_gate;
 
 pub use api_error::*;
 use asset_routes::*;
+pub(crate) use commit_capsule::{
+    CommitAttempt, CommitCapsuleOutcome, CommitCapsuleSpec, CommitTimeoutPhase,
+    CommitUncertainRetention, CommitUncertainRetentionHandle, CommitUncertainRetentionId,
+    CommitUncertainRetentionSnapshot, CommitUncertainRetentionState, ExactReconciliation,
+    FinalCommitCut, PendingCommit, with_bounded_commit_capsule,
+};
 use effects::*;
 use instance_home::*;
 use oauth::*;

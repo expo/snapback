@@ -145,7 +145,10 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
     //   the SNAPBACK_BUNDLE_* HTTP status mapping (codes authoritative,
     //   statuses advisory).
     match code {
-        "SNAPBACK_FUNCTION_GENERATION_AWAITING_RELOAD" => StatusCode::SERVICE_UNAVAILABLE,
+        "SNAPBACK_FUNCTION_GENERATION_AWAITING_RELOAD"
+        | "SNAPBACK_WRITER_ACQUIRE_TIMEOUT"
+        | "SNAPBACK_COMMIT_DEADLINE_EXCEEDED"
+        | "SNAPBACK_COMMIT_OUTCOME_UNCERTAIN" => StatusCode::SERVICE_UNAVAILABLE,
         "SNAPBACK_FUNCTION_GENERATION_REHYDRATION_MISMATCH" => StatusCode::CONFLICT,
         // @ref LLP 0204#d95--approval-gated-effects — pending is an accepted
         // durable intent; management, expiry, stale binding, and protected
