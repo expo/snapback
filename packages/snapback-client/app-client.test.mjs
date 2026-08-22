@@ -1078,6 +1078,60 @@ test('browser durable custody restores the default record and keeps signed-in pa
   }
 });
 
+test('implicit default warns when durable clients authenticate after both are constructed', async () => {
+  const server = installServer();
+  const app = makeApp({ custody: 'durable-required' });
+  const input = {
+    app,
+    binding: makeBinding(app),
+    platform: {
+      kind: 'browser',
+      indexedDB: new IDBFactory(),
+      lockManager: { request: (_name, _options, operation) => operation() },
+      cryptoObject: webcrypto,
+      databaseName: 'snapback-app-client-construct-then-signin-warning-test',
+    },
+  };
+  let first = null;
+  let second = null;
+  let third = null;
+  try {
+    [first, second] = await Promise.all([
+      createSnapbackAppClient(input),
+      createSnapbackAppClient(input),
+    ]);
+    assert.equal(first.client, second.client);
+    assert.equal(
+      first.client.diagnosticsChannel().snapshot().events.some(
+        ({ code }) => code === 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
+      ),
+      false,
+      'anonymous shared custody is not diagnosed before it becomes a shared session',
+    );
+
+    server.respond('/auth/password/signup', () => Response.json(
+      server.credential({ codes: RECOVERY_CODES }),
+    ));
+    await first.auth.signUpWithPassword({ email: 'person@example.com', password: PASSWORD });
+    assert.equal(second.auth.currentPrincipal().userId, USER);
+    let warnings = first.client.diagnosticsChannel().snapshot().events.filter(
+      ({ code }) => code === 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
+    );
+    assert.equal(warnings.length, 1, 'the first shared authentication emits one warning');
+
+    third = await createSnapbackAppClient(input);
+    warnings = first.client.diagnosticsChannel().snapshot().events.filter(
+      ({ code }) => code === 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
+    );
+    assert.equal(warnings.length, 1, 'later projections do not repeat the owner warning');
+  } finally {
+    await third?.dispose();
+    await second?.dispose();
+    await first?.dispose();
+    server.restore();
+  }
+});
+
 test('volatile custody recreates its queue epoch domain before a later password sign-in', async () => {
   const server = installServer();
   delete process.env.SNAPBACK_CLIENT_RQS_STORE;

@@ -52,10 +52,10 @@ imports the root `DEFAULT_AUTH_STORAGE_PARTITION` spelling and assigns one
 stable explicit `storagePartition` per persona and worker.
 
 The in-process diagnostic was bounded without changing custody semantics:
-when a second Node client omits `storagePartition` and adopts an already-live,
-authenticated durable owner on the default partition, the shared diagnostics
-channel emits one warn-class
-`SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` event. Explicit partition
+when multiple Node clients omit `storagePartition`, the shared diagnostics
+channel emits one warn-class event once their durable default owner is
+authenticated. This covers both adopt-after-sign-in and construct-all-then-sign-in
+ordering: `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE`. Explicit partition
 reuse, volatile custody, and later clients sharing that owner do not emit an
 additional warning.
 
@@ -65,7 +65,10 @@ Closure evidence:
   Henry”, “multiple clients same session”, “personas share login”, and “second
   client same user” to the corrective recipe;
 - the packed-external vertical check typechecks the exact transcluded recipe,
-  proves two explicit persona partitions remain isolated, proves implicit
-  default clients adopt the same user, and proves the warning is bounded;
+  refuses the default-partition and shared-`rqsStore` anti-pattern inputs,
+  proves two explicit persona partitions remain isolated through dispose and
+  durable restoration, repeats both server-attributed writes after restore,
+  proves implicit default clients adopt the same user, and proves the warning
+  is bounded for construct-all-then-sign-in ordering;
 - the client unit suite, Guide suite under Node 24.18.0, retrieval evaluation,
   inventory check, and `ref-check` pass.

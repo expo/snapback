@@ -318,6 +318,17 @@ globalThis.fetch = async (url, init = {}) => {
 
 assert.equal(DEFAULT_AUTH_STORAGE_PARTITION, 'default');
 const input = { app, binding, platform };
+await assert.rejects(
+  () => createAcceptancePersonas({
+    ...input,
+    storagePartition: DEFAULT_AUTH_STORAGE_PARTITION,
+  }, 'worker-7'),
+  /do not pass DEFAULT_AUTH_STORAGE_PARTITION/u,
+);
+await assert.rejects(
+  () => createAcceptancePersonas({ ...input, rqsStore: Object.freeze({}) }, 'worker-7'),
+  /must not share one injected rqsStore/u,
+);
 const { henry, mia } = await createAcceptancePersonas(input, 'worker-7');
 await henry.auth.signUpWithPassword({ email: 'henry@example.com', password: 'packed-password-12' });
 await mia.auth.signUpWithPassword({ email: 'mia@example.com', password: 'packed-password-12' });
@@ -334,12 +345,45 @@ assert.equal(new Set(serverRecordedAuthors).size, 2, 'persona writes must have d
 await henry.dispose();
 await mia.dispose();
 
+const restoredPersonas = await createAcceptancePersonas(input, 'worker-7');
+assert.equal(
+  restoredPersonas.henry.auth.currentPrincipal().userId,
+  USERS['henry@example.com'],
+);
+assert.equal(
+  restoredPersonas.mia.auth.currentPrincipal().userId,
+  USERS['mia@example.com'],
+);
+await restoredPersonas.henry.client.mutate(
+  packedGeneratedMutation,
+  { args: { persona: 'henry-restored' }, queue: false },
+);
+await restoredPersonas.mia.client.mutate(
+  packedGeneratedMutation,
+  { args: { persona: 'mia-restored' }, queue: false },
+);
+assert.deepEqual(serverRecordedAuthors, [
+  USERS['henry@example.com'],
+  USERS['mia@example.com'],
+  USERS['henry@example.com'],
+  USERS['mia@example.com'],
+]);
+await restoredPersonas.henry.dispose();
+await restoredPersonas.mia.dispose();
+
 const firstDefault = await createSnapbackAppClient(input);
-await firstDefault.auth.signUpWithPassword({ email: 'henry@example.com', password: 'packed-password-12' });
 const secondDefault = await createSnapbackAppClient(input);
-const thirdDefault = await createSnapbackAppClient(input);
 assert.equal(firstDefault.client, secondDefault.client);
+assert.equal(
+  firstDefault.client.diagnosticsChannel().snapshot().events.some(
+    ({ code }) => code === 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
+  ),
+  false,
+  'anonymous implicit-default clients do not warn before authentication',
+);
+await firstDefault.auth.signUpWithPassword({ email: 'henry@example.com', password: 'packed-password-12' });
 assert.equal(secondDefault.auth.currentPrincipal().userId, USERS['henry@example.com']);
+const thirdDefault = await createSnapbackAppClient(input);
 const warnings = firstDefault.client.diagnosticsChannel().snapshot().events.filter(
   ({ code }) => code === 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
 );
@@ -357,4 +401,4 @@ await firstDefault.dispose();
   rmSync(scratch, { recursive: true, force: true });
 }
 
-console.log('check-guide-multi-persona-clients: packed import, typecheck, distinct write attribution, isolated personas, and bounded warning passed');
+console.log('check-guide-multi-persona-clients: packed import, anti-pattern refusals, restore isolation, repeated write attribution, and construct-then-signin warning passed');

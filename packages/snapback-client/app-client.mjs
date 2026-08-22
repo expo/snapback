@@ -936,6 +936,8 @@ function publishReady(owner) {
 function warnImplicitDefaultPartitionReuse(owner) {
   if (
     owner.implicitDefaultPartitionReuseWarned
+    || owner.liveProjectionCount < 2
+    || owner.implicitDefaultProjectionCount < 1
     || owner.storagePartition !== DEFAULT_AUTH_STORAGE_PARTITION
     || owner.custodyFacts.grade !== 'durable'
     || owner.client.auth.currentPrincipal().status !== 'authenticated'
@@ -946,7 +948,7 @@ function warnImplicitDefaultPartitionReuse(owner) {
     code: 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
     severity: 'warning',
     subsystem: 'auth',
-    message: 'A second Node application client adopted the authenticated durable session in the implicit default storage partition. Set one stable storagePartition per persona; see guide/recipes/multi-persona-clients.md.',
+    message: 'Multiple Node application clients share an authenticated durable session in the implicit default storage partition. Set one stable storagePartition per persona; see guide/recipes/multi-persona-clients.md.',
     details: {
       appId: owner.app.identity.app,
       storagePartition: DEFAULT_AUTH_STORAGE_PARTITION,
@@ -1056,6 +1058,8 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
     ownerTransitionInFlight: false,
     supervisedAdoptionCapture: null,
     implicitDefaultPartitionReuseWarned: false,
+    implicitDefaultProjectionCount: 0,
+    liveProjectionCount: 0,
     advisories: Object.freeze([]),
     authoritySource: 'fresh-anonymous',
     storage: null,
@@ -1395,6 +1399,7 @@ async function enterWith(owner, operation, {
         const result = await operation();
         owner.authoritySource = 'application-entry';
         publishReady(owner);
+        warnImplicitDefaultPartitionReuse(owner);
         return result;
       } catch (error) {
         let currentCapture = null;
@@ -1426,6 +1431,7 @@ async function enterWith(owner, operation, {
       owner.authoritySource = 'application-entry';
       owner.supervisedAdoptionCapture = null;
       publishReady(owner);
+      warnImplicitDefaultPartitionReuse(owner);
       return result;
     } finally {
       owner.ownerTransitionInFlight = false;
@@ -1530,7 +1536,7 @@ async function disposeOwner(owner) {
   if (firstError) throw firstError;
 }
 
-function projectionFor(entry, owner) {
+function projectionFor(entry, owner, implicitDefaultProjection) {
   let disposed = false;
   const bootstrapSubscriptions = new Set();
   const principalSubscriptions = new Set();
@@ -1561,6 +1567,8 @@ function projectionFor(entry, owner) {
       let shouldClose = false;
       await serializeEntry(entry, async () => {
         entry.refCount -= 1;
+        owner.liveProjectionCount -= 1;
+        if (implicitDefaultProjection) owner.implicitDefaultProjectionCount -= 1;
         if (entry.refCount === 0) {
           entry.state = 'disposing';
           let finish;
@@ -1636,17 +1644,18 @@ async function acquireSnapbackAppClient(input, bootstrapObserver) {
     try {
       const owner = await entry.promise;
       let adoptedExistingOwner = false;
+      const implicitDefaultProjection = !candidate.storagePartitionExplicit;
       await serializeEntry(entry, async () => {
         if (entry.state !== 'live') return;
         assertCompatibleRebind(owner, candidate);
         adoptedExistingOwner = entry.refCount > 0;
         entry.refCount += 1;
+        owner.liveProjectionCount += 1;
+        if (implicitDefaultProjection) owner.implicitDefaultProjectionCount += 1;
       });
       if (entry.state !== 'live') continue;
-      if (adoptedExistingOwner && !candidate.storagePartitionExplicit) {
-        warnImplicitDefaultPartitionReuse(owner);
-      }
-      return projectionFor(entry, owner);
+      if (adoptedExistingOwner) warnImplicitDefaultPartitionReuse(owner);
+      return projectionFor(entry, owner, implicitDefaultProjection);
     } finally {
       if (observing) entry.bootstrapObservers.delete(bootstrapObserver);
     }

@@ -813,8 +813,9 @@ operations, or a one-off verification script.
 > share durable auth custody when both their app identity and
 > `storagePartition` match; the implicit partition is `"default"`. A
 > multi-persona harness must assign one stable partition per actor or every
-> client may restore the same principal. A second implicit-default adoption of
-> an authenticated durable owner emits the bounded warning
+> client may restore the same principal. Once multiple implicit-default handles
+> share an authenticated durable owner — whether construction happened before
+> or after sign-in — the client emits the bounded warning
 > `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE`. Follow the
 > [multiple Node personas recipe](../recipes/multi-persona-clients.md).
 
