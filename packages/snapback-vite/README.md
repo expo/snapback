@@ -35,18 +35,22 @@ import { snapbackDev } from '@expo/snapback-vite';
 export default defineConfig({
   plugins: [
     snapbackDev({
-      server: { mode: 'attach' },
+      server: { mode: 'managed', port: 3210 },
+      setup: { backendDirectory: 'snapback' },
       generatedRoots: ['snapback/generated'],
     }),
   ],
 });
 ```
 
-Run that configuration through `snapback dev snapback --client .
---client-command vite`. The CLI owns codegen and the backend; the Vite plugin
-attaches to the ready target and gives browser code the relative
-`/__snapback` path without exposing the backend origin, admin token, runtime
-path, or repository path.
+Run that configuration with the application's ordinary Vite command. The
+plugin consumes the fixed-port/external-client profile of `snapback dev`, pins
+Vite's loopback origin with `strictPort`, and waits for the authoritative
+`snapback.application-ready.v1` receipt. Attach mode consumes the same receipt
+when another `snapback dev` owner is already running. Browser code receives a
+same-origin projection of the receipt-issued binding at `/__snapback`; the
+backend origin, admin token, receipt/runtime paths, and qualified-binary facts
+remain private.
 
 The relay registry includes the exact server-registered methods under
 `/auth/password/*` and `/auth/recovery/*`, so the generated binding supports

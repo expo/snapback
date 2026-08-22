@@ -24,6 +24,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { createConnection } from 'node:net';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -92,6 +93,7 @@ import {
   verifyRuntimeReadinessReceipt,
   verifyRuntimePackageSeal,
 } from './runtime-readiness.mjs';
+import { createSupervisedBindingPublisher } from './expo-binding-refresh.mjs';
 import {
   loadComparatorProfile,
   readComparatorReceipt,
@@ -432,11 +434,21 @@ export function resolveRuntimeBinary(options = {}) {
 }
 
 function runtimeReadinessRoot(runtime) {
-  return runtime.checkoutRoot ?? dirname(dirname(resolve(runtime.binary)));
+  if (runtime.checkoutRoot) return runtime.checkoutRoot;
+  const checkoutRoot = sourceCheckoutRoot();
+  if (checkoutRoot !== null) {
+    const candidate = relative(checkoutRoot, resolve(runtime.binary));
+    if (
+      candidate !== ''
+      && candidate !== '..'
+      && !candidate.startsWith(`..${sep}`)
+    ) return checkoutRoot;
+  }
+  return dirname(dirname(resolve(runtime.binary)));
 }
 
 function runtimeReadinessArtifacts(runtime, runtimeRoot) {
-  if (runtime.source === 'source-checkout') {
+  if (['source-checkout', 'override', 'qualified-override'].includes(runtime.source)) {
     return digestRuntimeArtifacts(runtimeRoot);
   }
   const candidates = packagedRuntimeArtifactCandidates(runtimeRoot);
@@ -3402,6 +3414,105 @@ export function validateDevTarget(descriptor, { readyFile, database }) {
   return descriptor;
 }
 
+function normalizeDevPort(value) {
+  if (value === undefined || value === null) return null;
+  const port = typeof value === 'number' ? value : Number(value);
+  if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
+    throw diagnosticError(
+      'SNAPBACK_CLI_ARGUMENT_INVALID',
+      '--port must be an integer from 1 through 65535',
+      { port: value },
+    );
+  }
+  return port;
+}
+
+function canonicalExternalClientOrigin(value) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch (cause) {
+    const error = diagnosticError(
+      'SNAPBACK_CLI_ARGUMENT_INVALID',
+      '--external-client-origin must be an exact loopback HTTP(S) origin with an explicit port',
+      { origin: value },
+    );
+    error.cause = cause;
+    throw error;
+  }
+  const hostname = url.hostname.replace(/^\[|\]$/gu, '').toLowerCase();
+  const loopback = hostname === 'localhost'
+    || hostname === '::1'
+    || /^127(?:\.[0-9]{1,3}){3}$/u.test(hostname);
+  if (
+    !['http:', 'https:'].includes(url.protocol)
+    || !loopback
+    || url.port === ''
+    || url.username !== ''
+    || url.password !== ''
+    || (url.pathname !== '' && url.pathname !== '/')
+    || url.search !== ''
+    || url.hash !== ''
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_CLI_ARGUMENT_INVALID',
+      '--external-client-origin must be an exact loopback HTTP(S) origin with an explicit port',
+      { origin: value },
+    );
+  }
+  return url.origin;
+}
+
+function normalizeExternalClientOrigins(options, port) {
+  const raw = options.externalClientOrigins
+    ?? (options.externalClientOrigin === undefined || options.externalClientOrigin === null
+      ? []
+      : [options.externalClientOrigin]);
+  if (!Array.isArray(raw)) {
+    throw diagnosticError(
+      'SNAPBACK_CLI_ARGUMENT_INVALID',
+      'external client origins must be supplied as an array of exact origins',
+    );
+  }
+  const origins = [...new Set(raw.map(canonicalExternalClientOrigin))].sort();
+  if (origins.length > 0 && port === null) {
+    throw diagnosticError(
+      'SNAPBACK_CLI_ARGUMENT_INVALID',
+      '--external-client-origin requires --port so attach identity cannot drift with port selection',
+      { supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>' },
+    );
+  }
+  return origins;
+}
+
+function withExternalClientOrigins(environment, clientOrigins) {
+  if (clientOrigins.length === 0) return environment;
+  const inherited = String(environment.SNAPBACK_DEV_AUTH_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  return {
+    ...environment,
+    SNAPBACK_DEV_AUTH_ORIGINS: [...new Set([...inherited, ...clientOrigins])].sort().join(','),
+  };
+}
+
+function loopbackPortAcceptsConnections(port) {
+  return new Promise((resolveProbe) => {
+    const socket = createConnection({ host: '127.0.0.1', port });
+    let settled = false;
+    const settle = (listening) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolveProbe(listening);
+    };
+    socket.setTimeout(500, () => settle(false));
+    socket.once('connect', () => settle(true));
+    socket.once('error', () => settle(false));
+  });
+}
+
 async function validateReadyDescriptorHealth(descriptor) {
   // @ref LLP 0258#d2-one-bootstrap-owner-constructs-the-auth-bearing-application-client
   // — readiness inspection must not acquire the application's default local
@@ -4393,7 +4504,140 @@ async function evaluateApplicationReadiness(descriptor, adminToken, expectedTarg
   return readiness;
 }
 
-function publishApplicationReadyReceipt(path, readyFile, readiness) {
+function writeApplicationReadyReceipt(path, receipt) {
+  const temporary = `${path}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(temporary, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
+    renameSync(temporary, path);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+  return receipt;
+}
+
+export function readApplicationReadyReceipt(path) {
+  let metadata;
+  try {
+    metadata = lstatSync(path);
+  } catch (cause) {
+    const error = diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_READY_REQUIRED',
+      `the intended server has no application-ready receipt at ${path}`,
+      { path: resolve(path) },
+    );
+    error.cause = cause;
+    throw error;
+  }
+  if (!metadata.isFile() || metadata.isSymbolicLink() || (metadata.mode & 0o077) !== 0) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_READY_UNSAFE',
+      'the application-ready receipt must be an owner-only regular file, never a symlink',
+      { path: resolve(path), mode: metadata.mode & 0o777 },
+    );
+  }
+  let receipt;
+  try {
+    receipt = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (cause) {
+    const error = diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_READY_INVALID',
+      `could not parse application-ready receipt ${path}`,
+      { path: resolve(path) },
+    );
+    error.cause = cause;
+    throw error;
+  }
+  if (
+    receipt?.formatVersion !== 'snapback.application-ready.v1'
+    || typeof receipt.startupNonce !== 'string'
+    || typeof receipt.hostReadyDescriptorDigest !== 'string'
+    || receipt.binding?.format !== 'snapback.app-binding.v1'
+    || !Array.isArray(receipt.clientOrigins)
+    || receipt.runtimeIdentity?.qualifiedBinary == null
+    || receipt.runtimeIdentity?.wrapper == null
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_READY_INVALID',
+      'the application-ready receipt does not carry the canonical lifecycle identity fields',
+      { path: resolve(path) },
+    );
+  }
+  return receipt;
+}
+
+function qualifiedRuntimeIdentity(
+  runtime,
+  runtimeIdentity,
+  qualifiedBinary = null,
+  environment = process.env,
+) {
+  const qualifiedPath = qualifiedBinary === null ? null : resolve(qualifiedBinary);
+  const checkoutRoot = sourceCheckoutRoot();
+  const checkoutRelative = qualifiedPath === null || checkoutRoot === null
+    ? null
+    : relative(checkoutRoot, qualifiedPath);
+  const qualifiedCheckoutRoot = checkoutRelative !== null
+    && checkoutRelative !== ''
+    && checkoutRelative !== '..'
+    && !checkoutRelative.startsWith(`..${sep}`)
+    ? checkoutRoot
+    : null;
+  const qualifiedRuntime = qualifiedBinary === null
+    ? runtime
+    : {
+        binary: qualifiedPath,
+        source: 'qualified-override',
+        platform: runtime.platform,
+        ...(qualifiedCheckoutRoot === null ? {} : { checkoutRoot: qualifiedCheckoutRoot }),
+      };
+  const qualifiedBuildIdentity = qualifiedBinary === null
+    ? runtimeIdentity
+    : inspectRuntimeBinary(qualifiedRuntime.binary, environment);
+  const runtimeRoot = runtimeReadinessRoot(qualifiedRuntime);
+  const packaged = !['override', 'qualified-override', 'source-checkout'].includes(
+    qualifiedRuntime.source,
+  );
+  const receiptPath = packaged ? join(runtimeRoot, 'runtime-readiness.json') : null;
+  const verdict = verifyRuntimeReadinessReceipt({
+    root: runtimeRoot,
+    binaryPath: qualifiedRuntime.binary,
+    ...(receiptPath === null ? {} : { receiptPath }),
+    artifacts: runtimeReadinessArtifacts(qualifiedRuntime, runtimeRoot),
+  });
+  if (!verdict.ok) {
+    throw diagnosticError(
+      verdict.diagnostic.code,
+      `snapback dev refuses an unqualified runtime: ${verdict.diagnostic.message}`,
+      {
+        binary: qualifiedRuntime.binary,
+        runtimeSource: qualifiedRuntime.source,
+        reason: verdict.reason,
+        receiptPath: verdict.receiptPath,
+      },
+    );
+  }
+  return Object.freeze({
+    qualifiedBinary: Object.freeze({
+      path: resolve(qualifiedRuntime.binary),
+      source: qualifiedRuntime.source,
+      platform: qualifiedRuntime.platform,
+      bytes: verdict.receipt.binary.bytes,
+      sha256: `sha256:${verdict.receipt.binary.sha256}`,
+      buildIdentity: Object.freeze({ ...(qualifiedBuildIdentity.stamp ?? {}) }),
+      qualification: Object.freeze({
+        receiptSchemaVersion: verdict.receipt.schemaVersion,
+        receiptPath: verdict.receiptPath,
+        probe: verdict.receipt.qualification.probe,
+      }),
+    }),
+    wrapper: Object.freeze({
+      package: '@expo/snapback-cli',
+      version: packageVersion(),
+    }),
+  });
+}
+
+function publishApplicationReadyReceipt(path, readyFile, readiness, lifecycle) {
   const readyBytes = readFileSync(readyFile);
   const receipt = {
     formatVersion: 'snapback.application-ready.v1',
@@ -4413,16 +4657,187 @@ function publishApplicationReadyReceipt(path, readyFile, readiness) {
         ? {}
         : { sessionActivationReady: readiness.auth.sessionActivationReady }),
     },
+    binding: lifecycle.binding,
+    clientOrigins: lifecycle.clientOrigins,
+    runtimeIdentity: lifecycle.runtimeIdentity,
     capabilityManifestDigest: readiness.capabilityManifestDigest,
     networkProfile: readiness.networkProfile,
     settledAtMs: readiness.evaluatedAtMs,
   };
-  const temporary = `${path}.${randomUUID()}.tmp`;
+  return writeApplicationReadyReceipt(path, receipt);
+}
+
+// Expo's platform route is a projection of the authoritative application
+// receipt, not a second attach authority. Reprojection is nonce/digest bound
+// and preserves the server-owned settlement and qualified-runtime facts.
+export function projectApplicationReadyReceipt(path, readyFile, { binding, clientOrigins }) {
+  const receipt = readApplicationReadyReceipt(path);
+  const descriptor = readReadyDescriptor(readyFile);
+  const readyDigest = sha256Bytes(readFileSync(readyFile));
+  if (
+    receipt.startupNonce !== descriptor.startupNonce
+    || receipt.hostReadyDescriptorDigest !== readyDigest
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_READY_STALE',
+      'the application-ready receipt no longer matches the live host descriptor',
+      {
+        expectedStartupNonce: descriptor.startupNonce ?? null,
+        observedStartupNonce: receipt.startupNonce,
+        expectedHostReadyDescriptorDigest: readyDigest,
+        observedHostReadyDescriptorDigest: receipt.hostReadyDescriptorDigest,
+      },
+    );
+  }
+  return writeApplicationReadyReceipt(path, {
+    ...receipt,
+    binding,
+    clientOrigins: [...clientOrigins],
+  });
+}
+
+function generatedApplicationDescriptor(generatedRoot) {
+  const path = join(generatedRoot, 'app.descriptor.json');
+  let descriptor;
   try {
-    writeFileSync(temporary, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
-    renameSync(temporary, path);
-  } finally {
-    rmSync(temporary, { force: true });
+    descriptor = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (cause) {
+    const error = diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_DESCRIPTOR_INVALID',
+      `could not read generated application descriptor ${path}`,
+      { path },
+    );
+    error.cause = cause;
+    throw error;
+  }
+  if (
+    typeof descriptor?.identity?.app !== 'string'
+    || typeof descriptor.identity.schema !== 'string'
+    || typeof descriptor.identity.functions !== 'string'
+    || typeof descriptor.identity.descriptor !== 'string'
+    || !Array.isArray(descriptor?.capabilities?.required)
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_DESCRIPTOR_INVALID',
+      'generated application descriptor lacks its closed identity or capability declaration',
+      { path },
+    );
+  }
+  return descriptor;
+}
+
+function issueDevBinding(publisher, generatedRoot, descriptor) {
+  return publisher.issue({
+    descriptor: generatedApplicationDescriptor(generatedRoot),
+    origin: new URL(descriptor.serverUrl).origin,
+    routing: 'loopback',
+  });
+}
+
+async function verifyDevAttach({
+  descriptor,
+  readyFile,
+  applicationReadyFile,
+  generatedRoot,
+  clientOrigins,
+  runtimeIdentity,
+  fixedPort,
+  allowProjectedBinding,
+}) {
+  try {
+    await validateReadyDescriptorHealth(descriptor);
+  } catch (error) {
+    if (fixedPort !== null) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER',
+        'the pinned host descriptor does not identify a live receipt-verifiable Snapback listener',
+        {
+          port: fixedPort,
+          readyFile,
+          cause: error.code ?? 'SNAPBACK_DEV_SERVER_ATTACH_FAILED',
+          supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>',
+          safety: 'the listener was not adopted or terminated',
+        },
+      );
+    }
+    throw error;
+  }
+  let receipt;
+  try {
+    receipt = readApplicationReadyReceipt(applicationReadyFile);
+  } catch (error) {
+    if (fixedPort !== null) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER',
+        'the pinned Snapback origin has no verifiable application-ready owner receipt',
+        {
+          port: fixedPort,
+          readyFile,
+          applicationReadyFile,
+          cause: error.code ?? 'SNAPBACK_DEV_APPLICATION_READY_INVALID',
+          supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>',
+          safety: 'the listener was not adopted or terminated',
+        },
+      );
+    }
+    throw error;
+  }
+  const generatedDescriptor = generatedApplicationDescriptor(generatedRoot);
+  const hostReadyDescriptorDigest = sha256Bytes(readFileSync(readyFile));
+  const expectedOrigin = new URL(descriptor.serverUrl).origin;
+  const expiresAt = Date.parse(receipt.binding?.provenance?.expiresAt);
+  const mismatch = [];
+  if (receipt.startupNonce !== descriptor.startupNonce) mismatch.push('startupNonce');
+  if (receipt.hostReadyDescriptorDigest !== hostReadyDescriptorDigest) {
+    mismatch.push('hostReadyDescriptorDigest');
+  }
+  if (
+    allowProjectedBinding !== true
+    && receipt.binding?.target?.origin !== expectedOrigin
+  ) mismatch.push('binding.target.origin');
+  if (
+    receipt.binding?.descriptorIdentity !== generatedDescriptor.identity.descriptor
+  ) mismatch.push('binding.descriptorIdentity');
+  if (receipt.binding?.target?.app !== generatedDescriptor.identity.app) mismatch.push('binding.target.app');
+  if (receipt.binding?.target?.schema !== generatedDescriptor.identity.schema) {
+    mismatch.push('binding.target.schema');
+  }
+  if (receipt.binding?.target?.functions !== generatedDescriptor.identity.functions) {
+    mismatch.push('binding.target.functions');
+  }
+  if (
+    allowProjectedBinding !== true
+    && receipt.binding?.target?.routing !== 'loopback'
+  ) mismatch.push('binding.target.routing');
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) mismatch.push('binding.provenance.expiresAt');
+  if (!sameStringSet(receipt.clientOrigins, clientOrigins)) mismatch.push('clientOrigins');
+  if (
+    receipt.runtimeIdentity?.qualifiedBinary?.sha256
+      !== runtimeIdentity.qualifiedBinary.sha256
+  ) mismatch.push('runtimeIdentity.qualifiedBinary.sha256');
+  if (
+    receipt.runtimeIdentity?.wrapper?.package !== runtimeIdentity.wrapper.package
+    || receipt.runtimeIdentity?.wrapper?.version !== runtimeIdentity.wrapper.version
+  ) mismatch.push('runtimeIdentity.wrapper');
+  if (fixedPort !== null && Number(new URL(descriptor.serverUrl).port) !== fixedPort) {
+    mismatch.push('serverPort');
+  }
+  if (mismatch.length > 0) {
+    throw diagnosticError(
+      fixedPort === null
+        ? 'SNAPBACK_DEV_SERVER_BINDING_MISMATCH'
+        : 'SNAPBACK_DEV_FIXED_BINDING_MISMATCH',
+      'the existing listener is not the receipt-bound development target requested by this lifecycle',
+      {
+        mismatch,
+        expectedOrigin,
+        observedOrigin: receipt.binding?.target?.origin ?? null,
+        expectedClientOrigins: clientOrigins,
+        observedClientOrigins: receipt.clientOrigins ?? null,
+        supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>',
+        safety: 'the listener was not adopted or terminated',
+      },
+    );
   }
   return receipt;
 }
@@ -4492,17 +4907,24 @@ export async function runDev(options = {}) {
   const applicationReadyFile = resolve(
     options.applicationReadyFile ?? `${readyFile}.application-ready`,
   );
+  const fixedPort = normalizeDevPort(options.port);
+  const clientOrigins = normalizeExternalClientOrigins(options, fixedPort);
   // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — receipt
   // lifecycle removes the projection before every launch, reload, restart,
   // reset, and shutdown; absence is the honest intermediate state.
   const removeApplicationReadyReceipt = () => {
     rmSync(applicationReadyFile, { force: true });
   };
-  removeApplicationReadyReceipt();
   const database = resolve(options.database ?? join(stateRoot, 'dev.sqlite3'));
   const databaseExistedBeforeStart = existsSync(database);
   const runtime = resolveRuntimeBinary(options);
   const runtimeIdentity = inspectRuntimeBinary(runtime.binary, options.env);
+  const applicationRuntimeIdentity = qualifiedRuntimeIdentity(
+    runtime,
+    runtimeIdentity,
+    options.qualifiedRuntimeBinary ?? null,
+    options.env,
+  );
   const runtimeRecovery = installedRuntimeRecovery(runtime, {
     runnable: runtimeIdentity.runnable,
     actualStamp: runtimeIdentity.stamp,
@@ -4516,6 +4938,16 @@ export async function runDev(options = {}) {
       : runtimeIdentity.reason,
   });
   const clientArm = resolveClientArm(options.client, projectRoot);
+  if (clientOrigins.length > 0 && clientArm !== null) {
+    throw diagnosticError(
+      'SNAPBACK_CLI_ARGUMENT_INVALID',
+      'the declared external client is owned outside snapback dev and cannot be combined with --client or --client-command',
+      {
+        clientOrigins,
+        supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>',
+      },
+    );
+  }
   const generated = await generateApp(backendRoot);
   if (!generated.ok) return { ...generated, state: 'generation-failed' };
   let devRuntimeEnvironment;
@@ -4529,7 +4961,7 @@ export async function runDev(options = {}) {
       backendRoot,
       outputPath: join(stateRoot, 'visibility-governance-dev-target-config.json'),
     });
-    devRuntimeEnvironment = prepared.environment;
+    devRuntimeEnvironment = withExternalClientOrigins(prepared.environment, clientOrigins);
     return prepared;
   };
   try {
@@ -4553,6 +4985,17 @@ export async function runDev(options = {}) {
     return result;
   }
   const generatedRoot = join(backendRoot, 'generated');
+  const bindingPublisher = createSupervisedBindingPublisher({
+    generation: `snapback-dev:${randomUUID()}`,
+    onEvent(event) {
+      options.onEvent?.({
+        schemaVersion: 'snapback.dev.v1',
+        ok: event.ok !== false,
+        state: event.state,
+        binding: event,
+      });
+    },
+  });
   const generatedSchemaPath = resolveGeneratedArtifact(
     generatedRoot,
     'schema.manifest.json',
@@ -4603,15 +5046,39 @@ export async function runDev(options = {}) {
   let initialStartupSuccessor = null;
   if (existsSync(readyFile)) {
     descriptor = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
+    await verifyDevAttach({
+      descriptor,
+      readyFile,
+      applicationReadyFile,
+      generatedRoot,
+      clientOrigins,
+      runtimeIdentity: applicationRuntimeIdentity,
+      fixedPort,
+      allowProjectedBinding: options.allowProjectedBindingAttach === true,
+    });
   } else {
     if (options.attach === true) {
       throw diagnosticError('SNAPBACK_DEV_READY_FILE_REQUIRED', `--attach requires ${readyFile}`, { readyFile });
     }
+    if (fixedPort !== null && await loopbackPortAcceptsConnections(fixedPort)) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER',
+        `port ${fixedPort} is already occupied without the requested receipt-bound Snapback lifecycle`,
+        {
+          port: fixedPort,
+          clientOrigins,
+          supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>',
+          safety: 'the listener was not adopted or terminated',
+        },
+      );
+    }
+    removeApplicationReadyReceipt();
     refreshStartupArtifacts();
     child = spawnManagedRuntime(runtime.binary, [
       'start',
       '--ready-file', readyFile,
       '--db', database,
+      ...(fixedPort === null ? [] : ['--port', String(fixedPort)]),
       ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
     ], {
       cwd: projectRoot,
@@ -4630,6 +5097,7 @@ export async function runDev(options = {}) {
           'start',
           '--ready-file', readyFile,
           '--db', database,
+          ...(fixedPort === null ? [] : ['--port', String(fixedPort)]),
           ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
           '--activate-startup-successor',
         ], {
@@ -4695,7 +5163,8 @@ export async function runDev(options = {}) {
         await stopProcessGroup(child);
       }
     } finally {
-      removeApplicationReadyReceipt();
+      if (managed) removeApplicationReadyReceipt();
+      bindingPublisher.close();
     }
   };
   let adminToken;
@@ -4711,6 +5180,7 @@ export async function runDev(options = {}) {
     // identity, so use the public health projection and never upgrade this
     // check into administrative data-read authority.
     await validateReadyDescriptorHealth(descriptor);
+    removeApplicationReadyReceipt();
     const activation = await loadGenerated(
       runtime.binary,
       projectRoot,
@@ -4736,7 +5206,11 @@ export async function runDev(options = {}) {
       expectedTarget,
     );
     // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — the receipt is a projection of the server-owned OperationalReadinessV1, bound to the returned nonce and digests; runDev never manufactures readiness from its own promise completions.
-    publishApplicationReadyReceipt(applicationReadyFile, readyFile, readiness);
+    publishApplicationReadyReceipt(applicationReadyFile, readyFile, readiness, {
+      binding: issueDevBinding(bindingPublisher, generatedRoot, descriptor),
+      clientOrigins,
+      runtimeIdentity: applicationRuntimeIdentity,
+    });
   } catch (error) {
     await closeManaged();
     throw error;
@@ -4750,6 +5224,8 @@ export async function runDev(options = {}) {
     readyFile,
     applicationReadyFile,
     serverUrl: descriptor.serverUrl,
+    lifecycleProfile: fixedPort === null ? 'selected-port' : 'fixed-port',
+    clientOrigins,
     runtime,
     runtimeRecovery,
   };
@@ -4785,6 +5261,15 @@ export async function runDev(options = {}) {
     extra = {},
     { seed = false, failureState = null } = {},
   ) => {
+    let predecessorReceipt = null;
+    if (existsSync(applicationReadyFile)) {
+      try {
+        predecessorReceipt = readApplicationReadyReceipt(applicationReadyFile);
+      } catch {
+        // Removal-before-work remains fail-closed; an invalid predecessor can
+        // never authorize a lineage claim for the successor.
+      }
+    }
     removeApplicationReadyReceipt();
     let next;
     try {
@@ -4824,6 +5309,8 @@ export async function runDev(options = {}) {
     }
     if (closed) return null;
     try {
+      // @ref LLP 0223#dated-amendment--2026-08-21-d01-ruling--the-canonical-development-lifecycle — regenerate rewrites the complete startup carrier before hot-load; authors and external clients never own this bookkeeping.
+      refreshStartupArtifacts();
       refreshVisibilityGovernanceDevEnvironment();
       const activation = await loadGenerated(
         runtime.binary,
@@ -4848,7 +5335,36 @@ export async function runDev(options = {}) {
         adminToken,
         expectedTarget,
       );
-      publishApplicationReadyReceipt(applicationReadyFile, readyFile, readiness);
+      publishApplicationReadyReceipt(applicationReadyFile, readyFile, readiness, {
+        binding: issueDevBinding(bindingPublisher, generatedRoot, descriptor),
+        clientOrigins,
+        runtimeIdentity: applicationRuntimeIdentity,
+      });
+      const fromDeployment = predecessorReceipt?.application?.deployment ?? null;
+      const toDeployment = readiness.target.deployment;
+      if (
+        generatedAuthMode === 'sessions'
+        && fromDeployment !== null
+        && canonicalJson(fromDeployment) !== canonicalJson(toDeployment)
+      ) {
+        emitDevEvent({
+          schemaVersion: 'snapback.dev.v1',
+          ok: true,
+          state: 'startup-successor-activated',
+          verb: extra.verb ?? 'regenerate',
+          changed: filename,
+          ...extra,
+          database,
+          fromDeployment,
+          toDeployment,
+          continuity: {
+            database: 'preserved',
+            accounts: 'preserved',
+            sessions: 'preserved',
+            stores: 'preserved',
+          },
+        });
+      }
       return emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
         ok: true,
@@ -5131,6 +5647,7 @@ export async function runDev(options = {}) {
         'start',
         '--ready-file', readyFile,
         '--db', database,
+        ...(fixedPort === null ? [] : ['--port', String(fixedPort)]),
         ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
         ...(activateSuccessor ? ['--activate-startup-successor'] : []),
       ], {
@@ -5286,6 +5803,7 @@ export async function runDev(options = {}) {
         'start',
         '--ready-file', readyFile,
         '--db', database,
+        ...(fixedPort === null ? [] : ['--port', String(fixedPort)]),
         ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
       ], {
         cwd: projectRoot,
@@ -5354,7 +5872,7 @@ export async function runDev(options = {}) {
     async close() {
       if (closed) return;
       closed = true;
-      removeApplicationReadyReceipt();
+      if (managed) removeApplicationReadyReceipt();
       clearTimeout(timer);
       watcher.close();
       await closeClientArm();
@@ -5594,13 +6112,14 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     output: `${VERIFY_RECEIPT_SCHEMA_VERSION} receipt`, exits: '0 all required stages pass (including machine-distinct passed-without-acceptance); 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
   },
   {
-    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--native-checkout --expo-app-scheme <scheme> <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
+    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--port <port> --external-client-origin <origin>] [--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--native-checkout --expo-app-scheme <scheme> <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
     description: 'Generate, start or attach, load, watch, and optionally supervise a web or Expo client surface.', lifecycle: 'long-running unless --no-watch (Expo supervision is always long-running)',
     output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
     recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
     details: Object.freeze([
       'Bare snapback is discovery-only root help; use snapback dev for the managed authoring loop.',
       'Use native snapback start only when a lower-level harness owns loading and lifecycle.',
+      'Fixed external client: snapback dev snapback --port 3210 --external-client-origin http://localhost:5173; Snapback owns only the backend child.',
       'Supervised Expo iOS: snapback dev snapback --expo --expo-platform ios (ios is the default).',
       'Supervised Expo Android: snapback dev snapback --expo --expo-platform android.',
       'Supervised Expo web: snapback dev snapback --expo --expo-platform web.',
@@ -6897,6 +7416,8 @@ export async function runCli(argv, options = {}) {
     const readyFile = takeFlag(args, '--ready-file');
     const applicationReadyFile = takeFlag(args, '--application-ready-file');
     const database = takeFlag(args, '--db');
+    const port = takeFlag(args, '--port');
+    const externalClientOrigin = takeFlag(args, '--external-client-origin');
     const clientDirectory = takeFlag(args, '--client');
     const clientCommand = takeFlag(args, '--client-command');
     const expo = takeBooleanFlag(args, '--expo');
@@ -6918,6 +7439,7 @@ export async function runCli(argv, options = {}) {
         'SNAPBACK_CLI_ARGUMENT_INVALID',
         `unknown dev option ${args[0]}; usage: snapback dev [<backend-dir>] [--attach] [--no-watch] `
           + '[--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] '
+          + '[--port <port> --external-client-origin <origin>] '
           + '[--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] '
           + '[--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] '
           + '[--native-checkout --expo-app-scheme <scheme> <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
@@ -6941,6 +7463,12 @@ export async function runCli(argv, options = {}) {
     }
     let expoSelectedPlatform = expoPlatform ?? 'ios';
     if (expo) {
+      if (externalClientOrigin !== null) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          '--external-client-origin declares a client owned outside Snapback and cannot be combined with --expo',
+        );
+      }
       if (noWatch || clientDirectory !== null || clientCommand !== null) {
         throw diagnosticError(
           'SNAPBACK_CLI_ARGUMENT_INVALID',
@@ -7081,6 +7609,10 @@ export async function runCli(argv, options = {}) {
           ...options,
           backendDirectory,
           attach,
+          devOptions: {
+            ...options.devOptions,
+            ...(port === null ? {} : { port }),
+          },
           ...(readyFile ? { readyFile } : {}),
           ...(applicationReadyFile ? { applicationReadyFile } : {}),
           ...(database ? { database } : {}),
@@ -7145,6 +7677,8 @@ export async function runCli(argv, options = {}) {
       ...(readyFile ? { readyFile } : {}),
       ...(applicationReadyFile ? { applicationReadyFile } : {}),
       ...(database ? { database } : {}),
+      ...(port === null ? {} : { port }),
+      ...(externalClientOrigin === null ? {} : { externalClientOrigin }),
       ...(clientDirectory || clientCommand
         ? {
           client: {

@@ -5,6 +5,11 @@
 **Systems:** Developer experience, Contract/Exact, Client integration, Tooling, Local server lifecycle, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-01
+**Revised:** 2026-08-21 (LLP 0223 D0.1/W1: managed/auto Vite consumes the
+fixed-port/external-client profile of `snapback dev` and its authoritative
+application-ready receipt; attach verifies that receipt; the virtual module
+projects its admitted binding through the same-origin relay instead of
+manufacturing one)
 **Revised:** 2026-08-16 (accepted LLP 0262 D2: the managed relay now stamps
 the dev-identity capability server-side while the browser-facts fence remains
 intentionally unchanged)
@@ -249,6 +254,22 @@ process this Vite session spawned, escalate from graceful termination to kill
 when needed, and never stop a process the plugin merely attached to.
 
 ### Backend setup ownership
+
+**D0.1 amendment (2026-08-21).** The lifecycle modes remain useful consumer
+postures, but `managed` is no longer a second native-start lifecycle. It calls
+the fixed profile of `snapback dev`, declaring Vite's strict loopback origin,
+and consumes the resulting `snapback.application-ready.v1` receipt. Generation,
+startup-carrier rewrite, load, readiness evaluation, restart, successor
+activation, and owned-child shutdown therefore have one owner. `auto` may
+attach only after the existing host descriptor and application receipt verify;
+it never removes or kills an unverified listener to self-heal a port.
+
+The server-side virtual-module renderer reads the receipt-issued AppBinding,
+checks it against the imported generated app identity, and changes only its
+origin to the same-origin relay prefix. It does not mint provenance,
+capabilities, descriptor identity, or expiry. The private backend origin,
+receipt path, qualified-binary identity, and carrier bytes remain outside the
+browser module.
 
 Moving schema/function/seed setup out of the browser closes the app-proxy
 authority hole, but it creates a second ownership question: which mode is allowed

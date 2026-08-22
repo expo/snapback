@@ -13,6 +13,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { createServer as createNetServer } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -37,6 +38,17 @@ assert.ok(
 );
 
 const ADA = 'user_ada';
+
+async function freePort() {
+  const server = createNetServer();
+  await new Promise((resolveListen, rejectListen) => {
+    server.once('error', rejectListen);
+    server.listen(0, '127.0.0.1', resolveListen);
+  });
+  const port = server.address().port;
+  await new Promise((resolveClose) => server.close(resolveClose));
+  return port;
+}
 
 async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {}) {
   const deadline = Date.now() + timeoutMs;
@@ -116,6 +128,8 @@ try {
   const database = join(project, '.snapback', 'dev.sqlite3');
   readyFile = join(project, '.snapback', 'dev.ready.json');
   const events = [];
+  const vitePort = await freePort();
+  const backendPort = await freePort();
   const { createServer } = await import('vite');
   viteServer = await createServer({
     root: appRoot,
@@ -128,6 +142,7 @@ try {
           db: database,
           readyFile,
           runtimeBinary,
+          port: backendPort,
           stdio: 'ignore',
         },
         projectRoot: project,
@@ -136,7 +151,7 @@ try {
         logJson: false,
       }),
     ],
-    server: { host: '127.0.0.1', port: 0, strictPort: false },
+    server: { host: '127.0.0.1', port: vitePort, strictPort: true },
   });
   await viteServer.listen();
   const address = viteServer.httpServer.address();

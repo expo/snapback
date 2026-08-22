@@ -4,9 +4,12 @@ use snapback::auth::mode::DeploymentIdentity;
 use snapback::host_ops::HostReadyDescriptor;
 use snapback::manifest::AuthMode;
 use snapback::operational_readiness::{
-    APPLICATION_READY_FORMAT_V1, ApplicationIdentityV1, ApplicationReadyAuthV1,
-    ApplicationReadyReceiptV1, DeclaredObligationV1, EXPECTED_ACTIVATION_TARGET_FORMAT_V1,
-    ExpectedActivationTargetV1, OperationalReadinessV1, application_ready_sibling,
+    APPLICATION_READY_FORMAT_V1, AppBindingCapabilitiesV1, AppBindingIntegrityV1,
+    AppBindingProvenanceV1, AppBindingTargetV1, AppBindingV1, ApplicationIdentityV1,
+    ApplicationReadyAuthV1, ApplicationReadyReceiptV1, ApplicationReadyRuntimeIdentityV1,
+    CliWrapperIdentityV1, DeclaredObligationV1, EXPECTED_ACTIVATION_TARGET_FORMAT_V1,
+    ExpectedActivationTargetV1, OperationalReadinessV1, QualifiedBinaryIdentityV1,
+    RuntimeBuildIdentityV1, RuntimeQualificationIdentityV1, application_ready_sibling,
     declared_obligations_digest,
 };
 use std::fs;
@@ -187,6 +190,52 @@ fn receipt(ready_file: &Path, readiness: &OperationalReadinessV1) -> Application
             active_mode: readiness.auth.active,
             mode_state: readiness.auth.mode_state,
             session_activation_ready: readiness.auth.session_activation_ready,
+        },
+        binding: AppBindingV1 {
+            format: "snapback.app-binding.v1".to_owned(),
+            source: "supervised-dev".to_owned(),
+            descriptor_identity: "sha256:test-descriptor".to_owned(),
+            target: AppBindingTargetV1 {
+                app: "wait-test".to_owned(),
+                schema: target.deployment.schema_hash.clone(),
+                functions: target.deployment.bundle_hash.clone(),
+                origin: "http://127.0.0.1:1".to_owned(),
+                routing: "loopback".to_owned(),
+            },
+            capabilities: AppBindingCapabilitiesV1 { offered: vec![] },
+            provenance: AppBindingProvenanceV1 {
+                supervisor_generation: "wait-test".to_owned(),
+                issued_at: "2026-08-21T00:00:00.000Z".to_owned(),
+                expires_at: "2099-08-21T00:00:00.000Z".to_owned(),
+            },
+            integrity: AppBindingIntegrityV1 {
+                channel: "local-supervised-ipc".to_owned(),
+            },
+        },
+        client_origins: vec![],
+        runtime_identity: ApplicationReadyRuntimeIdentityV1 {
+            qualified_binary: QualifiedBinaryIdentityV1 {
+                path: "/test/snapback".to_owned(),
+                source: "test".to_owned(),
+                platform: "test-test".to_owned(),
+                bytes: 1,
+                sha256: format!("sha256:{}", "0".repeat(64)),
+                build_identity: RuntimeBuildIdentityV1 {
+                    git_commit: None,
+                    git_dirty: None,
+                    crate_version: None,
+                    build_profile: None,
+                },
+                qualification: RuntimeQualificationIdentityV1 {
+                    receipt_schema_version: "snapback.runtime-readiness.v1".to_owned(),
+                    receipt_path: "/test/snapback.runtime-readiness.json".to_owned(),
+                    probe: "restricted-no-eval-handler-vm".to_owned(),
+                },
+            },
+            wrapper: CliWrapperIdentityV1 {
+                package: "@expo/snapback-cli".to_owned(),
+                version: "0.0.0-test".to_owned(),
+            },
         },
         capability_manifest_digest: readiness.capability_manifest_digest.clone(),
         network_profile: readiness.network_profile.clone(),

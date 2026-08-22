@@ -59,33 +59,56 @@ in brief:
 
 ## W1 implementation checklist (after the ruling)
 
-- [ ] Extend `snapback dev` with the fixed-port/external-client profile
+- [x] Extend `snapback dev` with the fixed-port/external-client profile
       (pinned port, declared client origin, derived relay/CORS allowlist).
-- [ ] Implement receipt-verified attach; typed refusals for stale listener
+- [x] Implement receipt-verified attach; typed refusals for stale listener
       and wrong binding; never adopt or kill an unverified listener.
-- [ ] Extend `snapback.application-ready.v1` with binding, client
+- [x] Extend `snapback.application-ready.v1` with binding, client
       origin(s), and qualified-binary identity; make `expo-supervisor.json`
       and `connectCarrier` projections of it, keeping their
       transience/permissions.
-- [ ] Owner-performed startup-carrier rewrite on regenerate (hot-load
+- [x] Owner-performed startup-carrier rewrite on regenerate (hot-load
       without restarting the pinned server or the external client).
-- [ ] Preserve accounts, sessions, and stores across regenerate and one
+- [x] Preserve accounts, sessions, and stores across regenerate and one
       additive schema successor with the LLP 0058 identity advance reported
       (old/new pair asserted); make any destructive step explicit.
 - [ ] Packed-package acceptance fixtures: Expo, Vite/Exact, headless — each
       attaches, reaches ready, performs M1 -> M2 additive change with
       original accounts and sessions intact and the identity advance
       reported, shuts down owned children only.
-- [ ] Negative fixtures: stale listener on pinned port; caller-supplied
+- [x] Negative fixtures: stale listener on pinned port; caller-supplied
       binding override (refuses, names the supported profile).
 - [ ] Delete startup-carrier wrappers and handwritten binding environments
       from the four matrix lane templates (Clique/Coterie x
       Explicit/Familiar benchmark prompt/template fixtures); this is not a
       CLI `carrier.mjs` template sweep.
-- [ ] Re-document `start --startup-artifacts` as diagnostic-only; update the
+- [x] Re-document `start --startup-artifacts` as diagnostic-only; update the
       fixed-origin guide recipe ticket
       (`issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`) to
       teach the profile once it ships.
+
+## W1 implementation slice — 2026-08-21
+
+This lane completed checklist items 1–5, 7, and 9 as one coherent lifecycle
+slice. `snapback dev` now owns the fixed backend port, exact declared client
+origin and derived development admission; attach validates the live host
+nonce and the closed application receipt before touching the listener. The
+receipt itself now carries the lifecycle-issued binding, exact client-origin
+set, qualified binary digest/qualification and CLI wrapper package/version.
+Expo and Vite project those facts rather than manufacturing a second binding.
+
+The sessions loop now asserts an additive hot successor in the same backend
+process, owner-rewritten startup carrier, surviving product row and durable
+signed-in account/session, plus the reported old→new deployment identity and
+continuity statement. Negative coverage includes an unrelated listener on the
+pinned port and a caller-supplied Vite binding override; both refusals name the
+supported fixed profile and leave existing ownership untouched.
+
+Checklist item 6 remains open for the full packed Expo, Vite/Exact, and
+headless M1→M2 matrix fixture. Item 8 remains open because its four published
+matrix prompt/template fixtures must be converted together with that packed
+vertical witness; deleting their carriers before the replacement package path
+is evidenced would make the benchmark templates unrunnable.
 
 ## Implementation scope after the ruling
 

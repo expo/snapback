@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { createServer } from 'node:net';
 import {
   existsSync,
   mkdtempSync,
@@ -64,10 +65,13 @@ function readReceipt(path = applicationReadyFile) {
     'application',
     'artifacts',
     'auth',
+    'binding',
     'capabilityManifestDigest',
+    'clientOrigins',
     'formatVersion',
     'hostReadyDescriptorDigest',
     'networkProfile',
+    'runtimeIdentity',
     'settledAtMs',
     'startupNonce',
     'targetProfile',
@@ -76,6 +80,9 @@ function readReceipt(path = applicationReadyFile) {
     'deployment', 'mode', 'obligationsDigest',
   ]);
   assert.equal(statSync(path).mode & 0o777, 0o600);
+  assert.equal(receipt.binding.format, 'snapback.app-binding.v1');
+  assert.equal(receipt.runtimeIdentity.wrapper.package, '@expo/snapback-cli');
+  assert.match(receipt.runtimeIdentity.qualifiedBinary.sha256, /^sha256:[0-9a-f]{64}$/u);
   return receipt;
 }
 
@@ -164,9 +171,9 @@ try {
   handles.splice(handles.indexOf(dev), 1);
   assert.equal(existsSync(applicationReadyFile), false, 'close must remove the receipt');
 
-  // Reattach over a live server. The second supervisor removes any prior
-  // projection, loads/evaluates against its generated target, and republishes
-  // against the existing native process nonce.
+  // Reattach over a live server only after the existing receipt proves the
+  // intended server/app/runtime binding. Closing a non-owner attach must not
+  // remove the owner's receipt or stop its child.
   const owner = await runDev({
     backendDirectory: backendRoot,
     projectRoot,
@@ -194,9 +201,93 @@ try {
   assert.equal(readReceipt().startupNonce, existingNonce);
   await attached.close();
   handles.splice(handles.indexOf(attached), 1);
-  assert.equal(existsSync(applicationReadyFile), false);
+  assert.equal(existsSync(applicationReadyFile), true);
   await owner.close();
   handles.splice(handles.indexOf(owner), 1);
+  assert.equal(existsSync(applicationReadyFile), false);
+
+  // Fixed-profile attach is idempotent for the exact declared client origin,
+  // but a wrong-origin caller is refused without adopting or killing the
+  // verified owner's listener.
+  const portProbe = createServer();
+  await new Promise((resolveListen) => portProbe.listen(0, '127.0.0.1', resolveListen));
+  const fixedPort = portProbe.address().port;
+  await new Promise((resolveClose) => portProbe.close(resolveClose));
+  const clientOrigin = 'http://localhost:5173';
+  const fixedOwner = await runDev({
+    backendDirectory: backendRoot,
+    projectRoot,
+    readyFile,
+    database,
+    runtimeBinary,
+    port: fixedPort,
+    externalClientOrigin: clientOrigin,
+    watch: false,
+    serverStdio: ['ignore', 'ignore', 'ignore'],
+  });
+  handles.push(fixedOwner);
+  receipt = readReceipt();
+  assert.deepEqual(receipt.clientOrigins, [clientOrigin]);
+  assert.equal(new URL(receipt.binding.target.origin).port, String(fixedPort));
+  const fixedNonce = receipt.startupNonce;
+  const fixedAttach = await runDev({
+    backendDirectory: backendRoot,
+    projectRoot,
+    readyFile,
+    database,
+    runtimeBinary,
+    port: fixedPort,
+    externalClientOrigin: clientOrigin,
+    attach: true,
+    watch: false,
+    serverStdio: ['ignore', 'ignore', 'ignore'],
+  });
+  handles.push(fixedAttach);
+  assert.equal(readReceipt().startupNonce, fixedNonce);
+  await assert.rejects(
+    () => runDev({
+      backendDirectory: backendRoot,
+      projectRoot,
+      readyFile,
+      database,
+      runtimeBinary,
+      port: fixedPort,
+      externalClientOrigin: 'http://localhost:5174',
+      attach: true,
+      watch: false,
+      serverStdio: ['ignore', 'ignore', 'ignore'],
+    }),
+    (error) => error.code === 'SNAPBACK_DEV_FIXED_BINDING_MISMATCH',
+  );
+  assert.equal(readReadyDescriptor(readyFile).startupNonce, fixedNonce);
+  await fixedAttach.close();
+  handles.splice(handles.indexOf(fixedAttach), 1);
+  await fixedOwner.close();
+  handles.splice(handles.indexOf(fixedOwner), 1);
+
+  // A listener with no receipt-bound lifecycle is a typed refusal and is
+  // still accepting connections after Snapback declines it.
+  const staleListener = createServer();
+  await new Promise((resolveListen) => staleListener.listen(0, '127.0.0.1', resolveListen));
+  const stalePort = staleListener.address().port;
+  const staleReadyFile = join(stateRoot, 'stale.ready.json');
+  await assert.rejects(
+    () => runDev({
+      backendDirectory: backendRoot,
+      projectRoot,
+      readyFile: staleReadyFile,
+      applicationReadyFile: `${staleReadyFile}.application-ready`,
+      database: join(stateRoot, 'stale.sqlite3'),
+      runtimeBinary,
+      port: stalePort,
+      externalClientOrigin: clientOrigin,
+      watch: false,
+      serverStdio: ['ignore', 'ignore', 'ignore'],
+    }),
+    (error) => error.code === 'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER',
+  );
+  assert.equal(staleListener.listening, true);
+  await new Promise((resolveClose) => staleListener.close(resolveClose));
 
   console.log('application-ready.test.mjs: all cases passed');
 } finally {

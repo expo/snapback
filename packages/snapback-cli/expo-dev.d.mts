@@ -293,6 +293,16 @@ export function mintSupervisedOrdinarySession(options: Readonly<{
   env?: Readonly<Record<string, string | undefined>>;
 }>): Readonly<Record<string, unknown>>;
 
+export interface ExpoApplicationReadyProjection {
+  readonly path: string;
+  readonly formatVersion: 'snapback.application-ready.v1';
+  readonly startupNonce: string;
+  readonly hostReadyDescriptorDigest: string;
+  readonly binding: Readonly<Record<string, unknown>>;
+  readonly clientOrigins: readonly string[];
+  readonly runtimeIdentity: Readonly<Record<string, unknown>>;
+}
+
 export interface ExpoDevSupervisor {
   readonly schemaVersion: 'snapback.expo-dev.v1';
   readonly ok: true;
@@ -302,6 +312,7 @@ export interface ExpoDevSupervisor {
   readonly connectCarrier: 'supervisor-rendezvous';
   readonly device: ExpoDeviceIdentity;
   readonly binding: Readonly<Record<string, unknown>>;
+  readonly applicationReady: ExpoApplicationReadyProjection;
   readonly exchangeOrigin: string;
   readonly metroOrigin: string;
   readonly listeners: readonly ExpoOwnedListener[];

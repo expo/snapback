@@ -5,6 +5,15 @@ export type SnapbackViteLifecycleMode =
   | 'managed'
   | 'auto';
 
+export interface SnapbackDevSetupOptions {
+  /** Backend source directory whose generated graph is owned by snapback dev. */
+  backendDirectory: string;
+  schema?: string;
+  functions?: string;
+  seed?: string;
+  reset?: 'if-new' | 'always' | 'never';
+}
+
 export interface SnapbackDevOptions {
   route?: string;
   projectRoot?: string;
@@ -14,9 +23,13 @@ export interface SnapbackDevOptions {
     mode?: SnapbackViteLifecycleMode;
     url?: string;
     readyFile?: string;
+    applicationReadyFile?: string;
     database?: string;
     backendDirectory?: string;
+    /** Fixed Snapback backend port. Defaults to 3210 in managed/auto mode. */
+    port?: number;
   };
+  setup?: SnapbackDevSetupOptions | false | null;
   onDiagnostic?: (diagnostic: Readonly<Record<string, unknown>>) => void;
 }
 
@@ -35,7 +48,7 @@ export function resolveGeneratedImport(id: string, importer: string): string | n
 export function renderVirtualModule(input: {
   base: string;
   state?: Readonly<Record<string, unknown>>;
-  supervisorGeneration?: string;
+  binding?: Readonly<Record<string, unknown>> | null;
 }): string;
 
 export default snapbackDev;
@@ -79,6 +92,7 @@ export interface SnapbackViteLifecycle {
   readonly projectRoot: string;
   readonly database: string;
   readonly readyFile: string;
+  readonly applicationReadyFile: string;
   start(): Promise<SnapbackDevLifecycleState>;
   close(): Promise<void>;
   /** Re-resolve the backend target from the ready file; null when no live
@@ -87,6 +101,8 @@ export interface SnapbackViteLifecycle {
   /** Read the current process-custodied relay capability; never projected by
    * the browser-visible virtual module. */
   readDevIdentityCapability(): string | null;
+  /** Receipt-issued binding consumed by the server-side virtual-module projection. */
+  binding(): Readonly<Record<string, unknown>> | null;
   state(): SnapbackDevLifecycleState;
 }
 
@@ -95,7 +111,10 @@ export function createSnapbackViteLifecycle(options?: {
   readonly projectRoot?: string;
   readonly database?: string;
   readonly readyFile?: string;
+  readonly applicationReadyFile?: string;
   readonly url?: string | null;
+  readonly port?: number;
+  readonly clientOrigin?: string | null;
   readonly readyTimeoutMs?: number;
   readonly channel?: SnapbackDiagnosticsChannel;
   readonly setup?: Readonly<Record<string, unknown>> | false | null;

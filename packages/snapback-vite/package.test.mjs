@@ -151,7 +151,34 @@ async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {
 
 // --- Virtual module sanitization + factory validation (no server) ------------
 
+assert.throws(
+  () => snapbackDev({ server: { mode: 'managed', binding: { origin: 'http://localhost:3210' } } }),
+  (error) => error.code === 'SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED'
+    && error.diagnostic.details.supportedProfile.includes('managed'),
+);
+
 {
+  const receiptBinding = Object.freeze({
+    format: 'snapback.app-binding.v1',
+    source: 'supervised-dev',
+    descriptorIdentity: 'sha256:descriptor',
+    target: Object.freeze({
+      app: 'vite-fixture',
+      schema: 'sha256:schema',
+      functions: 'sha256:functions',
+      origin: 'http://127.0.0.1:45123',
+      routing: 'loopback',
+    }),
+    capabilities: Object.freeze({
+      offered: Object.freeze(['auth.application-bootstrap.v1', 'auth.passwords']),
+    }),
+    provenance: Object.freeze({
+      supervisorGeneration: 'snapback-dev:receipt-fixture',
+      issuedAt: '2026-08-21T00:00:00.000Z',
+      expiresAt: '2099-08-21T00:00:00.000Z',
+    }),
+    integrity: Object.freeze({ channel: 'local-supervised-ipc' }),
+  });
   const rendered = renderVirtualModule({
     base: '/__snapback',
     state: {
@@ -163,11 +190,12 @@ async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {
       devIdentityCapability: 'sbdev_virtual_module_must_not_leak',
       devIdentityCapabilityFile: '/tmp/virtual-module-must-not-leak.dev-identity',
     },
+    binding: receiptBinding,
   });
   assert.match(rendered, /snapbackBasePath = "\/__snapback"/);
   assert.match(rendered, /createSnapbackDevAppBinding/);
   assert.match(rendered, /auth\.passwords/);
-  assert.match(rendered, /supervisorGeneration: "vite-relay:standalone"/);
+  assert.match(rendered, /snapback-dev:receipt-fixture/);
   assert.match(rendered, /"mode":"managed"/);
   assert.ok(!rendered.includes('45123'), 'virtual module must not leak the backend origin');
   assert.ok(!rendered.includes('serverUrl'), 'virtual module must not carry a serverUrl field');
@@ -178,7 +206,7 @@ async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {
   const executableModule = await import(`data:text/javascript;base64,${Buffer.from(renderVirtualModule({
     base: '/__snapback',
     state: { mode: 'managed', shape: 'managed', ready: true },
-    supervisorGeneration: 'vite-relay:no-network-witness',
+    binding: receiptBinding,
   })).toString('base64')}`);
   const generatedApp = Object.freeze({
     format: 'snapback.app.v1',
@@ -193,7 +221,7 @@ async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {
   });
   const appBinding = executableModule.createSnapbackDevAppBinding(generatedApp);
   assert.equal(appBinding.target.origin, '/__snapback');
-  assert.equal(appBinding.provenance.supervisorGeneration, 'vite-relay:no-network-witness');
+  assert.equal(appBinding.provenance.supervisorGeneration, 'snapback-dev:receipt-fixture');
   assert.deepEqual(appBinding.capabilities.offered, [
     'auth.application-bootstrap.v1',
     'auth.passwords',
@@ -251,6 +279,7 @@ try {
   const { createServer } = await import('vite');
   scaffoldWebRoot(appRoot);
   const vitePort = await freePort();
+  const backendPort = await freePort();
   viteServer = await createServer({
     root: appRoot,
     configFile: false,
@@ -262,6 +291,7 @@ try {
           db: database,
           readyFile,
           runtimeBinary,
+          port: backendPort,
           stdio: 'ignore',
         },
         projectRoot: project,
@@ -418,7 +448,7 @@ try {
   await external.close();
   console.log('attach/external validation: mismatch, destructive opt-in, and ready-file fencing refuse correctly');
 
-  // --- Attach-shaped auto from a second Vite server ---------------------------
+  // --- Receipt-verified attach from a second Vite server ----------------------
 
   const secondEvents = [];
   const secondPort = await freePort();
@@ -428,7 +458,7 @@ try {
     logLevel: 'silent',
     plugins: [
       snapbackDev({
-        server: { mode: 'auto', db: database, readyFile, runtimeBinary, stdio: 'ignore' },
+        server: { mode: 'attach', db: database, readyFile, runtimeBinary, stdio: 'ignore' },
         projectRoot: project,
         setup: { backendDirectory: backend },
         onEvent: (event) => secondEvents.push(event),
@@ -439,7 +469,7 @@ try {
   });
   await secondViteServer.listen();
   const secondReady = secondEvents.find((event) => event.event === 'server-ready');
-  assert.equal(secondReady.shape, 'attach', 'auto attaches when a valid ready file exists');
+  assert.equal(secondReady.shape, 'attach', 'attach consumes the existing application receipt');
   assert.equal(secondReady.managed, false);
   assert.ok(
     secondEvents.some((event) => event.code === 'SNAPBACK_DEV_SETUP_REFUSED'),
@@ -452,7 +482,7 @@ try {
   secondViteServer = null;
   const stillAlive = await fetch(`${descriptor.serverUrl}/health`);
   assert.equal(stillAlive.status, 200, 'closing an attached Vite session never stops the backend');
-  console.log('auto attach: non-destructive, and teardown spares the attached server');
+  console.log('receipt attach: non-destructive, and teardown spares the attached server');
 
   // --- Teardown of the managed child -----------------------------------------
 

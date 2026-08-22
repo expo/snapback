@@ -148,9 +148,105 @@ pub struct ApplicationReadyReceiptV1 {
     pub target_profile: String,
     pub artifacts: HostOpsArtifacts,
     pub auth: ApplicationReadyAuthV1,
+    pub binding: AppBindingV1,
+    pub client_origins: Vec<String>,
+    pub runtime_identity: ApplicationReadyRuntimeIdentityV1,
     pub capability_manifest_digest: String,
     pub network_profile: String,
     pub settled_at_ms: u64,
+}
+
+/// Bearer-free client admission issued by the lifecycle owner. The
+/// application-ready receipt embeds the closed binding rather than pointing
+/// at a launcher-private environment or log line.
+// @ref LLP 0223#dated-amendment--2026-08-21-d01-ruling--the-canonical-development-lifecycle — attach admission is one receipt-bound identity cut: server, app, authority, client binding, and qualified launcher.
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppBindingV1 {
+    pub format: String,
+    pub source: String,
+    pub descriptor_identity: String,
+    pub target: AppBindingTargetV1,
+    pub capabilities: AppBindingCapabilitiesV1,
+    pub provenance: AppBindingProvenanceV1,
+    pub integrity: AppBindingIntegrityV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppBindingTargetV1 {
+    pub app: String,
+    pub schema: String,
+    pub functions: String,
+    pub origin: String,
+    pub routing: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppBindingCapabilitiesV1 {
+    pub offered: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppBindingProvenanceV1 {
+    pub supervisor_generation: String,
+    pub issued_at: String,
+    pub expires_at: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppBindingIntegrityV1 {
+    pub channel: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApplicationReadyRuntimeIdentityV1 {
+    pub qualified_binary: QualifiedBinaryIdentityV1,
+    pub wrapper: CliWrapperIdentityV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct QualifiedBinaryIdentityV1 {
+    pub path: String,
+    pub source: String,
+    pub platform: String,
+    pub bytes: u64,
+    pub sha256: String,
+    pub build_identity: RuntimeBuildIdentityV1,
+    pub qualification: RuntimeQualificationIdentityV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RuntimeBuildIdentityV1 {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git_commit: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git_dirty: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub crate_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_profile: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RuntimeQualificationIdentityV1 {
+    pub receipt_schema_version: String,
+    pub receipt_path: String,
+    pub probe: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CliWrapperIdentityV1 {
+    pub package: String,
+    pub version: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]

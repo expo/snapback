@@ -12,17 +12,24 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { webcrypto } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { SnapbackClient } from '@expo/snapback-client';
+import { createSnapbackAppClient, SnapbackClient } from '@expo/snapback-client';
 import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
 } from '@expo/snapback-contract/auth-coordinator';
+import { IDBFactory } from 'fake-indexeddb';
 
-import { generateApp, runDev, scaffoldApp } from './index.mjs';
+import {
+  generateApp,
+  readApplicationReadyReceipt,
+  runDev,
+  scaffoldApp,
+} from './index.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageRoot, '..', '..');
@@ -39,11 +46,13 @@ assert.equal(scaffoldApp(projectRoot, { template: 'react' }).ok, true);
 const backendRoot = join(projectRoot, 'snapback');
 const schemaPath = join(backendRoot, 'schema.mjs');
 const devSchema = readFileSync(schemaPath, 'utf8');
-const sessionsSchema = devSchema.replace(
-  /\n\}\);\s*$/u,
-  "\n}, { auth: { mode: 'sessions' } });\n",
-);
-assert.notEqual(sessionsSchema, devSchema);
+const sessionsSchema = devSchema.includes("mode: 'sessions'")
+  ? devSchema
+  : devSchema.replace(
+      /\n\}\);\s*$/u,
+      "\n}, { auth: { mode: 'sessions' } });\n",
+    );
+assert.match(sessionsSchema, /mode:\s*'sessions'/u);
 writeFileSync(schemaPath, sessionsSchema);
 const stateRoot = join(projectRoot, '.snapback');
 const readyFile = join(stateRoot, 'dev.ready.json');
@@ -61,6 +70,7 @@ exec ${JSON.stringify(runtimeBinary)} "$@"
 chmodSync(runtimeWrapper, 0o755);
 const events = [];
 let dev = null;
+let continuityClient = null;
 
 try {
   dev = await runDev({
@@ -69,6 +79,7 @@ try {
     readyFile,
     database,
     runtimeBinary: runtimeWrapper,
+    qualifiedRuntimeBinary: runtimeBinary,
     watch: true,
     serverStdio: ['ignore', 'ignore', 'ignore'],
     onEvent(event) {
@@ -195,26 +206,94 @@ try {
   assert.equal(successorSession.modeState, 'settled');
 
   const generatedApiPath = join(backendRoot, 'generated', 'api.mjs');
-  const initialApi = (await import(
+  const initialGenerated = await import(
     `${pathToFileURL(generatedApiPath).href}?initial=${Date.now()}`
-  )).default;
-  const productClient = new SnapbackClient(dev.serverUrl, {
-    custody: 'anonymous-public',
-    rqsStore: null,
-    offlineQueue: false,
-  });
+  );
+  const initialApi = initialGenerated.default;
   const preservedTitle = `Preserved successor row ${process.pid}`;
-  await productClient.mutate(initialApi.createTodo, {
+
+  // W1 fixed-lifecycle continuity: establish a real account/session in a
+  // durable browser store, add one compatible table, and hot-regenerate. The
+  // owner rewrites the startup carrier, the process/port stay fixed, and the
+  // receipt/event report an old -> new deployment identity rather than
+  // pretending identity equality.
+  const continuityPlatform = Object.freeze({
+    kind: 'browser',
+    indexedDB: new IDBFactory(),
+    cryptoObject: webcrypto,
+    databaseName: `snapback-sessions-successor-${process.pid}`,
+  });
+  continuityClient = await createSnapbackAppClient({
+    app: initialGenerated.app,
+    binding: readApplicationReadyReceipt(`${readyFile}.application-ready`).binding,
+    platform: continuityPlatform,
+  });
+  const continuityEmail = `successor-${process.pid}@example.test`;
+  await continuityClient.auth.signUpWithPassword({
+    email: continuityEmail,
+    password: 'successor-continuity-password',
+  });
+  const continuityUserId = continuityClient.auth.currentPrincipal().userId;
+  assert.equal(continuityClient.auth.currentPrincipal().status, 'authenticated');
+  await continuityClient.client.mutate(initialApi.createTodo, {
     args: { title: preservedTitle },
     queue: false,
   });
   assert(
-    (await productClient.query(initialApi.listTodos)).rows.some(
+    (await continuityClient.client.query(initialApi.listTodos)).rows.some(
       (row) => row.title === preservedTitle,
     ),
-    'the predecessor database contains the product row before successor activation',
+    'the predecessor account owns a product row before successor activation',
   );
-  await productClient.closeAuth();
+  const additiveSchema = sessionsSchema.replace(
+    '    todos: defineTable({',
+    "    labels: defineTable({ name: v.string() }).visibility({ kind: 'public-read' }).sync(),\n    todos: defineTable({",
+  );
+  assert.notEqual(additiveSchema, sessionsSchema);
+  const backendPidBeforeAdditive = dev.child.pid;
+  writeFileSync(schemaPath, additiveSchema);
+  const additiveReload = await dev.verbs.reload({ requestId: 'sessions-additive-successor' });
+  assert.equal(additiveReload.state, 'generated-and-loaded');
+  assert.equal(dev.child.pid, backendPidBeforeAdditive, 'hot successor keeps the pinned server process');
+  const additiveActivation = events.find(
+    (event) => event.state === 'startup-successor-activated'
+      && event.requestId === 'sessions-additive-successor',
+  );
+  assert.ok(additiveActivation, 'additive hot-load reports the deployment identity advance');
+  assert.notEqual(
+    additiveActivation.fromDeployment.schemaHash,
+    additiveActivation.toDeployment.schemaHash,
+  );
+  assert.deepEqual(additiveActivation.continuity, {
+    database: 'preserved',
+    accounts: 'preserved',
+    sessions: 'preserved',
+    stores: 'preserved',
+  });
+  const additiveCarrier = JSON.parse(readFileSync(startupArtifacts, 'utf8'));
+  assert.ok(
+    additiveCarrier.schema.tables.some((table) => table.name === 'labels'),
+    'regenerate rewrites the owner startup carrier',
+  );
+  assert.equal(continuityClient.auth.currentPrincipal().userId, continuityUserId);
+  await continuityClient.dispose();
+  continuityClient = null;
+  const additiveGenerated = await import(
+    `${pathToFileURL(generatedApiPath).href}?additive=${Date.now()}`
+  );
+  continuityClient = await createSnapbackAppClient({
+    app: additiveGenerated.app,
+    binding: readApplicationReadyReceipt(`${readyFile}.application-ready`).binding,
+    platform: continuityPlatform,
+  });
+  assert.equal(continuityClient.auth.currentPrincipal().status, 'authenticated');
+  assert.equal(continuityClient.auth.currentPrincipal().userId, continuityUserId);
+  assert(
+    (await continuityClient.client.query(additiveGenerated.default.listTodos)).rows.some(
+      (row) => row.title === preservedTitle,
+    ),
+    'the original account session and product row survive additive regeneration',
+  );
 
   writeFileSync(failNextStart, 'fail the next managed sessions restart\n');
   const failedRestart = await dev.verbs.restart({
@@ -291,7 +370,7 @@ try {
   // be complete — the functions half provides the new required field so
   // generation succeeds — because an incomplete pair is refused earlier, by
   // codegen, and never reaches the guarded cut.
-  const invalidSchema = sessionsSchema.replace(
+  const invalidSchema = additiveSchema.replace(
     'completed: v.boolean(),',
     'completed: v.boolean(),\n    category: v.string(),',
   );
@@ -326,7 +405,7 @@ try {
     'an invalid successor is never reported as activated',
   );
 
-  writeFileSync(schemaPath, sessionsSchema);
+  writeFileSync(schemaPath, additiveSchema);
   writeFileSync(functionsPath, successorFunctions);
   assert.equal((await generateApp(backendRoot)).ok, true);
   const recovered = await dev.verbs.restart({ requestId: 'sessions-invalid-recovery' });
@@ -349,6 +428,7 @@ try {
 
   console.log('sessions-dev-loop.test.mjs: sessions restart, explicit comment-successor activation with preserved rows, stale-runtime refusal, and invalid-successor refusal pass');
 } finally {
-  dev?.close?.();
+  await continuityClient?.dispose?.();
+  await dev?.close?.();
   rmSync(scratchRoot, { recursive: true, force: true });
 }

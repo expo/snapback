@@ -824,6 +824,17 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assert.equal(typeof supervisorDiscovery.supervisor.startTime, 'string');
   assert.equal(typeof supervisorDiscovery.metro.startTime, 'string');
   assert.equal(supervisorDiscovery.metro.origin, supervisor.metroOrigin);
+  assert.equal(supervisor.applicationReady.formatVersion, 'snapback.application-ready.v1');
+  assert.deepEqual(supervisorDiscovery.applicationReady, supervisor.applicationReady);
+  assert.deepEqual(supervisor.applicationReady.clientOrigins, [supervisor.metroOrigin]);
+  assert.equal(
+    supervisor.applicationReady.binding.descriptorIdentity,
+    supervisor.binding.descriptorIdentity,
+  );
+  assert.match(
+    supervisor.applicationReady.runtimeIdentity.qualifiedBinary.sha256,
+    /^sha256:[0-9a-f]{64}$/u,
+  );
   assert(supervisorDiscovery.listeners.some((listener) => (
     listener.owner === 'metro'
       && listener.port === Number(new URL(supervisorDiscovery.metro.upstreamOrigin).port)
@@ -975,6 +986,12 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assert.equal(
     events.filter((event) => event.state === 'binding-refreshed').length,
     3,
+  );
+  assert.equal(
+    JSON.parse(readFileSync(supervisorDescriptor, 'utf8'))
+      .applicationReady.binding.provenance.issuedAt,
+    supervisor.binding.provenance.issuedAt,
+    'the transient Expo descriptor must remain a projection of the refreshed application receipt',
   );
   assert.equal(
     JSON.stringify(events.filter((event) => event.state === 'binding-refreshed')).includes(firstBearer),

@@ -5,6 +5,11 @@
 **Systems:** Server lifecycle, Host operations, Packaged dev loop, CLI, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-21 (LLP 0223 D0.1/W1 follow-through: the closed
+`snapback.application-ready.v1` receipt now also binds the lifecycle-issued
+AppBinding, exact client origins, and qualified native binary versus CLI
+wrapper identity; HostReady remains host-only and Expo/Vite surfaces are
+projections, not competing authorities)
 **Revised:** 2026-08-10 (Phase 1 landed; dated OQ5 and OQ2 resolutions
 recorded, author-confirmed in-session — native-binary `wait`; receipt
 gating variant (a). Projection tier author-reviewed: conservative
@@ -361,6 +366,30 @@ authenticated fail-closed posture is **retained** for Phase 1 — the fact
 stays on `app.inspect`/host-ops' admin tier and `wait` uses the
 ready-file-located admin handoff, failing closed without it. Revisit
 after harness experience.
+
+### Dated amendment: D0.1 lifecycle identity extension (2026-08-21)
+
+LLP 0223's D0.1 ruling extends the Phase-1 application receipt rather than
+minting another ready file. `ApplicationReadyReceiptV1` now requires three
+additional closed facts:
+
+- `binding`: the bearer-free `snapback.app-binding.v1` issued by the
+  lifecycle owner for the exact generated application and admitted origin;
+- `clientOrigins`: the normalized exact origin set declared or supervised by
+  the client provider; and
+- `runtimeIdentity`: the digest-bound, handler-VM-qualified native binary
+  identity and the package/version identity of the CLI wrapper that launched
+  it.
+
+Attach still validates `HostReadyDescriptor` and its live startup nonce first.
+It then admits the listener only when the owner-only application receipt binds
+that descriptor digest, nonce, application, binding/origin set, qualified
+binary, and wrapper. A missing/stale receipt or wrong fixed binding is a typed
+refusal and never authorizes adoption, cleanup, or termination of the
+listener. Receipt removal-before-work and atomic owner-only publication remain
+unchanged. `.snapback/expo-supervisor.json`, the Expo `connectCarrier` fact,
+and Vite's same-origin virtual binding are projections of these receipt facts;
+they do not become attach authorities.
 
 **Phase 1 checkpoint (2026-08-10).** Landed: the Rust-owned carriers
 `ExpectedActivationTargetV1` / `OperationalReadinessV1` /

@@ -6,21 +6,18 @@
 // plugin must not grow a second lifecycle dialect (LLP 0041's boundary with
 // LLP 0030: same ready-file/host-ops surface, neither embeds the other).
 
-import { spawn } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
-import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 import {
   diagnosticError,
   managedAdminToken,
-  native,
+  readApplicationReadyReceipt,
   readReadyDescriptor,
-  resolveRuntimeBinary,
-  scrubDynamicLoaderEnvironment,
   resolveGeneratedArtifact,
+  runDev,
   validateDevTarget,
-  waitForReady,
 } from '@expo/snapback-cli';
 
 export const LIFECYCLE_MODES = Object.freeze(['off', 'external', 'attach', 'managed', 'auto']);
@@ -139,7 +136,6 @@ function normalizeSetup(setup, projectRoot) {
     seedArtifact,
     capabilities,
     reset,
-    allowAttached: setup.allowAttached === true,
   };
 }
 
@@ -168,6 +164,10 @@ async function probeHealth(serverUrl) {
   } catch (cause) {
     return { ok: false, cause: cause?.message ?? String(cause) };
   }
+}
+
+function hostDescriptorDigest(path) {
+  return `sha256:${createHash('sha256').update(readFileSync(path)).digest('hex')}`;
 }
 
 async function postHostOp(serverUrl, adminToken, body) {
@@ -247,6 +247,10 @@ export function createSnapbackViteLifecycle(options = {}) {
   const stateRoot = join(projectRoot, '.snapback');
   const database = resolve(projectRoot, options.database ?? join(stateRoot, 'dev.sqlite3'));
   const readyFile = resolve(projectRoot, options.readyFile ?? join(stateRoot, 'dev.ready.json'));
+  const applicationReadyFile = resolve(
+    projectRoot,
+    options.applicationReadyFile ?? `${readyFile}.application-ready`,
+  );
   const externalUrl = options.url ?? null;
   const readyTimeoutMs = options.readyTimeoutMs ?? 30_000;
   const channel = options.channel ?? createDiagnosticsChannel(options);
@@ -257,9 +261,9 @@ export function createSnapbackViteLifecycle(options = {}) {
     ? resolve(projectRoot, lifecycleEnv.SNAPBACK_DEV_IDENTITY_FILE)
     : null;
 
-  let child = null;
-  let runtime = null;
+  let dev = null;
   let descriptor = null;
+  let applicationReceipt = null;
   let adminToken = null;
   let closed = false;
   let missingDevIdentityHandoffWarned = false;
@@ -334,6 +338,45 @@ export function createSnapbackViteLifecycle(options = {}) {
     }
   }
 
+  function readVerifiedApplicationReceipt(candidate) {
+    const receipt = readApplicationReadyReceipt(applicationReadyFile);
+    const expectedOrigin = new URL(candidate.serverUrl).origin;
+    const expectedClientOrigins = options.clientOrigin ? [new URL(options.clientOrigin).origin] : null;
+    const mismatch = [];
+    if (receipt.startupNonce !== candidate.startupNonce) mismatch.push('startupNonce');
+    if (receipt.hostReadyDescriptorDigest !== hostDescriptorDigest(readyFile)) {
+      mismatch.push('hostReadyDescriptorDigest');
+    }
+    if (receipt.binding?.target?.origin !== expectedOrigin) mismatch.push('binding.target.origin');
+    if (
+      expectedClientOrigins !== null
+      && JSON.stringify([...receipt.clientOrigins].sort())
+        !== JSON.stringify([...expectedClientOrigins].sort())
+    ) mismatch.push('clientOrigins');
+    if (setup?.backendDirectory) {
+      const app = readJsonArtifact(
+        join(setup.backendDirectory, 'generated', 'app.descriptor.json'),
+        'app.descriptor.json',
+      );
+      if (receipt.binding?.target?.app !== app.identity?.app) mismatch.push('binding.target.app');
+    }
+    if (mismatch.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_FIXED_BINDING_MISMATCH',
+        'the Vite relay refuses a backend whose application-ready binding does not match its declared lifecycle',
+        {
+          mismatch,
+          expectedOrigin,
+          expectedClientOrigins,
+          observedClientOrigins: receipt.clientOrigins,
+          supportedProfile: 'snapbackDev({ server: { mode: "managed", port }, clientOrigin })',
+        },
+      );
+    }
+    applicationReceipt = receipt;
+    return receipt;
+  }
+
   // Attach-shaped bring-up: validate, never mutate without explicit opt-in.
   //
   // @ref LLP 0030#lifecycle-modes — attach discovers/validates but never
@@ -361,99 +404,107 @@ export function createSnapbackViteLifecycle(options = {}) {
       );
     }
     descriptor = candidate;
+    readVerifiedApplicationReceipt(candidate);
     state.shape = shape;
     state.serverUrl = candidate.serverUrl;
     state.pid = candidate.pid ?? null;
     state.ready = true;
     if (setup) {
-      if (!setup.allowAttached) {
-        const refusal = {
-          event: 'setup-refused',
-          code: 'SNAPBACK_DEV_SETUP_REFUSED',
-          severity: 'warning',
-          message: 'setup is configured but this server was attached to, not spawned; set setup.allowAttached to opt in',
-          shape,
-          serverUrl: candidate.serverUrl,
-          database,
-          pid: candidate.pid ?? null,
-        };
-        if (setup.reset === 'always') {
-          // An explicit always-reset demand cannot be silently skipped.
-          throw diagnosticError('SNAPBACK_DEV_SETUP_REFUSED', refusal.message, {
-            shape,
-            serverUrl: candidate.serverUrl,
-            database,
-            reset: setup.reset,
-          });
-        }
-        emit(refusal);
-        return;
-      }
-      adminToken = managedAdminToken(candidate, database);
-      emit({
-        event: 'setup-attached-opt-in',
+      const refusal = {
+        event: 'setup-refused',
+        code: 'SNAPBACK_DEV_SETUP_REFUSED',
         severity: 'warning',
-        message: 'running setup against an attached server because setup.allowAttached is set',
+        message: 'setup is configured but this receipt-verified server was attached to, not spawned; attached consumers never mutate lifecycle state',
+        shape,
         serverUrl: candidate.serverUrl,
         database,
         pid: candidate.pid ?? null,
-      });
-      await runSetup({ dbExisted: true });
+      };
+      if (setup.reset === 'always') {
+        // An explicit always-reset demand cannot be silently skipped.
+        throw diagnosticError('SNAPBACK_DEV_SETUP_REFUSED', refusal.message, {
+          shape,
+          serverUrl: candidate.serverUrl,
+          database,
+          reset: setup.reset,
+        });
+      }
+      emit(refusal);
     }
   }
 
   async function spawnManaged() {
     if (existsSync(readyFile)) {
-      // Never clobber a live server's descriptor; only a provably dead one.
-      let liveProbe = { ok: false };
-      try {
-        const candidate = readReadyDescriptor(readyFile);
-        liveProbe = await probeHealth(candidate.serverUrl);
-      } catch {
-        liveProbe = { ok: false };
-      }
-      if (liveProbe.ok) {
-        throw diagnosticError(
-          'SNAPBACK_DEV_SERVER_DB_OWNED',
-          `a live server already owns ${readyFile}; use attach or auto mode instead of managed`,
-          { readyFile, database },
-        );
-      }
-      emit({
-        event: 'stale-ready-file-removed',
-        severity: 'note',
-        message: 'removing a readiness descriptor whose server no longer answers',
-        readyFile,
-      });
-      rmSync(readyFile, { force: true });
+      throw diagnosticError(
+        'SNAPBACK_DEV_SERVER_DB_OWNED',
+        `managed mode refuses an existing lifecycle descriptor at ${readyFile}; use attach or auto mode`,
+        { readyFile, database, safety: 'the existing listener and descriptor were not adopted or removed' },
+      );
     }
-    const dbExisted = existsSync(database);
-    mkdirSync(dirname(readyFile), { recursive: true });
-    mkdirSync(dirname(database), { recursive: true });
-    runtime = resolveRuntimeBinary(options);
-    child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
-      cwd: projectRoot,
-      env: {
-        ...scrubDynamicLoaderEnvironment(options.env ?? process.env),
-        // @ref LLP 0193#program — a plugin-managed child is a development
-        // supervisor boundary. External/attach targets remain redacted by
-        // default because this process does not control their launch policy.
-        SNAPBACK_HANDLER_ERROR_EXPOSURE: 'development',
-      },
-      stdio: options.serverStdio ?? 'inherit',
-    });
+    if (!setup?.backendDirectory) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_SETUP_INVALID',
+        'managed Vite lifecycle requires setup.backendDirectory so snapback dev owns generation and application readiness',
+        { supportedProfile: 'snapbackDev({ setup: { backendDirectory }, server: { mode: "managed", port } })' },
+      );
+    }
+    const databaseExisted = existsSync(database);
     try {
-      descriptor = validateDevTarget(await waitForReady(readyFile, child, readyTimeoutMs), { readyFile, database });
-      adminToken = managedAdminToken(descriptor, database);
+      // @ref LLP 0223#dated-amendment--2026-08-21-d01-ruling--the-canonical-development-lifecycle — Vite consumes the fixed profile of snapback dev and its application-ready receipt; it does not spawn native start or manufacture a parallel binding.
+      dev = await runDev({
+        backendDirectory: setup.backendDirectory,
+        projectRoot,
+        readyFile,
+        applicationReadyFile,
+        database,
+        runtimeBinary: options.runtimeBinary,
+        port: options.port,
+        externalClientOrigin: options.clientOrigin,
+        env: options.env,
+        watch: true,
+        serverStdio: options.serverStdio ?? 'inherit',
+        onEvent(event) {
+          emit({
+            event: 'backend-lifecycle',
+            severity: event.ok === false ? 'error' : 'note',
+            backend: event,
+          });
+        },
+      });
+      descriptor = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
+      readVerifiedApplicationReceipt(descriptor);
       state.shape = 'managed';
       state.managed = true;
       state.serverUrl = descriptor.serverUrl;
       state.pid = descriptor.pid ?? null;
       state.ready = true;
-      if (setup) await runSetup({ dbExisted });
+      if (setup.reset === 'always') {
+        const reset = await dev.verbs['dev-fresh']({ requestId: `vite-${randomUUID()}` });
+        if (reset?.ok !== true) {
+          throw diagnosticError(
+            'SNAPBACK_DEV_SERVER_SETUP_FAILED',
+            'the explicitly requested Vite managed reset did not settle',
+            { diagnostics: reset?.diagnostics ?? [] },
+          );
+        }
+        descriptor = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
+        readVerifiedApplicationReceipt(descriptor);
+        state.serverUrl = descriptor.serverUrl;
+        state.pid = descriptor.pid ?? null;
+      }
+      emit({
+        event: 'server-setup',
+        severity: 'note',
+        source: 'snapback.application-ready.v1',
+        loadedSchema: true,
+        loadedFunctions: true,
+        reset: setup.reset === 'always'
+          || (setup.reset === 'if-new' && !databaseExisted),
+        resetPolicy: setup.reset,
+      });
     } catch (error) {
-      if (child.exitCode === null) child.kill('SIGTERM');
-      child = null;
+      await dev?.close?.().catch(() => {});
+      dev = null;
       throw error;
     }
   }
@@ -596,16 +647,14 @@ export function createSnapbackViteLifecycle(options = {}) {
           await attachTo({ shape: 'attach' });
         } catch (error) {
           if (error?.code !== 'SNAPBACK_DEV_SERVER_STALE_DESCRIPTOR') throw error;
-          // auto self-heals a descriptor whose server is provably gone;
-          // spawnManaged re-verifies before removing it.
           emit({
             event: 'diagnostic',
             code: 'SNAPBACK_DEV_SERVER_STALE_DESCRIPTOR',
-            severity: 'warning',
-            message: 'stale readiness descriptor in auto mode; spawning a managed server instead',
+            severity: 'error',
+            message: 'auto mode refuses a stale descriptor without removing or replacing its unverified lifecycle',
             readyFile,
           });
-          await spawnManaged();
+          throw error;
         }
       } else {
         await spawnManaged();
@@ -651,6 +700,7 @@ export function createSnapbackViteLifecycle(options = {}) {
           && probe.ok
           && probe.health?.binary?.startupNonce !== candidate.startupNonce;
         if (!probe.ok || staleNonce) return null;
+        readVerifiedApplicationReceipt(candidate);
         const changed = state.serverUrl !== candidate.serverUrl || state.pid !== (candidate.pid ?? null);
         descriptor = candidate;
         state.serverUrl = candidate.serverUrl;
@@ -680,26 +730,13 @@ export function createSnapbackViteLifecycle(options = {}) {
     closed = true;
     // Teardown terminates only the child this session spawned; a server the
     // plugin merely attached or proxied to is never stopped.
-    if (state.managed && child && child.exitCode === null) {
-      const stop = native(runtime.binary, ['stop', '--ready-file', readyFile], { cwd: projectRoot });
-      if (stop.status !== 0 && child.exitCode === null) {
-        emit({
-          event: 'diagnostic',
-          code: 'SNAPBACK_DEV_SERVER_STOP_FAILED',
-          severity: 'warning',
-          message: 'nonce-verified stop failed; falling back to SIGTERM for the managed child',
-          status: stop.status,
-        });
-        child.kill('SIGTERM');
-      }
-      const deadline = Date.now() + 5_000;
-      while (child.exitCode === null && child.signalCode === null && Date.now() < deadline) {
-        await new Promise((resolveWait) => setTimeout(resolveWait, 50));
-      }
-      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    if (state.managed && dev !== null) {
+      await dev.close();
+      dev = null;
       emit({ event: 'server-stopped', severity: 'note', pid: state.pid });
     }
     state.ready = false;
+    applicationReceipt = null;
   }
 
   return {
@@ -707,10 +744,12 @@ export function createSnapbackViteLifecycle(options = {}) {
     projectRoot,
     database,
     readyFile,
+    applicationReadyFile,
     start,
     close,
     refreshTarget,
     readDevIdentityCapability,
+    binding() { return applicationReceipt?.binding ?? null; },
     state: publicState,
   };
 }

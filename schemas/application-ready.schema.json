@@ -1,5 +1,117 @@
 {
   "$defs": {
+    "AppBindingCapabilitiesV1": {
+      "additionalProperties": false,
+      "properties": {
+        "offered": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "offered"
+      ],
+      "type": "object"
+    },
+    "AppBindingIntegrityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "channel"
+      ],
+      "type": "object"
+    },
+    "AppBindingProvenanceV1": {
+      "additionalProperties": false,
+      "properties": {
+        "expiresAt": {
+          "type": "string"
+        },
+        "issuedAt": {
+          "type": "string"
+        },
+        "supervisorGeneration": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "supervisorGeneration",
+        "issuedAt",
+        "expiresAt"
+      ],
+      "type": "object"
+    },
+    "AppBindingTargetV1": {
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "functions": {
+          "type": "string"
+        },
+        "origin": {
+          "type": "string"
+        },
+        "routing": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "app",
+        "schema",
+        "functions",
+        "origin",
+        "routing"
+      ],
+      "type": "object"
+    },
+    "AppBindingV1": {
+      "additionalProperties": false,
+      "description": "Bearer-free client admission issued by the lifecycle owner. The\napplication-ready receipt embeds the closed binding rather than pointing\nat a launcher-private environment or log line.",
+      "properties": {
+        "capabilities": {
+          "$ref": "#/$defs/AppBindingCapabilitiesV1"
+        },
+        "descriptorIdentity": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "integrity": {
+          "$ref": "#/$defs/AppBindingIntegrityV1"
+        },
+        "provenance": {
+          "$ref": "#/$defs/AppBindingProvenanceV1"
+        },
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/AppBindingTargetV1"
+        }
+      },
+      "required": [
+        "format",
+        "source",
+        "descriptorIdentity",
+        "target",
+        "capabilities",
+        "provenance",
+        "integrity"
+      ],
+      "type": "object"
+    },
     "ApplicationIdentityV1": {
       "oneOf": [
         {
@@ -47,6 +159,22 @@
       ],
       "type": "object"
     },
+    "ApplicationReadyRuntimeIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "qualifiedBinary": {
+          "$ref": "#/$defs/QualifiedBinaryIdentityV1"
+        },
+        "wrapper": {
+          "$ref": "#/$defs/CliWrapperIdentityV1"
+        }
+      },
+      "required": [
+        "qualifiedBinary",
+        "wrapper"
+      ],
+      "type": "object"
+    },
     "AuthMode": {
       "description": "The authority mode declared by a schema artifact. The enum is deliberately\nclosed: a mode changes who is allowed to supply invocation authority and an\nunknown spelling therefore cannot be treated as an additive field.\n\n@ref LLP 0058#closed-auth-mode — auth mode is a must-understand closed value.",
       "enum": [
@@ -62,6 +190,22 @@
         "quarantined"
       ],
       "type": "string"
+    },
+    "CliWrapperIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "package": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "package",
+        "version"
+      ],
+      "type": "object"
     },
     "DeploymentIdentity": {
       "additionalProperties": false,
@@ -171,6 +315,94 @@
         }
       },
       "type": "object"
+    },
+    "QualifiedBinaryIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "buildIdentity": {
+          "$ref": "#/$defs/RuntimeBuildIdentityV1"
+        },
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "path": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "qualification": {
+          "$ref": "#/$defs/RuntimeQualificationIdentityV1"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "source",
+        "platform",
+        "bytes",
+        "sha256",
+        "buildIdentity",
+        "qualification"
+      ],
+      "type": "object"
+    },
+    "RuntimeBuildIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "buildProfile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "crateVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "gitCommit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "gitDirty": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "RuntimeQualificationIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "probe": {
+          "type": "string"
+        },
+        "receiptPath": {
+          "type": "string"
+        },
+        "receiptSchemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "receiptSchemaVersion",
+        "receiptPath",
+        "probe"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/application-ready.schema.json",
@@ -186,8 +418,17 @@
     "auth": {
       "$ref": "#/$defs/ApplicationReadyAuthV1"
     },
+    "binding": {
+      "$ref": "#/$defs/AppBindingV1"
+    },
     "capabilityManifestDigest": {
       "type": "string"
+    },
+    "clientOrigins": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     },
     "formatVersion": {
       "type": "string"
@@ -197,6 +438,9 @@
     },
     "networkProfile": {
       "type": "string"
+    },
+    "runtimeIdentity": {
+      "$ref": "#/$defs/ApplicationReadyRuntimeIdentityV1"
     },
     "settledAtMs": {
       "format": "uint64",
@@ -218,6 +462,9 @@
     "targetProfile",
     "artifacts",
     "auth",
+    "binding",
+    "clientOrigins",
+    "runtimeIdentity",
     "capabilityManifestDigest",
     "networkProfile",
     "settledAtMs"
