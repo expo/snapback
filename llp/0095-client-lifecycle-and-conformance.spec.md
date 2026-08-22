@@ -5,7 +5,10 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Tests
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-08-21 (LLP 0295 D0.5 ruling: provider connection-ownership,
+**Revised:** 2026-08-22 (LLP 0295 W4 implementation: manager-owned shared
+transport proof, owner-labeled connection/subscription inspection,
+teardown-before-successor, callback reentrancy refusal, and provider snapshot
+dedup/budget fixtures). 2026-08-21 (LLP 0295 D0.5 ruling: provider connection-ownership,
 auth-transition teardown/retry, and owner-inspection
 contract recorded as a dated amendment; LLP 0278's matching amendment carries
 the subscription budgets, equal-snapshot dedup, and callback-reentrancy
@@ -29,7 +32,7 @@ terminal no-resurrection, pending high-water, exact scope/expectation binding,
 resolution floor/shape validation, and mandatory supersession witness)
 **Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093, LLP 0108,
 LLP 0114, LLP 0278, LLP 0279, LLP 0280, LLP 0295,
-`issues/20260821-provider-connection-subscription-budget-decision.md`,
+`issues/closed/20260821-provider-connection-subscription-budget-decision.md`,
 `issues/20260820-familiar-live-subscription-contention.md`,
 `issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`
 
@@ -668,7 +671,7 @@ artifact hash.
 
 **Adopted per LLP 0295; author may revise.** This amendment records the
 connection-lifecycle half of the D0.5 decision packet
-(`issues/20260821-provider-connection-subscription-budget-decision.md`); the
+(`issues/closed/20260821-provider-connection-subscription-budget-decision.md`); the
 LLP 0278 amendment of the same date carries the subscription budgets,
 independent-versus-aggregate consistency ruling, equal-snapshot deduplication,
 fan-out, and callback-reentrancy contract. LLP 0280's matching note registers
@@ -771,3 +774,18 @@ inventing a parallel Snapback-specific adapter policy, and the provider guide re
 (`issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`) teaches
 this contract rather than empirical adapter folklore once the follow-on
 tickets land.
+
+### Implementation record (2026-08-22 — LLP 0295 W4)
+
+`packages/snapback-react/package.test.mjs` now proves six distinct provider
+cells create six logical subscriptions over one real headless transport, each
+subscription carries a provider/query owner label, and disposal returns
+connections/subscriptions/demand/timers/listeners to zero. Auth replacement
+awaits predecessor `settled()` teardown before creating the successor handle.
+
+Provider `inspection()` and headless `localResourceInspection()` expose the
+owner-labeled floor: connection and subscription counts/owners, state,
+snapshot version, auth readiness/barrier state, and outbox suspension reason.
+The provider adds the 16 warning and preserves the engine's 64 hard ceiling as
+specified by LLP 0278. Complete-visible-snapshot dedup and synchronous delivery
+callback refusal are implemented at the provider publication boundary.

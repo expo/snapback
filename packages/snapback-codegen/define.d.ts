@@ -651,6 +651,14 @@ export interface AuthorityProfileSpec<
   readonly name: string;
   readonly hierarchy: Readonly<Partial<Record<Role, readonly Role[]>>>;
   readonly roster: { readonly visible: readonly Field[] };
+  /** Optional platform-owned historical/product projection. History-visible
+   * fields are snapshots from membership row images and must not overlap the
+   * current-state roster projection. Recipient snapshots are frozen inside
+   * the sending mutation and refuse rather than truncate above `ceiling`. */
+  readonly projection?: {
+    readonly history: { readonly visible: readonly Field[] };
+    readonly recipients: { readonly ceiling: number };
+  };
 }
 
 /** Durable post-commit receipt projected by a generated authority mutation. */

@@ -1,12 +1,12 @@
 # Decide the provider connection and subscription budget contract
 
-**Status:** Open — ruling recorded 2026-08-21 (adopted per LLP 0295; author
-may revise); remaining work is the follow-on checklist below
+**Status:** Closed — 2026-08-22; ruling and independently closable follow-ons
+landed
 **Opened:** 2026-08-21
 **Systems:** Headless client, Provider adapters, Live queries, Auth lifecycle,
 React, Diagnostics, Performance
 **Governing:** LLP 0295 D0.5/W4; LLP 0095; LLP 0278; LLP 0280
-**Related:** `issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`;
+**Related:** `issues/closed/20260820-guide-gap-provider-connection-lifecycle-budget.md`;
 `issues/20260820-familiar-live-subscription-contention.md`
 
 ## Problem
@@ -124,11 +124,17 @@ inspection/diagnostic surface, provider integration, Guide recipe, and
 conformance fixtures. The existing Guide ticket then teaches a product contract
 rather than empirical adapter folklore.
 
-**Exit progress (2026-08-21):** the budget contract has landed in the owning
-LLPs; the follow-on enforcement/inspection/provider/guide/conformance tickets
-have **not** yet been filed (the checklist above is their source), so this
-ticket deliberately stays open until they exist. React's current
-`publishAuthoritative()` still republishes value-equal authoritative deliveries;
-the Guide describes adapter-side complete-visible-snapshot deduplication as the
-available behavior and points here rather than claiming the platform obligation
-has landed.
+## Resolution (2026-08-22)
+
+The ruling is implemented and split into independently closable follow-ons:
+
+- `issues/closed/20260822-provider-subscription-budget-enforcement.md`;
+- `issues/closed/20260822-provider-owner-inspection-diagnostics.md`;
+- `issues/closed/20260822-provider-shared-manager-integration.md`;
+- `issues/closed/20260822-provider-lifecycle-guide-contract.md`; and
+- `issues/20260822-provider-budget-conformance-freeze.md`.
+
+The first four are complete. The last deliberately remains open until the 1D
+evidence can freeze a durable warning threshold. Filing it satisfies this
+decision record's Exit without pretending the provisional 16-per-view warning
+is already a conformance-frozen product limit.

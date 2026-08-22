@@ -14843,7 +14843,64 @@ mod membership_write_tests {
             .expect("authority profile fixture")
             .operations = expected_authority_profile_operations(
             table.membership.as_ref().expect("membership declaration"),
+            false,
         );
+        schema
+    }
+
+    fn authority_product_projection_schema(recipient_ceiling: u32) -> SchemaManifest {
+        let mut schema = authority_profile_schema();
+        let table = &mut schema.tables[1];
+        let membership = table.membership.as_ref().expect("membership declaration");
+        let profile = table
+            .authority_profile
+            .as_mut()
+            .expect("authority profile projection");
+        profile.projection = Some(
+            serde_json::from_value(json!({
+                "version": 1,
+                "source": "writer-seam-row-images",
+                "history": {
+                    "visibleFields": ["expiresAt"],
+                    "incarnationSemantics": "presence-v1"
+                },
+                "recipients": {
+                    "ceiling": recipient_ceiling,
+                    "overflow": "typed-refusal",
+                    "freeze": "sending-transaction"
+                },
+                "historyHorizon": {
+                    "carrier": "operation-envelope",
+                    "coverage": ["full", "authorization-facts-only"]
+                },
+                "offlineRetention": "not-implied"
+            }))
+            .expect("closed authority product projection"),
+        );
+        profile.operations = expected_authority_profile_operations(membership, true);
+        schema
+    }
+
+    fn authority_projection_adoption_schema(
+        projection: bool,
+        recipient_ceiling: u32,
+    ) -> SchemaManifest {
+        let mut schema = if projection {
+            authority_product_projection_schema(recipient_ceiling)
+        } else {
+            authority_profile_schema()
+        };
+        let mut mirror = schema.tables[1].clone();
+        mirror.name = "event_member_mirror".to_owned();
+        mirror.indexes.clear();
+        mirror.membership = None;
+        mirror.authority_profile = None;
+        mirror.visibility = Some(TableVisibilityV1::Membership {
+            declaration: "event_members".to_owned(),
+            resource_field: "eventId".to_owned(),
+            roles: None,
+        });
+        schema.tables.push(mirror);
         schema
     }
 
@@ -14879,7 +14936,7 @@ mod membership_write_tests {
         }
         profile.transition_preconditions.matrix =
             crate::manifest::canonical_membership_transition_matrix(&membership.transitions);
-        profile.operations = expected_authority_profile_operations(membership);
+        profile.operations = expected_authority_profile_operations(membership, false);
         schema
     }
 
@@ -15664,6 +15721,267 @@ mod membership_write_tests {
         let carol = member_id(&db, &event_id, "carol");
         set_role(&mut db, "carol", &carol, "member").expect("carol accepts invite");
         (db, event_id, alice, bob, carol)
+    }
+
+    // @ref LLP 0240#projection-activation-source-capture-and-backfill — every
+    // transition and historical-field patch is captured from the exact row
+    // images inside the membership writer transaction; leave closes one row
+    // incarnation and a later invite opens another.
+    #[test]
+    fn authority_product_projection_captures_history_incarnations_horizon_and_recipients() {
+        let mut db = ready_db_with_schema(authority_product_projection_schema(2));
+        let (event_id, _) = create_event(&mut db, "alice");
+        invite(&mut db, "alice", &event_id, "bob");
+        let first_bob = member_id(&db, &event_id, "bob");
+        set_role(&mut db, "bob", &first_bob, "member").expect("bob accepts invite");
+        let duplicate_invite = db
+            .membership_plans()
+            .plan_membership_insert(
+                &user("alice"),
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("bob")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("invited")),
+                ]),
+            )
+            .expect_err("an active generated-profile target is a typed precondition");
+        assert_eq!(
+            duplicate_invite.diagnostic.code,
+            "SNAPBACK_AUTHORITY_INVITE_ALREADY_ACTIVE"
+        );
+        assert!(
+            !duplicate_invite.captured_read_dependencies().is_empty(),
+            "the refused target lookup stays captured"
+        );
+        let events_before_idempotent: u64 = db
+            .conn
+            .query_row(
+                "SELECT count(*) FROM _snapback_authority_projection_events",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count projection events");
+        let idempotent = db
+            .plan_authority_change_role(
+                &user("alice"),
+                "event_members",
+                Some(&event_id),
+                "bob",
+                "member",
+            )
+            .expect("same-role request is an admitted unchanged plan");
+        assert!(idempotent.writes.is_empty());
+        db.membership_plans()
+            .commit_membership_plan(&user("alice"), idempotent)
+            .expect("idempotent same-role receipt settles successfully");
+        let events_after_idempotent: u64 = db
+            .conn
+            .query_row(
+                "SELECT count(*) FROM _snapback_authority_projection_events",
+                [],
+                |row| row.get(0),
+            )
+            .expect("recount projection events");
+        assert_eq!(events_after_idempotent, events_before_idempotent);
+        let patch = db
+            .membership_plans()
+            .plan_membership_patch(
+                &user("alice"),
+                "event_members",
+                &first_bob,
+                Map::from_iter([("expiresAt".to_owned(), json!(9_999))]),
+            )
+            .expect("owner may patch the declared historical field");
+        db.membership_plans()
+            .commit_membership_plan(&user("alice"), patch)
+            .expect("historical-field patch commits");
+
+        let mut recipient_dependencies = Vec::new();
+        let recipients = crate::membership_rules::authority_active_principals(
+            &DbRead::Live(&db),
+            "event_members",
+            &event_id,
+            2,
+        )
+        .expect("recipient set read")
+        .finish(|dependency| recipient_dependencies.push(dependency))
+        .expect("recipient set within the declared ceiling");
+        assert_eq!(recipients, vec!["alice", "bob"]);
+        assert_eq!(recipient_dependencies.len(), 1);
+        assert_eq!(
+            recipient_dependencies[0].table.as_deref(),
+            Some("event_members")
+        );
+
+        let remove = db
+            .membership_plans()
+            .plan_membership_remove(&user("bob"), "event_members", &first_bob)
+            .expect("member may leave");
+        db.membership_plans()
+            .commit_membership_plan(&user("bob"), remove)
+            .expect("leave commits");
+        invite(&mut db, "alice", &event_id, "bob");
+        let second_bob = member_id(&db, &event_id, "bob");
+        assert_ne!(first_bob, second_bob, "rejoin opens a new row incarnation");
+        set_role(&mut db, "bob", &second_bob, "member")
+            .expect("the new incarnation becomes active");
+
+        let history = DbRead::Live(&db)
+            .authority_projection_page(
+                "event_members",
+                "sha256:authority-profile-test",
+                &event_id,
+                false,
+                None,
+                100,
+            )
+            .expect("bounded history page");
+        let bob_events = history
+            .rows
+            .iter()
+            .filter(|row| row["principal"] == "bob")
+            .map(|row| row["event"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            bob_events,
+            ["join", "roleChange", "patch", "leave", "join", "roleChange"]
+        );
+        assert_eq!(history.horizon.coverage_class, "full");
+        assert_eq!(
+            history.horizon.earliest_covered_commit, 0,
+            "fresh activation begins coverage at the activation commit"
+        );
+        assert_eq!(history.next, None);
+
+        let incarnations = DbRead::Live(&db)
+            .authority_projection_page(
+                "event_members",
+                "sha256:authority-profile-test",
+                &event_id,
+                true,
+                None,
+                100,
+            )
+            .expect("bounded incarnation page");
+        let bob_incarnations = incarnations
+            .rows
+            .iter()
+            .filter(|row| row["principal"] == "bob")
+            .collect::<Vec<_>>();
+        assert_eq!(bob_incarnations.len(), 2);
+        assert_eq!(bob_incarnations[0]["incarnation"], first_bob);
+        assert_eq!(bob_incarnations[0]["status"], "departed");
+        assert!(bob_incarnations[0]["leftAt"].is_number());
+        assert_eq!(bob_incarnations[0]["expiresAt"], 9_999);
+        assert_eq!(bob_incarnations[1]["incarnation"], second_bob);
+        assert!(bob_incarnations[1]["leftAt"].is_null());
+
+        let overflow = crate::membership_rules::authority_active_principals(
+            &DbRead::Live(&db),
+            "event_members",
+            &event_id,
+            1,
+        )
+        .expect("overflow remains a captured read outcome")
+        .finish(|_| {})
+        .expect_err("recipient overflow must refuse rather than truncate");
+        assert_eq!(
+            overflow.diagnostic.code,
+            "SNAPBACK_AUTHORITY_RECIPIENT_CEILING_EXCEEDED"
+        );
+        assert_eq!(overflow.diagnostic.details["ceiling"], 1);
+    }
+
+    #[test]
+    fn authority_projection_plan_compares_mirror_and_activation_captures_existing_rows() {
+        let mut db = ready_db_with_schema(authority_projection_adoption_schema(false, 2));
+        let (event_id, _alice_id) = create_event(&mut db, "alice");
+        invite(&mut db, "alice", &event_id, "bob");
+        let bob_id = member_id(&db, &event_id, "bob");
+        set_role(&mut db, "bob", &bob_id, "member").expect("bob accepts invite");
+
+        // The migration fixture must not use the generic point-read escape
+        // hatch to enumerate private membership rows. These are the exact
+        // application-mirror values written by the known bootstrap/invite
+        // setup above; the plan itself performs the privileged comparison.
+        for (index, (principal, role)) in [("alice", "owner"), ("bob", "member")]
+            .into_iter()
+            .enumerate()
+        {
+            let values = Map::from_iter([
+                ("userId".to_owned(), json!(principal)),
+                ("eventId".to_owned(), json!(event_id)),
+                ("role".to_owned(), json!(role)),
+            ]);
+            db.mutation_writes()
+                .commit_buffered_writes(
+                    &HandlerInput::default(),
+                    vec![BufferedWrite::Insert {
+                        table: "event_member_mirror".to_owned(),
+                        id: format!("mirror-{index}"),
+                        values,
+                    }],
+                    Vec::new(),
+                    Value::Null,
+                )
+                .expect("copy current product mirror row");
+        }
+
+        let candidate = authority_projection_adoption_schema(true, 2);
+        let plan = db
+            .authority_projection_migration_plan(&candidate, "event_members", "event_member_mirror")
+            .expect("read-only adoption plan");
+        assert!(plan.comparison.adoptable);
+        assert_eq!(plan.comparison.authority_rows, 2);
+        assert_eq!(plan.comparison.matched, 2);
+        assert_eq!(plan.activation_state, "pending");
+        assert_eq!(plan.activation_horizon.coverage_class, "full");
+        assert!(plan.ledger_backfill.available);
+        assert_eq!(
+            plan.ledger_backfill.coverage_class,
+            "authorization-facts-only"
+        );
+        assert_eq!(
+            plan.ledger_backfill.display_values,
+            "unavailable-never-fabricated"
+        );
+
+        db.schema_seed()
+            .apply_schema(candidate)
+            .expect("activate generated projection");
+        let backfill = db
+            .backfill_authority_projection_from_ledger("event_members")
+            .expect("apply the reviewed authorization-facts-only step");
+        assert!(backfill.changed);
+        assert!(backfill.events_written >= 2);
+        assert_eq!(backfill.coverage_class, "authorization-facts-only");
+        let repeated_backfill = db
+            .backfill_authority_projection_from_ledger("event_members")
+            .expect("backfill replay is idempotent");
+        assert!(!repeated_backfill.changed);
+        assert_eq!(repeated_backfill.events_written, 0);
+        let incarnations = DbRead::Live(&db)
+            .authority_projection_page(
+                "event_members",
+                db.schema().tables[1]
+                    .authority_profile
+                    .as_ref()
+                    .expect("profile")
+                    .generation
+                    .as_str(),
+                &event_id,
+                true,
+                None,
+                10,
+            )
+            .expect("incarnations at activation horizon");
+        assert_eq!(incarnations.rows.len(), 2);
+        assert!(incarnations.rows.iter().all(|row| row["leftAt"].is_null()));
+        assert_eq!(
+            incarnations.horizon.coverage_class,
+            "authorization-facts-only"
+        );
     }
 
     fn transfer_owner(
@@ -16772,7 +17090,7 @@ mod membership_write_tests {
                 .expect("membership declaration");
             membership.roles.retain(|role| role == "owner");
             membership.transitions.clear();
-            expected_authority_profile_operations(membership)
+            expected_authority_profile_operations(membership, false)
         };
         let profile = owner_only_schema.tables[1]
             .authority_profile

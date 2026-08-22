@@ -4,7 +4,8 @@ use crate::instance_fork::DerivedForkRuntimeExt as _;
 use crate::manifest::{
     AssetCollectionMutationPlanV1, AssetCollectionOperationV1, AuthInput, AuthMode,
     AuthRequirement, AuthorityProfileHookV1, AuthorityProfileOperationNameV1,
-    AuthorityProfileOperationV1, AuthorityProfileTransitionOpV1, CLIENT_MUTATION_ACK_MAX_IDS,
+    AuthorityProfileOperationOutcomeV1, AuthorityProfileOperationV1,
+    AuthorityProfileOutcomeClassV1, AuthorityProfileTransitionOpV1, CLIENT_MUTATION_ACK_MAX_IDS,
     CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest,
     FieldType, FilterOp, FunctionKind, FunctionResultContract, HandlerInput, MembershipManifest,
     MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget, MutationOutput,
@@ -34,7 +35,7 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 #[cfg(any(test, feature = "test-support"))]
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 pub const META_FUNCTION_GENERATION: &str = "function_generation";
@@ -3248,6 +3249,608 @@ impl LocalDatabase {
         &self.schema
     }
 
+    /// Compare a candidate generated authority projection with an existing
+    /// app-managed mirror without exposing row values. This is the read-only
+    /// kernel behind `snapback authority plan`; applying schema activation or
+    /// the separately reviewed ledger backfill remains a distinct operation.
+    ///
+    /// @ref LLP 0240#projection-activation-source-capture-and-backfill
+    pub fn authority_projection_migration_plan(
+        &self,
+        candidate: &SchemaManifest,
+        declaration: &str,
+        mirror_table: &str,
+    ) -> SnapbackResult<AuthorityProjectionMigrationPlanV1> {
+        Self::authority_projection_migration_plan_on(
+            &self.conn,
+            candidate,
+            declaration,
+            mirror_table,
+        )
+    }
+
+    pub fn authority_projection_migration_plan_read_only(
+        path: impl AsRef<Path>,
+        candidate: &SchemaManifest,
+        declaration: &str,
+        mirror_table: &str,
+    ) -> SnapbackResult<AuthorityProjectionMigrationPlanV1> {
+        let conn = Connection::open_with_flags(
+            path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        Self::authority_projection_migration_plan_on(&conn, candidate, declaration, mirror_table)
+    }
+
+    fn authority_projection_migration_plan_on(
+        conn: &Connection,
+        candidate: &SchemaManifest,
+        declaration: &str,
+        mirror_table: &str,
+    ) -> SnapbackResult<AuthorityProjectionMigrationPlanV1> {
+        validate_schema(candidate)?;
+        let authority_table = candidate
+            .tables
+            .iter()
+            .find(|table| {
+                table
+                    .authority_profile
+                    .as_ref()
+                    .is_some_and(|profile| profile.id == declaration)
+            })
+            .ok_or_else(|| {
+                membership_refusal(
+                    "SNAPBACK_AUTHORITY_PLAN_PROFILE_MISSING",
+                    "candidate schema does not contain the named authority profile",
+                )
+            })?;
+        let profile = authority_table
+            .authority_profile
+            .as_ref()
+            .expect("selected authority profile");
+        let projection = profile.projection.as_ref().ok_or_else(|| {
+            membership_refusal(
+                "SNAPBACK_AUTHORITY_PLAN_PROJECTION_REQUIRED",
+                "candidate authority profile has no generated product projection",
+            )
+        })?;
+        let membership = authority_table.membership.as_ref().ok_or_else(|| {
+            membership_refusal(
+                "SNAPBACK_AUTHORITY_PLAN_PROFILE_INVALID",
+                "candidate authority profile has no membership declaration",
+            )
+        })?;
+        let mirror = candidate
+            .tables
+            .iter()
+            .find(|table| table.name == mirror_table)
+            .ok_or_else(|| {
+                membership_refusal(
+                    "SNAPBACK_AUTHORITY_PLAN_MIRROR_MISSING",
+                    "candidate schema does not declare the named app-managed mirror table",
+                )
+            })?;
+        if !sqlite_table_exists(conn, &authority_table.name)?
+            || !sqlite_table_exists(conn, mirror_table)?
+        {
+            return Err(membership_refusal(
+                "SNAPBACK_AUTHORITY_PLAN_MIRROR_MISSING",
+                "authority or mirror table is absent from the existing store",
+            ));
+        }
+        let resource = membership.resource.as_deref().ok_or_else(|| {
+            membership_refusal(
+                "SNAPBACK_AUTHORITY_PLAN_PROFILE_INVALID",
+                "authority projection planning requires a resource-scoped profile",
+            )
+        })?;
+        let comparison_fields = [
+            resource,
+            membership.principal.as_str(),
+            membership.role.as_str(),
+        ]
+        .into_iter()
+        .chain(projection.history.visible_fields.iter().map(String::as_str))
+        .collect::<Vec<_>>();
+        if comparison_fields.iter().any(|field| {
+            !mirror
+                .fields
+                .iter()
+                .any(|candidate| candidate.name == *field)
+        }) {
+            return Err(membership_refusal(
+                "SNAPBACK_AUTHORITY_PLAN_MIRROR_SHAPE_MISMATCH",
+                "mirror table must expose the profile scope, principal, role, and declared projection fields under the same names",
+            ));
+        }
+
+        let load = |table: &TableManifest| -> SnapbackResult<BTreeMap<String, Value>> {
+            let mut statement = conn.prepare(&format!(
+                "SELECT * FROM {} ORDER BY _id",
+                quote_ident(&table.name)?,
+            ))?;
+            let columns = statement
+                .column_names()
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>();
+            let mut rows = statement.query([])?;
+            let mut values = BTreeMap::new();
+            while let Some(row) = rows.next()? {
+                let document = row_to_document(row, table, &columns)?;
+                let object = document.as_object().ok_or_else(|| {
+                    membership_refusal(
+                        "SNAPBACK_AUTHORITY_PLAN_MIRROR_SHAPE_MISMATCH",
+                        "comparison source did not decode to an object row",
+                    )
+                })?;
+                let scope = object
+                    .get(resource)
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        membership_refusal(
+                            "SNAPBACK_AUTHORITY_PLAN_MIRROR_SHAPE_MISMATCH",
+                            "comparison row lacks the authority scope field",
+                        )
+                    })?;
+                let principal = object
+                    .get(&membership.principal)
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        membership_refusal(
+                            "SNAPBACK_AUTHORITY_PLAN_MIRROR_SHAPE_MISMATCH",
+                            "comparison row lacks the authority principal field",
+                        )
+                    })?;
+                let key = format!("{scope}\0{principal}");
+                let projected = canonical_json(Value::Object(
+                    comparison_fields
+                        .iter()
+                        .map(|field| {
+                            (
+                                (*field).to_owned(),
+                                object.get(*field).cloned().unwrap_or(Value::Null),
+                            )
+                        })
+                        .collect(),
+                ));
+                if values.insert(key, projected).is_some() {
+                    return Err(membership_refusal(
+                        "SNAPBACK_AUTHORITY_PLAN_MIRROR_DUPLICATE",
+                        "comparison source repeats an authority scope/principal pair",
+                    ));
+                }
+            }
+            Ok(values)
+        };
+        let authority = load(authority_table)?;
+        let mirror_rows = load(mirror)?;
+        let matched = authority
+            .iter()
+            .filter(|(key, value)| mirror_rows.get(*key) == Some(*value))
+            .count();
+        let missing_from_mirror = authority
+            .keys()
+            .filter(|key| !mirror_rows.contains_key(*key))
+            .count();
+        let extra_in_mirror = mirror_rows
+            .keys()
+            .filter(|key| !authority.contains_key(*key))
+            .count();
+        let value_mismatches = authority
+            .iter()
+            .filter(|(key, value)| mirror_rows.get(*key).is_some_and(|other| other != *value))
+            .count();
+        let digest = |rows: &BTreeMap<String, Value>| -> SnapbackResult<String> {
+            let encoded = serde_json::to_vec(rows).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTHORITY_PLAN_SERIALIZATION_FAILED",
+                    "storage",
+                    error.to_string(),
+                )
+            })?;
+            Ok(format!("sha256:{:x}", Sha256::digest(encoded)))
+        };
+        let existing_horizon =
+            if sqlite_table_exists(conn, "_snapback_authority_projection_horizons")? {
+                conn.query_row(
+                    "SELECT earliest_commit, coverage_class
+                   FROM _snapback_authority_projection_horizons
+                  WHERE declaration_id = ?1 AND profile_generation = ?2",
+                    params![declaration, profile.generation],
+                    |row| Ok((row.get::<_, u64>(0)?, row.get::<_, String>(1)?)),
+                )
+                .optional()?
+            } else {
+                None
+            };
+        let activation_commit = current_version_on(conn)?;
+        let (earliest_covered_commit, coverage_class, activation_state) = existing_horizon
+            .map(|(commit, coverage)| (commit, coverage, "already-active".to_owned()))
+            .unwrap_or_else(|| (activation_commit, "full".to_owned(), "pending".to_owned()));
+        let (transition_count, ledger_earliest): (u64, Option<u64>) =
+            if sqlite_table_exists(conn, "_snapback_membership_transitions")? {
+                conn.query_row(
+                    "SELECT count(*), min(commit_version)
+                       FROM _snapback_membership_transitions
+                      WHERE declaration_id = ?1 AND commit_version < ?2",
+                    params![declaration, earliest_covered_commit],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?
+            } else {
+                (0, None)
+            };
+        let ledger_available = transition_count > 0;
+        Ok(AuthorityProjectionMigrationPlanV1 {
+            schema_version: "snapback.authority-projection-plan.v1".to_owned(),
+            declaration: declaration.to_owned(),
+            candidate_generation: profile.generation.clone(),
+            mirror_table: mirror_table.to_owned(),
+            comparison: AuthorityProjectionComparisonV1 {
+                authority_rows: authority.len(),
+                mirror_rows: mirror_rows.len(),
+                matched,
+                missing_from_mirror,
+                extra_in_mirror,
+                value_mismatches,
+                authority_digest: digest(&authority)?,
+                mirror_digest: digest(&mirror_rows)?,
+                adoptable: missing_from_mirror == 0
+                    && extra_in_mirror == 0
+                    && value_mismatches == 0,
+            },
+            activation_horizon: AuthorityHistoryHorizonV1 {
+                earliest_covered_commit,
+                coverage_class,
+            },
+            activation_state,
+            ledger_backfill: AuthorityProjectionLedgerBackfillV1 {
+                available: ledger_available,
+                transition_count,
+                earliest_covered_commit: ledger_earliest,
+                coverage_class: "authorization-facts-only".to_owned(),
+                display_values: "unavailable-never-fabricated".to_owned(),
+                application: if ledger_available {
+                    "snapback authority backfill --apply --confirm authorization-facts-only"
+                        .to_owned()
+                } else {
+                    "not-offered".to_owned()
+                },
+            },
+        })
+    }
+
+    /// Apply the optional, explicitly partial ledger backfill offered by the
+    /// migration plan. Only authority role/status events are reconstructed;
+    /// timestamps and declared display/history fields stay absent.
+    ///
+    /// @ref LLP 0240#projection-activation-source-capture-and-backfill
+    pub fn backfill_authority_projection_from_ledger(
+        &mut self,
+        declaration: &str,
+    ) -> SnapbackResult<AuthorityProjectionBackfillReceiptV1> {
+        let table = self
+            .schema
+            .tables
+            .iter()
+            .find(|table| {
+                table
+                    .authority_profile
+                    .as_ref()
+                    .is_some_and(|profile| profile.id == declaration)
+            })
+            .cloned()
+            .ok_or_else(|| {
+                membership_refusal(
+                    "SNAPBACK_AUTHORITY_BACKFILL_PROFILE_MISSING",
+                    "active schema does not contain the named authority profile",
+                )
+            })?;
+        let profile = table
+            .authority_profile
+            .as_ref()
+            .expect("selected authority profile");
+        if profile.projection.is_none() {
+            return Err(membership_refusal(
+                "SNAPBACK_AUTHORITY_BACKFILL_PROJECTION_REQUIRED",
+                "ledger backfill requires an active generated product projection",
+            ));
+        }
+        let membership = table.membership.as_ref().ok_or_else(|| {
+            membership_refusal(
+                "SNAPBACK_AUTHORITY_BACKFILL_PROFILE_INVALID",
+                "authority profile has no membership declaration",
+            )
+        })?;
+        if membership.provenance != Some(MembershipProvenance::Full) {
+            return Err(membership_refusal(
+                "SNAPBACK_AUTHORITY_PROJECTION_FULL_PROVENANCE_REQUIRED",
+                "ledger backfill requires full membership provenance",
+            ));
+        }
+        let tx = self.conn.transaction()?;
+        let (horizon, coverage): (u64, String) = tx.query_row(
+            "SELECT earliest_commit, coverage_class
+               FROM _snapback_authority_projection_horizons
+              WHERE declaration_id = ?1 AND profile_generation = ?2",
+            params![declaration, profile.generation],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        if coverage == "authorization-facts-only" {
+            return Ok(AuthorityProjectionBackfillReceiptV1 {
+                schema_version: "snapback.authority-projection-backfill.v1".to_owned(),
+                declaration: declaration.to_owned(),
+                profile_generation: profile.generation.clone(),
+                changed: false,
+                events_written: 0,
+                earliest_covered_commit: horizon,
+                coverage_class: coverage,
+                display_values: "unavailable-never-fabricated".to_owned(),
+            });
+        }
+        let mut statement = tx.prepare(
+            "SELECT id, op, principal, resource, from_role, to_role, commit_version
+               FROM _snapback_membership_transitions
+              WHERE declaration_id = ?1 AND commit_version < ?2
+              ORDER BY commit_version, id",
+        )?;
+        let ledger = statement
+            .query_map(params![declaration, horizon], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, u64>(6)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        drop(statement);
+        let Some(earliest) = ledger.first().map(|entry| entry.6) else {
+            return Ok(AuthorityProjectionBackfillReceiptV1 {
+                schema_version: "snapback.authority-projection-backfill.v1".to_owned(),
+                declaration: declaration.to_owned(),
+                profile_generation: profile.generation.clone(),
+                changed: false,
+                events_written: 0,
+                earliest_covered_commit: horizon,
+                coverage_class: coverage,
+                display_values: "unavailable-never-fabricated".to_owned(),
+            });
+        };
+        let resource_field = membership.resource.as_deref().ok_or_else(|| {
+            membership_refusal(
+                "SNAPBACK_AUTHORITY_BACKFILL_PROFILE_INVALID",
+                "authority projection backfill requires resource-scoped membership",
+            )
+        })?;
+        let mut current_rows_statement = tx.prepare(&format!(
+            "SELECT * FROM {} ORDER BY _id",
+            quote_ident(&table.name)?,
+        ))?;
+        let current_columns = current_rows_statement
+            .column_names()
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        let mut current_rows_query = current_rows_statement.query([])?;
+        let mut current_incarnations = BTreeMap::new();
+        while let Some(row) = current_rows_query.next()? {
+            let document = row_to_document(row, &table, &current_columns)?;
+            let object = document.as_object().expect("decoded membership row");
+            let scope = object
+                .get(resource_field)
+                .and_then(Value::as_str)
+                .expect("validated membership scope")
+                .to_owned();
+            let principal = object
+                .get(&membership.principal)
+                .and_then(Value::as_str)
+                .expect("validated membership principal")
+                .to_owned();
+            let incarnation = object
+                .get("_id")
+                .and_then(Value::as_str)
+                .expect("membership row identity")
+                .to_owned();
+            current_incarnations.insert((scope, principal), incarnation);
+        }
+        drop(current_rows_query);
+        drop(current_rows_statement);
+        let mut final_insert = BTreeMap::new();
+        for (id, op, principal, resource, _, _, _) in &ledger {
+            let Some(scope) = resource else { continue };
+            let key = (scope.clone(), principal.clone());
+            if op == "insert" {
+                final_insert.insert(key, *id);
+            } else if op == "remove" {
+                final_insert.remove(&key);
+            }
+        }
+        let mut current: BTreeMap<(String, String), (String, String)> = BTreeMap::new();
+        let mut events_written = 0_u64;
+        let status_for = |role: &str| {
+            if membership.roles.iter().any(|active| active == role) {
+                "active"
+            } else {
+                "invited"
+            }
+        };
+        let write_event = |tx: &Transaction<'_>,
+                           incarnation: &str,
+                           scope: &str,
+                           principal: &str,
+                           event: &str,
+                           role: &str,
+                           status: &str,
+                           commit: u64|
+         -> SnapbackResult<()> {
+            tx.execute(
+                "INSERT INTO _snapback_authority_projection_events(
+                   declaration_id, profile_generation, incarnation, scope_id,
+                   principal, event_kind, role, status, history_json,
+                   commit_version, changed_at_ms
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, '{}', ?9, NULL)",
+                params![
+                    declaration,
+                    profile.generation,
+                    incarnation,
+                    scope,
+                    principal,
+                    event,
+                    role,
+                    status,
+                    commit,
+                ],
+            )?;
+            Ok(())
+        };
+        for (id, op, principal, resource, from_role, to_role, commit) in ledger {
+            let Some(scope) = resource else {
+                return Err(membership_refusal(
+                    "SNAPBACK_AUTHORITY_BACKFILL_LEDGER_INVALID",
+                    "resource-scoped authority ledger row lacks its scope",
+                ));
+            };
+            let key = (scope.clone(), principal.clone());
+            if op == "insert" {
+                let role = to_role.ok_or_else(|| {
+                    membership_refusal(
+                        "SNAPBACK_AUTHORITY_BACKFILL_LEDGER_INVALID",
+                        "insert ledger row lacks its resulting role",
+                    )
+                })?;
+                let incarnation = if final_insert.get(&key) == Some(&id) {
+                    current_incarnations
+                        .get(&key)
+                        .cloned()
+                        .unwrap_or_else(|| format!("ledger:{declaration}:{id}"))
+                } else {
+                    format!("ledger:{declaration}:{id}")
+                };
+                write_event(
+                    &tx,
+                    &incarnation,
+                    &scope,
+                    &principal,
+                    "join",
+                    &role,
+                    status_for(&role),
+                    commit,
+                )?;
+                current.insert(key, (incarnation, role));
+                events_written += 1;
+                continue;
+            }
+            if op == "patch" {
+                continue;
+            }
+            if !current.contains_key(&key) {
+                let observed_role =
+                    from_role
+                        .clone()
+                        .or_else(|| to_role.clone())
+                        .ok_or_else(|| {
+                            membership_refusal(
+                                "SNAPBACK_AUTHORITY_BACKFILL_LEDGER_INVALID",
+                                "first observed ledger transition lacks a role fact",
+                            )
+                        })?;
+                let incarnation = format!("ledger:{declaration}:{id}:observed");
+                write_event(
+                    &tx,
+                    &incarnation,
+                    &scope,
+                    &principal,
+                    "join",
+                    &observed_role,
+                    status_for(&observed_role),
+                    commit,
+                )?;
+                current.insert(key.clone(), (incarnation, observed_role));
+                events_written += 1;
+            }
+            let (incarnation, current_role) = current
+                .get(&key)
+                .cloned()
+                .expect("observed incarnation installed");
+            match op.as_str() {
+                "setRole" => {
+                    let role = to_role.ok_or_else(|| {
+                        membership_refusal(
+                            "SNAPBACK_AUTHORITY_BACKFILL_LEDGER_INVALID",
+                            "role-change ledger row lacks its resulting role",
+                        )
+                    })?;
+                    write_event(
+                        &tx,
+                        &incarnation,
+                        &scope,
+                        &principal,
+                        "roleChange",
+                        &role,
+                        status_for(&role),
+                        commit,
+                    )?;
+                    current.insert(key, (incarnation, role));
+                    events_written += 1;
+                }
+                "remove" => {
+                    write_event(
+                        &tx,
+                        &incarnation,
+                        &scope,
+                        &principal,
+                        "leave",
+                        &current_role,
+                        "departed",
+                        commit,
+                    )?;
+                    current.remove(&key);
+                    events_written += 1;
+                }
+                _ => {
+                    return Err(membership_refusal(
+                        "SNAPBACK_AUTHORITY_BACKFILL_LEDGER_INVALID",
+                        "ledger contains an unsupported transition operation",
+                    ));
+                }
+            }
+        }
+        tx.execute(
+            "UPDATE _snapback_authority_projection_horizons
+                SET earliest_commit = ?3, coverage_class = 'authorization-facts-only'
+              WHERE declaration_id = ?1 AND profile_generation = ?2",
+            params![declaration, profile.generation, earliest],
+        )?;
+        for incarnation in current_incarnations.values() {
+            // The activation row image remains the first full product-value
+            // snapshot, but the ledger event now owns the incarnation open.
+            // Reclassify the duplicate horizon join as an interior patch.
+            tx.execute(
+                "UPDATE _snapback_authority_projection_events
+                    SET event_kind = 'patch'
+                  WHERE declaration_id = ?1 AND profile_generation = ?2
+                    AND incarnation = ?3 AND commit_version = ?4
+                    AND event_kind = 'join'",
+                params![declaration, profile.generation, incarnation, horizon],
+            )?;
+        }
+        tx.commit()?;
+        Ok(AuthorityProjectionBackfillReceiptV1 {
+            schema_version: "snapback.authority-projection-backfill.v1".to_owned(),
+            declaration: declaration.to_owned(),
+            profile_generation: profile.generation.clone(),
+            changed: true,
+            events_written,
+            earliest_covered_commit: earliest,
+            coverage_class: "authorization-facts-only".to_owned(),
+            display_values: "unavailable-never-fabricated".to_owned(),
+        })
+    }
+
     /// File-backed databases publish their canonical storage path to sibling
     /// system stores (notably the auth keyring); memory databases return None.
     /// This does not expose the SQLite connection or an app-data escape hatch.
@@ -5954,6 +6557,16 @@ impl LocalDatabase {
                         next_version,
                         write_writer.as_ref(),
                     )?;
+                    record_authority_projection_event(
+                        &tx,
+                        table,
+                        ChangeOp::Insert,
+                        None,
+                        Some(&document),
+                        &changed_fields,
+                        next_version,
+                        now_ms,
+                    )?;
                     record_change(
                         &tx,
                         next_version,
@@ -6025,6 +6638,16 @@ impl LocalDatabase {
                             next_version,
                             write_writer.as_ref(),
                         )?;
+                        record_authority_projection_event(
+                            &tx,
+                            table,
+                            ChangeOp::Update,
+                            before.as_ref(),
+                            document.as_ref(),
+                            &changed_fields,
+                            next_version,
+                            now_ms,
+                        )?;
                         record_change(
                             &tx,
                             next_version,
@@ -6084,6 +6707,16 @@ impl LocalDatabase {
                             &[],
                             next_version,
                             write_writer.as_ref(),
+                        )?;
+                        record_authority_projection_event(
+                            &tx,
+                            table,
+                            ChangeOp::Delete,
+                            document.as_ref(),
+                            None,
+                            &[],
+                            next_version,
+                            now_ms,
                         )?;
                         record_change(
                             &tx,
@@ -6523,6 +7156,35 @@ impl LocalDatabase {
             );
             CREATE INDEX IF NOT EXISTS _snapback_membership_transitions_by_declaration
               ON _snapback_membership_transitions(declaration_id, commit_version, id);
+            -- @ref LLP 0240#projection-activation-source-capture-and-backfill
+            -- — product history is captured from writer-seam row images in
+            -- the membership transaction. The transition ledger above is
+            -- corroboration and is never replayed as display history.
+            CREATE TABLE IF NOT EXISTS _snapback_authority_projection_horizons (
+              declaration_id TEXT NOT NULL,
+              profile_generation TEXT NOT NULL,
+              earliest_commit INTEGER NOT NULL CHECK(earliest_commit >= 0),
+              coverage_class TEXT NOT NULL CHECK(coverage_class IN ('full', 'authorization-facts-only')),
+              PRIMARY KEY(declaration_id, profile_generation)
+            );
+            CREATE TABLE IF NOT EXISTS _snapback_authority_projection_events (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              declaration_id TEXT NOT NULL,
+              profile_generation TEXT NOT NULL,
+              incarnation TEXT NOT NULL,
+              scope_id TEXT NOT NULL,
+              principal TEXT NOT NULL,
+              event_kind TEXT NOT NULL CHECK(event_kind IN ('join', 'roleChange', 'patch', 'leave')),
+              role TEXT NOT NULL,
+              status TEXT NOT NULL CHECK(status IN ('active', 'invited', 'departed')),
+              history_json TEXT NOT NULL,
+              commit_version INTEGER NOT NULL CHECK(commit_version >= 0),
+              changed_at_ms INTEGER CHECK(changed_at_ms >= 0)
+            );
+            CREATE INDEX IF NOT EXISTS _snapback_authority_projection_events_page
+              ON _snapback_authority_projection_events(
+                declaration_id, profile_generation, scope_id, commit_version, id
+              );
             -- LLP 0043 M2: exactly-once queued replay. The settled output and
             -- data changes are written in one SQLite transaction.
             CREATE TABLE IF NOT EXISTS _snapback_client_mutations (
@@ -8524,6 +9186,71 @@ pub enum DbRead<'a> {
     Pinned(PinnedDbRead<'a>),
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityHistoryHorizonV1 {
+    pub earliest_covered_commit: u64,
+    pub coverage_class: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct AuthorityProjectionPageV1 {
+    pub rows: Vec<Value>,
+    pub next: Option<(u64, i64)>,
+    pub horizon: AuthorityHistoryHorizonV1,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityProjectionComparisonV1 {
+    pub authority_rows: usize,
+    pub mirror_rows: usize,
+    pub matched: usize,
+    pub missing_from_mirror: usize,
+    pub extra_in_mirror: usize,
+    pub value_mismatches: usize,
+    pub authority_digest: String,
+    pub mirror_digest: String,
+    pub adoptable: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityProjectionLedgerBackfillV1 {
+    pub available: bool,
+    pub transition_count: u64,
+    pub earliest_covered_commit: Option<u64>,
+    pub coverage_class: String,
+    pub display_values: String,
+    pub application: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityProjectionMigrationPlanV1 {
+    pub schema_version: String,
+    pub declaration: String,
+    pub candidate_generation: String,
+    pub mirror_table: String,
+    pub comparison: AuthorityProjectionComparisonV1,
+    pub activation_horizon: AuthorityHistoryHorizonV1,
+    pub activation_state: String,
+    pub ledger_backfill: AuthorityProjectionLedgerBackfillV1,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityProjectionBackfillReceiptV1 {
+    pub schema_version: String,
+    pub declaration: String,
+    pub profile_generation: String,
+    pub changed: bool,
+    pub events_written: u64,
+    pub earliest_covered_commit: u64,
+    pub coverage_class: String,
+    pub display_values: String,
+}
+
 impl DbRead<'_> {
     pub(crate) fn pinned<'a>(conn: &'a Connection, schema: &'a SchemaManifest) -> DbRead<'a> {
         DbRead::Pinned(PinnedDbRead::new(conn, schema, None, None))
@@ -8785,6 +9512,224 @@ impl DbRead<'_> {
                 None,
             ),
         }
+    }
+
+    /// Read one bounded page from the platform-owned authority product
+    /// projection. Admission and cursor custody remain host-owned; this
+    /// method only reads the already-authorized private system rows through
+    /// the invocation's pinned snapshot.
+    ///
+    /// @ref LLP 0278#d04-read-surface — history and incarnation pages carry
+    ///   an additive horizon beside, never inside, the pagination boundary.
+    pub fn authority_projection_page(
+        &self,
+        declaration: &str,
+        generation: &str,
+        scope_id: &str,
+        incarnations: bool,
+        after: Option<(u64, i64)>,
+        limit: usize,
+    ) -> SnapbackResult<AuthorityProjectionPageV1> {
+        let conn = match self {
+            DbRead::Pinned(read) => read.conn,
+            DbRead::Live(db) => &db.conn,
+        };
+        let (earliest_commit, coverage_class): (u64, String) = conn.query_row(
+            "SELECT earliest_commit, coverage_class
+               FROM _snapback_authority_projection_horizons
+              WHERE declaration_id = ?1 AND profile_generation = ?2",
+            params![declaration, generation],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let horizon = AuthorityHistoryHorizonV1 {
+            earliest_covered_commit: earliest_commit,
+            coverage_class,
+        };
+        if incarnations {
+            let mut joins_statement = conn.prepare(
+                "SELECT id, incarnation, commit_version
+                   FROM _snapback_authority_projection_events
+                  WHERE declaration_id = ?1
+                    AND profile_generation = ?2
+                    AND scope_id = ?3
+                    AND event_kind = 'join'
+                    AND (?4 IS NULL OR commit_version > ?4 OR (commit_version = ?4 AND id > ?5))
+                  ORDER BY commit_version, id
+                  LIMIT ?6",
+            )?;
+            let after_commit = after.map(|value| value.0);
+            let after_id = after.map_or(0, |value| value.1);
+            let mut joins_query = joins_statement.query(params![
+                declaration,
+                generation,
+                scope_id,
+                after_commit,
+                after_id,
+                limit + 1,
+            ])?;
+            let mut joins = Vec::new();
+            while let Some(row) = joins_query.next()? {
+                joins.push((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, u64>(2)?,
+                ));
+            }
+            let next = if joins.len() > limit {
+                joins.get(limit - 1).map(|(id, _, commit)| (*commit, *id))
+            } else {
+                None
+            };
+            joins.truncate(limit);
+            let selected = joins
+                .iter()
+                .map(|(_, incarnation, _)| incarnation.clone())
+                .collect::<Vec<_>>();
+            let mut by_incarnation: BTreeMap<String, Map<String, Value>> = BTreeMap::new();
+            // @ref LLP 0278#d3-closed-membership-semi-join — the runtime owns
+            // finite operand chunks; application code never sees the seam.
+            for chunk in selected.chunks(499) {
+                let chunk_json = authority_projection_json(chunk)?;
+                let mut event_statement = conn.prepare(
+                    "SELECT incarnation, principal, event_kind, role, status,
+                            history_json, changed_at_ms
+                       FROM _snapback_authority_projection_events
+                      WHERE declaration_id = ?1
+                        AND profile_generation = ?2
+                        AND scope_id = ?3
+                        AND incarnation IN (SELECT value FROM json_each(?4))
+                      ORDER BY commit_version, id",
+                )?;
+                let mut event_query = event_statement.query(params![
+                    declaration,
+                    generation,
+                    scope_id,
+                    chunk_json,
+                ])?;
+                while let Some(row) = event_query.next()? {
+                    let incarnation: String = row.get(0)?;
+                    let principal: String = row.get(1)?;
+                    let event: String = row.get(2)?;
+                    let role: String = row.get(3)?;
+                    let status: String = row.get(4)?;
+                    let history_json: String = row.get(5)?;
+                    let history: Map<String, Value> =
+                        serde_json::from_str(&history_json).map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_AUTHORITY_PROJECTION_CORRUPT",
+                                "storage",
+                                "authority projection history payload is not valid JSON",
+                            )
+                        })?;
+                    let at: Option<u64> = row.get(6)?;
+                    let value = by_incarnation
+                        .entry(incarnation.clone())
+                        .or_insert_with(|| {
+                            let mut value = history.clone();
+                            value.insert("incarnation".to_owned(), Value::String(incarnation));
+                            value.insert("principal".to_owned(), Value::String(principal));
+                            value.insert("scope".to_owned(), Value::String(scope_id.to_owned()));
+                            if let Some(at) = at {
+                                value.insert("joinedAt".to_owned(), json!(at));
+                            }
+                            value.insert("leftAt".to_owned(), Value::Null);
+                            value
+                        });
+                    for (field, field_value) in history {
+                        value.insert(field, field_value);
+                    }
+                    value.insert("currentRole".to_owned(), Value::String(role));
+                    value.insert("status".to_owned(), Value::String(status));
+                    if event == "leave" && at.is_some() {
+                        value.insert("leftAt".to_owned(), json!(at));
+                    }
+                }
+            }
+            let rows = joins
+                .into_iter()
+                .filter_map(|(_, incarnation, _)| by_incarnation.remove(&incarnation))
+                .map(Value::Object)
+                .collect();
+            return Ok(AuthorityProjectionPageV1 {
+                rows,
+                next,
+                horizon,
+            });
+        }
+        let storage_limit = limit + 1;
+        let mut statement = conn.prepare(
+            "SELECT id, incarnation, principal, event_kind, role, status,
+                    history_json, commit_version, changed_at_ms
+               FROM _snapback_authority_projection_events
+              WHERE declaration_id = ?1
+                AND profile_generation = ?2
+                AND scope_id = ?3
+                AND (?4 IS NULL OR commit_version > ?4 OR (commit_version = ?4 AND id > ?5))
+              ORDER BY commit_version, id
+              LIMIT ?6",
+        )?;
+        let after_commit = after.map(|value| value.0);
+        let after_id = after.map_or(0, |value| value.1);
+        let mut query = statement.query(params![
+            declaration,
+            generation,
+            scope_id,
+            after_commit,
+            after_id,
+            storage_limit,
+        ])?;
+        let mut events = Vec::new();
+        while let Some(row) = query.next()? {
+            let history_json: String = row.get(6)?;
+            let history: Map<String, Value> =
+                serde_json::from_str(&history_json).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTHORITY_PROJECTION_CORRUPT",
+                        "storage",
+                        "authority projection history payload is not valid JSON",
+                    )
+                })?;
+            events.push((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, String>(5)?,
+                history,
+                row.get::<_, u64>(7)?,
+                row.get::<_, Option<u64>>(8)?,
+            ));
+        }
+        let next = if events.len() > limit {
+            events.get(limit - 1).map(|event| (event.7, event.0))
+        } else {
+            None
+        };
+        events.truncate(limit);
+        Ok(AuthorityProjectionPageV1 {
+            rows: events
+                .into_iter()
+                .map(
+                    |(_id, incarnation, principal, event, role, status, history, commit, at)| {
+                        let mut value = history;
+                        value.insert("incarnation".to_owned(), Value::String(incarnation));
+                        value.insert("principal".to_owned(), Value::String(principal));
+                        value.insert("scope".to_owned(), Value::String(scope_id.to_owned()));
+                        value.insert("event".to_owned(), Value::String(event));
+                        value.insert("role".to_owned(), Value::String(role));
+                        value.insert("status".to_owned(), Value::String(status));
+                        value.insert("commit".to_owned(), json!(commit));
+                        if let Some(at) = at {
+                            value.insert("at".to_owned(), json!(at));
+                        }
+                        Value::Object(value)
+                    },
+                )
+                .collect(),
+            next,
+            horizon,
+        })
     }
 
     pub fn query_with_storage_limit(
@@ -10134,6 +11079,63 @@ fn validate_membership_activation(
             }
         }
     }
+    // A newly enabled projection starts at the activation commit even when
+    // no membership row changes in that transaction. Existing generations
+    // retain their earlier horizon; an optional reviewed ledger backfill may
+    // later replace it with authorization-facts-only coverage.
+    // @ref LLP 0240#projection-activation-source-capture-and-backfill
+    for table in manifest.tables.iter().filter(|table| {
+        table
+            .authority_profile
+            .as_ref()
+            .is_some_and(|profile| profile.projection.is_some())
+    }) {
+        let profile = table
+            .authority_profile
+            .as_ref()
+            .expect("filtered authority profile");
+        let activated = tx.execute(
+            "INSERT OR IGNORE INTO _snapback_authority_projection_horizons(
+               declaration_id, profile_generation, earliest_commit, coverage_class
+             ) VALUES (?1, ?2, ?3, 'full')",
+            params![profile.id, profile.generation, maximum],
+        )?;
+        if activated == 0 {
+            continue;
+        }
+
+        // Existing memberships are present at the horizon even though their
+        // earlier join time is unknowable. Capture each exact activation row
+        // image as the opening state of the covered incarnation; the horizon
+        // prevents readers from interpreting it as pre-activation history.
+        let mut statement = tx.prepare(&format!(
+            "SELECT _id FROM {} ORDER BY _id",
+            quote_ident(&table.name)?,
+        ))?;
+        let row_ids = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        drop(statement);
+        let activation_time = now_millis();
+        for row_id in row_ids {
+            let document = get_document_from_tx(tx, table, &row_id, maximum)?.ok_or_else(|| {
+                membership_refusal(
+                    "SNAPBACK_AUTHORITY_PROJECTION_ROW_INVALID",
+                    "membership row disappeared during projection activation",
+                )
+            })?;
+            record_authority_projection_event(
+                tx,
+                table,
+                ChangeOp::Insert,
+                None,
+                Some(&document),
+                &[],
+                maximum,
+                activation_time,
+            )?;
+        }
+    }
     validate_relation_activation(tx, manifest)?;
     Ok(())
 }
@@ -10459,6 +11461,7 @@ fn validate_stored_structured_descriptor(
 
 fn expected_authority_profile_operations(
     membership: &MembershipManifest,
+    projection_enabled: bool,
 ) -> Vec<AuthorityProfileOperationV1> {
     // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — these
     // are lifecycle affordance names over the same generated references, not
@@ -10467,6 +11470,10 @@ fn expected_authority_profile_operations(
         let dedicated = match &name {
             AuthorityProfileOperationNameV1::List => AuthorityProfileHookV1::AuthorityRoster,
             AuthorityProfileOperationNameV1::MyRole => AuthorityProfileHookV1::AuthorityMyRole,
+            AuthorityProfileOperationNameV1::History => AuthorityProfileHookV1::AuthorityHistory,
+            AuthorityProfileOperationNameV1::Incarnations => {
+                AuthorityProfileHookV1::AuthorityIncarnations
+            }
             _ => unreachable!("authority profile query vocabulary is closed"),
         };
         AuthorityProfileOperationV1 {
@@ -10475,19 +11482,49 @@ fn expected_authority_profile_operations(
             auth_requirement: AuthRequirement::Authenticated,
             hooks: vec![AuthorityProfileHookV1::Query, dedicated],
             transition_ops: Vec::new(),
+            outcomes: Vec::new(),
         }
     };
-    let mutation = |name, transition_op| AuthorityProfileOperationV1 {
-        name,
-        kind: FunctionKind::Mutation,
-        auth_requirement: AuthRequirement::Authenticated,
-        hooks: vec![
-            AuthorityProfileHookV1::Mutation,
-            AuthorityProfileHookV1::AuthorityMutation,
-            AuthorityProfileHookV1::OutboxMutationStatus,
-            AuthorityProfileHookV1::AuthorityMutationStatus,
-        ],
-        transition_ops: vec![transition_op],
+    let mutation = |name: AuthorityProfileOperationNameV1, transition_op| {
+        let mut outcomes = Vec::new();
+        if name == AuthorityProfileOperationNameV1::ChangeRole {
+            outcomes.push(AuthorityProfileOperationOutcomeV1 {
+                branch: "already-at-requested-role".to_owned(),
+                outcome: AuthorityProfileOutcomeClassV1::IdempotentSuccessUnchanged,
+            });
+        }
+        if matches!(
+            name,
+            AuthorityProfileOperationNameV1::Invite
+                | AuthorityProfileOperationNameV1::TransferOwner
+        ) {
+            outcomes.push(AuthorityProfileOperationOutcomeV1 {
+                branch: if name == AuthorityProfileOperationNameV1::Invite {
+                    "already-active-member"
+                } else {
+                    "already-current-owner"
+                }
+                .to_owned(),
+                outcome: AuthorityProfileOutcomeClassV1::TypedPreconditionRefusal,
+            });
+        }
+        outcomes.push(AuthorityProfileOperationOutcomeV1 {
+            branch: "hidden-or-absent-target".to_owned(),
+            outcome: AuthorityProfileOutcomeClassV1::NonEnumeratingDenial,
+        });
+        AuthorityProfileOperationV1 {
+            name,
+            kind: FunctionKind::Mutation,
+            auth_requirement: AuthRequirement::Authenticated,
+            hooks: vec![
+                AuthorityProfileHookV1::Mutation,
+                AuthorityProfileHookV1::AuthorityMutation,
+                AuthorityProfileHookV1::OutboxMutationStatus,
+                AuthorityProfileHookV1::AuthorityMutationStatus,
+            ],
+            transition_ops: vec![transition_op],
+            outcomes,
+        }
     };
     let active = membership.roles.iter().collect::<BTreeSet<_>>();
     let pending = membership
@@ -10507,6 +11544,12 @@ fn expected_authority_profile_operations(
         query(AuthorityProfileOperationNameV1::List),
         query(AuthorityProfileOperationNameV1::MyRole),
     ];
+    if projection_enabled {
+        operations.extend([
+            query(AuthorityProfileOperationNameV1::History),
+            query(AuthorityProfileOperationNameV1::Incarnations),
+        ]);
+    }
     if transitions.iter().any(|transition| {
         transition.op == MembershipOp::Insert
             && transition.target == MembershipTarget::Other
@@ -10844,7 +11887,43 @@ fn validate_authority_profile_role_lattice(table: &TableManifest) -> SnapbackRes
         return Err(relationship_invalid("roster.visibleFields"));
     }
 
-    if profile.operations != expected_authority_profile_operations(membership) {
+    if let Some(projection) = &profile.projection {
+        let history_fields = &projection.history.visible_fields;
+        let authority_axes = [
+            membership.principal.as_str(),
+            resource_field,
+            membership.role.as_str(),
+            "_id",
+            "_version",
+            "_createdAt",
+            "_updatedAt",
+        ];
+        if membership.provenance != Some(MembershipProvenance::Full)
+            || projection.version != 1
+            || projection.source != "writer-seam-row-images"
+            || projection.history.incarnation_semantics != "presence-v1"
+            || projection.recipients.ceiling == 0
+            || projection.recipients.ceiling > 1_024
+            || projection.recipients.overflow != "typed-refusal"
+            || projection.recipients.freeze != "sending-transaction"
+            || projection.history_horizon.carrier != "operation-envelope"
+            || projection.history_horizon.coverage
+                != ["full".to_owned(), "authorization-facts-only".to_owned()]
+            || projection.offline_retention != "not-implied"
+            || history_fields.iter().collect::<BTreeSet<_>>().len() != history_fields.len()
+            || history_fields.iter().any(|field| {
+                !table_fields.contains(field.as_str())
+                    || authority_axes.contains(&field.as_str())
+                    || profile.roster.visible_fields.contains(field)
+            })
+        {
+            return Err(relationship_invalid("projection"));
+        }
+    }
+
+    if profile.operations
+        != expected_authority_profile_operations(membership, profile.projection.is_some())
+    {
         return Err(relationship_invalid("operations/membership.transitions"));
     }
 
@@ -14630,6 +15709,16 @@ fn seed_rows_into_transaction(
                     Some(&MembershipWriter::Seed),
                 )?;
             }
+            record_authority_projection_event(
+                tx,
+                table,
+                ChangeOp::Insert,
+                None,
+                Some(&document),
+                &changed_fields,
+                version,
+                now_ms,
+            )?;
             record_change(
                 tx,
                 version,
@@ -16948,6 +18037,143 @@ fn authority_transition_receipt_draft(
         subject,
         scope,
     }))
+}
+
+/// Capture the product-history row image at the same serialized writer seam
+/// as its membership transition. This deliberately runs for display-only
+/// patches and privileged seed/import writers; the authorization transition
+/// ledger has a narrower provenance purpose and is not consulted here.
+///
+/// @ref LLP 0240#why-option-2-first — writer-seam before/after images make
+///   the generated projection atomic by construction.
+#[allow(clippy::too_many_arguments)]
+fn record_authority_projection_event(
+    tx: &Transaction<'_>,
+    table: &TableManifest,
+    op: ChangeOp,
+    before: Option<&Value>,
+    after: Option<&Value>,
+    _changed_fields: &[String],
+    commit_version: u64,
+    changed_at_ms: u64,
+) -> SnapbackResult<()> {
+    let (Some(membership), Some(profile)) = (&table.membership, &table.authority_profile) else {
+        return Ok(());
+    };
+    let Some(projection) = &profile.projection else {
+        return Ok(());
+    };
+    let actual_role_change = op == ChangeOp::Update
+        && before
+            .and_then(Value::as_object)
+            .and_then(|row| row.get(&membership.role))
+            != after
+                .and_then(Value::as_object)
+                .and_then(|row| row.get(&membership.role));
+    let actual_history_change = op == ChangeOp::Update
+        && projection.history.visible_fields.iter().any(|field| {
+            before
+                .and_then(Value::as_object)
+                .and_then(|row| row.get(field))
+                != after
+                    .and_then(Value::as_object)
+                    .and_then(|row| row.get(field))
+        });
+    if op == ChangeOp::Update && !actual_role_change && !actual_history_change {
+        return Ok(());
+    }
+    let current = after.or(before).ok_or_else(|| {
+        membership_refusal(
+            "SNAPBACK_AUTHORITY_PROJECTION_ROW_INVALID",
+            "authority projection event has no row image",
+        )
+    })?;
+    let incarnation =
+        membership_axis_value(Some(current), "_id", "incarnation")?.ok_or_else(|| {
+            membership_refusal(
+                "SNAPBACK_AUTHORITY_PROJECTION_ROW_INVALID",
+                "authority projection row lacks an incarnation id",
+            )
+        })?;
+    let principal = membership_axis_value(Some(current), &membership.principal, "principal")?
+        .expect("validated membership row has a principal");
+    let resource_field = membership.resource.as_deref().ok_or_else(|| {
+        membership_refusal(
+            "SNAPBACK_AUTHORITY_PROJECTION_ROW_INVALID",
+            "authority product projections require resource-scoped membership",
+        )
+    })?;
+    let scope_id = membership_axis_value(Some(current), resource_field, "resource")?
+        .expect("validated resource membership has a scope");
+    let role = membership_axis_value(Some(current), &membership.role, "role")?
+        .expect("validated membership row has a role");
+    let status = if op == ChangeOp::Delete {
+        "departed"
+    } else if membership.roles.contains(&role) {
+        "active"
+    } else {
+        "invited"
+    };
+    let event_kind = match op {
+        ChangeOp::Insert => "join",
+        ChangeOp::Delete => "leave",
+        ChangeOp::Update if actual_role_change => "roleChange",
+        ChangeOp::Update => "patch",
+    };
+    let object = current.as_object().ok_or_else(|| {
+        membership_refusal(
+            "SNAPBACK_AUTHORITY_PROJECTION_ROW_INVALID",
+            "authority projection source row is not an object",
+        )
+    })?;
+    let history = projection
+        .history
+        .visible_fields
+        .iter()
+        .map(|field| {
+            (
+                field.clone(),
+                object.get(field).cloned().unwrap_or(Value::Null),
+            )
+        })
+        .collect::<Map<String, Value>>();
+    tx.execute(
+        "INSERT OR IGNORE INTO _snapback_authority_projection_horizons(
+           declaration_id, profile_generation, earliest_commit, coverage_class
+         ) VALUES (?1, ?2, ?3, 'full')",
+        params![profile.id, profile.generation, commit_version],
+    )?;
+    tx.execute(
+        "INSERT INTO _snapback_authority_projection_events(
+           declaration_id, profile_generation, incarnation, scope_id,
+           principal, event_kind, role, status, history_json,
+           commit_version, changed_at_ms
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        params![
+            profile.id,
+            profile.generation,
+            incarnation,
+            scope_id,
+            principal,
+            event_kind,
+            role,
+            status,
+            authority_projection_json(&history)?,
+            commit_version,
+            changed_at_ms,
+        ],
+    )?;
+    Ok(())
+}
+
+fn authority_projection_json<T: Serialize + ?Sized>(value: &T) -> SnapbackResult<String> {
+    serde_json::to_string(value).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_AUTHORITY_PROJECTION_SERIALIZATION_FAILED",
+            "storage",
+            error.to_string(),
+        )
+    })
 }
 
 #[allow(clippy::too_many_arguments)]

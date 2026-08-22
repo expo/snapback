@@ -667,6 +667,98 @@ pub fn authority_my_role(
     })
 }
 
+/// Resolve the active recipient set for a generated send helper. The caller
+/// has already passed the profile's non-enumerating roster admission; this
+/// read contributes its complete scope-range dependency to the sending
+/// mutation and deliberately fetches one lookahead row so overflow refuses
+/// without truncation.
+///
+/// @ref LLP 0240#invariants-the-prototype-must-preserve — recipient snapshots
+///   are bounded and frozen from the sending transaction's pinned view.
+pub fn authority_active_principals(
+    db: &DbRead<'_>,
+    declaration: &str,
+    resource: &str,
+    ceiling: usize,
+) -> SnapbackResult<CapturedMembershipReadOutcome<Vec<String>>> {
+    let declaration = declaration.to_owned();
+    let resource = resource.to_owned();
+    db.with_pinned_read_view(move |db| {
+        let (table, membership, _profile) =
+            authority_profile_declaration(db.schema(), &declaration)?;
+        let binding = authority_resource_binding(membership, Some(&resource))?;
+        let plan = authority_roster_plan(table, membership, &binding, ceiling, false);
+        let mut output =
+            db.query_private_membership_keyset(&plan, &HandlerInput::default(), None, ceiling + 1)?;
+        let overflow = output.rows.len() > ceiling;
+        let matching_ids = output
+            .rows
+            .iter()
+            .filter_map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
+            .collect();
+        let dependency = membership_capture_dependency(&plan, output.version, matching_ids)?;
+        if overflow {
+            return Ok(CapturedMembershipReadOutcome::denied(
+                SnapbackError::error(
+                    "SNAPBACK_AUTHORITY_RECIPIENT_CEILING_EXCEEDED",
+                    "auth",
+                    "the active recipient set exceeds the authority profile ceiling",
+                )
+                .with_details(json!({
+                    "declaration": declaration,
+                    "ceiling": ceiling,
+                    "observedAtLeast": ceiling + 1,
+                })),
+                vec![dependency],
+            ));
+        }
+        output.rows.truncate(ceiling);
+        let principals = output
+            .rows
+            .into_iter()
+            .filter_map(|row| {
+                row.get(&membership.principal)
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            })
+            .collect();
+        Ok(CapturedMembershipReadOutcome::allowed(
+            principals,
+            vec![dependency],
+        ))
+    })
+}
+
+/// Capture a conservative whole-scope dependency for generated authority
+/// history/incarnation reads. Product projection rows are framework-private,
+/// so the live matcher watches the authoritative membership source instead:
+/// any insert/delete/update of an active row in this scope may have appended a
+/// writer-seam event, including a display-only patch.
+///
+/// @ref LLP 0240#why-option-2-first — the product projection follows the
+///   authority writer seam; its live dependency follows the same source rows.
+pub fn authority_projection_scope_dependency(
+    db: &DbRead<'_>,
+    declaration: &str,
+    resource: &str,
+) -> SnapbackResult<CapturedReadDependency> {
+    let declaration = declaration.to_owned();
+    let resource = resource.to_owned();
+    db.with_pinned_read_view(move |db| {
+        let (table, membership, _profile) =
+            authority_profile_declaration(db.schema(), &declaration)?;
+        let binding = authority_resource_binding(membership, Some(&resource))?;
+        let plan = authority_roster_plan(table, membership, &binding, QUERY_MAX_LIMIT, true);
+        let version = db.table_change_version(&table.name)?;
+        let mut dependency = membership_capture_dependency(&plan, version, Vec::new())?;
+        // This is intentionally a conservative predicate watch, not a claim
+        // that the visible projection had zero rows. A missing boundary makes
+        // every matching changed row relevant in the shared live matcher.
+        dependency.result_count = None;
+        Ok(dependency)
+    })
+}
+
 /// The closed operation/view vocabulary accepted by the authenticated
 /// effective-authority inspector. This is deliberately narrower than a free
 /// string so the diagnostic cannot become a policy-name discovery oracle.
@@ -857,7 +949,11 @@ fn inspection_transition_op(
         Operation::Invite => Some(crate::manifest::MembershipOp::Insert),
         Operation::Join | Operation::ChangeRole => Some(crate::manifest::MembershipOp::SetRole),
         Operation::Leave | Operation::Remove => Some(crate::manifest::MembershipOp::Remove),
-        Operation::List | Operation::MyRole | Operation::TransferOwner => None,
+        Operation::List
+        | Operation::MyRole
+        | Operation::History
+        | Operation::Incarnations
+        | Operation::TransferOwner => None,
     }
 }
 

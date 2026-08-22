@@ -165,7 +165,7 @@ export const JS_QUERY_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'handler', 'reads', 'result', 'authScopeField',
   'defaultLive', 'auth', 'authorityIndependent', 'retainable', 'refusals', 'trackedRefusals',
   'authorizationDependence', 'requires', 'fieldBoundary', 'membership',
-  'elevatedReads', 'authorization',
+  'elevatedReads', 'authorization', 'standardPattern',
 ]);
 const ELEVATED_READ_FORMS = new Set(['get', 'getMany', 'uniqueMany', 'query']);
 
@@ -1071,6 +1071,30 @@ function normalizeAuthorityProfile(spec) {
             ...spec.roster,
             ...(Array.isArray(spec.roster.visible)
               ? { visible: REFLECT_APPLY(ARRAY_SLICE, spec.roster.visible, []) }
+              : {}),
+          },
+        }
+      : {}),
+    ...(spec.projection && typeof spec.projection === 'object' && !Array.isArray(spec.projection)
+      ? {
+          projection: {
+            ...spec.projection,
+            ...(spec.projection.history
+              && typeof spec.projection.history === 'object'
+              && !Array.isArray(spec.projection.history)
+              ? {
+                  history: {
+                    ...spec.projection.history,
+                    ...(Array.isArray(spec.projection.history.visible)
+                      ? { visible: REFLECT_APPLY(ARRAY_SLICE, spec.projection.history.visible, []) }
+                      : {}),
+                  },
+                }
+              : {}),
+            ...(spec.projection.recipients
+              && typeof spec.projection.recipients === 'object'
+              && !Array.isArray(spec.projection.recipients)
+              ? { recipients: { ...spec.projection.recipients } }
               : {}),
           },
         }
@@ -4119,6 +4143,7 @@ function jsQueryDef(kind, spec) {
     [FN]: true,
     __kind: kind,
     ...authoredFunctionAuth(spec, kind),
+    ...normalizeStandardPattern(spec, kind),
     args: spec.args ?? {},
     ...(spec.result?.__resultContract === true
       ? { resultContract: spec.result }

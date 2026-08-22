@@ -1248,6 +1248,29 @@ struct AuthorityMyRoleHostRequestV1 {
     scope_id: String,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AuthorityProjectionHostRequestV1 {
+    declaration: String,
+    scope_id: String,
+    #[serde(default)]
+    page: Option<AuthorityRosterHostPageV1>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AuthorityRecipientSnapshotHostRequestV1 {
+    declaration: String,
+    scope_id: String,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AuthorityProjectionCursorBoundaryV1 {
+    commit: u64,
+    id: i64,
+}
+
 fn sequence_parent_unavailable() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
@@ -2762,6 +2785,43 @@ impl<'a> IbexHostContext<'a> {
             .map_err(|_| authority_cursor_mint_unavailable())
     }
 
+    fn authority_projection_cursor_binding(
+        &self,
+        declaration: &str,
+        scope_id: &str,
+        profile: &crate::manifest::AuthorityProfileV1,
+        operation: &str,
+    ) -> SnapbackResult<String> {
+        let authority = self
+            .authority_cursor
+            .ok_or_else(authority_cursor_mint_unavailable)?;
+        let (authorization, data_version_stream) =
+            self.db()
+                .membership_cursor_custody_snapshot()
+                .map_err(|_| authority_cursor_mint_unavailable())?;
+        let binding = json!({
+            "app": authority.app_id,
+            "declaration": declaration,
+            "scope": scope_id,
+            "operation": operation,
+            "ordering": ["commit", "id"],
+            "profileGeneration": profile.generation,
+            "authority": {
+                "fingerprint": crate::manifest::auth_fingerprint(&self.input.auth),
+                "globalAuthorization": authorization,
+                "dataVersionStream": data_version_stream,
+            },
+            "artifact": {
+                "schemaHash": authority.schema_hash,
+                "functionBundleHash": authority.function_bundle_hash,
+                "functionPublicationGeneration": authority.function_publication_generation,
+                "targetProfile": authority.target_profile,
+            },
+        });
+        crate::rqs_contract::sha256_identity(&binding)
+            .map_err(|_| authority_cursor_mint_unavailable())
+    }
+
     fn authority_list(&mut self, args: Value) -> SnapbackResult<Value> {
         self.ensure_db_read_available(false, "authority.list")?;
         let request: AuthorityRosterHostRequestV1 = serde_json::from_value(args).map_err(|_| {
@@ -2927,6 +2987,193 @@ impl<'a> IbexHostContext<'a> {
         }
     }
 
+    fn authority_projection_read(
+        &mut self,
+        args: Value,
+        incarnations: bool,
+    ) -> SnapbackResult<Value> {
+        let operation = if incarnations {
+            "incarnations"
+        } else {
+            "history"
+        };
+        self.ensure_db_read_available(false, &format!("authority.{operation}"))?;
+        let request: AuthorityProjectionHostRequestV1 =
+            serde_json::from_value(args).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTHORITY_HISTORY_PAGE_INVALID",
+                    "auth",
+                    "authority history requires { declaration, scopeId, page? }",
+                )
+            })?;
+        let page = request.page.unwrap_or(AuthorityRosterHostPageV1 {
+            after: None,
+            limit: authority_roster_default_limit(),
+        });
+        if page.limit == 0 || page.limit > 1_000 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTHORITY_HISTORY_PAGE_INVALID",
+                "auth",
+                "authority history page limit must be 1..=1000",
+            ));
+        }
+        let (table, membership, profile) =
+            self.authority_profile_read_facts(&request.declaration)?;
+        if profile.projection.is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTHORITY_PROJECTION_REQUIRED",
+                "auth",
+                "authority history operation requires a declared product projection",
+            ));
+        }
+        self.require_generated_authority_operation(
+            &request.declaration,
+            &profile.generation,
+            if incarnations {
+                crate::manifest::GeneratedAuthorityOperationKindV1::Incarnations
+            } else {
+                crate::manifest::GeneratedAuthorityOperationKindV1::History
+            },
+        )?;
+        // As with roster.list, admission precedes cursor parsing so malformed
+        // cursors do not become a scope/member existence oracle.
+        self.admit_authority_roster_caller(&request.scope_id, &table, &membership)?;
+        let after = match page.after {
+            None => None,
+            Some(token) => {
+                let authority = self.authority_cursor.ok_or_else(authority_cursor_invalid)?;
+                let body = crate::rqs::decode_and_verify_sealed_standard_pattern_cursor(
+                    &token,
+                    &authority
+                        .keyring
+                        .read()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner()),
+                    now_millis(),
+                    crate::rqs::RELATIONAL_CURSOR_MAX_AGE_MS,
+                )
+                .map_err(|_| authority_cursor_invalid())?;
+                let binding = self
+                    .authority_projection_cursor_binding(
+                        &request.declaration,
+                        &request.scope_id,
+                        &profile,
+                        operation,
+                    )
+                    .map_err(|_| authority_cursor_invalid())?;
+                if body.app != authority.app_id || body.binding != binding {
+                    return Err(authority_cursor_invalid());
+                }
+                let boundary: AuthorityProjectionCursorBoundaryV1 =
+                    serde_json::from_value(body.boundary)
+                        .map_err(|_| authority_cursor_invalid())?;
+                Some((boundary.commit, boundary.id))
+            }
+        };
+        let projection = self.db().authority_projection_page(
+            &request.declaration,
+            &profile.generation,
+            &request.scope_id,
+            incarnations,
+            after,
+            page.limit,
+        )?;
+        let projection_dependency = crate::membership_rules::authority_projection_scope_dependency(
+            self.db(),
+            &request.declaration,
+            &request.scope_id,
+        )?;
+        self.push_read_dependency(projection_dependency);
+        let has_more = projection.next.is_some();
+        let cursor = match projection.next {
+            None => None,
+            Some((commit, id)) => {
+                let authority = self
+                    .authority_cursor
+                    .ok_or_else(authority_cursor_mint_unavailable)?;
+                let binding = self.authority_projection_cursor_binding(
+                    &request.declaration,
+                    &request.scope_id,
+                    &profile,
+                    operation,
+                )?;
+                let (key_id, key) = authority
+                    .keyring
+                    .read()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .active_current()
+                    .ok_or_else(authority_cursor_mint_unavailable)?;
+                let body = crate::rqs::StandardPatternCursorBody {
+                    app: authority.app_id.to_owned(),
+                    binding,
+                    boundary: serde_json::to_value(AuthorityProjectionCursorBoundaryV1 {
+                        commit,
+                        id,
+                    })
+                    .map_err(|_| authority_cursor_mint_unavailable())?,
+                    issued_at: now_millis(),
+                };
+                Some(
+                    crate::rqs::mint_sealed_standard_pattern_cursor(key.as_ref(), &key_id, &body)
+                        .ok_or_else(authority_cursor_mint_unavailable)?,
+                )
+            }
+        };
+        self.query_cursor = cursor.clone();
+        Ok(json!({
+            "rows": projection.rows,
+            "cursor": cursor,
+            "boundary": if has_more { "at-limit" } else { "exact" },
+            "horizon": projection.horizon,
+        }))
+    }
+
+    fn authority_snapshot_recipients(&mut self, args: Value) -> SnapbackResult<Value> {
+        if self.mode != IbexInvocationMode::Mutation {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTHORITY_RECIPIENT_SNAPSHOT_MUTATION_REQUIRED",
+                "auth",
+                "recipient snapshots can be resolved only inside the sending mutation",
+            ));
+        }
+        let request: AuthorityRecipientSnapshotHostRequestV1 = serde_json::from_value(args)
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTHORITY_RECIPIENT_SNAPSHOT_INVALID",
+                    "auth",
+                    "recipient snapshot requires { declaration, scopeId }",
+                )
+            })?;
+        let (table, membership, profile) =
+            self.authority_profile_read_facts(&request.declaration)?;
+        let projection = profile.projection.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTHORITY_PROJECTION_REQUIRED",
+                "auth",
+                "recipient snapshot requires a declared authority product projection",
+            )
+        })?;
+        self.admit_authority_roster_caller(&request.scope_id, &table, &membership)?;
+        let outcome = crate::membership_rules::authority_active_principals(
+            self.db(),
+            &request.declaration,
+            &request.scope_id,
+            usize::from(projection.recipients.ceiling),
+        )?;
+        let mut dependencies = Vec::new();
+        let recipients = outcome.finish(|dependency| dependencies.push(dependency));
+        for dependency in dependencies {
+            self.push_read_dependency(dependency);
+        }
+        let recipients = recipients?;
+        serde_json::to_value(recipients).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED",
+                "runtime",
+                "recipient snapshot could not be serialized",
+            )
+        })
+    }
+
     fn handle_host_call(&mut self, op: &str, args: Value) -> SnapbackResult<Value> {
         self.admission.validate("runtime host call")?;
         if self.protected_query_profile {
@@ -2950,6 +3197,10 @@ impl<'a> IbexHostContext<'a> {
                 | "runtime.log"
                 | "authority.list"
                 | "authority.myRole"
+                | "authority.history"
+                | "authority.incarnations"
+                | "composition.semiJoinActorCeilingExceeded"
+                | "composition.aggregateRowCeilingExceeded"
                 | "permissions.allowsRole"
                 | "permissions.requireRole"
                 | "permissions.deny" => {}
@@ -2990,6 +3241,47 @@ impl<'a> IbexHostContext<'a> {
         match op {
             "authority.list" => self.authority_list(args),
             "authority.myRole" => self.authority_my_role(args),
+            "authority.history" => self.authority_projection_read(args, false),
+            "authority.incarnations" => self.authority_projection_read(args, true),
+            "authority.snapshotRecipients" => self.authority_snapshot_recipients(args),
+            "composition.semiJoinActorCeilingExceeded" => {
+                let ceiling = args
+                    .get("ceiling")
+                    .and_then(Value::as_u64)
+                    .filter(|value| *value > 0 && *value <= 1_024)
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_HANDLER_HOST_CALL_INVALID",
+                            "runtime",
+                            "semi-join ceiling refusal requires { ceiling: 1..=1024 }",
+                        )
+                    })?;
+                Err(SnapbackError::error(
+                    "SNAPBACK_SEMIJOIN_ACTOR_CEILING_EXCEEDED",
+                    "query",
+                    "the indexed actor set exceeds the generated semi-join ceiling",
+                )
+                .with_details(json!({ "ceiling": ceiling })))
+            }
+            "composition.aggregateRowCeilingExceeded" => {
+                let ceiling = args
+                    .get("ceiling")
+                    .and_then(Value::as_u64)
+                    .filter(|value| *value > 0 && *value <= 4_095)
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_HANDLER_HOST_CALL_INVALID",
+                            "runtime",
+                            "aggregate ceiling refusal requires { ceiling: 1..=4095 }",
+                        )
+                    })?;
+                Err(SnapbackError::error(
+                    "SNAPBACK_SET_AGGREGATE_ROW_CEILING_EXCEEDED",
+                    "query",
+                    "one aggregate operand chunk exceeds the generated row ceiling",
+                )
+                .with_details(json!({ "ceiling": ceiling })))
+            }
             "media.handoff" => {
                 if self.mode == IbexInvocationMode::Action || self.media_handoff.is_some() {
                     return Err(media_unprovenanced());

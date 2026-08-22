@@ -14,6 +14,7 @@ import {
   authUserId,
   bindingRef,
   defineLiveQuery,
+  defineJsLiveQuery,
   defineMutation,
   defineQuery,
   del,
@@ -27,6 +28,7 @@ import {
   returnDocument,
   runtimeId,
   runtimeNow,
+  results,
   v,
 } from './define.mjs';
 
@@ -51,7 +53,21 @@ const MEMBERSHIP_KEYSET_OPTION_FIELDS = new Set([
 const MEMBERSHIP_KEYSET_MEMBERSHIP_FIELDS = new Set([
   'declaration', 'resourceArg', 'resourceField', 'roles',
 ]);
+const CHUNKED_SEMIJOIN_OPTION_FIELDS = new Set([
+  'name', 'actors', 'rows', 'order', 'take', 'auth',
+]);
+const CHUNKED_SEMIJOIN_ACTOR_FIELDS = new Set([
+  'table', 'index', 'scopeField', 'scopeArg', 'keyField', 'ceiling',
+]);
+const CHUNKED_SEMIJOIN_ROW_FIELDS = new Set([
+  'table', 'index', 'actorField',
+]);
+const SET_KEYED_AGGREGATE_OPTION_FIELDS = new Set([
+  'name', 'table', 'index', 'keyField', 'keysArg', 'maxKeys', 'rowCeiling',
+  'aggregate', 'auth',
+]);
 const SYSTEM_ORDER_FIELDS = new Set(['_id', '_version', '_createdAt', '_updatedAt']);
+const IN_OPERAND_CEILING = 499;
 
 function fail(code, message) {
   throw new TypeError(`${code}: ${message}`);
@@ -169,6 +185,198 @@ function requireDistinctNames(names, fields, where) {
   if (new Set(values).size !== values.length) {
     fail('SNAPBACK_STANDARD_PATTERN_INVALID', `${where} must name distinct operations`);
   }
+}
+
+function requireAuth(auth) {
+  if (auth !== 'public' && auth !== 'optional-user' && auth !== 'authenticated') {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'auth must be public, optional-user, or authenticated');
+  }
+  return auth;
+}
+
+function requireIndex(facts, name, leadingField, where) {
+  requireName(name, where);
+  const index = facts.indexes.find((candidate) => candidate.name === name);
+  if (!index || index.fields[0] !== leadingField) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_INDEX_REQUIRED',
+      `${where} ${name} must name a declared index whose leading field is ${leadingField}`,
+    );
+  }
+  return index;
+}
+
+function generatedLiveQuery({ name, args, reads, result, auth, source, standardPattern }) {
+  const definition = defineJsLiveQuery({
+    args,
+    reads,
+    result,
+    auth,
+    source: '__snapback_standard_pattern_generated__',
+    exportName: name,
+    standardPattern,
+  });
+  definition.js.generatedSource = source;
+  return Object.freeze({ [name]: definition });
+}
+
+/**
+ * Generate a bounded live semi-join. The generated handler owns the 499-item
+ * `in()` chunk seam, performs every chunk against one invocation snapshot,
+ * and merges by the declared immutable order key before applying `take`.
+ *
+ * @ref LLP 0278#d3-closed-membership-semi-join — authors declare bounds and
+ * indexes; generated code owns chunking and publishes closed cost facts.
+ */
+export function defineChunkedSemiJoin(options) {
+  exactObject(options, 'defineChunkedSemiJoin options', CHUNKED_SEMIJOIN_OPTION_FIELDS);
+  exactObject(options.actors, 'actors', CHUNKED_SEMIJOIN_ACTOR_FIELDS);
+  exactObject(options.rows, 'rows', CHUNKED_SEMIJOIN_ROW_FIELDS);
+  exactObject(options.order, 'order', new Set(['field', 'direction']));
+  const name = requireName(options.name, 'name');
+  const actors = tableFacts(options.actors.table, 'actors.table');
+  const rows = tableFacts(options.rows.table, 'rows.table');
+  const scopeField = requireName(options.actors.scopeField, 'actors.scopeField');
+  const scopeArg = requireName(options.actors.scopeArg ?? scopeField, 'actors.scopeArg');
+  const keyField = requireName(options.actors.keyField, 'actors.keyField');
+  const actorField = requireName(options.rows.actorField, 'rows.actorField');
+  const orderField = requireName(options.order.field, 'order.field');
+  const direction = options.order.direction ?? 'desc';
+  const ceiling = options.actors.ceiling;
+  const take = options.take;
+  const auth = requireAuth(options.auth ?? 'authenticated');
+  if (!Object.hasOwn(actors.fields, scopeField) || !Object.hasOwn(actors.fields, keyField)) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'actors scopeField and keyField must name schema fields');
+  }
+  if (!Object.hasOwn(rows.fields, actorField) || !Object.hasOwn(rows.fields, orderField)) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'rows actorField and order.field must name schema fields');
+  }
+  if (actors.fields[keyField].fieldType !== rows.fields[actorField].fieldType) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'actors.keyField and rows.actorField must have the same field type');
+  }
+  requireIndex(actors, options.actors.index, scopeField, 'actors.index');
+  const rowIndex = requireIndex(rows, options.rows.index, actorField, 'rows.index');
+  if (!rowIndex.fields.includes(orderField) && !SYSTEM_ORDER_FIELDS.has(orderField)) {
+    fail('SNAPBACK_STANDARD_PATTERN_INDEX_REQUIRED', 'rows.index must include the declared order field');
+  }
+  if (direction !== 'asc' && direction !== 'desc') {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'order.direction must be asc or desc');
+  }
+  if (!Number.isSafeInteger(ceiling) || ceiling < 1 || ceiling > 1_024) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'actors.ceiling must be an integer from 1 through 1024');
+  }
+  if (!Number.isSafeInteger(take) || take < 1 || take > 1_024) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'take must be an integer from 1 through 1024');
+  }
+  const maxChunks = Math.ceil(ceiling / IN_OPERAND_CEILING);
+  const source = `globalThis.__snapbackHandlers = globalThis.__snapbackHandlers || {};
+// bounded composition cost: maxChunks=${maxChunks}; perChunkTake=${take}; maxResultRows=${take}
+globalThis.__snapbackHandlers[${JSON.stringify(name)}] = async function(ctx, args) {
+  var actors = await ctx.db.query(${JSON.stringify(actors.name)})
+    .withIndex(${JSON.stringify(options.actors.index)})
+    .eq(${JSON.stringify(scopeField)}, args[${JSON.stringify(scopeArg)}])
+    .take(${ceiling + 1}).collect();
+  if (actors.length > ${ceiling}) {
+    return ctx.composition.semiJoinActorCeilingExceeded(${ceiling});
+  }
+  var keys = Array.from(new Set(actors.map(function(row) { return row[${JSON.stringify(keyField)}]; })));
+  var merged = [];
+  for (var offset = 0; offset < keys.length; offset += ${IN_OPERAND_CEILING}) {
+    var chunk = keys.slice(offset, offset + ${IN_OPERAND_CEILING});
+    var part = await ctx.db.query(${JSON.stringify(rows.name)})
+      .withIndex(${JSON.stringify(options.rows.index)})
+      .in(${JSON.stringify(actorField)}, chunk)
+      .order(${JSON.stringify(orderField)}, ${JSON.stringify(direction)})
+      .take(${take}).collect();
+    merged.push.apply(merged, part);
+  }
+  merged.sort(function(left, right) {
+    var order = left[${JSON.stringify(orderField)}] < right[${JSON.stringify(orderField)}] ? -1
+      : left[${JSON.stringify(orderField)}] > right[${JSON.stringify(orderField)}] ? 1
+      : left._id < right._id ? -1 : left._id > right._id ? 1 : 0;
+    return ${JSON.stringify(direction)} === 'desc' ? -order : order;
+  });
+  return merged.slice(0, ${take});
+};
+`;
+  return generatedLiveQuery({
+    name,
+    args: { [scopeArg]: actors.fields[scopeField] },
+    reads: [actors.name, rows.name],
+    result: results.documents(rows.name),
+    auth,
+    source,
+    standardPattern: {
+      helper: 'chunked-semi-join.v1',
+      profile: 'bounded-composition.v1',
+    },
+  });
+}
+
+/**
+ * Generate one live count row per requested key. One invocation owns every
+ * chunk and therefore one consumer-visible snapshot across the whole key set.
+ * Independent per-key subscriptions remain supported when that atomic fact is
+ * unnecessary.
+ *
+ * @ref LLP 0278#d4-set-keyed-aggregate-projections
+ */
+export function defineSetKeyedAggregate(options) {
+  exactObject(options, 'defineSetKeyedAggregate options', SET_KEYED_AGGREGATE_OPTION_FIELDS);
+  const name = requireName(options.name, 'name');
+  const facts = tableFacts(options.table);
+  const keyField = requireName(options.keyField, 'keyField');
+  const keysArg = requireName(options.keysArg ?? 'keys', 'keysArg');
+  const maxKeys = options.maxKeys ?? 1_024;
+  const rowCeiling = options.rowCeiling;
+  const auth = requireAuth(options.auth ?? 'authenticated');
+  if (!Object.hasOwn(facts.fields, keyField)) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', `unknown keyField ${keyField}`);
+  }
+  requireIndex(facts, options.index, keyField, 'index');
+  if (options.aggregate !== 'count') {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'aggregate must be count');
+  }
+  if (!Number.isSafeInteger(maxKeys) || maxKeys < 1 || maxKeys > 1_024) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'maxKeys must be an integer from 1 through 1024');
+  }
+  if (!Number.isSafeInteger(rowCeiling) || rowCeiling < 1 || rowCeiling > 4_095) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'rowCeiling must be an integer from 1 through 4095');
+  }
+  const maxChunks = Math.ceil(maxKeys / IN_OPERAND_CEILING);
+  const source = `globalThis.__snapbackHandlers = globalThis.__snapbackHandlers || {};
+// bounded composition cost: maxChunks=${maxChunks}; perChunkTake=${rowCeiling + 1}; maxResultRows=${maxKeys}
+globalThis.__snapbackHandlers[${JSON.stringify(name)}] = async function(ctx, args) {
+  var keys = Array.from(new Set(args[${JSON.stringify(keysArg)}]));
+  var counts = new Map(keys.map(function(key) { return [key, 0]; }));
+  for (var offset = 0; offset < keys.length; offset += ${IN_OPERAND_CEILING}) {
+    var chunk = keys.slice(offset, offset + ${IN_OPERAND_CEILING});
+    var rows = await ctx.db.query(${JSON.stringify(facts.name)})
+      .withIndex(${JSON.stringify(options.index)})
+      .in(${JSON.stringify(keyField)}, chunk).take(${rowCeiling + 1}).collect();
+    if (rows.length > ${rowCeiling}) {
+      return ctx.composition.aggregateRowCeilingExceeded(${rowCeiling});
+    }
+    rows.forEach(function(row) { counts.set(row[${JSON.stringify(keyField)}], counts.get(row[${JSON.stringify(keyField)}]) + 1); });
+  }
+  return keys.map(function(key) { return { key: key, count: counts.get(key) }; });
+};
+`;
+  return generatedLiveQuery({
+    name,
+    args: { [keysArg]: v.array(facts.fields[keyField], { maxItems: maxKeys }) },
+    reads: [facts.name],
+    result: results.records(v.object({
+      key: facts.fields[keyField],
+      count: v.integer({ min: 0, max: Number.MAX_SAFE_INTEGER }),
+    }), { minItems: 0, maxItems: maxKeys }),
+    auth,
+    source,
+    standardPattern: {
+      helper: 'set-keyed-aggregate.v1',
+      profile: 'bounded-composition.v1',
+    },
+  });
 }
 
 /**

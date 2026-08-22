@@ -13,7 +13,7 @@ adversarial auth cuts and the asset finalize/attach boundary)
 **Related:** LLP 0059, LLP 0095, LLP 0151, LLP 0210, LLP 0236, LLP 0238,
 LLP 0247,
 LLP 0258, LLP 0269, LLP 0277, LLP 0278, LLP 0295, Diary 0086,
-`issues/20260821-provider-connection-subscription-budget-decision.md`
+`issues/closed/20260821-provider-connection-subscription-budget-decision.md`
 
 ## Summary
 

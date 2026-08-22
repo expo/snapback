@@ -376,6 +376,9 @@ function inspectProviderOwners(client, providers) {
         (manager) => !manager.closed && (manager.open || manager.socketDemand > 0),
       ).length,
       activeSubscriptions: providerResources.serverSubscriptions,
+      clientSubscriptionOwners: clientResources.subscriptions.map(
+        (subscription) => subscription.owner,
+      ).sort(),
       socketDemand: clientResources.socketDemand,
       timers: clientResources.timers,
       listeners: clientResources.listeners,
@@ -1687,6 +1690,75 @@ assert.equal(
   'the final shared provider releases the idle grant after sibling demand ends',
 );
 
+// @ref LLP 0278#d05-subscription-budgets-provisional — dedup compares the
+// complete visible snapshot: equal rows at the same lifecycle state are
+// silent, while equal rows that cross stale/live notify. A delivery callback
+// is not a synchronous dispatch context.
+{
+  const dedupFake = createFakeClient();
+  const dedupBinding = await prepareReactBindingForClient(dedupFake, {
+    generatedManifest,
+  });
+  const diagnostics = [];
+  const dedupProvider = createSnapbackReactProvider(dedupBinding, {
+    connectionId: 'react-package-visible-snapshot-dedup',
+    onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+  });
+  let notifications = 0;
+  let dispatchFromDelivery = null;
+  let armed = false;
+  const observer = observeSnapbackQueries(dedupProvider, {
+    feed: { ref: capacityFeeds[200], args: {} },
+  }, () => {
+    notifications += 1;
+    if (armed && dispatchFromDelivery === null) {
+      dispatchFromDelivery = dedupProvider.registry
+        .runMutation(publish, { value: 'nested' })
+        .catch((error) => error);
+    }
+  });
+  await flush();
+  const initialNotifications = notifications;
+  const sameRows = [{ id: 'capacityFeed200:root', revision: 0 }];
+  dedupFake.emit(capacityFeeds[200], sameRows, 'live');
+  await flush();
+  assert.equal(
+    notifications,
+    initialNotifications,
+    'an advanced transport delivery with the same complete visible snapshot is silent',
+  );
+
+  armed = true;
+  dedupFake.emit(capacityFeeds[200], sameRows, 'stale');
+  await flush();
+  assert.equal(
+    notifications,
+    initialNotifications + 1,
+    'equal rows still notify when the visible lifecycle changes to refreshing/stale',
+  );
+  assert.equal(
+    (await dispatchFromDelivery)?.code,
+    'SNAPBACK_REACT_DELIVERY_REENTRANCY_UNSUPPORTED',
+  );
+  assert.equal(dedupFake.inspection().mutations, 0, 'nested refusal occurs before dispatch');
+  assert(
+    diagnostics.some(
+      (diagnostic) => diagnostic.code === 'SNAPBACK_REACT_DELIVERY_REENTRANCY_UNSUPPORTED',
+    ),
+  );
+
+  armed = false;
+  dedupFake.emit(capacityFeeds[200], sameRows, 'live');
+  await flush();
+  assert.equal(
+    notifications,
+    initialNotifications + 2,
+    'the successor ready/live lifecycle transition is not swallowed',
+  );
+  observer.dispose();
+  await dedupProvider.dispose();
+}
+
 // @ref LLP 0095#connection-ownership-per-app-authorityorigin — provider cells
 // sharing one real headless manager tuple multiplex subscriptions over one
 // WebSocket, and teardown closes that exact transport.
@@ -1819,6 +1891,9 @@ assert.equal(
       connectionId: 'provider-lifecycle-shared-authority-origin',
       activeConnections: 1,
       activeSubscriptions: providerCellCount,
+      clientSubscriptionOwners: Array.from({ length: providerCellCount }, (_, index) => (
+        `provider:${providerLifecycle.providerInstanceId}/query:capacityFeed${index}`
+      )).sort(),
       socketDemand: providerCellCount,
       timers: 1,
       listeners: providerCellCount,
@@ -1836,6 +1911,7 @@ assert.equal(
       connectionId: 'provider-lifecycle-shared-authority-origin',
       activeConnections: 0,
       activeSubscriptions: 0,
+      clientSubscriptionOwners: [],
       socketDemand: 0,
       timers: 0,
       listeners: 0,
@@ -1850,8 +1926,10 @@ assert.equal(
   }
 }
 
+const capacityDiagnostics = [];
 const capacityProvider = createSnapbackReactProvider(binding, {
   connectionId: 'react-package-capacity-test',
+  onDiagnostic: (diagnostic) => capacityDiagnostics.push(diagnostic),
 });
 const entries = (indexes) => Object.fromEntries(indexes.map((index) => [
   `entry${index}`,
@@ -1867,6 +1945,19 @@ assert.throws(
   'a 65-entry group must refuse before attachment',
 );
 assert.equal(capacityProvider.inspection().serverSubscriptions, 0);
+assert.deepEqual(
+  capacityDiagnostics.filter(
+    (diagnostic) => diagnostic.code === 'SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED',
+  ).map((diagnostic) => ({
+    severity: diagnostic.severity,
+    count: diagnostic.details.count,
+    budget: diagnostic.details.budget,
+    hardCeiling: diagnostic.details.hardCeiling,
+    independentSupported: diagnostic.details.independentSupported,
+  })),
+  [{ severity: 'warning', count: 65, budget: 16, hardCeiling: 64, independentSupported: true }],
+  'the ordinary-view warning precedes, but does not replace, the 64 hard refusal',
+);
 
 const fullGroup = observeSnapbackQueries(
   capacityProvider,
@@ -1875,6 +1966,17 @@ const fullGroup = observeSnapbackQueries(
 );
 await flush();
 assert.equal(capacityProvider.inspection().serverSubscriptions, 64);
+assert.equal(capacityProvider.inspection().subscriptionBudget, 16);
+assert.equal(capacityProvider.inspection().subscriptionHardCeiling, 64);
+assert.equal(capacityProvider.inspection().connections.length, 1);
+assert.match(capacityProvider.inspection().connections[0].owner, /^provider:/u);
+assert.equal(capacityProvider.inspection().subscriptions.length, 64);
+assert(
+  capacityProvider.inspection().subscriptions.every(
+    (subscription) => subscription.owner.includes('/query:capacityFeed'),
+  ),
+  'inspection labels every active subscription with its provider/query owner',
+);
 
 const oneForOne = entries(Array.from({ length: 64 }, (_, index) => index));
 delete oneForOne.entry63;

@@ -94,6 +94,8 @@ fn reset_and_seed_transaction(
     tx.execute("DELETE FROM _snapback_client_mutations", [])?;
     tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
     tx.execute("DELETE FROM _snapback_membership_transitions", [])?;
+    tx.execute("DELETE FROM _snapback_authority_projection_events", [])?;
+    tx.execute("DELETE FROM _snapback_authority_projection_horizons", [])?;
     tx.execute("DELETE FROM _snapback_relation_incarnations_v1", [])?;
     tx.execute("DELETE FROM _snapback_sequence_counters_v1", [])?;
     // @ref LLP 0076#authority-and-lifecycle — application reload/reset is a

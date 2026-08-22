@@ -5,13 +5,13 @@ use super::mint_secret_read_via_http;
 use super::{
     AdminArgs, AdminCommand, AdminLinkReadyFile, Args, AssetsCommand, AuthCommand,
     AuthCoordinatorReadinessReceipt, AuthPasswordCommand, AuthProgramConstructionReceipts,
-    AuthRecoveryCommand, BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand,
-    ConsoleClaimMintCliResponse, ConsoleCredentialCliResponse, ControlsCommand, CronCommand,
-    DataCommand, DataPatchArgs, DebugCommand, EphemeralCommand, ErrorsCommand, ForkCommand,
-    GUIDE_SEARCH_SCHEMA_VERSION, HostCommand, JobsCommand, ManagedPath, NetworkProfileCommand,
-    ReadyFileTarget, ResolvedHttpTarget, SessionCommand, StoreCommand, TargetArgs,
-    TelemetryCommand, automatic_reap_before_create, bind_first_available, bind_listener,
-    console_claim_fragment_url, console_fragment_url, console_launch_handoff_with,
+    AuthRecoveryCommand, AuthorityCommand, BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand,
+    ConnectionsCommand, ConsoleClaimMintCliResponse, ConsoleCredentialCliResponse, ControlsCommand,
+    CronCommand, DataCommand, DataPatchArgs, DebugCommand, EphemeralCommand, ErrorsCommand,
+    ForkCommand, GUIDE_SEARCH_SCHEMA_VERSION, HostCommand, JobsCommand, ManagedPath,
+    NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand, StoreCommand,
+    TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
+    bind_listener, console_claim_fragment_url, console_fragment_url, console_launch_handoff_with,
     controls_list_text, fork_secret_disposition, managed_startup_paths, parse_fork_ttl,
     parse_network_profile_selection, parse_run_args, path_segment_escape, prepare_database_path,
     prepare_database_path_for_startup, quiet_stop_fork, reject_misdirected_serve_flags,
@@ -32,6 +32,53 @@ use std::io::{Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::net::TcpListener;
+
+#[test]
+fn authority_projection_plan_and_guarded_backfill_parse_as_one_surface() {
+    let parsed = Cli::try_parse_from([
+        "snapback",
+        "authority",
+        "plan",
+        "--db",
+        "app.sqlite",
+        "--schema",
+        "schema.manifest.json",
+        "--profile",
+        "eventMembers",
+        "--mirror-table",
+        "conversationMembers",
+        "--json",
+    ])
+    .expect("authority plan parses");
+    let Some(HostCommand::Authority { command }) = parsed.command else {
+        panic!("expected authority command");
+    };
+    let AuthorityCommand::Plan {
+        profile,
+        mirror_table,
+        json,
+        ..
+    } = command
+    else {
+        panic!("expected authority plan");
+    };
+    assert_eq!(profile, "eventMembers");
+    assert_eq!(mirror_table, "conversationMembers");
+    assert!(json);
+
+    let refusal = super::authority_command(AuthorityCommand::Backfill {
+        db: PathBuf::from("app.sqlite"),
+        profile: "eventMembers".to_owned(),
+        apply: true,
+        confirm: None,
+    })
+    .expect_err("backfill requires the exact partial-coverage acknowledgement");
+    assert!(
+        refusal
+            .to_string()
+            .contains("authority backfill requires --apply --confirm authorization-facts-only")
+    );
+}
 
 #[test]
 fn settled_pin_repair_names_whole_store_preservation_and_guarded_reset() {

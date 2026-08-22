@@ -3185,6 +3185,11 @@ export class SnapbackClient {
     // consumer registries so one connection's durable and ephemeral lanes
     // never destructively discard each other's envelopes on drain.
     this.__laneConsumers = new Map();
+    // Owner labels are finite application-chosen diagnostics only. They are
+    // never sent to the server and carry no authority or subscription token.
+    // @ref LLP 0095#connection-ownership-per-app-authorityorigin — active
+    // headless subscriptions remain attributable to their manager owner.
+    this.__liveQueryOwners = new Map();
     // ENG-23442 connection grants: caller label -> Promise<{id, token}>.
     this.__connectionGrants = new Map();
     // Hosted ephemeral recovery is application data production, not transport
@@ -6595,12 +6600,34 @@ export class SnapbackClient {
           ephemeral: lanes?.ephemeral?.size ?? 0,
         })),
     );
+    const subscriptions = Object.freeze(
+      [...this.__liveQueryOwners.values()]
+        .filter((entry) => includes(entry.connectionId))
+        .map((entry) => {
+          const authorization = entry.handle.authorizationState?.() ?? null;
+          return Object.freeze({
+            owner: entry.owner,
+            connectionId: entry.connectionId,
+            functionName: entry.functionName,
+            state: entry.handle.paused ? 'paused' : 'active',
+            connection: entry.handle.connection,
+            snapshotVersion: entry.handle.authoritativeRevision,
+            authBarrier: authorization?.lifecycle ?? null,
+            readiness: ['live', 'polling'].includes(entry.handle.connection)
+              ? 'ready'
+              : 'waiting',
+            outboxSuspensionReason: null,
+          });
+        }),
+    );
     return Object.freeze({
       managers,
       managerCount: managers.length,
       grants: grantLabels,
       grantCount: grantLabels.length,
       laneConsumers,
+      subscriptions,
+      subscriptionCount: subscriptions.length,
       socketDemand: managers.reduce((sum, manager) => sum + manager.socketDemand, 0),
       timers: managers.reduce(
         (sum, manager) => sum + manager.reconnectTimer + manager.heartbeatTimer,
@@ -7639,6 +7666,7 @@ export class SnapbackClient {
       this.__liveStreamManagers?.clear?.();
       this.__connectionGrants.clear();
       this.__laneConsumers.clear();
+      this.__liveQueryOwners.clear();
 
       this.__storeRuntimeClosed = true;
       if (this.__storeRuntimeModulePromise !== null) {
@@ -13828,6 +13856,7 @@ export class SnapbackClient {
     authorityCapture: expectedAuthorityCapture = null,
     correlation = null,
     stream: streamOptions = {},
+    ownerLabel = null,
     // Channel B (LLP 0090 D3): per-subscription persist opt-out — the
     // client-option stand-in for the per-manifest-entry `persist: false`
     // until rollout cluster 0C carries it in the manifest.
@@ -13890,6 +13919,9 @@ export class SnapbackClient {
       throw error;
     }
     const name = functionName(ref);
+    if (ownerLabel !== null && (typeof ownerLabel !== 'string' || ownerLabel.length === 0)) {
+      throw new TypeError('liveQuery ownerLabel must be null or a non-empty string');
+    }
     // Generated argument validation is a call-boundary refusal. Keep it ahead
     // of auth discovery, local-store preparation, and every establishment
     // transport so an offline caller never sees availability mask bad args.
@@ -14056,6 +14088,7 @@ export class SnapbackClient {
     // the first scoped resync sentinel.
     let resyncFencedSubscriptionId = null;
     let disposalTask = null;
+    let ownerInspectionToken = null;
     let unregisterOutboxBarrierProvider = () => {};
     // Cardinality alone cannot distinguish a lifecycle blank from a malformed
     // server snapshot. Keep provenance on the exact client-created carriers so
@@ -17391,6 +17424,10 @@ export class SnapbackClient {
         }
       };
       try {
+        if (ownerInspectionToken !== null) {
+          client.__liveQueryOwners.delete(ownerInspectionToken);
+          ownerInspectionToken = null;
+        }
         if (authorizationFence?.snapshot?.().lifecycle === 'active') {
           attempt(() => authorizationFence.beginRetirement({
             fence: authorizationFence.capture(),
@@ -17492,6 +17529,13 @@ export class SnapbackClient {
       unregisterOutboxBarrierProvider = () => {
         client.__outboxBarrierProviders.delete(outboxBarrierProvider);
       };
+      ownerInspectionToken = {};
+      client.__liveQueryOwners.set(ownerInspectionToken, Object.freeze({
+        owner: ownerLabel ?? `headless:${name}`,
+        connectionId,
+        functionName: name,
+        handle,
+      }));
     } catch (error) {
       closeAutomaticOptimisticView();
       activeRegistration.release();

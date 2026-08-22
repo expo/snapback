@@ -8,9 +8,9 @@ authorities: [llp/0034-contract-source-seam-provider-side.rfc.md, llp/0063-parti
 examples: [packages/snapback-contract/keyed-provider.mjs, packages/snapback-react/package.test.mjs]
 status: current
 targets: [local]
-maturity: partial
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:5e0894bd44d45cf4b8f904e7b4ab5e29c5f2665bd4ed71973697acdea9a355e9
+maturity: shipped
+reviewed: 2026-08-22
+reviewed-authorities-digest: sha256:8a63496d82a30b312b43af3e49e76b3625cc47be7276fcb08165153aacff1d4e
 ---
 
 # Recipe: provider connection and subscription lifecycle
@@ -31,9 +31,10 @@ connection pool that coalesces distinct custody contexts.
 
 This is the route for searches such as “one connection per query”, “too many
 websockets”, “connection pool”, “provider adapter pattern”, and “rebuild stream
-on auth”. It also reports active connections and subscriptions by owner. The
-numeric per-app and per-query budgets remain LLP 0295 D0.5 work; this page
-deliberately gives only today's lifecycle and qualitative bounds.
+on auth”. It also reports active connections and subscriptions by owner. One
+provider view warns above 16 logical subscriptions and supports independent
+subscriptions through the 64-per-connection hard ceiling. The warning is
+guidance, not a correctness boundary.
 
 Exact retrieval vocabulary from provider failures:
 
@@ -93,6 +94,9 @@ per cell even while reusing the same readable connection label:
       connectionId: 'provider-lifecycle-shared-authority-origin',
       activeConnections: 1,
       activeSubscriptions: providerCellCount,
+      clientSubscriptionOwners: Array.from({ length: providerCellCount }, (_, index) => (
+        `provider:${providerLifecycle.providerInstanceId}/query:capacityFeed${index}`
+      )).sort(),
       socketDemand: providerCellCount,
       timers: 1,
       listeners: providerCellCount,
@@ -151,16 +155,16 @@ mutation from inside it. A one-shot read is admitted but usually means the
 adapter ignored rows it already has. If delivery must trigger more lifecycle
 work, schedule it at a microtask/framework-effect boundary.
 
-React currently republishes every authoritative delivery, including value-equal
-rows at a newer internal version; that delivery advances bookkeeping **and**
-notifies provider listeners today. If an adapter needs render deduplication,
-apply it in the adapter-owned consumer store by comparing the complete visible
-snapshot—rows plus exposed status, connection, and freshness facts. Never let
-row equality hide a real lifecycle transition such as `refreshing` to `ready`
-or the first authoritative successor delivery after reconnect. Platform-level
-complete-snapshot deduplication remains an open LLP 0278/0095 implementation
-obligation tracked in
-`issues/20260821-provider-connection-subscription-budget-decision.md`.
+The provider deduplicates on the complete consumer-visible snapshot—rows plus
+exposed status, connection, freshness, answer class, retention, and optimistic
+presentation. A value-equal authoritative frame advances internal
+version/resume bookkeeping without notifying consumers. Row equality never
+hides a lifecycle transition such as `refreshing` to `ready`, a connection
+change, or the successor's first authoritative delivery after reconnect.
+
+Synchronous subscribe/unsubscribe/mutation dispatch inside a delivery callback
+refuses with `SNAPBACK_REACT_DELIVERY_REENTRANCY_UNSUPPORTED`. Schedule that
+work at a microtask or framework-effect boundary.
 
 ## Let the manager retry; explicitly tear down owners
 
@@ -197,6 +201,9 @@ function inspectProviderOwners(client, providers) {
         (manager) => !manager.closed && (manager.open || manager.socketDemand > 0),
       ).length,
       activeSubscriptions: providerResources.serverSubscriptions,
+      clientSubscriptionOwners: clientResources.subscriptions.map(
+        (subscription) => subscription.owner,
+      ).sort(),
       socketDemand: clientResources.socketDemand,
       timers: clientResources.timers,
       listeners: clientResources.listeners,
@@ -212,19 +219,25 @@ subscriptions, demand, timers, and listeners. These inspections are
 acceptance/debug facts only; they are neither application state nor authority
 evidence, and the readable `connectionId` is not the server's opaque wire id.
 
-## Keep budgets qualitative until D0.5
+## Enforce the warning budget without narrowing correctness
 
-Today's recipe has four enforced qualitative bounds: one stable connection
-label per manager-owned tuple; refcounted canonical query stores; declared,
-inspectable logical fan-out; and zero owned resources after teardown. Prefer a
-single relational/aggregate query when the UI needs one atomic cross-set fact,
-and consider one for large visible-entity fan-out, but do not claim that every
-independent query is incorrect.
+The provisional ordinary-view budget is 16 logical subscriptions. The 17th
+emits `SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED` with owner, count,
+warning budget, hard ceiling, and paved alternatives. It remains admitted.
+Independent subscriptions—including six ordinary cells—stay supported and
+live-correct through 64. Entry 65 first emits the warning and then refuses with
+the existing typed group/capacity diagnostic; there is no partial attachment.
 
-LLP 0295 D0.5 owns the later numeric connection/subscription budgets and their
-diagnostics. Until those values land, do not turn a measurement from one app
-into a platform threshold. Record the inspection counts, state which owner
-created them, and keep the lifecycle invariants above.
+Use `defineSetKeyedAggregate` when many keys need one atomic cross-set fact or
+when one stream is materially cheaper. It is an optimization when independent
+snapshots are acceptable, not the only correct architecture. Use
+`defineChunkedSemiJoin` for the bounded actor-set/top-N shape; it owns 499-item
+operand chunks and refuses actor overflow instead of truncating.
+
+Provider inspection reports the warning/hard budgets, connection owner,
+per-subscription owner labels, lifecycle state, snapshot version,
+auth-barrier/readiness, and outbox suspension reason. Record those owner rows
+when debugging fan-out; never infer authority from them.
 
 ## Anti-patterns
 
@@ -239,4 +252,6 @@ created them, and keep the lifecycle invariants above.
 - Rebuilding every query owner after transport-only reconnect.
 - Treating `settled()` as disposal, or leaving the owned client open after the
   provider is terminal.
-- Advertising numeric resource budgets before LLP 0295 D0.5 sets them.
+- Treating the 16 warning as a hard cap, or forcing every view into one
+  aggregate query despite independent snapshots being sufficient.
+- Opening a 65th subscription or partially attaching an over-capacity group.

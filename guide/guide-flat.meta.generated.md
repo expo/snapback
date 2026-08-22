@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:5b94f039ad4881714e875e9322f194ff8d28e51dfbe9f289d83c24da928aa3ad
+reviewed-authorities-digest: sha256:5263e12d419fe89fd2f635df8795357d1d344add33becfa5dcc8d07af0d312b2
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -412,7 +412,8 @@ proof command, and honest nonclaims without opening every demo.
   historical product projections.
 - [Provider connection lifecycle](./recipes/provider-lifecycle.md) — share
   managers and stores, settle authority, deduplicate snapshots, inspect, and
-  retire resources without inventing an undecided numeric budget.
+  enforce the 16-warning/64-hard subscription budget while preserving bounded
+  independent subscriptions.
 - [Split a sensitive field into its own table](./recipes/split-sensitive-fields.md)
   — the honest row-visibility workaround for a private column such as
   Messtimate's phone number, with separate-read, owner-only join, and
@@ -458,7 +459,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:1b524585d05c02c2bcef3d9c13b31b3344d96df36337f0fe95cdf8d53080cd4a
+reviewed-authorities-digest: sha256:c890384688d13e21ac6712b7874108395d57bdcc5831244ca05e841e8aaf85ba
 ---
 
 # Capability index
@@ -483,7 +484,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.functions | Queries/live queries/mutations/actions: declarative plans or colocated JS + same-file helpers; document/record/value result contracts incl. result-side `v.doc(table)` refs; manifest-derived handler/helper `ctx.db` types split read/write; exact client refs; runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase, ctx.refuse, refusals, application error code, domain error, app refusal, mutationPlan, letBind, insertEach, return binding, declarative mutation | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
 | backend.mutation-settlement-identity | Mutation-only client identity and server-namespaced digest for replay-stable effects; genuine re-entry preserves it, while hosted returns null. | ctx.mutation.settlement, settlementId, replay-stable effect, provider idempotency key, effect dedupe | local | shipped | `recordEffectIntent` in crates/snapback/tests/mutation_settlement_identity_v0.rs | llp/0043 | backend/mutations.md |
-| backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
+| backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages, chunked semijoins, and set-keyed counts | CRUD generator, pagination, membership pages, defineChunkedSemiJoin, defineSetKeyedAggregate, 499 chunk | local | partial | packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100, llp/0278 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views, conversation membership, message sender, chat joins, defineRelationalQuery, defineMaintainedProjection, Convex joins, Supabase joins | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental bounded child pages with protected relation incarnations | one-to-many, parent children, relation incarnation, bounded child page | local | partial | crates/snapback-engine/src/local-relation-activity-publication.v1.json | llp/0110, llp/0113, llp/0108 | GAP (public/hosted publication; owner: Charlie, review: 2026-09-30; issue: issues/20260727-backend-bakeoff-improvement-program.md) |
 | backend.snapshot-batch-v1 | Experimental local 2–8-node composition: complete `bounded-children.v1` plus v2 `relational-query.v1` joins; one pinned authoritative snapshot/invocation; structural parent-authorization dedup; all-or-nothing tuple sealed only via bounded-child parents; one LLP 0157 `sbsb1`/`sbsb2` continuation; cursor-free-first-page `live_replace`; `retention:"none"`. | snapshot batch, mixed snapshot batch, board view, join plus child lists, multiple child lists, one snapshot, composite query, defineSnapshotBatchQuery | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in crates/snapback-engine/src/local/tests/engine.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`, `snapshot_batch_v2`) | llp/0135, llp/0157, llp/0080, llp/0113 | backend/snapshot-batches.md |
@@ -546,7 +547,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | auth.agent-registration | Sessions-only open or user-invited agent registration, atomically creating the agent principal, stable identity, and initial `sbac_` credential; user invitations require operation-bound step-up and are single-use | register agent, create agent, invite agent, agent credential | local | shipped | route /auth/agents/register | llp/0055, llp/0204 | auth/agent-principals.md |
 | auth.logical-transfer | Contributor-source logical export/import of principal, ownership, identity, deactivation, and scope-basis facts; empty-v2 import rotates authorization identity and mints no authority | auth export, auth import, move identities, no resurrection | local | partial | `auth_logical_import` in crates/snapback-cli/src/cli.rs | llp/0055, llp/0057 | auth/logical-transfer.md |
 | auth.scoped-roles | Scoped roles/memberships plus one-command atomic creation with a bounded transition-checked roster | roles, membership, group creation, atomic roster | local | shipped | `generated_bootstrap_atomically_creates_resource_and_protected_holder` in crates/snapback-engine/src/runtime/host_glue.rs | llp/0056, llp/0100 | auth/scoped-roles.md |
-| authority.profile.v1 | Local app-table profile (incl. dedicated React/Expo lifecycle hooks: useSnapbackAuthorityRoster/MyRole/Mutation): one finite role hierarchy drives table/handler admission, table visibility, and membership-visible search; AEAD-cursor `list`, `myRole`, transition-derived mutations, durable authority receipts, versioned dependence, and no private row ids through the generated facade. References work through ordinary clients and generic React hooks; dedicated profile hooks, assets, hosted and system profiles remain absent. | authorityProfile, role hierarchy, declarative membership, roster, profile search, myRole, invite, join, leave, change role, transfer owner, remove member, authorityTransitions, useSnapbackQuery | local | shipped | demos/team-chat/tests/acceptance/headless.mjs + demos/rbac/tests/acceptance/rbac.mjs + packages/snapback-codegen/rbac-authoring.test.mjs + crates/snapback-engine/src/runtime/host_glue.rs | llp/0240, llp/0056, llp/0231, llp/0238 | auth/scoped-roles.md |
+| authority.profile.v1 | Local app-table profile: one finite hierarchy drives admission, visibility, search, current roster/role/mutations, plus optional writer-seam D1 history/incarnations with horizon and mutation-only recipient snapshots through 1,024; `list`/`myRole` stay compatible and private ids stay hidden. Ordinary clients/generic React hooks work; dedicated hooks, assets, hosted/system profiles remain absent. | authorityProfile, role hierarchy, declarative membership, roster, profile search, history, incarnation, recipient snapshot, history horizon, myRole, invite, join, leave, change role, transfer owner, remove member, authorityTransitions, useSnapbackQuery | local | shipped | demos/team-chat/tests/acceptance/headless.mjs + demos/rbac/tests/acceptance/rbac.mjs + packages/snapback-codegen/authority-projection-packed.test.mjs + packages/snapback-codegen/rbac-authoring.test.mjs + crates/snapback-engine/src/runtime/host_glue.rs | llp/0240, llp/0056, llp/0231, llp/0238, llp/0278 | recipes/membership-roster-projection.md |
 | authority.custom.coarse-global | Per-operation online-only `authorization.custom` evaluator with declared table inputs, source-closed elevated read sites, visible completeness warning, conservative global reauthorization, terminal declared denial, and authorization-review facts. Precise `reauthorize-on-change`, pushdown, retention, protected-local execution, and hosted targets refuse. | custom authorization, policyInput, coarse global, evaluator, completeness warning, reauthorize on change | local | shipped | packages/snapback-codegen/custom-authorization.test.mjs + crates/snapback/src/live_matcher.rs + crates/snapback-engine/src/runtime/host_glue.rs | llp/0240, llp/0146, llp/0173 | auth/scoped-roles.md |
 | authority.inspection.v1 | AdminWrite effective-authority inspection for one profile generation, principal, scope, and closed operation/view; returns policy/backing/invalidation facts without a public oracle. | inspect authority, effective role, policy branch, profile generation | local | shipped | `authority_effective_inspection` in crates/snapback-kernel/src/membership_rules.rs | llp/0240, llp/0173 | auth/scoped-roles.md |
 | clients.headless | The framework-neutral client (SnapbackClient) | http client, node client, sdk, client.run, SnapbackDiagnosticError, error guard, catch refusal, optional undefined, omit field | local | shipped | `SnapbackClient` in packages/snapback-client/index.mjs | llp/0012, llp/0247 | clients/headless.md |
@@ -565,7 +566,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.mutation-outcomes | Settlements; settled/queued union; Exact three-fact projection; non-consuming `mutationStatus`/`subscribeMutation` observation | mutation state, timeout, retry, receipt, ambiguity, queued mutation union, mutation disposition, subscribeMutation, dispatch outcome | local | shipped | packages/snapback-client/outbox-store.test.mjs | llp/0043, llp/0063, llp/0218 | clients/contract-adapter.md |
 | clients.outbox-drain | Outbox drain: headless/React auto lifecycle; manual escape; barrier/custody/backoff gates; earliest-auto shared-store owner with close transfer; writer-lock serialization across handles | outbox drain, auto drain, OutboxFlusher, offline replay automatic, drainNow, outboxDrain | local | shipped | packages/snapback-client/outbox-drain.test.mjs + packages/snapback-react/offline.test.mjs + demos/browser-local-first/tests/acceptance/browser-public-witness.mjs (offline→online drain) | llp/0043, llp/0218, llp/0270 | sync/offline-and-retention.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | React/Expo provider: real-client generated reads; ordinary generated-IR optimistic projection and restart rebase; explicit optimistic answer class and reducer precedence; settled/queued union; platform drain; presence; offline facts; Strict Mode/HMR | react, expo, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, generated optimistic mutation, optimistic rollback, queued mutation, useSnapbackSettledMutation, outboxDrain, drainNow, projectRecordFields, presence, query groups, hmr, offline freshness, outbox badge, app refusal | local | shipped | packages/snapback-react/generated-optimistic-default.test.mjs + packages/snapback-react/optimistic.test.mjs + packages/snapback-react/offline.test.mjs | llp/0012, llp/0043, llp/0064, llp/0107, llp/0129, llp/0133, llp/0155, llp/0218, llp/0270 | clients/react.md |
+| clients.react | React/Expo provider: real-client generated reads; one managed transport; 16-warning/64-hard subscription envelope; owner inspection and visible-snapshot dedup; generated optimistic projection/rebase; settled/queued union; drain; presence; offline; Strict Mode/HMR | react, expo, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, provider subscription budget, generated optimistic mutation, optimistic rollback, queued mutation, useSnapbackSettledMutation, outboxDrain, drainNow, projectRecordFields, presence, query groups, hmr, offline freshness, outbox badge, app refusal | local | shipped | packages/snapback-react/package.test.mjs + packages/snapback-react/generated-optimistic-default.test.mjs + packages/snapback-react/optimistic.test.mjs + packages/snapback-react/offline.test.mjs | llp/0012, llp/0043, llp/0064, llp/0095, llp/0107, llp/0114, llp/0129, llp/0133, llp/0155, llp/0218, llp/0270, llp/0278 | clients/react.md |
 | clients.react-paged-list | React load-more: unique raw keyset, whole-result merge, volatile archive; protected cursors stay headless | paginated list, load more, infinite scroll, whole-result replacement, retained pages, pageKey | local | shipped | packages/snapback-cli/templates/media-feed/acceptance.mjs | llp/0100, llp/0114, llp/0196 | recipes/paged-list.md |
 | clients.optimistic-mutation-view | Ordinary generated-IR projection for create/edit/delete/archive/reorder, inspectable server-only/filtered pending state, durable restart and automatic-drain replay, explicit prediction authority, deterministic rebase, and reflection-validated exact retirement; cross-table dependency degrades safely; explicit view remains compatible | generated optimistic mutation, createOptimisticMutationView, optimistic create, edit, delete, reorder, logical mint, idMap, restart replay | local | shipped | packages/snapback-client/generated-optimistic-default.test.mjs + packages/snapback-client/optimistic-rebase-acceptance.test.mjs | llp/0133, llp/0155, llp/0270 | clients/headless.md |
 | clients.optimistic-create | Explicit typed React-provider wrapper over the ordinary generated-IR insert path, with canonical/provisional identity union, `select`, logical-mint settlement, replay recovery, and provider lifecycle ownership | React optimistic create, useSnapbackOptimisticCreate, optimistic insert hook, ProvisionalId, idMap, response loss | local | shipped | `useSnapbackOptimisticCreate` in packages/snapback-react/index.mjs + `optimistic-create.test.mjs` + demos/_kit/tests/provider-live-conformance.mjs | llp/0107, llp/0133, llp/0155, llp/0270 | recipes/optimistic-create.md |
@@ -1858,17 +1859,17 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     `resourceField: \"_id\"`, or rewrites old receipt membership after a leave.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "private membership roster", "product-visible roster projection", "display roster", "send-time recipient set".
-    Required guidance: "today's sanctioned interim pattern", "selected platform-generated projection facts".
+    Required guidance: "Do not make the membership table public", "Snapback captures declared product facts".
 
 70. **Provider connection lifecycle:** "My Contract provider creates a
     connection per subscription; N cells imply N transport connections and
     teardown leaks timers." The run fails if it mints connection ids per
     mount, subscribes before authority settles, nests reads in callbacks,
-    omits owner-scoped inspection, or invents a numeric platform budget that
-    D0.5 has not selected.
+    omits owner-scoped inspection, treats the provisional warning as a hard
+    correctness boundary, or requires relational consolidation below 64.
     Expected pages: `recipes/provider-lifecycle.md`.
     Route terms: "connection per subscription", "N cells imply N transport connections", "provider lifecycle budget", "active connections and subscriptions by owner", "one connection per query", "too many websockets".
-    Required guidance: "The provider adapter pattern is one manager above the cells it serves", "never add a timeout or poll a client object to guess when authority settled", "LLP 0295 D0.5 owns the later numeric connection/subscription budgets".
+    Required guidance: "The provider adapter pattern is one manager above the cells it serves", "never add a timeout or poll a client object to guess when authority settled", "supports independent subscriptions through the 64-per-connection hard ceiling".
 
 71. **Familiar point-read carrier:** "Return zero or one document from a
     Familiar point read that may also carry membership admission." The run
@@ -1914,37 +1915,36 @@ wrong vocabulary from the source diaries and review evidence.
     copies its row ids, or authorizes from the product projection.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "list chat members".
-    Required guidance: "private membership declaration", "ordinary app-visible projection table".
+    Required guidance: "membership row remains the current authorization source", "list remains the bounded, redacted current roster".
 
 76. **Show roster:** "show roster with roles and join dates for a chat room."
-    The run fails if it claims `bootstrap()` can stamp arbitrary creator-seat
-    product fields or omits the synchronized projection mutation.
+    The run fails if it reads history through `list`, invents facts before the
+    reported horizon, or reuses an incarnation across leave and rejoin.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "show roster".
-    Required guidance: "creator seat is server-derived", "Bootstrap uses the atomic form".
+    Required guidance: "eventMembers.list and eventMembers.myRole are unchanged", "A leave closes one incarnation".
 
 77. **Who is in the room:** "who is in the room now, and who received a
     message before someone left?" The run fails if it recomputes an old
     recipient set from current membership or drops departed receipt subjects.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "who is in the room".
-    Required guidance: "Later joins never enter an old snapshot", "departed recipient's already-recorded delivery/read fact remains history".
+    Required guidance: "Store the returned principal array on that row before commit", "a later leave does not rewrite who the message targeted".
 
 78. **Membership table public:** "Should I make the membership table public
     so the client can render members?" The run fails if it weakens private-row
     non-enumerability instead of using an ordinary product projection.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "membership table public".
-    Required guidance: "Do not solve it by making the membership table public".
+    Required guidance: "Do not make the membership table public".
 
 79. **Enumerate members:** "enumerate members for a room settings screen and
-    support add, promote, remove, and leave retries." The run fails if the
-    required profile-operation/reconciliation pair is scattered across UI call
-    sites, its non-atomic interim limitation is hidden, or missing/current
-    branches are implicit.
+    support add, promote, remove, and leave retries." The run fails if it
+    bypasses generated profile operations, makes absent targets enumerable, or
+    leaves retry/idempotent branches implicit.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "enumerate members".
-    Required guidance: "The branch contract is explicit", "Keep one retryable coordinator, but do not call it exclusive".
+    Required guidance: "manifest publishes the closed three-class matrix", "Clients may retry, but must not convert a denial into existence evidence".
 
 Case 80 absorbs the Messtimate 0.1.24 field-masking miss recorded in
 `issues/20260821-0235-field-masking-productization.md`.

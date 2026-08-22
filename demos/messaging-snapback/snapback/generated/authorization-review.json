@@ -3,7 +3,7 @@
   "authMode": "dev",
   "authorityProfiles": [
     {
-      "generation": "sha256:8e80837b7088bdfabc16b454fa1df17e68ee3edff22cf25c17cb583e9f228cc8",
+      "generation": "sha256:e9c9032b4b51f256f538e3747c915b0170591ebcc9422df1757267c4b48575df",
       "id": "conversationMemberships",
       "roleLattice": [
         {
@@ -81,19 +81,6 @@
               "owner"
             ],
             "from": [
-              "moderator"
-            ],
-            "op": "setRole",
-            "target": "other",
-            "to": [
-              "member"
-            ]
-          },
-          {
-            "by": [
-              "owner"
-            ],
-            "from": [
               "moderator",
               "member"
             ],
@@ -120,7 +107,7 @@
   ],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "87001290ed1a702da19611e4eaf57f374c78b201c0ba63b3680f6386387fcaee",
+  "inputsHash": "e0d278d739e5c897cea1e455c95dd0af2c0cc5599a52fd13a0696ce537caa01f",
   "operations": [
     {
       "authRequirement": {
@@ -221,7 +208,7 @@
       "authorityIndependent": false,
       "authorityProfileIdentities": [
         {
-          "generation": "sha256:8e80837b7088bdfabc16b454fa1df17e68ee3edff22cf25c17cb583e9f228cc8",
+          "generation": "sha256:e9c9032b4b51f256f538e3747c915b0170591ebcc9422df1757267c4b48575df",
           "id": "conversationMemberships"
         }
       ],
@@ -470,7 +457,7 @@
       "authorityIndependent": false,
       "authorityProfileIdentities": [
         {
-          "generation": "sha256:8e80837b7088bdfabc16b454fa1df17e68ee3edff22cf25c17cb583e9f228cc8",
+          "generation": "sha256:e9c9032b4b51f256f538e3747c915b0170591ebcc9422df1757267c4b48575df",
           "id": "conversationMemberships"
         }
       ],
@@ -547,7 +534,7 @@
       "authorityIndependent": false,
       "authorityProfileIdentities": [
         {
-          "generation": "sha256:8e80837b7088bdfabc16b454fa1df17e68ee3edff22cf25c17cb583e9f228cc8",
+          "generation": "sha256:e9c9032b4b51f256f538e3747c915b0170591ebcc9422df1757267c4b48575df",
           "id": "conversationMemberships"
         }
       ],
@@ -624,7 +611,7 @@
       "authorityIndependent": false,
       "authorityProfileIdentities": [
         {
-          "generation": "sha256:8e80837b7088bdfabc16b454fa1df17e68ee3edff22cf25c17cb583e9f228cc8",
+          "generation": "sha256:e9c9032b4b51f256f538e3747c915b0170591ebcc9422df1757267c4b48575df",
           "id": "conversationMemberships"
         }
       ],
@@ -701,7 +688,7 @@
       "authorityIndependent": false,
       "authorityProfileIdentities": [
         {
-          "generation": "sha256:8e80837b7088bdfabc16b454fa1df17e68ee3edff22cf25c17cb583e9f228cc8",
+          "generation": "sha256:e9c9032b4b51f256f538e3747c915b0170591ebcc9422df1757267c4b48575df",
           "id": "conversationMemberships"
         }
       ],
@@ -769,7 +756,7 @@
       "authorityIndependent": false,
       "authorityProfileIdentities": [
         {
-          "generation": "sha256:8e80837b7088bdfabc16b454fa1df17e68ee3edff22cf25c17cb583e9f228cc8",
+          "generation": "sha256:e9c9032b4b51f256f538e3747c915b0170591ebcc9422df1757267c4b48575df",
           "id": "conversationMemberships"
         }
       ],
@@ -837,7 +824,7 @@
       "authorityIndependent": false,
       "authorityProfileIdentities": [
         {
-          "generation": "sha256:8e80837b7088bdfabc16b454fa1df17e68ee3edff22cf25c17cb583e9f228cc8",
+          "generation": "sha256:e9c9032b4b51f256f538e3747c915b0170591ebcc9422df1757267c4b48575df",
           "id": "conversationMemberships"
         }
       ],
@@ -914,7 +901,7 @@
       "authorityIndependent": false,
       "authorityProfileIdentities": [
         {
-          "generation": "sha256:8e80837b7088bdfabc16b454fa1df17e68ee3edff22cf25c17cb583e9f228cc8",
+          "generation": "sha256:e9c9032b4b51f256f538e3747c915b0170591ebcc9422df1757267c4b48575df",
           "id": "conversationMemberships"
         }
       ],
@@ -1173,7 +1160,7 @@
       "authorityIndependent": false,
       "authorityProfileIdentities": [
         {
-          "generation": "sha256:8e80837b7088bdfabc16b454fa1df17e68ee3edff22cf25c17cb583e9f228cc8",
+          "generation": "sha256:e9c9032b4b51f256f538e3747c915b0170591ebcc9422df1757267c4b48575df",
           "id": "conversationMemberships"
         }
       ],
@@ -1334,7 +1321,7 @@
       "authorityIndependent": false,
       "authorityProfileIdentities": [
         {
-          "generation": "sha256:8e80837b7088bdfabc16b454fa1df17e68ee3edff22cf25c17cb583e9f228cc8",
+          "generation": "sha256:e9c9032b4b51f256f538e3747c915b0170591ebcc9422df1757267c4b48575df",
           "id": "conversationMemberships"
         }
       ],
@@ -2021,7 +2008,7 @@
       "authorityIndependent": false,
       "authorityProfileIdentities": [
         {
-          "generation": "sha256:8e80837b7088bdfabc16b454fa1df17e68ee3edff22cf25c17cb583e9f228cc8",
+          "generation": "sha256:e9c9032b4b51f256f538e3747c915b0170591ebcc9422df1757267c4b48575df",
           "id": "conversationMemberships"
         }
       ],

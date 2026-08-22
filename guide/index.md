@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:5b94f039ad4881714e875e9322f194ff8d28e51dfbe9f289d83c24da928aa3ad
+reviewed-authorities-digest: sha256:5263e12d419fe89fd2f635df8795357d1d344add33becfa5dcc8d07af0d312b2
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -407,7 +407,8 @@ proof command, and honest nonclaims without opening every demo.
   historical product projections.
 - [Provider connection lifecycle](./recipes/provider-lifecycle.md) — share
   managers and stores, settle authority, deduplicate snapshots, inspect, and
-  retire resources without inventing an undecided numeric budget.
+  enforce the 16-warning/64-hard subscription budget while preserving bounded
+  independent subscriptions.
 - [Split a sensitive field into its own table](./recipes/split-sensitive-fields.md)
   — the honest row-visibility workaround for a private column such as
   Messtimate's phone number, with separate-read, owner-only join, and

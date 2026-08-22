@@ -728,17 +728,17 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     `resourceField: \"_id\"`, or rewrites old receipt membership after a leave.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "private membership roster", "product-visible roster projection", "display roster", "send-time recipient set".
-    Required guidance: "today's sanctioned interim pattern", "selected platform-generated projection facts".
+    Required guidance: "Do not make the membership table public", "Snapback captures declared product facts".
 
 70. **Provider connection lifecycle:** "My Contract provider creates a
     connection per subscription; N cells imply N transport connections and
     teardown leaks timers." The run fails if it mints connection ids per
     mount, subscribes before authority settles, nests reads in callbacks,
-    omits owner-scoped inspection, or invents a numeric platform budget that
-    D0.5 has not selected.
+    omits owner-scoped inspection, treats the provisional warning as a hard
+    correctness boundary, or requires relational consolidation below 64.
     Expected pages: `recipes/provider-lifecycle.md`.
     Route terms: "connection per subscription", "N cells imply N transport connections", "provider lifecycle budget", "active connections and subscriptions by owner", "one connection per query", "too many websockets".
-    Required guidance: "The provider adapter pattern is one manager above the cells it serves", "never add a timeout or poll a client object to guess when authority settled", "LLP 0295 D0.5 owns the later numeric connection/subscription budgets".
+    Required guidance: "The provider adapter pattern is one manager above the cells it serves", "never add a timeout or poll a client object to guess when authority settled", "supports independent subscriptions through the 64-per-connection hard ceiling".
 
 71. **Familiar point-read carrier:** "Return zero or one document from a
     Familiar point read that may also carry membership admission." The run
@@ -784,37 +784,36 @@ wrong vocabulary from the source diaries and review evidence.
     copies its row ids, or authorizes from the product projection.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "list chat members".
-    Required guidance: "private membership declaration", "ordinary app-visible projection table".
+    Required guidance: "membership row remains the current authorization source", "list remains the bounded, redacted current roster".
 
 76. **Show roster:** "show roster with roles and join dates for a chat room."
-    The run fails if it claims `bootstrap()` can stamp arbitrary creator-seat
-    product fields or omits the synchronized projection mutation.
+    The run fails if it reads history through `list`, invents facts before the
+    reported horizon, or reuses an incarnation across leave and rejoin.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "show roster".
-    Required guidance: "creator seat is server-derived", "Bootstrap uses the atomic form".
+    Required guidance: "eventMembers.list and eventMembers.myRole are unchanged", "A leave closes one incarnation".
 
 77. **Who is in the room:** "who is in the room now, and who received a
     message before someone left?" The run fails if it recomputes an old
     recipient set from current membership or drops departed receipt subjects.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "who is in the room".
-    Required guidance: "Later joins never enter an old snapshot", "departed recipient's already-recorded delivery/read fact remains history".
+    Required guidance: "Store the returned principal array on that row before commit", "a later leave does not rewrite who the message targeted".
 
 78. **Membership table public:** "Should I make the membership table public
     so the client can render members?" The run fails if it weakens private-row
     non-enumerability instead of using an ordinary product projection.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "membership table public".
-    Required guidance: "Do not solve it by making the membership table public".
+    Required guidance: "Do not make the membership table public".
 
 79. **Enumerate members:** "enumerate members for a room settings screen and
-    support add, promote, remove, and leave retries." The run fails if the
-    required profile-operation/reconciliation pair is scattered across UI call
-    sites, its non-atomic interim limitation is hidden, or missing/current
-    branches are implicit.
+    support add, promote, remove, and leave retries." The run fails if it
+    bypasses generated profile operations, makes absent targets enumerable, or
+    leaves retry/idempotent branches implicit.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "enumerate members".
-    Required guidance: "The branch contract is explicit", "Keep one retryable coordinator, but do not call it exclusive".
+    Required guidance: "manifest publishes the closed three-class matrix", "Clients may retry, but must not convert a denial into existence evidence".
 
 Case 80 absorbs the Messtimate 0.1.24 field-masking miss recorded in
 `issues/20260821-0235-field-masking-productization.md`.

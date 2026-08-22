@@ -1370,11 +1370,45 @@
                     declaration: declaration,
                     scopeId: scopeId
                   });
+                },
+                history: function(scopeId, page) {
+                  return host("authority.history", {
+                    declaration: declaration,
+                    scopeId: scopeId,
+                    page: page === undefined ? null : page
+                  });
+                },
+                incarnations: function(scopeId, page) {
+                  return host("authority.incarnations", {
+                    declaration: declaration,
+                    scopeId: scopeId,
+                    page: page === undefined ? null : page
+                  });
+                },
+                snapshotRecipients: function(scopeId) {
+                  if (mode !== "mutation") {
+                    throw new Error("SNAPBACK_AUTHORITY_RECIPIENT_SNAPSHOT_MUTATION_REQUIRED");
+                  }
+                  return host("authority.snapshotRecipients", {
+                    declaration: declaration,
+                    scopeId: scopeId
+                  });
                 }
               };
             }
           })
         : Object.create(null);
+      // @ref LLP 0278#d3-closed-membership-semi-join — generated composition
+      // handlers use a typed host refusal when their bounded actor precondition
+      // is exceeded; app-authored code cannot select a different error class.
+      ctx.composition = {
+        semiJoinActorCeilingExceeded: function(ceiling) {
+          return host("composition.semiJoinActorCeilingExceeded", { ceiling: ceiling });
+        },
+        aggregateRowCeilingExceeded: function(ceiling) {
+          return host("composition.aggregateRowCeilingExceeded", { ceiling: ceiling });
+        }
+      };
       // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
       // declaration-bound helpers are generated sugar over one host op. The
       // declaration id is resolved to its table by Rust and the writer carrier

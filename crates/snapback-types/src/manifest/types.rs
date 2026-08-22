@@ -1792,6 +1792,8 @@ pub struct AuthorityProfileIdentityV1 {
 pub enum GeneratedAuthorityOperationKindV1 {
     List,
     MyRole,
+    History,
+    Incarnations,
     Invite,
     Join,
     Leave,
@@ -1805,6 +1807,8 @@ impl GeneratedAuthorityOperationKindV1 {
         match self {
             Self::List => "list",
             Self::MyRole => "myRole",
+            Self::History => "history",
+            Self::Incarnations => "incarnations",
             Self::Invite => "invite",
             Self::Join => "join",
             Self::Leave => "leave",
@@ -1815,7 +1819,10 @@ impl GeneratedAuthorityOperationKindV1 {
     }
 
     pub fn is_mutation(self) -> bool {
-        !matches!(self, Self::List | Self::MyRole)
+        !matches!(
+            self,
+            Self::List | Self::MyRole | Self::History | Self::Incarnations
+        )
     }
 }
 
@@ -1928,6 +1935,39 @@ pub struct AuthorityProfileRosterV1 {
     pub visible_fields: Vec<String>,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileHistoryProjectionV1 {
+    pub visible_fields: Vec<String>,
+    pub incarnation_semantics: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileRecipientProjectionV1 {
+    pub ceiling: u16,
+    pub overflow: String,
+    pub freeze: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileHistoryHorizonCarrierV1 {
+    pub carrier: String,
+    pub coverage: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileProjectionV1 {
+    pub version: u8,
+    pub source: String,
+    pub history: AuthorityProfileHistoryProjectionV1,
+    pub recipients: AuthorityProfileRecipientProjectionV1,
+    pub history_horizon: AuthorityProfileHistoryHorizonCarrierV1,
+    pub offline_retention: String,
+}
+
 /// One generated rollout-2 operation. The operation vocabulary is closed by
 /// codegen; transition ops name the LLP 0056 planner rows (or the dedicated
 /// transfer planner) that remain the server-side authority boundary.
@@ -1937,6 +1977,10 @@ pub enum AuthorityProfileOperationNameV1 {
     List,
     #[serde(rename = "myRole")]
     MyRole,
+    #[serde(rename = "history")]
+    History,
+    #[serde(rename = "incarnations")]
+    Incarnations,
     #[serde(rename = "invite")]
     Invite,
     #[serde(rename = "join")]
@@ -1956,6 +2000,8 @@ impl AuthorityProfileOperationNameV1 {
         match self {
             Self::List => "list",
             Self::MyRole => "myRole",
+            Self::History => "history",
+            Self::Incarnations => "incarnations",
             Self::Invite => "invite",
             Self::Join => "join",
             Self::Leave => "leave",
@@ -1974,6 +2020,10 @@ pub enum AuthorityProfileHookV1 {
     AuthorityRoster,
     #[serde(rename = "useSnapbackAuthorityMyRole")]
     AuthorityMyRole,
+    #[serde(rename = "useSnapbackAuthorityHistory")]
+    AuthorityHistory,
+    #[serde(rename = "useSnapbackAuthorityIncarnations")]
+    AuthorityIncarnations,
     #[serde(rename = "useSnapbackMutation")]
     Mutation,
     #[serde(rename = "useSnapbackAuthorityMutation")]
@@ -2004,6 +2054,25 @@ pub struct AuthorityProfileOperationV1 {
     pub auth_requirement: AuthRequirement,
     pub hooks: Vec<AuthorityProfileHookV1>,
     pub transition_ops: Vec<AuthorityProfileTransitionOpV1>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub outcomes: Vec<AuthorityProfileOperationOutcomeV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileOperationOutcomeV1 {
+    pub branch: String,
+    pub outcome: AuthorityProfileOutcomeClassV1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AuthorityProfileOutcomeClassV1 {
+    #[serde(rename = "idempotent-success-unchanged")]
+    IdempotentSuccessUnchanged,
+    #[serde(rename = "typed-precondition-refusal")]
+    TypedPreconditionRefusal,
+    #[serde(rename = "non-enumerating-denial")]
+    NonEnumeratingDenial,
 }
 
 /// The closed rollout-2 authority profile projection. Canonical membership
@@ -2035,6 +2104,8 @@ pub struct AuthorityProfileV1 {
     pub permitted_composition_classes: Vec<String>,
     pub not_yet_qualified_composition_classes: Vec<String>,
     pub roster: AuthorityProfileRosterV1,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub projection: Option<AuthorityProfileProjectionV1>,
     pub operations: Vec<AuthorityProfileOperationV1>,
 }
 
@@ -3469,6 +3540,11 @@ fn validate_standard_pattern_identity(function: &FunctionDefinition) -> Snapback
     };
     let membership_helper = pattern.helper == "membership-keyset-pages.v1";
     let membership_profile = pattern.profile == "membership.v1";
+    let bounded_helper = matches!(
+        pattern.helper.as_str(),
+        "chunked-semi-join.v1" | "set-keyed-aggregate.v1"
+    );
+    let bounded_profile = pattern.profile == "bounded-composition.v1";
     let invalid = |message: &str| {
         SnapbackError::error(
             "SNAPBACK_STANDARD_PATTERN_MEMBERSHIP_INVALID",
@@ -3480,6 +3556,29 @@ fn validate_standard_pattern_identity(function: &FunctionDefinition) -> Snapback
     if membership_helper != membership_profile {
         return Err(invalid(
             "must pair helper membership-keyset-pages.v1 with profile membership.v1",
+        ));
+    }
+    if bounded_helper != bounded_profile {
+        return Err(SnapbackError::error(
+            "SNAPBACK_STANDARD_PATTERN_COMPOSITION_INVALID",
+            "runtime",
+            format!(
+                "function {} must pair a bounded composition helper with profile bounded-composition.v1",
+                function.name
+            ),
+        ));
+    }
+    if bounded_helper
+        && (function.kind != FunctionKind::LiveQuery
+            || !matches!(function.runtime, FunctionRuntime::IbexModule(_)))
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_STANDARD_PATTERN_COMPOSITION_INVALID",
+            "runtime",
+            format!(
+                "function {} requires a generated live Ibex handler",
+                function.name
+            ),
         ));
     }
     if membership_helper {

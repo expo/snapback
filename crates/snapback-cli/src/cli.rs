@@ -977,6 +977,12 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: StoreCommand,
     },
+    /// Read-only adoption planning for platform-generated authority product
+    /// projections over an existing local store.
+    Authority {
+        #[command(subcommand)]
+        command: AuthorityCommand,
+    },
     /// Create and operate finite-TTL, non-promotable local derived deployments.
     /// Lifecycle: create -> inspect/list -> diff -> drop/reap/recover.
     Fork {
@@ -2022,6 +2028,35 @@ pub enum StoreCommand {
 }
 
 #[derive(clap::Subcommand)]
+pub enum AuthorityCommand {
+    /// Compare an app-managed mirror with a candidate generated projection
+    /// and report the activation/backfill horizon. Read-only.
+    Plan {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        schema: PathBuf,
+        #[arg(long)]
+        profile: String,
+        #[arg(long)]
+        mirror_table: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Apply the plan's reviewed authorization-facts-only ledger step.
+    Backfill {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        profile: String,
+        #[arg(long)]
+        apply: bool,
+        #[arg(long)]
+        confirm: Option<String>,
+    },
+}
+
+#[derive(clap::Subcommand)]
 #[command(
     after_help = "Lifecycle examples:\n  snapback fork create --from parent.ready.json --ttl 2h --app-root .\n  snapback fork inspect <fork-id> --app-root .\n  snapback fork diff <fork-id> --app-root .\n  snapback fork drop <fork-id> --app-root .\n  snapback fork reap --now-ms <unix-ms> --app-root .\n  snapback fork recover <destination> --app-root ."
 )]
@@ -2927,6 +2962,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             StoreCommand::Describe { db } => store_describe(&db),
             StoreCommand::Export { db, output } => store_export(&db, &output).await,
         },
+        Some(HostCommand::Authority { command }) => authority_command(command),
         Some(HostCommand::Fork { command }) => fork_command(command).await,
         Some(HostCommand::Controls { command }) => controls_command(command),
         Some(HostCommand::Guide { query, slice, json }) => guide_command(&query, slice, json),
@@ -3347,6 +3383,88 @@ fn store_describe(database_path: &Path) -> anyhow::Result<()> {
         }))?
     );
     Ok(())
+}
+
+fn authority_command(command: AuthorityCommand) -> anyhow::Result<()> {
+    match command {
+        AuthorityCommand::Plan {
+            db,
+            schema,
+            profile,
+            mirror_table,
+            json,
+        } => {
+            let database_path = resolve_database_path(&db)?;
+            let bytes = std::fs::read(&schema)
+                .with_context(|| format!("read candidate schema manifest {}", schema.display()))?;
+            let manifest: crate::manifest::SchemaManifest = serde_json::from_slice(&bytes)
+                .with_context(|| format!("parse candidate schema manifest {}", schema.display()))?;
+            let plan =
+                crate::storage::LocalDatabase::authority_projection_migration_plan_read_only(
+                    &database_path,
+                    &manifest,
+                    &profile,
+                    &mirror_table,
+                )?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&plan)?);
+            } else {
+                println!(
+                    "{}: {}",
+                    plan.schema_version,
+                    if plan.comparison.adoptable {
+                        "mirror matches candidate projection"
+                    } else {
+                        "mirror differs from candidate projection"
+                    }
+                );
+                println!(
+                    "Rows: authority={} mirror={} matched={} missing={} extra={} mismatched={}",
+                    plan.comparison.authority_rows,
+                    plan.comparison.mirror_rows,
+                    plan.comparison.matched,
+                    plan.comparison.missing_from_mirror,
+                    plan.comparison.extra_in_mirror,
+                    plan.comparison.value_mismatches,
+                );
+                println!(
+                    "History horizon: commit {} ({}) [{}]",
+                    plan.activation_horizon.earliest_covered_commit,
+                    plan.activation_horizon.coverage_class,
+                    plan.activation_state,
+                );
+                if plan.ledger_backfill.available {
+                    println!(
+                        "Optional reviewed ledger backfill: {} transitions from commit {} ({}, display values {})",
+                        plan.ledger_backfill.transition_count,
+                        plan.ledger_backfill.earliest_covered_commit.unwrap_or(0),
+                        plan.ledger_backfill.coverage_class,
+                        plan.ledger_backfill.display_values,
+                    );
+                } else {
+                    println!("Optional reviewed ledger backfill: not offered");
+                }
+            }
+            Ok(())
+        }
+        AuthorityCommand::Backfill {
+            db,
+            profile,
+            apply,
+            confirm,
+        } => {
+            if !apply || confirm.as_deref() != Some("authorization-facts-only") {
+                anyhow::bail!(
+                    "authority backfill requires --apply --confirm authorization-facts-only"
+                );
+            }
+            let database_path = resolve_database_path(&db)?;
+            let mut database = crate::storage::LocalDatabase::open(&database_path)?;
+            let receipt = database.backfill_authority_projection_from_ledger(&profile)?;
+            println!("{}", serde_json::to_string_pretty(&receipt)?);
+            Ok(())
+        }
+    }
 }
 
 // @ref LLP 0192#d-2-the-store-export-verb — store export takes the same

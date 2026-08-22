@@ -8,7 +8,9 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-21 (Phase 1D records the bounded debug-artifact
+**Revised:** 2026-08-22 (Phase 2 W4 implementation record: generated authority
+product projections/migration, bounded relational helpers, provider budgets
+and lifecycle inspection, packed dual-profile proof, and Guide routes). 2026-08-21 (Phase 1D records the bounded debug-artifact
 attribution while keeping its drift/reduced-debug follow-up ticket open);
 2026-08-21 (Phase 1A Expo package-parity progress: closes the
 cycle-free Expo Metro initialization ticket with a packed external proof);
@@ -274,7 +276,7 @@ The ruling must preserve private-row non-enumerability, transition atomicity,
 send-time recipient semantics, leave/rejoin history, and exact acceptance over
 absent/idempotent branches. LLP 0240/0278 own the mechanism; the new guide
 ticket can teach today's sanctioned pattern immediately. Decision ticket:
-`issues/20260821-private-authority-product-roster-decision.md`.
+`issues/closed/20260821-private-authority-product-roster-decision.md`.
 
 ### D0.5 — Provider connection and publication budget
 
@@ -291,7 +293,7 @@ Set explicit budgets and ownership for headless/provider adapters:
 LLP 0095/0278/0280 own the contracts. Exact's provider runtime must consume
 the same lifecycle facts through LLP 0279 rather than invent a parallel
 Snapback-specific adapter policy. Decision ticket:
-`issues/20260821-provider-connection-subscription-budget-decision.md`.
+`issues/closed/20260821-provider-connection-subscription-budget-decision.md`.
 
 ### D0.6 — Efficiency instrument and target registration
 
@@ -458,6 +460,20 @@ owns authority; neither may weaken the other to simplify adapters.
 Efficiency hypothesis: delete app-authored mirror maintenance, N per-entity
 subscriptions, and bespoke page/merge code—the dominant Coterie adapter tax
 and a major Explicit verbosity source.
+
+**Implementation record (2026-08-22):** complete for the Snapback-local W4
+scope. LLP 0240 now has a generated writer-seam authority product projection,
+D1 history/incarnation reads with an explicit horizon, a transaction-frozen
+recipient helper, migration planning/backfill, and manifest outcome classes.
+LLP 0278 now has the named chunked semijoin and set-keyed count helpers. The
+provider warns at 16, remains correct through 64 independent subscriptions,
+deduplicates complete visible snapshots without swallowing lifecycle changes,
+labels active owners, and tears down predecessors before successors. The
+packed Explicit/Familiar fixture and both Guide routes bind the advertised
+spelling through generated runtime handlers and nullable client types. The 1D
+investigation may still confirm or revise provisional numerical commissioning
+bounds; per risk 7 it cannot retroactively make aggregation the only correct
+form.
 
 ### W5. Runtime cost visibility at the app boundary
 

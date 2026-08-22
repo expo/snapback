@@ -176,7 +176,7 @@ independent reference reaches the required application revision.
 
 Polling `/inspect` is not an application mechanism and does not meet Wanted #4.
 The open D0.5/W4 decision packet at
-`issues/20260821-provider-connection-subscription-budget-decision.md` owns the
+`issues/closed/20260821-provider-connection-subscription-budget-decision.md` owns the
 supported independent-versus-aggregate envelope and the diagnostic emitted
 before that envelope is exceeded. The W5 design packet at
 `issues/20260821-app-boundary-runtime-cost-diagnostics-design.md` owns the

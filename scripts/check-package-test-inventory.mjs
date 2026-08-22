@@ -347,6 +347,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'auth-artifacts.test.mjs',
       'auth-crypto-vectors.test.mjs',
       'authorization-review.test.mjs',
+      'authority-projection-packed.test.mjs',
       'authoring-validation.test.mjs',
       'card-game-visibility-completion.test.mjs',
       'client-lifecycle.test.mjs',
@@ -565,7 +566,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 326,
+  expectedTotal = 327,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1050,6 +1051,8 @@ export function checkPackageTestInventories(options = {}) {
 // authority-transition-signal. All three were run and pass before registration.
 // 325 -> 326 (2026-08-22, LLP 0277 F11): @expo/snapback-codegen gains the
 // node/bundler/nodenext relative-api-module declaration-resolution regression suite.
+// 326 -> 327 (2026-08-22, LLP 0295 W4): @expo/snapback-codegen gains the
+// authority-projection packed external fixture.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

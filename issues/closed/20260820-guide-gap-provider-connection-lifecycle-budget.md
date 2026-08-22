@@ -49,7 +49,7 @@ settlement, callback/store boundaries, explicit teardown, and
 connection policy. Per LLP 0295's decision-dependent rule, it states today's
 qualitative zero-owned-resource boundary and explicitly leaves ownership and
 numeric limits to
-`issues/20260821-provider-connection-subscription-budget-decision.md` rather
+`issues/closed/20260821-provider-connection-subscription-budget-decision.md` rather
 than inventing policy. The recipe and retrieval case 70 preserve the exact
 "connection per subscription", "N cells imply N transport connections",
 "active connections and subscriptions by owner", and "provider lifecycle

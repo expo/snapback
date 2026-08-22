@@ -1564,6 +1564,18 @@ export interface SnapbackLocalResourceInspection {
     durable: number;
     ephemeral: number;
   }>[];
+  readonly subscriptions: readonly Readonly<{
+    owner: string;
+    connectionId: string;
+    functionName: string;
+    state: 'active' | 'paused';
+    connection: string;
+    snapshotVersion: number;
+    authBarrier: string | null;
+    readiness: 'ready' | 'waiting';
+    outboxSuspensionReason: string | null;
+  }>[];
+  readonly subscriptionCount: number;
   readonly socketDemand: number;
   readonly timers: number;
   readonly listeners: number;
@@ -1998,6 +2010,7 @@ export class SnapbackClient {
       readonly userId?: string;
       readonly pollCadenceMs?: number;
       readonly fallbackToPoll?: boolean;
+      readonly ownerLabel?: string | null;
       readonly onUpdate?: (rows: LiveQueryConsumerResult<Ref>) => void;
       readonly onConnectionChange?: (
         connection: LiveQueryHandle<LiveQueryConsumerResult<Ref>>['connection'],
@@ -2013,6 +2026,7 @@ export class SnapbackClient {
       readonly userId?: string;
       readonly pollCadenceMs?: number;
       readonly fallbackToPoll?: boolean;
+      readonly ownerLabel?: string | null;
       readonly onUpdate?: (rows: Row[]) => void;
       readonly onConnectionChange?: (
         connection: LiveQueryHandle<Row[]>['connection'],
@@ -2028,6 +2042,7 @@ export class SnapbackClient {
       readonly userId?: string;
       readonly pollCadenceMs?: number;
       readonly fallbackToPoll?: boolean;
+      readonly ownerLabel?: string | null;
       readonly supersedes?: StartedLiveQueryHandle<LiveQueryConsumerResult<Ref>> | null;
       readonly onUpdate?: (rows: LiveQueryConsumerResult<Ref>) => void;
       readonly onConnectionChange?: (

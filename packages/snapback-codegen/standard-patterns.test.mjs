@@ -13,9 +13,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { defineSchema, defineTable, v } from './define.mjs';
 import {
+  defineChunkedSemiJoin,
   defineOwnedCrud,
   defineOwnedKeysetPages,
   defineOwnedUniqueLookup,
+  defineSetKeyedAggregate,
 } from './standard-patterns.mjs';
 import { generate } from './index.mjs';
 
@@ -796,6 +798,65 @@ export const { firstRoomMessagePage, nextRoomMessagePage } =
     assert.equal(nextArgs.additionalProperties, false);
   } finally {
     rmSync(dir2, { recursive: true, force: true });
+  }
+}
+
+// @ref LLP 0278#d3-closed-membership-semi-join — generated composition
+// owns the 499-value seam and publishes a single live operation rather than
+// asking an adapter to create one stream per actor/key.
+{
+  const dir3 = mkdtempSync(join(tmpdir(), 'snapback-bounded-composition-'));
+  try {
+    writeFileSync(join(dir3, 'schema.mjs'), `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export const follows = defineTable({ viewerId: v.principal(), actorId: v.principal() })
+  .index('by_viewer', ['viewerId'])
+  .visibility({ kind: 'public-read' });
+export const events = defineTable({ actorId: v.principal(), pageKey: v.string() })
+  .index('by_actor_page', ['actorId', 'pageKey'])
+  .visibility({ kind: 'public-read' });
+export const receipts = defineTable({ profileId: v.string(), receiptId: v.string() })
+  .index('by_profile', ['profileId'])
+  .visibility({ kind: 'public-read' });
+export default defineSchema({ follows, events, receipts }, { auth: { mode: 'sessions' } });
+`);
+    writeFileSync(join(dir3, 'functions.mjs'), `
+import { follows, events, receipts } from './schema.mjs';
+import { defineChunkedSemiJoin, defineSetKeyedAggregate } from '${patternsUrl}';
+export const { followingFeed } = defineChunkedSemiJoin({
+  name: 'followingFeed',
+  actors: { table: follows, index: 'by_viewer', scopeField: 'viewerId', keyField: 'actorId', ceiling: 500 },
+  rows: { table: events, index: 'by_actor_page', actorField: 'actorId' },
+  order: { field: 'pageKey', direction: 'desc' },
+  take: 50,
+});
+export const { profileReceiptCounts } = defineSetKeyedAggregate({
+  name: 'profileReceiptCounts', table: receipts, index: 'by_profile', keyField: 'profileId',
+  maxKeys: 700, rowCeiling: 1023, aggregate: 'count',
+});
+`);
+    const result = await generate(dir3);
+    assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+    const manifest = JSON.parse(readFileSync(join(dir3, 'generated', 'functions.manifest.json'), 'utf8'));
+    const byName = new Map(manifest.functions.map((fn) => [fn.name, fn]));
+    assert.deepEqual(byName.get('followingFeed').standardPattern, {
+      helper: 'chunked-semi-join.v1', profile: 'bounded-composition.v1',
+    });
+    assert.match(byName.get('followingFeed').runtime.IbexModule.source, /maxChunks=2; perChunkTake=50/);
+    assert.match(byName.get('followingFeed').runtime.IbexModule.source, /offset \+= 499/);
+    assert.match(byName.get('followingFeed').runtime.IbexModule.source, /semiJoinActorCeilingExceeded\(500\)/);
+    assert.deepEqual(byName.get('profileReceiptCounts').standardPattern, {
+      helper: 'set-keyed-aggregate.v1', profile: 'bounded-composition.v1',
+    });
+    assert.match(byName.get('profileReceiptCounts').runtime.IbexModule.source, /maxChunks=2; perChunkTake=1024/);
+    assert.match(byName.get('profileReceiptCounts').runtime.IbexModule.source, /aggregateRowCeilingExceeded\(1023\)/);
+    const aggregateArgs = JSON.parse(readFileSync(
+      join(dir3, 'generated', 'operations', 'profileReceiptCounts.args.schema.json'),
+      'utf8',
+    ));
+    assert.equal(aggregateArgs.properties.keys.maxItems, 700);
+  } finally {
+    rmSync(dir3, { recursive: true, force: true });
   }
 }
 

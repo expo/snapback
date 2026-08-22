@@ -14,11 +14,11 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const dirs = [];
 
 const reviewedGenerationConsumerFileAllowlist = [
-  'crates/snapback/src/membership_rules.rs',
-  'crates/snapback/src/runtime.rs',
-  'crates/snapback/src/storage/membership_plans.rs',
-  'crates/snapback/src/storage/auth_agents.rs',
-  'crates/snapback/src/storage.rs',
+  'crates/snapback-kernel/src/membership_rules.rs',
+  'crates/snapback-engine/src/runtime/host_glue.rs',
+  'crates/snapback-kernel/src/storage/membership_plans.rs',
+  'crates/snapback-kernel/src/storage/auth_agents.rs',
+  'crates/snapback-kernel/src/storage.rs',
 ];
 
 // Swept receiver binding list across the five reviewed files: membership data
@@ -185,6 +185,11 @@ const uncoveredGenerationConsumerAccesses = (accesses, generationPreimage) => {
     // `generation` is the digest produced from the preimage, not an input that
     // can be included in its own preimage.
     if (access === 'profile.generation') return false;
+    // Optional profile members are still generation-bound: canonical-object
+    // hashing distinguishes the member's presence from its absence. The
+    // baseline profile deliberately omits `projection`, while projected
+    // profiles carry its complete closed value in the same preimage.
+    if (access === 'profile.projection') return false;
     const boundPaths = access.startsWith('profile.')
       ? [access.slice('profile.'.length)]
       : generationHashBindingsForMembershipAccess.get(access);
@@ -527,6 +532,7 @@ const authorityProfileSchema = ({
   profileBeforeMembership = false,
   profileExtra = '',
   profileName = 'eventMembers',
+  projection = null,
   provenance = 'full',
   resourceValidator = "v.id('events')",
   roleField = 'role',
@@ -539,6 +545,7 @@ const authorityProfileSchema = ({
     name: ${JSON.stringify(profileName)},
     hierarchy: ${hierarchy},
     roster: ${roster},
+    ${projection === null ? '' : `projection: ${projection},`}
     ${profileExtra}
   })`;
   const membership = `.membership({
@@ -679,6 +686,21 @@ export const addNote = defineJsMutation({
   handler: async (ctx, args) => ctx.db.insert('eventNotes', args),
 });
 `;
+
+const authorityOutcomeFixtures = (name) => [
+  ...(name === 'changeRole' ? [{
+    branch: 'already-at-requested-role',
+    outcome: 'idempotent-success-unchanged',
+  }] : []),
+  ...(['invite', 'transferOwner'].includes(name) ? [{
+    branch: name === 'invite' ? 'already-active-member' : 'already-current-owner',
+    outcome: 'typed-precondition-refusal',
+  }] : []),
+  {
+    branch: 'hidden-or-absent-target',
+    outcome: 'non-enumerating-denial',
+  },
+];
 
 const authorityProfileSearchFunctions = `
 import { defineSearchQuery } from '${defineUrl}';
@@ -1073,6 +1095,7 @@ export const publicEvents = defineLiveQuery({
       'membership.provenance',
       'membership.incidental',
       'profile.membership.declaration',
+      'profile.projection',
       'profile.roster.visibleFields',
       'profile.ownerBootstrapInvariant.role',
       'profile.generation',
@@ -1320,6 +1343,7 @@ fn synthetic_manifest_rooted_generation_consumer(manifest: &MembershipManifest) 
             ['join', 'changeRole'].includes(name) ? 'setRole' : 'remove'
           )
         )],
+        outcomes: authorityOutcomeFixtures(name),
       })),
     ]);
     assert.deepEqual(tables.eventNotes.visibility.roles, ['admin', 'member', 'owner']);
@@ -1463,6 +1487,93 @@ void exhaustStatus;
       Object.hasOwn(functionsByName.publicEvents, 'authorityProfileDependence'),
       false,
       'an unrelated function must not acquire profile dependence',
+    );
+
+    // @ref LLP 0240#invariants-the-prototype-must-preserve — the optional product
+    // projection adds new D1-envelope reads while preserving list/myRole,
+    // and the generated operation matrix pins one fixture for each outcome
+    // class rather than leaving idempotency to handler folklore.
+    const projected = await run(sourceWithPublicWitness, authorityProfileSchema({
+      projection: "{ history: { visible: ['displayName'] }, recipients: { ceiling: 1024 } }",
+      roster: "{ visible: ['userId', 'role'] }",
+    }));
+    assert.equal(projected.result.ok, true, JSON.stringify(projected.result.diagnostics));
+    const projectedSchema = JSON.parse(readFileSync(
+      join(projected.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+    const projectedFunctions = JSON.parse(readFileSync(
+      join(projected.dir, 'generated', 'functions.manifest.json'),
+      'utf8',
+    ));
+    const projectedProfile = projectedSchema.tables
+      .find(({ name }) => name === 'eventMembers').authorityProfile;
+    assert.deepEqual(projectedProfile.projection, {
+      version: 1,
+      source: 'writer-seam-row-images',
+      history: {
+        visibleFields: ['displayName'],
+        incarnationSemantics: 'presence-v1',
+      },
+      recipients: {
+        ceiling: 1024,
+        overflow: 'typed-refusal',
+        freeze: 'sending-transaction',
+      },
+      historyHorizon: {
+        carrier: 'operation-envelope',
+        coverage: ['full', 'authorization-facts-only'],
+      },
+      offlineRetention: 'not-implied',
+    });
+    assert.deepEqual(
+      projectedProfile.operations.slice(0, 4).map(({ name }) => name),
+      ['list', 'myRole', 'history', 'incarnations'],
+    );
+    const projectedFunctionsByName = Object.fromEntries(
+      projectedFunctions.functions.map((operation) => [operation.name, operation]),
+    );
+    for (const name of ['history', 'incarnations']) {
+      const operation = projectedFunctionsByName[`eventMembers.${name}`];
+      assert.equal(operation.kind, 'LiveQuery');
+      assert.deepEqual(operation.generatedAuthorityOperation, {
+        id: 'eventMembers',
+        generation: projectedProfile.generation,
+        operation: name,
+      });
+      assert.match(
+        operation.runtime.IbexModule.source,
+        new RegExp(`\\[${JSON.stringify(name)}\\]\\(args\\.scopeId, args\\.page\\)`),
+      );
+      assert.equal(operation.resultContract.kind, 'value');
+    }
+    const outcomeFixture = (operation, branch) => projectedProfile.operations
+      .find(({ name }) => name === operation).outcomes
+      .find((candidate) => candidate.branch === branch);
+    assert.deepEqual(outcomeFixture('changeRole', 'already-at-requested-role'), {
+      branch: 'already-at-requested-role',
+      outcome: 'idempotent-success-unchanged',
+    });
+    assert.deepEqual(outcomeFixture('invite', 'already-active-member'), {
+      branch: 'already-active-member',
+      outcome: 'typed-precondition-refusal',
+    });
+    assert.deepEqual(outcomeFixture('remove', 'hidden-or-absent-target'), {
+      branch: 'hidden-or-absent-target',
+      outcome: 'non-enumerating-denial',
+    });
+
+    const insufficientProjectionProvenance = await run(
+      'export {};\n',
+      authorityProfileSchema({
+        projection: "{ history: { visible: ['displayName'] }, recipients: { ceiling: 1024 } }",
+        provenance: 'creation',
+        roster: "{ visible: ['userId', 'role'] }",
+      }),
+    );
+    authorityProfileDiagnostic(
+      insufficientProjectionProvenance.result,
+      'SNAPBACK_AUTHORITY_PROJECTION_FULL_PROVENANCE_REQUIRED',
     );
 
     const transitionEdit = await run(sourceWithPublicWitness, authorityProfileSchema({

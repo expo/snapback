@@ -3247,7 +3247,7 @@ async function generateInProcessLocked({
   // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — the
   // operation descriptor truthfully names both generic and dedicated client
   // projections; those names do not add another generated operation.
-  const authorityOperationsForMembership = (membership) => {
+  const authorityOperationsForMembership = (membership, productProjection = null) => {
     const transitions = membership.transitions ?? [];
     const activeRoles = membership.roles ?? [];
     const pendingRoles = membership.pendingRoles ?? [];
@@ -3284,6 +3284,36 @@ async function generateInProcessLocked({
         hooks: ['useSnapbackQuery', 'useSnapbackAuthorityMyRole'],
         transitionOps: [],
       },
+      ...(productProjection === null ? [] : [
+        {
+          name: 'history',
+          kind: 'LiveQuery',
+          authRequirement: 'authenticated',
+          hooks: ['useSnapbackQuery', 'useSnapbackAuthorityHistory'],
+          transitionOps: [],
+        },
+        {
+          name: 'incarnations',
+          kind: 'LiveQuery',
+          authRequirement: 'authenticated',
+          hooks: ['useSnapbackQuery', 'useSnapbackAuthorityIncarnations'],
+          transitionOps: [],
+        },
+      ]),
+    ];
+    const operationOutcomes = (name) => [
+      ...(name === 'changeRole' ? [{
+        branch: 'already-at-requested-role',
+        outcome: 'idempotent-success-unchanged',
+      }] : []),
+      ...(['invite', 'transferOwner'].includes(name) ? [{
+        branch: name === 'invite' ? 'already-active-member' : 'already-current-owner',
+        outcome: 'typed-precondition-refusal',
+      }] : []),
+      {
+        branch: 'hidden-or-absent-target',
+        outcome: 'non-enumerating-denial',
+      },
     ];
     const addMutation = (name, transitionOps) => operations.push({
       name,
@@ -3296,6 +3326,7 @@ async function generateInProcessLocked({
         'useSnapbackAuthorityMutationStatus',
       ],
       transitionOps,
+      outcomes: operationOutcomes(name),
     });
     if (inviteRoles.length > 0) addMutation('invite', ['insert']);
     if (joinRoles.length > 0) addMutation('join', ['setRole']);
@@ -3345,17 +3376,20 @@ async function generateInProcessLocked({
     if (!spec || typeof spec !== 'object' || Array.isArray(spec)) {
       refuse(
         'SNAPBACK_AUTHORITY_PROFILE_SPEC_INVALID',
-        'authorityProfile() requires { name, hierarchy, roster }',
-        'Pass one object containing only name, hierarchy, and roster.',
+        'authorityProfile() requires { name, hierarchy, roster, projection? }',
+        'Pass one object containing name, hierarchy, roster, and optional projection.',
       );
       continue;
     }
     const specKeys = Object.keys(spec).sort();
-    if (canonicalResultJson(specKeys) !== canonicalResultJson(['hierarchy', 'name', 'roster'])) {
+    const expectedSpecKeys = spec.projection === undefined
+      ? ['hierarchy', 'name', 'roster']
+      : ['hierarchy', 'name', 'projection', 'roster'];
+    if (canonicalResultJson(specKeys) !== canonicalResultJson(expectedSpecKeys)) {
       refuse(
         'SNAPBACK_AUTHORITY_PROFILE_SPEC_INVALID',
         `authorityProfile() has invalid keys ${specKeys.join(', ') || '(none)'}`,
-        'Use exactly { name, hierarchy, roster }; move transition and role vocabulary declarations to membership().',
+        'Use { name, hierarchy, roster, projection? }; move transition and role vocabulary declarations to membership().',
       );
     }
     const membership = table?.membership;
@@ -3552,6 +3586,92 @@ async function generateInProcessLocked({
         'Set roster to { visible: [<existing membership-table field>, ...] }; these fields are the exact generated list/myRole projection.',
       );
     }
+    let productProjection = null;
+    if (spec.projection !== undefined) {
+      const projection = spec.projection;
+      const history = projection?.history;
+      const historyVisibleFields = history?.visible;
+      const recipients = projection?.recipients;
+      const recipientCeiling = recipients?.ceiling;
+      if (membership?.provenance !== 'full') {
+        refuse(
+          'SNAPBACK_AUTHORITY_PROJECTION_FULL_PROVENANCE_REQUIRED',
+          'authorityProfile().projection requires membership provenance "full"',
+          'Set membership({ provenance: "full", ... }) before enabling the generated product projection.',
+          { declaration: membershipId, actualProvenance: membership?.provenance ?? null },
+        );
+      }
+      if (!projection || typeof projection !== 'object' || Array.isArray(projection)
+        || canonicalResultJson(Object.keys(projection).sort()) !== canonicalResultJson(['history', 'recipients'])
+        || !history || typeof history !== 'object' || Array.isArray(history)
+        || canonicalResultJson(Object.keys(history).sort()) !== canonicalResultJson(['visible'])
+        || !Array.isArray(historyVisibleFields)
+        || historyVisibleFields.length !== new Set(historyVisibleFields).size
+        || !recipients || typeof recipients !== 'object' || Array.isArray(recipients)
+        || canonicalResultJson(Object.keys(recipients).sort()) !== canonicalResultJson(['ceiling'])
+        || !Number.isSafeInteger(recipientCeiling)
+        || recipientCeiling < 1
+        || recipientCeiling > 1_024) {
+        refuse(
+          'SNAPBACK_AUTHORITY_PROJECTION_INVALID',
+          'projection must be { history: { visible: uniqueFields[] }, recipients: { ceiling: 1..1024 } }',
+          'Declare the closed projection shape and a finite recipient ceiling no greater than 1,024.',
+        );
+      } else {
+        const unknown = historyVisibleFields.filter(
+          (field) => typeof field !== 'string' || !fields.has(field),
+        );
+        const authorityAxes = new Set([
+          membership?.principal,
+          membership?.resource,
+          membership?.role,
+          '_id',
+          '_version',
+          '_createdAt',
+          '_updatedAt',
+        ]);
+        const authorityFields = historyVisibleFields.filter((field) => authorityAxes.has(field));
+        const currentRosterFields = new Set(Array.isArray(visibleFields) ? visibleFields : []);
+        const duplicateCurrentFields = historyVisibleFields.filter(
+          (field) => currentRosterFields.has(field),
+        );
+        if (unknown.length > 0 || authorityFields.length > 0 || duplicateCurrentFields.length > 0) {
+          refuse(
+            'SNAPBACK_AUTHORITY_PROJECTION_FIELD_INVALID',
+            'history-visible projection fields must exist and be historical-only product fields',
+            'Remove unknown fields, membership authority axes, and fields already exposed by roster.visible.',
+            {
+              unknownFields: unknown,
+              authorityFields,
+              duplicateCurrentFields,
+            },
+          );
+        } else {
+          // @ref LLP 0240#projection-activation-source-capture-and-backfill —
+          // the manifest pins row-image capture and the finite send ceiling;
+          // the transition ledger is corroboration, never the projection
+          // source.
+          productProjection = {
+            version: 1,
+            source: 'writer-seam-row-images',
+            history: {
+              visibleFields: [...historyVisibleFields].sort(compareCodeUnits),
+              incarnationSemantics: 'presence-v1',
+            },
+            recipients: {
+              ceiling: recipientCeiling,
+              overflow: 'typed-refusal',
+              freeze: 'sending-transaction',
+            },
+            historyHorizon: {
+              carrier: 'operation-envelope',
+              coverage: ['full', 'authorization-facts-only'],
+            },
+            offlineRetention: 'not-implied',
+          };
+        }
+      }
+    }
     if (refused || !hierarchyClosed || !membership || !resourceTable) continue;
 
     const authorizationEventFields = (table.fields ?? [])
@@ -3575,7 +3695,7 @@ async function generateInProcessLocked({
       },
     ];
     const roleLatticeOrder = authorityHierarchyOrder(roles, hierarchyClosed);
-    const authorityOperations = authorityOperationsForMembership(membership);
+    const authorityOperations = authorityOperationsForMembership(membership, productProjection);
     // @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
     // — transferOwner consumes the first active non-owner lattice entry, so
     // the manifest projection carries one canonical hierarchy-topological
@@ -3644,6 +3764,7 @@ async function generateInProcessLocked({
         'authority-profile-asset-sharing.v1',
       ],
       roster: { visibleFields: [...visibleFields] },
+      ...(productProjection === null ? {} : { projection: productProjection }),
       operations: authorityOperations.operations,
     };
     // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
@@ -3813,7 +3934,12 @@ async function generateInProcessLocked({
         && (transition.from ?? []).every((role) => role !== 'owner')
       )) ? ['remove'] : []),
     ];
-    const operationNames = ['list', 'myRole', ...mutationOperations]
+    const readOperations = [
+      'list',
+      'myRole',
+      ...(profile.projection === undefined ? [] : ['history', 'incarnations']),
+    ];
+    const operationNames = [...readOperations, ...mutationOperations]
       .map((operation) => `${profileName}.${operation}`);
     if (GENERATED_API_RESERVED_EXPORTS.has(profileName)) {
       authorityProfileError(
@@ -3843,8 +3969,51 @@ async function generateInProcessLocked({
     const profileRoleValidator = roleValidator(
       [...new Set([...activeRoles, ...pendingRoles])],
     );
-    for (const operation of ['list', 'myRole']) {
+    for (const operation of readOperations) {
       const operationName = `${profileName}.${operation}`;
+      const historicalVisibleFields = profile.projection?.history?.visibleFields ?? [];
+      const historyFacts = operation === 'history'
+        ? {
+            incarnation: v.string(),
+            principal: v.principal(),
+            scope: resourceValidator,
+            event: v.union([
+              v.literal('join'),
+              v.literal('roleChange'),
+              v.literal('patch'),
+              v.literal('leave'),
+            ]),
+            role: profileRoleValidator,
+            status: v.union([v.literal('active'), v.literal('invited'), v.literal('departed')]),
+            commit: v.integer({ min: 0, max: Number.MAX_SAFE_INTEGER }),
+            at: v.optional(v.integer({ min: 0, max: Number.MAX_SAFE_INTEGER })),
+            ...Object.fromEntries(historicalVisibleFields.map((field) => [
+              field,
+              schemaDef.tables[table.name].fields[field].optional
+                ? schemaDef.tables[table.name].fields[field]
+                : v.optional(schemaDef.tables[table.name].fields[field]),
+            ])),
+          }
+        : operation === 'incarnations'
+          ? {
+              incarnation: v.string(),
+              principal: v.principal(),
+              scope: resourceValidator,
+              joinedAt: v.optional(v.integer({ min: 0, max: Number.MAX_SAFE_INTEGER })),
+              leftAt: v.optional(v.union([
+                v.integer({ min: 0, max: Number.MAX_SAFE_INTEGER }),
+                v.null(),
+              ])),
+              currentRole: profileRoleValidator,
+              status: v.union([v.literal('active'), v.literal('invited'), v.literal('departed')]),
+              ...Object.fromEntries(historicalVisibleFields.map((field) => [
+                field,
+                schemaDef.tables[table.name].fields[field].optional
+                  ? schemaDef.tables[table.name].fields[field]
+                  : v.optional(schemaDef.tables[table.name].fields[field]),
+              ])),
+            }
+          : null;
       const resultFields = operation === 'list'
         ? Object.fromEntries(profile.roster.visibleFields.map((field) => [
             field,
@@ -3852,13 +4021,26 @@ async function generateInProcessLocked({
               ? profileRoleValidator
               : schemaDef.tables[table.name].fields[field],
           ]))
-        : {
+        : operation === 'myRole' ? {
             role: profileRoleValidator,
             status: v.union([v.literal('active'), v.literal('invited')]),
-          };
+          } : historyFacts;
+      const historyRowValidator = historyFacts === null ? null : v.object(historyFacts);
+      const historyPageValidator = historyRowValidator === null ? null : v.object({
+        rows: v.array(historyRowValidator, { maxItems: 1_000 }),
+        cursor: v.union([v.string(), v.null()]),
+        boundary: v.union([v.literal('exact'), v.literal('at-limit')]),
+        horizon: v.object({
+          earliestCoveredCommit: v.integer({ min: 0, max: Number.MAX_SAFE_INTEGER }),
+          coverageClass: v.union([
+            v.literal('full'),
+            v.literal('authorization-facts-only'),
+          ]),
+        }),
+      });
       const definition = defineJsLiveQuery({
         auth: 'authenticated',
-        args: operation === 'list'
+        args: operation === 'list' || operation === 'history' || operation === 'incarnations'
           ? {
               scopeId: resourceValidator,
               page: v.optional(v.object({
@@ -3868,7 +4050,9 @@ async function generateInProcessLocked({
             }
           : { scopeId: resourceValidator },
         reads: [table.name],
-        result: results.records(v.object(resultFields)),
+        result: historyPageValidator === null
+          ? results.records(v.object(resultFields))
+          : results.value(historyPageValidator),
         source: '__snapback_authority_profile_generated__',
         exportName: operationName,
       });
@@ -5546,6 +5730,7 @@ async function generateInProcessLocked({
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: readTables,
         declaredWrites: [],
+        ...(def.standardPattern ? { standardPattern: def.standardPattern } : {}),
         ...(def.fieldBoundary === undefined ? {} : { fieldBoundary: def.fieldBoundary }),
         authScopeField: def.js.authScopeField ?? null,
         authorizationDependence: jsAuthorizationDependence(def),
@@ -9069,8 +9254,10 @@ function authorityProfileProjectionSource({
   const body = operation === 'list'
     ? `var page = await ctx.authority[${JSON.stringify(declaration)}].list(args.scopeId, args.page);
     return page.rows;`
-    : `var role = await ctx.authority[${JSON.stringify(declaration)}].myRole(args.scopeId);
-    return [role];`;
+    : operation === 'myRole'
+      ? `var role = await ctx.authority[${JSON.stringify(declaration)}].myRole(args.scopeId);
+    return [role];`
+      : `return ctx.authority[${JSON.stringify(declaration)}][${JSON.stringify(operation)}](args.scopeId, args.page);`;
   return `globalThis.__snapbackHandlers = globalThis.__snapbackHandlers || {};
 globalThis.__snapbackHandlers[${JSON.stringify(operationName)}] = async function(ctx, args) {
     ${body}
@@ -16706,6 +16893,8 @@ function renderApiTypes(
   lines.push('}');
   lines.push(
     'export interface AuthorityRosterPageV1<Row> { readonly rows: readonly Row[]; readonly cursor: string | null }',
+    "export interface AuthorityHistoryHorizonV1 { readonly earliestCoveredCommit: number; readonly coverageClass: 'full' | 'authorization-facts-only' }",
+    "export interface AuthorityHistoryPageV1<Row> { readonly rows: readonly Row[]; readonly cursor: string | null; readonly boundary: 'exact' | 'at-limit'; readonly horizon: AuthorityHistoryHorizonV1 }",
     'export interface GeneratedAuthority {',
   );
   for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
@@ -16717,7 +16906,25 @@ function renderApiTypes(
     const scopeType = resourceTable ? `Id<'${resourceTable}'>` : 'string';
     const roleType = `${pascal(declaration)}Role`;
     const rowType = `FunctionResult<GeneratedApi[${JSON.stringify(`${declaration}.list`)}]>[number]`;
-    lines.push(`  ${JSON.stringify(declaration)}: { list(scopeId: ${scopeType}, page?: Readonly<{ after?: string; limit?: number }>): Promise<AuthorityRosterPageV1<${rowType}>>; myRole(scopeId: ${scopeType}): Promise<Readonly<{ role: ${roleType}; status: 'active' | 'invited' }>> };`);
+    const hasProjection = functions.some(({ name }) => name === `${declaration}.history`);
+    const projectionMethods = hasProjection
+      ? ` history(scopeId: ${scopeType}, page?: Readonly<{ after?: string; limit?: number }>): Promise<FunctionResult<GeneratedApi[${JSON.stringify(`${declaration}.history`)}]>>; incarnations(scopeId: ${scopeType}, page?: Readonly<{ after?: string; limit?: number }>): Promise<FunctionResult<GeneratedApi[${JSON.stringify(`${declaration}.incarnations`)}]>>;`
+      : '';
+    lines.push(`  ${JSON.stringify(declaration)}: { list(scopeId: ${scopeType}, page?: Readonly<{ after?: string; limit?: number }>): Promise<AuthorityRosterPageV1<${rowType}>>; myRole(scopeId: ${scopeType}): Promise<Readonly<{ role: ${roleType}; status: 'active' | 'invited' }>>;${projectionMethods} };`);
+  }
+  lines.push('}', 'export interface GeneratedMutationAuthority {');
+  for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
+    const membership = table.membershipDeclaration;
+    if (!membership) continue;
+    const declaration = membership.id ?? tableName;
+    if (!authorityProfileNames.includes(declaration)) continue;
+    const resourceTable = idFieldTypeTable(table.fields?.[membership.resource]?.fieldType);
+    const scopeType = resourceTable ? `Id<'${resourceTable}'>` : 'string';
+    const hasProjection = functions.some(({ name }) => name === `${declaration}.history`);
+    const mutationMethods = hasProjection
+      ? ` & { snapshotRecipients(scopeId: ${scopeType}): Promise<readonly Principal[]> }`
+      : '';
+    lines.push(`  ${JSON.stringify(declaration)}: GeneratedAuthority[${JSON.stringify(declaration)}]${mutationMethods};`);
   }
   lines.push('}');
   const membershipAliases = [];
@@ -16808,7 +17015,7 @@ function renderApiTypes(
   }
   lines.push(
     'export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = QueryContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, any, GeneratedRuntimeContext> & { readonly authority: GeneratedAuthority };',
-    'export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext> & { readonly authority: GeneratedAuthority };',
+    'export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext> & { readonly authority: GeneratedMutationAuthority };',
     `export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, ${hasPushSend ? 'GeneratedPush' : 'never'}, ${hasConnectedClientPredicate ? 'RealtimeContext' : 'never'}>;`,
     'export interface GeneratedFunctionContexts {',
   );

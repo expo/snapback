@@ -5010,13 +5010,13 @@ id: backend.standard-patterns
 order: 25
 audience: agent-first
 capabilities: [backend.standard-patterns]
-authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0113-qualification-and-publication-authority.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
+authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0113-qualification-and-publication-authority.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, llp/0278-paged-live-results-and-relational-composition.rfc.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/standard-patterns.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:f99b6fdb988d64145b86f8c6275af59102ac56d2b59681059038fcfabeb44bec
+reviewed: 2026-08-22
+reviewed-authorities-digest: sha256:60f16a302dfc5f5cf4c15717079b14dbefa1bbcbae9a6587597038a854c3800e
 ---
 
 # Safe standard data patterns
@@ -5232,6 +5232,29 @@ or public rows. Express those semantics directly with the declarative builders
 [declarative mutation plans](./declarative-plans.md) — or a JavaScript
 handler under their governing design. A schema field or index
 can prove structure; it cannot prove who may see or mutate a row.
+
+## Compose bounded sets without exposing the chunk seam
+
+`defineChunkedSemiJoin` generates the “bounded indexed actor set → indexed
+top-N rows” live shape. Declare the actor source index, scope/key fields and
+ceiling; the row index and actor field; immutable order; and final `take`.
+The generated handler owns 499-value `in()` chunks, reads every chunk in one
+invocation snapshot, merges with `_id` as the tie-breaker, and refuses
+`SNAPBACK_SEMIJOIN_ACTOR_CEILING_EXCEEDED` rather than truncating the actor
+set. Its generated source records deterministic max-chunk, per-chunk-take, and
+max-result cost facts.
+
+`defineSetKeyedAggregate` generates one live count row per requested key.
+Declare `maxKeys` and `rowCeiling`; argument validation bounds the key set and
+the handler refuses `SNAPBACK_SET_AGGREGATE_ROW_CEILING_EXCEEDED` if one chunk
+cannot be counted exactly inside the declared row budget. Use this form when a
+consumer requires one atomic cross-set snapshot or when one stream is a useful
+optimization. Independent per-key subscriptions remain supported through the
+provider's 64 hard ceiling when cross-set atomicity is unnecessary.
+
+Both helpers still compose each table's declared visibility policy. They do
+not grant join authority and must not be used to turn a private actor/key table
+into a public result.
 
 ## Design reference: write plus one activity row
 

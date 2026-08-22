@@ -57,7 +57,7 @@
   ],
   "authoredSourceHash": "sha256:656c5cb3c7bc0a1e725adf7800d428aad4b2ca42b43d1727a47f34d4579e9a38",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "snapback.v1:sessions:function:sha256:da8592a98a17d8e0853739526ecc29d0ee2efab8a48191ed4e98e8302be1daec",
+  "bundleHash": "snapback.v1:sessions:function:sha256:0745e6ae08c01076a8700b666e33d8c269f86bf87a52df1a77ddcf9139e0c63b",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -1744,7 +1744,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:53a3238dcbd5fc7836c99cfe7a8020193a97a38a677adfe6bd0cd25bce958bc3",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:4b3d0a594a0985b3fde165a405de4c2959e2863d9a499223ba1b7088929678f7",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

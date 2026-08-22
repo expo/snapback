@@ -530,6 +530,41 @@ impl LocalDatabase {
                 ));
             }
 
+            if table_manifest.authority_profile.is_some() && target == MembershipTarget::Other {
+                let (existing, dependency) = read_membership_pair_with_dependency(
+                    &self.conn,
+                    table_manifest,
+                    membership,
+                    inserted_resource.as_deref(),
+                    &inserted_principal,
+                )
+                .map_err(|error| {
+                    error.with_captured_read_dependencies(read_dependencies.clone())
+                })?;
+                read_dependencies.push(dependency);
+                if let Some((_member_id, existing_role)) = existing {
+                    // @ref LLP 0240#invariants-the-prototype-must-preserve
+                    // — generated invite pins an existing target to a typed
+                    // precondition refusal. It happens after caller admission
+                    // and carries the exact pair witness, so it is useful to
+                    // an authorized roster editor without becoming an oracle.
+                    let active = membership.roles.iter().any(|role| role == &existing_role);
+                    let (code, message) = if active {
+                        (
+                            "SNAPBACK_AUTHORITY_INVITE_ALREADY_ACTIVE",
+                            "the target principal already has an active membership in this scope",
+                        )
+                    } else {
+                        (
+                            "SNAPBACK_AUTHORITY_INVITE_ALREADY_PRESENT",
+                            "the target principal already has a pending membership in this scope",
+                        )
+                    };
+                    return Err(membership_refusal(code, message)
+                        .with_captured_read_dependencies(read_dependencies));
+                }
+            }
+
             // Field-bound insert: only the axes and the matched transition's `fields`
             // may be written.
             enforce_insert_fields(membership, matched, &values).map_err(|error| {
@@ -911,20 +946,16 @@ impl LocalDatabase {
             let class = caller_role
                 .map(MembershipCallerClass::Role)
                 .unwrap_or(MembershipCallerClass::None);
-            let admitted = membership.transitions.iter().any(|transition| {
+            let admitted_operation = membership.transitions.iter().any(|transition| {
                 transition.op == MembershipOp::SetRole
                     && transition.target == MembershipTarget::Other
                     && transition.by.iter().any(|by| by == class.token())
-                    && transition
-                        .to
-                        .as_ref()
-                        .is_some_and(|roles| roles.iter().any(|to| to == role))
                     && transition
                         .from
                         .as_ref()
                         .is_none_or(|roles| roles.iter().all(|from| from != "owner"))
             });
-            if !admitted {
+            if !admitted_operation {
                 return Err(transition_denied(
                     MembershipOp::SetRole,
                     class.token(),
@@ -944,12 +975,34 @@ impl LocalDatabase {
                 resource,
                 principal,
             )?;
-            let Some((member_id, _)) = target else {
+            let Some((member_id, current_role)) = target else {
                 return Err(membership_refusal(
                     "SNAPBACK_MEMBERSHIP_TARGET_MISSING",
                     "the target membership row does not exist",
                 ));
             };
+            if current_role == role {
+                // @ref LLP 0240#invariants-the-prototype-must-preserve
+                // — the public changeRole matrix pins a same-role request to
+                // idempotent success. Admission and the target witness are
+                // still captured, but no row image, authorization version, or
+                // projection event advances.
+                return Ok(MembershipPlan {
+                    writes: Vec::new(),
+                    read_dependencies: vec![caller_dependency, target_dependency],
+                    result: Value::Null,
+                    skipped_protected: Vec::new(),
+                });
+            }
+            let admitted_transition = membership.transitions.iter().any(|transition| {
+                transition.op == MembershipOp::SetRole
+                    && transition.target == MembershipTarget::Other
+                    && transition.by.iter().any(|by| by == class.token())
+                    && matches_role_lists(transition, Some(&current_role), Some(role))
+            });
+            if !admitted_transition {
+                return Err(member_id_transition_denied(MembershipOp::SetRole));
+            }
             let mut plan = self.plan_membership_set_role(writer, table, &member_id, role)?;
             plan.read_dependencies.push(caller_dependency);
             plan.read_dependencies.push(target_dependency);

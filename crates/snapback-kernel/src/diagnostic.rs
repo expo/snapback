@@ -101,6 +101,11 @@ impl SnapbackError {
         self
     }
 
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn captured_read_dependencies(&self) -> &[crate::storage::CapturedReadDependency] {
+        &self.captured_read_dependencies
+    }
+
     pub fn finalize_invocation_refusal(
         mut self,
         invocation_reads: &mut Vec<crate::storage::CapturedReadDependency>,

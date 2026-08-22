@@ -6,7 +6,10 @@
 Client integration, React, Guide, Testing, Developer experience
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-17
-**Revised:** 2026-08-21 (LLP 0295 D0.4/D0.5 rulings, query-shape half, as a
+**Revised:** 2026-08-22 (LLP 0295 W4 implementation: generated authority D1
+history envelopes, bounded `defineChunkedSemiJoin`/`defineSetKeyedAggregate`,
+and provider 16-warning/64-hard enforcement with complete-visible-snapshot
+dedup). 2026-08-21 (LLP 0295 D0.4/D0.5 rulings, query-shape half, as a
 dated amendment: authority product projections read through D1/D4 shapes with
 a separate history-horizon fact, plus the provisional subscription budgets,
 the independent-versus-aggregate consistency ruling, and consumer-visible
@@ -21,8 +24,8 @@ LLP 0274, LLP 0277, LLP 0279, LLP 0280, LLP 0295, Diary 0078, Diary 0086,
 Diary 0105,
 `issues/20260817-coterie-message-envelope-growth.md`,
 `issues/closed/20260817-guide-gap-chunked-semijoin-feed-recipe.md`,
-`issues/20260821-provider-connection-subscription-budget-decision.md`,
-`issues/20260821-private-authority-product-roster-decision.md`,
+`issues/closed/20260821-provider-connection-subscription-budget-decision.md`,
+`issues/closed/20260821-private-authority-product-roster-decision.md`,
 `issues/20260820-familiar-live-subscription-contention.md`
 
 ## Summary
@@ -224,8 +227,8 @@ posture) and a regression that replays the run's originating failure.
 **Adopted per LLP 0295; author may revise.** LLP 0095 carries the companion
 connection-lifecycle half; LLP 0240 carries the authority half of D0.4. The
 decision tickets are
-`issues/20260821-provider-connection-subscription-budget-decision.md` (D0.5)
-and `issues/20260821-private-authority-product-roster-decision.md` (D0.4).
+`issues/closed/20260821-provider-connection-subscription-budget-decision.md` (D0.5)
+and `issues/closed/20260821-private-authority-product-roster-decision.md` (D0.4).
 
 ### D0.4 read surface
 
@@ -318,3 +321,31 @@ LLP 0295 W7's coordination sequence (step 3, provider lifecycle integration
 with D0.5), delivered on the Exact side under LLP 0279's graduation posture —
 Exact-repository tickets, coordinated here, with no parallel Snapback-specific
 adapter policy invented there.
+
+## Implementation record (2026-08-22 — LLP 0295 W4)
+
+- Authority `history` and `incarnations` are the first D1-envelope consumers:
+  nullable cursor, exact/at-limit boundary, plus LLP 0240's separate horizon.
+- `defineChunkedSemiJoin` ships from
+  `@expo/snapback-codegen/standard-patterns`. The declaration binds indexed
+  actor and row reads, a bounded actor set, immutable order, and final take;
+  generated code owns 499-item operand chunks, same-invocation merge, and
+  `SNAPBACK_SEMIJOIN_ACTOR_CEILING_EXCEEDED` rather than truncation.
+- `defineSetKeyedAggregate` ships the bounded D4 count profile. `maxKeys`
+  bounds input/result rows; `rowCeiling` bounds each disjoint operand chunk;
+  overflow refuses with `SNAPBACK_SET_AGGREGATE_ROW_CEILING_EXCEEDED`. It
+  produces one live result/snapshot across the requested set.
+- React provider enforcement emits
+  `SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED` after 16 while admitting
+  through 64, and the existing capacity refusal closes entry 65 before any
+  partial attachment. Its diagnostic says independent subscriptions remain
+  supported and names both generated composition alternatives.
+- Provider publication compares complete consumer-visible snapshots. Equal
+  rows at a newer internal version advance bookkeeping silently; lifecycle
+  changes still notify. Synchronous subscription/mutation dispatch from a
+  delivery callback refuses with
+  `SNAPBACK_REACT_DELIVERY_REENTRANCY_UNSUPPORTED`.
+
+Risk 7 remains enforced by API and tests: six and 64 independent subscriptions
+are positive fixtures. Aggregation is required only for one atomic cross-set
+fact; otherwise it remains an optimization.

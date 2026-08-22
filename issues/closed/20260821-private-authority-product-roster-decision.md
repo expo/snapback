@@ -1,12 +1,12 @@
 # Decide private authority relation and product roster composition
 
-**Status:** Open — ruling recorded 2026-08-21 (adopted per LLP 0295; author
-may revise); remaining work is the W4 implementation checklist below
+**Status:** Closed — 2026-08-22; ruling and independently closable follow-ons
+landed
 **Opened:** 2026-08-21
 **Systems:** Membership authority, Application data API, Relational queries,
 Code generation, Guide
 **Governing:** LLP 0295 D0.4/W4; LLP 0240; LLP 0278
-**Related:** `issues/20260820-guide-gap-membership-roster-projection-recipe.md`;
+**Related:** `issues/closed/20260820-guide-gap-membership-roster-projection-recipe.md`;
 `issues/20260812-0247-0248-measurement-reruns.md`
 
 ## Problem
@@ -141,7 +141,15 @@ this decision ticket. The existing Guide ticket may teach today's sanctioned
 pattern before this decision closes but must not imply that it is the final
 generated design.
 
-**Exit progress (2026-08-21):** the ruling has landed in the owning LLPs; the
-independently closable implementation tickets have **not** yet been filed
-(the checklist above is their source), so this ticket deliberately stays open
-until they exist.
+## Resolution (2026-08-22)
+
+The ruling is implemented and its two independently closable records are:
+
+- `issues/closed/20260822-authority-product-projection-writer-runtime.md` for
+  declaration, writer seam, runtime, migration, backfill, recipient, and
+  outcome semantics; and
+- `issues/closed/20260822-authority-product-projection-packed-contract.md` for
+  the packed external-consumer proof.
+
+The generated Guide route replaced the interim mirror recipe and corrected the
+`resourceField: "_id"` spelling. This decision ticket's Exit is met.

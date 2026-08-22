@@ -6,7 +6,10 @@
 Live Queries, Assets, Code generation, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-21 (LLP 0295 D0.4 ruling recorded: the product-projection
+**Revised:** 2026-08-22 (LLP 0295 W4 implementation: projection declaration,
+writer-seam row-image history/incarnations, D1+horizon reads, transaction-frozen
+recipient helper, three-class outcome metadata, read-only adoption plan,
+authorization-facts-only backfill, and packed Explicit/Familiar proof). 2026-08-21 (LLP 0295 D0.4 ruling recorded: the product-projection
 composition to prototype first is platform-generated projection facts declared
 on the authority profile, read through the existing D3 bounded/redacted roster
 surface; app-authored synchronized mirrors stay declined as the destination —
@@ -53,7 +56,7 @@ LLP 0231, LLP 0234, LLP 0235, LLP 0236, LLP 0237, LLP 0238, LLP 0239, LLP 0241,
 LLP 0242, LLP 0243, LLP 0278, LLP 0295,
 Diary 0058 (messaging-snapback), Diary 0073, Diary 0074, Diary 0100,
 Diary 0101, Diary 0105,
-`issues/20260821-private-authority-product-roster-decision.md`,
+`issues/closed/20260821-private-authority-product-roster-decision.md`,
 `issues/20260820-guide-gap-membership-roster-projection-recipe.md`
 
 ## Summary
@@ -819,7 +822,45 @@ compare an existing projection table against the generated projection before
 adoption. Per LLP 0295's vertical paved-path coherence invariant, the
 prototype lands with a vertical packed-package contract fixture covering both
 authoring profiles. The implementation checklist lives in
-`issues/20260821-private-authority-product-roster-decision.md`.
+`issues/closed/20260821-private-authority-product-roster-decision.md`.
+
+### 2026-08-22 implementation record — LLP 0295 W4
+
+The local target now implements the dated D0.4 ruling:
+
+- `authorityProfile({ projection: { history: { visible }, recipients: {
+  ceiling } } })` lowers in both Explicit and Familiar. Codegen requires
+  membership `provenance: "full"`, rejects authority-axis/current-roster
+  duplication, and rotates the generation identity.
+- The central membership writer captures before/after row images into
+  `_snapback_authority_projection_events` in the same transaction for buffered
+  insert/update/delete and seed/import/admin paths. Activation snapshots
+  existing current rows at a generation-bound horizon. Storage-identical
+  updates do not mint history.
+- New generated `history`/`incarnations` live operations admit before parsing
+  a cursor, bind AEAD custody to declaration/generation/scope/caller/operation,
+  and return `{ rows, cursor, boundary, horizon }`. `list` and `myRole` remain
+  unchanged. Leave closes an incarnation; rejoin opens another; role changes
+  are interior events.
+- Mutation-only `snapshotRecipients` uses the same sending transaction and
+  captures its indexed read dependency. Overflow refuses with
+  `SNAPBACK_AUTHORITY_RECIPIENT_CEILING_EXCEEDED`; 1,024 is the declaration
+  maximum and no path truncates.
+- Generated mutation metadata carries the closed outcome matrix. Runtime
+  implements storage-identical `changeRole` as unchanged success and visible
+  duplicate invite as a typed precondition, while hidden/absent targets keep
+  the existing non-enumerating denial.
+- `snapback authority plan` performs a read-only mirror comparison with
+  counts/digests and reports activation/backfill posture. `snapback authority
+  backfill --apply --confirm authorization-facts-only` is idempotent, moves
+  the horizon only for available ledger role/status facts, and never fabricates
+  display values or timestamps.
+
+The packed proof is
+`packages/snapback-codegen/authority-projection-packed.test.mjs`; codegen
+matrix coverage is in `rbac-authoring.test.mjs`, storage behavior in
+`crates/snapback-kernel/src/storage/tests.rs`, and the public route in
+`guide/recipes/membership-roster-projection.md`.
 
 ## Status
 

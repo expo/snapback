@@ -1,8 +1,10 @@
 import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 import {
+  defineChunkedSemiJoin,
   defineOwnedCrud,
   defineOwnedKeysetPages,
   defineOwnedUniqueLookup,
+  defineSetKeyedAggregate,
 } from '@expo/snapback-codegen/standard-patterns';
 
 const todos = defineTable({
@@ -15,6 +17,21 @@ const todos = defineTable({
   .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
   .index('by_owner', ['ownerId']);
 defineSchema({ todos });
+
+const composition = defineChunkedSemiJoin({
+  name: 'relatedTodos',
+  actors: { table: todos, index: 'by_owner', scopeField: 'ownerId', keyField: 'ownerId', ceiling: 10 },
+  rows: { table: todos, index: 'by_owner_page_key', actorField: 'ownerId' },
+  order: { field: 'pageKey' },
+  take: 10,
+});
+composition.relatedTodos;
+
+const aggregate = defineSetKeyedAggregate({
+  name: 'todoCounts', table: todos, index: 'by_owner', keyField: 'ownerId',
+  maxKeys: 10, rowCeiling: 100, aggregate: 'count',
+});
+aggregate.todoCounts;
 
 const crud = defineOwnedCrud({
   table: todos,

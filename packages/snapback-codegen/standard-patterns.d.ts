@@ -39,6 +39,45 @@ export interface KeysetNames {
 
 export type TrustedDefault = 'now' | 'id';
 
+export declare function defineChunkedSemiJoin<
+  const ActorFields extends Record<string, Validator>,
+  const RowFields extends Record<string, Validator>,
+  const Name extends string,
+>(options: {
+  name: Name;
+  actors: {
+    table: TableBuilder<ActorFields>;
+    index: string;
+    scopeField: FieldName<ActorFields>;
+    scopeArg?: string;
+    keyField: FieldName<ActorFields>;
+    ceiling: number;
+  };
+  rows: {
+    table: TableBuilder<RowFields>;
+    index: string;
+    actorField: FieldName<RowFields>;
+  };
+  order: { field: FieldName<RowFields> | SystemOrderField; direction?: 'asc' | 'desc' };
+  take: number;
+  auth?: 'public' | 'optional-user' | 'authenticated';
+}): PatternDefinitions<Name>;
+
+export declare function defineSetKeyedAggregate<
+  const Fields extends Record<string, Validator>,
+  const Name extends string,
+>(options: {
+  name: Name;
+  table: TableBuilder<Fields>;
+  index: string;
+  keyField: FieldName<Fields>;
+  keysArg?: string;
+  maxKeys?: number;
+  rowCeiling: number;
+  aggregate: 'count';
+  auth?: 'public' | 'optional-user' | 'authenticated';
+}): PatternDefinitions<Name>;
+
 export declare function defineOwnedCrud<
   const Fields extends Record<string, Validator>,
   const Names extends CrudNames,

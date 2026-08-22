@@ -71,6 +71,7 @@ const ACTIVITY_IDLE_MAX_MS = 2_147_483_647;
 
 const QUERY_CACHE_CAP = 256;
 const CONSUMER_CAP = 1_024;
+const VIEW_SUBSCRIPTION_BUDGET = 16;
 const SERVER_SUBSCRIPTION_CAP = 64;
 const PRESENCE_ROOM_CACHE_CAP = 128;
 const PRESENCE_SUBSCRIPTION_CAP = 64;
@@ -135,6 +136,16 @@ function diagnostic(code, message, details = {}) {
     schemaVersion: 'snapback.client-diagnostic.v1',
     code,
     severity: 'error',
+    message,
+    details: Object.freeze({ ...details }),
+  });
+}
+
+function warningDiagnostic(code, message, details = {}) {
+  return Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code,
+    severity: 'warning',
     message,
     details: Object.freeze({ ...details }),
   });
@@ -324,7 +335,7 @@ function recordCommittedHookDescriptor(
 }
 
 function serializeError(error) {
-  return error?.diagnostic ?? diagnostic(
+  return (error?.schemaVersion === 'snapback.client-diagnostic.v1' ? error : error?.diagnostic) ?? diagnostic(
     error?.code ?? 'SNAPBACK_REACT_QUERY_FAILED',
     error instanceof Error ? error.message : String(error),
   );
@@ -760,6 +771,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   let registeredConnectionAttached = false;
   let registeredRecovery = null;
   let registeredRetirement = Promise.resolve();
+  let deliveryCallbackDepth = 0;
+  let viewBudgetWarningActive = false;
   const dirtyPreparedSubscriptions = new Set();
   let connectionSnapshotKey = null;
   let connectionSnapshot = Object.freeze({
@@ -803,7 +816,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     // fact also enters the bound client's v2 diagnostics channel.
     emitReactDiagnostic(clientDiagnosticsChannel, {
       code: legacy.code,
-      severity: 'error',
+      severity: legacy.severity ?? 'error',
       message: legacy.message,
       details: legacy.details,
     });
@@ -942,6 +955,47 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
   const activeStores = () => [...stores.values()].filter((store) => store.handle !== null);
 
+  const warnSubscriptionBudget = (projectedSubscriptions) => {
+    if (projectedSubscriptions <= VIEW_SUBSCRIPTION_BUDGET) {
+      viewBudgetWarningActive = false;
+      return;
+    }
+    if (viewBudgetWarningActive) return;
+    viewBudgetWarningActive = true;
+    recordDiagnostic(warningDiagnostic(
+      'SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED',
+      `provider view ${providerInstanceId} is composing ${projectedSubscriptions} independent live subscriptions; this remains supported through ${SERVER_SUBSCRIPTION_CAP}`,
+      {
+        owner: `provider:${providerInstanceId}`,
+        count: projectedSubscriptions,
+        budget: VIEW_SUBSCRIPTION_BUDGET,
+        hardCeiling: SERVER_SUBSCRIPTION_CAP,
+        independentSupported: true,
+        atomicCrossSetAlternative: 'defineSetKeyedAggregate',
+        fanoutAlternative: 'defineChunkedSemiJoin',
+      },
+    ));
+  };
+
+  const consumerVisibleSnapshotKey = (snapshot) => canonicalizeClientValueV1({
+    status: snapshot.status,
+    data: snapshot.data ?? null,
+    error: snapshot.error ?? null,
+    connection: snapshot.connection ?? null,
+    freshness: snapshot.freshness ?? null,
+    answerClass: snapshot.answerClass ?? null,
+    retention: snapshot.retention ?? null,
+    optimisticPresentation: snapshot.optimisticPresentation ?? null,
+  });
+
+  const notifyStoreListeners = (store) => {
+    for (const listener of [...store.listeners.values()]) {
+      deliveryCallbackDepth += 1;
+      try { listener(); } catch { /* one consumer cannot starve siblings */ }
+      finally { deliveryCallbackDepth -= 1; }
+    }
+  };
+
   const publish = (store, snapshot, generation = store.generation) => {
     if (terminal || generation !== store.generation) return;
     const presentation = snapshot.optimisticPresentation ?? store.generatedPresentation;
@@ -958,16 +1012,18 @@ function createRegistry(binding, providerInstanceId, options = {}) {
             ? 'authoritative'
             : 'unknown'
     );
-    store.snapshot = Object.freeze({
+    const nextSnapshot = Object.freeze({
       ...snapshot,
       answerClass,
       lastDeliveryAtMs: store.lastDeliveryAtMs,
       authoritativeRevision: store.authoritativeRevision,
       ...(presentation === undefined ? {} : { optimisticPresentation: presentation }),
     });
-    for (const listener of [...store.listeners.values()]) {
-      try { listener(); } catch { /* one consumer cannot starve siblings */ }
-    }
+    const nextVisibleKey = consumerVisibleSnapshotKey(nextSnapshot);
+    const consumerVisibleChange = store.consumerVisibleSnapshotKey !== nextVisibleKey;
+    store.snapshot = nextSnapshot;
+    store.consumerVisibleSnapshotKey = nextVisibleKey;
+    if (consumerVisibleChange) notifyStoreListeners(store);
     notifyConnection();
   };
 
@@ -1117,11 +1173,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       }
     }
     store.optimisticLayers = store.optimisticLayers.filter((layer) => !layer.retired);
-    publish(store, freezeBootDelivery(store, {
-      status: 'ready',
+    const authoritativeConnection = normalizeConnection(
+      store.handle?.current?.connection ?? 'live',
+    );
+    const nextSnapshot = freezeBootDelivery(store, {
+      status: authoritativeConnection === 'live' ? 'ready' : 'refreshing',
       data: projectQueryRows(store.resultContract, materializeStore(store)),
       error: null,
-      connection: normalizeConnection(store.handle?.current?.connection ?? 'live'),
+      connection: authoritativeConnection,
       freshness: 'current',
       answerClass: store.generatedPresentation?.status === 'predicted'
         ? 'optimistic'
@@ -1130,7 +1189,23 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         : 'authoritative',
       retention: store.retention,
       optimisticPresentation: store.generatedPresentation,
-    }), generation);
+    });
+    const nextVisibleKey = consumerVisibleSnapshotKey(nextSnapshot);
+    if (store.consumerVisibleSnapshotKey === nextVisibleKey) {
+      // @ref LLP 0278#d05-subscription-budgets-provisional — value-equal
+      // authoritative frames still advance delivery/revision bookkeeping,
+      // but do not republish an unchanged consumer-visible snapshot. A
+      // reconnect/custody lifecycle cut changes the key and therefore cannot
+      // be swallowed by this branch.
+      store.snapshot = Object.freeze({
+        ...store.snapshot,
+        lastDeliveryAtMs: store.lastDeliveryAtMs,
+        authoritativeRevision: store.authoritativeRevision,
+      });
+      notifyConnection();
+      return;
+    }
+    publish(store, nextSnapshot, generation);
   };
 
   const publishAuthorizationBoundary = (store, detail, generation) => {
@@ -1336,6 +1411,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     store.handle = null;
     if (blank) {
       store.snapshot = pending('idle');
+      store.consumerVisibleSnapshotKey = consumerVisibleSnapshotKey(store.snapshot);
       store.freshness = 'unknown';
       store.retention = null;
       // Delivery facts belong to the retired authority. The blank frame is a
@@ -1350,9 +1426,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       void handle.settled().catch(recordDiagnostic).finally(() => allHandles.delete(handle));
     }
     if (blank) {
-      for (const listener of [...store.listeners.values()]) {
-        try { listener(); } catch { /* observational */ }
-      }
+      notifyStoreListeners(store);
     }
     notifyConnection();
   };
@@ -1465,6 +1539,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     const generation = ++store.generation;
     store.authorizationProjectionSuspended = false;
     store.snapshot = pending('connecting');
+    // Even though construction does not publish this intermediate frame, it
+    // is the lifecycle predecessor for dedup. The first equal-row successor
+    // delivery must therefore compare against connecting, not against the
+    // retired ready snapshot.
+    store.consumerVisibleSnapshotKey = consumerVisibleSnapshotKey(store.snapshot);
     store.freshness = 'unknown';
     // @ref LLP 0059#exposure-invariant — a staged participant-resume capture
     // is the exact successor witness. Optional-user queries consume it just
@@ -1486,8 +1565,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     let handle;
     try {
       handle = client.startLiveQuery(store.reference, {
-      connectionId,
-      args: store.args,
+        connectionId,
+        ownerLabel: `provider:${providerInstanceId}/query:${store.reference?.name ?? store.reference?.id ?? 'unknown'}`,
+        args: store.args,
       transport: 'stream',
       fallbackToPoll: false,
       supersedes,
@@ -1778,7 +1858,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       supersedesSubscriptionId: mustResubscribe
         ? preparedRegistration.subscriptionId
         : null,
+      consumerVisibleSnapshotKey: null,
     };
+    store.consumerVisibleSnapshotKey = consumerVisibleSnapshotKey(store.snapshot);
     preparedRegistrations.delete(
       descriptor.preparedEntryName,
     );
@@ -1880,9 +1962,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     state.snapshot = state.view?.getSnapshot() ?? null;
     state.cache = null;
     syncOptimisticCreatePin(store, state);
-    for (const listener of [...store.listeners.values()]) {
-      try { listener(); } catch { /* one consumer cannot starve siblings */ }
-    }
+    notifyStoreListeners(store);
     notifyConnection();
     if (state.snapshot?.layers.some((layer) => layer.layerStatus === 'bridging')) {
       void discoverOptimisticCreateSettlements(store, state);
@@ -2325,6 +2405,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     dispatchOptions = {},
   ) => {
     if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+    if (deliveryCallbackDepth > 0) {
+      const error = diagnosticError(
+        'SNAPBACK_REACT_DELIVERY_REENTRANCY_UNSUPPORTED',
+        'mutation dispatch is not supported synchronously from a live-delivery callback; defer it to a scheduler boundary',
+        { owner: `provider:${providerInstanceId}`, operation: 'mutation' },
+      );
+      recordDiagnostic(error);
+      throw error;
+    }
     if (mutationReference?.[HANDOFF_DEFERRED_REFERENCE] === true) {
       mutationReference = mutationReference.reference;
     }
@@ -2601,6 +2690,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         { effectCommitted: false },
       );
     }
+    if (deliveryCallbackDepth > 0) {
+      const error = diagnosticError(
+        'SNAPBACK_REACT_DELIVERY_REENTRANCY_UNSUPPORTED',
+        'command dispatch is not supported synchronously from a live-delivery callback; defer it to a scheduler boundary',
+        { owner: `provider:${providerInstanceId}`, operation: 'command' },
+      );
+      recordDiagnostic(error);
+      throw error;
+    }
     let admittedMutation;
     try {
       admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
@@ -2673,6 +2771,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         });
       }
     }
+    if (activeStores().length <= VIEW_SUBSCRIPTION_BUDGET) {
+      viewBudgetWarningActive = false;
+    }
     notifyConnection();
   };
 
@@ -2683,6 +2784,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     livePublishListener = null,
   ) => {
     if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+    if (deliveryCallbackDepth > 0) {
+      const error = diagnosticError(
+        'SNAPBACK_REACT_DELIVERY_REENTRANCY_UNSUPPORTED',
+        'subscription changes are not supported synchronously from a live-delivery callback; defer them to a scheduler boundary',
+        { owner: `provider:${providerInstanceId}`, operation: 'subscription' },
+      );
+      recordDiagnostic(error);
+      throw error;
+    }
     const admitted = [];
     const pendingHandoffs = [];
     for (const entry of descriptors) {
@@ -2719,8 +2829,10 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       .filter((key) => !uniqueNew.has(key))
       .map((key) => stores.get(key))
       .filter(Boolean);
+    const projectedSubscriptions = active.length + netNew.length;
+    warnSubscriptionBudget(projectedSubscriptions);
     let supersession = null;
-    if (active.length + netNew.length > SERVER_SUBSCRIPTION_CAP) {
+    if (projectedSubscriptions > SERVER_SUBSCRIPTION_CAP) {
       const predecessor = retiring.length === 1 ? retiring[0] : null;
       if (
         active.length === SERVER_SUBSCRIPTION_CAP
@@ -3589,6 +3701,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
             ? AUTHENTICATION_NOT_SETTLED_BLOCKED
             : pending('idle');
         }
+        store.consumerVisibleSnapshotKey = consumerVisibleSnapshotKey(store.snapshot);
         store.generatedData = Object.freeze([]);
         store.generatedPresentation = null;
         store.freshness = 'unknown';
@@ -3602,9 +3715,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         }
         store.optimisticLayers = [];
         store.pendingMutations.clear();
-        for (const listener of [...store.listeners.values()]) {
-          try { listener(); } catch { /* observational */ }
-        }
+        notifyStoreListeners(store);
       }
       for (const room of rooms.values()) {
         room.raw = PRESENCE_SERVER_PENDING;
@@ -4126,6 +4237,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       return subscribeMany([descriptor], listener, previousLease, livePublishListener);
     },
     subscribeMany,
+    warnSubscriptionBudget,
     subscribeOptimisticCreate,
     runMutation,
     runOptimisticCreate,
@@ -4157,6 +4269,20 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       resumeRegistry();
     },
     inspection() {
+      const outboxSuspensionReason = runtimePaused()
+        ? custodyPaused ? 'authority-transition' : 'host-paused'
+        : options.__outboxDrainMode?.() === 'manual' ? 'manual-policy' : null;
+      const subscriptions = Object.freeze(activeStores().map((store) => Object.freeze({
+        owner: `provider:${providerInstanceId}/query:${store.reference?.name ?? store.reference?.id ?? 'unknown'}`,
+        connectionId,
+        functionName: store.reference?.name ?? null,
+        state: store.snapshot.status,
+        connection: store.snapshot.connection,
+        snapshotVersion: store.authoritativeRevision,
+        readiness: store.snapshot.status === 'ready' ? 'ready' : 'waiting',
+        authBarrier: custodyPaused ? 'closed' : 'open',
+        outboxSuspensionReason,
+      })));
       return Object.freeze({
         providerInstanceId,
         terminal,
@@ -4202,6 +4328,17 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         ))),
         consumers,
         serverSubscriptions: activeStores().length,
+        subscriptionBudget: VIEW_SUBSCRIPTION_BUDGET,
+        subscriptionHardCeiling: SERVER_SUBSCRIPTION_CAP,
+        connections: Object.freeze([Object.freeze({
+          owner: `provider:${providerInstanceId}`,
+          connectionId,
+          state: aggregateConnection().status,
+          authBarrier: custodyPaused ? 'closed' : 'open',
+          readiness: aggregateConnection().status === 'live' ? 'ready' : 'waiting',
+          outboxSuspensionReason,
+        })]),
+        subscriptions,
         leases: leases.size,
         reservations: 0,
         timers: [...rooms.values()].filter((room) => room.heartbeatTimer !== null).length,
@@ -6138,6 +6275,7 @@ function validateEntries(provider, entries) {
       ...provider.registry.descriptor(entry?.ref, entry?.args ?? {}, null),
     });
   });
+  provider.registry.warnSubscriptionBudget(descriptors.length);
   if (descriptors.length < 1 || descriptors.length > 64) {
     throw diagnosticError(
       'SNAPBACK_REACT_GROUP_CAPACITY',
