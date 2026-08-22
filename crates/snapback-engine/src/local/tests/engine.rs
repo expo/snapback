@@ -11008,6 +11008,126 @@ fn asset_gc_retains_condemned_publication_until_last_width_put_resolves() {
 }
 
 #[test]
+fn asset_publication_maintain_retains_torn_plan_during_active_width_put() {
+    let mut snapback =
+        asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());
+    let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
+    let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+    asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+        .expect("publish width source");
+    let asset_id = created.task.asset_id.clone();
+    let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+
+    // A and C both prepare before the width exists. A publishes w128; C then
+    // receives a fresh stale publication P whose exact width is no longer
+    // re-drivable.
+    let first_prepare = match snapback
+        .asset_width_preflight(&asset_id, 100)
+        .expect("winner width preflight")
+    {
+        AssetWidthPreflightV1::Proceed(ticket) => ticket,
+        AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
+    };
+    let mut stale_prepare = match snapback
+        .asset_width_preflight(&asset_id, 100)
+        .expect("stale width preflight")
+    {
+        AssetWidthPreflightV1::Proceed(ticket) => ticket,
+        AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
+    };
+    let first_plan = first_prepare.prepare().expect("render winner width");
+
+    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let gated_store: Arc<dyn crate::assets_store::AssetStore> = Arc::new(BlockFirstBlobHashStore {
+        inner: stale_prepare.store_for_test(),
+        entered: std::sync::Mutex::new(Some(entered_tx)),
+        release: std::sync::Mutex::new(release_rx),
+    });
+    stale_prepare.replace_store_for_test(gated_store);
+    let stale_plan = stale_prepare.prepare().expect("render stale width");
+
+    let first_effect = authority
+        .reserve_authorized_effect("torn-plan winner width plan")
+        .expect("reserve winner width plan");
+    let first_put = snapback
+        .asset_width_plan_with_authorized_effect(first_plan, first_effect)
+        .expect("commit winner width plan");
+    let first_commit = first_put.put().expect("winner width PUT succeeds");
+    let first_commit_effect = authority
+        .reserve_authorized_effect("torn-plan winner width commit")
+        .expect("reserve winner width commit");
+    snapback
+        .asset_width_commit_with_authorized_effect(first_commit, first_commit_effect)
+        .expect("winner publishes the width rendition");
+
+    let stale_effect = authority
+        .reserve_authorized_effect("torn-plan stale width plan")
+        .expect("reserve stale width plan");
+    let stale_put = snapback
+        .asset_width_plan_with_authorized_effect(stale_plan, stale_effect)
+        .expect("commit stale width plan");
+    let publication_id = stale_put.publication_for_test().publication_id.clone();
+    let planned_key = stale_put.publication_for_test().planned_key.clone();
+
+    // C completes its object PUT and pauses before verifying it. Replace the
+    // bytes with a deterministic torn object so the earlier planned-record
+    // cleanup arm would delete and condemn P if it ignored C's active lease.
+    let stale_put_thread = std::thread::spawn(move || stale_put.put());
+    entered_rx
+        .recv()
+        .expect("C reaches the post-PUT verifying hash");
+    let store = snapback.asset_store_obj().expect("width store");
+    store
+        .delete_blob(&planned_key)
+        .expect("replace completed PUT with torn bytes");
+    store
+        .put_blob_idempotent(&planned_key, b"torn-width-publication")
+        .expect("write deterministic torn object");
+
+    let retained = snapback
+        .asset_publication_maintain(now_millis())
+        .expect("maintenance overlaps active torn PUT");
+    assert_eq!(
+        retained,
+        super::AssetPublicationMaintenanceReport::default(),
+        "planned cleanup cannot delete or condemn under an active width PUT lease",
+    );
+    assert!(
+        store
+            .exists(crate::assets_store::AssetObjectRef::Blob(&planned_key))
+            .expect("probe retained torn object"),
+        "the torn-PUT arm must leave the active ticket's object in place",
+    );
+    assert!(
+        snapback
+            .db
+            .asset_maintenance()
+            .publication_records_in_state(crate::assets::AssetPublicationState::Planned)
+            .expect("read retained planned publication")
+            .iter()
+            .any(|record| record.publication_id == publication_id),
+        "the active ticket keeps its planned publication discoverable",
+    );
+
+    release_tx.send(()).expect("release C's verifying hash");
+    let verification_error = match stale_put_thread.join().expect("C put thread joins") {
+        Ok(_) => panic!("the deterministic torn object cannot verify"),
+        Err(error) => error,
+    };
+    assert_eq!(
+        verification_error.diagnostic.code,
+        "SNAPBACK_ASSET_STORE_UNAVAILABLE"
+    );
+
+    let cleaned = snapback
+        .asset_publication_maintain(now_millis())
+        .expect("maintenance resolves P after C drops its lease");
+    assert_eq!(cleaned.condemned, 1);
+    assert_eq!(cleaned.retired, 1);
+}
+
+#[test]
 fn asset_runner_retains_active_width_put_then_bounded_expiry_reclaims_it() {
     let mut snapback =
         asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());

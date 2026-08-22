@@ -8,8 +8,9 @@
 **Revised:** 2026-08-22 (same-recipe/version width-publication convergence now
 compares the exact prepared digest before bypassing quota; each width PUT/commit
 ticket holds a bounded five-minute process-local lease through its final
-blob/rendition commit, and both the reconciliation sweep and production
-condemned-work runner honor its active/object-retention state.)
+blob/rendition commit; every width-relevant publication cleanup/retirement path
+honors its active/object-retention state, including torn-`planned` recovery;
+and an indeterminate verifying hash no longer becomes evidence for deletion.)
 **Revised:** 2026-08-21 (AssetRef schema-evolution diagnostics now render the
 bounded old/new intent and media-policy identity, name the changed facts, and
 separate the attachment-hook-safe successor-field repair from whole-store
@@ -890,12 +891,15 @@ run follow a write-ahead publication protocol:
    cannot retain condemned object bytes or a committed publication row
    indefinitely, while an in-process late write remains discoverable.
 
-   A crash drops every process-local ticket. That does **not** make every width
-   publication reclaimable: an attempt-less `planned` or `staged` row remains
-   live while its asset is Ready and the width is absent, so only a future
-   request for that exact width or deletion of the asset resolves it. Nor does
-   this process-local lease fence a remote PUT that serializes only after a
-   restart; durable remote-effect uncertainty is separate design work.
+   A crash drops every process-local ticket. An ordinary S3 transport timeout
+   can do the same without a restart: the propagated error drops its ticket,
+   but an HTTP timeout cannot prove that the remote PUT was cancelled. That
+   does **not** make every width publication reclaimable: an attempt-less
+   `planned` or `staged` row remains live while its asset is Ready and the width
+   is absent, so only a future request for that exact width or deletion of the
+   asset resolves it. This process-local lease therefore fences neither a
+   timeout-late remote PUT nor one that serializes after restart; durable
+   remote-effect uncertainty is separate design work.
 
    For same-recipe/version width-publication `AlreadyCurrent` convergence,
    recipe lineage alone is never sufficient: the Ready blob must match the

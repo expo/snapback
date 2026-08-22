@@ -14430,6 +14430,12 @@ impl LocalSnapback {
             .asset_maintenance()
             .publication_records_in_state(assets::AssetPublicationState::Planned)?;
         for mut record in planned {
+            if snapback_services::assets::asset_width_publication_put_lease_state(
+                &record.publication_id,
+            ) == snapback_services::assets::AssetWidthPublicationPutLeaseStateV1::Active
+            {
+                continue;
+            }
             let attempt = self.db.asset_maintenance().publication_attempt(&record)?;
             let re_drivable = attempt.as_ref().is_some_and(|a| a.state.is_current())
                 || self
@@ -14437,11 +14443,12 @@ impl LocalSnapback {
                     .asset_maintenance()
                     .publication_width_owner_live(&record)?;
             let object = crate::assets_store::AssetObjectRef::Blob(&record.planned_key);
+            // A failed remote hash is uncertainty, not evidence of a torn
+            // object. Propagate it without mutating the publication or bytes.
             let object_verifies = store.exists(object)?
                 && store
                     .hash(object)
-                    .map(|hashed| hashed.digest == record.digest)
-                    .unwrap_or(false);
+                    .map(|hashed| hashed.digest == record.digest)?;
             if object_verifies {
                 self.db
                     .asset_maintenance()
