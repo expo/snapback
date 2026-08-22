@@ -70,6 +70,16 @@ const conversationSummary = v.object({
   createdAt: v.integer(),
 });
 
+const conversationDetails = v.object({
+  _id: v.id('conversations'),
+  kind: v.string(),
+  title: v.string(),
+  lastMessageText: v.string(),
+  lastMessageAuthorName: v.string(),
+  lastMessageAt: v.integer(),
+  createdAt: v.integer(),
+});
+
 /** The inbox: every conversation the viewer belongs to, newest activity
  * first. `conversationMembers` -> `conversations` is a two-table join, so
  * this is a JS live query rather than a declarative single-table plan. */
@@ -92,11 +102,17 @@ export const myConversations = defineJsLiveQuery({
       // raw stored document's system fields (_version, _updatedAt) never
       // leak into a contract that doesn't name them.
       if (conversation) {
+        const roster = await ctx.db
+          .query('conversationMembers')
+          .withIndex('by_conversation')
+          .eq('conversationId', conversation._id)
+          .take(500)
+          .collect();
         rows.push({
           _id: conversation._id,
           kind: conversation.kind,
           title: conversation.title,
-          memberHandles: conversation.memberHandles,
+          memberHandles: roster.map((member) => member.userHandle),
           lastMessageText: conversation.lastMessageText,
           lastMessageAuthorName: conversation.lastMessageAuthorName,
           lastMessageAt: conversation.lastMessageAt,
@@ -110,16 +126,22 @@ export const myConversations = defineJsLiveQuery({
 
 export const conversationById = defineJsLiveQuery({
   args: { conversationId: v.id('conversations') },
-  result: results.records(conversationSummary),
-  reads: ['conversations'],
+  auth: 'authenticated',
+  result: results.records(conversationDetails),
+  reads: ['conversationMemberships', 'conversations'],
   handler: async (ctx, args) => {
+    await ctx.permissions.conversationMemberships.requireRole(
+      args.conversationId,
+      'owner',
+      'moderator',
+      'member',
+    );
     const conversation = await ctx.db.get('conversations', args.conversationId);
     if (!conversation) return [];
     return [{
       _id: conversation._id,
       kind: conversation.kind,
       title: conversation.title,
-      memberHandles: conversation.memberHandles,
       lastMessageText: conversation.lastMessageText,
       lastMessageAuthorName: conversation.lastMessageAuthorName,
       lastMessageAt: conversation.lastMessageAt,
@@ -174,19 +196,22 @@ const recipientSnapshotRow = v.object({
 });
 
 export const messageRecipientSnapshot = defineJsLiveQuery({
-  args: { messageId: v.id('messages') },
+  args: {
+    conversationId: v.id('conversations'),
+    messageId: v.id('messages'),
+  },
   auth: 'authenticated',
   result: results.records(recipientSnapshotRow),
   reads: ['messages', 'conversationMemberships'],
   handler: async (ctx, args) => {
-    const message = await ctx.db.get('messages', args.messageId);
-    if (!message) return [];
     await ctx.permissions.conversationMemberships.requireRole(
-      message.conversationId,
+      args.conversationId,
       'owner',
       'moderator',
       'member',
     );
+    const message = await ctx.db.get('messages', args.messageId);
+    if (!message || message.conversationId !== args.conversationId) return [];
     return [{
       messageId: message._id,
       recipients: message.recipientSnapshot ?? [],
@@ -224,9 +249,16 @@ const messageRow = v.object({
  * never a nested thread view. */
 export const conversationMessages = defineJsLiveQuery({
   args: { conversationId: v.id('conversations') },
+  auth: 'authenticated',
   result: results.records(messageRow),
-  reads: ['messages', 'reactions'],
+  reads: ['conversationMemberships', 'messages', 'reactions'],
   handler: async (ctx, args) => {
+    await ctx.permissions.conversationMemberships.requireRole(
+      args.conversationId,
+      'owner',
+      'moderator',
+      'member',
+    );
     const messages = await ctx.db
       .query('messages')
       .withIndex('by_conversation')
@@ -674,12 +706,14 @@ export const startDirectMessage = defineJsMutation({
       .collect();
     for (const membership of mine) {
       const conversation = await ctx.db.get('conversations', membership.conversationId);
-      if (
-        conversation
-        && conversation.kind === 'dm'
-        && conversation.memberHandles.length === 2
-        && conversation.memberHandles.includes(args.otherHandle)
-      ) {
+      if (!conversation || conversation.kind !== 'dm') continue;
+      const roster = await ctx.db
+        .query('conversationMembers')
+        .withIndex('by_conversation')
+        .eq('conversationId', conversation._id)
+        .take(3)
+        .collect();
+      if (roster.length === 2 && roster.some((member) => member.userHandle === args.otherHandle)) {
         return conversation._id;
       }
     }
@@ -687,7 +721,6 @@ export const startDirectMessage = defineJsMutation({
     const conversationId = await ctx.membership.conversationMemberships.bootstrap({
       kind: 'dm',
       title: '',
-      memberHandles: [selfHandle, args.otherHandle],
       lastMessageText: 'Say hello 👋',
       lastMessageAuthorName: '',
       lastMessageAt: now,
@@ -719,7 +752,7 @@ export const createGroup = defineJsMutation({
     if (!title) throw new Error('a group needs a name');
     // @ref LLP 0056#dated-amendment-bounded-atomic-bootstrap-rosters-2026-08-15 — do
     // not let an authenticated caller split the creator principal from the
-    // handle written into the legacy product projections.
+    // handle written into the product projection.
     const creatorHandle = ctx.auth.userId;
     const uniqueOthers = Array.from(new Set(args.memberHandles.filter((h) => h !== creatorHandle)));
     if (uniqueOthers.length < 1) throw new Error('a group needs at least one other member');
@@ -728,7 +761,6 @@ export const createGroup = defineJsMutation({
     const conversationId = await ctx.membership.conversationMemberships.bootstrap({
       kind: 'group',
       title,
-      memberHandles: allHandles,
       lastMessageText: `${args.creatorName} created the group`,
       lastMessageAuthorName: '',
       lastMessageAt: now,
@@ -752,26 +784,27 @@ export const leaveConversation = defineJsMutation({
   auth: 'authenticated',
   args: { conversationId: v.id('conversations') },
   result: results.value(v.object({ outcome: v.string() })),
-  reads: ['conversationMembers', 'conversations'],
-  writes: ['conversationMemberships', 'conversationMembers', 'conversations'],
+  reads: ['conversationMemberships', 'conversationMembers'],
+  writes: ['conversationMemberships', 'conversationMembers'],
   handler: async (ctx, args) => {
-    // @ref LLP 0176#one-owner-many-projections — the canonical roster and both
-    // legacy read projections move together in this one mutation.
+    // @ref LLP 0176#one-owner-many-projections — the canonical roster and its
+    // product projection move together in this one mutation.
     const memberHandle = ctx.auth.userId;
+    const admitted = await ctx.permissions.conversationMemberships.allowsRole(
+      args.conversationId,
+      'owner',
+      'moderator',
+      'member',
+    );
+    if (!admitted) return { outcome: 'unchanged' };
     const projectedMembership = await ctx.db
       .query('conversationMembers')
       .withIndex('by_conversation_user')
       .eq('conversationId', args.conversationId)
       .eq('userHandle', memberHandle)
       .first();
-    if (!projectedMembership) return { outcome: 'unchanged' };
-    const conversation = await ctx.db.get('conversations', args.conversationId);
-    if (!conversation) throw new Error('conversation not found');
     await ctx.membership.conversationMemberships.removeSelf(args.conversationId);
-    await ctx.db.delete('conversationMembers', projectedMembership._id);
-    await ctx.db.patch('conversations', args.conversationId, {
-      memberHandles: conversation.memberHandles.filter((handle) => handle !== memberHandle),
-    });
+    if (projectedMembership) await ctx.db.delete('conversationMembers', projectedMembership._id);
     return { outcome: 'changed' };
   },
 });
@@ -784,39 +817,41 @@ export const addConversationMember = defineJsMutation({
     userHandle: v.principal(),
   },
   result: results.value(v.object({ outcome: v.string() })),
-  reads: ['conversationMemberships', 'conversationMembers', 'conversations'],
-  writes: ['conversationMemberships', 'conversationMembers', 'conversations'],
+  reads: ['conversationMemberships', 'conversationMembers'],
+  writes: ['conversationMemberships', 'conversationMembers'],
   handler: async (ctx, args) => {
     // @ref LLP 0176#one-owner-many-projections — seating a principal updates the
     // authority roster, inbox edge, and member-count projection atomically.
     await ctx.permissions.conversationMemberships.requireRole(args.conversationId, 'owner');
-    const conversation = await ctx.db.get('conversations', args.conversationId);
-    if (!conversation) throw new Error('conversation not found');
+    const authority = await ctx.authority.conversationMemberships.list(
+      args.conversationId,
+      { limit: 500 },
+    );
+    const authoritativeMembership = authority.rows
+      .find((member) => member.userHandle === args.userHandle);
     const projectedMembership = await ctx.db
       .query('conversationMembers')
       .withIndex('by_conversation_user')
       .eq('conversationId', args.conversationId)
       .eq('userHandle', args.userHandle)
       .first();
-    if (projectedMembership) return { outcome: 'unchanged' };
+    if (authoritativeMembership && projectedMembership) return { outcome: 'unchanged' };
     const now = ctx.runtime.now();
-    await ctx.membership.conversationMemberships.insert({
-      conversationId: args.conversationId,
-      userHandle: args.userHandle,
-      role: 'member',
-      joinedAt: now,
-    });
+    if (!authoritativeMembership) {
+      await ctx.membership.conversationMemberships.insert({
+        conversationId: args.conversationId,
+        userHandle: args.userHandle,
+        role: 'member',
+        joinedAt: now,
+      });
+    }
+    if (projectedMembership) await ctx.db.delete('conversationMembers', projectedMembership._id);
     await ctx.db.insert('conversationMembers', {
       conversationId: args.conversationId,
       userHandle: args.userHandle,
-      role: 'member',
+      role: authoritativeMembership?.role ?? 'member',
       joinedAt: now,
     });
-    if (!conversation.memberHandles.includes(args.userHandle)) {
-      await ctx.db.patch('conversations', args.conversationId, {
-        memberHandles: [...conversation.memberHandles, args.userHandle],
-      });
-    }
     return { outcome: 'changed' };
   },
 });
@@ -830,8 +865,8 @@ export const reconcileConversationRoster = defineJsMutation({
     updated: v.integer(),
     removed: v.integer(),
   })),
-  reads: ['conversationMemberships', 'conversationMembers', 'conversations'],
-  writes: ['conversationMembers', 'conversations'],
+  reads: ['conversationMemberships', 'conversationMembers'],
+  writes: ['conversationMembers'],
   handler: async (ctx, args) => {
     await ctx.permissions.conversationMemberships.requireRole(args.conversationId, 'owner');
     const authority = await ctx.authority.conversationMemberships.list(
@@ -876,15 +911,7 @@ export const reconcileConversationRoster = defineJsMutation({
         removed += 1;
       }
     }
-    const conversation = await ctx.db.get('conversations', args.conversationId);
-    if (!conversation) throw new Error('conversation not found');
-    const memberHandles = authority.rows.map((member) => member.userHandle).sort();
-    const currentHandles = [...conversation.memberHandles].sort();
-    const handlesChanged = JSON.stringify(memberHandles) !== JSON.stringify(currentHandles);
-    if (handlesChanged) {
-      await ctx.db.patch('conversations', args.conversationId, { memberHandles });
-    }
-    const changed = inserted + updated + removed + (handlesChanged ? 1 : 0);
+    const changed = inserted + updated + removed;
     return {
       outcome: changed === 0 ? 'unchanged' : 'changed',
       inserted,

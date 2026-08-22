@@ -372,7 +372,10 @@ try {
     const founders = foundersQuery.rows[0];
     assert(founders, 'founders seed group present');
     assertEqual(founders.kind, 'group', 'founders is a group');
-    assertEqual(founders.memberHandles.length, 4, 'founders has 4 members');
+    const foundersRoster = await app.client.query(api.conversationRoster, {
+      args: { conversationId: foundersConversationId },
+    });
+    assertEqual(foundersRoster.rows.length, 4, 'founders has 4 members');
   });
 
   await suite.check('conversation feed carries replies and aggregated reactions', async () => {
@@ -471,8 +474,8 @@ try {
       },
     });
     groupId = created.result;
-    const conversation = await app.client.query(api.conversationById, { args: { conversationId: groupId } });
-    assertEqual(conversation.rows[0].memberHandles.length, 3, 'creator plus 2 named members');
+    const roster = await app.client.query(api.conversationRoster, { args: { conversationId: groupId } });
+    assertEqual(roster.rows.length, 3, 'creator plus 2 named members');
     const memberInbox = await app.clients.recipientB.query(api.myConversations, { args: {} });
     assert(memberInbox.rows.some((c) => c._id === groupId), 'named member sees the new group in their inbox');
   });
@@ -861,13 +864,17 @@ try {
     const conversation = await app.clients.owner.query(api.conversationById, {
       args: { conversationId: typingConversationId },
     });
+    const roster = await app.clients.owner.query(api.conversationRoster, {
+      args: { conversationId: typingConversationId },
+    });
+    const memberHandles = roster.rows.map((member) => member.userHandle);
     assertEqual(conversation.rows.length, 1, 'created conversation is queryable');
     assert(
-      conversation.rows[0].memberHandles.includes(ownerPrincipal),
+      memberHandles.includes(ownerPrincipal),
       'creator projection uses the authenticated principal',
     );
     assert(
-      !conversation.rows[0].memberHandles.includes(forgedCreatorHandle),
+      !memberHandles.includes(forgedCreatorHandle),
       'caller-asserted creator handle is not stored',
     );
     const ownerInbox = await app.clients.owner.query(api.myConversations, {
@@ -882,7 +889,7 @@ try {
     assert(ownerInbox.rows.some((row) => row._id === typingConversationId), 'creator principal owns the inbox edge');
     assert(forgedInboxError.diagnostic, 'caller-supplied inbox viewer is rejected by the closed args contract');
     return {
-      creatorHandle: conversation.rows[0].memberHandles[0],
+      creatorHandle: memberHandles[0],
       forgedCreatorStored: false,
       callerSuppliedInboxViewerRejected: true,
     };
@@ -1013,7 +1020,7 @@ try {
     const departedInbox = await app.clients.recipientA.query(api.myConversations, {
       args: {},
     });
-    const conversation = await app.clients.owner.query(api.conversationById, {
+    const roster = await app.clients.owner.query(api.conversationRoster, {
       args: { conversationId: typingConversationId },
     });
     assert(
@@ -1021,8 +1028,8 @@ try {
       'departed member no longer sees the conversation in their inbox',
     );
     assert(
-      !conversation.rows[0].memberHandles.includes(recipientAPrincipal),
-      'departed member is removed from the denormalized member list',
+      !roster.rows.some((member) => member.userHandle === recipientAPrincipal),
+      'departed member is removed from the product roster',
     );
     return { departedInboxEdge: false, departedMemberHandle: false };
   });
@@ -1037,7 +1044,7 @@ try {
     const restoredInbox = await app.clients.recipientA.query(api.myConversations, {
       args: {},
     });
-    const conversation = await app.clients.owner.query(api.conversationById, {
+    const roster = await app.clients.owner.query(api.conversationRoster, {
       args: { conversationId: typingConversationId },
     });
     assert(
@@ -1045,8 +1052,8 @@ try {
       're-added member sees the conversation in their inbox',
     );
     assert(
-      conversation.rows[0].memberHandles.includes(recipientAPrincipal),
-      're-added member is restored to the denormalized member list',
+      roster.rows.some((member) => member.userHandle === recipientAPrincipal),
+      're-added member is restored to the product roster',
     );
     return { restoredInboxEdge: true, restoredMemberHandle: true };
   });

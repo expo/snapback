@@ -3503,7 +3503,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:f4df293277f38a993f3e531e82cf4d7f0e83ced0d2148d0eda485b24646f5f00
+reviewed-authorities-digest: sha256:02fa9a165c7a62e27bd573b9cf13ce0e74a95055035087c96b20285727ed5310
 ---
 
 # Recipe: list chat members without exposing authority
@@ -3561,6 +3561,12 @@ use an admitted membership-scoped table visibility policy and every roster or
 historical-recipient handler must require current room admission before it
 returns facts. Authentication alone is not room admission. The private
 authority declaration remains the only authorization source.
+
+Do not duplicate roster facts onto a public conversation row. The inbox may
+assemble its admitted summaries from `conversationMembers`, while the thread UI
+reads `conversationRoster`. Conversation metadata and the message feed repeat
+the current-room admission check, and `messages` itself uses the same
+membership-scoped visibility posture as the roster projection.
 
 ## Declare the private authority and visible projection separately
 
@@ -3708,19 +3714,34 @@ export const myConversations = defineJsLiveQuery({
 ```
 
 Historical recipient/receipt facts are not public merely because they are
-immutable. Resolve the message, then require the caller's **current** admission
-to that message's room before returning its frozen snapshot:
+immutable. Scope the stored message row by its authored `conversationId`:
+
+```js source=demos/messaging-snapback/snapback/schema.mjs
+  // Bodies and frozen recipient facts belong only to current room members.
+  // The feed handler repeats this admission check before reading either the
+  // messages or their public reaction rows.
+  .visibility({
+    kind: 'membership',
+    declaration: 'conversationMemberships',
+    resourceField: 'conversationId',
+    roles: ['member'],
+  })
+```
+
+Take the room id alongside the message id, require **current** admission before
+the row read, and confirm the message belongs to that room. This keeps both the
+table read and the function path non-enumerating:
 
 ```js source=demos/messaging-snapback/snapback/functions.mjs
   handler: async (ctx, args) => {
-    const message = await ctx.db.get('messages', args.messageId);
-    if (!message) return [];
     await ctx.permissions.conversationMemberships.requireRole(
-      message.conversationId,
+      args.conversationId,
       'owner',
       'moderator',
       'member',
     );
+    const message = await ctx.db.get('messages', args.messageId);
+    if (!message || message.conversationId !== args.conversationId) return [];
     return [{
       messageId: message._id,
       recipients: message.recipientSnapshot ?? [],
@@ -3743,7 +3764,7 @@ The enforceable boundary is:
 1. sensitive consumers compare admitted authority facts with the projection
    and refuse with `CONVERSATION_ROSTER_DRIFT` before using stale data;
 2. the owner-only reconciliation mutation reads the admitted authority roster
-   and converges display rows and `memberHandles`; and
+   and converges the display rows; and
 3. retrying reconciliation after an interruption is safe and returns
    `unchanged` once converged.
 
@@ -3783,7 +3804,7 @@ export const createGroup = defineJsMutation({
     if (!title) throw new Error('a group needs a name');
     // @ref LLP 0056#dated-amendment-bounded-atomic-bootstrap-rosters-2026-08-15 — do
     // not let an authenticated caller split the creator principal from the
-    // handle written into the legacy product projections.
+    // handle written into the product projection.
     const creatorHandle = ctx.auth.userId;
     const uniqueOthers = Array.from(new Set(args.memberHandles.filter((h) => h !== creatorHandle)));
     if (uniqueOthers.length < 1) throw new Error('a group needs at least one other member');
@@ -3792,7 +3813,6 @@ export const createGroup = defineJsMutation({
     const conversationId = await ctx.membership.conversationMemberships.bootstrap({
       kind: 'group',
       title,
-      memberHandles: allHandles,
       lastMessageText: `${args.creatorName} created the group`,
       lastMessageAuthorName: '',
       lastMessageAt: now,
@@ -3818,26 +3838,27 @@ export const leaveConversation = defineJsMutation({
   auth: 'authenticated',
   args: { conversationId: v.id('conversations') },
   result: results.value(v.object({ outcome: v.string() })),
-  reads: ['conversationMembers', 'conversations'],
-  writes: ['conversationMemberships', 'conversationMembers', 'conversations'],
+  reads: ['conversationMemberships', 'conversationMembers'],
+  writes: ['conversationMemberships', 'conversationMembers'],
   handler: async (ctx, args) => {
-    // @ref LLP 0176#one-owner-many-projections — the canonical roster and both
-    // legacy read projections move together in this one mutation.
+    // @ref LLP 0176#one-owner-many-projections — the canonical roster and its
+    // product projection move together in this one mutation.
     const memberHandle = ctx.auth.userId;
+    const admitted = await ctx.permissions.conversationMemberships.allowsRole(
+      args.conversationId,
+      'owner',
+      'moderator',
+      'member',
+    );
+    if (!admitted) return { outcome: 'unchanged' };
     const projectedMembership = await ctx.db
       .query('conversationMembers')
       .withIndex('by_conversation_user')
       .eq('conversationId', args.conversationId)
       .eq('userHandle', memberHandle)
       .first();
-    if (!projectedMembership) return { outcome: 'unchanged' };
-    const conversation = await ctx.db.get('conversations', args.conversationId);
-    if (!conversation) throw new Error('conversation not found');
     await ctx.membership.conversationMemberships.removeSelf(args.conversationId);
-    await ctx.db.delete('conversationMembers', projectedMembership._id);
-    await ctx.db.patch('conversations', args.conversationId, {
-      memberHandles: conversation.memberHandles.filter((handle) => handle !== memberHandle),
-    });
+    if (projectedMembership) await ctx.db.delete('conversationMembers', projectedMembership._id);
     return { outcome: 'changed' };
   },
 });
@@ -3850,39 +3871,41 @@ export const addConversationMember = defineJsMutation({
     userHandle: v.principal(),
   },
   result: results.value(v.object({ outcome: v.string() })),
-  reads: ['conversationMemberships', 'conversationMembers', 'conversations'],
-  writes: ['conversationMemberships', 'conversationMembers', 'conversations'],
+  reads: ['conversationMemberships', 'conversationMembers'],
+  writes: ['conversationMemberships', 'conversationMembers'],
   handler: async (ctx, args) => {
     // @ref LLP 0176#one-owner-many-projections — seating a principal updates the
     // authority roster, inbox edge, and member-count projection atomically.
     await ctx.permissions.conversationMemberships.requireRole(args.conversationId, 'owner');
-    const conversation = await ctx.db.get('conversations', args.conversationId);
-    if (!conversation) throw new Error('conversation not found');
+    const authority = await ctx.authority.conversationMemberships.list(
+      args.conversationId,
+      { limit: 500 },
+    );
+    const authoritativeMembership = authority.rows
+      .find((member) => member.userHandle === args.userHandle);
     const projectedMembership = await ctx.db
       .query('conversationMembers')
       .withIndex('by_conversation_user')
       .eq('conversationId', args.conversationId)
       .eq('userHandle', args.userHandle)
       .first();
-    if (projectedMembership) return { outcome: 'unchanged' };
+    if (authoritativeMembership && projectedMembership) return { outcome: 'unchanged' };
     const now = ctx.runtime.now();
-    await ctx.membership.conversationMemberships.insert({
-      conversationId: args.conversationId,
-      userHandle: args.userHandle,
-      role: 'member',
-      joinedAt: now,
-    });
+    if (!authoritativeMembership) {
+      await ctx.membership.conversationMemberships.insert({
+        conversationId: args.conversationId,
+        userHandle: args.userHandle,
+        role: 'member',
+        joinedAt: now,
+      });
+    }
+    if (projectedMembership) await ctx.db.delete('conversationMembers', projectedMembership._id);
     await ctx.db.insert('conversationMembers', {
       conversationId: args.conversationId,
       userHandle: args.userHandle,
-      role: 'member',
+      role: authoritativeMembership?.role ?? 'member',
       joinedAt: now,
     });
-    if (!conversation.memberHandles.includes(args.userHandle)) {
-      await ctx.db.patch('conversations', args.conversationId, {
-        memberHandles: [...conversation.memberHandles, args.userHandle],
-      });
-    }
     return { outcome: 'changed' };
   },
 });
@@ -3896,8 +3919,8 @@ export const reconcileConversationRoster = defineJsMutation({
     updated: v.integer(),
     removed: v.integer(),
   })),
-  reads: ['conversationMemberships', 'conversationMembers', 'conversations'],
-  writes: ['conversationMembers', 'conversations'],
+  reads: ['conversationMemberships', 'conversationMembers'],
+  writes: ['conversationMembers'],
   handler: async (ctx, args) => {
     await ctx.permissions.conversationMemberships.requireRole(args.conversationId, 'owner');
     const authority = await ctx.authority.conversationMemberships.list(
@@ -3942,15 +3965,7 @@ export const reconcileConversationRoster = defineJsMutation({
         removed += 1;
       }
     }
-    const conversation = await ctx.db.get('conversations', args.conversationId);
-    if (!conversation) throw new Error('conversation not found');
-    const memberHandles = authority.rows.map((member) => member.userHandle).sort();
-    const currentHandles = [...conversation.memberHandles].sort();
-    const handlesChanged = JSON.stringify(memberHandles) !== JSON.stringify(currentHandles);
-    if (handlesChanged) {
-      await ctx.db.patch('conversations', args.conversationId, { memberHandles });
-    }
-    const changed = inserted + updated + removed + (handlesChanged ? 1 : 0);
+    const changed = inserted + updated + removed;
     return {
       outcome: changed === 0 ? 'unchanged' : 'changed',
       inserted,
@@ -3973,7 +3988,10 @@ operations retain their own closed receipt/refusal contract; do not preflight
 them from an unfenced product roster and do not relabel an application
 short-circuit as coverage of a generated operation's absent/idempotent branch.
 Owner mutations call `requireRole` first. Self-leave sees only the
-server-derived caller and never accepts a target principal.
+server-derived caller and never accepts a target principal. The app mutations
+preflight canonical authority, not the fallible projection: an interrupted
+generated remove followed by app add opens a fresh projected incarnation, and
+an interrupted generated invite followed by app leave still removes authority.
 
 ## Freeze receipt membership when the message is sent
 
@@ -4066,10 +4084,13 @@ async function assertRosterSynchronized(conversationId, label, viewer = OWNER) {
 
 The dedicated dev-mode acceptance proves anonymous inbox denial; rejects a
 caller-supplied viewer; denies outsiders and authenticated callers from other
-rooms at both roster and recipient-snapshot reads; and admits current members.
-It then commits direct generated `remove`, `invite`, `transferOwner`, and
-`leave` operations without their companion projection write. Each deliberate
-divergence makes send refuse before a snapshot write. Idempotent repair
+rooms at conversation metadata, message-feed, roster, and recipient-snapshot
+reads; and admits current members without returning roster facts on the
+conversation row. It then commits direct generated `remove`, `invite`,
+`changeRole`, `transferOwner`, and `leave` operations without their companion
+projection write. Each deliberate divergence makes send refuse before a
+snapshot write. It also pins self-leave retry plus the interrupted
+remove→app-add and invite→app-leave preflight branches. Idempotent repair
 converges the stores, retry returns `unchanged`, and the removed principal is
 absent from the next snapshot. This check is mandatory for the interim
 app-maintained pattern: a mismatch is a failing invariant, never permission to
@@ -4090,6 +4111,9 @@ roster projection is durable product state, not presence.
   `leave`, `changeRole`, `transferOwner`, and `remove` remain directly reachable.
 - Reading a roster or receipt snapshot after checking only `authenticated`
   instead of current admission to that exact room.
+- Leaving message bodies or frozen recipient facts on a `public-read` table.
+- Returning roster facts from a public conversation row instead of the
+  admitted roster projection.
 - Treating `bootstrap()` as able to stamp arbitrary creator-seat product data.
 - Recomputing an old recipient set from current membership.
 - Removing departed recipients from receipt aggregates.

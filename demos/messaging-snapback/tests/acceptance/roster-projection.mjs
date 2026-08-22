@@ -25,6 +25,8 @@ const MEMBER_B = 'roster_member_b';
 const LATER_MEMBER = 'roster_later_member';
 const OUTSIDER = 'roster_outsider';
 const OUTSIDER_MEMBER = 'roster_outsider_member';
+const PREFLIGHT_ADD_MEMBER = 'roster_preflight_add_member';
+const PREFLIGHT_LEAVE_MEMBER = 'roster_preflight_leave_member';
 
 let server;
 let client;
@@ -155,6 +157,13 @@ await runAcceptance(suite, async () => {
         principal: MEMBER_B,
         role: 'moderator',
       }, OWNER);
+      const staleRoleSend = await captureRejection(mutate(api.sendMessage, {
+        conversationId,
+        authorHandle: OWNER,
+        authorName: 'Owner',
+        body: 'Must not send through stale role projection',
+      }, OWNER), 'send after direct role change');
+      assertAppRefusal(staleRoleSend, 'CONVERSATION_ROSTER_DRIFT', 'direct role change');
       assertEqual((await reconcileRoster(conversationId)).outcome,
         'changed', 'promotion reconciliation updates the display role');
       assertEqual((await reconcileRoster(conversationId)).outcome,
@@ -190,9 +199,15 @@ await runAcceptance(suite, async () => {
       assertEqual((await mutate(api.leaveConversation, {
         conversationId,
       }, LATER_MEMBER)).result.outcome, 'changed', 'later member leaves current roster');
+      assertEqual((await mutate(api.leaveConversation, {
+        conversationId,
+      }, LATER_MEMBER)).result.outcome, 'unchanged', 'self-leave retry is idempotent');
       await assertRosterSynchronized(conversationId, 'later join then leave');
 
-      const frozen = await query(api.messageRecipientSnapshot, { messageId: sent.result }, OWNER);
+      const frozen = await query(api.messageRecipientSnapshot, {
+        conversationId,
+        messageId: sent.result,
+      }, OWNER);
       assertEqual(
         [...frozen.rows[0].recipients].sort((a, b) => a.userHandle.localeCompare(b.userHandle)),
         [
@@ -214,6 +229,24 @@ await runAcceptance(suite, async () => {
         'anonymous inbox',
       );
       assertEqual(anonymousInbox.diagnostic?.code, 'SNAPBACK_AUTH_REQUIRED', 'inbox requires auth');
+      const anonymousConversation = await captureRejection(
+        query(api.conversationById, { conversationId }, undefined),
+        'anonymous conversation read',
+      );
+      assertEqual(
+        anonymousConversation.diagnostic?.code,
+        'SNAPBACK_AUTH_REQUIRED',
+        'public conversation id does not bypass authentication',
+      );
+      const anonymousMessages = await captureRejection(
+        query(api.conversationMessages, { conversationId }, undefined),
+        'anonymous message feed read',
+      );
+      assertEqual(
+        anonymousMessages.diagnostic?.code,
+        'SNAPBACK_AUTH_REQUIRED',
+        'public conversation id does not expose the message feed anonymously',
+      );
 
       const ownerInbox = await query(api.myConversations, {}, OWNER);
       assert(ownerInbox.rows.some((row) => row._id === conversationId), 'auth-derived owner inbox');
@@ -236,8 +269,18 @@ await runAcceptance(suite, async () => {
         'outsider roster read',
       );
       assertPermissionDenied(outsiderRoster, 'outsider roster read');
+      const outsiderConversation = await captureRejection(
+        query(api.conversationById, { conversationId }, OUTSIDER),
+        'outsider conversation read',
+      );
+      assertPermissionDenied(outsiderConversation, 'outsider conversation read');
+      const outsiderMessages = await captureRejection(
+        query(api.conversationMessages, { conversationId }, OUTSIDER),
+        'outsider message feed read',
+      );
+      assertPermissionDenied(outsiderMessages, 'outsider message feed read');
       const outsiderSnapshot = await captureRejection(
-        query(api.messageRecipientSnapshot, { messageId: sentMessageId }, OUTSIDER),
+        query(api.messageRecipientSnapshot, { conversationId, messageId: sentMessageId }, OUTSIDER),
         'outsider snapshot read',
       );
       assertPermissionDenied(outsiderSnapshot, 'outsider snapshot read');
@@ -259,8 +302,21 @@ await runAcceptance(suite, async () => {
         'other-room roster read',
       );
       assertPermissionDenied(otherRoomRoster, 'other-room roster read');
+      const otherRoomConversation = await captureRejection(
+        query(api.conversationById, { conversationId: otherRoom.result }, OWNER),
+        'other-room conversation read',
+      );
+      assertPermissionDenied(otherRoomConversation, 'other-room conversation read');
+      const otherRoomMessages = await captureRejection(
+        query(api.conversationMessages, { conversationId: otherRoom.result }, OWNER),
+        'other-room message feed read',
+      );
+      assertPermissionDenied(otherRoomMessages, 'other-room message feed read');
       const otherRoomSnapshot = await captureRejection(
-        query(api.messageRecipientSnapshot, { messageId: otherSent.result }, OWNER),
+        query(api.messageRecipientSnapshot, {
+          conversationId: otherRoom.result,
+          messageId: otherSent.result,
+        }, OWNER),
         'other-room snapshot read',
       );
       assertPermissionDenied(otherRoomSnapshot, 'other-room snapshot read');
@@ -271,9 +327,17 @@ await runAcceptance(suite, async () => {
         'current member reads the admitted roster',
       );
       assertEqual(
-        (await query(api.messageRecipientSnapshot, { messageId: sentMessageId }, MEMBER_A)).rows.length,
+        (await query(api.messageRecipientSnapshot, {
+          conversationId,
+          messageId: sentMessageId,
+        }, MEMBER_A)).rows.length,
         1,
         'current member reads admitted historical receipts',
+      );
+      const admittedConversation = await query(api.conversationById, { conversationId }, MEMBER_A);
+      assert(
+        !Object.hasOwn(admittedConversation.rows[0], 'memberHandles'),
+        'admitted conversation metadata contains no duplicate roster dump',
       );
     });
 
@@ -314,13 +378,47 @@ await runAcceptance(suite, async () => {
       }, OWNER);
       const repairedSnapshot = await query(
         api.messageRecipientSnapshot,
-        { messageId: repairedSend.result },
+        { conversationId, messageId: repairedSend.result },
         OWNER,
       );
       assert(
         !repairedSnapshot.rows[0].recipients.some((row) => row.userHandle === MEMBER_B),
         'removed member never enters the post-repair snapshot',
       );
+
+      assertEqual((await mutate(api.addConversationMember, {
+        conversationId, userHandle: PREFLIGHT_ADD_MEMBER,
+      }, OWNER)).result.outcome, 'changed', 'preflight member starts synchronized');
+      await mutate(api.conversationMemberships.remove, {
+        scopeId: conversationId,
+        principal: PREFLIGHT_ADD_MEMBER,
+      }, OWNER);
+      assertEqual((await mutate(api.addConversationMember, {
+        conversationId, userHandle: PREFLIGHT_ADD_MEMBER,
+      }, OWNER)).result.outcome,
+      'changed', 'app add repairs a stale projected seat after direct remove');
+      await assertRosterSynchronized(conversationId, 'remove then app add');
+      await mutate(api.conversationMemberships.remove, {
+        scopeId: conversationId,
+        principal: PREFLIGHT_ADD_MEMBER,
+      }, OWNER);
+      await reconcileRoster(conversationId);
+
+      await mutate(api.conversationMemberships.invite, {
+        scopeId: conversationId,
+        principal: PREFLIGHT_LEAVE_MEMBER,
+        role: 'member',
+        joinedAt: 1,
+      }, OWNER);
+      assertEqual((await mutate(api.leaveConversation, {
+        conversationId,
+      }, PREFLIGHT_LEAVE_MEMBER)).result.outcome,
+      'changed', 'app leave follows authority when the projection seat is missing');
+      assertEqual((await mutate(api.leaveConversation, {
+        conversationId,
+      }, PREFLIGHT_LEAVE_MEMBER)).result.outcome,
+      'unchanged', 'missing-projection leave retry is idempotent');
+      await assertRosterSynchronized(conversationId, 'direct invite then app leave');
 
       await mutate(api.conversationMemberships.invite, {
         scopeId: conversationId,

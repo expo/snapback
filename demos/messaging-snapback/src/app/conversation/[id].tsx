@@ -29,6 +29,7 @@ export default function ConversationScreen() {
   const listRef = useRef<FlatList<MessageRow>>(null);
 
   const conversationQuery = useSnapbackQuery(api.conversationById, { conversationId: id });
+  const rosterQuery = useSnapbackQuery(api.conversationRoster, { conversationId: id });
   const messagesQuery = useSnapbackQuery(api.conversationMessages, { conversationId: id });
   const sendMessage = useSnapbackMutation(api.sendMessage);
   const toggleReaction = useSnapbackMutation(api.toggleReaction);
@@ -46,13 +47,16 @@ export default function ConversationScreen() {
   const messages: MessageRow[] = messagesQuery.status === 'ready' || messagesQuery.status === 'refreshing'
     ? messagesQuery.data
     : [];
+  const memberHandles = rosterQuery.status === 'ready' || rosterQuery.status === 'refreshing'
+    ? rosterQuery.data.map((member) => member.userHandle)
+    : [];
 
   const title = useMemo(() => {
     if (!conversation) return '';
     if (conversation.kind === 'group') return conversation.title;
-    const other = conversation.memberHandles.find((h: string) => h !== self.handle);
+    const other = memberHandles.find((handle) => handle !== self.handle);
     return other ? `@${other}` : conversation.title;
-  }, [conversation, self.handle]);
+  }, [conversation, memberHandles, self.handle]);
 
   useEffect(() => {
     if (upload.state.status === 'ready' && upload.state.assetId) {
@@ -117,7 +121,7 @@ export default function ConversationScreen() {
         options={{
           headerTitle: () => (
             <View style={styles.headerTitle}>
-              {conversation ? <Avatar handle={conversation.memberHandles[0]} size={30} /> : null}
+              {conversation && memberHandles[0] ? <Avatar handle={memberHandles[0]} size={30} /> : null}
               <Text style={styles.headerTitleText} numberOfLines={1}>{title || 'Conversation'}</Text>
             </View>
           ),

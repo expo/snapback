@@ -27,10 +27,6 @@ export const users = defineTable({
 export const conversations = defineTable({
   kind: v.string(), // 'dm' | 'group'
   title: v.string(), // group display title; empty string for a dm
-  // Table fields have no array node — v.array() is result-contract-only.
-  // Stored as v.json() (a string[] by convention) and re-validated as
-  // v.array(v.string()) on the way out through conversationSummary.
-  memberHandles: v.json(),
   // Denormalized preview fields so the conversation list is a single-table
   // scan ordered by recency — no per-row join into `messages` needed to
   // render the list (mirrors the todo/signal-desk `updatedAt` pattern).
@@ -122,7 +118,15 @@ export const messages = defineTable({
   readBy: v.optional(v.json()),
   createdAt: v.integer(),
 })
-  .visibility({ kind: 'public-read' })
+  // Bodies and frozen recipient facts belong only to current room members.
+  // The feed handler repeats this admission check before reading either the
+  // messages or their public reaction rows.
+  .visibility({
+    kind: 'membership',
+    declaration: 'conversationMemberships',
+    resourceField: 'conversationId',
+    roles: ['member'],
+  })
   .index('by_conversation', ['conversationId', 'createdAt'])
   // Demo-scoped sharing: any signed-in persona may view any message image.
   // A production app would gate this by conversation membership instead.

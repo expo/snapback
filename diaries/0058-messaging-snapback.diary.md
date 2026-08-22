@@ -478,3 +478,40 @@ LLP 0240 has selected platform-generated projection facts as the prototype
 direction; only its public spelling remains unshipped. The fail-closed drift
 check is a useful safety net today, not a substitute for that atomic platform
 design.
+
+## 2026-08-21 — Security follow-up: remove the public roster copy
+
+The second-family review found that the first security pass had fenced the
+dedicated roster handler without closing an older, easier path: every public
+`conversations` row still carried `memberHandles`, and the thread UI read that
+copy through `conversationById`. The demo now keeps no roster fact on the
+conversation row. Inbox and thread presentation obtain handles only from the
+membership-scoped `conversationMembers` projection, while
+`conversationById` itself requires current room admission and returns only
+conversation metadata. Denial acceptance covers both the detail handler and
+the feed so a future public-row shortcut cannot silently recreate the leak.
+
+The same review made the schema posture more coherent. Message bodies and
+their immutable recipient snapshots are now membership-visible rather than
+public-readable. `conversationMessages` checks admission before its message
+and reaction reads, and `messageRecipientSnapshot` accepts the room id so it
+can check admission before looking up the caller-selected message. Public
+reaction storage remains an implementation detail behind the admitted feed;
+it is not a public application read path.
+
+Two retry races also needed canonical preflights rather than projection-only
+guesses. Self-leave now asks the private authority whether the caller still
+has a room role before invoking the non-terminal generated leave operation,
+so direct generated leave followed by application leave is unchanged instead
+of an error. Add asks the canonical authority roster first and can either
+reconstruct a missing projection after direct invite or recreate both sides
+after direct removal. Acceptance exercises those races and role drift before
+send, where the existing fail-closed comparison refuses to freeze recipients
+from a stale projection.
+
+Compared with a Convex mutation or a Supabase transaction plus policy-backed
+view, this remains an application-managed mirror with more edge cases to test.
+Snapback's private, non-enumerable authority prevents the projection from
+becoming an authorization source, but the useful product rule is stricter:
+ordinary app-visible data is not automatically public data, and every
+caller-selected room read still needs an admission boundary.
