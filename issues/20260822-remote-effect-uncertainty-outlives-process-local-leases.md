@@ -1,13 +1,36 @@
 # A remote PUT can outlive its process-local lease and recreate a deleted object
 
-Status: Open — design item; deliberately out of scope for the asset lease work
+Status: Open — design item. SEVERITY RAISED: reachable via an ordinary S3 timeout, not only a crash
 Created: 2026-08-22
 Related: issues/20260821-durable-authority-to-effect-handoff-design.md, LLP 0044
 
 Found by review of the width publication lease. The lease closes the in-process race; this is the
 part it structurally cannot close.
 
-## The interleaving
+## Reachable without a crash (added 2026-08-22)
+
+The original filing described this as needing process death. A later review found it is reachable
+through an ordinary transport timeout, with no restart involved:
+
+- `AssetWidthPutTicketV1::put` drops the ticket normally when `put?` propagates a transport error
+  (`crates/snapback-services/src/assets.rs:907`, `:912`).
+- Only ~30 seconds have elapsed, so the five-minute lease is still "active" and the expiry cleanup
+  arm is skipped.
+- The S3 transport returns an error after its own local timeout
+  (`crates/snapback-services/src/assets_s3.rs:127`) — **but an HTTP timeout cannot prove the remote
+  PUT was cancelled.**
+- Publication maintenance then sees the stale publication as not re-drivable and with no object
+  present, and condemns and retires it in the same pass.
+- The remote PUT subsequently becomes visible at that key, named by no publication or blob row.
+
+So the orphan arises from a routine timeout during a staggered cohort, not from a rare crash. That
+materially raises how often this can occur.
+
+LLP 0044 currently admits this gap only for a PUT serializing after restart
+(`llp/0044-asset-storage-pipeline.rfc.md:897`); that text is incomplete and should also admit the
+timeout path.
+
+## The interleaving (original: crash variant)
 
 1. B condemns shared publication P; C starts its conditional S3 PUT.
 2. The request reaches a proxy or the provider, but the process dies — or the client times out —
