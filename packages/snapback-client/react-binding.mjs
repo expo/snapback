@@ -1589,6 +1589,7 @@ async function prepareReactBindingOnce(
     }
   }
   preparedReactBindingInternals.set(binding, Object.freeze({ referenceSchemaVersion }));
+  client.__registerInspectionAppId?.(generated.functions.appId);
   return Object.freeze(binding);
 }
 

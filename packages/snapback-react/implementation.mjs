@@ -2193,32 +2193,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         diagnosticsChannel: clientDiagnosticsChannel,
         providerInstanceId,
       })).catch(recordDiagnostic);
-    return;
-    const key = `${mutationReference.id} ${queryReference.id}`;
-    if (replayAdvisoryKeys.has(key)) return;
-    let detail = null;
-    try {
-      const replayed = validateResultContract(
-        store.resultContract,
-        layer.update(initialProjection, layer.mutationArgs),
-        { requireKnown: true },
-      );
-      if (!projectionEquals(replayed, initialProjection)) {
-        detail = 'returned a different projection when replayed over its own output';
-      }
-    } catch (error) {
-      detail = 'failed when replayed over its own output '
-        + `(${error?.code ?? error?.message ?? String(error)})`;
-    }
-    if (detail === null) return;
-    replayAdvisoryKeys.add(key);
-    console.warn(
-      `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT: the optimistic update for ${mutationReference.name} `
-      + `over ${queryReference.name} ${detail}. Optimistic updates are replayable projections over an `
-      + 'evolving authoritative base: capture the intended outcome and set it (or use '
-      + 'projectRecordFields) instead of toggling or incrementing the incoming rows. See '
-      + 'guide/recipes/optimistic-toggle.md.',
-    );
   };
 
   // @ref LLP 0218#44-dev-diagnostic — the first queued dispatch in this
@@ -4269,9 +4243,39 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       resumeRegistry();
     },
     inspection() {
+      const clientResources = typeof client.localResourceInspection === 'function'
+        ? client.localResourceInspection([connectionId])
+        : null;
+      const clientManager = clientResources?.managers?.find(
+        (candidate) => candidate.connectionId === connectionId,
+      ) ?? null;
+      let fallbackOrigin = client.baseUrl ?? null;
+      try { fallbackOrigin = new URL(client.baseUrl).origin; } catch { /* test doubles */ }
+      const authority = typeof client.authorityTransitionStatus === 'function'
+        ? client.authorityTransitionStatus()
+        : null;
+      const ownershipTuple = clientResources?.ownershipTuple
+        ?? Object.freeze({
+          canonicalAppId: binding.appId,
+          storagePartition: typeof client.clientStoreId === 'string'
+            ? client.clientStoreId
+            : 'unavailable',
+          serverOrigin: typeof fallbackOrigin === 'string'
+            ? fallbackOrigin
+            : 'unavailable',
+          settledAuthority: Object.freeze({
+            state: authority?.state ?? 'unknown',
+            settled: authority?.settled === true,
+            transitionOwner: authority?.transitionOwner ?? null,
+            barrierPhase: authority?.barrierPhase ?? null,
+          }),
+        });
+      const grantAgeMs = clientManager?.grantAgeMs ?? null;
       const outboxSuspensionReason = runtimePaused()
         ? custodyPaused ? 'authority-transition' : 'host-paused'
-        : options.__outboxDrainMode?.() === 'manual' ? 'manual-policy' : null;
+        : options.__outboxDrainMode?.() === 'manual'
+          ? 'manual-policy'
+          : clientResources?.outboxSuspensionReason ?? null;
       const subscriptions = Object.freeze(activeStores().map((store) => Object.freeze({
         owner: `provider:${providerInstanceId}/query:${store.reference?.name ?? store.reference?.id ?? 'unknown'}`,
         connectionId,
@@ -4282,6 +4286,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         readiness: store.snapshot.status === 'ready' ? 'ready' : 'waiting',
         authBarrier: custodyPaused ? 'closed' : 'open',
         outboxSuspensionReason,
+        ownershipTuple,
+        grantAgeMs,
       })));
       return Object.freeze({
         providerInstanceId,
@@ -4337,6 +4343,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           authBarrier: custodyPaused ? 'closed' : 'open',
           readiness: aggregateConnection().status === 'live' ? 'ready' : 'waiting',
           outboxSuspensionReason,
+          ownershipTuple,
+          grantAgeMs,
         })]),
         subscriptions,
         leases: leases.size,

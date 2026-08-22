@@ -186,6 +186,27 @@ const patternsUrl = pathToFileURL(join(packageDir, 'standard-patterns.mjs')).hre
       /SNAPBACK_STANDARD_PATTERN_TABLE_INELIGIBLE/,
       'generic CRUD must not own authority-bearing membership writes',
     );
+    assert.throws(
+      () => defineChunkedSemiJoin({
+        name: 'membershipJoin',
+        actors: {
+          table: memberships, index: 'by_user', scopeField: 'userId', keyField: 'eventId', ceiling: 10,
+        },
+        rows: { table: todos, index: 'by_slug_only', actorField: 'slug' },
+        order: { field: '_id', direction: 'asc' },
+        take: 10,
+      }),
+      /SNAPBACK_STANDARD_PATTERN_TABLE_INELIGIBLE/,
+      'bounded semi-joins must not turn an authority-bearing table into a generic composition operand',
+    );
+    assert.throws(
+      () => defineSetKeyedAggregate({
+        name: 'membershipCounts', table: memberships, index: 'by_user', keyField: 'userId',
+        maxKeys: 10, rowCeiling: 10, aggregate: 'count',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_TABLE_INELIGIBLE/,
+      'set-keyed aggregates must refuse authority-bearing rows',
+    );
   }
   {
     const invites = defineTable({
@@ -855,6 +876,68 @@ export const { profileReceiptCounts } = defineSetKeyedAggregate({
       'utf8',
     ));
     assert.equal(aggregateArgs.properties.keys.maxItems, 700);
+
+    const executeGenerated = async (fn, ctx, args) => {
+      const prior = globalThis.__snapbackHandlers;
+      try {
+        globalThis.__snapbackHandlers = Object.create(null);
+        Function(fn.runtime.IbexModule.source)();
+        return await globalThis.__snapbackHandlers[fn.name](ctx, args);
+      } finally {
+        globalThis.__snapbackHandlers = prior;
+      }
+    };
+    const rowsByTable = {
+      follows: [
+        { _id: 'follow-a', viewerId: 'viewer', actorId: 'actor-a' },
+        { _id: 'follow-b', viewerId: 'viewer', actorId: 'actor-b' },
+      ],
+      events: [
+        { _id: 'event-a', actorId: 'actor-a', pageKey: '2' },
+        { _id: 'event-b', actorId: 'actor-b', pageKey: '3' },
+      ],
+      receipts: [
+        { _id: 'receipt-a', profileId: 'profile-a' },
+        { _id: 'receipt-b', profileId: 'profile-a' },
+        { _id: 'receipt-c', profileId: 'profile-b' },
+      ],
+    };
+    const runtimeCtx = {
+      db: {
+        query(table) {
+          let selected = rowsByTable[table];
+          return {
+            withIndex() { return this; },
+            eq(field, value) { selected = selected.filter((row) => row[field] === value); return this; },
+            in(field, values) { selected = selected.filter((row) => values.includes(row[field])); return this; },
+            order(field, direction) {
+              selected = [...selected].sort((left, right) => String(left[field]).localeCompare(String(right[field])));
+              if (direction === 'desc') selected.reverse();
+              return this;
+            },
+            take(limit) { selected = selected.slice(0, limit); return this; },
+            async collect() { return selected; },
+          };
+        },
+      },
+      composition: {
+        semiJoinActorCeilingExceeded() { throw new Error('unexpected semi-join ceiling'); },
+        aggregateRowCeilingExceeded() { throw new Error('unexpected aggregate ceiling'); },
+      },
+    };
+    assert.deepEqual(
+      (await executeGenerated(byName.get('followingFeed'), runtimeCtx, { viewerId: 'viewer' }))
+        .map(({ _id }) => _id),
+      ['event-b', 'event-a'],
+      'the emitted semi-join executes and globally merges its runtime rows',
+    );
+    assert.deepEqual(
+      await executeGenerated(
+        byName.get('profileReceiptCounts'), runtimeCtx, { keys: ['profile-a', 'profile-b'] },
+      ),
+      [{ key: 'profile-a', count: 2 }, { key: 'profile-b', count: 1 }],
+      'the emitted aggregate executes against one invocation snapshot',
+    );
   } finally {
     rmSync(dir3, { recursive: true, force: true });
   }

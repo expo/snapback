@@ -1262,6 +1262,7 @@ struct AuthorityProjectionHostRequestV1 {
 struct AuthorityRecipientSnapshotHostRequestV1 {
     declaration: String,
     scope_id: String,
+    row_id: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -3010,15 +3011,12 @@ impl<'a> IbexHostContext<'a> {
             after: None,
             limit: authority_roster_default_limit(),
         });
-        if page.limit == 0 || page.limit > 1_000 {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTHORITY_HISTORY_PAGE_INVALID",
-                "auth",
-                "authority history page limit must be 1..=1000",
-            ));
-        }
         let (table, membership, profile) =
             self.authority_profile_read_facts(&request.declaration)?;
+        // Admission precedes all operation-specific validation. A caller who
+        // cannot see the scope receives the same denial regardless of a bad
+        // generated identity, projection state, page size, or cursor.
+        self.admit_authority_roster_caller(&request.scope_id, &table, &membership)?;
         if profile.projection.is_none() {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTHORITY_PROJECTION_REQUIRED",
@@ -3035,9 +3033,13 @@ impl<'a> IbexHostContext<'a> {
                 crate::manifest::GeneratedAuthorityOperationKindV1::History
             },
         )?;
-        // As with roster.list, admission precedes cursor parsing so malformed
-        // cursors do not become a scope/member existence oracle.
-        self.admit_authority_roster_caller(&request.scope_id, &table, &membership)?;
+        if page.limit == 0 || page.limit > 1_000 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTHORITY_HISTORY_PAGE_INVALID",
+                "auth",
+                "authority history page limit must be 1..=1000",
+            ));
+        }
         let after = match page.after {
             None => None,
             Some(token) => {
@@ -3076,6 +3078,16 @@ impl<'a> IbexHostContext<'a> {
             incarnations,
             after,
             page.limit,
+            profile
+                .roster
+                .visible_fields
+                .contains(&membership.principal),
+            profile
+                .roster
+                .visible_fields
+                .iter()
+                .any(|field| membership.resource.as_deref() == Some(field.as_str())),
+            profile.roster.visible_fields.contains(&membership.role),
         )?;
         let projection_dependency = crate::membership_rules::authority_projection_scope_dependency(
             self.db(),
@@ -3140,7 +3152,7 @@ impl<'a> IbexHostContext<'a> {
                 SnapbackError::error(
                     "SNAPBACK_AUTHORITY_RECIPIENT_SNAPSHOT_INVALID",
                     "auth",
-                    "recipient snapshot requires { declaration, scopeId }",
+                    "recipient snapshot requires { declaration, scopeId, rowId }",
                 )
             })?;
         let (table, membership, profile) =
@@ -3153,6 +3165,62 @@ impl<'a> IbexHostContext<'a> {
             )
         })?;
         self.admit_authority_roster_caller(&request.scope_id, &table, &membership)?;
+        let identity = self
+            .generated_authority_operation
+            .as_ref()
+            .filter(|identity| {
+                identity.id == request.declaration
+                    && identity.generation == profile.generation
+                    && identity.operation
+                        == crate::manifest::GeneratedAuthorityOperationKindV1::SnapshotRecipients
+            })
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_MEMBERSHIP_OPERATION_INVALID",
+                    "runtime",
+                    "recipient freezing is available only to a declared sending operation",
+                )
+            })?;
+        let sink = identity
+            .recipient_sink
+            .as_ref()
+            .filter(|sink| {
+                sink.operation == self.function_name && projection.recipients.sinks.contains(sink)
+            })
+            .cloned()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_MEMBERSHIP_OPERATION_INVALID",
+                    "runtime",
+                    "recipient freezing requires the exact generated product-row sink identity",
+                )
+            })?;
+        self.ensure_writable("authority.snapshotRecipients")?;
+        self.ensure_buffered_write_capacity()?;
+        self.prepare_generic_write_target(&sink.table, GenericTableWriteFormV1::Patch)?;
+        let (stored, visibility, storage_visible) =
+            self.read_table_visibility_point(&sink.table, &request.row_id)?;
+        let existed_in_storage = stored.is_some();
+        let effective = self.apply_buffered_to_point(&sink.table, &request.row_id, stored);
+        let visible = self.effective_point_is_visible(
+            visibility.as_ref(),
+            existed_in_storage,
+            storage_visible,
+            effective.as_ref(),
+        )?;
+        let scoped = effective
+            .as_ref()
+            .and_then(Value::as_object)
+            .and_then(|row| row.get(&sink.scope_field))
+            .and_then(Value::as_str)
+            == Some(request.scope_id.as_str());
+        if !visible || !scoped {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTHORITY_RECIPIENT_SINK_INVALID",
+                "auth",
+                "recipient sink row is absent, hidden, or outside the requested scope",
+            ));
+        }
         let outcome = crate::membership_rules::authority_active_principals(
             self.db(),
             &request.declaration,
@@ -3165,13 +3233,17 @@ impl<'a> IbexHostContext<'a> {
             self.push_read_dependency(dependency);
         }
         let recipients = recipients?;
-        serde_json::to_value(recipients).map_err(|_| {
-            SnapbackError::error(
-                "SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED",
-                "runtime",
-                "recipient snapshot could not be serialized",
-            )
-        })
+        self.writes.push(BufferedWrite::Patch {
+            table: sink.table,
+            id: request.row_id,
+            values: Map::from_iter([(
+                sink.recipients_field,
+                Value::Array(recipients.into_iter().map(Value::String).collect()),
+            )]),
+        });
+        // The principal set remains host-private. The handler observes only
+        // successful freezing onto its declared product row.
+        Ok(Value::Null)
     }
 
     fn handle_host_call(&mut self, op: &str, args: Value) -> SnapbackResult<Value> {
@@ -9742,8 +9814,9 @@ mod membership_bridge_tests {
     use crate::manifest::{
         AuthInput, FieldManifest, FieldType, HandlerInput, IbexModule, MembershipLastHolder,
         MembershipManifest, MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
-        MembershipTransition, SchemaManifest, SeedData, SequenceDeclaration,
-        SequenceExistingOwnerAccess, SequenceScopeAccess, TableManifest,
+        MembershipTransition, ResultValueContract, SchemaManifest, SeedData, SequenceDeclaration,
+        SequenceExistingOwnerAccess, SequenceScopeAccess, StoredStructuredContractV1,
+        TableManifest, TableVisibilityV1,
     };
     use crate::storage::{
         BufferedCommitPayload, ClientMutationIdentity, DbRead, LocalDatabase, MembershipWriter,
@@ -10036,6 +10109,56 @@ mod membership_bridge_tests {
 
     fn authority_profile_ready_db() -> LocalDatabase {
         let mut manifest = schema();
+        let recipient_contract = StoredStructuredContractV1 {
+            version: crate::manifest::STORED_STRUCTURED_CONTRACT_VERSION_V1,
+            descriptor: ResultValueContract::Array {
+                element: Box::new(ResultValueContract::Principal),
+                max_items: 1_024,
+            },
+            encoding: crate::manifest::STORED_STRUCTURED_ENCODING_V1.to_owned(),
+        };
+        let recipient_contract_hash =
+            crate::manifest::stored_structured_contract_hash(&recipient_contract)
+                .expect("recipient snapshot contract hash");
+        manifest.tables.push(TableManifest {
+            name: "messages".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "eventId".to_owned(),
+                    field_type: FieldType::Id {
+                        table: "events".to_owned(),
+                    },
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "senderId".to_owned(),
+                    field_type: FieldType::Principal,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "recipientIds".to_owned(),
+                    field_type: FieldType::Structured {
+                        contract: recipient_contract,
+                        contract_hash: recipient_contract_hash,
+                    },
+                    optional: false,
+                },
+            ],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: Some(TableVisibilityV1::Owner {
+                field: "senderId".to_owned(),
+            }),
+            history: None,
+        });
         let table = manifest
             .tables
             .iter_mut()
@@ -10207,6 +10330,30 @@ mod membership_bridge_tests {
                 ],
                 "notYetQualifiedCompositionClasses": [],
                 "roster": { "visibleFields": ["userId", "role"] },
+                "projection": {
+                    "version": 1,
+                    "source": "writer-seam-row-images",
+                    "history": {
+                        "visibleFields": [],
+                        "incarnationSemantics": "presence-v1"
+                    },
+                    "recipients": {
+                        "ceiling": 1024,
+                        "overflow": "typed-refusal",
+                        "freeze": "sending-transaction",
+                        "sinks": [{
+                            "operation": "sendMessage",
+                            "table": "messages",
+                            "scopeField": "eventId",
+                            "recipientsField": "recipientIds"
+                        }]
+                    },
+                    "historyHorizon": {
+                        "carrier": "operation-envelope",
+                        "coverage": ["full", "authorization-facts-only"]
+                    },
+                    "offlineRetention": "not-implied"
+                },
                 "operations": [
                     {
                         "name": "list",
@@ -10223,39 +10370,73 @@ mod membership_bridge_tests {
                         "transitionOps": []
                     },
                     {
+                        "name": "history",
+                        "kind": "LiveQuery",
+                        "authRequirement": "authenticated",
+                        "hooks": ["useSnapbackQuery", "useSnapbackAuthorityHistory"],
+                        "transitionOps": []
+                    },
+                    {
+                        "name": "incarnations",
+                        "kind": "LiveQuery",
+                        "authRequirement": "authenticated",
+                        "hooks": ["useSnapbackQuery", "useSnapbackAuthorityIncarnations"],
+                        "transitionOps": []
+                    },
+                    {
                         "name": "invite",
                         "kind": "Mutation",
                         "authRequirement": "authenticated",
                         "hooks": ["useSnapbackMutation", "useSnapbackAuthorityMutation", "useSnapbackOutbox.mutationStatus", "useSnapbackAuthorityMutationStatus"],
-                        "transitionOps": ["insert"]
+                        "transitionOps": ["insert"],
+                        "outcomes": [
+                            { "branch": "already-active-member", "outcome": "typed-precondition-refusal" },
+                            { "branch": "hidden-target-or-scope", "outcome": "non-enumerating-denial" }
+                        ]
                     },
                     {
                         "name": "join",
                         "kind": "Mutation",
                         "authRequirement": "authenticated",
                         "hooks": ["useSnapbackMutation", "useSnapbackAuthorityMutation", "useSnapbackOutbox.mutationStatus", "useSnapbackAuthorityMutationStatus"],
-                        "transitionOps": ["setRole"]
+                        "transitionOps": ["setRole"],
+                        "outcomes": [
+                            { "branch": "hidden-target-or-scope", "outcome": "non-enumerating-denial" }
+                        ]
                     },
                     {
                         "name": "changeRole",
                         "kind": "Mutation",
                         "authRequirement": "authenticated",
                         "hooks": ["useSnapbackMutation", "useSnapbackAuthorityMutation", "useSnapbackOutbox.mutationStatus", "useSnapbackAuthorityMutationStatus"],
-                        "transitionOps": ["setRole"]
+                        "transitionOps": ["setRole"],
+                        "outcomes": [
+                            { "branch": "already-at-requested-role", "outcome": "idempotent-success-unchanged" },
+                            { "branch": "absent-target", "outcome": "typed-precondition-refusal" },
+                            { "branch": "hidden-target-or-scope", "outcome": "non-enumerating-denial" }
+                        ]
                     },
                     {
                         "name": "transferOwner",
                         "kind": "Mutation",
                         "authRequirement": "authenticated",
                         "hooks": ["useSnapbackMutation", "useSnapbackAuthorityMutation", "useSnapbackOutbox.mutationStatus", "useSnapbackAuthorityMutationStatus"],
-                        "transitionOps": ["transferOwner"]
+                        "transitionOps": ["transferOwner"],
+                        "outcomes": [
+                            { "branch": "already-current-owner", "outcome": "typed-precondition-refusal" },
+                            { "branch": "hidden-target-or-scope", "outcome": "non-enumerating-denial" }
+                        ]
                     },
                     {
                         "name": "remove",
                         "kind": "Mutation",
                         "authRequirement": "authenticated",
                         "hooks": ["useSnapbackMutation", "useSnapbackAuthorityMutation", "useSnapbackOutbox.mutationStatus", "useSnapbackAuthorityMutationStatus"],
-                        "transitionOps": ["remove"]
+                        "transitionOps": ["remove"],
+                        "outcomes": [
+                            { "branch": "absent-target", "outcome": "idempotent-success-unchanged" },
+                            { "branch": "hidden-target-or-scope", "outcome": "non-enumerating-denial" }
+                        ]
                     }
                 ]
             }))
@@ -10267,6 +10448,45 @@ mod membership_bridge_tests {
             .apply_schema(manifest)
             .expect("authority profile schema");
         db
+    }
+
+    fn seed_authority_projection_scope(db: &mut LocalDatabase) {
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "events".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("event-a")),
+                            ("title".to_owned(), json!("A")),
+                        ])],
+                    ),
+                    (
+                        "event_members".to_owned(),
+                        vec![
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("member-alice")),
+                                ("eventId".to_owned(), json!("event-a")),
+                                ("userId".to_owned(), json!("alice")),
+                                ("role".to_owned(), json!("owner")),
+                            ]),
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("member-bob")),
+                                ("eventId".to_owned(), json!("event-a")),
+                                ("userId".to_owned(), json!("bob")),
+                                ("role".to_owned(), json!("member")),
+                            ]),
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("member-pending")),
+                                ("eventId".to_owned(), json!("event-a")),
+                                ("userId".to_owned(), json!("pending")),
+                                ("role".to_owned(), json!("invited")),
+                            ]),
+                        ],
+                    ),
+                ]),
+            })
+            .expect("seed projected authority scope");
     }
 
     fn commit_app_membership_command(db: &mut LocalDatabase, operation: serde_json::Value) {
@@ -10970,6 +11190,175 @@ globalThis.__snapbackHandlers = {
             );
         }
         assert!(ctx.membership_commands.is_empty());
+    }
+
+    #[test]
+    fn authority_history_admits_before_identity_and_redacts_private_axes() {
+        let mut db = authority_profile_ready_db();
+        seed_authority_projection_scope(&mut db);
+
+        let outsider_input = HandlerInput {
+            auth: AuthInput {
+                principal: Some("outsider".to_owned()),
+                user_id: Some("outsider".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let outsider_authority = ResolvedAppAuthority::dev_from_auth(&outsider_input.auth);
+        let mut outsider = IbexHostContext::new_with_projection(
+            DbRead::Live(&db),
+            outsider_input,
+            HandlerAuthProjection::from_authority(&outsider_authority, None).unwrap(),
+            AdmissionLease::unmanaged(0, 0),
+            super::membership_writer_from_resolved_for_test(&outsider_authority),
+            false,
+            false,
+        )
+        .expect("outsider query context");
+        let denied = outsider
+            .handle_host_call(
+                "authority.history",
+                json!({
+                    "declaration": "event_members",
+                    "scopeId": "event-a",
+                    "page": { "limit": 0 }
+                }),
+            )
+            .expect_err("admission precedes identity and page validation");
+        assert_eq!(denied.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
+
+        let input = input();
+        let authority = ResolvedAppAuthority::dev_from_auth(&input.auth);
+        let mut admitted = IbexHostContext::new_with_projection(
+            DbRead::Live(&db),
+            input,
+            HandlerAuthProjection::from_authority(&authority, None).unwrap(),
+            AdmissionLease::unmanaged(0, 0),
+            super::membership_writer_from_resolved_for_test(&authority),
+            false,
+            false,
+        )
+        .expect("admitted history context");
+        admitted.function_name = "event_members.history".to_owned();
+        let ungenerated = admitted
+            .handle_host_call(
+                "authority.history",
+                json!({ "declaration": "event_members", "scopeId": "event-a" }),
+            )
+            .expect_err("an authored query cannot claim history by name");
+        assert_eq!(
+            ungenerated.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_OPERATION_INVALID"
+        );
+        admitted.generated_authority_operation = Some(
+            serde_json::from_value(json!({
+                "id": "event_members",
+                "generation": "sha256:authority-profile-runtime-gate",
+                "operation": "history"
+            }))
+            .expect("history operation identity"),
+        );
+        let page = admitted
+            .handle_host_call(
+                "authority.history",
+                json!({ "declaration": "event_members", "scopeId": "event-a" }),
+            )
+            .expect("generated history page");
+        let rows = page["rows"].as_array().expect("history rows");
+        assert_eq!(
+            rows.len(),
+            2,
+            "pending-only seats stay outside product history"
+        );
+        assert!(rows.iter().all(|row| {
+            let row = row.as_object().expect("history row");
+            row.contains_key("principal")
+                && row.contains_key("role")
+                && row.contains_key("status")
+                && !row.contains_key("scope")
+                && !row.contains_key("incarnation")
+                && !row.contains_key("_id")
+        }));
+    }
+
+    #[test]
+    fn recipient_snapshot_requires_exact_sender_and_freezes_without_egress() {
+        let mut db = authority_profile_ready_db();
+        seed_authority_projection_scope(&mut db);
+        let mut ctx = context(&db);
+        ctx.function_name = "sendMessage".to_owned();
+        let message_id = ctx
+            .handle_host_call(
+                "db.insert",
+                json!({
+                    "table": "messages",
+                    "values": { "eventId": "event-a", "recipientIds": [] }
+                }),
+            )
+            .expect("buffer sending product row")
+            .as_str()
+            .expect("message id")
+            .to_owned();
+        let ungenerated = ctx
+            .handle_host_call(
+                "authority.snapshotRecipients",
+                json!({
+                    "declaration": "event_members",
+                    "scopeId": "event-a",
+                    "rowId": message_id
+                }),
+            )
+            .expect_err("an undeclared mutation cannot enumerate recipients");
+        assert_eq!(
+            ungenerated.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_OPERATION_INVALID"
+        );
+        assert_eq!(ctx.writes.len(), 1);
+        ctx.generated_authority_operation = Some(
+            serde_json::from_value(json!({
+                "id": "event_members",
+                "generation": "sha256:authority-profile-runtime-gate",
+                "operation": "snapshotRecipients",
+                "recipientSink": {
+                    "operation": "sendMessage",
+                    "table": "messages",
+                    "scopeField": "eventId",
+                    "recipientsField": "recipientIds"
+                }
+            }))
+            .expect("sending operation identity"),
+        );
+        assert_eq!(
+            ctx.handle_host_call(
+                "authority.snapshotRecipients",
+                json!({
+                    "declaration": "event_members",
+                    "scopeId": "event-a",
+                    "rowId": message_id
+                }),
+            )
+            .expect("freeze exact active recipient set"),
+            Value::Null,
+            "the handler never observes principal ids"
+        );
+        assert_eq!(ctx.writes.len(), 2);
+        let payload = take_sequence_payload(ctx, json!(null));
+        db.mutation_writes()
+            .commit_buffered_writes_idempotent_guarded(
+                &input(),
+                payload,
+                None,
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("sending row and recipient patch commit atomically");
+        let rows = db
+            .query_reads_read()
+            .scan_table("messages", 10, 0)
+            .expect("stored messages");
+        assert_eq!(rows.total, 1);
+        assert_eq!(rows.rows[0]["recipientIds"], json!(["alice", "bob"]));
     }
 
     #[test]

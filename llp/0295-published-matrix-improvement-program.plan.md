@@ -466,7 +466,7 @@ scope. LLP 0240 now has a generated writer-seam authority product projection,
 D1 history/incarnation reads with an explicit horizon, a transaction-frozen
 recipient helper, migration planning/backfill, and manifest outcome classes.
 LLP 0278 now has the named chunked semijoin and set-keyed count helpers. The
-provider warns at 16, remains correct through 64 independent subscriptions,
+provider warns after 16 (on entry 17), remains correct through 64 independent subscriptions,
 deduplicates complete visible snapshots without swallowing lifecycle changes,
 labels active owners, and tears down predecessors before successors. The
 packed Explicit/Familiar fixture and both Guide routes bind the advertised

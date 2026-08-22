@@ -1385,13 +1385,14 @@
                     page: page === undefined ? null : page
                   });
                 },
-                snapshotRecipients: function(scopeId) {
+                snapshotRecipients: function(scopeId, rowId) {
                   if (mode !== "mutation") {
                     throw new Error("SNAPBACK_AUTHORITY_RECIPIENT_SNAPSHOT_MUTATION_REQUIRED");
                   }
                   return host("authority.snapshotRecipients", {
                     declaration: declaration,
-                    scopeId: scopeId
+                    scopeId: scopeId,
+                    rowId: rowId
                   });
                 }
               };

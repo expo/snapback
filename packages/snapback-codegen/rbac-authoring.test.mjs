@@ -631,10 +631,18 @@ ${membershipMutation}
 export const eventNotes = defineTable({ eventId: v.id('events'), body: v.string() })
   ${searchIndex}${visibility}${assetSharing};
 
+export const eventDeliveries = defineTable({
+  eventId: v.id('events'),
+  senderId: v.principal(),
+  body: v.string(),
+  recipientIds: v.array(v.principal(), { maxItems: 1024 }),
+}).visibility({ kind: 'owner', field: 'senderId' });
+
 export default defineSchema({
   events: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
   eventMembers,
   eventNotes,
+  eventDeliveries,
 }, { auth: { mode: 'sessions' } });
 `;
 };
@@ -685,11 +693,34 @@ export const addNote = defineJsMutation({
   membership: [eventMembers.hasRole(membershipResource.arg('eventId'), 'member')],
   handler: async (ctx, args) => ctx.db.insert('eventNotes', args),
 });
+
+export const sendDelivery = defineJsMutation({
+  auth: 'authenticated',
+  args: { eventId: v.id('events'), body: v.string() },
+  reads: ['eventMembers', 'eventDeliveries'],
+  writes: ['eventDeliveries'],
+  handler: async (ctx, args) => {
+    const rowId = await ctx.db.insert('eventDeliveries', {
+      eventId: args.eventId,
+      body: args.body,
+      recipientIds: [],
+    });
+    await ctx.authority.eventMembers.snapshotRecipients(args.eventId, rowId);
+    return null;
+  },
+});
 `;
 
 const authorityOutcomeFixtures = (name) => [
   ...(name === 'changeRole' ? [{
     branch: 'already-at-requested-role',
+    outcome: 'idempotent-success-unchanged',
+  }, {
+    branch: 'absent-target',
+    outcome: 'typed-precondition-refusal',
+  }] : []),
+  ...(name === 'remove' ? [{
+    branch: 'absent-target',
     outcome: 'idempotent-success-unchanged',
   }] : []),
   ...(['invite', 'transferOwner'].includes(name) ? [{
@@ -697,7 +728,7 @@ const authorityOutcomeFixtures = (name) => [
     outcome: 'typed-precondition-refusal',
   }] : []),
   {
-    branch: 'hidden-or-absent-target',
+    branch: 'hidden-target-or-scope',
     outcome: 'non-enumerating-denial',
   },
 ];
@@ -1494,7 +1525,7 @@ void exhaustStatus;
     // and the generated operation matrix pins one fixture for each outcome
     // class rather than leaving idempotency to handler folklore.
     const projected = await run(sourceWithPublicWitness, authorityProfileSchema({
-      projection: "{ history: { visible: ['displayName'] }, recipients: { ceiling: 1024 } }",
+      projection: "{ history: { visible: ['displayName'] }, recipients: { ceiling: 1024, sinks: [{ operation: 'sendDelivery', table: 'eventDeliveries', scopeField: 'eventId', recipientsField: 'recipientIds' }] } }",
       roster: "{ visible: ['userId', 'role'] }",
     }));
     assert.equal(projected.result.ok, true, JSON.stringify(projected.result.diagnostics));
@@ -1519,6 +1550,12 @@ void exhaustStatus;
         ceiling: 1024,
         overflow: 'typed-refusal',
         freeze: 'sending-transaction',
+        sinks: [{
+          operation: 'sendDelivery',
+          table: 'eventDeliveries',
+          scopeField: 'eventId',
+          recipientsField: 'recipientIds',
+        }],
       },
       historyHorizon: {
         carrier: 'operation-envelope',
@@ -1558,15 +1595,25 @@ void exhaustStatus;
       branch: 'already-active-member',
       outcome: 'typed-precondition-refusal',
     });
-    assert.deepEqual(outcomeFixture('remove', 'hidden-or-absent-target'), {
-      branch: 'hidden-or-absent-target',
+    assert.deepEqual(outcomeFixture('remove', 'absent-target'), {
+      branch: 'absent-target',
+      outcome: 'idempotent-success-unchanged',
+    });
+    assert.deepEqual(outcomeFixture('remove', 'hidden-target-or-scope'), {
+      branch: 'hidden-target-or-scope',
       outcome: 'non-enumerating-denial',
+    });
+    assert.deepEqual(projectedFunctionsByName.sendDelivery.generatedAuthorityOperation, {
+      id: 'eventMembers',
+      generation: projectedProfile.generation,
+      operation: 'snapshotRecipients',
+      recipientSink: projectedProfile.projection.recipients.sinks[0],
     });
 
     const insufficientProjectionProvenance = await run(
       'export {};\n',
       authorityProfileSchema({
-        projection: "{ history: { visible: ['displayName'] }, recipients: { ceiling: 1024 } }",
+        projection: "{ history: { visible: ['displayName'] }, recipients: { ceiling: 1024, sinks: [{ operation: 'sendDelivery', table: 'eventDeliveries', scopeField: 'eventId', recipientsField: 'recipientIds' }] } }",
         provenance: 'creation',
         roster: "{ visible: ['userId', 'role'] }",
       }),

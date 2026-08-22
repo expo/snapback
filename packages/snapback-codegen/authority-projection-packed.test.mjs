@@ -40,9 +40,16 @@ function run(command, args, options = {}) {
 }
 
 function schemaSource(entrypoint, provenance = 'full') {
+  const sendingOperation = entrypoint === './generated/server'
+    ? 'functions.sendMessage'
+    : 'sendMessage';
   return `
 import { defineSchema, defineTable, v } from ${JSON.stringify(entrypoint)};
 export const events = defineTable({ title: v.string() }).visibility({ kind: 'public-read' });
+export const messages = defineTable({
+  eventId: v.id('events'), senderId: v.principal(), body: v.string(),
+  recipientIds: v.array(v.principal(), { maxItems: 1024 }),
+}).visibility({ kind: 'owner', field: 'senderId' });
 export const eventMembers = defineTable({
   eventId: v.id('events'), userId: v.principal(), role: v.string(), auditLabel: v.optional(v.string()),
 })
@@ -60,10 +67,51 @@ export const eventMembers = defineTable({
   .authorityProfile({
     name: 'eventMembers', hierarchy: { owner: ['member'], member: [] },
     roster: { visible: ['userId', 'role'] },
-    projection: { history: { visible: ['auditLabel'] }, recipients: { ceiling: 1024 } },
+    projection: {
+      history: { visible: ['auditLabel'] },
+      recipients: { ceiling: 1024, sinks: [{
+        operation: ${JSON.stringify(sendingOperation)}, table: 'messages', scopeField: 'eventId', recipientsField: 'recipientIds',
+      }] },
+    },
   })
   .visibility({ kind: 'owner', field: 'userId' });
-export default defineSchema({ events, eventMembers }, { auth: { mode: 'sessions' } });
+export default defineSchema({ events, messages, eventMembers }, { auth: { mode: 'sessions' } });
+`;
+}
+
+function explicitFunctionsSource() {
+  return `
+import { defineJsMutation, results, v } from '@expo/snapback-codegen/define';
+export const sendMessage = defineJsMutation({
+  auth: 'authenticated',
+  args: { eventId: v.id('events'), body: v.string() },
+  reads: ['eventMembers', 'messages'], writes: ['messages'], result: results.value(v.null()),
+  handler: async (ctx, args) => {
+    const rowId = await ctx.db.insert('messages', {
+      eventId: args.eventId, body: args.body, recipientIds: [],
+    });
+    await ctx.authority.eventMembers.snapshotRecipients(args.eventId, rowId);
+    return null;
+  },
+});
+`;
+}
+
+function familiarFunctionsSource() {
+  return `
+import { mutation, v } from './generated/server';
+export const sendMessage = mutation({
+  auth: 'authenticated',
+  args: { eventId: v.id('events'), body: v.string() }, returns: v.null(),
+  reads: ['eventMembers', 'messages'], writes: ['messages'],
+  handler: async (ctx, args) => {
+    const rowId = await ctx.db.insert('messages', {
+      eventId: args.eventId, body: args.body, recipientIds: [],
+    });
+    await ctx.authority.eventMembers.snapshotRecipients(args.eventId, rowId);
+    return null;
+  },
+});
 `;
 }
 
@@ -100,8 +148,12 @@ for (const profile of ['explicit', 'familiar']) {
   const schema = JSON.parse(readFileSync(join(dir, 'generated', 'schema.manifest.json'), 'utf8'));
   const functions = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
   const authority = schema.tables.find((table) => table.name === 'eventMembers').authorityProfile;
+  const sendingOperation = profile === 'familiar' ? 'functions.sendMessage' : 'sendMessage';
   assert.equal(authority.projection.historyHorizon.carrier, 'operation-envelope');
   assert.equal(authority.projection.recipients.ceiling, 1024);
+  assert.deepEqual(authority.projection.recipients.sinks, [{
+    operation: sendingOperation, table: 'messages', scopeField: 'eventId', recipientsField: 'recipientIds',
+  }]);
   const names = functions.functions.map((fn) => fn.name);
   assert(names.includes('eventMembers.history'));
   assert(names.includes('eventMembers.incarnations'));
@@ -109,6 +161,9 @@ for (const profile of ['explicit', 'familiar']) {
   const history = functions.functions.find((fn) => fn.name === 'eventMembers.history');
   assert.equal(history.resultContract.kind, 'value');
   assert.match(history.runtime.IbexModule.source, /ctx\\.authority/);
+  const sender = functions.functions.find((fn) => fn.name === sendingOperation);
+  assert.equal(sender.generatedAuthorityOperation.operation, 'snapshotRecipients');
+  assert.deepEqual(sender.generatedAuthorityOperation.recipientSink, authority.projection.recipients.sinks[0]);
 }
 const negative = await generate(join(process.cwd(), 'negative'));
 assert.equal(negative.ok, false);
@@ -120,7 +175,7 @@ assert(negative.diagnostics.some((diagnostic) => diagnostic.code === 'SNAPBACK_A
     join(consumer, 'explicit', 'schema.mjs'),
     schemaSource('@expo/snapback-codegen/define'),
   );
-  writeFileSync(join(consumer, 'explicit', 'functions.mjs'), 'export {};\n');
+  writeFileSync(join(consumer, 'explicit', 'functions.mjs'), explicitFunctionsSource());
   mkdirSync(join(consumer, 'familiar'));
   writeFileSync(join(consumer, 'familiar', 'schema.ts'), schemaSource('./generated/server'));
   writeFileSync(join(consumer, 'familiar', 'codegen.policy.json'), `${JSON.stringify({
@@ -128,15 +183,16 @@ assert(negative.diagnostics.some((diagnostic) => diagnostic.code === 'SNAPBACK_A
     committedProjections: ['normalized-definition.v1.json'],
     authoringProfile: 'snapback-familiar-ts-v1',
   }, null, 2)}\n`);
+  writeFileSync(join(consumer, 'familiar', 'functions.ts'), familiarFunctionsSource());
   mkdirSync(join(consumer, 'negative'));
   writeFileSync(
     join(consumer, 'negative', 'schema.mjs'),
     schemaSource('@expo/snapback-codegen/define', 'creation'),
   );
-  writeFileSync(join(consumer, 'negative', 'functions.mjs'), 'export {};\n');
+  writeFileSync(join(consumer, 'negative', 'functions.mjs'), explicitFunctionsSource());
   run(process.execPath, ['generate.mjs']);
 
-  writeFileSync(join(consumer, 'types.ts'), `
+  const typeSource = (profile) => `
 import type {
   AuthorityHistoryPageV1,
   FunctionResult,
@@ -144,7 +200,7 @@ import type {
   GeneratedAuthority,
   GeneratedMutationAuthority,
   Id,
-} from './explicit/generated/api';
+} from './${profile}/generated/api';
 type History = FunctionResult<GeneratedApi['eventMembers.history']>;
 declare const history: History;
 history satisfies AuthorityHistoryPageV1<History['rows'][number]>;
@@ -154,9 +210,10 @@ history.horizon.coverageClass satisfies 'full' | 'authorization-facts-only';
 declare const authority: GeneratedAuthority;
 declare const mutationAuthority: GeneratedMutationAuthority;
 declare const eventId: Id<'events'>;
+declare const messageId: Id<'messages'>;
 // @ts-expect-error recipient capture is a sending-mutation transaction helper
 authority.eventMembers.snapshotRecipients(eventId);
-mutationAuthority.eventMembers.snapshotRecipients(eventId) satisfies Promise<readonly string[]>;
+mutationAuthority.eventMembers.snapshotRecipients(eventId, messageId) satisfies Promise<null>;
 async function clientNullability() {
   const next = await authority.eventMembers.history(eventId, history.cursor === null
     ? undefined
@@ -165,11 +222,15 @@ async function clientNullability() {
   return next;
 }
 void clientNullability;
-`);
-  run(join(repoRoot, 'node_modules', '.bin', 'tsc'), [
-    '--noEmit', '--strict', '--target', 'es2022', '--module', 'esnext',
-    '--moduleResolution', 'bundler', 'types.ts',
-  ]);
+`;
+  for (const profile of ['explicit', 'familiar']) {
+    const typeFile = `types-${profile}.ts`;
+    writeFileSync(join(consumer, typeFile), typeSource(profile));
+    run(join(repoRoot, 'node_modules', '.bin', 'tsc'), [
+      '--noEmit', '--strict', '--target', 'es2022', '--module', 'esnext',
+      '--moduleResolution', 'bundler', typeFile,
+    ]);
+  }
   console.log('authority-projection-packed.test.mjs: packed Explicit/Familiar/runtime/type contract passes');
 } finally {
   rmSync(scratch, { recursive: true, force: true });

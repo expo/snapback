@@ -1542,6 +1542,7 @@ type NamedReference = string;
 
 export interface SnapbackLiveManagerInspection {
   readonly connectionId: string;
+  readonly ownershipTuple: SnapbackOwnershipTupleInspection;
   readonly open: boolean;
   readonly closed: boolean;
   readonly socketDemand: number;
@@ -1552,12 +1553,27 @@ export interface SnapbackLiveManagerInspection {
   readonly pendingRequests: number;
   readonly reconnectTimer: number;
   readonly heartbeatTimer: number;
+  readonly grantAgeMs: number | null;
+}
+
+export interface SnapbackOwnershipTupleInspection {
+  readonly canonicalAppId: string | null;
+  readonly storagePartition: string;
+  readonly serverOrigin: string;
+  readonly settledAuthority: Readonly<{
+    readonly state: string;
+    readonly settled: boolean;
+    readonly transitionOwner: string | null;
+    readonly barrierPhase: string | null;
+  }>;
 }
 
 export interface SnapbackLocalResourceInspection {
   readonly managers: readonly SnapbackLiveManagerInspection[];
   readonly managerCount: number;
   readonly grants: readonly string[];
+  readonly ownershipTuple: SnapbackOwnershipTupleInspection;
+  readonly outboxSuspensionReason: string | null;
   readonly grantCount: number;
   readonly laneConsumers: readonly Readonly<{
     connectionId: string;

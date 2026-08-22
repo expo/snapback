@@ -1794,6 +1794,7 @@ pub enum GeneratedAuthorityOperationKindV1 {
     MyRole,
     History,
     Incarnations,
+    SnapshotRecipients,
     Invite,
     Join,
     Leave,
@@ -1809,6 +1810,7 @@ impl GeneratedAuthorityOperationKindV1 {
             Self::MyRole => "myRole",
             Self::History => "history",
             Self::Incarnations => "incarnations",
+            Self::SnapshotRecipients => "snapshotRecipients",
             Self::Invite => "invite",
             Self::Join => "join",
             Self::Leave => "leave",
@@ -1832,6 +1834,8 @@ pub struct GeneratedAuthorityOperationV1 {
     pub id: String,
     pub generation: String,
     pub operation: GeneratedAuthorityOperationKindV1,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recipient_sink: Option<AuthorityProfileRecipientSinkV1>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1948,6 +1952,17 @@ pub struct AuthorityProfileRecipientProjectionV1 {
     pub ceiling: u16,
     pub overflow: String,
     pub freeze: String,
+    #[serde(default)]
+    pub sinks: Vec<AuthorityProfileRecipientSinkV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileRecipientSinkV1 {
+    pub operation: String,
+    pub table: String,
+    pub scope_field: String,
+    pub recipients_field: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -2609,7 +2624,18 @@ impl FunctionManifest {
                 }
             }
             if let Some(generated) = &function.generated_authority_operation {
-                let expected_name = format!("{}.{}", generated.id, generated.operation.as_str());
+                let expected_name = if generated.operation
+                    == GeneratedAuthorityOperationKindV1::SnapshotRecipients
+                {
+                    generated
+                        .recipient_sink
+                        .as_ref()
+                        .map(|sink| sink.operation.clone())
+                } else if generated.recipient_sink.is_none() {
+                    Some(format!("{}.{}", generated.id, generated.operation.as_str()))
+                } else {
+                    None
+                };
                 let expected_kind = if generated.operation.is_mutation() {
                     FunctionKind::Mutation
                 } else {
@@ -2619,7 +2645,7 @@ impl FunctionManifest {
                     id: generated.id.clone(),
                     generation: generated.generation.clone(),
                 };
-                if function.name != expected_name
+                if expected_name.as_deref() != Some(function.name.as_str())
                     || function.kind != expected_kind
                     || !function.authority_profile_dependence.contains(&dependence)
                 {

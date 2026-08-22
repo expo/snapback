@@ -3305,13 +3305,20 @@ async function generateInProcessLocked({
       ...(name === 'changeRole' ? [{
         branch: 'already-at-requested-role',
         outcome: 'idempotent-success-unchanged',
+      }, {
+        branch: 'absent-target',
+        outcome: 'typed-precondition-refusal',
+      }] : []),
+      ...(name === 'remove' ? [{
+        branch: 'absent-target',
+        outcome: 'idempotent-success-unchanged',
       }] : []),
       ...(['invite', 'transferOwner'].includes(name) ? [{
         branch: name === 'invite' ? 'already-active-member' : 'already-current-owner',
         outcome: 'typed-precondition-refusal',
       }] : []),
       {
-        branch: 'hidden-or-absent-target',
+        branch: 'hidden-target-or-scope',
         outcome: 'non-enumerating-denial',
       },
     ];
@@ -3593,6 +3600,7 @@ async function generateInProcessLocked({
       const historyVisibleFields = history?.visible;
       const recipients = projection?.recipients;
       const recipientCeiling = recipients?.ceiling;
+      const recipientSinks = recipients?.sinks;
       if (membership?.provenance !== 'full') {
         refuse(
           'SNAPBACK_AUTHORITY_PROJECTION_FULL_PROVENANCE_REQUIRED',
@@ -3608,14 +3616,16 @@ async function generateInProcessLocked({
         || !Array.isArray(historyVisibleFields)
         || historyVisibleFields.length !== new Set(historyVisibleFields).size
         || !recipients || typeof recipients !== 'object' || Array.isArray(recipients)
-        || canonicalResultJson(Object.keys(recipients).sort()) !== canonicalResultJson(['ceiling'])
+        || canonicalResultJson(Object.keys(recipients).sort()) !== canonicalResultJson(['ceiling', 'sinks'])
         || !Number.isSafeInteger(recipientCeiling)
         || recipientCeiling < 1
-        || recipientCeiling > 1_024) {
+        || recipientCeiling > 1_024
+        || !Array.isArray(recipientSinks)
+        || recipientSinks.length === 0) {
         refuse(
           'SNAPBACK_AUTHORITY_PROJECTION_INVALID',
-          'projection must be { history: { visible: uniqueFields[] }, recipients: { ceiling: 1..1024 } }',
-          'Declare the closed projection shape and a finite recipient ceiling no greater than 1,024.',
+          'projection must declare history.visible plus recipients.{ceiling,sinks}',
+          'Declare a finite ceiling and at least one exact sending-operation/product-row sink.',
         );
       } else {
         const unknown = historyVisibleFields.filter(
@@ -3635,6 +3645,60 @@ async function generateInProcessLocked({
         const duplicateCurrentFields = historyVisibleFields.filter(
           (field) => currentRosterFields.has(field),
         );
+        const normalizedRecipientSinks = [];
+        const sinkOperations = new Set();
+        for (const sink of recipientSinks) {
+          const keys = sink && typeof sink === 'object' && !Array.isArray(sink)
+            ? Object.keys(sink).sort()
+            : [];
+          const validKeys = canonicalResultJson(keys)
+            === canonicalResultJson(['operation', 'recipientsField', 'scopeField', 'table']);
+          const operation = sink?.operation;
+          const sinkTable = sink?.table;
+          const scopeField = sink?.scopeField;
+          const recipientsField = sink?.recipientsField;
+          const functionDefinition = typeof operation === 'string'
+            ? functionsModule[operation]
+            : null;
+          const rawSinkTable = typeof sinkTable === 'string' ? schemaDef.tables?.[sinkTable] : null;
+          const rawScopeField = rawSinkTable?.fields?.[scopeField];
+          const rawRecipientsField = rawSinkTable?.fields?.[recipientsField];
+          const validScope = idFieldTypeTable(rawScopeField?.fieldType) === resourceTable
+            && rawScopeField?.optional !== true;
+          const validRecipients = rawRecipientsField?.primitive === 'array'
+            && rawRecipientsField?.optional !== true
+            && rawRecipientsField?.element?.fieldType === 'Principal'
+            && Number.isSafeInteger(rawRecipientsField?.resultOptions?.maxItems)
+            && rawRecipientsField.resultOptions.maxItems >= recipientCeiling;
+          const validFunction = functionDefinition?.__kind === 'Mutation'
+            && Array.isArray(functionDefinition?.js?.writes)
+            && functionDefinition.js.writes.includes(sinkTable);
+          if (!validKeys
+            || !isOperationName(operation)
+            || ![sinkTable, scopeField, recipientsField].every(
+              (value) => typeof value === 'string' && IDENT.test(value),
+            )
+            || !validScope
+            || !validRecipients
+            || !validFunction
+            || sinkOperations.has(operation)
+            || functionDefinition?.[GENERATED_AUTHORITY_OPERATION] !== undefined) {
+            refuse(
+              'SNAPBACK_AUTHORITY_RECIPIENT_SINK_INVALID',
+              'recipient sinks must bind one unique authored mutation to a declared product row and bounded principal-array field',
+              'Declare { operation, table, scopeField, recipientsField }; make operation a mutation that writes table, scopeField a required id of the profile scope table, and recipientsField a required v.array(v.principal(), { maxItems: ceiling-or-greater }).',
+              { sink },
+            );
+            continue;
+          }
+          sinkOperations.add(operation);
+          normalizedRecipientSinks.push({
+            operation,
+            table: sinkTable,
+            scopeField,
+            recipientsField,
+          });
+        }
         if (unknown.length > 0 || authorityFields.length > 0 || duplicateCurrentFields.length > 0) {
           refuse(
             'SNAPBACK_AUTHORITY_PROJECTION_FIELD_INVALID',
@@ -3646,7 +3710,7 @@ async function generateInProcessLocked({
               duplicateCurrentFields,
             },
           );
-        } else {
+        } else if (normalizedRecipientSinks.length === recipientSinks.length) {
           // @ref LLP 0240#projection-activation-source-capture-and-backfill —
           // the manifest pins row-image capture and the finite send ceiling;
           // the transition ledger is corroboration, never the projection
@@ -3662,6 +3726,7 @@ async function generateInProcessLocked({
               ceiling: recipientCeiling,
               overflow: 'typed-refusal',
               freeze: 'sending-transaction',
+              sinks: normalizedRecipientSinks,
             },
             historyHorizon: {
               carrier: 'operation-envelope',
@@ -3774,6 +3839,14 @@ async function generateInProcessLocked({
     // fields, wake universes, transition descriptors, composition classes,
     // operations, and lattice order without an enumerated-preimage escape.
     profile.generation = `sha256:${sha256(`snapback:authority-profile:v1\n${canonicalResultJson(profile)}`)}`;
+    for (const sink of profile.projection?.recipients?.sinks ?? []) {
+      functionsModule[sink.operation][GENERATED_AUTHORITY_OPERATION] = {
+        id: profile.id,
+        generation: profile.generation,
+        operation: 'snapshotRecipients',
+        recipientSink: { ...sink },
+      };
+    }
     table.authorityProfile = profile;
     authorityProfiles.set(profile.id, {
       table,
@@ -3972,19 +4045,26 @@ async function generateInProcessLocked({
     for (const operation of readOperations) {
       const operationName = `${profileName}.${operation}`;
       const historicalVisibleFields = profile.projection?.history?.visibleFields ?? [];
+      // History is not a privileged roster escape hatch. Authority axes are
+      // present only when the author explicitly placed their membership field
+      // in roster.visible; the private incarnation key is never projected.
+      const historyShowsPrincipal = profile.roster.visibleFields.includes(membership.principal);
+      const historyShowsScope = profile.roster.visibleFields.includes(membership.resource);
+      const historyShowsRole = profile.roster.visibleFields.includes(membership.role);
       const historyFacts = operation === 'history'
         ? {
-            incarnation: v.string(),
-            principal: v.principal(),
-            scope: resourceValidator,
+            ...(historyShowsPrincipal ? { principal: v.principal() } : {}),
+            ...(historyShowsScope ? { scope: resourceValidator } : {}),
             event: v.union([
               v.literal('join'),
               v.literal('roleChange'),
               v.literal('patch'),
               v.literal('leave'),
             ]),
-            role: profileRoleValidator,
-            status: v.union([v.literal('active'), v.literal('invited'), v.literal('departed')]),
+            ...(historyShowsRole ? {
+              role: profileRoleValidator,
+              status: v.union([v.literal('active'), v.literal('invited'), v.literal('departed')]),
+            } : {}),
             commit: v.integer({ min: 0, max: Number.MAX_SAFE_INTEGER }),
             at: v.optional(v.integer({ min: 0, max: Number.MAX_SAFE_INTEGER })),
             ...Object.fromEntries(historicalVisibleFields.map((field) => [
@@ -3996,16 +4076,17 @@ async function generateInProcessLocked({
           }
         : operation === 'incarnations'
           ? {
-              incarnation: v.string(),
-              principal: v.principal(),
-              scope: resourceValidator,
+              ...(historyShowsPrincipal ? { principal: v.principal() } : {}),
+              ...(historyShowsScope ? { scope: resourceValidator } : {}),
               joinedAt: v.optional(v.integer({ min: 0, max: Number.MAX_SAFE_INTEGER })),
               leftAt: v.optional(v.union([
                 v.integer({ min: 0, max: Number.MAX_SAFE_INTEGER }),
                 v.null(),
               ])),
-              currentRole: profileRoleValidator,
-              status: v.union([v.literal('active'), v.literal('invited'), v.literal('departed')]),
+              ...(historyShowsRole ? {
+                currentRole: profileRoleValidator,
+                status: v.union([v.literal('active'), v.literal('invited'), v.literal('departed')]),
+              } : {}),
               ...Object.fromEntries(historicalVisibleFields.map((field) => [
                 field,
                 schemaDef.tables[table.name].fields[field].optional
@@ -16922,7 +17003,7 @@ function renderApiTypes(
     const scopeType = resourceTable ? `Id<'${resourceTable}'>` : 'string';
     const hasProjection = functions.some(({ name }) => name === `${declaration}.history`);
     const mutationMethods = hasProjection
-      ? ` & { snapshotRecipients(scopeId: ${scopeType}): Promise<readonly Principal[]> }`
+      ? ` & { snapshotRecipients(scopeId: ${scopeType}, rowId: string): Promise<null> }`
       : '';
     lines.push(`  ${JSON.stringify(declaration)}: GeneratedAuthority[${JSON.stringify(declaration)}]${mutationMethods};`);
   }

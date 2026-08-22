@@ -89,6 +89,40 @@ per cell even while reusing the same readable connection label:
       await new Promise((resolve) => setTimeout(resolve, 1));
     }
     assert.equal(transportOpens, 1, 'six provider cells open exactly one real transport');
+    const lifecycleInspection = providerLifecycle.inspection();
+    assert.equal(lifecycleInspection.connections[0].ownershipTuple.canonicalAppId, 'react-fixture');
+    assert.equal(
+      lifecycleInspection.connections[0].ownershipTuple.storagePartition,
+      providerLifecycleClient.clientStoreId,
+    );
+    assert.equal(
+      lifecycleInspection.connections[0].ownershipTuple.serverOrigin,
+      'http://provider-lifecycle.test',
+    );
+    assert.equal(typeof lifecycleInspection.connections[0].grantAgeMs, 'number');
+    assert.equal(lifecycleInspection.connections[0].outboxSuspensionReason, null);
+    assert(
+      lifecycleInspection.subscriptions.every(
+        (subscription) => subscription.ownershipTuple
+          === lifecycleInspection.connections[0].ownershipTuple
+          && typeof subscription.grantAgeMs === 'number'
+          && subscription.outboxSuspensionReason === null,
+      ),
+      'subscription inspection shares the exact connection ownership/grant/outbox facts',
+    );
+    await providerLifecycle.pause();
+    assert.equal(
+      providerLifecycle.inspection().connections[0].outboxSuspensionReason,
+      'host-paused',
+    );
+    await providerLifecycle.resume();
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if (
+        providerLifecycle.inspection().serverSubscriptions === providerCellCount
+        && transportOpens === 2
+      ) break;
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
     assert.deepEqual(inspectProviderOwners(providerLifecycleClient, [providerLifecycle]), [{
       owner: providerLifecycle.providerInstanceId,
       connectionId: 'provider-lifecycle-shared-authority-origin',
@@ -107,7 +141,7 @@ per cell even while reusing the same readable connection label:
     providerCells = null;
     await flush();
     await providerLifecycle.dispose();
-    assert.equal(transportCloses, 1, 'provider teardown closes the shared real transport');
+    assert.equal(transportCloses, 2, 'pause and provider teardown each close their shared transport');
     assert.equal(activeSubscriptions.size, 0);
 ```
 

@@ -45,6 +45,13 @@ principal/resource/role axes or a current roster field. In this example,
 `userId`/`role` projection:
 
 ```js fragment reason="Minimal public spelling; the packed Explicit/Familiar contract fixture constructs and verifies the complete schema."
+export const eventDeliveries = defineTable({
+  eventId: v.id('events'),
+  senderId: v.principal(),
+  body: v.string(),
+  recipientIds: v.array(v.principal(), { maxItems: 1024 }),
+}).visibility({ kind: 'owner', field: 'senderId' });
+
 export const eventMembers = defineTable({
   eventId: v.id('events'),
   userId: v.principal(),
@@ -69,15 +76,25 @@ export const eventMembers = defineTable({
     roster: { visible: ['userId', 'role'] },
     projection: {
       history: { visible: ['auditLabel'] },
-      recipients: { ceiling: 1024 },
+      recipients: {
+        ceiling: 1024,
+        sinks: [{
+          operation: 'sendDelivery',
+          table: 'eventDeliveries',
+          scopeField: 'eventId',
+          recipientsField: 'recipientIds',
+        }],
+      },
     },
   })
   .visibility({ kind: 'owner', field: 'userId' });
 ```
 
-Explicit and Familiar accept the same declaration. Familiar's `defineTable`
-adds its normal sync default; it does not change authority, projection, or
-history semantics.
+Explicit and Familiar accept the same declaration shape. As with every
+Familiar operation reference, a Familiar sink uses its exact two-segment
+operation identity (for example, `messages.sendDelivery`) while Explicit uses
+the exported name. Familiar's `defineTable` adds its normal sync default; it
+does not change authority, projection, or history semantics.
 
 ## Read current state and history through different operations
 
@@ -87,6 +104,13 @@ Enabling `projection` adds `eventMembers.history` and
 `eventMembers.incarnations`. Both require current roster admission before
 cursor parsing, use sealed operation/scope/generation/caller-bound cursors,
 and return the D1 envelope:
+
+History does not widen roster visibility. `principal`, `scope`, and
+role-derived fields appear only when their membership fields are declared in
+`roster.visible`; private row/incarnation ids never appear. Pending-only
+invitations are omitted from history and incarnation results. Once an
+incarnation becomes active or departed, its admitted, redacted history can be
+returned.
 
 ```ts fragment reason="Generated type spelling verified by the packed authority-projection fixture."
 interface AuthorityHistoryPageV1<Row> {
@@ -113,11 +137,33 @@ otherwise.
 
 ## Freeze recipients inside the sending mutation
 
-Call `ctx.authority.eventMembers.snapshotRecipients(eventId)` only inside the
-mutation that writes the product message/effect row. Store the returned
-principal array on that row before commit. Resolution and the product write
-then share one transaction snapshot; a later leave does not rewrite who the
-message targeted.
+The `recipients.sinks` declaration binds the helper to an exact sending
+mutation and product field. Insert the product row, then call
+`ctx.authority.eventMembers.snapshotRecipients(eventId, rowId)`. The host
+writes `recipientIds` onto that row in the same transaction and returns
+`null`; application JavaScript never receives or enumerates the principals.
+Use from another mutation, against another table/field, or without the sink
+row is refused.
+
+Later membership changes do not rewrite the frozen product row.
+
+```js fragment reason="The packed projection fixture verifies this exact generated helper and sink identity."
+export const sendDelivery = defineJsMutation({
+  auth: 'authenticated',
+  args: { eventId: v.id('events'), body: v.string() },
+  reads: ['eventMembers', 'eventDeliveries'],
+  writes: ['eventDeliveries'],
+  handler: async (ctx, args) => {
+    const rowId = await ctx.db.insert('eventDeliveries', {
+      eventId: args.eventId,
+      body: args.body,
+      recipientIds: [],
+    });
+    await ctx.authority.eventMembers.snapshotRecipients(args.eventId, rowId);
+    return rowId;
+  },
+});
+```
 
 The declared ceiling may be at most 1,024. Resolution reads at most one row
 past the declaration and refuses with
@@ -137,13 +183,14 @@ The manifest publishes the closed three-class matrix per generated mutation:
 
 | Branch class | Result |
 | --- | --- |
-| requested state already holds | idempotent success, unchanged |
+| requested state already holds, or `remove` target is absent | idempotent success, no write/transition receipt |
 | visible target violates a precondition | typed precondition refusal |
-| target is hidden or absent | non-enumerating denial |
+| target or scope is hidden | non-enumerating denial |
 
 For example, changing a member to its current role performs no write; inviting
-an already-active visible member is a typed precondition; removing an absent
-or hidden target does not reveal which case occurred. Clients may retry, but
+an already-active visible member is a typed precondition; changing the role of
+an absent visible target is a typed precondition; removing an absent target is
+an idempotent no-op; and hidden targets/scopes deny without enumeration. Clients may retry, but
 must not convert a denial into existence evidence.
 
 ## Adopt from an app-owned mirror

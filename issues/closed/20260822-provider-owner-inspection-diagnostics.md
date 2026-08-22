@@ -15,11 +15,13 @@ without exposing query arguments or authority material.
 
 Inspection enumerates owner-labelled active connections and subscriptions with
 connection state, snapshot version, readiness/auth barrier, and outbox
-suspension reason. Budget diagnostics identify the same owner and fire before
-refusal.
+suspension reason. It includes the canonical app/storage/origin/settled-authority
+ownership tuple and grant age without exposing grants. Budget diagnostics
+identify the same owner and fire before refusal.
 
 ## Resolution
 
-Headless inspection now retains subscription-owner labels and lifecycle facts;
-React inspection combines them with provider ownership and the 16/64 budget.
-Fixtures prove active and post-disposal zero-resource views.
+Headless inspection now retains subscription-owner labels, ownership tuple,
+grant age, and the real outbox suspension reason; React inspection combines
+them with provider ownership and the 16/64 budget. Fixtures prove active,
+paused, and post-disposal views.

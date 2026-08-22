@@ -3050,6 +3050,7 @@ export class SnapbackClient {
     this.__outboxBarrierProviders = new Set();
     this.__outboxLastReplayStop = null;
     this.__outboxHousekeepingLastReplayStop = null;
+    this.__inspectionAppId = null;
     this.__outboxDiagnostics = [];
     if (typeof devDiagnosticsReporter !== 'boolean') {
       throw new TypeError('devDiagnosticsReporter must be boolean');
@@ -6580,11 +6581,32 @@ export class SnapbackClient {
       ? null
       : new Set(Array.from(connectionIds, (value) => String(value)));
     const includes = (connectionId) => selected === null || selected.has(connectionId);
+    const authority = this.authorityTransitionStatus();
+    const settledAuthority = Object.freeze({
+      state: authority.state,
+      settled: authority.settled === true,
+      transitionOwner: authority.transitionOwner ?? null,
+      barrierPhase: authority.barrierPhase ?? null,
+    });
+    let serverOrigin = this.baseUrl;
+    try { serverOrigin = new URL(this.baseUrl).origin; } catch { /* relative development base */ }
+    const ownershipTuple = Object.freeze({
+      canonicalAppId: this.__inspectionAppId,
+      storagePartition: this.clientStoreId,
+      serverOrigin,
+      settledAuthority,
+    });
+    const outboxSuspensionReason = authority.transitionOwner !== null
+      ? 'auth-barrier'
+      : this.__outboxDrainStartBlockedReason
+        ?? this.__outboxLastReplayStop?.reason
+        ?? null;
     const managers = Object.freeze(
       [...(this.__liveStreamManagers?.entries?.() ?? [])]
         .filter(([connectionId]) => includes(connectionId))
         .map(([connectionId, manager]) => Object.freeze({
           connectionId,
+          ownershipTuple,
           ...manager.inspection(),
         })),
     );
@@ -6616,7 +6638,7 @@ export class SnapbackClient {
             readiness: ['live', 'polling'].includes(entry.handle.connection)
               ? 'ready'
               : 'waiting',
-            outboxSuspensionReason: null,
+            outboxSuspensionReason,
           });
         }),
     );
@@ -6624,6 +6646,8 @@ export class SnapbackClient {
       managers,
       managerCount: managers.length,
       grants: grantLabels,
+      ownershipTuple,
+      outboxSuspensionReason,
       grantCount: grantLabels.length,
       laneConsumers,
       subscriptions,
@@ -6642,6 +6666,10 @@ export class SnapbackClient {
         0,
       ),
     });
+  }
+  __registerInspectionAppId(appId) {
+    if (typeof appId !== 'string' || appId.length === 0) return;
+    if (this.__inspectionAppId === null) this.__inspectionAppId = appId;
   }
   prepareReactBinding(options) {
     return prepareReactBindingForClient(this, options);
@@ -17609,6 +17637,7 @@ class LiveStreamManager {
     // stale grant (restarted server): the next connect refreshes the grant.
     this.grantSuspect = false;
     this.authorityCapture = null;
+    this.grantEstablishedAtMs = null;
   }
 
   #demand() {
@@ -17682,6 +17711,9 @@ class LiveStreamManager {
       pendingRequests: this.pendingRequests.size,
       reconnectTimer: this.reconnectTimer === null ? 0 : 1,
       heartbeatTimer: this.heartbeatTimer === null ? 0 : 1,
+      grantAgeMs: this.grantEstablishedAtMs === null
+        ? null
+        : Math.max(0, Date.now() - this.grantEstablishedAtMs),
     });
   }
 
@@ -17880,6 +17912,7 @@ class LiveStreamManager {
         ? this.client.refreshConnectionGrant(this.connectionId)
         : this.client.connectionGrant(this.connectionId))
         .then(async (grant) => {
+          this.grantEstablishedAtMs = Date.now();
           let captured = this.client.authorityFence?.capture?.()
             ?? grant?.[AUTHORITY_CAPTURE]
             ?? authorityCapture;

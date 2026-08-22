@@ -101,6 +101,7 @@ function createFakeClient({
   routeManifestHash = 'sha256:4606fa619bd2abd7323a5de9e8c0b3c94e78f37f066c279d91ed412dc22848c4',
   deferRegisteredFunction = null,
   managerSocketDemand = 0,
+  deferHandleSettlement = false,
 } = {}) {
   const handles = new Set();
   const byFunction = new Map();
@@ -120,6 +121,8 @@ function createFakeClient({
   const preloadReplacements = [];
   const serverRegistrations = new Set();
   const barriers = [];
+  const lifecycleEvents = [];
+  const pendingSettlements = new Set();
   let barrierUnregistered = 0;
   const client = {
     authProtocols: authInvalidationProtocol === null
@@ -188,6 +191,8 @@ function createFakeClient({
     },
     startLiveQuery(ref, options) {
       starts += 1;
+      const startSequence = starts;
+      lifecycleEvents.push(`start:${ref.name}:${startSequence}`);
       startOptions.push(Object.freeze({
         function: ref.name,
         supersedesSubscriptionId: options.supersedesSubscriptionId ?? null,
@@ -209,17 +214,29 @@ function createFakeClient({
       const started = deferRegisteredFunction === ref.name && options.registeredSubscription
         ? new Promise((resolve) => { resolveStarted = resolve; })
         : Promise.resolve();
+      let resolveSettled = () => {};
+      const settled = deferHandleSettlement
+        ? new Promise((resolve) => {
+            resolveSettled = () => {
+              lifecycleEvents.push(`settled:${ref.name}:${startSequence}`);
+              pendingSettlements.delete(resolveSettled);
+              resolve();
+            };
+            pendingSettlements.add(resolveSettled);
+          })
+        : Promise.resolve();
       const handle = {
         current,
         started: () => started,
         dispose() {
           if (disposed) return;
           disposed = true;
+          lifecycleEvents.push(`dispose:${ref.name}:${startSequence}`);
           resolveStarted();
           handles.delete(handle);
           byFunction.get(ref.id)?.delete(handle);
         },
-        settled: async () => {},
+        settled: () => settled,
         emit(nextRows, connection = 'live') {
           current.rows = nextRows;
           current.connection = connection;
@@ -338,6 +355,9 @@ function createFakeClient({
     emitDurable(frame) {
       for (const consumer of durableConsumers) consumer(frame);
     },
+    resolveHandleSettlements() {
+      for (const resolve of [...pendingSettlements]) resolve();
+    },
     inspection() {
       return {
         starts,
@@ -358,6 +378,8 @@ function createFakeClient({
         startOptions,
         mutationOptions,
         preloadReplacements,
+        lifecycleEvents,
+        pendingSettlements: pendingSettlements.size,
       };
     },
   };
@@ -1706,6 +1728,7 @@ assert.equal(
   });
   let notifications = 0;
   let dispatchFromDelivery = null;
+  let subscribeFromDelivery = null;
   let armed = false;
   const observer = observeSnapbackQueries(dedupProvider, {
     feed: { ref: capacityFeeds[200], args: {} },
@@ -1715,6 +1738,13 @@ assert.equal(
       dispatchFromDelivery = dedupProvider.registry
         .runMutation(publish, { value: 'nested' })
         .catch((error) => error);
+      try {
+        observeSnapbackQueries(dedupProvider, {
+          nested: { ref: capacityFeeds[201], args: {} },
+        }, () => {});
+      } catch (error) {
+        subscribeFromDelivery = error;
+      }
     }
   });
   await flush();
@@ -1741,6 +1771,8 @@ assert.equal(
     'SNAPBACK_REACT_DELIVERY_REENTRANCY_UNSUPPORTED',
   );
   assert.equal(dedupFake.inspection().mutations, 0, 'nested refusal occurs before dispatch');
+  assert.equal(subscribeFromDelivery?.code, 'SNAPBACK_REACT_DELIVERY_REENTRANCY_UNSUPPORTED');
+  assert.equal(dedupProvider.inspection().serverSubscriptions, 1, 'nested subscribe allocates no handle');
   assert(
     diagnostics.some(
       (diagnostic) => diagnostic.code === 'SNAPBACK_REACT_DELIVERY_REENTRANCY_UNSUPPORTED',
@@ -1757,6 +1789,44 @@ assert.equal(
   );
   observer.dispose();
   await dedupProvider.dispose();
+}
+
+// Authority replacement must finish predecessor teardown before a successor
+// subscription can start under the new custody.
+{
+  const replacementFake = createFakeClient({ deferHandleSettlement: true });
+  const replacementBinding = await prepareReactBindingForClient(replacementFake, {
+    generatedManifest,
+  });
+  const replacementProvider = createSnapbackReactProvider(replacementBinding, {
+    connectionId: 'react-package-authority-replacement-order',
+  });
+  const replacementObserver = observeSnapbackQueries(replacementProvider, {
+    feed: { ref: capacityFeeds[202], args: {} },
+  }, () => {});
+  await flush();
+  const barrier = replacementFake.inspection().barriers[0];
+  const quiesced = barrier.quiesce({});
+  await flush();
+  assert.deepEqual(
+    replacementFake.inspection().lifecycleEvents.slice(0, 2),
+    ['start:capacityFeed202:1', 'dispose:capacityFeed202:1'],
+  );
+  assert.equal(replacementFake.inspection().starts, 1, 'no successor starts while settlement is held');
+  replacementFake.resolveHandleSettlements();
+  await quiesced;
+  barrier.blank({});
+  await barrier.resume({});
+  await flush();
+  assert.equal(replacementFake.inspection().starts, 2);
+  assert(
+    replacementFake.inspection().lifecycleEvents.indexOf('settled:capacityFeed202:1')
+      < replacementFake.inspection().lifecycleEvents.indexOf('start:capacityFeed202:2'),
+    'the predecessor settles before the successor starts',
+  );
+  replacementObserver.dispose();
+  replacementFake.resolveHandleSettlements();
+  await replacementProvider.dispose();
 }
 
 // @ref LLP 0095#connection-ownership-per-app-authorityorigin — provider cells
@@ -1886,6 +1956,40 @@ assert.equal(
       await new Promise((resolve) => setTimeout(resolve, 1));
     }
     assert.equal(transportOpens, 1, 'six provider cells open exactly one real transport');
+    const lifecycleInspection = providerLifecycle.inspection();
+    assert.equal(lifecycleInspection.connections[0].ownershipTuple.canonicalAppId, 'react-fixture');
+    assert.equal(
+      lifecycleInspection.connections[0].ownershipTuple.storagePartition,
+      providerLifecycleClient.clientStoreId,
+    );
+    assert.equal(
+      lifecycleInspection.connections[0].ownershipTuple.serverOrigin,
+      'http://provider-lifecycle.test',
+    );
+    assert.equal(typeof lifecycleInspection.connections[0].grantAgeMs, 'number');
+    assert.equal(lifecycleInspection.connections[0].outboxSuspensionReason, null);
+    assert(
+      lifecycleInspection.subscriptions.every(
+        (subscription) => subscription.ownershipTuple
+          === lifecycleInspection.connections[0].ownershipTuple
+          && typeof subscription.grantAgeMs === 'number'
+          && subscription.outboxSuspensionReason === null,
+      ),
+      'subscription inspection shares the exact connection ownership/grant/outbox facts',
+    );
+    await providerLifecycle.pause();
+    assert.equal(
+      providerLifecycle.inspection().connections[0].outboxSuspensionReason,
+      'host-paused',
+    );
+    await providerLifecycle.resume();
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if (
+        providerLifecycle.inspection().serverSubscriptions === providerCellCount
+        && transportOpens === 2
+      ) break;
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
     assert.deepEqual(inspectProviderOwners(providerLifecycleClient, [providerLifecycle]), [{
       owner: providerLifecycle.providerInstanceId,
       connectionId: 'provider-lifecycle-shared-authority-origin',
@@ -1904,7 +2008,7 @@ assert.equal(
     providerCells = null;
     await flush();
     await providerLifecycle.dispose();
-    assert.equal(transportCloses, 1, 'provider teardown closes the shared real transport');
+    assert.equal(transportCloses, 2, 'pause and provider teardown each close their shared transport');
     assert.equal(activeSubscriptions.size, 0);
     assert.deepEqual(inspectProviderOwners(providerLifecycleClient, [providerLifecycle]), [{
       owner: providerLifecycle.providerInstanceId,
@@ -1935,6 +2039,44 @@ const entries = (indexes) => Object.fromEntries(indexes.map((index) => [
   `entry${index}`,
   { ref: capacityFeeds[index], args: {} },
 ]));
+{
+  const warningDiagnostics = [];
+  const warningProvider = createSnapbackReactProvider(binding, {
+    connectionId: 'react-package-budget-warning-boundary',
+    onDiagnostic: (diagnostic) => warningDiagnostics.push(diagnostic),
+  });
+  const warningGroup = observeSnapbackQueries(
+    warningProvider,
+    entries(Array.from({ length: 16 }, (_, index) => index + 100)),
+    () => {},
+  );
+  await flush();
+  assert.equal(
+    warningDiagnostics.some(
+      (diagnostic) => diagnostic.code === 'SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED',
+    ),
+    false,
+    'the exact 16-subscription budget does not warn',
+  );
+  warningGroup.update(entries(Array.from({ length: 17 }, (_, index) => index + 100)));
+  await flush();
+  const warning = warningDiagnostics.find(
+    (diagnostic) => diagnostic.code === 'SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED',
+  );
+  assert.deepEqual({
+    count: warning?.details.count,
+    owner: warning?.details.owner,
+    atomicAlternative: warning?.details.atomicCrossSetAlternative,
+    fanoutAlternative: warning?.details.fanoutAlternative,
+  }, {
+    count: 17,
+    owner: `provider:${warningProvider.providerInstanceId}`,
+    atomicAlternative: 'defineSetKeyedAggregate',
+    fanoutAlternative: 'defineChunkedSemiJoin',
+  }, 'entry 17 emits the owner-attributed alternative-bearing warning');
+  warningGroup.dispose();
+  await warningProvider.dispose();
+}
 assert.throws(
   () => observeSnapbackQueries(
     capacityProvider,
@@ -1977,6 +2119,22 @@ assert(
   ),
   'inspection labels every active subscription with its provider/query owner',
 );
+
+for (let index = 0; index < 64; index += 1) {
+  capacityProvider.binding.client.emit(
+    capacityFeeds[index],
+    [{ id: `capacityFeed${index}:root`, revision: 1_000 + index }],
+    'live',
+  );
+}
+await flush();
+for (let index = 0; index < 64; index += 1) {
+  assert.equal(
+    fullGroup.snapshot().queries[`entry${index}`].data[0].revision,
+    1_000 + index,
+    `subscription ${index + 1} remains live at the hard ceiling`,
+  );
+}
 
 const oneForOne = entries(Array.from({ length: 64 }, (_, index) => index));
 delete oneForOne.entry63;

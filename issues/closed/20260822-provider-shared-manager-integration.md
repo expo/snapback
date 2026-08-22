@@ -22,5 +22,7 @@ tears down the predecessor before establishing its successor.
 
 The React package fixture exercises the real headless manager with an injected
 WebSocket, observes one connection and six subscriptions, and verifies
-teardown. Provider publication is held in `refreshing` until the successor
-connection is live, enforcing the teardown-before-successor boundary.
+teardown. A separate deterministic fake holds the predecessor handle's
+`settled()` promise across auth quiescence and proves the successor start event
+occurs only after that promise resolves. Provider publication remains in
+`refreshing` until the successor connection is live.

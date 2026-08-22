@@ -306,6 +306,16 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         name: "_snapback_membership_transitions",
         disposition: CustodyDisposition::Copy,
     },
+    // Authority product projection rows are application history and delivery
+    // facts. Derived forks copy them with the product rows they describe.
+    CustodyRule {
+        name: "_snapback_authority_projection_horizons",
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
+        name: "_snapback_authority_projection_events",
+        disposition: CustodyDisposition::Copy,
+    },
     CustodyRule {
         name: "_snapback_relation_incarnations_v1",
         disposition: CustodyDisposition::Copy,
@@ -1018,6 +1028,75 @@ mod tests {
             SIDECAR_CUSTODY.len(),
             "sidecar custody conventions are unique"
         );
+    }
+
+    #[test]
+    fn fork_mint_preserves_authority_product_projection_rows() {
+        let directory = tempfile::tempdir().expect("fork projection tempdir");
+        let source_path = directory.path().join("source.sqlite3");
+        let mut source =
+            crate::storage::LocalDatabase::open(&source_path).expect("create source database");
+        source
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
+        let schema =
+            crate::storage::tests::membership_write_tests::authority_product_projection_schema(8);
+        assert!(schema.tables.iter().any(|table| {
+            table
+                .authority_profile
+                .as_ref()
+                .is_some_and(|profile| profile.projection.is_some())
+        }));
+        source
+            .schema_seed()
+            .apply_schema(schema)
+            .expect("activate projection-bearing schema");
+        source
+            .schema_seed()
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "events".to_owned(),
+                        vec![serde_json::Map::from_iter([
+                            ("_id".to_owned(), json!("scope-1")),
+                            ("title".to_owned(), json!("Projection fork")),
+                        ])],
+                    ),
+                    (
+                        "event_members".to_owned(),
+                        vec![serde_json::Map::from_iter([
+                            ("_id".to_owned(), json!("inc-1")),
+                            ("eventId".to_owned(), json!("scope-1")),
+                            ("userId".to_owned(), json!("alice")),
+                            ("role".to_owned(), json!("owner")),
+                        ])],
+                    ),
+                ]),
+            })
+            .expect("seed projection-bearing source");
+        drop(source);
+
+        let staging = directory.path().join("staging");
+        fs::create_dir(&staging).expect("create staging directory");
+        fs::write(staging.join(STAGING_SENTINEL), b"fork staging\n")
+            .expect("write staging sentinel");
+        let mut staged = StagedForkDatabase::prepare(&staging, "derived.sqlite3")
+            .expect("prepare staged database");
+        clone_database_into_staging(&source_path, &mut staged).expect("clone source database");
+        scrub_and_mint_staged_database(&staged, "app-test", "parent-test", 20, false, None)
+            .expect("mint derived database");
+
+        let derived = Connection::open(staged.database_path()).expect("open derived database");
+        for table in [
+            "_snapback_authority_projection_horizons",
+            "_snapback_authority_projection_events",
+        ] {
+            let sql = format!("SELECT count(*) FROM {table}");
+            let count: u64 = derived
+                .query_row(&sql, [], |row| row.get(0))
+                .expect("count copied projection rows");
+            assert_eq!(count, 1, "{table} is copied across fork mint");
+        }
     }
 }
 

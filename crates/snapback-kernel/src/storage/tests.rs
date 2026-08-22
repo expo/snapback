@@ -14537,7 +14537,7 @@ mod guarded_commit_tests {
 //   matrix and its negatives, field-binding, the eligible-holder invariant (the
 //   two-step schedule and the concurrent-finals race), witnesses, and the sweep.
 #[cfg(test)]
-mod membership_write_tests {
+pub(crate) mod membership_write_tests {
     use super::*;
     use crate::manifest::MembershipTransition;
 
@@ -14848,8 +14848,43 @@ mod membership_write_tests {
         schema
     }
 
-    fn authority_product_projection_schema(recipient_ceiling: u32) -> SchemaManifest {
+    pub(crate) fn authority_product_projection_schema(recipient_ceiling: u32) -> SchemaManifest {
         let mut schema = authority_profile_schema();
+        let recipient_contract = crate::manifest::StoredStructuredContractV1 {
+            version: crate::manifest::STORED_STRUCTURED_CONTRACT_VERSION_V1,
+            descriptor: ResultValueContract::Array {
+                element: Box::new(ResultValueContract::Principal),
+                max_items: 1_024,
+            },
+            encoding: crate::manifest::STORED_STRUCTURED_ENCODING_V1.to_owned(),
+        };
+        let recipient_contract_hash =
+            crate::manifest::stored_structured_contract_hash(&recipient_contract)
+                .expect("recipient sink contract hash");
+        let mut delivery_table = schema.tables[0].clone();
+        delivery_table.name = "event_deliveries".to_owned();
+        delivery_table.fields = vec![
+            FieldManifest {
+                name: "eventId".to_owned(),
+                field_type: FieldType::Id {
+                    table: "events".to_owned(),
+                },
+                optional: false,
+            },
+            FieldManifest {
+                name: "recipientIds".to_owned(),
+                field_type: FieldType::Structured {
+                    contract: recipient_contract,
+                    contract_hash: recipient_contract_hash,
+                },
+                optional: false,
+            },
+        ];
+        delivery_table.indexes.clear();
+        delivery_table.membership = None;
+        delivery_table.authority_profile = None;
+        delivery_table.visibility = Some(TableVisibilityV1::PublicRead);
+        schema.tables.push(delivery_table);
         let table = &mut schema.tables[1];
         let membership = table.membership.as_ref().expect("membership declaration");
         let profile = table
@@ -14867,7 +14902,13 @@ mod membership_write_tests {
                 "recipients": {
                     "ceiling": recipient_ceiling,
                     "overflow": "typed-refusal",
-                    "freeze": "sending-transaction"
+                    "freeze": "sending-transaction",
+                    "sinks": [{
+                        "operation": "send_delivery",
+                        "table": "event_deliveries",
+                        "scopeField": "eventId",
+                        "recipientsField": "recipientIds"
+                    }]
                 },
                 "historyHorizon": {
                     "carrier": "operation-envelope",
@@ -15728,6 +15769,62 @@ mod membership_write_tests {
     // images inside the membership writer transaction; leave closes one row
     // incarnation and a later invite opens another.
     #[test]
+    fn authority_product_projection_manifest_refuses_unbound_recipient_sinks() {
+        let mut missing = authority_product_projection_schema(8);
+        missing.tables[1]
+            .authority_profile
+            .as_mut()
+            .unwrap()
+            .projection
+            .as_mut()
+            .unwrap()
+            .recipients
+            .sinks
+            .clear();
+        let error = validate_schema(&missing).expect_err("a projection requires a product sink");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID"
+        );
+
+        let mut wrong_scope = authority_product_projection_schema(8);
+        wrong_scope.tables[1]
+            .authority_profile
+            .as_mut()
+            .unwrap()
+            .projection
+            .as_mut()
+            .unwrap()
+            .recipients
+            .sinks[0]
+            .scope_field = "recipientIds".to_owned();
+        let error = validate_schema(&wrong_scope)
+            .expect_err("the sink scope must be the nominal profile resource id");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID"
+        );
+
+        let mut wrong_recipients = authority_product_projection_schema(8);
+        wrong_recipients.tables[1]
+            .authority_profile
+            .as_mut()
+            .unwrap()
+            .projection
+            .as_mut()
+            .unwrap()
+            .recipients
+            .sinks[0]
+            .recipients_field = "eventId".to_owned();
+        let error = validate_schema(&wrong_recipients)
+            .expect_err("the sink recipient field must be a bounded principal array");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID"
+        );
+    }
+
+    #[test]
     fn authority_product_projection_captures_history_incarnations_horizon_and_recipients() {
         let mut db = ready_db_with_schema(authority_product_projection_schema(2));
         let (event_id, _) = create_event(&mut db, "alice");
@@ -15772,9 +15869,28 @@ mod membership_write_tests {
             )
             .expect("same-role request is an admitted unchanged plan");
         assert!(idempotent.writes.is_empty());
-        db.membership_plans()
+        let idempotent_commit = db
+            .membership_plans()
             .commit_membership_plan(&user("alice"), idempotent)
             .expect("idempotent same-role receipt settles successfully");
+        assert!(
+            idempotent_commit.authority_transitions.is_empty(),
+            "no-write success does not fabricate a transition receipt"
+        );
+        let absent_remove = db
+            .plan_authority_remove(
+                &user("alice"),
+                "event_members",
+                Some(&event_id),
+                "absent-principal",
+            )
+            .expect("authorized absent remove is idempotent success");
+        assert!(absent_remove.writes.is_empty());
+        let absent_commit = db
+            .membership_plans()
+            .commit_membership_plan(&user("alice"), absent_remove)
+            .expect("absent remove settles successfully");
+        assert!(absent_commit.authority_transitions.is_empty());
         let events_after_idempotent: u64 = db
             .conn
             .query_row(
@@ -15826,6 +15942,7 @@ mod membership_write_tests {
         assert_ne!(first_bob, second_bob, "rejoin opens a new row incarnation");
         set_role(&mut db, "bob", &second_bob, "member")
             .expect("the new incarnation becomes active");
+        invite(&mut db, "alice", &event_id, "pending-only");
 
         let history = DbRead::Live(&db)
             .authority_projection_page(
@@ -15835,6 +15952,9 @@ mod membership_write_tests {
                 false,
                 None,
                 100,
+                true,
+                false,
+                true,
             )
             .expect("bounded history page");
         let bob_events = history
@@ -15853,6 +15973,24 @@ mod membership_write_tests {
             "fresh activation begins coverage at the activation commit"
         );
         assert_eq!(history.next, None);
+        assert!(
+            history
+                .rows
+                .iter()
+                .all(|row| row["principal"] != "pending-only")
+        );
+        assert!(
+            history.rows.iter().all(|row| {
+                let object = row.as_object().expect("history row object");
+                object.contains_key("principal")
+                    && object.contains_key("role")
+                    && object.contains_key("status")
+                    && !object.contains_key("scope")
+                    && !object.contains_key("incarnation")
+                    && !object.contains_key("_id")
+            }),
+            "history exposes only roster-declared authority axes"
+        );
 
         let incarnations = DbRead::Live(&db)
             .authority_projection_page(
@@ -15862,6 +16000,9 @@ mod membership_write_tests {
                 true,
                 None,
                 100,
+                true,
+                false,
+                true,
             )
             .expect("bounded incarnation page");
         let bob_incarnations = incarnations
@@ -15870,12 +16011,22 @@ mod membership_write_tests {
             .filter(|row| row["principal"] == "bob")
             .collect::<Vec<_>>();
         assert_eq!(bob_incarnations.len(), 2);
-        assert_eq!(bob_incarnations[0]["incarnation"], first_bob);
         assert_eq!(bob_incarnations[0]["status"], "departed");
         assert!(bob_incarnations[0]["leftAt"].is_number());
         assert_eq!(bob_incarnations[0]["expiresAt"], 9_999);
-        assert_eq!(bob_incarnations[1]["incarnation"], second_bob);
         assert!(bob_incarnations[1]["leftAt"].is_null());
+        assert!(
+            incarnations
+                .rows
+                .iter()
+                .all(|row| row["principal"] != "pending-only")
+        );
+        assert!(incarnations.rows.iter().all(|row| {
+            let object = row.as_object().expect("incarnation row object");
+            !object.contains_key("scope")
+                && !object.contains_key("incarnation")
+                && !object.contains_key("_id")
+        }));
 
         let overflow = crate::membership_rules::authority_active_principals(
             &DbRead::Live(&db),
@@ -15891,6 +16042,59 @@ mod membership_write_tests {
             "SNAPBACK_AUTHORITY_RECIPIENT_CEILING_EXCEEDED"
         );
         assert_eq!(overflow.diagnostic.details["ceiling"], 1);
+    }
+
+    #[test]
+    fn authority_product_projection_captures_privileged_seed_row_images() {
+        let mut db = ready_db_with_schema(authority_product_projection_schema(8));
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "events".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("seed-event")),
+                            ("title".to_owned(), json!("seeded")),
+                        ])],
+                    ),
+                    (
+                        "event_members".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("seed-owner")),
+                            ("eventId".to_owned(), json!("seed-event")),
+                            ("userId".to_owned(), json!("seed-user")),
+                            ("role".to_owned(), json!("owner")),
+                            ("expiresAt".to_owned(), json!(42_000)),
+                        ])],
+                    ),
+                ]),
+            })
+            .expect("projection-enabled seed commits");
+
+        let history = DbRead::Live(&db)
+            .authority_projection_page(
+                "event_members",
+                "sha256:authority-profile-test",
+                "seed-event",
+                false,
+                None,
+                10,
+                true,
+                false,
+                true,
+            )
+            .expect("seeded history page");
+        assert_eq!(history.rows.len(), 1);
+        assert_eq!(history.rows[0]["principal"], "seed-user");
+        assert_eq!(history.rows[0]["role"], "owner");
+        assert_eq!(history.rows[0]["expiresAt"], 42_000);
+        assert_eq!(history.rows[0]["event"], "join");
+        assert!(
+            !history.rows[0]
+                .as_object()
+                .unwrap()
+                .contains_key("incarnation")
+        );
     }
 
     #[test]
@@ -15932,6 +16136,13 @@ mod membership_write_tests {
         let plan = db
             .authority_projection_migration_plan(&candidate, "event_members", "event_member_mirror")
             .expect("read-only adoption plan");
+        let plan_json = serde_json::to_string(&plan).expect("serialize adoption plan");
+        for private_row_value in ["alice", "bob", event_id.as_str()] {
+            assert!(
+                !plan_json.contains(private_row_value),
+                "plan output must remain counts/digests-only, without product-row values"
+            );
+        }
         assert!(plan.comparison.adoptable);
         assert_eq!(plan.comparison.authority_rows, 2);
         assert_eq!(plan.comparison.matched, 2);
@@ -15974,6 +16185,9 @@ mod membership_write_tests {
                 true,
                 None,
                 10,
+                true,
+                false,
+                true,
             )
             .expect("incarnations at activation horizon");
         assert_eq!(incarnations.rows.len(), 2);

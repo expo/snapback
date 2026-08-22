@@ -333,6 +333,31 @@ export interface SnapbackReactCoreProvider {
     }>[];
     consumers: number;
     serverSubscriptions: number;
+    subscriptionBudget: number;
+    subscriptionHardCeiling: number;
+    connections: readonly Readonly<{
+      owner: string;
+      connectionId: string;
+      state: string;
+      authBarrier: 'closed' | 'open';
+      readiness: 'ready' | 'waiting';
+      outboxSuspensionReason: string | null;
+      ownershipTuple: import('@expo/snapback-client').SnapbackOwnershipTupleInspection;
+      grantAgeMs: number | null;
+    }>[];
+    subscriptions: readonly Readonly<{
+      owner: string;
+      connectionId: string;
+      functionName: string | null;
+      state: string;
+      connection: string;
+      snapshotVersion: number;
+      authBarrier: 'closed' | 'open';
+      readiness: 'ready' | 'waiting';
+      outboxSuspensionReason: string | null;
+      ownershipTuple: import('@expo/snapback-client').SnapbackOwnershipTupleInspection;
+      grantAgeMs: number | null;
+    }>[];
     leases: number;
     reservations: number;
     timers: number;
@@ -407,6 +432,31 @@ export interface SnapbackReactProvider extends SnapbackReactCoreProvider {
     }>[];
     consumers: number;
     serverSubscriptions: number;
+    subscriptionBudget: number;
+    subscriptionHardCeiling: number;
+    connections: readonly Readonly<{
+      owner: string;
+      connectionId: string;
+      state: string;
+      authBarrier: 'closed' | 'open';
+      readiness: 'ready' | 'waiting';
+      outboxSuspensionReason: string | null;
+      ownershipTuple: import('@expo/snapback-client').SnapbackOwnershipTupleInspection;
+      grantAgeMs: number | null;
+    }>[];
+    subscriptions: readonly Readonly<{
+      owner: string;
+      connectionId: string;
+      functionName: string | null;
+      state: string;
+      connection: string;
+      snapshotVersion: number;
+      authBarrier: 'closed' | 'open';
+      readiness: 'ready' | 'waiting';
+      outboxSuspensionReason: string | null;
+      ownershipTuple: import('@expo/snapback-client').SnapbackOwnershipTupleInspection;
+      grantAgeMs: number | null;
+    }>[];
     leases: number;
     reservations: number;
     timers: number;

@@ -15,14 +15,17 @@ manifest, runtime handler source, and TypeScript client contract.
 ## Acceptance
 
 - The fixture consumes packed packages rather than workspace source imports.
-- Explicit and Familiar schemas accept the same projection declaration.
+- Explicit and Familiar schemas accept the same projection declaration shape,
+  with each profile's exact generated operation identity bound at the sink.
 - Generated history/incarnation APIs expose D1 cursor nullability and the
   additive history-horizon fact while `list` remains compatible.
+- The exact recipient sink marker is present only on the declared sending
+  mutation, and the helper returns `Promise<null>` rather than principals.
 - One invalid non-full-provenance declaration fails with a stable diagnostic.
 
 ## Resolution
 
 `packages/snapback-codegen/authority-projection-packed.test.mjs` packs the
 codegen and contract packages into an isolated consumer, generates both
-profiles, checks the manifest and emitted handlers, compiles the public
-TypeScript shape, and exercises the negative diagnostic.
+profiles, checks the manifest and emitted handlers, compiles both Explicit and
+Familiar public TypeScript shapes, and exercises the negative diagnostic.

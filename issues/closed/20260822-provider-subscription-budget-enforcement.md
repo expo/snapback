@@ -27,5 +27,7 @@ form throughout the admitted envelope.
 
 The React store enforces and reports the provisional budget, keeps 64
 independent subscriptions supported, compares complete visible snapshots, and
-guards delivery reentrancy. Package fixtures exercise warning, ceiling,
-deduplication, lifecycle, and reentrancy behavior.
+guards delivery reentrancy. Package fixtures prove no warning at 16, the
+owner/alternatives warning at 17, distinct live delivery across all 64 cells,
+the 65 refusal, synchronous subscribe/mutation refusal, and lifecycle-aware
+deduplication.

@@ -236,6 +236,12 @@ export function defineChunkedSemiJoin(options) {
   const name = requireName(options.name, 'name');
   const actors = tableFacts(options.actors.table, 'actors.table');
   const rows = tableFacts(options.rows.table, 'rows.table');
+  if (actors.authorityBearing || rows.authorityBearing) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_TABLE_INELIGIBLE',
+      'chunked semi-join tables cannot carry membership or permission-backing authority',
+    );
+  }
   const scopeField = requireName(options.actors.scopeField, 'actors.scopeField');
   const scopeArg = requireName(options.actors.scopeArg ?? scopeField, 'actors.scopeArg');
   const keyField = requireName(options.actors.keyField, 'actors.keyField');
@@ -325,6 +331,12 @@ export function defineSetKeyedAggregate(options) {
   exactObject(options, 'defineSetKeyedAggregate options', SET_KEYED_AGGREGATE_OPTION_FIELDS);
   const name = requireName(options.name, 'name');
   const facts = tableFacts(options.table);
+  if (facts.authorityBearing) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_TABLE_INELIGIBLE',
+      'set-keyed aggregate tables cannot carry membership or permission-backing authority',
+    );
+  }
   const keyField = requireName(options.keyField, 'keyField');
   const keysArg = requireName(options.keysArg ?? 'keys', 'keysArg');
   const maxKeys = options.maxKeys ?? 1_024;

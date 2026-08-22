@@ -6,7 +6,11 @@
 Live Queries, Assets, Code generation, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-22 (LLP 0295 W4 implementation: projection declaration,
+**Revised:** 2026-08-22 (W4 blocking-review corrections: history authority
+axes are roster-visible-only, pending-only invitations and private incarnation
+ids are result-omitted, recipient snapshots are exact sending-operation/product-row
+sinks with no principal result, fork custody covers projection state, and the
+outcome matrix distinguishes absent from hidden targets). 2026-08-22 (LLP 0295 W4 implementation: projection declaration,
 writer-seam row-image history/incarnations, D1+horizon reads, transaction-frozen
 recipient helper, three-class outcome metadata, read-only adoption plan,
 authorization-facts-only backfill, and packed Explicit/Familiar proof). 2026-08-21 (LLP 0295 D0.4 ruling recorded: the product-projection
@@ -723,6 +727,12 @@ one home:
   `projection` clause must not duplicate a D3 current-state field; codegen
   refuses the overlap. Only display metadata *beyond* the current row —
   historical values, departed members' names — enters the projection.
+- **Historical authority-axis redaction** follows the same declaration as the
+  current roster. `principal`, `scope`, and role-derived `role`/`currentRole`/
+  `status` appear in history/incarnation results only when the corresponding
+  membership principal/resource/role field is named by `roster.visible`.
+  `history.visible` cannot opt into those axes, and private membership row or
+  incarnation ids never leave the host.
 - **Join time and leave/rejoin incarnation history** are same-transaction
   writer-seam projections captured from row images, declared in the
   `projection` clause, durable product rows.
@@ -743,13 +753,24 @@ never a second authority evaluator.
   discipline: admission precedes cursor parsing, only declared-visible facts
   project, and an unauthorized caller cannot distinguish absent from hidden.
   History/incarnation reads carry the same non-enumeration contract as `list`.
+  A membership incarnation whose latest state is pending/invited is omitted
+  from both operations. If it later becomes active or departed, its captured
+  history becomes eligible under the ordinary admitted/redacted result shape;
+  pending-only invitations are never a history enumeration channel.
 - **Transition atomicity.** Projection maintenance occurs in the same LLP 0056
   writer-seam transaction as the transition; there is no asynchronous mirror
   and no observable window where roster and projection disagree.
-- **Send-time recipient semantics.** A generated recipient-snapshot helper
+- **Send-time recipient semantics.** The profile declares one or more exact
+  `{ operation, table, scopeField, recipientsField }` sinks. Codegen admits a
+  sink only when the named operation is an authored mutation that declares a
+  write to the product table, the scope field has the profile's nominal scope
+  type, and the recipient field is a bounded principal array covering the
+  declared ceiling. A generated recipient-snapshot helper
   resolves the active member set inside the sending mutation's transaction
   through the profile's indexed membership plan and freezes it as product data
-  on the sent row/receipt set. Later join/leave does not rewrite a prior
+  on the named sent row. The helper requires that operation's generation-bound
+  private identity, refuses every other mutation, and returns only `null`; the
+  handler never observes the principal set. Later join/leave does not rewrite a prior
   send's recipients. The helper is bounded: the profile declares a recipient
   ceiling (provisional upper bound: the relational take ceiling, 1,024, from
   `packages/snapback-contract/limits.mjs`), and a send into a scope whose
@@ -767,9 +788,11 @@ never a second authority evaluator.
   branch, at codegen from the transition matrix, to exactly one of three
   closed outcome classes:
 
-  1. **idempotent-success receipt marked `unchanged`** — the caller is
+  1. **idempotent-success, unchanged** — the caller is
      authorized and the requested end state already holds (e.g. `changeRole`
-     to the principal's current role);
+     to the principal's current role), or `remove` addresses an already-absent
+     target. The generated handler result remains `null`; because no write
+     occurred, settlement carries no fabricated authority-transition receipt;
   2. **typed application refusal** naming the violated precondition — the
      caller is authorized to observe the fact (e.g. `invite` of an
      already-active member, `transferOwner` to the current owner); or
@@ -829,7 +852,7 @@ authoring profiles. The implementation checklist lives in
 The local target now implements the dated D0.4 ruling:
 
 - `authorityProfile({ projection: { history: { visible }, recipients: {
-  ceiling } } })` lowers in both Explicit and Familiar. Codegen requires
+  ceiling, sinks } } })` lowers in both Explicit and Familiar. Codegen requires
   membership `provenance: "full"`, rejects authority-axis/current-roster
   duplication, and rotates the generation identity.
 - The central membership writer captures before/after row images into
@@ -838,18 +861,22 @@ The local target now implements the dated D0.4 ruling:
   existing current rows at a generation-bound horizon. Storage-identical
   updates do not mint history.
 - New generated `history`/`incarnations` live operations admit before parsing
-  a cursor, bind AEAD custody to declaration/generation/scope/caller/operation,
+  operation identity, page bounds, or a cursor; bind AEAD custody to
+  declaration/generation/scope/caller/operation,
   and return `{ rows, cursor, boundary, horizon }`. `list` and `myRole` remain
-  unchanged. Leave closes an incarnation; rejoin opens another; role changes
-  are interior events.
-- Mutation-only `snapshotRecipients` uses the same sending transaction and
+  unchanged. Authority axes follow `roster.visible`, private incarnation ids
+  never return, and pending-only invitations are omitted. Leave closes an
+  incarnation; rejoin opens another; role changes are interior events.
+- Mutation-only `snapshotRecipients(scopeId, rowId)` is available only to its
+  declared sending operation, writes the principal array directly to the
+  exact declared product-row sink, returns `null`, uses the same sending transaction, and
   captures its indexed read dependency. Overflow refuses with
   `SNAPBACK_AUTHORITY_RECIPIENT_CEILING_EXCEEDED`; 1,024 is the declaration
   maximum and no path truncates.
 - Generated mutation metadata carries the closed outcome matrix. Runtime
-  implements storage-identical `changeRole` as unchanged success and visible
-  duplicate invite as a typed precondition, while hidden/absent targets keep
-  the existing non-enumerating denial.
+  implements storage-identical `changeRole` and absent-target `remove` as
+  unchanged success, visible absent `changeRole` and duplicate invite as typed
+  preconditions, and hidden targets/scopes as non-enumerating denials.
 - `snapback authority plan` performs a read-only mirror comparison with
   counts/digests and reports activation/backfill posture. `snapback authority
   backfill --apply --confirm authorization-facts-only` is idempotent, moves

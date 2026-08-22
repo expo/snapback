@@ -17,14 +17,16 @@ matrix.
 ## Acceptance
 
 - Projection declarations cannot duplicate authority axes or D3 roster-visible
-  fields and require `provenance: "full"`.
+  fields and require `provenance: "full"`; historical authority axes follow
+  `roster.visible`, and private incarnation ids remain host-only.
 - Every membership writer class reaches same-transaction row-image capture;
   same-role changes are no-write idempotent successes and leave/rejoin creates
   distinct incarnations.
 - Generated D1 history/incarnation reads preserve `list` and `myRole`, admit
   before cursor handling, and expose an envelope-level history horizon.
-- Recipient snapshots freeze active principals in the sending transaction and
-  refuse above the declared ceiling, which may not exceed 1,024.
+- Recipient snapshots are bound to exact generated sending operations and
+  declared product-row sinks, freeze active principals without returning them
+  to handler JavaScript, and refuse above the declared ceiling (max 1,024).
 - `snapback authority plan` compares an app mirror without exposing values;
   confirmed backfill moves the horizon only with
   `authorization-facts-only` coverage.
@@ -37,4 +39,7 @@ Implemented in the authority profile code generator, membership writer plans,
 SQLite writer seam, engine host glue, handler bootstrap, manifest validation,
 and authority CLI. Focused storage fixtures cover activation, idempotent
 backfill, writer transitions, horizon facts, recipient ceilings, and
-incarnation semantics; codegen fixtures cover all three outcome classes.
+incarnation semantics, pending-invite omission, roster-axis redaction, and the
+privileged seed path; codegen fixtures cover every corrected outcome class.
+The 2026-08-22 blocking-review fix also classified/copied both projection
+tables through fork mint and added a projection-bearing fork smoke test.

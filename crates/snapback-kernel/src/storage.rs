@@ -145,7 +145,7 @@ pub use snapback_types::storage::*;
 pub use versions::{VersionsKernel, VersionsReadKernel};
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 // Inventory-only rows remain dormant until their named lanes gain envelope
 // adapters; keeping them in the closed enum is the honesty mechanism.
@@ -9529,6 +9529,9 @@ impl DbRead<'_> {
         incarnations: bool,
         after: Option<(u64, i64)>,
         limit: usize,
+        show_principal: bool,
+        show_scope: bool,
+        show_role: bool,
     ) -> SnapbackResult<AuthorityProjectionPageV1> {
         let conn = match self {
             DbRead::Pinned(read) => read.conn,
@@ -9547,14 +9550,22 @@ impl DbRead<'_> {
         };
         if incarnations {
             let mut joins_statement = conn.prepare(
-                "SELECT id, incarnation, commit_version
-                   FROM _snapback_authority_projection_events
-                  WHERE declaration_id = ?1
-                    AND profile_generation = ?2
-                    AND scope_id = ?3
-                    AND event_kind = 'join'
-                    AND (?4 IS NULL OR commit_version > ?4 OR (commit_version = ?4 AND id > ?5))
-                  ORDER BY commit_version, id
+                "SELECT e.id, e.incarnation, e.commit_version
+                   FROM _snapback_authority_projection_events e
+                  WHERE e.declaration_id = ?1
+                    AND e.profile_generation = ?2
+                    AND e.scope_id = ?3
+                    AND e.event_kind = 'join'
+                    AND (SELECT latest.status
+                           FROM _snapback_authority_projection_events latest
+                          WHERE latest.declaration_id = e.declaration_id
+                            AND latest.profile_generation = e.profile_generation
+                            AND latest.scope_id = e.scope_id
+                            AND latest.incarnation = e.incarnation
+                          ORDER BY latest.commit_version DESC, latest.id DESC
+                          LIMIT 1) <> 'invited'
+                    AND (?4 IS NULL OR e.commit_version > ?4 OR (e.commit_version = ?4 AND e.id > ?5))
+                  ORDER BY e.commit_version, e.id
                   LIMIT ?6",
             )?;
             let after_commit = after.map(|value| value.0);
@@ -9626,9 +9637,13 @@ impl DbRead<'_> {
                         .entry(incarnation.clone())
                         .or_insert_with(|| {
                             let mut value = history.clone();
-                            value.insert("incarnation".to_owned(), Value::String(incarnation));
-                            value.insert("principal".to_owned(), Value::String(principal));
-                            value.insert("scope".to_owned(), Value::String(scope_id.to_owned()));
+                            if show_principal {
+                                value.insert("principal".to_owned(), Value::String(principal));
+                            }
+                            if show_scope {
+                                value
+                                    .insert("scope".to_owned(), Value::String(scope_id.to_owned()));
+                            }
                             if let Some(at) = at {
                                 value.insert("joinedAt".to_owned(), json!(at));
                             }
@@ -9638,8 +9653,10 @@ impl DbRead<'_> {
                     for (field, field_value) in history {
                         value.insert(field, field_value);
                     }
-                    value.insert("currentRole".to_owned(), Value::String(role));
-                    value.insert("status".to_owned(), Value::String(status));
+                    if show_role {
+                        value.insert("currentRole".to_owned(), Value::String(role));
+                        value.insert("status".to_owned(), Value::String(status));
+                    }
                     if event == "leave" && at.is_some() {
                         value.insert("leftAt".to_owned(), json!(at));
                     }
@@ -9658,14 +9675,22 @@ impl DbRead<'_> {
         }
         let storage_limit = limit + 1;
         let mut statement = conn.prepare(
-            "SELECT id, incarnation, principal, event_kind, role, status,
+            "SELECT e.id, e.incarnation, e.principal, e.event_kind, e.role, e.status,
                     history_json, commit_version, changed_at_ms
-               FROM _snapback_authority_projection_events
-              WHERE declaration_id = ?1
-                AND profile_generation = ?2
-                AND scope_id = ?3
-                AND (?4 IS NULL OR commit_version > ?4 OR (commit_version = ?4 AND id > ?5))
-              ORDER BY commit_version, id
+               FROM _snapback_authority_projection_events e
+              WHERE e.declaration_id = ?1
+                AND e.profile_generation = ?2
+                AND e.scope_id = ?3
+                AND (SELECT latest.status
+                       FROM _snapback_authority_projection_events latest
+                      WHERE latest.declaration_id = e.declaration_id
+                        AND latest.profile_generation = e.profile_generation
+                        AND latest.scope_id = e.scope_id
+                        AND latest.incarnation = e.incarnation
+                      ORDER BY latest.commit_version DESC, latest.id DESC
+                      LIMIT 1) <> 'invited'
+                AND (?4 IS NULL OR e.commit_version > ?4 OR (e.commit_version = ?4 AND e.id > ?5))
+              ORDER BY e.commit_version, e.id
               LIMIT ?6",
         )?;
         let after_commit = after.map(|value| value.0);
@@ -9713,12 +9738,18 @@ impl DbRead<'_> {
                 .map(
                     |(_id, incarnation, principal, event, role, status, history, commit, at)| {
                         let mut value = history;
-                        value.insert("incarnation".to_owned(), Value::String(incarnation));
-                        value.insert("principal".to_owned(), Value::String(principal));
-                        value.insert("scope".to_owned(), Value::String(scope_id.to_owned()));
+                        let _ = incarnation;
+                        if show_principal {
+                            value.insert("principal".to_owned(), Value::String(principal));
+                        }
+                        if show_scope {
+                            value.insert("scope".to_owned(), Value::String(scope_id.to_owned()));
+                        }
                         value.insert("event".to_owned(), Value::String(event));
-                        value.insert("role".to_owned(), Value::String(role));
-                        value.insert("status".to_owned(), Value::String(status));
+                        if show_role {
+                            value.insert("role".to_owned(), Value::String(role));
+                            value.insert("status".to_owned(), Value::String(status));
+                        }
                         value.insert("commit".to_owned(), json!(commit));
                         if let Some(at) = at {
                             value.insert("at".to_owned(), json!(at));
@@ -11492,6 +11523,16 @@ fn expected_authority_profile_operations(
                 branch: "already-at-requested-role".to_owned(),
                 outcome: AuthorityProfileOutcomeClassV1::IdempotentSuccessUnchanged,
             });
+            outcomes.push(AuthorityProfileOperationOutcomeV1 {
+                branch: "absent-target".to_owned(),
+                outcome: AuthorityProfileOutcomeClassV1::TypedPreconditionRefusal,
+            });
+        }
+        if name == AuthorityProfileOperationNameV1::Remove {
+            outcomes.push(AuthorityProfileOperationOutcomeV1 {
+                branch: "absent-target".to_owned(),
+                outcome: AuthorityProfileOutcomeClassV1::IdempotentSuccessUnchanged,
+            });
         }
         if matches!(
             name,
@@ -11509,7 +11550,7 @@ fn expected_authority_profile_operations(
             });
         }
         outcomes.push(AuthorityProfileOperationOutcomeV1 {
-            branch: "hidden-or-absent-target".to_owned(),
+            branch: "hidden-target-or-scope".to_owned(),
             outcome: AuthorityProfileOutcomeClassV1::NonEnumeratingDenial,
         });
         AuthorityProfileOperationV1 {
@@ -11622,7 +11663,10 @@ fn expected_authority_profile_operations(
     operations
 }
 
-fn validate_authority_profile_role_lattice(table: &TableManifest) -> SnapbackResult<()> {
+fn validate_authority_profile_role_lattice(
+    manifest: &SchemaManifest,
+    table: &TableManifest,
+) -> SnapbackResult<()> {
     let Some(profile) = table.authority_profile.as_ref() else {
         return Ok(());
     };
@@ -11918,6 +11962,53 @@ fn validate_authority_profile_role_lattice(table: &TableManifest) -> SnapbackRes
             })
         {
             return Err(relationship_invalid("projection"));
+        }
+
+        let mut sink_operations = BTreeSet::new();
+        for sink in &projection.recipients.sinks {
+            let Some(sink_table) = manifest.table(&sink.table) else {
+                return Err(relationship_invalid("projection.recipients.sinks[].table"));
+            };
+            let scope_field = sink_table.field(&sink.scope_field);
+            let recipients_field = sink_table.field(&sink.recipients_field);
+            let scope_is_bound = scope_field.is_some_and(|field| {
+                !field.optional
+                    && matches!(
+                        &field.field_type,
+                        FieldType::Id { table } if table == resource_table
+                    )
+            });
+            let recipients_are_bounded_principals = recipients_field.is_some_and(|field| {
+                !field.optional
+                    && matches!(
+                        &field.field_type,
+                        FieldType::Structured { contract, .. }
+                            if matches!(
+                                &contract.descriptor,
+                                ResultValueContract::Array { element, max_items }
+                                    if matches!(element.as_ref(), ResultValueContract::Principal)
+                                        && *max_items >= usize::from(projection.recipients.ceiling)
+                            )
+                    )
+            });
+            let operation_parts = sink.operation.split('.').collect::<Vec<_>>();
+            let operation_is_valid = matches!(operation_parts.as_slice(), [name]
+                    if is_user_identifier(name))
+                || matches!(operation_parts.as_slice(), [module, name]
+                    if is_user_identifier(module) && is_user_identifier(name));
+            if !operation_is_valid
+                || !is_user_identifier(&sink.table)
+                || !is_user_identifier(&sink.scope_field)
+                || !is_user_identifier(&sink.recipients_field)
+                || !sink_operations.insert(&sink.operation)
+                || !scope_is_bound
+                || !recipients_are_bounded_principals
+            {
+                return Err(relationship_invalid("projection.recipients.sinks"));
+            }
+        }
+        if sink_operations.is_empty() {
+            return Err(relationship_invalid("projection.recipients.sinks"));
         }
     }
 
@@ -12712,7 +12803,7 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
             &mut physical_index_names,
             &mut membership_declaration_ids,
         )?;
-        validate_authority_profile_role_lattice(table)?;
+        validate_authority_profile_role_lattice(manifest, table)?;
     }
 
     // Complete the nominal resource binding after every table name is known.

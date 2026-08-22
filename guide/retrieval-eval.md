@@ -798,7 +798,7 @@ wrong vocabulary from the source diaries and review evidence.
     recipient set from current membership or drops departed receipt subjects.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "who is in the room".
-    Required guidance: "Store the returned principal array on that row before commit", "a later leave does not rewrite who the message targeted".
+    Required guidance: "The host writes `recipientIds` onto that row in the same transaction and returns `null`", "Later membership changes do not rewrite the frozen product row".
 
 78. **Membership table public:** "Should I make the membership table public
     so the client can render members?" The run fails if it weakens private-row

@@ -697,6 +697,43 @@ test('generated authority-profile transitions bypass the generic writer classifi
   assert.deepEqual(result.rows, []);
 });
 
+test('recipient-snapshot senders keep their declared product-row writes classified', () => {
+  const fn = jsMutation(
+    'sendMessage',
+    `globalThis.__snapbackHandlers = {
+      async sendMessage(ctx, args) {
+        const rowId = await ctx.db.insert('todos', { title: args.title });
+        await ctx.authority.members.snapshotRecipients(args.scopeId, rowId);
+        return null;
+      },
+    };`,
+    { handlerForm: 'module' },
+  );
+  const sourceFn = {
+    ...fn,
+    generatedAuthorityOperation: {
+      id: 'members',
+      generation: 'sha256:test',
+      operation: 'snapshotRecipients',
+      recipientSink: {
+        operation: 'sendMessage',
+        table: 'todos',
+        scopeField: 'scopeId',
+        recipientsField: 'recipientIds',
+      },
+    },
+  };
+  const result = buildWritePolicyChecks({
+    tables: { todos: ownerTable() },
+    functions: [fn],
+    sourceFunctions: [sourceFn],
+    err: errorSink,
+  });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].table, 'todos');
+  assert.equal(result.rows[0].writeForm, 'insert');
+});
+
 test('global uniqueness disclosure is bound to operation identity and widens by operation-set growth', () => {
   const table = ownerTable({ indexes: [{ name: 'by_slug', fields: ['slug'], unique: true }] });
   const disclosure = {

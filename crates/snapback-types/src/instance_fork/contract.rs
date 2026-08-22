@@ -158,7 +158,12 @@ impl EgressFamily {
             | "permissions.requireRole"
             | "permissions.deny"
             | "authority.list"
-            | "authority.myRole" => None,
+            | "authority.myRole"
+            | "authority.history"
+            | "authority.incarnations"
+            | "authority.snapshotRecipients"
+            | "composition.semiJoinActorCeilingExceeded"
+            | "composition.aggregateRowCeilingExceeded" => None,
             _ => Some(Self::UnclassifiedHostOperation),
         }
     }
