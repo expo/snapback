@@ -14554,58 +14554,39 @@ impl LocalSnapback {
         asset_id: &str,
         requested_width: u64,
     ) -> SnapbackResult<String> {
-        use crate::assets;
-        if !self.asset_image_finalization_enabled() {
-            return Err(SnapbackError::error(
-                "SNAPBACK_ASSET_WIDTH_UNSUPPORTED",
-                "assets",
-                "on-demand widths require the image-finalization capability",
-            ));
-        }
-        let Some(width) = assets::normalize_on_demand_width(requested_width) else {
-            return Err(SnapbackError::error(
-                "SNAPBACK_ASSET_WIDTH_ABOVE_CEILING",
-                "assets",
-                format!(
-                    "width {requested_width} exceeds the declared on-demand ceiling {}",
-                    assets::ASSET_ON_DEMAND_MAX_WIDTH_PX
-                ),
-            ));
+        let prepare = match self.asset_width_preflight(asset_id, requested_width)? {
+            AssetWidthPreflightV1::AlreadyReady(key) => return Ok(key),
+            AssetWidthPreflightV1::Proceed(ticket) => ticket,
         };
-        let key = format!("w{width}");
-        let already = self
+        let plan = prepare.prepare()?;
+        let proof = self
             .db
             .asset_attempts()
-            .resolve_width_variant_is_ready(asset_id, &key)?;
-        if already {
+            .stage_width_variant_plan_proved_guarded(
+                plan.app_id(),
+                plan.asset_id(),
+                plan.variant_key(),
+                plan.digest(),
+                now_millis(),
+                || Ok(()),
+            )?;
+        let put = plan.into_put(proof)?;
+        let commit = put.put()?;
+        let (asset_id, key, app_id, app_quota, mut prepared) = commit.into_parts();
+        let stage_outcome = self
+            .db
+            .asset_attempts()
+            .stage_width_variant_commit_staged_guarded(&mut prepared, || Ok(()))?;
+        if stage_outcome == crate::storage::AssetWidthPublicationStageOutcome::AlreadyCurrent {
             return Ok(key);
         }
-        let app_id = self.functions.app_id.clone();
-        let app_quota = self.asset_app_quota();
-        let store = self.asset_store_obj()?;
-        let (primary_key, content_type) = self
-            .db
-            .asset_attempts()
-            .resolve_width_variant_primary(asset_id)?;
-        let canonical_bytes =
-            store.read(crate::assets_store::AssetObjectRef::Blob(&primary_key))?;
-        let variant = crate::manifest::AssetImageVariant {
-            key: key.clone(),
-            width,
-            required: false,
-        };
-        let prepared = self.asset_prepare_variant(
-            store.as_ref(),
+        self.db.asset_attempts().resolve_width_variant_commit(
             &app_id,
-            &canonical_bytes,
-            &content_type,
-            &variant,
-            1,
+            &asset_id,
+            &prepared,
+            app_quota,
+            now_millis(),
         )?;
-        let now_ms = now_millis();
-        self.db
-            .asset_attempts()
-            .resolve_width_variant_commit(&app_id, asset_id, &prepared, app_quota, now_ms)?;
         Ok(key)
     }
 
@@ -14697,10 +14678,10 @@ impl LocalSnapback {
         let stage_outcome = self
             .db
             .asset_attempts()
-            .stage_width_variant_commit_staged_guarded(&mut prepared.publication, || {
+            .stage_width_variant_commit_staged_guarded(&mut prepared, || {
                 authorized_effect.commit_guard("asset width publication-staged transaction")
             })?;
-        if stage_outcome == crate::storage::AssetWidthPublicationStageOutcome::AlreadyCommitted {
+        if stage_outcome == crate::storage::AssetWidthPublicationStageOutcome::AlreadyCurrent {
             drop(authorized_effect);
             return Ok(key);
         }

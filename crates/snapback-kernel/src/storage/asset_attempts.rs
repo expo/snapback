@@ -5,7 +5,8 @@ use crate::manifest::{
     AssetImageVariant, AssetUploadIntentDefinition, HandlerInput, SchemaManifest,
 };
 use crate::services_assets::{
-    AssetAttemptCurrentProof, AssetPublicationPlannedProof, AssetWidthPublicationPlannedProof,
+    AssetAttemptCurrentProof, AssetPublicationPlannedProof, AssetWidthPreparedVariant,
+    AssetWidthPublicationPlannedProof,
 };
 use rusqlite::{OptionalExtension, TransactionBehavior};
 use serde_json::{Map, Value};
@@ -42,9 +43,10 @@ pub enum AssetWidthPublicationStageOutcome {
     /// This request advanced or observed the shared publication as staged and
     /// must still run the rendition/blob/quota commit.
     Staged,
-    /// A concurrent first request already committed this exact shared
-    /// publication, including its rendition/blob/quota transaction.
-    AlreadyCommitted,
+    /// A concurrent or staggered request already left a Ready rendition for
+    /// this exact shared width operation, so no publication or quota work is
+    /// left for this request.
+    AlreadyCurrent,
 }
 
 enum AssetVariantCommit {
@@ -114,6 +116,27 @@ fn asset_commit_prepared_variant(
         )?;
         Ok(())
     };
+
+    // A request served by an existing Ready same-lineage rendition performs
+    // no new logical allocation. Converge before quota settlement so a stale
+    // planning cohort cannot be refused after its winner consumes the last
+    // available unit. A newer recipe likewise wins without allocating here.
+    if let Some(existing) = assets::load_rendition_by_variant(tx, asset_id, &prepared.key)? {
+        let converged = if existing.recipe_version > prepared.recipe_version {
+            Some(AssetVariantCommit::StaleLost)
+        } else if existing.state == assets::AssetRenditionState::Ready
+            && existing.recipe == assets::ASSET_RECIPE_IMAGE_VARIANT_V1
+            && existing.recipe_version == prepared.recipe_version
+        {
+            Some(AssetVariantCommit::AlreadyCurrent)
+        } else {
+            None
+        };
+        if let Some(outcome) = converged {
+            condemn(tx, &mut publication)?;
+            return Ok(outcome);
+        }
+    }
 
     let accounting = assets::asset_accounting(tx, app_id)?;
     let increment = prepared
@@ -195,6 +218,51 @@ fn asset_commit_prepared_variant(
             })
         }
     }
+}
+
+fn width_publication_has_ready_rendition(
+    tx: &rusqlite::Transaction<'_>,
+    publication: &assets::AssetPublicationRecordV1,
+    recipe_version: u64,
+) -> SnapbackResult<bool> {
+    let (Some(asset_id), Some(variant_key)) = (
+        publication.asset_id.as_deref(),
+        publication.variant_key.as_deref(),
+    ) else {
+        return Ok(false);
+    };
+    if publication.attempt_id.is_some() {
+        return Ok(false);
+    }
+    let Some(rendition) = assets::load_rendition_by_variant(tx, asset_id, variant_key)? else {
+        return Ok(false);
+    };
+    if rendition.state != assets::AssetRenditionState::Ready
+        || rendition.recipe != assets::ASSET_RECIPE_IMAGE_VARIANT_V1
+        || rendition.recipe_version != recipe_version
+    {
+        return Ok(false);
+    }
+    let Some(blob) = assets::load_blob_live(tx, &rendition.blob_id)? else {
+        return Ok(false);
+    };
+    if blob.condemned
+        || blob.record.digest_algorithm != publication.digest_algorithm
+        || blob.record.digest != publication.digest
+        || blob.record.canonicalization_policy != publication.canonicalization_policy
+    {
+        return Ok(false);
+    }
+    Ok(match publication.state {
+        assets::AssetPublicationState::Committed => {
+            publication.blob_id.as_deref() == Some(rendition.blob_id.as_str())
+        }
+        // A uniqueness loser has no blob edge of its own. Matching the exact
+        // attempt-less owner tuple and immutable digest to the Ready winner is
+        // the convergence proof for every request sharing that condemned row.
+        assets::AssetPublicationState::Condemned => true,
+        _ => false,
+    })
 }
 
 fn asset_ceiling_error(what: &str, limit: u64, observed: u64) -> SnapbackError {
@@ -828,35 +896,81 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
-        self.stage_variant_publication_commit_staged_guarded(publication, false, before_commit)
-            .map(|_| ())
-    }
-
-    /// Fence the staged cut for a width request while preserving the accepted
-    /// concurrent-first convergence contract.
-    ///
-    /// @ref LLP 0044#acceptance — a loser holding the same publication may
-    /// observe it after the winner's commit and succeeds on that rendition.
-    pub(super) fn stage_width_variant_commit_staged_guarded<G, BeforeCommit>(
-        &mut self,
-        publication: &mut assets::AssetPublicationRecordV1,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<AssetWidthPublicationStageOutcome>
-    where
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        self.stage_variant_publication_commit_staged_guarded(publication, true, before_commit)
+        self.stage_variant_publication_commit_staged_guarded(publication, before_commit)
     }
 
     fn stage_variant_publication_commit_staged_guarded<G, BeforeCommit>(
         &mut self,
         publication: &mut assets::AssetPublicationRecordV1,
-        converge_committed_width: bool,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<()>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.asset_attempts_transaction_guarded(
+            |tx| {
+                let mut current = assets::load_publication(tx, &publication.publication_id)?
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_TRANSITION_INVALID",
+                            "assets",
+                            "the publication record disappeared before its staged transition",
+                        )
+                    })?;
+                if current.app_id != publication.app_id
+                    || current.planned_key != publication.planned_key
+                    || current.digest != publication.digest
+                    || current.attempt_id != publication.attempt_id
+                    || current.asset_id != publication.asset_id
+                    || current.variant_key != publication.variant_key
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_RECORD_INVALID",
+                        "assets",
+                        "the publication record changed immutable facts before staging",
+                    ));
+                }
+                match current.state {
+                    assets::AssetPublicationState::Planned => {
+                        assets::transition_publication(
+                            tx,
+                            &mut current,
+                            assets::AssetPublicationState::Staged,
+                            now_millis(),
+                        )?;
+                    }
+                    assets::AssetPublicationState::Staged => {}
+                    other => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_ASSET_TRANSITION_INVALID",
+                            "assets",
+                            format!("publication cannot stage from persisted state {other:?}"),
+                        ));
+                    }
+                }
+                *publication = current;
+                Ok(())
+            },
+            before_commit,
+        )
+    }
+
+    /// Fence the staged cut for a width request while preserving the accepted
+    /// concurrent-first and staggered-cohort convergence contract. The opaque
+    /// width carrier cannot be passed to the ordinary staging helper above.
+    ///
+    /// @ref LLP 0044#acceptance — a loser holding the same publication may
+    /// observe it after the winner's commit and succeeds on that rendition.
+    pub(super) fn stage_width_variant_commit_staged_guarded<G, BeforeCommit>(
+        &mut self,
+        prepared: &mut AssetWidthPreparedVariant,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<AssetWidthPublicationStageOutcome>
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        let recipe_version = prepared.prepared().recipe_version;
+        let publication = &mut prepared.prepared_mut().publication;
         self.asset_attempts_transaction_guarded(
             |tx| {
                 let mut current = assets::load_publication(tx, &publication.publication_id)?
@@ -894,12 +1008,10 @@ impl LocalDatabase {
                         AssetWidthPublicationStageOutcome::Staged
                     }
                     assets::AssetPublicationState::Committed
-                        if converge_committed_width
-                            && current.attempt_id.is_none()
-                            && current.asset_id.is_some()
-                            && current.variant_key.is_some() =>
+                    | assets::AssetPublicationState::Condemned
+                        if width_publication_has_ready_rendition(tx, &current, recipe_version)? =>
                     {
-                        AssetWidthPublicationStageOutcome::AlreadyCommitted
+                        AssetWidthPublicationStageOutcome::AlreadyCurrent
                     }
                     other => {
                         return Err(SnapbackError::error(
@@ -1826,7 +1938,7 @@ impl LocalDatabase {
         &mut self,
         app_id: &str,
         asset_id: &str,
-        prepared: &AssetPreparedVariant,
+        prepared: &AssetWidthPreparedVariant,
         app_quota: u64,
         now_ms: u64,
     ) -> SnapbackResult<()> {
@@ -1844,7 +1956,7 @@ impl LocalDatabase {
         &mut self,
         app_id: &str,
         asset_id: &str,
-        prepared: &AssetPreparedVariant,
+        prepared: &AssetWidthPreparedVariant,
         app_quota: u64,
         now_ms: u64,
         before_commit: BeforeCommit,
@@ -1852,6 +1964,7 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        let prepared = prepared.prepared();
         self.asset_attempts_transaction_guarded(
             |tx| {
                 match asset_commit_prepared_variant(
@@ -2178,14 +2291,14 @@ impl<'a> AssetAttemptsKernel<'a> {
 
     pub fn stage_width_variant_commit_staged_guarded<G, BeforeCommit>(
         &mut self,
-        publication: &mut assets::AssetPublicationRecordV1,
+        prepared: &mut AssetWidthPreparedVariant,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<AssetWidthPublicationStageOutcome>
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         self.db
-            .stage_width_variant_commit_staged_guarded(publication, before_commit)
+            .stage_width_variant_commit_staged_guarded(prepared, before_commit)
     }
 
     pub fn attempt_finalize_load_asset(
@@ -2539,7 +2652,7 @@ impl<'a> AssetAttemptsKernel<'a> {
         &mut self,
         app_id: &str,
         asset_id: &str,
-        prepared: &AssetPreparedVariant,
+        prepared: &AssetWidthPreparedVariant,
         app_quota: u64,
         now_ms: u64,
     ) -> SnapbackResult<()> {
@@ -2551,7 +2664,7 @@ impl<'a> AssetAttemptsKernel<'a> {
         &mut self,
         app_id: &str,
         asset_id: &str,
-        prepared: &AssetPreparedVariant,
+        prepared: &AssetWidthPreparedVariant,
         app_quota: u64,
         now_ms: u64,
         before_commit: BeforeCommit,

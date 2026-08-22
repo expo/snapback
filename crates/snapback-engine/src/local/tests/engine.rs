@@ -10693,6 +10693,187 @@ fn asset_concurrent_first_width_requests_converge_on_winner() {
     );
 }
 
+#[test]
+fn asset_staggered_width_planning_cohort_converges_on_first_rendition() {
+    let mut snapback =
+        asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());
+    let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
+    let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+    asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+        .expect("publish width source");
+    let asset_id = created.task.asset_id.clone();
+    let rendition_events_before = asset_receipt_events(&mut snapback, &asset_id)
+        .iter()
+        .filter(|event| event.as_str() == "rendition-produced")
+        .count();
+    let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+
+    // All three requests take the same stale preflight before w128 exists.
+    let mut preflight = || match snapback
+        .asset_width_preflight(&asset_id, 100)
+        .expect("staggered width preflight")
+    {
+        AssetWidthPreflightV1::Proceed(ticket) => ticket,
+        AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
+    };
+    let first_plan = preflight().prepare().expect("render first width");
+    let second_plan = preflight().prepare().expect("render second width");
+    let third_plan = preflight().prepare().expect("render third width");
+
+    let first_effect = authority
+        .reserve_authorized_effect("first staggered width plan")
+        .expect("reserve first width plan");
+    let first_put = snapback
+        .asset_width_plan_with_authorized_effect(first_plan, first_effect)
+        .expect("commit first width plan");
+    let first_publication_id = first_put.publication_for_test().publication_id.clone();
+    let first_commit = first_put.put().expect("first width PUT succeeds");
+    let first_commit_effect = authority
+        .reserve_authorized_effect("first staggered width commit")
+        .expect("reserve first width commit");
+    let winner = snapback
+        .asset_width_commit_with_authorized_effect(first_commit, first_commit_effect)
+        .expect("first request publishes the width rendition");
+
+    // The second request plans after the first publication is terminal, so it
+    // receives a fresh publication. The third request joins that open plan.
+    let second_effect = authority
+        .reserve_authorized_effect("second staggered width plan")
+        .expect("reserve second width plan");
+    let second_put = snapback
+        .asset_width_plan_with_authorized_effect(second_plan, second_effect)
+        .expect("commit second width plan");
+    let third_effect = authority
+        .reserve_authorized_effect("third staggered width plan")
+        .expect("reserve third width plan");
+    let third_put = snapback
+        .asset_width_plan_with_authorized_effect(third_plan, third_effect)
+        .expect("third request reuses second width plan");
+    assert_ne!(
+        second_put.publication_for_test().publication_id,
+        first_publication_id,
+        "a stale preflight after the winner commits receives a new publication",
+    );
+    assert_eq!(
+        third_put.publication_for_test().publication_id,
+        second_put.publication_for_test().publication_id,
+        "the third request joins the second request's open publication",
+    );
+
+    let second_commit = second_put.put().expect("second width PUT succeeds");
+    let third_commit = third_put
+        .put()
+        .expect("third width PUT is idempotent on the shared key");
+    let second_commit_effect = authority
+        .reserve_authorized_effect("second staggered width commit")
+        .expect("reserve second width commit");
+    let second = snapback
+        .asset_width_commit_with_authorized_effect(second_commit, second_commit_effect)
+        .expect("second request converges on the first rendition");
+    let third_commit_effect = authority
+        .reserve_authorized_effect("third staggered width commit")
+        .expect("reserve third width commit");
+    let third = snapback
+        .asset_width_commit_with_authorized_effect(third_commit, third_commit_effect)
+        .expect("third request converges through the condemned shared publication");
+
+    assert_eq!(winner, "w128");
+    assert_eq!(second, winner);
+    assert_eq!(third, winner);
+    let rendition = asset_rendition_for(&mut snapback, &asset_id, &winner)
+        .expect("the first rendition remains current");
+    assert_eq!(rendition.state, crate::assets::AssetRenditionState::Ready);
+    let events = asset_receipt_events(&mut snapback, &asset_id);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.as_str() == "rendition-produced")
+            .count(),
+        rendition_events_before + 1,
+        "the staggered cohort publishes exactly one rendition: {events:?}",
+    );
+}
+
+#[test]
+fn asset_stale_width_plan_converges_before_tight_quota_is_charged() {
+    let mut snapback =
+        asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());
+    let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
+    let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+    asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+        .expect("publish width source");
+    let asset_id = created.task.asset_id.clone();
+    let settled_before = snapback
+        .db
+        .asset_reads()
+        .accounting(&snapback.functions.app_id)
+        .expect("read primary quota")
+        .settled_bytes;
+    let tight_quota = settled_before + crate::assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES;
+    snapback.set_asset_quota_override(tight_quota);
+    let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+
+    // Both requests preflight while only the primary rendition consumes quota.
+    let first_prepare = match snapback
+        .asset_width_preflight(&asset_id, 100)
+        .expect("first tight-quota preflight")
+    {
+        AssetWidthPreflightV1::Proceed(ticket) => ticket,
+        AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
+    };
+    let second_prepare = match snapback
+        .asset_width_preflight(&asset_id, 100)
+        .expect("second tight-quota preflight")
+    {
+        AssetWidthPreflightV1::Proceed(ticket) => ticket,
+        AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
+    };
+    let first_plan = first_prepare.prepare().expect("render first width");
+    let second_plan = second_prepare.prepare().expect("render second width");
+
+    let first_effect = authority
+        .reserve_authorized_effect("first tight-quota width plan")
+        .expect("reserve first width plan");
+    let first_put = snapback
+        .asset_width_plan_with_authorized_effect(first_plan, first_effect)
+        .expect("commit first width plan");
+    let first_commit = first_put.put().expect("first width PUT succeeds");
+    let first_commit_effect = authority
+        .reserve_authorized_effect("first tight-quota width commit")
+        .expect("reserve first width commit");
+    let winner = snapback
+        .asset_width_commit_with_authorized_effect(first_commit, first_commit_effect)
+        .expect("first request consumes the remaining quota");
+
+    // The stale second preflight plans only after the first publication is
+    // terminal. Serving the existing Ready rendition must not charge again.
+    let second_effect = authority
+        .reserve_authorized_effect("second tight-quota width plan")
+        .expect("reserve second width plan");
+    let second_put = snapback
+        .asset_width_plan_with_authorized_effect(second_plan, second_effect)
+        .expect("commit stale second width plan");
+    let second_commit = second_put.put().expect("second width PUT succeeds");
+    let second_commit_effect = authority
+        .reserve_authorized_effect("second tight-quota width commit")
+        .expect("reserve second width commit");
+    let converged = snapback
+        .asset_width_commit_with_authorized_effect(second_commit, second_commit_effect)
+        .expect("existing rendition converges before quota settlement");
+
+    assert_eq!(winner, "w128");
+    assert_eq!(converged, winner);
+    let accounting = snapback
+        .db
+        .asset_reads()
+        .accounting(&snapback.functions.app_id)
+        .expect("read tight-quota accounting");
+    assert_eq!(
+        accounting.settled_bytes, tight_quota,
+        "the converged request adds no logical quota charge",
+    );
+}
+
 // -----------------------------------------------------------------
 // Strict delivery and the deletion/GC sweeps (tickets L1-09/L1-10).
 // -----------------------------------------------------------------

@@ -539,7 +539,7 @@ pub struct AssetWidthPlanTicketV1 {
 /// governs retirement that races the idempotent PUT.
 pub struct AssetWidthPutTicketV1 {
     plan: AssetWidthPlanTicketV1,
-    publication: AssetPublicationRecordV1,
+    publication: crate::asset_proof::AssetWidthPublicationPlannedProof,
 }
 
 /// Verified blob bytes awaiting the caller-fenced staged and
@@ -549,7 +549,7 @@ pub struct AssetWidthCommitTicketV1 {
     key: String,
     app_id: String,
     app_quota: u64,
-    prepared: snapback_kernel::storage::AssetPreparedVariant,
+    prepared: crate::asset_proof::AssetWidthPreparedVariant,
 }
 
 impl AssetWidthPrepareTicketV1 {
@@ -633,7 +633,8 @@ impl AssetWidthPlanTicketV1 {
     /// ```
     ///
     /// An attempt-owned required-rendition proof is also the wrong domain,
-    /// even when its asset, variant key, and digest happen to match:
+    /// even when it uses a real ladder key such as `w128` and its asset and
+    /// digest happen to match:
     ///
     /// ```compile_fail
     /// use snapback_kernel::services_assets::AssetPublicationPlannedProof;
@@ -652,7 +653,7 @@ impl AssetWidthPlanTicketV1 {
         self,
         proof: crate::asset_proof::AssetWidthPublicationPlannedProof,
     ) -> SnapbackResult<AssetWidthPutTicketV1> {
-        let publication = proof.into_publication();
+        let publication = proof.publication();
         if publication.app_id != self.ticket.app_id
             || publication.attempt_id.is_some()
             || publication.asset_id.as_deref() != Some(self.ticket.asset_id.as_str())
@@ -672,7 +673,7 @@ impl AssetWidthPlanTicketV1 {
         }
         Ok(AssetWidthPutTicketV1 {
             plan: self,
-            publication,
+            publication: proof,
         })
     }
 }
@@ -682,14 +683,15 @@ impl AssetWidthPutTicketV1 {
     /// permit or database owner. The committed plan is its durable handoff.
     pub fn put(self) -> SnapbackResult<AssetWidthCommitTicketV1> {
         let store = &self.plan.ticket.store;
-        store.put_blob_idempotent(&self.publication.planned_key, &self.plan.prepared.rendered)?;
+        let publication = self.publication.publication();
+        store.put_blob_idempotent(&publication.planned_key, &self.plan.prepared.rendered)?;
         let copied = store.hash(crate::assets_store::AssetObjectRef::Blob(
-            &self.publication.planned_key,
+            &publication.planned_key,
         ))?;
         if copied.digest != self.plan.prepared.digest
             || copied.byte_length != self.plan.prepared.byte_length
         {
-            let _ = store.delete_blob(&self.publication.planned_key);
+            let _ = store.delete_blob(&publication.planned_key);
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_STORE_UNAVAILABLE",
                 "assets",
@@ -702,21 +704,20 @@ impl AssetWidthPutTicketV1 {
             key: ticket.key,
             app_id: ticket.app_id,
             app_quota: ticket.app_quota,
-            prepared: snapback_kernel::storage::AssetPreparedVariant {
-                key: prepared.key,
-                width: prepared.width,
-                publication: self.publication,
-                digest: prepared.digest,
-                byte_length: prepared.byte_length,
-                content_type: prepared.content_type,
-                recipe_version: prepared.recipe_version,
-            },
+            prepared: self.publication.into_prepared_variant(
+                prepared.key,
+                prepared.width,
+                prepared.digest,
+                prepared.byte_length,
+                prepared.content_type,
+                prepared.recipe_version,
+            ),
         })
     }
 
     #[cfg(any(test, feature = "remainder-tests"))]
     pub fn publication_for_test(&self) -> &AssetPublicationRecordV1 {
-        &self.publication
+        self.publication.publication()
     }
 }
 
@@ -728,7 +729,7 @@ impl AssetWidthCommitTicketV1 {
         String,
         String,
         u64,
-        snapback_kernel::storage::AssetPreparedVariant,
+        crate::asset_proof::AssetWidthPreparedVariant,
     ) {
         (
             self.asset_id,

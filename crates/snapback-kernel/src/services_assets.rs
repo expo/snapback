@@ -6,7 +6,7 @@
 
 use crate::assets::{AssetAttemptRecordV1, AssetPublicationRecordV1};
 use crate::diagnostic::SnapbackResult;
-use crate::storage::AssetAttemptsKernel;
+use crate::storage::{AssetAttemptsKernel, AssetPreparedVariant};
 
 /// Kernel-loaded proof of the exact current attempt snapshot.
 ///
@@ -63,6 +63,12 @@ impl AssetPublicationPlannedProof {
 /// publication accepted by an external PUT. This is deliberately distinct
 /// from [`AssetPublicationPlannedProof`], so an attempt-owned required
 /// rendition cannot cross into the on-demand width lifecycle.
+///
+/// ```compile_fail
+/// use snapback_kernel::services_assets::AssetWidthPublicationPlannedProof;
+///
+/// let _forged = AssetWidthPublicationPlannedProof { publication: unreachable!() };
+/// ```
 pub struct AssetWidthPublicationPlannedProof {
     publication: AssetPublicationRecordV1,
 }
@@ -72,8 +78,48 @@ impl AssetWidthPublicationPlannedProof {
         Self { publication }
     }
 
-    pub fn into_publication(self) -> AssetPublicationRecordV1 {
-        self.publication
+    pub fn publication(&self) -> &AssetPublicationRecordV1 {
+        &self.publication
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn into_prepared_variant(
+        self,
+        key: String,
+        width: u64,
+        digest: String,
+        byte_length: u64,
+        content_type: String,
+        recipe_version: u64,
+    ) -> AssetWidthPreparedVariant {
+        AssetWidthPreparedVariant {
+            prepared: AssetPreparedVariant {
+                key,
+                width,
+                publication: self.publication,
+                digest,
+                byte_length,
+                content_type,
+                recipe_version,
+            },
+        }
+    }
+}
+
+/// Opaque width-only commit carrier. A services-owned width commit ticket
+/// carries this type instead of a raw [`AssetPreparedVariant`], so it cannot be
+/// passed to the ordinary attempt/runner staging helper by mistake.
+pub struct AssetWidthPreparedVariant {
+    prepared: AssetPreparedVariant,
+}
+
+impl AssetWidthPreparedVariant {
+    pub(crate) fn prepared(&self) -> &AssetPreparedVariant {
+        &self.prepared
+    }
+
+    pub(crate) fn prepared_mut(&mut self) -> &mut AssetPreparedVariant {
+        &mut self.prepared
     }
 }
 
