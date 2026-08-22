@@ -16,6 +16,10 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 import { readCheckoutRuntimeIdentity } from '../../packages/snapback-cli/runtime-recovery.mjs';
+import {
+  suiteFailureDetail,
+  suiteFailureDiagnostic,
+} from '../../scripts/check-local-proof-gates.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 // @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate —
@@ -118,18 +122,8 @@ const suite = spawnSync(
     maxBuffer: 64 * 1024 * 1024,
   },
 );
-function suiteFailureDiagnostic(result) {
-  const raw = result.error?.message
-    ?? result.stderr
-    ?? result.stdout
-    ?? result.signal
-    ?? result.status
-    ?? 'unknown failure';
-  const lines = String(raw).split(/\r?\n/u).map((line) => line.trim()).filter(Boolean);
-  const errorLine = lines.find((line) => /^[A-Za-z]*Error: /u.test(line));
-  return `suite failed: ${errorLine ?? lines[0] ?? 'unknown failure'}`;
-}
-const suiteDiagnostic = suite.status === 0 ? null : suiteFailureDiagnostic(suite);
+const suiteDiagnostic = suite.status === 0 ? null : suiteFailureDetail(suite);
+const suiteDiagnosticSummary = suite.status === 0 ? null : suiteFailureDiagnostic(suite);
 const outcomes = [];
 try {
   for (const entry of manifest.cases) {
@@ -238,7 +232,8 @@ if (quiet) {
   const failed = outcomes.filter(({ outcome }) => outcome === 'failed').map(({ id }) => id);
   const gaps = outcomes.filter(({ outcome }) => outcome === 'gap').length;
   const totalFailureCause = passed === 0 && failed.length > 0
-    ? outcomes.find(({ outcome, diagnostic }) => outcome === 'failed' && diagnostic)?.diagnostic
+    ? suiteDiagnosticSummary
+      ?? outcomes.find(({ outcome, diagnostic }) => outcome === 'failed' && diagnostic)?.diagnostic
     : null;
   process.stdout.write(
     `[versioned-seed-conformance] ${passed} passed, ${failed.length} failed, `

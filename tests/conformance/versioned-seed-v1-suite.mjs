@@ -23,6 +23,7 @@ import { loadGenerated } from '../../packages/snapback-cli/index.mjs';
 import { generate } from '../../packages/snapback-codegen/index.mjs';
 import { buildSeedArtifactV1 } from '../../packages/snapback-codegen/seed-artifact.mjs';
 import { createSnapbackViteLifecycle } from '../../packages/snapback-vite/lifecycle.mjs';
+import { observeRustWitnesses } from '../../scripts/check-local-proof-gates.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const outAt = process.argv.indexOf('--out');
@@ -250,16 +251,22 @@ if (rustProof.status !== 0) {
   );
 }
 const rustOutput = `${rustProof.stdout}\n${rustProof.stderr}`;
-const executedRustWitnesses = expectedRustWitnesses.filter((name) => rustOutput.includes(name));
+const {
+  executedTests: executedRustTests,
+  executedWitnesses: executedRustWitnesses,
+  missingWitnesses: missing,
+} = observeRustWitnesses(rustOutput, expectedRustWitnesses);
 if (executedRustWitnesses.length !== expectedRustWitnesses.length) {
-  const missing = expectedRustWitnesses.filter((name) => !executedRustWitnesses.includes(name));
-  const diagnostic = executedRustWitnesses.length === 0
+  const diagnostic = executedRustTests.length === 0
     ? 'SNAPBACK_SEED_CONFORMANCE_RUST_WITNESSES_NOT_EXECUTED: selected no tests'
-    : 'SNAPBACK_SEED_CONFORMANCE_RUST_WITNESSES_INCOMPLETE';
-  const missingDetail = executedRustWitnesses.length === 0 ? '' : `; missing=${missing.join(',')}`;
+    : 'SNAPBACK_SEED_CONFORMANCE_RUST_WITNESSES_INCOMPLETE: '
+      + 'tests ran but expected witnesses missing';
+  const observedDetail = executedRustTests.length === 0
+    ? ''
+    : `; observed=${executedRustTests.join(',')}; missing=${missing.join(',')}`;
   throw new Error(
     `${diagnostic}; executed ${executedRustWitnesses.length}/`
-      + `${expectedRustWitnesses.length} expected witnesses${missingDetail}; `
+      + `${expectedRustWitnesses.length} expected witnesses${observedDetail}; `
       + `command=cargo ${rustProofCommand.join(' ')}`,
   );
 }

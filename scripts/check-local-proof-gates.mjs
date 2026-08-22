@@ -12,6 +12,16 @@ import { parseProofTimeoutSeconds } from './lib/proof-timeout.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const CANONICAL_PROOF = 'scripts/verify-local-proof';
+// @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate — the
+// dispatcher receipt and its quiet projection must preserve actionable
+// producer failures, and Rust witnesses count only when libtest reports their
+// exact test identities as executed.
+const ANSI_ESCAPE = /\x1B\[[0-?]*[ -/]*[@-~]/gu;
+const TYPED_ERROR = /^(?:[A-Za-z_$]*Error|[A-Za-z_$]*Exception)(?: \[[^\]]+\])?:/u;
+const STACK_FRAME = /^at\s/u;
+const NODE_FOOTER = /^(?:Node\.js v|\(Use `node --trace-uncaught)/u;
+const NODE_NOISE = /^(?:node:internal\/|triggerUncaughtException\(|throw error;?$)/u;
+const MAX_SUMMARY_LENGTH = 1_000;
 const INAPPLICABILITY_PREDICATES = new Set([
   'cargo-clean-required',
   'ci-only',
@@ -20,6 +30,105 @@ const INAPPLICABILITY_PREDICATES = new Set([
   'linux-host',
   'swift-toolchain',
 ]);
+
+function firstNonempty(values) {
+  return values.find((value) => value !== undefined
+    && value !== null
+    && String(value).trim().length > 0);
+}
+
+function compactSummary(parts) {
+  const summary = parts
+    .map((part) => part.replace(/\s+/gu, ' ').trim())
+    .filter(Boolean)
+    .join(' | ');
+  if (summary.length <= MAX_SUMMARY_LENGTH) return summary;
+  return `${summary.slice(0, 700)} … ${summary.slice(-250)}`;
+}
+
+function isPointer(line) {
+  return /^(?:\^+|~+)$/u.test(line);
+}
+
+function isUsefulFallback(line) {
+  return !NODE_NOISE.test(line)
+    && !NODE_FOOTER.test(line)
+    && !STACK_FRAME.test(line)
+    && !isPointer(line)
+    && !/^\[?eval\]?:\d+/u.test(line);
+}
+
+function suiteFailureText(result) {
+  const raw = firstNonempty([
+    result.stderr,
+    result.error?.message,
+    result.stdout,
+    result.signal,
+    result.status,
+  ]) ?? 'unknown failure';
+  return String(raw);
+}
+
+export function suiteFailureDetail(result) {
+  return `suite failed: ${suiteFailureText(result)}`;
+}
+
+export function summarizeSuiteFailure(result) {
+  const lines = suiteFailureText(result)
+    .replace(ANSI_ESCAPE, '')
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const errorAt = lines.findIndex((line) => TYPED_ERROR.test(line));
+  if (errorAt >= 0) {
+    const message = [];
+    for (const line of lines.slice(errorAt)) {
+      if (message.length > 0 && (STACK_FRAME.test(line) || NODE_FOOTER.test(line))) break;
+      message.push(line);
+    }
+    return compactSummary(message) || 'unknown failure';
+  }
+
+  const pointerAt = lines.findLastIndex(isPointer);
+  if (pointerAt >= 0) {
+    const thrown = [];
+    for (const line of lines.slice(pointerAt + 1)) {
+      if (NODE_FOOTER.test(line) || STACK_FRAME.test(line)) break;
+      if (isUsefulFallback(line)) thrown.push(line);
+    }
+    if (thrown.length > 0) return compactSummary(thrown);
+  }
+
+  const stableDiagnostic = lines.find((line) => /\bSNAPBACK_[A-Z0-9_]+\b/u.test(line));
+  const conventionalDiagnostic = lines.find((line) => /^(?:error|fatal|failed|panic):\s/iu.test(line));
+  const fallback = stableDiagnostic
+    ?? conventionalDiagnostic
+    ?? lines.find(isUsefulFallback)
+    ?? lines[0]
+    ?? 'unknown failure';
+  return compactSummary([fallback]);
+}
+
+export function suiteFailureDiagnostic(result) {
+  return `suite failed: ${summarizeSuiteFailure(result)}`;
+}
+
+export function parseExecutedRustTests(output) {
+  return [...String(output).matchAll(/^test (.+?) \.\.\. (ok|FAILED)$/gmu)]
+    .map((match) => match[1]);
+}
+
+export function observeRustWitnesses(output, expectedWitnesses) {
+  const executedTests = parseExecutedRustTests(output);
+  const executedLeafNames = new Set(executedTests.map((name) => name.split('::').at(-1)));
+  const executedWitnesses = expectedWitnesses.filter((name) => executedLeafNames.has(name));
+  return {
+    executedTests,
+    executedWitnesses,
+    missingWitnesses: expectedWitnesses.filter((name) => !executedLeafNames.has(name)),
+  };
+}
 
 function unquote(value = '') {
   if ((value.startsWith('"') && value.endsWith('"'))
