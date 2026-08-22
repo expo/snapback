@@ -933,6 +933,8 @@ test('browser durable custody restores the default record and keeps signed-in pa
   let sharedDefault = null;
   let partitioned = null;
   let partitionedPeer = null;
+  let nullDefault = null;
+  let nullDefaultPeer = null;
   let inspector = null;
   try {
     first = await createSnapbackAppClient(input);
@@ -961,7 +963,10 @@ test('browser durable custody restores the default record and keeps signed-in pa
       'restoration does not fabricate the provider availability key as issuance provenance',
     );
     assert.equal(restored.bootstrapState().authoritySource, 'durable-restored');
-    sharedDefault = await createSnapbackAppClient(input);
+    sharedDefault = await createSnapbackAppClient({
+      ...input,
+      storagePartition: undefined,
+    });
     assert.equal(sharedDefault.client, restored.client);
     const implicitReuse = restored.client.diagnosticsChannel().snapshot().events.filter(
       ({ code }) => code === 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
@@ -1034,8 +1039,36 @@ test('browser durable custody restores the default record and keeps signed-in pa
       [`Bearer ${APPLICATION_BEARER}`, `Bearer ${PEER_BEARER}`].sort(),
       'each partition identifies its HTTP session with its own custody bearer',
     );
+
+    await inspector.close();
+    inspector = null;
+    await sharedDefault.dispose();
+    sharedDefault = null;
+    await restored.dispose();
+    restored = null;
+
+    nullDefault = await createSnapbackAppClient({
+      ...input,
+      storagePartition: null,
+    });
+    assert.equal(nullDefault.auth.currentPrincipal().userId, USER);
+    nullDefaultPeer = await createSnapbackAppClient({
+      ...input,
+      storagePartition: null,
+    });
+    assert.equal(nullDefaultPeer.client, nullDefault.client);
+    const nullReuse = nullDefault.client.diagnosticsChannel().snapshot().events.filter(
+      ({ code }) => code === 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
+    );
+    assert.equal(
+      nullReuse.length,
+      1,
+      'a null storage partition remains an implicit default and warns on reuse',
+    );
   } finally {
     await inspector?.close();
+    await nullDefaultPeer?.dispose();
+    await nullDefault?.dispose();
     await partitionedPeer?.dispose();
     await partitioned?.dispose();
     await sharedDefault?.dispose();

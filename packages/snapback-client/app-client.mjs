@@ -654,7 +654,7 @@ function preflight(input) {
     platform,
     policy,
     storagePartition,
-    storagePartitionExplicit: Object.hasOwn(input, 'storagePartition'),
+    storagePartitionExplicit: input.storagePartition != null,
     signal,
     rqsStore,
     rqsStoreIdentity: Object.hasOwn(input, 'rqsStore') ? rqsStore : undefined,

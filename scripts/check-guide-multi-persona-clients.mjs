@@ -71,6 +71,11 @@ function installPacked(packageName, tarball) {
   run('tar', ['-xzf', tarball, '--strip-components=1', '-C', target]);
 }
 
+function installFixtureDependency(packageName, source) {
+  const target = join(scaffold, 'node_modules', ...packageName.split('/'));
+  cpSync(source, target, { recursive: true, dereference: true });
+}
+
 try {
   mkdirSync(tarballDirectory, { recursive: true });
   mkdirSync(scaffold, { recursive: true });
@@ -85,7 +90,7 @@ try {
     '@expo/snapback-client',
     packInto(join(root, 'packages/snapback-client')),
   );
-  installPacked('fake-indexeddb', packInto(fakeIndexedDbPackage));
+  installFixtureDependency('fake-indexeddb', fakeIndexedDbPackage);
 
   run(tsc, [
     '--noEmit',
@@ -117,6 +122,7 @@ const USERS = {
   'mia@example.com': '018f0d90-7c23-7a22-8c33-445566778899',
 };
 const bearers = new Map();
+const serverRecordedAuthors = [];
 let serial = 0;
 
 const app = Object.freeze({
@@ -168,13 +174,78 @@ const platform = Object.freeze({
   hintStorage: null,
 });
 
-const deploymentIdentity = Object.freeze({
+const generatedIdentity = Object.freeze({
   schemaVersion: 'snapback.v1',
-  authMode: 'sessions',
   appId: APP_ID,
   schemaHash: \`snapback.v1:sessions:schema:sha256:\${'1'.repeat(64)}\`,
   bundleHash: \`snapback.v1:sessions:function:sha256:\${'2'.repeat(64)}\`,
   inputsHash: \`snapback.v1:sessions:inputs:sha256:\${'3'.repeat(64)}\`,
+});
+const deploymentIdentity = Object.freeze({ ...generatedIdentity, authMode: 'sessions' });
+const packedGeneratedMutation = Object.freeze({
+  artifactKind: 'functionReference',
+  schemaVersion: 'snapback.v1',
+  appId: APP_ID,
+  id: \`\${APP_ID}:recordPersona\`,
+  name: 'recordPersona',
+  kind: 'Mutation',
+  authRequirement: 'authenticated',
+  implementationHash: \`sha256:\${'4'.repeat(64)}\`,
+  authoredSourceHash: \`sha256:\${'5'.repeat(64)}\`,
+  argsContractHash: \`sha256:\${'6'.repeat(64)}\`,
+  resultContractHash: \`sha256:\${'7'.repeat(64)}\`,
+  expectedGeneration: generatedIdentity,
+  argumentSchema: Object.freeze({
+    type: 'object',
+    additionalProperties: false,
+    properties: Object.freeze({ persona: Object.freeze({ type: 'string' }) }),
+    required: Object.freeze(['persona']),
+  }),
+  mutationIr: Object.freeze({
+    format: 'snapback.generated-mutation-ir.v1',
+    operationHash: \`sha256:\${'8'.repeat(64)}\`,
+    sourceIdentity: Object.freeze({
+      functionId: \`\${APP_ID}:recordPersona\`,
+      implementationHash: \`sha256:\${'4'.repeat(64)}\`,
+      authoredSourceHash: \`sha256:\${'5'.repeat(64)}\`,
+      activation: generatedIdentity,
+    }),
+    schemaIdentity: Object.freeze({
+      schemaVersion: generatedIdentity.schemaVersion,
+      appId: APP_ID,
+      schemaHash: generatedIdentity.schemaHash,
+    }),
+    capabilityClass: 'local-executable',
+    capabilityCode: 'SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE',
+    declaredEffectClass: 'snapback.browser-ir.insert-get-guard-patch.v1',
+    declaredReads: Object.freeze([]),
+    localReadRequirements: Object.freeze([]),
+    schema: Object.freeze({
+      tables: Object.freeze([Object.freeze({
+        name: 'personaWrites',
+        fields: Object.freeze([
+          Object.freeze({ name: 'authorId' }),
+          Object.freeze({ name: 'persona' }),
+        ]),
+      })]),
+    }),
+    plan: Object.freeze({
+      steps: Object.freeze([Object.freeze({
+        Insert: Object.freeze({
+          table: 'personaWrites',
+          values: Object.freeze({
+            authorId: 'AuthUserId',
+            persona: Object.freeze({ Arg: 'persona' }),
+          }),
+          bind_id_as: 'writeId',
+        }),
+      })]),
+      return_value: Object.freeze({ Binding: 'writeId' }),
+    }),
+    mintSites: Object.freeze(['plan/steps/0/insert/row-id']),
+    usesRuntimeNow: false,
+    boundedSkew: null,
+  }),
 });
 const handshake = (bearer) => {
   const authenticated = bearers.get(bearer) ?? null;
@@ -220,6 +291,13 @@ globalThis.fetch = async (url, init = {}) => {
   const headers = new Headers(init.headers);
   const bearer = headers.get('authorization')?.replace(/^Bearer /u, '') ?? null;
   if (path === '/auth/session') return Response.json(handshake(bearer));
+  if (path === '/mutation/recordPersona') {
+    const authenticated = bearers.get(bearer) ?? null;
+    assert.notEqual(authenticated, null, 'packed mutation must carry a signed-in bearer');
+    const body = JSON.parse(init.body);
+    serverRecordedAuthors.push(authenticated.userId);
+    return Response.json({ result: body.args.persona, version: serverRecordedAuthors.length });
+  }
   if (path !== '/auth/password/signup') throw new Error(\`unexpected packed request: \${path}\`);
   const body = JSON.parse(init.body);
   serial += 1;
@@ -246,6 +324,13 @@ await mia.auth.signUpWithPassword({ email: 'mia@example.com', password: 'packed-
 assert.equal(henry.auth.currentPrincipal().userId, USERS['henry@example.com']);
 assert.equal(mia.auth.currentPrincipal().userId, USERS['mia@example.com']);
 assert.notEqual(henry.client, mia.client);
+await henry.client.mutate(packedGeneratedMutation, { args: { persona: 'henry' }, queue: false });
+await mia.client.mutate(packedGeneratedMutation, { args: { persona: 'mia' }, queue: false });
+assert.deepEqual(serverRecordedAuthors, [
+  USERS['henry@example.com'],
+  USERS['mia@example.com'],
+]);
+assert.equal(new Set(serverRecordedAuthors).size, 2, 'persona writes must have distinct authors');
 await henry.dispose();
 await mia.dispose();
 
@@ -272,4 +357,4 @@ await firstDefault.dispose();
   rmSync(scratch, { recursive: true, force: true });
 }
 
-console.log('check-guide-multi-persona-clients: packed import, typecheck, isolated personas, and bounded warning passed');
+console.log('check-guide-multi-persona-clients: packed import, typecheck, distinct write attribution, isolated personas, and bounded warning passed');
