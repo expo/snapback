@@ -91,4 +91,4 @@ Verification:
 - `volta run --node 24.18.0 bun --cwd packages/snapback-react test` — passed.
 - `./ref-check --verbose` — 297 LLP docs, 6,659 refs, 0 errors, 0 unchecked.
 
-Landing SHA: TBD
+Landing SHA: f598c2507

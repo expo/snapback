@@ -645,13 +645,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:14cf038ca965862bd06976d94d44fd8a4f32e7b43bb1fb66455a2399018d454b",
+    "bundleId": "sha256:8f7374e68ab7722d2c9bc69db98cbe61538c5c48753051ac4e7425eb03e8ff43",
     "evidenceId": "sha256:4434968a5e0ab9414696638aab27695913e01b2f26f6ea3d057bbda2fd693f3c",
     "executableId": "sha256:a51509e779bb4013f5a30976d13742ec5a57613d356aea21d103cd0ca287e711",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:a51509e779bb4013f5a30976d13742ec5a57613d356aea21d103cd0ca287e711"
     },
-    "generationId": "sha256:5a9c3a56ce7ff132fa0cc3e54cc2a849c2131bc2ab825d011a33e4908774c6ea",
+    "generationId": "sha256:db48c38794d3ef87ced428b1427197479227bca3640221e3856f75fbfffaca32",
     "normalizedContractId": "sha256:e383acc9d9ff99b2743ceb110f1d0014b4a7ee646d18af3b84c1a4a91f52c561",
     "normalizedSchemaId": "sha256:cda86a8759bb7d977626b2b51fd142b336c5265a6eb966c0acad2ea5fea28013",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -684,6 +684,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 0,
         "live": 4,
@@ -700,6 +701,29 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "snapback.v1:sessions:inputs:sha256:839ead1d57a43ee11aff784875713f0e431aed46e7e5a8498f269d3d70ce8e41",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 3,
+        "affectedOperations": [
+          "createPost",
+          "ensureProfile",
+          "toggleLike"
+        ],
+        "affectedTableCount": 3,
+        "affectedTables": [
+          "likes",
+          "posts",
+          "profiles"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 7,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "seed": {
       "digest": "sha256:bbee022a89b8ec167fbbf4dd7925629f5f1e329cf5e7a25d91e1d26b9445cc8f",
