@@ -121,3 +121,68 @@ re-examined against this: a split-phase authorized-effect reservation prevents
 work from STARTING, but this write starts before logout lands and commits after
 a refusal is already computed. Determine whether the correct fix is reservation,
 rollback-on-refusal, or both.
+
+
+## Root cause and remedy settled — 2026-08-21
+
+### Why this path has no fence at all
+
+The mutation is a HostPlan inserting into `items`. `items` is **not
+permission-backing**, so the staged change classifies as `NoAuthorizationEvent`
+(`crates/snapback-kernel/src/storage/authorization.rs:117`,
+`crates/snapback-engine/src/local/engine.rs:20950`). The staging wrapper then
+proceeds directly to commit work **in the same Local turn**
+(`crates/snapback-server/src/server/writer_gate.rs:493`).
+
+Function preparation calls only `validate_admission`
+(`crates/snapback-sync/src/auth/invocation.rs:2150`), which checks global
+admission and rehearsal authority — not the session publication fence.
+
+So no fence is involved: no authorization event, no reservation, no guard. The
+`SNAPBACK_AUTH_SESSION_EXPIRED` the caller sees is computed at outer response
+publication, **after** `tx.commit()`.
+
+### The general rule is narrower than feared
+
+**Postcommit refusal is general; post-staging refusal is not.**
+
+- A refusal first computed AFTER `tx.commit()` cannot undo the durable effect.
+  Outer response-publication refusal can therefore mask an already-committed
+  mutation.
+- A refusal after SQL writes are staged but BEFORE commit rolls back normally.
+
+Case by case:
+
+- **Session logout/expiry — affected.** This path never consults the session
+  publication before commit.
+- **Scoped-service grant/credential revocation — NOT affected.** That path
+  already revalidates durable service authority before execution
+  (`engine.rs:15443`, `:6951`), and a committed matrix asserts effects remain
+  absent across grant revoke, credential rotation/revoke, deactivation, expiry
+  and cap eviction (`server/tests.rs:7541`, `:7630`). **This is the working
+  precedent.**
+- **Global epoch retirement — NOT the same failure.** The mode guard retains the
+  controller mutex through commit (`admission.rs:947`), so retirement either
+  rolls back or orders after.
+- **Quota — not inherently affected.** Checked inside the transaction and exits
+  via `?` before commit (`asset_attempts.rs:286`, `:234`).
+
+### The recorded design does address this
+
+`issues/20260821-authorized-effect-fence-design.md` stands. Its premise was
+questioned when this turned out to be a refusal-with-side-effect; the premise is
+correct, because the regression pauses **before** handler/work reservation, not
+after the durable write began.
+
+- If logout premarks or commits first, `try_reserve_work` refuses before
+  mutation work starts (`session_projection.rs:658`).
+- If A reserves first, logout's premark closes new reservations and drains
+  existing permits (`coordinator.rs:672`, `:688`), so A commits *before* logout.
+
+**Rollback-on-refusal is not available** — the transaction has already
+committed at the observed refusal point. And a bare "check again before commit"
+is insufficient unless it owns a fence through commit, or it just creates
+another check/commit race. Acquiring the session lock inside SQLite is
+prohibited by the lock order (LLP 0059 §751).
+
+So: reservation, not rollback. Proceed with the split-phase design.
