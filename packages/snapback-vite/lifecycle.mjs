@@ -392,7 +392,16 @@ export function createSnapbackViteLifecycle(options = {}) {
         watch: true,
         serverStdio: options.serverStdio ?? 'inherit',
         onEvent(event) {
-          if (event.state === 'generated-and-loaded') refreshApplicationReceiptProjection();
+          // Refresh before forwarding any receipt-bearing event: the successor
+          // activation publishes the new application-ready receipt before
+          // `generated-and-loaded`, and a synchronous listener must never
+          // observe the predecessor binding projection after either event.
+          if (
+            event.state === 'generated-and-loaded' ||
+            event.state === 'startup-successor-activated'
+          ) {
+            refreshApplicationReceiptProjection();
+          }
           emit({
             event: 'backend-lifecycle',
             severity: event.ok === false ? 'error' : 'note',
