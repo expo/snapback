@@ -2741,7 +2741,6 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'demos/chirp/snapback/generated/visibility-governance-quarantine-ledger.json',
   'demos/chirp/snapback/generated/visibility-override-baseline.json',
   'demos/chirp/snapback/generated/visibility-override-owner-baseline.json',
-  'demos/competitive-checkpoint/snapback/generated/api.d.mts',
   'demos/competitive-checkpoint/snapback/generated/api.d.ts',
   'demos/competitive-checkpoint/snapback/generated/api.mjs',
   'demos/competitive-checkpoint/snapback/generated/artifacts.json',
@@ -3287,7 +3286,6 @@ test('P-vs-C generated allowance admits only qualification-C paths', () => {
   for (const path of [
     'demos/party-wall/snapback/generated/artifacts.json',
     'demos/competitive-checkpoint/snapback/generated/api.d.ts',
-    'demos/competitive-checkpoint/snapback/generated/api.d.mts',
     'demos/competitive-checkpoint/snapback/generated/api.mjs',
     'demos/partiful-matrix/snapback/generated/api.mjs',
     'demos/triage-graph/snapback/generated/artifacts.json',

@@ -1,6 +1,6 @@
 # `check-inventories` is red on main: the competitive-checkpoint manifest and the reviewed leaf set disagree
 
-Status: Open — main is currently red on this gate
+Status: Resolved 2026-08-22 — the reviewed rows were stale; see "Resolution"
 Created: 2026-08-22
 Related: issues/20260821-check-inventories-has-no-mechanical-enforcement.md
 
@@ -63,3 +63,31 @@ This is the fourth distinct `check-inventories` red on main in two days. The oth
 diagnostics projections (twice) and an unregistered test file. That gate has no hook or CI
 enforcement, tracked separately in
 `issues/20260821-check-inventories-has-no-mechanical-enforcement.md`.
+
+
+## Resolution (2026-08-22)
+
+The manifest was right and the reviewed constant was stale.
+
+`a0bb35684` ("feat: implement LLP 0295 W4 composition") **deliberately removed** `api.d.mts` — and
+`app.d.mts` — from `demos/competitive-checkpoint/snapback/generated/artifacts.json`, deleting the
+complete entry including `consumer: client-bundler`, `custody: consumer-committed` and
+`logicalKind: typed-api`. `api.d.ts` and `api.mjs` remain present, so this was a targeted removal
+of the `.d.mts` declaration pair, not an accident of regeneration.
+
+Corroborating evidence: `api.d.mts` is absent from **every** demo manifest, the manifest's mtime
+postdates the file's, and nothing in that demo references the path.
+
+So this was option 2 from the original filing — the leaf is genuinely gone — and the fix is to drop
+the stale reviewed rows: one in `REVIEWED_GENERATED_PUBLICATION_PATHS` and one in the test fixture
+list that asserted the path was an allowed publication. Both removed.
+
+`check-inventories` is green again.
+
+The tracked file `demos/competitive-checkpoint/snapback/generated/api.d.mts` is left in place. It is
+now an orphan by the manifest's reckoning, but deleting a tracked generated file is the
+irreversible half of this cleanup and is not needed to make the gate correct. Whoever owns the LLP
+0295 W4 surface should decide whether it goes.
+
+Note: `tests/agent_safe_publication_checker_v1.mjs` has a separate pre-existing failure — "build
+digest omits Cargo.toml" — which reproduces on clean main and is unrelated to this.
