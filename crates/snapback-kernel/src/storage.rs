@@ -7053,6 +7053,8 @@ pub(crate) fn room_permission_projection_granted_on(
         let role_narrowing = match crate::ephemeral::effective_room_permission_role_narrowing(
             table_name,
             table,
+            subject_field,
+            scope_fields.iter().map(|(field, _)| field.as_str()),
             role_field,
             allowed_roles,
         ) {

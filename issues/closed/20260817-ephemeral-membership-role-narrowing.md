@@ -79,4 +79,4 @@ Verification:
 - `./ref-check --verbose`
 - `node scripts/check-inventories.mjs`
 
-Landing SHA: TBD
+Landing SHA: d2955a4815ee30fccbf2b06c4b5e64532ecd0f4e

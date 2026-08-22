@@ -654,6 +654,45 @@ fn serialized_membership_projection_omission_denies_pending_subscribe_and_publis
 }
 
 #[test]
+fn direct_artifact_refuses_non_principal_membership_projection_subject_axis() {
+    let mut serialized: Value = serde_json::from_str(CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON)
+        .expect("codegen membership artifact is serialized JSON");
+    serialized["ephemeralCollections"][0]["permissionBacking"]["subjectField"] = json!("role");
+    let schema: SchemaManifest =
+        serde_json::from_value(serialized).expect("doctored direct artifact parses");
+
+    let mut activation = LocalSnapback::memory().expect("subject-axis activation fixture");
+    let refused = activation
+        .apply_schema(schema)
+        .expect_err("membership projection must bind the declared principal axis");
+    assert_eq!(
+        refused.diagnostic.code,
+        "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
+    );
+    assert!(refused.diagnostic.message.contains("subjectField"));
+}
+
+#[test]
+fn direct_artifact_refuses_non_resource_membership_projection_scope_axis() {
+    let mut serialized: Value = serde_json::from_str(CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON)
+        .expect("codegen membership artifact is serialized JSON");
+    serialized["ephemeralCollections"][0]["permissionBacking"]["scopeFields"]["conversationId"] =
+        json!("role");
+    let schema: SchemaManifest =
+        serde_json::from_value(serialized).expect("doctored direct artifact parses");
+
+    let mut activation = LocalSnapback::memory().expect("scope-axis activation fixture");
+    let refused = activation
+        .apply_schema(schema)
+        .expect_err("membership projection must bind the declared resource axis");
+    assert_eq!(
+        refused.diagnostic.code,
+        "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
+    );
+    assert!(refused.diagnostic.message.contains("scopeFields"));
+}
+
+#[test]
 fn legacy_room_permission_without_backing_refuses_sessions_activation() {
     let mut schema = codegen_membership_schema();
     let collection = schema

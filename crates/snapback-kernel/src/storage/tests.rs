@@ -12618,56 +12618,94 @@ mod guarded_commit_tests {
             let mut db = LocalDatabase::memory().expect("database");
             db.schema_seed()
                 .apply_schema(SchemaManifest {
-                    tables: vec![TableManifest {
-                        name: "memberships".to_owned(),
-                        fields: vec![
-                            FieldManifest {
-                                name: "userId".to_owned(),
-                                field_type: FieldType::String,
-                                optional: false,
-                            },
-                            FieldManifest {
-                                name: "boardId".to_owned(),
-                                field_type: FieldType::String,
-                                optional: false,
-                            },
-                            FieldManifest {
-                                name: "role".to_owned(),
-                                field_type: FieldType::String,
-                                optional: false,
-                            },
-                        ],
-                        indexes: Vec::new(),
-                        syncable: true,
-                        permission_backing: true,
-                        permission_fields: Some(vec![
-                            "userId".to_owned(),
-                            "boardId".to_owned(),
-                            "role".to_owned(),
-                        ]),
-                        search_indexes: Vec::new(),
-                        vector_indexes: Vec::new(),
-                        search_live_limits: None,
-                        membership: None,
-                        authority_profile: None,
-                        asset_sharing: None,
-                        visibility: None,
-                        history: None,
-                    }],
+                    tables: vec![
+                        TableManifest {
+                            name: "boards".to_owned(),
+                            fields: Vec::new(),
+                            indexes: Vec::new(),
+                            syncable: false,
+                            permission_backing: false,
+                            permission_fields: None,
+                            search_indexes: Vec::new(),
+                            vector_indexes: Vec::new(),
+                            search_live_limits: None,
+                            membership: None,
+                            authority_profile: None,
+                            asset_sharing: None,
+                            visibility: None,
+                            history: None,
+                        },
+                        TableManifest {
+                            name: "memberships".to_owned(),
+                            fields: vec![
+                                FieldManifest {
+                                    name: "userId".to_owned(),
+                                    field_type: FieldType::Principal,
+                                    optional: false,
+                                },
+                                FieldManifest {
+                                    name: "boardId".to_owned(),
+                                    field_type: FieldType::Id {
+                                        table: "boards".to_owned(),
+                                    },
+                                    optional: false,
+                                },
+                                FieldManifest {
+                                    name: "role".to_owned(),
+                                    field_type: FieldType::String,
+                                    optional: false,
+                                },
+                            ],
+                            indexes: Vec::new(),
+                            syncable: true,
+                            permission_backing: false,
+                            permission_fields: None,
+                            search_indexes: Vec::new(),
+                            vector_indexes: Vec::new(),
+                            search_live_limits: None,
+                            membership: Some(MembershipManifest {
+                                id: None,
+                                principal: "userId".to_owned(),
+                                resource: Some("boardId".to_owned()),
+                                role: "role".to_owned(),
+                                roles: vec!["member".to_owned()],
+                                pending_roles: None,
+                                bootstrap_role: None,
+                                last_holder: None,
+                                expiry: None,
+                                incidental: None,
+                                provenance: None,
+                                transitions: Vec::new(),
+                                principal_addressed_writes: None,
+                                scope: MembershipScope::Resource,
+                                resource_table: Some("boards".to_owned()),
+                            }),
+                            authority_profile: None,
+                            asset_sharing: None,
+                            visibility: None,
+                            history: None,
+                        },
+                    ],
                     ..SchemaManifest::default()
                 })
                 .unwrap();
             db.schema_seed()
                 .seed(SeedData {
-                    tables: BTreeMap::from([(
-                        "memberships".to_owned(),
-                        vec![Map::from_iter([
-                            ("_id".to_owned(), json!("grant")),
-                            ("userId".to_owned(), json!("alice")),
-                            ("boardId".to_owned(), json!("board-a")),
-                            ("role".to_owned(), json!("member")),
-                        ])],
-                    )]),
+                    tables: BTreeMap::from([
+                        (
+                            "boards".to_owned(),
+                            vec![Map::from_iter([("_id".to_owned(), json!("board-a"))])],
+                        ),
+                        (
+                            "memberships".to_owned(),
+                            vec![Map::from_iter([
+                                ("_id".to_owned(), json!("grant")),
+                                ("userId".to_owned(), json!("alice")),
+                                ("boardId".to_owned(), json!("board-a")),
+                                ("role".to_owned(), json!("member")),
+                            ])],
+                        ),
+                    ]),
                 })
                 .unwrap();
             assert!(
@@ -12718,6 +12756,26 @@ mod guarded_commit_tests {
                 "{name}"
             );
         }
+    }
+
+    #[test]
+    fn role_narrowing_on_a_non_membership_projection_denies_all() {
+        let mut db = permission_database(None);
+        db.schema_seed()
+            .seed(seed_data("grant", "alice"))
+            .expect("seed legacy permission-backing row");
+        assert!(
+            !db.room_permission_projection_granted(
+                "items",
+                "title",
+                "alice",
+                &[],
+                Some("title"),
+                Some(&["alice".to_owned()]),
+                1,
+            )
+            .unwrap()
+        );
     }
 
     #[test]

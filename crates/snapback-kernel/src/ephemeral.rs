@@ -42,12 +42,56 @@ pub(crate) struct EffectiveRoomPermissionRoleNarrowing<'a> {
 ///
 /// @ref LLP 0013#lowering-and-one-validator-convergence — generated and direct
 /// artifacts share the same membership-aware projection semantics.
-pub(crate) fn effective_room_permission_role_narrowing<'a>(
+/// @ref LLP 0056#declaring-a-membership-table — membership authority is bound
+/// to the declaration's exact principal, resource, and role axes.
+pub(crate) fn effective_room_permission_role_narrowing<'a, 'b>(
     projection_name: &str,
     table: &'a crate::manifest::TableManifest,
+    subject_field: &str,
+    scope_target_fields: impl IntoIterator<Item = &'b str>,
     role_field: Option<&'a str>,
     allowed_roles: Option<&'a [String]>,
 ) -> Result<Option<EffectiveRoomPermissionRoleNarrowing<'a>>, EphemeralError> {
+    if let Some(membership) = table.membership.as_ref() {
+        if membership.scope != crate::manifest::MembershipScope::Resource {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "ephemeral collection {projection_name} permissionBacking requires a resource-scoped membership declaration on {}",
+                    table.name
+                ),
+            ));
+        }
+        if subject_field != membership.principal {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "ephemeral collection {projection_name} permissionBacking subjectField must name the declared principal axis on {}",
+                    table.name
+                ),
+            ));
+        }
+        let scope_target_fields = scope_target_fields.into_iter().collect::<Vec<_>>();
+        let resource_field = membership.resource.as_deref().ok_or_else(|| {
+            EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "ephemeral collection {projection_name} permissionBacking requires a declared resource axis on {}",
+                    table.name
+                ),
+            )
+        })?;
+        if scope_target_fields.as_slice() != [resource_field] {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "ephemeral collection {projection_name} permissionBacking scopeFields must target exactly the declared resource axis on {}",
+                    table.name
+                ),
+            ));
+        }
+    }
+
     let narrowing = match (role_field, allowed_roles) {
         (None, None) => {
             table
@@ -326,6 +370,8 @@ pub fn validate_collection_permission_backing(
         if let Some(narrowing) = effective_room_permission_role_narrowing(
             &collection.name,
             table,
+            &projection.subject_field,
+            projection.scope_fields.values().map(String::as_str),
             projection.role_field.as_deref(),
             projection.allowed_roles.as_deref(),
         )? {
