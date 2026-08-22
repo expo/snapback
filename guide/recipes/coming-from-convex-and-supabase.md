@@ -450,6 +450,14 @@ channel
   });
 ```
 
+`track()` state is connection-lived until `untrack()`, channel leave, or
+disconnect; it does not disappear merely because typing went idle. Snapback's
+bound surface presence is the closest lifecycle analogue, with a provider
+heartbeat sustaining its TTL lease while mounted. For the extra idle-stop
+choreography on both systems, use the
+[activity presence recipe](./activity-presence.md) rather than treating TTL as
+the inactivity timer.
+
 Broadcast is a fire-and-forget pub/sub message, recommended for high-frequency
 state like cursors precisely because it does not maintain roster state:
 

@@ -7,7 +7,7 @@
   "competitor": [
     {
       "provider": "Supabase",
-      "concept": "Presence — a Realtime channel feature (`channel.track(state)` / `presenceState()`) that syncs each connected client's shared key-value state (online status, typing) to every other subscriber, reconciling automatically on join/leave/disconnect.",
+      "concept": "Presence — a Realtime channel feature (`channel.track(state)` / `presenceState()`) that syncs each connected client's shared key-value state to every other subscriber until `untrack()`, channel leave, or disconnect. It does not expire on user idle, so typing requires explicit track/untrack choreography.",
       "version": "2.45.4 (supabase-js)",
       "sourceUrl": "https://supabase.com/docs/guides/realtime/presence",
       "retrievedAt": "2026-08-07"

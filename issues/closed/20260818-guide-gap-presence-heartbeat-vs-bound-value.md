@@ -3,7 +3,7 @@
 **Status:** Closed 2026-08-21
 **Systems:** Guide, ephemeral realtime, React/Expo hooks
 **Date:** 2026-08-18
-**Landing SHA:** TBD
+**Landing SHA:** d4b4a80a9
 **Evidence:** diary 0096 M3 — publishing typing through the surface
 `presence` value kept the lease alive for the whole non-empty draft, failing
 the 5s expiry ceiling; the correct `touch`-on-keystroke / `delete`-on-idle
@@ -23,9 +23,11 @@ that a bound surface value is continuously published, explains why TTL cannot
 enforce an inactivity ceiling while the provider heartbeat renews the lease,
 and teaches `useSnapbackActivityPresence`: `touch()` on meaningful activity,
 helper-owned idle delete, and explicit `withdraw()` on clear/send/blur/scope
-exit. It maps the Supabase `track()` prior to touch + provider heartbeat +
-delete and names the 250–2,147,483,647 ms `idleMs` admission range and stable
-diagnostic.
+exit. It names Supabase `track()` and bound Snapback presence as lifecycle
+analogues, then teaches the idle-stop choreography: `track()`/`untrack()` or
+touch + provider heartbeat + delete. It also names `skip` as bound withdrawal,
+distinguishes it from `null`, and separates the legal 250–2,147,483,647 ms
+`idleMs` range from the smaller product deadline an app may promise.
 
 The ephemeral-state page and typing-indicators recipe link to the decision
 page rather than duplicating it. Retrieval case 62 retains the diary's exact
@@ -48,7 +50,8 @@ fresh external app it proves:
 - runtime/headless publish and delete;
 - React touch, explicit withdrawal, and idle withdrawal below the five-second
   ceiling;
-- Expo background withdrawal; and
+- Expo background withdrawal;
+- bound-value renewal past TTL followed by `skip` withdrawal before TTL; and
 - the negative `SNAPBACK_REACT_ACTIVITY_IDLE_MS_INVALID` diagnostic with its
   supported range rewrite.
 

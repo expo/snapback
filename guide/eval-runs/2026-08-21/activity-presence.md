@@ -22,7 +22,9 @@ packed packages in a fresh external app. It generated and typechecked the
 typed ephemeral reference, accepted headless publish/delete in the runtime,
 withdrew React activity after idle and explicit clear below the five-second
 ceiling, withdrew Expo activity on background, and refused `idleMs: 0` with
-`SNAPBACK_REACT_ACTIVITY_IDLE_MS_INVALID` plus the supported range rewrite.
+`SNAPBACK_REACT_ACTIVITY_IDLE_MS_INVALID` plus the supported range rewrite. It
+also kept a bound surface value visible past TTL under renewal, then switched
+the binding to `skip` and observed withdrawal before TTL.
 
 ## Agent tool transcript
 

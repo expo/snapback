@@ -34,30 +34,14 @@ Use this page when choosing collection options or handling recovery.
 ## Stop publishing when activity goes idle
 
 First decide whether the value is continuously bound or activity-driven. The
-[activity presence recipe](../recipes/activity-presence.md) maps a Supabase
-`track(...)` mental model to Snapback publish, heartbeat, and delete, and
-explains why a bound surface value can continuously republish.
+[activity presence recipe](../recipes/activity-presence.md) is the bounded API
+and lifecycle guide, including the Supabase `track()` analogue, bound `skip`
+withdrawal, `idleMs` product deadline, heartbeat ownership, and delete path.
 
-In the schema and headless client this feature is named **ephemeral**. In the
-React client the base scoped hook is named **`useSnapbackPresence`**, and
-**`useSnapbackActivityPresence`** adds the common “publish now, withdraw after
-the last activity tick” lifecycle. There is no separate
-`useSnapbackEphemeral` hook.
-
-`scope` is the room boundary, so a conversation id gives one typing room per
-conversation. `ConnectionEphemeralCollectionReference` describes how each row
-inside that room is owned and keyed; it does not force a global or
-connection-only scope. Call `touch()` for each keystroke or other activity
-tick. The value thunk is sampled only by that call, the provider owns lease
-renewal, and the helper withdraws after the absolute `idleMs` deadline.
-`withdraw()` clears immediately for events such as editor clear or message
-send. The result retains the base `status`, `connection`, `publisher`, and
-`diagnostic` fields; action failures use `onError` and `lastError`.
-
-In Expo, import the hook from `@expo/snapback-expo`. Its facade wrapper gates
-the first publication until AppState observation is established and withdraws
-on backgrounding. A direct `@expo/snapback-react` import has the same deadline
-state machine but no platform lifecycle listener.
+In Expo, import `useSnapbackActivityPresence` from `@expo/snapback-expo`. Its
+facade wrapper gates the first publication until AppState observation is
+established and withdraws on backgrounding. A direct `@expo/snapback-react`
+import has the same deadline state machine but no platform lifecycle listener.
 
 The messaging demo has one deliberate direct-client exception. Its interactive
 server uses dev-mode persona assertions, while the `typing` collection also

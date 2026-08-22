@@ -20,10 +20,12 @@ reviewed-authorities-digest: sha256:8f70a44985f5309caef3b140d31f6714b5a0f2fe8bd2
 > [auth/targets](../auth/targets.md).
 
 Snapback presence is an ephemeral lease. The key rule is: **a surface presence
-value is a continuous publish**. A non-null value bound through
-`useSurface({ typing: value })` remains desired while that binding is mounted,
-so the provider heartbeat keeps renewing it. A five-second TTL or acceptance
-ceiling does not make that value disappear after five seconds of no typing.
+value is a continuous publish**. A value other than `skip` bound through
+`useSurface(surface, params, { presence: { typing: value } })` remains desired
+while that binding is mounted, so the provider heartbeat keeps renewing it. A
+five-second TTL or acceptance ceiling does not make that value disappear after
+five seconds of no typing. Bound withdrawal is `skip`; `null` is a value publish
+attempt and fails the generated value contract.
 
 This is the usual cause of a “typing indicator stuck” or “presence not
 expiring” report. The heartbeat-vs-bound-value decision comes before choosing
@@ -64,13 +66,22 @@ export function TypingComposer() {
 The provider renews the admitted lease while the activity owner remains
 active; do not add a second app timer or heartbeat loop. TTL is the
 crash/disconnect backstop. Explicit or idle delete is the ordinary stop
-signal.
+signal. Choose `idleMs` below the product expiry deadline, leaving room for the
+delete to become visible: for a five-second ceiling, the shown three-second
+idle window leaves that convergence budget. TTL will not enforce the deadline
+while the activity owner is active.
 
 ## Coming from Supabase `track()`
 
-There is no one-shot `track()` equivalent for idle activity. Translating
-Supabase `track({ typing: true })` as a long-lived bound value imports the
-wrong prior. Translate it as **touch + provider heartbeat + delete**:
+Supabase `track()` is the lifecycle analogue of bound `useSurface` presence or
+a non-`skip` `useSnapbackPresence` value: Supabase keeps the state until
+`untrack()`, channel leave, or disconnect; Snapback keeps the value desired
+while its binding is mounted and uses the provider heartbeat to sustain its
+TTL lease. Neither expires merely because the user went idle.
+
+Idle typing therefore needs extra stop choreography on both systems:
+`track()`/`untrack()` in Supabase, or **touch + provider heartbeat + delete**
+in Snapback:
 
 - `touch()` on each meaningful activity tick;
 - let the provider renew the unchanged admitted value;
@@ -80,7 +91,9 @@ wrong prior. Translate it as **touch + provider heartbeat + delete**:
 The hook admits `idleMs` only as a finite safe integer from 250 through
 2,147,483,647 milliseconds. Invalid configuration refuses during render with
 `SNAPBACK_REACT_ACTIVITY_IDLE_MS_INVALID`; fix the deadline instead of
-clamping or adding another timer.
+clamping or adding another timer. That legal range is not a product-timing
+guarantee: `idleMs` plus delete visibility still must fit the expiry ceiling
+the application promises.
 
 The generated room scope and membership admission remain authoritative.
 Heartbeat extends only an already admitted ephemeral entry; it does not grant
@@ -100,4 +113,6 @@ The packed external vertical receipt is
 `node scripts/activity-presence-vertical-contract.mjs`. It proves the `typing`
 Guide route, generated reference and public imports, runtime publish/delete,
 React idle and explicit withdrawal, Expo background withdrawal, and the
-invalid-`idleMs` diagnostic from one installed package closure.
+invalid-`idleMs` diagnostic from one installed package closure. It also proves
+that a bound surface value persists past TTL under renewal and that switching
+that binding to `skip` withdraws it before TTL.
