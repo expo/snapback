@@ -4536,7 +4536,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-09
-reviewed-authorities-digest: sha256:33436c3acb6ab29a45b16c1b9d986e0037996934e374c91db0a295ece3ed8122
+reviewed-authorities-digest: sha256:5221bd4e16f07945a6e3b1826e5cff01d29c79b612e3f97068f4cd57c14eb45a
 ---
 
 # External API exposure
@@ -4642,6 +4642,16 @@ Mutating capability links may have more than one use when the target function
 is approval-gated or the mint request sets `approval: true`; each possessor use
 creates a separate minter-approved effect. Generic dry-run previews, proactive
 expiry sweeping, and granted-function links are not shipped in v1.
+
+## Build an Expo/web capability-link flow
+
+Use [Capability links for Expo and web](../recipes/capability-links.md) for the
+complete shipped anonymous-set journey: signed-in mint, secret URL handling,
+crawler-safe inert GET, explicit invoke, Expo Linking and web parsing,
+single-use/multi-use behavior, expiry, replay, revocation, and the boundary
+before granted-operation, guest-session, upload-custody, or account-claim
+authority. Do not infer those unshipped authority classes from this page's
+external API surface.
 
 ## The `/api/v1` family
 

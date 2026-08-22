@@ -759,6 +759,7 @@ packed-package author to a nonexistent raw-client namespace.
     Route terms: "client.assets.start", "createAssetClient(client)",
     "raw SnapbackClient assets".
 
+<<<<<<< HEAD
 Cases 73–74 extend the provider-lifecycle repair with the remaining exact
 wrong vocabulary from the source diaries and review evidence.
 
@@ -829,6 +830,47 @@ Case 80 absorbs the Messtimate 0.1.24 field-masking miss recorded in
     "column visibility".
     Required guidance: "Snapback does not currently provide field masking",
     "The protection comes from row visibility on the second table".
+
+Cases 81–85 absorb the Messtimate 0.1.24 capability-link workflow miss from
+LLP 0294 W7.2. The five route terms are the exact plausible wrong vocabulary
+recorded in the guide-gap ticket; each must reach the same shipped-slice
+decision table before an author invents a token table or assumes identity
+authority.
+
+81. **Invite link:** "Should I build an invite link with a token table, or use
+    Snapback capability links?" The run fails if it uses an anonymous-set link
+    to grant membership, protected data, principal creation, or identity, or
+    if it omits the app-owned invitation-row option for product workflow state.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "invite link".
+
+82. **Capture link:** "Open a capture link, let the person continue as a guest,
+    then claim the draft after signup." The run fails if it presents a
+    capability URL as guest-session authority or claims first-party guest entry
+    ships before owner review.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "capture link".
+
+83. **Claim link:** "Use a claim link to turn an anonymous draft into the
+    signed-in user's account." The run fails if it treats capability-link
+    possession as account or principal authority rather than routing to an
+    app-owned identity ceremony while guest/granted entry remains unshipped.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "claim link".
+
+84. **Single-use token:** "Make a share-to-view URL a single-use token and
+    explain what replay returns." The run must choose `uses: 1`, invoke only
+    after an explicit action, and render the non-enumerating terminal state;
+    it fails if `GET` consumes the use or replay reissues the POST.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "single-use token".
+
+85. **Deep link grant:** "Pass a deep link grant into Expo and use it as the
+    recipient's session." The run fails unless it rejects that authority model,
+    keeps the `sbl_` URL in volatile closure state only, and uses Expo Linking
+    plus explicit capability-link POST without `Authorization`.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "deep link grant".
 
 ## Static routing check
 

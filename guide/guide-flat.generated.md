@@ -83,7 +83,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | sync.local-persistent-store | LLP 0166 v3 store/hydration per `clientStoreId`: trusted activation, completeness proof, preload, checked relaunch, and durable programmatic demand. `single_table_v1@1` may retain; protected classes need leases. IndexedDB/Node-file pass; memory refuses. Expo SQLite awaits device qualification; remote/Cloudflare are nonclaims. | retained render, materialization, completeness proof, hydration, preload, relaunch, result transform | local | partial | crates/snapback-engine/src/local-persistent-store-publication.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094, llp/0270 | sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention for generated JS/React live queries: exact namespace, atomic fresh-query/lease custody, equality expiry, and mismatch delete-before-render | offline auth browser, lease js, private chat offline | local | partial | packages/snapback-client/rqs-resume.test.mjs (custody matrix + fresh-client offline handoff) | llp/0043, llp/0053, llp/0129 | GAP (real-process restart witness; owner: orchestrator, review: 2026-08-26; issue: issues/20260801-js-arm-integrated-authenticated-restart-witness.md); sync/offline-and-retention.md |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | crates/snapback-engine/src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-28; issue: issues/20260802-0133-receipt-wire-coordination.md) |
-| api.external-exposure | Opt-in `/api/v1` + CORS; local OAuth/PKCE and remote MCP; capability links, durable watches, and approval-gated mutation/action effects; read-only `ask` v1 with provider credentials, result schemas, durable token/result-volume budgets, and HMAC provenance receipts. Telemetry stays lossy; billing metering is a gap | external api, oauth, remote mcp, approval, effects, capability links, watches, ask, near-data ai, api budgets | local | partial | route /effects + crates/snapback-kernel/src/storage/pending_effects.rs + route /api/v1/ask + crates/snapback-kernel/src/storage/ask_spend.rs | llp/0204, llp/0031, llp/0055, llp/0150 | backend/external-api.md |
+| api.external-exposure | Opt-in `/api/v1` + CORS; local OAuth/PKCE, remote MCP, capability links, durable watches, approval-gated effects, and read-only `ask` v1 with budgets/HMAC provenance. Telemetry is lossy, not billing. | external api, oauth, remote mcp, approval, effects, capability links, invite link, capture link, claim link, single-use token, deep link grant, share-to-view, watches, ask, near-data ai, api budgets | local | partial | route /effects + crates/snapback-kernel/src/storage/pending_effects.rs + route /api/v1/ask + crates/snapback-kernel/src/storage/ask_spend.rs | llp/0204, llp/0031, llp/0055, llp/0150 | backend/external-api.md |
 | auth.sessions | Server-minted sessions; email-code and email+password login; server-derived principals | login, signin, identity, session, principal binding, app user table, identityBinding, who am I, am I signed in, whoami, currentAuthorizationScope, settledView | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.passwords | First-class session email+password: noninteractive signup/signin/change/set; server-side argon2id (19456/2/1) outside writer lock; bounded KDF concurrency; app-declared 8–128-byte password minimum (default 12, maximum 1024); declared testable lockout (10 failures→15 min); one-time self-serve recovery codes. Uniform refusal for wrong password/unknown identifier/locked; lock state never on wire. Catalog v4 required; v3 reports provider unready. Unready LLP 0045-prerequisite nonclaims: production blind-accept signup/mail reset. Local reset: capture-mailbox only. | password, email password, signup, password login, password auth, minimumLength, minimum password length, hash password, argon2, scrypt gateway, recovery codes, lockout, GoTrue, Supabase auth, password reset | local | shipped | route /auth/password/signin + `authPasswordSignIn` in packages/snapback-client/index.mjs | llp/0227, llp/0214, llp/0215, llp/0011 | auth/passwords.md |
 | auth.external-identity-broker | Local bridges: adopted bearer for headless/native, or trusted-server one-use exchange into browser coordinator custody; mint/capture remain dev/test/demo only | native login, external identity, broker, adopted bearer, browser external sign-in, signed assertion, issuer subject | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0024, llp/0057, llp/0096, llp/0151 | recipes/browser-auth.md |
@@ -560,6 +560,9 @@ proof command, and honest nonclaims without opening every demo.
 - [Activity presence](./recipes/activity-presence.md) — distinguish a
   continuously bound value from activity touch, heartbeat, and explicit
   withdrawal.
+- [Capability links for Expo and web](./recipes/capability-links.md) — mint,
+  share, inertly preview, explicitly invoke, expire/use/revoke, and keep the
+  secret URL out of sessions, durable storage, logs, analytics, and referrers.
 - [Private membership and a product roster](./recipes/membership-roster-projection.md)
   — keep authority backing private while maintaining visible current and
   historical product projections.
@@ -1884,6 +1887,7 @@ packed-package author to a nonexistent raw-client namespace.
     Route terms: "client.assets.start", "createAssetClient(client)",
     "raw SnapbackClient assets".
 
+<<<<<<< HEAD
 Cases 73–74 extend the provider-lifecycle repair with the remaining exact
 wrong vocabulary from the source diaries and review evidence.
 
@@ -1954,6 +1958,47 @@ Case 80 absorbs the Messtimate 0.1.24 field-masking miss recorded in
     "column visibility".
     Required guidance: "Snapback does not currently provide field masking",
     "The protection comes from row visibility on the second table".
+
+Cases 81–85 absorb the Messtimate 0.1.24 capability-link workflow miss from
+LLP 0294 W7.2. The five route terms are the exact plausible wrong vocabulary
+recorded in the guide-gap ticket; each must reach the same shipped-slice
+decision table before an author invents a token table or assumes identity
+authority.
+
+81. **Invite link:** "Should I build an invite link with a token table, or use
+    Snapback capability links?" The run fails if it uses an anonymous-set link
+    to grant membership, protected data, principal creation, or identity, or
+    if it omits the app-owned invitation-row option for product workflow state.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "invite link".
+
+82. **Capture link:** "Open a capture link, let the person continue as a guest,
+    then claim the draft after signup." The run fails if it presents a
+    capability URL as guest-session authority or claims first-party guest entry
+    ships before owner review.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "capture link".
+
+83. **Claim link:** "Use a claim link to turn an anonymous draft into the
+    signed-in user's account." The run fails if it treats capability-link
+    possession as account or principal authority rather than routing to an
+    app-owned identity ceremony while guest/granted entry remains unshipped.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "claim link".
+
+84. **Single-use token:** "Make a share-to-view URL a single-use token and
+    explain what replay returns." The run must choose `uses: 1`, invoke only
+    after an explicit action, and render the non-enumerating terminal state;
+    it fails if `GET` consumes the use or replay reissues the POST.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "single-use token".
+
+85. **Deep link grant:** "Pass a deep link grant into Expo and use it as the
+    recipient's session." The run fails unless it rejects that authority model,
+    keeps the `sbl_` URL in volatile closure state only, and uses Expo Linking
+    plus explicit capability-link POST without `Authorization`.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "deep link grant".
 
 ## Static routing check
 
@@ -9885,7 +9930,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-09
-reviewed-authorities-digest: sha256:33436c3acb6ab29a45b16c1b9d986e0037996934e374c91db0a295ece3ed8122
+reviewed-authorities-digest: sha256:5221bd4e16f07945a6e3b1826e5cff01d29c79b612e3f97068f4cd57c14eb45a
 ---
 
 # External API exposure
@@ -9991,6 +10036,16 @@ Mutating capability links may have more than one use when the target function
 is approval-gated or the mint request sets `approval: true`; each possessor use
 creates a separate minter-approved effect. Generic dry-run previews, proactive
 expiry sweeping, and granted-function links are not shipped in v1.
+
+## Build an Expo/web capability-link flow
+
+Use [Capability links for Expo and web](../recipes/capability-links.md) for the
+complete shipped anonymous-set journey: signed-in mint, secret URL handling,
+crawler-safe inert GET, explicit invoke, Expo Linking and web parsing,
+single-use/multi-use behavior, expiry, replay, revocation, and the boundary
+before granted-operation, guest-session, upload-custody, or account-claim
+authority. Do not infer those unshipped authority classes from this page's
+external API surface.
 
 ## The `/api/v1` family
 
@@ -28194,6 +28249,417 @@ roster projection is durable product state, not presence.
 
 ---
 
+<!-- snapback-guide-source: guide/recipes/capability-links.md -->
+---
+title: "Recipe: capability links for Expo and web"
+id: recipes.capability-links
+order: 15
+audience: agent-first
+capabilities: [api.external-exposure]
+authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0150-agent-token-acquisition.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0294-early-expo-workflow-closure.plan.md, crates/snapback-server/src/server.rs, crates/snapback-kernel/src/storage/capability_links.rs, crates/snapback/tests/route_policy_v1.rs, packages/snapback-codegen/auth-artifacts.test.mjs, scripts/check-guide-capability-link-example.mjs]
+examples: [packages/snapback-codegen/auth-artifacts.test.mjs, scripts/check-guide-capability-link-example.mjs]
+status: current
+targets: [local]
+maturity: partial
+since: 0.1.24
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:ee4234ffd6cb52c98fe0704e2a61d5d5aeebebfb3194086df3e3725126ac4771
+---
+
+# Recipe: capability links for Expo and web
+
+> **Local target only.** Snapback 0.1.24 ships the local anonymous-set slice.
+> Hosted capability links, granted-operation links, identity-bearing links,
+> and guest-session entry are not shipped.
+
+Use this recipe for an expiring, revocable **share-to-view** URL whose target
+query is already callable by an anonymous user. It covers the full app journey:
+signed-in mint, share, crawler-safe inert `GET`, Expo/web intake, explicit
+`POST` invoke, use-count/replay handling, expiry, and revocation.
+
+An `sbl_…` capability-link token is a secret URL and bearer invocation input
+for one link. It is **not** a session, user, principal, login, guest identity,
+OAuth token, or general deep link grant. Never place it in a `SnapbackClient`
+`bearerToken`, `Authorization`, an auth coordinator, SecureStore, AsyncStorage,
+localStorage, IndexedDB, the RQS store, an app table, logs, analytics, crash
+reports, or referrers.
+
+## Choose the right link before building
+
+The shipped link adds pinned arguments, attribution, a budget, expiry, and an
+optional use count to one exposed function in the **external anonymous set**:
+`auth: 'public'`, or `auth: 'optional-user'` invoked without a user. It does
+not make protected data or a protected operation anonymous.
+
+| App intent | Use today | Boundary |
+| --- | --- | --- |
+| **Invite link** | Shipped capability link only for an already-anonymous RSVP/capture function; otherwise an app-owned invitation-token row | Group membership, protected content, principal creation, and identity-bearing acceptance require the unshipped granted-operation/identity flow. |
+| **Capture link** | Shipped single-use or approval-per-use link when the capture mutation/action is deliberately anonymous and exposed | “Enter as guest, keep a draft, claim it later” is not this feature. First-party guest entry is unshipped and awaiting owner review. |
+| **Share-to-view** | Shipped query link when the exact query is anonymous and exposed | A private row, owner query, or membership query needs the unshipped granted-operation link; do not weaken the function to make the link fit. |
+| **Upload request** | App-owned request row plus the normal authenticated [asset upload](../backend/assets.md) flow | A capability link is not upload custody or an asset-owner session. The implemented slice has no capability-link asset-upload ceremony. |
+| **Account claim** / **claim link** | App-owned one-time claim-token row and an authenticated app ceremony, if the app owns that protocol | Account/guest claim is identity authority. Granted-operation links and first-party guest entry remain unshipped; a capability link cannot claim an account. |
+
+An app-owned token row remains appropriate when the token represents durable
+product workflow state rather than one function invocation: named invite
+acceptance, staged upload ownership, account claim, guest continuity, or a
+workflow with product-specific resend/rotation rules. Do not build such a row
+for the share-to-view case below.
+
+## Expose one anonymous query
+
+The function must say `auth: 'public'` (or explicitly `optional-user`) and the
+schema must expose that exact name. This codegen fixture is the minimal shape
+used by the Guide's CI:
+
+```js source=packages/snapback-codegen/auth-artifacts.test.mjs
+export const listTodos = defineLiveQuery({
+  table: 'todos',
+  index: 'by_title',
+  filter: [eq('title', lit('fixed'))],
+  auth: 'public',
+  authorityIndependent: true,
+});
+```
+
+```js source=packages/snapback-codegen/auth-artifacts.test.mjs
+  api: {
+    enabled: true,
+    functions: { listTodos: { expose: true, since: 'v1' } },
+    origins: ['https://example.com:8443'],
+  },
+```
+
+Capability-link storage and routes activate with `api.enabled` on a
+sessions-mode app. Exposure alone does not grant access: mint admission still
+checks that the signed-in issuer can invoke the exact function with the pinned
+arguments, and use admission revalidates the function and issuer lineage.
+
+## Mint and share from the issuer boundary
+
+`POST /capability-links` requires a signed-in session bearer and returns the
+raw token exactly once inside `url`. The current first-party application client
+does not ship a typed `mintCapabilityLink` wrapper and deliberately does not
+reveal coordinator-owned bearer bytes. Use the HTTP helper only inside an
+issuer integration that already owns an explicit session bearer. Do not read
+an undocumented `appClient.client.bearerToken` property or copy browser/native
+custody into application state to make this call.
+
+```js source=scripts/check-guide-capability-link-example.mjs
+export async function mintShareLink(fetchImpl, serverOrigin, sessionBearer) {
+  const response = await fetchImpl(new URL('/capability-links', serverOrigin), {
+    method: 'POST',
+    credentials: 'omit',
+    cache: 'no-store',
+    referrerPolicy: 'no-referrer',
+    headers: {
+      authorization: `Bearer ${sessionBearer}`,
+      'content-type': 'application/json',
+      'x-snapback-auth-client-protocol': '1',
+    },
+    body: JSON.stringify({
+      function: 'listTodos',
+      pinnedArgs: {},
+      callerArgs: [],
+      expiresInMs: 3_600_000,
+      uses: 1,
+    }),
+  });
+  if (!response.ok) throw new Error('capability-link mint failed');
+  const minted = await response.json();
+  return Object.freeze({
+    id: minted.id,
+    shareUrl: new URL(minted.url, serverOrigin).href,
+    expiresAtMs: minted.expiresAtMs,
+    remainingUses: minted.remainingUses,
+  });
+}
+```
+
+Share `shareUrl`; do not print it. The response also returns the safe management
+id `cplk_…`. Retain that id only if the issuer UI needs a later revoke button.
+The URL token itself must not enter durable app state.
+
+The local target defaults to seven days and refuses expiry beyond thirty days.
+Set a shorter application-specific `expiresInMs` whenever possible. `uses: 1`
+is a **single-use token**. Omit `uses` for an expiry/revocation-bounded query
+link, or set a positive count for a bounded multi-use query link.
+
+For mutations/actions, `uses: 1` is required unless every use is approval-
+gated by the function declaration or mint request (`approval: true`). An
+approval-per-use link creates a pending effect; the minter must explicitly
+approve it. Possession never chooses an approver. Multi-use approval is not
+multi-use direct write authority.
+
+## Keep shared URLs crawler-safe
+
+The minted server URL is safe to unfurl: `GET /capability-links/{token}` only
+returns bearer-free metadata (`id`, function, kind, caller-argument names,
+expiry, remaining uses, and approval mode). It does not invoke the function,
+consume a use, mutate link state, or create an approval request. The actual
+read or write happens only at `POST /capability-links/{token}/invoke` after an
+explicit user action.
+
+Snapback marks the mint and token-bearing routes `no-store`, applies
+`Referrer-Policy: no-referrer`, and normalizes the registered `{token}` path
+for diagnostics/telemetry. Keep those properties through any proxy. A custom
+web landing route such as `/share/{token}` must also:
+
+- redact the path before access/application/error logging;
+- send `Cache-Control: no-store` and `Referrer-Policy: no-referrer`;
+- render no third-party scripts, pixels, fonts, images, or auto-submitting
+  forms; and
+- scrub the address bar before analytics or other app subsystems mount.
+
+If the frontend cannot guarantee all four, share the minted Snapback URL
+directly. Do not put it in a `?token=` parameter, redirect it through a link
+shortener, or add campaign parameters.
+
+## Parse Expo links without adopting the token
+
+Configure your Expo scheme/universal-link association outside this recipe,
+then consume both the cold-start URL and later URL events. This listener is
+exercised with the same `getInitialURL`/`addEventListener` contract in the
+Guide check:
+
+```js source=scripts/check-guide-capability-link-example.mjs
+export function subscribeExpoCapabilityLinks(Linking, consume) {
+  let active = true;
+  void Linking.getInitialURL().then((url) => {
+    if (active && url !== null) void consume(url);
+  });
+  const subscription = Linking.addEventListener('url', ({ url }) => {
+    if (active) void consume(url);
+  });
+  return () => {
+    active = false;
+    subscription.remove();
+  };
+}
+```
+
+Pass `Linking` from `expo-linking` (or React Native's compatible Linking
+surface) and pass each raw URL directly to `openCapabilityLink` below. Do not
+route it through navigation analytics or serialize it into router state. The
+checked parser accepts only one fixed server origin, one fixed web origin, one
+fixed Expo scheme, and the exact `sbl_` token shape; it rejects query strings,
+fragments, embedded credentials, foreign origins, and arbitrary callback
+origins.
+
+```js source=scripts/check-guide-capability-link-example.mjs
+const TOKEN_PATTERN = /^sbl_[A-Za-z0-9_-]{43}$/u;
+const UNAVAILABLE = 'SNAPBACK_CAPABILITY_LINK_UNAVAILABLE';
+```
+
+```js source=scripts/check-guide-capability-link-example.mjs
+function resolveCapabilityTarget(rawUrl, {
+  serverOrigin,
+  webOrigin,
+  expoScheme,
+}) {
+  let incoming;
+  try {
+    incoming = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  if (incoming.username || incoming.password || incoming.search || incoming.hash) return null;
+
+  const expectedWebOrigin = new URL(webOrigin).origin;
+  const expectedServerOrigin = new URL(serverOrigin).origin;
+  let token = null;
+  if (incoming.origin === expectedServerOrigin) {
+    token = incoming.pathname.match(/^\/capability-links\/(sbl_[A-Za-z0-9_-]{43})$/u)?.[1] ?? null;
+  } else if (incoming.origin === expectedWebOrigin) {
+    token = incoming.pathname.match(/^\/share\/(sbl_[A-Za-z0-9_-]{43})$/u)?.[1] ?? null;
+  } else if (
+    incoming.protocol === `${expoScheme}:`
+    && incoming.hostname === 'share'
+  ) {
+    token = incoming.pathname.match(/^\/(sbl_[A-Za-z0-9_-]{43})$/u)?.[1] ?? null;
+  }
+  if (!TOKEN_PATTERN.test(token ?? '')) return null;
+  return new URL(`/capability-links/${token}`, serverOrigin).href;
+}
+```
+
+For web, read and scrub the URL before mounting analytics or third-party
+subresources:
+
+```js source=scripts/check-guide-capability-link-example.mjs
+export function consumeWebCapabilityLocation(windowLike) {
+  const rawUrl = windowLike.location.href;
+  windowLike.history.replaceState(null, '', '/shared');
+  return rawUrl;
+}
+```
+
+The initial web request still reaches your edge with the token path, so
+`replaceState` complements rather than replaces the proxy controls above.
+
+## Preview, then invoke only on a user action
+
+The checked controller keeps the token-bearing server URL only in a volatile
+closure. Its public snapshot contains only the server's bearer-free landing
+projection. Opening performs one `GET`; it never invokes automatically.
+
+```js source=scripts/check-guide-capability-link-example.mjs
+async function requestCapability(fetchImpl, url, method, args) {
+  const response = await fetchImpl(url, {
+    method,
+    credentials: 'omit',
+    cache: 'no-store',
+    referrerPolicy: 'no-referrer',
+    headers: method === 'POST' ? { 'content-type': 'application/json' } : undefined,
+    body: method === 'POST' ? JSON.stringify({ args }) : undefined,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    return Object.freeze({
+      ok: false,
+      code: payload?.diagnostic?.code ?? 'REQUEST_FAILED',
+    });
+  }
+  return Object.freeze({ ok: true, payload });
+}
+```
+
+```js source=scripts/check-guide-capability-link-example.mjs
+export async function openCapabilityLink(rawUrl, options) {
+  let target = resolveCapabilityTarget(rawUrl, options);
+  if (target === null) return Object.freeze({ status: 'invalid-link' });
+
+  let previewRequest = await requestCapability(options.fetchImpl, target, 'GET');
+  if (!previewRequest.ok) {
+    target = null;
+    return Object.freeze({
+      status: previewRequest.code === UNAVAILABLE ? 'unavailable' : 'request-failed',
+      code: previewRequest.code,
+    });
+  }
+  let preview = previewRequest.payload;
+  let terminal = null;
+
+  const snapshot = () => Object.freeze(terminal ?? { status: 'ready', preview });
+  const refresh = async () => {
+    if (target === null) return snapshot();
+    previewRequest = await requestCapability(options.fetchImpl, target, 'GET');
+    if (!previewRequest.ok) {
+      terminal = Object.freeze({
+        status: previewRequest.code === UNAVAILABLE ? 'unavailable' : 'request-failed',
+        code: previewRequest.code,
+      });
+      target = null;
+    } else {
+      preview = previewRequest.payload;
+    }
+    return snapshot();
+  };
+
+  return Object.freeze({
+    snapshot,
+    refresh,
+    async invoke(args = {}) {
+      if (target === null) return Object.freeze({ invoked: false, state: snapshot() });
+      const invokeTarget = `${target}/invoke`;
+      const result = await requestCapability(options.fetchImpl, invokeTarget, 'POST', args);
+      if (!result.ok && result.code === UNAVAILABLE) {
+        terminal = Object.freeze({ status: 'unavailable', code: result.code });
+        target = null;
+      } else if (result.ok && preview.remainingUses === 1) {
+        terminal = Object.freeze({ status: 'used' });
+        target = null;
+      } else {
+        await refresh();
+      }
+      return Object.freeze({ invoked: true, result, state: snapshot() });
+    },
+  });
+}
+```
+
+Create this controller after URL intake. Render `controller.snapshot()` and
+wire `controller.invoke({})` to a button press; never call it in a mount effect,
+route loader, preview render, or link listener.
+
+| State | UI | Network behavior |
+| --- | --- | --- |
+| `invalid-link` | “This link is malformed.” | None. |
+| `ready` | Function label, expiry, remaining-use facts, and an explicit View/Submit button | Inert `GET` already completed; button performs `POST`. |
+| `used` | “This single-use link has been used.” | The volatile target is cleared; replay performs no request. |
+| `unavailable` | “This link is expired, used, revoked, or unavailable.” | The server deliberately gives the same non-enumerating refusal for all terminal causes. |
+| `request-failed` | Retry without echoing the URL | No diagnostic, exception, or UI copy includes the token. |
+
+After a multi-use invocation, the controller performs another inert `GET` to
+refresh `remainingUses`. A successful single-use invocation clears the target
+locally. A server-side expiry, exhausted use count, direct revocation, or dead
+minter lineage returns the same
+`SNAPBACK_CAPABILITY_LINK_UNAVAILABLE`; the app must not distinguish them.
+
+The issuer revokes with `DELETE /capability-links/{id}` using the same exact
+minting session/authority instance. Revocation is immediate at the next
+landing/invoke gate. Keep `id` and token roles separate: management uses the
+safe id; recipients use the secret URL.
+
+```js source=scripts/check-guide-capability-link-example.mjs
+export async function revokeShareLink(fetchImpl, serverOrigin, sessionBearer, id) {
+  const response = await fetchImpl(
+    new URL(`/capability-links/${encodeURIComponent(id)}`, serverOrigin),
+    {
+      method: 'DELETE',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {
+        authorization: `Bearer ${sessionBearer}`,
+        'x-snapback-auth-client-protocol': '1',
+      },
+    },
+  );
+  if (response.status !== 204) throw new Error('capability-link revoke failed');
+}
+```
+
+The issuer bearer remains in its existing custody boundary; only the safe
+management id crosses into the revoke-button state. After revocation, a
+recipient's next `refresh()` or `invoke()` converges on `unavailable` without
+revealing whether revocation, expiry, exhaustion, or lineage caused it.
+
+## Run the executable proof
+
+The Guide consistency lane runs:
+
+```sh
+node scripts/check-guide-capability-link-example.mjs
+```
+
+It proves that opening/crawler preview performs only `GET`; invocation requires
+an explicit call and uses `POST`; a two-use link decrements; a terminal replay
+performs no request; expiry and revocation converge on unavailable; Expo cold
+and warm links are consumed; web scrubbing precedes opening; every bearer
+request uses `credentials: 'omit'`, `cache: 'no-store'`, and
+`referrerPolicy: 'no-referrer'`; no capability request sends `Authorization`;
+and public UI state never contains the token. The shipped server's route-policy
+and storage suites separately pin inert GET, secret hashing, use-count CAS,
+expiry, revocation, terminal non-enumeration, and no-store/no-referrer response
+classes.
+
+## Anti-patterns
+
+- Creating an app token table for an anonymous share-to-view query that fits
+  this shipped slice.
+- Weakening a protected query to `public` so an anonymous-set link can reach it.
+- Treating a capability URL as a guest session, login, principal, or general
+  deep link grant. Guest entry remains unshipped and awaits owner review.
+- Putting the token in `Authorization`, client auth custody, durable storage,
+  logs, analytics, crash reports, query parameters, redirects, or referrers.
+- Invoking on `GET`, mount, route load, link receipt, crawler preview, or any
+  event other than an explicit user action.
+- Claiming granted-operation capability links ship. They are commissioned
+  design only; the current link cannot reveal protected data or acquire
+  identity/authority.
+
+---
+
 <!-- snapback-guide-source: guide/recipes/provider-lifecycle.md -->
 ---
 title: "Recipe: provider connection and subscription lifecycle"
@@ -29610,7 +30076,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-capability-link-minter-invalid"></a>`SNAPBACK_CAPABILITY_LINK_MINTER_INVALID` | capabilities | 403 | — | `crates/snapback-kernel/src/storage/capability_links.rs:443` | 2 |
 | <a id="diagnostic-snapback-capability-link-mutation-approval-required"></a>`SNAPBACK_CAPABILITY_LINK_MUTATION_APPROVAL_REQUIRED` | capabilities | 403 | — | `crates/snapback-server/src/server.rs:25892` | 2 |
 | <a id="diagnostic-snapback-capability-link-revoke-denied"></a>`SNAPBACK_CAPABILITY_LINK_REVOKE_DENIED` | capabilities | 403 | — | `crates/snapback-kernel/src/storage/capability_links.rs:618` | 3 |
-| <a id="diagnostic-snapback-capability-link-unavailable"></a>`SNAPBACK_CAPABILITY_LINK_UNAVAILABLE` | capabilities | 404 | — | `crates/snapback-engine/src/local/admission_fence_tests.rs:1077` | 8 |
+| <a id="diagnostic-snapback-capability-link-unavailable"></a>`SNAPBACK_CAPABILITY_LINK_UNAVAILABLE` | capabilities | 404 | [guide](../recipes/capability-links.md#parse-expo-links-without-adopting-the-token) | `crates/snapback-engine/src/local/admission_fence_tests.rs:1077` | 8 |
 | <a id="diagnostic-snapback-capability-miniflare-missing"></a>`SNAPBACK_CAPABILITY_MINIFLARE_MISSING` | capabilities | — | — | `crates/snapback-conformance/src/bin/snapback-conformance-twin.rs:810` | 2 |
 | <a id="diagnostic-snapback-capability-unsupported"></a>`SNAPBACK_CAPABILITY_UNSUPPORTED` | capabilities | — | [guide](../backend/streamed-actions.md#read-the-refusal-codes) | `crates/snapback-engine/src/local/engine.rs:7125` | 28 |
 | <a id="diagnostic-snapback-capability-workerd-missing"></a>`SNAPBACK_CAPABILITY_WORKERD_MISSING` | capabilities | — | — | `crates/snapback-conformance/src/bin/snapback-conformance-twin.rs:790` | 4 |

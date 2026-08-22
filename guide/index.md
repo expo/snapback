@@ -399,6 +399,9 @@ proof command, and honest nonclaims without opening every demo.
 - [Activity presence](./recipes/activity-presence.md) — distinguish a
   continuously bound value from activity touch, heartbeat, and explicit
   withdrawal.
+- [Capability links for Expo and web](./recipes/capability-links.md) — mint,
+  share, inertly preview, explicitly invoke, expire/use/revoke, and keep the
+  secret URL out of sessions, durable storage, logs, analytics, and referrers.
 - [Private membership and a product roster](./recipes/membership-roster-projection.md)
   — keep authority backing private while maintaining visible current and
   historical product projections.

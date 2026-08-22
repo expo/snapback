@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:2b7ac3f89696c5a38fe0e1fe27317f8995640b04d8e47cd486ce34fa2aebcdd2"
+    "sourceDigest": "sha256:be4bb7340e3871a2f5ebd7e392121f5bea3270525e39772ebbcd63e01c40f614"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -442,6 +442,11 @@
         "id": "recipes.membership-roster-projection",
         "order": 14,
         "title": "Recipe: list chat members without exposing authority"
+      },
+      {
+        "id": "recipes.capability-links",
+        "order": 15,
+        "title": "Recipe: capability links for Expo and web"
       },
       {
         "id": "recipes.provider-lifecycle",
@@ -1915,8 +1920,8 @@
         "packages/snapback-codegen/auth-artifacts.test.mjs"
       ],
       "reviewed": "2026-08-09",
-      "reviewedAuthoritiesDigest": "sha256:33436c3acb6ab29a45b16c1b9d986e0037996934e374c91db0a295ece3ed8122",
-      "sha256": "5b50fd12fae3c2272ab9210f55170df63b3259ba956718a958cac5ac77536c4b",
+      "reviewedAuthoritiesDigest": "sha256:5221bd4e16f07945a6e3b1826e5cff01d29c79b612e3f97068f4cd57c14eb45a",
+      "sha256": "3c5ea0c742f3c7410fa9360b08cf333bccfcbf9cb3c2c7cd94aca94d44e6f4f9",
       "snippets": [
         {
           "lang": "js",
@@ -2907,7 +2912,7 @@
       "examples": [],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:1b524585d05c02c2bcef3d9c13b31b3344d96df36337f0fe95cdf8d53080cd4a",
-      "sha256": "32167be5e2ad15e1c1ab6c79ab4b93f74f7eaa1c04f88d90b0483371a007f0ff",
+      "sha256": "510ac159b3a2c565f9917e3b0d098a44379240683f755b1a25abec0254882cc0",
       "snippets": []
     },
     "clients.app-cli": {
@@ -4015,7 +4020,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:5b94f039ad4881714e875e9322f194ff8d28e51dfbe9f289d83c24da928aa3ad",
-      "sha256": "28e560eaee5d488f3b94b6a36c870b415f2895a9267625b1be5d1b56c23792b9",
+      "sha256": "fb6139d99742c7fbb047b9bcd54ac0e200999befef17c7e7546e1cd81866fe6a",
       "snippets": [
         {
           "lang": "json",
@@ -4863,6 +4868,90 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/browser-auth/surfaces/web/main.mjs"
+        }
+      ]
+    },
+    "recipes.capability-links": {
+      "path": "guide/recipes/capability-links.md",
+      "title": "Recipe: capability links for Expo and web",
+      "order": 15,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "since": "0.1.24",
+      "capabilities": [
+        "api.external-exposure"
+      ],
+      "authorities": [
+        "llp/0204-app-external-surfaces.rfc.md",
+        "llp/0150-agent-token-acquisition.rfc.md",
+        "llp/0031-server-route-taxonomy.spec.md",
+        "llp/0294-early-expo-workflow-closure.plan.md",
+        "crates/snapback-server/src/server.rs",
+        "crates/snapback-kernel/src/storage/capability_links.rs",
+        "crates/snapback/tests/route_policy_v1.rs",
+        "packages/snapback-codegen/auth-artifacts.test.mjs",
+        "scripts/check-guide-capability-link-example.mjs"
+      ],
+      "examples": [
+        "packages/snapback-codegen/auth-artifacts.test.mjs",
+        "scripts/check-guide-capability-link-example.mjs"
+      ],
+      "reviewed": "2026-08-21",
+      "reviewedAuthoritiesDigest": "sha256:ee4234ffd6cb52c98fe0704e2a61d5d5aeebebfb3194086df3e3725126ac4771",
+      "sha256": "828334db5079ccc1a65ef1095b4c945303c8bade9e7c803d62de4fca1b361bd9",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/auth-artifacts.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/auth-artifacts.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "scripts/check-guide-capability-link-example.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "scripts/check-guide-capability-link-example.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "scripts/check-guide-capability-link-example.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "scripts/check-guide-capability-link-example.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "scripts/check-guide-capability-link-example.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "scripts/check-guide-capability-link-example.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "scripts/check-guide-capability-link-example.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "scripts/check-guide-capability-link-example.mjs"
         }
       ]
     },
@@ -5728,7 +5817,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:dff5a2d798d01110826778a05888b693cea1dcef3fe3d17f5f8136d4524e1bb0",
-      "sha256": "fad6d423df7e68a6fccf3cb71a5654986de021e100306bcbadf33cb011b95901",
+      "sha256": "8e568bf22fb9bddbc2572d09938fc378b395df1a767d534db6842ea8c1977b2d",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -12216,7 +12305,7 @@
       "examples": [],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:10af46608872447c531a418afe66fcbdafccb07872e6f8a0a20c6b3257b73c57",
-      "sha256": "a8c1b351c488581fa7d4f0857b19402dc6243336c827bfa5285adc4d71152b92",
+      "sha256": "39190ffe76922c4661c9fa73875b023ea63d39506f95a3ad4a0c8f20adb7b3ab",
       "snippets": []
     },
     "start.crud-dashboard": {
@@ -12734,8 +12823,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2611489,
-      "sha256": "e203e85a82b39a253a4500e66b3085f9e017c999c01b0a258acef2bad28e3118",
+      "bytes": 2611779,
+      "sha256": "0d0bfe75a8dfd93fd434d545e4c96a42a011071d47e0cc78cd9f4447613d2bfb",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12744,7 +12833,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:a12152ab2e41f3789a354e21bc280e264b50d5a211e9bb474776b5ca2f9b7ed1",
+      "sourceDigest": "sha256:76fcd77d595ebd73af5138e50d438da1974f0f893f7ca68e596b3d629fa8b131",
       "codes": 3465,
       "emittingSites": 11965
     }
@@ -12884,16 +12973,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3690534,
-      "sha256": "3dc9a601cf48020904fb9c6071d9fc83e6c42924f5fe62fc622ef9a85c631ae2"
+      "bytes": 3711827,
+      "sha256": "0c88caafd56c8e12fa90d1aaafa02c47d3327f322e9297ddf474deb7b624a518"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 166044,
-        "sha256": "c9c67ff0bb272ede612eb76b5e827b4b65c4cd9e84142c9246d44fdd6eb950af"
+        "bytes": 168483,
+        "sha256": "50a85bf239f56c7dce71d3959acd591715b59787068995f7e32c34fe120915e9"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -12906,8 +12995,8 @@
         "path": "guide/guide-flat.backend.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.backend.generated.md",
         "uri": "snapback-guide://flat/backend",
-        "bytes": 370468,
-        "sha256": "c71ed87a38c0f40b3b8823889e64ce87cd5268e00b06e6501f79c5a43f271153"
+        "bytes": 370987,
+        "sha256": "85e21515beaeffc842a2fe03cbe2a8ba3b3a3fffa91f2f97a4b3d18547de1438"
       },
       "clients": {
         "path": "guide/guide-flat.clients.generated.md",
@@ -12955,15 +13044,15 @@
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 208782,
-        "sha256": "02be86afe4a1304259f5382b9ad4c5c643f01e3fb7e928872b5458444fb2b44f"
+        "bytes": 227037,
+        "sha256": "6873715294ce56e37f946f357709fd2e68b84365eff658d531f03718da92943e"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
-        "bytes": 2051638,
-        "sha256": "1fd8dced21ebb63285449bbfa99afc649cc16a7d113d2e448fba0501a92823b0"
+        "bytes": 2051718,
+        "sha256": "c15191ce549fc154247db1dd0a049c3c86aa038e39eade54580201115fb60406"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -12988,5 +13077,5 @@
       }
     }
   },
-  "contentHash": "2b7ac3f89696c5a38fe0e1fe27317f8995640b04d8e47cd486ce34fa2aebcdd2"
+  "contentHash": "be4bb7340e3871a2f5ebd7e392121f5bea3270525e39772ebbcd63e01c40f614"
 }

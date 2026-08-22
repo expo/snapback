@@ -188,6 +188,10 @@ if (runConsistency) {
     'scripts/check-guide-auth-settlement-packed-proof.mjs',
     ['--check'],
   );
+  runExternalCheck(
+    'capability-link app-flow example',
+    'scripts/check-guide-capability-link-example.mjs',
+  );
 }
 
 let corpus = null;

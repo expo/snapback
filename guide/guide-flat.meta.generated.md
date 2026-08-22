@@ -404,6 +404,9 @@ proof command, and honest nonclaims without opening every demo.
 - [Activity presence](./recipes/activity-presence.md) — distinguish a
   continuously bound value from activity touch, heartbeat, and explicit
   withdrawal.
+- [Capability links for Expo and web](./recipes/capability-links.md) — mint,
+  share, inertly preview, explicitly invoke, expire/use/revoke, and keep the
+  secret URL out of sessions, durable storage, logs, analytics, and referrers.
 - [Private membership and a product roster](./recipes/membership-roster-projection.md)
   — keep authority backing private while maintaining visible current and
   historical product projections.
@@ -523,7 +526,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | sync.local-persistent-store | LLP 0166 v3 store/hydration per `clientStoreId`: trusted activation, completeness proof, preload, checked relaunch, and durable programmatic demand. `single_table_v1@1` may retain; protected classes need leases. IndexedDB/Node-file pass; memory refuses. Expo SQLite awaits device qualification; remote/Cloudflare are nonclaims. | retained render, materialization, completeness proof, hydration, preload, relaunch, result transform | local | partial | crates/snapback-engine/src/local-persistent-store-publication.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094, llp/0270 | sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention for generated JS/React live queries: exact namespace, atomic fresh-query/lease custody, equality expiry, and mismatch delete-before-render | offline auth browser, lease js, private chat offline | local | partial | packages/snapback-client/rqs-resume.test.mjs (custody matrix + fresh-client offline handoff) | llp/0043, llp/0053, llp/0129 | GAP (real-process restart witness; owner: orchestrator, review: 2026-08-26; issue: issues/20260801-js-arm-integrated-authenticated-restart-witness.md); sync/offline-and-retention.md |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | crates/snapback-engine/src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-28; issue: issues/20260802-0133-receipt-wire-coordination.md) |
-| api.external-exposure | Opt-in `/api/v1` + CORS; local OAuth/PKCE and remote MCP; capability links, durable watches, and approval-gated mutation/action effects; read-only `ask` v1 with provider credentials, result schemas, durable token/result-volume budgets, and HMAC provenance receipts. Telemetry stays lossy; billing metering is a gap | external api, oauth, remote mcp, approval, effects, capability links, watches, ask, near-data ai, api budgets | local | partial | route /effects + crates/snapback-kernel/src/storage/pending_effects.rs + route /api/v1/ask + crates/snapback-kernel/src/storage/ask_spend.rs | llp/0204, llp/0031, llp/0055, llp/0150 | backend/external-api.md |
+| api.external-exposure | Opt-in `/api/v1` + CORS; local OAuth/PKCE, remote MCP, capability links, durable watches, approval-gated effects, and read-only `ask` v1 with budgets/HMAC provenance. Telemetry is lossy, not billing. | external api, oauth, remote mcp, approval, effects, capability links, invite link, capture link, claim link, single-use token, deep link grant, share-to-view, watches, ask, near-data ai, api budgets | local | partial | route /effects + crates/snapback-kernel/src/storage/pending_effects.rs + route /api/v1/ask + crates/snapback-kernel/src/storage/ask_spend.rs | llp/0204, llp/0031, llp/0055, llp/0150 | backend/external-api.md |
 | auth.sessions | Server-minted sessions; email-code and email+password login; server-derived principals | login, signin, identity, session, principal binding, app user table, identityBinding, who am I, am I signed in, whoami, currentAuthorizationScope, settledView | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.passwords | First-class session email+password: noninteractive signup/signin/change/set; server-side argon2id (19456/2/1) outside writer lock; bounded KDF concurrency; app-declared 8–128-byte password minimum (default 12, maximum 1024); declared testable lockout (10 failures→15 min); one-time self-serve recovery codes. Uniform refusal for wrong password/unknown identifier/locked; lock state never on wire. Catalog v4 required; v3 reports provider unready. Unready LLP 0045-prerequisite nonclaims: production blind-accept signup/mail reset. Local reset: capture-mailbox only. | password, email password, signup, password login, password auth, minimumLength, minimum password length, hash password, argon2, scrypt gateway, recovery codes, lockout, GoTrue, Supabase auth, password reset | local | shipped | route /auth/password/signin + `authPasswordSignIn` in packages/snapback-client/index.mjs | llp/0227, llp/0214, llp/0215, llp/0011 | auth/passwords.md |
 | auth.external-identity-broker | Local bridges: adopted bearer for headless/native, or trusted-server one-use exchange into browser coordinator custody; mint/capture remain dev/test/demo only | native login, external identity, broker, adopted bearer, browser external sign-in, signed assertion, issuer subject | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0024, llp/0057, llp/0096, llp/0151 | recipes/browser-auth.md |
@@ -1884,6 +1887,7 @@ packed-package author to a nonexistent raw-client namespace.
     Route terms: "client.assets.start", "createAssetClient(client)",
     "raw SnapbackClient assets".
 
+<<<<<<< HEAD
 Cases 73–74 extend the provider-lifecycle repair with the remaining exact
 wrong vocabulary from the source diaries and review evidence.
 
@@ -1954,6 +1958,47 @@ Case 80 absorbs the Messtimate 0.1.24 field-masking miss recorded in
     "column visibility".
     Required guidance: "Snapback does not currently provide field masking",
     "The protection comes from row visibility on the second table".
+
+Cases 81–85 absorb the Messtimate 0.1.24 capability-link workflow miss from
+LLP 0294 W7.2. The five route terms are the exact plausible wrong vocabulary
+recorded in the guide-gap ticket; each must reach the same shipped-slice
+decision table before an author invents a token table or assumes identity
+authority.
+
+81. **Invite link:** "Should I build an invite link with a token table, or use
+    Snapback capability links?" The run fails if it uses an anonymous-set link
+    to grant membership, protected data, principal creation, or identity, or
+    if it omits the app-owned invitation-row option for product workflow state.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "invite link".
+
+82. **Capture link:** "Open a capture link, let the person continue as a guest,
+    then claim the draft after signup." The run fails if it presents a
+    capability URL as guest-session authority or claims first-party guest entry
+    ships before owner review.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "capture link".
+
+83. **Claim link:** "Use a claim link to turn an anonymous draft into the
+    signed-in user's account." The run fails if it treats capability-link
+    possession as account or principal authority rather than routing to an
+    app-owned identity ceremony while guest/granted entry remains unshipped.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "claim link".
+
+84. **Single-use token:** "Make a share-to-view URL a single-use token and
+    explain what replay returns." The run must choose `uses: 1`, invoke only
+    after an explicit action, and render the non-enumerating terminal state;
+    it fails if `GET` consumes the use or replay reissues the POST.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "single-use token".
+
+85. **Deep link grant:** "Pass a deep link grant into Expo and use it as the
+    recipient's session." The run fails unless it rejects that authority model,
+    keeps the `sbl_` URL in volatile closure state only, and uses Expo Linking
+    plus explicit capability-link POST without `Authorization`.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "deep link grant".
 
 ## Static routing check
 

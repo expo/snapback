@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:a12152ab2e41f3789a354e21bc280e264b50d5a211e9bb474776b5ca2f9b7ed1"
+    "sourceDigest": "sha256:76fcd77d595ebd73af5138e50d438da1974f0f893f7ca68e596b3d629fa8b131"
   },
   "limits": {
     "lookupBytes": 16384
@@ -12,7 +12,7 @@
     "sourceFiles": 588,
     "emittingSites": 11965,
     "httpClassified": 1030,
-    "guideAnchored": 430
+    "guideAnchored": 431
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -32364,8 +32364,11 @@
       ],
       "httpStatus": 404,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/recipes/capability-links.md#parse-expo-links-without-adopting-the-token",
+      "guideAnchors": [
+        "/_snapback/guide/recipes/capability-links.md#parse-expo-links-without-adopting-the-token",
+        "/_snapback/guide/recipes/capability-links.md#preview-then-invoke-only-on-a-user-action"
+      ]
     },
     "SNAPBACK_CAPABILITY_MINIFLARE_MISSING": {
       "code": "SNAPBACK_CAPABILITY_MINIFLARE_MISSING",
