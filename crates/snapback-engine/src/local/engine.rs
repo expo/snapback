@@ -204,7 +204,7 @@ thread_local! {
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 // Focused commit-point mutation harness, not the repository inventory. It
-// covers the thirteen engine sites named in the lane/fenceproof review; the
+// covers the engine sites named in the lane/fenceproof reviews; the
 // server harness covers invitation minting. The complete durable-write
 // inventory and deferred proof scope live in the 20260821 admission-fence
 // coverage ticket.
@@ -222,6 +222,15 @@ enum AdmissionEffectSite {
     PushBatchTransmitting,
     PushBatchSettlement,
     WatchCreation,
+    InitialJobClaim,
+    WatchEvaluationBegin,
+    WatchDeadTransition,
+    WatchEvaluationDecision,
+    WatchEvaluationFailure,
+    WatchFiringSettlement,
+    WatchWebhookReservation,
+    WatchWebhookSettlement,
+    DerivedForkAdmittedEgress,
 }
 
 #[cfg(test)]
@@ -1772,6 +1781,7 @@ pub struct PreparedWatchAction {
     pub(crate) action: String,
     pub(crate) input: HandlerInput,
     pub(crate) metadata: CronRunMetadata,
+    pub(crate) admission: AdmissionLease,
     pub staged: StagedAction,
 }
 
@@ -1786,6 +1796,7 @@ impl PreparedWatchAction {
         String,
         HandlerInput,
         CronRunMetadata,
+        AdmissionLease,
         StagedAction,
     ) {
         (
@@ -1796,6 +1807,7 @@ impl PreparedWatchAction {
             self.action,
             self.input,
             self.metadata,
+            self.admission,
             self.staged,
         )
     }
@@ -1807,6 +1819,7 @@ pub struct PreparedWatchWebhook {
     pub(crate) job_id: String,
     pub(crate) ordinal: u64,
     pub(crate) owner_principal_id: String,
+    pub(crate) admission: AdmissionLease,
     pub(crate) delivery: crate::storage::webhooks::DeliveryRecord,
 }
 
@@ -4311,7 +4324,11 @@ impl IbexActionHost for LocalIbexActionHost<'_> {
         // The pointer provenance is the same one used by every synchronous
         // host callback below; no borrow escapes this call.
         unsafe {
-            (&*self.snapback).deny_derived_fork_host_op(op, now_millis())?;
+            (&*self.snapback).deny_derived_fork_host_op_admitted(
+                &self.authority,
+                op,
+                now_millis(),
+            )?;
         }
         // In-process action invocation retains the instance borrow for the
         // whole run, so no schema/function/reset drift can interleave.
@@ -6758,6 +6775,32 @@ impl LocalSnapback {
             return Err(error);
         }
         Ok(())
+    }
+
+    /// App-admitted action-host variant of [`Self::deny_derived_fork_host_op`].
+    /// Operator and lifecycle writer openings intentionally keep using the
+    /// authority-free method above: they have no app admission epoch to fence.
+    pub fn deny_derived_fork_host_op_admitted(
+        &self,
+        authority: &PreparedAuthority,
+        op: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        if !self.is_derived_fork()
+            || crate::instance_fork::EgressFamily::for_derived_host_op(op).is_none()
+        {
+            return self.deny_derived_fork_host_op(op, now_ms);
+        }
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::DerivedForkAdmittedEgress);
+        // Registered-writer opening can itself persist irreversible coverage-
+        // gap evidence before returning an error, so the guard must begin
+        // before opening and span the denial-marker autocommit as well.
+        // Neither kernel path performs admission validation.
+        // @ref LLP 0058#gate-algorithm — admitted derived-fork denial evidence
+        // cannot commit after the action's exact mode epoch retires.
+        let _effect = authority.effect_guard("derived-fork admitted egress denial")?;
+        self.deny_derived_fork_host_op(op, now_ms)
     }
 
     pub fn deny_derived_fork_egress(
@@ -22587,7 +22630,14 @@ impl LocalSnapback {
         // Admission precedes the durable claim write, mirroring cron: if the
         // process is closing, no new claims are taken.
         let first_admission = self.admission.admit()?;
-        let (claims, job_changes) = self.db.jobs().claim_due_jobs(now_ms, limit, drive)?;
+        let (claims, job_changes) = {
+            #[cfg(test)]
+            run_before_admission_effect_guard_hook(AdmissionEffectSite::InitialJobClaim);
+            // @ref LLP 0058#gate-algorithm — the fresh job-drain lease owns
+            // the claim transaction, then drops before admission-taking live fan-out.
+            let _effect = first_admission.effect_guard("initial one-off job claim")?;
+            self.db.jobs().claim_due_jobs(now_ms, limit, drive)?
+        };
         if !job_changes.is_empty() {
             self.notify_live_subscriptions(&job_changes);
         }
@@ -23028,10 +23078,20 @@ impl LocalSnapback {
             })?
             .to_owned();
         let now_ms = claim.drain_now_ms;
-        let Some(record) = self
-            .db
-            .begin_watch_evaluation(&watch_id, &claim.job_id, now_ms)?
-        else {
+        let record = {
+            #[cfg(test)]
+            run_before_admission_effect_guard_hook(AdmissionEffectSite::WatchEvaluationBegin);
+            // The guard ends before owner-authority reconstruction below;
+            // `prepare_admitted_authority` revalidates this same lease.
+            // @ref LLP 0058#gate-algorithm — evaluation-begin bookkeeping
+            // may not commit after the claimed job's mode epoch retires.
+            let _effect = claim
+                .admission
+                .effect_guard("watch evaluation begin transaction")?;
+            self.db
+                .begin_watch_evaluation(&watch_id, &claim.job_id, now_ms)?
+        };
+        let Some(record) = record else {
             return Ok(WatchJobExecution::Complete(json!({
                 "watchId": watch_id,
                 "outcome": "stale"
@@ -23062,7 +23122,8 @@ impl LocalSnapback {
             now_ms,
         )?
         else {
-            self.db.mark_watch_dead(
+            self.mark_watch_dead_for_job(
+                &claim.admission,
                 &record.id,
                 "principal_or_captured_authority_dead",
                 "SNAPBACK_WATCH_AUTHORITY_DEAD",
@@ -23075,7 +23136,8 @@ impl LocalSnapback {
         let (query, reaction) = match self.current_watch_functions(&record)? {
             Some(functions) => functions,
             None => {
-                self.db.mark_watch_dead(
+                self.mark_watch_dead_for_job(
+                    &claim.admission,
                     &record.id,
                     "function_basis_changed",
                     "SNAPBACK_WATCH_AUTHORITY_DEAD",
@@ -23086,6 +23148,7 @@ impl LocalSnapback {
                 )));
             }
         };
+        let evaluation_publication = evaluation_authority.clone();
         if record.pending_firing_job_id.as_deref() == Some(&claim.job_id)
             && let Some(ordinal) = record.pending_firing_ordinal
         {
@@ -23108,21 +23171,14 @@ impl LocalSnapback {
             Ok(invocation) => invocation,
             Err(error) => {
                 let code = error.diagnostic.code.clone();
-                if claim.attempt < claim.max_attempts {
-                    self.db.record_watch_evaluation_retry(
-                        &record.id,
-                        &claim.job_id,
-                        &code,
-                        now_ms,
-                    )?;
-                } else {
-                    self.db.finish_watch_evaluation_failure(
-                        &record.id,
-                        &claim.job_id,
-                        &code,
-                        now_ms,
-                    )?;
-                }
+                self.publish_watch_evaluation_failure(
+                    &claim.admission,
+                    &record.id,
+                    &claim.job_id,
+                    &code,
+                    now_ms,
+                    claim.attempt < claim.max_attempts,
+                )?;
                 return Err(error);
             }
         };
@@ -23130,13 +23186,25 @@ impl LocalSnapback {
         let document = serde_json::to_value(&invocation.output)
             .map_err(|_| crate::watches::catalog_corrupt())?;
         let predicate_state = crate::watches::evaluate(&predicate, &document);
-        match self.db.decide_watch_evaluation(
-            &record.id,
-            &claim.job_id,
-            predicate_state,
-            &invocation.read_dependencies,
-            now_ms,
-        )? {
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::WatchEvaluationDecision);
+        // Query execution above performs its own admission checks. Acquire
+        // only after it returns so the non-reentrant admission mutex is never
+        // held across handler work.
+        // @ref LLP 0058#gate-algorithm — the evaluation decision and any
+        // firing enqueue commit in the reconstructed owner's exact mode epoch.
+        let decision = {
+            let _effect =
+                evaluation_publication.effect_guard("watch evaluation decision transaction")?;
+            self.db.decide_watch_evaluation(
+                &record.id,
+                &claim.job_id,
+                predicate_state,
+                &invocation.read_dependencies,
+                now_ms,
+            )?
+        };
+        match decision {
             crate::storage::watches::EvaluationDecision::Fire { ordinal } => {
                 self.dispatch_watch_reaction(claim, &record, reaction.as_ref(), ordinal, now_ms)
             }
@@ -23212,6 +23280,83 @@ impl LocalSnapback {
         Ok(Some((query, Some(reaction))))
     }
 
+    fn mark_watch_dead_for_job(
+        &mut self,
+        admission: &AdmissionLease,
+        id: &str,
+        reason: &str,
+        diagnostic_code: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::WatchDeadTransition);
+        // This storage-only region cannot reconstruct or validate authority;
+        // the guard must drop before any later watch execution preparation.
+        // @ref LLP 0058#gate-algorithm — a dead-state transition is a durable
+        // result of the claimed evaluation and shares its exact mode epoch.
+        let _effect = admission.effect_guard("watch dead-state transition")?;
+        self.db.mark_watch_dead(id, reason, diagnostic_code, now_ms)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn publish_watch_evaluation_failure(
+        &mut self,
+        admission: &AdmissionLease,
+        id: &str,
+        job_id: &str,
+        code: &str,
+        now_ms: u64,
+        retry: bool,
+    ) -> SnapbackResult<()> {
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::WatchEvaluationFailure);
+        // Handler execution has already ended. Keep the non-reentrant guard
+        // around only the retry/failure bookkeeping commit.
+        // @ref LLP 0058#gate-algorithm — evaluation failure state cannot land
+        // after the claimed job's mode epoch retires.
+        let _effect = admission.effect_guard("watch evaluation failure transaction")?;
+        if retry {
+            self.db
+                .record_watch_evaluation_retry(id, job_id, code, now_ms)
+        } else {
+            self.db
+                .finish_watch_evaluation_failure(id, job_id, code, now_ms)
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn publish_watch_firing_outcome(
+        &mut self,
+        admission: &AdmissionLease,
+        id: &str,
+        job_id: &str,
+        ordinal: u64,
+        outcome: &str,
+        diagnostic_code: Option<&str>,
+        now_ms: u64,
+        retry: bool,
+    ) -> SnapbackResult<()> {
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::WatchFiringSettlement);
+        // Function/action execution is complete at every caller. This guard
+        // owns only the firing retry or terminal settlement transaction.
+        // @ref LLP 0058#gate-algorithm — firing bookkeeping remains inside
+        // the claimed job's exact mode epoch.
+        let _effect = admission.effect_guard("watch firing settlement transaction")?;
+        if retry {
+            self.db.record_watch_firing_retry(
+                id,
+                job_id,
+                ordinal,
+                diagnostic_code.ok_or_else(crate::watches::catalog_corrupt)?,
+                now_ms,
+            )
+        } else {
+            self.db
+                .settle_watch_firing(id, job_id, ordinal, outcome, diagnostic_code, now_ms)
+        }
+    }
+
     fn watch_execution_authority(
         &mut self,
         claim: &WatchJobContext,
@@ -23277,7 +23422,8 @@ impl LocalSnapback {
         let Some(authority) =
             self.watch_execution_authority(claim, record, InvocationSource::WatchReaction, now_ms)?
         else {
-            self.db.mark_watch_dead(
+            self.mark_watch_dead_for_job(
+                &claim.admission,
                 &record.id,
                 "captured_authority_dead_before_reaction",
                 "SNAPBACK_WATCH_AUTHORITY_DEAD",
@@ -23296,7 +23442,14 @@ impl LocalSnapback {
             }))?;
             let delivery_id = format!("webhook:{}:{ordinal}", record.id);
             let idempotency_key = format!("watch:{}:{ordinal}", record.id);
-            let delivery =
+            #[cfg(test)]
+            run_before_admission_effect_guard_hook(AdmissionEffectSite::WatchWebhookReservation);
+            // The reconstructed authority has completed all reads and no
+            // admission-taking work occurs until after this reservation.
+            // @ref LLP 0058#gate-algorithm — webhook intent reservation must
+            // commit inside the watch reaction's exact mode epoch.
+            let delivery = {
+                let _effect = authority.effect_guard("watch webhook reservation transaction")?;
                 self.db
                     .reserve_webhook_delivery(crate::storage::webhooks::ReserveDelivery {
                         id: delivery_id,
@@ -23316,15 +23469,18 @@ impl LocalSnapback {
                         idempotency_key,
                         max_attempts: claim.max_attempts,
                         now_ms,
-                    })?;
+                    })?
+            };
             if delivery.state == "succeeded" {
-                self.db.settle_watch_firing(
+                self.publish_watch_firing_outcome(
+                    &claim.admission,
                     &record.id,
                     &claim.job_id,
                     ordinal,
                     "succeeded",
                     None,
                     now_ms,
+                    false,
                 )?;
                 return Ok(WatchJobExecution::Complete(watch_outcome(
                     &record.id,
@@ -23336,6 +23492,7 @@ impl LocalSnapback {
                 job_id: claim.job_id.clone(),
                 ordinal,
                 owner_principal_id: record.owner_principal_id.clone(),
+                admission: claim.admission.clone(),
                 delivery,
             }));
         }
@@ -23349,13 +23506,15 @@ impl LocalSnapback {
                 Ok(prepared) => prepared,
                 Err(error) => {
                     let code = error.diagnostic.code.clone();
-                    self.db.settle_watch_firing(
+                    self.publish_watch_firing_outcome(
+                        &claim.admission,
                         &record.id,
                         &claim.job_id,
                         ordinal,
                         "refused",
                         Some(&code),
                         now_ms,
+                        false,
                     )?;
                     return Ok(WatchJobExecution::Complete(json!({
                         "watchId": record.id,
@@ -23382,38 +23541,34 @@ impl LocalSnapback {
                 action: reaction.name.clone(),
                 input,
                 metadata,
+                admission: claim.admission.clone(),
                 staged: self.staged_mode(reaction, prepared, None),
             }));
         }
         let run = self.run_function_with_authority(&reaction.name, input, authority);
         if let Some(diagnostic) = run.diagnostic.as_ref() {
-            if claim.attempt < claim.max_attempts {
-                self.db.record_watch_firing_retry(
-                    &record.id,
-                    &claim.job_id,
-                    ordinal,
-                    &diagnostic.code,
-                    now_ms,
-                )?;
-            } else {
-                self.db.settle_watch_firing(
-                    &record.id,
-                    &claim.job_id,
-                    ordinal,
-                    "failed",
-                    Some(&diagnostic.code),
-                    now_ms,
-                )?;
-            }
+            let retry = claim.attempt < claim.max_attempts;
+            self.publish_watch_firing_outcome(
+                &claim.admission,
+                &record.id,
+                &claim.job_id,
+                ordinal,
+                if retry { "retrying" } else { "failed" },
+                Some(&diagnostic.code),
+                now_ms,
+                retry,
+            )?;
             return Err(SnapbackError::new(diagnostic.clone()));
         }
-        self.db.settle_watch_firing(
+        self.publish_watch_firing_outcome(
+            &claim.admission,
             &record.id,
             &claim.job_id,
             ordinal,
             "succeeded",
             None,
             now_ms,
+            false,
         )?;
         Ok(WatchJobExecution::Complete(json!({
             "watchId": record.id,
@@ -23425,6 +23580,7 @@ impl LocalSnapback {
     #[allow(clippy::too_many_arguments)] // established internal signature; regrouping is out of scope for the lint sweep
     pub fn settle_watch_action(
         &mut self,
+        admission: &AdmissionLease,
         watch_id: String,
         job_id: String,
         ordinal: u64,
@@ -23434,27 +23590,26 @@ impl LocalSnapback {
         max_attempts: u32,
         now_ms: u64,
     ) -> SnapbackResult<Value> {
-        let settled = match result {
-            Ok(_) => {
-                self.db
-                    .settle_watch_firing(&watch_id, &job_id, ordinal, "succeeded", None, now_ms)
-            }
-            Err(error) if attempt < max_attempts => self.db.record_watch_firing_retry(
-                &watch_id,
-                &job_id,
-                ordinal,
-                &error.diagnostic.code,
-                now_ms,
-            ),
-            Err(error) => self.db.settle_watch_firing(
-                &watch_id,
-                &job_id,
-                ordinal,
-                "failed",
-                Some(&error.diagnostic.code),
-                now_ms,
-            ),
-        };
+        let retry = result.is_err() && attempt < max_attempts;
+        let settled = self.publish_watch_firing_outcome(
+            admission,
+            &watch_id,
+            &job_id,
+            ordinal,
+            if result.is_ok() {
+                "succeeded"
+            } else if retry {
+                "retrying"
+            } else {
+                "failed"
+            },
+            result
+                .as_ref()
+                .err()
+                .map(|error| error.diagnostic.code.as_str()),
+            now_ms,
+            retry,
+        );
         self.release_watch_evaluation(&owner_principal_id);
         settled?;
         if let Err(error) = result {
@@ -23564,6 +23719,15 @@ impl LocalSnapback {
         max_attempts: u32,
         now_ms: u64,
     ) -> SnapbackResult<Value> {
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::WatchWebhookSettlement);
+        let admission = prepared.admission.clone();
+        // The external request is already complete. The mode guard spans the
+        // webhook-attempt and matching firing commits, then drops before any
+        // later job-result fan-out re-enters admission.
+        // @ref LLP 0058#gate-algorithm — detached webhook settlement may not
+        // publish after the claimed job's mode epoch retires.
+        let effect = admission.effect_guard("watch webhook-attempt settlement")?;
         let result = match outcome {
             crate::webhooks::DeliveryOutcome::Succeeded { http_status } => {
                 self.db.settle_webhook_attempt(
@@ -23656,6 +23820,7 @@ impl LocalSnapback {
                 }))
             }
         };
+        drop(effect);
         self.release_watch_evaluation(&prepared.owner_principal_id);
         result
     }

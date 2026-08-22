@@ -630,6 +630,11 @@ fn watch_creation_fixture() -> (LocalSnapback, AdmissionController) {
             .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
         "watch functions must load: {diagnostics:?}"
     );
+    snapback
+        .auth_database_mut()
+        .push_registry()
+        .insert_session_for_test(USER_ID, SESSION_ID, 1, 4_000_000_000_000, 73)
+        .expect("insert active watch owner");
     let controller = snapback.admission_controller();
     (snapback, controller)
 }
@@ -646,6 +651,411 @@ fn watch_request() -> crate::watches::CreateWatchSpec {
         debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
         daily_firing_budget: crate::watches::DEFAULT_DAILY_FIRING_BUDGET,
     }
+}
+
+fn watch_webhook_request() -> crate::watches::CreateWatchSpec {
+    crate::watches::CreateWatchSpec {
+        predicate: serde_json::json!({"path": "/rows/0", "op": "exists"}),
+        reaction: crate::watches::WatchReactionSpec::Webhook {
+            // A literal public address keeps this durability test independent
+            // of host DNS while still exercising production target policy.
+            url: "https://93.184.216.34/admission-fence".to_owned(),
+            secret: Some("admission-fence-webhook-secret".to_owned()),
+        },
+        ..watch_request()
+    }
+}
+
+fn claimed_watch_fixture(
+    request: crate::watches::CreateWatchSpec,
+) -> (
+    LocalSnapback,
+    AdmissionController,
+    crate::watches::CreatedWatch,
+    AdmittedJobClaim,
+) {
+    let (mut snapback, controller) = watch_creation_fixture();
+    let authority = session_authority_for_source(&controller, InvocationSource::WatchManagement);
+    let created = snapback
+        .create_watch(&authority, request, NOW_MS)
+        .expect("create watch job fence fixture");
+    assert!(
+        snapback
+            .db
+            .schedule_watch_evaluation(&created.watch.id, NOW_MS)
+            .expect("schedule watch evaluation fixture"),
+        "the fresh watch receives one evaluation job"
+    );
+    let mut claims = snapback
+        .claim_due_jobs(NOW_MS, 1, "admission-fence", DiagnosticBoundary::Attached)
+        .expect("claim watch evaluation fixture");
+    assert_eq!(claims.len(), 1, "one watch evaluation job is due");
+    let claim = claims.remove(0);
+    assert_eq!(claim.action, crate::watches::INTERNAL_EVALUATION_ACTION);
+    (snapback, controller, created, claim)
+}
+
+fn begun_watch_fixture(
+    request: crate::watches::CreateWatchSpec,
+) -> (
+    LocalSnapback,
+    AdmissionController,
+    crate::watches::CreatedWatch,
+    WatchJobContext,
+    crate::storage::watches::WatchRecord,
+) {
+    let (mut snapback, controller, created, claim) = claimed_watch_fixture(request);
+    let context = claim.watch_context();
+    let record = snapback
+        .db
+        .begin_watch_evaluation(&created.watch.id, &context.job_id, NOW_MS)
+        .expect("begin watch evaluation fixture")
+        .expect("claimed watch remains current");
+    (snapback, controller, created, context, record)
+}
+
+fn firing_watch_fixture() -> (
+    LocalSnapback,
+    AdmissionController,
+    WatchJobContext,
+    crate::storage::watches::WatchRecord,
+    u64,
+) {
+    let (mut snapback, controller, created, context, record) =
+        begun_watch_fixture(watch_webhook_request());
+    let decision = snapback
+        .db
+        .decide_watch_evaluation(&record.id, &context.job_id, true, &[], NOW_MS)
+        .expect("admit webhook firing fixture");
+    let crate::storage::watches::EvaluationDecision::Fire { ordinal } = decision else {
+        panic!("false-to-true webhook fixture must fire: {decision:?}");
+    };
+    let record = snapback
+        .db
+        .watch_for_execution(&created.watch.id)
+        .expect("reload firing watch")
+        .expect("firing watch remains present");
+    (snapback, controller, context, record, ordinal)
+}
+
+fn one_off_job_fixture() -> (LocalSnapback, AdmissionController, u64) {
+    let mut snapback = LocalSnapback::memory().expect("one-off job fence database");
+    let diagnostics = snapback.load_functions(crate::manifest::FunctionManifest {
+        functions: vec![
+            crate::manifest::FunctionDefinition::new(
+                "scheduleFenceJob",
+                crate::manifest::FunctionKind::Mutation,
+                crate::manifest::FunctionRuntime::IbexModule(crate::manifest::IbexModule {
+                    source: "globalThis.__snapbackHandlers = { async scheduleFenceJob(ctx) { return await ctx.jobs.enqueue('fenceJob', {}); } };".to_owned(),
+                    export: "scheduleFenceJob".to_owned(),
+                }),
+            ),
+            crate::manifest::FunctionDefinition::new(
+                "fenceJob",
+                crate::manifest::FunctionKind::Action,
+                crate::manifest::FunctionRuntime::HostPlan(crate::manifest::HandlerPlan::Action(
+                    crate::manifest::ActionPlan {
+                        steps: Vec::new(),
+                        return_value: None,
+                    },
+                )),
+            ),
+        ],
+        acknowledged_experimental_capabilities: vec!["jobs_one_off_v1".to_owned()],
+        ..crate::manifest::FunctionManifest::default()
+    });
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "one-off job functions must load: {diagnostics:?}"
+    );
+    let output = snapback
+        .invoke_mutation("scheduleFenceJob", HandlerInput::default())
+        .expect("enqueue one-off job fence fixture");
+    let available_at = output.result["availableAtMs"]
+        .as_u64()
+        .expect("job fixture returns availability");
+    let controller = snapback.admission_controller();
+    (snapback, controller, available_at)
+}
+
+#[test]
+fn initial_one_off_job_claim_refuses_retired_epoch_without_claiming_the_job() {
+    let (mut snapback, controller, available_at) = one_off_job_fixture();
+    let before = durable_database_image(&snapback);
+    let fired = retire_at_next_effect(AdmissionEffectSite::InitialJobClaim, controller);
+
+    let error = match snapback.claim_due_jobs(
+        available_at,
+        1,
+        "admission-fence",
+        DiagnosticBoundary::Attached,
+    ) {
+        Ok(_) => panic!("retired admission must refuse the initial one-off job claim"),
+        Err(error) => error,
+    };
+
+    assert_retired_refusal(&error, &fired);
+    assert_eq!(
+        durable_database_image(&snapback),
+        before,
+        "refused claim must leave the pending job and attempt ledger unchanged"
+    );
+}
+
+#[test]
+fn watch_evaluation_begin_refuses_retired_epoch_without_bookkeeping() {
+    let (mut snapback, controller, created, claim) = claimed_watch_fixture(watch_request());
+    let context = claim.watch_context();
+    assert!(
+        !snapback
+            .db
+            .schedule_watch_evaluation(&created.watch.id, NOW_MS)
+            .expect("mark claimed evaluation dirty"),
+        "an already-pending watch folds invalidation into durable dirty state"
+    );
+    let before = durable_database_image(&snapback);
+    let fired = retire_at_next_effect(AdmissionEffectSite::WatchEvaluationBegin, controller);
+
+    let error = match snapback.prepare_watch_job(context) {
+        Ok(_) => panic!("retired admission must refuse watch evaluation begin"),
+        Err(error) => error,
+    };
+
+    assert_retired_refusal(&error, &fired);
+    assert_eq!(
+        durable_database_image(&snapback),
+        before,
+        "refused evaluation begin must not update the watch"
+    );
+}
+
+#[test]
+fn watch_dead_transition_refuses_retired_epoch_without_killing_the_watch() {
+    let (mut snapback, controller, _created, context, record) =
+        begun_watch_fixture(watch_request());
+    let before = durable_database_image(&snapback);
+    let fired = retire_at_next_effect(AdmissionEffectSite::WatchDeadTransition, controller);
+
+    let error = snapback
+        .mark_watch_dead_for_job(
+            &context.admission,
+            &record.id,
+            "retired_epoch_fixture",
+            "SNAPBACK_WATCH_AUTHORITY_DEAD",
+            NOW_MS,
+        )
+        .expect_err("retired admission must refuse the watch dead-state transition");
+
+    assert_retired_refusal(&error, &fired);
+    assert_eq!(
+        durable_database_image(&snapback),
+        before,
+        "refused dead-state transition must leave the watch active"
+    );
+}
+
+#[test]
+fn watch_evaluation_decision_refuses_retired_epoch_without_deciding_or_enqueuing() {
+    let (mut snapback, controller, _created, context, record) =
+        begun_watch_fixture(watch_request());
+    let before = durable_database_image(&snapback);
+    let fired = retire_at_next_effect(AdmissionEffectSite::WatchEvaluationDecision, controller);
+
+    let error = match snapback.prepare_watch_job_inner(&context, record, NOW_MS) {
+        Ok(_) => panic!("retired admission must refuse the watch evaluation decision"),
+        Err(error) => error,
+    };
+
+    assert_retired_refusal(&error, &fired);
+    assert_eq!(
+        durable_database_image(&snapback),
+        before,
+        "refused decision must not update dependencies or enqueue a firing"
+    );
+}
+
+#[test]
+fn watch_evaluation_failure_refuses_retired_epoch_without_retry_bookkeeping() {
+    let (mut snapback, controller, _created, context, record) =
+        begun_watch_fixture(watch_request());
+    let before = durable_database_image(&snapback);
+    let fired = retire_at_next_effect(AdmissionEffectSite::WatchEvaluationFailure, controller);
+
+    let error = snapback
+        .publish_watch_evaluation_failure(
+            &context.admission,
+            &record.id,
+            &context.job_id,
+            "SNAPBACK_WATCH_TEST_FAILURE",
+            NOW_MS,
+            true,
+        )
+        .expect_err("retired admission must refuse watch retry bookkeeping");
+
+    assert_retired_refusal(&error, &fired);
+    assert_eq!(
+        durable_database_image(&snapback),
+        before,
+        "refused retry bookkeeping must leave the watch unchanged"
+    );
+}
+
+#[test]
+fn watch_firing_settlement_refuses_retired_epoch_without_settling_the_firing() {
+    let (mut snapback, controller, context, record, ordinal) = firing_watch_fixture();
+    let before = durable_database_image(&snapback);
+    let fired = retire_at_next_effect(AdmissionEffectSite::WatchFiringSettlement, controller);
+
+    let error = snapback
+        .publish_watch_firing_outcome(
+            &context.admission,
+            &record.id,
+            &context.job_id,
+            ordinal,
+            "succeeded",
+            None,
+            NOW_MS,
+            false,
+        )
+        .expect_err("retired admission must refuse watch firing settlement");
+
+    assert_retired_refusal(&error, &fired);
+    assert_eq!(
+        durable_database_image(&snapback),
+        before,
+        "refused firing settlement must retain the pending firing"
+    );
+}
+
+#[test]
+fn watch_webhook_reservation_refuses_retired_epoch_without_a_delivery() {
+    let (mut snapback, controller, context, record, ordinal) = firing_watch_fixture();
+    let before = durable_database_image(&snapback);
+    let fired = retire_at_next_effect(AdmissionEffectSite::WatchWebhookReservation, controller);
+
+    let error = match snapback.dispatch_watch_reaction(&context, &record, None, ordinal, NOW_MS) {
+        Ok(_) => panic!("retired admission must refuse webhook reservation"),
+        Err(error) => error,
+    };
+
+    assert_retired_refusal(&error, &fired);
+    assert_eq!(
+        durable_database_image(&snapback),
+        before,
+        "refused webhook reservation must not add a durable delivery"
+    );
+}
+
+#[test]
+fn watch_webhook_attempt_settlement_refuses_retired_epoch_without_attempt_bookkeeping() {
+    let (mut snapback, controller, context, record, ordinal) = firing_watch_fixture();
+    let prepared = match snapback
+        .dispatch_watch_reaction(&context, &record, None, ordinal, NOW_MS)
+        .expect("reserve webhook settlement fixture")
+    {
+        WatchJobExecution::Webhook(prepared) => prepared,
+        _ => panic!("webhook fixture must prepare a delivery"),
+    };
+    let before = durable_database_image(&snapback);
+    let fired = retire_at_next_effect(AdmissionEffectSite::WatchWebhookSettlement, controller);
+
+    let error = snapback
+        .settle_watch_webhook(
+            prepared,
+            crate::webhooks::DeliveryOutcome::Succeeded { http_status: 204 },
+            1,
+            8,
+            NOW_MS,
+        )
+        .expect_err("retired admission must refuse webhook-attempt settlement");
+
+    assert_retired_refusal(&error, &fired);
+    assert_eq!(
+        durable_database_image(&snapback),
+        before,
+        "refused webhook settlement must leave delivery and firing pending"
+    );
+}
+
+fn derived_fork_admission_fixture(
+    arm_coverage: bool,
+) -> (
+    tempfile::TempDir,
+    LocalSnapback,
+    AdmissionController,
+    PreparedAuthority,
+    std::path::PathBuf,
+) {
+    let directory = tempfile::tempdir().expect("derived-fork admission fence directory");
+    let source = directory.path().join("parent.sqlite3");
+    drop(LocalSnapback::open(&source).expect("create derived-fork parent"));
+    let destination = directory.path().join("fork");
+    snapback_services::instance_fork::publish(
+        &source,
+        &destination,
+        "admission-fence-app",
+        "admission-fence-parent",
+        NOW_MS,
+        None,
+    )
+    .expect("publish derived-fork admission fixture");
+    let database = destination.join("parent.sqlite3");
+    let mut fork = LocalSnapback::open(&database).expect("open derived-fork admission fixture");
+    if arm_coverage {
+        fork.arm_open_derived_fork_app_row_coverage(NOW_MS + 1)
+            .expect("arm derived-fork registered-writer coverage");
+    }
+    let controller = synchronize_sessions(&fork);
+    let authority = system_authority(&controller);
+    (directory, fork, controller, authority, database)
+}
+
+#[test]
+fn derived_fork_egress_marker_refuses_retired_epoch_without_a_marker() {
+    let (_directory, fork, controller, authority, _database) =
+        derived_fork_admission_fixture(false);
+    let before = durable_database_image(&fork);
+    let fired = retire_at_next_effect(AdmissionEffectSite::DerivedForkAdmittedEgress, controller);
+
+    let error = fork
+        .deny_derived_fork_host_op_admitted(&authority, "host.fetch", NOW_MS + 2)
+        .expect_err("retired admission must refuse derived-fork denial persistence");
+
+    assert_retired_refusal(&error, &fired);
+    assert_eq!(
+        durable_database_image(&fork),
+        before,
+        "refused derived-fork denial must not add a durable marker"
+    );
+}
+
+#[test]
+fn admitted_registered_writer_gap_refuses_retired_epoch_without_persisting_the_gap() {
+    let (_directory, fork, controller, authority, database) = derived_fork_admission_fixture(true);
+    fork.db
+        .remove_active_operation_coverage_manifest_for_test()
+        .expect("simulate an out-of-class registered-writer coverage gap");
+    let gap_path = database.with_file_name(crate::instance_fork::APP_ROW_COVERAGE_GAP_FILE);
+    assert!(!gap_path.exists(), "gap evidence starts absent");
+    let before = durable_database_image(&fork);
+    let fired = retire_at_next_effect(AdmissionEffectSite::DerivedForkAdmittedEgress, controller);
+
+    let error = fork
+        .deny_derived_fork_host_op_admitted(&authority, "host.fetch", NOW_MS + 2)
+        .expect_err("retired admission must refuse registered-writer opening");
+
+    assert_retired_refusal(&error, &fired);
+    assert_eq!(
+        durable_database_image(&fork),
+        before,
+        "refused registered-writer opening must not break the continuity row"
+    );
+    assert!(
+        !gap_path.exists(),
+        "refused admitted opening must not publish the fork coverage-gap sidecar"
+    );
 }
 
 #[test]

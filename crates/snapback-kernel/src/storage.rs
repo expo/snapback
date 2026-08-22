@@ -3597,6 +3597,22 @@ impl LocalDatabase {
         Ok(())
     }
 
+    /// Simulate the out-of-class raw-writer gap that the next registered
+    /// writer opening must persist irreversibly before refusing.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn remove_active_operation_coverage_manifest_for_test(&self) -> SnapbackResult<()> {
+        let path = self.path.as_deref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_TEST_FIXTURE_INVALID",
+                "storage",
+                "registered-writer coverage-gap fixture requires a file database",
+            )
+        })?;
+        let conn = rusqlite::Connection::open(path)?;
+        conn.execute("DELETE FROM _snapback_operation_coverage_v1", [])?;
+        Ok(())
+    }
+
     /// Resume an interrupted migration-cleanup tail at reopen (LLP 0081
     /// §4: a crash after release reopens only the successor and resumes
     /// cleanup). Inventory-driven — no artifact required.
@@ -21902,6 +21918,10 @@ impl ServingDatabase {
         mut writers: Vec<String>,
     ) -> SnapbackResult<()> {
         self.db.install_operation_coverage_for_test(lanes, writers)
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn remove_active_operation_coverage_manifest_for_test(&self) -> SnapbackResult<()> {
+        self.db.remove_active_operation_coverage_manifest_for_test()
     }
     pub fn begin_vector_rebuild(
         &mut self,
