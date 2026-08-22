@@ -3,7 +3,7 @@
 use super::jobs::{BufferedJobEnqueue, JobProducer};
 use super::{LocalDatabase, SnapbackResult};
 use crate::diagnostic::SnapbackError;
-use crate::manifest::{HandlerInput, SchemaManifest};
+use crate::manifest::SchemaManifest;
 use crate::storage::CapturedReadDependency;
 use crate::watches::{
     FIRING_JOURNAL_LIMIT, INTERNAL_EVALUATION_ACTION, WatchAuthorityMode, WatchFunctionKind,
@@ -113,9 +113,6 @@ pub struct CreateWatchRecord {
     pub query_basis: u64,
     pub query_args_json: String,
     pub query_args_digest: String,
-    /// Exact input whose captured query dependencies produced the initial
-    /// predicate state. It is commit-only validation material, not persisted.
-    pub initial_query_input: HandlerInput,
     pub read_dependencies: Vec<CapturedReadDependency>,
     pub predicate_json: String,
     pub reaction_kind: WatchReactionKind,
@@ -223,23 +220,6 @@ fn authority_mode_name(mode: WatchAuthorityMode) -> &'static str {
 
 impl LocalDatabase {
     pub fn create_watch(&mut self, request: CreateWatchRecord) -> SnapbackResult<WatchRecord> {
-        self.create_watch_guarded(request, || Ok(()))
-    }
-
-    /// Commit the watch row and optional exact anchor grant beneath the
-    /// caller's final commit guard. The initial query remains outside this
-    /// transaction, so its captured read dependencies are revalidated here.
-    ///
-    /// @ref LLP 0058#split-phase-authorized-effect-fence — session or scoped
-    /// integration management authority is reserved before Local.
-    pub fn create_watch_guarded<G, BeforeCommit>(
-        &mut self,
-        request: CreateWatchRecord,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<WatchRecord>
-    where
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
         if !table_exists(&self.conn)? {
             return Err(SnapbackError::error(
                 "SNAPBACK_API_NOT_ENABLED",
@@ -247,20 +227,11 @@ impl LocalDatabase {
                 "durable watches require manifest api.enabled",
             ));
         }
-        let schema = self.schema.clone();
         let dependencies_json =
             serde_json::to_string(&request.read_dependencies).map_err(|_| catalog_corrupt())?;
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let current_version = super::current_version_on(&tx)?;
-        super::validate_captured_read_set(
-            &tx,
-            &schema,
-            &request.initial_query_input,
-            &request.read_dependencies,
-            current_version,
-        )?;
         if request.owner_kind == WatchOwnerKind::Integration {
             mint_watch_anchor_on(&tx, &request)?;
         } else if request.anchor_effective_user_id.is_some() || !request.anchor_scopes.is_empty() {
@@ -321,7 +292,6 @@ impl LocalDatabase {
         )?;
         #[cfg(any(test, feature = "test-support"))]
         super::observe_durable_commit_for_test();
-        let _commit_guard = before_commit()?;
         tx.commit()?;
         self.watch_for_owner(&request.id, &request.owner_principal_id)?
             .ok_or_else(catalog_corrupt)
@@ -1645,7 +1615,6 @@ mod tests {
             query_basis: 3,
             query_args_json: "{\"account\":\"a\"}".to_owned(),
             query_args_digest: "query-args-digest".to_owned(),
-            initial_query_input: HandlerInput::default(),
             read_dependencies: Vec::new(),
             predicate_json: "{\"path\":\"/ready\",\"op\":\"eq\",\"value\":true}".to_owned(),
             reaction_kind: WatchReactionKind::Function,
@@ -1852,16 +1821,6 @@ mod tests {
 impl super::ServingDatabase {
     pub fn create_watch(&mut self, request: CreateWatchRecord) -> SnapbackResult<WatchRecord> {
         self.db.create_watch(request)
-    }
-    pub fn create_watch_guarded<G, BeforeCommit>(
-        &mut self,
-        request: CreateWatchRecord,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<WatchRecord>
-    where
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        self.db.create_watch_guarded(request, before_commit)
     }
     pub fn revalidate_watch_anchor(
         &mut self,

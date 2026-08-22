@@ -1835,32 +1835,6 @@ pub struct PreparedWatchAction {
     pub staged: StagedAction,
 }
 
-/// Fully evaluated watch-creation plan. DNS resolution, argument/predicate
-/// validation, function authorization, and the initial live query are all
-/// complete before this value can be produced. The later commit phase only
-/// revalidates the captured catalog/basis/read facts and publishes durable
-/// state.
-#[must_use = "preflighted watch creation must be committed or discarded"]
-pub struct PreparedWatchCreation {
-    record: crate::storage::watches::CreateWatchRecord,
-    query_definition: FunctionDefinition,
-    reaction_definition: Option<FunctionDefinition>,
-    webhook_secret: Option<String>,
-    generated_webhook_secret: Option<String>,
-    establishment_permission_epochs: BTreeMap<String, u64>,
-    establishment_data_version_stream: Option<String>,
-    establishment_head_version: u64,
-}
-
-#[cfg(any(test, feature = "test-support"))]
-impl PreparedWatchCreation {
-    pub fn clear_reported_read_dependencies_for_test(&mut self) -> usize {
-        let reported = self.record.read_dependencies.len();
-        self.record.read_dependencies.clear();
-        reported
-    }
-}
-
 impl PreparedWatchAction {
     pub fn into_parts(
         self,
@@ -23481,32 +23455,6 @@ impl LocalSnapback {
         request: crate::watches::CreateWatchSpec,
         now_ms: u64,
     ) -> SnapbackResult<crate::watches::CreatedWatch> {
-        let prepared = self.preflight_watch_creation(authority, request, now_ms)?;
-        self.commit_preflighted_watch_inner(authority, prepared, now_ms, None)
-    }
-
-    /// Commit a plan whose DNS, JavaScript, and validation work completed
-    /// before the caller reserved its exact live publication. The retained
-    /// permit reaches only catalog/read revalidation and the durable cut.
-    ///
-    /// @ref LLP 0058#split-phase-authorized-effect-fence — the session or
-    /// scoped integration reservation is held through the watch/anchor COMMIT.
-    pub fn commit_preflighted_watch_with_authorized_effect(
-        &mut self,
-        authority: &PreparedAuthority,
-        prepared: PreparedWatchCreation,
-        now_ms: u64,
-        authorized_effect: AuthorizedEffectReservation,
-    ) -> SnapbackResult<crate::watches::CreatedWatch> {
-        self.commit_preflighted_watch_inner(authority, prepared, now_ms, Some(authorized_effect))
-    }
-
-    pub fn preflight_watch_creation(
-        &mut self,
-        authority: &PreparedAuthority,
-        request: crate::watches::CreateWatchSpec,
-        now_ms: u64,
-    ) -> SnapbackResult<PreparedWatchCreation> {
         authority.validate_admission("watch creation")?;
         if authority.source() != InvocationSource::WatchManagement {
             return Err(SnapbackError::error(
@@ -23605,7 +23553,6 @@ impl LocalSnapback {
             reaction_args_digest,
             webhook_url,
             webhook_secret,
-            reaction_definition,
         ) = match request.reaction {
             crate::watches::WatchReactionSpec::Function { function, args } => {
                 self.validate_external_api_function(&function)?;
@@ -23637,15 +23584,14 @@ impl LocalSnapback {
                 };
                 (
                     crate::watches::WatchReactionKind::Function,
-                    reaction.id.clone(),
-                    reaction.name.clone(),
+                    reaction.id,
+                    reaction.name,
                     kind,
                     basis,
                     args_json,
                     args_digest,
                     None,
                     None,
-                    Some(reaction),
                 )
             }
             crate::watches::WatchReactionSpec::Webhook { url, secret } => {
@@ -23691,29 +23637,20 @@ impl LocalSnapback {
                     binding_digest,
                     Some(url),
                     Some(secret),
-                    None,
                 )
             }
         };
-        let initial_query_input = HandlerInput {
-            args: request.query_args,
-            ..HandlerInput::default()
-        };
         let initial = self.invoke_query_with_dependencies_prepared(
             &query.name,
-            initial_query_input.clone(),
+            HandlerInput {
+                args: request.query_args,
+                ..HandlerInput::default()
+            },
             authority.watch_function_authority(InvocationSource::WatchEvaluation)?,
         )?;
         let initial_document =
             serde_json::to_value(&initial.output).map_err(|_| crate::watches::catalog_corrupt())?;
         let initial_predicate_state = crate::watches::evaluate(&predicate, &initial_document);
-        // The dependency set is runtime-selected and some valid LiveQuery
-        // profiles intentionally report no storage reads. Capture an
-        // establishment-wide witness independently so every anchor closes the
-        // split preflight/commit window, including reset/restore ABA.
-        let establishment_permission_epochs = self.permission_epochs.clone();
-        let establishment_data_version_stream = self.db.observed_data_version_stream()?;
-        let establishment_head_version = self.db.versions_read().current_version()?;
         let anchor_expires_at_ms = now_ms
             .checked_add(crate::watches::ANCHOR_LIFETIME_MS)
             .filter(|value| *value <= 9_007_199_254_740_991)
@@ -23721,15 +23658,33 @@ impl LocalSnapback {
                 crate::watches::input_invalid("watch anchor lifetime overflows portable time")
             })?;
         // The initial query passes its own ordinary invocation/effect gate.
-        // The management guard belongs only at the later watch/anchor COMMIT;
-        // nesting it around the query or secret preparation would re-enter
-        // admission and self-deadlock.
+        // Acquire management's effect fence only for the durable catalog
+        // commit; nesting it around the query would self-deadlock the same
+        // admission lease and would not strengthen the serialized app cut.
+        #[cfg(test)]
+        run_before_admission_effect_guard_hook(AdmissionEffectSite::WatchCreation);
+        // @ref LLP 0058#gate-algorithm — the watch catalog row and its initial
+        // schedule commit inside the management authority's admission epoch.
+        let _effect = authority.effect_guard("watch creation transaction")?;
+        #[cfg(test)]
+        run_after_admission_effect_guard_hook(AdmissionEffectSite::WatchCreation);
         let watch_id = crate::ids::mint_time_ordered(crate::ids::Kind::Watch);
         let anchor_grant_id = (owner_kind == crate::watches::WatchOwnerKind::Integration)
             .then(|| crate::ids::mint_time_ordered(crate::ids::Kind::Grant));
         let webhook_secret_ref = webhook_secret
             .as_ref()
             .map(|_| format!("_snapback.webhook.{watch_id}"));
+        if let (Some(secret_ref), Some(secret)) =
+            (webhook_secret_ref.as_deref(), webhook_secret.as_ref())
+        {
+            self.config.set(
+                secret_ref,
+                vec![secret.clone()],
+                false,
+                "watchAnchor",
+                now_ms,
+            )?;
+        }
         let mut anchor_scopes = vec![crate::storage::auth_grants::ExactGrantScope {
             function_id: query.id.clone(),
             kind: crate::storage::auth_grants::ScopedFunctionKind::LiveQuery,
@@ -23752,199 +23707,47 @@ impl LocalSnapback {
         if owner_kind == crate::watches::WatchOwnerKind::User {
             anchor_scopes.clear();
         }
-        let record = crate::storage::watches::CreateWatchRecord {
-            id: watch_id.clone(),
-            owner_kind,
-            owner_principal_id,
-            owner_authority_instance_id,
-            authority_mode,
-            anchor_grant_id,
-            installation_grant_id,
-            anchor_effective_user_id,
-            anchor_scopes,
-            anchor_expires_at_ms,
-            query_function_id: query.id.clone(),
-            query_function_name: query.name.clone(),
-            query_basis,
-            query_args_json,
-            query_args_digest,
-            initial_query_input,
-            read_dependencies: initial.read_dependencies,
-            predicate_json,
-            reaction_kind,
-            reaction_function_id,
-            reaction_function_name,
-            reaction_function_kind,
-            reaction_basis,
-            reaction_args_json,
-            reaction_args_digest,
-            webhook_url,
-            webhook_secret_ref: webhook_secret_ref.clone(),
-            daily_firing_budget: request.daily_firing_budget,
-            debounce_ms: request.debounce_ms,
-            initial_predicate_state,
-            now_ms,
-        };
-        Ok(PreparedWatchCreation {
-            record,
-            query_definition: query,
-            reaction_definition,
-            webhook_secret,
-            generated_webhook_secret,
-            establishment_permission_epochs,
-            establishment_data_version_stream,
-            establishment_head_version,
-        })
-    }
-
-    fn commit_preflighted_watch_inner(
-        &mut self,
-        authority: &PreparedAuthority,
-        mut prepared: PreparedWatchCreation,
-        now_ms: u64,
-        authorized_effect: Option<AuthorizedEffectReservation>,
-    ) -> SnapbackResult<crate::watches::CreatedWatch> {
-        self.revalidate_watch_creation_preflight(&prepared)?;
-        prepared.record.now_ms = now_ms;
-        prepared.record.anchor_expires_at_ms = now_ms
-            .checked_add(crate::watches::ANCHOR_LIFETIME_MS)
-            .filter(|value| *value <= 9_007_199_254_740_991)
-            .ok_or_else(|| {
-                crate::watches::input_invalid("watch anchor lifetime overflows portable time")
-            })?;
-        match authorized_effect {
-            Some(authorized_effect) => {
-                let _commit_guard = authorized_effect.commit_guard("watch creation durable cut")?;
-                self.commit_preflighted_watch_durable(prepared)
-            }
-            None => {
-                #[cfg(test)]
-                run_before_admission_effect_guard_hook(AdmissionEffectSite::WatchCreation);
-                let _commit_guard = authority.mode_effect_guard("watch creation durable cut")?;
-                #[cfg(test)]
-                run_after_admission_effect_guard_hook(AdmissionEffectSite::WatchCreation);
-                self.commit_preflighted_watch_durable(prepared)
-            }
-        }
-    }
-
-    /// Recheck facts that can move while the preflight result is outside Local:
-    /// API activation, exact query/reaction definitions, their authorization-
-    /// scope bases, and the coarse establishment witness. The kernel
-    /// transaction separately checks any initial-query storage reads the
-    /// runtime chose to report and the integration/installation grant.
-    fn revalidate_watch_creation_preflight(
-        &mut self,
-        prepared: &PreparedWatchCreation,
-    ) -> SnapbackResult<()> {
-        // @ref LLP 0020#remaining-phase-4-design-dependency-vocabulary-and-auth-epochs
-        // — every prepared predicate is authorized under the complete Local
-        // permission-epoch state and app-data stream/head observed beside its
-        // initial query. This witness is deliberately independent of the
-        // runtime's captured-read vocabulary: some valid LiveQuery profiles
-        // report no ordinary Query or Permission dependency.
-        let establishment_moved = self.permission_epochs
-            != prepared.establishment_permission_epochs
-            || self.db.observed_data_version_stream()?
-                != prepared.establishment_data_version_stream
-            || self.db.versions_read().current_version()? != prepared.establishment_head_version;
-        if establishment_moved {
-            return Err(watch_preflight_stale(
-                "watch query permission or storage state changed after preflight",
-            ));
-        }
-        self.validate_external_api_function(&prepared.record.query_function_name)?;
-        let query = self
-            .function(&prepared.record.query_function_name)
-            .map_err(|_| watch_preflight_stale("watch query disappeared after preflight"))?;
-        if query != &prepared.query_definition
-            || self
-                .db
-                .current_auth_scope_basis(&query.id, &query.kind, query.authority_creating)?
-                != Some(prepared.record.query_basis)
-        {
-            return Err(watch_preflight_stale(
-                "watch query definition or authorization basis changed after preflight",
-            ));
-        }
-        match &prepared.reaction_definition {
-            Some(expected) => {
-                self.validate_external_api_function(&prepared.record.reaction_function_name)?;
-                let reaction = self
-                    .function(&prepared.record.reaction_function_name)
-                    .map_err(|_| {
-                        watch_preflight_stale("watch reaction disappeared after preflight")
-                    })?;
-                if reaction != expected
-                    || self.db.current_auth_scope_basis(
-                        &reaction.id,
-                        &reaction.kind,
-                        reaction.authority_creating,
-                    )? != Some(prepared.record.reaction_basis)
-                {
-                    return Err(watch_preflight_stale(
-                        "watch reaction definition or authorization basis changed after preflight",
-                    ));
-                }
-            }
-            None if prepared.record.reaction_kind == crate::watches::WatchReactionKind::Webhook => {
-            }
-            None => return Err(crate::watches::catalog_corrupt()),
-        }
-        Ok(())
-    }
-
-    /// The mode/session/service commit guard is already held when this starts
-    /// and remains live until both durable publications (config secret and
-    /// SQLite watch/anchor) finish. Failure compensation is mandatory and is
-    /// performed under the same guard; cleanup errors are never discarded.
-    fn commit_preflighted_watch_durable(
-        &mut self,
-        prepared: PreparedWatchCreation,
-    ) -> SnapbackResult<crate::watches::CreatedWatch> {
-        let PreparedWatchCreation {
-            record,
-            webhook_secret,
-            generated_webhook_secret,
-            establishment_permission_epochs: _,
-            establishment_data_version_stream: _,
-            establishment_head_version: _,
-            ..
-        } = prepared;
-        let webhook_secret_ref = record.webhook_secret_ref.clone();
-        if let (Some(secret_ref), Some(secret)) =
-            (webhook_secret_ref.as_deref(), webhook_secret.as_ref())
-        {
-            if self.config.entry(secret_ref).is_some() {
-                return Err(watch_preflight_stale(
-                    "watch webhook secret identity already exists",
-                ));
-            }
-            self.config.set(
-                secret_ref,
-                vec![secret.clone()],
-                false,
-                "watchAnchor",
-                record.now_ms,
-            )?;
-        }
-        let watch = match self.db.create_watch(record) {
+        let create = self
+            .db
+            .create_watch(crate::storage::watches::CreateWatchRecord {
+                id: watch_id.clone(),
+                owner_kind,
+                owner_principal_id,
+                owner_authority_instance_id,
+                authority_mode,
+                anchor_grant_id,
+                installation_grant_id,
+                anchor_effective_user_id,
+                anchor_scopes,
+                anchor_expires_at_ms,
+                query_function_id: query.id,
+                query_function_name: query.name,
+                query_basis,
+                query_args_json,
+                query_args_digest,
+                read_dependencies: initial.read_dependencies,
+                predicate_json,
+                reaction_kind,
+                reaction_function_id,
+                reaction_function_name,
+                reaction_function_kind,
+                reaction_basis,
+                reaction_args_json,
+                reaction_args_digest,
+                webhook_url,
+                webhook_secret_ref: webhook_secret_ref.clone(),
+                daily_firing_budget: request.daily_firing_budget,
+                debounce_ms: request.debounce_ms,
+                initial_predicate_state,
+                now_ms,
+            });
+        let watch = match create {
             Ok(watch) => watch,
-            Err(create_error) => {
-                if let Some(secret_ref) = webhook_secret_ref.as_deref()
-                    && let Err(cleanup_error) = self.config.unset(secret_ref)
-                {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_WATCH_SECRET_ROLLBACK_FAILED",
-                        "watches",
-                        "watch creation failed and its guarded secret rollback also failed",
-                    )
-                    .with_details(json!({
-                        "createDiagnosticCode": create_error.diagnostic.code,
-                        "cleanupDiagnosticCode": cleanup_error.diagnostic.code,
-                    })));
+            Err(error) => {
+                if let Some(secret_ref) = webhook_secret_ref.as_deref() {
+                    let _ = self.config.unset(secret_ref);
                 }
-                return Err(create_error);
+                return Err(error);
             }
         };
         Ok(crate::watches::CreatedWatch {
@@ -38159,11 +37962,6 @@ fn watch_basis_missing(role: &str) -> SnapbackError {
         "watches",
         format!("the watch {role} has no current exact-function authority basis"),
     )
-}
-
-fn watch_preflight_stale(message: impl Into<String>) -> SnapbackError {
-    SnapbackError::error("SNAPBACK_WATCH_PREFLIGHT_STALE", "watches", message.into())
-        .with_details(json!({ "retryable": true }))
 }
 
 fn watch_outcome(watch_id: &str, outcome: &str) -> Value {

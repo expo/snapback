@@ -14,7 +14,6 @@ use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use std::sync::Arc;
 #[cfg(test)]
 use std::sync::{Mutex as StdMutex, OnceLock};
-use std::time::Duration;
 
 #[cfg(test)]
 struct ManagedHandoffWaiterTestHook {
@@ -97,33 +96,6 @@ pub(super) async fn lock_managed_snapback(
         notify_managed_handoff_waiter_for_test(&handoff);
         handoff.wait_until_open().await;
     }
-}
-
-/// Acquire the managed writer within a caller-selected deadline, then run one
-/// short synchronous commit phase. Dropping the timed-out lock future removes
-/// its waiter and drops everything captured by `work`, including any retained
-/// authorization reservation.
-pub(crate) async fn with_snapback_lock_timeout<T, F>(
-    state: &SharedSnapback,
-    wait: Duration,
-    effect: &'static str,
-    work: F,
-) -> SnapbackResult<T>
-where
-    F: FnOnce(&mut LocalSnapback) -> SnapbackResult<T> + Send + 'static,
-    T: Send + 'static,
-{
-    let guard = tokio::time::timeout(wait, lock_managed_snapback(state))
-        .await
-        .map_err(|_| {
-            SnapbackError::error(
-                "SNAPBACK_WRITER_ACQUIRE_TIMEOUT",
-                "storage",
-                format!("{effect} could not acquire the managed writer before its deadline"),
-            )
-            .with_details(serde_json::json!({ "retryable": true }))
-        })?;
-    with_locked_snapback_then(guard, work, |output| output).await
 }
 
 /// Run a second blocking phase after the managed Local guard and its scope
