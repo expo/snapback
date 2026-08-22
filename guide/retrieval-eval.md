@@ -612,8 +612,7 @@ sessions-evolution, and familiar-profile discovery misses.
     "SecureStore custody".
 
 Cases 57–58 absorb the 2026-08-16 Coterie guide gaps for sessions fixture
-installation and inverse provider-neutral Contract adaptation. Case 59 absorbs
-the 2026-08-18 custody-store repair miss.
+installation and inverse provider-neutral Contract adaptation.
 
 57. **Sessions fixture install:** "Install deterministic password accounts,
     principal-owned profile rows, and typed avatar media in a sessions-mode
@@ -659,7 +658,8 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     The run fails if it assumes separate client objects imply separate durable
     custody or omits one stable `storagePartition` per actor.
     Expected pages: `recipes/multi-persona-clients.md`.
-    Route terms: "every persona wrote as Henry", "storagePartition", "process-global in Node", "multi-persona harness".
+    Route terms: "every persona wrote as Henry", "multiple clients same session", "personas share login", "storagePartition", "process-global in Node", "multi-persona harness".
+    Required guidance: "one stable explicit storagePartition per persona or worker", "DEFAULT_AUTH_STORAGE_PARTITION".
 
 61. **Background writes during auth transitions:** "An eager route-entry
     receipt or feed write fails with
@@ -668,15 +668,18 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     content refusal, or declares a queued mutation settled.
     Expected pages: `recipes/auth-transition-writes.md`.
     Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
+    Required guidance: "declare `{ key, idempotent: true, successorValid: true }` only for latest-wins housekeeping", "`blockedReason: auth-barrier` means zero transport", "foreground admission is independent of suspended housekeeping", "observe `SNAPBACK_HOUSEKEEPING_SUPERSEDED` through mutation status".
+    Rejected guidance: "mark foreground gestures as housekeeping", "retry on a timer while auth changes".
 
-62. **Presence heartbeat versus bound value:** "I passed
-    `useSurface({ typing: value })`; why is the surface presence value a
-    continuous publish, and how does that compare with Supabase
-    `track({ typing: true })`?" The run fails if it omits heartbeat plus delete,
-    uses TTL as the ordinary withdrawal path, or adds a second timer around
-    `useSnapbackActivityPresence`.
+62. **Presence heartbeat versus bound value:** "My typing indicator is stuck
+    and presence is not expiring under the five-second ceiling. I passed
+    `useSurface({ typing: value })`; what is the Supabase `track()` equivalent,
+    and should I add a presence heartbeat?" The run fails if it omits
+    touch-on-keystroke plus delete-on-idle, uses TTL as the ordinary withdrawal
+    path, or adds a second timer around `useSnapbackActivityPresence`.
     Expected pages: `recipes/activity-presence.md`.
-    Route terms: "surface presence value is a continuous publish", "heartbeat vs bound value", "track({ typing: true })", "publish + delete".
+    Route terms: "typing indicator stuck", "presence not expiring", "track() equivalent", "supabase track", "presence heartbeat", "surface presence value is a continuous publish".
+    Required guidance: "touch-on-keystroke and delete-on-idle", "TTL is the crash/disconnect backstop".
 
 63. **Familiar dynamic array access:** "Use `array[i]` inside a Familiar
     handler." The run fails if it claims dynamic computed access is admitted
@@ -703,16 +706,20 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
 
 67. **Familiar mutation document arrays:** "Return mutation document arrays
     with `v.array(v.doc('todos'))`." The run fails if it promises that result
-    carrier instead of one document or a closed receipt/id array.
+    carrier for a mutation or action, or misses that queries may return bare,
+    nullable, and array document shapes after the landed parity fix.
     Expected pages: `backend/familiar-profile.md`.
     Route terms: "mutation document arrays", "v.array(v.doc".
+    Required guidance: "mutation/action document arrays refuse before generation publishes activation output".
 
-68. **Familiar sequence allocation:** "Allocate a dense scoped invoice number
-    from a Familiar mutation." The run fails if it invents an app-level
-    read/increment/write counter or claims `ctx.sequence.allocate` is in the
-    Familiar surface rather than routing the backend to Explicit.
+68. **Familiar monotonic counter:** "I need a monotonic counter in a Familiar
+    mutation, but its `sequences` key is rejected." The run fails if it
+    endorses the app-level read/current-maximum/increment workaround or claims
+    `sequences` is admitted in the Familiar surface rather than routing the
+    backend to Explicit.
     Expected pages: `backend/familiar-profile.md`.
-    Route terms: "sequence allocation", "ctx.sequence.allocate", "dense scoped number".
+    Route terms: "monotonic counter", "sequences".
+    Required guidance: "Dense scoped sequence allocation is required".
 
 69. **Private authority plus product roster:** "Render a chat display roster
     with join dates and keep send-time recipients, but the membership roster is
@@ -721,17 +728,17 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     `resourceField: \"_id\"`, or rewrites old receipt membership after a leave.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "private membership roster", "product-visible roster projection", "display roster", "send-time recipient set".
-    Required guidance: "the demo declaration admits only owner-insert and self-remove".
+    Required guidance: "today's sanctioned interim pattern", "selected platform-generated projection facts".
 
 70. **Provider connection lifecycle:** "My Contract provider creates a
     connection per subscription; N cells imply N transport connections and
     teardown leaks timers." The run fails if it mints connection ids per
     mount, subscribes before authority settles, nests reads in callbacks,
-    omits `localResourceInspection`, or invents a numeric platform budget that
-    Phase 0 has not selected.
+    omits owner-scoped inspection, or invents a numeric platform budget that
+    D0.5 has not selected.
     Expected pages: `recipes/provider-lifecycle.md`.
-    Route terms: "connection per subscription", "N cells imply N transport connections", "provider lifecycle budget", "active connections and subscriptions by owner".
-    Required guidance: "does not yet select one provider-wide connection ownership policy", "That fixture does not exist yet".
+    Route terms: "connection per subscription", "N cells imply N transport connections", "provider lifecycle budget", "active connections and subscriptions by owner", "one connection per query", "too many websockets".
+    Required guidance: "The provider adapter pattern is one manager above the cells it serves", "never add a timeout or poll a client object to guess when authority settled", "LLP 0295 D0.5 owns the later numeric connection/subscription budgets".
 
 71. **Familiar point-read carrier:** "Return zero or one document from a
     Familiar point read that may also carry membership admission." The run
@@ -752,6 +759,131 @@ packed-package author to a nonexistent raw-client namespace.
     Expected pages: `backend/assets.md`.
     Route terms: "client.assets.start", "createAssetClient(client)",
     "raw SnapbackClient assets".
+
+<<<<<<< HEAD
+Cases 73–74 extend the provider-lifecycle repair with the remaining exact
+wrong vocabulary from the source diaries and review evidence.
+
+73. **Provider WebSocket fan-out:** "My adapter opens one connection per query
+    and now has too many websockets. Should I add a connection pool?" The run
+    fails if it pools across authority/storage partitions, mints per-cell
+    connection ids, or omits the N-cells/one-connection regression route.
+    Expected pages: `recipes/provider-lifecycle.md`.
+    Route terms: "one connection per query", "too many websockets", "connection pool".
+    Required guidance: "one manager above the cells it serves", "Every query cell under that tuple reuses the id".
+
+74. **Provider auth rebuild:** "I need a provider adapter pattern that can
+    rebuild stream on auth without a timeout." The run fails if it polls for
+    authority, retries a stable blocked state, rebinds the predecessor
+    sessions connection, or starts the successor before teardown settles.
+    Expected pages: `recipes/provider-lifecycle.md`.
+    Route terms: "provider adapter pattern", "rebuild stream on auth".
+    Required guidance: "authentication-not-settled", "transitionOwner", "teardown-before-rebuild".
+
+75. **List chat members:** "list chat members without exposing the private
+    authority rows." The run fails if it queries membership backing directly,
+    copies its row ids, or authorizes from the product projection.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "list chat members".
+    Required guidance: "private membership declaration", "ordinary app-visible projection table".
+
+76. **Show roster:** "show roster with roles and join dates for a chat room."
+    The run fails if it claims `bootstrap()` can stamp arbitrary creator-seat
+    product fields or omits the synchronized projection mutation.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "show roster".
+    Required guidance: "creator seat is server-derived", "Bootstrap uses the atomic form".
+
+77. **Who is in the room:** "who is in the room now, and who received a
+    message before someone left?" The run fails if it recomputes an old
+    recipient set from current membership or drops departed receipt subjects.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "who is in the room".
+    Required guidance: "Later joins never enter an old snapshot", "departed recipient's already-recorded delivery/read fact remains history".
+
+78. **Membership table public:** "Should I make the membership table public
+    so the client can render members?" The run fails if it weakens private-row
+    non-enumerability instead of using an ordinary product projection.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "membership table public".
+    Required guidance: "Do not solve it by making the membership table public".
+
+79. **Enumerate members:** "enumerate members for a room settings screen and
+    support add, promote, remove, and leave retries." The run fails if the
+    required profile-operation/reconciliation pair is scattered across UI call
+    sites, its non-atomic interim limitation is hidden, or missing/current
+    branches are implicit.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "enumerate members".
+    Required guidance: "The branch contract is explicit", "Keep one retryable coordinator, but do not call it exclusive".
+
+Case 80 absorbs the Messtimate 0.1.24 field-masking miss recorded in
+`issues/20260821-0235-field-masking-productization.md`.
+
+80. **Sensitive field split:** "A consumer-visible profile includes a private
+    phone number. How do I hide one field or mask the phone number?" The run
+    fails if it keeps the value in the wider table and nulls it in a projection,
+    makes a private join public, invents a masking flag/helper, or claims the
+    workaround provides class-M field masking.
+    Expected pages: `recipes/split-sensitive-fields.md`.
+    Route terms: "maskField", "mask a field", "hide one field",
+    "mask phone number", "private column", "field level security",
+    "column visibility".
+    Required guidance: "Snapback does not currently provide field masking",
+    "The protection comes from row visibility on the second table".
+
+Cases 81–85 absorb the Messtimate 0.1.24 capability-link workflow miss from
+LLP 0294 W7.2. The five route terms are the exact plausible wrong vocabulary
+recorded in the guide-gap ticket; each must reach the same shipped-slice
+decision table before an author invents a token table or assumes identity
+authority.
+
+81. **Invite link:** "Should I build an invite link with a token table, or use
+    Snapback capability links?" The run fails if it uses an anonymous-set link
+    to grant membership, protected data, principal creation, or identity, or
+    if it omits the app-owned invitation-row option for product workflow state.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "invite link".
+
+82. **Capture link:** "Open a capture link, let the person continue as a guest,
+    then claim the draft after signup." The run fails if it presents a
+    capability URL as guest-session authority or claims first-party guest entry
+    ships before owner review.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "capture link".
+
+83. **Claim link:** "Use a claim link to turn an anonymous draft into the
+    signed-in user's account." The run fails if it treats capability-link
+    possession as account or principal authority rather than routing to an
+    app-owned identity ceremony while guest/granted entry remains unshipped.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "claim link".
+
+84. **Single-use token:** "Make a share-to-view URL a single-use token and
+    explain what replay returns." The run must choose `uses: 1`, invoke only
+    after an explicit action, and render the non-enumerating terminal state;
+    it fails if `GET` consumes the use or replay reissues the POST.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "single-use token".
+
+85. **Deep link grant:** "Pass a deep link grant into Expo and use it as the
+    recipient's session." The run fails unless it rejects that authority model,
+    keeps the `sbl_` URL in volatile closure state only, and uses Expo Linking
+    plus explicit capability-link POST without `Authorization`.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "deep link grant".
+
+Case 87 preserves the second-client symptom vocabulary from the same diary
+miss and binds it to the runtime warning rather than prose alone.
+
+87. **Second client adopted the same user:** "Why does my second client have
+    the same user after another persona signed in?" The run fails if it treats
+    the warning as a refusal, proposes clearing shared custody as the default
+    repair, or omits the stable per-persona partition.
+    Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`.
+    Route terms: "second client same user", "multiple clients same session",
+    "personas share login", "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
+    Required guidance: "one stable explicit storagePartition per persona or worker".
 
 ## Static routing check
 

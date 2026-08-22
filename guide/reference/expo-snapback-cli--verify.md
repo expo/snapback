@@ -1,7 +1,7 @@
 ---
 title: API reference — @expo/snapback-cli/verify
 id: reference.api.expo.snapback.cli.verify
-order: 859
+order: 860
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-cli/package.json, packages/snapback-cli/verify.d.mts]
@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:c72ec61b2977cb73dcbcc0a577ae20552da408140660
 # @expo/snapback-cli/verify
 
 Build-bound public API projection for `@expo/snapback-cli/verify`. Canonical registry identity:
-`sha256:aa7afb0d5c18837e6ba6c50fef8511de125c317f42b803686ad743956dbb906a`.
+`sha256:53bb6d2ce44a81a0c79f2409f65f4cd01aae29d914bae5b628619d7aa1746f33`.
 Runtime parity condition:
 `default` → `packages/snapback-cli/verify.mjs`.
 

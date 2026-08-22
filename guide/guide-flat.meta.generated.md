@@ -404,12 +404,19 @@ proof command, and honest nonclaims without opening every demo.
 - [Activity presence](./recipes/activity-presence.md) — distinguish a
   continuously bound value from activity touch, heartbeat, and explicit
   withdrawal.
+- [Capability links for Expo and web](./recipes/capability-links.md) — mint,
+  share, inertly preview, explicitly invoke, expire/use/revoke, and keep the
+  secret URL out of sessions, durable storage, logs, analytics, and referrers.
 - [Private membership and a product roster](./recipes/membership-roster-projection.md)
   — keep authority backing private while maintaining visible current and
   historical product projections.
 - [Provider connection lifecycle](./recipes/provider-lifecycle.md) — share
   managers and stores, settle authority, deduplicate snapshots, inspect, and
   retire resources without inventing an undecided numeric budget.
+- [Split a sensitive field into its own table](./recipes/split-sensitive-fields.md)
+  — the honest row-visibility workaround for a private column such as
+  Messtimate's phone number, with separate-read, owner-only join, and
+  field-masking nonclaims.
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).
@@ -445,13 +452,13 @@ id: meta.capabilities
 order: 2
 audience: agent-first
 capabilities: []
-authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0045-notifications-outbox.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0133-local-settlement.spec.md, llp/0154-minimal-observability.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0156-minimal-error-tracking.rfc.md, llp/0188-ltx-sqlite-replication.rfc.md, llp/0211-typed-opaque-structured-stored-values.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-server/src/admin.rs, crates/snapback-services/src/replication.rs, crates/snapback-cli/src/cli.rs, crates/snapback-services/src/telemetry_query.rs, crates/snapback-services/src/errors_query.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs, packages/snapback-react/implementation.mjs]
+authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0045-notifications-outbox.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0133-local-settlement.spec.md, llp/0154-minimal-observability.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0156-minimal-error-tracking.rfc.md, llp/0188-ltx-sqlite-replication.rfc.md, llp/0211-typed-opaque-structured-stored-values.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0235-field-masking-class-m.spec.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-server/src/admin.rs, crates/snapback-services/src/replication.rs, crates/snapback-cli/src/cli.rs, crates/snapback-services/src/telemetry_query.rs, crates/snapback-services/src/errors_query.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs, packages/snapback-react/implementation.mjs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:90f41a3deed106338959d819e7672ddf869e4685d5d1b757cff2ab40cb52ccca
+reviewed-authorities-digest: sha256:1b524585d05c02c2bcef3d9c13b31b3344d96df36337f0fe95cdf8d53080cd4a
 ---
 
 # Capability index
@@ -519,15 +526,17 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | sync.local-persistent-store | LLP 0166 v3 store/hydration per `clientStoreId`: trusted activation, completeness proof, preload, checked relaunch, and durable programmatic demand. `single_table_v1@1` may retain; protected classes need leases. IndexedDB/Node-file pass; memory refuses. Expo SQLite awaits device qualification; remote/Cloudflare are nonclaims. | retained render, materialization, completeness proof, hydration, preload, relaunch, result transform | local | partial | crates/snapback-engine/src/local-persistent-store-publication.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094, llp/0270 | sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention for generated JS/React live queries: exact namespace, atomic fresh-query/lease custody, equality expiry, and mismatch delete-before-render | offline auth browser, lease js, private chat offline | local | partial | packages/snapback-client/rqs-resume.test.mjs (custody matrix + fresh-client offline handoff) | llp/0043, llp/0053, llp/0129 | GAP (real-process restart witness; owner: orchestrator, review: 2026-08-26; issue: issues/20260801-js-arm-integrated-authenticated-restart-witness.md); sync/offline-and-retention.md |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | crates/snapback-engine/src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-28; issue: issues/20260802-0133-receipt-wire-coordination.md) |
-| api.external-exposure | Opt-in `/api/v1` + CORS; local OAuth/PKCE and remote MCP; capability links, durable watches, and approval-gated mutation/action effects; read-only `ask` v1 with provider credentials, result schemas, durable token/result-volume budgets, and HMAC provenance receipts. Telemetry stays lossy; billing metering is a gap | external api, oauth, remote mcp, approval, effects, capability links, watches, ask, near-data ai, api budgets | local | partial | route /effects + crates/snapback-kernel/src/storage/pending_effects.rs + route /api/v1/ask + crates/snapback-kernel/src/storage/ask_spend.rs | llp/0204, llp/0031, llp/0055, llp/0150 | backend/external-api.md |
+| api.external-exposure | Opt-in external API, OAuth, MCP, watches, effects, and budgeted `ask`; telemetry is not billing. | external api, remote mcp, approval, effects, watches, ask, near-data ai, api budgets | local | partial | route /api/v1/ask | llp/0204, llp/0031 | backend/external-api.md |
+| api.capability-links | Expiring links with bounded use and exact-session revoke; no granted/identity links. | capability links, invite link, capture link, claim link, single-use token, capability single-use token, deep link grant, account claim link, share-to-view | local | partial | route /capability-links | llp/0204, llp/0031, llp/0150 | recipes/capability-links.md |
 | auth.sessions | Server-minted sessions; email-code and email+password login; server-derived principals | login, signin, identity, session, principal binding, app user table, identityBinding, who am I, am I signed in, whoami, currentAuthorizationScope, settledView | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.passwords | First-class session email+password: noninteractive signup/signin/change/set; server-side argon2id (19456/2/1) outside writer lock; bounded KDF concurrency; app-declared 8–128-byte password minimum (default 12, maximum 1024); declared testable lockout (10 failures→15 min); one-time self-serve recovery codes. Uniform refusal for wrong password/unknown identifier/locked; lock state never on wire. Catalog v4 required; v3 reports provider unready. Unready LLP 0045-prerequisite nonclaims: production blind-accept signup/mail reset. Local reset: capture-mailbox only. | password, email password, signup, password login, password auth, minimumLength, minimum password length, hash password, argon2, scrypt gateway, recovery codes, lockout, GoTrue, Supabase auth, password reset | local | shipped | route /auth/password/signin + `authPasswordSignIn` in packages/snapback-client/index.mjs | llp/0227, llp/0214, llp/0215, llp/0011 | auth/passwords.md |
 | auth.external-identity-broker | Local bridges: adopted bearer for headless/native, or trusted-server one-use exchange into browser coordinator custody; mint/capture remain dev/test/demo only | native login, external identity, broker, adopted bearer, browser external sign-in, signed assertion, issuer subject | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0024, llp/0057, llp/0096, llp/0151 | recipes/browser-auth.md |
 | auth.first-party-social-providers | App-owned Apple and Google provider registrations, server-side token verification, provider installation identity, completion-code redemption, account lifecycle, and native/web client entry under LLP 0151 | Sign in with Apple, Google login, social login, OIDC provider, Clerk replacement | none | design-only | demos/knockoff/tests/acceptance/social-auth.mjs proves only the local app-owned broker fixture, not this capability | llp/0151, llp/0212 | GAP (owner: issues/20260808-wave4-identity-program.md, review: 2026-09-21); auth/native-apps.md |
-| auth.browser-session-custody | First-party browser/Expo-web auth: `createSnapbackAppClient`/`client.auth`, React auth/principal hooks, durable IndexedDB/Web Locks; XSS-readable, not sender-constrained | app auth bootstrap, createSnapbackAppClient, client.auth, useSnapbackAuth, useSnapbackCurrentPrincipal, persistent login | local | shipped | packages/snapback-react/auth-bootstrap.test.mjs | llp/0258, llp/0238, llp/0059 | auth/passwords.md |
+| auth.browser-session-custody | Browser/Expo-web durable auth custody; XSS-readable, not sender-bound | app auth bootstrap, createSnapbackAppClient, client.auth, useSnapbackAuth, useSnapbackCurrentPrincipal, persistent login, storagePartition, multi-persona, process-global in Node, multiple clients same session | local | shipped | packages/snapback-react/auth-bootstrap.test.mjs | llp/0258, llp/0238, llp/0059 | recipes/multi-persona-clients.md |
 | auth.application-bootstrap-native-custody | Source-current iOS and Android admit durable-required at `single-runtime`; UNPUBLISHED behind issues/20260816-custody-first-publish-gate.md. Simulator evidence only: physical-device (D), backup/migration, and cross-process fencing remain unclaimed; a share extension was exercised, while the built/embedded NSE is not invokable via `simctl push`. | native custody, Android force-stop, iOS share extension | ios + android | shipped | demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android + demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios + packages/snapback-expo/provider-native-custody.test.mjs | llp/0258, llp/0263 | auth/passwords.md |
 | auth.scoped-queries | Caller-bound filters enforce reads; `authScopeField` is invalidation/retention metadata | hidden data, per-user, row security, Supabase RLS | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
 | auth.table-visibility | Table owner/membership policy composed into all shipped read plans and ordinary `ctx.db`; `anyOf`, resource `_id`, explicit `ctx.db.elevated` | table visibility, joins, bounded children, snapshot batch, elevated read | local | shipped | `compose_declared_table_visibility` in crates/snapback-kernel/src/storage.rs | llp/0231, llp/0056 | auth/protecting-data.md |
+| auth.field-masking | Conditional disclosure of one field while its row stays visible is not implemented; use a separately visible table when row-level absence is acceptable | maskField, mask a field, hide one field, mask phone number, private column, field level security, column visibility, field masking | none | design-only | llp/0235-field-masking-class-m.spec.md (Draft design; no shipped witness) | llp/0235 | GAP (owner: Draft LLP 0235, review: 2026-09-04; issue: issues/20260821-0235-field-masking-productization.md); recipes/split-sensitive-fields.md |
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
 | auth.target-honesty | Per-target auth claims and non-claims; readiness reporting | hosted auth, production auth | all | shipped | `AuthProgramReadiness` in crates/snapback-types/src/auth/mode.rs | llp/0060 | auth/targets.md |
@@ -570,7 +579,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | operating.packaged-dev-loop | Install native runtime; scaffold/generate/doctor/watch-load via one CLI. React/Vite starter: published and G1-qualified in the public `@expo/snapback-*` closure; guide/published-closure.json: newest published/qualified versions. Later than `newestQualified`: fast-path releases without their own qualification-arm receipt. | install, new app, create-snapback-app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health/inspect projections | status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys, config verification, verify config, config verify | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
-| operating.admin-console | Shipped browser debugger for Data, Functions, Realtime, Errors, Logs, capabilities, and guide docs, with master-derived fragment, device approval, and one-time operator claim-link handoffs | console, dashboard, admin link, claim link, remote browser, table inspection, browse table, table scan, inspect rows, see backend, debug backend, inspect function, inspect realtime, Expo debugging, React debugging | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
+| operating.admin-console | Shipped browser debugger for Data, Functions, Realtime, Errors, Logs, capabilities, and guide docs, with master-derived fragment, device approval, and one-time operator claim-link handoffs | console, dashboard, admin link, operator claim link, remote browser, table inspection, browse table, table scan, inspect rows, see backend, debug backend, inspect function, inspect realtime, Expo debugging, React debugging | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
 | operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, per-frame socket/poll markers, surface/principal activation provenance, and coalesced live deadlines | latency, slow network, network profile, delay, jitter, local-first testing | local | shipped | route /_snapback/api/debug/network-profile + host_ops.debug.networkProfileSet + demos/zero-bakeoff/protocol/environment.v2.json | llp/0167 | operating/network-profiles.md |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host ops | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
 | operating.agent-controls | Build/instance control discovery | controls list, controls describe, catalog, mcp-control, control mcp, agent setup, control tools | local | shipped | route /_snapback/api/control-catalog | llp/0184 | operating/agent-controls.md |
@@ -1732,8 +1741,7 @@ sessions-evolution, and familiar-profile discovery misses.
     "SecureStore custody".
 
 Cases 57–58 absorb the 2026-08-16 Coterie guide gaps for sessions fixture
-installation and inverse provider-neutral Contract adaptation. Case 59 absorbs
-the 2026-08-18 custody-store repair miss.
+installation and inverse provider-neutral Contract adaptation.
 
 57. **Sessions fixture install:** "Install deterministic password accounts,
     principal-owned profile rows, and typed avatar media in a sessions-mode
@@ -1779,7 +1787,8 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     The run fails if it assumes separate client objects imply separate durable
     custody or omits one stable `storagePartition` per actor.
     Expected pages: `recipes/multi-persona-clients.md`.
-    Route terms: "every persona wrote as Henry", "storagePartition", "process-global in Node", "multi-persona harness".
+    Route terms: "every persona wrote as Henry", "multiple clients same session", "personas share login", "storagePartition", "process-global in Node", "multi-persona harness".
+    Required guidance: "one stable explicit storagePartition per persona or worker", "DEFAULT_AUTH_STORAGE_PARTITION".
 
 61. **Background writes during auth transitions:** "An eager route-entry
     receipt or feed write fails with
@@ -1788,15 +1797,18 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     content refusal, or declares a queued mutation settled.
     Expected pages: `recipes/auth-transition-writes.md`.
     Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
+    Required guidance: "declare `{ key, idempotent: true, successorValid: true }` only for latest-wins housekeeping", "`blockedReason: auth-barrier` means zero transport", "foreground admission is independent of suspended housekeeping", "observe `SNAPBACK_HOUSEKEEPING_SUPERSEDED` through mutation status".
+    Rejected guidance: "mark foreground gestures as housekeeping", "retry on a timer while auth changes".
 
-62. **Presence heartbeat versus bound value:** "I passed
-    `useSurface({ typing: value })`; why is the surface presence value a
-    continuous publish, and how does that compare with Supabase
-    `track({ typing: true })`?" The run fails if it omits heartbeat plus delete,
-    uses TTL as the ordinary withdrawal path, or adds a second timer around
-    `useSnapbackActivityPresence`.
+62. **Presence heartbeat versus bound value:** "My typing indicator is stuck
+    and presence is not expiring under the five-second ceiling. I passed
+    `useSurface({ typing: value })`; what is the Supabase `track()` equivalent,
+    and should I add a presence heartbeat?" The run fails if it omits
+    touch-on-keystroke plus delete-on-idle, uses TTL as the ordinary withdrawal
+    path, or adds a second timer around `useSnapbackActivityPresence`.
     Expected pages: `recipes/activity-presence.md`.
-    Route terms: "surface presence value is a continuous publish", "heartbeat vs bound value", "track({ typing: true })", "publish + delete".
+    Route terms: "typing indicator stuck", "presence not expiring", "track() equivalent", "supabase track", "presence heartbeat", "surface presence value is a continuous publish".
+    Required guidance: "touch-on-keystroke and delete-on-idle", "TTL is the crash/disconnect backstop".
 
 63. **Familiar dynamic array access:** "Use `array[i]` inside a Familiar
     handler." The run fails if it claims dynamic computed access is admitted
@@ -1823,16 +1835,20 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
 
 67. **Familiar mutation document arrays:** "Return mutation document arrays
     with `v.array(v.doc('todos'))`." The run fails if it promises that result
-    carrier instead of one document or a closed receipt/id array.
+    carrier for a mutation or action, or misses that queries may return bare,
+    nullable, and array document shapes after the landed parity fix.
     Expected pages: `backend/familiar-profile.md`.
     Route terms: "mutation document arrays", "v.array(v.doc".
+    Required guidance: "mutation/action document arrays refuse before generation publishes activation output".
 
-68. **Familiar sequence allocation:** "Allocate a dense scoped invoice number
-    from a Familiar mutation." The run fails if it invents an app-level
-    read/increment/write counter or claims `ctx.sequence.allocate` is in the
-    Familiar surface rather than routing the backend to Explicit.
+68. **Familiar monotonic counter:** "I need a monotonic counter in a Familiar
+    mutation, but its `sequences` key is rejected." The run fails if it
+    endorses the app-level read/current-maximum/increment workaround or claims
+    `sequences` is admitted in the Familiar surface rather than routing the
+    backend to Explicit.
     Expected pages: `backend/familiar-profile.md`.
-    Route terms: "sequence allocation", "ctx.sequence.allocate", "dense scoped number".
+    Route terms: "monotonic counter", "sequences".
+    Required guidance: "Dense scoped sequence allocation is required".
 
 69. **Private authority plus product roster:** "Render a chat display roster
     with join dates and keep send-time recipients, but the membership roster is
@@ -1841,17 +1857,17 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     `resourceField: \"_id\"`, or rewrites old receipt membership after a leave.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "private membership roster", "product-visible roster projection", "display roster", "send-time recipient set".
-    Required guidance: "the demo declaration admits only owner-insert and self-remove".
+    Required guidance: "today's sanctioned interim pattern", "selected platform-generated projection facts".
 
 70. **Provider connection lifecycle:** "My Contract provider creates a
     connection per subscription; N cells imply N transport connections and
     teardown leaks timers." The run fails if it mints connection ids per
     mount, subscribes before authority settles, nests reads in callbacks,
-    omits `localResourceInspection`, or invents a numeric platform budget that
-    Phase 0 has not selected.
+    omits owner-scoped inspection, or invents a numeric platform budget that
+    D0.5 has not selected.
     Expected pages: `recipes/provider-lifecycle.md`.
-    Route terms: "connection per subscription", "N cells imply N transport connections", "provider lifecycle budget", "active connections and subscriptions by owner".
-    Required guidance: "does not yet select one provider-wide connection ownership policy", "That fixture does not exist yet".
+    Route terms: "connection per subscription", "N cells imply N transport connections", "provider lifecycle budget", "active connections and subscriptions by owner", "one connection per query", "too many websockets".
+    Required guidance: "The provider adapter pattern is one manager above the cells it serves", "never add a timeout or poll a client object to guess when authority settled", "LLP 0295 D0.5 owns the later numeric connection/subscription budgets".
 
 71. **Familiar point-read carrier:** "Return zero or one document from a
     Familiar point read that may also carry membership admission." The run
@@ -1872,6 +1888,131 @@ packed-package author to a nonexistent raw-client namespace.
     Expected pages: `backend/assets.md`.
     Route terms: "client.assets.start", "createAssetClient(client)",
     "raw SnapbackClient assets".
+
+<<<<<<< HEAD
+Cases 73–74 extend the provider-lifecycle repair with the remaining exact
+wrong vocabulary from the source diaries and review evidence.
+
+73. **Provider WebSocket fan-out:** "My adapter opens one connection per query
+    and now has too many websockets. Should I add a connection pool?" The run
+    fails if it pools across authority/storage partitions, mints per-cell
+    connection ids, or omits the N-cells/one-connection regression route.
+    Expected pages: `recipes/provider-lifecycle.md`.
+    Route terms: "one connection per query", "too many websockets", "connection pool".
+    Required guidance: "one manager above the cells it serves", "Every query cell under that tuple reuses the id".
+
+74. **Provider auth rebuild:** "I need a provider adapter pattern that can
+    rebuild stream on auth without a timeout." The run fails if it polls for
+    authority, retries a stable blocked state, rebinds the predecessor
+    sessions connection, or starts the successor before teardown settles.
+    Expected pages: `recipes/provider-lifecycle.md`.
+    Route terms: "provider adapter pattern", "rebuild stream on auth".
+    Required guidance: "authentication-not-settled", "transitionOwner", "teardown-before-rebuild".
+
+75. **List chat members:** "list chat members without exposing the private
+    authority rows." The run fails if it queries membership backing directly,
+    copies its row ids, or authorizes from the product projection.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "list chat members".
+    Required guidance: "private membership declaration", "ordinary app-visible projection table".
+
+76. **Show roster:** "show roster with roles and join dates for a chat room."
+    The run fails if it claims `bootstrap()` can stamp arbitrary creator-seat
+    product fields or omits the synchronized projection mutation.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "show roster".
+    Required guidance: "creator seat is server-derived", "Bootstrap uses the atomic form".
+
+77. **Who is in the room:** "who is in the room now, and who received a
+    message before someone left?" The run fails if it recomputes an old
+    recipient set from current membership or drops departed receipt subjects.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "who is in the room".
+    Required guidance: "Later joins never enter an old snapshot", "departed recipient's already-recorded delivery/read fact remains history".
+
+78. **Membership table public:** "Should I make the membership table public
+    so the client can render members?" The run fails if it weakens private-row
+    non-enumerability instead of using an ordinary product projection.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "membership table public".
+    Required guidance: "Do not solve it by making the membership table public".
+
+79. **Enumerate members:** "enumerate members for a room settings screen and
+    support add, promote, remove, and leave retries." The run fails if the
+    required profile-operation/reconciliation pair is scattered across UI call
+    sites, its non-atomic interim limitation is hidden, or missing/current
+    branches are implicit.
+    Expected pages: `recipes/membership-roster-projection.md`.
+    Route terms: "enumerate members".
+    Required guidance: "The branch contract is explicit", "Keep one retryable coordinator, but do not call it exclusive".
+
+Case 80 absorbs the Messtimate 0.1.24 field-masking miss recorded in
+`issues/20260821-0235-field-masking-productization.md`.
+
+80. **Sensitive field split:** "A consumer-visible profile includes a private
+    phone number. How do I hide one field or mask the phone number?" The run
+    fails if it keeps the value in the wider table and nulls it in a projection,
+    makes a private join public, invents a masking flag/helper, or claims the
+    workaround provides class-M field masking.
+    Expected pages: `recipes/split-sensitive-fields.md`.
+    Route terms: "maskField", "mask a field", "hide one field",
+    "mask phone number", "private column", "field level security",
+    "column visibility".
+    Required guidance: "Snapback does not currently provide field masking",
+    "The protection comes from row visibility on the second table".
+
+Cases 81–85 absorb the Messtimate 0.1.24 capability-link workflow miss from
+LLP 0294 W7.2. The five route terms are the exact plausible wrong vocabulary
+recorded in the guide-gap ticket; each must reach the same shipped-slice
+decision table before an author invents a token table or assumes identity
+authority.
+
+81. **Invite link:** "Should I build an invite link with a token table, or use
+    Snapback capability links?" The run fails if it uses an anonymous-set link
+    to grant membership, protected data, principal creation, or identity, or
+    if it omits the app-owned invitation-row option for product workflow state.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "invite link".
+
+82. **Capture link:** "Open a capture link, let the person continue as a guest,
+    then claim the draft after signup." The run fails if it presents a
+    capability URL as guest-session authority or claims first-party guest entry
+    ships before owner review.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "capture link".
+
+83. **Claim link:** "Use a claim link to turn an anonymous draft into the
+    signed-in user's account." The run fails if it treats capability-link
+    possession as account or principal authority rather than routing to an
+    app-owned identity ceremony while guest/granted entry remains unshipped.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "claim link".
+
+84. **Single-use token:** "Make a share-to-view URL a single-use token and
+    explain what replay returns." The run must choose `uses: 1`, invoke only
+    after an explicit action, and render the non-enumerating terminal state;
+    it fails if `GET` consumes the use or replay reissues the POST.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "single-use token".
+
+85. **Deep link grant:** "Pass a deep link grant into Expo and use it as the
+    recipient's session." The run fails unless it rejects that authority model,
+    keeps the `sbl_` URL in volatile closure state only, and uses Expo Linking
+    plus explicit capability-link POST without `Authorization`.
+    Expected pages: `recipes/capability-links.md`.
+    Route terms: "deep link grant".
+
+Case 87 preserves the second-client symptom vocabulary from the same diary
+miss and binds it to the runtime warning rather than prose alone.
+
+87. **Second client adopted the same user:** "Why does my second client have
+    the same user after another persona signed in?" The run fails if it treats
+    the warning as a refusal, proposes clearing shared custody as the default
+    repair, or omits the stable per-persona partition.
+    Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`.
+    Route terms: "second client same user", "multiple clients same session",
+    "personas share login", "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
+    Required guidance: "one stable explicit storagePartition per persona or worker".
 
 ## Static routing check
 

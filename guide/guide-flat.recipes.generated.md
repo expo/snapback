@@ -334,7 +334,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.24
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:67cf0c31b9ed7947afdf9c708c7291d5c2a3d6a9d061db862f9e4bbd8a4341b0
+reviewed-authorities-digest: sha256:e6a5772fa7bb8b9f6cf9fa79123af2be4052cb0421e9436f2780aaf463303c25
 ---
 
 # Recipe: membership-scoped typing indicators
@@ -353,9 +353,10 @@ collection and recovery option.
 
 ## 1. Declare membership and the typing room together
 
-The messaging demo keeps its public conversation projection separate from this
-restricted canonical authority table. One row means current membership; removal
-deletes the row rather than preserving a historical incarnation:
+The messaging demo keeps its membership-scoped product projection separate
+from this restricted canonical authority table. One row means current
+membership; removal deletes the row rather than preserving a historical
+incarnation:
 
 ```js source=demos/messaging-snapback/snapback/schema.mjs
 export const conversationMemberships = defineTable({
@@ -377,13 +378,31 @@ export const conversationMemberships = defineTable({
     principal: 'userHandle',
     resource: 'conversationId',
     role: 'role',
-    roles: ['owner', 'member'],
+    roles: ['owner', 'moderator', 'member'],
     bootstrapRole: 'owner',
+    lastHolder: { protect: 'owner' },
     provenance: 'full',
     transitions: [
       { op: 'insert', by: ['owner'], target: 'other', to: ['member'], fields: ['joinedAt'] },
-      { op: 'remove', by: ['self'], target: 'self', from: ['member'] },
+      { op: 'setRole', by: ['owner'], target: 'other', from: ['member'], to: ['moderator'] },
+      { op: 'remove', by: ['owner'], target: 'other', from: ['moderator', 'member'] },
+      { op: 'remove', by: ['self'], target: 'self', from: ['moderator', 'member'] },
     ],
+  })
+  // Today's profile writers are not projection-aware. They remain directly
+  // reachable, so the application boundary is explicitly partial: guarded
+  // consumers refuse on drift and the owner-only reconciliation mutation
+  // repairs interrupted or bypassed writes.
+  // @ref LLP 0240#authority-facts-versus-product-facts
+  // — option 1 remains the sanctioned interim, not the final generated design.
+  .authorityProfile({
+    name: 'conversationMemberships',
+    hierarchy: {
+      owner: ['moderator', 'member'],
+      moderator: ['member'],
+      member: [],
+    },
+    roster: { visible: ['userHandle', 'role'] },
   });
 ```
 
@@ -2175,6 +2194,14 @@ channel
   });
 ```
 
+`track()` state is connection-lived until `untrack()`, channel leave, or
+disconnect; it does not disappear merely because typing went idle. Snapback's
+bound surface presence is the closest lifecycle analogue, with a provider
+heartbeat sustaining its TTL lease while mounted. For the extra idle-stop
+choreography on both systems, use the
+[activity presence recipe](./activity-presence.md) rather than treating TTL as
+the inactivity timer.
+
 Broadcast is a fire-and-forget pub/sub message, recommended for high-frequency
 state like cursors precisely because it does not maintain roster state:
 
@@ -3041,14 +3068,14 @@ title: "Recipe: multiple Node personas and storage partitions"
 id: recipes.multi-persona-clients
 order: 11
 audience: agent-first
-capabilities: [clients.headless, auth.sessions]
-authorities: [llp/0059-session-projection-and-client-barrier.spec.md, packages/snapback-client/app-client.mjs, packages/snapback-client/app-client.d.mts, packages/snapback-client/app-client.test.mjs]
-examples: [packages/snapback-client/app-client.test.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
+capabilities: [clients.headless, auth.sessions, auth.browser-session-custody]
+authorities: [llp/0059-session-projection-and-client-barrier.spec.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0295-published-matrix-improvement-program.plan.md, packages/snapback-client/app-client-defaults.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/app-client.d.mts, packages/snapback-client/app-client.test.mjs, scripts/check-guide-multi-persona-clients.mjs]
+examples: [tests/fixtures/guide-multi-persona-clients/multi-persona-clients.mts, packages/snapback-client/app-client.test.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:0aac45468f10f0b49fd624a7612f1e65a0809af8162a193de392be160fa0e4a5
+reviewed-authorities-digest: sha256:d56068f2769d0ee7471e5c73374a68201d6530108e5c480db2ca34b3fff6e9b2
 ---
 
 # Recipe: multiple Node personas and storage partitions
@@ -3068,25 +3095,58 @@ classic “every persona wrote as Henry” failure.
 In the diary's vocabulary, durable custody is “process-global in Node” unless
 the multi-persona harness selects distinct partitions.
 
-## Give every persona a stable partition
+> **Multiple clients can mean the same session.** If personas share login, a
+> second client can have the same user because both calls omitted
+> `storagePartition` and selected the default owner. Separate JavaScript
+> objects do not separate custody. The common symptom searches are “multiple
+> clients same session,” “personas share login,” and “second client same
+> user.”
 
-Choose a deterministic, non-secret partition per logical actor and pass it at
-construction:
+## Fix “multiple clients same session” with a stable partition per persona
 
-```ts fragment reason="application descriptors, admitted bindings, and platform adapters are fixture-specific"
-const henry = await createSnapbackAppClient({
-  app,
-  binding,
-  platform,
-  storagePartition: 'acceptance:henry',
-});
+The “second client same user” symptom has the same repair.
 
-const mia = await createSnapbackAppClient({
-  app,
-  binding,
-  platform,
-  storagePartition: 'acceptance:mia',
-});
+Choose a deterministic, non-secret partition per logical actor and worker, and
+pass it at construction. The packed external fixture imports the current root
+constant spelling, `DEFAULT_AUTH_STORAGE_PARTITION`, and rejects accidental
+use of it:
+
+```ts source=tests/fixtures/guide-multi-persona-clients/multi-persona-clients.mts
+import {
+  DEFAULT_AUTH_STORAGE_PARTITION,
+  createSnapbackAppClient,
+} from '@expo/snapback-client';
+
+type AppClientInput = Parameters<typeof createSnapbackAppClient>[0];
+type PersonaClientInput = Omit<AppClientInput, 'rqsStore' | 'storagePartition'>;
+
+export async function createAcceptancePersonas(
+  input: PersonaClientInput,
+  workerId: string,
+) {
+  const uncheckedInput = input as AppClientInput;
+  if (uncheckedInput.storagePartition === DEFAULT_AUTH_STORAGE_PARTITION) {
+    throw new Error('do not pass DEFAULT_AUTH_STORAGE_PARTITION to a multi-persona helper');
+  }
+  if (Object.hasOwn(uncheckedInput, 'rqsStore')) {
+    throw new Error('multi-persona clients must not share one injected rqsStore');
+  }
+  const partitionFor = (persona: string) => `acceptance:${workerId}:${persona}`;
+  const henryPartition = partitionFor('henry');
+  const miaPartition = partitionFor('mia');
+
+  const [henry, mia] = await Promise.all([
+    createSnapbackAppClient({
+      ...input,
+      storagePartition: henryPartition,
+    }),
+    createSnapbackAppClient({
+      ...input,
+      storagePartition: miaPartition,
+    }),
+  ]);
+  return { henry, mia };
+}
 ```
 
 The custody owner key is `(app identity, storagePartition)`. Reusing a
@@ -3096,19 +3156,43 @@ at most 128 characters, and contain no NUL. It is an isolation label, not a
 password, principal assertion, or server-side authorization boundary.
 
 Sign in each client independently, wait for its authority to settle, and
-assert `currentAuthorizationScope().principalScope.userId` before performing
+assert `henry.auth.currentPrincipal().userId` before performing
 persona-labelled writes. That assertion catches an accidentally reused
 partition at the test boundary instead of after corrupted expectations.
+
+The helper also refuses an explicitly injected `rqsStore`. Because `...input`
+would pass the same store object to both clients, distinct auth partitions would
+still share one live/queued-work store. If a harness needs injected stores,
+construct each persona separately with a distinct store whose lifetime matches
+that persona's auth custody.
 
 Dispose every app client at teardown. Durable state intentionally survives
 that disposal, so reuse the same partition only when a later run is meant to
 restore the same actor. Give parallel test workers an additional stable worker
 prefix when they must not share custody.
 
+## Read the implicit-reuse warning
+
+In Node, multiple implicit-default handles emit one bounded warning on the
+shared client's diagnostics channel when their durable owner is authenticated.
+This covers both create → sign in → create and create → create → sign in:
+
+`SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE`
+
+The warning does not refuse construction, log credentials, change custody, or
+guess that two callers represent different people. It names the default
+partition, this guide page, and the supported repair: pass one stable explicit
+`storagePartition` per persona or worker. It does not fire for explicit
+partition reuse, anonymous custody, or volatile custody.
+
 ## Anti-patterns
 
 - Creating multiple Node clients without `storagePartition` and assuming
   object identity isolates their sessions.
+- Passing `DEFAULT_AUTH_STORAGE_PARTITION` as the per-persona value; that
+  explicitly asks every persona to share the default durable session.
+- Passing one injected `rqsStore` through shared `...input`; auth partitions do
+  not partition a deliberately shared live/queued-work store.
 - Using a display name as authorization evidence instead of checking the
   settled principal.
 - Generating a fresh random partition on every boot when session restoration
@@ -3124,13 +3208,13 @@ id: recipes.auth-transition-writes
 order: 12
 audience: agent-first
 capabilities: [clients.outbox-drain, clients.mutation-outcomes, auth.invalidation-barrier]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/outbox-store.test.mjs]
-examples: [packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/outbox-store.test.mjs, demos/browser-local-first]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/rqs-store-sqlite.mjs, packages/snapback-react/implementation.mjs, packages/snapback-client/authority-transition-conformance.test.mjs, packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-client/outbox-store.test.mjs, scripts/auth-settlement-packed-proof.mjs, scripts/check-guide-auth-settlement-packed-proof.mjs]
+examples: [packages/snapback-client/authority-transition-conformance.test.mjs, packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-client/outbox-store.test.mjs, scripts/auth-settlement-packed-proof.mjs, demos/browser-local-first]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:d8cac17f99ba2c4dcf845310194e20d29b6542948551e506397efdbc259e00ba
+reviewed-authorities-digest: sha256:147f274f197b8fb2e15b67c559278c0858f9505d608634b3e7acaf8d24da0fdf
 ---
 
 # Recipe: writes during authentication transitions
@@ -3149,19 +3233,89 @@ This includes the reproduced “eager route-entry receipt” and broader
 “background writes during auth transitions” cases, as well as an
 authorization-suspended foreground gesture.
 
-The multi-subscription trigger observed in the same run remains an open
-[contention investigation](repo:issues/20260820-familiar-live-subscription-contention.md).
-This recipe describes how callers settle writes safely; it does not classify
-or close that separate liveness question.
+In the vocabulary builders actually searched, this is the **write after login**,
+**mutation during sign-in**, **outbox suspended**, or **background write auth**
+recipe.
+
+## Read the settlement state first
+
+The shipped generated-client vocabulary distinguishes a stable signed-out
+state from an authority transition. `blocked:authentication-required` and
+`blocked:authentication-not-settled` below are compact spellings for the two
+field pairs, not single status strings:
+
+| Situation | Protected live-query state | Imperative one-shot refusal | Caller response |
+| --- | --- | --- | --- |
+| Settled signed out | `status: "blocked"`, `reason: "authentication-required"`, `transitionOwner: "auth-coordinator"` | `SNAPBACK_AUTH_REQUIRED` with `reason: "authentication-required"` and `diagnostic.details.transitionOwner: "auth-coordinator"` | Keep the intent undispatched; ask for authentication. Do not start a retry timer. |
+| Signing in or signing out | `status: "blocked"`, `reason: "authentication-not-settled"`, `transitionOwner: "auth-coordinator"` | `SNAPBACK_CLIENT_AUTHORITY_CLEARING` with `reason: "authentication-not-settled"` and `diagnostic.details.transitionOwner: "auth-coordinator"` | Wait for the in-flight auth operation to settle. No transport was issued. |
+| Settled signed in | `ready` or `refreshing` | admitted | Dispatch under the settled principal. |
+| Terminal auth failure | `status: "error"` with `transitionOwner: "auth-coordinator"` | the recorded terminal code | Stop automatic retry, restore the control, and render/report the terminal diagnostic. |
+
+A protected live query leaving `blocked:authentication-not-settled` is a
+useful framework-visible settlement observation. Awaiting the sign-in or
+sign-out call is the corresponding gesture-owned barrier. Do not invent a
+second timer, a `waitForAuthSettlement` API, or a private coordinator probe.
 
 ## Prefer queueable generated mutations
 
 For receipts, route-entry bookkeeping, feed acknowledgements, and other
 background work that remains meaningful after the same logical user settles,
-use the generated queueable mutation path. During the barrier it resolves as
-queued with `authorizationDisposition: "authorization-suspended"`; the outbox
-drain resumes only after authority proof. Render that as pending and observe
-the mutation settlement rather than turning it into an unhandled UI error.
+use the default queueable generated mutation path. In React,
+`useSnapbackMutation(reference)` uses the `queue: "auto"` behavior and returns
+the truthful `settled | queued` union. Call the hook with no `queue` option —
+the React hook admits only omitted `queue` or `queue: false`
+(`useSnapbackSettledMutation` is the settled-only spelling); passing
+`queue: "auto"` or `queue: true` to the hook throws a `TypeError`. Those
+option spellings belong to the headless `client.mutate()` surface only. On the local target with a qualified
+outbox and settlement ledger, accepted intent held behind the authorization
+barrier resolves `queued`; the headless outcome additionally reports
+`authorizationDisposition: "authorization-suspended"`. The outbox drain
+resumes only after authority proof. Render that branch as pending and observe
+the mutation settlement rather than declaring success.
+
+`queue: "auto"` is capability-sensitive: without a qualified outbox it
+degrades to `queue: false` and rejects instead of pretending the intent is
+durable. Explicit `queue: true` requires outbox support.
+
+## Declare only genuine housekeeping
+
+The headless client has a separate shipped lane for background work that is
+idempotent, latest-wins for one stable key, and valid under the successor
+principal:
+
+```js fragment reason="illustrative application declaration; function references and route keys are app-specific"
+const outcome = await client.mutate(refreshRouteReceipt, {
+  args: { route: "/inbox" },
+  housekeeping: {
+    key: "route-inbox",
+    idempotent: true,
+    successorValid: true,
+  },
+});
+```
+
+During an active auth barrier, that exact declaration may resolve `queued`
+with `blockedReason: "auth-barrier"`; it performs zero transport until the
+successor settles. A later pending record with the same key supersedes the
+older one, whose `mutationStatus(clientMutationId)` becomes `failed` with
+`SNAPBACK_HOUSEKEEPING_SUPERSEDED`. Do not mark a user gesture as
+housekeeping: ordinary foreground query/mutation admission promptly refuses
+with `SNAPBACK_CLIENT_AUTHORITY_CLEARING` during the barrier.
+
+In compact terms: declare `{ key, idempotent: true, successorValid: true }`
+only for latest-wins housekeeping. `blockedReason: auth-barrier` means zero
+transport. Observe `SNAPBACK_HOUSEKEEPING_SUPERSEDED` through mutation status.
+
+Foreground and housekeeping transports are independent lanes. A suspended or
+slow housekeeping request does not head-of-line block a replayable foreground
+record; authority/root cuts remain exclusive across both. Cross-lane ordering
+is not promised: foreground admission is independent of suspended housekeeping.
+
+Predecessor work is reconciled before successor observation. Anonymous →
+authenticated, dev → sessions, and same-user/new-session intent strands for
+explicit discard or re-record. A → B, authenticated → anonymous, sessions →
+dev, and authorization-stream incarnation changes privacy-delete predecessor
+intent. No stranded record is automatically sent under the successor.
 
 Capture the logical intent once. Do not let a React effect manufacture a new
 mutation id on every auth snapshot or retry tick. After a principal change,
@@ -3171,21 +3325,86 @@ the reported disposition rather than silently replaying it as the successor.
 ## Fence non-queueable gestures
 
 A foreground operation declared with `queue: false` rejects locally while
-authority is suspended and does not reach transport. Disable or defer the
-gesture until the coordinator/app client reports settled authority. If a race
-still produces `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`, keep the same logical
-intent, wait for that barrier to settle once, and offer or perform one bounded
-retry only if the resulting principal is still the intended actor.
+authority is suspended and does not reach transport. This includes
+`useSnapbackSettledMutation` and Familiar `useMutation`. Disable or defer the
+gesture while its sign-in/sign-out promise is in flight or its protected query
+state is `blocked:authentication-not-settled`.
+
+If a race still makes an interactive feed mutation reject with
+`SNAPBACK_CLIENT_AUTHORITY_CLEARING` or
+`SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`, keep the same logical intent, wait
+for that barrier to settle once, and offer or perform one bounded retry only
+if the resulting principal is still the intended actor. A
+`SNAPBACK_AUTH_REQUIRED` result after settlement is not another transient
+attempt: return the gesture to an enabled state and route the user to sign-in.
+
+Every dispatched promise must be awaited or have a rejection handler attached
+immediately. An event handler that starts async work must end in an observed
+`try`/`catch` path (or attach `.catch(...)` at dispatch), including the final
+retry. Always restore disabled/pending UI in `finally`. This makes the
+authorization race a rendered terminal branch instead of an unhandled rejection
+that leaves the Expo error overlay intercepting later gestures.
 
 Treat every terminal branch explicitly: success, queued, application refusal,
 auth terminal status, and genuine transport/lifecycle failure. An uncaught
 authorization-suspended rejection can poison a route even though the system is
 behaving correctly.
 
+The run that exposed the poisoned overlay also used six live subscriptions.
+Consolidating them removed its repeated trigger, but that behavior remains a
+separate open contention investigation:
+[the retained ticket](repo:issues/20260820-familiar-live-subscription-contention.md).
+This recipe settles the foreground promise safely; it does not classify the
+subscription behavior or make one aggregate query a universal requirement.
+
+## What proves this contract
+
+The [packed-external settlement fixture](repo:scripts/auth-settlement-packed-proof.mjs)
+is executed by the Guide check against freshly packed Contract, client, and
+React packages and proves the
+signed-out, signing-in, signed-in, signing-out, and revoked rows for both
+one-shot and live-query projections. Its retained tarball-integrity receipt is
+in the [signed-out settlement closure](repo:issues/closed/20260820-authenticated-query-signed-out-settlement.md).
+
+```js source=scripts/auth-settlement-packed-proof.mjs
+const result = Object.freeze({
+  oneShot: await proveOneShots(),
+  live: await proveLive(),
+  modePendingReload: await proveModePendingReload(),
+  housekeeping: await proveHousekeepingBarrier(),
+});
+process.stdout.write(`${JSON.stringify(result)}\n`);
+```
+
+That packed closure stops at the advertised settlement spelling: it does not
+exercise mutation queueing or a component event handler. Those promises are
+separately CI-enforced by the client package suite. In
+[`generated-optimistic-default.test.mjs`](repo:packages/snapback-client/generated-optimistic-default.test.mjs),
+“generated read-free insert cannot repaint after authorization quarantine”
+proves the default generated mutation resolves `queued` with
+`authorizationDisposition: "authorization-suspended"`. In
+[`authorization-invalidation.test.mjs`](repo:packages/snapback-client/authorization-invalidation.test.mjs),
+“client-owned outbox suspension” independently proves explicit queueing does
+not cross transport, while “offlineQueue:false persists live roots” proves
+`queue: false` rejects with `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` before
+transport. In
+[`outbox-store.test.mjs`](repo:packages/snapback-client/outbox-store.test.mjs),
+“default foreground mutation without an explicit id” independently pins the
+same no-transport foreground rejection and the item-5 strand/delete rows.
+[`authority-transition-conformance.test.mjs`](repo:packages/snapback-client/authority-transition-conformance.test.mjs)
+proves declared housekeeping queues under `auth-barrier` with zero transport,
+and [`outbox-drain.test.mjs`](repo:packages/snapback-client/outbox-drain.test.mjs)
+holds a real housekeeping fetch while a later replayable foreground record
+enters and settles transport. SQLite's focused store suite pins the same lane
+gate and authorization-generation CAS on the Expo carrier.
+
 ## Anti-patterns
 
-- Retrying from an unbounded effect whose dependency is the changing auth
-  object.
+- Dispatching from an effect whose dependency is a mutation function or
+  changing auth object; effect identity changes can turn one intent into
+  repeated writes.
+- Fire-and-forget foreground dispatch with no rejection handler; the first
+  auth refusal can poison the development UI.
 - Converting authorization suspension into a content refusal or “server
   failed” message.
 - Assuming a foreground rejection means the mutation may already have
@@ -3203,13 +3422,13 @@ id: recipes.activity-presence
 order: 13
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, packages/snapback-react/index.mjs, packages/snapback-react/implementation.mjs]
-examples: [demos/messaging-snapback, packages/snapback-cli/templates/expo-chat]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, packages/snapback-react/index.mjs, packages/snapback-react/implementation.mjs, packages/snapback-expo/activity-presence.mjs, scripts/activity-presence-vertical-contract.mjs]
+examples: [demos/messaging-snapback, packages/snapback-cli/templates/expo-chat, tests/fixtures/activity-presence-vertical]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:f645f4b9705e5a52f2adb649c71a1e2c03d5a3bc13a19c40d81957c5a4b4f054
+reviewed-authorities-digest: sha256:8f70a44985f5309caef3b140d31f6714b5a0f2fe8bd26961e0bada330ce66219
 ---
 
 # Recipe: activity presence, heartbeats, and withdrawal
@@ -3218,37 +3437,81 @@ reviewed-authorities-digest: sha256:f645f4b9705e5a52f2adb649c71a1e2c03d5a3bc13a1
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-Snapback presence is an ephemeral lease. A bound value is not a durable row,
-and publishing it once does not promise that it remains present. Conversely,
-a convenience surface can continuously republish a non-null bound value. This
-is why `useSurface({ typing: value })` may look like simple state binding while
-behaving like a continuous publish.
+Snapback presence is an ephemeral lease. The key rule is: **a surface presence
+value is a continuous publish**. A value other than `skip` bound through
+`useSurface(surface, params, { presence: { typing: value } })` remains desired
+while that binding is mounted, so the provider heartbeat keeps renewing it. A
+five-second TTL or acceptance ceiling does not make that value disappear after
+five seconds of no typing. Bound withdrawal is `skip`; `null` is a value publish
+attempt and fails the generated value contract.
 
-Put in the diary's exact terms: “surface presence value is a continuous
-publish.” The heartbeat vs bound value decision determines whether the owner
-should continuously publish or explicitly publish + delete.
+This is the usual cause of a “typing indicator stuck” or “presence not
+expiring” report. The heartbeat-vs-bound-value decision comes before choosing
+a TTL:
 
-Search phrase: surface presence value is a continuous publish.
-
-Choose the lifetime you actually mean:
+Search vocabulary: typing indicator stuck; presence not expiring; track() equivalent; supabase track; presence heartbeat; surface presence value is a continuous publish.
 
 - **Continuous bound value:** keep publishing while the component and scope
   are active. Use for “online in this room” when mounting is the activity.
 - **Activity-driven value:** use `useSnapbackActivityPresence` when input,
   focus, pointer, or another activity signal should touch the lease. It owns
-  the activity deadline and withdrawal after the idle window; the provider
-  owns lease heartbeat/renewal.
+  the absolute idle deadline and calls the delete path after that window; the
+  provider owns presence heartbeat/renewal.
 - **Explicit event:** call the presence publisher on activity and the delete
   path on blur, send, cancel, scope change, or unmount. Use this in a
   headless/adapter owner that already owns those transitions.
 
-For a typing indicator, call `touch()` on meaningful input and withdraw on
-send, clear, blur, room change, and dispose. The provider renews the published
-lease while the activity owner remains active; do not add a second timer. TTL
-is the crash/disconnect backstop; explicit or idle withdrawal is the ordinary
-stop signal. The mental translation from Supabase
-`track({ typing: true })` is therefore “publish plus heartbeat plus delete,”
-not “assign a bound value forever.”
+For a typing indicator, the supported spelling is touch-on-keystroke and
+delete-on-idle. `withdraw()` is the helper's explicit delete action for send,
+clear, blur, room change, and dispose:
+
+```ts source=tests/fixtures/activity-presence-vertical/client-projection.ts
+export function TypingComposer() {
+  const presence = useSnapbackActivityPresence(typing, {
+    scope: { roomId: 'room-one' },
+    value: () => ({ userHandle: 'ada', name: 'Ada' }),
+    idleMs: 3_000,
+  });
+
+  const onKeystroke = () => presence.touch();
+  const onClearOrSend = () => void presence.withdraw();
+  void onKeystroke;
+  void onClearOrSend;
+  return null;
+}
+```
+
+The provider renews the admitted lease while the activity owner remains
+active; do not add a second app timer or heartbeat loop. TTL is the
+crash/disconnect backstop. Explicit or idle delete is the ordinary stop
+signal. Choose `idleMs` below the product expiry deadline, leaving room for the
+delete to become visible: for a five-second ceiling, the shown three-second
+idle window leaves that convergence budget. TTL will not enforce the deadline
+while the activity owner is active.
+
+## Coming from Supabase `track()`
+
+Supabase `track()` is the lifecycle analogue of bound `useSurface` presence or
+a non-`skip` `useSnapbackPresence` value: Supabase keeps the state until
+`untrack()`, channel leave, or disconnect; Snapback keeps the value desired
+while its binding is mounted and uses the provider heartbeat to sustain its
+TTL lease. Neither expires merely because the user went idle.
+
+Idle typing therefore needs extra stop choreography on both systems:
+`track()`/`untrack()` in Supabase, or **touch + provider heartbeat + delete**
+in Snapback:
+
+- `touch()` on each meaningful activity tick;
+- let the provider renew the unchanged admitted value;
+- let `useSnapbackActivityPresence` delete at `idleMs`, and call
+  `withdraw()` for earlier product transitions.
+
+The hook admits `idleMs` only as a finite safe integer from 250 through
+2,147,483,647 milliseconds. Invalid configuration refuses during render with
+`SNAPBACK_REACT_ACTIVITY_IDLE_MS_INVALID`; fix the deadline instead of
+clamping or adding another timer. That legal range is not a product-timing
+guarantee: `idleMs` plus delete visibility still must fit the expiry ceiling
+the application promises.
 
 The generated room scope and membership admission remain authoritative.
 Heartbeat extends only an already admitted ephemeral entry; it does not grant
@@ -3264,97 +3527,1183 @@ membership or make presence durable history.
 - Treating an expired or deleted entry as a durable offline-status record.
 - Reusing presence as membership, authorization, or message history.
 
+The packed external vertical receipt is
+`node scripts/activity-presence-vertical-contract.mjs`. It proves the `typing`
+Guide route, generated reference and public imports, runtime publish/delete,
+React idle and explicit withdrawal, Expo background withdrawal, and the
+invalid-`idleMs` diagnostic from one installed package closure. It also proves
+that a bound surface value persists past TTL under renewal and that switching
+that binding to `skip` withdraws it before TTL.
+
 ---
 
 <!-- snapback-guide-source: guide/recipes/membership-roster-projection.md -->
 ---
-title: "Recipe: private membership and a product roster"
+title: "Recipe: list chat members without exposing authority"
 id: recipes.membership-roster-projection
 order: 14
 audience: agent-first
 capabilities: [auth.scoped-roles, authority.profile.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0240-application-authority-profiles.rfc.md, llp/0295-published-matrix-improvement-program.plan.md, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/snapback/functions.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0240-application-authority-profiles.rfc.md, llp/0295-published-matrix-improvement-program.plan.md, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/snapback/functions.mjs, demos/messaging-snapback/tests/acceptance/roster-projection.mjs]
 examples: [demos/messaging-snapback]
 status: current
 targets: [local]
-maturity: partial
+maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:f8cdd66ec5f4c200d5e8b022f14e1d76730f26bca2df453a3b337acf8e44bdfa
+reviewed-authorities-digest: sha256:02fa9a165c7a62e27bd573b9cf13ce0e74a95055035087c96b20285727ed5310
 ---
 
-# Recipe: private membership and a product roster
+# Recipe: list chat members without exposing authority
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-Generated membership rows are current authorization state. They are private,
-profile-owned backing data, not presentation records and not message history.
-When an application needs avatars, handles, join dates, or a visible room
-roster, keep a separate ordinary product projection keyed by an authored
-resource field.
+Use this recipe when the product request sounds like “list chat members,”
+“show roster,” “who is in the room,” or “enumerate members.” Do **not** solve
+it by making the membership table public. Declare two different stores:
 
-This is the private membership roster plus product-visible roster projection
-pattern: the display roster is current product state, while the send-time
-recipient set is historical product state.
+Search phrases: list chat members; show roster; who is in the room; membership
+table public; enumerate members.
 
-Search phrase: send-time recipient set.
+Packaged full-prompt probes (kept on literal lines because `snapback guide`
+performs substring search):
 
-The Messaging demo uses this split:
+- Render a chat display roster with join dates and keep send-time recipients, but the membership roster is private.
+- list chat members without exposing the private authority rows.
+- show roster with roles and join dates for a chat room.
+- who is in the room now, and who received a message before someone left?
+- Should I make the membership table public so the client can render members?
+- enumerate members for a room settings screen and support add, promote, remove, and leave retries.
 
-- `conversationMemberships` is the membership declaration and authority
-  source;
-- `conversationMembers` is an ordinary app table with authored
-  `conversationId`, `principal`, and presentation fields;
-- child tables such as messages bind membership visibility through their
-  authored `conversationId`, not through a private membership-row id.
+- a private membership declaration for current authorization; and
+- an ordinary app-visible projection table for the display roster.
 
-## Use only the transitions the current witness proves
+This is today's sanctioned interim pattern. LLP 0240's D0.4 amendment has
+selected platform-generated projection facts as the prototype direction, but
+that design and its public spelling, flag, and API have not shipped. The
+application owns duplicate writes, fail-closed drift checks, and repair until
+the selected generated design lands; do not describe this interim as
+Snapback's final mirror protocol.
 
-Creation bootstraps the resource membership through the generated declaration
-command, then inserts the initial product roster rows in the same mutation. The
-Messaging demo currently proves two later transitions: a member removes self
-while deleting the projected roster row, and the owner adds that principal
-again while inserting the projection if absent. Each mutation issues one
-generated membership command plus ordinary application writes.
+## Put each fact in one authoritative home
 
-That witness does **not** implement or prove owner-removal of another member,
-promotion, or demotion: the demo declaration admits only owner-insert and
-self-remove. Do not copy this page as evidence those transitions synchronize.
-Add the needed transition rows, one atomic authority-plus-projection mutation
-per transition, and acceptance comparisons before claiming them. The reopened
-[guide-gap ticket](repo:issues/20260820-guide-gap-membership-roster-projection-recipe.md)
-tracks the missing proof and LLP 0295 vertical fixture.
+| Fact | Home | May authorize? | Lifetime |
+| --- | --- | --- | --- |
+| current `(conversation, principal, role)` and closed transition policy | private `conversationMemberships` declaration | yes | current authority only |
+| handle/avatar/name, display role, current `joinedAt` | ordinary `conversationMembers` projection | no | current product incarnation |
+| recipients and their roles when a message was sent | `messages.recipientSnapshot` | no | immutable product history |
+| delivered/read acknowledgements | `messages.deliveredBy` / `readBy` | no | history over the frozen recipient set |
 
-The projection is deliberately redundant. For the currently proved path,
-acceptance compares it with authority after create, self-leave, owner re-add,
-and retry. Make the product row unique by `(conversationId, principal)` and
-make retries idempotent. Authorization always consults the membership
-declaration even if a projection row is stale.
+The creator seat is server-derived and cannot carry arbitrary application
+fields through `bootstrap()`. Therefore the authority row's optional
+`joinedAt` is not product history. The projection gives every current member a
+required join time; leave deletes that current row, and re-add inserts a new
+row with a new join time. If the product needs every past incarnation, append
+a separate history row rather than preserving departed principals in the
+current roster.
 
-## Keep history separate from the current roster
+Product-visible does not mean public. For a private room, the projection must
+use an admitted membership-scoped table visibility policy and every roster or
+historical-recipient handler must require current room admission before it
+returns facts. Authentication alone is not room admission. The private
+authority declaration remains the only authorization source.
 
-A current roster answers “who is a member now?” Historical delivery answers
-“who received this message when it was sent?” If the product needs the latter,
-store a principal snapshot or receipt records at send time in an ordinary
-history table. Later joins and leaves must not rewrite old receipts.
+Do not duplicate roster facts onto a public conversation row. The inbox may
+assemble its admitted summaries from `conversationMembers`, while the thread UI
+reads `conversationRoster`. Conversation metadata and the message feed repeat
+the current-room admission check, and `messages` itself uses the same
+membership-scoped visibility posture as the roster projection.
 
-In Familiar schema, use authored relational keys such as
-`conversationId` for child visibility. Do not copy a `resourceField: "_id"`
-example into generated Familiar TypeScript today: the system id is not an
-authored schema field in that type surface. Admit access to the root resource
-through the authority profile/handler declaration, and bind child rows through
-their authored resource key.
+## Declare the private authority and visible projection separately
+
+The transition matrix admits owner add, owner promotion, owner remove, and
+member/moderator self-leave. The local `authorityProfile` exposes a bounded
+`list` with only declared principal/role fields, never a private membership-row
+id. It also publicly generates `invite`, `leave`, `changeRole`, `transferOwner`,
+and `remove`. None maintains the ordinary projection. Those writers cannot be
+made exclusive by application convention, so this composition is partial:
+guarded consumers must detect drift and fail closed, an owner-only repair must
+be retryable, and acceptance must exercise direct/bypass writers.
+
+```js source=demos/messaging-snapback/snapback/schema.mjs
+export const conversationMembers = defineTable({
+  conversationId: v.id('conversations'),
+  userHandle: v.string(),
+  // This copy is presentation state only. Authorization always consults the
+  // private conversationMemberships declaration below.
+  role: v.string(),
+  joinedAt: v.integer(),
+})
+  // Product-visible does not mean public. Every ordinary read is scoped by
+  // current admission through the canonical private membership declaration.
+  .visibility({
+    kind: 'membership',
+    declaration: 'conversationMemberships',
+    resourceField: 'conversationId',
+    roles: ['member'],
+  })
+  .index('by_conversation', ['conversationId'])
+  .index('by_user', ['userHandle'])
+  .index('by_conversation_user', ['conversationId', 'userHandle'], { unique: true });
+
+export const conversationMemberships = defineTable({
+  conversationId: v.id('conversations'),
+  userHandle: v.principal(),
+  role: v.string(),
+  // The generated bootstrap owns the creator seat and therefore cannot take
+  // app-authored incidental fields for it; initial roster seats still stamp it.
+  joinedAt: v.optional(v.integer()),
+})
+  .visibility({ kind: 'owner', field: 'userHandle' })
+  .index('by_conversation', ['conversationId'])
+  .index('by_user', ['userHandle'])
+  .index('by_conversation_user', ['conversationId', 'userHandle'], { unique: true })
+  // @ref LLP 0056#declaring-a-membership-table — typing authority is one
+  // canonical current principal/resource/role row, never a historical flag.
+  .membership({
+    id: 'conversationMemberships',
+    principal: 'userHandle',
+    resource: 'conversationId',
+    role: 'role',
+    roles: ['owner', 'moderator', 'member'],
+    bootstrapRole: 'owner',
+    lastHolder: { protect: 'owner' },
+    provenance: 'full',
+    transitions: [
+      { op: 'insert', by: ['owner'], target: 'other', to: ['member'], fields: ['joinedAt'] },
+      { op: 'setRole', by: ['owner'], target: 'other', from: ['member'], to: ['moderator'] },
+      { op: 'remove', by: ['owner'], target: 'other', from: ['moderator', 'member'] },
+      { op: 'remove', by: ['self'], target: 'self', from: ['moderator', 'member'] },
+    ],
+  })
+  // Today's profile writers are not projection-aware. They remain directly
+  // reachable, so the application boundary is explicitly partial: guarded
+  // consumers refuse on drift and the owner-only reconciliation mutation
+  // repairs interrupted or bypassed writes.
+  // @ref LLP 0240#authority-facts-versus-product-facts
+  // — option 1 remains the sanctioned interim, not the final generated design.
+  .authorityProfile({
+    name: 'conversationMemberships',
+    hierarchy: {
+      owner: ['moderator', 'member'],
+      moderator: ['member'],
+      member: [],
+    },
+    roster: { visible: ['userHandle', 'role'] },
+  });
+```
+
+Child product tables use an authored `conversationId` resource key. Do not use
+Familiar `resourceField: "_id"` when `_id` is outside the authored field union,
+and never copy a private membership-row id into the projection.
+
+Render the settings roster from the ordinary projection only, but require
+current membership before reading it. The table policy is a second fail-closed
+fence; the explicit handler check prevents an authenticated caller from using
+arbitrary room ids as a roster oracle. The result returns no authority-row
+identity:
+
+```js source=demos/messaging-snapback/snapback/functions.mjs
+const rosterRow = v.object({
+  userHandle: v.string(),
+  role: v.string(),
+  joinedAt: v.integer(),
+});
+
+// Product-visible current roster. Membership-scoped table visibility and the
+// explicit admission check below are both mandatory; authentication alone is
+// not permission to enumerate an arbitrary room.
+export const conversationRoster = defineJsLiveQuery({
+  args: { conversationId: v.id('conversations') },
+  auth: 'authenticated',
+  result: results.records(rosterRow),
+  reads: ['conversationMemberships', 'conversationMembers'],
+  handler: async (ctx, args) => {
+    await ctx.permissions.conversationMemberships.requireRole(
+      args.conversationId,
+      'owner',
+      'moderator',
+      'member',
+    );
+    const rows = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_conversation')
+      .eq('conversationId', args.conversationId)
+      .take(500)
+      .collect();
+    return rows.map((row) => ({
+      userHandle: row.userHandle,
+      role: row.role,
+      joinedAt: row.joinedAt,
+    }));
+  },
+});
+```
+
+The inbox viewer is never an argument. Derive it from `ctx.auth`, and make the
+closed `{}` argument contract reject attempts to query another principal's
+rooms:
+
+```js source=demos/messaging-snapback/snapback/functions.mjs
+export const myConversations = defineJsLiveQuery({
+  args: {},
+  auth: 'authenticated',
+  result: results.records(conversationSummary),
+  reads: ['conversationMembers', 'conversations'],
+  handler: async (ctx, args) => {
+    const memberships = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_user')
+      .eq('userHandle', ctx.auth.userId)
+      .take(500)
+      .collect();
+```
+
+Historical recipient/receipt facts are not public merely because they are
+immutable. Scope the stored message row by its authored `conversationId`:
+
+```js source=demos/messaging-snapback/snapback/schema.mjs
+  // Bodies and frozen recipient facts belong only to current room members.
+  // The feed handler repeats this admission check before reading either the
+  // messages or their public reaction rows.
+  .visibility({
+    kind: 'membership',
+    declaration: 'conversationMemberships',
+    resourceField: 'conversationId',
+    roles: ['member'],
+  })
+```
+
+Take the room id alongside the message id, require **current** admission before
+the row read, and confirm the message belongs to that room. This keeps both the
+table read and the function path non-enumerating:
+
+```js source=demos/messaging-snapback/snapback/functions.mjs
+  handler: async (ctx, args) => {
+    await ctx.permissions.conversationMemberships.requireRole(
+      args.conversationId,
+      'owner',
+      'moderator',
+      'member',
+    );
+    const message = await ctx.db.get('messages', args.messageId);
+    if (!message || message.conversationId !== args.conversationId) return [];
+    return [{
+      messageId: message._id,
+      recipients: message.recipientSnapshot ?? [],
+      deliveredBy: message.deliveredBy ?? [],
+      readBy: message.readBy ?? [],
+    }];
+  },
+```
+
+## Keep one retryable coordinator, but do not call it exclusive
+
+Bootstrap, app-authored add, and app-authored self-leave issue one membership
+command plus ordinary projection writes in one mutation. Every generated
+profile writer remains directly callable. A client coordinator should normally
+call the generated authority operation and then one idempotent reconciliation
+mutation, but that is ergonomics—not governance and not an exclusivity claim.
+
+The enforceable boundary is:
+
+1. sensitive consumers compare admitted authority facts with the projection
+   and refuse with `CONVERSATION_ROSTER_DRIFT` before using stale data;
+2. the owner-only reconciliation mutation reads the admitted authority roster
+   and converges the display rows; and
+3. retrying reconciliation after an interruption is safe and returns
+   `unchanged` once converged.
+
+The authority write and reconciliation are not one transaction. A durable
+client job/outbox must retain the unfinished reconciliation until it succeeds;
+after a process loss, the fail-closed consumer is the backstop and the same
+repair is the recovery action. Direct `invite`, `leave`, `changeRole`,
+`transferOwner`, or `remove` bypasses may create drift, but cannot feed a new
+recipient snapshot because sends check the pair first. This is the cost of the
+interim until the selected platform-generated D0.4 design ships.
+
+Keep the recovery call small and idempotent:
+
+```js source=demos/messaging-snapback/tests/acceptance/roster-projection.mjs
+async function reconcileRoster(conversationId, userId = OWNER) {
+  return (await mutate(api.reconcileConversationRoster, { conversationId }, userId)).result;
+}
+```
+
+Bootstrap creates the resource, private creator/initial seats, and ordinary
+projection rows in one mutation:
+
+```js source=demos/messaging-snapback/snapback/functions.mjs
+export const createGroup = defineJsMutation({
+  auth: 'authenticated',
+  authorityCreating: true,
+  args: {
+    title: v.string(),
+    creatorHandle: v.string(),
+    creatorName: v.string(),
+    memberHandles: v.array(v.string()),
+  },
+  result: results.value(v.id('conversations')),
+  writes: ['conversations', 'conversationMembers', 'conversationMemberships'],
+  handler: async (ctx, args) => {
+    const title = String(args.title ?? '').trim();
+    if (!title) throw new Error('a group needs a name');
+    // @ref LLP 0056#dated-amendment-bounded-atomic-bootstrap-rosters-2026-08-15 — do
+    // not let an authenticated caller split the creator principal from the
+    // handle written into the product projection.
+    const creatorHandle = ctx.auth.userId;
+    const uniqueOthers = Array.from(new Set(args.memberHandles.filter((h) => h !== creatorHandle)));
+    if (uniqueOthers.length < 1) throw new Error('a group needs at least one other member');
+    const allHandles = [creatorHandle, ...uniqueOthers];
+    const now = ctx.runtime.now();
+    const conversationId = await ctx.membership.conversationMemberships.bootstrap({
+      kind: 'group',
+      title,
+      lastMessageText: `${args.creatorName} created the group`,
+      lastMessageAuthorName: '',
+      lastMessageAt: now,
+      createdAt: now,
+    }, uniqueOthers.map((userHandle) => ({ userHandle, role: 'member', joinedAt: now })));
+    for (const handle of allHandles) {
+      await ctx.db.insert('conversationMembers', {
+        conversationId,
+        userHandle: handle,
+        role: handle === creatorHandle ? 'owner' : 'member',
+        joinedAt: now,
+      });
+    }
+    return conversationId;
+  },
+});
+```
+
+```js source=demos/messaging-snapback/snapback/functions.mjs
+// These two ordinary product mutations are also the sessions acceptance seam:
+// a member may leave, and the conversation owner may seat that principal again.
+export const leaveConversation = defineJsMutation({
+  auth: 'authenticated',
+  args: { conversationId: v.id('conversations') },
+  result: results.value(v.object({ outcome: v.string() })),
+  reads: ['conversationMemberships', 'conversationMembers'],
+  writes: ['conversationMemberships', 'conversationMembers'],
+  handler: async (ctx, args) => {
+    // @ref LLP 0176#one-owner-many-projections — the canonical roster and its
+    // product projection move together in this one mutation.
+    const memberHandle = ctx.auth.userId;
+    const admitted = await ctx.permissions.conversationMemberships.allowsRole(
+      args.conversationId,
+      'owner',
+      'moderator',
+      'member',
+    );
+    if (!admitted) return { outcome: 'unchanged' };
+    const projectedMembership = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_conversation_user')
+      .eq('conversationId', args.conversationId)
+      .eq('userHandle', memberHandle)
+      .first();
+    await ctx.membership.conversationMemberships.removeSelf(args.conversationId);
+    if (projectedMembership) await ctx.db.delete('conversationMembers', projectedMembership._id);
+    return { outcome: 'changed' };
+  },
+});
+
+export const addConversationMember = defineJsMutation({
+  auth: 'authenticated',
+  authorityCreating: true,
+  args: {
+    conversationId: v.id('conversations'),
+    userHandle: v.principal(),
+  },
+  result: results.value(v.object({ outcome: v.string() })),
+  reads: ['conversationMemberships', 'conversationMembers'],
+  writes: ['conversationMemberships', 'conversationMembers'],
+  handler: async (ctx, args) => {
+    // @ref LLP 0176#one-owner-many-projections — seating a principal updates the
+    // authority roster, inbox edge, and member-count projection atomically.
+    await ctx.permissions.conversationMemberships.requireRole(args.conversationId, 'owner');
+    const authority = await ctx.authority.conversationMemberships.list(
+      args.conversationId,
+      { limit: 500 },
+    );
+    const authoritativeMembership = authority.rows
+      .find((member) => member.userHandle === args.userHandle);
+    const projectedMembership = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_conversation_user')
+      .eq('conversationId', args.conversationId)
+      .eq('userHandle', args.userHandle)
+      .first();
+    if (authoritativeMembership && projectedMembership) return { outcome: 'unchanged' };
+    const now = ctx.runtime.now();
+    if (!authoritativeMembership) {
+      await ctx.membership.conversationMemberships.insert({
+        conversationId: args.conversationId,
+        userHandle: args.userHandle,
+        role: 'member',
+        joinedAt: now,
+      });
+    }
+    if (projectedMembership) await ctx.db.delete('conversationMembers', projectedMembership._id);
+    await ctx.db.insert('conversationMembers', {
+      conversationId: args.conversationId,
+      userHandle: args.userHandle,
+      role: authoritativeMembership?.role ?? 'member',
+      joinedAt: now,
+    });
+    return { outcome: 'changed' };
+  },
+});
+
+export const reconcileConversationRoster = defineJsMutation({
+  auth: 'authenticated',
+  args: { conversationId: v.id('conversations') },
+  result: results.value(v.object({
+    outcome: v.string(),
+    inserted: v.integer(),
+    updated: v.integer(),
+    removed: v.integer(),
+  })),
+  reads: ['conversationMemberships', 'conversationMembers'],
+  writes: ['conversationMembers'],
+  handler: async (ctx, args) => {
+    await ctx.permissions.conversationMemberships.requireRole(args.conversationId, 'owner');
+    const authority = await ctx.authority.conversationMemberships.list(
+      args.conversationId,
+      { limit: 500 },
+    );
+    const projected = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_conversation')
+      .eq('conversationId', args.conversationId)
+      .take(500)
+      .collect();
+    const projectedByPrincipal = new Map(
+      projected.map((member) => [member.userHandle, member]),
+    );
+    const authorityByPrincipal = new Map(
+      authority.rows.map((member) => [member.userHandle, member]),
+    );
+    let inserted = 0;
+    let updated = 0;
+    let removed = 0;
+    for (const member of authority.rows) {
+      const current = projectedByPrincipal.get(member.userHandle);
+      if (!current) {
+        await ctx.db.insert('conversationMembers', {
+          conversationId: args.conversationId,
+          userHandle: member.userHandle,
+          role: member.role,
+          // A direct generated invite can commit before the app projection.
+          // Recovery owns the new visible incarnation time at repair.
+          joinedAt: ctx.runtime.now(),
+        });
+        inserted += 1;
+      } else if (current.role !== member.role) {
+        await ctx.db.patch('conversationMembers', current._id, { role: member.role });
+        updated += 1;
+      }
+    }
+    for (const member of projected) {
+      if (!authorityByPrincipal.has(member.userHandle)) {
+        await ctx.db.delete('conversationMembers', member._id);
+        removed += 1;
+      }
+    }
+    const changed = inserted + updated + removed;
+    return {
+      outcome: changed === 0 ? 'unchanged' : 'changed',
+      inserted,
+      updated,
+      removed,
+    };
+  },
+});
+```
+
+Bootstrap uses the atomic form: call
+`conversationMemberships.bootstrap(resourceValues, initialMembers)` once,
+then insert the creator and initial members into `conversationMembers` before
+the mutation returns. A failed command or ordinary write rolls back the whole
+mutation.
+
+The branch contract is explicit: atomic app add/self-leave and the repair
+mutation return `unchanged` once their local state is already current. Generated
+operations retain their own closed receipt/refusal contract; do not preflight
+them from an unfenced product roster and do not relabel an application
+short-circuit as coverage of a generated operation's absent/idempotent branch.
+Owner mutations call `requireRole` first. Self-leave sees only the
+server-derived caller and never accepts a target principal. The app mutations
+preflight canonical authority, not the fallible projection: an interrupted
+generated remove followed by app add opens a fresh projected incarnation, and
+an interrupted generated invite followed by app leave still removes authority.
+
+## Freeze receipt membership when the message is sent
+
+Authorize the send against the private declaration, enumerate the synchronized
+product projection with an explicit ceiling, and write the recipient snapshot
+on the message in the same transaction. The projection supplies product data;
+it does not grant send authority.
+
+```js source=demos/messaging-snapback/snapback/functions.mjs
+    const currentRoster = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_conversation')
+      .eq('conversationId', args.conversationId)
+      .take(501)
+      .collect();
+    if (currentRoster.length > 500) {
+      ctx.refuse('MESSAGE_RECIPIENT_LIMIT', { limit: 500 });
+    }
+    const authority = await ctx.authority.conversationMemberships.list(
+      args.conversationId,
+      { limit: 500 },
+    );
+    const rosterFacts = currentRoster
+      .map((member) => `${member.userHandle}:${member.role}`)
+      .sort();
+    const authorityFacts = authority.rows
+      .map((member) => `${member.userHandle}:${member.role}`)
+      .sort();
+    // @ref LLP 0240#authority-facts-versus-product-facts — the interim mirror
+    // is not an authority source. A missed/bypass projection write fails closed
+    // before stale members can enter a new historical recipient snapshot.
+    if (JSON.stringify(rosterFacts) !== JSON.stringify(authorityFacts)) {
+      ctx.refuse('CONVERSATION_ROSTER_DRIFT');
+    }
+    const recipientSnapshot = currentRoster
+      .filter((member) => member.userHandle !== ctx.auth.userId)
+      .map((member) => ({ userHandle: member.userHandle, roleAtSend: member.role }));
+    const now = ctx.runtime.now();
+    const messageId = await ctx.db.insert('messages', {
+      conversationId: args.conversationId,
+      authorHandle: args.authorHandle,
+      authorName: args.authorName,
+      body,
+      ...(args.replyToId ? { replyToId: args.replyToId } : {}),
+      ...(args.assetId
+        ? { image: await ctx.assets.attach(args.assetId, { upload: 'messageImageUpload' }) }
+        : {}),
+      recipientSnapshot,
+      deliveredBy: [],
+      readBy: [],
+      createdAt: now,
+    });
+    // @ref LLP 0240#authority-facts-versus-product-facts — freeze receipt
+    // membership from the synchronized product roster in the send transaction.
+    // Later joins, leaves, kicks, and promotions never rewrite this snapshot.
+```
+
+Later joins never enter an old snapshot. Later leave/remove never deletes a
+recipient or acknowledgement from it. Later promotion never changes
+`roleAtSend`. Receipt aggregates use the frozen set as their denominator; a
+newly joined principal cannot acknowledge an older message, while a departed
+recipient's already-recorded delivery/read fact remains history.
+
+## Prove authority and projection cannot drift silently
+
+The acceptance uses the profile's admitted, bounded authority roster—not an
+operator scan—and compares only declared principal/role facts with the product
+projection. No app result contains a private authority-row id.
+
+```js source=demos/messaging-snapback/tests/acceptance/roster-projection.mjs
+async function assertRosterSynchronized(conversationId, label, viewer = OWNER) {
+  // The profile's bounded list is the admitted authority view: it exposes no
+  // private row id. Compare it with the ordinary product query after every
+  // app-owned transition so a missed companion write fails this acceptance.
+  const [authority, projection] = await Promise.all([
+    query(api.conversationMemberships.list, { scopeId: conversationId }, viewer),
+    query(api.conversationRoster, { conversationId }, viewer),
+  ]);
+  const normalize = (rows) => rows
+    .map((row) => `${row.userHandle}:${row.role}`)
+    .sort();
+  assertEqual(
+    normalize(projection.rows),
+    normalize(authority.rows),
+    `${label}: product roster matches admitted authority roster`,
+  );
+  return normalize(authority.rows);
+}
+```
+
+The dedicated dev-mode acceptance proves anonymous inbox denial; rejects a
+caller-supplied viewer; denies outsiders and authenticated callers from other
+rooms at conversation metadata, message-feed, roster, and recipient-snapshot
+reads; and admits current members without returning roster facts on the
+conversation row. It then commits direct generated `remove`, `invite`,
+`changeRole`, `transferOwner`, and `leave` operations without their companion
+projection write. Each deliberate divergence makes send refuse before a
+snapshot write. It also pins self-leave retry plus the interrupted
+remove→app-add and invite→app-leave preflight branches. Idempotent repair
+converges the stores, retry returns `unchanged`, and the removed principal is
+absent from the next snapshot. This check is mandatory for the interim
+app-maintained pattern: a mismatch is a failing invariant, never permission to
+authorize from whichever table looks convenient.
+
+For the ephemeral room bound to this same authority declaration, continue with
+[declare membership and the typing room together](./typing-indicators.md#1-declare-membership-and-the-typing-room-together).
+For typing lifetime, use the separate
+[activity presence heartbeat recipe](./activity-presence.md#recipe-activity-presence-heartbeats-and-withdrawal);
+roster projection is durable product state, not presence.
 
 ## Anti-patterns
 
-- Reading private membership backing rows directly to render the roster.
-- Treating the product projection as the authorization source.
-- Using a private membership-row id as a public recipient or display id.
-- Rewriting historical recipient snapshots when current membership changes.
-- Adding multiple membership commands to one mutation.
-- Using `resourceField: "_id"` in a Familiar schema declaration that cannot
-  typecheck that system field.
+- Making the membership table public to “show roster” or “enumerate members.”
+- Reading the projection as authority or accepting caller-supplied roles.
+- Copying a private membership-row id into an app-visible table.
+- Calling an application coordinator exclusive while generated `invite`,
+  `leave`, `changeRole`, `transferOwner`, and `remove` remain directly reachable.
+- Reading a roster or receipt snapshot after checking only `authenticated`
+  instead of current admission to that exact room.
+- Leaving message bodies or frozen recipient facts on a `public-read` table.
+- Returning roster facts from a public conversation row instead of the
+  admitted roster projection.
+- Treating `bootstrap()` as able to stamp arbitrary creator-seat product data.
+- Recomputing an old recipient set from current membership.
+- Removing departed recipients from receipt aggregates.
+- Describing D0.4's selected platform-generated direction as undecided, or
+  inventing its not-yet-shipped public API.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/capability-links.md -->
+---
+title: "Recipe: capability links for Expo and web"
+id: recipes.capability-links
+order: 15
+audience: agent-first
+capabilities: [api.capability-links]
+authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0150-agent-token-acquisition.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0294-early-expo-workflow-closure.plan.md, crates/snapback-server/src/server.rs, crates/snapback-kernel/src/storage/capability_links.rs, crates/snapback/tests/route_policy_v1.rs, packages/snapback-codegen/auth-artifacts.test.mjs, scripts/check-guide-capability-link-example.mjs]
+examples: [packages/snapback-codegen/auth-artifacts.test.mjs, scripts/check-guide-capability-link-example.mjs]
+status: current
+targets: [local]
+maturity: partial
+since: 0.1.24
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:dc636112af1bf4c02640204a13226a5e75261f71c7ea013eb578170b04bfaf6b
+---
+
+# Recipe: capability links for Expo and web
+
+> **Local target only.** Snapback 0.1.24 ships the local anonymous-set slice,
+> and only over local carriers. Use it from a same-host web app, iOS Simulator, or an
+> Android emulator whose supervised carrier can reach the loopback backend.
+> Public-recipient sharing, physical-device delivery, hosted capability links,
+> granted-operation links, identity-bearing links, and guest-session entry are
+> not shipped. Do not expose the local server through a public tunnel.
+
+Use this recipe for an expiring **share-to-view** URL whose target query is
+already callable by an anonymous user. The exact minting session can revoke it
+while that session remains current. The recipe covers signed-in mint, share,
+crawler-safe inert `GET`, Expo/web intake, explicit `POST` invoke,
+use-count/replay handling, expiry, and same-session revocation.
+
+The minted URL names the Snapback server origin. On another computer or phone,
+its loopback host names that recipient's device, not the development machine.
+The URL is therefore not a public share carrier. The supported journey here is
+same-host web or a supervised simulator/emulator route; a hosted application
+edge and physical-device recipient carrier remain future work. Use the
+[Expo carrier table](../clients/react-expo.md#choose-simulator-emulator-or-usb-routing)
+for exact routing constraints, and keep the
+[local-target boundary](../auth/targets.md#a-public-tunnel-does-not-make-the-loopback-server-production-ready)
+when choosing a carrier.
+
+An `sbl_…` capability-link token is a secret URL and bearer invocation input
+for one link. It is **not** a session, user, principal, login, guest identity,
+OAuth token, or general deep link grant. Never place it in a `SnapbackClient`
+`bearerToken`, `Authorization`, an auth coordinator, SecureStore, AsyncStorage,
+localStorage, IndexedDB, the RQS store, an app table, logs, analytics, crash
+reports, or referrers.
+
+## Choose the right link before building
+
+The shipped link adds pinned arguments, attribution, a budget, expiry, and an
+optional use count to one exposed function in the **external anonymous set**:
+`auth: 'public'`, or `auth: 'optional-user'` invoked without a user. It does
+not make protected data or a protected operation anonymous.
+
+| App intent | Use today | Boundary |
+| --- | --- | --- |
+| **Invite link** | Shipped capability link only for an already-anonymous RSVP/capture function; otherwise an app-owned invitation-token row | Group membership, protected content, principal creation, and identity-bearing acceptance require the unshipped granted-operation/identity flow. |
+| **Capture link** | Shipped single-use or approval-per-use link when the capture mutation/action is deliberately anonymous and exposed | “Enter as guest, keep a draft, claim it later” is not this feature. First-party guest entry is unshipped and awaiting owner review. |
+| **Share-to-view** | Shipped query link when the exact query is anonymous and exposed | A private row, owner query, or membership query needs the unshipped granted-operation link; do not weaken the function to make the link fit. |
+| **Upload request** | App-owned request row plus the normal authenticated [asset upload](../backend/assets.md) flow | A capability link is not upload custody or an asset-owner session. The implemented slice has no capability-link asset-upload ceremony. |
+| **Account claim** / **claim link** | App-owned one-time claim-token row and an authenticated app ceremony, if the app owns that protocol | Account/guest claim is identity authority. Granted-operation links and first-party guest entry remain unshipped; a capability link cannot claim an account. |
+
+An app-owned token row remains appropriate when the token represents durable
+product workflow state rather than one function invocation: named invite
+acceptance, staged upload ownership, account claim, guest continuity, or a
+workflow with product-specific resend/rotation rules. Do not build such a row
+for the share-to-view case below.
+
+## Expose one anonymous query
+
+The function must say `auth: 'public'` (or explicitly `optional-user`) and the
+schema must expose that exact name. This codegen fixture is the minimal shape
+used by the Guide's CI:
+
+```js source=packages/snapback-codegen/auth-artifacts.test.mjs
+export const listTodos = defineLiveQuery({
+  table: 'todos',
+  index: 'by_title',
+  filter: [eq('title', lit('fixed'))],
+  auth: 'public',
+  authorityIndependent: true,
+});
+```
+
+```js source=packages/snapback-codegen/auth-artifacts.test.mjs
+  api: {
+    enabled: true,
+    functions: { listTodos: { expose: true, since: 'v1' } },
+    origins: ['https://example.com:8443'],
+  },
+```
+
+Capability-link storage and routes activate with `api.enabled` on a
+sessions-mode app. V1 mint admission requires a live signed-in human session,
+an exposed function whose effective auth is `public` or `optional-user`, and a
+valid pinned/caller argument template. It does **not** ask whether the issuer
+could invoke a protected function through their session: even an exposed
+protected function the issuer can call directly is refused with
+`SNAPBACK_CAPABILITY_LINK_FUNCTION_NOT_ANONYMOUS`.
+
+Landing and invoke re-check that the API is enabled and the function remains
+exposed and anonymously callable. They also require an active, unexpired,
+unexhausted link and a still-live human minter principal. Use-time life follows
+the principal, not the minting session: refreshing, rotating, or ending that
+session does not kill an otherwise valid link.
+
+## Mint and share from the issuer boundary
+
+`POST /capability-links` requires a signed-in session bearer and returns the
+raw token exactly once inside `url`. The current first-party application client
+does not ship a typed `mintCapabilityLink` wrapper and deliberately does not
+reveal coordinator-owned bearer bytes. Use the HTTP helper only inside an
+issuer integration that already owns an explicit session bearer. Do not read
+an undocumented `appClient.client.bearerToken` property or copy browser/native
+custody into application state to make this call.
+
+```js source=scripts/check-guide-capability-link-example.mjs
+export async function mintShareLink(
+  fetchImpl,
+  serverOrigin,
+  sessionBearer,
+  { functionName = 'listTodos', expiresInMs = 3_600_000, uses = 1 } = {},
+) {
+  const response = await fetchImpl(new URL('/capability-links', serverOrigin), {
+    method: 'POST',
+    credentials: 'omit',
+    cache: 'no-store',
+    referrerPolicy: 'no-referrer',
+    headers: {
+      authorization: `Bearer ${sessionBearer}`,
+      'content-type': 'application/json',
+      'x-snapback-auth-client-protocol': '1',
+    },
+    body: JSON.stringify({
+      function: functionName,
+      pinnedArgs: {},
+      callerArgs: [],
+      expiresInMs,
+      uses,
+    }),
+  });
+  if (!response.ok) throw new Error('capability-link mint failed');
+  const minted = await response.json();
+  return Object.freeze({
+    id: minted.id,
+    serverUrl: new URL(minted.url, serverOrigin).href,
+    expiresAtMs: minted.expiresAtMs,
+    remainingUses: minted.remainingUses,
+  });
+}
+```
+
+Use `serverUrl` directly only when the recipient carrier can reach that exact
+server origin. Do not print it. The response also returns the safe management
+id `cplk_…`. Retain that id for a revoke button only while the exact minting
+session and authority instance remain current; a replacement session cannot
+use it. The URL token itself must not enter durable app state.
+
+For a supervised simulator/emulator app, construct a custom-scheme URL only by
+validating the minted server URL against the one configured origin and closed
+token shape:
+
+```js source=scripts/check-guide-capability-link-example.mjs
+export function toExpoCapabilityUrl(serverUrl, options) {
+  const target = resolveCapabilityTarget(serverUrl, options);
+  if (target === null || !/^[a-z][a-z0-9+.-]*$/u.test(options.expoScheme)) {
+    throw new TypeError('capability server URL or Expo scheme is invalid');
+  }
+  const token = new URL(target).pathname.split('/').at(-1);
+  return `${options.expoScheme}://share/${token}`;
+}
+```
+
+This changes only the app ingress carrier; invocation still targets the exact
+local `serverOrigin`. It does not make a physical device or public recipient
+able to reach a loopback server.
+
+The local target defaults to seven days and refuses expiry beyond thirty days.
+Set a shorter application-specific `expiresInMs` whenever possible. `uses: 1`
+is a **single-use token**. Omit `uses` for an expiry-bounded query link (with
+same-session revoke while that session remains current), or set a positive
+count for a bounded multi-use query link.
+
+For mutations/actions, `uses: 1` is required unless every use is approval-
+gated by the function declaration or mint request (`approval: true`). An
+approval-per-use link creates a pending effect; the minter must explicitly
+approve it. Possession never chooses an approver. Multi-use approval is not
+multi-use direct write authority.
+
+## Keep shared URLs crawler-safe
+
+The minted server URL is safe to unfurl: `GET /capability-links/{token}` only
+returns bearer-free metadata (`id`, function, kind, caller-argument names,
+expiry, remaining uses, and approval mode). It does not invoke the function,
+consume a use, mutate link state, or create an approval request. The actual
+read or write happens only at `POST /capability-links/{token}/invoke` after an
+explicit user action.
+
+Snapback marks the mint and token-bearing routes `no-store`, applies
+`Referrer-Policy: no-referrer`, and normalizes the registered `{token}` path
+for diagnostics/telemetry. Keep those properties through any proxy. A custom
+web landing route such as `/share/{token}` must also:
+
+- redact the path before access/application/error logging;
+- send `Cache-Control: no-store` and `Referrer-Policy: no-referrer`;
+- render no third-party scripts, pixels, fonts, images, or auto-submitting
+  forms; and
+- scrub the address bar before analytics or other app subsystems mount.
+
+If the frontend cannot guarantee all four, share the minted Snapback URL
+directly. Do not put it in a `?token=` parameter, redirect it through a link
+shortener, or add campaign parameters.
+
+## Strip Expo links before router state exists
+
+Do not add a `Linking.addEventListener` beside Expo Router. That listener is
+additive: the router or another subscriber can persist the same secret URL
+before your callback runs. Reserve capability-link ingress at Expo Router's
+native-intent boundary instead. Put this wrapper in `app/+native-intent.tsx`:
+
+```ts fragment reason="application-owned Expo Router boundary wiring"
+import { redirectCapabilitySystemPath } from '../capability-link-intake';
+import { capabilityLinkOptions } from '../capability-link-options';
+
+export function redirectSystemPath({ path }: { path: string; initial: boolean }) {
+  return redirectCapabilitySystemPath({ path }, capabilityLinkOptions);
+}
+```
+
+The checked implementation runs before Expo Router creates navigation state.
+It moves a valid target into a process-local, one-use handoff and returns a
+changing clean route such as `/shared/1`. The sequence is not a secret and
+contains no token; changing it makes a second intent observable while the
+shared screen is already warm. A malformed token-bearing path returns the
+clean `/invalid-link` route; unrelated paths pass through unchanged.
+
+```js source=scripts/check-guide-capability-link-example.mjs
+let nativeCapabilityHandoffSequence = 0;
+let pendingNativeCapabilityTarget = null;
+
+export function redirectCapabilitySystemPath({ path }, options) {
+  const target = resolveCapabilityTarget(path, options);
+  if (target !== null) {
+    nativeCapabilityHandoffSequence += 1;
+    const handoffSequence = String(nativeCapabilityHandoffSequence);
+    pendingNativeCapabilityTarget = Object.freeze({ handoffSequence, target });
+    return `/shared/${handoffSequence}`;
+  }
+  if (typeof path === 'string' && path.includes('sbl_')) return '/invalid-link';
+  return path;
+}
+
+export function takePendingNativeCapabilityTarget(handoffSequence) {
+  if (pendingNativeCapabilityTarget?.handoffSequence !== String(handoffSequence)) return null;
+  const { target } = pendingNativeCapabilityTarget;
+  pendingNativeCapabilityTarget = null;
+  return target;
+}
+```
+
+Implement the screen as `app/shared/[handoffSequence].tsx`. Take the pending
+target whenever that non-secret route parameter changes, not only on mount;
+then construct `openCapabilityLink` and render analytics or other application
+subsystems. This is the warm-start signal for a second share intent. If the
+take returns `null`, render the unavailable state.
+
+```tsx fragment reason="application-owned dynamic Expo Router screen wiring"
+const { handoffSequence } = useLocalSearchParams<{ handoffSequence: string }>();
+const handledHandoffSequence = useRef<string | null>(null);
+
+useEffect(() => {
+  if (handledHandoffSequence.current === handoffSequence) return;
+  handledHandoffSequence.current = handoffSequence;
+  const target = takePendingNativeCapabilityTarget(handoffSequence);
+  // Open target, or render unavailable when it is null.
+}, [handoffSequence]);
+```
+
+Do not mirror the secret target into params, navigation state, a React store,
+or durable storage. The checked parser accepts only one fixed server origin,
+one fixed web origin, one fixed Expo scheme, and the exact `sbl_` token shape;
+it rejects query strings, fragments, embedded credentials, foreign origins,
+and arbitrary callback origins.
+
+```js source=scripts/check-guide-capability-link-example.mjs
+const TOKEN_PATTERN = /^sbl_[A-Za-z0-9_-]{43}$/u;
+const UNAVAILABLE = 'SNAPBACK_CAPABILITY_LINK_UNAVAILABLE';
+```
+
+```js source=scripts/check-guide-capability-link-example.mjs
+function resolveCapabilityTarget(rawUrl, {
+  serverOrigin,
+  webOrigin,
+  expoScheme,
+}) {
+  let incoming;
+  try {
+    incoming = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  if (incoming.username || incoming.password || incoming.search || incoming.hash) return null;
+
+  const expectedWebOrigin = new URL(webOrigin).origin;
+  const expectedServerOrigin = new URL(serverOrigin).origin;
+  let token = null;
+  if (incoming.origin === expectedServerOrigin) {
+    token = incoming.pathname.match(/^\/capability-links\/(sbl_[A-Za-z0-9_-]{43})$/u)?.[1] ?? null;
+  } else if (incoming.origin === expectedWebOrigin) {
+    token = incoming.pathname.match(/^\/share\/(sbl_[A-Za-z0-9_-]{43})$/u)?.[1] ?? null;
+  } else if (
+    incoming.protocol === `${expoScheme}:`
+    && incoming.hostname === 'share'
+  ) {
+    token = incoming.pathname.match(/^\/(sbl_[A-Za-z0-9_-]{43})$/u)?.[1] ?? null;
+  }
+  if (!TOKEN_PATTERN.test(token ?? '')) return null;
+  return new URL(`/capability-links/${token}`, serverOrigin).href;
+}
+```
+
+For web, read and scrub the URL before mounting analytics or third-party
+subresources:
+
+```js source=scripts/check-guide-capability-link-example.mjs
+export function consumeWebCapabilityLocation(windowLike) {
+  const rawUrl = windowLike.location.href;
+  windowLike.history.replaceState(null, '', '/shared');
+  return rawUrl;
+}
+```
+
+The initial web request still reaches your edge with the token path, so
+`replaceState` complements rather than replaces the proxy controls above.
+Neither native-intent rewriting nor `replaceState` can erase OS/browser share
+history, notification previews, clipboard history, or records retained by the
+channel that delivered the URL. Bound that residual exposure with the shortest
+practical expiry, a small use count, and same-session issuer revocation while
+it remains available.
+
+## Preview, then invoke only on a user action
+
+The checked controller keeps the token-bearing server URL only in a volatile
+closure. Its public snapshot contains only the server's bearer-free landing
+projection. Opening performs one `GET`; it never invokes automatically.
+
+Set `fetchImpl` to raw platform fetch, for example
+`globalThis.fetch.bind(globalThis)`, or to a wrapper proven never to add the
+coordinator bearer. Do not pass a `SnapbackClient` authenticated transport.
+The token is the complete credential on both landing and invoke: the server
+refuses **any** `Authorization` header on either request with
+`SNAPBACK_CAPABILITY_LINK_UNAVAILABLE`, even when the bearer is otherwise a
+valid signed-in session.
+
+```js source=scripts/check-guide-capability-link-example.mjs
+async function requestCapability(fetchImpl, url, method, args) {
+  const response = await fetchImpl(url, {
+    method,
+    credentials: 'omit',
+    cache: 'no-store',
+    referrerPolicy: 'no-referrer',
+    headers: method === 'POST' ? { 'content-type': 'application/json' } : undefined,
+    body: method === 'POST' ? JSON.stringify({ args }) : undefined,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    return Object.freeze({
+      ok: false,
+      code: payload?.diagnostic?.code ?? 'REQUEST_FAILED',
+    });
+  }
+  return Object.freeze({ ok: true, payload });
+}
+```
+
+```js source=scripts/check-guide-capability-link-example.mjs
+export async function openCapabilityLink(rawUrl, options) {
+  let target = resolveCapabilityTarget(rawUrl, options);
+  if (target === null) return Object.freeze({ status: 'invalid-link' });
+
+  let previewRequest = await requestCapability(options.fetchImpl, target, 'GET');
+  if (!previewRequest.ok) {
+    target = null;
+    return Object.freeze({
+      status: previewRequest.code === UNAVAILABLE ? 'unavailable' : 'request-failed',
+      code: previewRequest.code,
+    });
+  }
+  let preview = previewRequest.payload;
+  let terminal = null;
+
+  const snapshot = () => Object.freeze(terminal ?? { status: 'ready', preview });
+  const refresh = async () => {
+    if (target === null) return snapshot();
+    previewRequest = await requestCapability(options.fetchImpl, target, 'GET');
+    if (!previewRequest.ok) {
+      terminal = Object.freeze({
+        status: previewRequest.code === UNAVAILABLE ? 'unavailable' : 'request-failed',
+        code: previewRequest.code,
+      });
+      target = null;
+    } else {
+      preview = previewRequest.payload;
+    }
+    return snapshot();
+  };
+
+  return Object.freeze({
+    snapshot,
+    refresh,
+    async invoke(args = {}) {
+      if (target === null) return Object.freeze({ invoked: false, state: snapshot() });
+      const invokeTarget = `${target}/invoke`;
+      const result = await requestCapability(options.fetchImpl, invokeTarget, 'POST', args);
+      if (!result.ok && result.code === UNAVAILABLE) {
+        terminal = Object.freeze({ status: 'unavailable', code: result.code });
+        target = null;
+      } else if (result.ok && preview.remainingUses === 1) {
+        terminal = Object.freeze({ status: 'used' });
+        target = null;
+      } else {
+        await refresh();
+      }
+      return Object.freeze({ invoked: true, result, state: snapshot() });
+    },
+  });
+}
+```
+
+Create this controller after URL intake. Render `controller.snapshot()` and
+wire `controller.invoke({})` to a button press; never call it in a mount effect,
+route loader, preview render, or link listener. Pass only raw fetch:
+
+```js fragment reason="application-owned controller construction"
+const controller = await openCapabilityLink(rawUrl, {
+  ...capabilityLinkOptions,
+  fetchImpl: globalThis.fetch.bind(globalThis),
+});
+```
+
+| State | UI | Network behavior |
+| --- | --- | --- |
+| `invalid-link` | “This link is malformed.” | None. |
+| `ready` | Function label, expiry, remaining-use facts, and an explicit View/Submit button | Inert `GET` already completed; button performs `POST`. |
+| `used` | “This single-use link has been used.” | The volatile target is cleared; replay performs no request. |
+| `unavailable` | “This link is expired, used, revoked, or unavailable.” | The server deliberately gives the same non-enumerating refusal for all terminal causes. |
+| `request-failed` | Retry without echoing the URL | No diagnostic, exception, or UI copy includes the token. |
+
+After a multi-use invocation, the controller performs another inert `GET` to
+refresh `remainingUses`. A successful single-use invocation clears the target
+locally. A server-side expiry, exhausted use count, successful same-session
+revocation, or deactivated minter principal returns the same
+`SNAPBACK_CAPABILITY_LINK_UNAVAILABLE`; the app must not distinguish them.
+
+The issuer can revoke with `DELETE /capability-links/{id}` only from the exact
+minting session and authority instance. A successful same-session revoke is
+immediate at the next landing/invoke gate. Refresh and password change keep the
+same session, so revoke still works when it sends the rotated bearer. Sign-out
+or a newly minted session cannot revoke: `DELETE` returns
+`SNAPBACK_CAPABILITY_LINK_REVOKE_DENIED`, while the link remains usable until
+expiry, use exhaustion, or minter-principal deactivation. Treat revoke as a
+same-session convenience, not a durable issuer control. Bound every link with
+the shortest practical `expiresInMs` and a small `uses` count.
+
+Keep `id` and token roles separate: management uses the safe id; recipients use
+the secret URL.
+
+```js source=scripts/check-guide-capability-link-example.mjs
+export async function revokeShareLink(fetchImpl, serverOrigin, sessionBearer, id) {
+  const response = await fetchImpl(
+    new URL(`/capability-links/${encodeURIComponent(id)}`, serverOrigin),
+    {
+      method: 'DELETE',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {
+        authorization: `Bearer ${sessionBearer}`,
+        'x-snapback-auth-client-protocol': '1',
+      },
+    },
+  );
+  if (response.status !== 204) throw new Error('capability-link revoke failed');
+}
+```
+
+The issuer bearer remains in its existing custody boundary; only the safe
+management id crosses into the revoke-button state. After a successful
+same-session revocation, a recipient's next `refresh()` or `invoke()` converges
+on `unavailable` without revealing whether revocation, expiry, exhaustion, or
+principal deactivation caused it.
+
+## Run the executable proof
+
+The Guide consistency lane runs:
+
+```sh
+node scripts/check-guide-capability-link-example.mjs
+```
+
+It generates a sessions/API fixture, boots the configured native Snapback
+runtime, signs in, and proves against the real routes that protected functions
+fail the v1 anonymous mint gate; repeated crawler `GET` is inert; any
+`Authorization` on token `GET`/`POST` is refused; explicit raw-fetch `POST`
+consumes uses; exhausted server-side replay, an injected expiry boundary, and
+real same-session `DELETE` revocation converge on the unavailable diagnostic;
+another session cannot revoke; ending the minting session does not kill the
+link; and every mint/token/management response carries `Cache-Control:
+no-store` and `Referrer-Policy: no-referrer`. It also proves that cold and warm
+Expo native-intent rewriting gives the router only changing clean non-secret
+routes, each volatile handoff is one-use, web scrubbing precedes opening, and
+public UI state contains no token.
+
+## Anti-patterns
+
+- Creating an app token table for an anonymous share-to-view query that fits
+  this shipped slice.
+- Weakening a protected query to `public` so an anonymous-set link can reach it.
+- Treating a capability URL as a guest session, login, principal, or general
+  deep link grant. Guest entry remains unshipped and awaits owner review.
+- Putting the token in `Authorization`, client auth custody, durable storage,
+  logs, analytics, crash reports, query parameters, redirects, or referrers.
+- Reusing an authenticated client transport for landing/invoke, or assuming a
+  replacement session can revoke a link minted by an earlier session.
+- Adding a capability-link `Linking` listener beside a router or another URL
+  consumer; intercept and strip at the exclusive pre-navigation boundary.
+- Treating a loopback server URL or custom-scheme wrapper as a public or
+  physical-device share carrier, or tunnelling the local server to make it one.
+- Invoking on `GET`, mount, route load, link receipt, crawler preview, or any
+  event other than an explicit user action.
+- Claiming granted-operation capability links ship. They are commissioned
+  design only; the current link cannot reveal protected data or acquire
+  identity/authority.
 
 ---
 
@@ -3365,13 +4714,13 @@ id: recipes.provider-lifecycle
 order: 15
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.contract-provider-generation]
-authorities: [llp/0034-contract-source-seam-provider-side.rfc.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0295-published-matrix-improvement-program.plan.md, demos/coterie/src/data/snapback-provider.ts, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs]
-examples: [packages/snapback-contract/keyed-provider.mjs]
+authorities: [llp/0034-contract-source-seam-provider-side.rfc.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0278-paged-live-results-and-relational-composition.rfc.md, llp/0280-cross-system-write-seams.rfc.md, llp/0295-published-matrix-improvement-program.plan.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/auth-blocked-resource.test.mjs, packages/snapback-react/package.test.mjs]
+examples: [packages/snapback-contract/keyed-provider.mjs, packages/snapback-react/package.test.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:36b99758a988b2e5ddd7c19d12c8e5c88f4cce7ddef6f6d4ac8565d44235e3e1
+reviewed-authorities-digest: sha256:5e0894bd44d45cf4b8f904e7b4ab5e29c5f2665bd4ed71973697acdea9a355e9
 ---
 
 # Recipe: provider connection and subscription lifecycle
@@ -3380,73 +4729,364 @@ reviewed-authorities-digest: sha256:36b99758a988b2e5ddd7c19d12c8e5c88f4cce7ddef6
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-Snapback exposes connection labels, live-stream managers, keyed provider
-scopes, and resource inspection, but it does **not yet select one provider-wide
-connection ownership policy**. LLP 0295 D0.5 owns that decision. In particular,
-the Coterie demo currently mints per-subscription connection ids; it is evidence
-for the open problem, not a positive example of one-transport multiplexing.
+The provider adapter pattern is one manager above the cells it serves. This
+applies to `ContractDataProvider` and other provider-neutral adapters. Within
+that manager, one stable readable `connectionId` belongs to each
+**(application, storage partition, server origin, settled authority)** tuple.
+Every query cell under that tuple reuses the id: N cells create N logical
+subscriptions only when their canonical queries differ; they do not create N
+transport connections. A second client with another authority or storage
+partition owns another tuple and another manager. Do not build a process-global
+connection pool that coalesces distinct custody contexts.
 
-Use this page to avoid accidental owner churn and to measure the adapter you
-actually built. Do not advertise “N cells imply one transport” until the
-requested N-cells regression fixture exists and D0.5 selects the supported
-budget.
+This is the route for searches such as “one connection per query”, “too many
+websockets”, “connection pool”, “provider adapter pattern”, and “rebuild stream
+on auth”. It also reports active connections and subscriptions by owner. The
+numeric per-app and per-query budgets remain LLP 0295 D0.5 work; this page
+deliberately gives only today's lifecycle and qualitative bounds.
 
-Search phrases: connection per subscription; N cells imply N transport connections.
-Inspection phrase: active connections and subscriptions by owner.
-Budget phrase: provider lifecycle budget.
+Exact retrieval vocabulary from provider failures:
 
-## Keep each chosen owner stable
+- connection per subscription
+- N cells imply N transport connections
+- provider lifecycle budget
+- too many websockets
 
-Construct the client at provider scope. If the adapter chooses a shared
-connection label, keep it stable for that adapter's documented
-app/authority/origin lifetime and reuse `liveStreamManager(connectionId)`.
-If it chooses narrower labels, keep each label stable for its declared owner
-and report the resulting manager/socket counts. Keyed scopes and the shared
-external-store registry can deduplicate equal
-provider/query/authority/args identities and refcount listeners, but those
-primitives are not themselves proof of a one-transport provider contract.
+## Own one manager above all provider cells
 
-Wait for settled principal authority before starting protected subscriptions.
-On a transport-only reconnect, update the connection fact and let the manager
-resume its consumers; do not rebuild every query owner. Query callbacks should
-publish the delivered rows, not start nested queries. Suppress equal snapshots
-at the store boundary so a provider does not turn connection churn into render
-churn.
+Construct the `SnapbackClient`, connection manager, external-store registry,
+and provider at adapter scope, not inside a cell or query callback. Mint the
+readable connection label once for that manager and pass it to every
+`liveQuery`/`startLiveQuery` owned by the tuple. A canonical
+provider/query/authority/args key shares one upstream store and refcounts its
+listeners; different keys remain separate logical subscriptions on the same
+connection.
 
-On provider disposal, release child handles and close scopes/registries. The
-last demand lease closes and retires the stream manager; then await
-`client.close()` for final client cleanup. A subscription handle's `settled()`
-waits for its lifecycle boundary; it does not replace `dispose()`.
+For a two-client acceptance adapter, build this owner once per client. Client A
+and client B may therefore report one connection each while each serves many
+cells. Never reuse A's manager for B merely because their server origin is the
+same: settled authority and storage partition are part of ownership.
 
-## Inspect the lifecycle in acceptance tests
+The React package fixture mounts several distinct cells under one provider
+against the real headless manager. Its injected WebSocket counts actual opens
+and closes, so the regression fails if the headless client creates a transport
+per cell even while reusing the same readable connection label:
 
-Use `client.localResourceInspection()` only as an acceptance inspection. It
-reports managers, grants, lane consumers, socket demand, timers, and listeners.
-A future D0.5 regression should mount many equal cells, wait for data, and
-assert the selected manager/connection budget with refcounted consumers. That
-fixture does not exist yet. Current acceptance can still assert its observed
-counts and, after unmount and provider close, that scoped managers, grants,
-demand, timers, and listeners retire. Provider-specific `inspection()`
-projections may add store/subscription counts, but neither inspection surface
-is product state or authorization evidence.
+```js source=packages/snapback-react/package.test.mjs
+  try {
+    const providerLifecycleBinding = await prepareReactBindingForClient(
+      providerLifecycleClient,
+      { generatedManifest },
+    );
+    providerLifecycle = createSnapbackReactProvider(providerLifecycleBinding, {
+      connectionId: 'provider-lifecycle-shared-authority-origin',
+    });
+    const providerCellCount = 6;
+    providerCells = observeSnapbackQueries(
+      providerLifecycle,
+      Object.fromEntries(Array.from({ length: providerCellCount }, (_, index) => [
+        `cell${index}`,
+        { ref: capacityFeeds[index], args: {} },
+      ])),
+      () => {},
+    );
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if (
+        providerLifecycle.inspection().serverSubscriptions === providerCellCount
+        && transportOpens === 1
+      ) break;
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    assert.equal(transportOpens, 1, 'six provider cells open exactly one real transport');
+    assert.deepEqual(inspectProviderOwners(providerLifecycleClient, [providerLifecycle]), [{
+      owner: providerLifecycle.providerInstanceId,
+      connectionId: 'provider-lifecycle-shared-authority-origin',
+      activeConnections: 1,
+      activeSubscriptions: providerCellCount,
+      socketDemand: providerCellCount,
+      timers: 1,
+      listeners: providerCellCount,
+    }]);
+    assert.equal(activeSubscriptions.size, providerCellCount);
 
-## Current budget boundary
+    providerCells.dispose();
+    providerCells = null;
+    await flush();
+    await providerLifecycle.dispose();
+    assert.equal(transportCloses, 1, 'provider teardown closes the shared real transport');
+    assert.equal(activeSubscriptions.size, 0);
+```
 
-The sanctioned decision-independent floor is qualitative: stable connection
-identity within the adapter's declared owner, deduplication where the chosen
-scope permits it, explicit disposal, and zero owned resources after teardown.
-Snapback does **not yet publish a provider-wide ownership rule or numeric
-per-provider connection/subscription/timer budget**. That Phase 0 decision remains tracked
-in `issues/20260821-provider-connection-subscription-budget-decision.md`.
-Do not invent a threshold in application docs or tests and call it platform
-policy; record measured counts and keep the qualitative invariants above.
+## Subscribe after authority settlement, without a timeout
+
+Consume the provider's landed settlement vocabulary. A protected React query
+is `status: "blocked"`, `reason: "authentication-required"`, and
+`transitionOwner: "auth-coordinator"` while signed out. During sign-in,
+sign-out, or authority replacement it is `status: "blocked"`,
+`reason: "authentication-not-settled"`, with the same `transitionOwner`.
+Those are stable, owned states—not retry failures. Branch on them and wait for
+the next provider snapshot; never add a timeout or poll a client object to
+guess when authority settled.
+
+The provider itself starts no live transport while the coordinator owns the
+blocked transition:
+
+```js source=packages/snapback-react/auth-blocked-resource.test.mjs
+      assert.deepEqual(mounted.registry.snapshot(mounted.descriptor), {
+        status: 'blocked',
+        reason: 'authentication-not-settled',
+        transitionOwner: 'auth-coordinator',
+        data: undefined,
+        error: null,
+        connection: 'idle',
+        freshness: 'unknown',
+        answerClass: 'unknown',
+        retention: null,
+        optimisticPresentation: null,
+      });
+      assert.equal(client.state.attempts, 0, 'held custody starts no live transport');
+```
+
+On a principal-class change, quiesce and dispose every predecessor-owned
+subscription before opening the successor connection. The settled successor
+then starts a fresh snapshot-with-subscribe. This teardown-before-rebuild order
+is the persona-replacement seam; “rebuild stream on auth” must not mean rebind
+an old sessions connection to a new bearer.
+
+## Keep update callbacks non-reentrant and deduplicate adapter projections
+
+An update callback copies the delivered rows and lifecycle facts into its
+store, then returns. Do not synchronously subscribe, unsubscribe, or dispatch a
+mutation from inside it. A one-shot read is admitted but usually means the
+adapter ignored rows it already has. If delivery must trigger more lifecycle
+work, schedule it at a microtask/framework-effect boundary.
+
+React currently republishes every authoritative delivery, including value-equal
+rows at a newer internal version; that delivery advances bookkeeping **and**
+notifies provider listeners today. If an adapter needs render deduplication,
+apply it in the adapter-owned consumer store by comparing the complete visible
+snapshot—rows plus exposed status, connection, and freshness facts. Never let
+row equality hide a real lifecycle transition such as `refreshing` to `ready`
+or the first authoritative successor delivery after reconnect. Platform-level
+complete-snapshot deduplication remains an open LLP 0278/0095 implementation
+obligation tracked in
+`issues/20260821-provider-connection-subscription-budget-decision.md`.
+
+## Let the manager retry; explicitly tear down owners
+
+Transport loss uses the client's existing bounded reconnect/resubscribe
+machinery. Do not wrap it in a provider retry loop, open a fallback WebSocket,
+or mint another connection label. Grant loss similarly reopens and
+re-establishes through the client. An auth transition is different: retire the
+predecessor, wait for settled successor authority, then create the fresh
+subscription described above.
+
+Each cell releases its listener. The last listener releases its logical
+subscription; provider disposal closes scopes/registries and conditionally
+releases the idle connection. Await `client.close()` only when the adapter owns
+that client. A handle's `settled()` waits for its cleanup boundary; it never
+replaces `dispose()`.
+
+## Report active connections and subscriptions by owner
+
+Combine the provider's inspection (logical stores/subscriptions) with the
+headless client's `localResourceInspection([connectionId])` (managers, grants,
+socket demand, timers, and listeners). This CI-verified helper produces one
+bounded row per provider owner:
+
+```js source=packages/snapback-react/package.test.mjs
+function inspectProviderOwners(client, providers) {
+  return Object.freeze(providers.map((provider) => {
+    const providerResources = provider.inspection();
+    const connectionId = provider.registry.connectionId;
+    const clientResources = client.localResourceInspection([connectionId]);
+    return Object.freeze({
+      owner: providerResources.providerInstanceId,
+      connectionId,
+      activeConnections: clientResources.managers.filter(
+        (manager) => !manager.closed && (manager.open || manager.socketDemand > 0),
+      ).length,
+      activeSubscriptions: providerResources.serverSubscriptions,
+      socketDemand: clientResources.socketDemand,
+      timers: clientResources.timers,
+      listeners: clientResources.listeners,
+    });
+  }));
+}
+```
+
+For two independently owned clients, call the helper once per client and
+concatenate the rows. Assert the expected owner rows after delivery, then
+dispose cells, providers, and owned clients and assert zero active connections,
+subscriptions, demand, timers, and listeners. These inspections are
+acceptance/debug facts only; they are neither application state nor authority
+evidence, and the readable `connectionId` is not the server's opaque wire id.
+
+## Keep budgets qualitative until D0.5
+
+Today's recipe has four enforced qualitative bounds: one stable connection
+label per manager-owned tuple; refcounted canonical query stores; declared,
+inspectable logical fan-out; and zero owned resources after teardown. Prefer a
+single relational/aggregate query when the UI needs one atomic cross-set fact,
+and consider one for large visible-entity fan-out, but do not claim that every
+independent query is incorrect.
+
+LLP 0295 D0.5 owns the later numeric connection/subscription budgets and their
+diagnostics. Until those values land, do not turn a measurement from one app
+into a platform threshold. Record the inspection counts, state which owner
+created them, and keep the lifecycle invariants above.
 
 ## Anti-patterns
 
-- Minting a new `connectionId` on every render or retry with no declared owner.
-- Starting protected subscriptions before authority settles.
-- Running a second query from inside each subscription callback.
-- Treating reconnect as a reason to reconstruct every logical store.
-- Forgetting to dispose handles because their current row snapshot looks
-  empty.
-- Advertising a numeric resource budget before the Phase 0 decision lands.
+- One connection per query, cell, render, or retry.
+- A process-global connection pool that crosses settled authority or storage
+  partitions.
+- Starting protected subscriptions while an auth-coordinator-owned blocked
+  state is visible, or deriving settlement from a timeout.
+- Synchronously subscribing, unsubscribing, or mutating inside an update
+  callback.
+- Deduplicating equal rows while hiding a real lifecycle transition.
+- Rebuilding every query owner after transport-only reconnect.
+- Treating `settled()` as disposal, or leaving the owned client open after the
+  provider is terminal.
+- Advertising numeric resource budgets before LLP 0295 D0.5 sets them.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/split-sensitive-fields.md -->
+---
+title: "Recipe: split a sensitive field into its own table"
+id: recipes.split-sensitive-fields
+order: 16
+audience: agent-first
+capabilities: [auth.table-visibility]
+authorities: [llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0235-field-masking-class-m.spec.md, issues/20260821-0235-field-masking-productization.md, packages/snapback-codegen/define.mjs]
+examples: []
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:cae1bdf3d49c2b1aadcf382dbf0a34443abb18a83c57dece7ab4325ae9d533bf
+---
+
+# Recipe: split a sensitive field into its own table
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Use this workaround only when most of a row may be visible to a wider audience
+but row-level absence of its private half is acceptable to unauthorized
+readers. Snapback does not currently provide field masking: it cannot keep one
+row visible while conditionally returning one stored field as `null`. If the
+public row must remain present with one cell replaced by `null`, as with votes
+or tallies, there is no shipped answer; Draft [LLP
+0235](repo:llp/0235-field-masking-class-m.spec.md) owns that design. When
+row-level absence is acceptable, the honest supported pattern is to move the
+sensitive value to a second table and give that table its own row visibility.
+
+Find this page by: `maskField`, "mask a field", "hide one field",
+"mask phone number", "private column", "field level security", or
+"column visibility".
+
+## Apply the Messtimate phone-number split
+
+Messtimate needed a consumer-visible record while its phone number stayed
+private. Model that record here as a profile split across two tables rather
+than as one partially visible record:
+
+| Table | Fields | Visibility |
+| --- | --- | --- |
+| `profiles` | a stable `profileKey` plus consumer-visible name and status fields | the audience that may see the profile, such as `public-read` or a membership policy |
+| `profilePhoneNumbers` | `ownerId`, the same `profileKey`, and `phoneNumber` | `owner` on `ownerId`, or the narrower membership policy that should see the phone row |
+
+Declare a unique index on `profiles.profileKey`. On the private table, declare
+an index led by the visibility field, such as
+`by_owner_profile: [ownerId, profileKey]`, and make it unique when one phone
+record per profile is the product rule. Set `ownerId` from the server-derived
+principal; never accept the owner as trusted client input. See
+[Protecting data](../auth/protecting-data.md#declare-who-can-read-each-table) for the
+supported `public-read`, `owner`, membership, and `anyOf` table policies.
+
+If profile creation requires both records, write them in one mutation so the
+public and private halves commit atomically. Table visibility controls reads;
+the mutation must still enforce who may create, replace, or delete each half.
+
+The protection comes from row visibility on the second table. On read surfaces
+that compose the table policy, an unauthorized reader receives no phone row at
+all; Snapback is not masking a field on the public profile row. Search and
+vector indexes carry their own visibility and do not inherit the table's
+`.visibility(...)` policy. Do not put a public, or otherwise
+broader-than-table, search or vector index on the private table. See
+[Protecting data](../auth/protecting-data.md#declare-who-can-read-each-table).
+
+## Read the public and private halves
+
+Choose the read shape from the caller's product view:
+
+- For a consumer profile or profile list, query only `profiles`. Its result
+  contract must not contain `phoneNumber` or a value derived from it.
+- For the signed-in owner's settings screen, query `profilePhoneNumbers` with
+  the ordinary caller-bound `ownerId == authUserId()` filter and its
+  owner-leading index, then read the matching public profile. Merge the two
+  authorized results in the owner-only screen.
+- For one server-produced owner-only result, use a bounded
+  [`defineRelationalQuery`](../backend/relational-queries.md): make
+  `profilePhoneNumbers` the owner-visible root, `profiles` the public or
+  appropriately visible joined table, join on the stable unique `profileKey`,
+  and declare the output owner-visible. The private table belongs on the root
+  side so root access is bounded by the caller's owner-leading index.
+
+Never make the joined output public. Relational output cannot be broader than
+either source, and an invisible joined row is treated as absent. If the base
+profile must remain visible when the phone row is absent or unauthorized, use
+the two-read pattern: a left join whose only owner evidence is on the
+omissible private side is deliberately refused.
+
+## Know what this workaround does not protect
+
+This split is row-level authorization, not field-level security or class-M
+field masking. In particular, it does not:
+
+- preserve one result-row shape while changing `phoneNumber` between a value
+  and `null`;
+- protect a phone number left on `profiles`, even if a query projection, JS
+  handler, or UI omits it;
+- make filters, ordering, indexes, search, aggregates, joins, or handlers over a
+  hidden field noninterfering;
+- prevent a unique or other constraint over the sensitive field from leaking it
+  through success versus refusal, or hide refusal and error codes, public error
+  details, public diagnostics, or log text;
+- hide public correlation facts such as `hasPhone`, a phone-derived sort key,
+  or a public relationship key that the application chose to store;
+- suppress client-visible live wake or delivery events, delivery kind,
+  invalidation disposition, or delivery timing that could reveal a hidden-value
+  change;
+- make query or write execution timing constant-time or otherwise
+  noninterfering;
+- authorize writes, `ctx.db.elevated`, operator/admin access, exports, logs,
+  analytics, actions, or external services that receive the value; or
+- implement conditional disclosure such as "show the phone after approval"
+  without changing which private rows the caller may read.
+
+Draft [LLP 0235](repo:llp/0235-field-masking-class-m.spec.md) owns the stronger
+field-masking design, including logical and physical noninterference. Until an
+author accepts and an implementation proves that contract, keep sensitive
+bytes out of the wider table rather than adding projection-only nulling.
+
+## Anti-patterns
+
+- Using this split when unauthorized readers must still receive the public row
+  with one field set to `null`; vote and tally shapes need the unshipped class-M
+  answer in Draft LLP 0235, not this recipe.
+- Keeping `phoneNumber` on `profiles` and removing it in the client, a result
+  projection, or a JS handler.
+- Giving a search or vector index on `profilePhoneNumbers` public visibility,
+  or any visibility broader than the private table policy.
+- Fetching the private table with elevated access and deciding in application
+  code which callers receive it.
+- Publishing the private row or a public joined projection to make the merge
+  convenient.
+- Treating a missing private row as proof that no phone number exists.
+- Claiming the split-table workaround provides field masking or column-level
+  noninterference.

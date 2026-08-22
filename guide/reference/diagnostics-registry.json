@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:5a417df4ecd5c4fde511d686d8f59406bf7135d4752e2d61a4423ada27d8a452"
+    "sourceDigest": "sha256:33b4ecbeef1d9b9b41b4094034f76a068eb725a60cf13fd711bb9a9fe33d2bf9"
   },
   "limits": {
     "lookupBytes": 16384
@@ -27799,7 +27799,8 @@
       "guideAnchor": "/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context",
       "guideAnchors": [
         "/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context",
-        "/_snapback/guide/recipes/multi-persona-clients.md#read-the-implicit-reuse-warning"
+        "/_snapback/guide/recipes/multi-persona-clients.md#read-the-implicit-reuse-warning",
+        "/_snapback/guide/retrieval-eval.md#seed-intents"
       ]
     },
     "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT": {
@@ -56425,7 +56426,8 @@
       "httpStatusClass": null,
       "guideAnchor": "/_snapback/guide/recipes/auth-transition-writes.md#declare-only-genuine-housekeeping",
       "guideAnchors": [
-        "/_snapback/guide/recipes/auth-transition-writes.md#declare-only-genuine-housekeeping"
+        "/_snapback/guide/recipes/auth-transition-writes.md#declare-only-genuine-housekeeping",
+        "/_snapback/guide/retrieval-eval.md#seed-intents"
       ]
     },
     "SNAPBACK_HTTP_ERROR": {
