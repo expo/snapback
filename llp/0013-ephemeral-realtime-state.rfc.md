@@ -5,6 +5,9 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-21 (client overlays now terminally apply ephemeral `Error`
+frames, room handles and React/activity bindings surface the trusted
+diagnostic, and the Sessions battery pins one notification plus no reopen).
 **Revised:** 2026-08-17 (source-authored membership-backed rooms: `allow.members`, fail-closed v1 refusals, deterministic `permissionBacking` lowering, honest row-existence grant semantics, and the Sessions capability battery). 2026-08-15 (first-delivery latency budget: the local target's already-subscribed accept-to-client-apply path has a 1,000 ms regression ceiling, additive accept/dispatch/flush timestamps, and an observation-honesty rule that excludes synthetic typing-action duration). 2026-08-10 (LLP 0222 boundary amendment: server-owned connected-client witnesses are not author-writable ephemeral collections). 2026-07-23 (LLP 0086 CC-8 row 4: deliberate partyserver posture recorded — parallel, not wrap; hibernation bounds noted). 2026-07-17 (client-visible scope, entry, and room-authority generations are bounded by `Number.MAX_SAFE_INTEGER`; entry exhaustion terminally retires the room and emits only a clearing epoch boundary). 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (item-6 implementation reconciliation: the local target now installs the accepted dependency-indexed room barriers, generation-checks protected-room sinks, and exposes the capability only under exact auth-invalidation negotiation; custom-key authorization remains refused). 2026-07-13 (authorization-invalidation amendment: LLP 0053 item 6 installs and quiesces dependency-indexed room barriers before an authorization-changing commit, generation-checks every effect sink atomically with its act, then projects level-triggered reauthorization and gives `AuthChanged`/`AuthRevoked` an owner); 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026, LLP 0037, LLP 0039, LLP 0053, LLP 0056, LLP 0083, LLP 0086
 
@@ -1046,10 +1049,10 @@ messaging demo's Sessions acceptance battery preserves all five scenarios:
    B's entry from A with `AuthRevoked`, and denies B's later publish; and
 5. reseating B admits a fresh subscription and publication.
 
-These are first-class fixtures, not prose examples. The terminal guarantee in
-scenario 4 is currently wire-level; the client overlay's missing `Error` arm is
-tracked separately in
-[`issues/20260817-ephemeral-overlay-missing-error-arm.md`](../issues/20260817-ephemeral-overlay-missing-error-arm.md).
+These are first-class fixtures, not prose examples. Scenario 4 also pins the
+client projection: the denied overlay applies the terminal `Error` once, never
+reopens, and its room handle plus React/activity consumers expose empty
+`status: error` with the trusted `SNAPBACK_AUTH_PERMISSION_DENIED` diagnostic.
 
 ## Dated note: partyserver posture (2026-07-23)
 

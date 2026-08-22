@@ -12786,6 +12786,20 @@ export class SnapbackClient {
       overlay = next;
       overlayOff = overlay.onChange((result) => {
         if (disposed || generation !== expectedGeneration) return;
+        if (result === 'terminal_error') {
+          clearExpiry();
+          const diagnostic = overlay.terminalDiagnostic;
+          publishSnapshot({
+            status: 'error',
+            entries: [],
+            selfKey: null,
+            diagnostic,
+            reason: diagnostic?.details?.reason === 'AuthRevoked'
+              ? 'auth_revoked'
+              : 'ephemeral_error',
+          }, expectedGeneration);
+          return;
+        }
         if (
           result === 'needs_resync'
           || result === 'authority_changed'
@@ -12808,6 +12822,10 @@ export class SnapbackClient {
         }, expectedGeneration);
         scheduleExpiry(expectedGeneration);
       });
+      // A terminal frame may have been buffered between server registration
+      // and the initial snapshot response. onChange replays that level
+      // synchronously; do not overwrite its error projection with ready.
+      if (overlay.terminalDiagnostic !== null) return;
       const entries = overlay.currentEntries();
       publishSnapshot({
         status: currentConnection === 'live' ? 'ready' : 'stale',
@@ -18183,6 +18201,27 @@ function clientDiagnosticFromError(error) {
   });
 }
 
+function clientDiagnosticFromEphemeralErrorFrame(frame) {
+  const ephemeralCode = frame?.error?.code;
+  const code = ephemeralCode === 'PermissionDenied'
+    ? 'SNAPBACK_AUTH_PERMISSION_DENIED'
+    : 'SNAPBACK_EPHEMERAL_ROOM_FAILED';
+  const roomAuthorityGeneration = frame?.room_authority_generation
+    ?? frame?.roomAuthorityGeneration
+    ?? null;
+  return Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code,
+    severity: 'error',
+    message: frame?.error?.message ?? code,
+    details: Object.freeze({
+      ...(typeof ephemeralCode === 'string' ? { ephemeralCode } : {}),
+      ...(Number.isSafeInteger(roomAuthorityGeneration) ? { roomAuthorityGeneration } : {}),
+      ...(ephemeralCode === 'PermissionDenied' ? { reason: 'AuthRevoked' } : {}),
+    }),
+  });
+}
+
 function deepFreezeEphemeralValue(value, seen = new Set()) {
   if (value === null || typeof value !== 'object' || seen.has(value)) return value;
   seen.add(value);
@@ -18238,6 +18277,7 @@ export class EphemeralOverlay {
     this.entries = new Map();
     this.tombstones = new Map();
     this.needsResync = false;
+    this.terminalDiagnostic = null;
     // A connection-wide clear-retained signal is stronger than an ordinary
     // room resync: no frame already in flight for this overlay generation can
     // prove it was captured after the connection-continuity loss. Keep that
@@ -18277,6 +18317,7 @@ export class EphemeralOverlay {
   }
 
   #blankForAuthority() {
+    if (this.terminalDiagnostic !== null) return;
     this.entries.clear();
     this.tombstones.clear();
     this.highWaterVersion = 0;
@@ -18368,6 +18409,17 @@ export class EphemeralOverlay {
   /// re-emit EphemeralMapCells (ENG-22479).
   onChange(listener) {
     this.__changeListeners.add(listener);
+    // @ref LLP 0013#authorization-and-privacy — a denied subscriber's
+    // terminal PermissionDenied/AuthRevoked boundary is level-triggered for
+    // late consumers and may never reopen this overlay generation.
+    if (this.terminalDiagnostic !== null) {
+      try {
+        listener('terminal_error', this);
+      } catch {
+        // Observer errors never poison the overlay's terminal path.
+      }
+      return () => this.__changeListeners.delete(listener);
+    }
     // The poison is level-triggered for this overlay generation. It can land
     // while the initial snapshot response is in flight, before Contract has
     // attached its change listener; replay the closed state so that late
@@ -18439,6 +18491,7 @@ export class EphemeralOverlay {
   }
 
   apply(input) {
+    if (this.terminalDiagnostic !== null) return 'terminal_error';
     if (isConnectionWideClearRetainedResync(input)) {
       // The server discarded continuity for the whole connection, not merely
       // one durable subscription. Blank every overlay immediately and remain
@@ -18614,6 +18667,18 @@ export class EphemeralOverlay {
       this.needsResync = true;
       this.#notifyChange('needs_resync');
       return 'needs_resync';
+    }
+    if (message.Error) {
+      // @ref LLP 0107#resync-authority-and-lifecycle — revocation exposes no
+      // denied entries and surfaces the trusted diagnostic as a terminal room
+      // state; later frames cannot reopen this overlay generation.
+      this.entries.clear();
+      this.tombstones.clear();
+      this.highWaterVersion = 0;
+      this.needsResync = false;
+      this.terminalDiagnostic = clientDiagnosticFromEphemeralErrorFrame(message.Error);
+      this.#notifyChange('terminal_error');
+      return 'terminal_error';
     }
     return 'not_ephemeral';
   }
@@ -18935,6 +19000,7 @@ function messageRoom(message) {
     ?? message.Upsert?.room
     ?? message.Remove?.room
     ?? message.ResyncRequired?.room
+    ?? message.Error?.room
     ?? null
   );
 }

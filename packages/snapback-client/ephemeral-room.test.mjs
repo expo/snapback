@@ -24,8 +24,9 @@ function overlay() {
   let publishes = 0;
   let deletes = 0;
   const listeners = new Set();
-  return {
+  const value = {
     grantedConnectionId: 'granted-room-test',
+    terminalDiagnostic: null,
     onChange(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -33,14 +34,16 @@ function overlay() {
     currentEntries() { return []; },
     msUntilEarliestExpiry() { return Infinity; },
     pruneExpired() {},
-    emit(result) {
-      for (const listener of [...listeners]) listener(result);
+    emit(result, diagnostic = null) {
+      if (result === 'terminal_error') value.terminalDiagnostic = diagnostic;
+      for (const listener of [...listeners]) listener(result, value);
     },
     async publish() { publishes += 1; return { accepted: true }; },
     async delete() { deletes += 1; return { removed: true }; },
     dispose() { disposed = true; listeners.clear(); },
     inspection() { return { disposed, publishes, deletes, listeners: listeners.size }; },
   };
+  return value;
 }
 
 function fake({ protocol = 1, subscribe = async () => overlay(), alreadyOpen = false } = {}) {
@@ -202,4 +205,38 @@ preOpened.dispose();
 await preOpened.settled();
 assert.equal(preOpenedFake.inspection().managerListeners, 0);
 
-console.log('ephemeral-room.test.mjs: negotiation, immediate handle, late cleanup, pre-opened socket readiness, and settlement pass');
+const terminalOverlay = overlay();
+const terminalFake = fake({ subscribe: async () => terminalOverlay });
+const terminal = SnapbackClient.prototype.startEphemeralRoom.call(
+  terminalFake,
+  admitted,
+  { roomId: 'one' },
+);
+await terminal.started();
+let terminalNotifications = 0;
+terminal.subscribe(() => { terminalNotifications += 1; });
+const terminalDiagnostic = Object.freeze({
+  schemaVersion: 'snapback.client-diagnostic.v1',
+  code: 'SNAPBACK_AUTH_PERMISSION_DENIED',
+  severity: 'error',
+  message: 'membership was revoked',
+  details: Object.freeze({ reason: 'AuthRevoked' }),
+});
+terminalOverlay.emit('terminal_error', terminalDiagnostic);
+assert.equal(terminalNotifications, 1);
+assert.deepEqual(terminal.getSnapshot(), {
+  status: 'error',
+  entries: [],
+  selfKey: null,
+  diagnostic: terminalDiagnostic,
+  connection: 'live',
+  reason: 'auth_revoked',
+});
+await assert.rejects(
+  terminal.publish({ name: 'Ada' }),
+  (error) => error?.code === 'SNAPBACK_REACT_PRESENCE_NOT_AUTHORITATIVE',
+);
+terminal.dispose();
+await terminal.settled();
+
+console.log('ephemeral-room.test.mjs: negotiation, immediate handle, terminal errors, late cleanup, pre-opened socket readiness, and settlement pass');

@@ -109,7 +109,7 @@ try {
   const snapshot = (instance) => ({
     Snapshot: {
       ephemeral_authority_instance: instance,
-      room: { collection: 'presence', scope: { roomId: 'lobby' } },
+      room: { collection: 'presence', routing_key: 'roomId=lobby' },
       scope_epoch: 1,
       room_authority_generation: 1,
       high_water_version: 0,
@@ -133,6 +133,44 @@ try {
       },
     },
   }), 'authority_missing');
+
+  const terminalChanges = [];
+  const offTerminal = overlay.onChange((result, changed) => {
+    if (result === 'terminal_error') {
+      terminalChanges.push(changed.terminalDiagnostic);
+    }
+  });
+  assert.equal(overlay.apply({
+    Error: {
+      ephemeral_authority_instance: 'authority-b',
+      room: { collection: 'other-room', routing_key: 'roomId=lobby' },
+      room_authority_generation: 2,
+      error: { code: 'PermissionDenied', message: 'membership was revoked' },
+    },
+  }), 'foreign_room', 'a terminal error cannot poison another room on the shared connection');
+  assert.equal(terminalChanges.length, 0);
+  assert.equal(overlay.apply({
+    Error: {
+      ephemeral_authority_instance: 'authority-b',
+      room: { collection: 'presence', routing_key: 'roomId=lobby' },
+      room_authority_generation: 2,
+      error: { code: 'PermissionDenied', message: 'membership was revoked' },
+    },
+  }), 'terminal_error');
+  assert.equal(terminalChanges.length, 1, 'the terminal boundary notifies an attached listener once');
+  assert.equal(terminalChanges[0].code, 'SNAPBACK_AUTH_PERMISSION_DENIED');
+  assert.equal(terminalChanges[0].details.reason, 'AuthRevoked');
+  assert.equal(terminalChanges[0].details.roomAuthorityGeneration, 2);
+  assert.deepEqual(overlay.currentEntries({ prune: false }), []);
+  assert.equal(overlay.apply(snapshot('authority-b')), 'terminal_error');
+  assert.equal(terminalChanges.length, 1, 'no later frame reopens or renotifies the terminal overlay');
+  let lateTerminalNotifications = 0;
+  const offLateTerminal = overlay.onChange((result) => {
+    if (result === 'terminal_error') lateTerminalNotifications += 1;
+  });
+  assert.equal(lateTerminalNotifications, 1, 'late listeners receive the level-triggered terminal state');
+  offLateTerminal();
+  offTerminal();
   overlay.dispose();
   second.dispose();
 } finally {

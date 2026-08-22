@@ -49,3 +49,31 @@ work (public-wiper dispatch gates, authority lifecycle hooks); whoever owns
 that lane should take this to avoid collision. The guide typing-indicator
 recipe (slice 5 of the membership-backed ephemeral program) documents the
 gap honestly until this lands.
+
+## Resolution
+
+Resolved 2026-08-21. `EphemeralOverlay.apply()` now recognizes room-scoped
+`Error` frames, clears denied state, latches a terminal diagnostic, notifies
+each attached or late listener once, and refuses to apply later frames. A
+`PermissionDenied` frame projects as `SNAPBACK_AUTH_PERMISSION_DENIED` with
+`AuthRevoked` semantics; `startEphemeralRoom()` exposes the closed
+`status: "error"` snapshot with no entries or self identity.
+
+The focused overlay and room-handle tests pin the terminal latch, one-shot
+notification, foreign-room isolation, and no-reopen behavior. The LLP 0257
+React activity test pins exact base status/diagnostic passthrough, and the
+messaging Sessions battery now proves the real removed-member overlay and room
+handle surfaces before survivor traffic demonstrates continued terminality.
+The typing-indicator recipe and generated guide projections describe the
+shipped behavior.
+
+Verification:
+
+- `packages/snapback-client/hosted-ephemeral.test.mjs`
+- `packages/snapback-client/ephemeral-room.test.mjs`
+- `packages/snapback-react/activity-presence.test.mjs`
+- `demos/messaging-snapback/tests/acceptance/headless.mjs` (25/25)
+- `scripts/check-guide.mjs` (22/22)
+- `./ref-check --verbose`
+
+Landing SHA: TBD

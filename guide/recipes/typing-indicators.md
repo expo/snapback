@@ -11,7 +11,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.24
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:e6a5772fa7bb8b9f6cf9fa79123af2be4052cb0421e9436f2780aaf463303c25
+reviewed-authorities-digest: sha256:2628bdaa1c76e3c47a8f56ba8a83b6e56ca82ff517813618601438face2351b9
 ---
 
 # Recipe: membership-scoped typing indicators
@@ -269,6 +269,26 @@ later frames; a surviving member receives the `AuthRevoked` removal:
         2,
         'removed member terminal frame carries the successor authority generation',
       );
+      assertEqual(
+        memberBOverlayTerminalNotifications,
+        1,
+        'removed member overlay notifies its terminal transition once',
+      );
+      assertEqual(
+        memberBOverlayTerminalDiagnostic?.code,
+        'SNAPBACK_AUTH_PERMISSION_DENIED',
+        'removed member overlay surfaces the trusted permission diagnostic',
+      );
+      const memberBRoomState = memberBRoom.getSnapshot();
+      assertEqual(memberBRoomState.status, 'error', 'removed member room handle is terminally errored');
+      assertEqual(
+        memberBRoomState.diagnostic?.code,
+        'SNAPBACK_AUTH_PERMISSION_DENIED',
+        'removed member room handle carries the trusted permission diagnostic',
+      );
+      assertEqual(memberBRoomState.reason, 'auth_revoked', 'room handle identifies AuthRevoked');
+      assertEqual(memberBRoomState.entries.length, 0, 'terminal room handle exposes no denied entries');
+      assertEqual(memberBRoomState.selfKey, null, 'terminal room handle exposes no denied self identity');
       const revoked = memberAFrames
         .map(ephemeralMessage)
         .find((message) => (
@@ -304,6 +324,12 @@ later frames; a surviving member receives the `AuthRevoked` removal:
       memberBTerminalFrameCount,
       'removed member subscription stays silent after its terminal frame',
     );
+    assertEqual(
+      memberBOverlayTerminalNotifications,
+      1,
+      'later application cannot renotify or reopen the terminal overlay',
+    );
+    assertEqual(memberBRoom.getSnapshot().status, 'error', 'room handle remains terminal after survivor traffic');
     const removal = memberAFrames
       .map(ephemeralMessage)
       .find((message) => (
@@ -315,6 +341,8 @@ later frames; a surviving member receives the `AuthRevoked` removal:
       successorAuthorityGeneration: memberBTerminalMessage.Error.room_authority_generation,
       survivorRemovalReason: removal.Remove.reason,
       formerMemberPublish: publishError.diagnostic.code,
+      overlayDiagnostic: memberBOverlayTerminalDiagnostic.code,
+      roomHandleStatus: memberBRoom.getSnapshot().status,
       postTerminalFrames: memberBFrames.length - memberBTerminalFrameCount,
     };
   });
@@ -325,10 +353,10 @@ typing entry before removal, and B can publish through a fresh subscription
 after rejoin. Together these are the five capability scenarios, not merely
 three static denials.
 
-The terminal behavior above is currently a wire-level proof. The base client
-overlay has no `Error` arm, so React/activity hooks do not yet expose the
-removed member's terminal status or diagnostic; follow
-[`issues/20260817-ephemeral-overlay-missing-error-arm.md`](repo:issues/20260817-ephemeral-overlay-missing-error-arm.md).
+The same scenario also pins the client surface: the overlay notifies exactly
+once, the room handle becomes terminal `error` with
+`SNAPBACK_AUTH_PERMISSION_DENIED`, and LLP 0257's activity hook passes that
+base status and diagnostic through instead of presenting an empty ready room.
 
 ## Sessions and direct/dev prove different things
 

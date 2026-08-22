@@ -153,6 +153,19 @@ function fakeClient() {
           }));
           publishSnapshot();
         },
+        setTerminal(diagnostic) {
+          ownEntry = null;
+          peerEntries = [];
+          snapshot = Object.freeze({
+            ...snapshot,
+            status: 'error',
+            entries: Object.freeze([]),
+            selfKey: null,
+            diagnostic,
+            reason: 'auth_revoked',
+          });
+          for (const listener of [...listeners]) listener();
+        },
       };
       handles.add(handle);
       queueMicrotask(() => {
@@ -220,6 +233,9 @@ function fakeClient() {
       failDelete() { failNextDelete = true; },
       setPeers(entries) {
         for (const handle of handles) handle.setPeers(entries);
+      },
+      setTerminal(diagnostic) {
+        for (const handle of handles) handle.setTerminal(diagnostic);
       },
     }),
     inspection() {
@@ -294,6 +310,22 @@ async function createHarness({
       await provider.dispose();
     },
   };
+}
+
+// @ref LLP 0257#result-and-error-surface — activity presence is an exact
+// base-state projection: terminal denial stays distinct from an empty ready room.
+{
+  const harness = await createHarness();
+  const diagnostic = codedError(
+    'SNAPBACK_AUTH_PERMISSION_DENIED',
+    'membership was revoked',
+  ).diagnostic;
+  act(() => { harness.client.controls.setTerminal(diagnostic); });
+  assert.equal(harness.current.status, 'error');
+  assert.equal(harness.current.diagnostic, diagnostic);
+  assert.deepEqual(harness.current.peers, []);
+  assert.equal(harness.current.lastError, null, 'base terminal state is passthrough, not a helper action failure');
+  await harness.unmount();
 }
 
 function captureActivityTimer(run) {

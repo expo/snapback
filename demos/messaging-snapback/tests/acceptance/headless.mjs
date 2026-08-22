@@ -792,10 +792,15 @@ try {
   });
 
   const typingRef = api.ephemeral.typing;
+  const typingDefinition = schema.ephemeralCollections.find(
+    (definition) => definition.name === typingRef.name,
+  );
+  assert(typingDefinition, 'generated typing definition is available to the room handle');
   let typingConversationId;
   let typingScope;
   let memberAOverlay;
   let memberBOverlay;
+  let memberBRoom;
   let memberBFreshOverlay;
   let memberBEntryKey;
   const memberAFrames = [];
@@ -804,6 +809,9 @@ try {
   let unregisterMemberBFrames;
   let memberBTerminalFrameCount;
   let memberBTerminalMessage;
+  let memberBOverlayTerminalNotifications = 0;
+  let memberBOverlayTerminalDiagnostic = null;
+  let unregisterMemberBOverlayChanges;
 
   await suite.check('typing membership (a): anonymous subscribe and publish are denied', async () => {
     const scope = { conversationId: dmId };
@@ -924,6 +932,17 @@ try {
       scope: typingScope,
       transport: 'poll',
     });
+    unregisterMemberBOverlayChanges = memberBOverlay.onChange((result, overlay) => {
+      if (result !== 'terminal_error') return;
+      memberBOverlayTerminalNotifications += 1;
+      memberBOverlayTerminalDiagnostic = overlay.terminalDiagnostic;
+    });
+    memberBRoom = app.clients.recipientA.startEphemeralRoom({
+      reference: typingRef,
+      definition: typingDefinition,
+      connectionId: 'typing-member-b-room',
+    }, typingScope);
+    await memberBRoom.started();
     const published = await memberBOverlay.publish(
       { userHandle: recipientAPrincipal, name: 'Member B' },
       { ttlMs: typingRef.maxTtlMs },
@@ -966,6 +985,26 @@ try {
         2,
         'removed member terminal frame carries the successor authority generation',
       );
+      assertEqual(
+        memberBOverlayTerminalNotifications,
+        1,
+        'removed member overlay notifies its terminal transition once',
+      );
+      assertEqual(
+        memberBOverlayTerminalDiagnostic?.code,
+        'SNAPBACK_AUTH_PERMISSION_DENIED',
+        'removed member overlay surfaces the trusted permission diagnostic',
+      );
+      const memberBRoomState = memberBRoom.getSnapshot();
+      assertEqual(memberBRoomState.status, 'error', 'removed member room handle is terminally errored');
+      assertEqual(
+        memberBRoomState.diagnostic?.code,
+        'SNAPBACK_AUTH_PERMISSION_DENIED',
+        'removed member room handle carries the trusted permission diagnostic',
+      );
+      assertEqual(memberBRoomState.reason, 'auth_revoked', 'room handle identifies AuthRevoked');
+      assertEqual(memberBRoomState.entries.length, 0, 'terminal room handle exposes no denied entries');
+      assertEqual(memberBRoomState.selfKey, null, 'terminal room handle exposes no denied self identity');
       const revoked = memberAFrames
         .map(ephemeralMessage)
         .find((message) => (
@@ -1001,6 +1040,12 @@ try {
       memberBTerminalFrameCount,
       'removed member subscription stays silent after its terminal frame',
     );
+    assertEqual(
+      memberBOverlayTerminalNotifications,
+      1,
+      'later application cannot renotify or reopen the terminal overlay',
+    );
+    assertEqual(memberBRoom.getSnapshot().status, 'error', 'room handle remains terminal after survivor traffic');
     const removal = memberAFrames
       .map(ephemeralMessage)
       .find((message) => (
@@ -1012,6 +1057,8 @@ try {
       successorAuthorityGeneration: memberBTerminalMessage.Error.room_authority_generation,
       survivorRemovalReason: removal.Remove.reason,
       formerMemberPublish: publishError.diagnostic.code,
+      overlayDiagnostic: memberBOverlayTerminalDiagnostic.code,
+      roomHandleStatus: memberBRoom.getSnapshot().status,
       postTerminalFrames: memberBFrames.length - memberBTerminalFrameCount,
     };
   });
@@ -1084,7 +1131,10 @@ try {
 
     memberAOverlay.dispose();
     memberBOverlay.dispose();
+    memberBRoom.dispose();
+    await memberBRoom.settled();
     memberBFreshOverlay.dispose();
+    unregisterMemberBOverlayChanges();
     unregisterMemberAFrames();
     unregisterMemberBFrames();
     return { freshSubscribe: true, memberAObservedMemberBAgain: true };
