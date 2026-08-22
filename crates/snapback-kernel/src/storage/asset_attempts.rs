@@ -228,10 +228,30 @@ impl LocalDatabase {
         &mut self,
         f: impl FnOnce(&rusqlite::Transaction<'_>) -> SnapbackResult<T>,
     ) -> SnapbackResult<T> {
+        self.asset_attempts_transaction_guarded(f, || Ok(()))
+    }
+
+    /// Execute one asset-attempt transaction and acquire a caller-owned guard
+    /// only after every fallible transaction step has completed. The returned
+    /// guard lives through SQLite COMMIT and drops before post-commit store or
+    /// live-fanout work.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — ordinary HTTP
+    /// authority permits are reserved before Local; mode admission is the
+    /// final lock acquired at this durable cut.
+    fn asset_attempts_transaction_guarded<T, G, BeforeCommit>(
+        &mut self,
+        f: impl FnOnce(&rusqlite::Transaction<'_>) -> SnapbackResult<T>,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<T>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let value = f(&tx)?;
+        let _commit_guard = before_commit()?;
         tx.commit()?;
         Ok(value)
     }
@@ -266,7 +286,47 @@ impl LocalDatabase {
         assets::AssetAttemptRecordV1,
         Option<assets::AssetAttemptRecordV1>,
     )> {
-        self.asset_attempts_transaction(|tx| {
+        self.attempt_create_guarded(
+            intent,
+            deployed_implementation_hash,
+            intent_artifact_json,
+            now,
+            app_id,
+            app_quota,
+            caller,
+            declared_length,
+            request,
+            owner,
+            auth_pair,
+            witness,
+            || Ok(()),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn attempt_create_guarded<G, BeforeCommit>(
+        &mut self,
+        intent: &AssetUploadIntentDefinition,
+        deployed_implementation_hash: &str,
+        intent_artifact_json: &str,
+        now: u64,
+        app_id: &str,
+        app_quota: u64,
+        caller: &Option<String>,
+        declared_length: u64,
+        request: &assets::AssetAttemptCreateRequestV1,
+        owner: &str,
+        auth_pair: &Value,
+        witness: &Value,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<(
+        assets::AssetAttemptRecordV1,
+        Option<assets::AssetAttemptRecordV1>,
+    )>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.asset_attempts_transaction_guarded(|tx| {
             let generation = assets::ensure_intent_generation(
                 tx,
                 &intent.id,
@@ -460,7 +520,7 @@ impl LocalDatabase {
                 ),
             )?;
             Ok((attempt, predecessor))
-        })
+        }, before_commit)
     }
 
     pub(super) fn attempt_cancel(
@@ -468,62 +528,78 @@ impl LocalDatabase {
         request: &assets::AssetAttemptCancelRequestV1,
         now: u64,
     ) -> SnapbackResult<(assets::AssetAttemptRecordV1, Option<assets::AssetRecordV1>)> {
-        self.asset_attempts_transaction(|tx| {
-            let mut attempt = assets::load_attempt(tx, &request.attempt_id)?.ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
-                    "assets",
-                    format!("unknown attempt {}", request.attempt_id),
-                )
-            })?;
-            if attempt.lifecycle_generation != request.lifecycle_generation {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_GENERATION_STALE",
-                    "assets",
-                    "the request carries a stale lifecycle generation",
-                ));
-            }
-            let mut asset = assets::load_asset(tx, &attempt.asset_id)?;
-            if attempt.state.is_current() {
-                assets::transition_attempt(
-                    tx,
-                    &mut attempt,
-                    assets::AssetAttemptState::Cancelled,
-                    now,
-                )?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &attempt.attempt_id.clone(),
-                        assets::AssetReceiptEventV1::AttemptCancelled,
-                        &attempt.asset_id,
-                        Some(&attempt.attempt_id),
+        self.attempt_cancel_guarded(request, now, || Ok(()))
+    }
+
+    pub(super) fn attempt_cancel_guarded<G, BeforeCommit>(
+        &mut self,
+        request: &assets::AssetAttemptCancelRequestV1,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<(assets::AssetAttemptRecordV1, Option<assets::AssetRecordV1>)>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.asset_attempts_transaction_guarded(
+            |tx| {
+                let mut attempt =
+                    assets::load_attempt(tx, &request.attempt_id)?.ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+                            "assets",
+                            format!("unknown attempt {}", request.attempt_id),
+                        )
+                    })?;
+                if attempt.lifecycle_generation != request.lifecycle_generation {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_GENERATION_STALE",
+                        "assets",
+                        "the request carries a stale lifecycle generation",
+                    ));
+                }
+                let mut asset = assets::load_asset(tx, &attempt.asset_id)?;
+                if attempt.state.is_current() {
+                    assets::transition_attempt(
+                        tx,
+                        &mut attempt,
+                        assets::AssetAttemptState::Cancelled,
                         now,
-                        serde_json::json!({ "discardAsset": request.discard_asset }),
-                    ),
-                )?;
-            }
-            if request.discard_asset
-                && let Some(record) = asset.as_mut()
-                && record.availability == assets::AssetAvailability::Pending
-            {
-                // Explicit cancel-and-discard: pending → deleted without
-                // waiting out the grace period (LLP 0044 §Deletion).
-                assets::transition_asset(tx, record, assets::AssetAvailability::Deleted, now)?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &attempt.attempt_id.clone(),
-                        assets::AssetReceiptEventV1::AssetDeleted,
-                        &attempt.asset_id,
-                        Some(&attempt.attempt_id),
-                        now,
-                        serde_json::json!({ "cause": "cancel-and-discard" }),
-                    ),
-                )?;
-            }
-            Ok((attempt, asset))
-        })
+                    )?;
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &attempt.attempt_id.clone(),
+                            assets::AssetReceiptEventV1::AttemptCancelled,
+                            &attempt.asset_id,
+                            Some(&attempt.attempt_id),
+                            now,
+                            serde_json::json!({ "discardAsset": request.discard_asset }),
+                        ),
+                    )?;
+                }
+                if request.discard_asset
+                    && let Some(record) = asset.as_mut()
+                    && record.availability == assets::AssetAvailability::Pending
+                {
+                    // Explicit cancel-and-discard: pending → deleted without
+                    // waiting out the grace period (LLP 0044 §Deletion).
+                    assets::transition_asset(tx, record, assets::AssetAvailability::Deleted, now)?;
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &attempt.attempt_id.clone(),
+                            assets::AssetReceiptEventV1::AssetDeleted,
+                            &attempt.asset_id,
+                            Some(&attempt.attempt_id),
+                            now,
+                            serde_json::json!({ "cause": "cancel-and-discard" }),
+                        ),
+                    )?;
+                }
+                Ok((attempt, asset))
+            },
+            before_commit,
+        )
     }
 
     pub(super) fn attempt_ingest_load(
@@ -542,7 +618,32 @@ impl LocalDatabase {
         all_checksummed: bool,
         now: u64,
     ) -> SnapbackResult<assets::AssetAttemptRecordV1> {
-        self.asset_attempts_transaction(|tx| {
+        self.attempt_tus_patch_guarded(
+            attempt_id,
+            expected_offset,
+            expected_all_checksummed,
+            new_offset,
+            all_checksummed,
+            now,
+            || Ok(()),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn attempt_tus_patch_guarded<G, BeforeCommit>(
+        &mut self,
+        attempt_id: &str,
+        expected_offset: u64,
+        expected_all_checksummed: bool,
+        new_offset: u64,
+        all_checksummed: bool,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<assets::AssetAttemptRecordV1>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.asset_attempts_transaction_guarded(|tx| {
             let mut attempt = assets::load_attempt(tx, attempt_id)?.ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
@@ -578,7 +679,7 @@ impl LocalDatabase {
             attempt.updated_at_ms = now;
             assets::store_attempt(tx, &attempt)?;
             Ok(attempt)
-        })
+        }, before_commit)
     }
 
     pub(super) fn stage_prepared_variant_plan(
@@ -1545,12 +1646,64 @@ impl<'a> AssetAttemptsKernel<'a> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn attempt_create_guarded<G, BeforeCommit>(
+        &mut self,
+        intent: &AssetUploadIntentDefinition,
+        deployed_implementation_hash: &str,
+        intent_artifact_json: &str,
+        now: u64,
+        app_id: &str,
+        app_quota: u64,
+        caller: &Option<String>,
+        declared_length: u64,
+        request: &assets::AssetAttemptCreateRequestV1,
+        owner: &str,
+        auth_pair: &Value,
+        witness: &Value,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<(
+        assets::AssetAttemptRecordV1,
+        Option<assets::AssetAttemptRecordV1>,
+    )>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.attempt_create_guarded(
+            intent,
+            deployed_implementation_hash,
+            intent_artifact_json,
+            now,
+            app_id,
+            app_quota,
+            caller,
+            declared_length,
+            request,
+            owner,
+            auth_pair,
+            witness,
+            before_commit,
+        )
+    }
+
     pub fn attempt_cancel(
         &mut self,
         request: &assets::AssetAttemptCancelRequestV1,
         now: u64,
     ) -> SnapbackResult<(assets::AssetAttemptRecordV1, Option<assets::AssetRecordV1>)> {
         self.db.attempt_cancel(request, now)
+    }
+
+    pub fn attempt_cancel_guarded<G, BeforeCommit>(
+        &mut self,
+        request: &assets::AssetAttemptCancelRequestV1,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<(assets::AssetAttemptRecordV1, Option<assets::AssetRecordV1>)>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.attempt_cancel_guarded(request, now, before_commit)
     }
 
     pub fn attempt_ingest_load(
@@ -1576,6 +1729,31 @@ impl<'a> AssetAttemptsKernel<'a> {
             new_offset,
             all_checksummed,
             now,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn attempt_tus_patch_guarded<G, BeforeCommit>(
+        &mut self,
+        attempt_id: &str,
+        expected_offset: u64,
+        expected_all_checksummed: bool,
+        new_offset: u64,
+        all_checksummed: bool,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<assets::AssetAttemptRecordV1>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.attempt_tus_patch_guarded(
+            attempt_id,
+            expected_offset,
+            expected_all_checksummed,
+            new_offset,
+            all_checksummed,
+            now,
+            before_commit,
         )
     }
 

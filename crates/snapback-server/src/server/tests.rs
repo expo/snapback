@@ -133,6 +133,7 @@ async fn asset_signed_url_route_empty_and_omitted_body_issue_primary() {
             State(state.clone()),
             Extension(authority.clone()),
             AxumPath(asset_id.clone()),
+            HeaderMap::new(),
             Ok(body),
         )
         .await
@@ -31179,6 +31180,734 @@ async fn grant_deadline_crossing_direct_bearer_expires_every_same_grant_socket()
         .lock()
         .assert_grant_indexes_consistent();
 }
+
+const ASSET_AUTHORIZED_EFFECT_TEST_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async strictUpload(ctx) {
+    return { owner: ctx.auth.userId };
+  },
+  async signedUpload(ctx) {
+    return { owner: ctx.auth.userId };
+  }
+};
+"#;
+
+fn asset_authorized_effect_test_intent(
+    name: &str,
+    delivery: crate::assets::AssetDeliveryProfile,
+) -> crate::manifest::AssetUploadIntentDefinition {
+    crate::manifest::AssetUploadIntentDefinition {
+        id: format!("app:{name}"),
+        name: name.to_owned(),
+        exported_name: Some(name.to_owned()),
+        implementation_hash: Some("sha256:asset-authorized-effect-test-impl".to_owned()),
+        args_contract_hash: Some("sha256:asset-authorized-effect-test-args".to_owned()),
+        intent_policy_hash: format!("sha256:asset-authorized-effect-test-policy-{name}"),
+        auth_requirement: None,
+        accept: crate::manifest::AssetAcceptPolicy {
+            media_types: vec!["application/octet-stream".to_owned()],
+            max_bytes: 64 * 1024,
+        },
+        delivery: crate::manifest::AssetDeliveryPolicy { kind: delivery },
+        access: crate::manifest::AssetAccessPolicy {
+            read: crate::assets::AssetReadAccessPolicy::OwnerOnly,
+        },
+        grants: false,
+        image: None,
+        video: None,
+        on: None,
+        declared_reads: Vec::new(),
+        runtime: FunctionRuntime::IbexModule(IbexModule {
+            source: ASSET_AUTHORIZED_EFFECT_TEST_SOURCE.to_owned(),
+            export: name.to_owned(),
+        }),
+        handler_form: Some("inline".to_owned()),
+        source_span: None,
+    }
+}
+
+async fn asset_authorized_effect_server_fixture_async() -> AppState {
+    tokio::task::spawn_blocking(|| {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let mut functions = activation_functions('2', false);
+        functions.asset_upload_intents = vec![
+            asset_authorized_effect_test_intent(
+                "strictUpload",
+                crate::assets::AssetDeliveryProfile::PrivateStrict,
+            ),
+            asset_authorized_effect_test_intent(
+                "signedUpload",
+                crate::assets::AssetDeliveryProfile::PrivateSigned,
+            ),
+        ];
+        sessions_activation_server_fixture_with(functions, None)
+    })
+    .await
+    .expect("construct asset-authority fixture off the async workers")
+}
+
+#[derive(Clone, Copy, Debug)]
+enum AssetAuthorizedEffectSite {
+    AttemptCreation,
+    AttemptCancellation,
+    TusPatchAcknowledgement,
+    ExplicitDelete,
+    SignedUrlReceipt,
+    StrictDeliveryReceipt,
+}
+
+impl AssetAuthorizedEffectSite {
+    fn label(self) -> &'static str {
+        match self {
+            Self::AttemptCreation => "attempt-creation",
+            Self::AttemptCancellation => "attempt-cancellation",
+            Self::TusPatchAcknowledgement => "tus-patch-acknowledgement",
+            Self::ExplicitDelete => "explicit-delete",
+            Self::SignedUrlReceipt => "signed-url-receipt",
+            Self::StrictDeliveryReceipt => "strict-delivery-receipt",
+        }
+    }
+
+    fn needs_ready_asset(self) -> bool {
+        matches!(self, Self::SignedUrlReceipt | Self::StrictDeliveryReceipt)
+    }
+
+    fn intent_name(self) -> &'static str {
+        if matches!(self, Self::SignedUrlReceipt) {
+            "signedUpload"
+        } else {
+            "strictUpload"
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct AssetAuthorizedEffectTarget {
+    asset_id: Option<String>,
+    attempt_id: Option<String>,
+    lifecycle_generation: Option<u64>,
+}
+
+struct AssetAuthorizedEffectFixture {
+    state: AppState,
+    router: SnapbackApp,
+    bearer: String,
+    session_id: String,
+    user_id: String,
+    target: AssetAuthorizedEffectTarget,
+}
+
+fn asset_session_request(
+    method: &str,
+    uri: &str,
+    body: Vec<u8>,
+    content_type: Option<&'static str>,
+    bearer: &str,
+) -> Request<Body> {
+    let mut request = auth_http_request(method, uri, body, false, None, None);
+    offer_auth_client_protocol(&mut request);
+    request.headers_mut().insert(
+        header::AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {bearer}")).expect("asset bearer header"),
+    );
+    if let Some(content_type) = content_type {
+        request
+            .headers_mut()
+            .insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
+    }
+    request
+}
+
+async fn asset_test_create(
+    router: &SnapbackApp,
+    bearer: &str,
+    intent_name: &str,
+) -> AssetAuthorizedEffectTarget {
+    let response = router
+        .clone()
+        .oneshot(asset_session_request(
+            "POST",
+            "/assets/attempts",
+            serde_json::to_vec(&json!({
+                "intentId": format!("app:{intent_name}"),
+                "intentPolicyHash": format!(
+                    "sha256:asset-authorized-effect-test-policy-{intent_name}"
+                ),
+                "implementationHash": "sha256:asset-authorized-effect-test-impl",
+                "args": {},
+                "declaredFilename": "asset-authority-race.bin",
+                "declaredLength": 1,
+                "declaredContentType": "application/octet-stream",
+            }))
+            .expect("serialize asset create request"),
+            Some("application/json"),
+            bearer,
+        ))
+        .await
+        .expect("asset create response");
+    let status = response.status();
+    let response = response_json(response).await;
+    assert_eq!(status, StatusCode::OK, "asset setup create: {response}");
+    AssetAuthorizedEffectTarget {
+        asset_id: Some(
+            response["task"]["assetId"]
+                .as_str()
+                .expect("created asset id")
+                .to_owned(),
+        ),
+        attempt_id: Some(
+            response["task"]["attemptId"]
+                .as_str()
+                .expect("created attempt id")
+                .to_owned(),
+        ),
+        lifecycle_generation: Some(1),
+    }
+}
+
+async fn asset_test_patch(router: &SnapbackApp, bearer: &str, attempt_id: &str, byte: u8) {
+    let mut request = asset_session_request(
+        "PATCH",
+        &format!("/assets/tus/{attempt_id}"),
+        vec![byte],
+        Some("application/offset+octet-stream"),
+        bearer,
+    );
+    request.headers_mut().insert(
+        HeaderName::from_static("tus-resumable"),
+        HeaderValue::from_static("1.0.0"),
+    );
+    request.headers_mut().insert(
+        HeaderName::from_static("upload-offset"),
+        HeaderValue::from_static("0"),
+    );
+    let response = router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("asset setup patch response");
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}
+
+async fn asset_test_finalize(
+    router: &SnapbackApp,
+    bearer: &str,
+    target: &AssetAuthorizedEffectTarget,
+) {
+    let attempt_id = target.attempt_id.as_deref().expect("finalized attempt id");
+    let response = router
+        .clone()
+        .oneshot(asset_session_request(
+            "POST",
+            &format!("/assets/attempts/{attempt_id}/finalize"),
+            serde_json::to_vec(&json!({
+                "attemptId": attempt_id,
+                "lifecycleGeneration": target.lifecycle_generation,
+            }))
+            .expect("serialize finalize request"),
+            Some("application/json"),
+            bearer,
+        ))
+        .await
+        .expect("asset setup finalize response");
+    let status = response.status();
+    let response = response_json(response).await;
+    assert_eq!(status, StatusCode::OK, "asset setup finalize: {response}");
+    assert_eq!(response["task"]["availability"], "ready", "{response}");
+}
+
+async fn asset_authorized_effect_fixture(
+    site: AssetAuthorizedEffectSite,
+) -> AssetAuthorizedEffectFixture {
+    let state = asset_authorized_effect_server_fixture_async().await;
+    let credential =
+        mint_test_credential(&state, &format!("asset-{}@example.test", site.label())).await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("ordinary asset session bearer")
+        .to_owned();
+    let session_id = credential["session"]["id"]
+        .as_str()
+        .expect("ordinary asset session id")
+        .to_owned();
+    let user_id = credential["session"]["userId"]
+        .as_str()
+        .expect("ordinary asset session user id")
+        .to_owned();
+    let router = app(state.clone());
+    let target = if matches!(site, AssetAuthorizedEffectSite::AttemptCreation) {
+        AssetAuthorizedEffectTarget {
+            asset_id: None,
+            attempt_id: None,
+            lifecycle_generation: None,
+        }
+    } else {
+        let target = asset_test_create(&router, &bearer, site.intent_name()).await;
+        if site.needs_ready_asset() {
+            asset_test_patch(
+                &router,
+                &bearer,
+                target.attempt_id.as_deref().expect("ready attempt id"),
+                b'x',
+            )
+            .await;
+            asset_test_finalize(&router, &bearer, &target).await;
+        }
+        target
+    };
+    AssetAuthorizedEffectFixture {
+        state,
+        router,
+        bearer,
+        session_id,
+        user_id,
+        target,
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum AssetDurableWitness {
+    AssetCount(usize),
+    Attempt { state: String, offset: u64 },
+    Availability(String),
+    ReceiptCount(usize),
+}
+
+async fn asset_durable_witness(
+    fixture: &AssetAuthorizedEffectFixture,
+    site: AssetAuthorizedEffectSite,
+) -> AssetDurableWitness {
+    if matches!(site, AssetAuthorizedEffectSite::AttemptCreation) {
+        let listing = with_snapback(&fixture.state.snapback, |snapback| {
+            snapback_engine::test_support::asset_host_op(
+                snapback,
+                "asset.list",
+                None,
+                None,
+                ServerProfile::Test,
+            )
+        })
+        .await
+        .expect("list asset rows for race witness");
+        return AssetDurableWitness::AssetCount(
+            listing["assets"]
+                .as_array()
+                .expect("asset listing array")
+                .len(),
+        );
+    }
+
+    let asset_id = fixture
+        .target
+        .asset_id
+        .as_deref()
+        .expect("race target asset id")
+        .to_owned();
+    let user_id = fixture.user_id.clone();
+    let inspected = with_snapback(&fixture.state.snapback, move |snapback| {
+        let input = json!({ "assetId": asset_id });
+        snapback_engine::test_support::asset_host_op(
+            snapback,
+            "asset.inspect",
+            Some(&input),
+            Some(&user_id),
+            ServerProfile::Test,
+        )
+    })
+    .await
+    .expect("inspect asset race witness");
+    match site {
+        AssetAuthorizedEffectSite::TusPatchAcknowledgement => AssetDurableWitness::Attempt {
+            state: inspected["currentAttempt"]["state"]
+                .as_str()
+                .expect("current attempt state")
+                .to_owned(),
+            offset: inspected["currentAttempt"]["acknowledgedOffset"]
+                .as_u64()
+                .expect("current attempt offset"),
+        },
+        AssetAuthorizedEffectSite::ExplicitDelete => AssetDurableWitness::Availability(
+            inspected["asset"]["availability"]
+                .as_str()
+                .expect("asset availability")
+                .to_owned(),
+        ),
+        AssetAuthorizedEffectSite::AttemptCancellation
+        | AssetAuthorizedEffectSite::SignedUrlReceipt
+        | AssetAuthorizedEffectSite::StrictDeliveryReceipt => AssetDurableWitness::ReceiptCount(
+            inspected["receipts"]
+                .as_array()
+                .expect("asset receipts")
+                .len(),
+        ),
+        AssetAuthorizedEffectSite::AttemptCreation => unreachable!(),
+    }
+}
+
+fn asset_target_request(
+    fixture: &AssetAuthorizedEffectFixture,
+    site: AssetAuthorizedEffectSite,
+) -> Request<Body> {
+    let asset_id = fixture.target.asset_id.as_deref();
+    let attempt_id = fixture.target.attempt_id.as_deref();
+    let mut request = match site {
+        AssetAuthorizedEffectSite::AttemptCreation => asset_session_request(
+            "POST",
+            "/assets/attempts",
+            serde_json::to_vec(&json!({
+                "intentId": "app:strictUpload",
+                "intentPolicyHash": "sha256:asset-authorized-effect-test-policy-strictUpload",
+                "implementationHash": "sha256:asset-authorized-effect-test-impl",
+                "args": {},
+                "declaredFilename": "asset-authority-race.bin",
+                "declaredLength": 1,
+                "declaredContentType": "application/octet-stream",
+            }))
+            .expect("serialize racing create request"),
+            Some("application/json"),
+            &fixture.bearer,
+        ),
+        AssetAuthorizedEffectSite::AttemptCancellation => asset_session_request(
+            "POST",
+            &format!(
+                "/assets/attempts/{}/cancel",
+                attempt_id.expect("cancel attempt id")
+            ),
+            serde_json::to_vec(&json!({
+                "attemptId": attempt_id,
+                "lifecycleGeneration": fixture.target.lifecycle_generation,
+                "discardAsset": false,
+            }))
+            .expect("serialize racing cancellation request"),
+            Some("application/json"),
+            &fixture.bearer,
+        ),
+        AssetAuthorizedEffectSite::TusPatchAcknowledgement => {
+            let mut request = asset_session_request(
+                "PATCH",
+                &format!("/assets/tus/{}", attempt_id.expect("TUS attempt id")),
+                vec![b'z'],
+                Some("application/offset+octet-stream"),
+                &fixture.bearer,
+            );
+            request.headers_mut().insert(
+                HeaderName::from_static("tus-resumable"),
+                HeaderValue::from_static("1.0.0"),
+            );
+            request.headers_mut().insert(
+                HeaderName::from_static("upload-offset"),
+                HeaderValue::from_static("0"),
+            );
+            request
+        }
+        AssetAuthorizedEffectSite::ExplicitDelete => asset_session_request(
+            "DELETE",
+            &format!(
+                "/assets/records/{}",
+                asset_id.expect("explicit-delete asset id")
+            ),
+            Vec::new(),
+            None,
+            &fixture.bearer,
+        ),
+        AssetAuthorizedEffectSite::SignedUrlReceipt => asset_session_request(
+            "POST",
+            &format!(
+                "/assets/records/{}/signed-url",
+                asset_id.expect("signed-url asset id")
+            ),
+            br#"{}"#.to_vec(),
+            Some("application/json"),
+            &fixture.bearer,
+        ),
+        AssetAuthorizedEffectSite::StrictDeliveryReceipt => asset_session_request(
+            "GET",
+            &format!(
+                "/assets/records/{}/bytes/primary",
+                asset_id.expect("strict-delivery asset id")
+            ),
+            Vec::new(),
+            None,
+            &fixture.bearer,
+        ),
+    };
+    request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_static("set-by-race-runner"),
+    );
+    request
+}
+
+fn assert_asset_effect_committed(
+    site: AssetAuthorizedEffectSite,
+    before: &AssetDurableWitness,
+    after: &AssetDurableWitness,
+) {
+    match (site, before, after) {
+        (
+            AssetAuthorizedEffectSite::AttemptCreation,
+            AssetDurableWitness::AssetCount(before),
+            AssetDurableWitness::AssetCount(after),
+        ) => assert_eq!(*after, before + 1),
+        (
+            AssetAuthorizedEffectSite::TusPatchAcknowledgement,
+            AssetDurableWitness::Attempt {
+                state: before_state,
+                offset: before_offset,
+            },
+            AssetDurableWitness::Attempt {
+                state: after_state,
+                offset: after_offset,
+            },
+        ) => {
+            assert_eq!(before_state, "open");
+            assert_eq!(after_state, "transferring");
+            assert_eq!(*after_offset, before_offset + 1);
+        }
+        (
+            AssetAuthorizedEffectSite::ExplicitDelete,
+            AssetDurableWitness::Availability(before),
+            AssetDurableWitness::Availability(after),
+        ) => {
+            assert_eq!(before, "pending");
+            assert_eq!(after, "deleted");
+        }
+        (
+            AssetAuthorizedEffectSite::AttemptCancellation
+            | AssetAuthorizedEffectSite::SignedUrlReceipt
+            | AssetAuthorizedEffectSite::StrictDeliveryReceipt,
+            AssetDurableWitness::ReceiptCount(before),
+            AssetDurableWitness::ReceiptCount(after),
+        ) => assert_eq!(*after, before + 1),
+        _ => panic!("mismatched asset durable witnesses: {site:?}, {before:?}, {after:?}"),
+    }
+}
+
+async fn asset_logout_wins_before_reservation(site: AssetAuthorizedEffectSite) {
+    let fixture = asset_authorized_effect_fixture(site).await;
+    let before = asset_durable_witness(&fixture, site).await;
+    let pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::BeforeAuthorizedEffectReservation,
+    );
+    let mut request = asset_target_request(&fixture, site);
+    request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(pause.id()).expect("asset pre-reservation pause header"),
+    );
+    let target_router = fixture.router.clone();
+    let target = tokio::spawn(async move {
+        target_router
+            .oneshot(request)
+            .await
+            .expect("logout-racing asset response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+        .await
+        .expect("asset request reaches the pre-reservation pause");
+
+    let logout = tokio::time::timeout(
+        Duration::from_secs(5),
+        fixture.router.clone().oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &fixture.bearer,
+        )),
+    )
+    .await
+    .expect("asset-racing logout does not hang")
+    .expect("asset-racing logout response");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+
+    pause.release().await;
+    let response = tokio::time::timeout(Duration::from_secs(5), target)
+        .await
+        .expect("logged-out asset request does not hang")
+        .expect("logged-out asset request task");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let response = response_json(response).await;
+    assert_eq!(
+        response["diagnostic"]["code"],
+        "SNAPBACK_AUTH_SESSION_EXPIRED"
+    );
+    assert_eq!(
+        response["diagnostic"]["details"]["authorityDisposition"],
+        "durableDelete"
+    );
+    let after = asset_durable_witness(&fixture, site).await;
+    assert_eq!(after, before, "retired caller committed {site:?}");
+}
+
+async fn asset_reservation_wins_before_logout(site: AssetAuthorizedEffectSite) {
+    let fixture = asset_authorized_effect_fixture(site).await;
+    let before = asset_durable_witness(&fixture, site).await;
+    let logout_premark_probe = prepared_provider_route_authority(
+        &fixture.state,
+        InvocationSource::AuthLogout,
+        &fixture.bearer,
+    )
+    .0;
+    let effect_pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
+    );
+    let mut request = asset_target_request(&fixture, site);
+    request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(effect_pause.id()).expect("asset reservation pause header"),
+    );
+    let target_router = fixture.router.clone();
+    let target = tokio::spawn(async move {
+        target_router
+            .oneshot(request)
+            .await
+            .expect("reservation-winning asset response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), effect_pause.wait_until_reached())
+        .await
+        .expect("asset request reserves authority before Local");
+
+    let logout_pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::AfterSessionTerminalPremark,
+    );
+    let mut logout_request =
+        session_auth_http_request("/auth/logout", br#"{}"#.to_vec(), &fixture.bearer);
+    logout_request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(logout_pause.id()).expect("asset logout premark pause header"),
+    );
+    let logout_router = fixture.router.clone();
+    let logout = tokio::spawn(async move {
+        logout_router
+            .oneshot(logout_request)
+            .await
+            .expect("asset permit-draining logout response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            match logout_premark_probe.reserve_authorized_effect("asset logout premark test probe")
+            {
+                Ok(probe) => {
+                    drop(probe);
+                    tokio::task::yield_now().await;
+                }
+                Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_SESSION_EXPIRED" => break,
+                Err(error) => panic!(
+                    "asset logout premark probe returned {} for {site:?}",
+                    error.diagnostic.code
+                ),
+            }
+        }
+    })
+    .await
+    .expect("logout closes new asset reservations before the predecessor drains");
+    assert!(
+        !logout_pause.has_reached(),
+        "logout terminal premark crossed the outstanding {site:?} permit"
+    );
+    assert!(
+        !logout.is_finished(),
+        "logout cannot finish while {site:?} is reserved"
+    );
+
+    effect_pause.release().await;
+    let response = tokio::time::timeout(Duration::from_secs(5), target)
+        .await
+        .expect("reservation-winning asset request does not hang")
+        .expect("reservation-winning asset request task");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let response = response_json(response).await;
+    assert_eq!(
+        response["diagnostic"]["code"],
+        "SNAPBACK_AUTH_SESSION_EXPIRED"
+    );
+    assert_eq!(
+        response["diagnostic"]["details"]["authorityDisposition"],
+        "carrier"
+    );
+
+    tokio::time::timeout(Duration::from_secs(5), logout_pause.wait_until_reached())
+        .await
+        .expect("asset logout drains after the reserved effect commits");
+    let after = asset_durable_witness(&fixture, site).await;
+    assert_asset_effect_committed(site, &before, &after);
+    let precommit_session_facts = with_snapback(&fixture.state.snapback, {
+        let session_id = fixture.session_id.clone();
+        move |snapback| {
+            snapback
+                .remainder_auth_database_mut()
+                .auth_catalog()
+                .session_lifetime_facts_for_test(&session_id)
+        }
+    })
+    .await
+    .expect("read pre-logout-commit asset session facts");
+    assert_eq!(precommit_session_facts.2, 1);
+    assert!(!precommit_session_facts.3);
+
+    logout_pause.release().await;
+    let logout_response = tokio::time::timeout(Duration::from_secs(5), logout)
+        .await
+        .expect("drained asset logout does not hang")
+        .expect("drained asset logout task");
+    assert_eq!(logout_response.status(), StatusCode::NO_CONTENT);
+    let terminal_session_facts = with_snapback(&fixture.state.snapback, {
+        let session_id = fixture.session_id.clone();
+        move |snapback| {
+            snapback
+                .remainder_auth_database_mut()
+                .auth_catalog()
+                .session_lifetime_facts_for_test(&session_id)
+        }
+    })
+    .await
+    .expect("read terminal asset session facts");
+    assert_eq!(terminal_session_facts.2, 2);
+    assert!(terminal_session_facts.3);
+}
+
+macro_rules! asset_authorized_effect_race_tests {
+    ($logout_test:ident, $reservation_test:ident, $site:expr) => {
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn $logout_test() {
+            asset_logout_wins_before_reservation($site).await;
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn $reservation_test() {
+            asset_reservation_wins_before_logout($site).await;
+        }
+    };
+}
+
+asset_authorized_effect_race_tests!(
+    asset_attempt_creation_logout_wins_before_reservation,
+    asset_attempt_creation_reservation_wins_before_logout,
+    AssetAuthorizedEffectSite::AttemptCreation
+);
+asset_authorized_effect_race_tests!(
+    asset_cancellation_logout_wins_before_reservation,
+    asset_cancellation_reservation_wins_before_logout,
+    AssetAuthorizedEffectSite::AttemptCancellation
+);
+asset_authorized_effect_race_tests!(
+    asset_tus_patch_acknowledgement_logout_wins_before_reservation,
+    asset_tus_patch_acknowledgement_reservation_wins_before_logout,
+    AssetAuthorizedEffectSite::TusPatchAcknowledgement
+);
+asset_authorized_effect_race_tests!(
+    asset_explicit_delete_logout_wins_before_reservation,
+    asset_explicit_delete_reservation_wins_before_logout,
+    AssetAuthorizedEffectSite::ExplicitDelete
+);
+asset_authorized_effect_race_tests!(
+    asset_signed_url_receipt_logout_wins_before_reservation,
+    asset_signed_url_receipt_reservation_wins_before_logout,
+    AssetAuthorizedEffectSite::SignedUrlReceipt
+);
+asset_authorized_effect_race_tests!(
+    asset_strict_delivery_receipt_logout_wins_before_reservation,
+    asset_strict_delivery_receipt_reservation_wins_before_logout,
+    AssetAuthorizedEffectSite::StrictDeliveryReceipt
+);
 
 /// Regression for `issues/20260821-effect-guard-does-not-fence-logout.md`
 /// and `issues/20260821-authorized-effect-fence-design.md`: a real logout,
