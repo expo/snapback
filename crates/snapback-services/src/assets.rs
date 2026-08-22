@@ -540,6 +540,7 @@ pub struct AssetWidthPlanTicketV1 {
 pub struct AssetWidthPutTicketV1 {
     plan: AssetWidthPlanTicketV1,
     publication: crate::asset_proof::AssetWidthPublicationPlannedProof,
+    put_lease: AssetWidthPutLeaseV1,
 }
 
 /// Verified blob bytes awaiting the caller-fenced staged and
@@ -550,6 +551,61 @@ pub struct AssetWidthCommitTicketV1 {
     app_id: String,
     app_quota: u64,
     prepared: crate::asset_proof::AssetWidthPreparedVariant,
+    put_lease: AssetWidthPutLeaseV1,
+}
+
+fn asset_width_put_leases() -> &'static std::sync::Mutex<std::collections::BTreeMap<String, u64>> {
+    static LEASES: std::sync::OnceLock<std::sync::Mutex<std::collections::BTreeMap<String, u64>>> =
+        std::sync::OnceLock::new();
+    LEASES.get_or_init(|| std::sync::Mutex::new(std::collections::BTreeMap::new()))
+}
+
+/// Process-local lifetime token for one PUT capability. The durable
+/// publication remains authoritative; this token only prevents maintenance
+/// from retiring that record while an in-memory ticket can still recreate its
+/// idempotent object.
+///
+/// @ref LLP 0044#publication-and-crash-recovery — external PUT authority keeps
+/// its durable publication discoverable until the staged cut resolves.
+#[doc(hidden)]
+pub struct AssetWidthPutLeaseV1 {
+    publication_id: String,
+}
+
+impl AssetWidthPutLeaseV1 {
+    fn acquire(publication_id: &str) -> Self {
+        let mut leases = asset_width_put_leases()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *leases.entry(publication_id.to_owned()).or_default() += 1;
+        Self {
+            publication_id: publication_id.to_owned(),
+        }
+    }
+}
+
+impl Drop for AssetWidthPutLeaseV1 {
+    fn drop(&mut self) {
+        let mut leases = asset_width_put_leases()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(count) = leases.get_mut(&self.publication_id) {
+            if *count > 1 {
+                *count -= 1;
+            } else {
+                leases.remove(&self.publication_id);
+            }
+        }
+    }
+}
+
+#[doc(hidden)]
+pub fn asset_width_publication_has_outstanding_put(publication_id: &str) -> bool {
+    asset_width_put_leases()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .get(publication_id)
+        .is_some_and(|count| *count > 0)
 }
 
 impl AssetWidthPrepareTicketV1 {
@@ -672,6 +728,7 @@ impl AssetWidthPlanTicketV1 {
             ));
         }
         Ok(AssetWidthPutTicketV1 {
+            put_lease: AssetWidthPutLeaseV1::acquire(&publication.publication_id),
             plan: self,
             publication: proof,
         })
@@ -712,6 +769,7 @@ impl AssetWidthPutTicketV1 {
                 prepared.content_type,
                 prepared.recipe_version,
             ),
+            put_lease: self.put_lease,
         })
     }
 
@@ -730,6 +788,7 @@ impl AssetWidthCommitTicketV1 {
         String,
         u64,
         crate::asset_proof::AssetWidthPreparedVariant,
+        AssetWidthPutLeaseV1,
     ) {
         (
             self.asset_id,
@@ -737,6 +796,7 @@ impl AssetWidthCommitTicketV1 {
             self.app_id,
             self.app_quota,
             self.prepared,
+            self.put_lease,
         )
     }
 }

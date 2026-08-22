@@ -107,8 +107,11 @@ impl AssetWidthPublicationPlannedProof {
 }
 
 /// Opaque width-only commit carrier. A services-owned width commit ticket
-/// carries this type instead of a raw [`AssetPreparedVariant`], so it cannot be
-/// passed to the ordinary attempt/runner staging helper by mistake.
+/// carries this type instead of a raw [`AssetPreparedVariant`], preventing the
+/// intended ticket path from being passed to the ordinary attempt/runner
+/// staging helper by mistake. This is type-state guidance for that path, not a
+/// claim that every caller of the unpublished kernel API is structurally
+/// unable to construct an ordinary prepared variant.
 pub struct AssetWidthPreparedVariant {
     prepared: AssetPreparedVariant,
 }

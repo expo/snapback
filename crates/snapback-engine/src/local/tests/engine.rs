@@ -10795,6 +10795,125 @@ fn asset_staggered_width_planning_cohort_converges_on_first_rendition() {
 }
 
 #[test]
+fn asset_gc_retains_condemned_publication_until_last_width_put_resolves() {
+    let mut snapback =
+        asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());
+    let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
+    let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+    asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+        .expect("publish width source");
+    let asset_id = created.task.asset_id.clone();
+    let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+
+    // A, B, and C all prepare before the width exists. A publishes w128;
+    // staggered B and C then share a fresh stale publication P.
+    let mut preflight = || match snapback
+        .asset_width_preflight(&asset_id, 100)
+        .expect("late-put width preflight")
+    {
+        AssetWidthPreflightV1::Proceed(ticket) => ticket,
+        AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
+    };
+    let first_plan = preflight().prepare().expect("render first width");
+    let second_plan = preflight().prepare().expect("render second width");
+    let third_plan = preflight().prepare().expect("render third width");
+
+    let first_effect = authority
+        .reserve_authorized_effect("late-put first width plan")
+        .expect("reserve first width plan");
+    let first_put = snapback
+        .asset_width_plan_with_authorized_effect(first_plan, first_effect)
+        .expect("commit first width plan");
+    let first_commit = first_put.put().expect("first width PUT succeeds");
+    let first_commit_effect = authority
+        .reserve_authorized_effect("late-put first width commit")
+        .expect("reserve first width commit");
+    snapback
+        .asset_width_commit_with_authorized_effect(first_commit, first_commit_effect)
+        .expect("first request publishes the width rendition");
+
+    let second_effect = authority
+        .reserve_authorized_effect("late-put second width plan")
+        .expect("reserve second width plan");
+    let second_put = snapback
+        .asset_width_plan_with_authorized_effect(second_plan, second_effect)
+        .expect("commit stale second width plan");
+    let third_effect = authority
+        .reserve_authorized_effect("late-put third width plan")
+        .expect("reserve third width plan");
+    let third_put = snapback
+        .asset_width_plan_with_authorized_effect(third_plan, third_effect)
+        .expect("third request joins the stale publication");
+    let publication_id = second_put.publication_for_test().publication_id.clone();
+    let planned_key = second_put.publication_for_test().planned_key.clone();
+    assert_eq!(
+        third_put.publication_for_test().publication_id,
+        publication_id,
+        "B and C hold PUT tickets for the same durable publication",
+    );
+
+    // B's PUT and commit converge on A and condemn P while C still holds the
+    // sibling PUT ticket. GC must leave P and its object discoverable.
+    let second_commit = second_put.put().expect("second width PUT succeeds");
+    let second_commit_effect = authority
+        .reserve_authorized_effect("late-put second width commit")
+        .expect("reserve second width commit");
+    snapback
+        .asset_width_commit_with_authorized_effect(second_commit, second_commit_effect)
+        .expect("second request converges and condemns the stale publication");
+    let overlapping_gc = snapback
+        .asset_publication_maintain(now_millis())
+        .expect("GC overlaps the outstanding sibling PUT ticket");
+    assert_eq!(
+        overlapping_gc,
+        super::AssetPublicationMaintenanceReport::default(),
+        "GC cannot clean or retire P while C can still recreate its object",
+    );
+    assert!(
+        snapback
+            .db
+            .asset_maintenance()
+            .publication_records_in_state(crate::assets::AssetPublicationState::Condemned)
+            .expect("read retained condemned publication")
+            .iter()
+            .any(|record| record.publication_id == publication_id),
+        "the outstanding ticket keeps P discoverable",
+    );
+
+    // C's idempotent PUT and staged cut converge on A through retained P. Once
+    // the commit ticket resolves, the next pass may delete and retire P.
+    let third_commit = third_put
+        .put()
+        .expect("late sibling PUT remains idempotent on the retained object");
+    let store = snapback.asset_store_obj().expect("width store");
+    assert!(
+        store
+            .exists(crate::assets_store::AssetObjectRef::Blob(&planned_key))
+            .expect("probe recreated width object"),
+        "P's object remains present until C resolves",
+    );
+    let third_commit_effect = authority
+        .reserve_authorized_effect("late-put third width commit")
+        .expect("reserve third width commit");
+    let converged = snapback
+        .asset_width_commit_with_authorized_effect(third_commit, third_commit_effect)
+        .expect("late sibling converges through retained condemned publication");
+    assert_eq!(converged, "w128");
+
+    let cleanup_gc = snapback
+        .asset_publication_maintain(now_millis())
+        .expect("GC removes the released condemned object");
+    assert_eq!(cleanup_gc.objects_deleted, 1);
+    assert_eq!(cleanup_gc.retired, 1);
+    assert!(
+        !store
+            .exists(crate::assets_store::AssetObjectRef::Blob(&planned_key))
+            .expect("probe cleaned late width object"),
+        "no undiscoverable object remains after cleanup",
+    );
+}
+
+#[test]
 fn asset_stale_width_plan_converges_before_tight_quota_is_charged() {
     let mut snapback =
         asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());

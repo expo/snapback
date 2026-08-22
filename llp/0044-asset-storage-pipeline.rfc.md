@@ -5,6 +5,10 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-22 (width-publication convergence now compares the exact
+prepared digest before bypassing quota, and each width PUT/commit ticket holds
+its publication row live through resolution so GC cannot retire the durable
+owner while a sibling ticket can still recreate its object.)
 **Revised:** 2026-08-21 (AssetRef schema-evolution diagnostics now render the
 bounded old/new intent and media-policy identity, name the changed facts, and
 separate the attachment-hook-safe successor-field repair from whole-store
@@ -870,6 +874,14 @@ run follow a write-ahead publication protocol:
    condemned, its object is cleaned by reconciliation, and in the same
    transaction the loser acquires a reference to the winner's blob — the
    race converges on one stored object with both assets published.
+   A process-local sibling PUT ticket may still hold the same idempotent key
+   after the losing publication is condemned. Every width PUT/commit ticket
+   therefore retains a process-local lease on that durable publication through
+   its staged cut; reconciliation may delete and retire the row only after the
+   last such ticket resolves or drops. A crash drops every ticket before
+   recovery, while the durable row remains discoverable. Recipe lineage alone
+   is never sufficient for convergence; the Ready blob must match the
+   planned/prepared immutable digest identity.
 4. **Reconciliation sweep.** A mandatory sweep (same runner substrate as
    processing) resolves stale `planned` and `staged` publication records,
    deletes condemned and orphaned objects, and repairs reference counts;

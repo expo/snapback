@@ -14489,6 +14489,11 @@ impl LocalSnapback {
             .asset_maintenance()
             .publication_records_in_state(assets::AssetPublicationState::Condemned)?;
         for record in condemned {
+            if snapback_services::assets::asset_width_publication_has_outstanding_put(
+                &record.publication_id,
+            ) {
+                continue;
+            }
             let object = crate::assets_store::AssetObjectRef::Blob(&record.planned_key);
             // Never delete an object a live blob row owns (the reused-path
             // convergence shares digests, not keys, so this is exact).
@@ -14513,6 +14518,11 @@ impl LocalSnapback {
             .asset_maintenance()
             .publication_records_in_state(assets::AssetPublicationState::Committed)?;
         for record in committed {
+            if snapback_services::assets::asset_width_publication_has_outstanding_put(
+                &record.publication_id,
+            ) {
+                continue;
+            }
             if now_ms.saturating_sub(record.updated_at_ms)
                 < crate::assets::ASSET_PUBLICATION_RETENTION_MS
             {
@@ -14572,7 +14582,7 @@ impl LocalSnapback {
             )?;
         let put = plan.into_put(proof)?;
         let commit = put.put()?;
-        let (asset_id, key, app_id, app_quota, mut prepared) = commit.into_parts();
+        let (asset_id, key, app_id, app_quota, mut prepared, _put_lease) = commit.into_parts();
         let stage_outcome = self
             .db
             .asset_attempts()
@@ -14674,7 +14684,7 @@ impl LocalSnapback {
         ticket: AssetWidthCommitTicketV1,
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<String> {
-        let (asset_id, key, app_id, app_quota, mut prepared) = ticket.into_parts();
+        let (asset_id, key, app_id, app_quota, mut prepared, _put_lease) = ticket.into_parts();
         let stage_outcome = self
             .db
             .asset_attempts()

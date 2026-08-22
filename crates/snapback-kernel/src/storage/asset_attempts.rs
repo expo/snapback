@@ -120,11 +120,27 @@ fn asset_commit_prepared_variant(
     // A request served by an existing Ready same-lineage rendition performs
     // no new logical allocation. Converge before quota settlement so a stale
     // planning cohort cannot be refused after its winner consumes the last
-    // available unit. A newer recipe likewise wins without allocating here.
+    // available unit. Width publications use the same exact immutable-byte
+    // predicate as their terminal staging path; other producer domains retain
+    // their existing same-lineage rule. A newer recipe likewise wins without
+    // allocating here.
     if let Some(existing) = assets::load_rendition_by_variant(tx, asset_id, &prepared.key)? {
+        let width_publication = prepared.publication.attempt_id.is_none()
+            && prepared.publication.asset_id.as_deref() == Some(asset_id)
+            && prepared.publication.variant_key.as_deref() == Some(prepared.key.as_str());
         let converged = if existing.recipe_version > prepared.recipe_version {
             Some(AssetVariantCommit::StaleLost)
-        } else if existing.state == assets::AssetRenditionState::Ready
+        } else if width_publication
+            && width_publication_has_ready_rendition(
+                tx,
+                &prepared.publication,
+                &prepared.digest,
+                prepared.recipe_version,
+            )?
+        {
+            Some(AssetVariantCommit::AlreadyCurrent)
+        } else if !width_publication
+            && existing.state == assets::AssetRenditionState::Ready
             && existing.recipe == assets::ASSET_RECIPE_IMAGE_VARIANT_V1
             && existing.recipe_version == prepared.recipe_version
         {
@@ -223,6 +239,7 @@ fn asset_commit_prepared_variant(
 fn width_publication_has_ready_rendition(
     tx: &rusqlite::Transaction<'_>,
     publication: &assets::AssetPublicationRecordV1,
+    prepared_digest: &str,
     recipe_version: u64,
 ) -> SnapbackResult<bool> {
     let (Some(asset_id), Some(variant_key)) = (
@@ -231,7 +248,7 @@ fn width_publication_has_ready_rendition(
     ) else {
         return Ok(false);
     };
-    if publication.attempt_id.is_some() {
+    if publication.attempt_id.is_some() || publication.digest != prepared_digest {
         return Ok(false);
     }
     let Some(rendition) = assets::load_rendition_by_variant(tx, asset_id, variant_key)? else {
@@ -253,16 +270,14 @@ fn width_publication_has_ready_rendition(
     {
         return Ok(false);
     }
-    Ok(match publication.state {
-        assets::AssetPublicationState::Committed => {
-            publication.blob_id.as_deref() == Some(rendition.blob_id.as_str())
-        }
-        // A uniqueness loser has no blob edge of its own. Matching the exact
-        // attempt-less owner tuple and immutable digest to the Ready winner is
-        // the convergence proof for every request sharing that condemned row.
-        assets::AssetPublicationState::Condemned => true,
-        _ => false,
-    })
+    // A committed record has its own blob edge and must name this exact
+    // rendition. Planned/staged requests and a uniqueness loser have no such
+    // edge: the exact attempt-less owner tuple plus immutable digest is their
+    // convergence proof against the Ready winner.
+    Ok(
+        publication.state != assets::AssetPublicationState::Committed
+            || publication.blob_id.as_deref() == Some(rendition.blob_id.as_str()),
+    )
 }
 
 fn asset_ceiling_error(what: &str, limit: u64, observed: u64) -> SnapbackError {
@@ -957,7 +972,9 @@ impl LocalDatabase {
 
     /// Fence the staged cut for a width request while preserving the accepted
     /// concurrent-first and staggered-cohort convergence contract. The opaque
-    /// width carrier cannot be passed to the ordinary staging helper above.
+    /// width carrier keeps the services-owned ticket path out of the ordinary
+    /// staging helper above; it is not a universal authority boundary for
+    /// arbitrary callers of the unpublished kernel API.
     ///
     /// @ref LLP 0044#acceptance — a loser holding the same publication may
     /// observe it after the winner's commit and succeeds on that rendition.
@@ -970,6 +987,7 @@ impl LocalDatabase {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         let recipe_version = prepared.prepared().recipe_version;
+        let prepared_digest = prepared.prepared().digest.clone();
         let publication = &mut prepared.prepared_mut().publication;
         self.asset_attempts_transaction_guarded(
             |tx| {
@@ -1009,7 +1027,12 @@ impl LocalDatabase {
                     }
                     assets::AssetPublicationState::Committed
                     | assets::AssetPublicationState::Condemned
-                        if width_publication_has_ready_rendition(tx, &current, recipe_version)? =>
+                        if width_publication_has_ready_rendition(
+                            tx,
+                            &current,
+                            &prepared_digest,
+                            recipe_version,
+                        )? =>
                     {
                         AssetWidthPublicationStageOutcome::AlreadyCurrent
                     }
