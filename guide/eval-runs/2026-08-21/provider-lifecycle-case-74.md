@@ -1,57 +1,77 @@
 # Retrieval eval run — 2026-08-21 — case 74
 
 **Intent:** Provider auth rebuild
-**Fixture:** fresh `gpt-5.6-sol` Codex context; read-only; five tool calls.
+**Fixture:** fresh `gpt-5.6-sol` Codex context; read-only; the intent phrase
+below was the complete submitted prompt, with repository `AGENTS.md` as the
+sole project steer.
 **Verdict:** PASS — routed to `guide/recipes/provider-lifecycle.md` on tool
-call 5 and used the documented blocked states plus teardown-before-rebuild
+call 8 and used the documented blocked states plus teardown-before-rebuild
 without polling, timeout, or predecessor connection rebind.
 
 ## Actual prompt
 
 ````text
-Cold retrieval probe for guide/retrieval-eval.md case 74. You are a provider author new to Snapback. In at most 15 tool calls total, follow repository AGENTS.md and use only guide/index/capability/retrieval routes and the specific Guide pages they lead to; do not inspect implementation source, LLPs, issues, or prior eval-run evidence. Answer this exact intent: "I need a provider adapter pattern that can rebuild stream on auth without a timeout." Produce a concrete auth-transition and teardown plan using the documented provider states. End with a numbered transcript of the actual tool calls you used and state which Guide page you loaded and by which tool-call number. Do not edit files.
+I need a provider adapter pattern that can rebuild stream on auth without a timeout.
 ````
 
 ## Actual tool trace
 
-1. `sed -n '1,240p' skills/snapback-authoring/SKILL.md` — exit 0.
-2. `sed -n '1,240p' guide/index.md` — exit 0.
-3. `rg` searched only `guide/index.md` and `guide/capabilities.md` for the provider/auth/stream route terms — exit 0.
-4. `sed` read the matching routing excerpts from `guide/index.md` and `guide/capabilities.md` — exit 0.
-5. `sed -n '1,280p' guide/recipes/provider-lifecycle.md` — exit 0.
+1. Read `skills/llp-orient/SKILL.md`.
+2. Searched the checkout with the provider/auth/stream/timeout vocabulary.
+3. Surveyed the repository structure and provider-bearing packages.
+4. Inspected the branch history and narrowed the provider-lifecycle search.
+5. Read `skills/snapback-authoring/SKILL.md`.
+6. Read `guide/start/mental-model.md` and located the Guide CLI.
+7. Ran the bounded Guide query; it refused because this checkout had no
+   qualified release runtime.
+8. Followed the checked-in route and read
+   `guide/recipes/provider-lifecycle.md` directly.
 
 ## Final response (verbatim)
 
 ````text
-Use one adapter-scoped manager per `(application, storage partition, server origin, settled authority)` tuple. Share its stable `connectionId` across query cells; never reuse a manager across authorities.
+Use an event-driven, owner-scoped state machine—no timer or client polling.
 
-Auth-transition plan:
+```ts
+async function reconcile(snapshot: ProviderSnapshot) {
+  if (
+    snapshot.status === "blocked" &&
+    ["authentication-required", "authentication-not-settled"]
+      .includes(snapshot.reason)
+  ) {
+    await retirePredecessor();
+    return; // wait for the next provider snapshot
+  }
 
-1. Signed out: expose protected queries as `status: "blocked"`, `reason: "authentication-required"`, `transitionOwner: "auth-coordinator"`.
-2. During sign-in, sign-out, or authority replacement: expose `status: "blocked"`, `reason: "authentication-not-settled"`, with the same transition owner.
-3. While blocked, start no live transport. Wait for the next provider snapshot—no timeout, polling, or guessed settlement.
-4. On a principal-class change, quiesce and dispose every predecessor-owned subscription before opening anything for the successor.
-5. Once successor authority is settled, create a new manager/connection for its tuple and start a fresh snapshot-with-subscribe. Never rebind the predecessor’s session stream to the new bearer.
-6. For ordinary transport loss under unchanged authority, let the client’s bounded reconnect/resubscribe machinery recover the stream; do not rebuild the provider or add another retry loop.
-7. Keep update callbacks non-reentrant: copy rows and lifecycle facts into the adapter store, return, and schedule further lifecycle work at a microtask/effect boundary.
+  const key = tupleKey({
+    app,
+    storagePartition,
+    origin,
+    authority: snapshot.settledAuthority,
+  });
 
-Teardown plan:
+  if (active?.key === key) return;
 
-1. Each cell releases its listener.
-2. The final listener releases the logical subscription.
-3. Dispose predecessor query owners before constructing successor owners.
-4. Await each handle’s `settled()` only to observe its cleanup boundary; it does not replace `dispose()`.
-5. Dispose the provider and its scopes/registries.
-6. Await `client.close()` only when the adapter owns the client.
-7. Verify inspection reports zero active connections, subscriptions, socket demand, timers, and listeners.
+  await retirePredecessor();       // subscriptions first, then manager
+  if (snapshot !== latestSnapshot) return;
 
-Tool-call transcript:
+  active = startFreshManager({
+    key,
+    connectionId: readableConnectionId(key),
+    authority: snapshot.settledAuthority,
+  });                              // fresh snapshot-with-subscribe
+}
+```
 
-1. Loaded the required `snapback-authoring` skill instructions with `sed`.
-2. Loaded Guide routing page `guide/index.md` with `sed`.
-3. Searched only `guide/index.md` and `guide/capabilities.md` with `rg` for provider/auth/stream routing terms.
-4. Read the relevant routing excerpts from `guide/index.md` and `guide/capabilities.md` with `sed`.
-5. Loaded the specific Guide page `guide/recipes/provider-lifecycle.md` with `sed`.
+Lifecycle rules:
 
-The substantive Guide page was `guide/recipes/provider-lifecycle.md`, loaded on tool call 5.
+- Keep one manager above all query cells for each `(app, storage partition, origin, settled authority)` tuple.
+- `authentication-required`: remain idle; open no protected transport.
+- `authentication-not-settled` with `transitionOwner: "auth-coordinator"`: dispose predecessor work and wait for the next provider snapshot.
+- Settled successor authority: create a new manager and fresh subscription. Never rebind the predecessor session connection.
+- Ordinary transport loss under unchanged authority: let Snapback’s bounded reconnect/resubscribe machinery recover it; don’t rebuild the provider.
+- Teardown order: cell listeners → logical subscriptions → provider/registry → owned client. Call `dispose()` explicitly; use `settled()` only to await cleanup completion.
+- Keep update callbacks non-reentrant; schedule additional lifecycle work at a microtask/effect boundary.
+
+The complete local-target recipe is [provider-lifecycle.md](/Users/ccheever/projects/snapback-worktrees/sbs-20260820/g7-provider-lifecycle/guide/recipes/provider-lifecycle.md).
 ````

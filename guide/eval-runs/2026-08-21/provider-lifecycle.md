@@ -1,9 +1,9 @@
 # Retrieval eval summary — 2026-08-21 — provider lifecycle
 
 Cases 70, 73, and 74 were rerun as three independent cold
-`gpt-5.6-sol` Codex contexts after the review fix. Each run was read-only,
-limited to 15 tool calls, and barred from implementation source, LLPs, issues,
-and prior eval evidence.
+`gpt-5.6-sol` Codex contexts after the review fix. Each run was read-only and
+received only its exact intent phrase; repository `AGENTS.md` was the sole
+project steer. Each loaded the routed Guide page within 15 tool calls.
 
 **Verdict: PASS (3/3).** Each intent independently routed to
 `guide/recipes/provider-lifecycle.md` and produced the required lifecycle plan

@@ -1,61 +1,52 @@
 # Retrieval eval run — 2026-08-21 — case 73
 
 **Intent:** Provider WebSocket fan-out
-**Fixture:** fresh `gpt-5.6-sol` Codex context; read-only; three tool calls.
-**Verdict:** PASS — routed to `guide/recipes/provider-lifecycle.md` on tool
-call 3, rejected a process-global pool, and named the real-manager
-N-cells/one-transport regression.
+**Fixture:** fresh `gpt-5.6-sol` Codex context; read-only; the intent phrase
+below was the complete submitted prompt, with repository `AGENTS.md` as the
+sole project steer.
+**Verdict:** PASS — loaded `guide/recipes/provider-lifecycle.md` on tool call
+7 of 11, rejected a traditional/process-global pool, and identified the
+N-cells/one-transport regression route.
 
 ## Actual prompt
 
 ````text
-Cold retrieval probe for guide/retrieval-eval.md case 73. You are a provider author new to Snapback. In at most 15 tool calls total, follow repository AGENTS.md and use only guide/index/capability/retrieval routes and the specific Guide pages they lead to; do not inspect implementation source, LLPs, issues, or prior eval-run evidence. Answer this exact intent: "My adapter opens one connection per query and now has too many websockets. Should I add a connection pool?" Produce a concrete provider plan and identify the N-cells/one-transport regression route. End with a numbered transcript of the actual tool calls you used and state which Guide page you loaded and by which tool-call number. Do not edit files.
+My adapter opens one connection per query and now has too many websockets. Should I add a connection pool?
 ````
 
 ## Actual tool trace
 
-1. `sed -n '1,240p' guide/index.md` — exit 0.
-2. `rg -n -i -C 3 'provider|connection pool|websocket|transport|N-cells|one.transport|adapter' guide/capabilities.md guide/retrieval-eval.md` — exit 0.
-3. `sed -n '1,280p' guide/recipes/provider-lifecycle.md` — exit 0.
+1. Read `skills/llp-orient/SKILL.md`.
+2. Searched the LLP, Guide, crate, and package trees with connection-pool and
+   WebSocket vocabulary.
+3. Counted the governing files and read the first root-LLP chunk.
+4. Read the second root-LLP chunk.
+5. Read the third root-LLP chunk.
+6. Read the final root-LLP chunk.
+7. Read `guide/recipes/provider-lifecycle.md` with the relevant LLP 0095/0295
+   excerpts.
+8. Located manager, inspection, and N-cells witnesses in the client and React
+   sources.
+9. Read the manager and regression-fixture excerpts.
+10. Read line-numbered excerpts from the recipe, LLP 0095, client manager, and
+    React regression fixture.
+11. Read the D0.5 decision ticket and LLP 0278 budget excerpt.
+
+The routed Guide page was first loaded by tool call 7.
 
 ## Final response (verbatim)
 
 ````text
-No—do not add a process-global connection pool. Add one connection manager above the query cells it serves.
+No—use a shared connection manager, not a traditional connection pool.
 
-Concrete provider plan:
+- Create the `SnapbackClient` and manager once above all query cells.
+- Reuse one stable `connectionId` per `(app, storage partition, server origin, settled authority)`.
+- Multiplex distinct logical subscriptions over that WebSocket; refcount identical canonical queries.
+- Keep different users or storage partitions separate.
+- On auth replacement, dispose the old subscriptions before opening the successor connection.
+- On teardown, release listeners, subscriptions, provider scopes, and the owned client.
 
-- Create the `SnapbackClient`, connection manager, external-store registry, and provider once at adapter scope.
-- Define one manager per `(application, storage partition, server origin, settled authority)` tuple.
-- Mint one stable, readable `connectionId` per manager. Every query cell under that tuple reuses it.
-- Deduplicate identical logical queries by canonical `(provider, query, authority, args)` key and refcount their listeners.
-- Allow distinct queries to remain distinct logical subscriptions while sharing the manager’s single transport.
-- Never share a manager across different authorities or storage partitions.
-- Wait for settled authority before subscribing. During `authentication-not-settled`, wait for the provider’s next snapshot—do not poll or add a timeout.
-- On authority replacement, dispose predecessor subscriptions before creating the successor manager and subscriptions.
-- Let Snapback’s manager handle transport reconnects; do not create fallback sockets or new connection IDs.
-- On teardown, dispose cells, provider scopes/registries, and the client if the adapter owns it. Verify connections, subscriptions, socket demand, timers, and listeners all reach zero.
-- Keep resource limits qualitative; the Guide does not establish a numeric WebSocket budget yet.
+Snapback already caches one `LiveStreamManager` per `connectionId` in [index.mjs](/Users/ccheever/projects/snapback-worktrees/sbs-20260820/g7-provider-lifecycle/packages/snapback-client/index.mjs:13201). The regression fixture proves six provider cells produce six subscriptions but exactly one WebSocket, then zero resources after disposal: [package.test.mjs](/Users/ccheever/projects/snapback-worktrees/sbs-20260820/g7-provider-lifecycle/packages/snapback-react/package.test.mjs:1690).
 
-The regression route is the React provider lifecycle fixture named by the Guide:
-
-`packages/snapback-react/package.test.mjs`
-
-Its N-cells/one-transport case mounts six distinct provider cells, waits for six server subscriptions, and asserts:
-
-- `transportOpens === 1`
-- one active connection
-- six active subscriptions/listeners
-- provider disposal closes exactly one transport
-- subscriptions reach zero afterward
-
-Use the same shape for your adapter acceptance test, plus owner-scoped inspection through provider `inspection()` and client `localResourceInspection([connectionId])`.
-
-Tool-call transcript:
-
-1. Loaded `guide/index.md` with `sed`.
-2. Searched the permitted capability/retrieval routes in `guide/capabilities.md` and `guide/retrieval-eval.md`; case 73 routed this intent to `recipes/provider-lifecycle.md`.
-3. Loaded the specific Guide page `guide/recipes/provider-lifecycle.md` with `sed`.
-
-The governing Guide page was loaded on tool call 3.
+The governing recipe is [provider-lifecycle.md](/Users/ccheever/projects/snapback-worktrees/sbs-20260820/g7-provider-lifecycle/guide/recipes/provider-lifecycle.md:22), under LLP 0095’s manager-scoped ownership contract. Current numeric subscription budgets are provisional; the important invariant is one transport per manager-owned tuple, not one per query. No doc changes or LLP handoff are needed.
 ````
