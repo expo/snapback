@@ -353,10 +353,12 @@ typing entry before removal, and B can publish through a fresh subscription
 after rejoin. Together these are the five capability scenarios, not merely
 three static denials.
 
-The same scenario also pins the client surface: the overlay notifies exactly
-once, the room handle becomes terminal `error` with
-`SNAPBACK_AUTH_PERMISSION_DENIED`, and LLP 0257's activity hook passes that
-base status and diagnostic through instead of presenting an empty ready room.
+The same scenario also pins the base client surface: the overlay notifies
+exactly once and the room handle becomes terminal `error` with
+`SNAPBACK_AUTH_PERMISSION_DENIED`. Separately, LLP 0257's
+[activity-presence unit test](repo:packages/snapback-react/activity-presence.test.mjs)
+pins the React activity hook passing that base status and diagnostic through
+instead of presenting an empty ready room.
 
 ## Sessions and direct/dev prove different things
 

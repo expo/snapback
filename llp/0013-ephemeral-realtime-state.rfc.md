@@ -1050,9 +1050,12 @@ messaging demo's Sessions acceptance battery preserves all five scenarios:
 5. reseating B admits a fresh subscription and publication.
 
 These are first-class fixtures, not prose examples. Scenario 4 also pins the
-client projection: the denied overlay applies the terminal `Error` once, never
-reopens, and its room handle plus React/activity consumers expose empty
-`status: error` with the trusted `SNAPBACK_AUTH_PERMISSION_DENIED` diagnostic.
+base client projection: the denied overlay applies the terminal `Error` once,
+never reopens, and its room handle exposes empty `status: error` with the
+trusted `SNAPBACK_AUTH_PERMISSION_DENIED` diagnostic. LLP 0257's
+[`activity-presence` unit test](../packages/snapback-react/activity-presence.test.mjs)
+separately pins React/activity consumers passing that base status and
+diagnostic through.
 
 ## Dated note: partyserver posture (2026-07-23)
 

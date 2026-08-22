@@ -76,4 +76,4 @@ Verification:
 - `scripts/check-guide.mjs` (22/22)
 - `./ref-check --verbose`
 
-Landing SHA: TBD
+Landing SHA: 2f5762869abdd5769dd2f860b178e210d90ee427
