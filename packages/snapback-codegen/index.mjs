@@ -3691,6 +3691,27 @@ async function generateInProcessLocked({
             );
             continue;
           }
+          // @ref LLP 0240#invariants-the-prototype-must-preserve — freezing
+          // keeps the set out of handler results, but table visibility still
+          // owns product reads. Public publication remains an author choice;
+          // name it rather than silently treating host privacy as read policy.
+          if (rawSinkTable.visibilityDeclaration?.kind === 'public-read') {
+            warn(
+              'SNAPBACK_AUTHORITY_RECIPIENT_SINK_PUBLIC_READ',
+              'auth',
+              `${sinkTable}.${recipientsField}: recipient snapshots are frozen host-side but this public-read table publishes the principal set to every reader`,
+              {
+                table: sinkTable,
+                details: {
+                  operation,
+                  table: sinkTable,
+                  field: recipientsField,
+                  visibility: 'public-read',
+                  repair: 'Use owner or membership visibility unless public recipient publication is intentional.',
+                },
+              },
+            );
+          }
           sinkOperations.add(operation);
           normalizedRecipientSinks.push({
             operation,

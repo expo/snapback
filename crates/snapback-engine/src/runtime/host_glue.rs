@@ -401,6 +401,10 @@ pub trait IbexActionHost {
 /// instance mutex; only the bounded validation/SQLite commit re-enters it.
 pub struct ExecutedIbexMutation {
     pub writes: Vec<BufferedWrite>,
+    /// Host-derived writes withheld from the handler's read-your-writes
+    /// overlay. They join `writes` only when the completed invocation is
+    /// handed to commit or its transaction-faithful dry run.
+    pub(crate) host_commit_writes: Vec<BufferedWrite>,
     pub sequence_allocations: Vec<SequenceAllocationFact>,
     pub job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
     pub membership_commands: Vec<BufferedMembershipCommand>,
@@ -429,6 +433,23 @@ struct BufferedDocumentReadWitness {
 }
 
 impl ExecutedIbexMutation {
+    /// Fold host-private effects into the storage payload only after handler
+    /// execution has ended. Keeping them separate before this cut prevents a
+    /// later `ctx.db.get/query` from observing private host-derived values.
+    pub(crate) fn take_commit_writes(&mut self) -> Vec<BufferedWrite> {
+        let mut writes = std::mem::take(&mut self.writes);
+        writes.append(&mut self.host_commit_writes);
+        writes
+    }
+
+    /// Preview is a transaction-faithful commit rehearsal, so it sees the
+    /// same final host-private effects without mutating the staged execution.
+    pub(crate) fn commit_writes_for_preview(&self) -> Vec<BufferedWrite> {
+        let mut writes = self.writes.clone();
+        writes.extend(self.host_commit_writes.iter().cloned());
+        writes
+    }
+
     /// Cross the one planner-refusal boundary without exposing its dependency
     /// bookkeeping to staging, preview, or commit callers.
     pub(crate) fn authorize_membership_commands(
@@ -734,7 +755,8 @@ pub(crate) fn dry_run_ibex_mutation_prepared(
         .transpose()?;
     let ctx_ledger = invocation.take_ctx_ledger()?;
     let IbexHostContext {
-        writes,
+        mut writes,
+        mut host_commit_writes,
         sequence_allocations,
         job_enqueues,
         membership_commands,
@@ -744,6 +766,9 @@ pub(crate) fn dry_run_ibex_mutation_prepared(
         handler_observable_commit_version,
         ..
     } = invocation;
+    // Dry-run owns the same final effect fold as commit, after the handler has
+    // ended and can no longer inspect the ordinary write overlay.
+    writes.append(&mut host_commit_writes);
     let membership_plans =
         authorize_invocation_membership_commands(db, membership_commands, &mut reads)?;
     db.mutation_writes().dry_run_buffered_writes_with_jobs(
@@ -860,6 +885,7 @@ pub fn execute_ibex_mutation_prepared(
     }
     let IbexHostContext {
         writes,
+        host_commit_writes,
         sequence_allocations,
         job_enqueues,
         membership_commands,
@@ -875,6 +901,7 @@ pub fn execute_ibex_mutation_prepared(
         .unwrap_or((None, None));
     Ok(ExecutedIbexMutation {
         writes,
+        host_commit_writes,
         sequence_allocations,
         job_enqueues,
         membership_commands,
@@ -1347,7 +1374,13 @@ pub(crate) struct IbexHostContext<'a> {
     tracked_refusals: Vec<String>,
     /// Host-owned counter reach declarations for this exact function.
     declared_sequences: Vec<SequenceDeclaration>,
+    /// Ordinary handler-authored writes, and the only writes participating in
+    /// the handler-visible read-your-writes overlay.
     writes: Vec<BufferedWrite>,
+    /// Host-derived commit effects that must never enter the handler overlay.
+    /// Recipient snapshots live here until the completed invocation crosses
+    /// the commit/dry-run handoff.
+    host_commit_writes: Vec<BufferedWrite>,
     sequence_allocations: Vec<SequenceAllocationFact>,
     /// Buffered `ctx.jobs.enqueue` intents (LLP 0070's first slice). Like
     /// `writes`, these are effects of the mutation transaction: they commit
@@ -1496,6 +1529,7 @@ impl<'a> IbexHostContext<'a> {
             tracked_refusals: Vec::new(),
             declared_sequences: Vec::new(),
             writes: Vec::new(),
+            host_commit_writes: Vec::new(),
             sequence_allocations: Vec::new(),
             job_enqueues: Vec::new(),
             buffered_document_reads: Vec::new(),
@@ -1573,6 +1607,7 @@ impl<'a> IbexHostContext<'a> {
             tracked_refusals: Vec::new(),
             declared_sequences: Vec::new(),
             writes: Vec::new(),
+            host_commit_writes: Vec::new(),
             sequence_allocations: Vec::new(),
             job_enqueues: Vec::new(),
             buffered_document_reads: Vec::new(),
@@ -3233,7 +3268,11 @@ impl<'a> IbexHostContext<'a> {
             self.push_read_dependency(dependency);
         }
         let recipients = recipients?;
-        self.writes.push(BufferedWrite::Patch {
+        // @ref LLP 0240#invariants-the-prototype-must-preserve — the resolved
+        // principal set is a host-private commit effect, not a handler write.
+        // Keeping it outside `writes` prevents E2's read-your-writes overlay
+        // from handing private recipient ids back to application JavaScript.
+        self.host_commit_writes.push(BufferedWrite::Patch {
             table: sink.table,
             id: request.row_id,
             values: Map::from_iter([(
@@ -3624,7 +3663,6 @@ impl<'a> IbexHostContext<'a> {
             }
             "db.patch" => {
                 self.ensure_writable("patch")?;
-                self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
                 let owner_field =
                     self.prepare_generic_write_target(&table, GenericTableWriteFormV1::Patch)?;
@@ -3644,6 +3682,13 @@ impl<'a> IbexHostContext<'a> {
                         "ownerField": owner_field,
                     })));
                 }
+                self.ensure_recipient_snapshot_sink_unmodified(
+                    &table,
+                    &id,
+                    Some(&values),
+                    "patch",
+                )?;
+                self.ensure_buffered_write_capacity()?;
                 let (stored, visibility, storage_visible) =
                     self.read_table_visibility_point(&table, &id)?;
                 let existed_in_storage = stored.is_some();
@@ -3671,10 +3716,11 @@ impl<'a> IbexHostContext<'a> {
             }
             "db.delete" => {
                 self.ensure_writable("delete")?;
-                self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
                 self.prepare_generic_write_target(&table, GenericTableWriteFormV1::Delete)?;
                 let id = required_string(&args, "id")?;
+                self.ensure_recipient_snapshot_sink_unmodified(&table, &id, None, "delete")?;
+                self.ensure_buffered_write_capacity()?;
                 let (stored, visibility, storage_visible) =
                     self.read_table_visibility_point(&table, &id)?;
                 let existed_in_storage = stored.is_some();
@@ -5222,7 +5268,9 @@ impl<'a> IbexHostContext<'a> {
     }
 
     fn ensure_buffered_write_capacity(&self) -> SnapbackResult<()> {
-        if self.writes.len() + self.membership_commands.len() >= QUERY_MAX_BUFFERED_WRITES {
+        if self.writes.len() + self.host_commit_writes.len() + self.membership_commands.len()
+            >= QUERY_MAX_BUFFERED_WRITES
+        {
             return Err(SnapbackError::error(
                 "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
                 "runtime",
@@ -5230,6 +5278,46 @@ impl<'a> IbexHostContext<'a> {
             ));
         }
         Ok(())
+    }
+
+    /// Once the host has frozen recipients for one exact product row, handler
+    /// code may continue patching unrelated fields but may neither replace the
+    /// frozen field nor delete the row. The host-private patch itself is the
+    /// seal record, so this check cannot drift from what commit will apply.
+    fn ensure_recipient_snapshot_sink_unmodified(
+        &self,
+        table: &str,
+        id: &str,
+        patch_values: Option<&Map<String, Value>>,
+        write_form: &str,
+    ) -> SnapbackResult<()> {
+        let frozen_field = self
+            .host_commit_writes
+            .iter()
+            .find_map(|write| match write {
+                BufferedWrite::Patch {
+                    table: frozen_table,
+                    id: frozen_id,
+                    values,
+                } if frozen_table == table && frozen_id == id => values.keys().find(|field| {
+                    patch_values.is_none_or(|patch| patch.contains_key(field.as_str()))
+                }),
+                _ => None,
+            });
+        let Some(frozen_field) = frozen_field else {
+            return Ok(());
+        };
+        Err(SnapbackError::error(
+            "SNAPBACK_AUTHORITY_RECIPIENT_SINK_FROZEN",
+            "auth",
+            "handler writes cannot replace or remove a recipient snapshot after it is frozen",
+        )
+        .with_details(json!({
+            "table": table,
+            "rowId": id,
+            "field": frozen_field,
+            "writeForm": write_form,
+        })))
     }
 
     fn ensure_action(&self, op: &str) -> SnapbackResult<()> {
@@ -10579,7 +10667,8 @@ mod membership_bridge_tests {
     ) -> BufferedCommitPayload {
         let ctx_ledger = ctx.take_ctx_ledger().expect("sequence ctx ledger");
         let IbexHostContext {
-            writes,
+            mut writes,
+            mut host_commit_writes,
             sequence_allocations,
             job_enqueues,
             membership_commands,
@@ -10589,6 +10678,7 @@ mod membership_bridge_tests {
             handler_observable_commit_version,
             ..
         } = ctx;
+        writes.append(&mut host_commit_writes);
         assert!(membership_commands.is_empty());
         BufferedCommitPayload {
             writes,
@@ -11283,12 +11373,13 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
-    fn recipient_snapshot_requires_exact_sender_and_freezes_without_egress() {
+    fn recipient_snapshot_is_host_private_sealed_and_commits_atomically() {
         let mut db = authority_profile_ready_db();
         seed_authority_projection_scope(&mut db);
-        let mut ctx = context(&db);
-        ctx.function_name = "sendMessage".to_owned();
-        let message_id = ctx
+
+        let mut ungenerated_ctx = context(&db);
+        ungenerated_ctx.function_name = "sendMessage".to_owned();
+        let ungenerated_message_id = ungenerated_ctx
             .handle_host_call(
                 "db.insert",
                 json!({
@@ -11300,13 +11391,13 @@ globalThis.__snapbackHandlers = {
             .as_str()
             .expect("message id")
             .to_owned();
-        let ungenerated = ctx
+        let ungenerated = ungenerated_ctx
             .handle_host_call(
                 "authority.snapshotRecipients",
                 json!({
                     "declaration": "event_members",
                     "scopeId": "event-a",
-                    "rowId": message_id
+                    "rowId": ungenerated_message_id
                 }),
             )
             .expect_err("an undeclared mutation cannot enumerate recipients");
@@ -11314,7 +11405,42 @@ globalThis.__snapbackHandlers = {
             ungenerated.diagnostic.code,
             "SNAPBACK_MEMBERSHIP_OPERATION_INVALID"
         );
-        assert_eq!(ctx.writes.len(), 1);
+        assert_eq!(ungenerated_ctx.writes.len(), 1);
+        assert!(ungenerated_ctx.host_commit_writes.is_empty());
+        drop(ungenerated_ctx);
+
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async sendMessage(ctx) {
+    const rowId = await ctx.db.insert('messages', {
+      eventId: 'event-a', recipientIds: []
+    });
+    await ctx.authority.event_members.snapshotRecipients('event-a', rowId);
+    const point = await ctx.db.get('messages', rowId);
+    const rows = await ctx.db.query('messages').collect();
+    let patchRefusal = null;
+    try {
+      await ctx.db.patch('messages', rowId, { recipientIds: ['mallory'] });
+    } catch (error) {
+      patchRefusal = error && error.__snapbackCode;
+    }
+    let deleteRefusal = null;
+    try {
+      await ctx.db.delete('messages', rowId);
+    } catch (error) {
+      deleteRefusal = error && error.__snapbackCode;
+    }
+    return {
+      rowId,
+      pointRecipients: point.recipientIds,
+      queryRecipients: rows.map((row) => row.recipientIds),
+      patchRefusal,
+      deleteRefusal,
+    };
+  }
+};
+"#;
+        let mut ctx = context(&db);
         ctx.generated_authority_operation = Some(
             serde_json::from_value(json!({
                 "id": "event_members",
@@ -11329,21 +11455,36 @@ globalThis.__snapbackHandlers = {
             }))
             .expect("sending operation identity"),
         );
+        let result = run_ibex_handler_with_context(
+            &IbexModule {
+                source: SOURCE.to_owned(),
+                export: "sendMessage".to_owned(),
+            },
+            &mut ctx,
+            None,
+        )
+        .expect("generated sender executes through the host boundary");
+        assert_eq!(result["pointRecipients"], json!([]));
+        assert_eq!(result["queryRecipients"], json!([[]]));
         assert_eq!(
-            ctx.handle_host_call(
-                "authority.snapshotRecipients",
-                json!({
-                    "declaration": "event_members",
-                    "scopeId": "event-a",
-                    "rowId": message_id
-                }),
-            )
-            .expect("freeze exact active recipient set"),
-            Value::Null,
-            "the handler never observes principal ids"
+            result["patchRefusal"], "SNAPBACK_AUTHORITY_RECIPIENT_SINK_FROZEN",
+            "a later handler patch cannot replace the frozen host value"
         );
-        assert_eq!(ctx.writes.len(), 2);
-        let payload = take_sequence_payload(ctx, json!(null));
+        assert_eq!(
+            result["deleteRefusal"], "SNAPBACK_AUTHORITY_RECIPIENT_SINK_FROZEN",
+            "a later handler delete cannot remove the frozen host value"
+        );
+        assert_eq!(
+            ctx.writes.len(),
+            1,
+            "only the handler insert is overlay-visible"
+        );
+        assert_eq!(
+            ctx.host_commit_writes.len(),
+            1,
+            "the private recipient patch remains host-held until commit"
+        );
+        let payload = take_sequence_payload(ctx, result);
         db.mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
                 &input(),

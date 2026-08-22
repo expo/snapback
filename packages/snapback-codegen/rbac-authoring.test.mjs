@@ -515,6 +515,7 @@ const authorityTransitions = [
 const authorityProfileSchema = ({
   bootstrapRole = 'owner',
   consumerVisibility = true,
+  deliveryVisibility = "{ kind: 'owner', field: 'senderId' }",
   duplicateProfile = false,
   expiryField = false,
   expiryPresent = false,
@@ -636,7 +637,7 @@ export const eventDeliveries = defineTable({
   senderId: v.principal(),
   body: v.string(),
   recipientIds: v.array(v.principal(), { maxItems: 1024 }),
-}).visibility({ kind: 'owner', field: 'senderId' });
+}).visibility(${deliveryVisibility});
 
 export default defineSchema({
   events: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
@@ -1608,6 +1609,38 @@ void exhaustStatus;
       generation: projectedProfile.generation,
       operation: 'snapshotRecipients',
       recipientSink: projectedProfile.projection.recipients.sinks[0],
+    });
+    assert.equal(
+      projected.result.diagnostics.some(
+        ({ code }) => code === 'SNAPBACK_AUTHORITY_RECIPIENT_SINK_PUBLIC_READ',
+      ),
+      false,
+      'an owner-readable recipient sink does not warn',
+    );
+
+    const publicRecipientSink = await run(sourceWithPublicWitness, authorityProfileSchema({
+      deliveryVisibility: "{ kind: 'public-read' }",
+      projection: "{ history: { visible: ['displayName'] }, recipients: { ceiling: 1024, sinks: [{ operation: 'sendDelivery', table: 'eventDeliveries', scopeField: 'eventId', recipientsField: 'recipientIds' }] } }",
+      roster: "{ visible: ['userId', 'role'] }",
+    }));
+    assert.equal(
+      publicRecipientSink.result.ok,
+      true,
+      'public recipient publication remains an admitted author choice',
+    );
+    const publicRecipientWarning = publicRecipientSink.result.diagnostics.find(
+      ({ code }) => code === 'SNAPBACK_AUTHORITY_RECIPIENT_SINK_PUBLIC_READ',
+    );
+    assert.deepEqual({
+      severity: publicRecipientWarning?.severity,
+      table: publicRecipientWarning?.details?.table,
+      field: publicRecipientWarning?.details?.field,
+      visibility: publicRecipientWarning?.details?.visibility,
+    }, {
+      severity: 'warning',
+      table: 'eventDeliveries',
+      field: 'recipientIds',
+      visibility: 'public-read',
     });
 
     const insufficientProjectionProvenance = await run(

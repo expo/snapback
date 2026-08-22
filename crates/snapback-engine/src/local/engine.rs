@@ -16111,6 +16111,7 @@ impl LocalSnapback {
                                         &executed,
                                         identity.as_ref(),
                                     )?;
+                                let writes = executed.take_commit_writes();
                                 let membership_plans =
                                     executed.authorize_membership_commands(&mut self.db)?;
                                 // Callee admission for buffered enqueues happens before
@@ -16124,7 +16125,7 @@ impl LocalSnapback {
                                     input.auth.user_id.clone(),
                                 )?;
                                 let payload = BufferedCommitPayload {
-                                    writes: executed.writes,
+                                    writes,
                                     sequence_allocations: executed.sequence_allocations,
                                     membership_plans,
                                     read_dependencies: executed.reads,
@@ -16957,6 +16958,7 @@ impl LocalSnapback {
                         identity.as_ref(),
                     )?;
                     crate::result_contract::validate_handler_result(&function, &executed.result)?;
+                    let writes = executed.take_commit_writes();
                     let membership_plans = executed.authorize_membership_commands(&mut self.db)?;
                     let producer_mutation_id = receipt_mutation_id
                         .map(ToOwned::to_owned)
@@ -16972,7 +16974,7 @@ impl LocalSnapback {
                         input.auth.user_id.clone(),
                     )?;
                     let payload = BufferedCommitPayload {
-                        writes: executed.writes,
+                        writes,
                         sequence_allocations: executed.sequence_allocations,
                         membership_plans,
                         read_dependencies: executed.reads,
@@ -17355,6 +17357,7 @@ impl LocalSnapback {
             &executed,
             identity.as_ref(),
         )?;
+        let writes = executed.take_commit_writes();
         let membership_plans = executed.authorize_membership_commands(&mut self.db)?;
         // Action-hosted nested mutations may enqueue (LLP 0070: actions
         // enqueue follow-up work only through an explicit mutation). The
@@ -17375,7 +17378,7 @@ impl LocalSnapback {
             .commit_buffered_host_writes_guarded(
                 &input,
                 BufferedCommitPayload {
-                    writes: executed.writes,
+                    writes,
                     sequence_allocations: executed.sequence_allocations,
                     membership_plans,
                     read_dependencies: executed.reads,
@@ -22014,7 +22017,7 @@ impl LocalSnapback {
             .mutation_writes()
             .dry_run_buffered_writes_with_jobs(
                 &canonical_input,
-                executed.writes.clone(),
+                executed.commit_writes_for_preview(),
                 executed.sequence_allocations.clone(),
                 membership_plans,
                 executed.reads.clone(),

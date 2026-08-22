@@ -770,8 +770,16 @@ never a second authority evaluator.
   through the profile's indexed membership plan and freezes it as product data
   on the named sent row. The helper requires that operation's generation-bound
   private identity, refuses every other mutation, and returns only `null`; the
-  handler never observes the principal set. Later join/leave does not rewrite a prior
-  send's recipients. The helper is bounded: the profile declares a recipient
+  handler never observes the principal set. The host holds the snapshot patch
+  outside the handler-visible read-your-writes overlay and folds it into the
+  final commit only after handler execution; later `ctx.db.get`/`query` calls
+  therefore cannot read the resolved principals back. Once frozen, a
+  subsequent handler patch of the sink field or deletion of its row refuses
+  with `SNAPBACK_AUTHORITY_RECIPIENT_SINK_FROZEN`. Later join/leave does not
+  rewrite a prior send's recipients. Public-read sink tables remain an explicit
+  author choice, but codegen warns with
+  `SNAPBACK_AUTHORITY_RECIPIENT_SINK_PUBLIC_READ` so host-private resolution is
+  not mistaken for product read policy. The helper is bounded: the profile declares a recipient
   ceiling (provisional upper bound: the relational take ceiling, 1,024, from
   `packages/snapback-contract/limits.mjs`), and a send into a scope whose
   active membership exceeds the declared ceiling **refuses with a typed
@@ -868,9 +876,12 @@ The local target now implements the dated D0.4 ruling:
   never return, and pending-only invitations are omitted. Leave closes an
   incarnation; rejoin opens another; role changes are interior events.
 - Mutation-only `snapshotRecipients(scopeId, rowId)` is available only to its
-  declared sending operation, writes the principal array directly to the
-  exact declared product-row sink, returns `null`, uses the same sending transaction, and
-  captures its indexed read dependency. Overflow refuses with
+  declared sending operation, stages the principal array outside the handler's
+  read-your-writes overlay, folds it onto the exact declared product-row sink
+  only at commit, returns `null`, uses the same sending transaction, and
+  captures its indexed read dependency. Later sink-field replacement or row
+  deletion refuses with `SNAPBACK_AUTHORITY_RECIPIENT_SINK_FROZEN`; codegen
+  warns rather than refuses when the sink table is public-read. Overflow refuses with
   `SNAPBACK_AUTHORITY_RECIPIENT_CEILING_EXCEEDED`; 1,024 is the declaration
   maximum and no path truncates.
 - Generated mutation metadata carries the closed outcome matrix. Runtime

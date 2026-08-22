@@ -29441,6 +29441,7 @@ fn executed_insert() -> ExecutedIbexMutation {
             id: "guarded_item".to_owned(),
             values,
         }],
+        host_commit_writes: Vec::new(),
         sequence_allocations: Vec::new(),
         job_enqueues: Vec::new(),
         membership_commands: Vec::new(),

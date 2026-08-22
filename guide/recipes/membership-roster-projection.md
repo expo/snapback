@@ -143,9 +143,18 @@ mutation and product field. Insert the product row, then call
 writes `recipientIds` onto that row in the same transaction and returns
 `null`; application JavaScript never receives or enumerates the principals.
 Use from another mutation, against another table/field, or without the sink
-row is refused.
+row is refused. The host keeps the resolved patch outside the handler's
+read-your-writes overlay until commit, so a later `ctx.db.get` or query sees
+only the handler-authored row, not the private recipient set. Once frozen, a
+later patch of `recipientIds` or deletion of the row refuses with
+`SNAPBACK_AUTHORITY_RECIPIENT_SINK_FROZEN`.
 
 Later membership changes do not rewrite the frozen product row.
+
+Keep recipient sinks behind an owner or membership visibility policy unless
+publishing the set is deliberate. A `public-read` sink remains allowed, but
+codegen emits `SNAPBACK_AUTHORITY_RECIPIENT_SINK_PUBLIC_READ` to name that
+publication choice.
 
 ```js fragment reason="The packed projection fixture verifies this exact generated helper and sink identity."
 export const sendDelivery = defineJsMutation({
