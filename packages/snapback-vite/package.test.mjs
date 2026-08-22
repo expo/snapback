@@ -484,6 +484,28 @@ try {
   assert.equal(readFileSync(applicationReadyFile, 'utf8').includes(`sha256:${'0'.repeat(64)}`), true);
   assert.equal((await fetch(`${descriptor.serverUrl}/health`)).status, 200);
   writeFileSync(applicationReadyFile, correctApplicationReadyBytes, { mode: 0o600 });
+
+  const staleReadyFile = join(project, '.snapback', 'stale.ready.json');
+  const staleReadyDescriptor = JSON.parse(readFileSync(readyFile, 'utf8'));
+  staleReadyDescriptor.startupNonce = `stale-${staleReadyDescriptor.startupNonce}`;
+  writeFileSync(staleReadyFile, `${JSON.stringify(staleReadyDescriptor, null, 2)}\n`, { mode: 0o600 });
+  const staleDescriptorAttach = createSnapbackViteLifecycle({
+    mode: 'attach',
+    projectRoot: project,
+    database,
+    readyFile: staleReadyFile,
+    runtimeBinary,
+    port: backendPort,
+    clientOrigin: `http://127.0.0.1:${secondPort}`,
+    setup: { backendDirectory: backend, reset: 'never' },
+    logJson: false,
+  });
+  await assert.rejects(
+    () => staleDescriptorAttach.start(),
+    (error) => error.code === 'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER',
+  );
+  await staleDescriptorAttach.close();
+
   secondViteServer = await createServer({
     root: appRoot,
     configFile: false,

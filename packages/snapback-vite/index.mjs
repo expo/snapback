@@ -488,6 +488,12 @@ export function snapbackDev(options = {}) {
         env: options.env,
         setup: options.setup,
         channel,
+        onBindingRefresh() {
+          const virtualModule = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
+          if (virtualModule == null) return;
+          server.moduleGraph.invalidateModule(virtualModule);
+          server.ws.send({ type: 'full-reload' });
+        },
       });
       try {
         await assertDevIdentityCarriersDenied(server, carriers);

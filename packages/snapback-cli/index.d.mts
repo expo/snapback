@@ -553,6 +553,8 @@ export interface RunDevOptions extends RuntimeSelectionOptions {
   readonly externalClientOrigin?: string;
   /** Exact loopback HTTP(S) origins admitted by the backend. Requires `port`. */
   readonly externalClientOrigins?: readonly string[];
+  /** Provider-owned loopback aliases admitted before a supervised client starts. */
+  readonly supervisedClientOrigins?: readonly string[];
   /** Already-qualified runtime whose identity is carried by client bindings. */
   readonly qualifiedRuntimeBinary?: string;
   readonly attach?: boolean;
@@ -628,6 +630,23 @@ export function readOperationalReadiness(
   descriptor: ReadyDescriptor,
   adminToken: string | null,
 ): Promise<OperationalReadinessV1>;
+
+/**
+ * Verify the canonical read-only attach cut. Optional expected facts let a
+ * projection require only the origin(s) it owns; `runDev` supplies the full
+ * origin and runtime identities before it performs any attach-side mutation.
+ */
+export function verifyDevAttach(options: {
+  readonly descriptor: ReadyDescriptor;
+  readonly readyFile: string;
+  readonly applicationReadyFile: string;
+  readonly adminToken: string | null;
+  readonly generatedRoot: string;
+  readonly clientOrigins?: readonly string[] | null;
+  readonly requiredClientOrigins?: readonly string[];
+  readonly runtimeIdentity?: Readonly<Record<string, unknown>> | null;
+  readonly fixedPort?: number | null;
+}): Promise<ApplicationReadyReceiptV1>;
 
 /** Refuse a receipt whose complete bind-set differs from live readiness. */
 export function verifyApplicationReadyReceiptAgainstReadiness(

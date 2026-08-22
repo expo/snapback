@@ -5001,15 +5001,20 @@ function issueDevBinding(publisher, generatedRoot, descriptor) {
   });
 }
 
-async function verifyDevAttach({
+// @ref LLP 0030#backend-setup-ownership — every attach-shaped orchestrator
+//   shares this read-only identity cut before the canonical generated load or
+//   binding reissue; projections may require their own client origin without
+//   reimplementing receipt/readiness predicates.
+export async function verifyDevAttach({
   descriptor,
   readyFile,
   applicationReadyFile,
   adminToken,
   generatedRoot,
-  clientOrigins,
-  runtimeIdentity,
-  fixedPort,
+  clientOrigins = null,
+  requiredClientOrigins = [],
+  runtimeIdentity = null,
+  fixedPort = null,
 }) {
   try {
     await validateReadyDescriptorHealth(descriptor);
@@ -5076,8 +5081,16 @@ async function verifyDevAttach({
   // binding; it is not evidence that the live child is foreign. runDev always
   // republishes a fresh lifecycle-issued binding after this identity cut.
   if (!Number.isFinite(expiresAt)) mismatch.push('binding.provenance.expiresAt');
-  if (!sameStringSet(receipt.clientOrigins, clientOrigins)) mismatch.push('clientOrigins');
-  if (canonicalJson(receipt.runtimeIdentity) !== canonicalJson(runtimeIdentity)) {
+  if (clientOrigins !== null && !sameStringSet(receipt.clientOrigins, clientOrigins)) {
+    mismatch.push('clientOrigins');
+  }
+  for (const requiredOrigin of requiredClientOrigins) {
+    if (!receipt.clientOrigins.includes(requiredOrigin)) mismatch.push(`clientOrigins.${requiredOrigin}`);
+  }
+  if (
+    runtimeIdentity !== null
+    && canonicalJson(receipt.runtimeIdentity) !== canonicalJson(runtimeIdentity)
+  ) {
     mismatch.push('runtimeIdentity');
   }
   if (!(generatedDescriptor.capabilities?.required ?? []).every(
@@ -5097,6 +5110,7 @@ async function verifyDevAttach({
         expectedOrigin,
         observedOrigin: receipt.binding?.target?.origin ?? null,
         expectedClientOrigins: clientOrigins,
+        requiredClientOrigins,
         observedClientOrigins: receipt.clientOrigins ?? null,
         supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>',
         safety: 'the listener was not adopted or terminated',

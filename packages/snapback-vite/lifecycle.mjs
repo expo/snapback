@@ -6,7 +6,7 @@
 // plugin must not grow a second lifecycle dialect (LLP 0041's boundary with
 // LLP 0030: same ready-file/host-ops surface, neither embeds the other).
 
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
@@ -14,12 +14,11 @@ import {
   diagnosticError,
   managedAdminToken,
   readApplicationReadyReceipt,
-  readOperationalReadiness,
   readReadyDescriptor,
   resolveGeneratedArtifact,
   runDev,
   validateDevTarget,
-  verifyApplicationReadyReceiptAgainstReadiness,
+  verifyDevAttach,
 } from '@expo/snapback-cli';
 
 export const LIFECYCLE_MODES = Object.freeze(['off', 'external', 'attach', 'managed', 'auto']);
@@ -140,23 +139,6 @@ function normalizeSetup(setup, projectRoot) {
   };
 }
 
-function readJsonArtifact(path, label) {
-  if (!path || !existsSync(path)) {
-    throw diagnosticError(
-      'SNAPBACK_DEV_SERVER_SETUP_FAILED',
-      `${label} artifact is missing; run \`snapback generate\` first — the plugin loads generated artifacts, it does not run codegen`,
-      { path, label },
-    );
-  }
-  try {
-    return JSON.parse(readFileSync(path, 'utf8'));
-  } catch (cause) {
-    const error = diagnosticError('SNAPBACK_DEV_SERVER_SETUP_FAILED', `${label} artifact is not valid JSON`, { path, label });
-    error.cause = cause;
-    throw error;
-  }
-}
-
 async function probeHealth(serverUrl) {
   try {
     const response = await fetch(`${serverUrl.replace(/\/$/, '')}/health`);
@@ -165,10 +147,6 @@ async function probeHealth(serverUrl) {
   } catch (cause) {
     return { ok: false, cause: cause?.message ?? String(cause) };
   }
-}
-
-function hostDescriptorDigest(path) {
-  return `sha256:${createHash('sha256').update(readFileSync(path)).digest('hex')}`;
 }
 
 export function createSnapbackViteLifecycle(options = {}) {
@@ -273,51 +251,36 @@ export function createSnapbackViteLifecycle(options = {}) {
     }
   }
 
-  async function readVerifiedApplicationReceipt(candidate) {
-    const receipt = readApplicationReadyReceipt(applicationReadyFile);
-    const token = managedAdminToken(candidate, database);
-    const readiness = await readOperationalReadiness(candidate, token);
-    verifyApplicationReadyReceiptAgainstReadiness(receipt, readiness);
-    const expectedOrigin = new URL(candidate.serverUrl).origin;
-    const expectedClientOrigin = options.clientOrigin ? new URL(options.clientOrigin).origin : null;
-    const mismatch = [];
-    if (receipt.startupNonce !== candidate.startupNonce) mismatch.push('startupNonce');
-    if (receipt.hostReadyDescriptorDigest !== hostDescriptorDigest(readyFile)) {
-      mismatch.push('hostReadyDescriptorDigest');
-    }
-    if (receipt.binding?.target?.origin !== expectedOrigin) mismatch.push('binding.target.origin');
-    if (expectedClientOrigin === null || !receipt.clientOrigins.includes(expectedClientOrigin)) {
-      mismatch.push('clientOrigins');
-    }
-    if (setup?.backendDirectory) {
-      const app = readJsonArtifact(
-        join(setup.backendDirectory, 'generated', 'app.descriptor.json'),
-        'app.descriptor.json',
-      );
-      if (receipt.binding?.target?.app !== app.identity?.app) mismatch.push('binding.target.app');
-      if (receipt.binding?.descriptorIdentity !== app.identity?.descriptor) {
-        mismatch.push('binding.descriptorIdentity');
-      }
-      if (receipt.binding?.target?.schema !== app.identity?.schema) mismatch.push('binding.target.schema');
-      if (receipt.binding?.target?.functions !== app.identity?.functions) {
-        mismatch.push('binding.target.functions');
-      }
-    }
-    if (mismatch.length > 0) {
-      throw diagnosticError(
-        'SNAPBACK_DEV_FIXED_BINDING_MISMATCH',
-        'the Vite relay refuses a backend whose application-ready binding does not match its declared lifecycle',
-        {
-          mismatch,
-          expectedOrigin,
-          expectedClientOrigin,
-          observedClientOrigins: receipt.clientOrigins,
-          supportedProfile: 'snapbackDev({ server: { mode: "managed", port }, clientOrigin })',
-        },
-      );
-    }
+  function updateApplicationReceipt(receipt) {
+    const previousBinding = JSON.stringify(applicationReceipt?.binding ?? null);
     applicationReceipt = receipt;
+    if (JSON.stringify(receipt.binding) !== previousBinding) {
+      try {
+        options.onBindingRefresh?.(receipt.binding);
+      } catch {
+        // A projection listener cannot own or interrupt the backend lifecycle.
+      }
+    }
     return receipt;
+  }
+
+  function refreshApplicationReceiptProjection() {
+    return updateApplicationReceipt(readApplicationReadyReceipt(applicationReadyFile));
+  }
+
+  async function readVerifiedApplicationReceipt(candidate) {
+    const expectedClientOrigin = options.clientOrigin ? new URL(options.clientOrigin).origin : null;
+    const fixedPort = Number(new URL(candidate.serverUrl).port);
+    const receipt = await verifyDevAttach({
+      descriptor: candidate,
+      readyFile,
+      applicationReadyFile,
+      adminToken: managedAdminToken(candidate, database),
+      generatedRoot: join(setup.backendDirectory, 'generated'),
+      requiredClientOrigins: expectedClientOrigin === null ? [] : [expectedClientOrigin],
+      fixedPort,
+    });
+    return updateApplicationReceipt(receipt);
   }
 
   // Attach-shaped bring-up reuses runDev's complete identity cut. The only
@@ -330,20 +293,6 @@ export function createSnapbackViteLifecycle(options = {}) {
       });
     }
     const candidate = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
-    const probe = await probeHealth(candidate.serverUrl);
-    const staleNonce = typeof candidate.startupNonce === 'string'
-      && probe.ok
-      && probe.health?.binary?.startupNonce !== candidate.startupNonce;
-    if (!probe.ok || staleNonce) {
-      // A stale ready file must never be accepted as current readiness.
-      throw diagnosticError(
-        'SNAPBACK_DEV_SERVER_STALE_DESCRIPTOR',
-        staleNonce
-          ? 'the live server does not report the descriptor startupNonce'
-          : `the readiness descriptor's server did not answer /health (${probe.cause})`,
-        { readyFile, serverUrl: candidate.serverUrl, database },
-      );
-    }
     if (!setup?.backendDirectory) {
       throw diagnosticError(
         'SNAPBACK_DEV_SETUP_INVALID',
@@ -361,18 +310,6 @@ export function createSnapbackViteLifecycle(options = {}) {
     // Perform the complete read-only receipt/live-readiness cut before the
     // shared CLI path is allowed to reissue a binding or load artifacts.
     const observedReceipt = await readVerifiedApplicationReceipt(candidate);
-    const expectedClientOrigin = options.clientOrigin ? new URL(options.clientOrigin).origin : null;
-    if (expectedClientOrigin === null || !observedReceipt.clientOrigins.includes(expectedClientOrigin)) {
-      throw diagnosticError(
-        'SNAPBACK_DEV_FIXED_BINDING_MISMATCH',
-        'the actual Vite client origin is not in the running server admission set',
-        {
-          expectedClientOrigin,
-          observedClientOrigins: observedReceipt.clientOrigins,
-          safety: 'the listener was not mutated, adopted, or terminated',
-        },
-      );
-    }
     const backendPort = Number(new URL(candidate.serverUrl).port);
     dev = await runDev({
       backendDirectory: setup.backendDirectory,
@@ -389,6 +326,7 @@ export function createSnapbackViteLifecycle(options = {}) {
       watch: false,
       serverStdio: options.serverStdio ?? 'inherit',
       onEvent(event) {
+        if (event.state === 'generated-and-loaded') refreshApplicationReceiptProjection();
         emit({
           event: 'backend-lifecycle',
           severity: event.ok === false ? 'error' : 'note',
@@ -454,6 +392,7 @@ export function createSnapbackViteLifecycle(options = {}) {
         watch: true,
         serverStdio: options.serverStdio ?? 'inherit',
         onEvent(event) {
+          if (event.state === 'generated-and-loaded') refreshApplicationReceiptProjection();
           emit({
             event: 'backend-lifecycle',
             severity: event.ok === false ? 'error' : 'note',
@@ -554,10 +493,10 @@ export function createSnapbackViteLifecycle(options = {}) {
         try {
           await attachTo({ shape: 'attach' });
         } catch (error) {
-          if (error?.code !== 'SNAPBACK_DEV_SERVER_STALE_DESCRIPTOR') throw error;
+          if (error?.code !== 'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER') throw error;
           emit({
             event: 'diagnostic',
-            code: 'SNAPBACK_DEV_SERVER_STALE_DESCRIPTOR',
+            code: 'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER',
             severity: 'error',
             message: 'auto mode refuses a stale descriptor without removing or replacing its unverified lifecycle',
             readyFile,

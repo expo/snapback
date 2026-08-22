@@ -128,6 +128,7 @@ export function createSnapbackViteLifecycle(options?: {
   readonly readyTimeoutMs?: number;
   readonly channel?: SnapbackDiagnosticsChannel;
   readonly setup?: Readonly<Record<string, unknown>> | false | null;
+  readonly onBindingRefresh?: ((binding: Readonly<Record<string, unknown>>) => void) | null;
   readonly onEvent?: ((event: SnapbackDevDiagnosticEvent) => void) | null;
   readonly logJson?: boolean;
 }): SnapbackViteLifecycle;

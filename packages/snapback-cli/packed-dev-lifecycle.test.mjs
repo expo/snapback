@@ -168,9 +168,11 @@ function materializeQualifiedRuntime() {
 
 function writeMetroFixture() {
   writeFileSync(metroScript, `
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 
 const port = Number(process.env.SNAPBACK_EXPO_METRO_PORT);
+const supervisorDescriptor = process.env.SNAPBACK_PACKED_SUPERVISOR_DESCRIPTOR;
 const server = createServer((_request, response) => {
   response.setHeader('content-type', 'application/json');
   response.end(JSON.stringify({ ok: true }));
@@ -178,7 +180,19 @@ const server = createServer((_request, response) => {
 server.listen(port, '127.0.0.1', () => {
   console.log(JSON.stringify({ event: 'metro-ready', host: '127.0.0.1', port }));
 });
-const close = () => server.close(() => process.exit(0));
+let closing = false;
+let observedSupervisorDescriptor = false;
+const close = () => {
+  if (closing) return;
+  closing = true;
+  clearInterval(supervisorWatch);
+  server.close(() => process.exit(0));
+};
+const supervisorWatch = setInterval(() => {
+  if (existsSync(supervisorDescriptor)) observedSupervisorDescriptor = true;
+  else if (observedSupervisorDescriptor) close();
+}, 50);
+supervisorWatch.unref();
 process.once('SIGINT', close);
 process.once('SIGTERM', close);
 `);
@@ -246,13 +260,15 @@ ${anchor}`,
 }
 
 function deploymentEvent(events, requestId) {
+  const candidates = [];
   for (const event of events) {
-    const candidate = event?.state === 'backend-event' ? event.backend : event;
+    const candidate = event?.backend ?? event;
     if (candidate?.state === 'startup-successor-activated' && candidate.requestId === requestId) {
       return candidate;
     }
+    if (candidate?.state === 'startup-successor-activated') candidates.push(candidate);
   }
-  return null;
+  return candidates.length === 1 ? candidates[0] : null;
 }
 
 async function importGeneratedApp(lane, generation) {
@@ -269,12 +285,16 @@ async function proveM1ToM2({
   reload,
   events,
   expectedClientOrigins,
+  expectedBindingOrigin = null,
 }) {
   const applicationReadyFile = `${lane.readyFile}.application-ready`;
   const m1Receipt = readApplicationReadyReceipt(applicationReadyFile);
+  const m1Generated = await importGeneratedApp(lane, 'm1');
+  const m1Binding = binding(m1Generated.app);
   assert.equal(m1Receipt.formatVersion, 'snapback.application-ready.v1');
   assert.deepEqual([...m1Receipt.clientOrigins].sort(), [...expectedClientOrigins].sort());
-  assert.equal(m1Receipt.binding.descriptorIdentity, binding().descriptorIdentity);
+  assert.equal(m1Receipt.binding.descriptorIdentity, m1Binding.descriptorIdentity);
+  if (expectedBindingOrigin !== null) assert.equal(m1Binding.target.origin, expectedBindingOrigin);
   assert.equal(m1Receipt.runtimeIdentity.wrapper.package, '@expo/snapback-cli');
   assert.equal(m1Receipt.runtimeIdentity.qualifiedBinary.path, qualifiedRuntimeBinary);
 
@@ -284,10 +304,9 @@ async function proveM1ToM2({
     cryptoObject: webcrypto,
     databaseName: `snapback-packed-lifecycle-${lane.name}`,
   });
-  const m1Generated = await importGeneratedApp(lane, 'm1');
   let appClient = await createSnapbackAppClient({
     app: m1Generated.app,
-    binding: binding(),
+    binding: m1Binding,
     platform,
   });
   const email = `${lane.name}@packed-lifecycle.test`;
@@ -328,17 +347,20 @@ async function proveM1ToM2({
     sessions: 'preserved',
     stores: 'preserved',
   });
-  await refreshBinding();
-
   const m2Receipt = readApplicationReadyReceipt(applicationReadyFile);
   assert.deepEqual(m2Receipt.application.deployment, advance.toDeployment);
   assert.deepEqual(m1Receipt.application.deployment, advance.fromDeployment);
   assert.notEqual(m2Receipt.binding.descriptorIdentity, m1Receipt.binding.descriptorIdentity);
   const m2Generated = await importGeneratedApp(lane, 'm2');
-  assert.equal(binding().descriptorIdentity, m2Generated.app.identity.descriptor);
+  await refreshBinding(m2Generated.app);
+  const m2Binding = binding(m2Generated.app);
+  assert.equal(m2Binding.descriptorIdentity, m2Generated.app.identity.descriptor);
+  assert.equal(m2Binding.descriptorIdentity, m2Receipt.binding.descriptorIdentity);
+  assert.notEqual(m2Binding.descriptorIdentity, m1Binding.descriptorIdentity);
+  if (expectedBindingOrigin !== null) assert.equal(m2Binding.target.origin, expectedBindingOrigin);
   appClient = await createSnapbackAppClient({
     app: m2Generated.app,
-    binding: binding(),
+    binding: m2Binding,
     platform,
   });
   try {
@@ -452,7 +474,6 @@ try {
   // in for the shipped arm.
   {
     const lane = scaffoldLane(cli.scaffoldApp, 'vite-exact');
-    const events = [];
     const viteEvents = [];
     const backendPort = await freeLoopbackPort();
     const clientPort = await freeLoopbackPort();
@@ -466,19 +487,18 @@ try {
       qualifiedRuntimeBinary,
       port: backendPort,
       externalClientOrigin: clientOrigin,
-      watch: true,
+      watch: false,
       serverStdio: ['ignore', 'ignore', 'ignore'],
-      onEvent: (event) => events.push(event),
     });
 
-    const startViteConsumer = async () => {
+    const startViteConsumer = async (mode) => {
       const server = await createViteServer({
         root: lane.projectRoot,
         configFile: false,
         logLevel: 'silent',
         plugins: [vite.snapbackDev({
           server: {
-            mode: 'attach',
+            mode,
             db: lane.database,
             readyFile: lane.readyFile,
             runtimeBinary,
@@ -542,8 +562,11 @@ process.exit();
     assert.equal(readFileSync(applicationReadyFile, 'utf8').includes(`sha256:${'0'.repeat(64)}`), true);
     await assertOwnerStillRunning(activeOwner, 'stale Vite attach');
     writeFileSync(applicationReadyFile, correctReceiptBytes, { mode: 0o600 });
+    await closeOwner(activeOwner, 'stale Vite attach owner');
+    activeOwner = null;
 
-    activeConsumer = await startViteConsumer();
+    activeConsumer = await startViteConsumer('managed');
+    const originalViteServer = activeConsumer;
     let virtual = await activeConsumer.ssrLoadModule('virtual:snapback/dev');
     const m1App = await importGeneratedApp(lane, 'vite-real-m1');
     assert.equal(virtual.snapbackDevState.ready, true);
@@ -552,32 +575,66 @@ process.exit();
       m1App.app.identity.descriptor,
     );
     assert.equal((await fetch(`${clientOrigin}/__snapback/health`)).status, 200);
-    await proveM1ToM2({
-      lane,
-      IDBFactory,
-      createSnapbackAppClient: client.createSnapbackAppClient,
-      readApplicationReadyReceipt: cli.readApplicationReadyReceipt,
-      binding: () => cli.readApplicationReadyReceipt(applicationReadyFile).binding,
-      refreshBinding: async () => {
-        await activeConsumer.close();
-        activeConsumer = await startViteConsumer();
-      },
-      reload: activeOwner.verbs.reload,
-      events,
-      expectedClientOrigins: [clientOrigin],
+    const originalFetch = globalThis.fetch;
+    const originalLocation = Object.getOwnPropertyDescriptor(globalThis, 'location');
+    Object.defineProperty(globalThis, 'location', {
+      configurable: true,
+      value: new URL(`${clientOrigin}/`),
     });
-    const m2App = await importGeneratedApp(lane, 'vite-binding-refresh');
-    virtual = await activeConsumer.ssrLoadModule('virtual:snapback/dev');
-    assert.equal(
-      virtual.createSnapbackDevAppBinding(m2App.app).descriptorIdentity,
-      m2App.app.identity.descriptor,
-    );
-    assert.ok(viteEvents.some((event) => event.event === 'server-ready' && event.shape === 'attach'));
+    globalThis.fetch = (input, init) => {
+      const resolved = typeof input === 'string' && input.startsWith('/')
+        ? new URL(input, clientOrigin).href
+        : input;
+      return originalFetch(resolved, init);
+    };
+    try {
+      await proveM1ToM2({
+        lane,
+        IDBFactory,
+        createSnapbackAppClient: client.createSnapbackAppClient,
+        readApplicationReadyReceipt: cli.readApplicationReadyReceipt,
+        binding: (app) => virtual.createSnapbackDevAppBinding(app),
+        refreshBinding: async (m2App) => {
+          assert.equal(activeConsumer, originalViteServer, 'M2 keeps the same Vite server alive');
+          virtual = await eventually(async () => {
+            const projected = await activeConsumer.ssrLoadModule('virtual:snapback/dev');
+            try {
+              projected.createSnapbackDevAppBinding(m2App);
+              return projected;
+            } catch {
+              return false;
+            }
+          }, { label: 'Vite virtual module M2 binding projection' });
+        },
+        reload: async () => {
+          const eventStart = viteEvents.length;
+          return eventually(() => viteEvents.slice(eventStart)
+            .map((event) => event.backend)
+            .find((event) => event?.state === 'generated-and-loaded') ?? false, {
+            label: 'managed Vite M2 generated-and-loaded event',
+          });
+        },
+        events: viteEvents,
+        expectedClientOrigins: [clientOrigin],
+        expectedBindingOrigin: '/__snapback',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalLocation === undefined) delete globalThis.location;
+      else Object.defineProperty(globalThis, 'location', originalLocation);
+    }
+    assert.ok(viteEvents.some((event) => event.event === 'server-ready' && event.shape === 'managed'));
+    const managedServerUrl = cli.readReadyDescriptor(lane.readyFile).serverUrl;
     await activeConsumer.close();
     activeConsumer = null;
-    await assertOwnerStillRunning(activeOwner, 'Vite attach');
-    await closeOwner(activeOwner, 'Vite');
-    activeOwner = null;
+    await eventually(async () => {
+      try {
+        await fetch(`${managedServerUrl}/health`);
+        return false;
+      } catch {
+        return true;
+      }
+    }, { label: 'managed Vite backend shutdown' });
   }
 
   // Expo: the actual packed Expo provider boots through the supervisor
@@ -616,7 +673,13 @@ process.exit();
       metroPort,
       email: 'expo-supervisor@packed-lifecycle.test',
       metroCommand: { command: process.execPath, args: [metroScript] },
-      env: process.env,
+      env: {
+        ...process.env,
+        SNAPBACK_PACKED_SUPERVISOR_DESCRIPTOR: join(
+          dirname(lane.readyFile),
+          'expo-supervisor.json',
+        ),
+      },
       serverStdio: ['ignore', 'ignore', 'ignore'],
       onEvent: (event) => events.push(event),
     });
@@ -629,11 +692,16 @@ process.exit();
       activeConsumer.applicationReady.binding.provenance.supervisorGeneration,
       activeConsumer.binding.provenance.supervisorGeneration,
     );
-    for (const origin of metroClientOrigins) {
-      const cors = await fetch(`${activeOwner.serverUrl}/health`, { headers: { origin } });
-      assert.equal(cors.status, 200);
-      assert.equal(cors.headers.get('access-control-allow-origin'), origin);
-    }
+    const expoReadyDescriptor = cli.readReadyDescriptor(lane.readyFile);
+    const expoReadiness = await cli.readOperationalReadiness(
+      expoReadyDescriptor,
+      cli.managedAdminToken(expoReadyDescriptor, lane.database),
+    );
+    assert.deepEqual(
+      [...activeConsumer.applicationReady.clientOrigins].sort(),
+      [...expoReadiness.clientOrigins].sort(),
+      'Metro aliases are admitted by the Rust dev-body origin predicate and projected unchanged',
+    );
 
     const firstReceipt = cli.readApplicationReadyReceipt(`${lane.readyFile}.application-ready`);
     const firstProjectionBytes = readFileSync(`${lane.readyFile}.application-ready`, 'utf8');

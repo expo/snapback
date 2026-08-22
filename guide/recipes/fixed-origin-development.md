@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:5cb68f1a21c2f7a967699c4b57e21a099b8418e0037ede555ac9312acfbde456
+reviewed-authorities-digest: sha256:292afba7d581f22c9589ba1001a721982aac4a31981bb4e036132804ee06b148
 ---
 
 # Recipe: fixed-origin development and attach
@@ -34,10 +34,13 @@ snapback dev snapback \
   --external-client-origin http://127.0.0.1:5173
 ```
 
-Snapback owns the backend child and generate/load watcher. It derives the
-exact development auth/CORS admission from the declared client origin, but it
-does not launch or stop the Vite process. Start that client with its own normal
-command in another terminal.
+Snapback owns the backend child and generate/load watcher. It adds the declared
+client origin to the exact development **request-body origin admission** used by
+auth and other authority-bearing dev requests; `SNAPBACK_DEV_AUTH_ORIGINS` does
+not define `/health` CORS, which is loopback-open and therefore is not evidence
+that a client origin reached the admission set. Snapback does not launch or stop
+the Vite process. Start that client with its own normal command in another
+terminal.
 
 The declared origin must equal the browser's actual Vite origin. A Vite server
 bound as `127.0.0.1` is not the `localhost` origin even when both reach the same
@@ -109,7 +112,8 @@ safe “just pass the fixed URL” shortcut.
 
 The supervised Expo profile declares Metro's `127.0.0.1`, `[::1]`, and
 `localhost` loopback aliases into `runDev` before backend start. The Rust
-server's consumed set is therefore the set written to the receipt. Expo keeps
+server's consumed dev-body origin set is therefore the set written to the
+receipt. Expo keeps
 its device-route binding in owner-only transient `expo-supervisor.json` and the
 rendezvous response; it never writes that projection back into the
 application-ready file. Those are inspection/admission projections; attach
