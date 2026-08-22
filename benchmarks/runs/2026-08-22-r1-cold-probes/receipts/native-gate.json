@@ -1,9 +1,19 @@
 {
-  "schemaVersion": "snapback.r1-native-gate.v1",
+  "schemaVersion": "snapback.r1-native-gate.v2",
   "status": "blocked-environment",
   "productFailure": false,
   "gateOpen": true,
   "pin": "fa36a048e8e08f188ca0d486f76f7bb12b3541f2",
+  "setupReferences": [
+    {
+      "receipt": "expo-explicit.json",
+      "jsonPointer": "/setup"
+    },
+    {
+      "receipt": "expo-familiar.json",
+      "jsonPointer": "/setup"
+    }
+  ],
   "landedRepairs": {
     "nativeDigestAdapter": "55b266cf7da0289336c43fbcbf76659b202f1fa1",
     "supervisedBindingRefresh": "38b2d9d5663e96658fa785bd24a50426a89789cf"
@@ -15,13 +25,95 @@
     "adb": "unavailable",
     "machineFleetRecord": "unavailable-at-documented-path"
   },
-  "availableEvidence": {
-    "packedExpoClosure": true,
-    "webcryptoIosAndroidDigestParity": true,
-    "nativeCustodyProviderMatrix": true,
-    "coldProviderReattachAfterBindingTtl": true,
-    "originalSessionPreserved": true,
-    "originalSupervisorPreserved": true
+  "retainedEvidence": {
+    "hostAndRepairGate": {
+      "log": "../logs/native-gate.log",
+      "sha256": "sha256:95b00c9e89ed37d2038e764360dbc014a3c8973e6c148961df228c5db263ea29",
+      "repairAncestorExitCodes": {
+        "nativeDigestAdapter": 0,
+        "supervisedBindingRefresh": 0
+      },
+      "hostCommandExitCodes": {
+        "xcodeSelect": 0,
+        "simctlLookup": 72,
+        "adbLookup": 1,
+        "machineFleetRecordLookup": 1
+      }
+    },
+    "nativePackageControls": [
+      {
+        "id": "webcrypto-ios-android-digest-parity",
+        "command": [
+          "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "--test",
+          "packages/snapback-expo/auth-partition-digest.test.mjs"
+        ],
+        "exitCode": 0,
+        "tap": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0
+        },
+        "log": "../logs/native-digest-parity.log",
+        "sha256": "sha256:34957d0ece78ea99e575c4a3f2861d6a9dad2539a22921c61bfcfe71c70117b7"
+      },
+      {
+        "id": "native-custody-provider-matrix",
+        "command": [
+          "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "--test",
+          "packages/snapback-expo/provider-native-custody.test.mjs"
+        ],
+        "exitCode": 0,
+        "tap": {
+          "tests": 30,
+          "pass": 30,
+          "fail": 0
+        },
+        "log": "../logs/native-custody-provider.log",
+        "sha256": "sha256:b77b9871deb18fdd862ffa130664c7d2a8664ffb85ec074d67fec0258e37be44"
+      },
+      {
+        "id": "packed-expo-closure",
+        "command": [
+          "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "--test",
+          "packages/snapback-expo/package-closure.test.mjs"
+        ],
+        "exitCode": 0,
+        "tap": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0
+        },
+        "log": "../logs/native-packed-expo-closure.log",
+        "sha256": "sha256:b48e60204c7aa44d7abfa77f1fe68a6058727d56507be1f4b63beb506c55a404"
+      }
+    ],
+    "coldProviderReattachAfterBindingTtl": [
+      {
+        "profile": "snapback-explicit-v1",
+        "receipt": "expo-explicit.json",
+        "jsonPointer": "/probe/extension",
+        "assertions": [
+          "bindingTtlRefresh",
+          "coldProviderReattach",
+          "originalSessionPreserved",
+          "originalSupervisorPreserved"
+        ]
+      },
+      {
+        "profile": "snapback-familiar-ts-v1",
+        "receipt": "expo-familiar.json",
+        "jsonPointer": "/probe/extension",
+        "assertions": [
+          "bindingTtlRefresh",
+          "coldProviderReattach",
+          "originalSessionPreserved",
+          "originalSupervisorPreserved"
+        ]
+      }
+    ]
   },
   "missingEvidence": {
     "coldIosBoot": true,

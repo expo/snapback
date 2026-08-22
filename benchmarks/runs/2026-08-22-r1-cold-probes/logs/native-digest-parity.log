@@ -1,0 +1,16 @@
+command: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node --test packages/snapback-expo/auth-partition-digest.test.mjs
+exit: 0
+stdout:
+▶ partition identity vectors are byte-identical across WebCrypto, iOS, and Android adapters
+  ✔ default (1.997375ms)
+  ✔ preview/雪-"quoted" (0.500291ms)
+✔ partition identity vectors are byte-identical across WebCrypto, iOS, and Android adapters (3.006792ms)
+✔ the digest adapter projects no secure-randomness authority (0.583959ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 71.271666

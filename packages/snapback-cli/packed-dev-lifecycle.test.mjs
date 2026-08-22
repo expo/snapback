@@ -21,7 +21,7 @@ import {
 } from 'node:fs';
 import { createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { delimiter, dirname, join, relative, resolve, sep } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -82,6 +82,44 @@ function run(command, args, options = {}) {
     `${command} ${args.join(' ')} failed:\n${result.stderr || result.stdout || result.error?.message}`,
   );
   return result;
+}
+
+function resolveCommandPath(command) {
+  for (const directory of (process.env.PATH ?? '').split(delimiter)) {
+    if (!directory) continue;
+    const candidate = join(directory, command);
+    if (existsSync(candidate)) return resolve(candidate);
+  }
+  assert.fail(`${command} must resolve from PATH for the structured R1 setup receipt`);
+}
+
+function setupReceipt(packageClosure) {
+  // @ref LLP 0295#w6-instrument-and-context-economy — setup/toolchain facts
+  // stay machine-readable beside the result so a local harness mismatch cannot
+  // be misclassified as a packed-product failure.
+  return Object.freeze({
+    schemaVersion: 'snapback.r1-probe-setup.v1',
+    observedAtProbe: true,
+    toolchain: Object.freeze({
+      node: Object.freeze({
+        path: realpathSync(process.execPath),
+        version: process.version,
+      }),
+      bun: Object.freeze({
+        path: resolveCommandPath('bun'),
+        version: run('bun', ['--version']).stdout.trim(),
+      }),
+      cargo: Object.freeze({
+        path: resolveCommandPath('cargo'),
+        version: run('cargo', ['--version'], { cwd: repoRoot }).stdout.trim(),
+      }),
+      rustc: Object.freeze({
+        path: resolveCommandPath('rustc'),
+        version: run('rustc', ['--version'], { cwd: repoRoot }).stdout.trim(),
+      }),
+    }),
+    packedPackages: packageClosure,
+  });
 }
 
 function packageInventory() {
@@ -441,12 +479,18 @@ export const createRecord = mutation({
 }
 
 function packageClosureReceipt(packedTarballs) {
+  const inventory = packageInventory();
   return Object.entries(packedTarballs)
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([name, path]) => ({
-      name,
-      sha256: `sha256:${createHash('sha256').update(readFileSync(path)).digest('hex')}`,
-    }));
+    .map(([name, path]) => {
+      const version = inventory.get(name)?.manifest?.version;
+      assert.equal(typeof version, 'string', `${name} must declare its packed version`);
+      return {
+        name,
+        version,
+        sha256: `sha256:${createHash('sha256').update(readFileSync(path)).digest('hex')}`,
+      };
+    });
 }
 
 function journeyReferences(generated) {
@@ -757,10 +801,12 @@ async function closeOwner(owner, consumerLabel) {
 let activeOwner = null;
 let activeConsumer = null;
 let packedClosure = [];
+let r1Setup = null;
 try {
   mkdirSync(externalRoot, { recursive: true });
   const packedTarballs = materializePackedPackages();
   packedClosure = packageClosureReceipt(packedTarballs);
+  if (r1Mode) r1Setup = setupReceipt(packedClosure);
   materializeQualifiedRuntime();
   writeMetroFixture();
 
@@ -1361,6 +1407,7 @@ process.exit();
         freshStore: true,
         packageClosure: packedClosure,
       },
+      setup: r1Setup,
       constraints: {
         snapbackSourceInspections: 0,
         exactSourceInspections: 0,

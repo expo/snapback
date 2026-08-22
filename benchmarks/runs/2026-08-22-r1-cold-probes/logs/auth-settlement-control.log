@@ -1,0 +1,4 @@
+command: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node scripts/check-guide-auth-settlement-packed-proof.mjs
+exit: 0
+stdout:
+check-guide-auth-settlement-packed-proof: packed one-shot/live matrix passed

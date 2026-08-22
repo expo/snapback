@@ -1,5 +1,5 @@
-command: SNAPBACK_R1_ARM=vite-exact SNAPBACK_R1_PROFILE=explicit node packages/snapback-cli/packed-dev-lifecycle.test.mjs
+command: SNAPBACK_R1_ARM=vite-exact SNAPBACK_R1_PROFILE=explicit SNAPBACK_R1_RECEIPT_PATH=benchmarks/runs/2026-08-22-r1-cold-probes/receipts/vite-exact-explicit.json /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node packages/snapback-cli/packed-dev-lifecycle.test.mjs
 runtime: target/debug/snapback (qualified fa36a048e8e08f188ca0d486f76f7bb12b3541f2)
 exit: 0
-result: real packed Vite attach; password auth green; stream delivery green; additive schema continuity green
+result: real packed Vite attach; password auth green; two durable sessions for one principal; stream delivery green; additive schema continuity green
 receipt: ../receipts/vite-exact-explicit.json

@@ -50,5 +50,8 @@ The required launched native witness could not run on this host:
 find `simctl`, `adb` is absent, and the documented
 `~/Dropbox/APIKeys/MACHINE_FLEET.md` dispatch record is absent. The retained
 blocked receipt is
-`benchmarks/runs/2026-08-22-r1-cold-probes/receipts/native-gate.json`. This does
+`benchmarks/runs/2026-08-22-r1-cold-probes/receipts/native-gate.json`. It binds
+the 4/4, 30/30, and 1/1 counts to the raw rerun outputs in the sibling
+`logs/native-*.log` files, and binds the unavailable-host classification to
+the exact ancestry/tool lookup transcript in `logs/native-gate.log`. This does
 not close the ticket or establish an iOS/Android boot claim.

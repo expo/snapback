@@ -11,13 +11,14 @@ the benchmark matrix.
 - Runtime: bootstrap-qualified `darwin-arm64` debug binary, SHA-256
   `4e82018109e49c94dfe6b0eea4f1af00f3610b632d9207defe8fdfdfd9207bf6`,
   restricted-no-eval VM qualification green.
-- Node: `/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node`; Bun came
-  from the repository pin.
+- The six receipts retain Node, Bun, cargo, and rustc paths/versions plus every
+  packed package name/version/digest under structured `setup` fields. This run
+  used Node 24.18.0 and the repository's Bun 1.3.12 pin.
 - Every matrix invocation of
   `packages/snapback-cli/packed-dev-lifecycle.test.mjs` packed a new external
   tarball closure, installed it into a new directory, created a new SQLite
-  store and two new durable auth partitions, and removed the directory after
-  writing its receipt.
+  store and two new durable auth partitions for the same password principal,
+  and removed the directory after writing its receipt.
 - The driver reused W1's real CLI attach / Vite plugin / Expo supervisor and
   provider paths, W3's Explicit and Familiar generated contracts, and the
   packed auth-settlement path. It did not inspect Snapback or Exact sources
@@ -27,12 +28,12 @@ the benchmark matrix.
 
 | Stack | Profile | M1 password + durable custody | Live two-client query | Additive schema, accounts/sessions intact | Result |
 | --- | --- | --- | --- | --- | --- |
-| Headless | Explicit | green, two distinct sessions | green, stream | green | PASS |
-| Headless | Familiar | green, two distinct sessions | green, stream | green | PASS |
-| Vite/Exact carrier | Explicit | green, two distinct sessions | green, stream | green | PASS |
-| Vite/Exact carrier | Familiar | green, two distinct sessions | green, stream | green | PASS |
-| Expo provider (web) | Explicit | green, two distinct sessions | green, stream | green; cold reattach after one binding term also green | PASS |
-| Expo provider (web) | Familiar | green, two distinct sessions | green, stream | green; cold reattach after one binding term also green | PASS |
+| Headless | Explicit | green, two sessions for one principal | green, stream | green | PASS |
+| Headless | Familiar | green, two sessions for one principal | green, stream | green | PASS |
+| Vite/Exact carrier | Explicit | green, two sessions for one principal | green, stream | green | PASS |
+| Vite/Exact carrier | Familiar | green, two sessions for one principal | green, stream | green | PASS |
+| Expo provider (web) | Explicit | green, two sessions for one principal | green, stream | green; cold reattach after one binding term also green | PASS |
+| Expo provider (web) | Familiar | green, two sessions for one principal | green, stream | green; cold reattach after one binding term also green | PASS |
 | Expo native extension | Explicit + Familiar package closure | not launched | not launched | packed crypto/parity and binding refresh green | BLOCKED — host evidence |
 
 “Vite/Exact carrier” means the real packed Vite lifecycle/plugin plus the
@@ -114,12 +115,13 @@ the dated attempt is appended there rather than creating a duplicate issue.
    client objects deliberately share the default durable owner.
 3. `transport: "stream"` for an actual pushed live witness; direct live-query
    calls default to polling.
-4. For the Expo password/two-persona proof, decline the supervisor's
-   convenience ordinary session, use stable per-persona partitions through the
-   provider's public application-client factory, and opt out of the unrelated
-   RQS store. The binding exchange and provider remained first-party. This
-   corroborates the existing
-   [`guide-gap supervised Expo mint`](../../../issues/20260822-guide-gap-supervised-expo-mint-two-client.md).
+4. For the Expo password/two-session proof, override supervised authority to
+   unavailable before provider boot, then use stable partitions through the
+   provider's public application-client factory and opt out of the unrelated
+   RQS store. Both sessions authenticated as the same principal. The binding
+   exchange and provider remained first-party. Because the default supervised
+   authority path never booted, R1 does not corroborate its adoption behavior
+   or a distinct-principal scenario.
 5. A simulator-capable host for the final native launch; no application crypto
    polyfill or binding workaround was needed.
 
@@ -129,7 +131,7 @@ the dated attempt is appended there rather than creating a duplicate issue.
 | --- | --- | --- |
 | Six primary packed cells | no failure | — |
 | Ordinary six-sub fixture saw zero expected overload misses | instrument expectation; product path was greener | LLP 0200 and existing `20260820-familiar-live-subscription-contention` ticket; R1 observation receipt retained |
-| Expo supervisor initially supplies one shared convenience session | documented harness/Guide gap, not binding middleware | LLP 0258 / LLP 0061; existing `20260822-guide-gap-supervised-expo-mint-two-client` ticket corroborated |
+| Expo default supervised-authority adoption | not exercised: R1 overrode authority to unavailable before provider boot and created two sessions for one principal | No R1 disposition; the existing `20260822-guide-gap-supervised-expo-mint-two-client` ticket retains only its earlier Diary/Clique evidence |
 | Cold iOS/Android launch unavailable | environment/evidence blocker; no product verdict | LLP 0294 W6 / LLP 0258 D3-D7; existing native-witness ticket updated |
 | Login Node 22 and missing root `ajv` | local harness setup | corrected with pinned Node 24 and frozen install; no product ticket |
 
@@ -140,16 +142,22 @@ owners. Creating duplicate live tickets would violate repository issue policy.
 ## Verification
 
 - `scripts/bootstrap-ibex-runtime` — PASS.
-- W1 unchanged all-arm packed lifecycle control — PASS.
+- W1 unchanged all-arm packed lifecycle control — PASS; raw command output in
+  `logs/w1-packed-lifecycle-control.log`.
 - W3 `scripts/familiar-vdoc-vertical-contract.mjs` — PASS, all catalogue rows
-  verified and `pending: []`.
-- Packed auth settlement proof — PASS.
+  verified and `pending: []`; raw command output in
+  `logs/w3-vertical-contract-control.log`.
+- Packed auth settlement proof — PASS; raw command output in
+  `logs/auth-settlement-control.log`.
 - Six cold cell receipts — PASS.
 - Familiar six-subscription R1 observation — PASS.
-- Expo digest parity — 4/4 PASS.
-- Expo native custody provider matrix — 30/30 PASS.
-- Nested packed Expo closure — 1/1 PASS.
-- `./ref-check --verbose` — PASS: 297 LLP documents, 6,800 references,
+- Expo digest parity — 4/4 PASS; raw TAP in
+  `logs/native-digest-parity.log`.
+- Expo native custody provider matrix — 30/30 PASS; raw TAP in
+  `logs/native-custody-provider.log`.
+- Nested packed Expo closure — 1/1 PASS; raw output in
+  `logs/native-packed-expo-closure.log`.
+- `./ref-check --verbose` — PASS: 297 LLP documents, 6,801 references,
   zero errors and zero unchecked.
 - Package test inventory — PASS: 328 declared test files.
 - Aggregate inventory check — inherited FAIL: the pre-existing missing

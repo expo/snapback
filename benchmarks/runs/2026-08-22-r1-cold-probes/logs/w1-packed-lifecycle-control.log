@@ -1,0 +1,4 @@
+command: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node packages/snapback-cli/packed-dev-lifecycle.test.mjs
+exit: 0
+stdout:
+packed-dev-lifecycle.test.mjs: VCF-E-L1 scaffold -> install -> generate -> dev -> prove plus packed headless, real Vite, and Expo provider M1 -> M2 continuity passes

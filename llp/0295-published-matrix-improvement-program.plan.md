@@ -8,7 +8,10 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-22 (execution reconciliation: restores the Phase 0
+**Revised:** 2026-08-22 (R1 evidence correction: retains raw control/native
+outputs and structured toolchain/package setup, and narrows the Expo journey
+to two sessions for one principal with supervised authority unavailable before
+provider boot); 2026-08-22 (execution reconciliation: restores the Phase 0
 ruling/registration paragraphs that commit `a99451642` dropped during a
 rebase, re-points Phase 1 ticket paths at their closed records, adds the
 candidate pin caveat and the per-move execution status);
@@ -788,8 +791,9 @@ elsewhere in R1.
 The retained cold run at
 `benchmarks/runs/2026-08-22-r1-cold-probes/record.md` is green for all six
 packed headless, real-Vite, and Expo-provider web/profile cells. Every cell
-started from a fresh packed closure, directory, store, and durable persona
-partitions; reached password-auth M1 with a pushed two-client query; and
+started from a fresh packed closure, directory, store, and two durable auth
+partitions for the same password principal; reached password-auth M1 with a
+pushed two-client query; and
 activated one additive schema successor with accounts, both sessions, stores,
 and product rows preserved. The receipts record zero Snapback/Exact source
 inspection, custom relay/binding middleware, destructive reseed, and

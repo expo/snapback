@@ -1,0 +1,42 @@
+command: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node --test packages/snapback-expo/provider-native-custody.test.mjs
+exit: 0
+stdout:
+▶ native custody provider admits only the evidenced tuple and refuses every other cell
+  ✔ android + single-runtime is admitted and its validated grade is threaded (4.500375ms)
+  ✔ ios + single-runtime is admitted and its validated grade is threaded (1.019625ms)
+  ✔ android + durable grade returns the byte-identical sentinel (0.860583ms)
+  ✔ android + other grade returns the byte-identical sentinel (0.421875ms)
+  ✔ android host + iOS report returns the byte-identical sentinel (0.409167ms)
+  ✔ android host + unknown report returns the byte-identical sentinel (0.480083ms)
+  ✔ iOS + durable grade returns the byte-identical sentinel (0.439625ms)
+  ✔ iOS + other grade returns the byte-identical sentinel (0.280709ms)
+  ✔ iOS host + Android report returns the byte-identical sentinel (0.30275ms)
+  ✔ iOS host + unknown report returns the byte-identical sentinel (0.296792ms)
+  ✔ web host returns the sentinel without loading native custody (0.265041ms)
+  ✔ unknown host returns the sentinel without loading native custody (0.189ms)
+  ✔ android malformed module export refuses typed before client construction (0.824959ms)
+  ✔ android factory throw refuses typed before client construction (0.204125ms)
+  ✔ android platformGrade throw (package present, native module unlinked) refuses typed before client construction (0.179458ms)
+  ✔ android package absent refuses typed before client construction (0.144416ms)
+  ✔ ios malformed module export refuses typed before client construction (0.145917ms)
+  ✔ ios factory throw refuses typed before client construction (0.125916ms)
+  ✔ ios platformGrade throw (package present, native module unlinked) refuses typed before client construction (0.891208ms)
+  ✔ ios package absent refuses typed before client construction (0.120417ms)
+  ✔ android missing digest module stays distinct from custody (0.25625ms)
+  ✔ android lazy digest-module unavailability from the real application client projects unsupported (1.106042ms)
+  ✔ android unlinked native digest module is an unavailable module (0.246209ms)
+  ✔ android digest execution failure is not module absence (0.32175ms)
+  ✔ ios missing digest module stays distinct from custody (0.145708ms)
+  ✔ ios lazy digest-module unavailability from the real application client projects unsupported (0.219167ms)
+  ✔ ios unlinked native digest module is an unavailable module (0.16175ms)
+  ✔ ios digest execution failure is not module absence (0.276792ms)
+  ✔ platform override has precedence over OS and module seams (0.196125ms)
+✔ native custody provider admits only the evidenced tuple and refuses every other cell (16.589375ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 96.230166
