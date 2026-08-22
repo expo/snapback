@@ -94,7 +94,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | auth.application-bootstrap-native-custody | Source-current iOS and Android admit durable-required at `single-runtime`; UNPUBLISHED behind issues/20260816-custody-first-publish-gate.md. Simulator evidence only: physical-device (D), backup/migration, and cross-process fencing remain unclaimed; a share extension was exercised, while the built/embedded NSE is not invokable via `simctl push`. | native custody, Android force-stop, iOS share extension | ios + android | shipped | demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android + demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios + packages/snapback-expo/provider-native-custody.test.mjs | llp/0258, llp/0263 | auth/passwords.md |
 | auth.scoped-queries | Caller-bound filters enforce reads; `authScopeField` is invalidation/retention metadata | hidden data, per-user, row security, Supabase RLS | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
 | auth.table-visibility | Table owner/membership policy composed into all shipped read plans and ordinary `ctx.db`; `anyOf`, resource `_id`, explicit `ctx.db.elevated` | table visibility, joins, bounded children, snapshot batch, elevated read | local | shipped | `compose_declared_table_visibility` in crates/snapback-kernel/src/storage.rs | llp/0231, llp/0056 | auth/protecting-data.md |
-| auth.field-masking | Conditional disclosure of one field while its row stays visible is not implemented; use a separately visible table when row-level absence is acceptable | maskField, mask a field, hide one field, mask phone number, private column, field level security, column visibility, field masking | none | design-only | llp/0235-field-masking-class-m.spec.md (Draft design; no shipped witness) | llp/0235 | GAP (owner: Draft LLP 0235, review: 2026-09-04; issue: issues/20260821-0235-field-masking-productization.md); recipes/split-sensitive-fields.md |
+| auth.field-masking | Conditional disclosure of one field while its row stays visible is not implemented; use a separately visible table when row-level absence is acceptable | maskField, mask a field, hide one field, mask phone number, private column, field level security, column visibility, field masking | none | design-only | llp/0235-field-masking-class-m.spec.md (Accepted design; no shipped witness) | llp/0235 | GAP (owner: LLP 0235, review: 2026-09-04; Accepted 2026-08-22; issue: issues/20260821-0235-field-masking-productization.md); recipes/split-sensitive-fields.md |
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
 | auth.target-honesty | Per-target auth claims and non-claims; readiness reporting | hosted auth, production auth | all | shipped | `AuthProgramReadiness` in crates/snapback-types/src/auth/mode.rs | llp/0060 | auth/targets.md |
@@ -29328,8 +29328,8 @@ examples: []
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:cae1bdf3d49c2b1aadcf382dbf0a34443abb18a83c57dece7ab4325ae9d533bf
+reviewed: 2026-08-22
+reviewed-authorities-digest: sha256:b16f3d950a249e24914486249d810409af1473676a4daeb0e64d44403c3ec264
 ---
 
 # Recipe: split a sensitive field into its own table
@@ -29343,10 +29343,11 @@ but row-level absence of its private half is acceptable to unauthorized
 readers. Snapback does not currently provide field masking: it cannot keep one
 row visible while conditionally returning one stored field as `null`. If the
 public row must remain present with one cell replaced by `null`, as with votes
-or tallies, there is no shipped answer; Draft [LLP
-0235](repo:llp/0235-field-masking-class-m.spec.md) owns that design. When
-row-level absence is acceptable, the honest supported pattern is to move the
-sensitive value to a second table and give that table its own row visibility.
+or tallies, there is no shipped answer. [LLP
+0235](repo:llp/0235-field-masking-class-m.spec.md) is the Accepted governing
+design, scheduled for implementation after LLP 0294 W6 closes. When row-level
+absence is acceptable, the honest supported pattern is to move the sensitive
+value to a second table and give that table its own row visibility.
 
 Find this page by: `maskField`, "mask a field", "hide one field",
 "mask phone number", "private column", "field level security", or
@@ -29432,16 +29433,17 @@ field masking. In particular, it does not:
 - implement conditional disclosure such as "show the phone after approval"
   without changing which private rows the caller may read.
 
-Draft [LLP 0235](repo:llp/0235-field-masking-class-m.spec.md) owns the stronger
-field-masking design, including logical and physical noninterference. Until an
-author accepts and an implementation proves that contract, keep sensitive
-bytes out of the wider table rather than adding projection-only nulling.
+Accepted [LLP 0235](repo:llp/0235-field-masking-class-m.spec.md) owns the
+stronger field-masking design, including logical and physical noninterference.
+Acceptance establishes design authority; it does not ship the capability.
+Until an implementation proves that contract, keep sensitive bytes out of the
+wider table rather than adding projection-only nulling.
 
 ## Anti-patterns
 
 - Using this split when unauthorized readers must still receive the public row
   with one field set to `null`; vote and tally shapes need the unshipped class-M
-  answer in Draft LLP 0235, not this recipe.
+  answer governed by Accepted LLP 0235, not this recipe.
 - Keeping `phoneNumber` on `profiles` and removing it in the client, a result
   projection, or a JS handler.
 - Giving a search or vector index on `profilePhoneNumbers` public visibility,

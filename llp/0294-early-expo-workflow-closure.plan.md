@@ -6,6 +6,9 @@
 Client integration, Scheduled work, Guide, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-19
+**Revised:** 2026-08-22 (author ruling accepts LLP 0235 as the governing
+class-M design and sequences its implementation after W6 closes; the
+split-sensitive-fields workaround remains the only shipped pattern until then.)
 **Revised:** 2026-08-21 (OQ7 resolved by orchestrator ruling: supervised
 AppBindings refresh lazily at bootstrap exchange through one supervisor-owned
 convergent publication point; no background timer or app-side extension.)
@@ -319,10 +322,10 @@ work is tracked by
 The feedback also validates two non-Expo product directions without granting
 this Plan authority over them:
 
-- conditional field disclosure is real app demand, but LLP 0235 already owns
-  the security contract. Prioritize its review and smallest claimable slice;
-  do not ship a projection-only `maskField` convenience ahead of its
-  noninterference and physical-plan gates; and
+- conditional field disclosure is real app demand, and the 2026-08-22 author
+  ruling accepts LLP 0235 as the governing security contract. Sequence its
+  implementation after W6 closes; do not ship a projection-only `maskField`
+  convenience ahead of its noninterference and physical-plan gates; and
 - `authorityIndependent: true` plus authenticated-only auth is correctly
   rejected by codegen, but TypeScript should make the exact invalid literal
   pair unrepresentable while retaining runtime validation for JavaScript,
@@ -376,8 +379,8 @@ already has an owner and a shipped or explicit tracked posture:
    primitives; they need no new platform authority.
 7. Run the HEIC design amendment and implementation only after the processor
    and custody decision is accepted.
-8. Review/cost LLP 0235 independently; do not block straight Expo repairs on
-   field-masking implementation.
+8. After W6 closes, cost and implement the Accepted LLP 0235 design; do not
+   block straight Expo repairs on field-masking implementation.
 9. Revisit SMS only with clarified demand; hosted object-store rollout remains
    on its existing target program.
 
@@ -415,8 +418,9 @@ packages outside the repository workspace:
     links and scheduled expiry each have a cold-retrievable executable recipe.
 13. A green starter proof emits no warning the application author cannot act
     on, while retaining an honest provenance grade.
-14. LLP 0235 has an explicit accepted/shelved product ruling informed by the
-    phone-field case; no unsafe masking convenience ships in advance.
+14. LLP 0235 is Accepted as the governing design, informed by the phone-field
+    case; no unsafe masking convenience ships before its sequenced
+    implementation.
 
 ## Non-goals
 

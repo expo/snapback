@@ -5038,8 +5038,8 @@ examples: []
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:cae1bdf3d49c2b1aadcf382dbf0a34443abb18a83c57dece7ab4325ae9d533bf
+reviewed: 2026-08-22
+reviewed-authorities-digest: sha256:b16f3d950a249e24914486249d810409af1473676a4daeb0e64d44403c3ec264
 ---
 
 # Recipe: split a sensitive field into its own table
@@ -5053,10 +5053,11 @@ but row-level absence of its private half is acceptable to unauthorized
 readers. Snapback does not currently provide field masking: it cannot keep one
 row visible while conditionally returning one stored field as `null`. If the
 public row must remain present with one cell replaced by `null`, as with votes
-or tallies, there is no shipped answer; Draft [LLP
-0235](repo:llp/0235-field-masking-class-m.spec.md) owns that design. When
-row-level absence is acceptable, the honest supported pattern is to move the
-sensitive value to a second table and give that table its own row visibility.
+or tallies, there is no shipped answer. [LLP
+0235](repo:llp/0235-field-masking-class-m.spec.md) is the Accepted governing
+design, scheduled for implementation after LLP 0294 W6 closes. When row-level
+absence is acceptable, the honest supported pattern is to move the sensitive
+value to a second table and give that table its own row visibility.
 
 Find this page by: `maskField`, "mask a field", "hide one field",
 "mask phone number", "private column", "field level security", or
@@ -5142,16 +5143,17 @@ field masking. In particular, it does not:
 - implement conditional disclosure such as "show the phone after approval"
   without changing which private rows the caller may read.
 
-Draft [LLP 0235](repo:llp/0235-field-masking-class-m.spec.md) owns the stronger
-field-masking design, including logical and physical noninterference. Until an
-author accepts and an implementation proves that contract, keep sensitive
-bytes out of the wider table rather than adding projection-only nulling.
+Accepted [LLP 0235](repo:llp/0235-field-masking-class-m.spec.md) owns the
+stronger field-masking design, including logical and physical noninterference.
+Acceptance establishes design authority; it does not ship the capability.
+Until an implementation proves that contract, keep sensitive bytes out of the
+wider table rather than adding projection-only nulling.
 
 ## Anti-patterns
 
 - Using this split when unauthorized readers must still receive the public row
   with one field set to `null`; vote and tally shapes need the unshipped class-M
-  answer in Draft LLP 0235, not this recipe.
+  answer governed by Accepted LLP 0235, not this recipe.
 - Keeping `phoneNumber` on `profiles` and removing it in the client, a result
   projection, or a JS handler.
 - Giving a search or vector index on `profilePhoneNumbers` public visibility,

@@ -333,6 +333,6 @@ human renderer's closed table-policy relation does not authorize any of them.
   relational/bounded/snapshot uncomposed diagnostics, LLP 0231 D7 call-local
   `ctx.db.elevated`, handler `fieldBoundary:` residuals, and LLP 0240 authority
   profile identity. Reserved empty, versioned schema room for Draft LLP 0234
-  overrides/transitions, Draft LLP 0235 class-M projection facts, and future
+  overrides/transitions, Accepted LLP 0235 class-M projection facts, and future
   LLP 0231 D6 write checks; specified the focused staleness checker and
   structural human diff rendering without changing this RFC's status.

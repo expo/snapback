@@ -1,10 +1,13 @@
 # LLP 0235: Field masking — class M
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Auth, Security/authorization, Storage, Live queries, Code generation, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-12
+**Revised:** 2026-08-22 (accepted by author ruling as the governing class-M
+design; implementation is scheduled after LLP 0294 W6 closes; the
+split-sensitive-fields workaround remains the only shipped pattern until then)
 **Revised:** 2026-08-12 (round-2 adversarial-review response: relation-atom lineage, constraint outcomes, field-keyed writeback, snapshot-only disclosure evaluation, target-version certification, carrier accuracy, and editorial closure)
 **Related:** LLP 0007, LLP 0012, LLP 0053, LLP 0080, LLP 0110, LLP 0170, LLP 0173, LLP 0230, LLP 0231
 
