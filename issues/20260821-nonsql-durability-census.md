@@ -1,6 +1,7 @@
 # Non-SQL durability census: 21 sinks, 11 reachable-and-unguarded, one Critical
 
-Status: Open — supersedes the ad-hoc non-SQL list; contains one unresolved conflict (below)
+Status: Open — supersedes the ad-hoc non-SQL list. The reset-wipe conflict is RESOLVED
+against this document: see "CONFLICT RESOLVED" below. Remaining findings stand.
 Created: 2026-08-21
 Related: issues/20260821-durable-write-census-completeness-audit.md,
 issues/20260821-nonsql-durable-effects-unguarded.md,
@@ -14,7 +15,51 @@ then diffed against the existing lists.
 
 21 census rows; 11 ranked as reachable and unguarded.
 
-## CONFLICT TO RESOLVE FIRST
+## CONFLICT RESOLVED — this document was wrong; reset wipe is NOT Critical
+
+Adjudicated 2026-08-21 against the source. **This census's Critical ranking of reset
+`AssetStore::wipe_all` is withdrawn.** The remedy classification's "Neither" verdict is correct.
+Confidence approximately 0.97.
+
+There is no source-visible path where `wipe_all` deletes custody and the durable reset is later
+refused or rolled back. `wipe_all` is reached ONLY on the known-`Committed` branch, after
+`finish_committed_reset` has run. The three failure classifications each return before it:
+`finalization_error`, `RolledBack`, and `CommitUncertain`. Commit certainty is itself proven by
+readback of the exact fresh successor, so a failed COMMIT acknowledgement cannot be misread as
+committed.
+
+Later failures — partial local wipe, partial S3 wipe, after-Local batch error, issuer rebuild
+failure, process death — do occur, but all of them leave the committed reset in force. The
+process ends reset, fail-closed, wedged closed, or restarted from the committed successor. None
+can restore or resume serving the predecessor database. So the feared state, a live instance whose
+asset custody was destroyed, does not arise.
+
+Two corrections to what this document said:
+
+- The "Neither" row lives in `issues/20260821-authorized-effect-remedy-classification.md`, not in
+  the handoff design; the handoff design has no `wipe_all` row.
+- Local `wipe_all` does not remove directories at all — it only unlinks files. The
+  "directory removal" observation applies to other cleanup such as `--dev-fresh`.
+
+### What IS real, and is not an authorization problem
+
+A partially wiped store after a crash is possible; which completed unlinks survive is INFERRED,
+since no parent directory is fsynced. The reconciliation picture is uneven:
+
+- Leftover STAGING objects are reconciled — mandatory GC compares enumerated staging keys against
+  durable live attempts and removes orphans.
+- Leftover BLOB objects are generally NOT reconciled. `AssetStore` exposes `list_staging_keys` but
+  no blob enumeration, and blob GC follows durable condemned rows — which the reset just deleted.
+  Orphan blobs persist until another namespace wipe or operator inspection.
+- The database keeps no wipe-completion marker or partial-wipe state, so **from the application's
+  perspective a partial wipe is indistinguishable from a successful one.** Only filesystem or
+  S3-prefix inspection reveals leftovers.
+
+That is a storage-reclamation and observability gap, not an admission-fence gap. Confirming the
+crash behaviour needs a failpoint/SIGKILL test after the Nth unlink per filesystem; it would not
+change the authorization verdict.
+
+## Original conflict, retained for the record
 
 This census ranks **reset `AssetStore::wipe_all` as Critical**. The landed authority-to-effect
 handoff design classifies the same reset wipe as **"Neither" — needing no remedy**.
@@ -173,3 +218,103 @@ Still unverified:
 - **INFERRED:** macro-generated, dynamically dispatched, hosted implementation, dependency-internal, or provider-side effects not visible in this source tree. This remains a source census, not compiler-enforced effect analysis—the same limitation the SQLite census records for its own class. [unguarded census:250](issues/20260821-unguarded-durable-writes-admission-fence.md:250)
 
 Accordingly, this is source-complete for the enumerated production Rust sinks and admitted call chains, not a claim of whole-system or provider-side completeness.
+---
+
+# Appendix: reset-wipe adjudication (2026-08-21)
+
+## Verdict
+
+No—in the risk-defining sense, there is no source-visible path where `AssetStore::wipe_all` deletes custody and the durable reset is later refused or rolled back.
+
+There are paths where deletion is followed by an API error, panic, incomplete process-state publication, or process death. But every such path is after the reset/seed SQLite transaction is known committed. Those failures leave the committed reset in force and the process either reset, fail-closed, wedged closed, or restarted from the committed successor. They cannot restore or continue serving the predecessor database.
+
+Therefore:
+
+- Reset `wipe_all`: **Neither / no admission-remedy finding**, not Critical.
+- Confidence: **High, approximately 0.97**.
+- The Critical entries in [20260821-nonsql-durability-census.md:97](issues/20260821-nonsql-durability-census.md:97), [line 105](issues/20260821-nonsql-durability-census.md:105), and [line 129](issues/20260821-nonsql-durability-census.md:129) need amendment.
+- The substantive “Neither” conclusion is correct. On current main, that row is actually in [20260821-authorized-effect-remedy-classification.md:184](issues/20260821-authorized-effect-remedy-classification.md:184); the named handoff-design file contains no `wipe_all` row.
+
+## Exact control flow
+
+1. Both server families enter with an `AdmissionLease`: legacy `app.reset` at [server.rs:24136](crates/snapback-server/src/server.rs:24136), and versioned reset-install/clear at [server.rs:24199](crates/snapback-server/src/server.rs:24199) and [server.rs:24221](crates/snapback-server/src/server.rs:24221).
+
+2. `coordinated_app_reset_inner` installs the stream-reset ticket before SQLite at [server.rs:23830](crates/snapback-server/src/server.rs:23830).
+
+3. The admission effect guard is acquired around the database attempt at [server.rs:23843](crates/snapback-server/src/server.rs:23843). A guard refusal becomes `RolledBack`; no wipe follows.
+
+4. Both variants run `reset_and_seed_transaction`. That single transaction:
+
+   - deletes app rows;
+   - deletes all 13 asset-system tables at [schema_seed.rs:85](crates/snapback-kernel/src/storage/schema_seed.rs:85);
+   - rotates the data-version stream;
+   - writes the authorization-stream successor at [schema_seed.rs:117](crates/snapback-kernel/src/storage/schema_seed.rs:117);
+   - optionally installs the seed and versioned receipt.
+
+5. The exact commit sites are:
+
+   - Legacy: `tx.commit()` at [schema_seed.rs:570](crates/snapback-kernel/src/storage/schema_seed.rs:570).
+   - Versioned reset: `tx.commit()` at [schema_seed.rs:719](crates/snapback-kernel/src/storage/schema_seed.rs:719).
+
+   A failed COMMIT acknowledgement is classified `Committed` only if readback finds the exact fresh successor; otherwise it is `RolledBack` or `CommitUncertain` ([legacy readback](crates/snapback-kernel/src/storage/schema_seed.rs:578), [versioned readback](crates/snapback-kernel/src/storage/schema_seed.rs:727)). This fresh-successor equality is the commit-certainty proof.
+
+6. `wipe_all` is not reached for:
+
+   - `finalization_error`, handled at [server.rs:23875](crates/snapback-server/src/server.rs:23875);
+   - `RolledBack`, returned at [server.rs:23905](crates/snapback-server/src/server.rs:23905);
+   - `CommitUncertain`, returned at [server.rs:23912](crates/snapback-server/src/server.rs:23912).
+
+7. Only the known-`Committed` branch retains the closed writer handoff at [server.rs:23920](crates/snapback-server/src/server.rs:23920), publishes reset-owned process state at [server.rs:23943](crates/snapback-server/src/server.rs:23943), and then invokes:
+
+   - versioned wipe at [engine.rs:8824](crates/snapback-engine/src/local/engine.rs:8824);
+   - legacy wipe at [engine.rs:8847](crates/snapback-engine/src/local/engine.rs:8847).
+
+   In both functions, `finish_committed_reset` runs before `wipe_all`. Thus by the first deletion, both the durable reset and most local reset state are already installed.
+
+Within Snapback’s SQLite durability model, that transaction is durable and irrevocable at this point. Source cannot establish guarantees against broken storage hardware, but no later program path can roll it back.
+
+## What can still fail after deletion starts
+
+| Later event | Control flow | Resulting state |
+|---|---|---|
+| Local wipe partially fails | `read_dir` can return early; entry errors are skipped by `.flatten()`; every `remove_file` result is discarded at [assets.rs:877](crates/snapback-services/src/assets.rs:877). The caller also discards `wipe_all`’s result. | Database reset remains committed. Some unreferenced files may remain. |
+| S3 wipe partially fails | Objects are deleted individually at [assets_s3.rs:833](crates/snapback-services/src/assets_s3.rs:833). A transport error or non-204/404 response returns after earlier deletes; the caller discards that error. | Database reset remains committed. The S3 prefix may be partially populated. |
+| Reset after-Local batch errors | The generic handoff wrapper can return an after-Local error at [writer_gate.rs:214](crates/snapback-server/src/server/writer_gate.rs:214), producing the early return at [server.rs:23957](crates/snapback-server/src/server.rs:23957). The exact reset batch currently queues infallible callbacks, so no concrete typed producer was found on this trace; this is a defensive edge. | Durable reset remains. The code clears issuer state and classifies the process fail-closed. |
+| Sessions-mode issuer rebuild fails | Database reservation, successor match, provider authentication, or issuer installation can fail at [engine.rs:8084](crates/snapback-engine/src/local/engine.rs:8084). Server returns at [server.rs:23997](crates/snapback-server/src/server.rs:23997). | Durable reset remains; successor serving stays closed. |
+| Final stream-ticket settlement fails | `finish_stream_reset` can fail through poisoned topology, its failpoint, exact-ticket finalization failure, or successor mismatch at [coordinator.rs:974](crates/snapback-sync/src/auth/coordinator.rs:974). Sessions and dev return errors at [server.rs:24023](crates/snapback-server/src/server.rs:24023) and [server.rs:24058](crates/snapback-server/src/server.rs:24058). | Durable reset remains; coordinator is made globally fail-closed. |
+| Cleanup errors are ignored | Fail-closed cleanup and `fail_global_closed` results are deliberately discarded at [server.rs:23960](crates/snapback-server/src/server.rs:23960) and [server.rs:24036](crates/snapback-server/src/server.rs:24036). Current code uses `let _`, not a relevant `.ok()`. | No rollback. At worst, the process remains more tightly closed or wedged. |
+| Panic during or after wipe | The publication closure is caught, its after-Local batch is attempted, and the panic is resumed at [writer_gate.rs:206](crates/snapback-server/src/server/writer_gate.rs:206). The owned task then fails and is mapped to an auth-projection error at [server.rs:537](crates/snapback-server/src/server.rs:537). Dropping `CommittedResetHandoff` does not reopen it ([writer_gate.rs:182](crates/snapback-server/src/server/writer_gate.rs:182)). | Durable reset remains; managed access stays closed. |
+| Process death | Possible at any instruction between individual deletes and final ticket release. | Memory state disappears, but the database contains the committed successor. Startup rebuilds the coordinator from the durable admitted snapshot at [engine.rs:4718](crates/snapback-engine/src/local/engine.rs:4718). |
+| Request disconnect/cancellation | The reset was transferred to an independently owned task at [server.rs:23740](crates/snapback-server/src/server.rs:23740). | It does not cancel the committed continuation. A lost HTTP response is only lost acknowledgement. |
+
+Consequently, an API-level “reset failed” response after the wipe is possible. A live predecessor instance with deleted assets is not: durable reset state is already in force, and incomplete successor installation stays fail-closed.
+
+## Stream-reset ticket
+
+Yes, it blocks observation of a half-installed authorization successor.
+
+Installing the ticket puts a pending ticket into the shared stream fence at [session_projection.rs:2305](crates/snapback-sync/src/auth/session_projection.rs:2305). Publication is admissible only when the incarnation matches and `pending_tickets` is empty ([session_projection.rs:411](crates/snapback-sync/src/auth/session_projection.rs:411)); pending reset therefore refuses new publication. Finalization changes the incarnation and removes the ticket atomically at [session_projection.rs:2358](crates/snapback-sync/src/auth/session_projection.rs:2358).
+
+That matters for client-visible consistency and successor exposure. It is not what authorizes `wipe_all`; the already-committed reset transaction does that.
+
+## Route split
+
+- Legacy `app.reset`: known commit before wipe. **Neither.**
+- Versioned `resetInstall` and `clear`: same shared transaction and ordering. **Neither.** An idempotent receipt replay returns before the reset coordinator and does not re-run the wipe at [server.rs:23790](crates/snapback-server/src/server.rs:23790).
+- Direct-library `reset_with_seed`: also invokes publication/wipe only from `AuthTransactionAttempt::Committed` at [engine.rs:8614](crates/snapback-engine/src/local/engine.rs:8614). Same verdict.
+- `snapback reset --dev-fresh`: not a `wipe_all` route. It validates local whole-store ownership and directly removes the database siblings and `assets/blobs` at [index.mjs:3439](packages/snapback-cli/index.mjs:3439) and [index.mjs:3546](packages/snapback-cli/index.mjs:3546), then starts and seeds a fresh process. It can report failure after deletion at [index.mjs:5316](packages/snapback-cli/index.mjs:5316), but that is a separate explicitly destructive offline workflow, not evidence against `AssetStore::wipe_all`.
+- The ordinary packaged reset delegates to native `app.reset`; it is not data-preserving for app rows/assets, only for the broader managed-store configuration ([index.mjs:5575](packages/snapback-cli/index.mjs:5575)). A genuinely data-preserving live-evolution path does not call `wipe_all`.
+
+## Crash durability and reconciliation
+
+A partially wiped store after crash is possible and, at the namespace level, confirmed by the sequential implementation. Which completed local unlinks survive a power loss is **INFERRED** because no parent directory is fsynced.
+
+Also, current local `wipe_all` does not remove either directory; it only unlinks files. The census’s “directory removal” observation applies to other cleanup such as `--dev-fresh`, not this function.
+
+After restart:
+
+- Leftover staging objects are reconciled. The mandatory GC compares enumerated staging keys against durable live attempts and removes orphans at [engine.rs:14451](crates/snapback-engine/src/local/engine.rs:14451); the autonomous loop runs that sweep at [server.rs:20044](crates/snapback-server/src/server.rs:20044).
+- Leftover blob objects are not generally reconciled. `AssetStore` exposes `list_staging_keys` but no blob enumeration at [assets_store.rs:93](crates/snapback-kernel/src/assets_store.rs:93). Blob GC only follows durable condemned rows at [engine.rs:14528](crates/snapback-engine/src/local/engine.rs:14528), and reset deleted those rows. Orphan blobs therefore remain until another namespace wipe or operator-level inspection.
+- The database contains no wipe-completion marker, partial-wipe state, or retained asset rows. From the application/database perspective, a partial wipe looks exactly like a successful one. Local filesystem or S3-prefix inspection can expose leftovers, but ordinary app state cannot.
+
+The filesystem crash question cannot be strengthened beyond **INFERRED** from source. The confirming experiment is a failpoint/SIGKILL or power-cut test after the Nth unlink on each supported filesystem, followed by restart inspection of both namespaces and a maintenance sweep. That experiment would establish which directory-entry deletions survive without parent fsync; it would not change the authorization verdict.
