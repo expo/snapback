@@ -26256,7 +26256,7 @@ impl LocalSnapback {
             let mut reconciled = Vec::new();
             let mut reconciled_transcripts = Vec::new();
             for (token, client_key, record_json) in rows {
-                let updated = crate::stream_attempt::reconcile_orphaned_record(&record_json);
+                let updated = crate::stream_attempt::reconcile_orphaned_record_host(&record_json);
                 let effective_record = updated.as_deref().unwrap_or(&record_json);
                 if let Ok(attempt) = serde_json::from_str::<
                     crate::stream_attempt::PersistedStreamAttempt,

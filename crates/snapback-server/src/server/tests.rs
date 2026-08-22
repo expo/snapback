@@ -25606,12 +25606,15 @@ fn held_action_host(
     state: SharedSnapback,
     action: &crate::local::DetachedIbexAction,
 ) -> DetachedActionHost {
+    let abandoned = Arc::new(AtomicBool::new(false));
+    let stream_runner = crate::stream_attempt::StreamRunnerIdentity::new(abandoned.clone());
+    let commit_gate = stream_runner.commit_gate();
     DetachedActionHost {
         state,
         connected_clients: action.connected_clients.clone(),
         connected_client_predicate_available: action.connected_client_predicate_available,
-        abandoned: Arc::new(AtomicBool::new(false)),
-        commit_gate: Arc::new(StdMutex::new(())),
+        abandoned,
+        commit_gate,
         active_reservation: Arc::new(StdMutex::new(None)),
         deadline: Instant::now() + Duration::from_secs(5),
         app_generation: action.app_generation,
@@ -25625,9 +25628,7 @@ fn held_action_host(
         response_streams: BTreeMap::new(),
         closed_response_streams: BTreeSet::new(),
         last_stream_progress_commit: None,
-        stream_runner: crate::stream_attempt::StreamRunnerIdentity::new(Arc::new(AtomicBool::new(
-            false,
-        ))),
+        stream_runner,
         output_stream_attempt: None,
         output_stream_function_id: None,
         output_stream_initiator: None,
@@ -26715,8 +26716,10 @@ fn stream_attempt_lease_fences_second_runner_progress_and_cursor_retry() {
 
     // Retry fencing: bind one cursor, commit progress, and a reopen under
     // the same attempt is refused.
-    crate::stream_attempt::global_stream_attempt_registry()
-        .bind_cursor(
+    let holder_origin = holder.authority.stream_attempt_origin();
+    holder_origin
+        .stage_cursor_premark(
+            crate::stream_attempt::global_stream_attempt_registry(),
             &started.attempt_token,
             "lease-cursor",
             &holder.stream_runner,
@@ -26726,8 +26729,9 @@ fn stream_attempt_lease_fences_second_runner_progress_and_cursor_retry() {
         .run_mutation("hostPlanWrite", HandlerInput::default())
         .expect("progress while the cursor is open");
     assert_eq!(
-        crate::stream_attempt::global_stream_attempt_registry()
-            .bind_cursor(
+        holder_origin
+            .stage_cursor_premark(
+                crate::stream_attempt::global_stream_attempt_registry(),
                 &started.attempt_token,
                 "lease-cursor-2",
                 &holder.stream_runner
@@ -26760,6 +26764,52 @@ fn stream_attempt_lease_fences_second_runner_progress_and_cursor_retry() {
     assert!(
         observed.effect_may_have_executed,
         "an in-flight cursor folds into the effect fact"
+    );
+}
+
+#[test]
+fn provider_completion_with_an_authored_cause_stays_on_the_host_path() {
+    let mut snapback = LocalSnapback::memory().expect("provider settlement host state");
+    snapback.load_functions(generation_test_manifest());
+    let state = Arc::new(Mutex::new(snapback));
+    let staged = stage_held_action(&state);
+    let mut host = held_action_host(state, &staged);
+
+    let provider = host
+        .start_stream_attempt("r1-provider-complete")
+        .expect("provider attempt starts");
+    let provider_terminal = host
+        .settle_provider_stream_attempt_host(
+            &provider.attempt_token,
+            crate::stream_attempt::StreamAttemptCause::Complete,
+        )
+        .expect("provider completes through the host-only entry");
+
+    let authored = host
+        .start_stream_attempt("r1-authored-complete")
+        .expect("authored attempt starts");
+    let authored_terminal = host
+        .settle_stream_attempt(
+            &authored.attempt_token,
+            crate::stream_attempt::StreamAttemptCause::Complete,
+        )
+        .expect("authored completion uses the JS-facing entry");
+
+    assert_eq!(
+        provider_terminal.cause,
+        crate::stream_attempt::StreamAttemptCause::Complete
+    );
+    assert_eq!(
+        authored_terminal.cause,
+        crate::stream_attempt::StreamAttemptCause::Complete
+    );
+    assert_eq!(
+        provider_terminal.settled_by,
+        crate::stream_attempt::StreamAttemptSettledBy::Terminalizer
+    );
+    assert_eq!(
+        authored_terminal.settled_by,
+        crate::stream_attempt::StreamAttemptSettledBy::Authored
     );
 }
 
@@ -27354,8 +27404,14 @@ fn stream_attempt_rows_survive_process_death_and_reconcile_conservatively() {
             .start_stream_attempt("crash-key")
             .expect("start durable attempt");
         assert!(started.lease_held);
-        crate::stream_attempt::global_stream_attempt_registry()
-            .bind_cursor(&started.attempt_token, "crash-cursor", &host.stream_runner)
+        host.authority
+            .stream_attempt_origin()
+            .stage_cursor_premark(
+                crate::stream_attempt::global_stream_attempt_registry(),
+                &started.attempt_token,
+                "crash-cursor",
+                &host.stream_runner,
+            )
             .expect("bind pre-marked cursor");
         host.flush_stream_attempts_required("test.premark")
             .expect("write-ahead pre-mark commits before the send");

@@ -155,7 +155,7 @@ impl PersistedStreamAttempt {
 // @ref LLP 0076#settlement-and-retry — a crash after the pre-mark leaves
 //   `initiation_possible`, which is the conservative reading; resolution of
 //   the uncertainty is LLP 0070's lookup path, never a silent retry.
-pub fn reconcile_orphaned_record(record_json: &str) -> Option<String> {
+pub fn reconcile_orphaned_record_host(record_json: &str) -> Option<String> {
     let mut persisted: PersistedStreamAttempt = serde_json::from_str(record_json).ok()?;
     if persisted.terminal.is_some() {
         return None;
