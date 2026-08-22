@@ -1,0 +1,44 @@
+{
+  "name": "@expo/snapback-acceptance",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Supported starter acceptance runner and generated-operation profile builder for Snapback applications.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "packages/snapback-acceptance"
+  },
+  "homepage": "https://github.com/expo/snapback#readme",
+  "bugs": {
+    "url": "https://github.com/expo/snapback/issues"
+  },
+  "keywords": ["snapback", "acceptance", "testing", "verification"],
+  "main": "index.mjs",
+  "types": "index.d.mts",
+  "files": [
+    "README.md",
+    "index.d.mts",
+    "index.mjs"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.mts",
+      "import": "./index.mjs",
+      "default": "./index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "peerDependencies": {
+    "@expo/snapback-client": ">=0.1.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node --test package.test.mjs"
+  }
+}

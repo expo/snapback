@@ -53,15 +53,19 @@ export const PROMOTION_PACKAGE_NAMES = Object.freeze([
   // @ref LLP 0258#phase-2--exponative-durable-custody — append the
   // Experimental native-custody package without rewriting 11/12-name history.
   '@expo/snapback-expo-custody',
+  // @ref LLP 0275#d9-public-starter-acceptance-runner-author-ruling-2026-08-22
+  // — append the supported acceptance runner without rewriting prior leases.
+  '@expo/snapback-acceptance',
 ]);
 export const PACKAGE_COUNT = PROMOTION_PACKAGE_NAMES.length;
 // v4 terminal-family leases exist at three recorded widths: the eleven-name
 // pre-umbrella closure (epochs through 0.1.20), the twelve-name closure that
-// appends @expo/snapback (0.1.21 through 0.1.23), and the current thirteen-name
-// closure that appends @expo/snapback-expo-custody. Every admitted historical
+// appends @expo/snapback (0.1.21 through 0.1.23), the thirteen-name closure
+// that appends @expo/snapback-expo-custody, and the current fourteen-name
+// closure that appends @expo/snapback-acceptance. Every admitted historical
 // width is therefore an exact ordered prefix; new issues are held to the full
 // current width by the standing authority.
-export const TERMINAL_LEASE_WIDTHS = Object.freeze([11, 12, PACKAGE_COUNT]);
+export const TERMINAL_LEASE_WIDTHS = Object.freeze([11, 12, 13, PACKAGE_COUNT]);
 export const LEGACY_PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@ccheever/snapback-runtime-darwin-arm64',
   '@ccheever/snapback-runtime-linux-x64',

@@ -6,6 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (public acceptance runner joins the next closure):** 2026-08-22
+(the LLP 0275 D9 author ruling publishes `@expo/snapback-acceptance` as the
+fourteenth identity-preset package; the thirteen-package 0.1.24 record remains
+historical, and new authority issues bind the appended full vector.)
+
 **Revised (template script surface):** 2026-08-21 (the LLP 0196 ruling keeps
 top-level `test` and `test:static`, removes the redundant template `test:live`
 alias with migration to `npm test`, and makes the README/start-packet glossary
@@ -1561,6 +1566,23 @@ Operational evidence, in the LLP 0233 tradition:
 The closure record advances both `newestPublished` and `newestQualified` to
 0.1.24, and `issues/closed/20260816-custody-first-publish-gate.md` records the
 gate's closure.
+
+### Post-0.1.24 amendment (2026-08-22) — public acceptance runner
+
+The LLP 0275 D9 author ruling adds the supported
+`@expo/snapback-acceptance` root entrypoint to the next qualified publication
+closure. It is appended after `@expo/snapback-expo-custody`, widening the
+identity-preset vector from thirteen to fourteen without a legacy alias. The
+recorded eleven-, twelve-, and thirteen-name v4 leases remain admissible exact
+prefixes; the standing authority issues only the full fourteen-name vector.
+
+This amendment is package custody, not proof authority. Application-owned
+journey callbacks still state product meaning, while `snapback verify` remains
+the aggregate done-oracle and admits the package-owned starter receipt. The
+package's supported root and v1 lifecycle/receipt compatibility contract are
+specified by LLP 0275 D9. This is not a publication-completion record: the
+top-level published-closure fact remains the thirteen packages actually
+promoted at 0.1.24 until a separately authorized ceremony advances it.
 
 ### 0.1.16 (2026-08-09) — first cut under the rapid-publication ruling
 

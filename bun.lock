@@ -5,6 +5,7 @@
     "": {
       "name": "snapback-monorepo",
       "devDependencies": {
+        "@expo/snapback-acceptance": "workspace:*",
         "ajv": "^8.20.0",
         "axe-core": "4.12.1",
         "esbuild": "^0.28.1",
@@ -26,6 +27,13 @@
       },
       "dependencies": {
         "@expo/snapback-cli": "workspace:*",
+      },
+    },
+    "packages/snapback-acceptance": {
+      "name": "@expo/snapback-acceptance",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "@expo/snapback-client": ">=0.1.0",
       },
     },
     "packages/snapback-admin-client": {
@@ -51,6 +59,7 @@
         "snapback": "./cli.mjs",
       },
       "dependencies": {
+        "@expo/snapback-acceptance": "workspace:*",
         "@expo/snapback-client": "workspace:*",
         "@expo/snapback-codegen": "workspace:*",
         "@expo/snapback-contract": "workspace:*",
@@ -521,6 +530,8 @@
     "@expo/sdk-runtime-versions": ["@expo/sdk-runtime-versions@1.0.0", "", {}, "sha512-Doz2bfiPndXYFPMRwPyGa1k5QaKDVpY806UJj570epIiMzWaYyCtobasyfC++qfIXVb5Ocy7r3tP9d62hAQ7IQ=="],
 
     "@expo/snapback": ["@expo/snapback@workspace:packages/snapback-umbrella"],
+
+    "@expo/snapback-acceptance": ["@expo/snapback-acceptance@workspace:packages/snapback-acceptance"],
 
     "@expo/snapback-admin-client": ["@expo/snapback-admin-client@workspace:packages/snapback-admin-client"],
 

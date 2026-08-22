@@ -110,6 +110,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@expo/snapback-acceptance": "workspace:*",
     "@expo/snapback-client": "workspace:*",
     "@expo/snapback-codegen": "workspace:*",
     "@expo/snapback-contract": "workspace:*",

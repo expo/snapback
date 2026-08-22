@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.8",
+    "@expo/snapback-acceptance": "__SNAPBACK_VERSION__",
     "@expo/snapback-cli": "__SNAPBACK_VERSION__",
     "@expo/snapback-client": "__SNAPBACK_VERSION__",
     "@expo/snapback-codegen": "__SNAPBACK_VERSION__",

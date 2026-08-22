@@ -444,6 +444,28 @@ function runtimeReadinessRoot(runtime) {
       && !candidate.startsWith(`..${sep}`)
     ) return checkoutRoot;
   }
+  // @ref LLP 0010#native-runtime-bootstrap — a qualified binary shared from
+  // another source checkout must reopen that checkout's digest-bound receipt
+  // and Hermes artifacts, not reinterpret target/debug as a package root.
+  if (['override', 'qualified-override'].includes(runtime.source)) {
+    const binary = resolve(runtime.binary);
+    let candidate = dirname(binary);
+    for (;;) {
+      const parent = dirname(candidate);
+      const targetRelative = relative(join(candidate, 'target'), binary);
+      if (
+        targetRelative !== ''
+        && targetRelative !== '..'
+        && !targetRelative.startsWith(`..${sep}`)
+        && existsSync(join(candidate, 'Cargo.toml'))
+        && existsSync(join(candidate, 'packages', 'snapback-cli', 'package.json'))
+      ) {
+        return realpathSync(candidate);
+      }
+      if (parent === candidate) break;
+      candidate = parent;
+    }
+  }
   return dirname(dirname(resolve(runtime.binary)));
 }
 

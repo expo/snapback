@@ -32,6 +32,7 @@
     "cf:twin": "cargo run -p snapback-conformance --bin snapback-conformance-twin -- --out targets/cloudflare/generated/conformance-twin-report.json"
   },
   "devDependencies": {
+    "@expo/snapback-acceptance": "workspace:*",
     "ajv": "^8.20.0",
     "axe-core": "4.12.1",
     "esbuild": "^0.28.1",

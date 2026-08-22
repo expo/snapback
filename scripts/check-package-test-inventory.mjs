@@ -52,6 +52,13 @@ export const PACKAGE_TEST_INVENTORIES = [
     expectedFiles: ['package.test.mjs'],
   },
   {
+    id: '@expo/snapback-acceptance',
+    packageDir: 'packages/snapback-acceptance',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: ['package.test.mjs'],
+  },
+  {
     id: '@expo/snapback-cli',
     packageDir: 'packages/snapback-cli',
     testDir: '.',
@@ -568,7 +575,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 329,
+  expectedTotal = 330,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1059,6 +1066,9 @@ export function checkPackageTestInventories(options = {}) {
 // gains the closed-plan result/dependency derivation fixture (VCF-E-P1–P4).
 // 328 -> 329 (2026-08-22, LLP 0259 skill-budget repair): @expo/snapback-cli
 // gains the rendered consumer snapback-authoring steering-budget regression.
+// 329 -> 330 (2026-08-22, LLP 0275 D9): the public
+// @expo/snapback-acceptance package gains its packed runner, lifecycle,
+// cleanup, stale-registration, and verifier-drift isolation suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

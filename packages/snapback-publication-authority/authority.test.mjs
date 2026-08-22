@@ -64,6 +64,7 @@ function fixture() {
       expectedPriorVersion: name === '@expo/snapback'
         || name === '@expo/snapback-expo'
         || name === '@expo/snapback-expo-custody'
+        || name === '@expo/snapback-acceptance'
         || name === 'create-snapback-app'
         ? null
         : '0.1.0',
@@ -620,7 +621,7 @@ test('historical twelve-name issue exact replay survives closure widening', () =
   );
 });
 
-test('historical eleven- and twelve-name v4 records validate; new issues bind the full closure', () => {
+test('historical eleven-, twelve-, and thirteen-name v4 records validate; new issues bind the full closure', () => {
   const { authority, request } = fixture();
   // Epochs recorded before the @expo/snapback umbrella joined bind the
   // eleven-name prefix of the current vector. Boot-time state validation
@@ -642,6 +643,14 @@ test('historical eleven- and twelve-name v4 records validate; new issues bind th
     authorityInstallationId: AUTHORITY_INSTALLATION_ID,
     authorityOrigin: AUTHORITY_ORIGIN,
   });
+  const historicalWithCustody = {
+    ...request,
+    packages: request.packages.slice(0, 13),
+  };
+  validatePublicationLeaseIssueRequest(historicalWithCustody, {
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+  });
   // A ten-name vector was never a recorded width; it must still refuse.
   assert.throws(
     () => validatePublicationLeaseIssueRequest(
@@ -660,6 +669,10 @@ test('historical eleven- and twelve-name v4 records validate; new issues bind th
   );
   assert.throws(
     () => authority.issue(historicalWithUmbrella),
+    /full-closure/u,
+  );
+  assert.throws(
+    () => authority.issue(historicalWithCustody),
     /full-closure/u,
   );
 });

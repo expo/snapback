@@ -23,6 +23,17 @@ never proof authority. `bun run carry:self-check` checks carrier wiring only.
 Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
 <!-- script-glossary:end -->
 
+## Extending or ejecting acceptance
+
+Keep journey intent and product assertions in `acceptance.mjs`. The public
+`@expo/snapback-acceptance` package owns server lifecycle, readiness, session
+minting, bounded retries, cleanup, and starter receipt compatibility; the
+verify config derives its path registration from the same declaration. Extend
+the journey with generated-operation path tokens plus `step`, `until`, and
+`defer`. To replace process management, supply the documented v1 lifecycle
+adapter; to eject fully, retain the documented v1 receipt contract and let
+`snapback verify` admit it. The package README is the compatibility contract.
+
 The registered acceptance covers the relational directory plus create, update,
 and delete paths.
 

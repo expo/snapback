@@ -101,21 +101,25 @@ for (const dependency of ['@expo/metro-runtime', 'react-dom', 'react-native-web'
 }
 assert(!chatScreen.includes('emitG2') && !chatScreen.includes('emitG3'),
   'starter must not carry fixture proof instrumentation');
-assert.match(
-  runtimeAcceptance,
-  /'wait', '--ready-file', readyFile/,
-  'runtime acceptance must wait through the package CLI on the application-readiness receipt',
-);
+assert.match(runtimeAcceptance, /from '@expo\/snapback-acceptance'/);
+assert.match(runtimeAcceptance, /defineStarterAcceptance/);
+assert.match(runtimeAcceptance, /runStarterAcceptanceIfMain/);
+assert.doesNotMatch(runtimeAcceptance, /snapback\.starter-acceptance\.v1|expectedCheckCount|JSON\.stringify\(receipt\)/);
 assert.match(runtimeAcceptance, /runExpoDev/);
 assert.match(runtimeAcceptance, /createSnapbackExpoBoot/);
 assert.match(runtimeAcceptance, /createSnapbackAppClient/);
-assert.match(runtimeAcceptance, /createExternalSessionClient/);
-assert.match(runtimeAcceptance, /authInvalidationProtocol:\s*1/u);
+assert.match(runtimeAcceptance, /createSessionClient/);
 assert.doesNotMatch(runtimeAcceptance, /new SnapbackClient|AuthCoordinator|adoptAuthority/u);
-assert.match(runtimeAcceptance, /'--level', 'application', '--timeout-ms', '60000'/);
-assert.match(runtimeAcceptance, /applicationReadyObserved: true/);
-assert.match(runtimeAcceptance, /firstQueryRetries: 0/);
-assert.doesNotMatch(runtimeAcceptance, /generated-and-loaded/);
+for (const operation of [
+  'conversations',
+  'membershipsForUser',
+  'messagesForConversation',
+  'sendMessage',
+  'sendReply',
+  'addReaction',
+]) {
+  assert.match(runtimeAcceptance, new RegExp(`operation:\\s*api\\.${operation}`));
+}
 for (const check of [
   'zero-config-supervised-connect',
   'web-anonymous-ready',
@@ -124,10 +128,10 @@ for (const check of [
   'authenticated-entry-refusal',
   'sign-out',
   'native-refusal',
-  'membership-and-conversation-shape',
+  'membership-dm-group-shape',
   'test-persona-membership-switch',
-  'reply-and-observation',
-  'reaction-and-observation',
+  "id: 'reply'",
+  "id: 'reaction'",
 ]) {
   assert.match(runtimeAcceptance, new RegExp(check));
 }

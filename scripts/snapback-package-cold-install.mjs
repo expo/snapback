@@ -27,6 +27,8 @@ import { release as osRelease, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { parseStarterAcceptanceReceipt } from '@expo/snapback-acceptance';
+
 import {
   BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
   boundedSerializeBrowserValue,
@@ -342,40 +344,11 @@ async function provePackagedDevLoop({ cli, scaffoldRoot }) {
 }
 
 function assertStarterAcceptanceReceipt(output, label) {
-  const line = String(output).trim().split('\n').findLast((candidate) => candidate.trim().startsWith('{'));
-  let receipt;
-  try {
-    receipt = JSON.parse(line ?? '');
-  } catch {
-    fail(`${label} emitted no parseable starter acceptance receipt`);
+  const parsed = parseStarterAcceptanceReceipt(String(output));
+  if (parsed.kind !== 'receipt' || parsed.receipt?.status !== 'passed') {
+    fail(`${label} emitted no passing starter acceptance receipt: ${JSON.stringify(parsed)}`);
   }
-  if (
-    receipt.schemaVersion !== 'snapback.starter-acceptance.v1'
-    || receipt.status !== 'passed'
-    || !Number.isSafeInteger(receipt.expectedCheckCount)
-    || receipt.expectedCheckCount <= 0
-    || receipt.executedCheckCount !== receipt.expectedCheckCount
-    || receipt.checks?.length !== receipt.expectedCheckCount
-    || receipt.checks.some(({ status }) => status !== 'passed')
-    || typeof receipt.identity?.artifact?.appId !== 'string'
-    || receipt.identity?.loaded?.appId !== receipt.identity.artifact.appId
-    || receipt.identity?.loaded?.bundleHash !== receipt.identity.artifact.bundleHash
-    || receipt.lifecycle?.owned !== true
-    || receipt.lifecycle?.applicationReadyObserved !== true
-    || receipt.lifecycle?.waitLevel !== 'application'
-    || receipt.lifecycle?.firstQueryRetries !== 0
-    || typeof receipt.operations?.queryFunctionId !== 'string'
-    || typeof receipt.operations?.mutationFunctionId !== 'string'
-    || receipt.cleanup?.attempted !== true
-    || receipt.cleanup?.clientResourcesReleased !== true
-    || receipt.cleanup?.devExited !== true
-    || receipt.cleanup?.temporaryStateRemoved !== true
-    || receipt.cleanup?.ok !== true
-    || receipt.diagnostic !== null
-  ) {
-    fail(`${label} emitted an invalid starter acceptance receipt: ${JSON.stringify(receipt)}`);
-  }
-  return receipt;
+  return parsed.receipt;
 }
 
 async function inspectBrowserStorage(page) {
@@ -2243,6 +2216,10 @@ const hasExpoCustodyPackage = generation.expoCustody !== undefined
   && Boolean(ledger.packages?.some(
     (entry) => entry.sourceName === generation.expoCustody,
   ));
+const hasAcceptancePackage = generation.acceptance !== undefined
+  && Boolean(ledger.packages?.some(
+    (entry) => entry.sourceName === generation.acceptance,
+  ));
 const hasUmbrellaPackage = generation.umbrella !== undefined
   && Boolean(ledger.packages?.some(
     (entry) => entry.sourceName === generation.umbrella,
@@ -2265,6 +2242,7 @@ const allExpectedPackages = [
   ...(hasUmbrellaPackage ? [generation.umbrella] : []),
   ...(hasExpoPackage ? [generation.expo] : []),
   ...(hasExpoCustodyPackage ? [generation.expoCustody] : []),
+  ...(hasAcceptancePackage ? [generation.acceptance] : []),
   generation.appCli,
   generation.cli,
   ...(hasCreateSnapbackAppPackage ? [generation.createSnapbackApp] : []),
@@ -2314,6 +2292,7 @@ const expectedPackages = [
   ...(hasUmbrellaPackage ? [generation.umbrella] : []),
   ...(hasExpoPackage ? [generation.expo] : []),
   ...(hasExpoCustodyPackage ? [generation.expoCustody] : []),
+  ...(hasAcceptancePackage ? [generation.acceptance] : []),
   generation.appCli,
   generation.cli,
   ...(hasCreateSnapbackAppPackage ? [generation.createSnapbackApp] : []),
@@ -2987,6 +2966,10 @@ await build({
   ) {
     fail('packed CRUD dashboard omitted its relational query or optimistic edit path');
   }
+  assertStarterAcceptanceReceipt(
+    run('npm', ['test'], { cwd: crudScaffoldRoot, timeout: 120_000 }),
+    'CRUD dashboard default test',
+  );
 
   const expoFixtureRoot = join(appRoot, 'react-expo');
   cpSync(
@@ -3039,6 +3022,10 @@ await build({
   if (!existsSync(join(mediaScaffoldRoot, 'dist', 'index.html'))) {
     fail('packed media feed expo web export did not produce dist/index.html');
   }
+  assertStarterAcceptanceReceipt(
+    run('npm', ['test'], { cwd: mediaScaffoldRoot, timeout: 180_000 }),
+    'media feed default test',
+  );
 
   // @ref LLP 0186#w2--context-injection-surface-owned-here — exercise the
   // golden-path scaffold through packed artifacts, including its generated

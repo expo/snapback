@@ -1641,9 +1641,10 @@ test('create-snapback-app remains the terminal packing row with a closed CLI dep
     'create-snapback-app',
     'create-snapback-app',
   ]);
-  assert.equal(PROMOTION_PACKAGE_NAMES.at(-3), 'create-snapback-app');
-  assert.equal(PROMOTION_PACKAGE_NAMES.at(-2), '@expo/snapback');
-  assert.equal(PROMOTION_PACKAGE_NAMES.at(-1), '@expo/snapback-expo-custody');
+  assert.equal(PROMOTION_PACKAGE_NAMES.at(-4), 'create-snapback-app');
+  assert.equal(PROMOTION_PACKAGE_NAMES.at(-3), '@expo/snapback');
+  assert.equal(PROMOTION_PACKAGE_NAMES.at(-2), '@expo/snapback-expo-custody');
+  assert.equal(PROMOTION_PACKAGE_NAMES.at(-1), '@expo/snapback-acceptance');
   const sourceNames = sourceNamesForScopePreset('identity');
   assert.equal(sourceNames['create-snapback-app'], 'create-snapback-app');
   assert.equal(Object.values(sourceNames).filter(
@@ -1740,6 +1741,29 @@ test('Expo custody publication metadata is Experimental and package-complete', (
   assert.equal(ledgerNameGeneration('ccheever').expoCustody, undefined);
 });
 
+test('acceptance runner publication metadata exposes only the supported root', () => {
+  const manifest = JSON.parse(readFileSync(
+    new URL('../packages/snapback-acceptance/package.json', import.meta.url),
+    'utf8',
+  ));
+  assert.equal(manifest.private, undefined);
+  assert.equal(manifest.publishConfig.access, 'public');
+  assert.deepEqual(new Set(Object.keys(manifest.exports)), new Set(['.', './package.json']));
+  assert.deepEqual(
+    new Set(manifest.files),
+    new Set(['README.md', 'index.d.mts', 'index.mjs']),
+  );
+  const stamped = structuredClone(manifest);
+  stamped.version = '0.1.25';
+  stamped.peerDependencies['@expo/snapback-client'] = stamped.version;
+  assert.equal(validateInternalDependencyClosure(stamped, stamped.version), undefined);
+  assert.equal(
+    ledgerNameGeneration('identity').acceptance,
+    '@expo/snapback-acceptance',
+  );
+  assert.equal(ledgerNameGeneration('ccheever').acceptance, undefined);
+});
+
 test('promotion inventory is the full public package inventory from one authority', () => {
   assert.strictEqual(PROMOTION_PACKAGE_NAMES, AUTHORITY_PROMOTION_PACKAGE_NAMES);
   assert.deepEqual(PROMOTION_PACKAGE_NAMES, [
@@ -1756,6 +1780,7 @@ test('promotion inventory is the full public package inventory from one authorit
     'create-snapback-app',
     '@expo/snapback',
     '@expo/snapback-expo-custody',
+    '@expo/snapback-acceptance',
   ]);
   assert.equal(PROMOTION_PACKAGE_NAMES.length, PACKAGE_INVENTORY.length);
   assert.deepEqual(
@@ -1767,6 +1792,7 @@ test('promotion inventory is the full public package inventory from one authorit
   assert.equal(PACKAGE_NAME_LINEAGE['create-snapback-app'], undefined);
   assert.equal(PACKAGE_NAME_LINEAGE['@expo/snapback'], undefined);
   assert.equal(PACKAGE_NAME_LINEAGE['@expo/snapback-expo-custody'], undefined);
+  assert.equal(PACKAGE_NAME_LINEAGE['@expo/snapback-acceptance'], undefined);
 });
 
 test('public-install ledger validation requires the complete immutable closure', () => {

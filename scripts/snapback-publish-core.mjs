@@ -77,6 +77,7 @@ export const PACKAGE_INVENTORY = Object.freeze([
   ['@expo/snapback-app-cli', '@expo/snapback-app-cli'],
   ['@expo/snapback-cli', '@expo/snapback-cli'],
   ['@expo/snapback-vite', '@expo/snapback-vite'],
+  ['@expo/snapback-acceptance', '@expo/snapback-acceptance'],
   ['create-snapback-app', 'create-snapback-app'],
 ]);
 

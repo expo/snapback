@@ -422,12 +422,13 @@ supported Rust surface.
 ### `packages/` — the npm workspace
 
 No build step anywhere: hand-authored ESM `.mjs` with hand-written `.d.mts`.
-TypeScript is a checker, not a compiler. Thirteen packages form the published
+TypeScript is a checker, not a compiler. Fourteen packages form the publication
 closure:
 
 `@expo/snapback-cli` · `@expo/snapback-codegen` · `@expo/snapback-client` ·
 `@expo/snapback-react` · `@expo/snapback-expo` · `@expo/snapback-expo-custody` ·
 `@expo/snapback-contract` · `@expo/snapback-vite` · `@expo/snapback-app-cli` ·
+`@expo/snapback-acceptance` ·
 `@expo/snapback` · `@expo/snapback-runtime-darwin-arm64` ·
 `@expo/snapback-runtime-linux-x64` · `create-snapback-app`
 

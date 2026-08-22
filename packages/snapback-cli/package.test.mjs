@@ -490,6 +490,17 @@ try {
     binary: join(root, 'target', 'release', 'snapback'),
     checkoutRoot: root,
   }), root);
+  const externalCheckout = join(root, 'external-runtime-checkout');
+  const externalBinary = join(externalCheckout, 'target', 'debug', 'snapback');
+  mkdirSync(join(externalCheckout, 'packages', 'snapback-cli'), { recursive: true });
+  mkdirSync(dirname(externalBinary), { recursive: true });
+  writeFileSync(join(externalCheckout, 'Cargo.toml'), '[workspace]\n');
+  writeFileSync(join(externalCheckout, 'packages', 'snapback-cli', 'package.json'), '{}\n');
+  writeFileSync(externalBinary, 'runtime');
+  assert.equal(__test.runtimeReadinessRoot({
+    binary: externalBinary,
+    source: 'override',
+  }), externalCheckout);
   const fakeRuntime = join(root, 'snapback');
   writeFileSync(fakeRuntime, '#!/bin/sh\nexit 0\n');
   chmodSync(fakeRuntime, 0o755);
@@ -605,6 +616,7 @@ console.log(JSON.stringify({
   const reactScaffold = scaffoldApp(reactProject, { template: 'react' });
   assert.equal(reactScaffold.ok, true);
   const reactManifest = JSON.parse(readFileSync(join(reactProject, 'package.json'), 'utf8'));
+  assert.equal(reactManifest.dependencies['@expo/snapback-acceptance'], SCAFFOLD_PIN);
   assert.match(reactManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
   assert.equal(reactManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(reactManifest.scripts['test:static'], 'node acceptance.static.mjs');
@@ -642,9 +654,10 @@ console.log(JSON.stringify({
   assert.equal(reactStatic.status, 0, reactStatic.stderr);
   assertCarrierSelfCheck(reactProject, ['headless', 'web-browser']);
   const reactAcceptanceSource = readFileSync(join(reactProject, 'acceptance.mjs'), 'utf8');
-  assert.match(reactAcceptanceSource, /snapback\.starter-acceptance\.v1/u);
+  assert.match(reactAcceptanceSource, /from '@expo\/snapback-acceptance'/u);
+  assert.doesNotMatch(reactAcceptanceSource, /snapback\.starter-acceptance\.v1|expectedCheckCount/u);
   assert.match(reactAcceptanceSource, /createSnapbackAppClient/u);
-  assert.match(reactAcceptanceSource, /client\.query\(api\.listTodos/u);
+  assert.match(reactAcceptanceSource, /adminClient\.query\(api\.listTodos/u);
   assert.match(reactAcceptanceSource, /invokeSnapbackMutation/u);
 
   const crudProject = join(root, 'crud-dashboard');
@@ -652,6 +665,7 @@ console.log(JSON.stringify({
   assert.equal(crudScaffold.ok, true);
   assertScaffoldedAuthoringSkill(crudProject, crudScaffold);
   const crudManifest = JSON.parse(readFileSync(join(crudProject, 'package.json'), 'utf8'));
+  assert.equal(crudManifest.dependencies['@expo/snapback-acceptance'], SCAFFOLD_PIN);
   assert.match(crudManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
   assert.equal(crudManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(crudManifest.scripts['test:static'], 'node acceptance.static.mjs');
@@ -679,6 +693,7 @@ console.log(JSON.stringify({
   assert.equal(mediaScaffold.ok, true);
   assertScaffoldedAuthoringSkill(mediaProject, mediaScaffold);
   const mediaManifest = JSON.parse(readFileSync(join(mediaProject, 'package.json'), 'utf8'));
+  assert.equal(mediaManifest.dependencies['@expo/snapback-acceptance'], SCAFFOLD_PIN);
   assert.match(mediaManifest.dependencies['@expo/snapback-expo'], /^\^\d+\.\d+\.\d+/);
   assert.equal(mediaManifest.dependencies['expo-image-picker'], '~57.0.7');
   assert.equal(mediaManifest.scripts.web, 'expo start --web');
@@ -712,6 +727,7 @@ console.log(JSON.stringify({
   const chatManifest = JSON.parse(readFileSync(join(chatProject, 'package.json'), 'utf8'));
   assert.equal(chatManifest.dependencies['@expo/snapback-expo'], SCAFFOLD_PIN);
   assert.equal(chatManifest.dependencies['@expo/snapback-cli'], SCAFFOLD_PIN);
+  assert.equal(chatManifest.dependencies['@expo/snapback-acceptance'], SCAFFOLD_PIN);
   assert.equal(chatManifest.dependencies['@expo/metro-runtime'], '~57.0.8');
   assert.equal(chatManifest.dependencies['react-dom'], '19.2.3');
   assert.equal(chatManifest.dependencies['react-native-web'], '^0.21.2');
@@ -777,7 +793,8 @@ console.log(JSON.stringify({
   });
   assert.equal(chatStatic.status, 0, chatStatic.stderr);
   const chatAcceptanceSource = readFileSync(join(chatProject, 'acceptance.mjs'), 'utf8');
-  assert.match(chatAcceptanceSource, /snapback\.starter-acceptance\.v1/u);
+  assert.match(chatAcceptanceSource, /from '@expo\/snapback-acceptance'/u);
+  assert.doesNotMatch(chatAcceptanceSource, /snapback\.starter-acceptance\.v1|expectedCheckCount/u);
   assert.match(chatAcceptanceSource, /zero-config-supervised-connect/u);
   assert.match(chatAcceptanceSource, /runExpoDev/u);
   assert.match(chatAcceptanceSource, /createSnapbackExpoBoot/u);
@@ -788,10 +805,10 @@ console.log(JSON.stringify({
   );
   assert.match(chatAcceptanceSource, /observeSnapbackSurface/u);
   assert.match(chatAcceptanceSource, /client\.mutate\(api\.sendMessage/u);
-  assert.match(
+  assert.doesNotMatch(
     chatAcceptanceSource,
-    /let stdoutRemainder = '';[\s\S]*const lifecycleEvents = \[\];[\s\S]*child\.stdout\.on\('data'/u,
-    'the expo-chat acceptance stream parser must own its retained remainder and lifecycle event state',
+    /let stdoutRemainder|child\.stdout\.on\('data'/u,
+    'platform lifecycle parsing belongs to the shared runner, not the app journey',
   );
 
   const git = (...args) => {

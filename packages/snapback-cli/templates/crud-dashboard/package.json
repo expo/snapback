@@ -18,6 +18,7 @@
     "test:static": "node acceptance.static.mjs"
   },
   "dependencies": {
+    "@expo/snapback-acceptance": "__SNAPBACK_VERSION__",
     "@expo/snapback-cli": "__SNAPBACK_VERSION__",
     "@expo/snapback-client": "__SNAPBACK_VERSION__",
     "@expo/snapback-codegen": "__SNAPBACK_VERSION__",

@@ -44,15 +44,10 @@ assert.equal(packageManifest.scripts['carry:web-browser'], 'node carrier.mjs web
 assert.match(agentInstructions, /carry:web-browser/);
 assert.match(carrierSource, /'web-browser'/);
 assert(!app.includes(' as '), 'starter must not need result casts');
-assert.match(
-  runtimeAcceptance,
-  /'wait', '--ready-file', readyFile/,
-  'runtime acceptance must wait through the package CLI on the application-readiness receipt',
-);
-assert.match(runtimeAcceptance, /'--level', 'application', '--timeout-ms', '60000'/);
-assert.match(runtimeAcceptance, /applicationReadyObserved: true/);
-assert.match(runtimeAcceptance, /firstQueryRetries: 0/);
-assert.doesNotMatch(runtimeAcceptance, /generated-and-loaded/);
+assert.match(runtimeAcceptance, /from '@expo\/snapback-acceptance'/);
+assert.match(runtimeAcceptance, /defineStarterAcceptance/);
+assert.match(runtimeAcceptance, /runStarterAcceptanceIfMain/);
+assert.doesNotMatch(runtimeAcceptance, /snapback\.starter-acceptance\.v1|expectedCheckCount|JSON\.stringify\(receipt\)/);
 for (const check of [
   'anonymous-ready',
   'password-signup-recovery',
@@ -62,12 +57,13 @@ for (const check of [
 ]) {
   assert.match(runtimeAcceptance, new RegExp(check));
 }
-assert.match(runtimeAcceptance, /authInvalidationProtocol:\s*1/u);
 assert.doesNotMatch(
   runtimeAcceptance,
   /ensureApp|\.seed\(/,
   'runtime acceptance must not restore browser-side provisioning or seed ownership',
 );
 assert.match(runtimeAcceptance, /createSnapbackAppClient/);
+assert.match(runtimeAcceptance, /operation:\s*api\.listTodos/);
+assert.match(runtimeAcceptance, /operation:\s*api\.createTodo/);
 assert.doesNotMatch(runtimeAcceptance, /AuthCoordinator|adoptAuthority/u);
 console.log('react starter static coherence: generated refs and first-party hooks are coherent');

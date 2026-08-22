@@ -30,6 +30,11 @@ import {
   verifyGeneratedGraph,
 } from '@expo/snapback-codegen/review-surface';
 import { GOVERNANCE_FILES } from '@expo/snapback-codegen/visibility-governance';
+import {
+  parseStarterAcceptanceReceipt as parseStarterAcceptanceReceiptFromPackage,
+  starterConformanceProjection,
+  validatePassingStarterReceipt as validatePassingStarterReceiptFromPackage,
+} from '@expo/snapback-acceptance';
 
 export const VERIFY_CONFIG_SCHEMA_VERSION = 'snapback.verify-config.v1';
 export const VERIFY_RECEIPT_SCHEMA_VERSION = 'snapback.verify-receipt.v1';
@@ -297,12 +302,8 @@ export function defineVerifyConfig(config) {
   return config;
 }
 
-const STARTER_ACCEPTANCE_SCHEMA_VERSION = 'snapback.starter-acceptance.v1';
 const STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
-const STARTER_ACCEPTANCE_MAX_INVALID_PATHS = 64;
-const STARTER_ACCEPTANCE_MAX_OPERATION_PATHS = 16;
 const STARTER_ACCEPTANCE_MAX_DIAGNOSTIC_MESSAGE_CHARS = 4_096;
-const STARTER_ACCEPTANCE_MAX_REMEDIATION_ID_CHARS = 256;
 const STARTER_ACCEPTANCE_MAX_DEBUG_OUTPUT_CHARS = 16_384;
 
 function resolveStarterAcceptanceFile(value) {
@@ -334,11 +335,6 @@ function receiptValueKind(value, present = true) {
   return typeof value;
 }
 
-function receiptLeaf(parent, key) {
-  const present = plainObject(parent) && Object.hasOwn(parent, key);
-  return { present, value: present ? parent[key] : undefined };
-}
-
 function invalidReceiptPath(path, expectedKind, expectedState, value, present, observedState) {
   return Object.freeze({
     path,
@@ -347,369 +343,6 @@ function invalidReceiptPath(path, expectedKind, expectedState, value, present, o
       kind: receiptValueKind(value, present),
       state: present ? observedState : 'missing',
     }),
-  });
-}
-
-function parseStarterAcceptanceReceipt(stdout) {
-  const trimmed = stdout.trim();
-  if (trimmed.length === 0) {
-    return Object.freeze({ kind: 'missing-receipt', receipt: null, invalidPaths: Object.freeze([
-      invalidReceiptPath('$', 'object', 'starter-acceptance-receipt-present', undefined, false, 'missing'),
-    ]) });
-  }
-
-  const lines = trimmed.split('\n');
-  let lastJson;
-  let sawJson = false;
-  let lastLineLooksLikeJson = false;
-  for (const [reverseIndex, line] of [...lines].reverse().entries()) {
-    const candidateLine = line.trim();
-    if (reverseIndex === 0) {
-      lastLineLooksLikeJson = candidateLine.startsWith('{') || candidateLine.startsWith('[');
-    }
-    try {
-      const candidate = JSON.parse(candidateLine);
-      if (!sawJson) {
-        lastJson = candidate;
-        sawJson = true;
-      }
-      if (candidate?.schemaVersion === STARTER_ACCEPTANCE_SCHEMA_VERSION) {
-        return Object.freeze({ kind: 'receipt', receipt: candidate, invalidPaths: Object.freeze([]) });
-      }
-    } catch {
-      // Human-readable output may precede the final JSON receipt. It is not
-      // receipt evidence and is never copied into structured diagnostics.
-    }
-  }
-
-  if (sawJson) {
-    const schemaVersion = receiptLeaf(lastJson, 'schemaVersion');
-    return Object.freeze({
-      kind: 'malformed-receipt',
-      receipt: null,
-      invalidPaths: Object.freeze([
-        plainObject(lastJson)
-          ? invalidReceiptPath(
-            '$.schemaVersion',
-            'string',
-            STARTER_ACCEPTANCE_SCHEMA_VERSION,
-            schemaVersion.value,
-            schemaVersion.present,
-            'unexpected',
-          )
-          : invalidReceiptPath('$', 'object', 'starter-acceptance-receipt', lastJson, true, 'wrong-kind'),
-      ]),
-    });
-  }
-
-  if (lastLineLooksLikeJson) {
-    return Object.freeze({ kind: 'malformed-receipt', receipt: null, invalidPaths: Object.freeze([
-      invalidReceiptPath('$', 'object', 'valid-json', '', true, 'invalid-json'),
-    ]) });
-  }
-
-  return Object.freeze({ kind: 'missing-receipt', receipt: null, invalidPaths: Object.freeze([
-    invalidReceiptPath('$', 'object', 'starter-acceptance-receipt-present', undefined, false, 'missing'),
-  ]) });
-}
-
-function operationReceiptPath(key) {
-  const boundedKey = key.slice(0, 128);
-  return /^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(boundedKey)
-    ? `$.operations.${boundedKey}`
-    : `$.operations[${JSON.stringify(boundedKey)}]`;
-}
-
-function boundedRemediationId(key, value) {
-  const truncated = value.length > STARTER_ACCEPTANCE_MAX_REMEDIATION_ID_CHARS;
-  return {
-    [key]: value.slice(0, STARTER_ACCEPTANCE_MAX_REMEDIATION_ID_CHARS),
-    [`${key}Truncated`]: truncated,
-  };
-}
-
-function remediationRegisteredPath(path) {
-  return Object.freeze({
-    ...boundedRemediationId('pathId', path.id),
-    ...(path.functionId === null ? {} : boundedRemediationId('functionId', path.functionId)),
-  });
-}
-
-function remediationObservedPath({ path, functionId }) {
-  return Object.freeze({
-    receiptPath: path,
-    ...boundedRemediationId('functionId', functionId),
-  });
-}
-
-function generatedOperationIds(artifact) {
-  const functions = artifact?.manifests?.functions?.functions;
-  if (!Array.isArray(functions)) return null;
-  return new Set(functions.flatMap((entry) => (
-    typeof entry?.id === 'string' ? [entry.id] : []
-  )));
-}
-
-// @ref LLP 0275#d5-make-acceptance-profiles-single-source-and-staleness-aware
-// — operation-set drift is one typed stale-registration remediation, not a
-// hidden requirement that every domain preserve generic receipt key names.
-// @ref LLP 0294#w1--make-proof-commands-trustworthy-and-legible — every other
-// incomplete passing receipt reports bounded expected-versus-observed paths.
-function validatePassingStarterReceipt(receipt, registeredPaths, artifact) {
-  const invalidPaths = [];
-  let invalidPathCount = 0;
-  const add = (entry) => {
-    invalidPathCount += 1;
-    if (invalidPaths.length < STARTER_ACCEPTANCE_MAX_INVALID_PATHS) invalidPaths.push(entry);
-  };
-  const requireLiteral = (path, parent, key, expectedKind, expectedState, predicate) => {
-    const leaf = receiptLeaf(parent, key);
-    if (!leaf.present || !predicate(leaf.value)) {
-      add(invalidReceiptPath(
-        path,
-        expectedKind,
-        expectedState,
-        leaf.value,
-        leaf.present,
-        leaf.present && receiptValueKind(leaf.value) !== expectedKind ? 'wrong-kind' : 'unexpected',
-      ));
-    }
-    return leaf;
-  };
-
-  const expectedCheckCount = requireLiteral(
-    '$.expectedCheckCount', receipt, 'expectedCheckCount', 'integer', 'positive',
-    (value) => Number.isInteger(value) && value > 0,
-  );
-  const executedCheckCount = requireLiteral(
-    '$.executedCheckCount', receipt, 'executedCheckCount', 'integer', 'present', Number.isInteger,
-  );
-  if (
-    expectedCheckCount.present
-    && Number.isInteger(expectedCheckCount.value)
-    && expectedCheckCount.value > 0
-    && executedCheckCount.present
-    && Number.isInteger(executedCheckCount.value)
-    && executedCheckCount.value !== expectedCheckCount.value
-  ) {
-    add(invalidReceiptPath(
-      '$.executedCheckCount',
-      'integer',
-      'matches-$.expectedCheckCount',
-      executedCheckCount.value,
-      true,
-      'count-mismatch',
-    ));
-  }
-
-  const checks = receiptLeaf(receipt, 'checks');
-  if (!checks.present || !Array.isArray(checks.value)) {
-    add(invalidReceiptPath(
-      '$.checks', 'array', 'present', checks.value, checks.present,
-      checks.present ? 'wrong-kind' : 'missing',
-    ));
-  } else {
-    if (
-      expectedCheckCount.present
-      && Number.isInteger(expectedCheckCount.value)
-      && expectedCheckCount.value > 0
-      && checks.value.length !== expectedCheckCount.value
-    ) {
-      add(invalidReceiptPath(
-        '$.checks.length',
-        'integer',
-        'matches-$.expectedCheckCount',
-        checks.value.length,
-        true,
-        'count-mismatch',
-      ));
-    }
-    for (const [index, check] of checks.value.entries()) {
-      requireLiteral(
-        `$.checks[${index}].status`, check, 'status', 'string', 'passed',
-        (value) => value === 'passed',
-      );
-    }
-  }
-
-  const identity = receiptLeaf(receipt, 'identity').value;
-  const artifactIdentity = receiptLeaf(identity, 'artifact').value;
-  const loadedIdentity = receiptLeaf(identity, 'loaded').value;
-  const artifactAppId = requireLiteral(
-    '$.identity.artifact.appId', artifactIdentity, 'appId', 'string', 'present',
-    (value) => typeof value === 'string',
-  );
-  // LLP 0146 D2 binds the loaded and generated identities by equality; it
-  // does not require a bundle hash on receipt classes where both sides omit it.
-  let artifactBundleHash = receiptLeaf(artifactIdentity, 'bundleHash');
-  const loadedAppId = requireLiteral(
-    '$.identity.loaded.appId', loadedIdentity, 'appId', 'string', 'present',
-    (value) => typeof value === 'string',
-  );
-  let loadedBundleHash = receiptLeaf(loadedIdentity, 'bundleHash');
-  if (artifactBundleHash.present || loadedBundleHash.present) {
-    artifactBundleHash = requireLiteral(
-      '$.identity.artifact.bundleHash', artifactIdentity, 'bundleHash', 'string', 'present',
-      (value) => typeof value === 'string',
-    );
-    loadedBundleHash = requireLiteral(
-      '$.identity.loaded.bundleHash', loadedIdentity, 'bundleHash', 'string', 'present',
-      (value) => typeof value === 'string',
-    );
-  }
-  if (
-    artifactAppId.present && typeof artifactAppId.value === 'string'
-    && loadedAppId.present && typeof loadedAppId.value === 'string'
-    && loadedAppId.value !== artifactAppId.value
-  ) {
-    add(invalidReceiptPath(
-      '$.identity.loaded.appId', 'string', 'matches-$.identity.artifact.appId',
-      loadedAppId.value, true, 'identity-mismatch',
-    ));
-  }
-  if (
-    artifactBundleHash.present && typeof artifactBundleHash.value === 'string'
-    && loadedBundleHash.present && typeof loadedBundleHash.value === 'string'
-    && loadedBundleHash.value !== artifactBundleHash.value
-  ) {
-    add(invalidReceiptPath(
-      '$.identity.loaded.bundleHash', 'string', 'matches-$.identity.artifact.bundleHash',
-      loadedBundleHash.value, true, 'identity-mismatch',
-    ));
-  }
-
-  const lifecycle = receiptLeaf(receipt, 'lifecycle').value;
-  requireLiteral('$.lifecycle.owned', lifecycle, 'owned', 'boolean', 'true', (value) => value === true);
-  requireLiteral(
-    '$.lifecycle.applicationReadyObserved', lifecycle, 'applicationReadyObserved',
-    'boolean', 'true', (value) => value === true,
-  );
-  requireLiteral(
-    '$.lifecycle.waitLevel', lifecycle, 'waitLevel', 'string', 'application',
-    (value) => value === 'application',
-  );
-  requireLiteral(
-    '$.lifecycle.firstQueryRetries', lifecycle, 'firstQueryRetries', 'integer', 'zero',
-    (value) => value === 0,
-  );
-
-  const operationsLeaf = receiptLeaf(receipt, 'operations');
-  const operations = operationsLeaf.value;
-  const currentOperationIds = generatedOperationIds(artifact);
-  const registeredOperationPaths = registeredPaths.filter(({ functionId }) => functionId !== null);
-  const registeredOperationIds = new Set(registeredOperationPaths.map(({ functionId }) => functionId));
-  const observations = [];
-  if (currentOperationIds === null) {
-    add(invalidReceiptPath(
-      '$.operations', 'generated-operation-manifest', 'available', operations,
-      operationsLeaf.present, 'unavailable',
-    ));
-  }
-  if (!operationsLeaf.present || !plainObject(operations)) {
-    add(invalidReceiptPath(
-      '$.operations', 'object', 'generated-operation-observations', operations,
-      operationsLeaf.present, operationsLeaf.present ? 'wrong-kind' : 'missing',
-    ));
-  } else {
-    for (const key of Object.keys(operations).sort()) {
-      const path = operationReceiptPath(key);
-      const functionId = operations[key];
-      if (typeof functionId !== 'string') {
-        add(invalidReceiptPath(
-          path, 'string', 'generated-operation-reference-id', functionId, true, 'wrong-kind',
-        ));
-        continue;
-      }
-      const current = currentOperationIds?.has(functionId) === true;
-      const registered = registeredOperationIds.has(functionId);
-      if (!current && !registered) continue;
-      if (!current) {
-        add(invalidReceiptPath(
-          path, 'string', 'current-generated-operation-reference-id', functionId, true,
-          'stale-or-unknown-operation',
-        ));
-      }
-      observations.push(Object.freeze({ path, functionId, current }));
-    }
-  }
-  const observedCurrentIds = new Set(
-    observations.filter(({ current }) => current).map(({ functionId }) => functionId),
-  );
-  const observedPathIds = new Set(registeredOperationPaths.flatMap(({ id, functionId }) => (
-    observedCurrentIds.has(functionId) ? [id] : []
-  )));
-  const staleRegistrationPaths = registeredOperationPaths.filter(({ functionId }) => (
-    currentOperationIds !== null && !currentOperationIds.has(functionId)
-  ));
-  const unobservedRegistrationPaths = registeredOperationPaths.filter(({ functionId }) => (
-    currentOperationIds?.has(functionId) === true
-    && !observedCurrentIds.has(functionId)
-  ));
-  const unclaimedObservations = observations.filter(({ functionId, current }) => (
-    current && !registeredOperationIds.has(functionId)
-  ));
-  let remediation = null;
-  if (registeredOperationPaths.length === 0) {
-    add(invalidReceiptPath(
-      '$.operations',
-      'generated-operation-registration',
-      'profile-paths-bound',
-      operations,
-      operationsLeaf.present,
-      'unbound-registration',
-    ));
-  } else if (staleRegistrationPaths.length > 0 || unobservedRegistrationPaths.length > 0) {
-    add(invalidReceiptPath(
-      '$.operations',
-      'generated-operation-registration',
-      'registered-identities-observed',
-      operations,
-      operationsLeaf.present,
-      staleRegistrationPaths.length > 0 ? 'stale-registration' : 'registered-not-observed',
-    ));
-  }
-  if (staleRegistrationPaths.length > 0) {
-    remediation = Object.freeze({
-      kind: 'refresh-generated-operation-registration',
-      staleRegistrationPaths: Object.freeze(staleRegistrationPaths
-        .slice(0, STARTER_ACCEPTANCE_MAX_OPERATION_PATHS)
-        .map(remediationRegisteredPath)),
-      staleRegistrationPathsTruncated:
-        staleRegistrationPaths.length > STARTER_ACCEPTANCE_MAX_OPERATION_PATHS,
-      registeredPaths: Object.freeze(registeredPaths
-        .slice(0, STARTER_ACCEPTANCE_MAX_OPERATION_PATHS)
-        .map(remediationRegisteredPath)),
-      registeredPathsTruncated: registeredPaths.length > STARTER_ACCEPTANCE_MAX_OPERATION_PATHS,
-      unclaimedOperationPaths: Object.freeze(unclaimedObservations
-        .slice(0, STARTER_ACCEPTANCE_MAX_OPERATION_PATHS)
-        .map(remediationObservedPath)),
-      unclaimedOperationPathsTruncated:
-        unclaimedObservations.length > STARTER_ACCEPTANCE_MAX_OPERATION_PATHS,
-      instruction: 'Refresh the starter acceptance registration from generated operation references and rerun snapback verify.',
-    });
-  }
-
-  const cleanup = receiptLeaf(receipt, 'cleanup').value;
-  requireLiteral('$.cleanup.attempted', cleanup, 'attempted', 'boolean', 'true', (value) => value === true);
-  requireLiteral(
-    '$.cleanup.clientResourcesReleased', cleanup, 'clientResourcesReleased',
-    'boolean', 'true', (value) => value === true,
-  );
-  requireLiteral('$.cleanup.devExited', cleanup, 'devExited', 'boolean', 'true', (value) => value === true);
-  requireLiteral(
-    '$.cleanup.temporaryStateRemoved', cleanup, 'temporaryStateRemoved',
-    'boolean', 'true', (value) => value === true,
-  );
-  requireLiteral('$.cleanup.ok', cleanup, 'ok', 'boolean', 'true', (value) => value === true);
-  requireLiteral('$.diagnostic', receipt, 'diagnostic', 'null', 'null', (value) => value === null);
-
-  return Object.freeze({
-    complete: invalidPathCount === 0,
-    invalidPathCount,
-    invalidPaths: Object.freeze(invalidPaths),
-    invalidPathsTruncated: invalidPathCount > invalidPaths.length,
-    remediation,
-    observedPathIds: Object.freeze([...observedPathIds]),
   });
 }
 
@@ -747,11 +380,11 @@ async function runStarterAcceptanceProfile({ acceptanceFile, artifact, identityC
   clearTimeout(timeout);
   if (killTimeout !== null) clearTimeout(killTimeout);
 
-  const parsed = parseStarterAcceptanceReceipt(stdout);
+  const parsed = parseStarterAcceptanceReceiptFromPackage(stdout);
   const receipt = parsed.receipt;
   const processFailed = exit.error !== null || exit.code !== 0;
   const receiptValidation = parsed.kind === 'receipt'
-    ? validatePassingStarterReceipt(receipt, paths, artifact)
+    ? validatePassingStarterReceiptFromPackage(receipt, paths, artifact)
     : null;
   const passingValidation = receipt?.status === 'passed' ? receiptValidation : null;
   const ok = !overflow
@@ -834,10 +467,10 @@ async function runStarterAcceptanceProfile({ acceptanceFile, artifact, identityC
   return Object.freeze({
     ok,
     context: identityContext,
-    conformance: Object.freeze(unsupportedConformance(paths.filter(({ id }) => (
+    conformance: starterConformanceProjection(paths.filter(({ id }) => (
       passingValidation === null
       || passingValidation.observedPathIds.includes(id)
-    )))),
+    ))),
     diagnostics: Object.freeze(diagnostics),
     unsafeDebug: Object.freeze({
       warning: 'May contain application-controlled values; do not publish as structured diagnostics.',

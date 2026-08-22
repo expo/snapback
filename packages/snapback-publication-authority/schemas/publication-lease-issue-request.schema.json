@@ -67,8 +67,8 @@
     "lifetimeSeconds": { "type": "integer", "minimum": 1, "maximum": 900 },
     "packages": {
       "type": "array",
-      "minItems": 13,
-      "maxItems": 13,
+      "minItems": 14,
+      "maxItems": 14,
       "prefixItems": [
         { "$ref": "#/$defs/runtimeDarwin" },
         { "$ref": "#/$defs/runtimeLinux" },
@@ -82,7 +82,8 @@
         { "$ref": "#/$defs/cli" },
         { "$ref": "#/$defs/createApp" },
         { "$ref": "#/$defs/umbrella" },
-        { "$ref": "#/$defs/expoCustody" }
+        { "$ref": "#/$defs/expoCustody" },
+        { "$ref": "#/$defs/acceptance" }
       ],
       "items": false
     }
@@ -198,6 +199,15 @@
         {
           "type": "object",
           "properties": { "name": { "const": "@expo/snapback-expo-custody" } }
+        }
+      ]
+    },
+    "acceptance": {
+      "allOf": [
+        { "$ref": "#/$defs/package" },
+        {
+          "type": "object",
+          "properties": { "name": { "const": "@expo/snapback-acceptance" } }
         }
       ]
     },

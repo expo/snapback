@@ -37,10 +37,11 @@ assert.equal(packageManifest.scripts['carry:web-browser'], 'node carrier.mjs web
 assert.match(instructions, /carry:web-browser/);
 assert.match(carrierSource, /'web-browser'/);
 assert(!appSource.includes(' as '), 'starter UI must not need generated-result casts');
-assert.match(runtimeAcceptance, /'wait', '--ready-file', readyFile/);
-assert.match(runtimeAcceptance, /'--level', 'application', '--timeout-ms', '60000'/);
-assert.match(runtimeAcceptance, /applicationReadyObserved: true/);
-assert.match(runtimeAcceptance, /firstQueryRetries: 0/);
-assert.doesNotMatch(runtimeAcceptance, /generated-and-loaded/);
-assert.match(runtimeAcceptance, /loaded: loadedIdentity/);
+assert.match(runtimeAcceptance, /from '@expo\/snapback-acceptance'/);
+assert.match(runtimeAcceptance, /defineStarterAcceptance/);
+assert.match(runtimeAcceptance, /runStarterAcceptanceIfMain/);
+assert.doesNotMatch(runtimeAcceptance, /snapback\.starter-acceptance\.v1|expectedCheckCount|JSON\.stringify\(receipt\)/);
+for (const operation of ['projectDirectory', 'createProject', 'updateProject', 'deleteProject']) {
+  assert.match(runtimeAcceptance, new RegExp(`operation:\\s*api\\.${operation}`));
+}
 console.log('crud-dashboard static coherence: related list/detail/edit, live reads, optimistic mutation, and proof command are coherent');
