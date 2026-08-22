@@ -7,7 +7,7 @@
   "artifactKind": "functionManifest",
   "authoredSourceHash": "sha256:76a80fefe75ac9eb4a707327e1e7268c3182bfb7f9db888622f6f08a90cd73f3",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:0e6f2677f2b3fa76",
+  "bundleHash": "sha256:647dc7cdb4f5dd6b",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -47,7 +47,7 @@
       "exportedName": "createTodo",
       "handlerForm": "plan",
       "id": "todo-contract:createTodo",
-      "implementationHash": "sha256:0b9d31f1dabdde8d2f006dcdec2ad3b40d16110057421d628d416eeda352735a",
+      "implementationHash": "sha256:11006cac4a499ba98c07d96c30036053bd0209e182c51f2aad2ef017dc022ffc",
       "kind": "Mutation",
       "name": "createTodo",
       "readSetSummary": {
@@ -93,6 +93,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -254,7 +258,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "6196ffa23dbd5e218a10952592f499c22a62d1f9d9f0717a84b64326df8a8c14",
+  "inputsHash": "f639c7394b2d398e07ccb38fe0fe017d28fd6f85a8063c3bc59e5aebb3cf6626",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

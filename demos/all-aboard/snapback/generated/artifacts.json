@@ -29,6 +29,7 @@
     "app.d.ts",
     "api.mjs",
     "api.d.ts",
+    "api.d.mts",
     "api-envelope.members.json",
     "package.json",
     "operations/applyFeedTick.args.schema.json",
@@ -93,7 +94,7 @@
   ],
   "custody": {
     "consumer-committed": 7,
-    "regenerable-cache": 55,
+    "regenerable-cache": 56,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
@@ -109,6 +110,18 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:89d0f8d6006cef64e31c577286e2ddfc49649b85d76f52e50c71d8e2d351fb8d"
+    },
+    {
+      "bytes": 33303,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-api",
+      "path": "api.d.mts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:f2d4ccd5dd8077ce4aa7db46eff77f18251b4ff1a10c58be2cf12af638341fc9"
     },
     {
       "bytes": 33303,
@@ -908,13 +921,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:5171de3672259c1eef602eb69dca0efd8c076bba601173b5371a00f6ca19700d",
+    "bundleId": "sha256:10138c2fecd304b54bab4fa67b4fe51d47dcd13f9ed476442e94279d5ebdcb4c",
     "evidenceId": "sha256:a622440f7b792f975dad0e1a40db11b3285ad991afaff0551162b385ba522c4f",
     "executableId": "sha256:7f8f87af694ac23c32ee4c413590ccffdaa7f057516aca0ddaaaa2ae205d0f01",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:7f8f87af694ac23c32ee4c413590ccffdaa7f057516aca0ddaaaa2ae205d0f01"
     },
-    "generationId": "sha256:616fc868fc25d923405fdebde99f1b4e39cb098b5ba84308dcddab41d728da2c",
+    "generationId": "sha256:a9e84ab3d3aeaf8c40fbb06ca51de1f81ab7df91cabf51d90c0795767722a1af",
     "normalizedContractId": "sha256:387a8be26675a936e1657a14405fc03cc55cc118922eb34f6a4b97ad52eef280",
     "normalizedSchemaId": "sha256:8c6b2c465e81091a9a5797a246c5b853c0818a9762093ef67c07989665dd0653",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -934,9 +947,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 7,
-        "regenerableCache": 55,
+        "regenerableCache": 56,
         "reviewManifest": 1,
-        "total": 63
+        "total": 64
       },
       "degradedResults": 7,
       "ephemeralCollections": 0,

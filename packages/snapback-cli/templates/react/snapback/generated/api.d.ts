@@ -3,6 +3,8 @@ import type { ActionContext, AnonymousAuthContext, AssetsContext, AuthContext, A
 export type * from '@expo/snapback-codegen/ctx';
 export type SchemaVersion = 'snapback.v0';
 export type Principal = string & { readonly __snapbackPrincipal: unique symbol };
+export interface AuthorityMembershipStateV1 { readonly role: string; readonly status: 'active' | 'invited' }
+export interface AuthorityTransitionReceiptV1 { readonly declaration: string; readonly predecessor: AuthorityMembershipStateV1 | null; readonly successor: AuthorityMembershipStateV1 | null; readonly subject: string; readonly scope: string | null; readonly invalidationDisposition: 'global-authorization-epoch-advanced' | 'no-authorization-event' | 'preview-rolled-back' }
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
@@ -196,10 +198,13 @@ export type GeneratedMutationSettlement = MutationSettlement;
 export type GeneratedAssetsContext = AssetsContext<string, Readonly<{ upload?: string | Readonly<{ name?: string; id?: string }> }>, any>;
 export interface GeneratedPermissions {
 }
+export interface AuthorityRosterPageV1<Row> { readonly rows: readonly Row[]; readonly cursor: string | null }
+export interface GeneratedAuthority {
+}
 export interface GeneratedMembership {
 }
-export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = QueryContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, any, GeneratedRuntimeContext>;
-export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext>;
+export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = QueryContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, any, GeneratedRuntimeContext> & { readonly authority: GeneratedAuthority };
+export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext> & { readonly authority: GeneratedAuthority };
 export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, never, RealtimeContext>;
 export interface GeneratedFunctionContexts {
   "createTodo": GeneratedMutationContext;
@@ -216,18 +221,18 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:b7b0aec5bebf80a5dd69d0b54d73f5026a936d93757a87e140dc95fb5808b78c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:13a6ad020f32c381b1ed18f67b456e0e101757833ed1c0e962d7cbe79910a760`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "createTodo": FunctionReference<"createTodo", 'Mutation', { title: string }, Id<"todos">, "snapback-explicit-v1">;
   /**
    * LiveQuery reference `react:listTodos`.
    * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
-   * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:b7b0aec5bebf80a5dd69d0b54d73f5026a936d93757a87e140dc95fb5808b78c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:13a6ad020f32c381b1ed18f67b456e0e101757833ed1c0e962d7cbe79910a760`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "listTodos": FunctionReference<"listTodos", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["todos"]>, "snapback-explicit-v1">;
+  "listTodos": FunctionReference<"listTodos", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"todos">; "_version": number; "_createdAt": number; "_updatedAt": number; "title": string; "completed": boolean }>, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
 }

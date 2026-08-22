@@ -523,7 +523,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -622,6 +623,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "reactions",
@@ -651,7 +656,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -793,6 +799,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -811,7 +818,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -951,6 +959,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -978,7 +987,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -1104,6 +1114,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -1131,7 +1142,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -1257,6 +1269,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -1284,7 +1297,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -1479,6 +1493,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -1506,7 +1521,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -1648,6 +1664,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -1675,7 +1692,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -1768,6 +1786,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "reactions",
@@ -1828,7 +1850,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -1888,6 +1911,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": "messages",
@@ -1942,7 +1969,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -2074,6 +2102,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "messages",
@@ -2120,7 +2152,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -2249,6 +2282,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "messages",
@@ -2270,7 +2307,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -2395,6 +2433,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -2409,7 +2448,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:bd8387f1c2c852fb7544c02fd30bdc29d921ffc8e2c35f05712c29bf670fcbc9",
+  "normalizedContractId": "sha256:ab4dd1d065dc66b6d6e5937e0a9e03d924d8ceee4d56dc8a797dbf4850ffac64",
   "normalizedSchemaId": "sha256:db173a7f28a820fab6bf5a634da3e794e3f88201a39a4a5a6bb1044febd0c780",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

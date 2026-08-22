@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# LLP 0032 P3(b): tsc --noEmit over every generated api.d.ts plus the typed
-# consumer fixture, so emitted-invalid-TypeScript (the S5.D2 class) cannot
-# land. TypeScript is an exact root workspace dependency so this gate never
-# consults the registry or an ambient npm cache while proving committed output.
+# LLP 0032 P3(b): tsc --noEmit over every generated api declaration pair plus
+# the typed consumer fixture, so emitted-invalid-TypeScript (the S5.D2 class)
+# and runtime/declaration resolution drift cannot land. TypeScript is an exact
+# root workspace dependency so this gate never consults the registry or an
+# ambient npm cache while proving committed output.
 
 set -euo pipefail
 
@@ -53,25 +54,32 @@ node packages/snapback-codegen/index.mjs demos/graffiti/snapback >/dev/null
 node packages/snapback-codegen/index.mjs demos/card-game/snapback >/dev/null
 node packages/snapback-codegen/index.mjs demos/rbac/snapback >/dev/null
 
+API_DECLARATIONS=(
+    demos/todo/snapback/generated/api.d.ts
+    demos/todo-v2/snapback/generated/api.d.ts
+    demos/all-aboard/snapback/generated/api.d.ts
+    demos/all-aboard/tests/egress-probe/generated/api.d.ts
+    demos/cursors-web/snapback/generated/api.d.ts
+    demos/graffiti/snapback/generated/api.d.ts
+    demos/card-game/snapback/generated/api.d.ts
+    demos/rbac/snapback/generated/api.d.ts
+    demos/catalog-lens/snapback/generated/api.d.ts
+    demos/dispatch-board/snapback/generated/api.d.ts
+    demos/pulse-monitor/snapback/generated/api.d.ts
+    demos/public-dashboard/snapback/generated/api.d.ts
+    demos/access-desk/snapback/generated/api.d.ts
+)
+for declaration in "${API_DECLARATIONS[@]}"; do
+    API_DECLARATIONS+=("${declaration%.d.ts}.d.mts")
+done
+
 "$TSC" \
     --noEmit \
     --strict \
     --target es2022 \
     --module esnext \
     --moduleResolution bundler \
-    demos/todo/snapback/generated/api.d.ts \
-    demos/todo-v2/snapback/generated/api.d.ts \
-    demos/all-aboard/snapback/generated/api.d.ts \
-    demos/all-aboard/tests/egress-probe/generated/api.d.ts \
-    demos/cursors-web/snapback/generated/api.d.ts \
-    demos/graffiti/snapback/generated/api.d.ts \
-    demos/card-game/snapback/generated/api.d.ts \
-    demos/rbac/snapback/generated/api.d.ts \
-    demos/catalog-lens/snapback/generated/api.d.ts \
-    demos/dispatch-board/snapback/generated/api.d.ts \
-    demos/pulse-monitor/snapback/generated/api.d.ts \
-    demos/public-dashboard/snapback/generated/api.d.ts \
-    demos/access-desk/snapback/generated/api.d.ts \
+    "${API_DECLARATIONS[@]}" \
     demos/_kit/tests/typed-consumer-fixture.ts
 
-echo "[check-generated-types] ok: generated .d.ts + typed consumer fixture compile clean"
+echo "[check-generated-types] ok: generated .d.ts/.d.mts pairs + relative .mjs consumer fixture compile clean"

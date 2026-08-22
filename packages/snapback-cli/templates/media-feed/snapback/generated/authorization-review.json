@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:17b8bc580cbacadcfcd733077e37c352dbdff3ac4eb36fbdc456cf8c23f521ef",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:347762da8bce30349550e211aacf647782e2f368dadbf0904993a26baea398a4",
   "operations": [
     {
       "authRequirement": {
@@ -189,7 +189,7 @@
     "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
     "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.v1",
     "visibilityOverrides": "snapback.authorization-review.visibility-overrides.v1",
-    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.v2"
   },
   "tablePolicies": [
     {
@@ -202,5 +202,49 @@
   ],
   "tablePolicyTransitions": [],
   "visibilityOverrides": [],
-  "writePolicyChecks": []
+  "writePolicyChecks": [
+    {
+      "absentDisposition": "not-applicable",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "pre-0264-runtime-behavior"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "migration-pending",
+      "id": "sha256:9de4c832d3f4f162a2baa63be7d8da839c800af7e696481e2d12e708f7256a59",
+      "operation": "createEntry",
+      "ownerField": null,
+      "ownerFieldResolution": "not-applicable",
+      "ownerInputDisposition": "not-applicable",
+      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
+      "policyKind": "public-read",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class"
+      ],
+      "principalSource": "not-applicable",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:d08601828e5f8b2aab9c29a5e0c593718d39795ffd843387ed8f91d908632b7f",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 12,
+        "kind": "static-inline",
+        "line": 77,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "entries",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "not-applicable"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "insert",
+      "writeFormCeiling": null
+    }
+  ]
 }

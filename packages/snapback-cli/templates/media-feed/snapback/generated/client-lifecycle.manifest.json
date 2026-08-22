@@ -8,7 +8,7 @@
       "correctVerb": "commandClient.start",
       "freshness": "task snapshot is process-local; mutation settlement remains durable",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:0ebb6daba7e44b2ac492aca0a15b94383f2c98badca6f7b98cdabc408412f78f",
+      "implementationHash": "sha256:36c57414a910faf9b6fe211f6c73e7962f3fbdf97d8c314951b99338fd142ca7",
       "kind": "Command",
       "legalVerbs": [
         "commandClient.start",
@@ -118,7 +118,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:17b8bc580cbacadcfcd733077e37c352dbdff3ac4eb36fbdc456cf8c23f521ef",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:347762da8bce30349550e211aacf647782e2f368dadbf0904993a26baea398a4",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -151,7 +151,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:0ebb6daba7e44b2ac492aca0a15b94383f2c98badca6f7b98cdabc408412f78f",
+      "implementationHash": "sha256:36c57414a910faf9b6fe211f6c73e7962f3fbdf97d8c314951b99338fd142ca7",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",
@@ -671,6 +671,16 @@
           "remediations": [
             "disposeAndReconstruct",
             "useStoragePartition"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "rqs-store-identity-conflict",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT"
+          ],
+          "remediations": [
+            "disposeAndReconstruct"
           ],
           "state": "error"
         },

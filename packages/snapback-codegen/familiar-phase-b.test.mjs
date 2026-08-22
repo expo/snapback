@@ -318,7 +318,7 @@ test('dual-profile todo fixtures normalize equally and emit lawful dotted surfac
 
   const familiarOutput = join(familiarFixture, 'generated');
   const explicitOutput = join(explicitFixture, 'generated');
-  for (const name of ['server.mjs', 'server.d.ts', 'api.mjs', 'api.d.ts']) {
+  for (const name of ['server.mjs', 'server.d.ts', 'api.mjs', 'api.d.ts', 'api.d.mts']) {
     assert.equal(readFileSync(join(familiarOutput, name), 'utf8').length > 0, true, name);
   }
   const familiarApi = await import(`${pathToFileURL(join(familiarOutput, 'api.mjs')).href}?phase-b=${Date.now()}`);

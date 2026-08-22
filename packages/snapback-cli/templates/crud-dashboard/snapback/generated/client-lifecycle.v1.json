@@ -84,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:617c38ceea34e00b075dd0e91a8a445ada7f1e3b874bf44c76716db685ba3c16",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:253be6687509f6740c19e63b172030544699fff9d7eade2e6c9c4d2bddb5d792",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -117,7 +117,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:d24d9d0cd5b3ea1f99f2d3a1952c01678505df0e063ab5581751dbe7ed425bf5",
+      "implementationHash": "sha256:e6c92ec3b762e94805aa26a30a253c0eae52190ed1cc680c38a5766983077bb7",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",
@@ -155,7 +155,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:cb88c7a28ff6ba7f2c8aa8664fb1dfbd72cb451b6859cea0526472d270e1a458",
+      "implementationHash": "sha256:2dca3237348a3d1b6a6dd6730f78ad79a4604409597b3ad1b3b1da137cfa74ea",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",
@@ -298,7 +298,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:7a8c80c4ba6e33987ff64989a923b2052f9e6ee007e2f8713cca3a19102963e9",
+      "implementationHash": "sha256:a5ce0e2862bfddf0bcd8e98ccaaece3fdf1f955eae8c238551356080fd57f296",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",
@@ -771,6 +771,16 @@
           "remediations": [
             "disposeAndReconstruct",
             "useStoragePartition"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "rqs-store-identity-conflict",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT"
+          ],
+          "remediations": [
+            "disposeAndReconstruct"
           ],
           "state": "error"
         },

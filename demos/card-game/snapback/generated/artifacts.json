@@ -29,6 +29,7 @@
     "app.d.ts",
     "api.mjs",
     "api.d.ts",
+    "api.d.mts",
     "api-envelope.members.json",
     "package.json",
     "operations/acceptHandCard.args.schema.json",
@@ -53,7 +54,7 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 7,
-    "regenerable-cache": 32,
+    "regenerable-cache": 33,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
@@ -69,6 +70,18 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:0c7ac75527c11355c3d844da143adc1220b0b15b3eb145c8cb21cd1ec4d16801"
+    },
+    {
+      "bytes": 20240,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-api",
+      "path": "api.d.mts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:ec924acd269ffa46a94bd94a2b4e30396c4e5b3494f56df760001d9b29b2a470"
     },
     {
       "bytes": 20240,
@@ -547,13 +560,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:edd5c3dc209825989ed1110b6eea58758a65f79005beddf6b9a59d769fa3f097",
+    "bundleId": "sha256:62e3c8ba4a21a094fd526f9fffeda20007cbecaa38e7330b3fb78bf6444d060d",
     "evidenceId": "sha256:441ce06ad18f723eba85d4fd9773083c1fe9535406ddc85c3aec96a6cca2ba6f",
     "executableId": "sha256:5a9d1a2b33e8a7cb9ea41d7b763178ee2543c145fb854a9f23913bd2afb447cc",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:5a9d1a2b33e8a7cb9ea41d7b763178ee2543c145fb854a9f23913bd2afb447cc"
     },
-    "generationId": "sha256:a7983f90ec3ce9f00925f87ed4856045eedcaf2f86edc2184f4ac15fe26d2489",
+    "generationId": "sha256:ea27c39836a75c1e6122ad6bacc53433fd8801b9ed8053a502eb466e854d69aa",
     "normalizedContractId": "sha256:66f55157a9181d6318b006f5c8ac517015fd2860cab6daca52e7389d1994f18d",
     "normalizedSchemaId": "sha256:b2b32d9cb5156d8db6d811807e706dc47621d7a7ea17e37be8c23d37932ccd4e",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -573,9 +586,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 7,
-        "regenerableCache": 32,
+        "regenerableCache": 33,
         "reviewManifest": 1,
-        "total": 40
+        "total": 41
       },
       "degradedResults": 2,
       "ephemeralCollections": 0,

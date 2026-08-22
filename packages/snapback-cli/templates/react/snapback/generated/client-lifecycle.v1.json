@@ -84,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:b7b0aec5bebf80a5dd69d0b54d73f5026a936d93757a87e140dc95fb5808b78c",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:13a6ad020f32c381b1ed18f67b456e0e101757833ed1c0e962d7cbe79910a760",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -117,7 +117,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:b74f2874733657e83fc74a7ec72813723a4fd0e1bb3d3fc9521733a4cb201c1c",
+      "implementationHash": "sha256:00a38e60892977c39d1ab933a71179f3cf6423a68c50b1bdbff48dd230280a36",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",
@@ -167,7 +167,8 @@
         "args_contract_v1",
         "host_plan_runtime",
         "live_subscriptions",
-        "result_contract_v1"
+        "result_contract_v1",
+        "single_table_v1"
       ],
       "resultContractHash": "sha256:6cb72d727377ef0be17862a3349c42b1824f0dbea54154e4ca0bc1a41e4d47fa",
       "retention": "none",
@@ -595,6 +596,16 @@
           "remediations": [
             "disposeAndReconstruct",
             "useStoragePartition"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "rqs-store-identity-conflict",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT"
+          ],
+          "remediations": [
+            "disposeAndReconstruct"
           ],
           "state": "error"
         },

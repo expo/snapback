@@ -91,7 +91,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -163,6 +164,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "todos",
@@ -185,7 +190,8 @@
             "userId"
           ],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -326,6 +332,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -340,7 +347,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:c49aab5c3050cac17baa64b39ec1a224a14b495700ededbe1d03efbedbb90ac3",
+  "normalizedContractId": "sha256:922af6755f2c2b4a538f7501c06561041a88137d7c7b4c89328fcce9fd4211a1",
   "normalizedSchemaId": "sha256:e524d12da26ff3bdf1666b4e979d8d2720eaa0be9cf378b05c63c2de57174245",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

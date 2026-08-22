@@ -57,7 +57,7 @@
   ],
   "authoredSourceHash": "sha256:87e360a4a16afb5728bcd12873ccd014523d483c7f6def167e3929a84ff1e913",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "snapback.v1:sessions:function:sha256:c984a4b03b898dc1120e1451d94caff240f2426e0d701bc5bf6743979e095bc0",
+  "bundleHash": "snapback.v1:sessions:function:sha256:25342f09211e440cac6d513788b8fda975638d30432e0c8c6e4154f0234dacdc",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -119,7 +119,7 @@
       "exportedName": "addReaction",
       "handlerForm": "plan",
       "id": "expo-chat:addReaction",
-      "implementationHash": "sha256:2fc4b49acdad977edc61edbfadc8181775e457b50dc892c36d4cb90657ef86a2",
+      "implementationHash": "sha256:b4b37fc45c1eb137510ea759d8a75e17585395e5c659c00e8dae455a131d71cf",
       "kind": "Mutation",
       "name": "addReaction",
       "readSetSummary": {
@@ -194,6 +194,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "reactions",
@@ -1205,7 +1209,7 @@
       "exportedName": "removeReaction",
       "handlerForm": "plan",
       "id": "expo-chat:removeReaction",
-      "implementationHash": "sha256:42c218ca2dd51e62ad2e6710e5a1d552d2307c57aebff499a2af74bbe3aced5b",
+      "implementationHash": "sha256:7e8a67fc52de58c4ea368042f8f276e837767a466b60009625910ce9d63f1975",
       "kind": "Mutation",
       "name": "removeReaction",
       "readSetSummary": {
@@ -1269,6 +1273,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "reactions",
@@ -1348,7 +1356,7 @@
       "exportedName": "sendMessage",
       "handlerForm": "inline",
       "id": "expo-chat:sendMessage",
-      "implementationHash": "sha256:bd95a02bdb92bedd7dd1aa00ebdebbcc300eae66f5bafd245ab70e908154400e",
+      "implementationHash": "sha256:19b23374f317becdf0517e32b5feb7e2355b01ff99027020d75bcb4ed071d467",
       "kind": "Mutation",
       "name": "sendMessage",
       "readSetSummary": {
@@ -1385,6 +1393,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "messages",
@@ -1465,7 +1477,7 @@
       "exportedName": "sendReply",
       "handlerForm": "plan",
       "id": "expo-chat:sendReply",
-      "implementationHash": "sha256:c5a9e1d60a0e0a56ce262e3d44ae53b5a15f9c6814767e65dd15d7cfc4b8e374",
+      "implementationHash": "sha256:8d92b42e88df9188b56aa6d82f39d2a2f02a0671370c510de950d6df4fbccbff",
       "kind": "Mutation",
       "name": "sendReply",
       "readSetSummary": {
@@ -1560,6 +1572,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "messages",
@@ -1632,7 +1648,7 @@
       "exportedName": "sendText",
       "handlerForm": "plan",
       "id": "expo-chat:sendText",
-      "implementationHash": "sha256:2fea28cfadacf921129727f322f54735d316a5bd52bdc91d47e5abc6e8c2c932",
+      "implementationHash": "sha256:1e4074d5045ad912760433ab9213e85fda917747c706567ab69bfb280e0ff68c",
       "kind": "Mutation",
       "name": "sendText",
       "readSetSummary": {
@@ -1724,6 +1740,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "messages",
@@ -1868,7 +1888,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:2fa5412ebd1fbdbcdcdb5674f8d69112e07c0056ce6fb615b9f787708dce604a",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:c6853b4951c2b276744c2966127ed69e810064718fe87497c5fba923c6d17c1d",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

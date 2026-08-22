@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:b7b0aec5bebf80a5dd69d0b54d73f5026a936d93757a87e140dc95fb5808b78c",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:13a6ad020f32c381b1ed18f67b456e0e101757833ed1c0e962d7cbe79910a760",
   "operations": [
     {
       "authRequirement": {
@@ -128,7 +128,7 @@
     "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
     "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.v1",
     "visibilityOverrides": "snapback.authorization-review.visibility-overrides.v1",
-    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.v2"
   },
   "tablePolicies": [
     {
@@ -141,5 +141,48 @@
   ],
   "tablePolicyTransitions": [],
   "visibilityOverrides": [],
-  "writePolicyChecks": []
+  "writePolicyChecks": [
+    {
+      "absentDisposition": "not-applicable",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "pre-0264-runtime-behavior"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "migration-pending",
+      "id": "sha256:b4d41746d65471ee4d010b43bb79e158a78ca3d0ae12eccced92213168333fc8",
+      "operation": "createTodo",
+      "ownerField": null,
+      "ownerFieldResolution": "not-applicable",
+      "ownerInputDisposition": "not-applicable",
+      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
+      "policyKind": "public-read",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class"
+      ],
+      "principalSource": "not-applicable",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "host-plan",
+      "siteId": "sha256:4a9ca4a5f15956e0013922bc37fec76f6a13cd478cb07b88142b65421a6f7b9b",
+      "siteResolution": "exact-plan-step",
+      "sourceEvidence": {
+        "kind": "generated-step",
+        "stepIndex": 0,
+        "stepKind": "Insert"
+      },
+      "surface": "host-plan",
+      "table": "todos",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "not-applicable"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "insert",
+      "writeFormCeiling": null
+    }
+  ]
 }

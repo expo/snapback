@@ -211,7 +211,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -265,6 +266,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": "entries",
@@ -285,7 +290,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -447,6 +453,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -474,7 +481,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -644,6 +652,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -658,7 +667,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:97a784f738747f0348a99ae7c548995511973eb36ad9d9d41c569776f7b7ff9f",
+  "normalizedContractId": "sha256:a770b674d6c51fab2434e9f76c5b4e04147315faeace70b2a7189f8d224b3da0",
   "normalizedSchemaId": "sha256:eff7220f018bd10a85a1b3d77a0d2ae4b8076dabbec6f178c49a7d803f21f28b",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

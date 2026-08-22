@@ -29,6 +29,7 @@
     "app.d.ts",
     "api.mjs",
     "api.d.ts",
+    "api.d.mts",
     "api-envelope.members.json",
     "package.json",
     "operations/createApp.args.schema.json",
@@ -68,7 +69,7 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 7,
-    "regenerable-cache": 47,
+    "regenerable-cache": 48,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
@@ -84,6 +85,18 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:3cee69769b6a3fd7ed67a52bf2a42cb364751b4e8abb3466fedf2bfd5da74f99"
+    },
+    {
+      "bytes": 32670,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-api",
+      "path": "api.d.mts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:7691156ab2bb64a47fa54a05b65ffae3b6ef7fd31a109f6f3607100e93271cfe"
     },
     {
       "bytes": 32670,
@@ -787,13 +800,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:c7965528f902aa5f7c6127975f1a862693c2b3f7f19fa2c9cebc9f076d761a46",
+    "bundleId": "sha256:0dd73417bda1d15724d613579f89fee918d9fef38ae5f4c3afdb81374bb4a286",
     "evidenceId": "sha256:3efeadb3063884727c51db4e6139b2e5c616b0267e080efffb9713aed2754ed2",
     "executableId": "sha256:3e239bcbc01c781333b9e710888691f2435aa881c3c1a568fd0cf4aacc86c0d7",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:3e239bcbc01c781333b9e710888691f2435aa881c3c1a568fd0cf4aacc86c0d7"
     },
-    "generationId": "sha256:592ec1b19129c6b9aab2b13ee09869f9e6565f1582f87918b5b5603c15c5904e",
+    "generationId": "sha256:c151ad0be401c179d2179ca6fafc0920ee8212767cae3db7b7d3ace2cdd820f0",
     "normalizedContractId": "sha256:395c5d02b39f95843c2a1b896e60ee3960080184e23a75e7f929cc6558834140",
     "normalizedSchemaId": "sha256:29512a68339e4f3042122220a367f93b236310c6a2db007da6af727f23accf67",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -813,9 +826,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 7,
-        "regenerableCache": 47,
+        "regenerableCache": 48,
         "reviewManifest": 1,
-        "total": 55
+        "total": 56
       },
       "degradedResults": 0,
       "ephemeralCollections": 0,

@@ -141,6 +141,12 @@ try {
     first.artifactIndex.files.find(({ path }) => path === 'api.d.ts').custody,
     CUSTODY.consumerCommitted,
   );
+  const apiModuleDeclaration = first.artifactIndex.files.find(
+    ({ path }) => path === 'api.d.mts',
+  );
+  assert.equal(apiModuleDeclaration.logicalKind, 'typed-api');
+  assert.equal(apiModuleDeclaration.consumer, 'client-bundler');
+  assert.equal(apiModuleDeclaration.custody, CUSTODY.regenerableCache);
   const handlerProfileRecord = first.artifactIndex.files.find(
     ({ path }) => path === 'handler-runtime-profile.v1.json',
   );

@@ -108,7 +108,7 @@
   ],
   "authoredSourceHash": "sha256:a928cb1e240d7b54fb983e7ce9d8ba6feeb163073233d5e39d34c5deea494030",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "snapback.v1:sessions:function:sha256:e21228d898bba8ae4cae53041f3a9b23bff0952656735a06e9cfe98c3a1e878f",
+  "bundleHash": "snapback.v1:sessions:function:sha256:9c2e4babb371994aca68d93fd5a3a41a903ebd50b171c89a01679e2a595dd911",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -161,7 +161,7 @@
       "exportedName": "createEntry",
       "handlerForm": "inline",
       "id": "media-feed:createEntry",
-      "implementationHash": "sha256:0ebb6daba7e44b2ac492aca0a15b94383f2c98badca6f7b98cdabc408412f78f",
+      "implementationHash": "sha256:36c57414a910faf9b6fe211f6c73e7962f3fbdf97d8c314951b99338fd142ca7",
       "kind": "Mutation",
       "name": "createEntry",
       "readSetSummary": {
@@ -198,6 +198,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "entries",
@@ -565,7 +569,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:17b8bc580cbacadcfcd733077e37c352dbdff3ac4eb36fbdc456cf8c23f521ef",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:347762da8bce30349550e211aacf647782e2f368dadbf0904993a26baea398a4",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

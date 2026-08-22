@@ -29,6 +29,7 @@
     "app.d.ts",
     "api.mjs",
     "api.d.ts",
+    "api.d.mts",
     "api-envelope.members.json",
     "package.json",
     "operations/egressProbe.args.schema.json",
@@ -60,7 +61,7 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 7,
-    "regenerable-cache": 33,
+    "regenerable-cache": 34,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
@@ -76,6 +77,18 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:7b0c3401449f0912ad9bd0be0ca59c09f1c3c2ad88b595155b75d46dc39b2697"
+    },
+    {
+      "bytes": 22349,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-api",
+      "path": "api.d.mts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:c155dc356f5ebcd2872db05d5999143e7b0070e01e74a49330b9e7591492c1fa"
     },
     {
       "bytes": 22349,
@@ -586,13 +599,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:db322dbaaa066741ece03ada83ac5104d9691cd573861ca430c38cb5c6d5136b",
+    "bundleId": "sha256:8c74478e15462b8e54935da3831501bdeca1dc3dbc65d37eac451e3722600dd1",
     "evidenceId": "sha256:298705d2ed768d75cf0380a7b56e4d5031a2f341162afbc2cda051b5959bd588",
     "executableId": "sha256:ed9be901df190c0823d5c02f9e8b986b4987fd354b4ca6811f6c811c572585fc",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:ed9be901df190c0823d5c02f9e8b986b4987fd354b4ca6811f6c811c572585fc"
     },
-    "generationId": "sha256:48e44468dbda3ac290fcd3341c1b8e5caf08981ed4d883affcebc1ffdfc7609e",
+    "generationId": "sha256:65c8ab5ebac27011ebf1440349758c5f58d4b7c775dc9aa93a6ce0352391e57d",
     "normalizedContractId": "sha256:47243467d379ecda71dcee0d5e578e8563f26047460fa8e42b0c4610d7889ae4",
     "normalizedSchemaId": "sha256:98d7b16bbe1c343ac0759115e2098a819b6a4b49d5bf9d0c7b483bae7a84ac8b",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -612,9 +625,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 7,
-        "regenerableCache": 33,
+        "regenerableCache": 34,
         "reviewManifest": 1,
-        "total": 41
+        "total": 42
       },
       "degradedResults": 3,
       "ephemeralCollections": 0,

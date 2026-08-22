@@ -1,13 +1,14 @@
 {
   "acknowledgedExperimentalCapabilities": [
     "args_contract_v1",
-    "result_contract_v1"
+    "result_contract_v1",
+    "single_table_v1"
   ],
   "appId": "react",
   "artifactKind": "functionManifest",
   "authoredSourceHash": "sha256:a10a001780749111b7ef9603afe4579642b067fe8a7e6c06ae9cc4d68457c983",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "snapback.v1:sessions:function:sha256:a02dd68ebb9e5c248e8f2ae90f258931651b26fb5e236bd9c8321e8dac312654",
+  "bundleHash": "snapback.v1:sessions:function:sha256:7216fee38e68c365e98e80769cac0845e8fc6efc0a8405c0e21158d056bf39ce",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -45,7 +46,7 @@
       "exportedName": "createTodo",
       "handlerForm": "plan",
       "id": "react:createTodo",
-      "implementationHash": "sha256:b74f2874733657e83fc74a7ec72813723a4fd0e1bb3d3fc9521733a4cb201c1c",
+      "implementationHash": "sha256:00a38e60892977c39d1ab933a71179f3cf6423a68c50b1bdbff48dd230280a36",
       "kind": "Mutation",
       "name": "createTodo",
       "readSetSummary": {
@@ -96,6 +97,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -142,6 +147,7 @@
       "requiredCapabilities": [
         "live_subscriptions",
         "host_plan_runtime",
+        "single_table_v1",
         "result_contract_v1",
         "args_contract_v1"
       ],
@@ -234,7 +240,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:b7b0aec5bebf80a5dd69d0b54d73f5026a936d93757a87e140dc95fb5808b78c",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:13a6ad020f32c381b1ed18f67b456e0e101757833ed1c0e962d7cbe79910a760",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

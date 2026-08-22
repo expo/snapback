@@ -337,6 +337,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'api-envelope-members.test.mjs',
+      'api-module-resolution.test.mjs',
       'app-descriptor.test.mjs',
       'app-inspection.test.mjs',
       'application-auth-bootstrap.test.mjs',
@@ -564,7 +565,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 325,
+  expectedTotal = 326,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1047,6 +1048,8 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-client and @expo/snapback-react gain
 // authority-transition-conformance, @expo/snapback-contract gains
 // authority-transition-signal. All three were run and pass before registration.
+// 325 -> 326 (2026-08-22, LLP 0277 F11): @expo/snapback-codegen gains the
+// node/bundler/nodenext relative-api-module declaration-resolution regression suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

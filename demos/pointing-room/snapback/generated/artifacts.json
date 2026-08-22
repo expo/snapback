@@ -29,6 +29,7 @@
     "app.d.ts",
     "api.mjs",
     "api.d.ts",
+    "api.d.mts",
     "api-envelope.members.json",
     "package.json",
     "operations/castVote.args.schema.json",
@@ -63,7 +64,7 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 9,
-    "regenerable-cache": 40,
+    "regenerable-cache": 41,
     "review-manifest": 1
   },
   "ephemeralCollections": [
@@ -81,6 +82,18 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:3a503106c568ded3262c4c66742c832a225296c914800269f10815bef7d76038"
+    },
+    {
+      "bytes": 23111,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-api",
+      "path": "api.d.mts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:1fb3c4e3912c7d29399f972cad75d047d303febfa2305ba6b4cff706cb4aa297"
     },
     {
       "bytes": 23111,
@@ -689,13 +702,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:b070dff83291a4d613b8d7a64c4a6e0ec9d1064da7fda6c606125f4fae2088d1",
+    "bundleId": "sha256:a3ca9a900cbfbfeaad6be8373ac8a7ecd8d999d81d0e955101e792bbe4439436",
     "evidenceId": "sha256:7596d859b6f66689045e1c500c5adaa3313e2da907ec4971dab491851939fd72",
     "executableId": "sha256:8d25e3decb1108209297a7a38fdd089968d1e71b759c3aa02f4c3e9453fc8ecc",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:8d25e3decb1108209297a7a38fdd089968d1e71b759c3aa02f4c3e9453fc8ecc"
     },
-    "generationId": "sha256:8dd02a5ef77571de9f291f8ba5cd4fecf67d47606dc9e3af8a0d35c7629eb574",
+    "generationId": "sha256:448b1419499f5f4e63d958a774515a8f658f603ea6153ec81bdc8ef488eac487",
     "normalizedContractId": "sha256:edb89f16957717e04a1ca5cca9ea93ec0934956aed85dfa81a49a93fb17399cd",
     "normalizedSchemaId": "sha256:e1eafa062af1a711e76356f2efd422a069cc187c18978390377bc6fba1410955",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -715,9 +728,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 9,
-        "regenerableCache": 40,
+        "regenerableCache": 41,
         "reviewManifest": 1,
-        "total": 50
+        "total": 51
       },
       "degradedResults": 0,
       "ephemeralCollections": 1,

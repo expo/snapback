@@ -1,24 +1,25 @@
 // LLP 0032 P3(b): the typed consumer fixture. The tsc gate
-// (scripts/check-generated-types) compiles every demo's generated api.d.ts
-// through these imports, so emitted-invalid-TypeScript (the S5.D2 class —
+// (scripts/check-generated-types) compiles every demo's generated API
+// declaration pair through relative .mjs imports, so emitted-invalid-TypeScript
+// (the S5.D2 class —
 // `updatedAt?: number |` shipped because no TypeScript ever compiled the
 // output) and arg-type regressions fail in CI instead of at a consumer.
 
 import type {
   GeneratedApi as TodoApi,
-} from '../../todo/snapback/generated/api';
+} from '../../todo/snapback/generated/api.mjs';
 import type {
   GeneratedApi as TodoV2Api,
-} from '../../todo-v2/snapback/generated/api';
+} from '../../todo-v2/snapback/generated/api.mjs';
 import type {
   GeneratedApi as AllAboardApi,
-} from '../../all-aboard/snapback/generated/api';
+} from '../../all-aboard/snapback/generated/api.mjs';
 import type {
   GeneratedApi as CursorsApi,
-} from '../../cursors-web/snapback/generated/api';
+} from '../../cursors-web/snapback/generated/api.mjs';
 import type {
   GeneratedApi as GraffitiApi,
-} from '../../graffiti/snapback/generated/api';
+} from '../../graffiti/snapback/generated/api.mjs';
 
 type ArgsOf<Ref> = Ref extends { readonly __args?: infer Args } ? Args : never;
 type ValueOf<Ref> = Ref extends { readonly __value?: infer V } ? V : never;

@@ -205,6 +205,13 @@
       "phase": "definition-discovery"
     },
     {
+      "alternative": "See the diagnostic message and the Familiar handler dialect table.",
+      "code": "SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE",
+      "guideAnchor": "/_snapback/guide/backend/familiar-profile.md#translate-the-familiar-handler-dialect",
+      "id": "familiar.result.unlowerable",
+      "phase": "definition-evaluation"
+    },
+    {
       "alternative": "Use the operation kind and ctx capability named by the diagnostic.",
       "code": "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
       "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#static-and-runtime-refusals",
@@ -557,7 +564,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:17b8bc580cbacadcfcd733077e37c352dbdff3ac4eb36fbdc456cf8c23f521ef",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:347762da8bce30349550e211aacf647782e2f368dadbf0904993a26baea398a4",
   "moduleGraph": {
     "admittedSpecifiers": [],
     "cycles": "forbidden",

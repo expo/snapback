@@ -200,7 +200,7 @@ async function proveDocumentArrayRefusal(codegen, negativeRoot, fixtureName) {
   );
   assert.deepEqual(
     readdirSync(join(negativeRoot, 'generated')).sort(),
-    ['api.d.ts', 'api.mjs', 'server.d.ts', 'server.mjs'],
+    ['api.d.mts', 'api.d.ts', 'api.mjs', 'server.d.ts', 'server.mjs'],
     'a clean refusal may retain only LLP 0253 S2 bootstrap imports, never activation output',
   );
 }
