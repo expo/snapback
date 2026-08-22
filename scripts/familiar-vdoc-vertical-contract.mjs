@@ -1169,6 +1169,24 @@ async function main() {
       'negativeOrdinaryClock.ts',
       'BUNDLE_UNSUPPORTED_TIME',
     );
+    const mutationBranchedClockDiagnostic = await proveFamiliarDialectRefusal(
+      codegen,
+      join(appRoot, 'negative-mutation-branched-clock-snapback'),
+      'negativeMutationBranchedClock.ts',
+      'BUNDLE_UNSUPPORTED_TIME',
+    );
+    const scalarQueryClockDiagnostic = await proveFamiliarDialectRefusal(
+      codegen,
+      join(appRoot, 'negative-scalar-query-clock-snapback'),
+      'negativeScalarQueryClock.ts',
+      'BUNDLE_UNSUPPORTED_TIME',
+    );
+    const unusedHelperClockDiagnostic = await proveFamiliarDialectRefusal(
+      codegen,
+      join(appRoot, 'negative-unused-helper-clock-snapback'),
+      'negativeUnusedHelperClock.ts',
+      'BUNDLE_UNSUPPORTED_TIME',
+    );
     const missingReturnsDiagnostic = await proveFamiliarDialectRefusal(
       codegen,
       join(appRoot, 'negative-missing-returns-snapback'),
@@ -1209,12 +1227,20 @@ async function main() {
         'the executable persisted-state repair remains in Familiar and is not a profile switch',
       );
     }
-    assert.match(ordinaryClockDiagnostic.message, /ctx\.runtime\.now\(\)/u);
-    assert.equal(
-      ordinaryClockDiagnostic.profileSwitchSuggestion,
-      undefined,
-      'an ordinary timestamp rewrite is supported Familiar vocabulary, not a profile switch',
-    );
+    for (const diagnostic of [
+      ordinaryClockDiagnostic,
+      mutationBranchedClockDiagnostic,
+      scalarQueryClockDiagnostic,
+      unusedHelperClockDiagnostic,
+    ]) {
+      assert.match(diagnostic.message, /ctx\.runtime\.now\(\)/u);
+      assert.doesNotMatch(diagnostic.message, /persisted application state/u);
+      assert.equal(
+        diagnostic.profileSwitchSuggestion,
+        undefined,
+        'an ordinary timestamp rewrite is supported Familiar vocabulary, not a profile switch',
+      );
+    }
     assert.equal(
       missingReturnsDiagnostic.profileSwitchSuggestion,
       undefined,

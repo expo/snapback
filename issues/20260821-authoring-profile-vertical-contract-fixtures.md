@@ -152,8 +152,11 @@ Key rulings, in brief:
 - The dialect carrier executes the supported rewrites for D1–D4 and refuses
   their familiar-looking negative forms pre-output. D3's diagnostic is based
   on declaration kind rather than fixture names. D4 recognizes `Date.now()`
-  and `new Date()` under boolean-operator compositions, names the persisted-
-  state repair the positive fixture executes, and emits no dead profile route.
+  and `new Date()` under boolean-operator compositions only inside extracted,
+  database-reading query handlers, names the persisted-state repair the
+  positive fixture executes, and emits no dead profile route. Branched mutation
+  clocks, pure scalar query comparisons, and clocks in unreferenced helpers
+  retain the ordinary `ctx.runtime.now()` rewrite.
   Only the actual N1 composite-return and SQ1 sequence disposition-4 refusals
   route to Explicit; a missing-returns same-code control does not. VCF-F-AS1
   uploads and reads back identical MP4 bytes and preserves both unsupported-

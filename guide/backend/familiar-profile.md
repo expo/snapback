@@ -170,6 +170,12 @@ Further terms: captured constants; mutation document arrays; monotonic counter; 
 | Queries: bare/nullable `v.doc(...)` values or `v.array(v.doc(...))`; mutations/actions: one bare `v.doc(...)` or arrays of closed values | Mutation/action `returns: v.array(v.doc('todos'))` | Return one document, or a closed array of receipt records/ids. Mutation/action document arrays refuse before generation publishes activation output. | A mutation/action document-array carrier is part of the public contract. |
 | No Familiar sequence allocator | `ctx.sequence.allocate(...)` in a Familiar mutation | Use the Explicit profile's declared `sequences` mutation surface. Do not replace it with an app read/increment/write counter. | Dense scoped sequence allocation is required. |
 
+Clock-dependent persisted visibility is classified only inside an extracted,
+database-reading query handler where the clock controls a return/filter branch.
+Ambient clocks in mutations or actions, pure scalar query comparisons, and
+unreferenced helpers are still refused, but they get the ordinary single
+rewrite to `ctx.runtime.now()` rather than the persisted-visibility repair.
+
 The complete source/runtime refusal matrix remains in
 [Handler runtime profile and generation preflight](./handler-runtime.md).
 In particular, imported helpers must remain inside the bounded backend graph;

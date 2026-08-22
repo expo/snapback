@@ -15,7 +15,9 @@ ephemeral presence, authority visibility, generic/executable dialect repairs,
 asset policy bounds, and refusal-specific disposition-4 routes are included.
 A paired Explicit carrier binds VCF-E-P1–P4 nullable/shadowing/dependency
 derivation and VCF-E-L1 lifecycle wiring; the remaining Explicit catalogue
-stays open.)
+stays open. Round-2 correction scopes D4 to extracted database-reading query
+handlers; mutation, scalar-query, and unreferenced-helper clocks retain the
+ordinary trusted-time rewrite.)
 **Revised:** 2026-08-21 (LLP 0295 D0.3 decision packet: new S9 records the
 authoring-profile product contract for the Familiar side — one-pass clean
 generation and phase parity as normative contract, the S4.3 partition pinned
@@ -1067,7 +1069,7 @@ the parity/dialect cases:**
 | VCF-F-D1 | dialect boundary: the supported rewrite of dynamic computed access — static/destructured access or the value passed through `args` — authored end to end | the `array[i]` dynamic-access form refuses pre-output naming exactly that rewrite |
 | VCF-F-D2 | dialect boundary: the same helper authored as a bounded-graph helper module per S2 and imported into the handler graph, end to end | an out-of-graph helper import refuses naming the S2 helper-module path as the one rewrite |
 | VCF-F-D3 | dialect boundary: the constant's value inlined or passed through `args`, end to end | a captured top-level constant refuses (the free-identifier family) naming exactly that rewrite |
-| VCF-F-D4 | dialect boundary: persisted visibility state is written by a mutation and read by a static query, end to end; ambient `Date.now()` and `new Date()` visibility refuse pre-output naming that same executable Familiar repair, without a profile switch (steps 1–3 + 6) | both ambient-clock forms are negative fixtures |
+| VCF-F-D4 | dialect boundary: persisted visibility state is written by a mutation and read by a static query, end to end; ambient `Date.now()` and `new Date()` inside an extracted database-reading query's return/filter branch refuse pre-output naming that same executable Familiar repair, without a profile switch (steps 1–3 + 6) | both visibility forms refuse; branched mutation clocks, pure scalar-query comparisons, and unreferenced helper clocks instead name the ordinary `ctx.runtime.now()` rewrite |
 | VCF-F-E1 | ephemeral declaration authored via `defineEphemeral` + `ephemeral` collection builder imported from the advertised entrypoints (S3.1/S3.2), membership-backed typing, presence roundtrip (R4) | an import via the retired `_generated/` spelling gets the S2 rule 7 retired-spelling diagnostic naming the supported specifier |
 | VCF-F-AS1 | `defineAssetUpload` MP4 intent upload/readback via `api.media.videoUpload` (recasts the existing acceptance with steps 1 and 6) | oversized/wrong-media upload refuses per policy |
 | VCF-F-MB1 | membership visibility with `resourceField: "_id"` (resource table) and child resource-id field, enforced through `ctx.db` (R5) | non-member read hides the row; misspelled resource field refuses at generation |

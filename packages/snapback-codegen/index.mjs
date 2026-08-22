@@ -2153,10 +2153,6 @@ async function generateInProcessLocked({
     const attributionProperties = new Map();
     familiarFunctionSourceSpans = {};
     for (const module of sourceLayout.functionModules) {
-      // @ref LLP 0253#s92-w3-vertical-contract-fixture-catalogue — the two
-      // disposition-4 handler forms have Familiar-specific, pre-output routes
-      // and are not allowed to degrade into evaluator/runtime failures.
-      validateFamiliarDispositionFourHandlerForms(module.source, module.path, err);
       const erased = eraseFamiliarDefinitionSource(module.source, module.path, diagnostics);
       if (!erased) continue;
       const captured = captureFamiliarApiReferences(
@@ -2176,6 +2172,17 @@ async function generateInProcessLocked({
       const extractionSource = helperBundle?.javascript ?? captured;
       const extracted = extractInlineHandlers(extractionSource, {
         path: relative(backendRoot, module.path).split(sep).join('/'),
+      });
+      // @ref LLP 0253#s92-w3-vertical-contract-fixture-catalogue — classify
+      // D4 only after operation/handler extraction can distinguish an actual
+      // query visibility decision from an ordinary clock use elsewhere in
+      // the source module. Both routes still refuse before output exists.
+      validateFamiliarDispositionFourHandlerForms({
+        source: module.source,
+        sourcePath: module.path,
+        operations: module.operations,
+        extracted,
+        err,
       });
       if (erased.sourceMap) {
         const remap = (holder) => {
@@ -17922,6 +17929,7 @@ function staticImportSpecifiers(source, path) {
 function familiarModuleClassification(path, source) {
   const sourceFile = sourceFileForDefinition(path, source);
   const constructorLocals = new Set();
+  const constructorKinds = new Map();
   for (const statement of sourceFile.statements) {
     if (!ts.isImportDeclaration(statement)
       || !ts.isStringLiteral(statement.moduleSpecifier)
@@ -17932,7 +17940,10 @@ function familiarModuleClassification(path, source) {
     if (!bindings || !ts.isNamedImports(bindings)) continue;
     for (const specifier of bindings.elements) {
       const imported = specifier.propertyName?.text ?? specifier.name.text;
-      if (FAMILIAR_CONSTRUCTORS.has(imported)) constructorLocals.add(specifier.name.text);
+      if (FAMILIAR_CONSTRUCTORS.has(imported)) {
+        constructorLocals.add(specifier.name.text);
+        constructorKinds.set(specifier.name.text, imported);
+      }
     }
   }
   const declared = new Map();
@@ -17983,6 +17994,7 @@ function familiarModuleClassification(path, source) {
       exportedName,
       localName: entry.local,
       constructorLocal: entry.constructor,
+      constructorKind: constructorKinds.get(entry.constructor),
     }));
   const unsupportedExports = operations.length === 0
     ? []
@@ -18595,7 +18607,13 @@ function validateFamiliarWithIndexCallbacks(sourceFile, sourcePath, err) {
   inspect(sourceFile);
 }
 
-function validateFamiliarDispositionFourHandlerForms(source, sourcePath, err) {
+function validateFamiliarDispositionFourHandlerForms({
+  source,
+  sourcePath,
+  operations,
+  extracted,
+  err,
+}) {
   const sourceFile = ts.createSourceFile(
     sourcePath,
     source,
@@ -18626,13 +18644,89 @@ function validateFamiliarDispositionFourHandlerForms(source, sourcePath, err) {
     });
   };
   const within = (node, container) => container.pos <= node.pos && node.end <= container.end;
-  const controlsBranch = (node) => {
+  const extractedQueryBindings = new Set(
+    operations
+      .filter((operation) => operation.constructorKind === 'query')
+      .filter((operation) => (
+        extracted.handlers.has(operation.exportedName)
+        || extracted.handlers.has(operation.localName)
+      ))
+      .map((operation) => operation.localName),
+  );
+  const unwrap = (node) => {
+    let current = node;
+    while (current && (
+      ts.isParenthesizedExpression(current)
+      || ts.isAsExpression(current)
+      || ts.isTypeAssertionExpression(current)
+      || ts.isSatisfiesExpression(current)
+      || ts.isNonNullExpression(current)
+    )) current = current.expression;
+    return current;
+  };
+  const authoredName = (node) => {
+    if (ts.isIdentifier(node) || ts.isStringLiteral(node)) return node.text;
+    if (!ts.isComputedPropertyName(node)) return null;
+    const expression = unwrap(node.expression);
+    return ts.isStringLiteral(expression) || ts.isNoSubstitutionTemplateLiteral(expression)
+      ? expression.text
+      : null;
+  };
+  const queryHandlers = [];
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name)
+        || !extractedQueryBindings.has(declaration.name.text)) continue;
+      const call = unwrap(declaration.initializer);
+      const spec = ts.isCallExpression(call) ? unwrap(call.arguments[0]) : null;
+      if (!spec || !ts.isObjectLiteralExpression(spec)) continue;
+      const member = spec.properties.find((property) => (
+        ts.isPropertyAssignment(property)
+        && authoredName(property.name) === 'handler'
+      ));
+      const handler = member ? unwrap(member.initializer) : null;
+      if (handler && (ts.isArrowFunction(handler) || ts.isFunctionExpression(handler))) {
+        queryHandlers.push(handler);
+      }
+    }
+  }
+  const containsQueryDatabaseRead = (node, contextName) => {
+    let found = false;
+    const inspect = (current) => {
+      if (found) return;
+      if (
+        ts.isPropertyAccessExpression(current)
+        && current.name.text === 'db'
+        && ts.isIdentifier(current.expression)
+        && current.expression.text === contextName
+      ) {
+        found = true;
+        return;
+      }
+      ts.forEachChild(current, inspect);
+    };
+    inspect(node);
+    return found;
+  };
+  const visibilityQueryHandlers = queryHandlers
+    .map((handler) => {
+      const context = handler.parameters[0]?.name;
+      return {
+        contextName: context && ts.isIdentifier(context) ? context.text : null,
+        handler,
+      };
+    })
+    .filter(({ contextName, handler }) => (
+      contextName !== null && containsQueryDatabaseRead(handler.body, contextName)
+    ));
+  const controlledBranch = (node) => {
     for (let parent = node.parent; parent; parent = parent.parent) {
-      if (ts.isIfStatement(parent) && within(node, parent.expression)) return true;
-      if (ts.isConditionalExpression(parent) && within(node, parent.condition)) return true;
-      if (ts.isWhileStatement(parent) && within(node, parent.expression)) return true;
-      if (ts.isDoStatement(parent) && within(node, parent.expression)) return true;
-      if (ts.isForStatement(parent) && parent.condition && within(node, parent.condition)) return true;
+      if (ts.isIfStatement(parent) && within(node, parent.expression)) return parent;
+      if (ts.isConditionalExpression(parent) && within(node, parent.condition)) return parent;
+      if (ts.isWhileStatement(parent) && within(node, parent.expression)) return parent;
+      if (ts.isDoStatement(parent) && within(node, parent.expression)) return parent;
+      if (ts.isForStatement(parent) && parent.condition && within(node, parent.condition)) return parent;
       if (
         ts.isBinaryExpression(parent)
         && [
@@ -18640,10 +18734,62 @@ function validateFamiliarDispositionFourHandlerForms(source, sourcePath, err) {
           ts.SyntaxKind.BarBarToken,
           ts.SyntaxKind.QuestionQuestionToken,
         ].includes(parent.operatorToken.kind)
-      ) return true;
-      if (ts.isFunctionLike(parent)) return false;
+      ) return parent;
+      if (ts.isFunctionLike(parent)) return null;
     }
-    return false;
+    return null;
+  };
+  const visibilityReturnExpression = (expression, contextName) => {
+    const returned = unwrap(expression);
+    return returned?.kind === ts.SyntaxKind.NullKeyword
+      || (ts.isArrayLiteralExpression(returned) && returned.elements.length === 0)
+      || containsQueryDatabaseRead(returned, contextName);
+  };
+  const containsVisibilityReturn = (node, contextName) => {
+    if (!node) return false;
+    let found = false;
+    const inspect = (current) => {
+      if (found) return;
+      if (
+        ts.isReturnStatement(current)
+        && current.expression
+        && visibilityReturnExpression(current.expression, contextName)
+      ) {
+        found = true;
+        return;
+      }
+      ts.forEachChild(current, inspect);
+    };
+    inspect(node);
+    return found;
+  };
+  const branchDecidesQueryVisibility = (branch, handler, contextName) => {
+    if (ts.isIfStatement(branch)) {
+      return containsVisibilityReturn(branch.thenStatement, contextName)
+        || containsVisibilityReturn(branch.elseStatement, contextName)
+        || containsQueryDatabaseRead(branch.thenStatement, contextName)
+        || (branch.elseStatement
+          ? containsQueryDatabaseRead(branch.elseStatement, contextName)
+          : false);
+    }
+    if (ts.isWhileStatement(branch) || ts.isDoStatement(branch) || ts.isForStatement(branch)) {
+      return containsVisibilityReturn(branch.statement, contextName)
+        || containsQueryDatabaseRead(branch.statement, contextName);
+    }
+    for (let parent = branch.parent; parent && parent !== handler; parent = parent.parent) {
+      if (
+        ts.isReturnStatement(parent)
+        && parent.expression
+        && visibilityReturnExpression(parent.expression, contextName)
+      ) return true;
+      if (
+        ts.isCallExpression(parent)
+        && ts.isPropertyAccessExpression(parent.expression)
+        && ['filter', 'withIndex'].includes(parent.expression.name.text)
+      ) return true;
+    }
+    return !ts.isBlock(handler.body)
+      && visibilityReturnExpression(handler.body, contextName);
   };
   const inspect = (node) => {
     const ambientClock = (
@@ -18658,13 +18804,31 @@ function validateFamiliarDispositionFourHandlerForms(source, sourcePath, err) {
       && node.expression.text === 'Date'
       && (node.arguments?.length ?? 0) === 0
     );
-    if (ambientClock && controlsBranch(node)) {
-      report(
-        'BUNDLE_UNSUPPORTED_TIME',
-        'Familiar clock-dependent visibility cannot use an ambient clock; model visibility as persisted application state, update it through a mutation, and query that stored state',
-        node,
-        null,
-      );
+    const branch = ambientClock ? controlledBranch(node) : null;
+    if (ambientClock && branch) {
+      if (visibilityQueryHandlers.some(({ contextName, handler }) => (
+        within(node, handler)
+        && branchDecidesQueryVisibility(branch, handler, contextName)
+      ))) {
+        report(
+          'BUNDLE_UNSUPPORTED_TIME',
+          'Familiar clock-dependent visibility cannot use an ambient clock; model visibility as persisted application state, update it through a mutation, and query that stored state',
+          node,
+          null,
+        );
+      } else {
+        const sourcePoint = point(node);
+        err(
+          'BUNDLE_UNSUPPORTED_TIME',
+          'function',
+          unsupportedAmbientDependencyMessage('BUNDLE_UNSUPPORTED_TIME', 'Date'),
+          {
+            path: sourcePath,
+            ...sourcePoint,
+            sourceSpan: { file: sourcePath, ...sourcePoint },
+          },
+        );
+      }
     }
     if (
       ts.isCallExpression(node)
