@@ -14035,6 +14035,10 @@ export class SnapbackClient {
     // time for this handle, so one attempt-scoped buffer covers the ordering
     // boundary without weakening subscription-id isolation.
     let preSubscribeDurableAttempt = null;
+    // Unlike the pre-response durable buffer, this marker spans the complete
+    // exclusive attempt through asynchronous snapshot/authority installation.
+    // An unscoped resync uses it to give that attempt sole replacement ownership.
+    let exclusiveSubscribeAttempt = null;
     // An installing subscription can itself be retired before its POST
     // response publishes. It remains useful only as the supersedes witness
     // for the next serialized attempt.
@@ -16163,6 +16167,17 @@ export class SnapbackClient {
           reportTerminalReuse(LIVE_DURABLE_KINDS.RESYNC_REQUIRED);
           return;
         }
+        // A connection-wide sentinel cannot name the installing subscription,
+        // but it still retires that exact attempt. Let the exclusive install
+        // loop own its replacement; entering resubscribe() as well would add a
+        // second demand owner for the same cut.
+        if (
+          typeof update.subscription_id !== 'string'
+          && exclusiveSubscribeAttempt !== null
+        ) {
+          supersedeInstallingSubscription(exclusiveSubscribeAttempt, update);
+          return;
+        }
         // @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — an in-band watch reload is retain-stale + one successor: fence the predecessor before yielding, project the bounded resync state, and retain its id only as the supersedes witness for the fresh subscribe below.
         if (typeof update.subscription_id === 'string') {
           resyncFencedSubscriptionId = update.subscription_id;
@@ -16211,7 +16226,6 @@ export class SnapbackClient {
       // This handle's OWN previous subscription (reconnect/resync/resume
       // paths) is explicitly superseded; the first establish has none.
       // Capture only after acquiring the per-handle subscribe queue.
-      let attempt = null;
       let readinessRetries = 0;
       for (;;) {
         assertSubscribeLifecycle(lifecycle);
@@ -16229,6 +16243,9 @@ export class SnapbackClient {
           publicationGeneration: subscriptionPublicationGeneration,
         };
         preSubscribeDurableAttempt = durableAttempt;
+        exclusiveSubscribeAttempt = durableAttempt;
+        let heldResume = null;
+        let sub = null;
         try {
           // RQS dispatch rule 2 (LLP 0091 §0B.4): a fresh subscribe holding
           // verified rows + a resume token seeds the request with it —
@@ -16252,7 +16269,7 @@ export class SnapbackClient {
               outboxHasPending = true;
             }
           }
-          const heldResume = outboxHasPending ? null : handle.rqsResume;
+          heldResume = outboxHasPending ? null : handle.rqsResume;
           // Rung-2 membership witness (LLP 0090 D1.3 / LLP 0091 rung-2
           // amendment): for an mset1 result within the cap, name the exact
           // (rowId, oldRowHash) pairs so the server can prove predicate
@@ -16281,7 +16298,7 @@ export class SnapbackClient {
           // and expectedGeneration from fresh live admissions.
           // @ref LLP 0012#call-time-generation-binding — generated live
           //   subscriptions repeat the complete artifact generation tuple.
-          const sub = externalBearerTransitionPermit === EXTERNAL_BEARER_TRANSITION_PERMIT
+          sub = externalBearerTransitionPermit === EXTERNAL_BEARER_TRANSITION_PERMIT
             ? await client.#subscribeLive(
                 ref,
                 subscribeOptions,
@@ -16319,19 +16336,17 @@ export class SnapbackClient {
             }
             pendingSupersedesSubscriptionId = sub.subscription_id;
             initialSupersedes = null;
+            if (exclusiveSubscribeAttempt === durableAttempt) {
+              exclusiveSubscribeAttempt = null;
+            }
             continue;
           }
-          attempt = {
-            sub,
-            epochAtStart,
-            demandEpochAtStart,
-            heldResume,
-            durableAttempt,
-          };
-          break;
         } catch (error) {
           if (preSubscribeDurableAttempt === durableAttempt) {
             preSubscribeDurableAttempt = null;
+          }
+          if (exclusiveSubscribeAttempt === durableAttempt) {
+            exclusiveSubscribeAttempt = null;
           }
           const code = error?.diagnostic?.code;
           if (
@@ -16358,252 +16373,249 @@ export class SnapbackClient {
           // Cancellation and readiness can settle in adjacent microtasks.
           // Re-check immediately before the only replaying POST.
           assertSubscribeLifecycle(lifecycle);
+          continue;
         }
-      }
-      const {
-        sub,
-        epochAtStart,
-        demandEpochAtStart,
-        heldResume,
-        durableAttempt,
-      } = attempt;
-      initialSupersedes = null;
-      assertSubscribeLifecycle(lifecycle);
-      const responseCapture = sub[AUTHORITY_CAPTURE] ?? null;
-      const installationPublicationIsCurrent = () => (
-        !durableAttempt.superseded
-        && durableAttempt.publicationGeneration === subscriptionPublicationGeneration
-      );
-      let materializedSnapshot = null;
-      let protectedRetentionSnapshot = null;
-      try {
-        if (preparedMaterialization) {
-          // The proof commit is asynchronous, so admit its exact authority
-          // capture first and carry the synchronous transport generation into
-          // L2's final carrier transaction. A same-context or peer barrier
-          // increments that generation during quiesce; an already-queued L2
-          // commit then either precedes the barrier's store wipe or refuses
-          // inside its transaction, never reintroducing predecessor bytes
-          // after the wipe.
-          // @ref LLP 0059#exposure-invariant — async hydration may publish only beneath the exact authority capture and participant barrier.
-          const admission = await client.commitAuthorityPublication(
-            responseCapture,
-            () => client.__authTransportGeneration,
-          );
-          if (!admission.committed) throw staleAuthorityError();
-          preparedMaterialization.context.publicationGuard = () => (
-            client.__authTransportGeneration === admission.value
-            && installationPublicationIsCurrent()
-          );
-        }
-        materializedSnapshot = await installMaterializationSnapshot(sub);
-        if (!installationPublicationIsCurrent()) {
-          throw supersededSubscriptionInstallationError();
-        }
-        const installed = await client.commitAuthorityPublication(responseCapture, () => {
-          assertSubscribeLifecycle(lifecycle);
+        initialSupersedes = null;
+        assertSubscribeLifecycle(lifecycle);
+        const responseCapture = sub[AUTHORITY_CAPTURE] ?? null;
+        const installationPublicationIsCurrent = () => (
+          !durableAttempt.superseded
+          && durableAttempt.publicationGeneration === subscriptionPublicationGeneration
+        );
+        let materializedSnapshot = null;
+        let protectedRetentionSnapshot = null;
+        try {
+          if (preparedMaterialization) {
+            // The proof commit is asynchronous, so admit its exact authority
+            // capture first and carry the synchronous transport generation into
+            // L2's final carrier transaction. A same-context or peer barrier
+            // increments that generation during quiesce; an already-queued L2
+            // commit then either precedes the barrier's store wipe or refuses
+            // inside its transaction, never reintroducing predecessor bytes
+            // after the wipe.
+            // @ref LLP 0059#exposure-invariant — async hydration may publish only beneath the exact authority capture and participant barrier.
+            const admission = await client.commitAuthorityPublication(
+              responseCapture,
+              () => client.__authTransportGeneration,
+            );
+            if (!admission.committed) throw staleAuthorityError();
+            preparedMaterialization.context.publicationGuard = () => (
+              client.__authTransportGeneration === admission.value
+              && installationPublicationIsCurrent()
+            );
+          }
+          materializedSnapshot = await installMaterializationSnapshot(sub);
           if (!installationPublicationIsCurrent()) {
             throw supersededSubscriptionInstallationError();
           }
-          const predecessorSubscriptionId = currentSubscriptionId;
-          currentSubscriptionId = sub.subscription_id;
-          if (resyncFencedSubscriptionId === predecessorSubscriptionId) {
-            resyncFencedSubscriptionId = null;
-          }
-          knownRetiredSubscriptionId = null;
-          pendingSupersedesSubscriptionId = null;
-          // Any successful fresh subscribe supersedes an earlier denial
-          // fact (0137 A1-Expo f4): the presented authority is authorized.
-          handle.authorizationDenial = null;
-          handleAuthorityCapture = responseCapture;
-          if (!sub.authorizationScope) {
-            if (sub.snapshot) {
-              handle.version = sub.snapshot.version;
-              authoritativeRows = materializedSnapshot?.rows ?? sub.snapshot.rows;
-              presentedRows = authoritativeRows;
-              // A fresh LiveReplace answer (rung 3 or a plain subscribe) is
-              // authoritative (LLP 0090 D1 freshness rule).
-              handle.freshness = 'current';
-              handle.answerClass = 'authoritative';
-            } else if (materializedSnapshot?.adoptedLegacy) {
-              // The ordinary proof already established the exact held rows
-              // under the QMK identity. After the one-transaction switch the
-              // legacy token is discarded; v1 QMK re-entry is fresh.
-              authoritativeRows = materializedSnapshot.rows;
-              presentedRows = authoritativeRows;
-              handle.version = sub.completenessProof.version.commit;
-              handle.rqsResume = null;
-              handle.freshness = 'current';
-              handle.answerClass = 'authoritative';
-              pendingResumeConfirmation = false;
-            } else if (heldResume) {
-              // Rung-1 or rung-2 answer pending: held rows stay retained
-              // until the current_as_of (or replay live_delta) durable
-              // envelope advances version + token.
-              pendingResumeConfirmation = seededFromResumeState;
+          const installed = await client.commitAuthorityPublication(responseCapture, () => {
+            assertSubscribeLifecycle(lifecycle);
+            if (!installationPublicationIsCurrent()) {
+              throw supersededSubscriptionInstallationError();
             }
-            if (sub.resume && !legacySingleTableAdoption) handle.rqsResume = sub.resume;
-            markAuthorityCapture(authoritativeRows, handleAuthorityCapture);
-          }
-          return true;
-        });
-        if (!installed.committed) throw staleAuthorityError();
-        const preSubscribeDurableOverflowed = replayPreSubscribeDurable(
-          durableAttempt,
-          sub.subscription_id,
-        );
-        if (sub.authorizationScope) {
-          await installAuthorizationSubscription(sub);
-          protectedRetentionSnapshot = await installProtectedRetentionSnapshot(sub);
-        } else if (preparedProtectedRetention) {
-          // Public/rqsEligible queries keep using their server-minted RQS
-          // token. Remove the metadata-only protected candidate so the two
-          // persistence grammars never both claim the same query key.
-          void client.__storeRuntimeInvoke(
-            'deleteProtectedQueryRetention',
-            preparedProtectedRetention,
-          ).catch(() => {});
-        }
-        // Retainability classification (LLP 0129 Phase 0, refuse-with-
-        // clarity). Only what LLP 0053 admits is retained: an auth-scoped
-        // subscription's retained display is exclusively the LLP 0043/0053
-        // lease machinery's decision (not carried by this arm), and a query
-        // the server minted no resume token for is not rqsEligible
-        // (authority-independent + closed inputs).
-        if (materializedSnapshot) {
-          handle.retention = Object.freeze({
-            retainable: materializedSnapshot.retained,
-            code: materializedSnapshot.retained
-              ? null
-              : 'SNAPBACK_RETENTION_OWNER_AUTHORITY_UNAVAILABLE',
-            reason: materializedSnapshot.retained
-              ? null
-              : 'proof-validated live materialization is current, but no admissible durable retention authority was installed',
-            store: client.rqsStoreInfo,
+            const predecessorSubscriptionId = currentSubscriptionId;
+            currentSubscriptionId = sub.subscription_id;
+            if (resyncFencedSubscriptionId === predecessorSubscriptionId) {
+              resyncFencedSubscriptionId = null;
+            }
+            knownRetiredSubscriptionId = null;
+            pendingSupersedesSubscriptionId = null;
+            // Any successful fresh subscribe supersedes an earlier denial
+            // fact (0137 A1-Expo f4): the presented authority is authorized.
+            handle.authorizationDenial = null;
+            handleAuthorityCapture = responseCapture;
+            if (!sub.authorizationScope) {
+              if (sub.snapshot) {
+                handle.version = sub.snapshot.version;
+                authoritativeRows = materializedSnapshot?.rows ?? sub.snapshot.rows;
+                presentedRows = authoritativeRows;
+                // A fresh LiveReplace answer (rung 3 or a plain subscribe) is
+                // authoritative (LLP 0090 D1 freshness rule).
+                handle.freshness = 'current';
+                handle.answerClass = 'authoritative';
+              } else if (materializedSnapshot?.adoptedLegacy) {
+                // The ordinary proof already established the exact held rows
+                // under the QMK identity. After the one-transaction switch the
+                // legacy token is discarded; v1 QMK re-entry is fresh.
+                authoritativeRows = materializedSnapshot.rows;
+                presentedRows = authoritativeRows;
+                handle.version = sub.completenessProof.version.commit;
+                handle.rqsResume = null;
+                handle.freshness = 'current';
+                handle.answerClass = 'authoritative';
+                pendingResumeConfirmation = false;
+              } else if (heldResume) {
+                // Rung-1 or rung-2 answer pending: held rows stay retained
+                // until the current_as_of (or replay live_delta) durable
+                // envelope advances version + token.
+                pendingResumeConfirmation = seededFromResumeState;
+              }
+              if (sub.resume && !legacySingleTableAdoption) handle.rqsResume = sub.resume;
+              markAuthorityCapture(authoritativeRows, handleAuthorityCapture);
+            }
+            return true;
           });
-        } else if (sub.authorizationScope) {
-          handle.retention = Object.freeze({
-            retainable: protectedRetentionSnapshot?.retained === true,
-            code: protectedRetentionSnapshot?.retained === true
-              ? null
-              : 'SNAPBACK_RETENTION_NOT_RETAINABLE',
-            reason: protectedRetentionSnapshot?.retained === true
-              ? null
-              : protectedRetentionSnapshot?.reason
-                ?? 'authority-scoped query: no valid LLP 0043/0053 AuthorizedLease was installed',
-            store: client.rqsStoreInfo,
-          });
-        } else if (sub.resume || (heldResume && !sub.snapshot)) {
-          // A rung-1/rung-2 acknowledgement is intentionally rowless and
-          // tokenless: the fresh token rides CurrentAsOf/replay. The verified
-          // server-minted token that seeded this accepted subscribe remains an
-          // eligibility proof while that durable completion is pending.
-          classifyRqsRetention();
-        } else {
-          handle.retention = Object.freeze({
-            retainable: false,
-            code: 'SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE',
-            reason: rqsRetentionIneligibilityReason(ref),
-            store: client.rqsStoreInfo,
-          });
-        }
-        if (sub.authorizationScope) {
-          // Eligibility gate at write time (LLP 0090 Authorization scope): an
-          // auth-scoped subscription persists no RQS resume state, and any
-          // stale persisted entry for it (a query whose declaration changed)
-          // is invalidated rather than trusted on the next relaunch.
-          if (seededFromResumeState) void removePersistedEntry();
-        } else if (sub.snapshot) {
-          if (sub.resume) {
-            // Fresh authoritative state with a fresh token: persist at the
-            // §0A.5 cadence. When the subscribe was seeded with a stale token
-            // (refused generation/versionStream/expiry -> rung 3), this
-            // commit is what discards the refused persisted state.
-            schedulePersist();
-          } else if (seededFromResumeState || handle.rqsResume) {
-            // The server minted no token for this subscription (no longer —
-            // or never — rqsEligible): drop the held token and the persisted
-            // entry so relaunches subscribe fresh.
-            handle.rqsResume = null;
-            void removePersistedEntry();
-          }
-        }
-        if (preSubscribeDurableOverflowed) {
-          // The response id is known, but at least one establishment-era frame
-          // was lost to the bound. Do not claim current or reuse the token:
-          // force the next serialized subscribe down rung 3 for a fresh
-          // authoritative snapshot.
-          handle.rqsResume = null;
-          pendingResumeConfirmation = false;
-          handle.freshness = 'retained';
-          handle.answerClass = 'labeled-retained';
-          void removePersistedEntry();
-          resubscribeDemandEpoch = safeNextCounter(
-            resubscribeDemandEpoch,
-            'SNAPBACK_CLIENT_RESUBSCRIBE_GENERATION_EXHAUSTED',
-            'resubscribe demand generation',
+          if (!installed.committed) throw staleAuthorityError();
+          const preSubscribeDurableOverflowed = replayPreSubscribeDurable(
+            durableAttempt,
+            sub.subscription_id,
           );
-          needsResubscribe = true;
-          pendingResubscribeReason = 'pre_subscribe_durable_overflow';
-          syncLiveRegistrationAnswer();
-        }
-        assertSubscribeLifecycle(lifecycle);
-      } catch (error) {
-        if (
-          error?.code === 'SNAPBACK_LIVE_QUERY_INSTALLATION_SUPERSEDED'
-          || !installationPublicationIsCurrent()
-        ) {
-          pendingSupersedesSubscriptionId = sub.subscription_id;
-          return subscribeFreshExclusive(lifecycle, externalBearerTransitionPermit);
-        }
-        bestEffortUnsubscribeLive(sub.subscription_id);
-        throw error;
-      } finally {
-        if (preSubscribeDurableAttempt === durableAttempt) {
-          preSubscribeDurableAttempt = null;
-        }
-        if (preparedMaterialization) {
-          preparedMaterialization.context.publicationGuard = null;
-        }
-      }
-      // Any successful fresh subscribe satisfies an outstanding need — clear
-      // it here so every path (establish, resume, resubscribe) agrees —
-      // UNLESS a socket loss raced the in-flight request (ENG-23428): the
-      // lost socket's server-side disconnect may have destroyed the very
-      // subscription this call created, so the need persists and the
-      // retry/grace/drain paths re-enter with a fresh subscribe. A resync
-      // demand that landed while this request was in flight persists the
-      // need the same way (ENG-23429): this snapshot may predate the state
-      // the demand signals, and the sentinel is never re-emitted.
-      if (socketLossEpoch === epochAtStart && resubscribeDemandEpoch === demandEpochAtStart) {
-        needsResubscribe = false;
-        resubscribeAttempts = 0;
-        clearResubscribeRetry();
-      }
-      syncLiveRegistrationAnswer();
-      // LLP 0129 Phase 0: a landed fresh snapshot is this subscription's
-      // full-resync barrier — schedule the single-flight outbox drain
-      // (LLP 0008 §Mutation Replay: resync first, then ordered replay).
-      if (sub.snapshot) client.#scheduleOutboxReplay();
-      // Every fresh snapshot is a new canonical base, including pause/resume
-      // and reconnect. Re-deliver it through the wrapped update owner so
-      // generated layers replay after every subscribeFresh transition rather
-      // than only during first establishment or retained-seed replacement.
-      // Auth-scoped delivery stays with the fence machinery.
-      if (sub.snapshot && !sub.authorizationScope && !disposed) {
-        seedFrameDelivered = false;
-        if (installationPublicationIsCurrent()) {
-          deliverAuthorityObservation(() => {
-            onUpdate?.(authoritativeRows, {
-              version: handle.version,
-              kind: 'snapshot',
-              freshness: 'current',
-              answerClass: 'authoritative',
+          if (sub.authorizationScope) {
+            await installAuthorizationSubscription(sub);
+            protectedRetentionSnapshot = await installProtectedRetentionSnapshot(sub);
+          } else if (preparedProtectedRetention) {
+            // Public/rqsEligible queries keep using their server-minted RQS
+            // token. Remove the metadata-only protected candidate so the two
+            // persistence grammars never both claim the same query key.
+            void client.__storeRuntimeInvoke(
+              'deleteProtectedQueryRetention',
+              preparedProtectedRetention,
+            ).catch(() => {});
+          }
+          // Retainability classification (LLP 0129 Phase 0, refuse-with-
+          // clarity). Only what LLP 0053 admits is retained: an auth-scoped
+          // subscription's retained display is exclusively the LLP 0043/0053
+          // lease machinery's decision (not carried by this arm), and a query
+          // the server minted no resume token for is not rqsEligible
+          // (authority-independent + closed inputs).
+          if (materializedSnapshot) {
+            handle.retention = Object.freeze({
+              retainable: materializedSnapshot.retained,
+              code: materializedSnapshot.retained
+                ? null
+                : 'SNAPBACK_RETENTION_OWNER_AUTHORITY_UNAVAILABLE',
+              reason: materializedSnapshot.retained
+                ? null
+                : 'proof-validated live materialization is current, but no admissible durable retention authority was installed',
+              store: client.rqsStoreInfo,
             });
-          });
+          } else if (sub.authorizationScope) {
+            handle.retention = Object.freeze({
+              retainable: protectedRetentionSnapshot?.retained === true,
+              code: protectedRetentionSnapshot?.retained === true
+                ? null
+                : 'SNAPBACK_RETENTION_NOT_RETAINABLE',
+              reason: protectedRetentionSnapshot?.retained === true
+                ? null
+                : protectedRetentionSnapshot?.reason
+                  ?? 'authority-scoped query: no valid LLP 0043/0053 AuthorizedLease was installed',
+              store: client.rqsStoreInfo,
+            });
+          } else if (sub.resume || (heldResume && !sub.snapshot)) {
+            // A rung-1/rung-2 acknowledgement is intentionally rowless and
+            // tokenless: the fresh token rides CurrentAsOf/replay. The verified
+            // server-minted token that seeded this accepted subscribe remains an
+            // eligibility proof while that durable completion is pending.
+            classifyRqsRetention();
+          } else {
+            handle.retention = Object.freeze({
+              retainable: false,
+              code: 'SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE',
+              reason: rqsRetentionIneligibilityReason(ref),
+              store: client.rqsStoreInfo,
+            });
+          }
+          if (sub.authorizationScope) {
+            // Eligibility gate at write time (LLP 0090 Authorization scope): an
+            // auth-scoped subscription persists no RQS resume state, and any
+            // stale persisted entry for it (a query whose declaration changed)
+            // is invalidated rather than trusted on the next relaunch.
+            if (seededFromResumeState) void removePersistedEntry();
+          } else if (sub.snapshot) {
+            if (sub.resume) {
+              // Fresh authoritative state with a fresh token: persist at the
+              // §0A.5 cadence. When the subscribe was seeded with a stale token
+              // (refused generation/versionStream/expiry -> rung 3), this
+              // commit is what discards the refused persisted state.
+              schedulePersist();
+            } else if (seededFromResumeState || handle.rqsResume) {
+              // The server minted no token for this subscription (no longer —
+              // or never — rqsEligible): drop the held token and the persisted
+              // entry so relaunches subscribe fresh.
+              handle.rqsResume = null;
+              void removePersistedEntry();
+            }
+          }
+          if (preSubscribeDurableOverflowed) {
+            // The response id is known, but at least one establishment-era frame
+            // was lost to the bound. Do not claim current or reuse the token:
+            // force the next serialized subscribe down rung 3 for a fresh
+            // authoritative snapshot.
+            handle.rqsResume = null;
+            pendingResumeConfirmation = false;
+            handle.freshness = 'retained';
+            handle.answerClass = 'labeled-retained';
+            void removePersistedEntry();
+            resubscribeDemandEpoch = safeNextCounter(
+              resubscribeDemandEpoch,
+              'SNAPBACK_CLIENT_RESUBSCRIBE_GENERATION_EXHAUSTED',
+              'resubscribe demand generation',
+            );
+            needsResubscribe = true;
+            pendingResubscribeReason = 'pre_subscribe_durable_overflow';
+            syncLiveRegistrationAnswer();
+          }
+          assertSubscribeLifecycle(lifecycle);
+        } catch (error) {
+          if (
+            error?.code === 'SNAPBACK_LIVE_QUERY_INSTALLATION_SUPERSEDED'
+            || !installationPublicationIsCurrent()
+          ) {
+            pendingSupersedesSubscriptionId = sub.subscription_id;
+            continue;
+          }
+          bestEffortUnsubscribeLive(sub.subscription_id);
+          throw error;
+        } finally {
+          if (preSubscribeDurableAttempt === durableAttempt) {
+            preSubscribeDurableAttempt = null;
+          }
+          if (exclusiveSubscribeAttempt === durableAttempt) {
+            exclusiveSubscribeAttempt = null;
+          }
+          if (preparedMaterialization) {
+            preparedMaterialization.context.publicationGuard = null;
+          }
         }
+        // Any successful fresh subscribe satisfies an outstanding need — clear
+        // it here so every path (establish, resume, resubscribe) agrees —
+        // UNLESS a socket loss raced the in-flight request (ENG-23428): the
+        // lost socket's server-side disconnect may have destroyed the very
+        // subscription this call created, so the need persists and the
+        // retry/grace/drain paths re-enter with a fresh subscribe. A resync
+        // demand that landed while this request was in flight persists the
+        // need the same way (ENG-23429): this snapshot may predate the state
+        // the demand signals, and the sentinel is never re-emitted.
+        if (socketLossEpoch === epochAtStart && resubscribeDemandEpoch === demandEpochAtStart) {
+          needsResubscribe = false;
+          resubscribeAttempts = 0;
+          clearResubscribeRetry();
+        }
+        syncLiveRegistrationAnswer();
+        // LLP 0129 Phase 0: a landed fresh snapshot is this subscription's
+        // full-resync barrier — schedule the single-flight outbox drain
+        // (LLP 0008 §Mutation Replay: resync first, then ordered replay).
+        if (sub.snapshot) client.#scheduleOutboxReplay();
+        // Every fresh snapshot is a new canonical base, including pause/resume
+        // and reconnect. Re-deliver it through the wrapped update owner so
+        // generated layers replay after every subscribeFresh transition rather
+        // than only during first establishment or retained-seed replacement.
+        // Auth-scoped delivery stays with the fence machinery.
+        if (sub.snapshot && !sub.authorizationScope && !disposed) {
+          seedFrameDelivered = false;
+          if (installationPublicationIsCurrent()) {
+            deliverAuthorityObservation(() => {
+              onUpdate?.(authoritativeRows, {
+                version: handle.version,
+                kind: 'snapshot',
+                freshness: 'current',
+                answerClass: 'authoritative',
+              });
+            });
+          }
+        }
+        return sub;
       }
-      return sub;
     };
 
     const subscribeFresh = (externalBearerTransitionPermit = null) => {

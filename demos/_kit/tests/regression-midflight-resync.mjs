@@ -256,6 +256,7 @@ try {
 
     await suite.check('a sentinel consumed mid-resubscribe still forces a follow-up fresh subscribe', async () => {
       const callsBefore = subscribeCalls.length;
+      const receiptsBefore = events.filter((event) => event.startsWith('resubscribed')).length;
       let release;
       holdResponse = new Promise((r) => { release = r; });
 
@@ -281,13 +282,25 @@ try {
       // follow-up fresh subscribe that carries the post-sentinel state.
       holdResponse = null;
       release();
-      await waitFor(() => subscribeCalls.length >= callsBefore + 2, 'follow-up fresh subscribe after R1 landed');
+      await waitFor(() => subscribeCalls.length === callsBefore + 2, 'follow-up fresh subscribe after R1 landed');
       await waitFor(
         () => handle.rows.some((r) => r.title === 'dropped behind the sentinel'),
         'post-sentinel commit recovered by the follow-up snapshot (no drain ran)',
       );
-      const resubscribes = events.filter((e) => e.startsWith('resubscribed')).length;
-      assert(resubscribes >= 2, `expected a resubscribed receipt per landed subscribe, got ${resubscribes}`);
+      await sleep(150);
+      assert(
+        subscribeCalls.length === callsBefore + 2,
+        `mid-flight overflow created ${subscribeCalls.length - callsBefore} attempts instead of retired R1 plus one replacement`,
+      );
+      assert(
+        handle.subscriptionId === subscribeCalls[callsBefore + 1].subscriptionId,
+        `expected the one replacement '${subscribeCalls[callsBefore + 1].subscriptionId}', got '${handle.subscriptionId}'`,
+      );
+      const receiptsAfter = events.filter((event) => event.startsWith('resubscribed')).length;
+      assert(
+        receiptsAfter === receiptsBefore + 1,
+        `mid-flight overflow emitted ${receiptsAfter - receiptsBefore} receipts instead of one settled successor`,
+      );
       return { subscribeCalls: subscribeCalls.length, events: [...events] };
     });
 

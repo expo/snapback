@@ -459,9 +459,11 @@ collapse a fenced predecessor or a blocked authenticated query into
   §4.2 disposition map is unchanged.
 - **Presence rooms follow the ephemeral row:** fenced during a barrier,
   rebuilt at resume, `resyncing` during reconnect, and never published under
-  unsettled authority. Awaited sign-in settlement includes usable ephemeral
-  authority (matrix ruling 5), so a hook armed immediately after an awaited
-  sign-in cannot observe `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`.
+  unsettled authority. Awaited sign-in settles at LLP 0059 ruling 5's
+  coordinator boundary; if the server room lane still lags, the immediately
+  following ephemeral call owns and absorbs its bounded successor wait, so a
+  hook armed immediately after an awaited sign-in cannot observe
+  `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`.
 - The W2 conformance suite transcribes the shared 50-cell table and exercises
   React and Familiar production projections; checklist and evidence live in
   `issues/closed/20260821-client-authority-transition-state-matrix.md`.

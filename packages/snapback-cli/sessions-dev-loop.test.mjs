@@ -326,11 +326,10 @@ try {
       assert.equal(successorSnapshots[0].freshness, 'current');
       assert.equal(
         updates.slice(updateCut).some((update) => (
-          update.connection === 'stale'
-          && update.subscriptionId === predecessorSubscriptionId
+          update.subscriptionId === predecessorSubscriptionId
         )),
         false,
-        'a fenced predecessor frame reached app code during the watch transition',
+        'a fenced predecessor frame reached app code regardless of connection projection',
       );
     } finally {
       live?.dispose();
