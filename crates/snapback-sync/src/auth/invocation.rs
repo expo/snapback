@@ -1545,6 +1545,19 @@ impl PreparedAuthority {
         self.service_publication.is_some()
     }
 
+    /// The exact process-live caller carriers retained by this prepared
+    /// authority. Stream-attempt provenance inspects these carriers directly:
+    /// resolved authority and active mode alone do not establish that a
+    /// transition is caller-backed.
+    pub(crate) fn stream_attempt_publication_carriers(
+        &self,
+    ) -> (
+        Option<&FencedPublication>,
+        Option<&ServiceAuthorityPublication>,
+    ) {
+        (self.publication.as_ref(), self.service_publication.as_ref())
+    }
+
     pub fn with_service_publication(mut self, publication: ServiceAuthorityPublication) -> Self {
         self.service_publication = Some(publication);
         self

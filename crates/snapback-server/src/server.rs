@@ -695,6 +695,9 @@ struct DetachedActionHost {
     /// Control-plane identity of this exact invocation for the
     /// `StreamAttemptV1` lease and trusted terminalizer (LLP 0076).
     stream_runner: crate::stream_attempt::StreamRunnerIdentity,
+    /// Opaque host capability minted with `stream_runner`; authored
+    /// transition APIs receive only the runner identity.
+    stream_runner_host: crate::stream_attempt::StreamRunnerHost,
     output_stream_attempt: Option<String>,
     output_stream_function_id: Option<String>,
     output_stream_initiator: Option<crate::stream_attempt::StreamInitiator>,
@@ -822,16 +825,15 @@ impl DetachedActionHost {
     }
 
     /// Automatic action/provider completion is host settlement, never the
-    /// JS-authored `IbexActionHost::settle_stream_attempt` entry. R1 retains
-    /// the legacy required flush unchanged after classifying the transition.
+    /// JS-authored `IbexActionHost::settle_stream_attempt` entry. The required
+    /// flush makes that terminal winner durable before completion returns.
     fn settle_provider_stream_attempt_host(
         &self,
         attempt_token: &str,
         cause: crate::stream_attempt::StreamAttemptCause,
     ) -> SnapbackResult<crate::stream_attempt::StreamAttemptTerminal> {
-        let origin = self.stream_runner.host_settlement();
         let terminal = crate::stream_attempt::global_stream_attempt_registry()
-            .settle_provider_outcome_host(&origin, attempt_token, cause)?;
+            .settle_provider_outcome_host(&self.stream_runner_host, attempt_token, cause)?;
         self.flush_stream_attempts_required("streamAttempt.providerSettle")?;
         Ok(terminal)
     }
@@ -970,9 +972,8 @@ impl DetachedActionHost {
     /// on-disk state remains conservatively `open`/`initiation_possible`.
     fn close_response_stream_cursor(&mut self, stream_id: &str) {
         self.closed_response_streams.insert(stream_id.to_owned());
-        let host = self.stream_runner.host_settlement();
         crate::stream_attempt::global_stream_attempt_registry()
-            .record_cursor_close_host(&host, stream_id);
+            .record_cursor_close_host(&self.stream_runner_host, stream_id);
         self.flush_stream_attempts_trusted();
     }
 
@@ -1378,9 +1379,8 @@ impl IbexActionHost for DetachedActionHost {
                     // @ref LLP 0076#settlement-and-retry — a successful
                     // nested commit while an attempt cursor is open counts as
                     // durable progress; retry is prohibited afterwards.
-                    let host = self.stream_runner.host_settlement();
                     crate::stream_attempt::global_stream_attempt_registry()
-                        .record_progress_commit_host(&host);
+                        .record_progress_commit_host(&self.stream_runner_host);
                 }
                 output
             }
@@ -1498,9 +1498,8 @@ impl IbexActionHost for DetachedActionHost {
                     // @ref LLP 0076#settlement-and-retry — a successful
                     // nested commit while an attempt cursor is open counts as
                     // durable progress; retry is prohibited afterwards.
-                    let host = self.stream_runner.host_settlement();
                     crate::stream_attempt::global_stream_attempt_registry()
-                        .record_progress_commit_host(&host);
+                        .record_progress_commit_host(&self.stream_runner_host);
                 }
                 output
             }
@@ -1684,9 +1683,8 @@ impl IbexActionHost for DetachedActionHost {
             // byte reaches the outbound stack: a crash from here on is
             // recovered as `initiation_possible`, the conservative reading.
             if let Err(error) = self.flush_stream_attempts_required("fetchStream.open") {
-                let host = self.stream_runner.host_settlement();
                 crate::stream_attempt::global_stream_attempt_registry()
-                    .record_cursor_close_host(&host, &stream_id);
+                    .record_cursor_close_host(&self.stream_runner_host, &stream_id);
                 return Err(error);
             }
         }
@@ -1724,7 +1722,6 @@ impl IbexActionHost for DetachedActionHost {
                 // `definitely_not_initiated`; everything else stays at the
                 // fail-safe `initiation_possible`.
                 let registry = crate::stream_attempt::global_stream_attempt_registry();
-                let host = self.stream_runner.host_settlement();
                 if matches!(
                     transport.kind(),
                     ureq::ErrorKind::Dns
@@ -1733,12 +1730,12 @@ impl IbexActionHost for DetachedActionHost {
                         | ureq::ErrorKind::UnknownScheme
                 ) {
                     registry.record_transport_outcome_host(
-                        &host,
+                        &self.stream_runner_host,
                         &stream_id,
                         crate::stream_attempt::StreamInitiationState::DefinitelyNotInitiated,
                     );
                 }
-                registry.record_cursor_close_host(&host, &stream_id);
+                registry.record_cursor_close_host(&self.stream_runner_host, &stream_id);
                 self.flush_stream_attempts_trusted();
                 // @ref LLP 0076#author-decisions--2026-07-23 — decision 5:
                 // safe methods are idempotent by grammar; a bare authored
@@ -1784,9 +1781,8 @@ impl IbexActionHost for DetachedActionHost {
         // absorbing `response_observed` state. The durable advance is
         // best-effort — a skipped write leaves `initiation_possible`, which
         // is the conservative direction.
-        let host = self.stream_runner.host_settlement();
         crate::stream_attempt::global_stream_attempt_registry().record_transport_outcome_host(
-            &host,
+            &self.stream_runner_host,
             &stream_id,
             crate::stream_attempt::StreamInitiationState::ResponseObserved,
         );
@@ -2429,7 +2425,7 @@ impl IbexActionHost for DetachedActionHost {
         let origin = self.authority.stream_attempt_origin();
         let started = match persisted.as_ref() {
             Some(row) if row.terminal.is_some() => registry.adopt_terminal_host(
-                &self.stream_runner.host_settlement(),
+                &self.stream_runner_host,
                 namespace,
                 client_key,
                 row,
@@ -2486,9 +2482,12 @@ impl IbexActionHost for DetachedActionHost {
                 "the stream chunk is not bounded JSON",
             )
         })?;
-        let host = self.stream_runner.host_settlement();
         let emission = crate::stream_attempt::global_stream_attempt_registry()
-            .record_emit_counters_host(&host, &attempt_token, chunk_bytes.len())?;
+            .record_emit_counters_host(
+                &self.stream_runner_host,
+                &attempt_token,
+                chunk_bytes.len(),
+            )?;
         let scope = Scope::from_pairs([("attemptToken", attempt_token.clone())]);
         let value = serde_json::to_vec(&json!({
             "attemptToken": attempt_token,
@@ -2759,7 +2758,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
     // @ref LLP 0076#settlement-and-retry — one control-plane identity per
     // invocation: the StreamAttemptV1 lease binds to it, and the trusted
     // terminalizer settles its attempts when it can no longer commit.
-    let stream_runner = crate::stream_attempt::StreamRunnerIdentity::new(abandoned.clone());
+    let stream_runner_host = crate::stream_attempt::StreamRunnerHost::new(abandoned.clone());
+    let stream_runner = stream_runner_host.runner().clone();
     let commit_gate = stream_runner.commit_gate();
     let automatic_retry_invocation =
         metadata.attempt > 1 || matches!(metadata.trigger, crate::cron::CronRunTrigger::Recovery);
@@ -2774,6 +2774,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
             let commit_gate = commit_gate.clone();
             let active_reservation = active_reservation.clone();
             let stream_runner = stream_runner.clone();
+            let stream_runner_host = stream_runner_host.clone();
             move || {
                 let crate::local::DetachedIbexAction {
                     function_name,
@@ -2826,6 +2827,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     closed_response_streams: BTreeSet::new(),
                     last_stream_progress_commit: None,
                     stream_runner: stream_runner.clone(),
+                    stream_runner_host: stream_runner_host.clone(),
                     output_stream_attempt: None,
                     output_stream_function_id: stream.then_some(function_id),
                     output_stream_initiator: stream_initiator,
@@ -2952,8 +2954,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 {
                     fenced = Err(error);
                 }
-                let host_settlement = stream_runner.host_settlement();
-                attempt_registry.terminalize_invocation_host(&host_settlement, terminal_cause);
+                attempt_registry.terminalize_invocation_host(&stream_runner_host, terminal_cause);
                 // The worker itself is done: release its attempt references
                 // so durably flushed terminals can be reaped (registry
                 // retention). Anything terminalize just dirtied is reaped by
@@ -2996,9 +2997,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
             // still need a durable winner. The dead worker can no longer
             // consult them, so its references are released as well.
             let attempt_registry = crate::stream_attempt::global_stream_attempt_registry();
-            let host_settlement = stream_runner.host_settlement();
             attempt_registry.terminalize_invocation_host(
-                &host_settlement,
+                &stream_runner_host,
                 crate::stream_attempt::StreamAttemptCause::Failed,
             );
             attempt_registry.release_invocation(&stream_runner);
@@ -3044,9 +3044,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
             // which is why this leg terminalizes but does NOT release the
             // invocation's registry references; the worker's own completion
             // leg releases them once it can no longer consult the record.
-            let host_settlement = stream_runner.host_settlement();
             crate::stream_attempt::global_stream_attempt_registry().terminalize_invocation_host(
-                &host_settlement,
+                &stream_runner_host,
                 crate::stream_attempt::StreamAttemptCause::TimedOut,
             );
 
@@ -25155,10 +25154,12 @@ async fn start_ask_stream(
     state: &SharedSnapback,
     authority: &PreparedAuthority,
     initiator: crate::stream_attempt::StreamInitiator,
-) -> SnapbackResult<(String, crate::stream_attempt::StreamRunnerIdentity, u64)> {
+) -> SnapbackResult<(String, crate::stream_attempt::StreamRunnerHost, u64)> {
     let started_at_ms = now_millis();
     let namespace = with_snapback(state, |snapback| snapback.stream_attempt_namespace()).await;
-    let runner = crate::stream_attempt::StreamRunnerIdentity::new(Arc::new(AtomicBool::new(false)));
+    let runner_host =
+        crate::stream_attempt::StreamRunnerHost::new(Arc::new(AtomicBool::new(false)));
+    let runner = runner_host.runner();
     let registry = crate::stream_attempt::global_stream_attempt_registry();
     let origin = authority.stream_attempt_origin();
     let started = origin.stage_start_with_metadata(
@@ -25190,14 +25191,14 @@ async fn start_ask_stream(
     })
     .await?;
     registry.clear_flushed(&snapshots);
-    Ok((started.attempt_token, runner, started_at_ms))
+    Ok((started.attempt_token, runner_host, started_at_ms))
 }
 
 #[allow(clippy::too_many_arguments)] // established internal signature; regrouping is out of scope for the lint sweep
 async fn settle_ask_stream(
     state: &SharedSnapback,
     attempt_token: String,
-    runner: crate::stream_attempt::StreamRunnerIdentity,
+    runner_host: crate::stream_attempt::StreamRunnerHost,
     started_at_ms: u64,
     initiator: crate::stream_attempt::StreamInitiator,
     cause: crate::stream_attempt::StreamAttemptCause,
@@ -25205,8 +25206,7 @@ async fn settle_ask_stream(
     tokens: &crate::ask::TokenAccounting,
 ) -> SnapbackResult<()> {
     let registry = crate::stream_attempt::global_stream_attempt_registry();
-    let host = runner.host_settlement();
-    let terminal = registry.settle_provider_outcome_host(&host, &attempt_token, cause)?;
+    let terminal = registry.settle_provider_outcome_host(&runner_host, &attempt_token, cause)?;
     let namespace = with_snapback(state, |snapback| snapback.stream_attempt_namespace()).await;
     let snapshots = registry.dirty_snapshots(namespace);
     let rows = snapshots
@@ -25231,7 +25231,7 @@ async fn settle_ask_stream(
     })
     .await?;
     registry.clear_flushed(&snapshots);
-    registry.release_invocation(&runner);
+    registry.release_invocation(runner_host.runner());
     Ok(())
 }
 

@@ -25612,7 +25612,8 @@ fn held_action_host(
     action: &crate::local::DetachedIbexAction,
 ) -> DetachedActionHost {
     let abandoned = Arc::new(AtomicBool::new(false));
-    let stream_runner = crate::stream_attempt::StreamRunnerIdentity::new(abandoned.clone());
+    let stream_runner_host = crate::stream_attempt::StreamRunnerHost::new(abandoned.clone());
+    let stream_runner = stream_runner_host.runner().clone();
     let commit_gate = stream_runner.commit_gate();
     DetachedActionHost {
         state,
@@ -25634,6 +25635,7 @@ fn held_action_host(
         closed_response_streams: BTreeSet::new(),
         last_stream_progress_commit: None,
         stream_runner,
+        stream_runner_host,
         output_stream_attempt: None,
         output_stream_function_id: None,
         output_stream_initiator: None,

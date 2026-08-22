@@ -24631,6 +24631,20 @@ fn config_verify_stages_exact_anonymous_authority_with_unchanged_projection() {
         prepared.authority().resolved(),
         ResolvedAppAuthority::Anonymous
     ));
+    let registry = crate::stream_attempt::StreamAttemptRegistry::default();
+    let runner = crate::stream_attempt::StreamRunnerIdentity::new(std::sync::Arc::new(
+        std::sync::atomic::AtomicBool::new(false),
+    ));
+    prepared
+        .authority()
+        .stream_attempt_origin()
+        .stage_start(&registry, 1, "config-verify-probe", &runner, None)
+        .expect("credential-free config probe stages a stream transition");
+    assert_eq!(
+        registry.transition_classifications_for_test(),
+        vec![("freshStart", "ModeOnly")],
+        "a ConfigVerify + Anonymous probe has no caller publication carrier"
+    );
     assert_eq!(
         prepared.authority().audit(),
         &crate::auth::invocation::AuthorityAuditFact::Anonymous

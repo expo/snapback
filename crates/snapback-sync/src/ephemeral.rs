@@ -8933,9 +8933,10 @@ mod tests {
         backend
             .register_collection(stream_collection_definition())
             .expect("platform stream collection");
-        let runner = crate::stream_attempt::StreamRunnerIdentity::new(Arc::new(
+        let runner_host = crate::stream_attempt::StreamRunnerHost::new(Arc::new(
             std::sync::atomic::AtomicBool::new(false),
         ));
+        let runner = runner_host.runner();
         let authority = crate::auth::invocation::InvocationGate::prepare_authority(
             crate::auth::invocation::InvocationSource::LocalAction,
             crate::manifest::AuthMode::Dev,
@@ -8955,7 +8956,7 @@ mod tests {
                 registry,
                 usize::MAX - 7,
                 &client_key,
-                &runner,
+                runner,
                 None,
                 crate::stream_attempt::StreamAttemptMetadata {
                     function_id: Some("app:conversation".to_owned()),
@@ -9010,10 +9011,9 @@ mod tests {
         // Reserve five monotonic indexes, but retain only 3 and 4. This is
         // the post-eviction shape a reconnect must distinguish from a full
         // replay; chunks themselves remain live-only.
-        let host = runner.host_settlement();
         for _ in 0..5 {
             registry
-                .record_emit_counters_host(&host, &attempt.attempt_token, 1)
+                .record_emit_counters_host(&runner_host, &attempt.attempt_token, 1)
                 .expect("reserve chunk index");
         }
         for index in [3_u64, 4] {
