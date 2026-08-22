@@ -46,13 +46,13 @@ assert.equal(scaffoldApp(projectRoot, { template: 'react' }).ok, true);
 const backendRoot = join(projectRoot, 'snapback');
 const schemaPath = join(backendRoot, 'schema.mjs');
 const devSchema = readFileSync(schemaPath, 'utf8');
-const sessionsSchema = devSchema.includes("mode: 'sessions'")
+const sessionsSchema = /auth:\s*\{\s*mode:\s*['"]sessions['"]/u.test(devSchema)
   ? devSchema
   : devSchema.replace(
       /\n\}\);\s*$/u,
       "\n}, { auth: { mode: 'sessions' } });\n",
     );
-assert.match(sessionsSchema, /mode:\s*'sessions'/u);
+assert.match(sessionsSchema, /auth:\s*\{\s*mode:\s*['"]sessions['"]/u);
 writeFileSync(schemaPath, sessionsSchema);
 const stateRoot = join(projectRoot, '.snapback');
 const readyFile = join(stateRoot, 'dev.ready.json');
@@ -71,6 +71,21 @@ chmodSync(runtimeWrapper, 0o755);
 const events = [];
 let dev = null;
 let continuityClient = null;
+const sleep = (milliseconds) => new Promise((resolveWait) => setTimeout(resolveWait, milliseconds));
+const waitFor = async (predicate, label, timeoutMs = 45_000) => {
+  const deadline = Date.now() + timeoutMs;
+  let lastError = null;
+  while (Date.now() < deadline) {
+    try {
+      const value = predicate();
+      if (value) return value;
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(25);
+  }
+  throw new Error(`${label} timed out${lastError ? `: ${lastError.message}` : ''}`);
+};
 
 try {
   dev = await runDev({
@@ -183,6 +198,143 @@ try {
       );
     } finally {
       await sessionsClient.closeAuth?.();
+      await coordinator.close();
+    }
+  }
+
+  // issues/closed/20260820-agent-auth-transition-residuals.md residual 2: this is
+  // the real watch path (not a direct load and not packed HTTP retry). Keep an
+  // authenticated stream mounted while a source edit drives generate +
+  // same-mode activation. The resync sentinel must synchronously fence its
+  // predecessor, surface retain-stale, and land one authoritative successor.
+  {
+    const generatedApiPath = join(backendRoot, 'generated', 'api.mjs');
+    const watchApi = (await import(
+      `${pathToFileURL(generatedApiPath).href}?watch=${Date.now()}`
+    )).default;
+    const storage = createMemoryAuthCustodyStorage({ state: { custody: {} } });
+    const coordinator = new AuthCoordinator({
+      appId: carrier.schema.appId,
+      storage,
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    });
+    const watchClient = new SnapbackClient(dev.serverUrl, {
+      authCoordinator: coordinator,
+      clientStoreId: 'sessions-watch-reload-successor',
+      rqsStore: null,
+      offlineQueue: false,
+    });
+    let live = null;
+    const connectionStates = [];
+    const subscriptionEvents = [];
+    const updates = [];
+    try {
+      const password = 'sessions-watch-reload-password-123!';
+      await watchClient.authPasswordSignup({
+        email: `sessions-watch-${process.pid}@example.com`,
+        password,
+      });
+      const watchTitle = `Watch successor row ${process.pid}`;
+      await watchClient.mutate(watchApi.createTodo, {
+        args: { title: watchTitle },
+        queue: false,
+      });
+      live = await watchClient.liveQuery('listTodos', {
+        connectionId: 'sessions-watch-reload-successor',
+        transport: 'stream',
+        fallbackToPoll: false,
+        onConnectionChange(state) {
+          connectionStates.push(state);
+        },
+        onSubscriptionEvent(event) {
+          subscriptionEvents.push(event);
+        },
+        onUpdate(rows, detail) {
+          updates.push({
+            kind: detail.kind,
+            rows: rows.map((row) => row.title),
+            subscriptionId: live?.subscriptionId ?? null,
+            connection: live?.connection ?? 'establishing',
+            freshness: live?.freshness ?? null,
+          });
+        },
+      });
+      await waitFor(() => live.connection === 'live', 'predecessor stream readiness');
+      assert(live.rows.some((row) => row.title === watchTitle));
+
+      const predecessorSubscriptionId = live.subscriptionId;
+      const eventCut = events.length;
+      const subscriptionEventCut = subscriptionEvents.length;
+      const updateCut = updates.length;
+      const custodyBefore = storage.snapshot(carrier.schema.appId);
+      assert.ok(custodyBefore, 'password signup installed durable client custody');
+
+      // Start enough ordinary reads at the watch cut to exercise the finite
+      // axisless mode-pending window. Every one must finish under the same
+      // custody; no retry may turn a transient into terminal auth loss.
+      const tightLoop = Promise.all(Array.from({ length: 64 }, () => (
+        watchClient.query('listTodos')
+      )));
+      const functionsPath = join(backendRoot, 'functions.mjs');
+      writeFileSync(
+        functionsPath,
+        `// Real live-stream watch-reload successor witness.\n${readFileSync(functionsPath, 'utf8')}`,
+      );
+      await waitFor(
+        () => events.slice(eventCut).find((event) => (
+          event.state === 'generated-and-loaded'
+          && /functions\.mjs$/u.test(event.changed ?? '')
+        )),
+        'watched sessions successor activation',
+      );
+      await waitFor(
+        () => live.subscriptionId !== predecessorSubscriptionId
+          && live.connection === 'live'
+          && live.freshness === 'current',
+        'authoritative live successor after watch reload',
+      );
+      const tightLoopRows = await tightLoop;
+      assert(
+        tightLoopRows.every((result) => result.rows.some((row) => row.title === watchTitle)),
+        'tight-loop reads all retained the authenticated product row',
+      );
+      assert.deepEqual(
+        storage.snapshot(carrier.schema.appId),
+        custodyBefore,
+        'axisless watch retries do not clear, replace, or revise durable custody',
+      );
+      assert.equal(watchClient.authTerminalStatus().terminated, false);
+      assert(
+        connectionStates.slice(-3).includes('stale'),
+        `watch reload never projected its bounded stale state: ${JSON.stringify(connectionStates)}`,
+      );
+      const successors = subscriptionEvents.slice(subscriptionEventCut)
+        .filter(({ event }) => event === 'resubscribed');
+      assert.equal(
+        successors.length,
+        1,
+        `watch reload landed ${successors.length} live successors instead of one`,
+      );
+      const successorSnapshots = updates.slice(updateCut).filter(({ kind }) => kind === 'snapshot');
+      assert.equal(
+        successorSnapshots.length,
+        1,
+        `watch reload published ${successorSnapshots.length} authoritative successor snapshots instead of one`,
+      );
+      assert.equal(successorSnapshots[0].subscriptionId, live.subscriptionId);
+      assert.equal(successorSnapshots[0].freshness, 'current');
+      assert.equal(
+        updates.slice(updateCut).some((update) => (
+          update.connection === 'stale'
+          && update.subscriptionId === predecessorSubscriptionId
+        )),
+        false,
+        'a fenced predecessor frame reached app code during the watch transition',
+      );
+    } finally {
+      live?.dispose();
+      await watchClient.closeAuth();
       await coordinator.close();
     }
   }
@@ -426,7 +578,7 @@ try {
   );
   await recoveredClient.closeAuth();
 
-  console.log('sessions-dev-loop.test.mjs: sessions restart, explicit comment-successor activation with preserved rows, stale-runtime refusal, and invalid-successor refusal pass');
+  console.log('sessions-dev-loop.test.mjs: real live-stream watch successor, custody-preserving tight loop, sessions restart, explicit comment-successor activation with preserved rows, stale-runtime refusal, and invalid-successor refusal pass');
 } finally {
   await continuityClient?.dispose?.();
   await dev?.close?.();

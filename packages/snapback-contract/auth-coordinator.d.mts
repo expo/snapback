@@ -297,6 +297,7 @@ export class AuthCoordinator {
   authorityTransitionStatus(options?: Readonly<{
     reconnecting?: boolean;
     modePending?: boolean;
+    ephemeralAuthorityPending?: boolean;
   }>): SnapbackAuthorityTransitionStatus;
   subscribeAuthorityTransition(
     listener: (status: SnapbackAuthorityTransitionStatus) => void,

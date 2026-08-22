@@ -41,7 +41,7 @@ const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'))
 
 const server = await startServer({ port: 4438, db: ':memory:', cwd: repoRoot });
 const db = new SnapbackClient(server.baseUrl, server.clientOptions);
-const suite = createSuite('_kit regression / mid-flight resync demand (ENG-23429)', { expectedChecks: 3 });
+const suite = createSuite('_kit regression / mid-flight resync demand (ENG-23429)', { expectedChecks: 4 });
 const ADA = 'user_ada';
 const CONN = 'midflight_conn';
 // The wire shape the server emits on outbox overflow (src/ephemeral.rs:733).
@@ -103,6 +103,80 @@ try {
         'single resubscribe from an idle sentinel',
       );
       return { subscribeCalls: subscribeCalls.length, events: [...events] };
+    });
+
+    await suite.check('a scoped resync fences its predecessor and lands exactly one authoritative successor', async () => {
+      const callsBefore = subscribeCalls.length;
+      const resubscribeEventsBefore = events.filter((event) => event.startsWith('resubscribed')).length;
+      const predecessorSubscriptionId = handle.subscriptionId;
+      const predecessorVersion = handle.version;
+      const predecessorRows = structuredClone(handle.rows);
+      let release;
+      holdResponse = new Promise((resolve) => { release = resolve; });
+
+      try {
+        deliverDurable({
+          ...OVERFLOW_SENTINEL,
+          subscription_id: predecessorSubscriptionId,
+          reason: 'watch_reload',
+        });
+        assert(handle.connection === 'stale', `expected projected stale transition, got '${handle.connection}'`);
+        assert(handle.freshness === 'retained', `expected retained predecessor, got '${handle.freshness}'`);
+        await waitFor(
+          () => subscribeCalls.length === callsBefore + 1 && subscribeCalls[callsBefore].snapshotReady,
+          'scoped successor snapshot held before installation',
+        );
+
+        // This is a correctly addressed but late predecessor frame. Its high
+        // version makes accidental application unmistakable even though the
+        // authoritative successor snapshot will later repair the rows.
+        deliverDurable({
+          kind: 'live_replace',
+          function: 'listTodos',
+          subscription_id: predecessorSubscriptionId,
+          version: predecessorVersion + 10_000,
+          rows: [{ _id: 'late_predecessor', title: 'late predecessor authority' }],
+        });
+        assert(handle.version === predecessorVersion, 'late predecessor advanced the public version');
+        assert(
+          JSON.stringify(handle.rows) === JSON.stringify(predecessorRows),
+          'late predecessor changed the retained public rows',
+        );
+
+        // Duplicate transition evidence for the already-fenced predecessor
+        // is coalesced into the in-flight successor, never a second snapshot.
+        deliverDurable({
+          ...OVERFLOW_SENTINEL,
+          subscription_id: predecessorSubscriptionId,
+          reason: 'watch_reload',
+        });
+      } finally {
+        holdResponse = null;
+        release();
+      }
+
+      await waitFor(
+        () => handle.subscriptionId !== predecessorSubscriptionId
+          && handle.connection === 'polling'
+          && handle.freshness === 'current',
+        'one authoritative successor installation',
+      );
+      await sleep(150);
+      assert(
+        subscribeCalls.length === callsBefore + 1,
+        `scoped resync created ${subscribeCalls.length - callsBefore} successors instead of one`,
+      );
+      const resubscribeEventsAfter = events.filter((event) => event.startsWith('resubscribed')).length;
+      assert(
+        resubscribeEventsAfter === resubscribeEventsBefore + 1,
+        `scoped resync emitted ${resubscribeEventsAfter - resubscribeEventsBefore} successor receipts instead of one`,
+      );
+      return {
+        predecessorSubscriptionId,
+        successorSubscriptionId: handle.subscriptionId,
+        successorSnapshots: 1,
+        latePredecessorFramesApplied: 0,
+      };
     });
 
     await suite.check('a sentinel consumed mid-resubscribe still forces a follow-up fresh subscribe', async () => {

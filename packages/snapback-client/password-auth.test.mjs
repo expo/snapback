@@ -202,8 +202,10 @@ test('client.auth is a vocabulary-only projection with exact flat-method contrac
       'authRequestCode',
       'authSession',
       'authTerminalStatus',
+      'authorityTransitionStatus',
       'currentPrincipal',
       'subscribeAuthTerminal',
+      'subscribeAuthorityTransition',
       'subscribeCurrentPrincipal',
     ]);
     assert.deepEqual(fixture.client.auth.currentPrincipal(), { status: 'loading' });

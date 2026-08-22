@@ -1167,7 +1167,11 @@ export class AuthCoordinator {
    *
    * @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — provider readiness observes the five-state barrier classifier and phase-9 settlement boundary.
    */
-  authorityTransitionStatus({ reconnecting = false, modePending = false } = {}) {
+  authorityTransitionStatus({
+    reconnecting = false,
+    modePending = false,
+    ephemeralAuthorityPending = false,
+  } = {}) {
     const barrier = this.#activeBarrier;
     const previous = barrier?.context?.previousAuthority ?? null;
     const next = barrier?.context?.nextAuthority ?? null;
@@ -1192,7 +1196,7 @@ export class AuthCoordinator {
       state,
       settled,
       subscribeSafe: settled,
-      ephemeralAuthorityUsable: settled,
+      ephemeralAuthorityUsable: settled && !ephemeralAuthorityPending,
       transitionOwner: barrier === null ? null : 'auth-coordinator',
       barrierPhase: barrier?.phase ?? null,
       authorityEpoch: this.#record?.authorityEpoch ?? null,

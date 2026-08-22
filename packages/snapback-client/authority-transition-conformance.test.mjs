@@ -171,6 +171,112 @@ test('production authority status projects an in-flight mode-pending retry as re
   }
 });
 
+test('ephemeral successor pending is absorbed for immediate subscribe and publish', async () => {
+  const originalFetch = globalThis.fetch;
+  const authority = `eai1.${'a'.repeat(43)}`;
+  const client = new SnapbackClient('https://ephemeral-authority-successor.test', {
+    rqsStore: null,
+    reservationRetryJitterMilliseconds: [0, 0],
+    ephemeralAuthorityProtocol: 1,
+  });
+  let subscribeAttempts = 0;
+  let publishAttempts = 0;
+  let exhaustPublishRetry = false;
+  let releaseSubscribe;
+  let secondSubscribeEntered;
+  const subscribeHeld = new Promise((resolve) => { releaseSubscribe = resolve; });
+  const secondSubscribe = new Promise((resolve) => { secondSubscribeEntered = resolve; });
+  const pending = () => Response.json({
+    diagnostic: {
+      code: 'SNAPBACK_EPHEMERAL_AUTHORITY_PENDING',
+      message: 'room authority changed while its durable permission was being resolved',
+      details: {},
+    },
+  }, { status: 503 });
+  try {
+    globalThis.fetch = async (input) => {
+      const path = new URL(input).pathname;
+      if (path === '/connection/open') {
+        return Response.json({
+          connectionId: 'ephemeral-successor-grant',
+          connectionToken: 'sct_ephemeral_successor',
+          wireVersion: 'snapback.v1',
+          ephemeralAuthorityProtocol: 1,
+          ephemeralAuthorityInstance: authority,
+        });
+      }
+      if (path === '/ephemeral/subscribe') {
+        subscribeAttempts += 1;
+        if (subscribeAttempts === 1) return pending();
+        secondSubscribeEntered();
+        await subscribeHeld;
+        return Response.json({
+          Snapshot: {
+            ephemeral_authority_instance: authority,
+            room: { collection: 'presence', scope: { roomId: 'one' } },
+            scope_epoch: 1,
+            room_authority_generation: 1,
+            high_water_version: 0,
+            entries: [],
+          },
+        });
+      }
+      if (path === '/ephemeral/publish') {
+        publishAttempts += 1;
+        if (exhaustPublishRetry || publishAttempts === 1) return pending();
+        return Response.json({
+          room: { collection: 'presence', scope: { roomId: 'one' } },
+          key: 'ephemeral-successor-grant',
+          scope_epoch: 1,
+          entry_version: 1,
+          expires_at_ms: Date.now() + 1_000,
+        });
+      }
+      throw new Error(`unexpected request ${path}`);
+    };
+
+    const subscription = client.subscribeEphemeral('presence', {
+      connectionId: 'ephemeral-successor',
+      scope: { roomId: 'one' },
+      transport: 'poll',
+    });
+    await secondSubscribe;
+    assert.equal(client.authorityTransitionStatus().state, 'reconnecting');
+    assert.equal(client.authorityTransitionStatus().ephemeralAuthorityUsable, false);
+    releaseSubscribe();
+    const overlay = await subscription;
+    assert.equal(subscribeAttempts, 2);
+    assert.equal(client.authorityTransitionStatus().ephemeralAuthorityUsable, true);
+
+    await overlay.publish({ online: true });
+    assert.equal(publishAttempts, 2);
+    assert.equal(
+      client.receipts().some((receipt) => (
+        receipt.kind === 'ephemeral-publish' && receipt.outcome === 'rejected'
+      )),
+      false,
+      'an absorbed successor wait is not projected as an app-visible rejected publish',
+    );
+
+    exhaustPublishRetry = true;
+    publishAttempts = 0;
+    await assert.rejects(
+      overlay.publish({ online: false }),
+      (error) => error?.diagnostic?.code === 'SNAPBACK_EPHEMERAL_AUTHORITY_PENDING',
+    );
+    assert.equal(
+      publishAttempts,
+      41,
+      'the finite budget is one initial attempt plus forty successor retries',
+    );
+    overlay.dispose();
+  } finally {
+    releaseSubscribe?.();
+    await client.closeAuth();
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('housekeeping coalesces latest-wins with typed supersession and preserves phase timing', async () => {
   let clock = 10;
   const store = createMemoryRqsResumeStore({ now: () => ++clock });

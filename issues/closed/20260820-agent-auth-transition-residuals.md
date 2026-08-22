@@ -1,6 +1,6 @@
 # Agent auth-transition residuals around reload and ephemeral settlement
 
-**Status:** Open — residual 1 fixed 2026-08-21; residuals 2–3 still need real witnesses
+**Status:** Closed
 **Opened:** 2026-08-20 (split from the duplicate open copy of
 `20260815-agent-lifecycle-auth-seams.md`)
 **Systems:** Client auth coordinator, Live queries, Ephemeral state, Dev loop
@@ -10,13 +10,13 @@
 `issues/closed/20260820-optional-user-live-query-auth-transition-stall.md`;
 `issues/closed/20260820-authenticated-query-signed-out-settlement.md`
 
-## Why this ticket remains open
+## Why this ticket was opened
 
 The original Clique 0.1.21 client-lifecycle findings are closed: sequential
 logout joins the authority barrier, mounted React consumers re-admit without
 an app remount, and `closeAuth()` drains realtime demand. A later investigation
 appended three different residuals to an open duplicate of that closed ticket.
-Those residuals remain independently actionable and are preserved here.
+Those residuals remained independently actionable and are preserved here.
 
 ## Residuals
 
@@ -51,7 +51,7 @@ its live resources settle or rebuild with an explicit state; and an operation
 started immediately after awaited signin does not expose an ephemeral-authority
 race to application code.
 
-## Progress (2026-08-21)
+## Residual-1 progress before this resolution (2026-08-21)
 
 The W2 client now treats an axisless finite
 `SNAPBACK_AUTH_MODE_PENDING` refusal as reconnecting: it performs a bounded
@@ -66,15 +66,58 @@ still runs the LLP 0059 item-5 path.
 fully discriminated terminal branches and projects the in-flight retry through
 the production classifier as `reconnecting`. This closes residual 1.
 
-The coordinator readiness suite's 200 waiters prove the generic phase-9 signal
-but are not a real subscribe-after-sign-in ephemeral operation. The packed
-HTTP retry is not a live-stream watch-reload/re-arm witness. Therefore:
+At that point the coordinator readiness suite's 200 waiters proved the generic
+phase-9 signal but were not a real subscribe-after-sign-in ephemeral operation,
+and the packed HTTP retry was not a live-stream watch-reload/re-arm witness.
+Residuals 2 and 3 consequently remained open for the real evidence now recorded
+in the resolution below:
 
-- residual 2 remains open until a real live-stream watch-reload proves the
+- residual 2 required a real live-stream watch-reload proving the
   predecessor is fenced and exactly one successor reaches an authoritative
   snapshot; and
-- residual 3 remains open until a real repeated awaited-sign-in → immediate
+- residual 3 required a real repeated awaited-sign-in → immediate
   ephemeral subscribe/publish path absorbs the pending window without app-
   visible `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`.
 
-Current partial evidence: `node --test packages/snapback-client/authority-transition-conformance.test.mjs packages/snapback-contract/authority-transition-signal.test.mjs`.
+## Resolution (2026-08-21)
+
+All three residuals are complete. Residual 1 landed earlier on 2026-08-21.
+This landing completes residuals 2 and 3:
+
+- A scoped live `resync_required` now fences its predecessor synchronously,
+  publishes `connection: "stale"` with retained rows, coalesces duplicate
+  transition evidence, and installs exactly one successor subscription. Frames
+  addressed to the fenced predecessor cannot reach the public update callback.
+- The real sessions dev-loop witness edits the watched functions source while
+  an authenticated stream is live. It observes the bounded stale state, one
+  authoritative successor snapshot, no stale-authority frame, and byte-identical
+  custody across 64 concurrent reads at the reload cut.
+- Ephemeral subscribe and publish absorb the effect-free
+  `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING` successor window with a finite client
+  retry budget. While waiting, authority readiness reports `reconnecting` and
+  `ephemeralAuthorityUsable: false`; exhaustion preserves the typed refusal.
+- The real password witness completed 200 awaited sign-in → immediate protected
+  ephemeral subscribe/publish cycles with no app-visible
+  `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`. The deterministic client witness also
+  forces the pending response on both operations, proving absorption and the
+  finite exhaustion boundary.
+
+The Exit condition holds: ordinary watch reload preserves signed-in custody,
+live resources expose and recover through an explicit bounded successor state,
+and immediate post-sign-in ephemeral operations do not expose the successor
+race to application code.
+
+Verification:
+
+- `demos/_kit/tests/regression-midflight-resync.mjs` — 4/4, including fenced
+  predecessor and exactly one authoritative successor.
+- `packages/snapback-cli/sessions-dev-loop.test.mjs` — real watch reload,
+  live-stream successor, and tight-loop custody witness passed.
+- `demos/_kit/tests/password-ephemeral-authority-successor.mjs` — 200/200,
+  zero app-visible pending refusals.
+- `packages/snapback-client/authority-transition-conformance.test.mjs` and
+  `packages/snapback-contract/authority-transition-signal.test.mjs` — 11/11.
+- Affected password-auth, hosted-ephemeral, ephemeral-room, coordinator, and
+  missed-wakeup suites passed.
+
+Landing SHA: TBD

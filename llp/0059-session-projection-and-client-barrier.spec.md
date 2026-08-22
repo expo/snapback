@@ -23,7 +23,10 @@ same-day revision rounds closed both independent review gates' MAJOR
 findings — an ordered barrier classifier giving incarnation/mode
 transitions precedence, phase 1 mapped to the settled predecessor column,
 and the mode-pending terminal/transient discriminant amended in place into
-§Typed terminal auth error).
+§Typed terminal auth error; residual completion adds the same-mode watch
+reload's synchronous predecessor fence, retain-stale projection, and one
+authoritative successor, plus the finite client-owned ephemeral successor
+wait after awaited password sign-in).
 2026-08-16 (committed-refresh publication amendment: ordinary
 publication still requires an empty pending-ticket set; the sole exception is
 one exact finalized rotation response bound to its current successor digest,
@@ -1658,7 +1661,7 @@ discriminated by carrier:
   the refusal as live-stream terminal, and never surfaces it as a
   caller-terminal one-shot settlement; only retry exhaustion settles a
   typed transport refusal
-  (`issues/20260820-agent-auth-transition-residuals.md` residuals 1–2).
+  (`issues/closed/20260820-agent-auth-transition-residuals.md` residuals 1–2).
 
 The transient-occurrence retry rule applies **only** to the non-terminal
 refusal shapes named above — a finite HTTP or subscribe-admission refusal
@@ -3307,7 +3310,7 @@ carry dated cross-references to this section; a surface may adapt vocabulary
 but may not invent different terminal semantics. Evidence:
 `issues/closed/20260820-optional-user-live-query-auth-transition-stall.md`,
 `issues/closed/20260820-authenticated-query-signed-out-settlement.md`,
-`issues/20260820-agent-auth-transition-residuals.md`, and
+`issues/closed/20260820-agent-auth-transition-residuals.md`, and
 `issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`.
 This is the client/runtime authority lifecycle, distinct from LLP 0293's
 kernel authority-write chokepoint.
@@ -3377,15 +3380,16 @@ Definitions the matrix depends on:
   justifies `clearAuthSession()` or any other custody clearing, and it is
   never live-stream terminal — the stream projects a bounded transition and
   arms a successor
-  (`issues/20260820-agent-auth-transition-residuals.md` residuals 1–2).
+  (`issues/closed/20260820-agent-auth-transition-residuals.md` residuals 1–2).
   The terminal occurrence (the closed frame/close or finite-HTTP twin
   carrying the `authorityDisposition` axis with
   `reason: "mode_transition"`) is a real staged mode transition and remains
   a `revoking`-classified barrier per classifier rule 1.
 - **Settlement of a barrier for a context** — the context's phase-9 resume
   completed: settled durable custody, fresh LLP 0058 handshake and connection
-  grant, mandatory participants ready, **and ephemeral authority usable**
-  (see ruling 5).
+  grant, and mandatory participants ready. **Ephemeral authority usable** at
+  this public boundary means either the room lane is ready or the client owns
+  its effect-free bounded successor wait; see ruling 5.
 
 ### Closed terminal-semantic vocabulary
 
@@ -3523,12 +3527,33 @@ diagnostic, or a fenced predecessor into `ready`/empty.
    its connecting/resync state). `authenticating`/`revoking` are unsafe end
    to end: the barrier state holds through the context's phase-9 resume
    even after phase 8 durably settles custody. Barrier settlement for the
-   context means settled custody, fresh handshake and grant,
-   mandatory-participant readiness, and usable ephemeral authority.
-   Awaited `signIn`/`signOut` resolve only at this point: the client
-   absorbs the bounded ephemeral-authority successor wait, so an operation
-   started immediately after an awaited sign-in can never observe
+   context means settled custody, fresh handshake and grant, and mandatory-
+   participant readiness. Awaited `signIn`/`signOut` resolve only at this
+   coordinator boundary. Ephemeral authority is usable by app code at that
+   boundary in the public-contract sense: if the server room lane still lags,
+   the immediately following ephemeral operation owns and absorbs its bounded
+   successor wait, so app code can never observe
    `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`.
+
+   A same-mode dev watch reload is the `reconnecting` case, not an authority
+   barrier or a terminal mode transition. On the first subscription-scoped
+   `resync_required`, the live handle synchronously makes the predecessor id
+   ineligible for delivery, retains its last rows as `freshness: "retained"`,
+   and projects `connection: "stale"`. The id remains available only as the
+   `supersedes` witness for one serialized fresh subscribe. Duplicate scoped
+   transition frames for that fenced id coalesce into the same attempt; every
+   later predecessor payload is ignored. Exactly one successfully installed
+   successor snapshot may restore `freshness: "current"` and live transport.
+   A failed attempt stays visibly stale and follows the existing bounded-
+   backoff live-resource recovery; it never reopens predecessor delivery.
+
+   The client-side ephemeral successor wait is limited to the server's
+   effect-free HTTP refusals for `/ephemeral/subscribe` and
+   `/ephemeral/publish`. While retrying, authority status is `reconnecting`
+   and `ephemeralAuthorityUsable` is false. The short-jitter retry budget is
+   finite; exhaustion returns the typed refusal. Intermediate publish
+   refusals create no rejected app receipt because no publish effect crossed
+   the server authority cut.
 6. **Diagnostics separate queue, authorization, execution, commit, and
    delivery time, with named public fields.** Per-mutation timing rides the
    LLP 0218 disposition union (`mutationStatus`/`subscribeMutation`, keyed
@@ -3578,11 +3603,10 @@ from the same lookup function.
   (no ready/empty stall);
 - every one-shot inadmissible operation settles without transport
   (timeout-independent assertion);
-- no custody loss across an axisless watch-reload refusal; the real
-  live-stream watch-reload successor remains a separate required witness;
-- awaited sign-in settlement implies usable ephemeral authority; the real
-  subscribe-immediately-after-sign-in absorption loop remains a separate
-  required witness;
+- no custody loss across an axisless watch-reload refusal, proved together
+  with the real live-stream watch-reload successor;
+- awaited sign-in settlement implies usable ephemeral authority, proved by
+  the real repeated subscribe-and-publish-immediately-after-sign-in loop;
 - foreground send latency is unaffected by a suspended housekeeping write
   (head-of-line witness);
 - a late predecessor frame after the fence never repopulates any surface;
@@ -3639,9 +3663,19 @@ The watch-reload discriminant is executable as well: axisless finite
 clearing custody, while a valid `carrier`/`durableDelete` disposition plus
 `reason: "mode_transition"` remains terminal and enters the ordinary item-5
 path; a disposition missing that reason is malformed carrier evidence. The
-packed proof starts with a
-durably installed session and pins both branches; the coordinator suite joins
-200 waiters to one held phase-9 settlement and proves coordinator readiness
-for every waiter. The real watch-reload live-stream rebuild and the
-subscribe-immediately-after-sign-in ephemeral absorption witnesses remain
-open in `issues/20260820-agent-auth-transition-residuals.md`.
+packed proof starts with a durably installed session and pins both branches;
+the coordinator suite joins 200 waiters to one held phase-9 settlement and
+proves coordinator readiness for every waiter.
+
+The remaining real boundaries are now executable too. The sessions dev-loop
+suite keeps an authenticated stream and durable client custody live through a
+source-watcher reload, observes the retain-stale transition, rejects a late
+predecessor frame in the focused real-server resync corpus, and admits exactly
+one authoritative successor snapshot. Its concurrent 64-read loop retains
+byte-equal custody and never records terminal auth loss. The pointing-room
+sessions+ephemeral fixture repeats awaited password sign-in followed
+immediately by protected room subscribe and publish 200 times; raw transient
+carrier observations are counted, while the public promises expose zero
+`SNAPBACK_EPHEMERAL_AUTHORITY_PENDING` refusals. A deterministic client test
+forces the pending branch on both operations and proves status projection,
+absorption, and the absence of a rejected publish receipt.

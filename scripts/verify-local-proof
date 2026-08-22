@@ -780,6 +780,8 @@ run repo-layout-unit -- node demos/_kit/tests/repo-layout-unit.mjs
 run codegen-regressions -- node demos/_kit/tests/codegen-regressions.mjs
 run exact-resolver-packages -- node demos/_kit/tests/exact-resolver-packages.mjs
 run provider-live-conformance --requires current-binary-readiness -- node demos/_kit/tests/provider-live-conformance.mjs
+# @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — repeat the real awaited password-signin -> immediate protected ephemeral successor boundary.
+run password-ephemeral-authority-successor --requires current-binary-readiness -- node demos/_kit/tests/password-ephemeral-authority-successor.mjs
 run axis-parity-harness --requires current-binary-readiness -- node tests/acceptance/axis-parity-harness.mjs
 run regression-reconnect-nuke --requires current-binary-readiness -- node demos/_kit/tests/regression-reconnect-nuke.mjs
 run regression-fake-live --requires current-binary-readiness -- node demos/_kit/tests/regression-fake-live.mjs

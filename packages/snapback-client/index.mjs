@@ -1141,6 +1141,7 @@ const RESERVATION_RETRY_DIAGNOSTIC_RING_CAP = 256;
 const DEFAULT_RESERVATION_RETRY_MAX_ATTEMPTS = 40;
 const DEFAULT_RESERVATION_RETRY_JITTER_MILLISECONDS = Object.freeze([20, 80]);
 const AUTH_MODE_PENDING_RETRY_MAX_ATTEMPTS = 40;
+const EPHEMERAL_AUTHORITY_PENDING_RETRY_MAX_ATTEMPTS = 40;
 // A subscription registers its lane consumer before dispatching the snapshot
 // request, then buffers deltas until that snapshot arrives. Keep a hung request
 // from turning the temporary queue into an unbounded client-memory sink.
@@ -3246,6 +3247,7 @@ export class SnapbackClient {
     this.__authTerminalListeners = new Set();
     this.__authorityTransitionListeners = new Set();
     this.__authModePendingRetryDepth = 0;
+    this.__ephemeralAuthorityPendingRetryDepth = 0;
     this.__authTransportParticipant = {
       name: 'snapback-kit-transport',
       quiesce: (context = {}) => {
@@ -5733,6 +5735,7 @@ export class SnapbackClient {
     authAdmissionReference = null,
     authAdmissionOperation = null,
     authModePendingRetry = 0,
+    ephemeralAuthorityPendingRetry = 0,
   } = {}) {
     this.#assertAuthCountersAvailable();
     if (authAdmissionReference !== null) {
@@ -6071,6 +6074,7 @@ export class SnapbackClient {
           authAdmissionReference,
           authAdmissionOperation,
           authModePendingRetry,
+          ephemeralAuthorityPendingRetry,
         });
       }
       if (
@@ -6100,9 +6104,42 @@ export class SnapbackClient {
             authAdmissionReference,
             authAdmissionOperation,
             authModePendingRetry: authModePendingRetry + 1,
+            ephemeralAuthorityPendingRetry,
           });
         } finally {
           this.__authModePendingRetryDepth -= 1;
+          this.__notifyAuthorityTransitionStatus();
+        }
+      }
+      if (
+        code === 'SNAPBACK_EPHEMERAL_AUTHORITY_PENDING'
+        && error?.status === 503
+        && (path === '/ephemeral/subscribe' || path === '/ephemeral/publish')
+        && ephemeralAuthorityPendingRetry < EPHEMERAL_AUTHORITY_PENDING_RETRY_MAX_ATTEMPTS
+      ) {
+        // @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — password sign-in settles before the room read lane can occasionally observe its successor; these two refusals occur before any room registration or publish effect, so the client owns one finite successor wait instead of leaking it to app code.
+        this.__ephemeralAuthorityPendingRetryDepth += 1;
+        this.__notifyAuthorityTransitionStatus();
+        try {
+          await new Promise((resolve) => setTimeout(
+            resolve,
+            this.#reservationRetryDelayMilliseconds(),
+          ));
+          return await this.#request(method, path, body, headers, {
+            admin,
+            supersededRetry,
+            senderChallengeRetry,
+            expectedAuthorityCapture,
+            externalBearerTransitionPermit,
+            beforeTransportDispatch,
+            onTransportFailure,
+            authAdmissionReference,
+            authAdmissionOperation,
+            authModePendingRetry,
+            ephemeralAuthorityPendingRetry: ephemeralAuthorityPendingRetry + 1,
+          });
+        } finally {
+          this.__ephemeralAuthorityPendingRetryDepth -= 1;
           this.__notifyAuthorityTransitionStatus();
         }
       }
@@ -6146,6 +6183,7 @@ export class SnapbackClient {
             authAdmissionReference,
             authAdmissionOperation,
             authModePendingRetry,
+            ephemeralAuthorityPendingRetry,
           });
         }
         try { await this.#familyAlarmWithBearer(bearerUsed); } catch { /* named stolen-successor residual */ }
@@ -9435,13 +9473,18 @@ export class SnapbackClient {
 
   /** Settled-authority signal projected from the shared coordinator. */
   authorityTransitionStatus() {
-    const reconnecting = [...(this.__liveStreamManagers?.values?.() ?? [])].some((manager) => {
+    const ephemeralAuthorityPending = this.__ephemeralAuthorityPendingRetryDepth > 0;
+    const reconnecting = ephemeralAuthorityPending || [...(this.__liveStreamManagers?.values?.() ?? [])].some((manager) => {
       const inspection = manager.inspection();
       return inspection.closed !== true && inspection.socketDemand > 0 && !manager.isReady();
     });
     const modePending = this.__authModePendingRetryDepth > 0;
     if (typeof this.authorityFence?.authorityTransitionStatus === 'function') {
-      return this.authorityFence.authorityTransitionStatus({ reconnecting, modePending });
+      return this.authorityFence.authorityTransitionStatus({
+        reconnecting,
+        modePending,
+        ephemeralAuthorityPending,
+      });
     }
     let settled = false;
     try { settled = this.authorityFence === null || this.authorityFence.capture?.() !== null; } catch {}
@@ -9453,7 +9496,7 @@ export class SnapbackClient {
       state: classifyClientAuthorityState({ current, reconnecting, modePending }),
       settled,
       subscribeSafe: settled,
-      ephemeralAuthorityUsable: settled,
+      ephemeralAuthorityUsable: settled && !ephemeralAuthorityPending,
       transitionOwner: null,
       barrierPhase: null,
       authorityEpoch: null,
@@ -13919,6 +13962,11 @@ export class SnapbackClient {
     let cleanupTail = Promise.resolve();
     let currentSubscriptionId = null;
     let knownRetiredSubscriptionId = null;
+    // A same-mode watch reload keeps the stream carrier but retires each
+    // durable subscription. Preserve the predecessor id solely for the
+    // supersedes request; it is synchronously ineligible for delivery after
+    // the first scoped resync sentinel.
+    let resyncFencedSubscriptionId = null;
     let disposalTask = null;
     let unregisterOutboxBarrierProvider = () => {};
     // Cardinality alone cannot distinguish a lifecycle blank from a malformed
@@ -15767,6 +15815,10 @@ export class SnapbackClient {
       //   durable-lane answer and therefore may overtake the HTTP subscribe
       //   acknowledgement that names its new subscription id.
       if (bufferPreSubscribeDurable(update)) return;
+      if (
+        resyncFencedSubscriptionId !== null
+        && update.subscription_id === resyncFencedSubscriptionId
+      ) return;
       if (update.kind === LIVE_DURABLE_KINDS.AUTHORIZATION_INVALIDATION) {
         // Purge the persisted RQS copy, not just in-memory state (LLP 0090
         // D3 storage lifecycle). Auth-scoped data is never in the store, so
@@ -15969,6 +16021,18 @@ export class SnapbackClient {
           reportTerminalReuse(LIVE_DURABLE_KINDS.RESYNC_REQUIRED);
           return;
         }
+        // @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — an in-band watch reload is retain-stale + one successor: fence the predecessor before yielding, project the bounded resync state, and retain its id only as the supersedes witness for the fresh subscribe below.
+        if (typeof update.subscription_id === 'string') {
+          resyncFencedSubscriptionId = update.subscription_id;
+        }
+        needsResubscribe = true;
+        pendingResubscribeReason = resyncReason(update.reason);
+        if (handle.freshness !== null) {
+          handle.freshness = 'retained';
+          handle.answerClass = 'labeled-retained';
+        }
+        setConnection('stale');
+        syncLiveRegistrationAnswer();
         // clear_retained purges the persisted RQS copy too (LLP 0090 D3):
         // retained continuity is gone, so relaunch must not resume from it.
         if (update.clear_retained === true || update.clearRetained === true) {
@@ -15980,7 +16044,7 @@ export class SnapbackClient {
           }).answerClass;
           void removePersistedEntry();
         }
-        void resubscribe(resyncReason(update.reason));
+        void resubscribe(pendingResubscribeReason);
       }
     };
 
@@ -16160,7 +16224,11 @@ export class SnapbackClient {
         materializedSnapshot = await installMaterializationSnapshot(sub);
         const installed = await client.commitAuthorityPublication(responseCapture, () => {
           assertSubscribeLifecycle(lifecycle);
+          const predecessorSubscriptionId = currentSubscriptionId;
           currentSubscriptionId = sub.subscription_id;
+          if (resyncFencedSubscriptionId === predecessorSubscriptionId) {
+            resyncFencedSubscriptionId = null;
+          }
           knownRetiredSubscriptionId = null;
           // Any successful fresh subscribe supersedes an earlier denial
           // fact (0137 A1-Expo f4): the presented authority is authorized.

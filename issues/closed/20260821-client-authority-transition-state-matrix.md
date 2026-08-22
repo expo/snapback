@@ -5,7 +5,7 @@
 **Systems:** Client auth coordinator, Live queries, Mutations/outbox, React,
 Familiar projections, Headless/provider adapters, Diagnostics
 **Governing:** LLP 0295 D0.2/W2; LLP 0059; LLP 0107; LLP 0218
-**Related:** `issues/20260820-agent-auth-transition-residuals.md`;
+**Related:** `issues/closed/20260820-agent-auth-transition-residuals.md`;
 `issues/closed/20260820-optional-user-live-query-auth-transition-stall.md`;
 `issues/closed/20260820-authenticated-query-signed-out-settlement.md`;
 `issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`;
@@ -119,8 +119,8 @@ questions)":
 - [x] Watch-reload finite-HTTP row: no custody loss on transient
       `SNAPBACK_AUTH_MODE_PENDING`, production `reconnecting` projection, and
       full terminal discriminant. The real live-stream successor and tight-
-      loop awaited-sign-in/ephemeral witnesses remain open in
-      `issues/20260820-agent-auth-transition-residuals.md`.
+      loop awaited-sign-in/ephemeral witnesses were completed in
+      `issues/closed/20260820-agent-auth-transition-residuals.md`.
 - [x] `auth-barrier` blocked reason (beside shipped `custody-unsettled`) +
       level-triggered settle wakeup in the LLP 0218 drain; housekeeping lane
       split + declaration spelling + item-5-aligned strand/delete
