@@ -83,7 +83,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | sync.local-persistent-store | LLP 0166 v3 store/hydration per `clientStoreId`: trusted activation, completeness proof, preload, checked relaunch, and durable programmatic demand. `single_table_v1@1` may retain; protected classes need leases. IndexedDB/Node-file pass; memory refuses. Expo SQLite awaits device qualification; remote/Cloudflare are nonclaims. | retained render, materialization, completeness proof, hydration, preload, relaunch, result transform | local | partial | crates/snapback-engine/src/local-persistent-store-publication.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094, llp/0270 | sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention for generated JS/React live queries: exact namespace, atomic fresh-query/lease custody, equality expiry, and mismatch delete-before-render | offline auth browser, lease js, private chat offline | local | partial | packages/snapback-client/rqs-resume.test.mjs (custody matrix + fresh-client offline handoff) | llp/0043, llp/0053, llp/0129 | GAP (real-process restart witness; owner: orchestrator, review: 2026-08-26; issue: issues/20260801-js-arm-integrated-authenticated-restart-witness.md); sync/offline-and-retention.md |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | crates/snapback-engine/src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-28; issue: issues/20260802-0133-receipt-wire-coordination.md) |
-| api.external-exposure | Opt-in `/api/v1` + CORS; local OAuth/PKCE, remote MCP, capability links, durable watches, approval-gated effects, and read-only `ask` v1 with budgets/HMAC provenance. Telemetry is lossy, not billing. | external api, oauth, remote mcp, approval, effects, capability links, invite link, capture link, claim link, single-use token, deep link grant, share-to-view, watches, ask, near-data ai, api budgets | local | partial | route /effects + crates/snapback-kernel/src/storage/pending_effects.rs + route /api/v1/ask + crates/snapback-kernel/src/storage/ask_spend.rs | llp/0204, llp/0031, llp/0055, llp/0150 | backend/external-api.md |
+| api.external-exposure | Opt-in `/api/v1` + CORS; local OAuth/PKCE, remote MCP, capability links, durable watches, approval-gated effects, and read-only `ask` v1 with budgets/HMAC provenance. Telemetry is lossy, not billing. | external api, remote mcp, approval, effects, capability links, invite link, capture link, account claim link, capability single-use token, deep link grant, share-to-view, watches, ask, near-data ai, api budgets | local | partial | route /effects + crates/snapback-kernel/src/storage/pending_effects.rs + route /api/v1/ask + crates/snapback-kernel/src/storage/ask_spend.rs | llp/0204, llp/0031, llp/0055, llp/0150 | recipes/capability-links.md |
 | auth.sessions | Server-minted sessions; email-code and email+password login; server-derived principals | login, signin, identity, session, principal binding, app user table, identityBinding, who am I, am I signed in, whoami, currentAuthorizationScope, settledView | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.passwords | First-class session email+password: noninteractive signup/signin/change/set; server-side argon2id (19456/2/1) outside writer lock; bounded KDF concurrency; app-declared 8–128-byte password minimum (default 12, maximum 1024); declared testable lockout (10 failures→15 min); one-time self-serve recovery codes. Uniform refusal for wrong password/unknown identifier/locked; lock state never on wire. Catalog v4 required; v3 reports provider unready. Unready LLP 0045-prerequisite nonclaims: production blind-accept signup/mail reset. Local reset: capture-mailbox only. | password, email password, signup, password login, password auth, minimumLength, minimum password length, hash password, argon2, scrypt gateway, recovery codes, lockout, GoTrue, Supabase auth, password reset | local | shipped | route /auth/password/signin + `authPasswordSignIn` in packages/snapback-client/index.mjs | llp/0227, llp/0214, llp/0215, llp/0011 | auth/passwords.md |
 | auth.external-identity-broker | Local bridges: adopted bearer for headless/native, or trusted-server one-use exchange into browser coordinator custody; mint/capture remain dev/test/demo only | native login, external identity, broker, adopted bearer, browser external sign-in, signed assertion, issuer subject | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0024, llp/0057, llp/0096, llp/0151 | recipes/browser-auth.md |
@@ -135,7 +135,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | operating.packaged-dev-loop | Install native runtime; scaffold/generate/doctor/watch-load via one CLI. React/Vite starter: published and G1-qualified in the public `@expo/snapback-*` closure; guide/published-closure.json: newest published/qualified versions. Later than `newestQualified`: fast-path releases without their own qualification-arm receipt. | install, new app, create-snapback-app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health/inspect projections | status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys, config verification, verify config, config verify | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
-| operating.admin-console | Shipped browser debugger for Data, Functions, Realtime, Errors, Logs, capabilities, and guide docs, with master-derived fragment, device approval, and one-time operator claim-link handoffs | console, dashboard, admin link, claim link, remote browser, table inspection, browse table, table scan, inspect rows, see backend, debug backend, inspect function, inspect realtime, Expo debugging, React debugging | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
+| operating.admin-console | Shipped browser debugger for Data, Functions, Realtime, Errors, Logs, capabilities, and guide docs, with master-derived fragment, device approval, and one-time operator claim-link handoffs | console, dashboard, admin link, operator claim link, remote browser, table inspection, browse table, table scan, inspect rows, see backend, debug backend, inspect function, inspect realtime, Expo debugging, React debugging | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
 | operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, per-frame socket/poll markers, surface/principal activation provenance, and coalesced live deadlines | latency, slow network, network profile, delay, jitter, local-first testing | local | shipped | route /_snapback/api/debug/network-profile + host_ops.debug.networkProfileSet + demos/zero-bakeoff/protocol/environment.v2.json | llp/0167 | operating/network-profiles.md |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host ops | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
 | operating.agent-controls | Build/instance control discovery | controls list, controls describe, catalog, mcp-control, control mcp, agent setup, control tools | local | shipped | route /_snapback/api/control-catalog | llp/0184 | operating/agent-controls.md |
@@ -28263,7 +28263,7 @@ targets: [local]
 maturity: partial
 since: 0.1.24
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:885b8edd57d6288da4fe40c167bb702aec2aa6e4ede51b51b168dad548e35616
+reviewed-authorities-digest: sha256:dc636112af1bf4c02640204a13226a5e75261f71c7ea013eb578170b04bfaf6b
 ---
 
 # Recipe: capability links for Expo and web
@@ -28275,10 +28275,11 @@ reviewed-authorities-digest: sha256:885b8edd57d6288da4fe40c167bb702aec2aa6e4ede5
 > granted-operation links, identity-bearing links, and guest-session entry are
 > not shipped. Do not expose the local server through a public tunnel.
 
-Use this recipe for an expiring, revocable **share-to-view** URL whose target
-query is already callable by an anonymous user. It covers the full app journey:
-signed-in mint, share, crawler-safe inert `GET`, Expo/web intake, explicit
-`POST` invoke, use-count/replay handling, expiry, and revocation.
+Use this recipe for an expiring **share-to-view** URL whose target query is
+already callable by an anonymous user. The exact minting session can revoke it
+while that session remains current. The recipe covers signed-in mint, share,
+crawler-safe inert `GET`, Expo/web intake, explicit `POST` invoke,
+use-count/replay handling, expiry, and same-session revocation.
 
 The minted URL names the Snapback server origin. On another computer or phone,
 its loopback host names that recipient's device, not the development machine.
@@ -28343,9 +28344,18 @@ export const listTodos = defineLiveQuery({
 ```
 
 Capability-link storage and routes activate with `api.enabled` on a
-sessions-mode app. Exposure alone does not grant access: mint admission still
-checks that the signed-in issuer can invoke the exact function with the pinned
-arguments, and use admission revalidates the function and issuer lineage.
+sessions-mode app. V1 mint admission requires a live signed-in human session,
+an exposed function whose effective auth is `public` or `optional-user`, and a
+valid pinned/caller argument template. It does **not** ask whether the issuer
+could invoke a protected function through their session: even an exposed
+protected function the issuer can call directly is refused with
+`SNAPBACK_CAPABILITY_LINK_FUNCTION_NOT_ANONYMOUS`.
+
+Landing and invoke re-check that the API is enabled and the function remains
+exposed and anonymously callable. They also require an active, unexpired,
+unexhausted link and a still-live human minter principal. Use-time life follows
+the principal, not the minting session: refreshing, rotating, or ending that
+session does not kill an otherwise valid link.
 
 ## Mint and share from the issuer boundary
 
@@ -28362,7 +28372,7 @@ export async function mintShareLink(
   fetchImpl,
   serverOrigin,
   sessionBearer,
-  { expiresInMs = 3_600_000, uses = 1 } = {},
+  { functionName = 'listTodos', expiresInMs = 3_600_000, uses = 1 } = {},
 ) {
   const response = await fetchImpl(new URL('/capability-links', serverOrigin), {
     method: 'POST',
@@ -28375,7 +28385,7 @@ export async function mintShareLink(
       'x-snapback-auth-client-protocol': '1',
     },
     body: JSON.stringify({
-      function: 'listTodos',
+      function: functionName,
       pinnedArgs: {},
       callerArgs: [],
       expiresInMs,
@@ -28395,8 +28405,9 @@ export async function mintShareLink(
 
 Use `serverUrl` directly only when the recipient carrier can reach that exact
 server origin. Do not print it. The response also returns the safe management
-id `cplk_…`. Retain that id only if the issuer UI needs a later revoke button.
-The URL token itself must not enter durable app state.
+id `cplk_…`. Retain that id for a revoke button only while the exact minting
+session and authority instance remain current; a replacement session cannot
+use it. The URL token itself must not enter durable app state.
 
 For a supervised simulator/emulator app, construct a custom-scheme URL only by
 validating the minted server URL against the one configured origin and closed
@@ -28419,8 +28430,9 @@ able to reach a loopback server.
 
 The local target defaults to seven days and refuses expiry beyond thirty days.
 Set a shorter application-specific `expiresInMs` whenever possible. `uses: 1`
-is a **single-use token**. Omit `uses` for an expiry/revocation-bounded query
-link, or set a positive count for a bounded multi-use query link.
+is a **single-use token**. Omit `uses` for an expiry-bounded query link (with
+same-session revoke while that session remains current), or set a positive
+count for a bounded multi-use query link.
 
 For mutations/actions, `uses: 1` is required unless every use is approval-
 gated by the function declaration or mint request (`approval: true`). An
@@ -28469,34 +28481,55 @@ export function redirectSystemPath({ path }: { path: string; initial: boolean })
 ```
 
 The checked implementation runs before Expo Router creates navigation state.
-It moves a valid target into a process-local, one-use handoff and returns only
-the clean `/shared` route. A malformed token-bearing path returns the clean
-`/invalid-link` route; unrelated paths pass through unchanged.
+It moves a valid target into a process-local, one-use handoff and returns a
+changing clean route such as `/shared/1`. The sequence is not a secret and
+contains no token; changing it makes a second intent observable while the
+shared screen is already warm. A malformed token-bearing path returns the
+clean `/invalid-link` route; unrelated paths pass through unchanged.
 
 ```js source=scripts/check-guide-capability-link-example.mjs
+let nativeCapabilityHandoffSequence = 0;
 let pendingNativeCapabilityTarget = null;
 
 export function redirectCapabilitySystemPath({ path }, options) {
   const target = resolveCapabilityTarget(path, options);
   if (target !== null) {
-    pendingNativeCapabilityTarget = target;
-    return '/shared';
+    nativeCapabilityHandoffSequence += 1;
+    const handoffSequence = String(nativeCapabilityHandoffSequence);
+    pendingNativeCapabilityTarget = Object.freeze({ handoffSequence, target });
+    return `/shared/${handoffSequence}`;
   }
   if (typeof path === 'string' && path.includes('sbl_')) return '/invalid-link';
   return path;
 }
 
-export function takePendingNativeCapabilityTarget() {
-  const target = pendingNativeCapabilityTarget;
+export function takePendingNativeCapabilityTarget(handoffSequence) {
+  if (pendingNativeCapabilityTarget?.handoffSequence !== String(handoffSequence)) return null;
+  const { target } = pendingNativeCapabilityTarget;
   pendingNativeCapabilityTarget = null;
   return target;
 }
 ```
 
-The `/shared` screen calls `takePendingNativeCapabilityTarget()` exactly once,
-constructs `openCapabilityLink`, and renders analytics or other application
-subsystems only after that take. If it returns `null`, render the unavailable
-state. Do not mirror the handoff into params, navigation state, a React store,
+Implement the screen as `app/shared/[handoffSequence].tsx`. Take the pending
+target whenever that non-secret route parameter changes, not only on mount;
+then construct `openCapabilityLink` and render analytics or other application
+subsystems. This is the warm-start signal for a second share intent. If the
+take returns `null`, render the unavailable state.
+
+```tsx fragment reason="application-owned dynamic Expo Router screen wiring"
+const { handoffSequence } = useLocalSearchParams<{ handoffSequence: string }>();
+const handledHandoffSequence = useRef<string | null>(null);
+
+useEffect(() => {
+  if (handledHandoffSequence.current === handoffSequence) return;
+  handledHandoffSequence.current = handoffSequence;
+  const target = takePendingNativeCapabilityTarget(handoffSequence);
+  // Open target, or render unavailable when it is null.
+}, [handoffSequence]);
+```
+
+Do not mirror the secret target into params, navigation state, a React store,
 or durable storage. The checked parser accepts only one fixed server origin,
 one fixed web origin, one fixed Expo scheme, and the exact `sbl_` token shape;
 it rejects query strings, fragments, embedded credentials, foreign origins,
@@ -28555,13 +28588,22 @@ The initial web request still reaches your edge with the token path, so
 Neither native-intent rewriting nor `replaceState` can erase OS/browser share
 history, notification previews, clipboard history, or records retained by the
 channel that delivered the URL. Bound that residual exposure with the shortest
-practical expiry, a small use count, and issuer revocation.
+practical expiry, a small use count, and same-session issuer revocation while
+it remains available.
 
 ## Preview, then invoke only on a user action
 
 The checked controller keeps the token-bearing server URL only in a volatile
 closure. Its public snapshot contains only the server's bearer-free landing
 projection. Opening performs one `GET`; it never invokes automatically.
+
+Set `fetchImpl` to raw platform fetch, for example
+`globalThis.fetch.bind(globalThis)`, or to a wrapper proven never to add the
+coordinator bearer. Do not pass a `SnapbackClient` authenticated transport.
+The token is the complete credential on both landing and invoke: the server
+refuses **any** `Authorization` header on either request with
+`SNAPBACK_CAPABILITY_LINK_UNAVAILABLE`, even when the bearer is otherwise a
+valid signed-in session.
 
 ```js source=scripts/check-guide-capability-link-example.mjs
 async function requestCapability(fetchImpl, url, method, args) {
@@ -28640,7 +28682,14 @@ export async function openCapabilityLink(rawUrl, options) {
 
 Create this controller after URL intake. Render `controller.snapshot()` and
 wire `controller.invoke({})` to a button press; never call it in a mount effect,
-route loader, preview render, or link listener.
+route loader, preview render, or link listener. Pass only raw fetch:
+
+```js fragment reason="application-owned controller construction"
+const controller = await openCapabilityLink(rawUrl, {
+  ...capabilityLinkOptions,
+  fetchImpl: globalThis.fetch.bind(globalThis),
+});
+```
 
 | State | UI | Network behavior |
 | --- | --- | --- |
@@ -28652,14 +28701,21 @@ route loader, preview render, or link listener.
 
 After a multi-use invocation, the controller performs another inert `GET` to
 refresh `remainingUses`. A successful single-use invocation clears the target
-locally. A server-side expiry, exhausted use count, direct revocation, or dead
-minter lineage returns the same
+locally. A server-side expiry, exhausted use count, successful same-session
+revocation, or deactivated minter principal returns the same
 `SNAPBACK_CAPABILITY_LINK_UNAVAILABLE`; the app must not distinguish them.
 
-The issuer revokes with `DELETE /capability-links/{id}` using the same exact
-minting session/authority instance. Revocation is immediate at the next
-landing/invoke gate. Keep `id` and token roles separate: management uses the
-safe id; recipients use the secret URL.
+The issuer can revoke with `DELETE /capability-links/{id}` only from the exact
+minting session and authority instance. A successful same-session revoke is
+immediate at the next landing/invoke gate. After refresh, rotation, or sign-out,
+a replacement session gets `SNAPBACK_CAPABILITY_LINK_REVOKE_DENIED`; the link
+does not die and remains usable until expiry, use exhaustion, or minter-
+principal deactivation. Treat revoke as a same-session convenience, not a
+durable issuer control. Bound every link with the shortest practical
+`expiresInMs` and a small `uses` count.
+
+Keep `id` and token roles separate: management uses the safe id; recipients use
+the secret URL.
 
 ```js source=scripts/check-guide-capability-link-example.mjs
 export async function revokeShareLink(fetchImpl, serverOrigin, sessionBearer, id) {
@@ -28681,9 +28737,10 @@ export async function revokeShareLink(fetchImpl, serverOrigin, sessionBearer, id
 ```
 
 The issuer bearer remains in its existing custody boundary; only the safe
-management id crosses into the revoke-button state. After revocation, a
-recipient's next `refresh()` or `invoke()` converges on `unavailable` without
-revealing whether revocation, expiry, exhaustion, or lineage caused it.
+management id crosses into the revoke-button state. After a successful
+same-session revocation, a recipient's next `refresh()` or `invoke()` converges
+on `unavailable` without revealing whether revocation, expiry, exhaustion, or
+principal deactivation caused it.
 
 ## Run the executable proof
 
@@ -28694,14 +28751,17 @@ node scripts/check-guide-capability-link-example.mjs
 ```
 
 It generates a sessions/API fixture, boots the configured native Snapback
-runtime, signs in, and proves against the real routes that repeated crawler
-`GET` is inert; explicit `POST` consumes uses; exhausted server-side replay,
-an injected expiry boundary, and real `DELETE` revocation converge on the same
-unavailable diagnostic; and every mint/token/management response carries
-`Cache-Control: no-store` and `Referrer-Policy: no-referrer`. It also proves
-that Expo native-intent rewriting gives the router only a clean route, the
-volatile handoff is one-use, web scrubbing precedes opening, capability
-requests send no `Authorization`, and public UI state contains no token.
+runtime, signs in, and proves against the real routes that protected functions
+fail the v1 anonymous mint gate; repeated crawler `GET` is inert; any
+`Authorization` on token `GET`/`POST` is refused; explicit raw-fetch `POST`
+consumes uses; exhausted server-side replay, an injected expiry boundary, and
+real same-session `DELETE` revocation converge on the unavailable diagnostic;
+another session cannot revoke; ending the minting session does not kill the
+link; and every mint/token/management response carries `Cache-Control:
+no-store` and `Referrer-Policy: no-referrer`. It also proves that cold and warm
+Expo native-intent rewriting gives the router only changing clean non-secret
+routes, each volatile handoff is one-use, web scrubbing precedes opening, and
+public UI state contains no token.
 
 ## Anti-patterns
 
@@ -28712,6 +28772,8 @@ requests send no `Authorization`, and public UI state contains no token.
   deep link grant. Guest entry remains unshipped and awaits owner review.
 - Putting the token in `Authorization`, client auth custody, durable storage,
   logs, analytics, crash reports, query parameters, redirects, or referrers.
+- Reusing an authenticated client transport for landing/invoke, or assuming a
+  replacement session can revoke a link minted by an earlier session.
 - Adding a capability-link `Linking` listener beside a router or another URL
   consumer; intercept and strip at the exclusive pre-navigation boundary.
 - Treating a loopback server URL or custom-scheme wrapper as a public or
@@ -30134,12 +30196,12 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-capability-link-catalog-corrupt"></a>`SNAPBACK_CAPABILITY_LINK_CATALOG_CORRUPT` | capabilities | — | — | `crates/snapback-kernel/src/storage/capability_links.rs:644` | 4 |
 | <a id="diagnostic-snapback-capability-link-expiry-invalid"></a>`SNAPBACK_CAPABILITY_LINK_EXPIRY_INVALID` | capabilities | 400 | — | `crates/snapback-server/src/server.rs:25808` | 2 |
 | <a id="diagnostic-snapback-capability-link-function-invalid"></a>`SNAPBACK_CAPABILITY_LINK_FUNCTION_INVALID` | capabilities | 404 | — | `crates/snapback-engine/src/local/engine.rs:10871` | 2 |
-| <a id="diagnostic-snapback-capability-link-function-not-anonymous"></a>`SNAPBACK_CAPABILITY_LINK_FUNCTION_NOT_ANONYMOUS` | capabilities | 403 | — | `crates/snapback-engine/src/local/engine.rs:10882` | 2 |
+| <a id="diagnostic-snapback-capability-link-function-not-anonymous"></a>`SNAPBACK_CAPABILITY_LINK_FUNCTION_NOT_ANONYMOUS` | capabilities | 403 | [guide](../recipes/capability-links.md#expose-one-anonymous-query) | `crates/snapback-engine/src/local/engine.rs:10882` | 2 |
 | <a id="diagnostic-snapback-capability-link-input-invalid"></a>`SNAPBACK_CAPABILITY_LINK_INPUT_INVALID` | capabilities | 400 | — | `crates/snapback-kernel/src/storage/capability_links.rs:636` | 4 |
 | <a id="diagnostic-snapback-capability-link-limit-exceeded"></a>`SNAPBACK_CAPABILITY_LINK_LIMIT_EXCEEDED` | capabilities | 429 | — | `crates/snapback-server/src/server.rs:25521` | 2 |
 | <a id="diagnostic-snapback-capability-link-minter-invalid"></a>`SNAPBACK_CAPABILITY_LINK_MINTER_INVALID` | capabilities | 403 | — | `crates/snapback-kernel/src/storage/capability_links.rs:443` | 2 |
 | <a id="diagnostic-snapback-capability-link-mutation-approval-required"></a>`SNAPBACK_CAPABILITY_LINK_MUTATION_APPROVAL_REQUIRED` | capabilities | 403 | — | `crates/snapback-server/src/server.rs:25892` | 2 |
-| <a id="diagnostic-snapback-capability-link-revoke-denied"></a>`SNAPBACK_CAPABILITY_LINK_REVOKE_DENIED` | capabilities | 403 | — | `crates/snapback-kernel/src/storage/capability_links.rs:618` | 3 |
+| <a id="diagnostic-snapback-capability-link-revoke-denied"></a>`SNAPBACK_CAPABILITY_LINK_REVOKE_DENIED` | capabilities | 403 | [guide](../recipes/capability-links.md#preview-then-invoke-only-on-a-user-action) | `crates/snapback-kernel/src/storage/capability_links.rs:618` | 3 |
 | <a id="diagnostic-snapback-capability-link-unavailable"></a>`SNAPBACK_CAPABILITY_LINK_UNAVAILABLE` | capabilities | 404 | [guide](../recipes/capability-links.md#preview-then-invoke-only-on-a-user-action) | `crates/snapback-engine/src/local/admission_fence_tests.rs:1077` | 8 |
 | <a id="diagnostic-snapback-capability-miniflare-missing"></a>`SNAPBACK_CAPABILITY_MINIFLARE_MISSING` | capabilities | — | — | `crates/snapback-conformance/src/bin/snapback-conformance-twin.rs:810` | 2 |
 | <a id="diagnostic-snapback-capability-unsupported"></a>`SNAPBACK_CAPABILITY_UNSUPPORTED` | capabilities | — | [guide](../backend/streamed-actions.md#read-the-refusal-codes) | `crates/snapback-engine/src/local/engine.rs:7125` | 28 |

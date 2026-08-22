@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:7468d80906d84d14b1788f92fdb9cc367e1c288c8bbf87c5567cbf837268a8f8"
+    "sourceDigest": "sha256:5c9a445e04374d30bc526b3ffcf1b2f3007906a49394fe9c84e634693051b23f"
   },
   "limits": {
     "lookupBytes": 16384
@@ -12,7 +12,7 @@
     "sourceFiles": 588,
     "emittingSites": 11965,
     "httpClassified": 1030,
-    "guideAnchored": 431
+    "guideAnchored": 433
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -32199,8 +32199,10 @@
       ],
       "httpStatus": 403,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/recipes/capability-links.md#expose-one-anonymous-query",
+      "guideAnchors": [
+        "/_snapback/guide/recipes/capability-links.md#expose-one-anonymous-query"
+      ]
     },
     "SNAPBACK_CAPABILITY_LINK_INPUT_INVALID": {
       "code": "SNAPBACK_CAPABILITY_LINK_INPUT_INVALID",
@@ -32314,8 +32316,10 @@
       ],
       "httpStatus": 403,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/recipes/capability-links.md#preview-then-invoke-only-on-a-user-action",
+      "guideAnchors": [
+        "/_snapback/guide/recipes/capability-links.md#preview-then-invoke-only-on-a-user-action"
+      ]
     },
     "SNAPBACK_CAPABILITY_LINK_UNAVAILABLE": {
       "code": "SNAPBACK_CAPABILITY_LINK_UNAVAILABLE",

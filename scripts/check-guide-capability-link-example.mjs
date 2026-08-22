@@ -134,21 +134,26 @@ export async function openCapabilityLink(rawUrl, options) {
 
 // Expo Router calls this from app/+native-intent.tsx before it creates route
 // state. The secret target stays in this process-local, one-use handoff while
-// the router sees only /shared. No additive Linking listener receives it.
+// the router sees only a changing non-secret sequence. No additive Linking
+// listener receives the token.
+let nativeCapabilityHandoffSequence = 0;
 let pendingNativeCapabilityTarget = null;
 
 export function redirectCapabilitySystemPath({ path }, options) {
   const target = resolveCapabilityTarget(path, options);
   if (target !== null) {
-    pendingNativeCapabilityTarget = target;
-    return '/shared';
+    nativeCapabilityHandoffSequence += 1;
+    const handoffSequence = String(nativeCapabilityHandoffSequence);
+    pendingNativeCapabilityTarget = Object.freeze({ handoffSequence, target });
+    return `/shared/${handoffSequence}`;
   }
   if (typeof path === 'string' && path.includes('sbl_')) return '/invalid-link';
   return path;
 }
 
-export function takePendingNativeCapabilityTarget() {
-  const target = pendingNativeCapabilityTarget;
+export function takePendingNativeCapabilityTarget(handoffSequence) {
+  if (pendingNativeCapabilityTarget?.handoffSequence !== String(handoffSequence)) return null;
+  const { target } = pendingNativeCapabilityTarget;
   pendingNativeCapabilityTarget = null;
   return target;
 }
@@ -170,7 +175,7 @@ export async function mintShareLink(
   fetchImpl,
   serverOrigin,
   sessionBearer,
-  { expiresInMs = 3_600_000, uses = 1 } = {},
+  { functionName = 'listTodos', expiresInMs = 3_600_000, uses = 1 } = {},
 ) {
   const response = await fetchImpl(new URL('/capability-links', serverOrigin), {
     method: 'POST',
@@ -183,7 +188,7 @@ export async function mintShareLink(
       'x-snapback-auth-client-protocol': '1',
     },
     body: JSON.stringify({
-      function: 'listTodos',
+      function: functionName,
       pinnedArgs: {},
       callerArgs: [],
       expiresInMs,
@@ -270,6 +275,22 @@ async function mintSignedInSession(server) {
   return credential.token;
 }
 
+async function logoutSignedInSession(server, sessionBearer) {
+  const response = await fetch(`${server.baseUrl}/auth/logout`, {
+    method: 'POST',
+    credentials: 'omit',
+    cache: 'no-store',
+    referrerPolicy: 'no-referrer',
+    headers: {
+      authorization: `Bearer ${sessionBearer}`,
+      'content-type': 'application/json',
+      'x-snapback-auth-client-protocol': '1',
+    },
+    body: '{}',
+  });
+  assert.equal(response.status, 204, JSON.stringify(await responseJson(response)));
+}
+
 function injectExpiredBoundary(databasePath, id, nowMs) {
   const database = new DatabaseSync(databasePath);
   try {
@@ -308,7 +329,10 @@ export default defineSchema({
   auth: { mode: 'sessions', agents: { mode: 'disabled' } },
   api: {
     enabled: true,
-    functions: { listTodos: { expose: true, since: 'v1' } },
+    functions: {
+      listTodos: { expose: true, since: 'v1' },
+      listProtectedTodos: { expose: true, since: 'v1' },
+    },
     origins: ['https://example.com:8443'],
   },
 });
@@ -321,6 +345,12 @@ export const listTodos = defineLiveQuery({
   filter: [eq('title', lit('fixed'))],
   auth: 'public',
   authorityIndependent: true,
+});
+export const listProtectedTodos = defineLiveQuery({
+  table: 'todos',
+  index: 'by_title',
+  filter: [eq('title', lit('fixed'))],
+  auth: 'authenticated',
 });
 `);
     const generated = await generate(backendRoot);
@@ -360,6 +390,34 @@ export const listTodos = defineLiveQuery({
       assertResponseControls(response, `${init.method} ${new URL(address).pathname}`);
       return response;
     };
+
+    const protectedMint = await checkedFetch(
+      new URL('/capability-links', server.baseUrl),
+      {
+        method: 'POST',
+        credentials: 'omit',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+        headers: {
+          authorization: `Bearer ${sessionBearer}`,
+          'content-type': 'application/json',
+          'x-snapback-auth-client-protocol': '1',
+        },
+        body: JSON.stringify({
+          function: 'listProtectedTodos',
+          pinnedArgs: {},
+          callerArgs: [],
+          expiresInMs: 3_600_000,
+          uses: 1,
+        }),
+      },
+    );
+    assert.equal(protectedMint.status, 403);
+    assert.equal(
+      (await responseJson(protectedMint))?.diagnostic?.code,
+      'SNAPBACK_CAPABILITY_LINK_FUNCTION_NOT_ANONYMOUS',
+      'issuer authority on an exposed protected function is not a v1 mint gate',
+    );
 
     const repeatable = await mintShareLink(
       checkedFetch,
@@ -413,6 +471,29 @@ export const listTodos = defineLiveQuery({
     assert.equal((await responseJson(revoked))?.diagnostic?.code, UNAVAILABLE);
 
     const controllerLink = await mintShareLink(checkedFetch, server.baseUrl, sessionBearer);
+    for (const [method, suffix, body] of [
+      ['GET', '', undefined],
+      ['POST', '/invoke', JSON.stringify({ args: {} })],
+    ]) {
+      const tokenRequestWithAuthorization = await fetch(`${controllerLink.serverUrl}${suffix}`, {
+        method,
+        credentials: 'omit',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+        headers: {
+          authorization: `Bearer ${sessionBearer}`,
+          ...(method === 'POST' ? { 'content-type': 'application/json' } : {}),
+        },
+        body,
+      });
+      assertResponseControls(tokenRequestWithAuthorization, `${method} token Authorization refusal`);
+      assert.equal(tokenRequestWithAuthorization.status, 404);
+      assert.equal(
+        (await responseJson(tokenRequestWithAuthorization))?.diagnostic?.code,
+        UNAVAILABLE,
+        `token ${method} must refuse every Authorization header`,
+      );
+    }
     const controller = await openCapabilityLink(controllerLink.serverUrl, {
       ...options,
       fetchImpl: checkedFetch,
@@ -425,10 +506,31 @@ export const listTodos = defineLiveQuery({
     assert.equal(observed.length, callsBeforeLocalReplay, 'terminal UI replay performs no request');
 
     const expoUrl = toExpoCapabilityUrl(controllerLink.serverUrl, options);
-    assert.equal(redirectCapabilitySystemPath({ path: expoUrl }, options), '/shared');
-    const handedOff = takePendingNativeCapabilityTarget();
+    const firstHandoffPath = redirectCapabilitySystemPath({ path: expoUrl }, options);
+    assert.match(firstHandoffPath, /^\/shared\/\d+$/u);
+    assert.equal(firstHandoffPath.includes('sbl_'), false);
+    const firstHandoffSequence = firstHandoffPath.split('/').at(-1);
+    const handedOff = takePendingNativeCapabilityTarget(firstHandoffSequence);
     assert.equal(handedOff, controllerLink.serverUrl);
-    assert.equal(takePendingNativeCapabilityTarget(), null, 'native handoff is one-use');
+    assert.equal(
+      takePendingNativeCapabilityTarget(firstHandoffSequence),
+      null,
+      'native handoff is one-use',
+    );
+
+    const warmStartLink = await mintShareLink(checkedFetch, server.baseUrl, sessionBearer);
+    const warmStartPath = redirectCapabilitySystemPath(
+      { path: toExpoCapabilityUrl(warmStartLink.serverUrl, options) },
+      options,
+    );
+    assert.match(warmStartPath, /^\/shared\/\d+$/u);
+    assert.notEqual(warmStartPath, firstHandoffPath, 'a second intent changes the clean route');
+    assert.equal(warmStartPath.includes('sbl_'), false);
+    assert.equal(
+      takePendingNativeCapabilityTarget(warmStartPath.split('/').at(-1)),
+      warmStartLink.serverUrl,
+      'a second intent while already shared reaches the warm screen',
+    );
     assert.equal(
       redirectCapabilitySystemPath({ path: `messtimate://share/${FIXTURE_TOKEN}?leak=1` }, options),
       '/invalid-link',
@@ -453,6 +555,40 @@ export const listTodos = defineLiveQuery({
     ]) {
       assert.equal(resolveCapabilityTarget(rejected, options), null);
     }
+
+    const sessionEndedLink = await mintShareLink(
+      checkedFetch,
+      server.baseUrl,
+      sessionBearer,
+      { uses: 2 },
+    );
+    const replacementSessionBearer = await mintSignedInSession(server);
+    const wrongSessionRevoke = await fetch(
+      new URL(`/capability-links/${encodeURIComponent(sessionEndedLink.id)}`, server.baseUrl),
+      {
+        method: 'DELETE',
+        credentials: 'omit',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+        headers: {
+          authorization: `Bearer ${replacementSessionBearer}`,
+          'x-snapback-auth-client-protocol': '1',
+        },
+      },
+    );
+    assertResponseControls(wrongSessionRevoke, 'replacement-session DELETE refusal');
+    assert.equal(wrongSessionRevoke.status, 403);
+    assert.equal(
+      (await responseJson(wrongSessionRevoke))?.diagnostic?.code,
+      'SNAPBACK_CAPABILITY_LINK_REVOKE_DENIED',
+    );
+    await logoutSignedInSession(server, sessionBearer);
+    const afterMinterLogout = await invoke(sessionEndedLink.serverUrl);
+    assert.equal(
+      afterMinterLogout.response.status,
+      200,
+      'ending the minting session must not kill a v1 link with a live minter principal',
+    );
   } finally {
     await server?.stop();
     await rm(scratch, { recursive: true, force: true });
@@ -460,4 +596,4 @@ export const listTodos = defineLiveQuery({
 }
 
 await realBackendAcceptance();
-console.log('check-guide-capability-link-example: real signed-in mint, inert GET, POST consumption, server replay refusal, injected expiry boundary, DELETE revocation, response controls, and pre-router token hygiene pass');
+console.log('check-guide-capability-link-example: v1 anonymous mint predicates, inert GET, raw-fetch Authorization refusal, POST consumption, server replay refusal, expiry, same-session revocation, session-end survival, response controls, and cold/warm pre-router token hygiene pass');
