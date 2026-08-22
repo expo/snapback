@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:d36af46626c7cf6004ba1c504264924ede56ec673dc3
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:4019df751c6e37751f5ab84824b37aa0ea3a726c8bd5ee74516f75677f01ebbb`.
+`sha256:2dc51c7548a69f76a72b34e7d6a3d190c033abfa6f5030097b5ae34fe6770978`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -38,7 +38,7 @@ Symbols: 4 total; 3 runtime values; 1 type-only.
 
 Stable identity: `npm:@expo/snapback-client/online#bindSnapbackAppLifecycle`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2144`
+Source: `packages/snapback-client/index.d.mts:2160`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function bindSnapbackAppLifecycle(
@@ -59,7 +59,7 @@ export function bindSnapbackAppLifecycle(
 
 Stable identity: `npm:@expo/snapback-client/online#createExternalSessionClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2140`
+Source: `packages/snapback-client/index.d.mts:2156`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createExternalSessionClient(
@@ -73,7 +73,7 @@ export function createExternalSessionClient(
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1640`
+Source: `packages/snapback-client/index.d.mts:1656`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {

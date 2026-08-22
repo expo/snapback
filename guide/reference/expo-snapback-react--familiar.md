@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:41cdea18b0261f575ce41636013df6596d005816bf16
 # @expo/snapback-react/familiar
 
 Build-bound public API projection for `@expo/snapback-react/familiar`. Canonical registry identity:
-`sha256:4019df751c6e37751f5ab84824b37aa0ea3a726c8bd5ee74516f75677f01ebbb`.
+`sha256:2dc51c7548a69f76a72b34e7d6a3d190c033abfa6f5030097b5ae34fe6770978`.
 Runtime parity condition:
 `import` → `packages/snapback-react/familiar.mjs`.
 
@@ -180,7 +180,7 @@ export type SkipSentinel = typeof skipSentinelType & Readonly<{
 
 Stable identity: `npm:@expo/snapback-react/familiar#SnapbackProvider`
 Kind: `runtime-function`
-Source: `packages/snapback-react/index.d.mts:501`
+Source: `packages/snapback-react/index.d.mts:551`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function SnapbackProvider(props: SnapbackProviderProps): any;
@@ -204,7 +204,7 @@ export function useAction<Ref extends FamiliarActionReference>(
 
 Stable identity: `npm:@expo/snapback-react/familiar#useAuth`
 Kind: `runtime-function`
-Source: `packages/snapback-react/index.d.mts:510`
+Source: `packages/snapback-react/index.d.mts:560`
 
 Stable projection of the framework-neutral application's auth facade.
 
@@ -217,7 +217,7 @@ export function useSnapbackAuth(): SnapbackAuthFacade;
 
 Stable identity: `npm:@expo/snapback-react/familiar#useCurrentPrincipal`
 Kind: `runtime-function`
-Source: `packages/snapback-react/index.d.mts:507`
+Source: `packages/snapback-react/index.d.mts:557`
 
 Exact LLP 0238 current-principal projection from the ordinary app owner.
 Official providers withhold hook consumers until ready. Custom SSR trees
@@ -260,7 +260,7 @@ export function useQuery<Ref extends FamiliarLiveQueryReference>(
 
 Stable identity: `npm:@expo/snapback-react/familiar#useQueryState`
 Kind: `runtime-function`
-Source: `packages/snapback-react/index.d.mts:512`
+Source: `packages/snapback-react/index.d.mts:562`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function useSnapbackQuery<Ref extends QueryReference>(
